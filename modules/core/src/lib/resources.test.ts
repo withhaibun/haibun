@@ -89,13 +89,13 @@ describe("LinkRelations extensions", () => {
 	});
 
 	it("getRelRange returns the correct range for each rel", () => {
-		expect(getRelRange("inReplyTo")).toBe("iri");
-		expect(getRelRange("wasInformedBy")).toBe("iri");
-		expect(getRelRange("madeBySensor")).toBe("iri");
-		expect(getRelRange("phenomenonTime")).toBe("literal");
-		expect(getRelRange("discourse")).toBe("literal");
-		expect(getRelRange("context")).toBe("container");
-		expect(getRelRange("hasResult")).toBe("container");
+		expect(getRelRange(LinkRelations.IN_REPLY_TO.rel)).toBe("iri");
+		expect(getRelRange(LinkRelations.WAS_INFORMED_BY.rel)).toBe("iri");
+		expect(getRelRange(LinkRelations.MADE_BY_SENSOR.rel)).toBe("iri");
+		expect(getRelRange(LinkRelations.PHENOMENON_TIME.rel)).toBe("literal");
+		expect(getRelRange(LinkRelations.DISCOURSE.rel)).toBe("literal");
+		expect(getRelRange(LinkRelations.CONTEXT.rel)).toBe("container");
+		expect(getRelRange(LinkRelations.HAS_RESULT.rel)).toBe("container");
 	});
 
 	it("getRelRange returns undefined for unknown rels", () => {

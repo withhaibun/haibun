@@ -8,6 +8,7 @@
 
 import type { TWorld } from "./execution.js";
 import { emitQuadObservation } from "./quad-types.js";
+import { LinkRelations } from "./resources.js";
 
 export const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;
 
@@ -84,4 +85,6 @@ export function trackHttpRequest(world: TWorld, observation: THttpRequestObserva
 	const subject = `${observation.method} ${path}`;
 	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-name`, { subject, predicate: "name", object: `${observation.method} ${observation.status} ${observation.time}ms`, namedGraph, timestamp });
 	if (namedGraph !== OBSERVATION_GRAPH.EXTERNAL) emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-endpoint`, { subject, predicate: "endpoint", object: endpointPath, namedGraph, timestamp });
+	const seqPath = world.runtime.currentSeqPath;
+	if (seqPath) emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-seqPath`, { subject, predicate: LinkRelations.SEQ_PATH.rel, object: seqPath, namedGraph, timestamp });
 }

@@ -62,6 +62,14 @@ export type TRuntime = {
 	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
 	exhaustionError?: string;
 	/**
+	 * The seqPath of the step currently executing, formatted as "0.1.2.10".
+	 * Set by dispatchStep around the action invocation; read by emission
+	 * sites that want to link their writes back to the originating step.
+	 * Use the helper `linkToCurrentSeqPath` from step-dispatch.js rather
+	 * than reading this directly.
+	 */
+	currentSeqPath?: string;
+	/**
 	 * Monotonic counter for synthetic seqPaths produced by external-protocol
 	 * entry points (MCP) that have no caller seqPath to thread. See
 	 * `syntheticSeqPath(hostId, adHocSeq)` in host-id.ts — synthetic paths

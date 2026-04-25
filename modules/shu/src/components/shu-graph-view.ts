@@ -52,23 +52,24 @@ const StateSchema = z.object({
 });
 
 const STYLES = `
-:host { display: block; overflow: auto; height: 100%; }
+:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 :host(:not([data-show-controls])) .toolbar { display: none; }
-.toolbar { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; flex-wrap: wrap; }
+.toolbar { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; flex-wrap: wrap; flex-shrink: 0; background: #fff; z-index: 10; }
 .toolbar button { padding: 2px 8px; cursor: pointer; }
 .toolbar label { font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 2px; }
-.diagram-container { overflow: auto; padding: 8px; }
+.graph-scroll { flex: 1; overflow: auto; }
+.diagram-container { padding: 8px; }
 .diagram-container .node rect, .diagram-container .node polygon { cursor: pointer; }
 .diagram-container .nodeLabel { text-align: left !important; }
-.diagram-container .node, .diagram-container .edgePath, .diagram-container .edgeLabel, .diagram-container .cluster { transition: opacity 0.15s; }
+.diagram-container .node, .diagram-container .edgePath, .diagram-container .edgeLabel, .diagram-container .cluster, .diagram-container .edgePaths path { transition: opacity 0.15s; }
 .diagram-container path.edge-pattern-dotted { stroke-dasharray: 8 4 !important; stroke-width: 1.5px !important; opacity: 0.7; }
 .zoom-label { color: #666; }
 .quad-count { color: #888; margin-left: auto; }
 .empty { padding: 16px; color: #888; text-align: center; }
 .graph-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
 .diagram-container.filter-highlight .node, .diagram-container.filter-highlight .cluster { opacity: 0.1; }
-.diagram-container.filter-highlight .edgePath, .diagram-container.filter-highlight .edgeLabel { opacity: 0; }
-.diagram-container.filter-highlight .filter-match { opacity: 1; }
+.diagram-container.filter-highlight .edgePath, .diagram-container.filter-highlight .edgeLabel, .diagram-container.filter-highlight .edgePaths path { opacity: 0; }
+.diagram-container.filter-highlight .filter-match { opacity: 1 !important; }
 `;
 
 const HIDDEN_GRAPHS_COOKIE = "shu-graph-hidden";
@@ -95,6 +96,12 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	private lastMermaidSource = "";
 	private initialized = false;
 	private relPredicateMap = new Map<string, Set<string>>();
+	/** SVG node rawId → element, populated by bindNodeClicks. */
+	private svgNodeElements = new Map<string, Element>();
+	/** SVG node rawId → set of connected edge elements (paths + labels), populated by bindNodeClicks. */
+	private svgNodeEdgeElements = new Map<string, Set<Element>>();
+	/** Structured edge list built by bindNodeClicks for filter hover lookups. */
+	private svgEdges: Array<{ pathEl: Element; labelEl: Element | null; fromId: string; toId: string; labelText: string }> = [];
 
 	/** Provide quads externally — sets dataSource to external, skipping RPC. */
 	setQuads(quads: TQuad[]): void {
@@ -234,8 +241,10 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			<span class="quad-count">${visibleQuads.length} quads</span>
 		</div>`;
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}
-			<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
-				<div id="${this.diagramId}"></div>
+			<div class="graph-scroll">
+				<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
+					<div id="${this.diagramId}"></div>
+				</div>
 			</div>`;
 
 		this.bindToolbar();
@@ -247,7 +256,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			btn.addEventListener("click", () => {
 				const action = (btn as HTMLElement).dataset.action;
 				if (action === "zoom-in" || action === "zoom-out") {
-					const zoom = action === "zoom-in" ? Math.min(200, this.state.zoom + 10) : Math.max(10, this.state.zoom - 10);
+					const zoom = action === "zoom-in" ? this.state.zoom + 10 : Math.max(1, this.state.zoom - 10);
 					this.state.zoom = zoom;
 					const container = this.shadowRoot?.querySelector(".diagram-container") as HTMLElement | null;
 					if (container) container.style.transform = `scale(${zoom / 100})`;
@@ -295,15 +304,21 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 						const node = el.closest(".node") ?? el.closest(".cluster");
 						if (node) node.classList.add("filter-match");
 					});
+					// Also highlight edges connecting to/from nodes in this graph
+					for (const [rawId, entry] of this.currentNodeMap) {
+						if (entry.graph !== graphName) continue;
+						this.svgNodeEdgeElements.get(rawId)?.forEach((el) => el.classList.add("filter-match"));
+					}
 				}
 				if (relName) {
-					container.querySelectorAll(".edgeLabel").forEach((el) => {
-						if (el.textContent?.trim() === relName || this.edgeRelToPredicates(relName).has(el.textContent?.trim() ?? "")) {
-							el.classList.add("filter-match");
-							const edgeId = el.closest("[id]")?.getAttribute("id")?.replace("flowchart-", "").replace(/-\d+$/, "");
-							if (edgeId) container.querySelectorAll(`[id*="${edgeId}"]`).forEach((e) => e.classList.add("filter-match"));
-						}
-					});
+					const predicates = this.edgeRelToPredicates(relName);
+					for (const edge of this.svgEdges) {
+						if (edge.labelText !== relName && !predicates.has(edge.labelText)) continue;
+						edge.pathEl.classList.add("filter-match");
+						if (edge.labelEl) edge.labelEl.classList.add("filter-match");
+						this.svgNodeElements.get(edge.fromId)?.classList.add("filter-match");
+						this.svgNodeElements.get(edge.toId)?.classList.add("filter-match");
+					}
 				}
 			});
 			label?.addEventListener("mouseleave", () => this.clearFilterHighlight());
@@ -421,6 +436,39 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 							}
 						});
 					}
+					break;
+				}
+			}
+		});
+
+		// Promote maps to instance properties for use by filter hover handlers
+		this.svgNodeElements = nodeElements;
+		this.svgNodeEdgeElements = nodeEdgeElements;
+		this.svgEdges = [];
+		svg.querySelectorAll("path.flowchart-link").forEach((path) => {
+			const pid = path.getAttribute("id") ?? "";
+			const lIdx = pid.indexOf("-L_");
+			if (lIdx < 0) return;
+			const body = pid.slice(lIdx + 3, pid.lastIndexOf("_"));
+			for (let i = 1; i < body.length; i++) {
+				if (body[i] !== "_") continue;
+				const from = body.slice(0, i);
+				const to = body.slice(i + 1);
+				if (allNodeIds.has(from) && allNodeIds.has(to)) {
+					const edgePath = path.closest(".edgePath") ?? path;
+					const edgeIdx = pid.match(/-(\d+)$/)?.[1];
+					let labelEl: Element | null = null;
+					let labelText = "";
+					if (edgeIdx) {
+						edgeGroups.forEach((el) => {
+							const eid = el.getAttribute("id") ?? "";
+							if (eid.endsWith(`-${edgeIdx}`)) {
+								labelEl = (el.closest(".edgeLabel") ?? el) as Element;
+								labelText = el.textContent?.trim() ?? "";
+							}
+						});
+					}
+					this.svgEdges.push({ pathEl: edgePath, labelEl, fromId: from, toId: to, labelText });
 					break;
 				}
 			}

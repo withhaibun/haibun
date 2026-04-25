@@ -10,6 +10,8 @@ import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { doStepperCycle } from "./stepper-cycles.js";
+import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 
 /**
  * A registered step tool — the unit of dispatch for any transport (MCP, SSE, etc.).
@@ -302,6 +304,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
 	if (isLifecycle) {
+		await emitSeqPathStart(world, featureStep);
+		await emitSeqPathEnd(world, featureStep, true);
 		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
 	}
 
@@ -332,30 +336,37 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	stepUsage.set(usageKey, (stepUsage.get(usageKey) ?? 0) + 1);
 
 	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync,);
+	await emitSeqPathStart(world, featureStep);
+	const previousSeqPath = world.runtime.currentSeqPath;
+	world.runtime.currentSeqPath = featureStep.seqPath.join(".");
 	let actionResult: TActionResult;
 	let ok = true;
 	let lastStepResult: TStepResult;
-	let doAction = true;
-	while (doAction) {
-		await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-		actionResult = await tool.handler(featureStep, world);
-		if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
-			world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+	try {
+		let doAction = true;
+		while (doAction) {
+			await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+			actionResult = await tool.handler(featureStep, world);
+			if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
+				world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+			}
+			lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
+			world.runtime.stepResults.push(lastStepResult);
+			const instructions: TAfterStepResult[] = await doStepperCycle(
+				steppers,
+				"afterStep",
+				<TAfterStep>{ featureStep, actionResult },
+				action.actionName,
+			);
+			doAction = instructions.some((i) => i?.rerunStep);
+			if (instructions.some((i) => i?.failed)) {
+				ok = false;
+			} else if (instructions.some((i) => i?.nextStep)) {
+				actionResult = { ...actionResult, ok: true };
+			}
 		}
-		lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
-		world.runtime.stepResults.push(lastStepResult);
-		const instructions: TAfterStepResult[] = await doStepperCycle(
-			steppers,
-			"afterStep",
-			<TAfterStep>{ featureStep, actionResult },
-			action.actionName,
-		);
-		doAction = instructions.some((i) => i?.rerunStep);
-		if (instructions.some((i) => i?.failed)) {
-			ok = false;
-		} else if (instructions.some((i) => i?.nextStep)) {
-			actionResult = { ...actionResult, ok: true };
-		}
+	} finally {
+		world.runtime.currentSeqPath = previousSeqPath;
 	}
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);
@@ -374,6 +385,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	lastStepResult.ok = ok;
 
 	const end = Timer.since();
+	await emitSeqPathEnd(world, featureStep, ok);
 	world.eventLogger.emit(
 		DispatchTraceArtifact.parse({
 			id: `dispatch.${featureStep.seqPath.join(".")}`,
@@ -606,4 +618,39 @@ export function discoverSteps(
 	}
 	const concerns = buildConcernCatalog(world.domains);
 	return { steps, domains, concerns };
+}
+
+/**
+ * Emit a SeqPath vertex on step entry so child vertices created during the
+ * step can link back to it as a real graph edge. Status and endedAtTime are
+ * updated by `emitSeqPathEnd` after the action completes.
+ */
+async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep): Promise<void> {
+	const store = world.shared.getStore();
+	const id = formatSeqPath(featureStep.seqPath);
+	// Sequential, not Promise.all: graph-store.set is read-modify-write per subject;
+	// concurrent calls on the same id race (all read same `existing`, then last-write-wins).
+	await store.set(id, SEQ_PATH_FIELD.stepText, featureStep.in, SEQ_PATH_LABEL);
+	await store.set(id, SEQ_PATH_FIELD.actionStatus, SEQ_PATH_STATUS.running, SEQ_PATH_LABEL);
+	await store.set(id, SEQ_PATH_FIELD.startedAtTime, new Date().toISOString(), SEQ_PATH_LABEL);
+	if (featureStep.source?.path) {
+		await store.set(id, SEQ_PATH_FIELD.path, featureStep.source.path, SEQ_PATH_LABEL);
+	}
+	if (featureStep.seqPath.length > 1) {
+		const parentId = formatSeqPath(featureStep.seqPath.slice(0, -1));
+		await store.set(id, LinkRelations.PART_OF.rel, parentId, SEQ_PATH_LABEL);
+		const lastIndex = featureStep.seqPath[featureStep.seqPath.length - 1];
+		if (lastIndex > 0) {
+			const previousSiblingId = formatSeqPath([...featureStep.seqPath.slice(0, -1), lastIndex - 1]);
+			await store.set(id, LinkRelations.PRECEDED_BY.rel, previousSiblingId, SEQ_PATH_LABEL);
+		}
+	}
+}
+
+async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, ok: boolean): Promise<void> {
+	const store = world.shared.getStore();
+	const id = formatSeqPath(featureStep.seqPath);
+	const status = ok ? SEQ_PATH_STATUS.passed : SEQ_PATH_STATUS.failed;
+	await store.set(id, SEQ_PATH_FIELD.actionStatus, status, SEQ_PATH_LABEL);
+	await store.set(id, SEQ_PATH_FIELD.endedAtTime, new Date().toISOString(), SEQ_PATH_LABEL);
 }
