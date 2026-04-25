@@ -121,7 +121,29 @@ export const DISCOURSE = {
 	apply: "apply",
 	revert: "revert",
 	play: "play",
+	petition: "petition",
+	grant: "grant",
+	deny: "deny",
+	invoke: "invoke",
+	revoke: "revoke",
 } as const;
+
+/** Visual icon per discourse value. Renderers (e.g., the SHU SPA Comment view) prefix Comments with the icon. Avoids ✅/❌ which are reserved for step pass/fail. */
+export const discourseIcon: Record<string, string> = {
+	suggest: "💡",
+	measure: "📊",
+	report: "📝",
+	narrate: "💬",
+	question: "❓",
+	apply: "🔧",
+	revert: "⏪",
+	play: "▶️",
+	petition: "🙋",
+	grant: "🪪",
+	deny: "⛔",
+	invoke: "⚡",
+	revoke: "↩️",
+};
 
 const DISCOURSE_VALUES = Object.values(DISCOURSE) as [string, ...string[]];
 
