@@ -38,12 +38,12 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Open monitor column via step" }),
 		"The show monitor step triggers the SPA to open a monitor log stream column.",
-		...passesStepExecution("show monitor", {}),
+		...passesStepExecution("MonitorStepper-showMonitor", {}),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
 		scenario({ scenario: "Open sequence diagram via step" }),
 		"The show sequence diagram step triggers the SPA to open a sequence diagram column.",
-		...passesStepExecution("show sequence diagram", {}),
+		...passesStepExecution("MonitorStepper-showSequenceDiagram", {}),
 		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
 	],
 };

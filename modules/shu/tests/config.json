@@ -10,8 +10,8 @@
 		"@haibun/web-playwright/web-playwright",
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/shu/shu-stepper",
-		"@haibun/shu/monitor-stepper",
 		"@haibun/shu/tutorial-graph-stepper",
+		"@haibun/shu/monitor-stepper",
 		"@haibun/monitor-tui"
 	]
 }
