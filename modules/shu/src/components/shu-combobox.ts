@@ -196,6 +196,14 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 					this.pick(items[this._focusIndex]);
 				} else if (items.length === 1) {
 					this.pick(items[0]);
+				} else if (items.length > 1) {
+					// Multiple substring matches: prefer an exact value or label match
+					// before giving up. Without this an Enter on a fully-typed unique
+					// stepName silently no-ops when an unrelated option happens to
+					// substring-match too.
+					const q = this.state.filterText;
+					const exact = items.find((o) => o.value === q || o.label === q);
+					if (exact) this.pick(exact);
 				}
 			} else if (e.key === "Escape") {
 				this.close();
