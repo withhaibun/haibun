@@ -153,7 +153,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
 			const hydration = JSON.stringify({ events: this.events, rpcCache, viewHash });
 			const bundle = loadBundle();
-			let html = buildSpaHtml(".", bundle, hydration);
+			const extraScripts = Object.values(this.getWorld().domains)
+				.map((d) => (d?.ui as Record<string, unknown> | undefined)?.jsContent)
+				.filter((c): c is string => typeof c === "string" && c.length > 0);
+			let html = buildSpaHtml(".", bundle, hydration, extraScripts);
 			const secrets = await this.getWorld().shared.getSecrets();
 			for (const [, value] of Object.entries(secrets)) {
 				if (value) html = html.replaceAll(value, OBSCURED_VALUE);

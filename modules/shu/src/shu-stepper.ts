@@ -14,19 +14,17 @@ import type { Context } from "@haibun/web-server-hono/defs.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-let cachedBundle: string | undefined;
 export function loadBundle(): string {
-	if (cachedBundle) return cachedBundle;
 	const bundlePath = join(__dirname, "..", "build", "shu-bundle.js");
 	try {
-		cachedBundle = readFileSync(bundlePath, "utf-8");
+		return readFileSync(bundlePath, "utf-8");
 	} catch {
-		cachedBundle = 'document.getElementById("shu-main").innerHTML = "<div>SPA bundle not found. Run: npm run build in @haibun/shu</div>";';
+		return 'document.getElementById("shu-main").innerHTML = "<div>SPA bundle not found. Run: npm run build in @haibun/shu</div>";';
 	}
-	return cachedBundle;
 }
 
-export function buildSpaHtml(basePath: string, bundle: string, hydration: string): string {
+export function buildSpaHtml(basePath: string, bundle: string, hydration: string, extraScripts: string[] = []): string {
+	const extraTags = extraScripts.filter((s) => s.length > 0).map((s) => `  <script>${s.replaceAll("</", "<\\/")}</script>`).join("\n");
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,6 +48,7 @@ export function buildSpaHtml(basePath: string, bundle: string, hydration: string
     </main>
   </div>
   <script type="application/json" id="shu-hydration">${hydration.replaceAll("</", "<\\/")}</script>
+${extraTags}
   <script>${bundle}</script>
 </body>
 </html>`;

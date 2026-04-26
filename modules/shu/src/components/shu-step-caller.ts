@@ -112,7 +112,18 @@ export class StepCaller extends HTMLElement {
 			const method = this.descriptor.method;
 			this.result = await inAction((scope) => client.rpc(scope, method, params));
 			// If products contain a view, open the corresponding column
-			const view = (this.result as Record<string, unknown>)?.view;
+			const result = this.result as Record<string, unknown>;
+			const extractView = (value: unknown, depth = 0): string | undefined => {
+				if (depth > 6 || !value || typeof value !== "object") return undefined;
+				const rec = value as Record<string, unknown>;
+				if (typeof rec.view === "string" && VIEW_EVENTS[rec.view]) return rec.view;
+				for (const nested of Object.values(rec)) {
+					const found = extractView(nested, depth + 1);
+					if (found) return found;
+				}
+				return undefined;
+			};
+			const view = extractView(result);
 			if (typeof view === "string" && VIEW_EVENTS[view]) {
 				this.dispatchEvent(new CustomEvent(VIEW_EVENTS[view], { bubbles: true, composed: true }));
 			}

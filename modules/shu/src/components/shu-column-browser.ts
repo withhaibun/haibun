@@ -365,6 +365,12 @@ export class ShuColumnBrowser extends HTMLElement {
 			fields[k] = String(v ?? "");
 		}
 
+		const isStub = Object.values(fields).filter((v) => String(v ?? "").length > 0).length <= 1;
+		if (isStub) {
+			const id = vertexId(vertex);
+			return `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(lbl)}</span><span class="entity-id">${esc(id)}</span></div>`;
+		}
+
 		const detailRows = Object.entries(fields)
 			.filter(([k]) => !summaryFieldSet.has(k))
 			.map(
@@ -416,8 +422,8 @@ export class ShuColumnBrowser extends HTMLElement {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-						.map((b, i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
-						.join("")}</div>`
+					.map((b, i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
+					.join("")}</div>`
 				: "";
 
 		const active = available[0];
@@ -654,6 +660,9 @@ const COLUMN_STYLES = `
 	.detail-toggle { cursor: pointer; color: #aaa; font-size: 0.8em; padding: 2px 0; }
 	.detail-toggle:hover { color: #555; }
 	.entity-summary { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 2px 0 4px; color: #555; font-size: 0.9em; flex-shrink: 0; }
+	.entity-header { display: flex; gap: 8px; align-items: baseline; padding: 2px 0 4px; }
+	.entity-type { font-weight: 600; color: #555; }
+	.entity-id { color: #333; font-family: monospace; font-size: 0.85em; word-break: break-all; }
 	.summary-field:first-child { font-weight: 500; }
 	.content-toolbar { display: flex; gap: 4px; padding: 2px 4px; flex-shrink: 0; align-items: center; }
 	.content-switcher { display: flex; gap: 4px; flex-shrink: 0; }

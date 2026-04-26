@@ -21,6 +21,7 @@ export type DomainInfo = {
 	values?: string[];
 	stepperName?: string;
 	vertexLabel?: string;
+	ui?: Record<string, unknown>;
 };
 
 export type DomainOption = {
@@ -57,6 +58,7 @@ const DomainInfoSchema = z
 		values: z.array(z.string()).optional(),
 		stepperName: z.string().optional(),
 		vertexLabel: z.string().optional(),
+		ui: z.record(z.string(), z.unknown()).optional(),
 	})
 	.strict();
 
@@ -170,7 +172,7 @@ async function discover(): Promise<StepListResponse> {
 	const result = await client.rpcOpen<unknown>("step.list");
 	const parsed: StepListResponse = StepListResponseSchema.parse(result);
 	const { steps, domains, concerns } = parsed;
-	setConcernCatalog(concerns);
+	setConcernCatalog(concerns, domains);
 	for (const [label, vertex] of Object.entries(concerns.vertices)) {
 		if (/^\s*\[.*\]\s*$/.test(vertex.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${vertex.label}`);
 	}

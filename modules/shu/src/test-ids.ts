@@ -71,4 +71,7 @@ export const SHU_TEST_IDS = {
 	GRAPH_VIEW: {
 		ROOT: "graph-view-toolbar",
 	},
+	FISHEYE_VIEW: {
+		ROOT: "fisheye-graph-view-root",
+	},
 } as const;
