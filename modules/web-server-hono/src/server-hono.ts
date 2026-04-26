@@ -41,10 +41,11 @@ export class ServerHono implements IWebServer {
 		this._app = new Hono({ router: new LinearRouter() });
 		this._app.post("/stop", (c) => {
 			this.eventLogger.info("Received /stop — shutting down");
-			setTimeout(() => {
-				void this.close();
-				process.exit(0);
-			}, 100);
+			// Defer the signal so the response is fully flushed first. Emitting
+			// SIGTERM to self lets every installed shutdown handler run (e.g. a
+			// persistent graph store flushing WAL) — `process.exit` would skip them
+			// and risk on-disk corruption.
+			setTimeout(() => process.kill(process.pid, "SIGTERM"), 100);
 			return c.json({ stopped: true });
 		});
 	}
