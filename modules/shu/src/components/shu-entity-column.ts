@@ -15,7 +15,7 @@ import { EntityColumnSchema } from "../schemas.js";
 import { renderValue } from "./value-renderers.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
-import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields, getContentFields } from "../rels-cache.js";
+import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields } from "../rels-cache.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -113,11 +113,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			return;
 		}
 
-		// Content fields (e.g. body, bodyHtml, markdown) are rendered in an iframe — exclude from field table
-		const contentFieldSet = new Set(Object.keys(getContentFields(vertexLabel) ?? {}));
+		// Content (Body sub-resources) lives under `_bodies` and renders separately
+		// in an iframe; underscore-prefixed projections are excluded from the field
+		// table by the same rule.
 		const fields: Record<string, string | string[]> = {};
 		for (const [k, v] of Object.entries(this.vertex)) {
-			if (k.startsWith("_") || contentFieldSet.has(k) || HIDDEN_PROPS.has(k)) continue;
+			if (k.startsWith("_") || HIDDEN_PROPS.has(k)) continue;
 			if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object") continue; // handled separately as items table
 			fields[k] = Array.isArray(v) ? (v as string[]).map(String) : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v ?? "");
 		}
@@ -255,27 +256,32 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${replyHtml}</div>`;
 	}
 
-	/** Render content iframe for the first available contentField, with a switcher if multiple exist. */
-	private renderContentIframe(vertexLabel: string): string {
+	/**
+	 * Render the linked Body sub-resources (`vertex._bodies`) as a single
+	 * content iframe with a switcher if multiple formats exist. Dispatches
+	 * on each Body's `mediaType` triple — same path for Comment markdown,
+	 * Email plain/html/markdown, Proposal rationale, File markdown, etc.
+	 */
+	private renderContentIframe(_vertexLabel: string): string {
 		const vertex = this.vertex;
 		if (!vertex) return "";
-		const fieldFormats = getContentFields(vertexLabel) ?? {};
-		const available = Object.entries(fieldFormats).filter(([f]) => vertex[f]);
+		const bodies = (vertex._bodies as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+		const available = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
 		if (available.length === 0) return "";
 
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-						.map(([f], i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`)
+						.map((b, i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
 						.join("")}</div>`
 				: "";
 
-		const [activeField, activeFormat] = available[0];
-		const raw = String(vertex[activeField] ?? "");
-		const content = renderContentHtml(raw, activeFormat);
+		const active = available[0];
+		const raw = String(active.content ?? "");
+		const content = renderContentHtml(raw, String(active.mediaType));
 		const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
 		const encoded = utf8ToBase64(doc);
-		const iframeHtml = `<iframe class="body-iframe" data-field="${escAttr(activeField)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
+		const iframeHtml = `<iframe class="body-iframe" data-body-id="${escAttr(String(active.id ?? ""))}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
 		const copyBtn = copyButtonHtml(raw);
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}</div>`;
@@ -373,22 +379,22 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			});
 		});
 
-		// Content field switcher buttons
+		// Body switcher buttons — dispatch on the linked Body's mediaType.
 		this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((btn) => {
 			btn.addEventListener("click", () => {
-				const field = (btn as HTMLElement).dataset.field;
-				if (!field || !this.vertex) return;
+				const bodyId = (btn as HTMLElement).dataset.bodyId;
+				if (!bodyId || !this.vertex) return;
 				this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
 				btn.classList.add("active");
-				const formats = getContentFields(this.state.vertexLabel) ?? {};
-				const format = formats[field];
-				if (!format) return;
-				const raw = String(this.vertex[field] ?? "");
-				const content = renderContentHtml(raw, format);
+				const bodies = (this.vertex._bodies as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+				const body = bodies.find((b) => String(b.id ?? "") === bodyId);
+				if (!body || typeof body.content !== "string" || typeof body.mediaType !== "string") return;
+				const raw = body.content;
+				const content = renderContentHtml(raw, body.mediaType);
 				const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
 				const iframe = this.shadowRoot?.querySelector(".body-iframe") as HTMLIFrameElement | null;
 				if (iframe) {
-					iframe.dataset.field = field;
+					iframe.dataset.bodyId = bodyId;
 					iframe.src = `data:text/html;base64,${utf8ToBase64(doc)}`;
 				}
 			});

@@ -360,6 +360,8 @@ export type TDomainDefinition = {
 	stepperName?: string;
 	/** Vertex topology — label, id, property rels, edges, indexes. Undefined for non-vertex domains. */
 	topology?: TDomainTopology;
+	/** UI metadata: slot, component, JS source, etc. Consumed by hypermedia renderers (e.g. SHU SPA). */
+	ui?: Record<string, unknown>;
 };
 
 export type TRegisteredDomain = {
@@ -371,6 +373,7 @@ export type TRegisteredDomain = {
 	description?: string;
 	stepperName?: string;
 	topology?: TDomainTopology;
+	ui?: Record<string, unknown>;
 };
 
 // ============================================================================

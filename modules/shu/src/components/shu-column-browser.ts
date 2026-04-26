@@ -11,7 +11,7 @@ import { renderValue } from "./value-renderers.js";
 import { queryUriToPayload } from "../query-uri.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, requireStep, findStep } from "../rpc-registry.js";
-import { getRels, getRelSync, getContentFields, getSummaryFields } from "../rels-cache.js";
+import { getRels, getRelSync, getSummaryFields } from "../rels-cache.js";
 import { defaultLabel } from "../util.js";
 import { Access } from "@haibun/core/lib/resources.js";
 
@@ -357,12 +357,11 @@ export class ShuColumnBrowser extends HTMLElement {
 		if (!col.vertex) return '<div class="no-results">No data.</div>';
 		const vertex = col.vertex;
 		const lbl = col.vertexLabel ?? vertexLabel(vertex);
-		const contentFieldSet = new Set(Object.keys(getContentFields(lbl) ?? {}));
 		const summaryFieldSet = getSummaryFields(lbl);
 
 		const fields: Record<string, string> = {};
 		for (const [k, v] of Object.entries(vertex)) {
-			if (contentFieldSet.has(k) || HIDDEN_PROPS.has(k)) continue;
+			if (k.startsWith("_") || HIDDEN_PROPS.has(k)) continue;
 			fields[k] = String(v ?? "");
 		}
 
@@ -409,23 +408,24 @@ export class ShuColumnBrowser extends HTMLElement {
 		`;
 	}
 
-	private renderContentIframe(vertex: VertexData, lbl: string): string {
-		const fieldFormats = getContentFields(lbl) ?? {};
-		const available = Object.entries(fieldFormats).filter(([f]) => vertex[f]);
+	private renderContentIframe(vertex: VertexData, _lbl: string): string {
+		const bodies = (vertex._bodies as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+		const available = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
 		if (available.length === 0) return "";
 
 		const switcherHtml =
 			available.length > 1
-				? `<div class="content-switcher">${available.map(([f], i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`).join("")}</div>`
+				? `<div class="content-switcher">${available
+						.map((b, i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
+						.join("")}</div>`
 				: "";
 
-		// Only render the first (active) content field — no hidden iframes making requests
-		const [activeField, activeFormat] = available[0];
-		const raw = String(vertex[activeField] ?? "");
-		const content = renderContentHtml(raw, activeFormat);
+		const active = available[0];
+		const raw = String(active.content ?? "");
+		const content = renderContentHtml(raw, String(active.mediaType));
 		const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
 		const encoded = utf8ToBase64(doc);
-		const iframeHtml = `<iframe class="body-iframe" data-field="${escAttr(activeField)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
+		const iframeHtml = `<iframe class="body-iframe" data-body-id="${escAttr(String(active.id ?? ""))}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
 		const copyBtn = copyButtonHtml(raw);
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}</div>`;
@@ -440,11 +440,9 @@ export class ShuColumnBrowser extends HTMLElement {
 		return col.results
 			.map((v) => {
 				const id = vertexId(v);
-				const lbl = col.vertexLabel ?? vertexLabel(v);
-				const contentFieldSet = new Set(Object.keys(getContentFields(lbl) ?? {}));
 				const idField = id;
 				const summary = Object.entries(v)
-					.filter(([k, val]) => !HIDDEN_PROPS.has(k) && !contentFieldSet.has(k) && String(val ?? "") !== idField)
+					.filter(([k, val]) => !k.startsWith("_") && !HIDDEN_PROPS.has(k) && String(val ?? "") !== idField)
 					.slice(0, 3)
 					.map(([k, val]) => `${this.clickableValue(k, index, "describedby")}: ${this.clickableValue(String(val ?? ""), index, "filter", k)}`)
 					.join(", ");
@@ -485,11 +483,11 @@ export class ShuColumnBrowser extends HTMLElement {
 	}
 
 	private bindEvents(): void {
-		// Content field switcher — re-renders the single iframe with the selected field
+		// Body switcher — re-renders the single iframe with the selected Body sub-resource.
 		this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((btn) => {
 			btn.addEventListener("click", () => {
-				const field = (btn as HTMLElement).dataset.field;
-				if (!field) return;
+				const bodyId = (btn as HTMLElement).dataset.bodyId;
+				if (!bodyId) return;
 				const container = (btn as HTMLElement).closest(".body-container");
 				if (!container) return;
 				container.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
@@ -497,16 +495,15 @@ export class ShuColumnBrowser extends HTMLElement {
 				const colIdx = parseInt((btn.closest(".column") as HTMLElement)?.dataset.colIndex ?? "0", 10);
 				const col = this.columns[colIdx];
 				if (!col?.vertex) return;
-				const lbl = col.label;
-				const formats = getContentFields(lbl) ?? {};
-				const format = formats[field];
-				if (!format) return;
-				const raw = String(col.vertex[field] ?? "");
-				const content = renderContentHtml(raw, format);
+				const bodies = (col.vertex._bodies as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+				const body = bodies.find((b) => String(b.id ?? "") === bodyId);
+				if (!body || typeof body.content !== "string" || typeof body.mediaType !== "string") return;
+				const raw = body.content;
+				const content = renderContentHtml(raw, body.mediaType);
 				const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
 				const iframe = container.querySelector("iframe");
 				if (iframe) {
-					iframe.dataset.field = field;
+					iframe.dataset.bodyId = bodyId;
 					iframe.src = `data:text/html;base64,${utf8ToBase64(doc)}`;
 				}
 			});
