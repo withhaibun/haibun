@@ -61,7 +61,7 @@ export function vertexLabel(v: Record<string, unknown>): string {
 }
 
 /** Properties hidden from query/column display (large or internal). */
-export const HIDDEN_PROPS = new Set(["accessLevel", "body", "bodyHtml", "bodyMarkdown", "markdown", "uid"]);
+export const HIDDEN_PROPS = new Set(["accessLevel", "body", "bodyHtml", "bodyMarkdown", "markdown", "uid", "vertexLabel"]);
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
