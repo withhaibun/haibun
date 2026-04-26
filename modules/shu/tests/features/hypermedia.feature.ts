@@ -41,7 +41,7 @@ export const features: TKirejiExport = {
 
 		...enterStepMode,
 		"Create Tim Berners-Lee as a Researcher.",
-		...passesStepExecution("create vertex", {
+		...passesStepExecution("TutorialGraphStepper-createVertex", {
 			label: '"Researcher"',
 			id: '"berners-lee"',
 			data: json({
@@ -52,7 +52,7 @@ export const features: TKirejiExport = {
 		}),
 
 		"Create Manu Sporny as a Researcher.",
-		...passesStepExecution("create vertex", {
+		...passesStepExecution("TutorialGraphStepper-createVertex", {
 			label: '"Researcher"',
 			id: '"sporny"',
 			data: json({
@@ -63,7 +63,7 @@ export const features: TKirejiExport = {
 		}),
 
 		"Create the Linked Data Platform paper.",
-		...passesStepExecution("create vertex", {
+		...passesStepExecution("TutorialGraphStepper-createVertex", {
 			label: '"Paper"',
 			id: '"paper-ldp"',
 			data: json({
@@ -74,7 +74,7 @@ export const features: TKirejiExport = {
 		}),
 
 		"Create the JSON-LD 1.1 specification paper.",
-		...passesStepExecution("create vertex", {
+		...passesStepExecution("TutorialGraphStepper-createVertex", {
 			label: '"Paper"',
 			id: '"paper-jsonld"',
 			data: json({
@@ -85,14 +85,14 @@ export const features: TKirejiExport = {
 		}),
 
 		"Link researchers to their papers via edges.",
-		...passesStepExecution("create edge", {
+		...passesStepExecution("TutorialGraphStepper-createEdge", {
 			fromLabel: '"Researcher"',
 			fromId: '"berners-lee"',
 			rel: '"attributedTo"',
 			toLabel: '"Paper"',
 			toId: '"paper-ldp"',
 		}),
-		...passesStepExecution("create edge", {
+		...passesStepExecution("TutorialGraphStepper-createEdge", {
 			fromLabel: '"Researcher"',
 			fromId: '"sporny"',
 			rel: '"attributedTo"',
@@ -101,7 +101,7 @@ export const features: TKirejiExport = {
 		}),
 
 		"Link LDP paper to JSON-LD as a reference.",
-		...passesStepExecution("create edge", {
+		...passesStepExecution("TutorialGraphStepper-createEdge", {
 			fromLabel: '"Paper"',
 			fromId: '"paper-ldp"',
 			rel: '"inReplyTo"',

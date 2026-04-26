@@ -43,6 +43,23 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				return OK;
 			},
 		},
+		setValue: {
+			gwta: `enter {what} into {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+			action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
+				await wp.withPage(async (page: Page) => {
+					const locator = await wp.locateByDomain(page, featureStep, "field");
+					const tag = await locator.evaluate((el) => el.tagName.toLowerCase());
+					if (tag === "select") {
+						await locator.selectOption({ value: what }).catch(async () => {
+							await locator.selectOption({ label: what });
+						});
+					} else {
+						await locator.fill(what);
+					}
+				});
+				return OK;
+			},
+		},
 		selectionOption: {
 			gwta: `select {option} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ option, field }: { option: string; field: string }, featureStep: TFeatureStep) => {

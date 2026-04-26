@@ -24,7 +24,7 @@ export function stepTestIds(inputParams: string[]): string[] {
 }
 
 export function createStepUI(wp: WebPlaywright) {
-	const { waitFor, click, inputVariable, selectionOption } = withAction(wp);
+	const { waitFor, click, setValue, selectionOption } = withAction(wp);
 	const { setAs } = withAction(new VariablesStepper());
 
 	const enterStepMode: TKirejiStep[] = [
@@ -49,7 +49,12 @@ export function createStepUI(wp: WebPlaywright) {
 			waitFor({ target: optionTestId }),
 			click({ target: optionTestId }),
 			...(paramEntries.length > 0
-				? [waitFor({ target: CURRENT_INPUT(paramEntries[0][0]) }), ...paramEntries.map(([name, value]) => inputVariable({ what: value, field: CURRENT_INPUT(name) }))]
+				? [
+						waitFor({ target: CURRENT_INPUT(paramEntries[0][0]) }),
+						// Use setValue so the helper doesn't have to know whether the rendered
+						// param is an <input> or a <select>: setValue dispatches by element type.
+						...paramEntries.map(([name, value]) => setValue({ what: value, field: CURRENT_INPUT(name) })),
+					]
 				: []),
 			click({ target: CURRENT_RUN }),
 			"page has settled",
