@@ -5,6 +5,7 @@ export const SHU_EVENT = {
 	COLUMN_OPEN_FILTER: "column-open-filter",
 	COLUMN_OPEN_MONITOR: "column-open-monitor",
 	COLUMN_OPEN_SEQUENCE: "column-open-sequence",
+	COLUMN_OPEN_FISHEYE: "column-open-fisheye",
 	COLUMN_OPEN_RELATED: "column-open-related",
 	COLUMN_OPEN_GRAPH: "column-open-graph",
 	COLUMN_OPEN_STEP: "column-open-step",
@@ -34,6 +35,7 @@ export const SHU_EVENT = {
 export const VIEW_EVENTS: Record<string, string> = {
 	monitor: SHU_EVENT.COLUMN_OPEN_MONITOR,
 	sequence: SHU_EVENT.COLUMN_OPEN_SEQUENCE,
+	fisheye: SHU_EVENT.COLUMN_OPEN_FISHEYE,
 	graph: SHU_EVENT.COLUMN_OPEN_GRAPH,
 	document: SHU_EVENT.COLUMN_OPEN_DOCUMENT,
 };

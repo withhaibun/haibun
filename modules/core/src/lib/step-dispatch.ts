@@ -555,6 +555,7 @@ export type DomainDiscoveryInfo = {
 	values?: string[];
 	stepperName?: string;
 	vertexLabel?: string;
+	ui?: Record<string, unknown>;
 };
 
 export type StepDiscovery = {
@@ -614,6 +615,7 @@ export function discoverSteps(
 			values,
 			stepperName: domain.stepperName,
 			vertexLabel: domain.topology?.vertexLabel,
+			ui: domain.ui,
 		};
 	}
 	const concerns = buildConcernCatalog(world.domains);

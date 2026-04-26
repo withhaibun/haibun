@@ -10,6 +10,7 @@ import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { SseClient } from "./sse-client.js";
+import { getSiteMetadataSync } from "./rels-cache.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
@@ -241,11 +242,31 @@ const main = async (): Promise<void> => {
 	);
 
 	// Monitor column — open log stream and/or sequence diagram
+	const ensureUiComponentLoaded = (childTag: string): Promise<void> => {
+		if (customElements.get(childTag)) return Promise.resolve();
+		const meta = getSiteMetadataSync();
+		const ui = (meta?.ui?.[childTag] ?? {}) as Record<string, unknown>;
+		const js = typeof ui.js === "string" ? ui.js : "";
+		if (!js) return Promise.resolve();
+		const src = js.startsWith("/") ? js : `/${js}`;
+		return new Promise((resolve) => {
+			const script = document.createElement("script");
+			script.src = src;
+			script.onload = () => resolve();
+			script.onerror = (err) => {
+				console.warn(`[shu] failed to load UI component ${childTag} from ${src}:`, err);
+				resolve();
+			};
+			document.head.appendChild(script);
+		});
+	};
+
 	/** Open a singleton pinned column. No-op if one of the same type already exists. */
-	const openPinnedColumn = (columnType: string, label: string, childTag: string) => {
+	const openPinnedColumn = async (columnType: string, label: string, childTag: string) => {
 		const strip = getStrip();
 		if (!strip) return;
 		if (strip.panes.some((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === columnType)) return;
+		await ensureUiComponentLoaded(childTag);
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
 		pane.setAttribute("label", label);
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnType);
@@ -256,14 +277,17 @@ const main = async (): Promise<void> => {
 		strip.addPane(pane);
 	};
 
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_MONITOR, () => openPinnedColumn("monitor", "Monitor", "shu-monitor-column"), {
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_MONITOR, () => void openPinnedColumn("monitor", "Monitor", "shu-monitor-column"), {
 		signal,
 	});
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_SEQUENCE, () => openPinnedColumn("sequence", "Sequence", "shu-sequence-diagram"), {
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_SEQUENCE, () => void openPinnedColumn("sequence", "Sequence", "shu-sequence-diagram"), {
 		signal,
 	});
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_DOCUMENT, () => openPinnedColumn("document", "Document", "shu-document-column"), { signal });
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_GRAPH, () => openPinnedColumn("graph", "Graph", "shu-graph-view"), {
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_FISHEYE, () => void openPinnedColumn("fisheye", "Fisheye", "shu-fisheye-graph-view"), {
+		signal,
+	});
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_DOCUMENT, () => void openPinnedColumn("document", "Document", "shu-document-column"), { signal });
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_GRAPH, () => void openPinnedColumn("graph", "Graph", "shu-graph-view"), {
 		signal,
 	});
 	appRoot.addEventListener(
@@ -584,6 +608,9 @@ const main = async (): Promise<void> => {
 					} else if (col.startsWith("sequence:") || col === "sequence") {
 						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
 						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "sequence");
+					} else if (col.startsWith("fisheye:") || col === "fisheye") {
+						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_FISHEYE, { bubbles: true }));
+						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "fisheye");
 					} else if (col.startsWith("graph:") || col === "graph") {
 						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_GRAPH, { bubbles: true }));
 						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "graph");
