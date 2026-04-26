@@ -48,6 +48,8 @@ export class SseSubscriber {
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly listeners: { handler: EventHandler; filter?: EventFilter }[] = [];
 	private closed = false;
+	private lastEventAt: number | null = null;
+	private connectedAt: number | null = null;
 
 	constructor(config: SseSubscriberConfig) {
 		this.url = config.url;
@@ -64,6 +66,7 @@ export class SseSubscriber {
 	connect(): void {
 		if (this.closed) return;
 		if (this.source) return;
+		if (this.connectedAt === null) this.connectedAt = Date.now();
 		this.source = new this.EventSourceCtor(this.url);
 		this.source.onmessage = (sseEvent: { data: string }) => {
 			let msg: Record<string, unknown>;
@@ -115,7 +118,27 @@ export class SseSubscriber {
 		this.source = null;
 	}
 
+	/** Wall-clock time of the last successfully-dispatched event, or null if none yet. */
+	getLastEventAt(): number | null {
+		return this.lastEventAt;
+	}
+
+	/** Wall-clock time when connect() was first called, or null if never connected. */
+	getConnectedAt(): number | null {
+		return this.connectedAt;
+	}
+
+	/**
+	 * Latest known liveness timestamp: lastEventAt if any event has been received,
+	 * otherwise connectedAt. Used by silence detectors so a peer that never emits
+	 * is still distinguished from one that has yet to be subscribed.
+	 */
+	getLastActivityAt(): number | null {
+		return this.lastEventAt ?? this.connectedAt;
+	}
+
 	private dispatch(event: Record<string, unknown>): void {
+		this.lastEventAt = Date.now();
 		for (const { handler, filter } of this.listeners) {
 			try {
 				if (!filter || filter(event)) handler(event);
