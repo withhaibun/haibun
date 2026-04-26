@@ -590,12 +590,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const contextSteps = this._selectedLabel ? stepsForContext(this._selectedLabel) : [];
 			const contextMethods = new Set(contextSteps.map((s) => s.method));
 			const otherSteps = this._steps.filter((s) => !contextMethods.has(s.method));
+			// Option value is the fully-qualified method (StepperName-stepName) —
+			// stepName alone collides when multiple steppers expose the same key
+			// (e.g. ResourcesStepper.comment vs a peer stepper's comment).
 			const options = [
 				...contextSteps.map((s) => ({
-					value: s.stepName,
+					value: s.method,
 					label: `● ${s.pattern}`,
 				})),
-				...otherSteps.map((s) => ({ value: s.stepName, label: s.pattern })),
+				...otherSteps.map((s) => ({ value: s.method, label: s.pattern })),
 			];
 			stepCombo.setOptions(options);
 		}
