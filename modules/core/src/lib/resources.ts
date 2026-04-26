@@ -391,7 +391,6 @@ export type TRegisteredDomain = {
  */
 export const CommentSchema = z.object({
 	id: z.string(),
-	text: z.string(),
 	author: z.string().optional(),
 	discourse: DiscourseSchema,
 	timestamp: z.string(),
@@ -414,7 +413,6 @@ export const commentDomainDefinition: TDomainDefinition = {
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
-			text: LinkRelations.CONTENT.rel,
 			author: LinkRelations.ATTRIBUTED_TO.rel,
 			discourse: LinkRelations.DISCOURSE.rel,
 			timestamp: LinkRelations.PUBLISHED.rel,
