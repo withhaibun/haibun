@@ -225,8 +225,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const meta = await whenSiteMetadataReady();
 		for (const [label, ui] of Object.entries(meta.ui)) {
 			if (ui.slot === "action-bar-chat" && ui.js) {
+				const raw = String(ui.js);
+				// Document-root absolute paths (`/...`) and full URLs are used as-is;
+				// only relative paths get the api-base prefix so a SPA served at
+				// `/shu` can still reach assets registered at `/assets/...`.
 				const apiBase = this.getAttribute("api-base") || "";
-				const jsUrl = String(ui.js).startsWith("http") ? String(ui.js) : `${apiBase}${ui.js}`;
+				const jsUrl = raw.startsWith("http") || raw.startsWith("/") ? raw : `${apiBase}/${raw}`;
 				try {
 					await import(jsUrl);
 					this.render();
@@ -466,6 +470,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<div class="input-line">
 				${modeToggle}
 				${stepCombobox}
+				${uiExtensions}
 			</div>`;
 
 		if (this.state.askExpanded) {
