@@ -82,6 +82,12 @@ export const COMMENT_LABEL = "Comment";
 export const COMMENT_DOMAIN = "comment";
 export const COMMENT_EDGE = "commentsOn";
 
+/** Body — opaque content (text, JSON, anything) typed by `mediaType`. */
+export const BODY_LABEL = "Body";
+export const BODY_DOMAIN = "body";
+/** Edge from any resource to a Body sub-resource. */
+export const HAS_BODY_EDGE = "hasBody";
+
 /**
  * SeqPath — the hierarchical step identifier reified as a graph vertex.
  *
@@ -185,6 +191,8 @@ export const LinkRelations = {
 	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container", relation: false },
 	UPDATED: { rel: "updated", uri: "as:updated", range: "literal", relation: false },
 	CONTENT: { rel: "content", uri: "as:content", range: "literal", relation: false },
+	HAS_BODY: { rel: "hasBody", uri: "oa:hasBody", range: "iri", relation: false },
+	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal", relation: false },
 	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri", relation: true },
 	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri", relation: false },
 	TAG: { rel: "tag", uri: "as:tag", range: "literal", relation: false },
@@ -297,8 +305,12 @@ export function isReplyEdge(edgeType: string): boolean {
 // Vertex topology: how a stepper declares a vertex type
 // ============================================================================
 
-/** Property definition: either a rel string or a rel with mediaType for content fields. */
-export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
+/**
+ * Property definition: a rel string. Format/mediaType belongs on a Body
+ * sub-resource (see BodySchema), not on a parent resource's property
+ * declaration — keeps JSON-LD round-trips honest and graph queries uniform.
+ */
+export type TPropertyDef = TRel;
 
 /** Edge definition: target vertex type. The rel is resolved from EdgePredicates[key]; override with explicit rel for domain-specific edges not in the canonical set. */
 export type TEdgeDef = { range: string; rel?: TRel };
@@ -316,15 +328,6 @@ export type TDomainTopology = {
 	sortColumns?: Record<string, string>;
 };
 
-/** Get the rel for a property definition. */
-export function getRel(def: TPropertyDef): TRel {
-	return typeof def === "string" ? def : def.rel;
-}
-
-/** Get the mediaType for a content property, if any. */
-export function getMediaType(def: TPropertyDef): string | undefined {
-	return typeof def === "string" ? undefined : def.mediaType;
-}
 
 /** Domain name for type labels — auto-populated from registered domains with topology. */
 export const DOMAIN_VERTEX_LABEL = "vertex-label";
@@ -411,12 +414,50 @@ export const commentDomainDefinition: TDomainDefinition = {
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
-			text: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
+			text: LinkRelations.CONTENT.rel,
 			author: LinkRelations.ATTRIBUTED_TO.rel,
 			discourse: LinkRelations.DISCOURSE.rel,
 			timestamp: LinkRelations.PUBLISHED.rel,
 		},
-		edges: { [COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL } },
+		edges: {
+			[COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL },
+			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
+		},
+	},
+};
+
+// ============================================================================
+// Body schema + domain definition
+// ============================================================================
+
+/**
+ * Body — opaque content with a declared media type. Linked from any resource
+ * via `hasBody`. The canonical hypermedia shape: format is data on the Body,
+ * not metadata on the parent resource's topology, so JSON-LD round-trips and
+ * graph queries see mediaType as a first-class triple.
+ */
+export const BodySchema = z.object({
+	id: z.string(),
+	content: z.string(),
+	mediaType: z.string(),
+	createdAt: z.string(),
+});
+
+export type TBody = z.infer<typeof BodySchema>;
+
+export const bodyDomainDefinition: TDomainDefinition = {
+	selectors: [BODY_DOMAIN],
+	schema: BodySchema,
+	description: "Opaque content keyed by mediaType (text/markdown, application/json, etc.)",
+	topology: {
+		vertexLabel: BODY_LABEL,
+		id: "id",
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			content: LinkRelations.CONTENT.rel,
+			mediaType: LinkRelations.MEDIA_TYPE.rel,
+			createdAt: LinkRelations.PUBLISHED.rel,
+		},
 	},
 };
 
