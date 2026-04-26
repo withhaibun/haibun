@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { getRel, getMediaType, edgeRel, REL_CONTEXT, LinkRelations, getRelRange, type TPropertyDef } from "./resources.js";
+import { edgeRel, REL_CONTEXT, LinkRelations, getRelRange, type TPropertyDef } from "./resources.js";
 import type { TRegisteredDomain } from "./resources.js";
 
 /** Per-schema JSON-Schema memoization. `step.list` RPC calls buildConcernCatalog repeatedly; each
@@ -36,14 +36,10 @@ function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
 const relValues = Object.values(LinkRelations).map((lr) => lr.rel) as [string, ...string[]];
 export const RelSchema = z.enum(relValues);
 
-/**
- * A single vertex property mapped to its ActivityStreams predicate.
- * `mediaType` is present only when rel === 'content'.
- */
+/** A single vertex property mapped to its ActivityStreams predicate. */
 const PropertyConcernSchema = z.object({
 	term: z.string(),
 	rel: RelSchema,
-	mediaType: z.string().optional(),
 });
 type TPropertyConcern = z.infer<typeof PropertyConcernSchema>;
 
@@ -96,16 +92,15 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		if (!topology.properties || Object.keys(topology.properties).length === 0)
 			throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
 
-		const hasIdentifier = Object.values(topology.properties).some((p) => getRel(p) === LinkRelations.IDENTIFIER.rel);
+		const hasIdentifier = Object.values(topology.properties).some((p) => p === LinkRelations.IDENTIFIER.rel);
 		if (!hasIdentifier)
 			throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
 
 		const properties: Record<string, TPropertyConcern> = {};
 		for (const [field, propDef] of Object.entries(topology.properties)) {
-			const rel = getRel(propDef);
+			const rel = propDef;
 			if (!REL_CONTEXT[rel]) throw new Error(`Vertex domain "${label}" property "${field}" has unknown rel "${rel}"`);
-			const mediaType = getMediaType(propDef);
-			properties[field] = { term: REL_CONTEXT[rel], rel, ...(mediaType ? { mediaType } : {}) };
+			properties[field] = { term: REL_CONTEXT[rel], rel };
 		}
 
 		const edges: Record<string, TEdgeConcern> = {};
@@ -161,7 +156,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		idFields.set(type, topology.id);
 		const rels: Record<string, string> = {};
 		for (const [field, def] of Object.entries(topology.properties ?? {})) {
-			rels[field] = getRel(def as TPropertyDef);
+			rels[field] = def as TPropertyDef;
 		}
 		relMaps.set(type, rels);
 	}
@@ -229,6 +224,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		prov: "https://www.w3.org/ns/prov#",
 		sosa: "http://www.w3.org/ns/sosa/",
 		schema: "https://schema.org/",
+		oa: "http://www.w3.org/ns/oa#",
 		otel: "https://opentelemetry.io/schemas/",
 		hbn: "https://haibun.dev/ns/",
 		haibun: "/ns/",
@@ -237,13 +233,11 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		const topology = domain.topology;
 		if (!topology?.vertexLabel) continue;
 		for (const [prop, def] of Object.entries(topology.properties)) {
-			const rel = getRel(def);
+			const rel = def;
 			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;
-			const mediaType = getMediaType(def);
 			const linkRel = linkRelFromSemantic(rel);
 			const node: Record<string, string> = { "@id": uri, "haibun:rel": linkRel };
 			if (linkRel === "item") node["@type"] = "@id";
-			if (mediaType) node["as:mediaType"] = mediaType;
 			context[prop] = node;
 		}
 		for (const [edge, edgeDef] of Object.entries(topology.edges ?? {})) {
