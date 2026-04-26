@@ -141,13 +141,15 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 let concernCatalog: TConcernCatalog | null = null;
 let cachedConcernMeta: SiteMetadata | null = null;
 
+type TDomainUiInfo = { ui?: Record<string, unknown> };
+
 const edgeRelMap = new Map<string, string>();
 let cachedEdgeRelRecord: Record<string, string> | null = null;
 
 /** Set the concern catalog from step.list response. Caches derived SiteMetadata and edge→rel map. */
-export function setConcernCatalog(catalog: TConcernCatalog): void {
+export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<string, TDomainUiInfo>): void {
 	concernCatalog = catalog;
-	cachedConcernMeta = siteMetadataFromConcerns(catalog);
+	cachedConcernMeta = siteMetadataFromConcerns(catalog, domains);
 	setSiteMetadata(cachedConcernMeta);
 	edgeRelMap.clear();
 	cachedEdgeRelRecord = null;
@@ -173,7 +175,7 @@ export function getConcernCatalog(): TConcernCatalog {
 }
 
 /** Derive SiteMetadata from the concern catalog. Covers any stepper that declares vertex concerns. */
-export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata {
+export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Record<string, TDomainUiInfo>): SiteMetadata {
 	const types: string[] = [];
 	const idFields: Record<string, string> = {};
 	const rels: Record<string, Record<string, string>> = {};
@@ -201,6 +203,11 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata
 		}
 		if (Object.keys(labelEdges).length > 0) edgeRanges[label] = labelEdges;
 		if (vertex.ui) ui[label] = vertex.ui;
+	}
+	if (domains) {
+		for (const [domainKey, info] of Object.entries(domains)) {
+			if (info?.ui && !ui[domainKey]) ui[domainKey] = info.ui;
+		}
 	}
 	return {
 		types,

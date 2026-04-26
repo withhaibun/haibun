@@ -13,8 +13,10 @@ import { SseClient, inAction } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
 import { openQuadDetailPane } from "../quad-detail-pane.js";
 import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
-import { getAvailableSteps, getStepperForType } from "../rpc-registry.js";
+import { getStepperForType } from "../rpc-registry.js";
 import { extractQuadsFromEvents, type TQuad } from "@haibun/core/lib/quad-types.js";
+import { buildGraphModelFromQuads } from "../graph-model.js";
+import { getQuadsSnapshot, mergeQuadsIntoSnapshot } from "../quads-snapshot.js";
 import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
 import { buildMermaidSource, buildClassifier, sanitizeId, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
 
@@ -61,15 +63,15 @@ const STYLES = `
 .diagram-container { padding: 8px; }
 .diagram-container .node rect, .diagram-container .node polygon { cursor: pointer; }
 .diagram-container .nodeLabel { text-align: left !important; }
-.diagram-container .node, .diagram-container .edgePath, .diagram-container .edgeLabel, .diagram-container .cluster, .diagram-container .edgePaths path { transition: opacity 0.15s; }
+.diagram-container .node, .diagram-container .edgeLabel, .diagram-container .cluster, .diagram-container path.flowchart-link { transition: opacity 0.15s; }
 .diagram-container path.edge-pattern-dotted { stroke-dasharray: 8 4 !important; stroke-width: 1.5px !important; opacity: 0.7; }
 .zoom-label { color: #666; }
 .quad-count { color: #888; margin-left: auto; }
 .empty { padding: 16px; color: #888; text-align: center; }
 .graph-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
 .diagram-container.filter-highlight .node, .diagram-container.filter-highlight .cluster { opacity: 0.1; }
-.diagram-container.filter-highlight .edgePath, .diagram-container.filter-highlight .edgeLabel, .diagram-container.filter-highlight .edgePaths path { opacity: 0; }
-.diagram-container.filter-highlight .filter-match { opacity: 1 !important; }
+.diagram-container.filter-highlight path.flowchart-link, .diagram-container.filter-highlight .edgeLabel { opacity: 0; }
+.diagram-container.filter-highlight .filter-match, .diagram-container.filter-highlight .filter-match * { opacity: 1 !important; }
 `;
 
 const HIDDEN_GRAPHS_COOKIE = "shu-graph-hidden";
@@ -150,11 +152,10 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		const isSnapshot = this.hasAttribute("data-snapshot-time");
 
 		const client = SseClient.for("");
-		await getAvailableSteps();
 
 		try {
-			const data = await inAction((scope) => client.rpc<{ quads: TQuad[] }>(scope, "MonitorStepper-getQuads"));
-			if (data.quads?.length) this.setState({ quads: data.quads });
+			const quads = await getQuadsSnapshot();
+			if (quads.length > 0) this.setState({ quads });
 		} catch {
 			/* stepper may not be loaded */
 		}
@@ -164,7 +165,10 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 
 		this.unsubscribe = client.onEvent((event) => {
 			const quads = extractQuadsFromEvents([event as Record<string, unknown>]);
-			if (quads.length > 0) this.setState({ quads: [...this.state.quads, ...quads] });
+			if (quads.length > 0) {
+				mergeQuadsIntoSnapshot(quads);
+				this.setState({ quads: [...this.state.quads, ...quads] });
+			}
 		});
 	}
 
@@ -210,15 +214,14 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		const hiddenRelSet = new Set(this.state.hiddenRels);
 		const classifier = this.activeClassifier;
 
-		// Group edge predicates by rel — only include predicates that connect to another entity
-		const entityIds = new Set(visibleQuads.map((q) => q.subject));
+		// Group edge predicates by rel from shared graph model edges.
+		const graphModel = buildGraphModelFromQuads(visibleQuads);
 		const relToPredicates = new Map<string, Set<string>>();
-		for (const q of visibleQuads) {
-			if (typeof q.object !== "string" || !entityIds.has(q.object)) continue;
-			if (classifier.classify(q.namedGraph, q.predicate) !== "edge") continue;
-			const rel = classifier.relForEdge?.(q.namedGraph, q.predicate) ?? q.predicate;
+		for (const e of graphModel.edges) {
+			if (classifier.classify(e.graph, e.predicate) !== "edge") continue;
+			const rel = classifier.relForEdge?.(e.graph, e.predicate) ?? e.predicate;
 			if (!relToPredicates.has(rel)) relToPredicates.set(rel, new Set());
-			relToPredicates.get(rel)?.add(q.predicate);
+			relToPredicates.get(rel)?.add(e.predicate);
 		}
 		this.relPredicateMap = relToPredicates;
 		const sortedRels = [...relToPredicates.keys()].sort();
@@ -382,6 +385,22 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		}
 	}
 
+	/** Parse a mermaid flowchart-link path ID into its edge key and from/to node IDs.
+	 *  Path IDs have the form `prefix-L_from_to_index`. Returns null if not parseable. */
+	private static parseEdgePathId(pid: string, knownNodes: Set<string>): { pathIdent: string; from: string; to: string } | null {
+		const lIdx = pid.indexOf("-L_");
+		if (lIdx < 0) return null;
+		const pathIdent = pid.slice(lIdx + 1);
+		const body = pathIdent.slice(2, pathIdent.lastIndexOf("_"));
+		for (let i = 1; i < body.length; i++) {
+			if (body[i] !== "_") continue;
+			const from = body.slice(0, i);
+			const to = body.slice(i + 1);
+			if (knownNodes.has(from) && knownNodes.has(to)) return { pathIdent, from, to };
+		}
+		return null;
+	}
+
 	/** Make nodes clickable; highlight node + its neighbors + connecting edges on hover. */
 	private bindNodeClicks(container: Element): void {
 		const svg = container.querySelector("svg");
@@ -401,78 +420,41 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			}
 		});
 
-		// Pass 2: build adjacency + collect edge elements per node
+		// Pass 2: build adjacency + collect edge elements per node.
+		// Mermaid v11: edge paths (path.flowchart-link) and edge labels (.edgeLabels > .edgeLabel)
+		// have no IDs linking them — they correspond by position (nth path ↔ nth label).
 		const neighbors = new Map<string, Set<string>>();
 		const nodeEdgeElements = new Map<string, Set<Element>>();
-		const edgeGroups = svg.querySelectorAll(".edgePaths path.flowchart-link, .edgeLabels .edgeLabel");
-		svg.querySelectorAll("path.flowchart-link").forEach((path) => {
-			const pid = path.getAttribute("id") ?? "";
-			const lIdx = pid.indexOf("-L_");
-			if (lIdx < 0) return;
-			const body = pid.slice(lIdx + 3, pid.lastIndexOf("_"));
-			for (let i = 1; i < body.length; i++) {
-				if (body[i] !== "_") continue;
-				const from = body.slice(0, i);
-				const to = body.slice(i + 1);
-				if (allNodeIds.has(from) && allNodeIds.has(to)) {
-					if (!neighbors.has(from)) neighbors.set(from, new Set());
-					if (!neighbors.has(to)) neighbors.set(to, new Set());
-					neighbors.get(from)?.add(to);
-					neighbors.get(to)?.add(from);
-					// Collect edge path + label elements for both endpoints
-					const edgePath = path.closest(".edgePath") ?? path;
-					for (const nid of [from, to]) {
-						if (!nodeEdgeElements.has(nid)) nodeEdgeElements.set(nid, new Set());
-						nodeEdgeElements.get(nid)?.add(edgePath);
-					}
-					// Find matching edge label by index
-					const edgeIdx = pid.match(/-(\d+)$/)?.[1];
-					if (edgeIdx) {
-						edgeGroups.forEach((el) => {
-							const eid = el.getAttribute("id") ?? "";
-							if (eid.endsWith(`-${edgeIdx}`)) {
-								const label = el.closest(".edgeLabel") ?? el;
-								for (const nid of [from, to]) nodeEdgeElements.get(nid)?.add(label);
-							}
-						});
-					}
-					break;
-				}
+		const edgePaths = Array.from(svg.querySelectorAll("path.flowchart-link"));
+		const edgeLabelEls = Array.from(svg.querySelectorAll(".edgeLabels > .edgeLabel"));
+		this.svgEdges = [];
+
+		// Build a map from path index to parsed edge info (only for edges between known nodes)
+		let labelIdx = 0;
+		for (const path of edgePaths) {
+			const parsed = ShuGraphView.parseEdgePathId(path.getAttribute("id") ?? "", allNodeIds);
+			// Every path.flowchart-link has a corresponding label at the same index
+			const labelEl = edgeLabelEls[labelIdx] ?? null;
+			labelIdx++;
+			if (!parsed) continue;
+			const { from, to } = parsed;
+			if (!neighbors.has(from)) neighbors.set(from, new Set());
+			if (!neighbors.has(to)) neighbors.set(to, new Set());
+			neighbors.get(from)?.add(to);
+			neighbors.get(to)?.add(from);
+			// Collect edge path + label elements for both endpoints
+			for (const nid of [from, to]) {
+				if (!nodeEdgeElements.has(nid)) nodeEdgeElements.set(nid, new Set());
+				nodeEdgeElements.get(nid)?.add(path);
+				if (labelEl) nodeEdgeElements.get(nid)?.add(labelEl);
 			}
-		});
+			const labelText = labelEl?.textContent?.trim() ?? "";
+			this.svgEdges.push({ pathEl: path, labelEl, fromId: from, toId: to, labelText });
+		}
 
 		// Promote maps to instance properties for use by filter hover handlers
 		this.svgNodeElements = nodeElements;
 		this.svgNodeEdgeElements = nodeEdgeElements;
-		this.svgEdges = [];
-		svg.querySelectorAll("path.flowchart-link").forEach((path) => {
-			const pid = path.getAttribute("id") ?? "";
-			const lIdx = pid.indexOf("-L_");
-			if (lIdx < 0) return;
-			const body = pid.slice(lIdx + 3, pid.lastIndexOf("_"));
-			for (let i = 1; i < body.length; i++) {
-				if (body[i] !== "_") continue;
-				const from = body.slice(0, i);
-				const to = body.slice(i + 1);
-				if (allNodeIds.has(from) && allNodeIds.has(to)) {
-					const edgePath = path.closest(".edgePath") ?? path;
-					const edgeIdx = pid.match(/-(\d+)$/)?.[1];
-					let labelEl: Element | null = null;
-					let labelText = "";
-					if (edgeIdx) {
-						edgeGroups.forEach((el) => {
-							const eid = el.getAttribute("id") ?? "";
-							if (eid.endsWith(`-${edgeIdx}`)) {
-								labelEl = (el.closest(".edgeLabel") ?? el) as Element;
-								labelText = el.textContent?.trim() ?? "";
-							}
-						});
-					}
-					this.svgEdges.push({ pathEl: edgePath, labelEl, fromId: from, toId: to, labelText });
-					break;
-				}
-			}
-		});
 
 		let bound = 0;
 		for (const [rawId, g] of nodeElements) {
