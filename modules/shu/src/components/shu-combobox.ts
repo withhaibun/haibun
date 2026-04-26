@@ -124,13 +124,19 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			ul.appendChild(li);
 		}
 
-		ul.addEventListener("mousedown", (e) => {
+		// Pick on mousedown (so the input's blur listener doesn't close the
+		// dropdown before the click fires) AND on click (Playwright synthesises
+		// click but its mousedown sequence is sometimes unreliable in shadow-DOM
+		// adjacent contexts; clicking is the action the user actually performs).
+		const handlePick = (e: Event) => {
 			e.preventDefault();
 			const li = (e.target as HTMLElement).closest("li[data-value]") as HTMLLIElement | null;
 			if (!li) return;
 			const opt = this.state.options.find((o) => o.value === li.dataset.value);
 			if (opt) this.pick(opt);
-		});
+		};
+		ul.addEventListener("mousedown", handlePick);
+		ul.addEventListener("click", handlePick);
 
 		// Position in document.body to escape overflow:hidden ancestors
 		const rect = this._input.getBoundingClientRect();

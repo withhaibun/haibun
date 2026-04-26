@@ -59,6 +59,7 @@ export class StepCaller extends HTMLElement {
 		await getAvailableSteps();
 		const stepName = this.getAttribute("step") || "";
 		this.descriptor = findStep(stepName);
+		console.warn("[step-caller] init", JSON.stringify({ stepName, found: !!this.descriptor, pattern: this.descriptor?.pattern }));
 		if (!this.descriptor) {
 			this.error = `Step "${stepName}" not found`;
 			this.renderComponent();
@@ -201,7 +202,7 @@ export class StepCaller extends HTMLElement {
 					const savedVal = this.lastFormValues[paramName] || "";
 					const options = prop.enum.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`).join("");
 					parts.push(
-						`<select name="${escAttr(paramName)}" class="inline-select"${tid(`step-select-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
+						`<select name="${escAttr(paramName)}" class="inline-select"${tid(`step-input-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
 					);
 				} else {
 					const saved = this.lastFormValues[paramName] || "";

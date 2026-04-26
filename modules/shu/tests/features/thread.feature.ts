@@ -42,21 +42,21 @@ export const features: TKirejiExport = {
 		...enterStepMode,
 
 		"Create root vertex.",
-		...passesStepExecution("createVertex", {
+		...passesStepExecution("TutorialGraphStepper-createVertex", {
 			label: '"Researcher"',
 			id: '"alice"',
 			data: json({ name: "Alice Chen", context: "Linked Data", published: "2026-01-01T00:00:00.000Z" }),
 		}),
 
 		"Create a reply vertex.",
-		...passesStepExecution("createVertex", {
+		...passesStepExecution("TutorialGraphStepper-createVertex", {
 			label: '"Researcher"',
 			id: '"bob"',
 			data: json({ name: "Bob Smith", context: "Semantic Web", published: "2026-01-02T00:00:00.000Z" }),
 		}),
 
 		"Link Bob as a reply to Alice.",
-		...passesStepExecution("createEdge", {
+		...passesStepExecution("TutorialGraphStepper-createEdge", {
 			fromLabel: '"Researcher"',
 			fromId: '"bob"',
 			rel: '"inReplyTo"',
@@ -66,10 +66,10 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Comment on a vertex" }),
 		"Create a comment on Alice. The comment becomes part of the conversation.",
-		...passesStepExecution("comment", { label: '"Researcher"', id: '"alice"', text: '"This researcher is interesting"' }),
+		...passesStepExecution("ResourcesStepper-comment", { label: '"Researcher"', id: '"alice"', text: '"This researcher is interesting"' }),
 
 		scenario({ scenario: "Get related items" }),
 		"The getRelated step returns all items in the conversation: the root, the reply, and the comment.",
-		...passesStepExecution("getRelated", { label: '"Researcher"', id: '"alice"' }),
+		...passesStepExecution("ResourcesStepper-getRelated", { label: '"Researcher"', id: '"alice"' }),
 	],
 };
