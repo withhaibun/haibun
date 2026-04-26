@@ -207,7 +207,7 @@ export class StepCaller extends HTMLElement {
 					const saved = this.lastFormValues[paramName] || "";
 					const sz = Math.max(saved.length, paramName.length, 4);
 					parts.push(
-						`<input type="text" name="${escAttr(paramName)}" class="inline-input" placeholder="${escAttr(paramName)}" value="${escAttr(saved)}" size="${sz}"${tid(`current-step-input-${paramName}`)} />`,
+						`<input type="text" name="${escAttr(paramName)}" class="inline-input" placeholder="${escAttr(paramName)}" value="${escAttr(saved)}" size="${sz}"${tid(`step-input-${paramName}`)} />`,
 					);
 				}
 			}
@@ -218,7 +218,7 @@ export class StepCaller extends HTMLElement {
 		}
 
 		const runLabel = this.executed ? "\u27F3\u25B6" : "\u25B6";
-		return `<form class="step-form step-sentence">${parts.join(" ")} <button type="submit" class="run-inline${this.executed ? " rerun" : ""}" title="${this.executed ? "Re-run" : "Run"}"${tid("current-step-run")}>${runLabel}</button></form>`;
+		return `<form class="step-form step-sentence">${parts.join(" ")} <button type="submit" class="run-inline${this.executed ? " rerun" : ""}" title="${this.executed ? "Re-run" : "Run"}"${tid("step-run")}>${runLabel}</button></form>`;
 	}
 
 	private renderOutput(): string {

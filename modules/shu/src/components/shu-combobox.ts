@@ -94,10 +94,12 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		Object.assign(ul.style, LIST_STYLE);
 
 		if (items.length > 0) {
+			const hostTestId = this.getAttribute("testid");
 			for (let i = 0; i < items.length; i++) {
 				const li = document.createElement("li");
 				li.setAttribute("role", "option");
 				li.dataset.value = items[i].value;
+				if (hostTestId) li.setAttribute("data-testid", `${hostTestId}-option-${items[i].value}`);
 				li.textContent = items[i].label;
 				Object.assign(li.style, LI_STYLE);
 				if (items[i].value === selectedValue) li.style.fontWeight = "600";
@@ -181,6 +183,12 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		});
 
 		input.addEventListener("keydown", (e) => {
+			// Re-read input.value before computing filtered: Playwright's fill() sets
+			// the value but the input event may have run before this state was committed;
+			// reading the live DOM value avoids a stale-state Enter no-op.
+			if (input.value !== this.state.filterText) {
+				this.state = { ...this.state, filterText: input.value, open: true };
+			}
 			const items = this.filtered;
 			if (e.key === "ArrowDown") {
 				e.preventDefault();
