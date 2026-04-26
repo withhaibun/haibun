@@ -16,17 +16,19 @@ import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
 import { IStepperCycles, type TVertexResult } from "../lib/execution.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import {
+	BODY_LABEL,
 	COMMENT_LABEL,
 	DISCOURSE,
 	DOMAIN_VERTEX_LABEL,
 	LinkRelations,
+	bodyDomainDefinition,
 	commentDomainDefinition,
 } from "../lib/resources.js";
 import { seqPathDomainDefinition } from "../lib/seq-path.js";
 
 const cycles = (): IStepperCycles => ({
 	getConcerns: () => ({
-		domains: [commentDomainDefinition, seqPathDomainDefinition],
+		domains: [bodyDomainDefinition, commentDomainDefinition, seqPathDomainDefinition],
 	}),
 });
 
@@ -42,12 +44,15 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
 				const store = this.getWorld().shared.getStore();
 				const commentId = crypto.randomUUID();
+				const now = new Date().toISOString();
 				await store.upsertVertex(COMMENT_LABEL, {
 					id: commentId,
-					text,
 					discourse: DISCOURSE.narrate,
-					timestamp: new Date().toISOString(),
+					timestamp: now,
 				});
+				const bodyId = `body-${commentId}-text-markdown`;
+				await store.upsertVertex(BODY_LABEL, { id: bodyId, content: text, mediaType: "text/markdown", createdAt: now });
+				await store.add({ subject: commentId, predicate: LinkRelations.HAS_BODY.rel, object: bodyId, namedGraph: COMMENT_LABEL });
 				const targetContext = await store.query({ subject: id, predicate: LinkRelations.CONTEXT.rel });
 				const contextRoot = targetContext.length > 0 ? String(targetContext[0].object) : id;
 				await store.add({
