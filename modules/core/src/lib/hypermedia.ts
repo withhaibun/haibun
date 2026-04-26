@@ -62,6 +62,8 @@ const VertexConcernSchema = z.object({
 	jsonSchema: z.record(z.string(), z.unknown()),
 	properties: z.record(z.string(), PropertyConcernSchema),
 	edges: z.record(z.string(), EdgeConcernSchema).default({}),
+	/** UI metadata: slot, component, JS source, etc. */
+	ui: z.record(z.string(), z.unknown()).optional(),
 });
 type TVertexConcern = z.infer<typeof VertexConcernSchema>;
 
@@ -121,6 +123,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			jsonSchema,
 			properties,
 			edges,
+			...(domain.ui ? { ui: domain.ui } : {}),
 		});
 	}
 

@@ -10,11 +10,12 @@ export interface SiteMetadata {
 	edgeRanges: Record<string, Record<string, string>>;
 	properties: Record<string, string[]>;
 	summary: Record<string, string[]>;
-	contentFields: Record<string, Record<string, string>>;
+	ui: Record<string, Record<string, unknown>>;
 }
 
 let metadata: SiteMetadata | null = null;
 const edgeTypeIndex = new Map<string, string>();
+const metadataReadyResolvers: Array<(m: SiteMetadata) => void> = [];
 
 /** Populate the cache from a getSiteMetadata response. Called once at startup. */
 export function setSiteMetadata(data: SiteMetadata): void {
@@ -25,6 +26,21 @@ export function setSiteMetadata(data: SiteMetadata): void {
 			edgeTypeIndex.set(edge, target);
 		}
 	}
+	const resolvers = metadataReadyResolvers.splice(0);
+	for (const resolve of resolvers) resolve(data);
+}
+
+/**
+ * Resolve once site metadata is populated. Components that depend on the
+ * concern catalog (e.g. UI-extension loading in the actions bar) await this
+ * before reading `getSiteMetadataSync`, avoiding the init-order race where
+ * `connectedCallback` runs before `setConcernCatalog`.
+ */
+export function whenSiteMetadataReady(): Promise<SiteMetadata> {
+	if (metadata) return Promise.resolve(metadata);
+	return new Promise<SiteMetadata>((resolve) => {
+		metadataReadyResolvers.push(resolve);
+	});
 }
 
 /** Get cached rels for a label. Returns undefined if metadata not initialized or label unknown. */
@@ -84,9 +100,9 @@ export function getPropertyOrder(label: string): string[] {
 	return [...byPriority, ...rest];
 }
 
-/** Get content fields (in preference order) for a label — rendered in an iframe. */
-export function getContentFields(label: string): Record<string, string> | undefined {
-	return metadata?.contentFields[label];
+/** Get the UI extension declared by a vertex domain (if any). Used by the actions bar / SPA chrome to discover custom components. */
+export function getVertexUi(label: string): Record<string, unknown> | undefined {
+	return metadata?.ui[label];
 }
 
 const selectCache = new Map<string, Record<string, string[]>>();
@@ -132,6 +148,7 @@ let cachedEdgeRelRecord: Record<string, string> | null = null;
 export function setConcernCatalog(catalog: TConcernCatalog): void {
 	concernCatalog = catalog;
 	cachedConcernMeta = siteMetadataFromConcerns(catalog);
+	setSiteMetadata(cachedConcernMeta);
 	edgeRelMap.clear();
 	cachedEdgeRelRecord = null;
 	for (const vertex of Object.values(catalog.vertices)) {
@@ -163,29 +180,27 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata
 	const edgeRanges: Record<string, Record<string, string>> = {};
 	const properties: Record<string, string[]> = {};
 	const summary: Record<string, string[]> = {};
-	const contentFields: Record<string, Record<string, string>> = {};
+	const ui: Record<string, Record<string, unknown>> = {};
 	for (const [label, vertex] of Object.entries(catalog.vertices)) {
 		types.push(label);
 		idFields[label] = vertex.idField;
 		const labelRels: Record<string, string> = {};
 		const labelProps: string[] = [];
 		const labelSummary: string[] = [];
-		const labelContent: Record<string, string> = {};
 		for (const [field, prop] of Object.entries(vertex.properties)) {
 			labelRels[field] = prop.rel;
 			labelProps.push(field);
 			if (prop.rel === LinkRelations.NAME.rel || prop.rel === LinkRelations.CONTEXT.rel) labelSummary.push(field);
-			if (prop.mediaType) labelContent[field] = prop.mediaType;
 		}
 		rels[label] = labelRels;
 		properties[label] = labelProps;
 		if (labelSummary.length > 0) summary[label] = labelSummary;
-		if (Object.keys(labelContent).length > 0) contentFields[label] = labelContent;
 		const labelEdges: Record<string, string> = {};
 		for (const [edgeName, edge] of Object.entries(vertex.edges)) {
 			labelEdges[edgeName] = edge.target;
 		}
 		if (Object.keys(labelEdges).length > 0) edgeRanges[label] = labelEdges;
+		if (vertex.ui) ui[label] = vertex.ui;
 	}
 	return {
 		types,
@@ -194,6 +209,6 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata
 		edgeRanges,
 		properties,
 		summary,
-		contentFields,
+		ui,
 	};
 }

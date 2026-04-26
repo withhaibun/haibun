@@ -15,7 +15,7 @@ import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
-import { getProperties, getSelectValues, hasSelectValues, setSelectValues } from "../rels-cache.js";
+import { getProperties, getSelectValues, getSiteMetadataSync, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
@@ -193,6 +193,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			});
 		});
 
+
+
 		const client = SseClient.for("");
 		this._unsubscribeSync = client.onEvent(
 			(event) => {
@@ -214,6 +216,25 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._unsubscribeEvents = null;
 		this._unsubscribeSync?.();
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
+	}
+	
+	private async loadUiExtensions(): Promise<void> {
+		// Wait for the concern catalog to populate site metadata before reading
+		// `ui` extensions — connectedCallback can fire before the catalog RPC
+		// completes, so synchronous reads at mount time miss every extension.
+		const meta = await whenSiteMetadataReady();
+		for (const [label, ui] of Object.entries(meta.ui)) {
+			if (ui.slot === "action-bar-chat" && ui.js) {
+				const apiBase = this.getAttribute("api-base") || "";
+				const jsUrl = String(ui.js).startsWith("http") ? String(ui.js) : `${apiBase}${ui.js}`;
+				try {
+					await import(jsUrl);
+					this.render();
+				} catch (e) {
+					console.error(`Failed to load UI extension for ${label} from ${jsUrl}:`, e);
+				}
+			}
+		}
 	}
 
 	notifyQueryCompleted(): void {
@@ -277,6 +298,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.syncSelectedDomainKey();
 		this.loadProperties(this._selectedLabel);
 		void this.loadSelectValues(this._selectedLabel);
+		void this.loadUiExtensions();
 		this.render();
 		this.dispatchFilterChange();
 	}
@@ -372,10 +394,17 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const modelSelect =
 			this.state.mode === "ask" && this._models.length > 0 ? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>` : "";
 
+		const hasAsk = !!this._steps.find((s) => s.method.endsWith("chatWithContext"));
 		const modeToggle = `<select class="mode-select" ${this.tid("mode-select")}>
-			<option value="ask"${this.state.mode === "ask" ? " selected" : ""}>Ask</option>
+			${hasAsk ? `<option value="ask"${this.state.mode === "ask" ? " selected" : ""}>Ask</option>` : ""}
 			<option value="step"${this.state.mode === "step" ? " selected" : ""}>Step</option>
 		</select>`;
+
+		// Default to step mode if Ask is not available but selected
+		if (!hasAsk && this.state.mode === "ask") {
+			this.setState({ mode: "step" });
+			return;
+		}
 
 		const placeholder = this.state.mode === "ask" ? "Ask about this..." : "Enter step (e.g. get types)";
 		const submitLabel = this.state.mode === "ask" ? "Send" : "Run";
@@ -417,11 +446,17 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				</div>`
 			: "";
 
+		const uiExtensions = Object.values(getSiteMetadataSync()?.ui || {})
+			.filter((ui) => ui.slot === "action-bar-chat")
+			.map((ui) => `<${ui.component}></${ui.component}>`)
+			.join("");
+
 		const askInput = `
 			<div class="input-line">
 				${modeToggle}
 				<textarea class="chat-input" placeholder="${placeholder}" ${this.tid("chat-input")} rows="1" autofocus></textarea>
 				${modelSelect}
+				${uiExtensions}
 				<button type="submit" class="send-btn" ${this.tid("chat-submit")}>${submitLabel}</button>
 				<button type="button" class="stop-btn" ${this.tid("chat-stop")} style="display:none">Stop</button>
 				<button type="button" class="save-btn" ${this.tid("save-summary")} style="display:none">Save</button>
@@ -714,6 +749,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.shadowRoot?.querySelector(".save-btn")?.addEventListener("click", () => {
 			void this.handleSave();
 		});
+
+		this.shadowRoot?.addEventListener("shu-voice-input", ((e: CustomEvent) => {
+			const transcript = e.detail?.text;
+			if (transcript && chatInput) {
+				chatInput.value = transcript;
+				chatInput.style.height = "auto";
+				chatInput.style.height = `${chatInput.scrollHeight}px`;
+				submitChat();
+			}
+		}) as EventListener);
 	}
 
 	private async handleChat(prompt: string): Promise<void> {
@@ -815,8 +860,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		} finally {
 			const aborted = this._abortController?.signal.aborted;
 			if (stopBtn) stopBtn.style.display = "none";
+			if (this._fullText && !aborted) {
+				this.shadowRoot?.querySelectorAll("shu-voice-client").forEach((vc: any) => (vc as any).speak(this._fullText));
+			}
 			this._abortController = null;
-			if (!aborted) spinner.visible = false;
 		}
 		const chatOut = this.shadowRoot?.querySelector(".chat-output");
 		if (chatOut) chatOut.scrollTop = chatOut.scrollHeight;

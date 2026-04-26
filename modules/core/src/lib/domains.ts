@@ -92,6 +92,7 @@ export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDo
 	description: definition.description,
 	stepperName: definition.stepperName,
 	topology: definition.topology,
+	ui: definition.ui,
 });
 
 export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {
