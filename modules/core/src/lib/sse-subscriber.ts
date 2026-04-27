@@ -18,8 +18,10 @@
  * through verbatim so callers can handle wire-format variants.
  */
 
-type EventHandler = (event: Record<string, unknown>) => void;
-type EventFilter = (event: Record<string, unknown>) => boolean;
+import type { THaibunEvent } from "../schema/protocol.js";
+
+type EventHandler = (event: THaibunEvent) => void;
+type EventFilter = (event: THaibunEvent) => boolean;
 
 // biome-ignore lint/suspicious/noExplicitAny: EventSource is a DOM/Node global that may be polyfilled.
 type EventSourceCtor = new (url: string) => any;
@@ -73,13 +75,13 @@ export class SseSubscriber {
 			try {
 				msg = JSON.parse(sseEvent.data);
 			} catch {
-				this.dispatch({ raw: sseEvent.data });
+				this.dispatch({ raw: sseEvent.data } as unknown as THaibunEvent);
 				return;
 			}
 			// web-server-hono wraps events as { type: "event", event: {...} };
-			// un-wrap when present, pass through otherwise.
-			if (msg.type === "event" && msg.event) this.dispatch(msg.event as Record<string, unknown>);
-			else this.dispatch(msg);
+			// un-wrap when present, pass through otherwise. Server-side already validated against the schema.
+			const payload = msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent);
+			this.dispatch(payload);
 		};
 		this.source.onerror = () => {
 			this.source?.close?.();
@@ -137,7 +139,7 @@ export class SseSubscriber {
 		return this.lastEventAt ?? this.connectedAt;
 	}
 
-	private dispatch(event: Record<string, unknown>): void {
+	private dispatch(event: THaibunEvent): void {
 		this.lastEventAt = Date.now();
 		for (const { handler, filter } of this.listeners) {
 			try {
