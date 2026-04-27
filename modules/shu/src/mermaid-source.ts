@@ -117,6 +117,8 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 	const nodeIds = new Set<string>();
 	const nodeMap = new Map<string, { graph: string; subject: string }>();
 	const edges: string[] = [];
+	/** Coalesces edges that collapse to the same target summary node into a single line with a count badge. */
+	const collapsedEdgeTally = new Map<string, { idx: number; count: number; from: string; arrow: string; predicate: string; to: string }>();
 
 	for (const [graph, subjects] of byGraph) {
 		const graphId = sanitizeId(graph);
@@ -150,8 +152,14 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 					const rel = classifier.relForEdge?.(graph, q.predicate);
 					if (opts.hiddenRels?.has(rel ?? q.predicate)) continue;
 					const arrow = arrowForRel(rel);
-					if (!edges.some((e) => e.includes(`${summaryId} ${arrow}`) && e.includes(targetId))) {
-						edges.push(`  ${summaryId} ${arrow}|${truncate(q.predicate, 20)}| ${targetId}`);
+					const summaryEdgeKey = `${summaryId}|${arrow}|${q.predicate}|${targetId}`;
+					const summaryTally = collapsedEdgeTally.get(summaryEdgeKey);
+					if (summaryTally) {
+						summaryTally.count++;
+					} else {
+						const idx = edges.length;
+						edges.push("");
+						collapsedEdgeTally.set(summaryEdgeKey, { idx, count: 1, from: summaryId, arrow, predicate: q.predicate, to: targetId });
 					}
 				}
 			}
@@ -199,11 +207,14 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 				const edgeRel = classifier.relForEdge?.(graph, q.predicate);
 				if (opts.hiddenRels?.has(edgeRel ?? q.predicate)) continue;
 				const edgeArrow = arrowForRel(edgeRel);
-				const edgeLine = `  ${nodeId} ${edgeArrow}|${truncate(q.predicate, 20)}| ${targetId}`;
-				if (!entityIds.has(q.object)) {
-					if (!edges.some((e) => e.includes(`${nodeId} ${edgeArrow}`) && e.includes(targetId) && e.includes(q.predicate))) edges.push(edgeLine);
+				const edgeKey = `${nodeId}|${edgeArrow}|${q.predicate}|${targetId}`;
+				const tally = collapsedEdgeTally.get(edgeKey);
+				if (tally) {
+					tally.count++;
 				} else {
-					edges.push(edgeLine);
+					const idx = edges.length;
+					edges.push("");
+					collapsedEdgeTally.set(edgeKey, { idx, count: 1, from: nodeId, arrow: edgeArrow, predicate: q.predicate, to: targetId });
 				}
 			}
 		}
@@ -221,6 +232,12 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 		}
 	}
 
+	for (const tally of collapsedEdgeTally.values()) {
+		const labelBase = truncate(tally.predicate, 20);
+		// Avoid parens in edge labels: mermaid parses them as node-shape delimiters.
+		const label = tally.count > 1 ? `${labelBase} ×${tally.count}` : labelBase;
+		edges[tally.idx] = `  ${tally.from} ${tally.arrow}|${label}| ${tally.to}`;
+	}
 	lines.push(...edges);
 
 	// Color subgraphs by stepper

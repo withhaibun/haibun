@@ -73,7 +73,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 						timestamp: number;
 						properties?: Record<string, unknown>;
 					}>;
-				}>(scope, "MonitorStepper-getQuads");
+				}>(scope, "MonitorStepper-getClusteredQuads", { perTypeLimit: 1000 });
 				return { eventsData, tracesData, quadsData };
 			});
 			const stepEvent =

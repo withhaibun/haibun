@@ -105,7 +105,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.transport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
-			if (!shouldClose || !this.storage) return;
+			// `saves shu to <path>` is an explicit user request; honor it regardless of HAIBUN_STAY (shouldClose=false).
+			const hasFixedPath = !!this.outputPath;
+			if (!hasFixedPath && !shouldClose) return;
+			if (!hasFixedPath && !this.storage) return;
 			const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
 			// Ensure essential data is always available offline:
 			// 1. Events (the test execution log — core of the monitor view)
@@ -244,14 +247,43 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				return actionOKWithProducts({ vertices, total, cypher: `QuadStore query: ${label}` });
 			},
 		},
-		getQuads: {
-			gwta: "get quads",
-			outputSchema: z.object({ quads: z.array(z.unknown()) }),
-			action: async () => {
+		getClusteredQuads: {
+			gwta: "get clustered quads",
+			outputSchema: z.object({
+				quads: z.array(z.unknown()),
+				clusters: z.array(
+					z.object({
+						type: z.string(),
+						totalCount: z.number(),
+						sampledCount: z.number(),
+						omittedCount: z.number(),
+						sampledSubjects: z.array(z.string()),
+						displayLabels: z.record(z.string(), z.string()).optional(),
+					}),
+				),
+			}),
+			action: async (args: { perTypeLimit?: number | string; types?: string[] | string } = {}) => {
 				const store = this.getWorld().shared.getStore();
-				const storeQuads = await store.all();
-				const quads = [...storeQuads, ...this.observationQuads].map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({ subject, predicate, object, namedGraph, timestamp, properties }));
-				return actionOKWithProducts({ quads });
+				// RPC params arrive stringified through the synthetic-step plumbing; coerce both back to native shapes.
+				const limitNum = typeof args.perTypeLimit === "string" ? Number(args.perTypeLimit) : args.perTypeLimit;
+				const perTypeLimit = Math.max(1, Math.min(10000, Number.isFinite(limitNum) ? (limitNum as number) : 100));
+				let types: string[] | undefined;
+				if (Array.isArray(args.types)) types = args.types;
+				else if (typeof args.types === "string" && args.types.length > 0) {
+					try {
+						const parsed: unknown = JSON.parse(args.types);
+						if (Array.isArray(parsed)) types = parsed.map(String);
+					} catch (err) {
+						this.getWorld().eventLogger.warn(`getClusteredQuads: ignoring non-JSON 'types' param: ${err instanceof Error ? err.message : err}`);
+					}
+				}
+				if (!store.getClusteredQuads) {
+					return actionNotOK("QuadStore does not support getClusteredQuads");
+				}
+				const result = await store.getClusteredQuads({ perTypeLimit, types });
+				const quads = [...result.quads, ...this.observationQuads]
+					.map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({ subject, predicate, object, namedGraph, timestamp, properties }));
+				return actionOKWithProducts({ quads, clusters: result.clusters });
 			},
 		},
 	} satisfies TStepperSteps;

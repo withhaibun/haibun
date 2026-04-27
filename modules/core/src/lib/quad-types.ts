@@ -29,6 +29,8 @@ export const GraphQuerySchema = z.object({
 	accessLevel: z.enum(["private", "public", "opened", "all"]).default("private"),
 	fields: z.array(z.string()).optional(),
 	explain: z.boolean().default(false),
+	/** When true, skip the separate total-count query; `total` returns the page length only. */
+	skipCount: z.boolean().default(false),
 });
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
 
@@ -104,4 +106,37 @@ export interface IQuadStore {
 		options?: { limit?: number; offset?: number },
 	): Promise<T[]>;
 	distinctPropertyValues(label: string, property: string): Promise<string[]>;
+
+	/**
+	 * Type-bounded snapshot for graph view rendering. For each requested type
+	 * (or every known type if `types` is omitted), returns up to `perTypeLimit`
+	 * vertices' quads plus a sidecar cluster summary so the view can render an
+	 * `+N more` cluster node when sampling truncates.
+	 */
+	getClusteredQuads?(opts: { perTypeLimit: number; types?: string[] }): Promise<TClusteredQuads>;
+}
+
+export interface TCluster {
+	/** Vertex label this cluster represents. */
+	type: string;
+	/** Total vertices of this type in the store. */
+	totalCount: number;
+	/** Vertices included in `quads` (≤ perTypeLimit). */
+	sampledCount: number;
+	/** Vertices not represented in `quads` (totalCount − sampledCount). */
+	omittedCount: number;
+	/** Subjects for which quads are present, in sample order. */
+	sampledSubjects: string[];
+	/**
+	 * Hypermedia-driven display label per sampled subject — derived server-side
+	 * from the topology's NAME / CONTENT rel so views don't have to compute it
+	 * (and don't have to depend on client-side rels-cache being populated).
+	 * Falls back to the subject id when no name/content rel resolves.
+	 */
+	displayLabels?: Record<string, string>;
+}
+
+export interface TClusteredQuads {
+	quads: TQuad[];
+	clusters: TCluster[];
 }

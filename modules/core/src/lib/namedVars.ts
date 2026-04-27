@@ -192,10 +192,10 @@ export function mapInputToStepValues(input: Record<string, unknown>, gwta: strin
 	const { stepValuesMap } = namedInterpolation(gwta || "");
 	const updatedMap = { ...stepValuesMap };
 	for (const [key, val] of Object.entries(input)) {
-		if (key in updatedMap) {
-			const term = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
-			updatedMap[key] = { ...updatedMap[key], term, origin: Origin.quoted };
-		}
+		const term = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
+		const existing = updatedMap[key];
+		// Keys present in gwta keep their declared domain; extras (RPC-only params with no gwta placeholder) are added as quoted values so they reach the action via populateActionArgs.
+		updatedMap[key] = existing ? { ...existing, term, origin: Origin.quoted } : { term, origin: Origin.quoted, domain: "string" };
 	}
 	return updatedMap;
 }

@@ -20,6 +20,8 @@ export const SHU_EVENT = {
 	COLUMNS_CHANGED: "columns-changed",
 	CONTEXT_CHANGE: "context-change",
 	FILTER_CHANGE: "filter-change",
+	GRAPH_FILTER_CHANGE: "graph-filter-change",
+	GRAPH_CLUSTER_EXPAND: "graph-cluster-expand",
 	RESULTS_CHANGED: "results-changed",
 	ROW_CLICK: "row-click",
 	SORT_CHANGE: "sort-change",

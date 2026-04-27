@@ -7,7 +7,7 @@
  * Methods return Promises (via Promise.resolve) to satisfy the async IQuadStore interface.
  */
 
-import type { IQuadStore, TQuad, TQuadPattern } from "./quad-types.js";
+import type { IQuadStore, TCluster, TClusteredQuads, TQuad, TQuadPattern } from "./quad-types.js";
 
 export class QuadStore implements IQuadStore {
 	private quads: TQuad[] = [];
@@ -140,6 +140,60 @@ export class QuadStore implements IQuadStore {
 		return [...local, ...backingResults.flat()].sort((a, b) => a.timestamp - b.timestamp);
 	}
 
+	/**
+	 * Type-bounded snapshot. Backing stores that implement `getClusteredQuads`
+	 * are queried directly (efficient SQL/Cypher path). For local quads and
+	 * backing stores without the method, falls back to grouping `all()` in
+	 * memory and slicing per type.
+	 */
+	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[] }): Promise<TClusteredQuads> {
+		const requested = opts.types ? new Set(opts.types) : undefined;
+		const allQuads: TQuad[] = [];
+		const clustersByType = new Map<string, TCluster>();
+		const mergeCluster = (c: TCluster) => {
+			const existing = clustersByType.get(c.type);
+			if (!existing) {
+				clustersByType.set(c.type, { ...c, sampledSubjects: [...c.sampledSubjects], displayLabels: c.displayLabels ? { ...c.displayLabels } : undefined });
+				return;
+			}
+			const merged = new Set(existing.sampledSubjects);
+			for (const s of c.sampledSubjects) merged.add(s);
+			existing.sampledSubjects = [...merged];
+			existing.sampledCount = existing.sampledSubjects.length;
+			existing.totalCount = Math.max(existing.totalCount, c.totalCount, existing.sampledCount);
+			existing.omittedCount = Math.max(0, existing.totalCount - existing.sampledCount);
+			if (c.displayLabels) existing.displayLabels = { ...(existing.displayLabels ?? {}), ...c.displayLabels };
+		};
+
+		const backingResults = await Promise.all(
+			this.allStores.map((s) => (s.getClusteredQuads ? s.getClusteredQuads(opts) : this.fallbackClusterFor(s, opts))),
+		);
+		for (const r of backingResults) {
+			allQuads.push(...r.quads);
+			for (const c of r.clusters) mergeCluster(c);
+		}
+
+		const localQuads = requested ? this.quads.filter((q) => requested.has(q.namedGraph)) : [...this.quads];
+		const localClustered = sliceQuadsPerType(localQuads, opts.perTypeLimit, allQuads);
+		allQuads.push(...localClustered.quads);
+		for (const c of localClustered.clusters) mergeCluster(c);
+
+		allQuads.sort((a, b) => a.timestamp - b.timestamp);
+		return { quads: allQuads, clusters: [...clustersByType.values()] };
+	}
+
+	/**
+	 * Backing-store fallback when the store doesn't implement getClusteredQuads.
+	 * Pulls every quad and slices in memory — fine for small in-memory stores
+	 * (e.g. storage-mem) but defeats `perTypeLimit` for large stores. Backing
+	 * stores at scale must implement getClusteredQuads natively.
+	 */
+	private async fallbackClusterFor(store: IQuadStore, opts: { perTypeLimit: number; types?: string[] }): Promise<TClusteredQuads> {
+		const all = await store.all();
+		const filtered = opts.types ? all.filter((q) => opts.types?.includes(q.namedGraph)) : all;
+		return sliceQuadsPerType(filtered, opts.perTypeLimit);
+	}
+
 	// --- Vertex operations: route to backing store or local emulation ---
 
 	private idFields: Record<string, string> = {};
@@ -213,4 +267,43 @@ export class QuadStore implements IQuadStore {
 		const quads = await this.query({ predicate: property, namedGraph: label });
 		return [...new Set(quads.map((q) => String(q.object)))].sort();
 	}
+}
+
+/**
+ * Group quads by namedGraph, keep up to `perTypeLimit` distinct subjects per
+ * group, and emit a TCluster summary for each. `existingQuads` lets the caller
+ * pass already-included subjects (from another store) so totals stay coherent
+ * across merged sources.
+ */
+function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existingQuads: TQuad[] = []): TClusteredQuads {
+	const subjectsByType = new Map<string, Set<string>>();
+	const sampledByType = new Map<string, Set<string>>();
+	for (const q of existingQuads) {
+		if (!sampledByType.has(q.namedGraph)) sampledByType.set(q.namedGraph, new Set());
+		sampledByType.get(q.namedGraph)?.add(q.subject);
+	}
+	for (const q of quads) {
+		if (!subjectsByType.has(q.namedGraph)) subjectsByType.set(q.namedGraph, new Set());
+		subjectsByType.get(q.namedGraph)?.add(q.subject);
+	}
+	const sampledQuads: TQuad[] = [];
+	const clusters: TCluster[] = [];
+	for (const [type, subjectSet] of subjectsByType) {
+		const subjects = [...subjectSet];
+		const alreadySampled = sampledByType.get(type) ?? new Set<string>();
+		const newSubjects = subjects.filter((s) => !alreadySampled.has(s));
+		const remainingBudget = Math.max(0, perTypeLimit - alreadySampled.size);
+		const keep = new Set([...alreadySampled, ...newSubjects.slice(0, remainingBudget)]);
+		for (const q of quads) {
+			if (q.namedGraph === type && keep.has(q.subject)) sampledQuads.push(q);
+		}
+		clusters.push({
+			type,
+			totalCount: alreadySampled.size + subjects.length,
+			sampledCount: keep.size,
+			omittedCount: Math.max(0, alreadySampled.size + subjects.length - keep.size),
+			sampledSubjects: [...keep],
+		});
+	}
+	return { quads: sampledQuads, clusters };
 }
