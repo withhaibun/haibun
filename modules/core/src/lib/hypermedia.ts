@@ -188,6 +188,49 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	};
 }
 
+/**
+ * Ordered list of property rels searched (in order) to derive a vertex's
+ * display label. NAME and CONTENT are returned as bare values; the rest are
+ * prefixed with the field name (`field: value`) since the value alone wouldn't
+ * be self-describing. Shared by server-side cluster builders and client-side
+ * graph-model fallbacks so priorities can't drift.
+ */
+export const DISPLAY_LABEL_REL_PRIORITY: ReadonlyArray<{ rel: string; bare: boolean }> = [
+	{ rel: LinkRelations.NAME.rel, bare: true },
+	{ rel: LinkRelations.CONTENT.rel, bare: true },
+	{ rel: LinkRelations.SEQ_PATH.rel, bare: false },
+	{ rel: LinkRelations.SCHEMA_OBJECT.rel, bare: false },
+	{ rel: LinkRelations.CONTEXT.rel, bare: false },
+];
+
+/** Maximum length for a display label (bytes/chars). Truncated values are suffixed with an ellipsis. */
+export const MAX_DISPLAY_LABEL_LEN = 80;
+
+/**
+ * Resolve a display label for a vertex by walking `DISPLAY_LABEL_REL_PRIORITY`
+ * against `getProperty(field)`. Returns the first non-empty value or undefined.
+ * Server-side callers pass a closure over the vertex row; client-side callers
+ * pass a closure over the property quads.
+ */
+export function resolveDisplayLabel(
+	rels: Record<string, string> | undefined,
+	getProperty: (field: string) => unknown,
+): string | undefined {
+	if (!rels) return undefined;
+	const fieldByRel = new Map<string, string>();
+	for (const [field, rel] of Object.entries(rels)) {
+		if (!fieldByRel.has(rel)) fieldByRel.set(rel, field);
+	}
+	for (const candidate of DISPLAY_LABEL_REL_PRIORITY) {
+		const field = fieldByRel.get(candidate.rel);
+		if (!field) continue;
+		const value = getProperty(field);
+		if (value === undefined || value === null || value === "") continue;
+		return candidate.bare ? String(value) : `${field}: ${value}`;
+	}
+	return undefined;
+}
+
 /** Parse a value as epoch ms (ISO date string or number). */
 export function parseTimestampValue(val: unknown): number | null {
 	if (typeof val === "number") return val;

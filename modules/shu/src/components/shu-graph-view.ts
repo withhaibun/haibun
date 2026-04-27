@@ -14,9 +14,10 @@ import { SHU_EVENT } from "../consts.js";
 import { openQuadDetailPane } from "../quad-detail-pane.js";
 import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
 import { getStepperForType } from "../rpc-registry.js";
-import { extractQuadsFromEvents, type TQuad } from "@haibun/core/lib/quad-types.js";
+import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "../graph-model.js";
-import { getQuadsSnapshot, mergeQuadsIntoSnapshot } from "../quads-snapshot.js";
+import { getGraphSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
 import { buildMermaidSource, buildClassifier, sanitizeId, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
 
@@ -51,6 +52,10 @@ const StateSchema = z.object({
 	hiddenRels: z.array(z.string()).default([]),
 	expandedGraphs: z.array(z.string()).default([]),
 	maxPerSubgraph: z.number().default(DEFAULT_MAX_PER_SUBGRAPH),
+	clusters: z
+		.array(z.object({ type: z.string(), totalCount: z.number(), sampledCount: z.number(), omittedCount: z.number(), sampledSubjects: z.array(z.string()) }))
+		.default([]),
+	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 });
 
 const STYLES = `
@@ -139,6 +144,8 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			hiddenRels: [],
 			expandedGraphs: [],
 			maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH,
+			clusters: [],
+			perTypeLimit: DEFAULT_PER_TYPE_LIMIT,
 		});
 	}
 
@@ -147,18 +154,28 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		if (this.initialized) return;
 		this.initialized = true;
 
+		this.addEventListener(SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ types: string[]; perTypeLimit: number }>) => {
+			const visible = new Set(e.detail.types);
+			const hiddenGraphs = [...this.knownClusters.keys()].filter((t) => !visible.has(t));
+			writeHiddenGraphsCookie(hiddenGraphs);
+			this.setState({ hiddenGraphs });
+			void this.refetchSnapshot({ types: e.detail.types, perTypeLimit: e.detail.perTypeLimit });
+		}) as EventListener);
+		this.addEventListener(SHU_EVENT.GRAPH_CLUSTER_EXPAND, (() => {
+			const nextLimit = Math.max(this.state.perTypeLimit * 2, this.state.perTypeLimit + 100);
+			const hidden = new Set(this.state.hiddenGraphs);
+			const visibleTypes = [...this.knownClusters.keys()].filter((t) => !hidden.has(t));
+			void this.refetchSnapshot({ types: visibleTypes.length > 0 ? visibleTypes : undefined, perTypeLimit: nextLimit });
+		}) as EventListener);
+
 		// External mode: data provided via setQuads, skip RPC and SSE.
 		if (this.state.dataSource === "external") return;
 		const isSnapshot = this.hasAttribute("data-snapshot-time");
 
 		const client = SseClient.for("");
 
-		try {
-			const quads = await getQuadsSnapshot();
-			if (quads.length > 0) this.setState({ quads });
-		} catch {
-			/* stepper may not be loaded */
-		}
+		const initial = ShuGraphFilter.getPersistedFilter();
+		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
 
 		// Snapshot mode: fetch once, no live updates
 		if (isSnapshot) return;
@@ -196,10 +213,22 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		this.unsubscribe?.();
 	}
 
+	private knownClusters = new Map<string, TCluster>();
+
+	private async refetchSnapshot(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
+		try {
+			const snap = await getGraphSnapshot({ perTypeLimit: opts.perTypeLimit, types: opts.types, forceRefresh: true });
+			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
+			this.setState({ quads: snap.quads, clusters: snap.clusters, perTypeLimit: opts.perTypeLimit });
+		} catch {
+			/* stepper may not be loaded */
+		}
+	}
+
 	protected render(): void {
 		if (!this.shadowRoot) return;
 		this.lastMermaidSource = "";
-		const { quads, zoom, layout, hiddenGraphs, maxPerSubgraph } = this.state;
+		const { quads, zoom, layout, maxPerSubgraph } = this.state;
 
 		if (quads.length === 0) {
 			this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="empty"><shu-spinner></shu-spinner> Loading graph data...</div>`;
@@ -209,13 +238,11 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		// Filter quads by time cursor — show graph state at that moment
 		this.visibleQuads = this.filterByTime(quads);
 		const visibleQuads = this.visibleQuads;
-		const graphs = [...new Set(visibleQuads.map((q) => q.namedGraph))].sort();
-		const hiddenSet = new Set(hiddenGraphs);
 		const hiddenRelSet = new Set(this.state.hiddenRels);
 		const classifier = this.activeClassifier;
 
 		// Group edge predicates by rel from shared graph model edges.
-		const graphModel = buildGraphModelFromQuads(visibleQuads);
+		const graphModel = buildGraphModelFromQuads(visibleQuads, { clusters: this.state.clusters });
 		const relToPredicates = new Map<string, Set<string>>();
 		for (const e of graphModel.edges) {
 			if (classifier.classify(e.graph, e.predicate) !== "edge") continue;
@@ -226,11 +253,10 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		this.relPredicateMap = relToPredicates;
 		const sortedRels = [...relToPredicates.keys()].sort();
 
-		const filterHtml = graphs.map((g) => `<label><input type="checkbox" data-graph="${g}" ${hiddenSet.has(g) ? "" : "checked"}> ${g}</label>`).join("");
-		const edgeFilterHtml = sortedRels.length > 0 ? `<span style="margin-left:4px;color:#888">|</span> ${sortedRels.map((rel) => {
+		const edgeFilterHtml = sortedRels.length > 0 ? sortedRels.map((rel) => {
 			const predicates = [...(relToPredicates.get(rel) ?? [])].sort().join(", ");
 			return `<label title="${predicates}"><input type="checkbox" data-rel="${rel}" ${hiddenRelSet.has(rel) ? "" : "checked"}> ${rel}</label>`;
-		}).join("")}` : "";
+		}).join("") : "";
 
 		this.lastMermaidSource = "";
 		const toolbar = `<div class="toolbar" data-testid="graph-view-toolbar">
@@ -240,15 +266,18 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			<button data-action="zoom-in">+</button>
 			<button data-action="copy">Copy</button>
 			<label>limit <input type="number" data-action="max" value="${maxPerSubgraph}" min="1" max="999" style="width:40px"></label>
-			<div class="graph-filters">${filterHtml}${edgeFilterHtml}</div>
+			<div class="graph-filters">${edgeFilterHtml}</div>
 			<span class="quad-count">${visibleQuads.length} quads</span>
-		</div>`;
+		</div>
+		<shu-graph-filter></shu-graph-filter>`;
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}
 			<div class="graph-scroll">
 				<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
 					<div id="${this.diagramId}"></div>
 				</div>
 			</div>`;
+		const filterEl = this.shadowRoot.querySelector("shu-graph-filter") as ShuGraphFilter | null;
+		filterEl?.setClusters([...this.knownClusters.values()]);
 
 		this.bindToolbar();
 		void this.renderMermaid();
@@ -360,7 +389,9 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				theme: "default",
 				securityLevel: "loose",
 				fontFamily: "ui-sans-serif, system-ui, sans-serif",
-				maxTextSize: 200000,
+				maxTextSize: 1_000_000,
+				maxEdges: 5000,
+				flowchart: { htmlLabels: true },
 			});
 			mermaidInitialized = true;
 		}
@@ -473,6 +504,11 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				e.stopPropagation();
 				if (rawId.endsWith("__summary")) {
 					this.setState({ expandedGraphs: [...new Set([...this.state.expandedGraphs, rawId.slice(0, -9)])] });
+					return;
+				}
+				if (rawId.startsWith("cluster:")) {
+					const type = rawId.slice("cluster:".length);
+					this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_CLUSTER_EXPAND, { detail: { type }, bubbles: true, composed: true }));
 					return;
 				}
 				const entry = this.currentNodeMap.get(rawId);
