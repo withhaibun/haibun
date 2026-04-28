@@ -58,6 +58,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** Open a vertex by ID. Fetches data and renders. */
 	async open(id: string, label: string = defaultLabel()): Promise<void> {
+		// Surface the subject as an attribute so external code (e.g. the COLUMN_CLOSE
+		// listener in app.ts) can detect which entity is in this column without
+		// reaching through the protected `state` field.
+		this.setAttribute("data-subject", id);
 		this.setState({
 			vertexId: id,
 			vertexLabel: label,
@@ -67,11 +71,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await inAction((scope) => client.rpc<{
-				vertex: VertexData;
-				edges: EdgeData[];
-				incomingCount: number;
-			}>(scope, requireStep("getVertexWithEdges"), { label, id }));
+			const data = await inAction(
+				(scope) =>
+					client.rpc<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(scope, requireStep("getVertexWithEdges"), { label, id }),
+				`entity-column: open ${label}:${id}`,
+			);
 			this.vertex = data.vertex;
 			this.edges = data.edges ?? [];
 			this.incomingCount = data.incomingCount ?? 0;
@@ -84,7 +88,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				}),
 			);
 		} catch (err) {
-			console.error(`[entity-column] open ${id} failed:`, err);
 			this.setState({ loading: false, error: errMsg(err) });
 		}
 	}
@@ -446,7 +449,7 @@ const STYLES =
 	.content-toolbar { display: flex; gap: 4px; padding: 2px 0; align-items: center; }
 	.content-switcher { display: flex; gap: 4px; }
 	.content-switch-btn { font-size: 0.75em; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; background: #f5f5f5; color: #555; }
-	.content-switch-btn.active { background: #e8f5e9; border-color: #1a6b3c; color: #1a6b3c; }
+	.content-switch-btn.active { background: #1a6b3c; border-color: #1a6b3c; color: #fff; }
 	.hidden { display: none; }
 	.detail-table { width: 100%; border-collapse: collapse; }
 	.detail-table td { padding: 1px 4px; vertical-align: top; }

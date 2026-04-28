@@ -497,7 +497,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<div class="input-line">
 				${modeToggle}
 				${stepCombobox}
-				${uiExtensions}
 			</div>`;
 
 		if (this.state.askExpanded) {

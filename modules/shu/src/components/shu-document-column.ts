@@ -50,8 +50,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 				for (const e of data.events) this.addEvent(e);
 				this.renderFull();
 			}
-		} catch (err) {
-			if (!ShuElement.offline) console.warn("[shu-document] failed to load events:", err instanceof Error ? err.message : err);
+		} catch {
+			// load failure isn't fatal — column keeps current rows; next refresh retries.
 		}
 
 		if (this.hasAttribute("data-snapshot-time")) return;

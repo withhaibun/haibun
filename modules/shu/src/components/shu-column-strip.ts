@@ -181,6 +181,10 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			pane.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
 			this.activatePane(index);
 			this.updateAccordion();
+			// Mirror handlePaneMinimize: the `~min` suffix in column keys depends
+			// on the pane's `data-minimized` attribute, so toggling it must emit
+			// COLUMNS_CHANGED for the URL hash to track expand the same way it tracks minimize.
+			this.emitColumnsChanged();
 			requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "center" }));
 		}
 	};

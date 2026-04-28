@@ -28,7 +28,7 @@ const STYLES = `
 .toolbar { display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: #f5f5f5; border-bottom: 1px solid #ddd; flex: 0 0 auto; font-size: 12px; }
 .toolbar button { padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #fff; cursor: pointer; font-size: 11px; }
 :host(:not([data-show-controls])) .toolbar { display: none; }
-.toolbar button.active { background: #e8f5e9; border-color: #1a6b3c; color: #1a6b3c; }
+.toolbar button.active { background: #1a6b3c; border-color: #1a6b3c; color: #fff; }
 .toolbar .count { margin-left: auto; color: #888; }
 .thread-list { flex: 1; overflow: auto; padding: 4px; }
 .thread-card { padding: 6px 8px; margin: 2px 0; border: 1px solid #eee; border-radius: 4px; cursor: pointer; }

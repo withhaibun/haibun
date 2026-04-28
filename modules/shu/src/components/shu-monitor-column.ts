@@ -89,8 +89,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				this.updateTimeline();
 				this.renderRows();
 			}
-		} catch (err) {
-			if (!ShuElement.offline) console.warn("[shu-monitor] failed to load events:", err instanceof Error ? err.message : err);
+		} catch {
+			// load failure isn't fatal — the column stays in its current state and the next refresh tries again.
 		}
 
 		if (this.hasAttribute("data-snapshot-time")) return;

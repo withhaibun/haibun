@@ -32,8 +32,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private offset = 0;
 	private error = "";
 	private lastQueryKey = "";
-	/** In-flight request key + promise — coalesces concurrent `executeQuery` calls so a hashchange + connect race doesn't fire the same RPC twice. */
-	private inflightKey = "";
+	/** In-flight promise — coalesces concurrent identical `executeQuery` calls. The key is `lastQueryKey` (set immediately after the dedup check). */
 	private inflightPromise: Promise<void> | null = null;
 	private hashChangeHandler: (() => void) | null = null;
 	private selectedIds = new Set<string>();
@@ -234,10 +233,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			limit: this.limit,
 		});
 		// Coalesce concurrent identical fires (e.g. hashchange + initial connect).
-		if (this.inflightPromise && this.inflightKey === queryKey) return this.inflightPromise;
+		if (this.inflightPromise && this.lastQueryKey === queryKey) return this.inflightPromise;
 		const resultsChanged = queryKey !== this.lastQueryKey;
 		this.lastQueryKey = queryKey;
-		this.inflightKey = queryKey;
 
 		this.error = "";
 		const work = (async () => {
@@ -254,8 +252,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				};
 				const client = SseClient.for("");
 				const method = requireStep("graphQuery");
-				const data = await inAction((scope) =>
-					client.rpc<{ vertices: VertexRow[]; total: number; cypher: string }>(scope, method, { query: payload }),
+				const data = await inAction(
+					(scope) => client.rpc<{ vertices: VertexRow[]; total: number; cypher: string }>(scope, method, { query: payload }),
+					`graph-query: ${label || "(any)"}${textQuery ? ` "${textQuery}"` : ""}`,
 				);
 				this.results = data.vertices ?? [];
 				this.total = data.total ?? this.results.length;
@@ -276,7 +275,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		})();
 		this.inflightPromise = work.finally(() => {
 			this.inflightPromise = null;
-			this.inflightKey = "";
 		});
 		return this.inflightPromise;
 	}

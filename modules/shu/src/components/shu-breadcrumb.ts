@@ -108,7 +108,7 @@ const STYLES = `
 		text-overflow: ellipsis; max-width: 200px; padding: 1px 4px; border-radius: 3px;
 	}
 	.crumb:hover { color: #333; text-decoration: underline; }
-	.crumb.active { background: #e8f5e9; color: #1a6b3c; font-weight: 500; }
+	.crumb.active { background: #1a6b3c; color: #fff; font-weight: 500; }
 	.crumb-sep { color: #ccc; padding: 0 2px; flex-shrink: 0; }
 	.sync-btn {
 		background: none; border: none; cursor: pointer; padding: 0 3px;

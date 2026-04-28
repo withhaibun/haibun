@@ -7,6 +7,20 @@ import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnPaneSchema } from "../schemas.js";
 import { esc } from "../util.js";
+import { getJsonCookie, setJsonCookie } from "../cookies.js";
+
+const SHOW_CONTROLS_COOKIE = "shu-show-controls";
+
+/** Read per-component show-controls preference. Components default to OFF — a fresh user sees graph/fisheye/etc. without their settings rows. */
+export function readShowControlsCookie(componentTag: string): boolean {
+	return Boolean(getJsonCookie<Record<string, boolean>>(SHOW_CONTROLS_COOKIE, {})[componentTag]);
+}
+
+function writeShowControlsCookie(componentTag: string, show: boolean): void {
+	const map = getJsonCookie<Record<string, boolean>>(SHOW_CONTROLS_COOKIE, {});
+	map[componentTag] = show;
+	setJsonCookie(SHOW_CONTROLS_COOKIE, map);
+}
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	constructor() {
@@ -107,6 +121,18 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			<div class="resize-handle"></div>
 		`;
 
+		// Sync the controls-toggle highlight from the slotted child once it's
+		// appended. The render() above runs before openPinnedColumn finishes
+		// `pane.appendChild(child)`, so `this.children[0]` doesn't yet have
+		// `data-show-controls`. The slotchange event fires when the child is
+		// distributed; reading the attr there gives an accurate initial state.
+		const slot = this.shadowRoot.querySelector("slot");
+		const ctrlBtn = this.shadowRoot.querySelector(".pane-controls") as HTMLElement | null;
+		slot?.addEventListener("slotchange", () => {
+			const child = this.children[0] as HTMLElement | undefined;
+			if (ctrlBtn) ctrlBtn.classList.toggle("active", Boolean(child?.hasAttribute("data-show-controls")));
+		});
+
 		// Minimize toggle
 		this.shadowRoot.querySelector(".pane-minimize")?.addEventListener("click", (e) => {
 			e.stopPropagation();
@@ -132,17 +158,20 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { bubbles: true, composed: true }));
 		});
 
-		// Controls toggle — toggles data-show-controls on the slotted child view component
+		// Controls toggle — toggles data-show-controls on the slotted child view
+		// component AND persists the choice in a cookie keyed by the child's
+		// tag, so a user who turns settings on for graph-view sees them again
+		// on next reload without affecting fisheye or any other view.
 		this.shadowRoot.querySelector(".pane-controls")?.addEventListener("click", (e) => {
 			e.stopPropagation();
-			const child = this.children[0] as HTMLElement & { refresh?: () => void } | null;
-			if (child) {
-				const show = !child.hasAttribute(SHU_ATTR.SHOW_CONTROLS);
-				if (show) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
-				else child.removeAttribute(SHU_ATTR.SHOW_CONTROLS);
-				child.refresh?.();
-				(e.target as HTMLElement).classList.toggle("active", show);
-			}
+			const child = this.children[0] as (HTMLElement & { refresh?: () => void }) | null;
+			if (!child) return;
+			const show = !child.hasAttribute(SHU_ATTR.SHOW_CONTROLS);
+			if (show) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+			else child.removeAttribute(SHU_ATTR.SHOW_CONTROLS);
+			writeShowControlsCookie(child.tagName.toLowerCase(), show);
+			child.refresh?.();
+			(e.target as HTMLElement).classList.toggle("active", show);
 		});
 
 		// Pin toggle
@@ -302,47 +331,35 @@ const STYLES = `
 		white-space: nowrap;
 		flex: 1;
 	}
-	.pane-minimize {
+	/* Header buttons share one footprint and gap so active highlights line up
+	 * across the row regardless of which buttons are toggled on. Inverse style
+	 * (#1a6b3c / #fff) is the single "active" indicator — no transform tricks. */
+	.pane-header > button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 18px;
+		margin-left: 2px;
+		padding: 0;
+		font-size: 0.85em;
+		line-height: 1;
+		color: #bbb;
 		background: none;
 		border: none;
+		border-radius: 3px;
 		cursor: pointer;
-		font-size: 0.85em;
-		padding: 0 4px;
-		color: #bbb;
 		flex-shrink: 0;
 	}
-	.pane-minimize:hover { color: #444; }
-	:host([collapsed]) .pane-minimize { display: none; }
-	.pane-maximize { background: none; border: none; cursor: pointer; font-size: 0.85em; padding: 0 4px; color: #bbb; flex-shrink: 0; }
-	.pane-maximize:hover { color: #444; }
-	:host([collapsed]) .pane-maximize { display: none; }
-	:host([data-maximized]) .pane-maximize { color: #1a6b3c; }
-	.pane-controls { background: none; border: none; cursor: pointer; font-size: 0.85em; padding: 0 4px; color: #bbb; flex-shrink: 0; }
-	.pane-controls:hover { color: #444; }
-	.pane-controls.active { color: #1a6b3c; }
+	.pane-header > button:hover { color: #444; }
+	:host([collapsed]) .pane-minimize,
+	:host([collapsed]) .pane-maximize,
 	:host([collapsed]) .pane-controls { display: none; }
-	.pane-pin {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 0.8em;
-		padding: 0 2px;
-		opacity: 0.3;
-		transition: opacity 0.15s;
-		flex-shrink: 0;
-	}
-	.pane-pin:hover { opacity: 0.7; }
-	.pane-pin.pinned { opacity: 1; color: #1a6b3c; transform: rotate(45deg); }
-	.pane-close {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 0.85em;
-		padding: 0 4px;
-		line-height: 1.4;
-		color: #bbb;
-		flex-shrink: 0;
-	}
+	:host([data-maximized]) .pane-maximize { background: #1a6b3c; color: #fff; }
+	.pane-controls.active { background: #1a6b3c; color: #fff; }
+	.pane-pin { opacity: 0.5; transition: opacity 0.15s; }
+	.pane-pin:hover { opacity: 0.85; }
+	.pane-pin.pinned { opacity: 1; background: #1a6b3c; color: #fff; }
 	.pane-close:hover { background: #eee; color: #444; }
 	.pane-content {
 		flex: 1;

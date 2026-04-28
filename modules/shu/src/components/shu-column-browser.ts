@@ -570,7 +570,6 @@ export class ShuColumnBrowser extends HTMLElement {
 						if (propertyName) {
 							void this.openFilteredColumn(propertyName, value, currentLabel, colIndex);
 						} else {
-							console.warn(`[column-browser] filter click without property context: ${value}`);
 							void this.openColumn(value, colIndex, currentLabel);
 						}
 						break;
@@ -667,7 +666,7 @@ const COLUMN_STYLES = `
 	.content-toolbar { display: flex; gap: 4px; padding: 2px 4px; flex-shrink: 0; align-items: center; }
 	.content-switcher { display: flex; gap: 4px; flex-shrink: 0; }
 	.content-switch-btn { font-size: 0.75em; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; background: #f5f5f5; color: #555; }
-	.content-switch-btn.active { background: #e8f5e9; border-color: #1a6b3c; color: #1a6b3c; }
+	.content-switch-btn.active { background: #1a6b3c; border-color: #1a6b3c; color: #fff; }
 	.hidden { display: none; }
 	.body-container { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 	.body-iframe { width: 100%; flex: 1; min-height: 150px; border: none; background: #fff; }

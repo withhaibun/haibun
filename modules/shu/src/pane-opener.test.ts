@@ -59,8 +59,9 @@ describe("openPinnedColumn", () => {
 			await openPinnedColumn(columnType, label, childTag, {
 				// biome-ignore lint/suspicious/noExplicitAny: test-only — the real ShuColumnStrip class is heavier than this contract requires.
 getStrip: () => strip as any,
-				ensureUiComponentLoaded: async (tag) => {
+				ensureUiComponentLoaded: (tag) => {
 					ensureCalled = tag;
+					return Promise.resolve();
 				},
 			});
 
@@ -84,7 +85,7 @@ getStrip: () => strip as any,
 		const opts = {
 			// biome-ignore lint/suspicious/noExplicitAny: test-only — the real ShuColumnStrip class is heavier than this contract requires.
 getStrip: () => strip as any,
-			ensureUiComponentLoaded: async () => {},
+			ensureUiComponentLoaded: () => Promise.resolve(),
 		};
 		await openPinnedColumn("idem", "Idempotent", tag, opts);
 		await openPinnedColumn("idem", "Idempotent", tag, opts);
@@ -95,7 +96,7 @@ getStrip: () => strip as any,
 		await expect(
 			openPinnedColumn("graph", "Graph view", "shu-graph-view", {
 				getStrip: () => null,
-				ensureUiComponentLoaded: async () => {},
+				ensureUiComponentLoaded: () => Promise.resolve(),
 			}),
 		).rejects.toThrow(/no column-strip/);
 	});
