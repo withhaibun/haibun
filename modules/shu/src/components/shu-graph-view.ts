@@ -13,9 +13,10 @@ import { SseClient, inAction } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
 import { openQuadDetailPane } from "../quad-detail-pane.js";
 import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
-import { getStepperForType } from "../rpc-registry.js";
+import { getStepperForType, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "../graph-model.js";
+import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { getGraphSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, subscribeViewContext } from "../quads-snapshot.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
@@ -47,7 +48,7 @@ const StateSchema = z.object({
 	dataSource: z.enum(["rpc", "external"]).default("rpc"),
 	classifierMode: z.enum(["browser", "thread"]).default("browser"),
 	zoom: z.number().default(100),
-	layout: z.enum(["TD", "LR"]).default("LR"),
+	layout: z.enum(["TD", "LR"]).default("TD"),
 	hiddenGraphs: z.array(z.string()).default([]),
 	hiddenRels: z.array(z.string()).default([]),
 	expandedGraphs: z.array(z.string()).default([]),
@@ -81,18 +82,33 @@ const STYLES = `
 
 const HIDDEN_GRAPHS_COOKIE = "shu-graph-hidden";
 
-function readHiddenGraphsCookie(): string[] {
-	const match = document.cookie.match(new RegExp(`(?:^|; )${HIDDEN_GRAPHS_COOKIE}=([^;]*)`));
-	if (!match) return [];
-	try {
-		return JSON.parse(decodeURIComponent(match[1]));
-	} catch {
-		return [];
-	}
-}
+const readHiddenGraphsCookie = (): string[] => getJsonCookie<string[]>(HIDDEN_GRAPHS_COOKIE, []);
+const writeHiddenGraphsCookie = (hidden: string[]): void => setJsonCookie(HIDDEN_GRAPHS_COOKIE, hidden);
 
-function writeHiddenGraphsCookie(hidden: string[]): void {
-	document.cookie = `${HIDDEN_GRAPHS_COOKIE}=${encodeURIComponent(JSON.stringify(hidden))}; path=/; max-age=${60 * 60 * 24 * 365}`;
+/**
+ * Convert a vertex + its outgoing edges (the shape returned by
+ * `getVertexWithEdges`) into the quad shape mermaid + the snapshot consume.
+ *
+ * One quad per scalar property; one quad per edge (predicate = edge type,
+ * object = target id). Underscore-prefixed projections (`_id`, `_links`,
+ * etc.) are skipped — those are HATEOAS metadata, not graph data.
+ */
+function vertexAndEdgesToQuads(label: string, vertex: Record<string, unknown>, edges: Array<{ type: string; target: Record<string, unknown> }>): TQuad[] {
+	const subject = String(vertex._id ?? vertex.id ?? vertex["@id"] ?? "");
+	if (!subject) return [];
+	const timestamp = Date.now();
+	const quads: TQuad[] = [];
+	for (const [k, v] of Object.entries(vertex)) {
+		if (k.startsWith("_") || k === "id") continue;
+		if (v === undefined || v === null) continue;
+		quads.push({ subject, predicate: k, object: v, namedGraph: label, timestamp });
+	}
+	for (const e of edges) {
+		const targetId = String(e.target?._id ?? e.target?.id ?? e.target?.["@id"] ?? "");
+		if (!targetId) continue;
+		quads.push({ subject, predicate: e.type, object: targetId, namedGraph: label, timestamp });
+	}
+	return quads;
 }
 
 export class ShuGraphView extends ShuElement<typeof StateSchema> {
@@ -111,9 +127,13 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	private svgEdges: Array<{ pathEl: Element; labelEl: Element | null; fromId: string; toId: string; labelText: string }> = [];
 	/** SVG node rawId → adjacent rawIds. Used by selection highlight to mirror hover behavior. */
 	private svgNeighbors = new Map<string, Set<string>>();
+	/** Reverse lookup: subject → rawId. Avoids the O(N) scan over `currentNodeMap.entries()` on every selection change. */
+	private subjectToRawId = new Map<string, string>();
 	/** Currently selected subject pinned via `.filter-match`. Cleared on selection change; reapplied after each mermaid re-render. */
 	private selectedHighlightSubject: string | null = null;
 	private unsubscribeSnapshot?: () => void;
+	/** Subjects already fetched on-demand (clustered → individually loaded). Avoids re-fetching the same subject + edges every time the user re-selects it. */
+	private fetchedSubjects = new Set<string>();
 
 	/** Provide quads externally — sets dataSource to external, skipping RPC. */
 	setQuads(quads: TQuad[]): void {
@@ -161,7 +181,14 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 
 		this.addEventListener(SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ types: string[]; perTypeLimit: number }>) => {
 			const visible = new Set(e.detail.types);
-			const hiddenGraphs = [...this.knownClusters.keys()].filter((t) => !visible.has(t));
+			// Hidden = all known namedGraphs minus visible. The set is the union of
+			// `knownClusters` (snapshot-reported clusters) and live namedGraphs from
+			// `state.quads` — types that arrived only via SSE/on-demand fetch
+			// otherwise wouldn't appear here, and unchecking them in the filter
+			// would have no effect.
+			const allKnown = new Set<string>(this.knownClusters.keys());
+			for (const q of this.state.quads) allKnown.add(q.namedGraph);
+			const hiddenGraphs = [...allKnown].filter((t) => !visible.has(t));
 			writeHiddenGraphsCookie(hiddenGraphs);
 			this.setState({ hiddenGraphs });
 			void this.refetchSnapshot({ types: e.detail.types, perTypeLimit: e.detail.perTypeLimit });
@@ -194,7 +221,21 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		});
 
 		this.unsubscribeSnapshot = subscribeViewContext({
-			onSelectionChange: (subject) => this.applySelectionHighlight(subject),
+			onSelectionChange: (subject, label) => {
+				this.applySelectionHighlight(subject);
+				if (subject && label) void this.fetchIfMissing(subject, label);
+			},
+		});
+
+		// Empty-area click in the diagram releases the focus lock. Bound on the
+		// shadow root once (delegated) so each mermaid re-render doesn't append
+		// another listener.
+		this.shadowRoot?.addEventListener("click", (e) => {
+			if (e.defaultPrevented) return;
+			const target = e.target as Element | null;
+			if (!target?.closest(".diagram-container")) return;
+			if (target.closest("g.node, g.cluster")) return;
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [] }, bubbles: true, composed: true }));
 		});
 	}
 
@@ -229,6 +270,10 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		try {
 			const snap = await getGraphSnapshot({ perTypeLimit: opts.perTypeLimit, types: opts.types, forceRefresh: true });
 			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
+			// Subjects fetched on demand (fetchIfMissing) are now part of the fresh
+			// snapshot; clearing here keeps the set bounded across long sessions
+			// and lets a subject re-load if it was sampled out by a new perTypeLimit.
+			this.fetchedSubjects.clear();
 			this.setState({ quads: snap.quads, clusters: snap.clusters, perTypeLimit: opts.perTypeLimit });
 		} catch {
 			/* stepper may not be loaded */
@@ -269,15 +314,16 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		}).join("") : "";
 
 		this.lastMermaidSource = "";
+		// Toolbar drops the standalone "limit <input>" \u2014 the filter row's slider is the
+		// single control for per-type sample size. Quad count moves into the filter row
+		// (rendered via shu-graph-filter) so settings sit on one line.
 		const toolbar = `<div class="toolbar" data-testid="graph-view-toolbar">
 			<button data-action="layout">${layout}</button>
 			<button data-action="zoom-out">\u2212</button>
 			<span class="zoom-label">${zoom}%</span>
 			<button data-action="zoom-in">+</button>
 			<button data-action="copy">Copy</button>
-			<label>limit <input type="number" data-action="max" value="${maxPerSubgraph}" min="1" max="999" style="width:40px"></label>
 			<div class="graph-filters">${edgeFilterHtml}</div>
-			<span class="quad-count">${visibleQuads.length} quads</span>
 		</div>
 		<shu-graph-filter></shu-graph-filter>`;
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}
@@ -290,7 +336,22 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		if (filterEl) {
 			if (this.showControls) filterEl.setAttribute("show-controls", "");
 			else filterEl.removeAttribute("show-controls");
-			filterEl.setClusters([...this.knownClusters.values()]);
+			// Synthesize cluster entries for any namedGraph that appears in the
+			// quads but isn't in the snapshot's clusters list \u2014 otherwise the
+			// legend is incomplete relative to what mermaid actually renders.
+			const seen = new Set<string>();
+			const merged: TCluster[] = [];
+			for (const c of this.knownClusters.values()) {
+				merged.push(c);
+				seen.add(c.type);
+			}
+			for (const q of this.state.quads) {
+				if (seen.has(q.namedGraph)) continue;
+				seen.add(q.namedGraph);
+				merged.push({ type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [] });
+			}
+			filterEl.setClusters(merged);
+			filterEl.setQuadCount(visibleQuads.length);
 		}
 
 		this.bindToolbar();
@@ -369,11 +430,6 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			});
 			label?.addEventListener("mouseleave", () => this.clearFilterHighlight());
 		});
-		const maxInput = this.shadowRoot?.querySelector("input[data-action='max']") as HTMLInputElement | null;
-		maxInput?.addEventListener("change", () => {
-			const val = parseInt(maxInput.value, 10);
-			if (val > 0) this.setState({ maxPerSubgraph: val });
-		});
 	}
 
 	private edgeRelToPredicates(rel: string): Set<string> {
@@ -409,27 +465,81 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	 * (which prefixes the graph name) by scanning currentNodeMap.
 	 */
 	private applySelectionHighlight(subject: string | null): void {
+		if (subject === this.selectedHighlightSubject) return;
 		this.selectedHighlightSubject = subject;
 		this.clearAllHighlightClasses();
-		if (subject) this.paintHighlight(subject);
+		if (!subject) return;
+		this.paintHighlight(subject);
+		// `paintHighlight` is also invoked from `clearFilterHighlight` (every
+		// mouseleave) and after each mermaid re-render; scrolling there would
+		// yank the viewport. Scroll only on actual selection change.
+		this.scrollSubjectIntoView(subject);
 	}
 
 	private paintHighlight(subject: string): void {
-		const rawId = [...this.currentNodeMap.entries()].find(([, v]) => v.subject === subject)?.[0];
-		if (!rawId) {
-			console.warn(`[shu-graph-view] cannot highlight subject "${subject}" — not in current node map. Will retry after next render.`);
-			return;
-		}
+		const rawId = this.subjectToRawId.get(subject);
+		if (!rawId) return;
 		const container = this.shadowRoot?.querySelector(".diagram-container");
 		container?.classList.add("filter-highlight");
-		const nodeEl = this.svgNodeElements.get(rawId);
-		nodeEl?.classList.add("filter-match");
+		this.svgNodeElements.get(rawId)?.classList.add("filter-match");
 		this.svgNeighbors.get(rawId)?.forEach((nid) => this.svgNodeElements.get(nid)?.classList.add("filter-match"));
 		this.svgNodeEdgeElements.get(rawId)?.forEach((el) => el.classList.add("filter-match"));
-		// Scroll the active node into the visible area of the diagram-container scroll
-		// region. SVG elements ignore inline display, but the surrounding `<g>` group
-		// has a getBoundingClientRect, which scrollIntoView uses.
-		nodeEl?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+	}
+
+	/**
+	 * If `subject` isn't already in the loaded data — typical when the user
+	 * selects a vertex from a query result that the clustered snapshot only
+	 * sampled, or when the selected subject's neighbours are still in their
+	 * cluster — fetch the vertex + its outgoing edges and merge them into
+	 * `state.quads`. The mermaid re-render then includes the subject + linked
+	 * targets, and the post-render reapply highlights them.
+	 *
+	 * Each subject is fetched at most once per view lifetime (`fetchedSubjects`)
+	 * so re-selecting the same vertex doesn't repeat the RPC.
+	 */
+	private async fetchIfMissing(subject: string, label: string): Promise<void> {
+		if (this.subjectToRawId.has(subject) || this.fetchedSubjects.has(subject)) return;
+		this.fetchedSubjects.add(subject);
+		try {
+			await getAvailableSteps();
+			const client = SseClient.for("");
+			const data = await inAction(
+				(scope) => client.rpc<{ vertex: Record<string, unknown>; edges: Array<{ type: string; target: Record<string, unknown> }> }>(scope, requireStep("getVertexWithEdges"), { label, id: subject }),
+				`graph-view: fetch missing selection ${label}:${subject}`,
+			);
+			if (!data?.vertex) return;
+			const newQuads = vertexAndEdgesToQuads(label, data.vertex, data.edges ?? []);
+			if (newQuads.length === 0) return;
+			mergeQuadsIntoSnapshot(newQuads);
+			// Adding quads is necessary but not sufficient: when the subject's type
+			// has more members than `maxPerSubgraph`, buildMermaidSource collapses
+			// the whole type into a single `cluster:<label>` node and the subject
+			// stays hidden. Explicitly expand the subject's graph so individual
+			// vertices in that type render — the user just declared interest in one
+			// of them, the rest of the type is now relevant context.
+			const expanded = this.state.expandedGraphs.includes(label) ? this.state.expandedGraphs : [...this.state.expandedGraphs, label];
+			this.setState({ quads: [...this.state.quads, ...newQuads], expandedGraphs: expanded });
+		} catch {
+			this.fetchedSubjects.delete(subject); // allow retry on next selection
+		}
+	}
+
+	/**
+	 * Scroll the matching SVG node into the `.graph-scroll` container's view —
+	 * the immediate scrollable ancestor — without bubbling to the column-strip
+	 * or page. Walking up via the default `scrollIntoView` would shift the
+	 * surrounding pane and feel like a zoom change.
+	 */
+	private scrollSubjectIntoView(subject: string): void {
+		const rawId = this.subjectToRawId.get(subject);
+		const nodeEl = rawId ? (this.svgNodeElements.get(rawId) as SVGGraphicsElement | undefined) : undefined;
+		const scroller = this.shadowRoot?.querySelector(".graph-scroll") as HTMLElement | null;
+		if (!nodeEl || !scroller) return;
+		const nodeRect = nodeEl.getBoundingClientRect();
+		const scrollerRect = scroller.getBoundingClientRect();
+		const dx = nodeRect.left + nodeRect.width / 2 - (scrollerRect.left + scrollerRect.width / 2);
+		const dy = nodeRect.top + nodeRect.height / 2 - (scrollerRect.top + scrollerRect.height / 2);
+		scroller.scrollBy({ left: dx, top: dy, behavior: "smooth" });
 	}
 
 	private async renderMermaid(): Promise<void> {
@@ -449,6 +559,8 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		if (source === this.lastMermaidSource) return;
 		this.lastMermaidSource = source;
 		this.currentNodeMap = nodeMap;
+		this.subjectToRawId = new Map();
+		for (const [rawId, v] of nodeMap) this.subjectToRawId.set(v.subject, rawId);
 		try {
 			const { svg } = await mermaid.render(this.diagramId, source);
 			const container = this.shadowRoot?.querySelector(".diagram-container");
@@ -540,7 +652,6 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		// Reapply selection highlight if we already had a sticky selection: the SVG was just rebuilt and lost any prior `.filter-match` classes.
 		if (this.selectedHighlightSubject) this.paintHighlight(this.selectedHighlightSubject);
 
-		let bound = 0;
 		for (const [rawId, g] of nodeElements) {
 			(g as SVGGElement).style.cursor = "pointer";
 
@@ -578,21 +689,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 					this.showQuadDetail(entry.graph, entry.subject);
 				}
 			});
-			bound++;
 		}
-		console.debug("[graph-view] bound", bound, "clickable nodes");
-		// Click on the diagram-container area outside any node releases the focus
-		// lock — same effect as closing the entity column. Both routes converge on
-		// `setSelectedSubject(null, null)` via a CONTEXT_CHANGE with empty patterns,
-		// so all subscribers (this view, fisheye) clear together.
-		container?.addEventListener("click", (e) => {
-			if (e.defaultPrevented) return;
-			const target = e.target as Element | null;
-			// Node clicks stop propagation, so by the time the container handler fires
-			// we know the click was on empty space.
-			if (target?.closest("g.node, g.cluster")) return;
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [] }, bubbles: true, composed: true }));
-		});
 	}
 
 	private showQuadDetail(graph: string, subject: string): void {
