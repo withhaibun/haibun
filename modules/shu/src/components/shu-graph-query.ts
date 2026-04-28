@@ -32,6 +32,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private offset = 0;
 	private error = "";
 	private lastQueryKey = "";
+	/** In-flight request key + promise — coalesces concurrent `executeQuery` calls so a hashchange + connect race doesn't fire the same RPC twice. */
+	private inflightKey = "";
+	private inflightPromise: Promise<void> | null = null;
 	private hashChangeHandler: (() => void) | null = null;
 	private selectedIds = new Set<string>();
 
@@ -225,50 +228,57 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			label,
 			textQuery,
 			conditions: validConditions,
+			sortBy: sortBy || "",
+			sortOrder,
+			offset: this.offset,
+			limit: this.limit,
 		});
+		// Coalesce concurrent identical fires (e.g. hashchange + initial connect).
+		if (this.inflightPromise && this.inflightKey === queryKey) return this.inflightPromise;
 		const resultsChanged = queryKey !== this.lastQueryKey;
 		this.lastQueryKey = queryKey;
+		this.inflightKey = queryKey;
 
 		this.error = "";
-		try {
-			const payload = {
-				accessLevel: this.accessLevel,
-				label,
-				filters: validConditions,
-				textQuery: textQuery || undefined,
-				sortBy: sortBy || "",
-				sortOrder,
-				limit: this.limit,
-				offset: this.offset,
-			};
-			const client = SseClient.for("");
-			const method = requireStep("graphQuery");
-			const data = await inAction((scope) => client.rpc<{
-				vertices: VertexRow[];
-				total: number;
-				cypher: string;
-			}>(scope, method, {
-				query: payload,
-			}));
-
-			this.results = data.vertices ?? [];
-			this.total = data.total ?? this.results.length;
-
-			// Update column heading with the Cypher query
-			if (data.cypher) {
-				const pane = this.closest("shu-column-pane");
-				if (pane) pane.setAttribute("label", data.cypher);
+		const work = (async () => {
+			try {
+				const payload = {
+					accessLevel: this.accessLevel,
+					label,
+					filters: validConditions,
+					textQuery: textQuery || undefined,
+					sortBy: sortBy || "",
+					sortOrder,
+					limit: this.limit,
+					offset: this.offset,
+				};
+				const client = SseClient.for("");
+				const method = requireStep("graphQuery");
+				const data = await inAction((scope) =>
+					client.rpc<{ vertices: VertexRow[]; total: number; cypher: string }>(scope, method, { query: payload }),
+				);
+				this.results = data.vertices ?? [];
+				this.total = data.total ?? this.results.length;
+				if (data.cypher) {
+					const pane = this.closest("shu-column-pane");
+					if (pane) pane.setAttribute("label", data.cypher);
+				}
+			} catch (err) {
+				this.error = errMsg(err);
 			}
-		} catch (err) {
-			this.error = errMsg(err);
-		}
-		this.pushHash();
-		this.renderResults();
-		if (resultsChanged) {
-			this.selectedIds.clear();
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.RESULTS_CHANGED, { bubbles: true, composed: true }));
-		}
-		this.dispatchContextChange();
+			this.pushHash();
+			this.renderResults();
+			if (resultsChanged) {
+				this.selectedIds.clear();
+				this.dispatchEvent(new CustomEvent(SHU_EVENT.RESULTS_CHANGED, { bubbles: true, composed: true }));
+			}
+			this.dispatchContextChange();
+		})();
+		this.inflightPromise = work.finally(() => {
+			this.inflightPromise = null;
+			this.inflightKey = "";
+		});
+		return this.inflightPromise;
 	}
 
 	private get resultsTarget(): HTMLElement | null {
@@ -347,6 +357,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 							detail: {
 								subject: vid,
 								label: this.state.label || defaultLabel(),
+								addToSelection: ctrlKey,
 							},
 							bubbles: true,
 							composed: true,

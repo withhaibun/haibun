@@ -49,6 +49,7 @@ label.type .meta { color: #888; font-size: 11px; }
 .limit input[type=range] { width: 120px; }
 .limit input[type=number] { width: 56px; }
 .label { color: #666; }
+:host(:not([show-controls])) .limit, :host(:not([show-controls])) .limit-sep { display: none; }
 `;
 
 export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
@@ -102,7 +103,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="row">
 			<span class="label">show:</span>
 			${typeChecks || '<span class="meta">no types loaded</span>'}
-			<span class="label">|</span>
+			<span class="label limit-sep">|</span>
 			<label class="limit">per-type limit
 				<input type="range" min="10" max="1000" step="10" value="${perTypeLimit}" data-action="limit-range">
 				<input type="number" min="1" max="10000" step="10" value="${perTypeLimit}" data-action="limit-number">

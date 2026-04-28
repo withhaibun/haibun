@@ -7,6 +7,7 @@
  */
 import { LinkRelations, edgeRel as coreEdgeRel, getRelRange } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { colorForType } from "./type-colors.js";
 
 export type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
 
@@ -62,20 +63,6 @@ export function sanitizeId(s: string): string {
 export function truncate(s: string, max = 30): string {
 	const str = esc(String(s));
 	return str.length > max ? `${str.slice(0, max)}...` : str;
-}
-
-/** Pastel backgrounds for stepper-based subgraph coloring. */
-const STEPPER_PALETTE = ["#fffde7", "#e8f5e9", "#e3f2fd", "#fce4ec", "#f3e5f5", "#e0f7fa", "#fff3e0", "#f1f8e9"];
-const stepperColorCache = new Map<string, string>();
-
-export function stepperColor(stepperName: string | undefined): string {
-	if (!stepperName) return "#fafafa";
-	let color = stepperColorCache.get(stepperName);
-	if (!color) {
-		color = STEPPER_PALETTE[stepperColorCache.size % STEPPER_PALETTE.length];
-		stepperColorCache.set(stepperName, color);
-	}
-	return color;
 }
 
 /** Check if a string looks like a URI or resolvable path. */
@@ -240,10 +227,11 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 	}
 	lines.push(...edges);
 
-	// Color subgraphs by stepper
+	// Color subgraphs by vertex type — same palette/key as the fisheye view,
+	// so an "Email" subgraph in mermaid matches the colour of "Email" plates
+	// in 3D. Cross-view pattern-matching depends on this consistency.
 	for (const graph of byGraph.keys()) {
-		const stepper = classifier.stepperForType?.(graph);
-		const color = stepperColor(stepper);
+		const color = colorForType(graph);
 		const graphId = sanitizeId(graph);
 		lines.push(`  style ${graphId} fill:${color},stroke:#ccc`);
 	}

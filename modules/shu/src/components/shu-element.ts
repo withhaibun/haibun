@@ -39,17 +39,30 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 	/** Current time cursor (absolute epoch ms). null = show all (no time filter). */
 	protected timeCursor: number | null = null;
 
-	constructor(schema: T, defaults: z.infer<T>) {
+	/** Whether this view is the strip's active pane child. Updated via VIEW_ACTIVE events fanned out by shu-column-pane.setActive. */
+	protected isActiveView = false;
+
+	constructor(schema: T, defaults: z.infer<T>, opts?: { lightDom?: boolean }) {
 		super();
 		this._schema = schema;
 		this.state = schema.parse(defaults);
-		this.attachShadow({ mode: "open" });
+		// Most components encapsulate via shadow DOM, but e.g. a-frame-based viewers must live
+		// in light DOM so AFRAME's `document.querySelector("#fisheye-rig")` lookups still
+		// resolve. Light-DOM subclasses render into `this.innerHTML` directly.
+		if (!opts?.lightDom) this.attachShadow({ mode: "open" });
 		this.addEventListener(
 			SHU_EVENT.TIME_SYNC as string,
 			((e: CustomEvent) => {
 				if (this.hasAttribute("data-snapshot-time")) return;
 				this.timeCursor = e.detail?.currentTime ?? null;
 				this.onTimeSync(this.timeCursor);
+			}) as EventListener,
+		);
+		this.addEventListener(
+			SHU_EVENT.VIEW_ACTIVE as string,
+			((e: CustomEvent) => {
+				this.isActiveView = !!e.detail?.active;
+				this.onViewActive(this.isActiveView);
 			}) as EventListener,
 		);
 	}
@@ -86,6 +99,11 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 	/** Called when TIME_SYNC is received. Override for custom behavior. Default: re-render. */
 	protected onTimeSync(_cursor: number | null): void {
 		this.render();
+	}
+
+	/** Called when this view's active state toggles (its containing pane became / stopped being the active pane). Default no-op; override for custom behavior. */
+	protected onViewActive(_active: boolean): void {
+		// no-op default; subclasses override.
 	}
 
 	/** Whether this component should show its toolbar/controls. Set via data-show-controls attribute. */

@@ -109,91 +109,109 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			const hasFixedPath = !!this.outputPath;
 			if (!hasFixedPath && !shouldClose) return;
 			if (!hasFixedPath && !this.storage) return;
-			const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
-			// Ensure essential data is always available offline:
-			// 1. Events (the test execution log — core of the monitor view)
-			if (!rpcCache["MonitorStepper-getEvents"]) {
-				rpcCache["MonitorStepper-getEvents"] = { events: this.events };
-			}
-			// 2. Parameterless steps with view products (deterministic view toggles)
-			const candidates = Object.entries(this.steps).filter(([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{"));
-			const logger = this.getWorld().eventLogger;
-			await Promise.all(
-				candidates.map(async ([name, step]) => {
-					try {
-						const r = (await (step.action as () => unknown)()) as { products?: Record<string, unknown> } | undefined;
-						const products = r?.products;
-						if (products?.view) rpcCache[`MonitorStepper-${name}`] = products;
-					} catch (err) {
-						logger.warn(`[shu endFeature] step ${name} failed: ${err instanceof Error ? err.message : err}`);
-					}
-				}),
-			);
-			if (!rpcCache["step.list"]) {
-				rpcCache["step.list"] = { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
-			}
-			// Reconstruct view hash from events (view products) and cache (last query label)
-			const cols: string[] = [];
-			let label = "";
-			for (const e of this.events) {
-				const ev = e as Record<string, unknown>;
-				if (ev.kind !== "lifecycle" || ev.stage !== "end") continue;
-				const view = (ev.products as Record<string, unknown>)?.view;
-				if (typeof view === "string" && !cols.includes(`${view}:`)) cols.push(`${view}:`);
-			}
-			for (const key of Object.keys(rpcCache)) {
-				if (!key.includes("graphQuery:")) continue;
-				try {
-					const params = JSON.parse(key.slice(key.indexOf(":") + 1));
-					if (params?.query?.label) label = params.query.label;
-				} catch {
-					/* */
-				}
-			}
-			const hashParts = new URLSearchParams();
-			if (label) hashParts.set("label", label);
-			for (const col of cols) hashParts.append("col", col);
-			const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
-			const hydration = JSON.stringify({ events: this.events, rpcCache, viewHash });
-			const bundle = loadBundle();
-			const extraScripts = Object.values(this.getWorld().domains)
-				.map((d) => (d?.ui as Record<string, unknown> | undefined)?.jsContent)
-				.filter((c): c is string => typeof c === "string" && c.length > 0);
-			let html = buildSpaHtml(".", bundle, hydration, extraScripts);
-			const secrets = await this.getWorld().shared.getSecrets();
-			for (const [, value] of Object.entries(secrets)) {
-				if (value) html = html.replaceAll(value, OBSCURED_VALUE);
-			}
-			const fixedPath = this.outputPath;
-			if (fixedPath) {
-				writeFileSync(fixedPath, html);
-				this.getWorld().eventLogger.info(`shu standalone report: ${actualURI(fixedPath)}`);
-			} else {
-				const saved = await this.storage.saveArtifact("shu.html", html, EMediaTypes.html);
-				this.getWorld().eventLogger.info(`shu standalone report: ${actualURI(saved.absolutePath)}`);
-			}
+			await this.writeStandaloneReport({ fixedPath: this.outputPath });
 		},
 	};
+
+	/**
+	 * Build the standalone HTML report from the live event/quad buffers and write it.
+	 * Callable any time during a feature so a feature can capture a snapshot at a
+	 * chosen point — `saves shu to <path>` triggers a write, and `endFeature` writes
+	 * once more so the final state always reflects the full run.
+	 */
+	private async writeStandaloneReport({ fixedPath }: { fixedPath?: string }): Promise<string> {
+		const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
+		// Ensure essential data is always available offline:
+		// 1. Events (the test execution log — core of the monitor view)
+		if (!rpcCache["MonitorStepper-getEvents"]) {
+			rpcCache["MonitorStepper-getEvents"] = { events: this.events };
+		}
+		// 2. Parameterless steps with view products (deterministic view toggles)
+		const candidates = Object.entries(this.steps).filter(([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{"));
+		const logger = this.getWorld().eventLogger;
+		await Promise.all(
+			candidates.map(async ([name, step]) => {
+				try {
+					const r = (await (step.action as () => unknown)()) as { products?: Record<string, unknown> } | undefined;
+					const products = r?.products;
+					if (products?.view) rpcCache[`MonitorStepper-${name}`] = products;
+				} catch (err) {
+					logger.warn(`[shu writeStandaloneReport] step ${name} failed: ${err instanceof Error ? err.message : err}`);
+				}
+			}),
+		);
+		if (!rpcCache["step.list"]) {
+			rpcCache["step.list"] = { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
+		}
+		// Reconstruct view hash from events (view products) and cache (last query label)
+		const cols: string[] = [];
+		let label = "";
+		for (const e of this.events) {
+			const ev = e as Record<string, unknown>;
+			if (ev.kind !== "lifecycle" || ev.stage !== "end") continue;
+			const view = (ev.products as Record<string, unknown>)?.view;
+			if (typeof view === "string" && !cols.includes(`${view}:`)) cols.push(`${view}:`);
+		}
+		for (const key of Object.keys(rpcCache)) {
+			if (!key.includes("graphQuery:")) continue;
+			try {
+				const params = JSON.parse(key.slice(key.indexOf(":") + 1));
+				if (params?.query?.label) label = params.query.label;
+			} catch {
+				/* */
+			}
+		}
+		const hashParts = new URLSearchParams();
+		if (label) hashParts.set("label", label);
+		for (const col of cols) hashParts.append("col", col);
+		const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
+		const hydration = JSON.stringify({ events: this.events, rpcCache, viewHash });
+		const bundle = loadBundle();
+		const extraScripts = Object.values(this.getWorld().domains)
+			.map((d) => (d?.ui as Record<string, unknown> | undefined)?.jsContent)
+			.filter((c): c is string => typeof c === "string" && c.length > 0);
+		let html = buildSpaHtml(".", bundle, hydration, extraScripts);
+		const secrets = await this.getWorld().shared.getSecrets();
+		for (const [, value] of Object.entries(secrets)) {
+			if (value) html = html.replaceAll(value, OBSCURED_VALUE);
+		}
+		if (fixedPath) {
+			writeFileSync(fixedPath, html);
+			logger.info(`shu standalone report: ${actualURI(fixedPath)}`);
+			return fixedPath;
+		}
+		const saved = await this.storage.saveArtifact("shu.html", html, EMediaTypes.html);
+		logger.info(`shu standalone report: ${actualURI(saved.absolutePath)}`);
+		return saved.absolutePath;
+	}
 
 	steps = {
 		savesShuTo: {
 			gwta: "saves shu to {where: string}",
-			action: ({ where }: { where: string }) => {
+			description: "Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects the full run.",
+			action: async ({ where }: { where: string }) => {
 				this.outputPath = where;
-				return actionOKWithProducts({});
+				const written = await this.writeStandaloneReport({ fixedPath: where });
+				return actionOKWithProducts({ path: written });
 			},
 		},
+		// Singleton view products. Shape matches per-instance external views (e.g. fisheye)
+		// so one parser path opens both: `_type` + `_component` + `id` + `view` + `_summary`.
+		// `id === view` for singletons; per-instance views set `id = <component>:<uuid>`.
 		showMonitor: {
 			gwta: "show monitor",
-			action: () => actionOKWithProducts({ _type: "view", _summary: "Monitor log stream", _component: "shu-monitor-column", view: "monitor" }),
+			action: () =>
+				actionOKWithProducts({ _type: "shu-monitor-column", _summary: "Monitor log stream", _component: "shu-monitor-column", id: "monitor", view: "monitor" }),
 		},
 		showSequenceDiagram: {
 			gwta: "show sequence diagram",
-			action: () => actionOKWithProducts({ _type: "view", _summary: "Sequence diagram", _component: "shu-sequence-diagram", view: "sequence" }),
+			action: () =>
+				actionOKWithProducts({ _type: "shu-sequence-diagram", _summary: "Sequence diagram", _component: "shu-sequence-diagram", id: "sequence", view: "sequence" }),
 		},
 		showDocument: {
 			gwta: "show document",
-			action: () => actionOKWithProducts({ _type: "view", _summary: "Document view", _component: "shu-document-column", view: "document" }),
+			action: () =>
+				actionOKWithProducts({ _type: "shu-document-column", _summary: "Document view", _component: "shu-document-column", id: "document", view: "document" }),
 		},
 		getEvents: {
 			gwta: "get monitor events",
@@ -213,6 +231,20 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				});
 			},
 		},
+		logClient: {
+			gwta: "log client",
+			action: ({ level, message, source, attributes }: { level?: string; message?: string; source?: string; attributes?: Record<string, unknown> }) => {
+				if (typeof message !== "string" || message.length === 0) return actionNotOK("logClient requires non-empty message");
+				const normalizedLevel = level === "debug" || level === "trace" || level === "info" || level === "warn" || level === "error" ? level : "info";
+				const prefix = typeof source === "string" && source.length > 0 ? `[${source}] ` : "";
+				const line = `${prefix}${message}`;
+				const attrs = attributes && typeof attributes === "object" ? (attributes as Record<string, unknown>) : undefined;
+				if (normalizedLevel === "warn") this.getWorld().eventLogger.warn(line, attrs);
+				else if (normalizedLevel === "error") this.getWorld().eventLogger.error(line, attrs);
+				else this.getWorld().eventLogger.info(line, attrs);
+				return actionOKWithProducts({});
+			},
+		},
 		getDispatchTraces: {
 			gwta: "get dispatch traces",
 			outputSchema: z.object({ traces: z.array(z.unknown()) }),
@@ -228,7 +260,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		showGraphView: {
 			gwta: "show graph view",
-			action: () => actionOKWithProducts({ _type: "view", _summary: "Graph view", _component: "shu-graph-view", view: "graph" }),
+			action: () =>
+				actionOKWithProducts({ _type: "shu-graph-view", _summary: "Graph view", _component: "shu-graph-view", id: "graph", view: "graph" }),
 		},
 		graphQuery: {
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,

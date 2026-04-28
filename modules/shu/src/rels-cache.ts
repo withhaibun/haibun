@@ -105,6 +105,15 @@ export function getVertexUi(label: string): Record<string, unknown> | undefined 
 	return metadata?.ui[label];
 }
 
+/** Resolve a UI extension by component tag name from concern-derived metadata. */
+export function getUiByComponent(component: string): Record<string, unknown> | undefined {
+	if (!metadata) return undefined;
+	const matches = Object.values(metadata.ui).filter((ui) => ui?.component === component);
+	if (matches.length === 0) return undefined;
+	if (matches.length > 1) throw new Error(`Ambiguous UI extension for component ${component}: ${matches.length} concern entries`);
+	return matches[0];
+}
+
 const selectCache = new Map<string, Record<string, string[]>>();
 
 /** Set cached select values for a label (from getSelectValues RPC). */
@@ -205,8 +214,20 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		if (vertex.ui) ui[label] = vertex.ui;
 	}
 	if (domains) {
+		const seenComponents = new Set<string>();
+		for (const entry of Object.values(ui)) {
+			if (typeof entry?.component === "string") seenComponents.add(entry.component);
+		}
 		for (const [domainKey, info] of Object.entries(domains)) {
-			if (info?.ui && !ui[domainKey]) ui[domainKey] = info.ui;
+			if (!info?.ui || ui[domainKey]) continue;
+			// A single concern that declares both `topology.vertexLabel` and a `selector`
+			// arrives twice — once via catalog.vertices (keyed by label), once via
+			// `domains` (keyed by selector). Dedup by component so one declaration
+			// produces one rendered element, not two.
+			const component = typeof info.ui.component === "string" ? info.ui.component : null;
+			if (component && seenComponents.has(component)) continue;
+			ui[domainKey] = info.ui;
+			if (component) seenComponents.add(component);
 		}
 	}
 	return {

@@ -272,8 +272,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-						.map((b, i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
-						.join("")}</div>`
+					.map((b, i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
+					.join("")}</div>`
 				: "";
 
 		const active = available[0];
@@ -339,7 +339,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					case "item":
 						this.dispatchEvent(
 							new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-								detail: { subject: value, label: targetLabel },
+								detail: { subject: value, label: targetLabel, addToSelection: (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey },
 								bubbles: true,
 								composed: true,
 							}),
@@ -432,7 +432,7 @@ const STYLES =
 	:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: 6px 8px; font-family: inherit; color: #222; }
 	.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 	.entity-header { padding: 4px 0; }
-	.entity-type { font-weight: 600; color: #1a6b3c; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px; }
+	.entity-type { font-weight: 600; color: #1a6b3c; font-size: 0.85em; letter-spacing: 0.5px; margin-right: 8px; }
 	.entity-id { color: #555; word-break: break-all; }
 	.entity-summary { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 2px 0 4px; color: #555; font-size: 0.9em; }
 	.summary-field:first-child { font-weight: 500; }

@@ -1,4 +1,8 @@
-/** Test IDs for Playwright targeting of shu web components */
+/**
+ * Test IDs for Playwright targeting of components defined in @haibun/shu.
+ * External-component test ids (declared by domains via getConcerns()) live with
+ * those components; shu must not name them here.
+ */
 export const SHU_TEST_IDS = {
 	APP: {
 		ROOT: "shu-app",
@@ -70,8 +74,5 @@ export const SHU_TEST_IDS = {
 	},
 	GRAPH_VIEW: {
 		ROOT: "graph-view-toolbar",
-	},
-	FISHEYE_VIEW: {
-		ROOT: "fisheye-graph-view-root",
 	},
 } as const;
