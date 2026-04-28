@@ -65,10 +65,16 @@ function nextScopeSeqPath(scope: ActionScope): number[] {
  * then runs `fn` with a scope that extends that root for every RPC.
  * Nested `inAction` calls reuse the outer scope (flattened) so
  * programmatic composition doesn't deepen the path unnecessarily.
+ *
+ * `why` describes the human-readable reason for the action. It's forwarded
+ * to `session.beginAction` as a param so the server-side observation graph
+ * records *why* a SPA action happened — "row clicked", "fisheye node clicked",
+ * "filter toggled" — rather than just "an action ran". Optional for legacy
+ * call sites; new code should provide it.
  */
 let currentScope: ActionScope | undefined;
 
-export async function inAction<T>(fn: (scope: ActionScope) => Promise<T>): Promise<T> {
+export async function inAction<T>(fn: (scope: ActionScope) => Promise<T>, why?: string): Promise<T> {
 	if (currentScope) return fn(currentScope);
 	// Offline (standalone HTML) has no live server to allocate a seqPath root.
 	// Synthesize one — cached RPC responses are keyed by method+params, not by
@@ -76,7 +82,7 @@ export async function inAction<T>(fn: (scope: ActionScope) => Promise<T>): Promi
 	// server-side observation channel that could collide.
 	const seqPath = ShuElement.offline
 		? [0]
-		: (await SseClient.for("").rpcOpen<{ seqPath: number[] }>("session.beginAction", {})).seqPath;
+		: (await SseClient.for("").rpcOpen<{ seqPath: number[] }>("session.beginAction", why ? { why } : {})).seqPath;
 	if (!Array.isArray(seqPath) || seqPath.length === 0) {
 		throw new Error("session.beginAction returned no seqPath");
 	}

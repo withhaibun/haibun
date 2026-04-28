@@ -12,12 +12,15 @@
  */
 import { SHU_ATTR } from "./consts.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
+import { readShowControlsCookie } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 
 export type TPaneOpenerOpts = {
 	getStrip: () => ShuColumnStrip | null;
 	ensureUiComponentLoaded: (childTag: string) => Promise<void>;
 	report?: (message: string, attrs: Record<string, unknown>) => void;
+	/** Override the show-controls preference lookup (tests). Default reads the per-component cookie written by the pane-controls toggle button. */
+	showControlsFor?: (childTag: string) => boolean;
 };
 
 export async function openPinnedColumn(columnType: string, label: string, childTag: string, opts: TPaneOpenerOpts): Promise<void> {
@@ -38,6 +41,7 @@ export async function openPinnedColumn(columnType: string, label: string, childT
 	strip.addPane(pane);
 	await opts.ensureUiComponentLoaded(childTag);
 	const child = document.createElement(childTag);
-	child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+	const showControls = opts.showControlsFor ? opts.showControlsFor(childTag) : readShowControlsCookie(childTag);
+	if (showControls) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 	pane.appendChild(child);
 }

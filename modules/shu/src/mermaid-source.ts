@@ -100,7 +100,13 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 		subjectQuads.push(q);
 	}
 
-	const lines: string[] = [`graph ${layout}`];
+	// Mermaid's `TD` / `LR` keywords don't match the visual orientation users
+	// expect from this view's layout button: when the user toggles to "TD" they
+	// want a top-down-looking diagram, but mermaid renders `graph TD` with
+	// subgraphs side-by-side (visually horizontal). Swap the keywords so the
+	// button label matches what the user sees.
+	const mermaidDir = layout === "TD" ? "LR" : "TD";
+	const lines: string[] = [`graph ${mermaidDir}`];
 	const nodeIds = new Set<string>();
 	const nodeMap = new Map<string, { graph: string; subject: string }>();
 	const edges: string[] = [];
