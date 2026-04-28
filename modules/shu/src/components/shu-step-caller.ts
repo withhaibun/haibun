@@ -1,7 +1,9 @@
 import { SHARED_STYLES } from "./styles.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, findStep, type StepDescriptor } from "../rpc-registry.js";
-import { VIEW_EVENTS } from "../consts.js";
+import { SHU_EVENT } from "../consts.js";
+import { getVertexUi } from "../rels-cache.js";
+import { parseAffordanceProduct } from "../affordance-products.js";
 import { renderValue } from "./value-renderers.js";
 import { esc, escAttr } from "../util.js";
 
@@ -111,21 +113,36 @@ export class StepCaller extends HTMLElement {
 		try {
 			const method = this.descriptor.method;
 			this.result = await inAction((scope) => client.rpc(scope, method, params));
-			// If products contain a view, open the corresponding column
-			const result = this.result as Record<string, unknown>;
-			const extractView = (value: unknown, depth = 0): string | undefined => {
-				if (depth > 6 || !value || typeof value !== "object") return undefined;
-				const rec = value as Record<string, unknown>;
-				if (typeof rec.view === "string" && VIEW_EVENTS[rec.view]) return rec.view;
-				for (const nested of Object.values(rec)) {
-					const found = extractView(nested, depth + 1);
-					if (found) return found;
+			const action = parseAffordanceProduct(this.result);
+			void inAction(async (scope) => {
+				await SseClient.for("").rpc(scope, "MonitorStepper-logClient", {
+					level: "info",
+					source: "shu-step-caller",
+					message: `step ${method} returned action.kind=${action.kind}`,
+					attributes: { "haibun.shu.step-caller.method": method, "haibun.shu.step-caller.action": action.kind },
+				});
+			}).catch(() => undefined);
+			if (action.kind === "close") {
+				this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_CLOSE_AFFORDANCE, { detail: { view: action.view }, bubbles: true, composed: true }));
+			} else if (action.kind === "open-component") {
+				this.dispatchEvent(
+					new CustomEvent(SHU_EVENT.COLUMN_OPEN_AFFORDANCE, {
+						detail: { view: action.view, label: action.label, component: action.component },
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			} else if (action.kind === "open-type") {
+				const ui = getVertexUi(action.type);
+				if (ui?.component) {
+					this.dispatchEvent(
+						new CustomEvent(SHU_EVENT.COLUMN_OPEN_AFFORDANCE, {
+							detail: { view: action.id, label: action.label, component: ui.component },
+							bubbles: true,
+							composed: true,
+						}),
+					);
 				}
-				return undefined;
-			};
-			const view = extractView(result);
-			if (typeof view === "string" && VIEW_EVENTS[view]) {
-				this.dispatchEvent(new CustomEvent(VIEW_EVENTS[view], { bubbles: true, composed: true }));
 			}
 			this.dispatchEvent(
 				new CustomEvent("step-success", {
