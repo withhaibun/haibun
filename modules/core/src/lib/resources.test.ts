@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LinkRelations, REL_CONTEXT, EdgePredicates, edgeRel, getRelRange, DISCOURSE, DiscourseSchema, CommentSchema, commentDomainDefinition, COMMENT_LABEL } from "./resources.js";
+import { LinkRelations, REL_CONTEXT, EdgePredicates, edgeRel, getRelRange, isReplyEdge, DISCOURSE, DiscourseSchema, CommentSchema, commentDomainDefinition, COMMENT_LABEL } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 
 describe("LinkRelations extensions", () => {
@@ -62,17 +62,17 @@ describe("LinkRelations extensions", () => {
 		}
 	});
 
-	it("relation: true is set on edge-like PROV / SOSA rels", () => {
-		expect(LinkRelations.WAS_INFORMED_BY.relation).toBe(true);
-		expect(LinkRelations.INVALIDATED.relation).toBe(true);
-		expect(LinkRelations.WAS_STARTED_BY.relation).toBe(true);
-		expect(LinkRelations.MADE_BY_SENSOR.relation).toBe(true);
+	it("isReplyEdge returns true for edge-like PROV / SOSA reply rels", () => {
+		expect(isReplyEdge(LinkRelations.WAS_INFORMED_BY.rel)).toBe(true);
+		expect(isReplyEdge(LinkRelations.INVALIDATED.rel)).toBe(true);
+		expect(isReplyEdge(LinkRelations.WAS_STARTED_BY.rel)).toBe(true);
+		expect(isReplyEdge(LinkRelations.MADE_BY_SENSOR.rel)).toBe(true);
 	});
 
-	it("relation: false on value-typed predicates", () => {
-		expect(LinkRelations.PHENOMENON_TIME.relation).toBe(false);
-		expect(LinkRelations.DISCOURSE.relation).toBe(false);
-		expect(LinkRelations.SCHEMA_RESULT.relation).toBe(false);
+	it("isReplyEdge returns false for value-typed predicates", () => {
+		expect(isReplyEdge(LinkRelations.PHENOMENON_TIME.rel)).toBe(false);
+		expect(isReplyEdge(LinkRelations.DISCOURSE.rel)).toBe(false);
+		expect(isReplyEdge(LinkRelations.SCHEMA_RESULT.rel)).toBe(false);
 	});
 
 	it("range is declared on every entry", () => {
@@ -81,10 +81,10 @@ describe("LinkRelations extensions", () => {
 		}
 	});
 
-	it("relation: true implies range: 'iri'", () => {
+	it("every reply-edge rel has range: 'iri'", () => {
 		// Conversational / threading links always point at another vertex.
 		for (const entry of Object.values(LinkRelations)) {
-			if (entry.relation) expect(entry.range).toBe("iri");
+			if (isReplyEdge(entry.rel)) expect(entry.range).toBe("iri");
 		}
 	});
 

@@ -14,7 +14,7 @@ import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
-import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
+import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
 import { getProperties, getSelectValues, getSiteMetadataSync, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -67,6 +67,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _abortController: AbortController | null = null;
 	private _renderPending = false;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
+	private _onDocumentPointerDown = (e: Event): void => {
+		if (!this.state.askExpanded) return;
+		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+		if (path.includes(this)) return;
+		const target = e.target instanceof Element ? e.target : null;
+		// Combobox popups are rendered into document.body, so suggestion picks are
+		// outside the host path but still part of actions-bar interaction.
+		if (target?.closest('ul[role="listbox"][data-combo-owner="shu-actions-bar"]')) return;
+		this.setState({ askExpanded: false });
+	};
 
 	static get observedAttributes(): string[] {
 		return ["api-base", "testid-prefix"];
@@ -165,8 +175,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private updateBreadcrumbDisplay(): void {
 		const bc = this.shadowRoot?.querySelector("shu-breadcrumb") as
 			| (HTMLElement & {
-					update?: (label: string, cols: string[], active: number) => void;
-			  })
+				update?: (label: string, cols: string[], active: number) => void;
+			})
 			| null;
 		if (!bc?.update) return;
 		bc.update(this._queryLabel, this._columns, this._activeViewIndex);
@@ -183,6 +193,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	connectedCallback(): void {
 		super.connectedCallback();
+		document.addEventListener("pointerdown", this._onDocumentPointerDown, true);
 		this.loadProperties();
 		void Promise.all([this.loadDomainOptions(), this.loadModels(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			const message = `ShuActionsBar initialization failed: ${errMsg(err)}`;
@@ -212,33 +223,59 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	disconnectedCallback(): void {
+		document.removeEventListener("pointerdown", this._onDocumentPointerDown, true);
 		this._unsubscribeEvents?.();
 		this._unsubscribeEvents = null;
 		this._unsubscribeSync?.();
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
 	}
-	
+
 	private async loadUiExtensions(): Promise<void> {
 		// Wait for the concern catalog to populate site metadata before reading
 		// `ui` extensions — connectedCallback can fire before the catalog RPC
 		// completes, so synchronous reads at mount time miss every extension.
 		const meta = await whenSiteMetadataReady();
+		const errors: string[] = [];
+		const slotted: Array<[string, Record<string, unknown>]> = [];
 		for (const [label, ui] of Object.entries(meta.ui)) {
-			if (ui.slot === "action-bar-chat" && ui.js) {
-				const raw = String(ui.js);
-				// Document-root absolute paths (`/...`) and full URLs are used as-is;
-				// only relative paths get the api-base prefix so a SPA served at
-				// `/shu` can still reach assets registered at `/assets/...`.
-				const apiBase = this.getAttribute("api-base") || "";
-				const jsUrl = raw.startsWith("http") || raw.startsWith("/") ? raw : `${apiBase}/${raw}`;
-				try {
-					await import(jsUrl);
-					this.render();
-				} catch (e) {
-					console.error(`Failed to load UI extension for ${label} from ${jsUrl}:`, e);
-				}
+			if (ui.slot === "action-bar-chat" && ui.js) slotted.push([label, ui]);
+		}
+		this.reportActionsBar("info", `loadUiExtensions: ${slotted.length} action-bar slot extensions found`, { count: slotted.length });
+		for (const [label, ui] of slotted) {
+			const raw = String(ui.js);
+			const apiBase = this.getAttribute("api-base") || "";
+			const jsUrl = raw.startsWith("http") || raw.startsWith("/") ? raw : `${apiBase}/${raw}`;
+			this.reportActionsBar("info", `loading action-bar slot extension for ${label} from ${jsUrl}`, { label, jsUrl });
+			try {
+				await import(jsUrl);
+				this.render();
+				this.reportActionsBar("info", `loaded action-bar slot extension for ${label}`, { label, jsUrl });
+			} catch (e) {
+				const message = `Failed to load UI extension for ${label} from ${jsUrl}: ${errMsg(e)}`;
+				this.reportActionsBar("error", message, { label, jsUrl, error: errMsg(e) });
+				errors.push(message);
 			}
 		}
+		if (errors.length > 0) throw new Error(errors.join("\n"));
+	}
+
+	private reportActionsBar(level: "info" | "warn" | "error", message: string, attributes: Record<string, unknown> = {}): void {
+		void inAction(async (scope) => {
+			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", {
+				level,
+				source: "shu-actions-bar",
+				message,
+				attributes: {
+					"haibun.shu.actions-bar.event": "ui-extension",
+					...attributes,
+					...(level === "error"
+						? { "haibun.autonomic.event": "step.failure", "exception.type": "ActionsBarUiExtension", "exception.message": typeof attributes.error === "string" ? attributes.error : message }
+						: {}),
+				},
+			});
+		}).catch((err) => {
+			console.error(`[shu-actions-bar] reportActionsBar dispatch failed: ${err instanceof Error ? err.message : String(err)}`);
+		});
 	}
 
 	notifyQueryCompleted(): void {
@@ -250,36 +287,28 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private async loadModels(): Promise<void> {
-		try {
-			await getAvailableSteps();
-			const client = SseClient.for("");
-			const data = await inAction((scope) => client.rpc<{
-				models: Array<{ filename: string; contextSize: number }>;
-			}>(scope, requireStep("showModels")));
-			if (data.models) {
-				this._models = data.models;
-				if (this._models.length > 0 && !this._selectedModel) {
-					const preferred = getCookie(MODEL_COOKIE);
-					const match = preferred && this._models.find((m) => m.filename === preferred);
-					this._selectedModel = match ? match.filename : this._models[0].filename;
-				}
+		await getAvailableSteps();
+		const client = SseClient.for("");
+		const data = await inAction((scope) => client.rpc<{
+			models: Array<{ filename: string; contextSize: number }>;
+		}>(scope, requireStep("showModels")));
+		if (data.models) {
+			this._models = data.models;
+			if (this._models.length > 0 && !this._selectedModel) {
+				const preferred = getCookie(MODEL_COOKIE);
+				const match = preferred && this._models.find((m) => m.filename === preferred);
+				this._selectedModel = match ? match.filename : this._models[0].filename;
 			}
-		} catch {
-			/* models endpoint may not be available */
 		}
 	}
 
 	private async loadSteps(): Promise<void> {
-		try {
-			const steps = await getAvailableSteps();
-			this._steps = steps.map((s) => ({
-				method: s.method,
-				pattern: s.pattern,
-				stepName: s.stepName,
-			}));
-		} catch {
-			/* step list may not be available yet */
-		}
+		const steps = await getAvailableSteps();
+		this._steps = steps.map((s) => ({
+			method: s.method,
+			pattern: s.pattern,
+			stepName: s.stepName,
+		}));
 	}
 
 	private async loadDomainOptions(): Promise<void> {
@@ -333,10 +362,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (!target) return;
 		if (hasSelectValues(target)) return;
 		await getAvailableSteps();
-		const step = findStep("getSelectValues");
-		if (!step) return;
 		const client = SseClient.for("");
-		const data = await inAction((scope) => client.rpc<{ values: Record<string, string[]> }>(scope, step.method, { label: target }));
+		const data = await inAction((scope) => client.rpc<{ values: Record<string, string[]> }>(scope, requireStep("getSelectValues"), { label: target }));
 		if (data.values) setSelectValues(target, data.values);
 		this.render();
 	}
@@ -869,7 +896,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const aborted = this._abortController?.signal.aborted;
 			if (stopBtn) stopBtn.style.display = "none";
 			if (this._fullText && !aborted) {
-				this.shadowRoot?.querySelectorAll("shu-voice-client").forEach((vc: any) => (vc as any).speak(this._fullText));
+				this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
+					const maybeSpeak = (el as { speak?: unknown }).speak;
+					if (typeof maybeSpeak === "function") maybeSpeak.call(el, this._fullText);
+				});
 			}
 			this._abortController = null;
 		}

@@ -5,12 +5,18 @@
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { actionOK, actionNotOK, getFromRuntime } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
+import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
+import { SHU_TYPE } from "./consts.js";
+
+export const DOMAIN_SHU_VIEW_ID = "shu-view-id";
+const ShuViewIdSchema = z.string();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -68,6 +74,12 @@ function validateMountPath(path: string): string | undefined {
 export default class ShuStepper extends AStepper {
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
 
+	cycles = {
+		getConcerns: () => ({
+			domains: [{ selectors: [DOMAIN_SHU_VIEW_ID], schema: ShuViewIdSchema, description: "Shu view id" }],
+		}),
+	};
+
 	steps = {
 		serveShuApp: {
 			gwta: "serve shu app at {path: string}",
@@ -88,6 +100,25 @@ export default class ShuStepper extends AStepper {
 		maximizeView: {
 			gwta: "maximize view",
 			action: () => actionOK(),
+		},
+		showViews: {
+			gwta: "show views",
+			outputSchema: z.object({ views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })) }),
+			action: () => {
+				const domains = this.getWorld().domains;
+				const views = Object.values(domains)
+					.filter((d) => typeof d.ui?.component === "string")
+					.map((d) => ({
+						id: d.topology?.vertexLabel || d.selectors[0],
+						description: d.description || d.selectors[0],
+						component: String(d.ui?.component),
+					}));
+				return actionOKWithProducts({ [HYPERMEDIA.TYPE]: SHU_TYPE.VIEW_COLLECTION, [HYPERMEDIA.SUMMARY]: "Available Views", view: "views", views });
+			},
+		},
+		closeView: {
+			gwta: `close view {id: ${DOMAIN_SHU_VIEW_ID}}`,
+			action: ({ id }: { id: string }) => actionOKWithProducts({ [HYPERMEDIA.TYPE]: SHU_TYPE.CLOSE_VIEW, view: id }),
 		},
 	} satisfies TStepperSteps;
 }

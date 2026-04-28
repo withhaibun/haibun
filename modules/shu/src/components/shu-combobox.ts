@@ -91,6 +91,10 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		const selectedValue = this.state.value;
 		const ul = document.createElement("ul");
 		ul.setAttribute("role", "listbox");
+		const root = this.getRootNode();
+		if (root instanceof ShadowRoot && root.host instanceof HTMLElement) {
+			ul.dataset.comboOwner = root.host.tagName.toLowerCase();
+		}
 		Object.assign(ul.style, LIST_STYLE);
 
 		if (items.length > 0) {

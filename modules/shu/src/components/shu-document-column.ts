@@ -15,6 +15,7 @@ import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/d
 import "./shu-artifact-frame.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
+import { getVertexUi } from "../rels-cache.js";
 
 const DocumentColumnSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
@@ -171,6 +172,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			if (documentShowTime && e.timestamp < documentShowTime) continue;
 			const products = (e as Record<string, unknown>).products as Record<string, unknown> | undefined;
 			if (!products || (!products._component && !products._type)) continue;
+			const typeStr = products._type as string | undefined;
+			if (typeStr) {
+				const ui = getVertexUi(typeStr);
+				if (ui?.pinnedOnly) continue;
+			}
 			// Don't embed the document view itself
 			if (products._component === "shu-document-column") continue;
 			const nid = e.id.replace(/^\[|\]$/g, "");
