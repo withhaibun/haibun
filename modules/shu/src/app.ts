@@ -1,5 +1,5 @@
 import { defaultLabel } from "./util.js";
-import { SHU_EVENT, SHU_ATTR, VIEW_EVENTS } from "./consts.js";
+import { SHU_EVENT, SHU_ATTR, SHU_TYPE } from "./consts.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
@@ -9,14 +9,18 @@ import { hydrateFromDom, isStandaloneMode, getHydratedViewHash } from "./rpc-reg
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
-import { SseClient } from "./sse-client.js";
-import { getSiteMetadataSync } from "./rels-cache.js";
+import { SseClient, inAction } from "./sse-client.js";
+import { getUiByComponent, getVertexUi } from "./rels-cache.js";
+import { parseAffordanceProduct } from "./affordance-products.js";
+import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
+import { openPinnedColumn as openPinnedColumnHelper } from "./pane-opener.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
 import type { ShuFilterColumn } from "./components/shu-filter-column.js";
 import type { ShuActionsBar } from "./components/shu-actions-bar.js";
 import type { ShuGraphQuery } from "./components/shu-graph-query.js";
+import { HYPERMEDIA, type THypermediaProducts, type THaibunEvent } from "@haibun/core/schema/protocol.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -25,11 +29,6 @@ const LAYOUT_STYLE = `
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
-  }
-  .notify-bar {
-    flex: 0 0 auto; padding: 2px 8px; font-size: 12px; color: #555;
-    background: #f0f4f0; border-bottom: 1px solid #ddd;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .app-container > shu-actions-bar {
     flex: 0 0 auto;
@@ -86,6 +85,15 @@ function seedHashFromQueryString(): void {
 	ShuElement.pushHash(`#?${hashParams.toString()}`);
 }
 
+type TStaticAffordanceOpen = { eventName: string; view: string; label: string; component: string; actionName: string };
+
+const STATIC_AFFORDANCE_OPENS: ReadonlyArray<TStaticAffordanceOpen> = [
+	{ eventName: SHU_EVENT.COLUMN_OPEN_MONITOR, view: "monitor", label: "Monitor", component: "shu-monitor-column", actionName: "open monitor column" },
+	{ eventName: SHU_EVENT.COLUMN_OPEN_SEQUENCE, view: "sequence", label: "Sequence", component: "shu-sequence-diagram", actionName: "open sequence column" },
+	{ eventName: SHU_EVENT.COLUMN_OPEN_DOCUMENT, view: "document", label: "Document", component: "shu-document-column", actionName: "open document column" },
+	{ eventName: SHU_EVENT.COLUMN_OPEN_GRAPH, view: "graph", label: "Graph", component: "shu-graph-view", actionName: "open graph column" },
+];
+
 const main = async (): Promise<void> => {
 	hydrateFromDom();
 	ShuElement.offline = isStandaloneMode();
@@ -119,6 +127,12 @@ const main = async (): Promise<void> => {
 
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
+	const closePaneByType = (view: string) => {
+		const strip = getStrip();
+		if (!strip) return;
+		const idx = strip.panes.findIndex((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === view);
+		if (idx >= 0) strip.removePane(idx);
+	};
 
 	/** Remove all non-query, non-pinned panes from the strip. */
 	const removeTransientPanes = (strip: ShuColumnStrip) => {
@@ -130,17 +144,61 @@ const main = async (): Promise<void> => {
 		}
 	};
 
-	let notifyTimer: ReturnType<typeof setTimeout> | null = null;
-	const showNotification = (message: string, duration = 5000) => {
-		const notifyBar = appRoot.querySelector(".notify-bar") as HTMLElement | null;
-		if (!notifyBar) return;
-		notifyBar.textContent = message;
-		notifyBar.style.display = "";
-		if (notifyTimer) clearTimeout(notifyTimer);
-		notifyTimer = setTimeout(() => {
-			notifyBar.style.display = "none";
-			notifyTimer = null;
-		}, duration);
+	// Boot-time smoke test for the diagnostic channel.
+	const reportBootDiagnostic = (level: "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
+		void inAction(async (scope) => {
+			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { level, source: "shu-app-boot", message: msg, attributes: attrs });
+		}).catch((e) => console.error("[shu-boot] diagnostic failed:", e));
+	};
+	reportBootDiagnostic("info", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
+
+	const reportClientLog = (level: "info" | "warn" | "error", message: string, attributes?: Record<string, unknown>) => {
+		// Fail-fast — surface RPC plumbing issues that would otherwise hide every diagnostic.
+		void inAction(async (scope) => {
+			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { level, message, source: "shu-app", attributes });
+		}).catch((err) => {
+			const detail = err instanceof Error ? err.message : String(err);
+			console.error(`[shu] reportClientLog dispatch failed: ${detail}`, { level, message, attributes });
+			throw new Error(`[shu] reportClientLog dispatch failed: ${detail}`);
+		});
+	};
+
+	/**
+	 * Structured-event channel for external-component lifecycle phases. Error-level
+	 * emissions also carry `haibun.autonomic.event: "step.failure"` + exception
+	 * attributes so the autonomic agent picks them up via the same peer-failure
+	 * channel it uses for IMAP skips and lifecycle step failures — no per-source plumbing.
+	 */
+	const reportExternalComponent = (
+		level: "info" | "warn" | "error",
+		phase: "lookup" | "fetch" | "register" | "mount" | "missing-ui" | "missing-script" | "fetch-failed" | "register-failed" | "mounted",
+		component: string,
+		extra: Record<string, unknown> = {},
+	) => {
+		const message = `external-component ${component}: ${phase}${extra.error ? ` — ${String(extra.error)}` : ""}`;
+		const attributes: Record<string, unknown> = {
+			"haibun.shu.external-component.phase": phase,
+			"haibun.shu.external-component.name": component,
+			...extra,
+		};
+		if (level === "error") {
+			attributes["haibun.autonomic.event"] = "step.failure";
+			attributes["exception.type"] = "ExternalComponentFailure";
+			attributes["exception.message"] = typeof extra.error === "string" ? extra.error : message;
+		}
+		reportClientLog(level, message, attributes);
+	};
+
+	const surfaceAsyncError = (action: string, err: unknown): never => {
+		const message = `[shu] ${action} failed: ${err instanceof Error ? err.message : String(err)}`;
+		reportClientLog("error", message);
+		throw err instanceof Error ? err : new Error(message);
+	};
+
+	const runAsyncOrFail = (action: string, task: Promise<void>) => {
+		task.catch((err) => {
+			queueMicrotask(() => surfaceAsyncError(action, err));
+		});
 	};
 
 	const updateHashActiveView = (index: number) => {
@@ -183,7 +241,6 @@ const main = async (): Promise<void> => {
 	appRoot.innerHTML = `
 		<div class="app-container">
 			<shu-actions-bar api-base="${apiBase}" testid-prefix="app-"></shu-actions-bar>
-			<div class="notify-bar" style="display:none"></div>
 			<shu-column-strip>
 				<shu-column-pane label="" column-type="query" closable="false" active>
 					<div class="results-target" style="height:100%;overflow:hidden;"></div>
@@ -197,18 +254,35 @@ const main = async (): Promise<void> => {
 	const eventsController = new AbortController();
 	const { signal } = eventsController;
 
-	// Row click → open entity column. Normal click replaces, ctrl/shift adds.
+	// Miller-column behavior: a click in column x replaces columns at index > x
+	// (the subsequent panes are stale relative to the new selection). ctrl/shift
+	// click in `detail.addToSelection` opts out and appends instead. Programmatic
+	// dispatches that pass no modifier default to replace.
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_OPEN,
 		((e: CustomEvent) => {
-			const { subject, label } = e.detail || {};
+			const { subject, label, addToSelection } = e.detail || {};
 			if (!subject) return;
 			const strip = getStrip();
 			if (!strip) return;
 
-			// Reset columns only when the event originates from the main query table
-			const fromQuery = e.composedPath().some((el) => el instanceof HTMLElement && el.tagName === "SHU-GRAPH-QUERY");
-			if (fromQuery) removeTransientPanes(strip);
+			if (!addToSelection) {
+				const sourcePane = e.composedPath().find((el): el is HTMLElement => el instanceof HTMLElement && el.tagName === "SHU-COLUMN-PANE") as ShuColumnPane | undefined;
+				const panes = strip.panes;
+				const sourceIdx = sourcePane ? panes.indexOf(sourcePane) : -1;
+				// Only remove when we can attribute the click to a specific column.
+				// A dispatch with no traceable source (programmatic, or originating
+				// outside the strip) leaves the existing panes intact — wiping them
+				// would be a non-obvious footgun for any caller that doesn't know to
+				// pass `addToSelection: true`.
+				if (sourceIdx >= 0) {
+					for (let i = panes.length - 1; i > sourceIdx; i--) {
+						if (panes[i].getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query" && !panes[i].hasAttribute(SHU_ATTR.PINNED)) {
+							strip.removePane(i);
+						}
+					}
+				}
+			}
 
 			const vertexLabel = label || defaultLabel();
 			const { pane, entity } = createEntityPane(subject, vertexLabel);
@@ -241,55 +315,81 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Monitor column — open log stream and/or sequence diagram
-	const ensureUiComponentLoaded = (childTag: string): Promise<void> => {
-		if (customElements.get(childTag)) return Promise.resolve();
-		const meta = getSiteMetadataSync();
-		const ui = (meta?.ui?.[childTag] ?? {}) as Record<string, unknown>;
+	const ensureUiComponentLoaded = async (childTag: string): Promise<void> => {
+		if (customElements.get(childTag)) {
+			reportExternalComponent("info", "register", childTag, { "haibun.shu.external-component.already-registered": true });
+			return;
+		}
+		reportExternalComponent("info", "lookup", childTag);
+		const ui = getUiByComponent(childTag);
+		if (!ui) {
+			reportExternalComponent("error", "missing-ui", childTag);
+			throw new Error(`[shu] no concern declares ui.component "${childTag}" — register a domain with ui:{component,js}`);
+		}
 		const js = typeof ui.js === "string" ? ui.js : "";
-		if (!js) return Promise.resolve();
+		if (!js) {
+			reportExternalComponent("error", "missing-script", childTag);
+			throw new Error(`[shu] concern for ${childTag} has no ui.js script URL`);
+		}
 		const src = js.startsWith("/") ? js : `/${js}`;
-		return new Promise((resolve) => {
-			const script = document.createElement("script");
-			script.src = src;
-			script.onload = () => resolve();
-			script.onerror = (err) => {
-				console.warn(`[shu] failed to load UI component ${childTag} from ${src}:`, err);
-				resolve();
-			};
-			document.head.appendChild(script);
+		reportExternalComponent("info", "fetch", childTag, { "haibun.shu.external-component.url": src });
+		try {
+			await import(src);
+		} catch (err) {
+			const error = err instanceof Error ? err.message : String(err);
+			reportExternalComponent("error", "fetch-failed", childTag, { "haibun.shu.external-component.url": src, error });
+			throw new Error(`[shu] failed to fetch ${src} for ${childTag}: ${error}`);
+		}
+		if (!customElements.get(childTag)) {
+			reportExternalComponent("error", "register-failed", childTag, { "haibun.shu.external-component.url": src });
+			throw new Error(`[shu] ${childTag} loaded from ${src} but customElements.get(${JSON.stringify(childTag)}) is undefined — bundle did not register the element`);
+		}
+		reportExternalComponent("info", "mounted", childTag, { "haibun.shu.external-component.url": src });
+	};
+
+	const openPinnedColumn = (columnType: string, label: string, childTag: string) =>
+		openPinnedColumnHelper(columnType, label, childTag, {
+			getStrip,
+			ensureUiComponentLoaded,
+			report: (message, attrs) => reportClientLog("info", message, attrs),
 		});
+
+	const openAffordanceColumn = (view: string, label: string, component: string, actionName?: string) => {
+		runAsyncOrFail(actionName ?? `open affordance column ${view}`, openPinnedColumn(view, label, component));
 	};
 
-	/** Open a singleton pinned column. No-op if one of the same type already exists. */
-	const openPinnedColumn = async (columnType: string, label: string, childTag: string) => {
-		const strip = getStrip();
-		if (!strip) return;
-		if (strip.panes.some((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === columnType)) return;
-		await ensureUiComponentLoaded(childTag);
-		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
-		pane.setAttribute("label", label);
-		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnType);
-		pane.setAttribute(SHU_ATTR.PINNED, "true");
-		const child = document.createElement(childTag);
-		child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
-		pane.appendChild(child);
-		strip.addPane(pane);
+	const dispatchAffordanceOpen = (view: string, label: string, component: string) => {
+		appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_AFFORDANCE, { detail: { view, label, component }, bubbles: true }));
 	};
 
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_MONITOR, () => void openPinnedColumn("monitor", "Monitor", "shu-monitor-column"), {
-		signal,
-	});
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_SEQUENCE, () => void openPinnedColumn("sequence", "Sequence", "shu-sequence-diagram"), {
-		signal,
-	});
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_FISHEYE, () => void openPinnedColumn("fisheye", "Fisheye", "shu-fisheye-graph-view"), {
-		signal,
-	});
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_DOCUMENT, () => void openPinnedColumn("document", "Document", "shu-document-column"), { signal });
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_GRAPH, () => void openPinnedColumn("graph", "Graph", "shu-graph-view"), {
-		signal,
-	});
+	for (const def of STATIC_AFFORDANCE_OPENS) {
+		appRoot.addEventListener(def.eventName, (() => openAffordanceColumn(def.view, def.label, def.component, def.actionName)) as EventListener, { signal });
+	}
+
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_AFFORDANCE, ((e: CustomEvent) => {
+		const detail = e.detail as { view?: unknown; label?: unknown; component?: unknown } | undefined;
+		const view = detail?.view;
+		const label = detail?.label;
+		const component = detail?.component;
+		if (typeof view !== "string" || typeof label !== "string" || typeof component !== "string") {
+			throw new Error("[shu] invalid affordance open payload");
+		}
+		reportClientLog("info", `affordance-open received: view=${view} component=${component}`, {
+			"haibun.shu.affordance.event": "open-received",
+			"haibun.shu.affordance.view": view,
+			"haibun.shu.affordance.component": component,
+		});
+		openAffordanceColumn(view, label, component);
+	}) as EventListener, { signal });
+	appRoot.addEventListener(
+		SHU_EVENT.COLUMN_CLOSE_AFFORDANCE,
+		((e: CustomEvent) => {
+			const { view } = e.detail || {};
+			if (typeof view !== "string") return;
+			closePaneByType(view);
+		}) as EventListener,
+		{ signal },
+	);
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_OPEN_STEP,
 		((e: CustomEvent) => {
@@ -326,12 +426,46 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
+	const openViewsPicker = (label: string, views: Array<{ id: string; description: string; component: string }>) => {
+		const strip = getStrip();
+		if (!strip) return;
+		const existing = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "views");
+		if (existing) {
+			const child = existing.querySelector("shu-views-picker") as (HTMLElement & { setViews(v: typeof views): void }) | null;
+			child?.setViews(views);
+			return;
+		}
+		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
+		pane.setAttribute("label", label);
+		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, "views");
+		const picker = document.createElement("shu-views-picker") as HTMLElement & { setViews(v: typeof views): void };
+		pane.appendChild(picker);
+		strip.addPane(pane);
+		picker.setViews(views);
+	};
+
 	const sseClient = SseClient.for("");
 	sseClient.onEvent((event) => {
-		const e = event as { kind?: string; type?: string; stage?: string; status?: string; products?: Record<string, unknown> };
+		const e = event as THaibunEvent & { products?: THypermediaProducts };
 		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed" || !e.products) return;
-		const view = e.products.view;
-		if (typeof view === "string" && VIEW_EVENTS[view]) appRoot.dispatchEvent(new CustomEvent(VIEW_EVENTS[view], { bubbles: true }));
+
+		const action = parseAffordanceProduct(e.products);
+		if (action.kind === "none") return;
+		if (action.kind === "close") {
+			closePaneByType(action.view);
+			return;
+		}
+		if (action.kind === "open-component") {
+			dispatchAffordanceOpen(action.view, action.label, action.component);
+			return;
+		}
+		if (action.kind === "show-views") {
+			openViewsPicker(action.label, action.views);
+			return;
+		}
+		const ui = getVertexUi(action.type);
+		if (!ui?.component || typeof ui.component !== "string") throw new Error(`No affordance component mapped for type ${action.type}`);
+		dispatchAffordanceOpen(action.id, action.label, ui.component);
 	});
 
 	// Results changed → remove all non-query panes
@@ -376,7 +510,7 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Context change → forward to actions bar
+	// Context change → forward to actions bar + publish selected subject onto the shared view-context store.
 	appRoot.addEventListener(
 		SHU_EVENT.CONTEXT_CHANGE,
 		((e: CustomEvent) => {
@@ -385,6 +519,29 @@ const main = async (): Promise<void> => {
 			if (actionsBar?.setContext && detail.patterns) {
 				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
 			}
+			const subject = detail.patterns?.[0]?.s;
+			setSelectedSubject(typeof subject === "string" ? subject : null, typeof detail.label === "string" ? detail.label : null);
+		}) as EventListener,
+		{ signal },
+	);
+
+	// Closing the column whose content carries the current selection clears the
+	// selection — otherwise viewers (fisheye, graph-view) remain "focus-locked"
+	// on a subject the user has navigated away from. Detection: any descendant
+	// element of the closing pane whose `state.vertexId` (or attribute) matches
+	// the current `viewContext.selectedSubject`. Belt-and-suspenders matching
+	// covers entity columns (state.vertexId), filter panes (data-subject), and
+	// any custom future view that surfaces a vertex id.
+	appRoot.addEventListener(
+		SHU_EVENT.COLUMN_CLOSE,
+		((e: CustomEvent) => {
+			const pane = e.target as HTMLElement | null;
+			if (!pane) return;
+			const ctx = getViewContext();
+			if (!ctx.selectedSubject) return;
+			const child = pane.firstElementChild as (HTMLElement & { state?: { vertexId?: string } }) | null;
+			const closingSubject = child?.state?.vertexId ?? child?.getAttribute?.("data-subject") ?? null;
+			if (closingSubject === ctx.selectedSubject) setSelectedSubject(null, null);
 		}) as EventListener,
 		{ signal },
 	);
@@ -449,7 +606,7 @@ const main = async (): Promise<void> => {
 				}
 				syncBuffer.clear();
 				syncDebounce = null;
-				showNotification(`Synced ${parts.join(", ")}`);
+				reportClientLog("info", `Synced ${parts.join(", ")}`);
 			}, SYNC_DEBOUNCE_MS);
 		}) as EventListener,
 		{ signal },
@@ -498,7 +655,7 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Column activated (from strip)
+	// Column activated (from strip) → update actions bar + hash, and publish the active view's column type onto the shared view-context store.
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_ACTIVATED,
 		((e: CustomEvent) => {
@@ -506,6 +663,10 @@ const main = async (): Promise<void> => {
 			if (index !== undefined) {
 				getActionsBar()?.setActiveView?.(index);
 				updateHashActiveView(index);
+				const strip = getStrip();
+				const pane = strip?.panes[index];
+				const activeView = pane?.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? null;
+				setActiveViewId(activeView);
 			}
 		}) as EventListener,
 		{ signal },
@@ -602,21 +763,23 @@ const main = async (): Promise<void> => {
 						const vid = rest.slice(colonIdx + 1);
 						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, { detail: { subject: vid, label: lbl }, bubbles: true }));
 						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "thread");
-					} else if (col.startsWith("monitor:") || col === "monitor") {
-						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));
-						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "monitor");
-					} else if (col.startsWith("sequence:") || col === "sequence") {
-						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
-						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "sequence");
-					} else if (col.startsWith("fisheye:") || col === "fisheye") {
-						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_FISHEYE, { bubbles: true }));
-						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "fisheye");
-					} else if (col.startsWith("graph:") || col === "graph") {
-						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_GRAPH, { bubbles: true }));
-						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "graph");
-					} else if (col.startsWith("document:") || col === "document") {
-						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_DOCUMENT, { bubbles: true }));
-						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "document");
+					} else {
+						const normalized = col.endsWith(":") ? col.slice(0, -1) : col;
+						const staticAffordance = STATIC_AFFORDANCE_OPENS.find((d) => normalized === d.view || normalized === d.component || col.startsWith(`${d.view}:`));
+						if (staticAffordance) {
+							appRoot.dispatchEvent(new CustomEvent(staticAffordance.eventName, { bubbles: true }));
+							pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === staticAffordance.view);
+						} else {
+							// Per-instance ids encode `<component>:<unique>`; fall back to the bare normalized id for the singleton-style legacy form.
+							const sepIdx = normalized.indexOf(":");
+							const componentPart = sepIdx >= 0 ? normalized.slice(0, sepIdx) : normalized;
+							const ui = getUiByComponent(componentPart);
+							if (ui?.component && typeof ui.component === "string") {
+								const label = typeof ui.summary === "string" ? ui.summary : normalized;
+								dispatchAffordanceOpen(normalized, label, ui.component);
+								pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === normalized);
+							}
+						}
 					}
 					if (minimized && pane) {
 						pane.setCollapsed(true);

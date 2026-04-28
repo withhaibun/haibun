@@ -141,13 +141,14 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 		// Forward events
 		table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
-			const { vertexId: vid, label: rowLabel } = e.detail;
+			const { vertexId: vid, label: rowLabel, ctrlKey } = e.detail;
 			if (vid) {
 				this.dispatchEvent(
 					new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
 						detail: {
 							subject: vid,
 							label: rowLabel || this.state.vertexLabel || defaultLabel(),
+							addToSelection: ctrlKey,
 						},
 						bubbles: true,
 						composed: true,

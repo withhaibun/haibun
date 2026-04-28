@@ -127,10 +127,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			this.graphViewEl = null;
 			contentArea.innerHTML = `<div class="thread-list">${this.renderTree()}</div>`;
 			contentArea.querySelectorAll(".thread-card").forEach((card) => {
-				card.addEventListener("click", () => {
+				card.addEventListener("click", (e) => {
 					const id = (card as HTMLElement).dataset.id;
 					const cardLabel = (card as HTMLElement).dataset.label || this.state.label;
-					if (id) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel }, bubbles: true, composed: true }));
+					if (id) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel, addToSelection: (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey }, bubbles: true, composed: true }));
 				});
 			});
 			const current = contentArea.querySelector(".thread-card.current");
