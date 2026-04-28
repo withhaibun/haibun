@@ -54,7 +54,7 @@ export class Prompter {
 						}
 					})
 					.catch(() => {
-						console.log("ABC another prompter cancelled");
+						console.log("Prompt cancelled");
 						// Ignore rejections from cancelled prompts - this is expected when another
 						// subscriber responds first and we cancel all other subscribers
 					});
