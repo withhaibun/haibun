@@ -132,38 +132,38 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 					<table data-testid="query-table">
 						<thead><tr>
 							${props
-								.map((p) => {
-									const isSorted = sortBy === p;
-									const indicator = isSorted ? (sortOrder === "asc" ? " &#9650;" : " &#9660;") : "";
-									const cls = isSorted ? ' class="sorted"' : "";
-									return `<th${cls} data-field="${escAttr(p)}">${esc(p)}${indicator}</th>`;
-								})
-								.join("")}
+				.map((p) => {
+					const isSorted = sortBy === p;
+					const indicator = isSorted ? (sortOrder === "asc" ? " &#9650;" : " &#9660;") : "";
+					const cls = isSorted ? ' class="sorted"' : "";
+					return `<th${cls} data-field="${escAttr(p)}">${esc(p)}${indicator}</th>`;
+				})
+				.join("")}
 						</tr></thead>
 						<tbody>
 						${(() => {
-							const firstLabel = this.results[0]?._label;
-							const isMultiType = this.results.some((v) => v._label && v._label !== firstLabel);
-							let lastLabel: string | undefined;
-							return this.results
-								.map((v, i) => {
-									const vid = vertexId(v);
-									const vlabel = vertexLabel(v);
-									const labelAttr = vlabel ? ` data-vertex-label="${escAttr(vlabel)}"` : "";
-									const header = isMultiType && v._label !== lastLabel ? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>` : "";
-									lastLabel = v._label as string | undefined;
-									return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr} data-testid="${i === 0 ? "query-row-first" : "query-row"}">
+				const firstLabel = this.results[0]?._label;
+				const isMultiType = this.results.some((v) => v._label && v._label !== firstLabel);
+				let lastLabel: string | undefined;
+				return this.results
+					.map((v, i) => {
+						const vid = vertexId(v);
+						const vlabel = vertexLabel(v);
+						const labelAttr = vlabel ? ` data-vertex-label="${escAttr(vlabel)}"` : "";
+						const header = isMultiType && v._label !== lastLabel ? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>` : "";
+						lastLabel = v._label as string | undefined;
+						return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr} data-testid="${i === 0 ? "query-row-first" : "query-row"}">
 								${props
-									.map((p) => {
-										const raw = String(v[p] ?? "");
-										const display = isDateValue(raw) ? formatDate(raw) : truncate(raw);
-										return `<td title="${esc(raw)}">${esc(display)}</td>`;
-									})
-									.join("")}
-								</tr>`;
+								.map((p) => {
+									const raw = String(v[p] ?? "");
+									const display = isDateValue(raw) ? formatDate(raw) : truncate(raw);
+									return `<td title="${esc(raw)}">${esc(display)}</td>`;
 								})
-								.join("");
-						})()}
+								.join("")}
+								</tr>`;
+					})
+					.join("");
+			})()}
 						</tbody>
 					</table>
 				</div>
@@ -482,7 +482,7 @@ const STYLES = `
 	.scroll-pos-bottom { margin-top: auto; }
 	.group-header th {
 		background: #f0f0f0; color: #555; font-size: 0.75em; font-weight: 600;
-		text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 6px;
+		letter-spacing: 0.5px; padding: 4px 6px;
 		position: sticky; top: 22px; z-index: 1;
 	}
 `;

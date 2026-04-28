@@ -174,59 +174,56 @@ export type Discourse = z.infer<typeof DiscourseSchema>;
  *                  Renders as a select/select-like control.
  *
  * This is a deliberately small subset of RDFS — no reasoner, no subPropertyOf, just enough
- * to let `linkRelFromSemantic` be a one-line lookup instead of a growing if/else chain.
+ * to let `linkRelFromSemantic` be a one-line lookup instead of a growing chain.
  *
- * `relation` (legacy, retained for back-compat) is true iff `range === "iri"` AND the link
- * participates in conversational/threading semantics (used by getRelated and View relations).
- * Not every IRI-range rel is a "relation" in this sense — e.g. `attributedTo` is IRI-ranged
- * but not a conversational link.
+ * Reply/conversation semantics are modeled by `REPLY_RELATIONS` below, not as per-entry metadata.
  */
 export type TRelRange = "iri" | "literal" | "container";
 
 export const LinkRelations = {
-	NAME: { rel: "name", uri: "as:name", range: "literal", relation: false },
-	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", relation: false },
-	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", relation: false },
-	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri", relation: false },
-	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container", relation: false },
-	UPDATED: { rel: "updated", uri: "as:updated", range: "literal", relation: false },
-	CONTENT: { rel: "content", uri: "as:content", range: "literal", relation: false },
-	HAS_BODY: { rel: "hasBody", uri: "oa:hasBody", range: "iri", relation: false },
-	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal", relation: false },
-	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri", relation: true },
-	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri", relation: false },
-	TAG: { rel: "tag", uri: "as:tag", range: "literal", relation: false },
-	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri", relation: false },
-	URL: { rel: "url", uri: "as:url", range: "literal", relation: false },
+	NAME: { rel: "name", uri: "as:name", range: "literal" },
+	PUBLISHED: { rel: "published", uri: "as:published", range: "literal" },
+	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri" },
+	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri" },
+	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
+	UPDATED: { rel: "updated", uri: "as:updated", range: "literal" },
+	CONTENT: { rel: "content", uri: "as:content", range: "literal" },
+	HAS_BODY: { rel: "hasBody", uri: "oa:hasBody", range: "iri" },
+	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal" },
+	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri" },
+	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri" },
+	TAG: { rel: "tag", uri: "as:tag", range: "literal" },
+	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
+	URL: { rel: "url", uri: "as:url", range: "literal" },
 	// PROV-O — provenance and lineage
-	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", relation: true },
-	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", relation: true },
-	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri", relation: false },
-	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", relation: true },
-	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", relation: false },
-	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", relation: false },
+	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri" },
+	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri" },
+	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri" },
+	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri" },
+	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal" },
+	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal" },
 	// SOSA / W3C SSN — observation and sensing
-	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal", relation: false },
-	RESULT_TIME: { rel: "resultTime", uri: "sosa:resultTime", range: "literal", relation: false },
-	HAS_RESULT: { rel: "hasResult", uri: "sosa:hasResult", range: "container", relation: false },
-	MADE_BY_SENSOR: { rel: "madeBySensor", uri: "sosa:madeBySensor", range: "iri", relation: true },
-	OBSERVED_PROPERTY: { rel: "observedProperty", uri: "sosa:observedProperty", range: "literal", relation: false },
+	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal" },
+	RESULT_TIME: { rel: "resultTime", uri: "sosa:resultTime", range: "literal" },
+	HAS_RESULT: { rel: "hasResult", uri: "sosa:hasResult", range: "container" },
+	MADE_BY_SENSOR: { rel: "madeBySensor", uri: "sosa:madeBySensor", range: "iri" },
+	OBSERVED_PROPERTY: { rel: "observedProperty", uri: "sosa:observedProperty", range: "literal" },
 	// schema.org — action outcomes
-	SCHEMA_OBJECT: { rel: "schemaObject", uri: "schema:object", range: "literal", relation: false },
-	SCHEMA_RESULT: { rel: "schemaResult", uri: "schema:result", range: "literal", relation: false },
-	REPLACEE: { rel: "replacee", uri: "schema:replacee", range: "literal", relation: false },
-	REPLACEMENT: { rel: "replacement", uri: "schema:replacement", range: "literal", relation: false },
-	ACTION_STATUS: { rel: "actionStatus", uri: "schema:actionStatus", range: "literal", relation: false },
-	PART_OF: { rel: "isPartOf", uri: "schema:isPartOf", range: "iri", relation: false },
-	PRECEDED_BY: { rel: "precededBy", uri: "hbn:precededBy", range: "iri", relation: false },
+	SCHEMA_OBJECT: { rel: "schemaObject", uri: "schema:object", range: "literal" },
+	SCHEMA_RESULT: { rel: "schemaResult", uri: "schema:result", range: "literal" },
+	REPLACEE: { rel: "replacee", uri: "schema:replacee", range: "literal" },
+	REPLACEMENT: { rel: "replacement", uri: "schema:replacement", range: "literal" },
+	ACTION_STATUS: { rel: "actionStatus", uri: "schema:actionStatus", range: "literal" },
+	PART_OF: { rel: "isPartOf", uri: "schema:isPartOf", range: "iri" },
+	PRECEDED_BY: { rel: "precededBy", uri: "hbn:precededBy", range: "iri" },
 	// Haibun native — no existing vocabulary mapping
-	DISCOURSE: { rel: "discourse", uri: "hbn:discourse", range: "literal", relation: false },
-	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri", relation: false },
-	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal", relation: false },
-	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", relation: false },
-	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal", relation: false },
-	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container", relation: false },
-	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal", relation: false },
+	DISCOURSE: { rel: "discourse", uri: "hbn:discourse", range: "literal" },
+	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri" },
+	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
+	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal" },
+	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
+	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
+	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
 } as const;
 
 /** Lookup a rel's RDF range. Returns undefined for unknown rels. */
@@ -279,16 +276,18 @@ export function edgeRel(predicate: string): TRel | undefined {
 	return (EdgePredicates as Record<string, { rel: TRel }>)[predicate]?.rel;
 }
 
-/** Rel values that are reply-type (derived from LinkRelations entries with relation: true). */
-const relationRels: Set<string> = new Set(
-	Object.values(LinkRelations)
-		.filter((lr) => lr.relation)
-		.map((lr) => lr.rel),
-);
+/** Rel values that represent reply/conversation semantics. */
+const REPLY_RELATIONS: ReadonlySet<TRel> = new Set([
+	LinkRelations.IN_REPLY_TO.rel,
+	LinkRelations.WAS_INFORMED_BY.rel,
+	LinkRelations.INVALIDATED.rel,
+	LinkRelations.WAS_STARTED_BY.rel,
+	LinkRelations.MADE_BY_SENSOR.rel,
+]);
 
 /** Check if a rel value is a reply-type (conversational/threading link). */
 function isRelationRel(rel: string): boolean {
-	return relationRels.has(rel);
+	return REPLY_RELATIONS.has(rel as TRel);
 }
 
 /**
