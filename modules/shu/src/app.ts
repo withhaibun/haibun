@@ -526,12 +526,9 @@ const main = async (): Promise<void> => {
 	);
 
 	// Closing the column whose content carries the current selection clears the
-	// selection — otherwise viewers (fisheye, graph-view) remain "focus-locked"
-	// on a subject the user has navigated away from. Detection: any descendant
-	// element of the closing pane whose `state.vertexId` (or attribute) matches
-	// the current `viewContext.selectedSubject`. Belt-and-suspenders matching
-	// covers entity columns (state.vertexId), filter panes (data-subject), and
-	// any custom future view that surfaces a vertex id.
+	// selection — otherwise viewers remain "focus-locked" on a subject the user
+	// has navigated away from. Views surface their subject via `data-subject` so
+	// the contract is the attribute, not the protected `state` field.
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_CLOSE,
 		((e: CustomEvent) => {
@@ -539,8 +536,7 @@ const main = async (): Promise<void> => {
 			if (!pane) return;
 			const ctx = getViewContext();
 			if (!ctx.selectedSubject) return;
-			const child = pane.firstElementChild as (HTMLElement & { state?: { vertexId?: string } }) | null;
-			const closingSubject = child?.state?.vertexId ?? child?.getAttribute?.("data-subject") ?? null;
+			const closingSubject = pane.firstElementChild?.getAttribute("data-subject");
 			if (closingSubject === ctx.selectedSubject) setSelectedSubject(null, null);
 		}) as EventListener,
 		{ signal },

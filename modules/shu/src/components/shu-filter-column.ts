@@ -93,7 +93,6 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			this.showResults();
 			if (this.resultTable) this.resultTable.setPagination(data.total, limit, offset);
 		} catch (err) {
-			console.error("[filter-column] incoming fetch failed:", err);
 			this.state = { ...this.state, loading: false, error: errMsg(err) };
 			this.showError(errMsg(err));
 		}
@@ -108,7 +107,6 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			this.state = { ...this.state, loading: false };
 			this.showResults();
 		} catch (err) {
-			console.error("[filter-column] fetch failed:", err);
 			this.state = { ...this.state, loading: false, error: errMsg(err) };
 			this.showError(errMsg(err));
 		}

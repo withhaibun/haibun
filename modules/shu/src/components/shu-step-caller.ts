@@ -61,7 +61,6 @@ export class StepCaller extends HTMLElement {
 		await getAvailableSteps();
 		const stepName = this.getAttribute("step") || "";
 		this.descriptor = findStep(stepName);
-		console.warn("[step-caller] init", JSON.stringify({ stepName, found: !!this.descriptor, pattern: this.descriptor?.pattern }));
 		if (!this.descriptor) {
 			this.error = `Step "${stepName}" not found`;
 			this.renderComponent();
