@@ -630,23 +630,24 @@ export function discoverSteps(
 async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep): Promise<void> {
 	const store = world.shared.getStore();
 	const id = formatSeqPath(featureStep.seqPath);
-	// Sequential, not Promise.all: graph-store.set is read-modify-write per subject;
-	// concurrent calls on the same id race (all read same `existing`, then last-write-wins).
-	await store.set(id, SEQ_PATH_FIELD.stepText, featureStep.in, SEQ_PATH_LABEL);
-	await store.set(id, SEQ_PATH_FIELD.actionStatus, SEQ_PATH_STATUS.running, SEQ_PATH_LABEL);
-	await store.set(id, SEQ_PATH_FIELD.startedAtTime, new Date().toISOString(), SEQ_PATH_LABEL);
-	if (featureStep.source?.path) {
-		await store.set(id, SEQ_PATH_FIELD.path, featureStep.source.path, SEQ_PATH_LABEL);
-	}
+	// Single upsert with all required fields — partial writes via sequential set() let a concurrent
+	// reader (e.g. getClusteredQuads from a polling tick) observe a SeqPath missing its
+	// startedAtTime and trip the SeqPathSchema invariant.
+	const record: Record<string, unknown> = {
+		[SEQ_PATH_FIELD.id]: id,
+		[SEQ_PATH_FIELD.stepText]: featureStep.in,
+		[SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running,
+		[SEQ_PATH_FIELD.startedAtTime]: new Date().toISOString(),
+	};
+	if (featureStep.source?.path) record[SEQ_PATH_FIELD.path] = featureStep.source.path;
 	if (featureStep.seqPath.length > 1) {
-		const parentId = formatSeqPath(featureStep.seqPath.slice(0, -1));
-		await store.set(id, LinkRelations.PART_OF.rel, parentId, SEQ_PATH_LABEL);
+		record[LinkRelations.PART_OF.rel] = formatSeqPath(featureStep.seqPath.slice(0, -1));
 		const lastIndex = featureStep.seqPath[featureStep.seqPath.length - 1];
 		if (lastIndex > 0) {
-			const previousSiblingId = formatSeqPath([...featureStep.seqPath.slice(0, -1), lastIndex - 1]);
-			await store.set(id, LinkRelations.PRECEDED_BY.rel, previousSiblingId, SEQ_PATH_LABEL);
+			record[LinkRelations.PRECEDED_BY.rel] = formatSeqPath([...featureStep.seqPath.slice(0, -1), lastIndex - 1]);
 		}
 	}
+	await store.upsertVertex(SEQ_PATH_LABEL, record);
 }
 
 async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, ok: boolean): Promise<void> {
