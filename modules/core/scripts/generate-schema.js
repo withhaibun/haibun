@@ -1,4 +1,4 @@
-import { SpeclSchema } from "../build/lib/defs.js";
+import { SpeclSchema } from "../build/lib/execution.js";
 import * as fs from "fs";
 import * as path from "path";
 
