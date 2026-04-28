@@ -38,6 +38,9 @@ export async function openPinnedColumn(columnType: string, label: string, childT
 	pane.setAttribute("label", label);
 	pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnType);
 	pane.setAttribute(SHU_ATTR.PINNED, "true");
+	// Stable hash key — without this, getColumnKeys falls back to `${type}:${label}` and each
+	// reload re-serializes the bloated key as the new type, compounding label appends.
+	pane.dataset.columnKey = columnType;
 	strip.addPane(pane);
 	await opts.ensureUiComponentLoaded(childTag);
 	const child = document.createElement(childTag);
