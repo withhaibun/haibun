@@ -47,7 +47,7 @@ const StateSchema = z.object({
 	dataSource: z.enum(["rpc", "external"]).default("rpc"),
 	classifierMode: z.enum(["browser", "thread"]).default("browser"),
 	zoom: z.number().default(100),
-	layout: z.enum(["TD", "LR"]).default("TD"),
+	layout: z.enum(["TD", "LR"]).default("LR"),
 	hiddenGraphs: z.array(z.string()).default([]),
 	hiddenRels: z.array(z.string()).default([]),
 	expandedGraphs: z.array(z.string()).default([]),

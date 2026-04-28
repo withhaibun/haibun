@@ -9,6 +9,7 @@ import type { TCluster } from "@haibun/core/lib/quad-types.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { colorForType } from "../type-colors.js";
 
 const StateSchema = z.object({
 	clusters: z.array(z.object({ type: z.string(), totalCount: z.number(), sampledCount: z.number(), omittedCount: z.number(), sampledSubjects: z.array(z.string()) })).default([]),
@@ -45,6 +46,7 @@ const STYLES = `
 label.type { display: inline-flex; gap: 3px; align-items: center; cursor: pointer; padding: 1px 4px; border-radius: 3px; }
 label.type:hover { background: #f0f0f0; }
 label.type .meta { color: #888; font-size: 11px; }
+label.type .type-name { display: inline-block; padding: 1px 6px; margin-left: 3px; border-radius: 3px; color: #222; }
 .limit { display: inline-flex; gap: 4px; align-items: center; }
 .limit input[type=range] { width: 120px; }
 .limit input[type=number] { width: 56px; }
@@ -97,7 +99,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			.sort((a, b) => a.type.localeCompare(b.type))
 			.map((c) => {
 				const omitted = c.omittedCount > 0 ? ` <span class="meta">(${c.sampledCount}/${c.totalCount})</span>` : ` <span class="meta">(${c.totalCount})</span>`;
-				return `<label class="type"><input type="checkbox" data-type="${c.type}" ${hiddenSet.has(c.type) ? "" : "checked"}> ${c.type}${omitted}</label>`;
+				return `<label class="type"><input type="checkbox" data-type="${c.type}" ${hiddenSet.has(c.type) ? "" : "checked"}><span class="type-name" style="background:${colorForType(c.type)}">${c.type}</span>${omitted}</label>`;
 			})
 			.join("");
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="row">
