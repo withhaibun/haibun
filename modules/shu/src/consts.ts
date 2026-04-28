@@ -5,11 +5,12 @@ export const SHU_EVENT = {
 	COLUMN_OPEN_FILTER: "column-open-filter",
 	COLUMN_OPEN_MONITOR: "column-open-monitor",
 	COLUMN_OPEN_SEQUENCE: "column-open-sequence",
-	COLUMN_OPEN_FISHEYE: "column-open-fisheye",
 	COLUMN_OPEN_RELATED: "column-open-related",
 	COLUMN_OPEN_GRAPH: "column-open-graph",
 	COLUMN_OPEN_STEP: "column-open-step",
 	COLUMN_OPEN_DOCUMENT: "column-open-document",
+	COLUMN_OPEN_AFFORDANCE: "column-open-affordance",
+	COLUMN_CLOSE_AFFORDANCE: "column-close-affordance",
 	COLUMN_CLOSE: "column-close",
 	COLUMN_ACTIVATE: "column-activate",
 	COLUMN_ACTIVATED: "column-activated",
@@ -31,16 +32,13 @@ export const SHU_EVENT = {
 	RESIZE_DRAG: "resize-drag",
 	RESIZE_END: "resize-end",
 	TIME_SYNC: "time-sync",
+	VIEW_ACTIVE: "view-active",
 } as const;
 
-/** Maps `view` product values to the column-open events they trigger. */
-export const VIEW_EVENTS: Record<string, string> = {
-	monitor: SHU_EVENT.COLUMN_OPEN_MONITOR,
-	sequence: SHU_EVENT.COLUMN_OPEN_SEQUENCE,
-	fisheye: SHU_EVENT.COLUMN_OPEN_FISHEYE,
-	graph: SHU_EVENT.COLUMN_OPEN_GRAPH,
-	document: SHU_EVENT.COLUMN_OPEN_DOCUMENT,
-};
+export const SHU_TYPE = {
+	VIEW_COLLECTION: "shu-view-collection",
+	CLOSE_VIEW: "shu-close-view",
+} as const;
 
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",

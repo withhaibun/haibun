@@ -265,10 +265,15 @@ class Haibun extends AStepper implements IHasCycles {
 				return actionOK();
 			},
 		},
-		pauseSeconds: {
-			gwta: "pause for {ms:number}s",
-			action: async ({ ms }: { ms: number }) => {
-				await sleep(ms * 1000);
+		pause: {
+			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',
+			gwta: "pause for {duration: string}",
+			action: async ({ duration }: { duration: string }) => {
+				const match = /^(-?\d+(?:\.\d+)?)\s*(ms|s)$/.exec(duration.trim());
+				if (!match) return actionNotOK(`pause: expected "<number>s" or "<number>ms", got: ${duration}`);
+				const value = Number(match[1]);
+				if (!Number.isFinite(value)) return actionNotOK(`pause: value is not finite: ${match[1]}`);
+				await sleep(match[2] === "ms" ? value : value * 1000);
 				return OK;
 			},
 		},

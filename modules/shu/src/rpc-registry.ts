@@ -157,7 +157,13 @@ export function hydrateFromDom(): void {
 	if (hydrationData?.rpcCache) setRpcCache(hydrationData.rpcCache);
 }
 
-/** True if the page was loaded from an offline HTML file with embedded RPC cache. */
+/**
+ * True if the page was loaded from an offline HTML file. The hydration script
+ * is present in BOTH live and standalone (live serves `{}` so SSR shape is
+ * stable). The distinguishing signal is presence of `rpcCache` — saves always
+ * embed at least `rpcCache: {}` (see monitor-stepper.writeStandaloneReport),
+ * the live serve never does.
+ */
 export function isStandaloneMode(): boolean {
 	return hydrationData !== null && hydrationData.rpcCache !== undefined;
 }

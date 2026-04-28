@@ -101,5 +101,9 @@ export const features: TKirejiExport = {
 		"page has settled",
 		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
 		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
+
+		// ── Standalone report ───────────────────────────────────────────
+		"Write the standalone report mid-feature; verifies `saves shu to` runs any time, not only at endFeature.",
+		'saves shu to "/tmp/shu.html"',
 	],
 };

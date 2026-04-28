@@ -16,8 +16,9 @@ type TEventHandler = (event: Record<string, unknown>) => void;
 
 /** Error thrown when an RPC method has no cached response in offline mode. */
 export class OfflineError extends Error {
-	constructor(method: string) {
-		super(`This query was not captured during the test session (${method})`);
+	constructor(method: string, params?: Record<string, unknown>) {
+		const detail = params && Object.keys(params).length > 0 ? ` params=${JSON.stringify(params)}` : "";
+		super(`This query was not captured during the test session: ${method}${detail}`);
 		this.name = "OfflineError";
 	}
 }
@@ -69,7 +70,13 @@ let currentScope: ActionScope | undefined;
 
 export async function inAction<T>(fn: (scope: ActionScope) => Promise<T>): Promise<T> {
 	if (currentScope) return fn(currentScope);
-	const { seqPath } = await SseClient.for("").rpcOpen<{ seqPath: number[] }>("session.beginAction", {});
+	// Offline (standalone HTML) has no live server to allocate a seqPath root.
+	// Synthesize one — cached RPC responses are keyed by method+params, not by
+	// seqPath, so a synthetic root never confuses lookups, and there's no live
+	// server-side observation channel that could collide.
+	const seqPath = ShuElement.offline
+		? [0]
+		: (await SseClient.for("").rpcOpen<{ seqPath: number[] }>("session.beginAction", {})).seqPath;
 	if (!Array.isArray(seqPath) || seqPath.length === 0) {
 		throw new Error("session.beginAction returned no seqPath");
 	}
@@ -121,7 +128,7 @@ export class SseClient {
 		if (ShuElement.offline) {
 			if (cacheHas(key)) return cacheGet(key) as T;
 			if (cacheHas(method)) return cacheGet(method) as T;
-			throw new OfflineError(method);
+			throw new OfflineError(method, params);
 		}
 		const id = nextId();
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
@@ -145,7 +152,7 @@ export class SseClient {
 		if (ShuElement.offline) {
 			if (cacheHas(key)) return cacheGet(key) as T;
 			if (cacheHas(method)) return cacheGet(method) as T;
-			throw new OfflineError(method);
+			throw new OfflineError(method, params);
 		}
 		const id = nextId();
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {

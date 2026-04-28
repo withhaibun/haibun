@@ -16,7 +16,7 @@ import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
 import { getStepperForType } from "../rpc-registry.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "../graph-model.js";
-import { getGraphSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { getGraphSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, subscribeViewContext } from "../quads-snapshot.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
 import { buildMermaidSource, buildClassifier, sanitizeId, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
@@ -109,6 +109,11 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	private svgNodeEdgeElements = new Map<string, Set<Element>>();
 	/** Structured edge list built by bindNodeClicks for filter hover lookups. */
 	private svgEdges: Array<{ pathEl: Element; labelEl: Element | null; fromId: string; toId: string; labelText: string }> = [];
+	/** SVG node rawId → adjacent rawIds. Used by selection highlight to mirror hover behavior. */
+	private svgNeighbors = new Map<string, Set<string>>();
+	/** Currently selected subject pinned via `.filter-match`. Cleared on selection change; reapplied after each mermaid re-render. */
+	private selectedHighlightSubject: string | null = null;
+	private unsubscribeSnapshot?: () => void;
 
 	/** Provide quads externally — sets dataSource to external, skipping RPC. */
 	setQuads(quads: TQuad[]): void {
@@ -187,6 +192,10 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				this.setState({ quads: [...this.state.quads, ...quads] });
 			}
 		});
+
+		this.unsubscribeSnapshot = subscribeViewContext({
+			onSelectionChange: (subject) => this.applySelectionHighlight(subject),
+		});
 	}
 
 	private lastTimeSyncRender = 0;
@@ -211,6 +220,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 
 	disconnectedCallback(): void {
 		this.unsubscribe?.();
+		this.unsubscribeSnapshot?.();
 	}
 
 	private knownClusters = new Map<string, TCluster>();
@@ -277,7 +287,11 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				</div>
 			</div>`;
 		const filterEl = this.shadowRoot.querySelector("shu-graph-filter") as ShuGraphFilter | null;
-		filterEl?.setClusters([...this.knownClusters.values()]);
+		if (filterEl) {
+			if (this.showControls) filterEl.setAttribute("show-controls", "");
+			else filterEl.removeAttribute("show-controls");
+			filterEl.setClusters([...this.knownClusters.values()]);
+		}
 
 		this.bindToolbar();
 		void this.renderMermaid();
@@ -377,9 +391,45 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	}
 
 	private clearFilterHighlight(): void {
+		this.clearAllHighlightClasses();
+		// A pinned selection highlight survives transient hover dismissals.
+		if (this.selectedHighlightSubject) this.paintHighlight(this.selectedHighlightSubject);
+	}
+
+	private clearAllHighlightClasses(): void {
 		const container = this.shadowRoot?.querySelector(".diagram-container");
 		container?.classList.remove("filter-highlight");
 		container?.querySelectorAll(".filter-match").forEach((el) => el.classList.remove("filter-match"));
+	}
+
+	/**
+	 * Pin highlight on a subject + its immediate neighbours, mirroring the hover
+	 * appearance. The subject string is the vertex id used in the strip's
+	 * COLUMN_OPEN / CONTEXT_CHANGE flow; here we resolve it to the SVG raw id
+	 * (which prefixes the graph name) by scanning currentNodeMap.
+	 */
+	private applySelectionHighlight(subject: string | null): void {
+		this.selectedHighlightSubject = subject;
+		this.clearAllHighlightClasses();
+		if (subject) this.paintHighlight(subject);
+	}
+
+	private paintHighlight(subject: string): void {
+		const rawId = [...this.currentNodeMap.entries()].find(([, v]) => v.subject === subject)?.[0];
+		if (!rawId) {
+			console.warn(`[shu-graph-view] cannot highlight subject "${subject}" — not in current node map. Will retry after next render.`);
+			return;
+		}
+		const container = this.shadowRoot?.querySelector(".diagram-container");
+		container?.classList.add("filter-highlight");
+		const nodeEl = this.svgNodeElements.get(rawId);
+		nodeEl?.classList.add("filter-match");
+		this.svgNeighbors.get(rawId)?.forEach((nid) => this.svgNodeElements.get(nid)?.classList.add("filter-match"));
+		this.svgNodeEdgeElements.get(rawId)?.forEach((el) => el.classList.add("filter-match"));
+		// Scroll the active node into the visible area of the diagram-container scroll
+		// region. SVG elements ignore inline display, but the surrounding `<g>` group
+		// has a getBoundingClientRect, which scrollIntoView uses.
+		nodeEl?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
 	}
 
 	private async renderMermaid(): Promise<void> {
@@ -486,6 +536,9 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		// Promote maps to instance properties for use by filter hover handlers
 		this.svgNodeElements = nodeElements;
 		this.svgNodeEdgeElements = nodeEdgeElements;
+		this.svgNeighbors = neighbors;
+		// Reapply selection highlight if we already had a sticky selection: the SVG was just rebuilt and lost any prior `.filter-match` classes.
+		if (this.selectedHighlightSubject) this.paintHighlight(this.selectedHighlightSubject);
 
 		let bound = 0;
 		for (const [rawId, g] of nodeElements) {
@@ -516,7 +569,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				if (getRels(entry.graph)) {
 					this.dispatchEvent(
 						new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-							detail: { label: entry.graph, subject: entry.subject },
+							detail: { label: entry.graph, subject: entry.subject, addToSelection: (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey },
 							bubbles: true,
 							composed: true,
 						}),
@@ -528,6 +581,18 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			bound++;
 		}
 		console.debug("[graph-view] bound", bound, "clickable nodes");
+		// Click on the diagram-container area outside any node releases the focus
+		// lock — same effect as closing the entity column. Both routes converge on
+		// `setSelectedSubject(null, null)` via a CONTEXT_CHANGE with empty patterns,
+		// so all subscribers (this view, fisheye) clear together.
+		container?.addEventListener("click", (e) => {
+			if (e.defaultPrevented) return;
+			const target = e.target as Element | null;
+			// Node clicks stop propagation, so by the time the container handler fires
+			// we know the click was on empty space.
+			if (target?.closest("g.node, g.cluster")) return;
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [] }, bubbles: true, composed: true }));
+		});
 	}
 
 	private showQuadDetail(graph: string, subject: string): void {

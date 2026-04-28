@@ -42,15 +42,14 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				...this.state,
 				columnType: (val as "query" | "entity" | "filter" | "property" | "monitor" | "sequence" | "document") || "query",
 			};
-		this.updateActiveStyle();
 	}
 
-	connectedCallback(): void {
-		super.connectedCallback();
-		this.updateActiveStyle();
-	}
-
-	/** Set active without full re-render — just toggle attribute + border. */
+	/**
+	 * Set active without full re-render. Toggles the `[active]` attribute; the
+	 * `:host([active])` rules in the shadow stylesheet apply the highlight, so
+	 * the visual is preserved across re-renders and unaffected by header-element
+	 * timing.
+	 */
 	setActive(active: boolean): void {
 		if (this.state.active === active) return;
 		this.state = { ...this.state, active };
@@ -59,21 +58,10 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		} else {
 			this.removeAttribute("active");
 		}
-		this.updateActiveStyle();
-	}
-
-	private updateActiveStyle(): void {
-		const header = this.shadowRoot?.querySelector(".pane-header") as HTMLElement | null;
-		if (!header) return;
-		if (this.state.active) {
-			this.style.borderTop = "2px solid #1a6b3c";
-			header.style.background = "#e8f5e9";
-			header.style.color = "#1a6b3c";
-		} else {
-			this.style.borderTop = "";
-			header.style.background = "";
-			header.style.color = "";
-		}
+		// Mirror the TIME_SYNC fan-out pattern: notify the slotted view child so it can
+		// switch between full-update behavior (active) and minimal sync-to-selection (inactive).
+		const child = this.firstElementChild;
+		if (child) child.dispatchEvent(new CustomEvent(SHU_EVENT.VIEW_ACTIVE, { detail: { active } }));
 	}
 
 	/** Set user-resized width. Undefined = auto (flex: 1). */
@@ -249,8 +237,6 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
 			}
 		});
-
-		this.updateActiveStyle();
 	}
 }
 
@@ -306,6 +292,8 @@ const STYLES = `
 		color: #888;
 	}
 	.pane-header:empty, .pane-header.empty { display: none; }
+	:host([active]) { border-top: 2px solid #1a6b3c; }
+	:host([active]) .pane-header { background: #e8f5e9; color: #1a6b3c; }
 	.pane-label {
 		font-weight: 400;
 		font-size: inherit;
