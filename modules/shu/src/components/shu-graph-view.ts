@@ -74,7 +74,7 @@ const STYLES = `
 .zoom-label { color: #666; }
 .quad-count { color: #888; margin-left: auto; }
 .empty { padding: 16px; color: #888; text-align: center; }
-.graph-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
+.graph-filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 8px; }
 .diagram-container.filter-highlight .node, .diagram-container.filter-highlight .cluster { opacity: 0.1; }
 .diagram-container.filter-highlight path.flowchart-link, .diagram-container.filter-highlight .edgeLabel { opacity: 0; }
 .diagram-container.filter-highlight .filter-match, .diagram-container.filter-highlight .filter-match * { opacity: 1 !important; }
@@ -323,9 +323,9 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			<span class="zoom-label">${zoom}%</span>
 			<button data-action="zoom-in">+</button>
 			<button data-action="copy">Copy</button>
-			<div class="graph-filters">${edgeFilterHtml}</div>
 		</div>
-		<shu-graph-filter></shu-graph-filter>`;
+		<shu-graph-filter></shu-graph-filter>
+		${edgeFilterHtml ? `<div class="graph-filters" data-testid="graph-predicate-filters">${edgeFilterHtml}</div>` : ""}`;
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}
 			<div class="graph-scroll">
 				<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
