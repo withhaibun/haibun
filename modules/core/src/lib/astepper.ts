@@ -8,8 +8,8 @@ export const StepperKinds = {
 	BROWSER: "BROWSER",
 	SERVER: "SERVER",
 	TEST: "TEST",
-	/** LLM provider — exposes `ask(prompt, opts?): Promise<string>`. */
-	LLM: "LLM",
+	/** Taiwa-bridge — exposes `ask(prompt, opts?): Promise<string>`. */
+	TAIWA: "TAIWA",
 } as const;
 
 export type TStepperKind = keyof typeof StepperKinds;
