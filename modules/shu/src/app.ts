@@ -766,7 +766,6 @@ const main = async (): Promise<void> => {
 							appRoot.dispatchEvent(new CustomEvent(staticAffordance.eventName, { bubbles: true }));
 							pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === staticAffordance.view);
 						} else {
-							// Per-instance ids encode `<component>:<unique>`; fall back to the bare normalized id for the singleton-style legacy form.
 							const sepIdx = normalized.indexOf(":");
 							const componentPart = sepIdx >= 0 ? normalized.slice(0, sepIdx) : normalized;
 							const ui = getUiByComponent(componentPart);
