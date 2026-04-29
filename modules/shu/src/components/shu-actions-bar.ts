@@ -14,7 +14,7 @@ import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
-import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
+import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
 import { getProperties, getSelectValues, getSiteMetadataSync, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -67,7 +67,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _abortController: AbortController | null = null;
 	private _renderPending = false;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
-	private _onDocumentPointerDown = (e: Event): void => {
+	private _onDocumentClick = (e: Event): void => {
 		if (!this.state.askExpanded) return;
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
 		if (path.includes(this)) return;
@@ -193,7 +193,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-		document.addEventListener("pointerdown", this._onDocumentPointerDown, true);
+		document.addEventListener("click", this._onDocumentClick, true);
 		this.loadProperties();
 		void Promise.all([this.loadDomainOptions(), this.loadModels(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			const message = `ShuActionsBar initialization failed: ${errMsg(err)}`;
@@ -223,7 +223,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	disconnectedCallback(): void {
-		document.removeEventListener("pointerdown", this._onDocumentPointerDown, true);
+		document.removeEventListener("click", this._onDocumentClick, true);
 		this._unsubscribeEvents?.();
 		this._unsubscribeEvents = null;
 		this._unsubscribeSync?.();
@@ -288,6 +288,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private async loadModels(): Promise<void> {
 		await getAvailableSteps();
+		if (!findStep("showModels")) return;
 		const client = SseClient.for("");
 		const data = await inAction((scope) => client.rpc<{
 			models: Array<{ filename: string; contextSize: number }>;
@@ -894,6 +895,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		} finally {
 			const aborted = this._abortController?.signal.aborted;
 			if (stopBtn) stopBtn.style.display = "none";
+			if (!aborted) {
+				spinner.spinning = false;
+				spinner.visible = false;
+			}
 			if (this._fullText && !aborted) {
 				this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
 					const maybeSpeak = (el as { speak?: unknown }).speak;
@@ -1000,12 +1005,12 @@ const STYLES = `
 	.model-select { font: inherit; font-size: inherit; color: #444; max-width: 200px; }
 	.chat-output { font-size: inherit; padding: 3px 6px; width: 100%; min-width: 0; flex: 1; overflow-y: auto; }
 	.msg { display: grid; grid-template-columns: 20px 1fr; }
-	.msg::before { font-size: 11px; display: flex; align-items: center; justify-content: center; }
+	.msg::before { font-size: 11px; display: flex; align-items: flex-start; justify-content: center; padding-top: 4px; }
 	.msg-user { background: #fdf8f2; }
-	.msg-user::before { content: "\\1F9D8"; }
+	.msg-user::before { content: "\\1F9D8"; background: #f5e9d8; }
 	.msg-ai { background: #f8f8f6; }
-	.msg-ai::before { content: "\\1F916"; }
-	.msg > :first-child, .msg-content { min-width: 0; padding: 3px 6px; }
+	.msg-ai::before { content: "\\1F916"; background: #ececea; }
+	.msg > :nth-child(2), .msg-content { min-width: 0; padding: 3px 6px; }
 	.chat-prompt { font-weight: 600; padding: 2px 0; }
 	.chat-status { display: block; color: #999; font-style: italic; font-size: inherit; }
 	.chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
