@@ -1,6 +1,5 @@
 import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js";
 import type WebPlaywright from "@haibun/web-playwright";
-import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 
 export function flattenTestIds(obj: Record<string, unknown>): string[] {
@@ -24,40 +23,29 @@ export function stepTestIds(inputParams: string[]): string[] {
 }
 
 export function createStepUI(wp: WebPlaywright) {
-	const { waitFor, click, setValue, selectionOption } = withAction(wp);
-	const { setAs } = withAction(new VariablesStepper());
+	const { waitFor, click, setValue, selectionOption, press } = withAction(wp);
 
 	const enterStepMode: TKirejiStep[] = [
 		waitFor({ target: IDS.APP.TWISTY }),
 		click({ target: IDS.APP.TWISTY }),
-		"page has settled",
 		selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }),
-		"page has settled",
 		waitFor({ target: IDS.APP.STEP_SELECT }),
 	];
 
 	function runStep(stepName: string, passes: boolean, params: Record<string, string> = {}): TKirejiStep[] {
 		const paramEntries = Object.entries(params);
 		const expectedTarget = passes ? CURRENT_RESULT : CURRENT_ERROR;
-		// Click the combobox to open its dropdown, then click the rendered option
-		// by its per-step testid. Avoids Playwright/shadow-DOM Enter-key races
-		// where filterText/focusIndex don't survive the keydown round trip.
-		const optionTestId = `${IDS.APP.STEP_SELECT}-option-${stepName}`;
 		return [
-			setAs({ what: optionTestId, domain: "page-test-id", value: `"${optionTestId}"` }),
 			click({ target: IDS.APP.STEP_SELECT }),
-			waitFor({ target: optionTestId }),
-			click({ target: optionTestId }),
+			setValue({ what: `"${stepName}"`, field: IDS.APP.STEP_SELECT }),
+			press({ key: '"Enter"' }),
 			...(paramEntries.length > 0
 				? [
 						waitFor({ target: CURRENT_INPUT(paramEntries[0][0]) }),
-						// Use setValue so the helper doesn't have to know whether the rendered
-						// param is an <input> or a <select>: setValue dispatches by element type.
 						...paramEntries.map(([name, value]) => setValue({ what: value, field: CURRENT_INPUT(name) })),
 					]
 				: []),
 			click({ target: CURRENT_RUN }),
-			"page has settled",
 			waitFor({ target: expectedTarget }),
 		];
 	}
