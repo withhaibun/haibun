@@ -94,9 +94,30 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		if (!topology.properties || Object.keys(topology.properties).length === 0)
 			throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
 
-		const hasIdentifier = Object.values(topology.properties).some((p) => p === LinkRelations.IDENTIFIER.rel);
-		if (!hasIdentifier)
+		const propertiesByRel = new Map<string, string[]>();
+		for (const [field, rel] of Object.entries(topology.properties)) {
+			const list = propertiesByRel.get(rel) ?? [];
+			list.push(field);
+			propertiesByRel.set(rel, list);
+		}
+
+		const identifierFields = propertiesByRel.get(LinkRelations.IDENTIFIER.rel) ?? [];
+		if (identifierFields.length === 0)
 			throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
+
+		const publishedFields = propertiesByRel.get(LinkRelations.PUBLISHED.rel) ?? [];
+		if (publishedFields.length === 0)
+			throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.PUBLISHED.rel}"`);
+		if (publishedFields.length > 1)
+			throw new Error(`Vertex domain "${label}" (${domainKey}) declares ${publishedFields.length} properties with rel "${LinkRelations.PUBLISHED.rel}": ${publishedFields.join(", ")}; expected exactly one`);
+		const publishedField = publishedFields[0];
+		if (domain.schema instanceof z.ZodObject) {
+			const fieldSchema = domain.schema.shape[publishedField];
+			if (!fieldSchema) throw new Error(`Vertex domain "${label}" (${domainKey}) maps published rel to "${publishedField}" but the schema has no such field`);
+			const probe = fieldSchema.safeParse(undefined);
+			if (probe.success && probe.data === undefined)
+				throw new Error(`Vertex domain "${label}" (${domainKey}) published field "${publishedField}" is .optional() — must be required or have a default`);
+		}
 
 		const properties: Record<string, TPropertyConcern> = {};
 		for (const [field, propDef] of Object.entries(topology.properties)) {
@@ -139,10 +160,11 @@ export type ResourceRels = {
 	types: string[];
 	field(type: string, rel: string): string | undefined;
 	idField(type: string): string;
-	publishedField(type: string): string | undefined;
+	publishedField(type: string): string;
 	nameField(type: string): string | undefined;
 	contentField(type: string): string | undefined;
 	fields(type: string): Record<string, string>;
+	schema(type: string): z.ZodType;
 };
 
 /** Build ResourceRels from world.domains concern metadata. */
@@ -150,6 +172,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const types: string[] = [];
 	const idFields = new Map<string, string>();
 	const relMaps = new Map<string, Record<string, string>>();
+	const schemas = new Map<string, z.ZodType>();
 
 	for (const domain of Object.values(domains)) {
 		const topology = domain.topology;
@@ -157,6 +180,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		const type = topology.vertexLabel;
 		types.push(type);
 		idFields.set(type, topology.id);
+		schemas.set(type, domain.schema);
 		const rels: Record<string, string> = {};
 		for (const [field, def] of Object.entries(topology.properties ?? {})) {
 			rels[field] = def as TPropertyDef;
@@ -181,10 +205,19 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 			if (!id) throw new Error(`Unknown resource type: ${type}`);
 			return id;
 		},
-		publishedField: (type) => fieldByRel(type, LinkRelations.PUBLISHED.rel),
+		publishedField: (type) => {
+			const f = fieldByRel(type, LinkRelations.PUBLISHED.rel);
+			if (!f) throw new Error(`Vertex type "${type}" has no property mapped to ${LinkRelations.PUBLISHED.rel}`);
+			return f;
+		},
 		nameField: (type) => fieldByRel(type, LinkRelations.NAME.rel),
 		contentField: (type) => fieldByRel(type, LinkRelations.CONTENT.rel),
 		fields: (type) => relMaps.get(type) ?? {},
+		schema: (type) => {
+			const s = schemas.get(type);
+			if (!s) throw new Error(`Unknown resource type: ${type}`);
+			return s;
+		},
 	};
 }
 
