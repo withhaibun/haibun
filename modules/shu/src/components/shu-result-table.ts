@@ -152,12 +152,13 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 						const labelAttr = vlabel ? ` data-vertex-label="${escAttr(vlabel)}"` : "";
 						const header = isMultiType && v._label !== lastLabel ? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>` : "";
 						lastLabel = v._label as string | undefined;
-						return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr} data-testid="${i === 0 ? "query-row-first" : "query-row"}">
+						return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr}>
 								${props
-								.map((p) => {
+								.map((p, j) => {
 									const raw = String(v[p] ?? "");
 									const display = isDateValue(raw) ? formatDate(raw) : truncate(raw);
-									return `<td title="${esc(raw)}">${esc(display)}</td>`;
+									const tid = j === 0 ? ` data-testid="${i === 0 ? "query-row-first" : "query-row"}"` : "";
+									return `<td title="${esc(raw)}"${tid}>${esc(display)}</td>`;
 								})
 								.join("")}
 								</tr>`;
@@ -395,55 +396,48 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			});
 		});
 
-		// Row clicks
 		if (this.state.selectable) {
-			// Background click deselects
 			this.shadowRoot?.querySelector(".results-wrapper")?.addEventListener("click", (e) => {
-				if ((e.target as HTMLElement).closest(".clickable-row")) return;
-				this.deselectAll();
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.ROW_CLICK, {
-						detail: { vertexId: null, deselect: true },
-						bubbles: true,
-						composed: true,
-					}),
-				);
-			});
-
-			this.shadowRoot?.querySelectorAll(".clickable-row").forEach((row) => {
-				row.addEventListener("click", (e) => {
-					e.stopPropagation();
-					const vid = (row as HTMLElement).dataset.vertexId;
-					if (!vid) return;
-					const vlabel = (row as HTMLElement).dataset.vertexLabel;
-					const multi = (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey;
-
-					if (multi) {
-						if (this.selectedIds.has(vid)) {
-							this.selectedIds.delete(vid);
-							row.classList.remove("selected");
-						} else {
-							this.selectedIds.add(vid);
-							row.classList.add("selected");
-						}
-					} else if (this.selectedIds.has(vid) && this.selectedIds.size === 1) {
-						this.selectedIds.clear();
-						row.classList.remove("selected");
-					} else {
-						this.selectedIds.clear();
-						this.shadowRoot?.querySelectorAll(".clickable-row").forEach((r) => r.classList.remove("selected"));
-						this.selectedIds.add(vid);
-						row.classList.add("selected");
-					}
-
+				const row = (e.target as HTMLElement).closest(".clickable-row") as HTMLElement | null;
+				if (!row) {
+					this.deselectAll();
 					this.dispatchEvent(
 						new CustomEvent(SHU_EVENT.ROW_CLICK, {
-							detail: { vertexId: vid, label: vlabel, ctrlKey: multi },
+							detail: { vertexId: null, deselect: true },
 							bubbles: true,
 							composed: true,
 						}),
 					);
-				});
+					return;
+				}
+				const vid = row.dataset.vertexId;
+				if (!vid) return;
+				const vlabel = row.dataset.vertexLabel;
+				const multi = (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey;
+				if (multi) {
+					if (this.selectedIds.has(vid)) {
+						this.selectedIds.delete(vid);
+						row.classList.remove("selected");
+					} else {
+						this.selectedIds.add(vid);
+						row.classList.add("selected");
+					}
+				} else if (this.selectedIds.has(vid) && this.selectedIds.size === 1) {
+					this.selectedIds.clear();
+					row.classList.remove("selected");
+				} else {
+					this.selectedIds.clear();
+					this.shadowRoot?.querySelectorAll(".clickable-row").forEach((r) => r.classList.remove("selected"));
+					this.selectedIds.add(vid);
+					row.classList.add("selected");
+				}
+				this.dispatchEvent(
+					new CustomEvent(SHU_EVENT.ROW_CLICK, {
+						detail: { vertexId: vid, label: vlabel, ctrlKey: multi },
+						bubbles: true,
+						composed: true,
+					}),
+				);
 			});
 		}
 	}
