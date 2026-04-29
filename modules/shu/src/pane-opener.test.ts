@@ -73,9 +73,23 @@ getStrip: () => strip as any,
 			expect(pane.hasAttribute(SHU_ATTR.PINNED)).toBe(true);
 			expect(pane.children).toHaveLength(1);
 			expect(pane.children[0].tagName.toLowerCase()).toBe(childTag);
-			expect(pane.children[0].hasAttribute(SHU_ATTR.SHOW_CONTROLS)).toBe(true);
+			expect(pane.children[0].hasAttribute(SHU_ATTR.SHOW_CONTROLS)).toBe(false);
 		});
 	}
+
+	it("sets show-controls on the child when showControlsFor returns true", async () => {
+		class FakeChild extends HTMLElement {}
+		const tag = `shu-test-${Math.random().toString(36).slice(2, 8)}`;
+		customElements.define(tag, FakeChild);
+		const strip = makeStrip();
+		await openPinnedColumn("with-controls", "With controls", tag, {
+			// biome-ignore lint/suspicious/noExplicitAny: test-only — the real ShuColumnStrip class is heavier than this contract requires.
+			getStrip: () => strip as any,
+			ensureUiComponentLoaded: () => Promise.resolve(),
+			showControlsFor: () => true,
+		});
+		expect(strip.panes[0].children[0].hasAttribute(SHU_ATTR.SHOW_CONTROLS)).toBe(true);
+	});
 
 	it("is idempotent: a second call with the same column-type does not create a duplicate pane", async () => {
 		class FakeChild extends HTMLElement {}
