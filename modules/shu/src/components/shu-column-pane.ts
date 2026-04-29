@@ -95,10 +95,27 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		} else {
 			this.removeAttribute("collapsed");
 		}
+		this.syncCollapsedControls();
 	}
 
 	get isCollapsed(): boolean {
 		return this.hasAttribute("collapsed");
+	}
+
+	private syncCollapsedControls(): void {
+		const root = this.shadowRoot;
+		if (!root) return;
+		const minimized = this.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
+		const collapsed = this.isCollapsed || minimized;
+		const closeBtn = root.querySelector(".pane-close") as HTMLElement | null;
+		for (const sel of [".pane-minimize", ".pane-maximize", ".pane-controls", ".pane-pin"]) {
+			const btn = root.querySelector(sel) as HTMLElement | null;
+			if (btn) btn.style.display = collapsed ? "none" : "";
+		}
+		if (closeBtn) {
+			closeBtn.style.order = collapsed ? "-1" : "";
+			closeBtn.style.margin = collapsed ? "0 0 4px 0" : "";
+		}
 	}
 
 	protected render(): void {
@@ -143,6 +160,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			} else {
 				this.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
 			}
+			this.syncCollapsedControls();
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { bubbles: true, composed: true }));
 		});
 
@@ -266,6 +284,8 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
 			}
 		});
+
+		this.syncCollapsedControls();
 	}
 }
 
@@ -299,10 +319,11 @@ const STYLES = `
 		padding: 8px 4px;
 		flex: 1;
 	}
-	:host([collapsed]) .pane-pin, :host([collapsed]) .pane-close {
+	:host([collapsed]) .pane-close {
 		writing-mode: horizontal-tb;
 		font-size: 0.75em;
 		padding: 2px 0;
+		order: -1;
 	}
 	:host([column-type="query"]) {
 		position: sticky;
@@ -354,7 +375,12 @@ const STYLES = `
 	.pane-header > button:hover { color: #444; }
 	:host([collapsed]) .pane-minimize,
 	:host([collapsed]) .pane-maximize,
-	:host([collapsed]) .pane-controls { display: none; }
+	:host([collapsed]) .pane-controls,
+	:host([collapsed]) .pane-pin,
+	:host([data-minimized]) .pane-minimize,
+	:host([data-minimized]) .pane-maximize,
+	:host([data-minimized]) .pane-controls,
+	:host([data-minimized]) .pane-pin { display: none !important; }
 	:host([data-maximized]) .pane-maximize { background: #1a6b3c; color: #fff; }
 	.pane-controls.active { background: #1a6b3c; color: #fff; }
 	.pane-pin { opacity: 0.5; transition: opacity 0.15s; }
