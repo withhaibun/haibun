@@ -28,7 +28,7 @@
     "@haibun/domain-storage": "*",
     "@haibun/storage-mem": "*",
     "playwright": "^1.58.2",
-    "zod": "4.4.1"
+    "zod": "4"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
   "devDependencies": {}
