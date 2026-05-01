@@ -305,11 +305,26 @@ export function isReplyEdge(edgeType: string): boolean {
 // ============================================================================
 
 /**
- * Property definition: a rel string. Format/mediaType belongs on a Body
- * sub-resource (see BodySchema), not on a parent resource's property
- * declaration — keeps JSON-LD round-trips honest and graph queries uniform.
+ * Property definition. The plain-string form (`TRel`) declares a property's
+ * rel and that's it. The object form is for content-shaped properties: it
+ * declares the rel along with the Body sub-resource's media type (and an
+ * optional discriminating `kind`). At upsert time, the writer partitions
+ * such fields out of the parent into Body sub-resources linked via hasBody.
+ *
+ * The object form keeps each content field's declaration in one place,
+ * matching the JSON-LD model where mediaType is data on the Body resource
+ * itself rather than on the parent's stored state.
+ *
+ * `kind` distinguishes multiple bodies of the same media type on one parent
+ * (e.g. a Proposal carrying both rationale and proposedAction in markdown).
  */
-export type TPropertyDef = TRel;
+export type TContentPropertyDef = { rel: "content"; mediaType: string; kind?: string };
+
+export type TPropertyDef = TRel | TContentPropertyDef;
+
+export function isContentPropertyDef(def: TPropertyDef | undefined): def is TContentPropertyDef {
+	return typeof def === "object" && def !== null && def.rel === "content";
+}
 
 /** Edge definition: target vertex type. The rel is resolved from EdgePredicates[key]; override with explicit rel for domain-specific edges not in the canonical set. */
 export type TEdgeDef = { range: string; rel?: TRel };
@@ -396,6 +411,7 @@ export const CommentSchema = z.object({
 	author: z.string().optional(),
 	discourse: DiscourseSchema,
 	timestamp: z.string(),
+	body: z.string().optional(),
 });
 
 export type TComment = z.infer<typeof CommentSchema>;
@@ -418,6 +434,7 @@ export const commentDomainDefinition: TDomainDefinition = {
 			author: LinkRelations.ATTRIBUTED_TO.rel,
 			discourse: LinkRelations.DISCOURSE.rel,
 			timestamp: LinkRelations.PUBLISHED.rel,
+			body: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
 		},
 		edges: {
 			[COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL },
@@ -444,6 +461,18 @@ export const BodySchema = z.object({
 });
 
 export type TBody = z.infer<typeof BodySchema>;
+
+/**
+ * Pick a body's content by media type from a vertex's `hasBody` projection.
+ * Returns undefined if no body matches. Used by readers that consume content
+ * after `getVertex` has inlined the linked Body sub-resources.
+ */
+export function bodyByMediaType(
+	vertex: { hasBody?: Array<{ mediaType?: string; content?: string }> } | null | undefined,
+	mediaType: string,
+): string | undefined {
+	return vertex?.hasBody?.find((b) => b.mediaType === mediaType)?.content;
+}
 
 export const bodyDomainDefinition: TDomainDefinition = {
 	selectors: [BODY_DOMAIN],

@@ -415,7 +415,7 @@ export class ShuColumnBrowser extends HTMLElement {
 	}
 
 	private renderContentIframe(vertex: VertexData, _lbl: string): string {
-		const bodies = (vertex._bodies as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+		const bodies = (vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
 		const available = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
 		if (available.length === 0) return "";
 
@@ -501,7 +501,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				const colIdx = parseInt((btn.closest(".column") as HTMLElement)?.dataset.colIndex ?? "0", 10);
 				const col = this.columns[colIdx];
 				if (!col?.vertex) return;
-				const bodies = (col.vertex._bodies as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+				const bodies = (col.vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
 				const body = bodies.find((b) => String(b.id ?? "") === bodyId);
 				if (!body || typeof body.content !== "string" || typeof body.mediaType !== "string") return;
 				const raw = body.content;

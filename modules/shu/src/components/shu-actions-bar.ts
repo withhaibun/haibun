@@ -262,15 +262,17 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private reportActionsBar(level: "info" | "warn" | "error", message: string, attributes: Record<string, unknown> = {}): void {
 		void inAction(async (scope) => {
 			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", {
-				level,
-				source: "shu-actions-bar",
-				message,
-				attributes: {
-					"haibun.shu.actions-bar.event": "ui-extension",
-					...attributes,
-					...(level === "error"
-						? { "haibun.autonomic.event": "step.failure", "exception.type": "ActionsBarUiExtension", "exception.message": typeof attributes.error === "string" ? attributes.error : message }
-						: {}),
+				event: {
+					level,
+					source: "shu-actions-bar",
+					message,
+					attributes: {
+						"haibun.shu.actions-bar.event": "ui-extension",
+						...attributes,
+						...(level === "error"
+							? { "haibun.autonomic.event": "step.failure", "exception.type": "ActionsBarUiExtension", "exception.message": typeof attributes.error === "string" ? attributes.error : message }
+							: {}),
+					},
 				},
 			});
 		}).catch((err) => {
