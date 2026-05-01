@@ -27,7 +27,28 @@ import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 
-const MAX_EVENTS_DEFAULT = 10000;
+const MAX_EVENTS_DEFAULT = 9e9;
+
+export const DOMAIN_LOG_EVENT = "shu-log-event";
+
+/** Client-side log event forwarded from the SPA. Validated with Zod at the action boundary. */
+export const LogEventSchema = z.object({
+	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
+	message: z.string().min(1),
+	source: z.string().optional(),
+	attributes: z.record(z.string(), z.unknown()).optional(),
+});
+export type TLogEvent = z.infer<typeof LogEventSchema>;
+
+export const DOMAIN_EVENTS_FILTER = "shu-events-filter";
+
+/** Optional filter for getEvents — by level, kind, and minimum timestamp. */
+export const EventsFilterSchema = z.object({
+	level: z.string().optional(),
+	kind: z.string().optional(),
+	since: z.number().optional(),
+});
+export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions, IHasTunables {
 	description = "Buffers execution events for the shu monitor view";
@@ -82,6 +103,18 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					schema: GraphQuerySchema,
 					coerce: objectCoercer(GraphQuerySchema),
 					description: "Graph query parameters",
+				},
+				{
+					selectors: [DOMAIN_LOG_EVENT],
+					schema: LogEventSchema,
+					coerce: objectCoercer(LogEventSchema),
+					description: "Client-side log event forwarded from the SPA",
+				},
+				{
+					selectors: [DOMAIN_EVENTS_FILTER],
+					schema: EventsFilterSchema,
+					coerce: objectCoercer(EventsFilterSchema),
+					description: "Optional filter for monitor events query",
 				},
 			],
 		}),
@@ -214,9 +247,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				actionOKWithProducts({ _type: "shu-document-column", _summary: "Document view", _component: "shu-document-column", id: "document", view: "document" }),
 		},
 		getEvents: {
-			gwta: "get monitor events",
+			gwta: `get monitor events {filter: ${DOMAIN_EVENTS_FILTER}}`,
 			outputSchema: z.object({ events: z.array(z.unknown()) }),
-			action: ({ level, kind, since }: { level?: string; kind?: string; since?: number }) => {
+			action: ({ filter }: { filter: TEventsFilter }) => {
+				const { level, kind, since } = filter;
 				let filtered: THaibunEvent[] = this.events;
 				if (level) filtered = filtered.filter((e) => e.level === level);
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
@@ -232,16 +266,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			},
 		},
 		logClient: {
-			gwta: "log client",
-			action: ({ level, message, source, attributes }: { level?: string; message?: string; source?: string; attributes?: Record<string, unknown> }) => {
-				if (typeof message !== "string" || message.length === 0) return actionNotOK("logClient requires non-empty message");
-				const normalizedLevel = level === "debug" || level === "trace" || level === "info" || level === "warn" || level === "error" ? level : "info";
-				const prefix = typeof source === "string" && source.length > 0 ? `[${source}] ` : "";
+			gwta: `log client {event: ${DOMAIN_LOG_EVENT}}`,
+			action: ({ event }: { event: TLogEvent }) => {
+				const { level, message, source, attributes } = event;
+				const prefix = source ? `[${source}] ` : "";
 				const line = `${prefix}${message}`;
-				const attrs = attributes && typeof attributes === "object" ? (attributes as Record<string, unknown>) : undefined;
-				if (normalizedLevel === "warn") this.getWorld().eventLogger.warn(line, attrs);
-				else if (normalizedLevel === "error") this.getWorld().eventLogger.error(line, attrs);
-				else this.getWorld().eventLogger.info(line, attrs);
+				if (level === "warn") this.getWorld().eventLogger.warn(line, attributes);
+				else if (level === "error") this.getWorld().eventLogger.error(line, attributes);
+				else this.getWorld().eventLogger.info(line, attributes);
 				return actionOKWithProducts({});
 			},
 		},
@@ -262,23 +294,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: "show graph view",
 			action: () =>
 				actionOKWithProducts({ _type: "shu-graph-view", _summary: "Graph view", _component: "shu-graph-view", id: "graph", view: "graph" }),
-		},
-		graphQuery: {
-			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
-			precludes: ["GraphStepper.graphQuery"],
-			outputSchema: z.object({ vertices: z.array(z.unknown()), total: z.number(), cypher: z.string() }),
-			action: async ({ query }: { query: z.infer<typeof GraphQuerySchema> }) => {
-				const store = this.getWorld().shared.getStore();
-				const label = query.label;
-				if (!label) return actionNotOK("graphQuery requires a label");
-				const limit = query.limit || 50;
-				const offset = query.offset || 0;
-				const filters = query.filters?.length ? Object.fromEntries(query.filters.map((f) => [f.predicate, f.value])) : undefined;
-				const vertices = await store.queryVertices(label, filters, { limit, offset });
-				const allQuads = await store.query({ namedGraph: label });
-				const total = new Set(allQuads.map((q) => q.subject)).size;
-				return actionOKWithProducts({ vertices, total, cypher: `QuadStore query: ${label}` });
-			},
 		},
 		getClusteredQuads: {
 			gwta: "get clustered quads",

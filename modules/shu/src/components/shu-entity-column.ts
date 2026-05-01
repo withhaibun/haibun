@@ -116,7 +116,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			return;
 		}
 
-		// Content (Body sub-resources) lives under `_bodies` and renders separately
+		// Content (Body sub-resources) lives under `hasBody` and renders separately
 		// in an iframe; underscore-prefixed projections are excluded from the field
 		// table by the same rule.
 		const fields: Record<string, string | string[]> = {};
@@ -260,7 +260,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/**
-	 * Render the linked Body sub-resources (`vertex._bodies`) as a single
+	 * Render the linked Body sub-resources (`vertex.hasBody`) as a single
 	 * content iframe with a switcher if multiple formats exist. Dispatches
 	 * on each Body's `mediaType` triple — same path for Comment markdown,
 	 * Email plain/html/markdown, Proposal rationale, File markdown, etc.
@@ -268,7 +268,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private renderContentIframe(_vertexLabel: string): string {
 		const vertex = this.vertex;
 		if (!vertex) return "";
-		const bodies = (vertex._bodies as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+		const bodies = (vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
 		const available = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
 		if (available.length === 0) return "";
 
@@ -389,7 +389,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				if (!bodyId || !this.vertex) return;
 				this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
 				btn.classList.add("active");
-				const bodies = (this.vertex._bodies as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+				const bodies = (this.vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
 				const body = bodies.find((b) => String(b.id ?? "") === bodyId);
 				if (!body || typeof body.content !== "string" || typeof body.mediaType !== "string") return;
 				const raw = body.content;

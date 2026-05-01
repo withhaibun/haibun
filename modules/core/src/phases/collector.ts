@@ -58,11 +58,10 @@ async function recurse(
 		if (fs.statSync(here).isDirectory()) {
 			all = all.concat(await recurse(base, `${dir}/${file}`, type, featureFilter, policyConfig, fs));
 		} else if (shouldProcess(here, type, featureFilter, dir, policyConfig?.dirFilters)) {
-			let contents;
-			let kirejiLineMap: Map<number, number> | undefined;
 			if (here.endsWith(".feature.ts")) {
 				const module = await import(path.resolve(here));
-				let kirejiContent;
+				type TKirejiContent = Parameters<typeof toBdd>[0];
+				let kirejiContent: TKirejiContent | undefined;
 
 				if (type === "background") {
 					// For backgrounds directory: prefer 'backgrounds' export, fallback to 'features'
@@ -78,13 +77,23 @@ async function recurse(
 					}
 				}
 
-				const bddResult = toBdd(kirejiContent);
-				contents = bddResult.content;
-				kirejiLineMap = bddResult.lineMap;
+				// Each top-level key in a kireji export is a separate Feature with its own
+				// lifecycle (startFeature/endFeature fire per key). Backgrounds stay merged
+				// into one TFeature since they're meant to be inlined into other features.
+				if (type === "background") {
+					const bddResult = toBdd(kirejiContent);
+					all.push(withNameType(base, here, bddResult.content, bddResult.lineMap));
+				} else {
+					for (const [featureName, steps] of Object.entries(kirejiContent)) {
+						const single: TKirejiContent = { [featureName]: steps };
+						const bddResult = toBdd(single);
+						all.push(withNameType(base, here, bddResult.content, bddResult.lineMap, featureName));
+					}
+				}
 			} else {
-				contents = fs.readFileSync(here, "utf-8");
+				const contents = fs.readFileSync(here, "utf-8");
+				all.push(withNameType(base, here, contents));
 			}
-			all.push(withNameType(base, here, contents, kirejiLineMap));
 		}
 	}
 	return all;
