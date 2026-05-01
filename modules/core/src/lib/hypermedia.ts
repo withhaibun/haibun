@@ -9,7 +9,12 @@
  */
 
 import { z } from "zod";
-import { edgeRel, REL_CONTEXT, LinkRelations, getRelRange, type TPropertyDef } from "./resources.js";
+import { edgeRel, REL_CONTEXT, LinkRelations, getRelRange, isContentPropertyDef, type TPropertyDef, type TRel } from "./resources.js";
+
+/** Resolve a property def to its rel, regardless of plain-string or content-object form. */
+function relOf(def: TPropertyDef): TRel {
+	return isContentPropertyDef(def) ? (def.rel as TRel) : def;
+}
 import type { TRegisteredDomain } from "./resources.js";
 
 /** Per-schema JSON-Schema memoization. `step.list` RPC calls buildConcernCatalog repeatedly; each
@@ -95,7 +100,8 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
 
 		const propertiesByRel = new Map<string, string[]>();
-		for (const [field, rel] of Object.entries(topology.properties)) {
+		for (const [field, def] of Object.entries(topology.properties)) {
+			const rel = relOf(def);
 			const list = propertiesByRel.get(rel) ?? [];
 			list.push(field);
 			propertiesByRel.set(rel, list);
@@ -121,7 +127,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 
 		const properties: Record<string, TPropertyConcern> = {};
 		for (const [field, propDef] of Object.entries(topology.properties)) {
-			const rel = propDef;
+			const rel = relOf(propDef);
 			if (!REL_CONTEXT[rel]) throw new Error(`Vertex domain "${label}" property "${field}" has unknown rel "${rel}"`);
 			properties[field] = { term: REL_CONTEXT[rel], rel };
 		}
@@ -183,7 +189,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		schemas.set(type, domain.schema);
 		const rels: Record<string, string> = {};
 		for (const [field, def] of Object.entries(topology.properties ?? {})) {
-			rels[field] = def as TPropertyDef;
+			rels[field] = relOf(def);
 		}
 		relMaps.set(type, rels);
 	}
@@ -312,7 +318,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		const topology = domain.topology;
 		if (!topology?.vertexLabel) continue;
 		for (const [prop, def] of Object.entries(topology.properties)) {
-			const rel = def;
+			const rel = relOf(def);
 			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;
 			const linkRel = linkRelFromSemantic(rel);
 			const node: Record<string, string> = { "@id": uri, "haibun:rel": linkRel };

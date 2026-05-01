@@ -61,7 +61,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		try {
 			const { eventsData, tracesData, quadsData } = await inAction(async (scope) => {
 				const eventsData = await client.rpc<{ events: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getEvents", {
-					kind: "lifecycle",
+					filter: { kind: "lifecycle" },
 				});
 				const tracesData = await client.rpc<{ traces: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getDispatchTraces");
 				const quadsData = await client.rpc<{

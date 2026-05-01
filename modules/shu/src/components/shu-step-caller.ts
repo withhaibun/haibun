@@ -115,10 +115,12 @@ export class StepCaller extends HTMLElement {
 			const action = parseAffordanceProduct(this.result);
 			void inAction(async (scope) => {
 				await SseClient.for("").rpc(scope, "MonitorStepper-logClient", {
-					level: "info",
-					source: "shu-step-caller",
-					message: `step ${method} returned action.kind=${action.kind}`,
-					attributes: { "haibun.shu.step-caller.method": method, "haibun.shu.step-caller.action": action.kind },
+					event: {
+						level: "info",
+						source: "shu-step-caller",
+						message: `step ${method} returned action.kind=${action.kind}`,
+						attributes: { "haibun.shu.step-caller.method": method, "haibun.shu.step-caller.action": action.kind },
+					},
 				});
 			}).catch(() => undefined);
 			if (action.kind === "close") {

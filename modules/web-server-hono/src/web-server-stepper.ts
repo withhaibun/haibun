@@ -158,7 +158,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		serveFiles: {
 			gwta: "serve files from {loc}",
-			action: ({ loc, why }: TStepArgs) => {
+			action: ({ loc }: TStepArgs) => {
 				try {
 					this.webserver?.checkAddStaticFolder(String(loc), "/");
 					return OK;

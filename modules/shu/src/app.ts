@@ -147,7 +147,7 @@ const main = async (): Promise<void> => {
 	// Boot-time smoke test for the diagnostic channel.
 	const reportBootDiagnostic = (level: "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
 		void inAction(async (scope) => {
-			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { level, source: "shu-app-boot", message: msg, attributes: attrs });
+			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, source: "shu-app-boot", message: msg, attributes: attrs } });
 		}).catch((e) => console.error("[shu-boot] diagnostic failed:", e));
 	};
 	reportBootDiagnostic("info", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
@@ -155,7 +155,7 @@ const main = async (): Promise<void> => {
 	const reportClientLog = (level: "info" | "warn" | "error", message: string, attributes?: Record<string, unknown>) => {
 		// Fail-fast — surface RPC plumbing issues that would otherwise hide every diagnostic.
 		void inAction(async (scope) => {
-			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { level, message, source: "shu-app", attributes });
+			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, message, source: "shu-app", attributes } });
 		}).catch((err) => {
 			const detail = err instanceof Error ? err.message : String(err);
 			console.error(`[shu] reportClientLog dispatch failed: ${detail}`, { level, message, attributes });
