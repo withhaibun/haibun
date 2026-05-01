@@ -83,7 +83,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		super.connectedCallback();
 		const client = SseClient.for("");
 		try {
-			const data = await inAction((scope) => client.rpc<{ events: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getEvents"));
+			const data = await inAction((scope) => client.rpc<{ events: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getEvents", { filter: {} }));
 			if (data.events) {
 				for (const e of data.events) this.addEvent(e);
 				this.updateTimeline();

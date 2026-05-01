@@ -132,7 +132,8 @@ export class Executor {
 			const isLast = featureNum === features.length;
 
 			world.runtime.exhaustionError = undefined;
-			const featureName = basename(feature.path).replace(/\..*$/, "");
+			// `feature.name` is the per-Feature key from a kireji split or the basename for raw .feature files.
+			const featureName = feature.name || basename(feature.path).replace(/\..*$/, "");
 			const newWorld = {
 				...world,
 				tag: { ...world.tag, featureNum, featureName },
@@ -145,7 +146,7 @@ export class Executor {
 			await setStepperWorldsAndDomains(steppers, newWorld);
 			await doStepperCycle(steppers, "startFeature", { resolvedFeature: feature, index: featureNum });
 			stepRegistry.refresh(steppers, newWorld);
-			world.eventLogger.info(`feature ${featureNum}/${features.length}: ${feature.path}`);
+			world.eventLogger.info(`feature ${featureNum}/${features.length}: ${feature.path}${feature.name && feature.name !== basename(feature.path).replace(/\..*$/, "") ? ` [${feature.name}]` : ""}`);
 
 			const featureResult = await featureExecutor.doFeature(feature);
 			if (newWorld.runtime?.exhaustionError) {
