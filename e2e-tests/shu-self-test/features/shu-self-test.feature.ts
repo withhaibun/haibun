@@ -1,15 +1,17 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
+import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { ShuStepper, SHU_TEST_IDS, flattenTestIds } from "@haibun/shu";
-import { COMMENT_LABEL } from "@haibun/core/steps/variables-stepper.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 
 const wp = new WebPlaywright();
 const { waitFor, click, selectionOption, gotoPage, reloadPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const vs = new VariablesStepper();
-const { set, setAs, comment } = withAction(vs);
+const { set, setAs } = withAction(vs);
+const { comment } = withAction(new ResourcesStepper());
 const { feature } = withAction(new Haibun());
 
 const host = "http://localhost:8239";
