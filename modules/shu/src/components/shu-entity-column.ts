@@ -10,7 +10,7 @@ import { SHARED_STYLES } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
-import { isReplyEdge, HAS_BODY_EDGE } from "@haibun/core/lib/resources.js";
+import { isReplyEdge } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { renderValue } from "./value-renderers.js";
 import { SseClient, inAction } from "../sse-client.js";
@@ -117,12 +117,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			return;
 		}
 
-		// Content (Body sub-resources) lives under `hasBody` and renders separately
-		// in an iframe. Underscore-prefixed projections and JSON-LD reserved keys
-		// (`@id`, `@type`) are excluded from the user-facing field table.
+		// Field table consults rel metadata via isVisibleKey(k, vertexLabel): rels with `presentation: "body"` (CONTENT, HAS_BODY) render in the body iframe; `system` (ACCESS_LEVEL) is suppressed; the rest are field cells.
 		const fields: Record<string, string | string[]> = {};
 		for (const [k, v] of Object.entries(this.vertex)) {
-			if (!isVisibleKey(k)) continue;
+			if (!isVisibleKey(k, vertexLabel)) continue;
 			if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object") continue; // handled separately as items table
 			fields[k] = Array.isArray(v) ? (v as string[]).map(String) : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v ?? "");
 		}
@@ -198,12 +196,14 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Render arrays of objects as tables (e.g. show domains items). Skips `hasBody` (rendered as iframes), JSON-LD keywords, and underscore-projected keys. */
 	private renderItemsTable(): string {
 		if (!this.vertex) return "";
+		const { vertexLabel } = this.state;
 		const tables: string[] = [];
 		for (const [k, v] of Object.entries(this.vertex)) {
-			if (!isVisibleKey(k) || k === HAS_BODY_EDGE) continue;
+			if (!isVisibleKey(k, vertexLabel)) continue;
 			if (!Array.isArray(v) || v.length === 0 || typeof v[0] !== "object") continue;
 			const items = v as Record<string, unknown>[];
-			const keys = Object.keys(items[0]).filter(isVisibleKey);
+			// Inner table: items don't have a per-row label, fall back to projection-only filter.
+			const keys = Object.keys(items[0]).filter((key) => isVisibleKey(key));
 			const header = keys.map((key) => `<th>${esc(key)}</th>`).join("");
 			const rows = items.map((item) => `<tr>${keys.map((key) => {
 				const val = item[key];
