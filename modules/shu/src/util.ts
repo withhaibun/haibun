@@ -84,7 +84,7 @@ export function vertexLabel(v: Record<string, unknown>): string {
 }
 
 /** Properties hidden from query/column display (large or internal). */
-export const HIDDEN_PROPS = new Set(["accessLevel", "body", "bodyHtml", "bodyMarkdown", "markdown", "uid", "vertexLabel"]);
+export const HIDDEN_PROPS = new Set(["accessLevel", "body", "bodyHtml", "bodyMarkdown", "markdown", "uid", "vertexLabel", "hasBody"]);
 
 /** True for keys safe to render in user-facing tables. Filters out projection-internal (`_*`), JSON-LD reserved (`@*`), and HIDDEN_PROPS. */
 export function isVisibleKey(k: string): boolean {
