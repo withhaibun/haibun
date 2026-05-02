@@ -194,8 +194,10 @@ export function mapInputToStepValues(input: Record<string, unknown>, gwta: strin
 	for (const [key, val] of Object.entries(input)) {
 		const term = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
 		const existing = updatedMap[key];
-		// Keys present in gwta keep their declared domain; extras (RPC-only params with no gwta placeholder) are added as quoted values so they reach the action via populateActionArgs.
-		updatedMap[key] = existing ? { ...existing, term, origin: Origin.quoted } : { term, origin: Origin.quoted, domain: "string" };
+		// RPC inputs arrive already validated/coerced by validateToolInput; carry the value through directly so populateActionArgs can short-circuit resolveVariable. Keys present in gwta keep their declared domain; extras are added as quoted strings.
+		updatedMap[key] = existing
+			? { ...existing, term, value: val, origin: Origin.quoted }
+			: { term, value: val, origin: Origin.quoted, domain: DOMAIN_STRING };
 	}
 	return updatedMap;
 }

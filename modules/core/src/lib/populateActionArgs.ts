@@ -7,6 +7,10 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 	if (!featureStep?.action?.stepValuesMap) return stepArgs;
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
+		if (actionVal.value !== undefined) {
+			stepArgs[name] = actionVal.value;
+			continue;
+		}
 		const resolved = await world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true });
 		if (resolved.value === undefined) {
 			const handlesUndefined = featureStep.action.step.handlesUndefined;
