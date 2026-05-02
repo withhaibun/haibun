@@ -350,7 +350,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				this.dispatchContextChange();
 
 				if (this.selectedIds.size > 0) {
-					this.dispatchEvent(
+					// Dispatch from the result table (inside the query pane's results-target)
+					// rather than from this controller (which lives outside the strip), so the
+					// composed path traverses the query shu-column-pane. The Miller-column
+					// pruning logic in app.ts then identifies the source pane via the natural
+					// path with no special case.
+					table.dispatchEvent(
 						new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
 							detail: {
 								subject: vid,
