@@ -58,7 +58,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectedLabel = "";
 	private _textSearch = "";
 	private _steps: Array<{ method: string; pattern: string; stepName: string }> = [];
-	private _models: Array<{ filename: string; contextSize: number }> = [];
+	private _models: Array<{ id: string }> = [];
 	private _selectedModel = "";
 	private _selectedStep = "";
 	private _lastPrompt = "";
@@ -290,17 +290,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private async loadModels(): Promise<void> {
 		await getAvailableSteps();
-		if (!findStep("showModels")) return;
+		if (!findStep("showKihans")) return;
 		const client = SseClient.for("");
-		const data = await inAction((scope) => client.rpc<{
-			models: Array<{ filename: string; contextSize: number }>;
-		}>(scope, requireStep("showModels")));
-		if (data.models) {
-			this._models = data.models;
+		const data = await inAction((scope) => client.rpc<{ vertices: Array<{ id: string }> }>(scope, requireStep("showKihans")));
+		if (data.vertices) {
+			this._models = data.vertices;
 			if (this._models.length > 0 && !this._selectedModel) {
 				const preferred = getCookie(MODEL_COOKIE);
-				const match = preferred && this._models.find((m) => m.filename === preferred);
-				this._selectedModel = match ? match.filename : this._models[0].filename;
+				const match = preferred && this._models.find((m) => m.id === preferred);
+				this._selectedModel = match ? match.id : this._models[0].id;
 			}
 		}
 	}
@@ -747,7 +745,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 		const modelCombo = this.shadowRoot?.querySelector(".model-select") as ShuCombobox | null;
 		if (modelCombo) {
-			modelCombo.setOptions(this._models.map((m) => ({ value: m.filename, label: m.filename })));
+			modelCombo.setOptions(this._models.map((m) => ({ value: m.id, label: m.id })));
 			if (this._selectedModel) modelCombo.setValue(this._selectedModel);
 		}
 		modelCombo?.addEventListener("combo-change", ((e: CustomEvent) => {
