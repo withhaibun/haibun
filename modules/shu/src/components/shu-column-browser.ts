@@ -5,7 +5,7 @@
  */
 import { SHARED_STYLES } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
-import { esc, escAttr, truncate, errMsg, vertexId, vertexLabel, HIDDEN_PROPS, renderContentHtml, utf8ToBase64 } from "../util.js";
+import { esc, escAttr, truncate, errMsg, vertexId, vertexLabel, isVisibleKey, renderContentHtml, utf8ToBase64 } from "../util.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { renderValue } from "./value-renderers.js";
 import { queryUriToPayload } from "../query-uri.js";
@@ -361,7 +361,7 @@ export class ShuColumnBrowser extends HTMLElement {
 
 		const fields: Record<string, string> = {};
 		for (const [k, v] of Object.entries(vertex)) {
-			if (k.startsWith("_") || HIDDEN_PROPS.has(k)) continue;
+			if (!isVisibleKey(k)) continue;
 			fields[k] = String(v ?? "");
 		}
 
@@ -448,7 +448,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				const id = vertexId(v);
 				const idField = id;
 				const summary = Object.entries(v)
-					.filter(([k, val]) => !k.startsWith("_") && !HIDDEN_PROPS.has(k) && String(val ?? "") !== idField)
+					.filter(([k, val]) => isVisibleKey(k) && String(val ?? "") !== idField)
 					.slice(0, 3)
 					.map(([k, val]) => `${this.clickableValue(k, index, "describedby")}: ${this.clickableValue(String(val ?? ""), index, "filter", k)}`)
 					.join(", ");
