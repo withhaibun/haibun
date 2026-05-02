@@ -336,6 +336,8 @@ export type TDomainTopology = {
 	id: string;
 	properties: Record<string, TPropertyDef>;
 	edges?: Record<string, TEdgeDef>;
+	/** Hypermedia affordance: properties that should be exposed as query filters/selects. */
+	filterProperties?: string[];
 	/** DB-specific: which properties to index for fast lookup. */
 	propertyIndexes?: string[];
 	/** DB-specific: default sort columns per property. */
@@ -436,6 +438,8 @@ export const commentDomainDefinition: TDomainDefinition = {
 			timestamp: LinkRelations.PUBLISHED.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
 		},
+		filterProperties: ["discourse"],
+		propertyIndexes: ["discourse"],
 		edges: {
 			[COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL },
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
