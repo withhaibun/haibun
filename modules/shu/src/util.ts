@@ -15,6 +15,24 @@ export function errMsg(err: unknown): string {
 	return err instanceof Error ? err.message : String(err);
 }
 
+import { Access } from "@haibun/core/lib/resources.js";
+
+/**
+ * The SPA's current access level. Single source of truth for every RPC caller
+ * that reads/writes data — read from the URL hash (`#?access=...`), defaulting
+ * to `private` when no override is set. The hash is also the form
+ * `shu-graph-query` writes when the user changes access via the actions-bar
+ * dropdown, so the value round-trips through the URL rather than being held
+ * in component state copies.
+ */
+export function appAccessLevel(): string {
+	if (typeof window === "undefined") return Access.private;
+	const hash = window.location.hash;
+	if (!hash.startsWith("#?")) return Access.private;
+	const params = new URLSearchParams(hash.slice(2));
+	return params.get("access") || Access.private;
+}
+
 import { getSiteMetadataSync } from "./rels-cache.js";
 
 /** First available vertex label from domain metadata. No hard-coded default. */
