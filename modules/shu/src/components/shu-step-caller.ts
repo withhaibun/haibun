@@ -268,17 +268,20 @@ export class StepCaller extends HTMLElement {
 			items?: Record<string, unknown>;
 		};
 
-		// If schema wraps a single property (e.g. { properties: { types: ... } }), unwrap
+		// Object: unwrap single-property containers, otherwise render each property via its own schema branch (so an array-of-object property renders as a nested table, not stringified JSON).
 		if (jsonSchema.type === "object" && jsonSchema.properties) {
-			const keys = Object.keys(jsonSchema.properties);
+			const props = jsonSchema.properties;
+			const keys = Object.keys(props);
+			const obj = data as Record<string, unknown>;
 			if (keys.length === 1) {
-				const key = keys[0];
-				const inner = (data as Record<string, unknown>)[key];
-				if (inner !== undefined) {
-					return this.renderBySchema(inner, jsonSchema.properties[key]);
-				}
+				const inner = obj[keys[0]];
+				if (inner !== undefined) return this.renderBySchema(inner, props[keys[0]]);
 			}
-			return this.renderDl(data as Record<string, unknown>);
+			const entries = keys
+				.filter((k) => obj[k] !== undefined)
+				.map((k) => `<dt>${esc(k)}</dt><dd data-testid="step-result-${escAttr(k)}">${this.renderBySchema(obj[k], props[k])}</dd>`)
+				.join("");
+			return `<dl>${entries}</dl>`;
 		}
 
 		if (jsonSchema.type === "array" && Array.isArray(data)) {
@@ -304,14 +307,7 @@ export class StepCaller extends HTMLElement {
 		return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
 	}
 
-	private renderDl(obj: Record<string, unknown>): string {
-		const entries = Object.entries(obj)
-			.map(([k, v]) => `<dt>${esc(k)}</dt><dd data-testid="step-result-${escAttr(k)}">${this.renderCell(v)}</dd>`)
-			.join("");
-		return `<dl>${entries}</dl>`;
-	}
-
-	private renderCell(value: unknown): string {
+private renderCell(value: unknown): string {
 		const s = typeof value === "string" ? value : JSON.stringify(value);
 		const custom = renderValue(s);
 		if (custom !== null) return custom;
