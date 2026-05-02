@@ -1,4 +1,4 @@
-import { defaultLabel } from "../util.js";
+import { appAccessLevel, defaultLabel } from "../util.js";
 /**
  * <shu-filter-column> — Query results column.
  * Creates result table ONCE on connect. Updates data without replacing DOM.
@@ -7,7 +7,6 @@ import { defaultLabel } from "../util.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
-import { Access } from "@haibun/core/lib/resources.js";
 import { errMsg } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
@@ -43,7 +42,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			sortOrder: "desc",
 			limit: 50,
 			offset: 0,
-			accessLevel: Access.private,
+			accessLevel: appAccessLevel(),
 		});
 	}
 
@@ -63,7 +62,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			sortOrder: "asc",
 			limit: 50,
 			offset: 0,
-			accessLevel: Access.private,
+			accessLevel: appAccessLevel(),
 		});
 	}
 
@@ -87,7 +86,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			const data = await inAction((scope) => client.rpc<{
 				edges: Array<{ type: string; target: VertexData }>;
 				total: number;
-			}>(scope, requireStep("getIncomingEdges"), { label, id, limit, offset }));
+			}>(scope, requireStep("getIncomingEdges"), { label, id, limit, offset, accessLevel: appAccessLevel() }));
 			this.results = data.edges.map((e) => e.target);
 			this.state = { ...this.state, loading: false };
 			this.showResults();
