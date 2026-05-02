@@ -181,14 +181,18 @@ export type Discourse = z.infer<typeof DiscourseSchema>;
 export type TRelRange = "iri" | "literal" | "container";
 
 /**
- * Presentation hint on a rel: tells client renderers how a property carrying
- * that rel should appear. Empty/omitted = ordinary field-table cell.
- *   "body"   — rendered by the dedicated body iframe / content area; suppressed in field tables.
- *   "system" — control-plane property (accessLevel, etc.); not part of the user-facing field set.
- *   "summary" — promoted into the entity's summary line (top-of-card).
- * The hypermedia idea: the rel declares its preferred presentation; clients obey.
+ * Where a property carrying this rel belongs in a resource's presentation. The
+ * rel declares its bucket; renderers consume the bucket. Buckets describe
+ * intent, not audience — every accessor (human, agent, LLM) gets all data;
+ * the bucket only says where in the layout it goes.
+ *   "summary"    — the resource's primary identification line (top of the card).
+ *   "body"       — main content area; rendered as iframe / prose / structured body.
+ *   "governance" — control rules about the resource (accessLevel, capability
+ *                  bindings). Rendered in a labelled governance section, not
+ *                  mixed into content fields.
+ * Rels with no presentation default to the regular field table.
  */
-export type TRelPresentation = "body" | "system" | "summary";
+export type TRelPresentation = "summary" | "body" | "governance";
 
 export const LinkRelations = {
 	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
@@ -230,7 +234,7 @@ export const LinkRelations = {
 	DISCOURSE: { rel: "discourse", uri: "hbn:discourse", range: "literal" },
 	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri" },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
-	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "system" as TRelPresentation },
+	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "governance" as TRelPresentation },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
