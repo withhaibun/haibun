@@ -95,24 +95,27 @@ import { getRelPresentation } from "@haibun/core/lib/resources.js";
 import { getRelSync } from "./rels-cache.js";
 
 /**
- * True for keys that belong in the user-facing field table for `label`.
- * Filters out:
- *   - JSON-LD reserved keys (`@*`) and projection-internal keys (`_*`)
- *   - SPA-only artifacts (vertexLabel, …)
- *   - rels whose presentation hint is `body` or `system` (rendered elsewhere)
+ * True for keys that belong in the field table for `label`. The field table
+ * is the default content presentation; rels whose presentation hint puts them
+ * in another bucket (body iframe, summary heading, governance section) get
+ * filtered out so they render where they belong.
  *
- * `label` is required so the rel-driven check can resolve a property's rel
- * for the right vertex type. Without it, the function falls back to the
- * SPA-artifact filter only.
+ * Filters:
+ *   - projection prefixes `@*` / `_*` and SPA artifacts in `SPA_PROPS`
+ *   - keys whose rel-via-label has a non-default presentation
+ *   - keys whose name IS itself a known rel (covers inlined edges like
+ *     `hasBody` whose property name on the projection is the rel name)
  */
 export function isVisibleKey(k: string, label?: string): boolean {
 	if (k.startsWith("_") || k.startsWith("@")) return false;
 	if (SPA_PROPS.has(k)) return false;
+	const directPresentation = getRelPresentation(k);
+	if (directPresentation === "body" || directPresentation === "governance") return false;
 	if (!label) return true;
 	const rel = getRelSync(label, k);
 	if (!rel) return true;
 	const presentation = getRelPresentation(rel);
-	return presentation !== "body" && presentation !== "system";
+	return presentation !== "body" && presentation !== "governance";
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
