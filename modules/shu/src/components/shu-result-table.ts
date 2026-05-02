@@ -13,7 +13,7 @@ import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
-import { esc, escAttr, truncate, formatDate, isDateValue, vertexId, vertexLabel, HIDDEN_PROPS } from "../util.js";
+import { esc, escAttr, truncate, formatDate, isDateValue, vertexId, vertexLabel, isVisibleKey } from "../util.js";
 import { getRelSync, getPropertyOrder } from "../rels-cache.js";
 import { TIME_SYNC_CLASS } from "./shu-element.js";
 
@@ -68,7 +68,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		const propSet = new Set<string>();
 		for (const v of rows) {
 			for (const k of Object.keys(v)) {
-				if (!HIDDEN_PROPS.has(k)) propSet.add(k);
+				if (isVisibleKey(k, this.vertexLabel)) propSet.add(k);
 			}
 		}
 		// Order by rel priority from concern metadata, then remaining alphabetically
