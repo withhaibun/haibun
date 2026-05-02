@@ -7,13 +7,16 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { vertexDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
+import { isContentPropertyDef, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { SHU_TYPE } from "./consts.js";
+import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 
 export const DOMAIN_SHU_VIEW_ID = "shu-view-id";
 const ShuViewIdSchema = z.string();
@@ -71,6 +74,39 @@ function validateMountPath(path: string): string | undefined {
 	return undefined;
 }
 
+function enumValuesFromJsonSchema(jsonSchema: unknown): string[] {
+	if (!jsonSchema || typeof jsonSchema !== "object") return [];
+	const schema = jsonSchema as { enum?: unknown[]; anyOf?: unknown[]; oneOf?: unknown[] };
+	const direct = schema.enum?.filter((value): value is string => typeof value === "string") ?? [];
+	if (direct.length > 0) return direct;
+	for (const branch of [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]) {
+		const nested = enumValuesFromJsonSchema(branch);
+		if (nested.length > 0) return nested;
+	}
+	return [];
+}
+
+function selectValuesFromSchema(schema: z.ZodType, properties: Record<string, TPropertyDef>, filterProperties: string[] = []): Record<string, string[]> {
+	const values: Record<string, string[]> = {};
+	if (!(schema instanceof z.ZodObject)) return values;
+	const selectableProperties = new Set(filterProperties);
+	for (const [field, fieldSchema] of Object.entries(schema.shape)) {
+		const def = properties[field];
+		if (!def || !selectableProperties.has(field) || relOf(def) === LinkRelations.IDENTIFIER.rel) continue;
+		try {
+			const fieldValues = enumValuesFromJsonSchema(z.toJSONSchema(fieldSchema));
+			if (fieldValues.length > 0) values[field] = fieldValues;
+		} catch {
+			continue;
+		}
+	}
+	return values;
+}
+
+function relOf(def: TPropertyDef): string {
+	return isContentPropertyDef(def) ? def.rel : def;
+}
+
 export default class ShuStepper extends AStepper {
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
 
@@ -114,6 +150,21 @@ export default class ShuStepper extends AStepper {
 						component: String(d.ui?.component),
 					}));
 				return actionOKWithProducts({ [HYPERMEDIA.TYPE]: SHU_TYPE.VIEW_COLLECTION, [HYPERMEDIA.SUMMARY]: "Available Views", view: "views", views });
+			},
+		},
+		getSelectValues: {
+			gwta: "get select values for {label: string}",
+			outputSchema: z.object({ values: z.record(z.string(), z.array(z.string())) }),
+			action: async ({ label }: { label: string }) => {
+				const store = this.getWorld().shared.getStore() as IQuadStore;
+				const domain = vertexDomainMap(this.getWorld().domains).get(label);
+				if (!domain?.topology?.properties) return actionNotOK(`No filter topology registered for ${label}`);
+				const values: Record<string, string[]> = {};
+				Object.assign(values, selectValuesFromSchema(domain.schema, domain.topology.properties, domain.topology.filterProperties));
+				for (const [property, definition] of Object.entries(domain.topology.properties)) {
+					if (relOf(definition) === LinkRelations.CONTEXT.rel) values[property] = await store.distinctPropertyValues(label, property);
+				}
+				return actionOKWithProducts({ values });
 			},
 		},
 		closeView: {
