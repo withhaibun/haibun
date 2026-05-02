@@ -48,20 +48,30 @@ export function setIdFields(fields: Record<string, string>): void {
 	idFields = fields;
 }
 
-/** Get the identity value from a vertex record using its _label to find the correct ID field. */
+/** Get the identity value from a vertex record. Prefers JSON-LD `@id` (parses the IRI tail) and falls back to label-keyed id fields or common id-bearing fields. */
 export function vertexId(v: Record<string, unknown>): string {
-	const label = v._label as string | undefined;
+	const iri = v["@id"];
+	if (typeof iri === "string" && iri.length > 0) {
+		const slash = iri.indexOf("/");
+		if (slash >= 0) return iri.slice(slash + 1);
+	}
+	const label = (v["@type"] ?? v._label) as string | undefined;
 	if (label && idFields[label]) return String(v[idFields[label]] ?? "");
 	return String(v.messageId ?? v.email ?? v.id ?? v.path ?? v.name ?? v.account ?? "");
 }
 
-/** Get the vertex type label from a vertex record (_label set by server). */
+/** Get the vertex type label, preferring JSON-LD `@type` and falling back to legacy `_label`. */
 export function vertexLabel(v: Record<string, unknown>): string {
-	return String(v._label ?? "");
+	return String(v["@type"] ?? v._label ?? "");
 }
 
 /** Properties hidden from query/column display (large or internal). */
 export const HIDDEN_PROPS = new Set(["accessLevel", "body", "bodyHtml", "bodyMarkdown", "markdown", "uid", "vertexLabel"]);
+
+/** True for keys safe to render in user-facing tables. Filters out projection-internal (`_*`), JSON-LD reserved (`@*`), and HIDDEN_PROPS. */
+export function isVisibleKey(k: string): boolean {
+	return !k.startsWith("_") && !k.startsWith("@") && !HIDDEN_PROPS.has(k);
+}
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
