@@ -134,15 +134,17 @@ const main = async (): Promise<void> => {
 		if (idx >= 0) strip.removePane(idx);
 	};
 
-	/** Remove all non-query, non-pinned panes from the strip. */
-	const removeTransientPanes = (strip: ShuColumnStrip) => {
+	/** Remove non-query, non-pinned panes at indices > sourceIdx. Pass -1 to prune all. */
+	const prunePanesAfterIndex = (strip: ShuColumnStrip, sourceIdx: number): void => {
 		const panes = strip.panes;
-		for (let i = panes.length - 1; i >= 0; i--) {
+		for (let i = panes.length - 1; i > sourceIdx; i--) {
 			if (panes[i].getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query" && !panes[i].hasAttribute(SHU_ATTR.PINNED)) {
 				strip.removePane(i);
 			}
 		}
 	};
+	/** Remove all non-query, non-pinned panes from the strip. */
+	const removeTransientPanes = (strip: ShuColumnStrip) => prunePanesAfterIndex(strip, -1);
 
 	// Boot-time smoke test for the diagnostic channel.
 	const reportBootDiagnostic = (level: "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
@@ -268,20 +270,8 @@ const main = async (): Promise<void> => {
 
 			if (!addToSelection) {
 				const sourcePane = e.composedPath().find((el): el is HTMLElement => el instanceof HTMLElement && el.tagName === "SHU-COLUMN-PANE") as ShuColumnPane | undefined;
-				const panes = strip.panes;
-				const sourceIdx = sourcePane ? panes.indexOf(sourcePane) : -1;
-				// Only remove when we can attribute the click to a specific column.
-				// A dispatch with no traceable source (programmatic, or originating
-				// outside the strip) leaves the existing panes intact — wiping them
-				// would be a non-obvious footgun for any caller that doesn't know to
-				// pass `addToSelection: true`.
-				if (sourceIdx >= 0) {
-					for (let i = panes.length - 1; i > sourceIdx; i--) {
-						if (panes[i].getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query" && !panes[i].hasAttribute(SHU_ATTR.PINNED)) {
-							strip.removePane(i);
-						}
-					}
-				}
+				const sourceIdx = sourcePane ? strip.panes.indexOf(sourcePane) : -1;
+				if (sourceIdx >= 0) prunePanesAfterIndex(strip, sourceIdx);
 			}
 
 			const vertexLabel = label || defaultLabel();
