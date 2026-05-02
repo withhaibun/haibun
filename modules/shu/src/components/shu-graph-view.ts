@@ -20,6 +20,7 @@ import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { getGraphSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, subscribeViewContext } from "../quads-snapshot.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
+import { appAccessLevel } from "../util.js";
 import { buildMermaidSource, buildClassifier, sanitizeId, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
 
 let mermaidInitialized = false;
@@ -283,7 +284,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	protected render(): void {
 		if (!this.shadowRoot) return;
 		this.lastMermaidSource = "";
-		const { quads, zoom, layout, maxPerSubgraph } = this.state;
+		const { quads, zoom, layout } = this.state;
 
 		if (quads.length === 0) {
 			this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="empty"><shu-spinner></shu-spinner> Loading graph data...</div>`;
@@ -504,7 +505,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			await getAvailableSteps();
 			const client = SseClient.for("");
 			const data = await inAction(
-				(scope) => client.rpc<{ vertex: Record<string, unknown>; edges: Array<{ type: string; target: Record<string, unknown> }> }>(scope, requireStep("getVertexWithEdges"), { label, id: subject }),
+				(scope) => client.rpc<{ vertex: Record<string, unknown>; edges: Array<{ type: string; target: Record<string, unknown> }> }>(scope, requireStep("getVertexWithEdges"), { label, id: subject, accessLevel: appAccessLevel() }),
 				`graph-view: fetch missing selection ${label}:${subject}`,
 			);
 			if (!data?.vertex) return;
