@@ -111,7 +111,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this._selectedLabel = extra.label || "";
 			this.syncSelectedDomainKey();
 			this.loadProperties(this._selectedLabel);
-			void this.loadSelectValues(this._selectedLabel);
+			this.triggerSelectValuesLoad(this._selectedLabel);
 		}
 		if (extra?.textQuery !== undefined) this._textSearch = extra.textQuery || "";
 		// Populate select filters from conditions
@@ -191,17 +191,23 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 	}
 
+	private failFast(message: string): never {
+		this.setStatus(message);
+		throw new Error(message);
+	}
+
+	private triggerSelectValuesLoad(label?: string): void {
+		void this.loadSelectValues(label).catch((err) => {
+			this.failFast(`ShuActionsBar select-values load failed: ${errMsg(err)}`);
+		});
+	}
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		document.addEventListener("click", this._onDocumentClick, true);
 		this.loadProperties();
 		void Promise.all([this.loadDomainOptions(), this.loadModels(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
-			const message = `ShuActionsBar initialization failed: ${errMsg(err)}`;
-			this.setStatus(message);
-			// Fail fast: malformed discovery data must stop execution, not degrade silently.
-			queueMicrotask(() => {
-				throw new Error(message);
-			});
+			this.failFast(`ShuActionsBar initialization failed: ${errMsg(err)}`);
 		});
 
 
@@ -331,7 +337,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 		this.syncSelectedDomainKey();
 		this.loadProperties(this._selectedLabel);
-		void this.loadSelectValues(this._selectedLabel);
+		this.triggerSelectValuesLoad(this._selectedLabel);
 		void this.loadUiExtensions();
 		this.render();
 		this.dispatchFilterChange();
@@ -673,7 +679,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this._selectedLabel = selectedOption?.queryLabel ?? "";
 			this._selectFilters = {};
 			this.loadProperties(this._selectedLabel);
-			void this.loadSelectValues(this._selectedLabel);
+			this.triggerSelectValuesLoad(this._selectedLabel);
 			this.dispatchFilterChange();
 		});
 		this.shadowRoot?.querySelector(".access-select")?.addEventListener("change", (e) => {
