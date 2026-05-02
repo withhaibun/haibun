@@ -83,12 +83,36 @@ export function vertexLabel(v: Record<string, unknown>): string {
 	return String(v["@type"] ?? v._label ?? "");
 }
 
-/** Properties hidden from query/column display (large or internal). */
-export const HIDDEN_PROPS = new Set(["accessLevel", "body", "bodyHtml", "bodyMarkdown", "markdown", "uid", "vertexLabel", "hasBody"]);
+/**
+ * SPA-only artifact keys — projection or storage internals that have no domain
+ * meaning (no rel) and should never appear in user-facing field tables.
+ * Anything domain-meaningful (body, hasBody, accessLevel, …) lives in
+ * `LinkRelations` with a `presentation` hint instead.
+ */
+export const SPA_PROPS = new Set(["vertexLabel"]);
 
-/** True for keys safe to render in user-facing tables. Filters out projection-internal (`_*`), JSON-LD reserved (`@*`), and HIDDEN_PROPS. */
-export function isVisibleKey(k: string): boolean {
-	return !k.startsWith("_") && !k.startsWith("@") && !HIDDEN_PROPS.has(k);
+import { getRelPresentation } from "@haibun/core/lib/resources.js";
+import { getRelSync } from "./rels-cache.js";
+
+/**
+ * True for keys that belong in the user-facing field table for `label`.
+ * Filters out:
+ *   - JSON-LD reserved keys (`@*`) and projection-internal keys (`_*`)
+ *   - SPA-only artifacts (vertexLabel, …)
+ *   - rels whose presentation hint is `body` or `system` (rendered elsewhere)
+ *
+ * `label` is required so the rel-driven check can resolve a property's rel
+ * for the right vertex type. Without it, the function falls back to the
+ * SPA-artifact filter only.
+ */
+export function isVisibleKey(k: string, label?: string): boolean {
+	if (k.startsWith("_") || k.startsWith("@")) return false;
+	if (SPA_PROPS.has(k)) return false;
+	if (!label) return true;
+	const rel = getRelSync(label, k);
+	if (!rel) return true;
+	const presentation = getRelPresentation(rel);
+	return presentation !== "body" && presentation !== "system";
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

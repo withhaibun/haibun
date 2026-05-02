@@ -180,15 +180,25 @@ export type Discourse = z.infer<typeof DiscourseSchema>;
  */
 export type TRelRange = "iri" | "literal" | "container";
 
+/**
+ * Presentation hint on a rel: tells client renderers how a property carrying
+ * that rel should appear. Empty/omitted = ordinary field-table cell.
+ *   "body"   — rendered by the dedicated body iframe / content area; suppressed in field tables.
+ *   "system" — control-plane property (accessLevel, etc.); not part of the user-facing field set.
+ *   "summary" — promoted into the entity's summary line (top-of-card).
+ * The hypermedia idea: the rel declares its preferred presentation; clients obey.
+ */
+export type TRelPresentation = "body" | "system" | "summary";
+
 export const LinkRelations = {
-	NAME: { rel: "name", uri: "as:name", range: "literal" },
+	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal" },
 	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri" },
 	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri" },
 	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
 	UPDATED: { rel: "updated", uri: "as:updated", range: "literal" },
-	CONTENT: { rel: "content", uri: "as:content", range: "literal" },
-	HAS_BODY: { rel: "hasBody", uri: "oa:hasBody", range: "iri" },
+	CONTENT: { rel: "content", uri: "as:content", range: "literal", presentation: "body" as TRelPresentation },
+	HAS_BODY: { rel: "hasBody", uri: "oa:hasBody", range: "iri", presentation: "body" as TRelPresentation },
 	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal" },
 	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri" },
 	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri" },
@@ -220,7 +230,7 @@ export const LinkRelations = {
 	DISCOURSE: { rel: "discourse", uri: "hbn:discourse", range: "literal" },
 	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri" },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
-	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal" },
+	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "system" as TRelPresentation },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
@@ -230,6 +240,14 @@ export const LinkRelations = {
 export function getRelRange(rel: string): TRelRange | undefined {
 	for (const entry of Object.values(LinkRelations)) {
 		if (entry.rel === rel) return entry.range;
+	}
+	return undefined;
+}
+
+/** Lookup a rel's presentation hint, if declared. Clients render `body` / `system` rels outside the default field-table path; everything else is a regular field cell. */
+export function getRelPresentation(rel: string): TRelPresentation | undefined {
+	for (const entry of Object.values(LinkRelations)) {
+		if (entry.rel === rel) return (entry as { presentation?: TRelPresentation }).presentation;
 	}
 	return undefined;
 }
