@@ -215,7 +215,7 @@ export function stepsForContext(label: string): StepDescriptor[] {
 	return cachedSteps.filter((step) => {
 		// Match by param domain
 		if (step.paramDomains && Object.values(step.paramDomains).some((domain) => contextDomains.has(domain))) return true;
-		// Match by step pattern containing the label (e.g., "list contacts", "get contact")
+		// Match by step pattern containing the label (e.g., "show contacts", "get contact")
 		if (step.pattern.toLowerCase().includes(lc)) return true;
 		return false;
 	});
