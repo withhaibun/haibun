@@ -5,12 +5,12 @@
  *
  * Events: column-open (entity nav), column-open-filter (filter nav)
  */
-import { defaultLabel, esc, escAttr, truncate, errMsg, vertexId, isVisibleKey, renderContentHtml, utf8ToBase64 } from "../util.js";
+import { appAccessLevel, defaultLabel, esc, escAttr, truncate, errMsg, vertexId, isVisibleKey, renderContentHtml, utf8ToBase64 } from "../util.js";
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
-import { isReplyEdge, Access, HAS_BODY_EDGE } from "@haibun/core/lib/resources.js";
+import { isReplyEdge, HAS_BODY_EDGE } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { renderValue } from "./value-renderers.js";
 import { SseClient, inAction } from "../sse-client.js";
@@ -71,9 +71,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
+			const accessLevel = appAccessLevel();
 			const data = await inAction(
 				(scope) =>
-					client.rpc<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(scope, requireStep("getVertexWithEdges"), { label, id }),
+					client.rpc<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(scope, requireStep("getVertexWithEdges"), { label, id, accessLevel }),
 				`entity-column: open ${label}:${id}`,
 			);
 			this.vertex = data.vertex;
@@ -82,7 +83,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			this.setState({ loading: false });
 			this.dispatchEvent(
 				new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-					detail: { patterns: [{ s: id }], accessLevel: Access.private, label },
+					detail: { patterns: [{ s: id }], accessLevel, label },
 					bubbles: true,
 					composed: true,
 				}),
