@@ -10,6 +10,7 @@ export type TEventSubscriber = (event: THaibunEvent) => void;
 
 export interface IEventLogger {
 	suppressConsole?: boolean;
+	currentSeqPath: string | undefined;
 	subscribe(callback: TEventSubscriber): void;
 	unsubscribe(callback: TEventSubscriber): void;
 	emit(event: THaibunEvent): void;
@@ -70,6 +71,7 @@ export class EventLogger implements IEventLogger {
 	private subscribers: TEventSubscriber[] = [];
 	public suppressConsole: boolean = false;
 	private isSecretFn: TIsSecretFn;
+	currentSeqPath: string | undefined;
 
 	constructor(isSecretFn: TIsSecretFn = () => false) {
 		this.isSecretFn = isSecretFn;
@@ -135,16 +137,8 @@ export class EventLogger implements IEventLogger {
 	}
 
 	private emitLog(level: THaibunLogLevel, message: string, attributes?: Record<string, unknown>): void {
-		this.emit(
-			LogEvent.parse({
-				id: `log.${Date.now()}`,
-				timestamp: Date.now(),
-				kind: "log",
-				level,
-				message,
-				attributes,
-			}),
-		);
+		const id = this.currentSeqPath ? `${this.currentSeqPath}.log.${Date.now()}` : `log.${Date.now()}`;
+		this.emit(LogEvent.parse({ id, timestamp: Date.now(), kind: "log", level, message, attributes }));
 	}
 
 	stepStart(
