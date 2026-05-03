@@ -85,7 +85,7 @@ export function vertexLabel(v: Record<string, unknown>): string {
 
 /**
  * SPA-only artifact keys — projection or storage internals that have no domain
- * meaning (no rel) and should never appear in user-facing field tables.
+ * meaning (no rel) and should not appear in field tables.
  * Anything domain-meaningful (body, hasBody, accessLevel, …) lives in
  * `LinkRelations` with a `presentation` hint instead.
  */
@@ -116,6 +116,49 @@ export function isVisibleKey(k: string, label?: string): boolean {
 	if (!rel) return true;
 	const presentation = getRelPresentation(rel);
 	return presentation !== "body" && presentation !== "governance";
+}
+
+/**
+ * True for edges that belong in the references section. Edges whose rel has a
+ * non-default presentation (body, governance) are rendered elsewhere and must
+ * not appear as clickable reference links.
+ */
+export function isReferenceEdge(edgeType: string): boolean {
+	const p = getRelPresentation(edgeType);
+	return p !== "body" && p !== "governance";
+}
+
+/**
+ * Extract a vertex's displayed scalar/array-of-scalar fields for the
+ * field-table renderer. Drops:
+ *   - rels routed elsewhere by presentation (body / governance)
+ *   - SPA artifacts and projection-internal keys
+ *   - arrays of objects (those go to the items-table renderer)
+ */
+export function extractFieldEntries(vertex: Record<string, unknown>, label?: string): Record<string, string | string[]> {
+	const fields: Record<string, string | string[]> = {};
+	for (const [k, v] of Object.entries(vertex)) {
+		if (!isVisibleKey(k, label)) continue;
+		if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object") continue;
+		fields[k] = Array.isArray(v) ? (v as unknown[]).map((x) => String(x)) : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v ?? "");
+	}
+	return fields;
+}
+
+/**
+ * Pick the preferred Body sub-resource to display. Order of preference is
+ * declarative — readers want markdown when present, plain text when not,
+ * HTML last (it's bulky and often noisy after extraction).
+ */
+export const BODY_PREFERENCE: readonly string[] = ["text/markdown", "text/plain", "text/html"];
+
+export function pickPreferredBody<T extends { mediaType?: string; content?: string }>(bodies: readonly T[]): T | undefined {
+	const usable = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
+	for (const mt of BODY_PREFERENCE) {
+		const hit = usable.find((b) => b.mediaType === mt);
+		if (hit) return hit;
+	}
+	return usable[0];
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
