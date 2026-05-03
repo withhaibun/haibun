@@ -5,12 +5,12 @@
  *
  * Events: column-open (entity nav), column-open-filter (filter nav)
  */
-import { appAccessLevel, defaultLabel, esc, escAttr, truncate, errMsg, vertexId, isVisibleKey, renderContentHtml, utf8ToBase64 } from "../util.js";
+import { appAccessLevel, defaultLabel, esc, escAttr, truncate, errMsg, vertexId, isVisibleKey, isReferenceEdge, extractFieldEntries, pickPreferredBody, renderContentHtml, utf8ToBase64 } from "../util.js";
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
-import { isReplyEdge } from "@haibun/core/lib/resources.js";
+import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { renderValue } from "./value-renderers.js";
 import { SseClient, inAction } from "../sse-client.js";
@@ -117,13 +117,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			return;
 		}
 
-		// Field table consults rel metadata via isVisibleKey(k, vertexLabel): rels with `presentation: "body"` (CONTENT, HAS_BODY) render in the body iframe; `system` (ACCESS_LEVEL) is suppressed; the rest are field cells.
-		const fields: Record<string, string | string[]> = {};
-		for (const [k, v] of Object.entries(this.vertex)) {
-			if (!isVisibleKey(k, vertexLabel)) continue;
-			if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object") continue; // handled separately as items table
-			fields[k] = Array.isArray(v) ? (v as string[]).map(String) : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v ?? "");
-		}
+		const fields = extractFieldEntries(this.vertex, vertexLabel);
 
 		// Stub detection: vertex has ≤1 meaningful properties (just the ID field)
 		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1;
@@ -217,7 +211,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Render a clickable edge target with label from HATEOAS edge range. */
 	private renderEdgeTarget(target: VertexData, edgeType: string): string {
 		const id = vertexId(target);
-		const label = getEdgeTargetLabel(edgeType, this.state.vertexLabel) ?? (target._label as string) ?? defaultLabel();
+		const rangeLabel = getEdgeTargetLabel(edgeType, this.state.vertexLabel);
+		const label = (rangeLabel === RESOURCE_LABEL ? undefined : rangeLabel) ?? (target["@type"] as string) ?? defaultLabel();
 		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? id);
 		const testId = this.edgeTargetCount === 0 ? ' data-testid="edge-target-first"' : "";
 		this.edgeTargetCount++;
@@ -227,14 +222,14 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private renderReferences(): string {
 		// Exclude edges already shown in the summary section
 		const summaryFields = getSummaryFields(this.state.vertexLabel);
-		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type));
+		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type) && isReferenceEdge(e.type));
 
 		if (outgoing.length === 0 && this.incomingCount === 0) return "";
 
 		// Deduplicate targets for display — inReplyTo takes priority over references
 		const seen = new Set<string>();
 		const grouped = new Map<string, Array<{ target: VertexData; edgeType: string }>>();
-		const sorted = [...outgoing].sort((a) => (a.type === "inReplyTo" ? -1 : 1));
+		const sorted = [...outgoing].sort((a) => (isReplyEdge(a.type) ? -1 : 1));
 		for (const e of sorted) {
 			const tid = vertexId(e.target);
 			if (seen.has(tid)) continue;
@@ -273,14 +268,15 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const available = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
 		if (available.length === 0) return "";
 
+		const active = pickPreferredBody(available) ?? available[0];
+		const activeId = String(active.id ?? "");
+
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-					.map((b, i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
+					.map((b) => `<button class="content-switch-btn${String(b.id ?? "") === activeId ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
 					.join("")}</div>`
 				: "";
-
-		const active = available[0];
 		const raw = String(active.content ?? "");
 		const content = renderContentHtml(raw, String(active.mediaType));
 		const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
@@ -305,7 +301,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			if (serverRel === "item") {
 				rel = "item";
 				const targetLabel = getEdgeTargetLabel(propertyName, this.state.vertexLabel);
-				if (targetLabel) {
+				if (targetLabel && targetLabel !== RESOURCE_LABEL) {
 					labelAttr = ` data-label="${escAttr(targetLabel)}"`;
 					// Resolve entity ID from edge target data — the graph edge
 					// carries the actual target vertex with its ID field, regardless of type

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SHU_EVENT } from "../consts.js";
 import { TIME_SYNC_CLASS, TIME_SYNC_CSS, TIME_SYNC_STYLE } from "../time-sync.js";
 import { getRels } from "../rels-cache.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 
 /**
  * Abstract base class for Shu web components.
@@ -137,7 +138,7 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 			const rels = getRels(label);
 			if (rels) {
 				for (const [field, rel] of Object.entries(rels)) {
-					if (rel === "published") return parseTimestamp(vertex[field]);
+					if (rel === LinkRelations.PUBLISHED.rel) return parseTimestamp(vertex[field]);
 				}
 			}
 		}

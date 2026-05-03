@@ -9,7 +9,7 @@ import { SseClient, inAction } from "../sse-client.js";
 import { esc, truncate } from "../util.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
 import type { ShuGraphView } from "./shu-graph-view.js";
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 
 const ThreadColumnSchema = z.object({
 	label: z.string().default(""),
@@ -209,7 +209,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		for (const v of this.thread) {
 			const vlabel = String((v as Record<string, unknown>).vertexLabel ?? (v as Record<string, unknown>)._label ?? this.state.label);
 			const name = String(v.subject ?? v.name ?? v.text ?? v._id);
-			quads.push({ subject: v._id, predicate: "name", object: name, namedGraph: vlabel, timestamp: now });
+			quads.push({ subject: v._id, predicate: LinkRelations.NAME.rel, object: name, namedGraph: vlabel, timestamp: now });
 			for (const edge of v._edges ?? []) {
 				// Only emit edges where both endpoints exist in the thread
 				if (itemIds.has(edge.targetId)) {
