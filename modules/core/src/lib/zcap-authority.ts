@@ -16,6 +16,10 @@ import type { TRuntime } from "./execution.js";
 import type { IZcapAuthority, IZcapVerifier, TZcapGrant, TZcapInvocation } from "./zcap-types.js";
 
 export const ZCAP_AUTHORITY = "zcapAuthority";
+/** Runtime key holding the active bearer token injected by `withToken`. */
+export const ZCAP_TOKEN_KEY = "zcapToken";
+/** Runtime flag set by trusted system actors (e.g. AutonomicStepper) to bypass ZCAP checks. */
+export const TRUSTED_CONTEXT = "zcapTrustedContext";
 
 export class ZcapAuthority implements IZcapAuthority {
 	private grants = new Map<string, TZcapGrant[]>();
