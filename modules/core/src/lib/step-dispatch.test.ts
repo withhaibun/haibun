@@ -166,13 +166,13 @@ describe("step-dispatch", () => {
 
 		it("passes valid input", () => {
 			const tool = makeTool({ paramSchemas: new Map([["x", z.string()]]) });
-			const result = validateToolInput(tool, { x: "hello" });
+			const result = validateToolInput([], tool, { x: "hello" });
 			expect(result.x).toBe("hello");
 		});
 
 		it("throws on missing required input", () => {
 			const tool = makeTool({ paramSchemas: new Map([["x", z.string()]]) });
-			expect(() => validateToolInput(tool, {})).toThrow(/validation failed.*"x": required/);
+			expect(() => validateToolInput([], tool, {})).toThrow(/validation failed.*"x": required/);
 		});
 
 		it("throws on invalid type", () => {
@@ -180,7 +180,7 @@ describe("step-dispatch", () => {
 				inputSchema: { type: "object", properties: { x: { type: "number" } }, required: ["x"] },
 				paramSchemas: new Map([["x", z.number()]]),
 			});
-			expect(() => validateToolInput(tool, { x: "not-a-number" })).toThrow(/validation failed/);
+			expect(() => validateToolInput([], tool, { x: "not-a-number" })).toThrow(/validation failed/);
 		});
 
 		it("applies domain.coerce() when world is provided", () => {
@@ -200,7 +200,7 @@ describe("step-dispatch", () => {
 			const registry = buildStepRegistry([stepper], w);
 			const tool = registry.get(`${stepper.constructor.name}-doIt`);
 			if (!tool) throw new Error("Expected tool to be registered");
-			const result = validateToolInput(tool, { val: "hello" }, w);
+			const result = validateToolInput([], tool, { val: "hello" }, w);
 			expect(result.val).toBe("HELLO");
 		});
 
@@ -222,7 +222,7 @@ describe("step-dispatch", () => {
 			const tool = registry.get(`${stepper.constructor.name}-doIt`);
 			if (!tool) throw new Error("Expected tool to be registered");
 			// Without world, no coercion — returns Zod-parsed value as-is
-			const result = validateToolInput(tool, { val: "hello" });
+			const result = validateToolInput([], tool, { val: "hello" });
 			expect(result.val).toBe("hello");
 		});
 	});
@@ -401,7 +401,7 @@ describe("step-dispatch", () => {
 			const tool = registry.get(`${stepper.constructor.name}-protectedEcho`);
 			if (!tool) throw new Error("Expected protected tool to be registered");
 
-			const validatedParams = validateToolInput(tool, { message: "hello" }, world);
+			const validatedParams = validateToolInput([0, 7], tool, { message: "hello" }, world);
 			const featureStep = buildSyntheticFeatureStep(tool, validatedParams, [0, 7]);
 			const result = await dispatchStep({ registry, world, steppers, grantedCapability: ["Remote:invoke"] }, featureStep);
 
