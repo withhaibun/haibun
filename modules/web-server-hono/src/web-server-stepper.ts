@@ -262,7 +262,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
-						const validatedParams = validateToolInput(tool, params as Record<string, unknown>, world);
+						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
 						const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
 						const hr = await dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep);
 						if (hr.ok) {

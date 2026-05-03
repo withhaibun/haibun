@@ -4,6 +4,9 @@ import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { OBSERVATION_GRAPH } from "@haibun/core/lib/http-observations.js";
 
 const mockLogger: IEventLogger = {
+	currentSeqPath: undefined,
+	subscribe: () => { /* noop */ },
+	unsubscribe: () => { /* noop */ },
 	info: () => {
 		/* noop */
 	},
