@@ -25,7 +25,7 @@ const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ..
 
 export class ServerHono implements IWebServer {
 	static listeningPorts: Map<number, string> = new Map();
-	private server?: ServerType;
+	private servers = new Map<number, ServerType>();
 	private _app!: Hono;
 	private _mounted: TRouteMap = DEFAULT_MOUNTED();
 	private _port?: number;
@@ -70,19 +70,18 @@ export class ServerHono implements IWebServer {
 		}
 		const host = hostname || "127.0.0.1";
 		if (ServerHono.listeningPorts.has(port)) {
-			return Promise.reject(
-				`ServerHono.listen for ${why}: port ${port} (${host}) already in use for ${ServerHono.listeningPorts.get(port)}`,
-			);
+			return Promise.reject(`ServerHono.listen for ${why}: port ${port} (${host}) already in use for ${ServerHono.listeningPorts.get(port)}`);
 		}
 		return new Promise((resolve, reject) => {
 			try {
-				this.server = serve({ fetch: this._app.fetch, port, hostname: host }, () => {
+				const server = serve({ fetch: (req, env) => this._app.fetch(req, env), port, hostname: host }, () => {
 					this._port = port;
+					this.servers.set(port, server);
 					ServerHono.listeningPorts.set(port, why);
 					this.eventLogger.debug(`ServerHono listening on port ${port} (${host})`);
 					resolve();
 				});
-				this.server.on("error", (e: Error) => {
+				server.on("error", (e: Error) => {
 					reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${e.message}`));
 				});
 			} catch (e) {
@@ -92,7 +91,7 @@ export class ServerHono implements IWebServer {
 	}
 
 	clearMounted(): void {
-		if (this.server) {
+		if (this.servers.size > 0) {
 			throw new Error("ServerHono.clearMounted: cannot clear while server is listening — close() first");
 		}
 		this._mounted = DEFAULT_MOUNTED();
@@ -100,13 +99,14 @@ export class ServerHono implements IWebServer {
 	}
 
 	close(): Promise<void> {
-		if (this.server) {
-			this.eventLogger.debug(`ServerHono closing on port ${this._port}`);
-			this.server.close();
-			if (this._port !== undefined) {
-				ServerHono.listeningPorts.delete(this._port);
+		if (this.servers.size > 0) {
+			for (const [port, server] of this.servers) {
+				this.eventLogger.debug(`ServerHono closing on port ${port}`);
+				server.close();
+				ServerHono.listeningPorts.delete(port);
 			}
-			this.server = undefined;
+			this.servers.clear();
+			this._port = undefined;
 			this.clearMounted();
 		}
 		return Promise.resolve();

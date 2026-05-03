@@ -444,7 +444,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 						// MCP callers have no haibun seqPath; the server synthesises one.
 						const world = this.getWorld();
 						const seqPath = allocateSyntheticSeqPath(world);
-						const validatedParams = validateToolInput(stepTool, input, world);
+						const validatedParams = validateToolInput(seqPath, stepTool, input, world);
 						const featureStep = buildSyntheticFeatureStep(stepTool, validatedParams, seqPath);
 						const hr = await dispatchStep(
 							{ registry: this.getOrCreateRegistry(), world, steppers: this.steppers, grantedCapability },
