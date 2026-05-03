@@ -18,7 +18,6 @@ import { actionOKWithProducts } from "../lib/util/index.js";
 import {
 	BODY_LABEL,
 	COMMENT_LABEL,
-	DISCOURSE,
 	DOMAIN_VERTEX_LABEL,
 	LinkRelations,
 	bodyDomainDefinition,
@@ -47,7 +46,6 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const now = new Date().toISOString();
 				await store.upsertVertex(COMMENT_LABEL, {
 					id: commentId,
-					discourse: DISCOURSE.narrate,
 					timestamp: now,
 				});
 				const bodyId = `body-${commentId}-text-markdown`;
