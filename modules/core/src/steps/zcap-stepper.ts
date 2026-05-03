@@ -1,10 +1,12 @@
 import { z } from "zod";
 import type { TDomainDefinition } from "../lib/resources.js";
+import type { TWorld } from "../lib/execution.js";
 import type { IStepperCycles, TEndFeature, TFeatureStep } from "../lib/execution.js";
 import { AStepper, type IHasCycles } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
-import { ZCAP_AUTHORITY, ZcapAuthority } from "../lib/zcap-authority.js";
+import { ZCAP_AUTHORITY, ZCAP_TOKEN_KEY, ZcapAuthority } from "../lib/zcap-authority.js";
 import type { IZcapAuthority } from "../lib/zcap-types.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
 
 const ZCAP_TOKEN_DOMAIN = "zcap-token";
 const ZCAP_ACTION_DOMAIN = "zcap-action";
@@ -18,9 +20,9 @@ const zcapTokenSchema = z
 const zcapActionSchema = z
 	.string()
 	.min(1, "action is required")
-	.refine((value) => value === "*" || value.includes(":"), "action must be * or namespaced like Stepper:scope")
+	.refine((value) => value === "*" || value.includes(":") || value.includes("."), "action must be * or namespaced like Stepper:scope or type.action")
 	.regex(/^\S+$/, "action must not contain whitespace")
-	.describe("Allowed action label such as GraphStepper:read or Namespace:*.");
+	.describe("Allowed action label such as GraphStepper:read, comment.grant, or Namespace:*.");
 
 const zcapGrantSchema = z.object({
 	id: z.string(),
@@ -50,6 +52,12 @@ class ZcapStepper extends AStepper implements IHasCycles {
 	description = "Manage ZCAP bearer grants for protected step dispatch";
 
 	private authority?: IZcapAuthority;
+	private steppers: AStepper[] = [];
+
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		await super.setWorld(world, steppers);
+		this.steppers = steppers;
+	}
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
@@ -111,6 +119,24 @@ class ZcapStepper extends AStepper implements IHasCycles {
 				const grants = this.getAuthority().listBearerGrants();
 				this.getWorld().eventLogger.info(JSON.stringify(grants, null, 2));
 				return actionOKWithProducts({ grants });
+			},
+		},
+		withToken: {
+			gwta: `with token {token: ${ZCAP_TOKEN_DOMAIN}}, {what: statement}`,
+			action: async ({ token, what }: { token: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const world = this.getWorld();
+				const previous = world.runtime[ZCAP_TOKEN_KEY];
+				world.runtime[ZCAP_TOKEN_KEY] = token;
+				try {
+					const runner = new FlowRunner(world, this.steppers);
+					return await runner.runSteps(what, { parentStep: featureStep });
+				} finally {
+					if (previous !== undefined) {
+						world.runtime[ZCAP_TOKEN_KEY] = previous;
+					} else {
+						delete world.runtime[ZCAP_TOKEN_KEY];
+					}
+				}
 			},
 		},
 	};
