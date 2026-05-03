@@ -3,6 +3,25 @@
  * Provides rels, edge ranges, and properties for all vertex types.
  */
 
+/**
+ * Per-rel runtime metadata — the Property vertex projection.
+ * Keyed by rel name (e.g. "hasBody"), one entry per RDF Property.
+ *   iri            — RDFS URI for the rel (rdfs:Property's @id).
+ *   range          — RDF range: "iri" | "literal" | "container".
+ *   label          — display name for renderers (rdfs:label).
+ *   icon           — visual badge for the rel.
+ *   subPropertyOf  — parent rel (rdfs:subPropertyOf) for ancestry walks.
+ *   presentation   — rendering bucket: "summary" | "body" | "governance".
+ */
+export interface PropertyDefinition {
+	iri: string;
+	range: "iri" | "literal" | "container";
+	label?: string;
+	icon?: string;
+	subPropertyOf?: string;
+	presentation?: "summary" | "body" | "governance";
+}
+
 export interface SiteMetadata {
 	types: string[];
 	idFields: Record<string, string>;
@@ -11,6 +30,8 @@ export interface SiteMetadata {
 	properties: Record<string, string[]>;
 	summary: Record<string, string[]>;
 	ui: Record<string, Record<string, unknown>>;
+	/** Per-rel metadata (label, icon, subPropertyOf, presentation, range, iri). */
+	propertyDefinitions: Record<string, PropertyDefinition>;
 }
 
 let metadata: SiteMetadata | null = null;
@@ -131,6 +152,21 @@ export function getSiteMetadataSync(): SiteMetadata | null {
 	return metadata;
 }
 
+/** Lookup the Property definition for a rel. Returns undefined if cache not initialized or rel unknown. */
+export function getPropertyDefinition(rel: string): PropertyDefinition | undefined {
+	return metadata?.propertyDefinitions?.[rel];
+}
+
+/** Display label for a rel — falls back to the rel name itself when no label is declared. */
+export function getRelLabel(rel: string): string {
+	return metadata?.propertyDefinitions?.[rel]?.label ?? rel;
+}
+
+/** Icon for a rel — undefined when none is declared. */
+export function getRelIcon(rel: string): string | undefined {
+	return metadata?.propertyDefinitions?.[rel]?.icon;
+}
+
 /** Get the edge name → rel mapping from concern catalog. Cached; rebuilt on setConcernCatalog. */
 export function getEdgeRelMap(): Record<string, string> {
 	if (!cachedEdgeRelRecord) cachedEdgeRelRecord = Object.fromEntries(edgeRelMap);
@@ -145,7 +181,7 @@ export function hasSelectValues(label: string): boolean {
 // --- Concern catalog (for haibun domain discovery) ---
 
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations, getPropertyDefinitions } from "@haibun/core/lib/resources.js";
 
 let concernCatalog: TConcernCatalog | null = null;
 let cachedConcernMeta: SiteMetadata | null = null;
@@ -230,6 +266,15 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 			if (component) seenComponents.add(component);
 		}
 	}
+	const propertyDefinitions: Record<string, PropertyDefinition> = {};
+	for (const entry of getPropertyDefinitions()) {
+		const def: PropertyDefinition = { iri: entry.iri, range: entry.range };
+		if (entry.label !== undefined) def.label = entry.label;
+		if (entry.icon !== undefined) def.icon = entry.icon;
+		if (entry.subPropertyOf !== undefined) def.subPropertyOf = entry.subPropertyOf;
+		if (entry.presentation !== undefined) def.presentation = entry.presentation;
+		propertyDefinitions[entry.id] = def;
+	}
 	return {
 		types,
 		idFields,
@@ -238,5 +283,6 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		properties,
 		summary,
 		ui,
+		propertyDefinitions,
 	};
 }
