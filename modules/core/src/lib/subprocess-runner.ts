@@ -54,7 +54,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 		}
 
 		try {
-			const validated = validateToolInput(tool, msg.params ?? {}, world);
+			const validated = validateToolInput(msg.seqPath, tool, msg.params ?? {}, world);
 			const featureStep = buildSyntheticFeatureStep(tool, validated, msg.seqPath);
 			const hr = await tool.handler(featureStep, world);
 			if (hr.ok) {

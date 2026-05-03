@@ -158,7 +158,7 @@ export function createStepTool(stepperName: string, stepName: string, stepDef: T
  * Returns validated (and coerced) input on success, throws with descriptive errors on failure.
  * Pass world to enable domain coercion (aligns RPC dispatch with feature-file execution).
  */
-export function validateToolInput(tool: StepTool, input: Record<string, unknown>, world?: TWorld): Record<string, unknown> {
+export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world?: TWorld): Record<string, unknown> {
 	const validated: Record<string, unknown> = { ...input };
 	const errors: string[] = [];
 
@@ -188,13 +188,13 @@ export function validateToolInput(tool: StepTool, input: Record<string, unknown>
 				}
 			} else {
 				const issues = result.error.issues.map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message)).join("; ");
-				errors.push(`"${key}": ${issues}`);
+				errors.push(`"${key}" (value: ${JSON.stringify(value)}): ${issues}`);
 			}
 		}
 	}
 
 	if (errors.length) {
-		throw new Error(`${tool.name} validation failed: ${errors.join(", ")}`);
+		throw new Error(`${tool.name} validation failed (caller: [${fromSeqPath.join(".")}]): ${errors.join(", ")}`);
 	}
 
 	return validated;
@@ -338,7 +338,9 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync,);
 	await emitSeqPathStart(world, featureStep);
 	const previousSeqPath = world.runtime.currentSeqPath;
-	world.runtime.currentSeqPath = featureStep.seqPath.join(".");
+	const currentSeqPathStr = featureStep.seqPath.join(".");
+	world.runtime.currentSeqPath = currentSeqPathStr;
+	world.eventLogger.currentSeqPath = currentSeqPathStr;
 	let actionResult: TActionResult;
 	let ok = true;
 	let lastStepResult: TStepResult;
@@ -367,6 +369,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		}
 	} finally {
 		world.runtime.currentSeqPath = previousSeqPath;
+		world.eventLogger.currentSeqPath = previousSeqPath;
 	}
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);

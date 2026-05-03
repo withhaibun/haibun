@@ -103,61 +103,13 @@ export const SEQ_PATH_STATUS = { running: "running", passed: "passed", failed: "
 export type SeqPathStatus = (typeof SEQ_PATH_STATUS)[keyof typeof SEQ_PATH_STATUS];
 
 /**
- * Discourse — closed set of speech acts a Comment can perform.
- *
- * Every Comment carries a required discourse tag. The set is deliberately
- * small and closed; adding a value is a PR and requires a linked-data
- * mapping note.
- *
- *   suggest  — schema:SuggestAction; proposing a change
- *   measure  — narration of a sosa:Observation
- *   report   — schema:Report / as:Announce
- *   narrate  — prose narration (no standard mapping)
- *   question — schema:Question; asking for clarification
- *   apply    — narration of a schema:UpdateAction (the Development is the act)
- *   revert   — narration of a schema:UpdateAction undoing a prior apply
- *   play     — rehearsal or try-out; prov:Activity with no side effects
+ * Discourse rels — each speech act is a sub-property of `inReplyTo`.
+ * The discourse value IS the edge predicate: (comment, narrate, parent).
+ * Materialized entailment: writing a discourse edge also writes inReplyTo.
+ * Canonical set: measure, narrate, question, play, petition, grant, deny, invoke, revoke.
  */
-export const DISCOURSE = {
-	suggest: "suggest",
-	measure: "measure",
-	report: "report",
-	narrate: "narrate",
-	question: "question",
-	apply: "apply",
-	revert: "revert",
-	play: "play",
-	petition: "petition",
-	grant: "grant",
-	deny: "deny",
-	invoke: "invoke",
-	revoke: "revoke",
-} as const;
-
-/** Visual icon per discourse value. Renderers (e.g., the SHU SPA Comment view) prefix Comments with the icon. Avoids ✅/❌ which are reserved for step pass/fail. */
-export const discourseIcon: Record<string, string> = {
-	suggest: "💡",
-	measure: "📊",
-	report: "📝",
-	narrate: "💬",
-	question: "❓",
-	apply: "🔧",
-	revert: "⏪",
-	play: "▶️",
-	petition: "🙋",
-	grant: "🪪",
-	deny: "⛔",
-	invoke: "⚡",
-	revoke: "↩️",
-};
-
-const DISCOURSE_VALUES = Object.values(DISCOURSE) as [string, ...string[]];
-
-export const DiscourseSchema = z.enum(DISCOURSE_VALUES, {
-	message: `discourse must be one of ${DISCOURSE_VALUES.map((v) => `"${v}"`).join(", ")}`,
-});
-
-export type Discourse = z.infer<typeof DiscourseSchema>;
+export const DISCOURSE_RELS = ["measure", "narrate", "question", "play", "petition", "grant", "deny", "invoke", "revoke"] as const;
+export type TDiscourseRel = (typeof DISCOURSE_RELS)[number];
 
 // ============================================================================
 // Link relations & edge predicates (ActivityStreams / JSON-LD vocabulary)
@@ -176,7 +128,7 @@ export type Discourse = z.infer<typeof DiscourseSchema>;
  * This is a deliberately small subset of RDFS — no reasoner, no subPropertyOf, just enough
  * to let `linkRelFromSemantic` be a one-line lookup instead of a growing chain.
  *
- * Reply/conversation semantics are modeled by `REPLY_RELATIONS` below, not as per-entry metadata.
+ * Reply/conversation semantics are modeled by per-entry `subPropertyOf: "inReplyTo"`; ancestry checks walk the chain via `isSubPropertyOf`.
  */
 export type TRelRange = "iri" | "literal" | "container";
 
@@ -194,6 +146,18 @@ export type TRelRange = "iri" | "literal" | "container";
  */
 export type TRelPresentation = "summary" | "body" | "governance";
 
+/**
+ * Optional per-rel metadata. RDFS-aligned:
+ *   subPropertyOf — names a parent rel; the rel inherits the parent's
+ *                   semantics for ancestry walks (rdfs:subPropertyOf).
+ *                   Single parent for now; relax to readonly array if a
+ *                   rel needs multiple parents.
+ *   label         — human-readable display name (rdfs:label). Renderers
+ *                   show this in place of the raw rel string when set.
+ *   icon          — visual badge for the rel. Rendered next to the label
+ *                   in references / threads / discourse views.
+ */
+
 export const LinkRelations = {
 	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal" },
@@ -210,17 +174,17 @@ export const LinkRelations = {
 	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
 	URL: { rel: "url", uri: "as:url", range: "literal" },
 	// PROV-O — provenance and lineage
-	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri" },
-	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri" },
+	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
+	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
 	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri" },
-	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri" },
+	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal" },
 	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal" },
 	// SOSA / W3C SSN — observation and sensing
 	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal" },
 	RESULT_TIME: { rel: "resultTime", uri: "sosa:resultTime", range: "literal" },
 	HAS_RESULT: { rel: "hasResult", uri: "sosa:hasResult", range: "container" },
-	MADE_BY_SENSOR: { rel: "madeBySensor", uri: "sosa:madeBySensor", range: "iri" },
+	MADE_BY_SENSOR: { rel: "madeBySensor", uri: "sosa:madeBySensor", range: "iri", subPropertyOf: "inReplyTo" },
 	OBSERVED_PROPERTY: { rel: "observedProperty", uri: "sosa:observedProperty", range: "literal" },
 	// schema.org — action outcomes
 	SCHEMA_OBJECT: { rel: "schemaObject", uri: "schema:object", range: "literal" },
@@ -230,14 +194,29 @@ export const LinkRelations = {
 	ACTION_STATUS: { rel: "actionStatus", uri: "schema:actionStatus", range: "literal" },
 	PART_OF: { rel: "isPartOf", uri: "schema:isPartOf", range: "iri" },
 	PRECEDED_BY: { rel: "precededBy", uri: "hbn:precededBy", range: "iri" },
-	// Haibun native — no existing vocabulary mapping
-	DISCOURSE: { rel: "discourse", uri: "hbn:discourse", range: "literal" },
+	// Haibun native — discourse speech acts, each a sub-property of inReplyTo
+	MEASURE: { rel: "measure", uri: "hbn:measure", range: "iri", subPropertyOf: "inReplyTo", label: "Measure", icon: "📊" },
+	NARRATE: { rel: "narrate", uri: "hbn:narrate", range: "iri", subPropertyOf: "inReplyTo", label: "Narrate", icon: "💬" },
+	QUESTION: { rel: "question", uri: "hbn:question", range: "iri", subPropertyOf: "inReplyTo", label: "Question", icon: "❓" },
+	PLAY: { rel: "play", uri: "hbn:play", range: "iri", subPropertyOf: "inReplyTo", label: "Play", icon: "▶️" },
+	PETITION: { rel: "petition", uri: "hbn:petition", range: "iri", subPropertyOf: "inReplyTo", label: "Petition", icon: "🙋" },
+	GRANT: { rel: "grant", uri: "hbn:grant", range: "iri", subPropertyOf: "inReplyTo", label: "Grant", icon: "🪪" },
+	DENY: { rel: "deny", uri: "hbn:deny", range: "iri", subPropertyOf: "inReplyTo", label: "Deny", icon: "⛔" },
+	INVOKE: { rel: "invoke", uri: "hbn:invoke", range: "iri", subPropertyOf: "inReplyTo", label: "Invoke", icon: "⚡" },
+	REVOKE: { rel: "revoke", uri: "hbn:revoke", range: "iri", subPropertyOf: "inReplyTo", label: "Revoke", icon: "↩️" },
+	// Haibun native — other
 	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri" },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
 	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "governance" as TRelPresentation },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
+	// RDFS terminology — used by Property vertices to describe rels themselves.
+	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
+	LABEL: { rel: "label", uri: "rdfs:label", range: "literal" },
+	RANGE: { rel: "range", uri: "rdfs:range", range: "literal" },
+	ICON: { rel: "icon", uri: "hbn:icon", range: "literal" },
+	PRESENTATION: { rel: "presentation", uri: "hbn:presentation", range: "literal" },
 } as const;
 
 /** Lookup a rel's RDF range. Returns undefined for unknown rels. */
@@ -298,28 +277,42 @@ export function edgeRel(predicate: string): TRel | undefined {
 	return (EdgePredicates as Record<string, { rel: TRel }>)[predicate]?.rel;
 }
 
-/** Rel values that represent reply/conversation semantics. */
-const REPLY_RELATIONS: ReadonlySet<TRel> = new Set([
-	LinkRelations.IN_REPLY_TO.rel,
-	LinkRelations.WAS_INFORMED_BY.rel,
-	LinkRelations.INVALIDATED.rel,
-	LinkRelations.WAS_STARTED_BY.rel,
-	LinkRelations.MADE_BY_SENSOR.rel,
-]);
+/** Lookup a rel's declared parent (rdfs:subPropertyOf), if any. */
+function getSubPropertyOf(rel: string): string | undefined {
+	for (const entry of Object.values(LinkRelations)) {
+		if (entry.rel === rel) return (entry as { subPropertyOf?: string }).subPropertyOf;
+	}
+	return undefined;
+}
 
-/** Check if a rel value is a reply-type (conversational/threading link). */
-function isRelationRel(rel: string): boolean {
-	return REPLY_RELATIONS.has(rel as TRel);
+/**
+ * RDFS-style ancestry check: returns true if `rel` is `ancestorRel` or
+ * transitively reaches it via `subPropertyOf` links. Generic — same
+ * machinery serves any future rel hierarchy, not just reply semantics.
+ * Cycle-guarded: a self-referential or looping `subPropertyOf` chain
+ * terminates without recursing forever.
+ */
+export function isSubPropertyOf(rel: string, ancestorRel: string): boolean {
+	const seen = new Set<string>();
+	let current: string | undefined = rel;
+	while (current && !seen.has(current)) {
+		if (current === ancestorRel) return true;
+		seen.add(current);
+		current = getSubPropertyOf(current);
+	}
+	return false;
 }
 
 /**
  * Check if an edge type (predicate name or rel) is a reply-type link.
- * Resolves predicate names via EdgePredicates, then checks the rel.
+ * Resolves predicate names via EdgePredicates, then walks the
+ * `subPropertyOf` chain to `inReplyTo`.
  */
 export function isReplyEdge(edgeType: string): boolean {
-	if (isRelationRel(edgeType)) return true;
+	const target = LinkRelations.IN_REPLY_TO.rel;
+	if (isSubPropertyOf(edgeType, target)) return true;
 	const rel = edgeRel(edgeType);
-	return rel ? isRelationRel(rel) : false;
+	return rel ? isSubPropertyOf(rel, target) : false;
 }
 
 // ============================================================================
@@ -420,11 +413,10 @@ export type TRegisteredDomain = {
 
 /**
  * Comment — free-text annotation attached to any Resource. See COMMENT_LABEL /
- * COMMENT_DOMAIN / COMMENT_EDGE near the top of this file for the vocabulary
- * consts.
+ * COMMENT_DOMAIN / COMMENT_EDGE near the top of this file for the vocabulary consts.
  *
- * `discourse` tags the speech act (suggest, measure, report, narrate,
- * question, apply, revert, play). Closed enum in ./discourse.ts.
+ * The speech act is expressed as the edge predicate (a discourse rel, sub-property
+ * of inReplyTo), not a `discourse` property on the vertex.
  *
  * `author` stays an optional URI string at the storage layer (e.g.
  * "user:alice", "stepper:llm", "llm:gpt-x"). Legacy data may lack it.
@@ -433,7 +425,6 @@ export type TRegisteredDomain = {
 export const CommentSchema = z.object({
 	id: z.string(),
 	author: z.string().optional(),
-	discourse: DiscourseSchema,
 	timestamp: z.string(),
 	body: z.string().optional(),
 });
@@ -456,15 +447,13 @@ export const commentDomainDefinition: TDomainDefinition = {
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			author: LinkRelations.ATTRIBUTED_TO.rel,
-			discourse: LinkRelations.DISCOURSE.rel,
 			timestamp: LinkRelations.PUBLISHED.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
 		},
-		filterProperties: ["discourse"],
-		propertyIndexes: ["discourse"],
 		edges: {
 			[COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL },
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
+			...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),
 		},
 	},
 };
@@ -515,4 +504,43 @@ export const bodyDomainDefinition: TDomainDefinition = {
 		},
 	},
 };
+
+// ============================================================================
+// Property definitions — runtime projection of LinkRelations
+// ============================================================================
+
+/**
+ * The runtime shape of a rel definition. `LinkRelations` is the canonical
+ * declaration; this is its serialised projection — what travels on the wire
+ * to the SPA so renderers can read label / icon / presentation / RDFS
+ * ancestry without bundling the const itself. One source of truth, one
+ * projection, no graph-stored copy that could diverge.
+ */
+export type TPropertyDefinition = {
+	id: string;
+	iri: string;
+	range: TRelRange;
+	label?: string;
+	icon?: string;
+	subPropertyOf?: string;
+	presentation?: TRelPresentation;
+};
+
+/**
+ * Project the `LinkRelations` const to a flat list of property definitions.
+ * Pure derivation: every call produces the same data. Consumed by the
+ * server's site-metadata builder; from there it reaches the SPA's rels
+ * cache. The TS const stays canonical; this is its only runtime form.
+ */
+export function getPropertyDefinitions(): TPropertyDefinition[] {
+	return Object.values(LinkRelations).map((entry) => {
+		const record: TPropertyDefinition = { id: entry.rel, iri: entry.uri, range: entry.range };
+		const extras = entry as { label?: string; icon?: string; subPropertyOf?: string; presentation?: TRelPresentation };
+		if (extras.label !== undefined) record.label = extras.label;
+		if (extras.icon !== undefined) record.icon = extras.icon;
+		if (extras.subPropertyOf !== undefined) record.subPropertyOf = extras.subPropertyOf;
+		if (extras.presentation !== undefined) record.presentation = extras.presentation;
+		return record;
+	});
+}
 
