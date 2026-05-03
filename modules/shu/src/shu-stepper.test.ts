@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
-import { AccessLevelSchema, CommentSchema, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/resources.js";
+import { AccessLevelSchema, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/resources.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import { z } from "zod";
@@ -59,7 +59,7 @@ describe("ShuStepper", () => {
 		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" })).toThrow("already mounted");
 	});
 
-	it("discovers enum-backed select values from domain schema", async () => {
+	it("returns no select values for Comment (no enum-backed fields)", async () => {
 		const world = stepper.getWorld();
 		const commentDomain = mapDefinitionsToDomains([commentDomainDefinition])[commentDomainDefinition.selectors.sort().join(" | ")];
 		world.domains = { ...world.domains, comment: commentDomain };
@@ -67,7 +67,7 @@ describe("ShuStepper", () => {
 
 		const result = await stepper.steps.getSelectValues.action({ label: "Comment" });
 		expect(result.ok).toBe(true);
-		expect(selectProducts(result).values.discourse).toEqual(CommentSchema.shape.discourse.options);
+		expect(selectProducts(result).values).toEqual({});
 	});
 
 	it("fails when no filter topology is registered for the label", async () => {

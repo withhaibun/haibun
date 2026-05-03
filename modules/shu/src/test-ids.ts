@@ -36,7 +36,6 @@ export const SHU_TEST_IDS = {
 		ROOT: "shu-quad-item",
 	},
 	COLUMN_BROWSER: {
-		ROOT: "column-browser",
 		COLUMN: "browser-column",
 		ENTITY_DETAILS: "entity-details",
 		PREDICATE_LINK: "predicate-link",

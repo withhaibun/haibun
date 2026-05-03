@@ -28,6 +28,16 @@ function nextId(): string {
 	return `rpc-${++counter}-${Date.now().toString(36)}`;
 }
 
+function formatRpcError(method: string, status: number, data: unknown): string {
+	if (data && typeof data === "object") {
+		const error = (data as { error?: unknown }).error;
+		if (typeof error === "string" && error.length > 0) return error;
+		if (error instanceof Error && error.message) return error.message;
+	}
+	if (typeof data === "string" && data.length > 0) return data;
+	return `${method}: RPC failed with status ${status}`;
+}
+
 /**
  * SPA callers have no haibun feature-step seqPath to thread. The server
  * allocates one on demand via `session.beginAction`, returning a
@@ -143,7 +153,9 @@ export class SseClient {
 			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath: nextScopeSeqPath(scope) }),
 		});
 		const data = await res.json();
-		if (!res.ok || data.error) throw new Error(data.error || `RPC failed: ${res.status}`);
+		if (!res.ok || (data && typeof data === "object" && "error" in data && (data as { error?: unknown }).error)) {
+			throw new Error(formatRpcError(method, res.status, data));
+		}
 		cacheSet(key, data);
 		return data as T;
 	}
@@ -167,7 +179,9 @@ export class SseClient {
 			body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
 		});
 		const data = await res.json();
-		if (!res.ok || data.error) throw new Error(data.error || `RPC failed: ${res.status}`);
+		if (!res.ok || (data && typeof data === "object" && "error" in data && (data as { error?: unknown }).error)) {
+			throw new Error(formatRpcError(method, res.status, data));
+		}
 		cacheSet(key, data);
 		return data as T;
 	}

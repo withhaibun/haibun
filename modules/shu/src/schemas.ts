@@ -149,7 +149,7 @@ export const ResultTableSchema = z.object({
 	paginated: z.boolean().default(false),
 });
 
-// --- Context patterns (for LLM / actions bar) ---
+// --- Context patterns (SPA→LLM wire format; abbreviated triple pattern) ---
 
 export const ContextPatternSchema = z.object({
 	s: z.string().optional(),
@@ -157,6 +157,7 @@ export const ContextPatternSchema = z.object({
 	o: z.string().optional(),
 });
 export type TContextPattern = z.infer<typeof ContextPatternSchema>;
+export const ContextQuerySchema = z.array(ContextPatternSchema).min(1);
 
 // --- Dispatch trace (shared by sequence diagram, monitor column, step detail) ---
 
