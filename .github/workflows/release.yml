@@ -52,4 +52,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "NPM_TOKEN is not set; skipping publish."
+            exit 0
+          fi
+          npx semantic-release --config release.config.mjs
