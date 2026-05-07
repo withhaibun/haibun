@@ -1,0 +1,93 @@
+name: 'Haibun CI'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 3.x
+      - alpha
+      - beta
+      - rc
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  unit_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install main deps
+        run: npm ci
+
+      - name: Install Playwright browsers and dependencies
+        run: npx playwright install --with-deps
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run e2e tests
+        run: |
+          cd e2e-tests
+          npm ci
+          npm test
+
+  release:
+    if: ${{ github.event_name == 'push' && contains(fromJSON('["3.x","alpha","beta","rc"]'), github.ref_name) }}
+    needs: unit_test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          registry-url: https://registry.npmjs.org
+
+      - name: Install main deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "NPM_TOKEN is not set; skipping publish."
+            exit 0
+          fi
+          npx semantic-release
