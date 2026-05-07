@@ -107,7 +107,8 @@ export class ServerHono implements IWebServer {
 			}
 			this.servers.clear();
 			this._port = undefined;
-			this.clearMounted();
+			this._mounted = DEFAULT_MOUNTED();
+			this.createApp();
 		}
 		return Promise.resolve();
 	}

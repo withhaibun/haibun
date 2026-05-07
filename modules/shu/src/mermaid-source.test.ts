@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildMermaidSource, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH } from "./mermaid-source.js";
-import { COMMENT_LABEL, COMMENT_EDGE } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
+
+const NARRATE_EDGE = LinkRelations.NARRATE.rel;
 
 const PERSON_LABEL = "Person";
 
@@ -113,14 +115,14 @@ describe("end-to-end: show domains → thread → graph", () => {
 	it("renders edges for comment thread", () => {
 		const rawItems = [
 			{ name: "person-1", _label: PERSON_LABEL, _id: "person-1", _edges: [] },
-			{ name: "a1", _label: COMMENT_LABEL, _id: "a1-uuid", _inReplyTo: "person-1", _edges: [{ type: COMMENT_EDGE, targetId: "person-1" }] },
-			{ name: "a11", _label: COMMENT_LABEL, _id: "a11-uuid", _inReplyTo: "a1-uuid", _edges: [{ type: COMMENT_EDGE, targetId: "a1-uuid" }] },
+			{ name: "a1", _label: COMMENT_LABEL, _id: "a1-uuid", _inReplyTo: "person-1", _edges: [{ type: NARRATE_EDGE, targetId: "person-1" }] },
+			{ name: "a11", _label: COMMENT_LABEL, _id: "a11-uuid", _inReplyTo: "a1-uuid", _edges: [{ type: NARRATE_EDGE, targetId: "a1-uuid" }] },
 		];
 
 		const items = rawItems.map(normalizeItem);
 		const quads = threadToQuads(items, "Thread");
 		const result = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
-		expect(result.source).toContain(`-->|${COMMENT_EDGE}|`);
+		expect(result.source).toContain(`==>|${NARRATE_EDGE}|`);
 	});
 
 	it("renders edges for contact with related emails (bidirectional)", () => {

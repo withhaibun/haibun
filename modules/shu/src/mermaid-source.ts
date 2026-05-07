@@ -5,7 +5,7 @@
  * exportMermaid stepper step. Environment-specific property classification is
  * injected via the PropertyClassifier interface.
  */
-import { LinkRelations, edgeRel as coreEdgeRel, getRelRange } from "@haibun/core/lib/resources.js";
+import { LinkRelations, edgeRel as coreEdgeRel, getRelRange, isReplyEdge } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { colorForType } from "./type-colors.js";
 
@@ -39,12 +39,12 @@ export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "pr
 /** URL is the only literal-ranged rel rendered as an edge (URI-string targets are conventionally navigable). */
 const isLiteralEdgeRel = (rel: string): boolean => rel === LinkRelations.URL.rel;
 
-/** Mermaid arrow style per link relation — encodes visual hierarchy from rel semantics.
- * ===> thick: narrative chain (IN_REPLY_TO — parentCapability, commentsOn)
+/** Mermaid arrow style per edge predicate and its resolved rel.
+ * ===> thick: reply chain (IN_REPLY_TO and all sub-properties — narrate, grant, inReplyTo, etc.)
  * ---> normal: actors (ATTRIBUTED_TO — controller, delegator, issuer)
  * -.-> dotted: supporting detail (CONTEXT, ATTACHMENT — proof, status, assertionMethod) */
-function arrowForRel(rel: string | undefined): string {
-	if (rel === LinkRelations.IN_REPLY_TO.rel) return "==>";
+function arrowForEdge(predicate: string, rel: string | undefined): string {
+	if (rel === LinkRelations.IN_REPLY_TO.rel || isReplyEdge(predicate)) return "==>";
 	if (rel === LinkRelations.CONTEXT.rel || rel === LinkRelations.ATTACHMENT.rel) return "-.->";
 	return "-->";
 }
@@ -144,7 +144,7 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 					if (!targetId) continue;
 					const rel = classifier.relForEdge?.(graph, q.predicate);
 					if (opts.hiddenRels?.has(rel ?? q.predicate)) continue;
-					const arrow = arrowForRel(rel);
+					const arrow = arrowForEdge(q.predicate, rel);
 					const summaryEdgeKey = `${summaryId}|${arrow}|${q.predicate}|${targetId}`;
 					const summaryTally = collapsedEdgeTally.get(summaryEdgeKey);
 					if (summaryTally) {
@@ -199,7 +199,7 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 				if (!targetId) continue;
 				const edgeRel = classifier.relForEdge?.(graph, q.predicate);
 				if (opts.hiddenRels?.has(edgeRel ?? q.predicate)) continue;
-				const edgeArrow = arrowForRel(edgeRel);
+				const edgeArrow = arrowForEdge(q.predicate, edgeRel);
 				const edgeKey = `${nodeId}|${edgeArrow}|${q.predicate}|${targetId}`;
 				const tally = collapsedEdgeTally.get(edgeKey);
 				if (tally) {
