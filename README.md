@@ -30,7 +30,7 @@ Conceptually, there are three "layers" to Haibun:
 
 Haibun encourages small libraries with minimal, precisely versioned dependencies,
 and provides abstract definitions of storage and other testing features,
-so specifications and tests can be developed in a way that's not dependant
+so specifications and tests can be developed in a way that's not dependent
 on any implementation or vendor.
 
 Haibun also encourages creating testing modules and reusable flows,
