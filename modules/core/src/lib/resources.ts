@@ -72,15 +72,13 @@ export const AccessQuery = AccessQueryLevelSchema.enum;
 
 /**
  * Free-text annotation attached to any Resource. Threads via IN_REPLY_TO.
- * The commentsOn edge carries rel IN_REPLY_TO and range Resource.
- *
- * Full Zod schema and domain definition live at the bottom of this file,
- * after TDomainDefinition is declared — see `CommentSchema` and
+ * The speech act is expressed as the discourse edge predicate (a sub-property
+ * of inReplyTo), not as a bare superproperty. Full Zod schema and domain
+ * definition live at the bottom of this file — see `CommentSchema` and
  * `commentDomainDefinition`.
  */
 export const COMMENT_LABEL = "Comment";
 export const COMMENT_DOMAIN = "comment";
-export const COMMENT_EDGE = "commentsOn";
 
 /** Body — opaque content (text, JSON, anything) typed by `mediaType`. */
 export const BODY_LABEL = "Body";
@@ -255,7 +253,6 @@ export const EdgePredicates = {
 	attachment: { rel: LinkRelations.ATTACHMENT.rel },
 	inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel },
 	references: { rel: LinkRelations.CONTEXT.rel },
-	commentsOn: { rel: LinkRelations.IN_REPLY_TO.rel },
 	endpoint: { rel: LinkRelations.URL.rel },
 	wasInformedBy: { rel: LinkRelations.WAS_INFORMED_BY.rel },
 	invalidated: { rel: LinkRelations.INVALIDATED.rel },
@@ -413,7 +410,7 @@ export type TRegisteredDomain = {
 
 /**
  * Comment — free-text annotation attached to any Resource. See COMMENT_LABEL /
- * COMMENT_DOMAIN / COMMENT_EDGE near the top of this file for the vocabulary consts.
+ * COMMENT_DOMAIN near the top of this file for the vocabulary consts.
  *
  * The speech act is expressed as the edge predicate (a discourse rel, sub-property
  * of inReplyTo), not a `discourse` property on the vertex.
@@ -451,7 +448,6 @@ export const commentDomainDefinition: TDomainDefinition = {
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
 		},
 		edges: {
-			[COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL },
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
 			...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),
 		},
