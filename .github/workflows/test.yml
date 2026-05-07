@@ -5,13 +5,16 @@ on:
   push:
     branches:
       - main
+      - 3.x
+      - alpha
+      - beta
+      - rc
   pull_request:
 
 permissions:
   contents: read
   pull-requests: read
 
-# This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
@@ -28,7 +31,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          # Optional: Caching npm dependencies can speed up your builds
           cache: 'npm'
 
       - name: Install main deps
@@ -37,7 +39,7 @@ jobs:
       - name: Install Playwright browsers and dependencies
         run: npx playwright install --with-deps
 
-      - name: build
+      - name: Build
         run: npm run build
 
       - name: Run tests
