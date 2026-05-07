@@ -1,0 +1,36 @@
+{
+	"branches": [
+		{ "name": "3.x", "range": "3.x", "channel": "latest" },
+		{ "name": "alpha", "prerelease": true },
+		{ "name": "beta", "prerelease": true },
+		{ "name": "rc", "prerelease": true }
+	],
+	"plugins": [
+		"@semantic-release/commit-analyzer",
+		"@semantic-release/release-notes-generator",
+		[
+			"@semantic-release/changelog",
+			{ "changelogFile": "CHANGELOG.md" }
+		],
+		[
+			"@semantic-release/exec",
+			{
+				"prepareCmd": "node scripts/sync-versions.mjs",
+				"publishCmd": "node scripts/publish-all.mjs ${nextRelease.channel || ''}"
+			}
+		],
+		[
+			"@semantic-release/git",
+			{
+				"assets": [
+					"CHANGELOG.md",
+					"package.json",
+					"modules/*/package.json",
+					"modules/core/src/currentVersion.ts"
+				],
+				"message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+			}
+		],
+		"@semantic-release/github"
+	]
+}
