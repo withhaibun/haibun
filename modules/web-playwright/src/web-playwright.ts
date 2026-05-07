@@ -4,28 +4,12 @@ import { pathToFileURL } from "url";
 import { TWorld, TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/execution.js";
 import { OK, TStepResult, Origin } from "@haibun/core/schema/protocol.js";
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from "./BrowserFactory.js";
-import {
-	actionNotOK,
-	getStepperOption,
-	boolOrError,
-	intOrError,
-	stringOrError,
-	findStepperFromOptionOrKind,
-} from "@haibun/core/lib/util/index.js";
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, } from "@haibun/core/lib/util/index.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { ImageArtifact, VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import {
-	DOMAIN_PAGE_LOCATOR,
-	DOMAIN_PAGE_TEST_ID,
-	DOMAIN_PAGE_LABEL,
-	DOMAIN_PAGE_PLACEHOLDER,
-	DOMAIN_PAGE_ROLE,
-	DOMAIN_PAGE_TITLE,
-	DOMAIN_PAGE_ALT_TEXT,
-} from "./domains.js";
-
+import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT, } from "./domains.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/lib/astepper.js";
 
 import { cycles } from "./cycles.js";
