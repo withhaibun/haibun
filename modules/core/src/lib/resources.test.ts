@@ -283,7 +283,7 @@ describe("isReplyEdge — generic chain walk", () => {
 	});
 
 	it("resolves predicate names through EdgePredicates", () => {
-		expect(isReplyEdge("commentsOn")).toBe(true);
+		expect(isReplyEdge("inReplyTo")).toBe(true);
 	});
 
 	it("rejects non-reply rels", () => {
