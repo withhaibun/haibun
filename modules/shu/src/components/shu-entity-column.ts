@@ -229,7 +229,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		// Deduplicate targets for display — inReplyTo takes priority over references
 		const seen = new Set<string>();
 		const grouped = new Map<string, Array<{ target: VertexData; edgeType: string }>>();
-		const sorted = [...outgoing].sort((a) => (isReplyEdge(a.type) ? -1 : 1));
+		const sorted = [...outgoing].sort((a, b) => (isReplyEdge(b.type) ? 1 : 0) - (isReplyEdge(a.type) ? 1 : 0));
 		for (const e of sorted) {
 			const tid = vertexId(e.target);
 			if (seen.has(tid)) continue;
