@@ -13,7 +13,11 @@ import { readFileSync, writeFileSync } from "fs";
 import { execSync } from "child_process";
 
 const rootPkg = JSON.parse(readFileSync("./package.json", "utf-8"));
-const version = rootPkg.version;
+const version = process.argv[2] || rootPkg.version;
+
+rootPkg.version = version;
+writeFileSync("./package.json", JSON.stringify(rootPkg, null, 2) + "\n");
+console.info(`updated ./package.json to ${version}`);
 
 const currentVersionFile = "./modules/core/src/currentVersion.ts";
 writeFileSync(currentVersionFile, `export const currentVersion = '${version}';\n`);
@@ -29,4 +33,4 @@ for (const pkgFile of modulePkgFiles) {
 	console.info(`updated ${pkg.name} to ${version}`);
 }
 
-execSync(`git add ${currentVersionFile} ${modulePkgFiles.join(" ")}`, { stdio: "inherit" });
+execSync(`git add ./package.json ${currentVersionFile} ${modulePkgFiles.join(" ")}`, { stdio: "inherit" });
