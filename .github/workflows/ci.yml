@@ -60,6 +60,7 @@ jobs:
       issues: write
       pull-requests: write
       id-token: write
+      administration: read
 
     steps:
       - name: Check out code
@@ -84,26 +85,12 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Verify npm token identity
+      - name: Verify environment
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN is not set; skipping npm diagnostics."
-            exit 0
-          fi
-          npm config get registry
-          npm whoami
-
-      - name: Verify npm scope access
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN is not set; skipping scope diagnostics."
-            exit 0
-          fi
-          npm view @haibun/cli name || true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: bash scripts/verify-environment.sh
 
       - name: Release
         env:
