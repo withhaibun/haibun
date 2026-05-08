@@ -61,4 +61,14 @@ Before the first automated release works:
 1. Repo secret: `NPM_TOKEN` with publish rights on the `@haibun` scope.
 2. Settings → General → Pull Requests: allow **squash merging only**, set "Default to pull request title and description" for squash commits.
 3. Create the `alpha` branch from the current 4.x working branch (`centralize-rpc-shu-monitor`).
-4. Branch protection on `3.x` and `alpha`: require PRs, require the "PR Title" check to pass.
+4. **Apply branch protection** — run the [Apply branch protection](../../actions/workflows/protect-branches.yml) workflow (one click, `workflow_dispatch`), or locally:
+   ```sh
+   gh auth login   # once, if not already authenticated
+   bash scripts/protect-branches.sh
+   ```
+   This enforces on `3.x`, `alpha`, `beta`, and `rc`:
+   - PRs required (no direct pushes except from `GITHUB_TOKEN` used by semantic-release)
+   - `test` CI job must pass before merge
+   - Force-pushes and deletions blocked
+
+   To re-apply after adding a new release branch, just run the script again.
