@@ -75,6 +75,9 @@ jobs:
           cache: 'npm'
           registry-url: https://registry.npmjs.org
 
+      - name: Remove deprecated npm always-auth config
+        run: npm config delete always-auth || true
+
       - name: Install main deps
         run: npm ci
 
