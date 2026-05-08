@@ -1,15 +1,9 @@
 import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js";
+import { flattenTestIds } from "@haibun/core/lib/test/lib.js";
 import type WebPlaywright from "@haibun/web-playwright";
 import { SHU_TEST_IDS } from "../test-ids.js";
 
-export function flattenTestIds(obj: Record<string, unknown>): string[] {
-	const result: string[] = [];
-	for (const [, value] of Object.entries(obj)) {
-		if (typeof value === "string") result.push(value);
-		else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
-	}
-	return result;
-}
+export { flattenTestIds };
 
 const IDS = SHU_TEST_IDS;
 

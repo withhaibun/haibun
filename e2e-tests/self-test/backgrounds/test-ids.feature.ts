@@ -2,16 +2,8 @@ import type { TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import { withAction } from "@haibun/core/kireji/withAction.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
+import { flattenTestIds } from "@haibun/core/lib/test/lib.js";
 import { TEST_IDS } from "@haibun/monitor-browser/test-ids.js";
-
-function flattenTestIds(obj: Record<string, unknown>): string[] {
-	const result: string[] = [];
-	for (const [, value] of Object.entries(obj)) {
-		if (typeof value === "string") result.push(value);
-		else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
-	}
-	return result;
-}
 
 const { activity } = withAction(new ActivitiesStepper());
 const { setAs } = withAction(new VariablesStepper());

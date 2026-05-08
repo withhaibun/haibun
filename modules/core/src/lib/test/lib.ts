@@ -120,3 +120,12 @@ export function getDefaultTag(desc: string | undefined = undefined) {
 	// In tests, callers (via resolveHostId's default) get DEFAULT_HOST_ID = 0.
 	return getRunTag(0, undefined, desc ? { desc } : undefined, false, resolveHostId());
 }
+
+export function flattenTestIds(obj: Record<string, unknown>): string[] {
+	const result: string[] = [];
+	for (const [, value] of Object.entries(obj)) {
+		if (typeof value === "string") result.push(value);
+		else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
+	}
+	return result;
+}
