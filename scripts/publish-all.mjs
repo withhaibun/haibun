@@ -44,6 +44,22 @@ for (const m of modules) {
 	} else if (/cannot publish over|previously published|403.*already/i.test(output)) {
 		console.info(`skipped ${m.pkg.name}@${rootVersion} (already published)`);
 		results.skipped.push(m.pkg.name);
+	} else if (/404 Not Found - PUT https:\/\/registry\.npmjs\.org\/@haibun%2f/i.test(output)) {
+		console.error(`FAILED ${m.pkg.name}@${rootVersion}`);
+		console.error(
+			`npm rejected publish for ${m.pkg.name}. ` +
+			`The @haibun scope is likely missing on npm or the NPM_TOKEN does not have permission to publish to it.`
+		);
+		console.error(output);
+		results.failed.push(m.pkg.name);
+	} else if (/ENEEDAUTH|E403|403 Forbidden|authorization|auth/i.test(output)) {
+		console.error(`FAILED ${m.pkg.name}@${rootVersion}`);
+		console.error(
+			`Authentication or authorization failed for ${m.pkg.name}. ` +
+			`Check that NPM_TOKEN has publish access to the package scope.`
+		);
+		console.error(output);
+		results.failed.push(m.pkg.name);
 	} else {
 		console.error(`FAILED ${m.pkg.name}@${rootVersion}`);
 		console.error(output);
