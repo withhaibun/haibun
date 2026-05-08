@@ -29,24 +29,20 @@ GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 REPO="${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)}"
 
 if [ -z "$GH_TOKEN" ] || [ -z "$REPO" ]; then
-  echo "WARNING: GH_TOKEN/REPO not set; skipping branch protection checks."
+  echo "ERROR: GH_TOKEN/REPO not set; cannot verify branch protection."
+  ERRORS=$((ERRORS + 1))
 else
-  for branch in 3.x alpha beta rc; do
-    STATUS=$(gh api "repos/${REPO}/branches/${branch}/protection" \
-      --jq '"enabled"' 2>/dev/null || echo "missing")
-    if [ "$STATUS" = '"enabled"' ] || [ "$STATUS" = "enabled" ]; then
+  for branch in 3.x next alpha beta rc; do
+    HTTP_STATUS=$(gh api "repos/${REPO}/branches/${branch}/protection" \
+      --silent --include 2>&1 | awk '/^HTTP/ {print $2}' | head -1 || echo "000")
+    RESULT=$(gh api "repos/${REPO}/branches/${branch}/protection" 2>&1 || true)
+    if echo "$RESULT" | grep -q "required_status_checks\|required_pull_request_reviews\|enforce_admins"; then
       echo "Branch protection $branch: OK"
+    elif echo "$RESULT" | grep -q "Branch not found\|Not Found"; then
+      echo "Branch protection $branch: branch does not exist (skipping)"
     else
-      # Try a simpler check — if the endpoint returns any JSON the rule exists
-      RESULT=$(gh api "repos/${REPO}/branches/${branch}/protection" 2>&1 || true)
-      if echo "$RESULT" | grep -q "required_status_checks\|url"; then
-        echo "Branch protection $branch: OK"
-      elif echo "$RESULT" | grep -q "404\|Branch not found\|Not Found"; then
-        echo "Branch protection $branch: branch does not exist yet (skipping)"
-      else
-        echo "WARNING: Branch protection not configured for $branch — run scripts/protect-branches.sh"
-        ERRORS=$((ERRORS + 1))
-      fi
+      echo "ERROR: Branch protection not configured for $branch — run scripts/protect-branches.sh"
+      ERRORS=$((ERRORS + 1))
     fi
   done
 fi
