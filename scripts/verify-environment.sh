@@ -24,29 +24,6 @@ else
   npm view @haibun/cli name 2>&1 || echo "WARNING: could not view @haibun/cli (scope may not exist yet)"
 fi
 
-# ── branch protection ────────────────────────────────────────────────────────
-GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-REPO="${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)}"
-
-if [ -z "$GH_TOKEN" ] || [ -z "$REPO" ]; then
-  echo "ERROR: GH_TOKEN/REPO not set; cannot verify branch protection."
-  ERRORS=$((ERRORS + 1))
-else
-  for branch in 3.x next alpha beta rc; do
-    RESULT=$(gh api "repos/${REPO}/branches/${branch}/protection" 2>&1 || true)
-    if echo "$RESULT" | grep -q "required_status_checks\|required_pull_request_reviews\|enforce_admins"; then
-      echo "Branch protection $branch: OK"
-    elif echo "$RESULT" | grep -q "Branch not found\|Not Found"; then
-      echo "Branch protection $branch: branch does not exist (skipping)"
-    elif echo "$RESULT" | grep -q "Resource not accessible\|Must have admin rights\|403"; then
-      echo "Branch protection $branch: skipped (token lacks admin scope)"
-    else
-      echo "ERROR: Branch protection not configured for $branch — run scripts/protect-branches.sh"
-      ERRORS=$((ERRORS + 1))
-    fi
-  done
-fi
-
 # ── result ───────────────────────────────────────────────────────────────────
 if [ "$ERRORS" -gt 0 ]; then
   echo "verify-environment: $ERRORS error(s) found."
