@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
       - 3.x
       - alpha
       - beta
@@ -97,7 +96,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN is not set; skipping publish."
-            exit 0
+            echo "ERROR: NPM_TOKEN is not set; cannot publish."
+            exit 1
           fi
           npx semantic-release
