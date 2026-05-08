@@ -1,6 +1,6 @@
 {
   "name": "@haibun/monitor-browser",
-  "version": "3.9.2",
+  "version": "3.9.3",
   "description": "React-based browser monitor for Haibun with shadcn/ui",
   "main": "build/index.js",
   "type": "module",
