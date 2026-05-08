@@ -59,6 +59,7 @@ use this command to see available options:
 
 * [Architecture overview](docs/architecture.md]
 * [Guide for humans and LLMs](AGENTS.md)
+* [Versioning, releases & branch workflow](VERSIONING.md)
 * [Dependency graph](dependency-graph.html)
 * [Feature structure](docs/feature_structure.md)
 * [Developing new modules](docs/new_modules.md)
@@ -66,7 +67,7 @@ use this command to see available options:
 * [Debugging steppers](docs/stepping.md)
 * [Use in Github Actions](docs/e2e-tests.yml)
 * [Run Policy and Permissions](docs/run-policy.md)
-* [VSCode extension (LSP & MCP)(vscode-extension/README.md)
+* [VSCode extension (LSP & MCP)](vscode-extension/README.md)
 
 # Development & Debugging help
 
