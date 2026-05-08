@@ -38,7 +38,7 @@ Every module under `modules/tsconfig.json` ships at the same version. When the r
 
 To add a new module to the release: add it to `modules/tsconfig.json` references. It's then built, versioned, and published automatically.
 
-Modules that should never publish (e.g. `recorder`, `e2e-tests`) are marked `"private": true` in their own `package.json` and left out of `modules/tsconfig.json`.
+Modules that should not publish (e.g. `recorder`, `e2e-tests`) are marked `"private": true` in their own `package.json` and left out of `modules/tsconfig.json`.
 
 ## Manual publish (CI down)
 
@@ -61,7 +61,7 @@ Before the first automated release works:
 1. Repo secret: `NPM_TOKEN` with publish rights on the `@haibun` scope.
 2. Settings → General → Pull Requests: allow **squash merging only**, set "Default to pull request title and description" for squash commits.
 3. Create the `alpha` branch from the current 4.x working branch (`centralize-rpc-shu-monitor`).
-4. **Apply branch protection** — run the [Apply branch protection](../../actions/workflows/protect-branches.yml) workflow (one click, `workflow_dispatch`), or locally:
+4. **Apply branch protection** — run locally with `gh` authenticated:
    ```sh
    gh auth login   # once, if not already authenticated
    bash scripts/protect-branches.sh
