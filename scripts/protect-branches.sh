@@ -40,7 +40,7 @@ EOF
 # That token is exempt from PR requirements when restrictions.users/teams is null
 # and enforce_admins is false, so no bypass actor entry is needed.
 
-for branch in 3.x alpha beta rc; do
+for branch in 3.x next alpha beta rc; do
   protect "$branch" || echo "  WARNING: $branch may not exist yet, skipping."
 done
 
