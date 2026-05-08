@@ -55,6 +55,7 @@ jobs:
     if: ${{ github.event_name == 'push' && contains(fromJSON('["3.x","next","alpha","beta","rc"]'), github.ref_name) }}
     needs: test
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write
       issues: write
