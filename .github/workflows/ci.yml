@@ -83,33 +83,31 @@ jobs:
 
       - name: Verify npm token identity
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "$NPM_TOKEN" ]; then
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
             echo "NPM_TOKEN is not set; skipping npm diagnostics."
             exit 0
           fi
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
           npm config get registry
           npm whoami
 
       - name: Verify npm scope access
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "$NPM_TOKEN" ]; then
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
             echo "NPM_TOKEN is not set; skipping scope diagnostics."
             exit 0
           fi
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
           npm view @haibun/cli name || true
 
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "$NPM_TOKEN" ]; then
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
             echo "NPM_TOKEN is not set; skipping publish."
             exit 0
           fi
