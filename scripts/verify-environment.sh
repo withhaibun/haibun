@@ -33,13 +33,13 @@ if [ -z "$GH_TOKEN" ] || [ -z "$REPO" ]; then
   ERRORS=$((ERRORS + 1))
 else
   for branch in 3.x next alpha beta rc; do
-    HTTP_STATUS=$(gh api "repos/${REPO}/branches/${branch}/protection" \
-      --silent --include 2>&1 | awk '/^HTTP/ {print $2}' | head -1 || echo "000")
     RESULT=$(gh api "repos/${REPO}/branches/${branch}/protection" 2>&1 || true)
     if echo "$RESULT" | grep -q "required_status_checks\|required_pull_request_reviews\|enforce_admins"; then
       echo "Branch protection $branch: OK"
     elif echo "$RESULT" | grep -q "Branch not found\|Not Found"; then
       echo "Branch protection $branch: branch does not exist (skipping)"
+    elif echo "$RESULT" | grep -q "Resource not accessible\|Must have admin rights\|403"; then
+      echo "Branch protection $branch: skipped (token lacks admin scope)"
     else
       echo "ERROR: Branch protection not configured for $branch — run scripts/protect-branches.sh"
       ERRORS=$((ERRORS + 1))
