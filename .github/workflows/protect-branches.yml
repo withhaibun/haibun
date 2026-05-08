@@ -1,0 +1,19 @@
+name: 'Apply branch protection'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  protect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      administration: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Apply branch protection rules
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/protect-branches.sh
