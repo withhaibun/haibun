@@ -4,7 +4,7 @@ import { pathToFileURL } from "url";
 import { TWorld, TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/execution.js";
 import { OK, TStepResult, Origin } from "@haibun/core/schema/protocol.js";
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from "./BrowserFactory.js";
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { ImageArtifact, VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
@@ -67,7 +67,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				this.getWorld().eventLogger.debug(`waitForLoaded timed out (${mode}), continuing...`);
 				return;
 			}
-			const message = e instanceof Error ? e.message : String(e);
+			const message = errorDetail(e);
 			this.getWorld().eventLogger.warn(`waitForLoaded had error ${message}, continuing...`);
 		}
 	}
@@ -367,14 +367,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 				return ret;
 			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
+				const msg = errorDetail(e);
 				throw new Error(
 					`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${msg}. Page console messages: ${pageConsoleMessages.map((msg) => `[${msg.type}] ${msg.text}`).join("; ")}`,
 				);
 			}
 		} catch (e) {
 			const ua = userAgent || this.apiUserAgent;
-			const msg = e instanceof Error ? e.message : String(e);
+			const msg = errorDetail(e);
 			throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${msg}`);
 		} finally {
 			// FIXME Part II this could suffer from race conditions

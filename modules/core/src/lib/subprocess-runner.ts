@@ -12,7 +12,7 @@
 
 import type { CStepper, TWorld } from "./execution.js";
 import { StepRegistry, validateToolInput, buildSyntheticFeatureStep } from "./step-dispatch.js";
-import { createSteppers, setStepperWorldsAndDomains } from "./util/index.js";
+import { createSteppers, setStepperWorldsAndDomains, errorDetail } from "./util/index.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 
@@ -66,7 +66,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 			process.send?.({
 				type: "result",
 				ok: false,
-				error: err instanceof Error ? err.message : String(err),
+				error: errorDetail(err),
 			} satisfies SubprocessResultMessage);
 		}
 	});

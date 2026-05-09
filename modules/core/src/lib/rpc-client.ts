@@ -1,3 +1,5 @@
+import { errorDetail } from "./util/index.js";
+
 /**
  * rpc-client — capability-scoped client for a haibun host's RPC
  * transport (modules/web-server-hono/sse-transport.ts).
@@ -164,7 +166,7 @@ export class RpcClient {
 				await new Promise((r) => setTimeout(r, backoff + jitter));
 			}
 		}
-		return { error: `rpc failed after ${this.maxAttempts} attempts: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}` };
+		return { error: `rpc failed after ${this.maxAttempts} attempts: ${errorDetail(lastErr)}` };
 	}
 }
 
