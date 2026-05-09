@@ -1,27 +1,11 @@
 import nodeFS from "fs";
 
-import { TBase, TProtoOptions, TSpecl, TWorld, SpeclSchema } from "@haibun/core/lib/execution.js";
-import {
-	BASE_PREFIX,
-	CHECK_NO,
-	CHECK_YES,
-	DEFAULT_DEST,
-	STAY,
-	STAY_ALWAYS,
-	Timer,
-	TExecutorResult,
-} from "@haibun/core/schema/protocol.js";
+import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
+import type { TBase, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { getCreateSteppers, getDefaultTag } from "@haibun/core/lib/test/lib.js";
-import {
-	formattedSteppers,
-	getPre,
-	getDefaultOptions,
-	basesFrom,
-	verifyRequiredOptions,
-	verifyExtraOptions,
-	errorDetail,
-} from "@haibun/core/lib/util/index.js";
+import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/util/index.js";
 import { BaseOptions } from "./BaseOptions.js";
 import { TFileSystem, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
 import { Runner } from "@haibun/core/runner.js";
@@ -30,14 +14,7 @@ import { Prompter } from "@haibun/core/lib/prompter.js";
 import { getCoreDomains } from "@haibun/core/lib/core-domains.js";
 import { EventLogger } from "@haibun/core/lib/EventLogger.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
-import {
-	OPTION_RUN_POLICY,
-	OPTION_DRY_RUN,
-	HAIBUN_RUN_POLICY,
-	parseRunPolicyArgs,
-	parseRunPolicyEnv,
-	type TRunPolicyConfig,
-} from "@haibun/core/run-policy/run-policy-types.js";
+import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/phases/collector.js";
@@ -117,12 +94,7 @@ async function showSteppersAndExit(specl: TSpecl) {
 	process.exit(0);
 }
 
-export function resolveRunPolicy(
-	cliPolicyConfig: TRunPolicyConfig | undefined,
-	env: NodeJS.ProcessEnv,
-	protoOptions: TProtoOptions,
-	specl: TSpecl,
-): TRunPolicyConfig | undefined {
+export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, env: NodeJS.ProcessEnv, protoOptions: TProtoOptions, specl: TSpecl): TRunPolicyConfig | undefined {
 	let policyConfig = cliPolicyConfig;
 	if (!policyConfig && env[HAIBUN_RUN_POLICY]) {
 		policyConfig = parseRunPolicyEnv(env[HAIBUN_RUN_POLICY]);
@@ -144,8 +116,7 @@ export function resolveRunPolicy(
 
 function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TRunPolicyConfig, featureFilter?: string[]): never {
 	const parts: string[] = [];
-	if (policyConfig)
-		parts.push(`place="${policyConfig.place}" policy=${policyConfig.dirFilters.map((f) => `${f.dir}:${f.access}`).join(",")}`);
+	if (policyConfig) parts.push(`place="${policyConfig.place}" policy=${policyConfig.dirFilters.map((f) => `${f.dir}:${f.access}`).join(",")}`);
 	if (featureFilter?.length) parts.push(`filter=${featureFilter.join(",")}`);
 	console.info(`\nDry-run: ${parts.length ? parts.join(" ") : "all features"}\n`);
 	for (const f of featuresBackgrounds.features) {
@@ -163,10 +134,7 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 			console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
 		}
 	} else {
-		const errorMessage =
-			executorResult.failure?.error?.message ||
-			(world.runtime.exhaustionError && `Execution aborted: ${world.runtime.exhaustionError}`) ||
-			"Unknown error";
+		const errorMessage = executorResult.failure?.error?.message || (world.runtime.exhaustionError && `Execution aborted: ${world.runtime.exhaustionError}`) || "Unknown error";
 		const stage = executorResult.failure?.stage;
 
 		console.error(`\n${CHECK_NO} ${stage ? `${stage} Error: ` : ""}${errorMessage}`);
@@ -253,10 +221,7 @@ export async function usage(specl: TSpecl, message?: string) {
 		`${HAIBUN_RUN_POLICY.padEnd(63)} run policy: "place dir:access[,dir:access]"`,
 	];
 	if (Object.keys(a).length) {
-		ret.push(
-			"\nThese variables are available for extensions selected in config.js\n",
-			...Object.entries(a).map(([k, v]) => `${k.padEnd(55)} ${v.desc}`),
-		);
+		ret.push("\nThese variables are available for extensions selected in config.js\n", ...Object.entries(a).map(([k, v]) => `${k.padEnd(55)} ${v.desc}`));
 	}
 	return [...ret, ""].join("\n");
 }
@@ -268,8 +233,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 	let nenv = {};
 
 	const baseOptions = BaseOptions as IHasOptions;
-	baseOptions.options &&
-		Object.entries(baseOptions.options).forEach(([k, v]) => ((protoOptions.options as Record<string, unknown>)[k] = v.default));
+	baseOptions.options && Object.entries(baseOptions.options).forEach(([k, v]) => ((protoOptions.options as Record<string, unknown>)[k] = v.default));
 
 	Object.entries(env)
 		.filter(([k]) => k.startsWith(BASE_PREFIX) && k !== HAIBUN_RUN_POLICY)

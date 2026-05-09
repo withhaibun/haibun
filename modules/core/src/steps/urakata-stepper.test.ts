@@ -4,8 +4,7 @@ import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import Haibun from "./haibun.js";
 import UrakataStepper from "./urakata-stepper.js";
-import { AStepper, type IHasCycles } from "../lib/astepper.js";
-import type { IStepperCycles } from "../lib/execution.js";
+import { AStepper, type IHasCycles, type IStepperCycles } from "../lib/astepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import { z } from "zod";
 import { URAKATA, type IUrakataRegistry, type IUrakataTicker } from "../lib/urakata.js";
@@ -52,7 +51,7 @@ describe("urakata-stepper", () => {
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
 		expect(result.ok).toBe(true);
-		const harness = (result.world.runtime.steppers as AStepper[]).find((s): s is TickHarnessStepper => s instanceof TickHarnessStepper);
+		const harness = result.world.runtime.steppers?.find((s): s is TickHarnessStepper => s instanceof TickHarnessStepper);
 		expect(harness).toBeDefined();
 		const tickedDuringRun = harness?.tickCount ?? 0;
 		await sleep(40);
@@ -97,7 +96,6 @@ describe("urakata-stepper", () => {
 	});
 
 	it("endFeature(shouldClose) halts every registered urakata", async () => {
-		let harness: TickHarnessStepper | undefined;
 		const result = await passWithDefaults(
 			[
 				{
@@ -109,7 +107,7 @@ describe("urakata-stepper", () => {
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
 		expect(result.ok).toBe(true);
-		harness = (result.world.runtime.steppers as AStepper[]).find((s): s is TickHarnessStepper => s instanceof TickHarnessStepper);
+		const harness = result.world.runtime.steppers?.find((s): s is TickHarnessStepper => s instanceof TickHarnessStepper);
 		expect(harness).toBeDefined();
 		const tickedAtEnd = harness?.tickCount ?? 0;
 		await sleep(40);

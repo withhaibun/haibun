@@ -94,14 +94,10 @@ describe("domains", () => {
 				moduleOptions: {},
 			});
 			expect(res.ok).toBe(true);
-			const check = await passWithDefaults(
-				[{ path: "/features/c.feature", content: 'set fromEnv to $TEST_VALUE$\nvariable "fromEnv" is "ok"' }],
-				steppers,
-				{
-					options: { DEST: "default", envVariables: { TEST_VALUE: "ok" } },
-					moduleOptions: {},
-				},
-			);
+			const check = await passWithDefaults([{ path: "/features/c.feature", content: 'set fromEnv to $TEST_VALUE$\nvariable "fromEnv" is "ok"' }], steppers, {
+				options: { DEST: "default", envVariables: { TEST_VALUE: "ok" } },
+				moduleOptions: {},
+			});
 			expect(check.ok).toBe(true);
 		});
 	});

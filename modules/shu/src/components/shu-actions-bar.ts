@@ -176,8 +176,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private updateBreadcrumbDisplay(): void {
 		const bc = this.shadowRoot?.querySelector("shu-breadcrumb") as
 			| (HTMLElement & {
-				update?: (label: string, cols: string[], active: number) => void;
-			})
+					update?: (label: string, cols: string[], active: number) => void;
+			  })
 			| null;
 		if (!bc?.update) return;
 		bc.update(this._queryLabel, this._columns, this._activeViewIndex);
@@ -210,8 +210,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		void Promise.all([this.loadDomainOptions(), this.loadModels(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			this.failFast(`ShuActionsBar initialization failed: ${errMsg(err)}`);
 		});
-
-
 
 		const client = SseClient.for("");
 		this._unsubscribeSync = client.onEvent(
@@ -277,7 +275,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 						"haibun.shu.actions-bar.event": "ui-extension",
 						...attributes,
 						...(level === "error"
-							? { "haibun.autonomic.event": "step.failure", "exception.type": "ActionsBarUiExtension", "exception.message": typeof attributes.error === "string" ? attributes.error : message }
+							? {
+									"haibun.autonomic.event": "step.failure",
+									"exception.type": "ActionsBarUiExtension",
+									"exception.message": typeof attributes.error === "string" ? attributes.error : message,
+								}
 							: {}),
 					},
 				},
@@ -431,7 +433,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (savedOutput) savedOutput.remove();
 
 		const modelSelect =
-			this.state.mode === "ask" && this._models.length > 0 ? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>` : "";
+			this.state.mode === "ask" && this._models.length > 0
+				? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>`
+				: "";
 
 		const hasAsk = !!this._steps.find((s) => s.method.endsWith("chatWithContext"));
 		const modeToggle = `<select class="mode-select" ${this.tid("mode-select")}>
@@ -842,47 +846,49 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const abortSignal = this._abortController.signal;
 		try {
 			const client = SseClient.for("");
-			await inAction((scope) => client.rpcStream(
-				scope,
-				requireStep("chatWithContext"),
-				{
-					prompt,
-					context: JSON.stringify(this.activeChatContext()),
-					accessLevel: this._contextAccessLevel,
-					model: this._selectedModel || undefined,
-				},
-				(chunk: unknown) => {
-					const data = chunk as Record<string, unknown>;
-					if (data.status) {
-						spinner.status = String(data.status);
-						spinner.visible = true;
-					}
-					if (data.text) {
-						this._fullText += String(data.text);
-						if (!textDiv) {
-							textDiv = document.createElement("div");
-							textDiv.className = "chat-text";
-							aiContent.appendChild(textDiv);
+			await inAction((scope) =>
+				client.rpcStream(
+					scope,
+					requireStep("chatWithContext"),
+					{
+						prompt,
+						context: JSON.stringify(this.activeChatContext()),
+						accessLevel: this._contextAccessLevel,
+						model: this._selectedModel || undefined,
+					},
+					(chunk: unknown) => {
+						const data = chunk as Record<string, unknown>;
+						if (data.status) {
+							spinner.status = String(data.status);
+							spinner.visible = true;
 						}
-						if (!this._renderPending) {
-							this._renderPending = true;
-							requestAnimationFrame(() => {
-								this._renderPending = false;
-								if (textDiv) textDiv.innerHTML = md.render(this._fullText);
-								spinner.pulse();
-							});
+						if (data.text) {
+							this._fullText += String(data.text);
+							if (!textDiv) {
+								textDiv = document.createElement("div");
+								textDiv.className = "chat-text";
+								aiContent.appendChild(textDiv);
+							}
+							if (!this._renderPending) {
+								this._renderPending = true;
+								requestAnimationFrame(() => {
+									this._renderPending = false;
+									if (textDiv) textDiv.innerHTML = md.render(this._fullText);
+									spinner.pulse();
+								});
+							}
 						}
-					}
-					if (data.error) {
-						spinner.visible = false;
-						const errEl = document.createElement("div");
-						errEl.className = "chat-error";
-						errEl.textContent = String(data.error);
-						aiContent.appendChild(errEl);
-					}
-				},
-				abortSignal,
-			));
+						if (data.error) {
+							spinner.visible = false;
+							const errEl = document.createElement("div");
+							errEl.className = "chat-error";
+							errEl.textContent = String(data.error);
+							aiContent.appendChild(errEl);
+						}
+					},
+					abortSignal,
+				),
+			);
 			if (this._fullText) {
 				const sb = this.shadowRoot?.querySelector(".save-btn") as HTMLElement | null;
 				if (sb) sb.style.display = "";
@@ -930,17 +936,19 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 		try {
 			const client = SseClient.for("");
-			await inAction((scope) => client.rpc(scope, requireStep("saveSummary"), {
-				topic: this._lastPrompt.slice(0, 80),
-				content: this._fullText,
-				prompt: this._lastPrompt,
-				conditions: {
-					conditions: this._filterConditions,
-					label: this._selectedLabel,
-					textQuery: this._textSearch,
-				},
-				accessLevel: this._contextAccessLevel || Access.private,
-			}));
+			await inAction((scope) =>
+				client.rpc(scope, requireStep("saveSummary"), {
+					topic: this._lastPrompt.slice(0, 80),
+					content: this._fullText,
+					prompt: this._lastPrompt,
+					conditions: {
+						conditions: this._filterConditions,
+						label: this._selectedLabel,
+						textQuery: this._textSearch,
+					},
+					accessLevel: this._contextAccessLevel || Access.private,
+				}),
+			);
 
 			if (saveBtn) {
 				saveBtn.textContent = "Saved";

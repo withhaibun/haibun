@@ -57,10 +57,7 @@ export type TZcapInvocation = {
  * `@digitalbazaar/zcap` library and register it with the authority.
  */
 export interface IZcapVerifier {
-	verify(
-		invocation: TZcapInvocation,
-		expected: { action: string; target: string; rootCapability?: string },
-	): Promise<{ ok: boolean; error?: string }>;
+	verify(invocation: TZcapInvocation, expected: { action: string; target: string; rootCapability?: string }): Promise<{ ok: boolean; error?: string }>;
 }
 
 /**
@@ -73,9 +70,6 @@ export interface IZcapAuthority {
 	resolveBearer(token: string): string[];
 	listBearerGrants(): TZcapGrant[];
 	registerVerifier(verifier: IZcapVerifier): void;
-	verifySigned(
-		invocation: TZcapInvocation,
-		expected: { action: string; target: string; rootCapability?: string },
-	): Promise<{ ok: boolean; error?: string }>;
+	verifySigned(invocation: TZcapInvocation, expected: { action: string; target: string; rootCapability?: string }): Promise<{ ok: boolean; error?: string }>;
 	clear(): void;
 }

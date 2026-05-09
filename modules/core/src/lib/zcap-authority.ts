@@ -12,7 +12,7 @@
  * created, expires, parentCapability, invocationTarget) so consumers and the
  * authority speak the same vocabulary regardless of presentation form.
  */
-import type { TRuntime } from "./execution.js";
+import type { TRuntime } from "./world.js";
 import type { IZcapAuthority, IZcapVerifier, TZcapGrant, TZcapInvocation } from "./zcap-types.js";
 
 export const ZCAP_AUTHORITY = "zcapAuthority";
@@ -91,11 +91,8 @@ export class ZcapAuthority implements IZcapAuthority {
 		this.verifier = verifier;
 	}
 
-	async verifySigned(
-		invocation: TZcapInvocation,
-		expected: { action: string; target: string; rootCapability?: string },
-	): Promise<{ ok: boolean; error?: string }> {
-		if (!this.verifier) return { ok: false, error: "no verifier registered" };
+	verifySigned(invocation: TZcapInvocation, expected: { action: string; target: string; rootCapability?: string }): Promise<{ ok: boolean; error?: string }> {
+		if (!this.verifier) return Promise.resolve({ ok: false, error: "no verifier registered" });
 		return this.verifier.verify(invocation, expected);
 	}
 

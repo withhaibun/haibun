@@ -24,14 +24,7 @@ interface DocumentViewProps {
 	onSelectEvent?: (event: THaibunEvent) => void;
 }
 
-export function DocumentView({
-	events,
-	currentTime,
-	startTime,
-	onTimeChange,
-	minLogLevel = "info",
-	onSelectEvent,
-}: DocumentViewProps) {
+export function DocumentView({ events, currentTime, startTime, onTimeChange, minLogLevel = "info", onSelectEvent }: DocumentViewProps) {
 	const { artifactsByStep, allArtifactIds } = useMemo(() => buildArtifactIndex(events), [events]);
 	const content = useMemo(() => generateDocumentMarkdown(events, artifactsByStep, minLogLevel), [events, artifactsByStep, allArtifactIds, minLogLevel]);
 
@@ -69,18 +62,7 @@ export function DocumentView({
 		const rawHtml = md.render(content.md);
 
 		const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
-			ADD_ATTR: [
-				"style",
-				"data-depth",
-				"data-nested",
-				"data-instigator",
-				"data-show-symbol",
-				"data-id",
-				"data-time",
-				"data-raw-time",
-				"data-action",
-				"data-has-artifacts",
-			],
+			ADD_ATTR: ["style", "data-depth", "data-nested", "data-instigator", "data-show-symbol", "data-id", "data-time", "data-raw-time", "data-action", "data-has-artifacts"],
 			ADD_TAGS: ["div"],
 		});
 
@@ -204,16 +186,12 @@ export function DocumentView({
 									{(isNested || isInstigator) && (
 										<div className="relative w-4 shrink-0 mr-1">
 											{isNested && <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-slate-200" />}
-											{isInstigator && !isNested && (
-												<div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-slate-200" />
-											)}
+											{isInstigator && !isNested && <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-slate-200" />}
 											{isNested && showSymbol && <div className="absolute top-0 right-[3px] w-2.5 h-px bg-slate-200" />}
 										</div>
 									)}
 
-									<div className="flex-1 py-0.5 text-slate-600">
-										{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
-									</div>
+									<div className="flex-1 py-0.5 text-slate-600">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</div>
 								</div>
 							</div>
 
@@ -228,10 +206,8 @@ export function DocumentView({
 					);
 				}
 
-				const isProse =
-					domNode instanceof ReactParserElement && domNode.name === "div" && domNode.attribs.class?.includes("prose-block");
-				const isHeader =
-					domNode instanceof ReactParserElement && domNode.name === "div" && domNode.attribs.class?.includes("header-block");
+				const isProse = domNode instanceof ReactParserElement && domNode.name === "div" && domNode.attribs.class?.includes("prose-block");
+				const isHeader = domNode instanceof ReactParserElement && domNode.name === "div" && domNode.attribs.class?.includes("header-block");
 
 				if (isProse || isHeader) {
 					const stepId = (domNode as ReactParserElement).attribs["data-id"];
@@ -254,10 +230,7 @@ export function DocumentView({
 
 				if (domNode.name === "div" && domNode.attribs.class?.includes("font-mono") && !domNode.attribs.class?.includes("log-row")) {
 					return (
-						<div
-							className={domNode.attribs.class}
-							style={domNode.attribs.style ? { paddingLeft: domNode.attribs.style.split(":")[1] } : undefined}
-						>
+						<div className={domNode.attribs.class} style={domNode.attribs.style ? { paddingLeft: domNode.attribs.style.split(":")[1] } : undefined}>
 							{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
 						</div>
 					);
@@ -272,44 +245,22 @@ export function DocumentView({
 					);
 				}
 				if (domNode.name === "h1") {
-					return (
-						<h1 className="text-3xl font-bold mt-6 mb-4 pb-2 border-b border-border">
-							{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
-						</h1>
-					);
+					return <h1 className="text-3xl font-bold mt-6 mb-4 pb-2 border-b border-border">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h1>;
 				}
 				if (domNode.name === "h2") {
-					return (
-						<h2 className="text-2xl font-semibold mt-6 mb-3 text-slate-900">
-							{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
-						</h2>
-					);
+					return <h2 className="text-2xl font-semibold mt-6 mb-3 text-slate-900">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h2>;
 				}
 				if (domNode.name === "h3") {
-					return (
-						<h3 className="text-xl font-semibold mt-4 mb-2">
-							{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
-						</h3>
-					);
+					return <h3 className="text-xl font-semibold mt-4 mb-2">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h3>;
 				}
 				if (domNode.name === "h4") {
-					return (
-						<h4 className="text-lg font-bold mt-4 mb-1">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h4>
-					);
+					return <h4 className="text-lg font-bold mt-4 mb-1">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h4>;
 				}
 				if (domNode.name === "ul") {
-					return (
-						<ul className="list-disc pl-6 mb-1 space-y-0.5">
-							{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
-						</ul>
-					);
+					return <ul className="list-disc pl-6 mb-1 space-y-0.5">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</ul>;
 				}
 				if (domNode.name === "ol") {
-					return (
-						<ol className="list-decimal pl-6 mb-1 space-y-0.5">
-							{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
-						</ol>
-					);
+					return <ol className="list-decimal pl-6 mb-1 space-y-0.5">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</ol>;
 				}
 				if (domNode.name === "li") {
 					return <li className="leading-relaxed">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</li>;
@@ -332,18 +283,12 @@ export function DocumentView({
 					}
 				}
 				if (domNode.name === "pre") {
-					return (
-						<pre className="bg-muted/50 p-4 rounded-lg overflow-x-auto my-4 text-sm font-mono">
-							{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
-						</pre>
-					);
+					return <pre className="bg-muted/50 p-4 rounded-lg overflow-x-auto my-4 text-sm font-mono">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</pre>;
 				}
 				if (domNode.name === "table") {
 					return (
 						<div className="overflow-x-auto my-4 border rounded-lg">
-							<table className="w-full text-sm text-left">
-								{domToReact(domNode.children as DOMNode[], { replace: handleNode })}
-							</table>
+							<table className="w-full text-sm text-left">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</table>
 						</div>
 					);
 				}
@@ -401,12 +346,7 @@ export function DocumentView({
 	}, [activeEventId, events]);
 
 	return (
-		<div
-			ref={containerRef}
-			className="w-full bg-white text-slate-900 min-h-screen p-4 md:p-8"
-			data-active-id={activeEventId}
-			data-testid={TEST_IDS.VIEWS.DOCUMENT}
-		>
+		<div ref={containerRef} className="w-full bg-white text-slate-900 min-h-screen p-4 md:p-8" data-active-id={activeEventId} data-testid={TEST_IDS.VIEWS.DOCUMENT}>
 			<div className="w-full max-w-5xl mx-auto">
 				<div
 					className="prose prose-slate max-w-none font-serif leading-relaxed text-slate-900 
@@ -457,10 +397,7 @@ function ArtifactCaption({ artifact }: { artifact: TArtifactEvent }) {
 
 	return (
 		<div className="mt-2 pl-2 border-l-2 border-slate-300">
-			<div
-				className="flex items-center gap-1 cursor-pointer select-none text-[11px] text-slate-500"
-				onClick={() => setIsOpen(!isOpen)}
-			>
+			<div className="flex items-center gap-1 cursor-pointer select-none text-[11px] text-slate-500" onClick={() => setIsOpen(!isOpen)}>
 				<span className="text-[10px] text-slate-400 w-3 text-center">{isOpen ? "▼" : "▶"}</span>
 				<span className="font-mono text-slate-600 font-medium">{label}</span>
 				{label === "file" && <span className="text-slate-400">:{filename}</span>}

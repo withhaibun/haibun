@@ -1,5 +1,12 @@
-import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, IStepperWhen } from "./execution.js";
-import { TAnyFixme } from "./fixme.js";
+import type { z } from "zod";
+
+import type { TAnyFixme } from "./fixme.js";
+import type { FeatureVariables } from "./feature-variables.js";
+import type { TWorld, TEnvVariables } from "./world.js";
+import type { TOptionValue, TFeatures, TSourceLocation } from "./execution.js";
+import type { ExecutionIntent, TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent } from "../schema/protocol.js";
+import type { TDomainDefinition } from "./resources.js";
+import type { IQuadStore } from "./quad-types.js";
 import { constructorName } from "./util/index.js";
 
 export const StepperKinds = {
@@ -19,11 +26,9 @@ export abstract class AStepper {
 	world?: TWorld;
 	kind?: TStepperKind;
 
-	async setWorld(world: TWorld, _steppers: AStepper[]) {
+	setWorld(world: TWorld, _steppers: AStepper[]): Promise<void> {
 		this.world = world;
-		// some steppers like to keep a reference to all steppers
-		void _steppers;
-		await Promise.resolve();
+		return Promise.resolve();
 	}
 	abstract steps: TStepperSteps;
 	getWorld() {
@@ -40,9 +45,11 @@ export abstract class AStepper {
 	 */
 	startFeatureResolution?(_path: string): void;
 }
+
 export type TStepperSteps = {
 	[key: string]: TStepperStep;
 };
+
 /** One stepper option declaration — the small, non-tunable shape every stepper has used. */
 export type TStepperOption = {
 	required?: boolean;
@@ -63,83 +70,158 @@ export interface IHasCycles {
 	cyclesWhen?: IStepperWhen;
 }
 
-/**
- * Declarative bound on a tunable option. The four kinds are deliberately
- * narrow — richer validation belongs in the option's own `parse`, not here.
- */
-export type TTunableRange =
-	| { kind: "number"; min?: number; max?: number }
-	| { kind: "duration"; minMs?: number; maxMs?: number }
-	| { kind: "boolean" }
-	| { kind: "enum"; values: string[] };
+// ============================================================================
+// Resolved feature & step (stepper-protocol shapes)
+// ============================================================================
 
-/**
- * How often a tunable may be changed. Enforced server-side at the
- * Development-write RPC boundary; a misbehaving client cannot bypass it.
- */
-export type TTunableRateLimit = {
-	maxChangesPerDay: number;
-	/** Optional minimum relative step size — e.g. 0.1 for "at least 10% change". */
-	minStepPct?: number;
+export type TResolvedFeature = {
+	path: string;
+	base: string;
+	name: string;
+	featureSteps: TFeatureStep[];
 };
 
-/**
- * One tunable option declaration. A superset of TStepperOption — same
- * desc / parse / etc. plus range bounds, an optional rate limit, and an
- * optional capability gate.
- *
- * When `requiresCapability` is omitted, the default capability name is
- * derived from the owning stepper + key via `requiredCapabilityFor`.
- * Prefer the derived name over a hard-coded literal so the gate is not
- * coupled to any particular consumer.
- */
-export type TTunableOption = TStepperOption & {
-	range: TTunableRange;
-	rateLimit?: TTunableRateLimit;
-	requiresCapability?: string;
+export type TFeatureStep = TSourceLocation & {
+	in: string;
+	seqPath: TSeqPath;
+	action: TStepAction;
+	isSubStep?: boolean;
+	/** True if this step was triggered by an afterEvery hook (prevents recursive afterEvery) */
+	isAfterEveryStep?: boolean;
+	intent?: ExecutionIntent;
+	/** Runtime args for variable binding in nested quantifier calls */
+	runtimeArgs?: Record<string, string>;
+	/**
+	 * Routing hint: when set, dispatch resolves the tool via the
+	 * hostId-prefixed registry key (`${targetHostId}:${method}`) — the
+	 * step runs against that remote host. Set by composition verbs like
+	 * `on host {hostId} {statement}` in haibun.ts.
+	 */
+	targetHostId?: number;
 };
 
-/**
- * Derive the default capability a caller must hold to change the
- * tunable `<stepperName>.<key>`. Consumers that haven't declared
- * `requiresCapability` explicitly fall back to this structural name.
- * Consumers that grant capabilities should construct matches against
- * this function, never via string literals.
- */
-export function requiredCapabilityFor(stepperName: string, key: string): string {
-	return `${stepperName}:tune:${key}`;
+export type TStepAction = {
+	actionName: string;
+	stepperName: string;
+	step: TStepperStep;
+	stepValuesMap?: TStepValuesMap;
+};
+
+export type TStepValuesMap = Record<string, TStepValue>;
+
+// ============================================================================
+// Stepper step shape
+// ============================================================================
+
+type TStepperStepBase = {
+	handlesUndefined?: true | string[];
+	description?: string;
+	precludes?: string[];
+	unique?: boolean;
+	fallback?: boolean;
+	exposeMCP?: boolean;
+	/** Optional capability label required for external dispatch. */
+	capability?: string;
+	virtual?: boolean;
+	/** For dynamically generated steps (like waypoints): source location metadata */
+	source?: {
+		path: string;
+		lineNumber?: number;
+	};
+	match?: RegExp;
+	gwta?: string;
+	exact?: string;
+	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
+};
+
+/** Step that declares an output schema — action MUST return products on success. */
+type TStepperStepWithProducts = TStepperStepBase & {
+	outputSchema: z.ZodType;
+	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
+};
+
+/** Step without output schema — no products on success. */
+type TStepperStepPlain = TStepperStepBase & {
+	outputSchema?: undefined;
+	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
+};
+
+export type TStepperStep = TStepperStepWithProducts | TStepperStepPlain;
+
+export interface CStepper {
+	new (): AStepper;
 }
 
+// ============================================================================
+// Cycle ordering
+// ============================================================================
+
+export interface IStepperWhen {
+	startExecution?: number;
+	startFeature?: number;
+	endFeature?: number;
+}
+
+export const CycleWhen = {
+	FIRST: -999,
+	LAST: 999,
+};
+
+// ============================================================================
+// Observation, concerns, cycles
+// ============================================================================
+
 /**
- * Discovery contract: steppers that expose tunable options — options a
- * caller may propose changes to within their declared bounds — declare
- * them in a `tunables` map parallel to `options`. Non-tunable steppers
- * simply omit the property.
- *
- * Discovered the same way IHasOptions / IHasCycles are — by introspection
- * for the property, no instanceof check required.
+ * Observation source for the 'observed in' quantifier pattern.
+ * Provides ephemeral iteration over runtime metrics.
  */
-export interface IHasTunables {
-	tunables?: {
-		[name: string]: TTunableOption;
+export interface IObservationSource {
+	name: string;
+	observe(world: TWorld): {
+		items: string[];
+		metrics: Record<string, Record<string, unknown>>;
 	};
 }
 
-/**
- * Enumerate every tunable declared by any stepper in the list. Steppers
- * with no `tunables` property are skipped silently.
- */
-export function getTunableOptions(
-	steppers: AStepper[],
-): Array<{ stepperName: string; key: string; meta: TTunableOption }> {
-	const out: Array<{ stepperName: string; key: string; meta: TTunableOption }> = [];
-	for (const stepper of steppers) {
-		const withTunables = stepper as unknown as IHasTunables;
-		const tunables = withTunables.tunables;
-		if (!tunables) continue;
-		for (const [key, meta] of Object.entries(tunables)) {
-			out.push({ stepperName: constructorName(stepper), key, meta });
-		}
-	}
-	return out;
+export interface IStepperConcerns {
+	domains?: TDomainDefinition[];
+	sources?: IObservationSource[];
+	quadStore?: { store: IQuadStore; namedGraphs: string[] };
 }
+
+export interface IStepperCycles {
+	getConcerns?(): IStepperConcerns;
+	/** Return registered outcome definitions for artifact emission. Used by ActivitiesStepper. */
+	getRegisteredOutcomes?(): Record<string, unknown>;
+	startExecution?(features: TStartExecution): Promise<void> | void;
+	startFeature?(startFeature: TStartFeature): Promise<void> | void;
+	startScenario?(startScenario: TStartScenario): Promise<void>;
+	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
+	afterStep?(afterStep: TAfterStep): Promise<TAfterStepResult>;
+	endScenario?(): Promise<void>;
+	endFeature?(endedWith?: TEndFeature): Promise<void>;
+	onFailure?(result: TFailureArgs): Promise<void>;
+	endExecution?(results: TExecutorResult): Promise<void>;
+	onEvent?(event: THaibunEvent): Promise<void> | void;
+}
+
+export type TStartExecution = TResolvedFeature[];
+export type TEndFeature = {
+	featurePath: string;
+	shouldClose: boolean;
+	isLast: boolean;
+	okSoFar: boolean;
+	continueAfterError: boolean;
+	stayOnFailure: boolean;
+	thisFeatureOK: boolean;
+};
+export type TStartFeature = { resolvedFeature: TResolvedFeature; index: number };
+export type TStartScenario = { scopedVars: FeatureVariables };
+export type TBeforeStep = { featureStep: TFeatureStep };
+export type TAfterStep = { featureStep: TFeatureStep; actionResult: TActionResult };
+export type TFailureArgs = { featureResult: TFeatureResult; failedStep: TStepResult };
+export type TAfterStepResult = { rerunStep?: boolean; nextStep?: boolean; failed: boolean };
+
+export type StepperMethodArgs = {
+	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];
+};

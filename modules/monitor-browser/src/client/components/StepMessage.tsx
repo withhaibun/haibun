@@ -11,12 +11,7 @@ type StepMessageProps = {
 export const StepMessage = ({ message, canLink, absolutePath, lineNumber }: StepMessageProps) => {
 	if (canLink && absolutePath && lineNumber) {
 		return (
-			<VSCodeLink
-				path={absolutePath}
-				lineNumber={lineNumber}
-				className="whitespace-pre-wrap break-words hover:underline"
-				onClick={(ev) => ev.stopPropagation()}
-			>
+			<VSCodeLink path={absolutePath} lineNumber={lineNumber} className="whitespace-pre-wrap break-words hover:underline" onClick={(ev) => ev.stopPropagation()}>
 				{message}
 			</VSCodeLink>
 		);

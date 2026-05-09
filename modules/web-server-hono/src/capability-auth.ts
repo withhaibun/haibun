@@ -1,4 +1,4 @@
-import type { TRuntime } from "@haibun/core/lib/execution.js";
+import type { TRuntime } from "@haibun/core/lib/world.js";
 import { getZcapAuthority } from "@haibun/core/lib/zcap-authority.js";
 
 export type TCapabilityAuthConfig = {

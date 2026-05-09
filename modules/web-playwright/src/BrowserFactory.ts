@@ -1,18 +1,7 @@
-import {
-	Browser,
-	BrowserContext,
-	Page,
-	chromium,
-	firefox,
-	webkit,
-	BrowserType,
-	devices,
-	BrowserContextOptions,
-	LaunchOptions,
-} from "playwright";
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions } from "playwright";
 
 import { PlaywrightEvents } from "./PlaywrightEvents.js";
-import { TWorld } from "@haibun/core/lib/execution.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import { Timer } from "@haibun/core/schema/protocol.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
 
@@ -158,13 +147,8 @@ export class BrowserFactory {
 					};
 			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions };
 			if (config.persistentDirectory) {
-				this.world.eventLogger.debug(
-					`creating new persistent context ${featureNum} ${config.type}, ${config.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`,
-				);
-				browserContext = await BrowserFactory.configs[tag].browserType.launchPersistentContext(
-					config.persistentDirectory,
-					launchConfig,
-				);
+				this.world.eventLogger.debug(`creating new persistent context ${featureNum} ${config.type}, ${config.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`);
+				browserContext = await BrowserFactory.configs[tag].browserType.launchPersistentContext(config.persistentDirectory, launchConfig);
 			} else {
 				this.world.eventLogger.debug(`creating new context ${featureNum} ${config.type}`);
 				const browser = await this.getBrowser(config.type);

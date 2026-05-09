@@ -5,7 +5,8 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/
 import TestStepsWithOptions from "@haibun/core/lib/test/TestStepsWithOptions.js";
 import { getDefaultOptions } from "@haibun/core/lib/util/index.js";
 
-import { TProtoOptions, TSpecl } from "@haibun/core/lib/execution.js";
+import type { TSpecl } from "@haibun/core/lib/execution.js";
+import type { TProtoOptions } from "@haibun/core/lib/world.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import * as lib from "./lib.js";
 
@@ -23,9 +24,7 @@ describe("usageThenExit", () => {
 	});
 	it("exits with error code 1", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
-		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, "Test Error Message")).rejects.toThrow(
-			"exit with code 1",
-		);
+		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, "Test Error Message")).rejects.toThrow("exit with code 1");
 	});
 });
 
@@ -138,9 +137,7 @@ describe("runCli", () => {
 
 	it("runs a kireji test with outcomes", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
-		await expect(lib.runCli(s("--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes"), {})).rejects.toThrow(
-			"exit with code 0",
-		);
+		await expect(lib.runCli(s("--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes"), {})).rejects.toThrow("exit with code 0");
 	});
 });
 

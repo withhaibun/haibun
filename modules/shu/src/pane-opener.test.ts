@@ -58,7 +58,7 @@ describe("openPinnedColumn", () => {
 			let ensureCalled = "";
 			await openPinnedColumn(columnType, label, childTag, {
 				// biome-ignore lint/suspicious/noExplicitAny: test-only — the real ShuColumnStrip class is heavier than this contract requires.
-getStrip: () => strip as any,
+				getStrip: () => strip as any,
 				ensureUiComponentLoaded: (tag) => {
 					ensureCalled = tag;
 					return Promise.resolve();
@@ -98,7 +98,7 @@ getStrip: () => strip as any,
 		const strip = makeStrip();
 		const opts = {
 			// biome-ignore lint/suspicious/noExplicitAny: test-only — the real ShuColumnStrip class is heavier than this contract requires.
-getStrip: () => strip as any,
+			getStrip: () => strip as any,
 			ensureUiComponentLoaded: () => Promise.resolve(),
 		};
 		await openPinnedColumn("idem", "Idempotent", tag, opts);

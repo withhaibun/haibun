@@ -5,8 +5,8 @@
  * Uses core monitor utilities (EventFormatter, THaibunEvent) for consistency.
  */
 
-import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/lib/astepper.js";
-import { IStepperCycles, TWorld } from "@haibun/core/lib/execution.js";
+import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { THaibunEvent, EventFormatter } from "@haibun/core/monitor/index.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js";

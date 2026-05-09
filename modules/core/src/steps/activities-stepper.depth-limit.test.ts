@@ -25,9 +25,7 @@ ensure Infinite loop
 `,
 		};
 
-		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		// Should fail due to depth limit
 		expect(result.ok).toBe(false);

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AStepper } from "../lib/astepper.js";
-import { TFeatureStep } from "../lib/execution.js";
+import { AStepper, TFeatureStep } from "../lib/astepper.js";
 import { OK, TStepArgs } from "../schema/protocol.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../lib/test/lib.js";
 import { actionNotOK } from "../lib/util/index.js";

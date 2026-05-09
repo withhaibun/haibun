@@ -10,11 +10,7 @@ type VSCodeLinkProps = {
 };
 
 export const VSCodeLink = ({ path, lineNumber, children, className = "", onClick }: VSCodeLinkProps) => (
-	<a
-		href={buildVSCodeUri(path, lineNumber)}
-		className={`hover:text-cyan-400 decoration-dotted underline-offset-2 ${className}`}
-		onClick={onClick}
-	>
+	<a href={buildVSCodeUri(path, lineNumber)} className={`hover:text-cyan-400 decoration-dotted underline-offset-2 ${className}`} onClick={onClick}>
 		{children}
 	</a>
 );

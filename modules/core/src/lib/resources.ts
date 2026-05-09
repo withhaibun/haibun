@@ -236,9 +236,7 @@ export function getRelPresentation(rel: string): TRelPresentation | undefined {
 export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
 
 /** JSON-LD context mapping: rel → standard URI. Derived from LinkRelations. */
-export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(
-	Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri]),
-) as Record<TRel, string>;
+export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri])) as Record<TRel, string>;
 
 /**
  * Standard edge predicates for graph vertices.
@@ -356,7 +354,6 @@ export type TDomainTopology = {
 	sortColumns?: Record<string, string>;
 };
 
-
 /** Domain name for type labels — auto-populated from registered domains with topology. */
 export const DOMAIN_VERTEX_LABEL = "vertex-label";
 
@@ -367,15 +364,12 @@ export const DOMAIN_VERTEX_LABEL = "vertex-label";
 /** Coercion function: parse a step value (or other proto) into the domain's native representation. */
 export type TDomainCoercer = (
 	proto: import("../schema/protocol.js").TStepValue,
-	featureStep?: import("./execution.js").TFeatureStep,
+	featureStep?: import("./astepper.js").TFeatureStep,
 	steppers?: import("./astepper.js").AStepper[],
 ) => import("../schema/protocol.js").TStepValueValue;
 
 /** Comparator between two coerced domain values. */
-export type TDomainComparator = (
-	value: import("../schema/protocol.js").TStepValueValue,
-	baseline: import("../schema/protocol.js").TStepValueValue,
-) => number;
+export type TDomainComparator = (value: import("../schema/protocol.js").TStepValueValue, baseline: import("../schema/protocol.js").TStepValueValue) => number;
 
 export type TDomainDefinition = {
 	selectors: string[];
@@ -478,10 +472,7 @@ export type TBody = z.infer<typeof BodySchema>;
  * Returns undefined if no body matches. Used by readers that consume content
  * after `getVertex` has inlined the linked Body sub-resources.
  */
-export function bodyByMediaType(
-	vertex: { hasBody?: Array<{ mediaType?: string; content?: string }> } | null | undefined,
-	mediaType: string,
-): string | undefined {
+export function bodyByMediaType(vertex: { hasBody?: Array<{ mediaType?: string; content?: string }> } | null | undefined, mediaType: string): string | undefined {
 	return vertex?.hasBody?.find((b) => b.mediaType === mediaType)?.content;
 }
 
@@ -539,4 +530,3 @@ export function getPropertyDefinitions(): TPropertyDefinition[] {
 		return record;
 	});
 }
-

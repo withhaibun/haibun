@@ -15,8 +15,7 @@ export const InlineArtifacts = ({ e, onSelectArtifact, selectedArtifactId }: Inl
 		// biome-ignore lint/suspicious/noExplicitAny: loose artifact type
 		embeddedArtifacts = e.attributes?.artifacts as any[];
 	} else if (e.kind === "lifecycle") {
-		embeddedArtifacts =
-			"products" in e && e.products ? ((e.products as Record<string, unknown>).artifacts as TArtifactEvent[]) : undefined;
+		embeddedArtifacts = "products" in e && e.products ? ((e.products as Record<string, unknown>).artifacts as TArtifactEvent[]) : undefined;
 	}
 
 	if (!embeddedArtifacts || !Array.isArray(embeddedArtifacts) || embeddedArtifacts.length === 0) {

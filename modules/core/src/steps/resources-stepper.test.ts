@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import ResourcesStepper from "./resources-stepper.js";
 import { getDefaultWorld } from "../lib/test/lib.js";
 import { LinkRelations } from "../lib/resources.js";
-import { type TWorld } from "../lib/execution.js";
+import { type TWorld } from "../lib/world.js";
 
 describe("ResourcesStepper comment + getRelated", () => {
 	let stepper: ResourcesStepper;

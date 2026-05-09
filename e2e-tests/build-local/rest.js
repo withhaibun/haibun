@@ -60,9 +60,7 @@ export const restRoutes = (testServer) => {
         async logIn(c) {
             const body = await c.req.parseBody();
             const { username, password } = body;
-            if (testServer.basicAuthCreds &&
-                username === testServer.basicAuthCreds.username &&
-                password === testServer.basicAuthCreds.password) {
+            if (testServer.basicAuthCreds && username === testServer.basicAuthCreds.username && password === testServer.basicAuthCreds.password) {
                 testServer.authToken = newToken;
                 setCookie(c, "token", newToken, { httpOnly: true });
                 return c.html("<h2>Login successful</h2>");

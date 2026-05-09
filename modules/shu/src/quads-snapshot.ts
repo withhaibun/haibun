@@ -165,9 +165,7 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 		const steps = await getAvailableSteps();
 		if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
 		const client = SseClient.for("");
-		const data = await inAction((scope) =>
-			client.rpc<{ quads: TQuad[]; clusters: TCluster[] }>(scope, "MonitorStepper-getClusteredQuads", { perTypeLimit, types: opts.types }),
-		);
+		const data = await inAction((scope) => client.rpc<{ quads: TQuad[]; clusters: TCluster[] }>(scope, "MonitorStepper-getClusteredQuads", { perTypeLimit, types: opts.types }));
 		if (!Array.isArray(data.quads)) throw new Error("MonitorStepper-getClusteredQuads returned non-array quads");
 		const snapshot = { quads: data.quads, clusters: data.clusters ?? [] };
 		s.cache = { snapshot, perTypeLimit, typesKey: tk };

@@ -191,17 +191,11 @@ export function buildConfigValidator(policy: TRunPolicy) {
 	const validDirs =
 		(policy.properties as Record<string, unknown>)?.dirFilters &&
 		((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items &&
-		(((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>)
-			.properties &&
-		(
-			(((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>)
-				.properties as Record<string, unknown>
-		).dir &&
+		(((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>).properties &&
+		((((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>).properties as Record<string, unknown>).dir &&
 		((
-			(
-				(((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>)
-					.properties as Record<string, unknown>
-			).dir as Record<string, unknown>
+			((((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>).properties as Record<string, unknown>)
+				.dir as Record<string, unknown>
 		).enum as [string, ...string[]] | undefined);
 
 	const baseSchema: Record<string, z.ZodType> = {};
@@ -262,10 +256,7 @@ export function buildConfigValidator(policy: TRunPolicy) {
 				const flat = { place: config.place, dir: filter.dir, access: filter.access };
 
 				for (const rule of policy.deny) {
-					const match =
-						(!rule.place || rule.place === flat.place) &&
-						(!rule.dir || rule.dir === flat.dir) &&
-						(!rule.access || rule.access === flat.access);
+					const match = (!rule.place || rule.place === flat.place) && (!rule.dir || rule.dir === flat.dir) && (!rule.access || rule.access === flat.access);
 
 					if (match) {
 						ctx.addIssue({

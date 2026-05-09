@@ -1,7 +1,8 @@
 import path, { dirname } from "path";
 import nodeFS from "fs";
 
-import { CStepper, type TStepperEntry } from "../../execution.js";
+import { type TStepperEntry } from "../../execution.js";
+import { CStepper } from "../../astepper.js";
 import { use } from "./module-loader.js";
 import { fileURLToPath } from "url";
 import { RemoteStepperProxy } from "../../remote-stepper-proxy.js";

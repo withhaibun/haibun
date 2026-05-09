@@ -138,9 +138,7 @@ describe("findStepperFromOptionOrKind", () => {
 		const steppers = await getCreateSteppers([], [StorageStepper, AlternativeStorageStepper, ConsumerStepper]);
 		const moduleOptions = {};
 
-		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(
-			/Multiple steppers of kind STORAGE found/,
-		);
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(/Multiple steppers of kind STORAGE found/);
 	});
 
 	it("throws when no stepper of kind exists", async () => {
@@ -148,9 +146,7 @@ describe("findStepperFromOptionOrKind", () => {
 		const steppers = await getCreateSteppers([], [ConsumerStepper]); // No storage stepper
 		const moduleOptions = {};
 
-		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(
-			/no stepper of kind STORAGE found/,
-		);
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(/no stepper of kind STORAGE found/);
 	});
 });
 

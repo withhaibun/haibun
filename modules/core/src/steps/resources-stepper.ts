@@ -12,17 +12,10 @@
  * and their relationships.
  */
 import { z } from "zod";
-import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
-import { IStepperCycles, type TVertexResult } from "../lib/execution.js";
+import { AStepper, IHasCycles, TStepperSteps, IStepperCycles } from "../lib/astepper.js";
+import { type TVertexResult } from "../lib/execution.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
-import {
-	BODY_LABEL,
-	COMMENT_LABEL,
-	DOMAIN_VERTEX_LABEL,
-	LinkRelations,
-	bodyDomainDefinition,
-	commentDomainDefinition,
-} from "../lib/resources.js";
+import { BODY_LABEL, COMMENT_LABEL, DOMAIN_VERTEX_LABEL, LinkRelations, bodyDomainDefinition, commentDomainDefinition } from "../lib/resources.js";
 import { seqPathDomainDefinition } from "../lib/seq-path.js";
 
 const cycles = (): IStepperCycles => ({
@@ -84,15 +77,10 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				if (!idLabelMap.has(contextRoot)) idLabelMap.set(contextRoot, label);
 				const items: TVertexResult[] = [];
 				for (const [vid, vlabel] of idLabelMap) {
-					const vertex =
-						(await store.getVertex(vlabel, vid)) ??
-						(await store.getVertex(COMMENT_LABEL, vid)) ??
-						(await store.getVertex(label, vid));
+					const vertex = (await store.getVertex(vlabel, vid)) ?? (await store.getVertex(COMMENT_LABEL, vid)) ?? (await store.getVertex(label, vid));
 					if (vertex) {
 						const outgoing = await store.query({ subject: vid });
-						const edges = outgoing
-							.filter((q) => q.predicate !== LinkRelations.CONTEXT.rel)
-							.map((q) => ({ type: q.predicate, targetId: String(q.object) }));
+						const edges = outgoing.filter((q) => q.predicate !== LinkRelations.CONTEXT.rel).map((q) => ({ type: q.predicate, targetId: String(q.object) }));
 						const replyTo = edges.find((e) => e.type === LinkRelations.IN_REPLY_TO.rel);
 						items.push({ ...(vertex as Record<string, unknown>), _id: vid, _inReplyTo: replyTo?.targetId, _edges: edges });
 					}

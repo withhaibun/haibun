@@ -12,12 +12,7 @@
  * domain definition steppers register.
  */
 import { z } from "zod";
-import {
-	LinkRelations,
-	SEQ_PATH_LABEL,
-	SEQ_PATH_STATUS,
-	type TDomainDefinition,
-} from "./resources.js";
+import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 
 export const SEQ_PATH_DOMAIN = "seq-path";
 

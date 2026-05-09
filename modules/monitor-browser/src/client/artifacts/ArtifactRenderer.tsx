@@ -41,16 +41,7 @@ export function ArtifactRenderer({
 			}
 
 			// In log/details mode, always show synced video with timeline controls
-			return (
-				<VideoArtifact
-					artifact={artifact}
-					currentTime={currentTime}
-					videoStartTimestamp={videoStartTimestamp}
-					startTime={startTime}
-					sync={true}
-					className={className}
-				/>
-			);
+			return <VideoArtifact artifact={artifact} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} startTime={startTime} sync={true} className={className} />;
 		case "html":
 			return <HtmlArtifact artifact={artifact} />;
 		case "speech":

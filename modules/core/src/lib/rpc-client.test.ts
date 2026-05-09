@@ -72,19 +72,14 @@ describe("RpcClient.call", () => {
 	});
 
 	it("surfaces application errors (HTTP 422 with error body) intact", async () => {
-		const { fetchImpl } = makeFakeFetch([
-			{ ok: false, status: 422, bodyText: JSON.stringify({ error: "capability Foo required" }) },
-		]);
+		const { fetchImpl } = makeFakeFetch([{ ok: false, status: 422, bodyText: JSON.stringify({ error: "capability Foo required" }) }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 1 } });
 		const out = await client.call("m", {}, [0]);
 		expect((out as RpcError).error).toBe("capability Foo required");
 	});
 
 	it("retries on network error and succeeds on a later attempt", async () => {
-		const { fetchImpl, calls } = makeFakeFetch([
-			{ throwError: new Error("ECONNREFUSED") },
-			{ ok: true, bodyText: JSON.stringify({ ok: true }) },
-		]);
+		const { fetchImpl, calls } = makeFakeFetch([{ throwError: new Error("ECONNREFUSED") }, { ok: true, bodyText: JSON.stringify({ ok: true }) }]);
 		const client = new RpcClient({
 			baseUrl: "http://host",
 			fetchImpl,
@@ -96,10 +91,7 @@ describe("RpcClient.call", () => {
 	});
 
 	it("returns an RpcError with attempt count after all retries exhausted", async () => {
-		const { fetchImpl, calls } = makeFakeFetch([
-			{ throwError: new Error("boom") },
-			{ throwError: new Error("boom") },
-		]);
+		const { fetchImpl, calls } = makeFakeFetch([{ throwError: new Error("boom") }, { throwError: new Error("boom") }]);
 		const client = new RpcClient({
 			baseUrl: "http://host",
 			fetchImpl,
@@ -140,9 +132,7 @@ describe("RpcClient.stream", () => {
 	});
 
 	it("yields a final chunk missing a trailing newline", async () => {
-		const { fetchImpl } = makeFakeFetch([
-			{ ok: true, bodyStream: ['{"a":1}\n{"b":2}'] },
-		]);
+		const { fetchImpl } = makeFakeFetch([{ ok: true, bodyStream: ['{"a":1}\n{"b":2}'] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		const out: unknown[] = [];
 		for await (const chunk of client.stream("m", {}, [0])) out.push(chunk);
@@ -172,9 +162,7 @@ describe("RpcClient.stream", () => {
 	});
 
 	it("tolerates a malformed line without aborting the stream", async () => {
-		const { fetchImpl } = makeFakeFetch([
-			{ ok: true, bodyStream: ['{"ok":1}\n', "not-json\n", '{"ok":2}\n'] },
-		]);
+		const { fetchImpl } = makeFakeFetch([{ ok: true, bodyStream: ['{"ok":1}\n', "not-json\n", '{"ok":2}\n'] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		const out: unknown[] = [];
 		for await (const chunk of client.stream("m", {}, [0])) out.push(chunk);
