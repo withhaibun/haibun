@@ -20,6 +20,7 @@ import {
 	basesFrom,
 	verifyRequiredOptions,
 	verifyExtraOptions,
+	errorDetail,
 } from "@haibun/core/lib/util/index.js";
 import { BaseOptions } from "./BaseOptions.js";
 import { TFileSystem, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
@@ -366,7 +367,7 @@ export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpec
 		}
 		return specl;
 	} catch (e: unknown) {
-		const message = e instanceof Error ? e.message : String(e);
+		const message = errorDetail(e);
 		console.error(`Could not read or parse ${f}: ${message}`);
 		return null;
 	}

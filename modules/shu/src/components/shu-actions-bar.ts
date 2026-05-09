@@ -11,6 +11,7 @@ import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
@@ -282,7 +283,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				},
 			});
 		}).catch((err) => {
-			console.error(`[shu-actions-bar] reportActionsBar dispatch failed: ${err instanceof Error ? err.message : String(err)}`);
+			console.error(`[shu-actions-bar] reportActionsBar dispatch failed: ${errorDetail(err)}`);
 		});
 	}
 

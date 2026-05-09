@@ -12,10 +12,11 @@ export function truncate(s: string, max = 50): string {
 
 /** Extract message from unknown error. */
 export function errMsg(err: unknown): string {
-	return err instanceof Error ? err.message : String(err);
+	return errorDetail(err);
 }
 
 import { Access } from "@haibun/core/lib/resources.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 /**
  * The SPA's current access level. Single source of truth for every RPC caller
