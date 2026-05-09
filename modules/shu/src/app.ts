@@ -21,6 +21,7 @@ import type { ShuFilterColumn } from "./components/shu-filter-column.js";
 import type { ShuActionsBar } from "./components/shu-actions-bar.js";
 import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { HYPERMEDIA, type THypermediaProducts, type THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -109,7 +110,7 @@ const main = async (): Promise<void> => {
 		await getAvailableSteps();
 	} catch (err) {
 		if (!ShuElement.offline) {
-			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${err instanceof Error ? err.message : err}</div>`;
+			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${errorDetail(err)}</div>`;
 			return;
 		}
 	}
@@ -159,7 +160,7 @@ const main = async (): Promise<void> => {
 		void inAction(async (scope) => {
 			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, message, source: "shu-app", attributes } });
 		}).catch((err) => {
-			const detail = err instanceof Error ? err.message : String(err);
+			const detail = errorDetail(err);
 			console.error(`[shu] reportClientLog dispatch failed: ${detail}`, { level, message, attributes });
 			throw new Error(`[shu] reportClientLog dispatch failed: ${detail}`);
 		});
@@ -192,7 +193,7 @@ const main = async (): Promise<void> => {
 	};
 
 	const surfaceAsyncError = (action: string, err: unknown): never => {
-		const message = `[shu] ${action} failed: ${err instanceof Error ? err.message : String(err)}`;
+		const message = `[shu] ${action} failed: ${errorDetail(err)}`;
 		reportClientLog("error", message);
 		throw err instanceof Error ? err : new Error(message);
 	};
@@ -326,7 +327,7 @@ const main = async (): Promise<void> => {
 		try {
 			await import(src);
 		} catch (err) {
-			const error = err instanceof Error ? err.message : String(err);
+			const error = errorDetail(err);
 			reportExternalComponent("error", "fetch-failed", childTag, { "haibun.shu.external-component.url": src, error });
 			throw new Error(`[shu] failed to fetch ${src} for ${childTag}: ${error}`);
 		}

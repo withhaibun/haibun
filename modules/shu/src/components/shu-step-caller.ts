@@ -6,6 +6,7 @@ import { getVertexUi } from "../rels-cache.js";
 import { parseAffordanceProduct } from "../affordance-products.js";
 import { renderValue } from "./value-renderers.js";
 import { esc, escAttr } from "../util.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 type InputProperty = {
 	type?: string;
@@ -153,7 +154,7 @@ export class StepCaller extends HTMLElement {
 				}),
 			);
 		} catch (err) {
-			this.error = err instanceof Error ? err.message : String(err);
+			this.error = errorDetail(err);
 			this.dispatchEvent(
 				new CustomEvent("step-error", {
 					bubbles: true,
