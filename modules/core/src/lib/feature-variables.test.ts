@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { FeatureVariables } from "./feature-variables.js";
-import { TWorld, TFeatureStep } from "./execution.js";
+import type { TWorld } from "./world.js";
+import { TFeatureStep } from "./astepper.js";
 import { TStepValue, Origin } from "../schema/protocol.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { DOMAIN_JSON, DOMAIN_STRING } from "./domains.js";
@@ -44,10 +45,7 @@ describe("FeatureVariables", () => {
 
 	describe("clear", () => {
 		it("should clear all variables", async () => {
-			await variables.set(
-				{ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 			expect(await variables.get("foo")).toBe("bar");
 
 			await variables.getStore().clear();
@@ -58,14 +56,8 @@ describe("FeatureVariables", () => {
 
 	describe("all", () => {
 		it("should return a copy of all values", async () => {
-			await variables.set(
-				{ term: "var1", value: "value1", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
-			await variables.set(
-				{ term: "var2", value: "value2", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [2], when: "test.action" },
-			);
+			await variables.set({ term: "var1", value: "value1", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
+			await variables.set({ term: "var2", value: "value2", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [2], when: "test.action" });
 
 			const all = await variables.all();
 			expect(all).toHaveProperty("var1");
@@ -75,10 +67,7 @@ describe("FeatureVariables", () => {
 		});
 
 		it("should return a copy, not the original", async () => {
-			await variables.set(
-				{ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 
 			const all1 = await variables.all();
 			const all2 = await variables.all();
@@ -97,10 +86,7 @@ describe("FeatureVariables", () => {
 
 	describe("set and get", () => {
 		it("should set and get a string variable", async () => {
-			await variables.set(
-				{ term: "myVar", value: "myValue", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "myVar", value: "myValue", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 
 			expect(await variables.get("myVar")).toBe("myValue");
 		});
@@ -111,19 +97,13 @@ describe("FeatureVariables", () => {
 
 		it("should throw error for variables with dots", async () => {
 			await expect(async () => {
-				await variables.set(
-					{ term: "invalid.var", value: "value", domain: DOMAIN_STRING, origin: Origin.var },
-					{ in: "test", seq: [1], when: "test.action" },
-				);
+				await variables.set({ term: "invalid.var", value: "value", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 			}).rejects.toThrow("non-stepper variables cannot use dots");
 		});
 
 		it("should throw error for unknown domain", async () => {
 			await expect(async () => {
-				await variables.set(
-					{ term: "myVar", value: "value", domain: "unknownDomain", origin: Origin.var },
-					{ in: "test", seq: [1], when: "test.action" },
-				);
+				await variables.set({ term: "myVar", value: "value", domain: "unknownDomain", origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 			}).rejects.toThrow('Cannot set variable "myVar": unknown domain "unknownDomain"');
 		});
 
@@ -149,10 +129,7 @@ describe("FeatureVariables", () => {
 
 		it("should coerce values through domain", async () => {
 			// The default world has domains that coerce values
-			await variables.set(
-				{ term: "num", value: "42", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "num", value: "42", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 
 			expect(await variables.get("num")).toBe("42");
 		});
@@ -160,22 +137,14 @@ describe("FeatureVariables", () => {
 
 	describe("setForStepper", () => {
 		it("should prefix variable name with stepper name", async () => {
-			await variables.setForStepper(
-				"MyStepper",
-				{ term: "myVar", value: "myValue", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.setForStepper("MyStepper", { term: "myVar", value: "myValue", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 
 			expect(await variables.get("MyStepper.myVar")).toBe("myValue");
 			expect(await variables.get("myVar")).toBeUndefined();
 		});
 
 		it("should allow dots in stepper-prefixed variables", async () => {
-			await variables.setForStepper(
-				"MyStepper",
-				{ term: "my.var", value: "value", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.setForStepper("MyStepper", { term: "my.var", value: "value", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 
 			expect(await variables.get("MyStepper.my.var")).toBe("value");
 		});
@@ -236,10 +205,7 @@ describe("FeatureVariables", () => {
 
 	describe("type safety with get", () => {
 		it("should allow typed retrieval", async () => {
-			await variables.set(
-				{ term: "count", value: "42", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "count", value: "42", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 
 			const count = await variables.get("count");
 			expect(count).toBe("42");
@@ -262,14 +228,8 @@ describe("FeatureVariables", () => {
 
 	describe("origin tracking", () => {
 		it("should track different origins", async () => {
-			await variables.set(
-				{ term: "envVar", value: "fromEnv", domain: DOMAIN_STRING, origin: Origin.env },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
-			await variables.set(
-				{ term: "quotedVar", value: "fromQuote", domain: DOMAIN_STRING, origin: Origin.quoted },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "envVar", value: "fromEnv", domain: DOMAIN_STRING, origin: Origin.env }, { in: "test", seq: [1], when: "test.action" });
+			await variables.set({ term: "quotedVar", value: "fromQuote", domain: DOMAIN_STRING, origin: Origin.quoted }, { in: "test", seq: [1], when: "test.action" });
 
 			const all = await variables.all();
 			expect(all.envVar.origin).toBe(Origin.env);
@@ -279,23 +239,14 @@ describe("FeatureVariables", () => {
 
 	describe("edge cases", () => {
 		it("should handle empty string values", async () => {
-			await variables.set(
-				{ term: "empty", value: "", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "empty", value: "", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 
 			expect(await variables.get("empty")).toBe("");
 		});
 
 		it("should handle overwriting variables", async () => {
-			await variables.set(
-				{ term: "foo", value: "first", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test1", seq: [1], when: "test.action" },
-			);
-			await variables.set(
-				{ term: "foo", value: "second", domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: "test2", seq: [2], when: "test.action" },
-			);
+			await variables.set({ term: "foo", value: "first", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test1", seq: [1], when: "test.action" });
+			await variables.set({ term: "foo", value: "second", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test2", seq: [2], when: "test.action" });
 
 			expect(await variables.get("foo")).toBe("second");
 			const all = await variables.all();
@@ -328,10 +279,7 @@ describe("FeatureVariables", () => {
 
 		it("should prioritize defined variables over literal fallback", async () => {
 			const fv = new FeatureVariables(world);
-			await fv.set(
-				{ term: "/path", value: "defined value", domain: DOMAIN_STRING, origin: Origin.statement },
-				{ in: "test", seq: [0], when: "now" },
-			);
+			await fv.set({ term: "/path", value: "defined value", domain: DOMAIN_STRING, origin: Origin.statement }, { in: "test", seq: [0], when: "now" });
 			const result = await fv.resolveVariable({ term: "/path", origin: Origin.defined });
 			expect(result.value).toBe("defined value");
 		});
@@ -339,34 +287,22 @@ describe("FeatureVariables", () => {
 
 	describe("secret variables", () => {
 		it("should auto-detect password env variables as secret", async () => {
-			await variables.set(
-				{ term: "userPassword", value: "secret123", domain: DOMAIN_STRING, origin: Origin.env },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "userPassword", value: "secret123", domain: DOMAIN_STRING, origin: Origin.env }, { in: "test", seq: [1], when: "test.action" });
 			expect(variables.isSecret("userPassword")).toBe(true);
 		});
 
 		it("should auto-detect PASSWORD (uppercase) env variables as secret", async () => {
-			await variables.set(
-				{ term: "DATABASE_PASSWORD", value: "db-secret", domain: DOMAIN_STRING, origin: Origin.env },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "DATABASE_PASSWORD", value: "db-secret", domain: DOMAIN_STRING, origin: Origin.env }, { in: "test", seq: [1], when: "test.action" });
 			expect(variables.isSecret("DATABASE_PASSWORD")).toBe(true);
 		});
 
 		it("should auto-detect secret in middle of env name as secret", async () => {
-			await variables.set(
-				{ term: "my_secret_field", value: "pwd123", domain: DOMAIN_STRING, origin: Origin.env },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "my_secret_field", value: "pwd123", domain: DOMAIN_STRING, origin: Origin.env }, { in: "test", seq: [1], when: "test.action" });
 			expect(variables.isSecret("my_secret_field")).toBe(true);
 		});
 
 		it("should not mark non-password/secret env variables as secret", async () => {
-			await variables.set(
-				{ term: "username", value: "john", domain: DOMAIN_STRING, origin: Origin.env },
-				{ in: "test", seq: [1], when: "test.action" },
-			);
+			await variables.set({ term: "username", value: "john", domain: DOMAIN_STRING, origin: Origin.env }, { in: "test", seq: [1], when: "test.action" });
 			expect(variables.isSecret("username")).toBe(false);
 		});
 
@@ -403,10 +339,7 @@ describe("FeatureVariables", () => {
 				{ term: "currentURI", value: "http://example.com", domain: DOMAIN_STRING, origin: Origin.var },
 				{ in: "test", seq: [1], when: "test" },
 			);
-			const resolved = await variables.resolveVariable(
-				{ term: "WebPlaywright.currentURI", origin: Origin.defined },
-				mockFeatureStep,
-			);
+			const resolved = await variables.resolveVariable({ term: "WebPlaywright.currentURI", origin: Origin.defined }, mockFeatureStep);
 			expect(resolved.value).toBe("http://example.com");
 		});
 

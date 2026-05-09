@@ -45,9 +45,7 @@ variable haibunUrl is "https://en.wikipedia.org/wiki/Haibun"
 `,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -75,9 +73,7 @@ ensure Knows about Wikipedia
 `,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -103,9 +99,7 @@ ensure Needs correct variable
 `,
 		};
 
-		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(false);
 	});
@@ -133,9 +127,7 @@ ensure Knows about Wikipedia
 `,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		expect(result.world.runtime.exhaustionError).toBeUndefined(); // No exhaustion hit
 	});

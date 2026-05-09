@@ -2,7 +2,7 @@ import { chromium, Page } from "playwright";
 
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { WebPlaywright } from "./web-playwright.js";
-import { TWorld } from "@haibun/core/lib/execution.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { join } from "path";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
@@ -53,16 +53,7 @@ export class TwinPage {
 		if (page.__instrumented) {
 			return;
 		}
-		const methodsToInstrument: (keyof Page)[] = [
-			"locator",
-			"getByRole",
-			"getByText",
-			"getByLabel",
-			"getByPlaceholder",
-			"getByAltText",
-			"getByTitle",
-			"getByTestId",
-		];
+		const methodsToInstrument: (keyof Page)[] = ["locator", "getByRole", "getByText", "getByLabel", "getByPlaceholder", "getByAltText", "getByTitle", "getByTestId"];
 
 		const instrument = <T extends keyof Page>(method: T) => {
 			const originalMethod = page[method] as (...args: unknown[]) => unknown;

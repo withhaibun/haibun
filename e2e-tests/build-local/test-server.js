@@ -138,8 +138,7 @@ class TestServer extends AStepper {
         };
     };
     tally = async (c) => {
-        const cur = (parseInt((await this.getWorld().shared.resolveVariable({ term: TALLY, origin: Origin.var }, undefined, undefined, { secure: true }))
-            .value, 10) || 0) + 1;
+        const cur = (parseInt((await this.getWorld().shared.resolveVariable({ term: TALLY, origin: Origin.var }, undefined, undefined, { secure: true })).value, 10) || 0) + 1;
         this.getWorld().shared.set(setTally(cur), { when: "tally", seq: [cur] });
         this.getWorld().eventLogger.info(`tally ${cur}`);
         const username = c.req.query("username");
@@ -199,9 +198,7 @@ class TestServer extends AStepper {
             action: async ({ stepperName, url, toolName, token }) => {
                 await mcpListTools(String(url), String(token));
                 const listing = await mcpAccessStepper(String(url), String(token), String(stepperName));
-                return listing.includes(String(toolName))
-                    ? actionOK()
-                    : actionNotOK(`Expected ${String(toolName)} in MCP stepper listing ${listing}`);
+                return listing.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} in MCP stepper listing ${listing}`);
             },
         },
         mcpProtectedDeniedWithBearerToken: {

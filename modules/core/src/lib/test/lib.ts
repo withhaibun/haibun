@@ -1,4 +1,5 @@
-import { TWorld, TProtoOptions, CStepper } from "../execution.js";
+import type { TWorld, TProtoOptions } from "../world.js";
+import { CStepper } from "../astepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
 import { createSteppers } from "./../util/index.js";
 import { getRunTag } from "../ttag.js";
@@ -38,8 +39,7 @@ export async function passWithDefaults(
 			JSON.stringify(
 				{
 					failure: res.failure?.error.message || res.failure,
-					featureResults:
-						res.featureResults && res.featureResults.map((sr) => sr.stepResults.map((ar) => [ar.in, ar.ok].join(": "))),
+					featureResults: res.featureResults && res.featureResults.map((sr) => sr.stepResults.map((ar) => [ar.in, ar.ok].join(": "))),
 				},
 				null,
 				2,
@@ -60,12 +60,7 @@ export async function failWithDefaults(
 	}
 	return res;
 }
-async function testWithDefaults(
-	featuresIn: TTestFeatures | string,
-	useSteppers: CStepper[],
-	protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
-	backgroundsIn: TTestFeatures = [],
-) {
+async function testWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
 	const world = getTestWorldWithOptions(protoOptions);
 	return await testWithWorld(world, featuresIn, useSteppers, backgroundsIn);
 }

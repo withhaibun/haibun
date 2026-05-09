@@ -100,7 +100,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			.slice()
 			.sort((a, b) => a.type.localeCompare(b.type))
 			.map((c) => {
-				const omitted = c.omittedCount > 0 ? ` <span class="meta">(${c.sampledCount}/${c.totalCount})</span>` : c.totalCount > 0 ? ` <span class="meta">(${c.totalCount})</span>` : "";
+				const omitted =
+					c.omittedCount > 0 ? ` <span class="meta">(${c.sampledCount}/${c.totalCount})</span>` : c.totalCount > 0 ? ` <span class="meta">(${c.totalCount})</span>` : "";
 				return `<label class="type" style="background:${colorForType(c.type)}"><input type="checkbox" data-type="${c.type}" ${hiddenSet.has(c.type) ? "" : "checked"}>${c.type}${omitted}</label>`;
 			})
 			.join("");

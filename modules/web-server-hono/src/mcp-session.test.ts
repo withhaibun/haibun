@@ -99,17 +99,13 @@ class TestStepper extends AStepper {
 					// 3. Verify Client 1 sees stepper tools
 					const tools1After = await client1.listTools();
 					if (!tools1After.tools.find((t) => t.name === "TestStepper-testA")) {
-						throw Error(
-							`Client 1 should see TestStepper tools after switching. Found: ${tools1After.tools.map((t) => t.name).join(", ")}`,
-						);
+						throw Error(`Client 1 should see TestStepper tools after switching. Found: ${tools1After.tools.map((t) => t.name).join(", ")}`);
 					}
 
 					// 4. Verify Client 2 still sees index (Isolation)
 					const tools2After = await client2.listTools();
 					if (tools2After.tools.find((t) => t.name === "TestStepper-testA")) {
-						throw Error(
-							`Client 2 should NOT see TestStepper tools (session isolation failed). Found: ${tools2After.tools.map((t) => t.name).join(", ")}`,
-						);
+						throw Error(`Client 2 should NOT see TestStepper tools (session isolation failed). Found: ${tools2After.tools.map((t) => t.name).join(", ")}`);
 					}
 					if (!tools2After.tools.find((t) => t.name === stepperToolName)) {
 						throw Error(`Client 2 should still see index. Found: ${tools2After.tools.map((t) => t.name).join(", ")}`);
@@ -119,9 +115,7 @@ class TestStepper extends AStepper {
 					await client1.callTool({ name: "return_to_index", arguments: {} });
 					const tools1Back = await client1.listTools();
 					if (!tools1Back.tools.find((t) => t.name === stepperToolName)) {
-						throw Error(
-							`Client 1 should see index after return_to_index. Found: ${tools1Back.tools.map((t) => t.name).join(", ")}`,
-						);
+						throw Error(`Client 1 should see index after return_to_index. Found: ${tools1Back.tools.map((t) => t.name).join(", ")}`);
 					}
 
 					// 6. Verify Resources

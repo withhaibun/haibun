@@ -207,8 +207,7 @@ export class ServerHono implements IWebServer {
 	}
 
 	private ensureNotMounted(type: TRouteTypes, path: string): void {
-		const alreadyMounted =
-			this._mounted[type][path] || Object.keys(this._mounted[type]).find((m: string) => m.startsWith(`${path}/`));
+		const alreadyMounted = this._mounted[type][path] || Object.keys(this._mounted[type]).find((m: string) => m.startsWith(`${path}/`));
 		if (alreadyMounted) throw new Error(`ServerHono: cannot mount ${type} at "${path}" - already mounted`);
 	}
 

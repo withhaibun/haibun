@@ -39,10 +39,7 @@ async function tryExisting(monitorBrowser: MonitorBrowserStepper, configuredPort
 		const text = await check.text();
 		monitorBrowser.getWorld().eventLogger.debug(`MonitorBrowser: piggybacking on port ${configuredPort} (${text})`);
 		// Client Mode
-		MonitorBrowserStepper.transport = new RemoteTransport(
-			`http://127.0.0.1:${configuredPort}/api/ingest`,
-			monitorBrowser.getWorld().eventLogger,
-		);
+		MonitorBrowserStepper.transport = new RemoteTransport(`http://127.0.0.1:${configuredPort}/api/ingest`, monitorBrowser.getWorld().eventLogger);
 	} else {
 		throw new Error("Not found");
 	}

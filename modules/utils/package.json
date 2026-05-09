@@ -1,33 +1,33 @@
 {
-  "name": "@haibun/utils",
-  "type": "module",
-  "version": "4.0.0-alpha.3",
-  "description": "",
-  "main": "index.js",
-  "files": [
-    "ref.package.json",
-    "build/**",
-    "scaffold/**",
-    "vcapture/**"
-  ],
-  "bin": {
-    "scaffold": "build/scaffold/index.js",
-    "link": "build/npm-link-haibuns.js",
-    "run-vcapture": "build/vcapture/index.js"
-  },
-  "scripts": {
-    "test": "vitest run",
-    "test-watch": "vitest",
-    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-    "preversion": "npm run lint",
-    "build-watch": "tsc -b tsconfig.json --watch",
-    "build": "tsc -b tsconfig.json"
-  },
-  "author": "",
-  "license": "ISC",
-  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
-  "dependencies": {
-    "@haibun/cli": "*",
-    "@haibun/core": "*"
-  }
+	"name": "@haibun/utils",
+	"type": "module",
+	"version": "4.0.0-alpha.3",
+	"description": "",
+	"main": "index.js",
+	"files": [
+		"ref.package.json",
+		"build/**",
+		"scaffold/**",
+		"vcapture/**"
+	],
+	"bin": {
+		"scaffold": "build/scaffold/index.js",
+		"link": "build/npm-link-haibuns.js",
+		"run-vcapture": "build/vcapture/index.js"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"test-watch": "vitest",
+		"lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+		"preversion": "npm run lint",
+		"build-watch": "tsc -b tsconfig.json --watch",
+		"build": "tsc -b tsconfig.json"
+	},
+	"author": "",
+	"license": "ISC",
+	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
+	"dependencies": {
+		"@haibun/cli": "*",
+		"@haibun/core": "*"
+	}
 }

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { TStepperStep } from "./execution.js";
 import { OK } from "../schema/protocol.js";
-import { AStepper } from "./astepper.js";
+import { AStepper, TStepperStep } from "./astepper.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "./test/lib.js";
 import { DOMAIN_STATEMENT } from "./domains.js";
 

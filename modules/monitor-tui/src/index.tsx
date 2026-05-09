@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import { render, Text, Box, Static, useInput } from "ink";
 import { AStepper, IHasCycles, StepperKinds } from "@haibun/core/lib/astepper.js";
-import { TWorld } from "@haibun/core/lib/execution.js";
+import { TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import { EventFormatter, THaibunLogLevel } from "@haibun/core/monitor/index.js";
 import { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompter.js";
@@ -149,8 +149,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 
 			const { rerender } = render(<MonitorApp lines={[]} running={new Map()} finished={false} />);
 
-			this.rerender = (lines, running, finished, prompt) =>
-				rerender(<MonitorApp lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />);
+			this.rerender = (lines, running, finished, prompt) => rerender(<MonitorApp lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />);
 		},
 
 		onEvent: (event: THaibunEvent): void => {

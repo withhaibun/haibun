@@ -10,7 +10,8 @@
  *   Response: child  → { type: "result", ok: true, products } | { type: "result", ok: false, error }
  */
 
-import type { CStepper, TWorld } from "./execution.js";
+import type { TWorld } from "./world.js";
+import type { CStepper } from "./astepper.js";
 import { StepRegistry, validateToolInput, buildSyntheticFeatureStep } from "./step-dispatch.js";
 import { createSteppers, setStepperWorldsAndDomains, errorDetail } from "./util/index.js";
 import { addStepperConcerns } from "../phases/Executor.js";
@@ -18,9 +19,7 @@ import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 
 export type SubprocessReadyMessage = { type: "ready"; steps: StepDescriptor[] };
 export type SubprocessCallMessage = { type: "call"; method: string; params?: Record<string, unknown>; seqPath?: number[] };
-export type SubprocessResultMessage =
-	| { type: "result"; ok: true; products: Record<string, unknown> }
-	| { type: "result"; ok: false; error: string };
+export type SubprocessResultMessage = { type: "result"; ok: true; products: Record<string, unknown> } | { type: "result"; ok: false; error: string };
 
 export type SubprocessMessage = SubprocessReadyMessage | SubprocessCallMessage | SubprocessResultMessage;
 

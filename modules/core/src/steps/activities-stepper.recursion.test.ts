@@ -27,9 +27,7 @@ variable counter is 0
 `,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(true);
 	});

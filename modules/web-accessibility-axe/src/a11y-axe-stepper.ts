@@ -1,7 +1,7 @@
 import { Page } from "playwright";
 
-import { TWorld, TFeatureStep } from "@haibun/core/lib/execution.js";
-import { AStepper, IHasOptions, StepperKinds, TStepperSteps } from "@haibun/core/lib/astepper.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
+import { AStepper, IHasOptions, StepperKinds, TStepperSteps, TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 // import { TArtifactHTML } from "@haibun/core/lib/interfaces/logger.js";
 import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptionOrKind } from "@haibun/core/lib/util/index.js";
@@ -40,13 +40,7 @@ class A11yStepper extends AStepper implements IHasOptions {
 				if (!page) {
 					return actionNotOK(`no page in runtime`);
 				}
-				return await this.checkA11y(
-					page,
-					parseInt(serious, 10),
-					parseInt(moderate, 10),
-					`a11y-check-${featureStep.seqPath.join(".")}`,
-					featureStep,
-				);
+				return await this.checkA11y(page, parseInt(serious, 10), parseInt(moderate, 10), `a11y-check-${featureStep.seqPath.join(".")}`, featureStep);
 			},
 		},
 	} satisfies TStepperSteps;

@@ -5,8 +5,12 @@ import { OBSERVATION_GRAPH } from "@haibun/core/lib/http-observations.js";
 
 const mockLogger: IEventLogger = {
 	currentSeqPath: undefined,
-	subscribe: () => { /* noop */ },
-	unsubscribe: () => { /* noop */ },
+	subscribe: () => {
+		/* noop */
+	},
+	unsubscribe: () => {
+		/* noop */
+	},
 	info: () => {
 		/* noop */
 	},
@@ -71,9 +75,9 @@ describe("ServerHono", () => {
 		});
 
 		it("throws when purpose is missing", () => {
-			expect(() =>
-				(server as unknown as { addRoute: (...a: unknown[]) => void }).addRoute("get", "/test2", undefined, (c: unknown) => c),
-			).toThrow("purpose.description is required");
+			expect(() => (server as unknown as { addRoute: (...a: unknown[]) => void }).addRoute("get", "/test2", undefined, (c: unknown) => c)).toThrow(
+				"purpose.description is required",
+			);
 		});
 
 		it("throws when purpose.description is empty", () => {

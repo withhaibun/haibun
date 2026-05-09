@@ -35,11 +35,7 @@ describe("feature finding", () => {
 		);
 	});
 	test("finds fileType", () => {
-		const res = steps.findFeatures(
-			"l1",
-			asFeatures([...features, { path: "/l1/l1.mytype.feature", content: "l1_l1_mytype.feature" }]),
-			"mytype",
-		);
+		const res = steps.findFeatures("l1", asFeatures([...features, { path: "/l1/l1.mytype.feature", content: "l1_l1_mytype.feature" }]), "mytype");
 		expect(res).toEqual(asFeatures([{ path: "/l1/l1.mytype.feature", content: "l1_l1_mytype.feature" }]));
 	});
 });

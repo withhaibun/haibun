@@ -15,7 +15,7 @@
 
 import { z } from "zod";
 import { allocateSyntheticSeqPath } from "./host-id.js";
-import type { TWorld } from "./execution.js";
+import type { TWorld } from "./world.js";
 import type { TSeqPath } from "../schema/protocol.js";
 import type { TDomainDefinition } from "./resources.js";
 

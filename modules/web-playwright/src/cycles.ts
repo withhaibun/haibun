@@ -1,7 +1,7 @@
 import { rmSync } from "fs";
 import { relative, resolve } from "path";
 
-import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction } from "@haibun/core/lib/execution.js";
+import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction } from "@haibun/core/lib/astepper.js";
 import { THttpRequestObservation } from "@haibun/core/lib/http-observations.js";
 
 import { VideoArtifact } from "@haibun/core/schema/protocol.js";

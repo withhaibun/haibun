@@ -10,8 +10,7 @@
  * Used by tests/features/voice-ui.feature.ts.
  */
 import { z } from "zod";
-import { AStepper, IHasCycles } from "@haibun/core/lib/astepper.js";
-import { type IStepperCycles } from "@haibun/core/lib/execution.js";
+import { AStepper, IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { actionOK, getFromRuntime } from "@haibun/core/lib/util/index.js";
 import { WEBSERVER, type IWebServer, type Context } from "@haibun/web-server-hono/defs.js";
