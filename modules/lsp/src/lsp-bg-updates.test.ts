@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import LspStepper from "./lsp-stepper.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { TFeature } from "@haibun/core/lib/execution.js";
+import type { TFeature } from "@haibun/core/lib/execution.js";
 
 // Mock connection
 // biome-ignore lint/suspicious/noExplicitAny: mock connection

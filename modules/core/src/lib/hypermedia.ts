@@ -96,8 +96,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const label = topology.vertexLabel;
 
 		if (!topology.id) throw new Error(`Vertex domain "${label}" (${domainKey}) is missing required "id" field`);
-		if (!topology.properties || Object.keys(topology.properties).length === 0)
-			throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
+		if (!topology.properties || Object.keys(topology.properties).length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
 
 		const propertiesByRel = new Map<string, string[]>();
 		for (const [field, def] of Object.entries(topology.properties)) {
@@ -108,14 +107,14 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		}
 
 		const identifierFields = propertiesByRel.get(LinkRelations.IDENTIFIER.rel) ?? [];
-		if (identifierFields.length === 0)
-			throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
+		if (identifierFields.length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
 
 		const publishedFields = propertiesByRel.get(LinkRelations.PUBLISHED.rel) ?? [];
-		if (publishedFields.length === 0)
-			throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.PUBLISHED.rel}"`);
+		if (publishedFields.length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.PUBLISHED.rel}"`);
 		if (publishedFields.length > 1)
-			throw new Error(`Vertex domain "${label}" (${domainKey}) declares ${publishedFields.length} properties with rel "${LinkRelations.PUBLISHED.rel}": ${publishedFields.join(", ")}; expected exactly one`);
+			throw new Error(
+				`Vertex domain "${label}" (${domainKey}) declares ${publishedFields.length} properties with rel "${LinkRelations.PUBLISHED.rel}": ${publishedFields.join(", ")}; expected exactly one`,
+			);
 		const publishedField = publishedFields[0];
 		if (domain.schema instanceof z.ZodObject) {
 			const fieldSchema = domain.schema.shape[publishedField];
@@ -251,10 +250,7 @@ export const MAX_DISPLAY_LABEL_LEN = 80;
  * Server-side callers pass a closure over the vertex row; client-side callers
  * pass a closure over the property quads.
  */
-export function resolveDisplayLabel(
-	rels: Record<string, string> | undefined,
-	getProperty: (field: string) => unknown,
-): string | undefined {
+export function resolveDisplayLabel(rels: Record<string, string> | undefined, getProperty: (field: string) => unknown): string | undefined {
 	if (!rels) return undefined;
 	const fieldByRel = new Map<string, string>();
 	for (const [field, rel] of Object.entries(rels)) {

@@ -1,5 +1,5 @@
-import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
-import { IStepperCycles, TEndFeature, TFeatureStep, TWorld } from "../lib/execution.js";
+import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, TEndFeature, TFeatureStep } from "../lib/astepper.js";
+import type { TWorld } from "../lib/world.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { featureSyntheticSeqPath } from "../phases/Executor.js";
 import { OK } from "../schema/protocol.js";
@@ -23,9 +23,7 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 				});
 
 				if (!result.ok) {
-					this.getWorld().eventLogger.warn(
-						`finalizer-stepper: statement failed: ${statement} :: ${result.errorMessage || "unknown error"}`,
-					);
+					this.getWorld().eventLogger.warn(`finalizer-stepper: statement failed: ${statement} :: ${result.errorMessage || "unknown error"}`);
 				}
 			}
 		}

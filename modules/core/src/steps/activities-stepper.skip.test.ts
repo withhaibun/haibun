@@ -3,7 +3,7 @@ import { passWithDefaults } from "../lib/test/lib.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
-import { TWorld } from "../lib/execution.js";
+import type { TWorld } from "../lib/world.js";
 import { AStepper } from "../lib/astepper.js";
 
 describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
@@ -84,10 +84,7 @@ describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
 			async setWorld(world: TWorld, steppers: AStepper[]) {
 				await super.setWorld(world, steppers);
 				if (!this.steps["Manual Outcome"]) {
-					this.registerOutcome("Manual Outcome", ['variable manual_ran is "yes"'], "/manual.feature", false, [
-						'set manual_ran to "yes"',
-						'set other to "value"',
-					]);
+					this.registerOutcome("Manual Outcome", ['variable manual_ran is "yes"'], "/manual.feature", false, ['set manual_ran to "yes"', 'set other to "value"']);
 				}
 			}
 		}

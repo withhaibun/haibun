@@ -357,21 +357,25 @@ const main = async (): Promise<void> => {
 		appRoot.addEventListener(def.eventName, (() => openAffordanceColumn(def.view, def.label, def.component, def.actionName)) as EventListener, { signal });
 	}
 
-	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_AFFORDANCE, ((e: CustomEvent) => {
-		const detail = e.detail as { view?: unknown; label?: unknown; component?: unknown } | undefined;
-		const view = detail?.view;
-		const label = detail?.label;
-		const component = detail?.component;
-		if (typeof view !== "string" || typeof label !== "string" || typeof component !== "string") {
-			throw new Error("[shu] invalid affordance open payload");
-		}
-		reportClientLog("info", `affordance-open received: view=${view} component=${component}`, {
-			"haibun.shu.affordance.event": "open-received",
-			"haibun.shu.affordance.view": view,
-			"haibun.shu.affordance.component": component,
-		});
-		openAffordanceColumn(view, label, component);
-	}) as EventListener, { signal });
+	appRoot.addEventListener(
+		SHU_EVENT.COLUMN_OPEN_AFFORDANCE,
+		((e: CustomEvent) => {
+			const detail = e.detail as { view?: unknown; label?: unknown; component?: unknown } | undefined;
+			const view = detail?.view;
+			const label = detail?.label;
+			const component = detail?.component;
+			if (typeof view !== "string" || typeof label !== "string" || typeof component !== "string") {
+				throw new Error("[shu] invalid affordance open payload");
+			}
+			reportClientLog("info", `affordance-open received: view=${view} component=${component}`, {
+				"haibun.shu.affordance.event": "open-received",
+				"haibun.shu.affordance.view": view,
+				"haibun.shu.affordance.component": component,
+			});
+			openAffordanceColumn(view, label, component);
+		}) as EventListener,
+		{ signal },
+	);
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_CLOSE_AFFORDANCE,
 		((e: CustomEvent) => {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { TDomainDefinition, TRegisteredDomain } from "./resources.js";
-import type { TWorld } from "./execution.js";
+import type { TWorld } from "./world.js";
 
 export const DOMAIN_STATEMENT = "statement";
 export const DOMAIN_STRING = "string";
@@ -75,9 +75,7 @@ export const createEnumDomainDefinition = ({ name, values, description, ordered 
 	return {
 		selectors: [domainName],
 		schema,
-		comparator: ordered
-			? (value, baseline) => uniqueValues.indexOf(value as string) - uniqueValues.indexOf(baseline as string)
-			: undefined,
+		comparator: ordered ? (value, baseline) => uniqueValues.indexOf(value as string) - uniqueValues.indexOf(baseline as string) : undefined,
 		values: uniqueValues,
 		description: descriptor,
 	};
@@ -122,7 +120,5 @@ export function vertexDomainMap(domains: Record<string, TRegisteredDomain>): Map
 
 /** Get all vertex domains (domains with topology.vertexLabel) as an array. */
 export function getVertexDomains(domains: Record<string, TRegisteredDomain>): TRegisteredDomain[] {
-	return Object.values(domains).filter(
-		(d): d is TRegisteredDomain & { topology: NonNullable<TRegisteredDomain["topology"]> } => !!d.topology?.vertexLabel,
-	);
+	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: NonNullable<TRegisteredDomain["topology"]> } => !!d.topology?.vertexLabel);
 }

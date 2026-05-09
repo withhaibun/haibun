@@ -1,4 +1,4 @@
-import { TStepperStep, TStepAction } from "./execution.js";
+import { TStepperStep, TStepAction } from "./astepper.js";
 import { TStepValue, TOrigin, Origin } from "../schema/protocol.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "./domains.js";
 
@@ -84,13 +84,7 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 	return { stepValuesMap, regexPattern };
 };
 
-export const matchGwtaToAction = (
-	gwta: string,
-	actionable: string,
-	actionName: string,
-	stepperName: string,
-	step: TStepperStep,
-) => {
+export const matchGwtaToAction = (gwta: string, actionable: string, actionName: string, stepperName: string, step: TStepperStep) => {
 	const { regexPattern, stepValuesMap } = namedInterpolation(gwta);
 	// anchor the pattern so the whole actionable matches
 	// use case-insensitive matching to be consistent with dePolite handling
@@ -112,14 +106,7 @@ export function getNamedMatches(regexp: RegExp, what: string) {
 	return named?.groups;
 }
 
-export const getMatch = (
-	actionable: string,
-	r: RegExp,
-	actionName: string,
-	stepperName: string,
-	step: TStepperStep,
-	stepValuesMap?: Record<string, TStepValue>,
-) => {
+export const getMatch = (actionable: string, r: RegExp, actionName: string, stepperName: string, step: TStepperStep, stepValuesMap?: Record<string, TStepValue>) => {
 	if (!r.test(actionable)) {
 		return;
 	}
@@ -195,9 +182,7 @@ export function mapInputToStepValues(input: Record<string, unknown>, gwta: strin
 		const term = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
 		const existing = updatedMap[key];
 		// RPC inputs arrive already validated/coerced by validateToolInput; carry the value through directly so populateActionArgs can short-circuit resolveVariable. Keys present in gwta keep their declared domain; extras are added as quoted strings.
-		updatedMap[key] = existing
-			? { ...existing, term, value: val, origin: Origin.quoted }
-			: { term, value: val, origin: Origin.quoted, domain: DOMAIN_STRING };
+		updatedMap[key] = existing ? { ...existing, term, value: val, origin: Origin.quoted } : { term, value: val, origin: Origin.quoted, domain: DOMAIN_STRING };
 	}
 	return updatedMap;
 }

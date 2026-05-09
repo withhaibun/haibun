@@ -1,9 +1,8 @@
 import { resolve } from "path";
 
-import { TWorld, TFeatureStep, IStepperCycles, TStartFeature } from "../lib/execution.js";
+import type { TWorld } from "../lib/world.js";
 import { TStepArgs, Origin } from "../schema/protocol.js";
-import { IHasCycles, IHasOptions } from "../lib/astepper.js";
-import { AStepper } from "../lib/astepper.js";
+import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature } from "../lib/astepper.js";
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from "../lib/util/index.js";
 import { actualURI } from "../lib/util/node/actualURI.js";
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from "./lib/tts.js";
@@ -79,14 +78,12 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		feature: {
 			precludes: [`Haibun.feature`],
 			gwta: "Feature: {feature}",
-			action: async ({ feature }: TStepArgs, featureStep: TFeatureStep) =>
-				this.rememberAndSay("feature", feature as string, featureStep),
+			action: async ({ feature }: TStepArgs, featureStep: TFeatureStep) => this.rememberAndSay("feature", feature as string, featureStep),
 		},
 		scenario: {
 			precludes: [`Haibun.scenario`],
 			gwta: "Scenario: {scenario}",
-			action: async ({ scenario }: TStepArgs, featureStep: TFeatureStep) =>
-				this.rememberAndSay("scenario", scenario as string, featureStep),
+			action: async ({ scenario }: TStepArgs, featureStep: TFeatureStep) => this.rememberAndSay("scenario", scenario as string, featureStep),
 		},
 	};
 

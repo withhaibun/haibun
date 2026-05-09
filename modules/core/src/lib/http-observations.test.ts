@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { trackHttpRequest, classifyHttpPath, OBSERVATION_GRAPH } from "./http-observations.js";
 import { extractQuadsFromEvents } from "./quad-types.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
-import type { TWorld } from "./execution.js";
+import type { TWorld } from "./world.js";
 
 const MOUNTED: IRouteRegistry = {
 	mounted: {

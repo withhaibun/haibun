@@ -1,7 +1,7 @@
-import { AStepper } from "./astepper.js";
+import { AStepper, TFeatureStep } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
-import { TFeatureStep, TWorld } from "./execution.js";
+import type { TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
@@ -86,9 +86,16 @@ export class FeatureVariables {
 		await this.writeQuads(sv.term, normalized, namedGraph, provenance);
 
 		const timestamp = Date.now();
-		emitQuadObservation(this.world.eventLogger, `quad-${timestamp}`, { subject: sv.term, predicate: domainKey, object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value, namedGraph, timestamp });
+		emitQuadObservation(this.world.eventLogger, `quad-${timestamp}`, {
+			subject: sv.term,
+			predicate: domainKey,
+			object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value,
+			namedGraph,
+			timestamp,
+		});
 		const seqPath = this.world.runtime.currentSeqPath;
-		if (seqPath) emitQuadObservation(this.world.eventLogger, `quad-${timestamp}-seqPath`, { subject: sv.term, predicate: LinkRelations.SEQ_PATH.rel, object: seqPath, namedGraph, timestamp });
+		if (seqPath)
+			emitQuadObservation(this.world.eventLogger, `quad-${timestamp}-seqPath`, { subject: sv.term, predicate: LinkRelations.SEQ_PATH.rel, object: seqPath, namedGraph, timestamp });
 	}
 
 	/** Look up a variable from store or dot-path. Shared by Origin.var, Origin.defined, Origin.quoted. */
@@ -173,17 +180,14 @@ export class FeatureVariables {
 			resolved.value = domain.coerce({ ...(resolved as TStepValue), domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
 			const isSecretValue = resolved.secret === true || this.isSecret(lookupTerm);
-			if (!options.secure && (resolved.origin === Origin.env || resolved.origin === Origin.var) && isSecretValue)
-				resolved.value = OBSCURED_VALUE;
+			if (!options.secure && (resolved.origin === Origin.env || resolved.origin === Origin.var) && isSecretValue) resolved.value = OBSCURED_VALUE;
 		}
 
 		return resolved as TStepValue;
 	}
 
 	/** Reconstruct a stored variable entry from the quad's properties. */
-	private async getStoredEntry(
-		name: string,
-	): Promise<{ value: unknown; domain: string; readonly?: boolean; secret?: boolean; origin?: TOrigin } | undefined> {
+	private async getStoredEntry(name: string): Promise<{ value: unknown; domain: string; readonly?: boolean; secret?: boolean; origin?: TOrigin } | undefined> {
 		const q = (await this.store.query({ subject: name, namedGraph: SHARED_GRAPH })).pop();
 		if (!q) return undefined;
 		const p = q.properties;
@@ -250,12 +254,7 @@ export class FeatureVariables {
 		return secrets;
 	}
 
-	private async writeQuads(
-		name: string,
-		sv: TStepValue,
-		namedGraph: string = SHARED_GRAPH,
-		provenance?: TProvenanceIdentifier,
-	): Promise<void> {
+	private async writeQuads(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH, provenance?: TProvenanceIdentifier): Promise<void> {
 		const domainKey = normalizeDomainKey(sv.domain);
 		const properties: Record<string, unknown> = {};
 		if (sv.origin) properties.origin = sv.origin;

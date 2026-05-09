@@ -11,7 +11,7 @@
  */
 
 import { AStepper } from "./astepper.js";
-import type { TWorld } from "./execution.js";
+import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-dispatch.js";
@@ -104,9 +104,7 @@ export class RemoteStepperProxy extends AStepper {
 				handler: (_featureStep, _world) =>
 					this.call(
 						descriptor.method,
-						_featureStep.action?.stepValuesMap
-							? Object.fromEntries(Object.entries(_featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term]))
-							: {},
+						_featureStep.action?.stepValuesMap ? Object.fromEntries(Object.entries(_featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term])) : {},
 						_featureStep.seqPath,
 					),
 			};

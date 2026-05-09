@@ -5,9 +5,9 @@
 import { writeFile, appendFile } from "fs/promises";
 import { existsSync } from "fs";
 
-import { AStepper, IHasCycles, IHasOptions } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasCycles, IHasOptions, CycleWhen, TStartFeature } from "@haibun/core/lib/astepper.js";
 import { OK, TActionResult } from "@haibun/core/schema/protocol.js";
-import { TWorld, CycleWhen, TStartFeature } from "@haibun/core/lib/execution.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import { actionNotOK, stringOrError, findStepperFromOption } from "@haibun/core/lib/util/index.js";
 import { WebPlaywright } from "@haibun/web-playwright";
 

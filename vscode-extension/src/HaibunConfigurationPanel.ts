@@ -49,9 +49,7 @@ export interface WorkspaceInfo {
 }
 
 export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<TreeNode> {
-	private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | null | void> = new vscode.EventEmitter<
-		TreeNode | undefined | null | void
-	>();
+	private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | null | void> = new vscode.EventEmitter<TreeNode | undefined | null | void>();
 	readonly onDidChangeTreeData: vscode.Event<TreeNode | undefined | null | void> = this._onDidChangeTreeData.event;
 
 	private _workspaceInfo: WorkspaceInfo = {};
@@ -291,24 +289,14 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			// Create base node
 			const featureCount = baseEntry.features ? this._countNodes(baseEntry.features) : 0;
 			const bgCount = baseEntry.backgrounds ? this._countNodes(baseEntry.backgrounds) : 0;
-			const baseNode = new TreeNode(
-				"base",
-				baseEntry.name,
-				`${featureCount}f / ${bgCount}b`,
-				vscode.TreeItemCollapsibleState.Collapsed,
-			);
+			const baseNode = new TreeNode("base", baseEntry.name, `${featureCount}f / ${bgCount}b`, vscode.TreeItemCollapsibleState.Collapsed);
 			baseNode.baseEntry = baseEntry;
 			this._baseNodeCache.set(baseEntry.name, baseNode);
 
 			// Create section nodes and cache file nodes
 			if (baseEntry.features) {
 				const sectionKey = `${baseEntry.name}:features`;
-				const sectionNode = new TreeNode(
-					"section",
-					"Features",
-					`${this._countNodes(baseEntry.features)}`,
-					vscode.TreeItemCollapsibleState.Collapsed,
-				);
+				const sectionNode = new TreeNode("section", "Features", `${this._countNodes(baseEntry.features)}`, vscode.TreeItemCollapsibleState.Collapsed);
 				sectionNode.dirNode = baseEntry.features;
 				this._sectionNodeCache.set(sectionKey, sectionNode);
 				this._parentMap.set(sectionNode, baseNode);
@@ -316,12 +304,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			}
 			if (baseEntry.backgrounds) {
 				const sectionKey = `${baseEntry.name}:backgrounds`;
-				const sectionNode = new TreeNode(
-					"section",
-					"Backgrounds",
-					`${this._countNodes(baseEntry.backgrounds)}`,
-					vscode.TreeItemCollapsibleState.Collapsed,
-				);
+				const sectionNode = new TreeNode("section", "Backgrounds", `${this._countNodes(baseEntry.backgrounds)}`, vscode.TreeItemCollapsibleState.Collapsed);
 				sectionNode.dirNode = baseEntry.backgrounds;
 				this._sectionNodeCache.set(sectionKey, sectionNode);
 				this._parentMap.set(sectionNode, baseNode);
@@ -583,11 +566,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 				return Promise.resolve(element.dirNode.children.map((child) => this._getOrCreateTreeNode(child, element)));
 			}
 			if (element.steppersList) {
-				return Promise.resolve(
-					element.steppersList.map(
-						(stepper) => new TreeNode("stepper", path.basename(stepper), stepper, vscode.TreeItemCollapsibleState.None),
-					),
-				);
+				return Promise.resolve(element.steppersList.map((stepper) => new TreeNode("stepper", path.basename(stepper), stepper, vscode.TreeItemCollapsibleState.None)));
 			}
 			// Group tools by stepper prefix
 			if (element.isMcpToolsRoot) {
@@ -602,12 +581,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 					Array.from(groups.keys())
 						.sort()
 						.map((stepperName) => {
-							const node = new TreeNode(
-								"stepper-tools-group",
-								stepperName,
-								`${(groups.get(stepperName) || []).length} tools`,
-								vscode.TreeItemCollapsibleState.Collapsed,
-							);
+							const node = new TreeNode("stepper-tools-group", stepperName, `${(groups.get(stepperName) || []).length} tools`, vscode.TreeItemCollapsibleState.Collapsed);
 							node.toolsList = groups.get(stepperName);
 							return node;
 						}),
@@ -652,12 +626,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 				if (output) {
 					const truncatedContent = output.content.length > 60 ? output.content.substring(0, 60) + "..." : output.content;
 					const label = output.isRunning ? "Running..." : output.isError ? "Error" : "Output";
-					const node = new TreeNode(
-						"mcp-tool-output",
-						label,
-						output.isRunning ? "" : truncatedContent.replace(/\n/g, " "),
-						vscode.TreeItemCollapsibleState.None,
-					);
+					const node = new TreeNode("mcp-tool-output", label, output.isRunning ? "" : truncatedContent.replace(/\n/g, " "), vscode.TreeItemCollapsibleState.None);
 					node.toolOutput = { content: output.content, isError: output.isError, isRunning: output.isRunning };
 					node.tooltip = output.isRunning ? "Executing..." : output.content;
 					children.push(node);
@@ -673,13 +642,10 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 						command: "haibun.editCwd",
 						title: "Edit CWD",
 					}),
-					new TreeNode(
-						"config",
-						"Base Directories",
-						bases.length > 0 ? bases.join(", ") : "(none)",
-						vscode.TreeItemCollapsibleState.None,
-						{ command: "haibun.editBases", title: "Edit Bases" },
-					),
+					new TreeNode("config", "Base Directories", bases.length > 0 ? bases.join(", ") : "(none)", vscode.TreeItemCollapsibleState.None, {
+						command: "haibun.editBases",
+						title: "Edit Bases",
+					}),
 					new TreeNode("config", "Config File", configFile || "(none)", vscode.TreeItemCollapsibleState.None, {
 						command: "haibun.editConfigFile",
 						title: "Edit Config File",
@@ -701,13 +667,10 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 							command: "haibun.editMcpPort",
 							title: "Edit MCP Port",
 						}),
-						new TreeNode(
-							"config",
-							"Access Token",
-							mcpAccessToken ? "••••••••" : "(none - required)",
-							vscode.TreeItemCollapsibleState.None,
-							{ command: "haibun.editMcpAccessToken", title: "Edit MCP Access Token" },
-						),
+						new TreeNode("config", "Access Token", mcpAccessToken ? "••••••••" : "(none - required)", vscode.TreeItemCollapsibleState.None, {
+							command: "haibun.editMcpAccessToken",
+							title: "Edit MCP Access Token",
+						}),
 					);
 				}
 				return Promise.resolve(items);
@@ -743,14 +706,8 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 		items.push(configNode);
 
 		// 4. LSP Section (no children)
-		const lspStatusIcon =
-			this._lspStatus === "running" ? "●" : this._lspStatus === "starting" ? "○" : this._lspStatus === "error" ? "✕" : "○";
-		const lspNode = new TreeNode(
-			"section",
-			"LSP",
-			`${lspStatusIcon} ${this._lspStatusMessage}`,
-			vscode.TreeItemCollapsibleState.None,
-		);
+		const lspStatusIcon = this._lspStatus === "running" ? "●" : this._lspStatus === "starting" ? "○" : this._lspStatus === "error" ? "✕" : "○";
+		const lspNode = new TreeNode("section", "LSP", `${lspStatusIcon} ${this._lspStatusMessage}`, vscode.TreeItemCollapsibleState.None);
 		items.push(lspNode);
 
 		// 5. MCP Section (collapsible)
@@ -759,15 +716,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 		const mcpAccessToken = config.get<string>("mcpAccessToken") || "";
 
 		const mcpStatusIcon =
-			this._mcpStatus === "running"
-				? "●"
-				: this._mcpStatus === "starting"
-					? "○"
-					: this._mcpStatus === "error"
-						? "✕"
-						: this._mcpStatus === "disabled"
-							? "○"
-							: "○";
+			this._mcpStatus === "running" ? "●" : this._mcpStatus === "starting" ? "○" : this._mcpStatus === "error" ? "✕" : this._mcpStatus === "disabled" ? "○" : "○";
 		const mcpStatusDisplay = mcpEnabled ? `${mcpStatusIcon} ${this._mcpStatusMessage || "port " + mcpPort}` : "○ Disabled";
 		const mcpNode = new TreeNode("section", "MCP", mcpStatusDisplay, vscode.TreeItemCollapsibleState.Collapsed);
 		mcpNode.mcpConfig = { mcpEnabled, mcpPort, mcpAccessToken };
@@ -777,12 +726,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 		const totalFeatures = this._featureCount;
 		const totalBackgrounds = this._backgroundCount;
 
-		const specsNode = new TreeNode(
-			"section",
-			"Specifications",
-			`${totalFeatures}f / ${totalBackgrounds}b`,
-			vscode.TreeItemCollapsibleState.Expanded,
-		);
+		const specsNode = new TreeNode("section", "Specifications", `${totalFeatures}f / ${totalBackgrounds}b`, vscode.TreeItemCollapsibleState.Expanded);
 		specsNode.isSpecificationsRoot = true;
 		items.push(specsNode);
 
@@ -795,23 +739,13 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
 		// 7. Steppers
 		if (this._bundledSteppers.length > 0) {
-			const node = new TreeNode(
-				"steppers-section",
-				"Bundled Steppers",
-				`${this._bundledSteppers.length}`,
-				vscode.TreeItemCollapsibleState.Collapsed,
-			);
+			const node = new TreeNode("steppers-section", "Bundled Steppers", `${this._bundledSteppers.length}`, vscode.TreeItemCollapsibleState.Collapsed);
 			node.steppersList = this._bundledSteppers;
 			items.push(node);
 		}
 
 		if (this._configuredSteppers.length > 0) {
-			const node = new TreeNode(
-				"steppers-section",
-				"Configured Steppers",
-				`${this._configuredSteppers.length}`,
-				vscode.TreeItemCollapsibleState.Collapsed,
-			);
+			const node = new TreeNode("steppers-section", "Configured Steppers", `${this._configuredSteppers.length}`, vscode.TreeItemCollapsibleState.Collapsed);
 			node.steppersList = this._configuredSteppers;
 			items.push(node);
 		}

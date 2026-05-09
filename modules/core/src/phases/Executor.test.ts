@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { TSeqPath } from "../schema/protocol.js";
-import {
-	advanceSyntheticSeqPath,
-	featureSyntheticSeqPath,
-	incSeqPath,
-	calculateShouldClose,
-	syntheticBranchSeqPath,
-	syntheticSeqPathDirection,
-} from "./Executor.js";
+import { advanceSyntheticSeqPath, featureSyntheticSeqPath, incSeqPath, calculateShouldClose, syntheticBranchSeqPath, syntheticSeqPathDirection } from "./Executor.js";
 
 describe("syntheticSeqPathDirection", () => {
 	it("uses positive direction for authoritative branches", () => {

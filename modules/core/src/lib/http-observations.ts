@@ -6,7 +6,7 @@
  * - PlaywrightEvents (browser requests via Playwright)
  */
 
-import type { TWorld } from "./execution.js";
+import type { TWorld } from "./world.js";
 import { emitQuadObservation } from "./quad-types.js";
 import { LinkRelations } from "./resources.js";
 
@@ -71,9 +71,7 @@ export function trackHttpRequest(world: TWorld, observation: THttpRequestObserva
 	if (!world.runtime.observations) {
 		world.runtime.observations = new Map();
 	}
-	const requests =
-		(world.runtime.observations.get("httpRequests") as Map<string, THttpRequestObservation>) ||
-		new Map<string, THttpRequestObservation>();
+	const requests = (world.runtime.observations.get("httpRequests") as Map<string, THttpRequestObservation>) || new Map<string, THttpRequestObservation>();
 	const count = requests.size;
 	const id = `req-${count + 1}`;
 	requests.set(id, observation);
@@ -83,8 +81,16 @@ export function trackHttpRequest(world: TWorld, observation: THttpRequestObserva
 	const path = observation.url.startsWith("/") ? observation.url : new URL(observation.url).pathname;
 	const { namedGraph, endpointPath } = classifyHttpPath(path, registeredPaths);
 	const subject = `${observation.method} ${path}`;
-	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-name`, { subject, predicate: "name", object: `${observation.method} ${observation.status} ${observation.time}ms`, namedGraph, timestamp });
-	if (namedGraph !== OBSERVATION_GRAPH.EXTERNAL) emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-endpoint`, { subject, predicate: "endpoint", object: endpointPath, namedGraph, timestamp });
+	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-name`, {
+		subject,
+		predicate: "name",
+		object: `${observation.method} ${observation.status} ${observation.time}ms`,
+		namedGraph,
+		timestamp,
+	});
+	if (namedGraph !== OBSERVATION_GRAPH.EXTERNAL)
+		emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-endpoint`, { subject, predicate: "endpoint", object: endpointPath, namedGraph, timestamp });
 	const seqPath = world.runtime.currentSeqPath;
-	if (seqPath) emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-seqPath`, { subject, predicate: LinkRelations.SEQ_PATH.rel, object: seqPath, namedGraph, timestamp });
+	if (seqPath)
+		emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-seqPath`, { subject, predicate: LinkRelations.SEQ_PATH.rel, object: seqPath, namedGraph, timestamp });
 }

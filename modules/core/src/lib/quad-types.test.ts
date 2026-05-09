@@ -6,11 +6,19 @@ describe("extractQuadsFromEvents", () => {
 		const events = [
 			{ id: "log-1", timestamp: 1000, kind: "log", level: "info", source: "test" },
 			{
-				id: "quad-http-1", timestamp: 2000, kind: "artifact", artifactType: "json", source: "haibun",
+				id: "quad-http-1",
+				timestamp: 2000,
+				kind: "artifact",
+				artifactType: "json",
+				source: "haibun",
 				json: { quadObservation: { subject: "/api/test", predicate: "name", object: "GET 200 5ms", namedGraph: "observation/http", timestamp: 2000 } },
 			},
 			{
-				id: "quad-http-2", timestamp: 3000, kind: "artifact", artifactType: "json", source: "haibun",
+				id: "quad-http-2",
+				timestamp: 3000,
+				kind: "artifact",
+				artifactType: "json",
+				source: "haibun",
 				json: { quadObservation: { subject: "/api/other", predicate: "name", object: "POST 201 12ms", namedGraph: "observation/http", timestamp: 3000 } },
 			},
 			{ id: "artifact-1", timestamp: 4000, kind: "artifact", artifactType: "screenshot", source: "test" },

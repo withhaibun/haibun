@@ -1,6 +1,7 @@
-import { TWorld, TFeatureStep, TStepInput } from "../execution.js";
+import type { TStepInput } from "../execution.js";
+import type { TWorld } from "../world.js";
 import { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from "../../schema/protocol.js";
-import { AStepper } from "../astepper.js";
+import { AStepper, TFeatureStep } from "../astepper.js";
 import { actionNotOK, errorDetail } from "../util/index.js";
 import { Resolver } from "../../phases/Resolver.js";
 import { incSeqPath, syntheticSeqPathDirection } from "../../phases/Executor.js";
@@ -91,10 +92,7 @@ export class FlowRunner {
 		};
 
 		try {
-			const result: TStepResult = await dispatchStep(
-				{ registry: this.registry, world: this.world, steppers: this.steppers },
-				featureStep,
-			);
+			const result: TStepResult = await dispatchStep({ registry: this.registry, world: this.world, steppers: this.steppers }, featureStep);
 			return result;
 		} catch (e: unknown) {
 			if (intent.mode === "speculative") {

@@ -23,26 +23,13 @@ interface VideoArtifactProps {
  * Video position = currentTime - (videoStartTimestamp - startTime)
  *                = how far into the video we should be
  */
-export function VideoArtifact({
-	artifact,
-	currentTime,
-	videoStartTimestamp,
-	startTime,
-	sync = false,
-	className,
-}: VideoArtifactProps & { className?: string }) {
+export function VideoArtifact({ artifact, currentTime, videoStartTimestamp, startTime, sync = false, className }: VideoArtifactProps & { className?: string }) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 
 	// Calculate video time relative to when recording started
 	const getVideoTime = () => {
 		// Need all values to calculate
-		if (
-			currentTime === undefined ||
-			videoStartTimestamp === undefined ||
-			videoStartTimestamp === null ||
-			startTime === undefined ||
-			startTime === null
-		) {
+		if (currentTime === undefined || videoStartTimestamp === undefined || videoStartTimestamp === null || startTime === undefined || startTime === null) {
 			return null;
 		}
 		// Video started at this point on the timeline (ms from timeline start)
@@ -89,11 +76,7 @@ export function VideoArtifact({
 			/>
 			{sync && (
 				<div className="text-xs text-slate-500 mt-1 font-mono">
-					{videoTime !== null ? (
-						<span>Video: {formatTime(videoTime)}</span>
-					) : (
-						<span className="text-orange-400">{getDebugInfo()}</span>
-					)}
+					{videoTime !== null ? <span>Video: {formatTime(videoTime)}</span> : <span className="text-orange-400">{getDebugInfo()}</span>}
 				</div>
 			)}
 		</div>
