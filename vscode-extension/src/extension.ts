@@ -1,23 +1,8 @@
 import * as path from "path";
 import * as fs from "fs";
-import {
-	ExtensionContext,
-	workspace,
-	window,
-	commands,
-	StatusBarItem,
-	StatusBarAlignment,
-	OutputChannel,
-	ConfigurationChangeEvent,
-} from "vscode";
+import { ExtensionContext, workspace, window, commands, StatusBarItem, StatusBarAlignment, OutputChannel, ConfigurationChangeEvent } from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from "vscode-languageclient/node";
-import {
-	HaibunConfigurationTreeProvider,
-	McpTool,
-	HaibunConfig,
-	registerConfigCommands,
-	WorkspaceInfo,
-} from "./HaibunConfigurationPanel";
+import { HaibunConfigurationTreeProvider, McpTool, HaibunConfig, registerConfigCommands, WorkspaceInfo } from "./HaibunConfigurationPanel";
 
 const VERSION = "0.1.90";
 
