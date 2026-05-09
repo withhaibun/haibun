@@ -53,18 +53,7 @@ const getNotchStyle = (event: THaibunEvent): { color: string; icon: string } => 
 // Speed options: 0.02 (labeled -50x), 0.05 (labeled -20x), 1, 2
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 
-export function Timeline({
-	min,
-	max,
-	current,
-	onChange,
-	isPlaying,
-	onPlayPause,
-	events = [],
-	startTime = 0,
-	playbackSpeed,
-	onSpeedChange,
-}: TimelineProps) {
+export function Timeline({ min, max, current, onChange, isPlaying, onPlayPause, events = [], startTime = 0, playbackSpeed, onSpeedChange }: TimelineProps) {
 	const [localValue, setLocalValue] = useState(current);
 	const [isDragging, setIsDragging] = useState(false);
 
@@ -134,10 +123,7 @@ export function Timeline({
 	};
 
 	return (
-		<div
-			className="fixed bottom-0 left-0 right-0 border-t border-border px-4 py-2 flex items-center gap-3 z-50 bg-background"
-			data-testid={TEST_IDS.APP.TIMELINE}
-		>
+		<div className="fixed bottom-0 left-0 right-0 border-t border-border px-4 py-2 flex items-center gap-3 z-50 bg-background" data-testid={TEST_IDS.APP.TIMELINE}>
 			{/* Restart button */}
 			<button
 				onClick={handleRestart}
@@ -211,10 +197,7 @@ export function Timeline({
 			</div>
 
 			{/* Time display */}
-			<span
-				className="font-mono text-sm font-semibold text-muted-foreground min-w-[130px] text-right"
-				data-testid={TEST_IDS.TIMELINE.TIME_DISPLAY}
-			>
+			<span className="font-mono text-sm font-semibold text-muted-foreground min-w-[130px] text-right" data-testid={TEST_IDS.TIMELINE.TIME_DISPLAY}>
 				{formatTime(localValue)} / {formatTime(max)}
 			</span>
 

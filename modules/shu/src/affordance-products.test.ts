@@ -16,8 +16,19 @@ describe("parseAffordanceProduct", () => {
 	});
 
 	it("uses `id` when both `id` and `view` are present (per-instance components like fisheye)", () => {
-		const product = { [HYPERMEDIA.TYPE]: "shu-fisheye-graph-view", [HYPERMEDIA.SUMMARY]: "Fisheye 3D graph view", _component: "shu-fisheye-graph-view", id: "shu-fisheye-graph-view:abc-123", view: "shu-fisheye-graph-view:abc-123" };
-		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "shu-fisheye-graph-view:abc-123", component: "shu-fisheye-graph-view", label: "Fisheye 3D graph view" });
+		const product = {
+			[HYPERMEDIA.TYPE]: "shu-fisheye-graph-view",
+			[HYPERMEDIA.SUMMARY]: "Fisheye 3D graph view",
+			_component: "shu-fisheye-graph-view",
+			id: "shu-fisheye-graph-view:abc-123",
+			view: "shu-fisheye-graph-view:abc-123",
+		};
+		expect(parseAffordanceProduct(product)).toEqual({
+			kind: "open-component",
+			view: "shu-fisheye-graph-view:abc-123",
+			component: "shu-fisheye-graph-view",
+			label: "Fisheye 3D graph view",
+		});
 	});
 
 	it("recognises a close-view product", () => {

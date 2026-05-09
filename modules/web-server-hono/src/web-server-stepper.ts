@@ -1,9 +1,9 @@
 import path from "path";
 
-import type { TWorld, TEndFeature, IStepperCycles } from "@haibun/core/lib/execution.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
-import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
 import { allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
@@ -137,7 +137,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "show ports",
 			action: () => {
 				const ports = Object.fromEntries(ServerHono.listeningPorts);
-				return actionOKWithProducts({ _type: "ServerConfig", _summary: `listening: ${Object.entries(ports).map(([p, w]) => `${p} (${w})`).join(", ")}`, ports });
+				return actionOKWithProducts({
+					_type: "ServerConfig",
+					_summary: `listening: ${Object.entries(ports)
+						.map(([p, w]) => `${p} (${w})`)
+						.join(", ")}`,
+					ports,
+				});
 			},
 		},
 		isListening: {

@@ -2,7 +2,7 @@ import diagnostics_channel from "node:diagnostics_channel";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { HttpTraceArtifact } from "../schema/protocol.js";
-import type { TWorld } from "./execution.js";
+import type { TWorld } from "./world.js";
 import type { TTag } from "./ttag.js";
 import { trackHttpHost } from "./http-observations.js";
 
@@ -109,10 +109,7 @@ export class NodeHttpEvents {
 
 		const { world, stepperName } = stepTrace;
 
-		const rawBody =
-			event === "request"
-				? Buffer.concat(request._haibun_chunks || []).toString("utf8")
-				: Buffer.concat(response?._haibun_chunks || []).toString("utf8");
+		const rawBody = event === "request" ? Buffer.concat(request._haibun_chunks || []).toString("utf8") : Buffer.concat(response?._haibun_chunks || []).toString("utf8");
 
 		const url = `${request.origin || ""}${request.path || ""}`;
 

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from "fs";
 import * as nodePath from "path";
 import { createRequire } from "module";
 
-import { TResolvedFeature } from "../../lib/execution.js";
+import { TResolvedFeature } from "../../lib/astepper.js";
 import { FEATURE_START } from "../../schema/protocol.js";
 import { SCENARIO_START } from "../../schema/protocol.js";
 import { TAnyFixme } from "../../lib/fixme.js";
@@ -146,9 +146,7 @@ export function copyPreRenderedAudio(dir: string, renderedAudio: TRenderedAudioM
 	const audioInfo = renderedAudio[hash];
 
 	if (!audioInfo) {
-		throw new Error(
-			`No pre-rendered audio found for: "${transcript}" (hash: ${hash}). Available hashes: ${Object.keys(renderedAudio).join(", ")}`,
-		);
+		throw new Error(`No pre-rendered audio found for: "${transcript}" (hash: ${hash}). Available hashes: ${Object.keys(renderedAudio).join(", ")}`);
 	}
 
 	const { cachedPath, durationS } = audioInfo;

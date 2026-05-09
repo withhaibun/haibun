@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { LinkRelations, REL_CONTEXT, EdgePredicates, edgeRel, getRelRange, isReplyEdge, isSubPropertyOf, DISCOURSE_RELS, CommentSchema, commentDomainDefinition, COMMENT_LABEL, getPropertyDefinitions } from "./resources.js";
+import {
+	LinkRelations,
+	REL_CONTEXT,
+	EdgePredicates,
+	edgeRel,
+	getRelRange,
+	isReplyEdge,
+	isSubPropertyOf,
+	DISCOURSE_RELS,
+	CommentSchema,
+	commentDomainDefinition,
+	COMMENT_LABEL,
+	getPropertyDefinitions,
+} from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 
 describe("LinkRelations extensions", () => {

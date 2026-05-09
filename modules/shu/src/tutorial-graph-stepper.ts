@@ -1,7 +1,6 @@
-import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type TStepperSteps, type IStepperCycles, type IStepperConcerns } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { LinkRelations, DOMAIN_VERTEX_LABEL } from "@haibun/core/lib/resources.js";
-import { type IStepperCycles, type IStepperConcerns } from "@haibun/core/lib/execution.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { z } from "zod";
 

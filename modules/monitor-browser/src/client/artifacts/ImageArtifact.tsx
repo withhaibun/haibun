@@ -7,12 +7,5 @@ interface ImageArtifactProps {
 }
 
 export function ImageArtifact({ artifact }: ImageArtifactProps) {
-	return (
-		<img
-			src={getArtifactUrl(artifact.path)}
-			alt="Screen capture artifact"
-			className="max-w-full h-auto rounded shadow-md block"
-			loading="lazy"
-		/>
-	);
+	return <img src={getArtifactUrl(artifact.path)} alt="Screen capture artifact" className="max-w-full h-auto rounded shadow-md block" loading="lazy" />;
 }

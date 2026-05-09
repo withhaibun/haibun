@@ -1,4 +1,4 @@
-import { TModuleOptions, TBaseOptions } from "@haibun/core/lib/execution.js";
+import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import { stringOrError } from "@haibun/core/lib/util/index.js";
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from "./media-types.js";
 import { AStepper, IHasOptions } from "@haibun/core/lib/astepper.js";

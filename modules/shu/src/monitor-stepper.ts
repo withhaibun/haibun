@@ -8,8 +8,9 @@ import { resolve } from "path";
 import { z } from "zod";
 import { writeFileSync } from "fs";
 
-import { AStepper, type IHasCycles, type IHasOptions, type IHasTunables, type TStepperSteps, StepperKinds } from "@haibun/core/lib/astepper.js";
-import { type TWorld, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/execution.js";
+import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
+import type { IHasTunables } from "@haibun/core/lib/tunables.js";
+import { type TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
@@ -131,7 +132,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			if (e.kind === "artifact" && e.artifactType === "json") {
 				const q = (e.json as { quadObservation?: TQuad })?.quadObservation;
 				if (q?.subject && q.predicate && q.namedGraph) {
-					this.observationQuads.push({ subject: q.subject, predicate: q.predicate, object: q.object, namedGraph: q.namedGraph, timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(), properties: q.properties });
+					this.observationQuads.push({
+						subject: q.subject,
+						predicate: q.predicate,
+						object: q.object,
+						namedGraph: q.namedGraph,
+						timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(),
+						properties: q.properties,
+					});
 					if (this.observationQuads.length > this.maxEvents) this.observationQuads.shift();
 				}
 			}
@@ -221,7 +229,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	steps = {
 		savesShuTo: {
 			gwta: "saves shu to {where: string}",
-			description: "Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects the full run.",
+			description:
+				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects the full run.",
 			action: async ({ where }: { where: string }) => {
 				this.outputPath = where;
 				const written = await this.writeStandaloneReport({ fixedPath: where });
@@ -233,18 +242,15 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// `id === view` for singletons; per-instance views set `id = <component>:<uuid>`.
 		showMonitor: {
 			gwta: "show monitor",
-			action: () =>
-				actionOKWithProducts({ _type: "shu-monitor-column", _summary: "Monitor log stream", _component: "shu-monitor-column", id: "monitor", view: "monitor" }),
+			action: () => actionOKWithProducts({ _type: "shu-monitor-column", _summary: "Monitor log stream", _component: "shu-monitor-column", id: "monitor", view: "monitor" }),
 		},
 		showSequenceDiagram: {
 			gwta: "show sequence diagram",
-			action: () =>
-				actionOKWithProducts({ _type: "shu-sequence-diagram", _summary: "Sequence diagram", _component: "shu-sequence-diagram", id: "sequence", view: "sequence" }),
+			action: () => actionOKWithProducts({ _type: "shu-sequence-diagram", _summary: "Sequence diagram", _component: "shu-sequence-diagram", id: "sequence", view: "sequence" }),
 		},
 		showDocument: {
 			gwta: "show document",
-			action: () =>
-				actionOKWithProducts({ _type: "shu-document-column", _summary: "Document view", _component: "shu-document-column", id: "document", view: "document" }),
+			action: () => actionOKWithProducts({ _type: "shu-document-column", _summary: "Document view", _component: "shu-document-column", id: "document", view: "document" }),
 		},
 		getEvents: {
 			gwta: `get monitor events {filter: ${DOMAIN_EVENTS_FILTER}}`,
@@ -292,8 +298,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		showGraphView: {
 			gwta: "show graph view",
-			action: () =>
-				actionOKWithProducts({ _type: "shu-graph-view", _summary: "Graph view", _component: "shu-graph-view", id: "graph", view: "graph" }),
+			action: () => actionOKWithProducts({ _type: "shu-graph-view", _summary: "Graph view", _component: "shu-graph-view", id: "graph", view: "graph" }),
 		},
 		getClusteredQuads: {
 			gwta: "get clustered quads",
@@ -329,8 +334,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					return actionNotOK("QuadStore does not support getClusteredQuads");
 				}
 				const result = await store.getClusteredQuads({ perTypeLimit, types });
-				const quads = [...result.quads, ...this.observationQuads]
-					.map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({ subject, predicate, object, namedGraph, timestamp, properties }));
+				const quads = [...result.quads, ...this.observationQuads].map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({
+					subject,
+					predicate,
+					object,
+					namedGraph,
+					timestamp,
+					properties,
+				}));
 				return actionOKWithProducts({ quads, clusters: result.clusters });
 			},
 		},

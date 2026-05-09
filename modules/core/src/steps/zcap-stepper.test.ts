@@ -14,18 +14,14 @@ class VerifyZcapStepper extends AStepper {
 			gwta: "verify zcap bearer grant for token {token: zcap-token} is active for action {action: zcap-action}",
 			action: ({ token, action }: { token: string; action: string }) => {
 				const granted = getZcapAuthority(this.getWorld().runtime)?.resolveBearer(token) ?? [];
-				return granted.includes(action)
-					? OK
-					: actionNotOK(`Expected ${token} to grant ${action}, got ${JSON.stringify(granted)}`);
+				return granted.includes(action) ? OK : actionNotOK(`Expected ${token} to grant ${action}, got ${JSON.stringify(granted)}`);
 			},
 		},
 		verifyRevokedZcapGrant: {
 			gwta: "verify zcap bearer grant for token {token: zcap-token} is revoked for action {action: zcap-action}",
 			action: ({ token, action }: { token: string; action: string }) => {
 				const granted = getZcapAuthority(this.getWorld().runtime)?.resolveBearer(token) ?? [];
-				return !granted.includes(action)
-					? OK
-					: actionNotOK(`Expected ${token} to stop granting ${action}, got ${JSON.stringify(granted)}`);
+				return !granted.includes(action) ? OK : actionNotOK(`Expected ${token} to stop granting ${action}, got ${JSON.stringify(granted)}`);
 			},
 		},
 	};

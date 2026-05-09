@@ -74,11 +74,7 @@ export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler
 		async logIn(c: Context): Promise<Response> {
 			const body = await c.req.parseBody<{ username: string; password: string }>();
 			const { username, password } = body;
-			if (
-				testServer.basicAuthCreds &&
-				username === testServer.basicAuthCreds.username &&
-				password === testServer.basicAuthCreds.password
-			) {
+			if (testServer.basicAuthCreds && username === testServer.basicAuthCreds.username && password === testServer.basicAuthCreds.password) {
 				testServer.authToken = newToken;
 				setCookie(c, "token", newToken, { httpOnly: true });
 				return c.html("<h2>Login successful</h2>");

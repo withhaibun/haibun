@@ -42,10 +42,5 @@ const domainDefinitions = [
 const setStatements = allTestIds.map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 
 export const features: TKirejiExport = {
-	"Monitor Browser Test IDs Setup": [
-		activity({ activity: "Setting up Monitor Browser Test IDs" }),
-		...domainDefinitions,
-		...setStatements,
-		`waypoint ${Test_IDs_setup}`,
-	],
+	"Monitor Browser Test IDs Setup": [activity({ activity: "Setting up Monitor Browser Test IDs" }), ...domainDefinitions, ...setStatements, `waypoint ${Test_IDs_setup}`],
 };

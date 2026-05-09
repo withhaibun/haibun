@@ -1,4 +1,4 @@
-import { TEnvVariables } from "@haibun/core/lib/execution.js";
+import type { TEnvVariables } from "@haibun/core/lib/world.js";
 import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/util/index.js";
@@ -33,10 +33,7 @@ export class BaseOptions implements IHasOptions {
 		},
 		LOG_LEVEL: {
 			desc: Object.keys(LOGGER_LEVELS).join(", "),
-			parse: (result: string) =>
-				Object.keys(LOGGER_LEVELS).includes(result)
-					? { result }
-					: { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(", ")}` },
+			parse: (result: string) => (Object.keys(LOGGER_LEVELS).includes(result) ? { result } : { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(", ")}` }),
 		},
 		ENV: {
 			desc: "pass variables: var=value[,var2=value]",

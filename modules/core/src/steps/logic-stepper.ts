@@ -1,5 +1,5 @@
-import { AStepper, TStepperSteps, IHasCycles } from "../lib/astepper.js";
-import { TFeatureStep, TWorld, IObservationSource, IStepperCycles } from "../lib/execution.js";
+import { AStepper, TStepperSteps, IHasCycles, TFeatureStep, IObservationSource, IStepperCycles } from "../lib/astepper.js";
+import type { TWorld } from "../lib/world.js";
 import { OK, TActionResult, Origin } from "../schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { z } from "zod";
@@ -118,10 +118,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		whenever: {
 			gwta: "whenever {condition:statement}, {action:statement}",
 			description: "Executes the statements repeatedtly as long as the condition holds true.",
-			action: async (
-				{ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] },
-				featureStep: TFeatureStep,
-			): Promise<TActionResult> => {
+			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
 				let loopCount = 0;
 				const MAX_LOOPS = 1000;
 				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
@@ -150,10 +147,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		where: {
 			gwta: "where {condition:statement}, {action:statement}",
 			description: "Executes the statements only if the condition is met.",
-			action: async (
-				{ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] },
-				featureStep: TFeatureStep,
-			): Promise<TActionResult> => {
+			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const usage = featureStep.intent?.usage;
 				const check = await this.runner.runSteps(condition, { intent: { mode: "speculative", usage }, parentStep: featureStep });
 

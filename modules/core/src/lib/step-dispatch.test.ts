@@ -14,12 +14,12 @@ import {
 	StepRegistry,
 	type StepTool,
 } from "./step-dispatch.js";
-import { AStepper } from "./astepper.js";
+import { AStepper, type TStepperStep } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { registerDomains } from "./domains.js";
-import type { TWorld, TStepperStep } from "./execution.js";
+import type { TWorld } from "./world.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 
@@ -275,9 +275,7 @@ describe("step-dispatch", () => {
 		it("step.list steps includes capability", () => {
 			const stepper = new CapabilityStepper();
 			const discovery = discoverSteps([stepper], world);
-			expect(discovery.steps.find((m) => m.method === "CapabilityStepper-protectedPing")?.capability).toBe(
-				"CapabilityStepper:protected",
-			);
+			expect(discovery.steps.find((m) => m.method === "CapabilityStepper-protectedPing")?.capability).toBe("CapabilityStepper:protected");
 		});
 
 		it("omits capability-gated steps when the caller lacks the grant", () => {
@@ -313,11 +311,8 @@ describe("step-dispatch", () => {
 	});
 
 	describe("createStepHandler", () => {
-		const synth = (
-			tool: { stepperName: string; stepName: string; description: string },
-			input: Record<string, unknown>,
-			seqPath: number[] = [0],
-		) => buildSyntheticFeatureStep(tool as StepTool, input, seqPath);
+		const synth = (tool: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
+			buildSyntheticFeatureStep(tool as StepTool, input, seqPath);
 
 		it("returns ok with products for successful step with products", async () => {
 			const stepper = new ProductStepper();
@@ -331,20 +326,14 @@ describe("step-dispatch", () => {
 		it("returns ok for plain step", async () => {
 			const stepper = new PlainStepper();
 			const handler = createStepHandler("PlainStepper", "greet", stepper.steps.greet);
-			const result = await handler(
-				synth({ stepperName: "PlainStepper", stepName: "greet", description: "greet {name}" }, { name: "world" }),
-				world,
-			);
+			const result = await handler(synth({ stepperName: "PlainStepper", stepName: "greet", description: "greet {name}" }, { name: "world" }), world);
 			expect(result.ok).toBe(true);
 		});
 
 		it("uses provided seqPath in products", async () => {
 			const stepper = new ProductStepper();
 			const handler = createStepHandler("ProductStepper", "getCount", stepper.steps.getCount);
-			const result = await handler(
-				synth({ stepperName: "ProductStepper", stepName: "getCount", description: "" }, {}, [2, 3, 4]),
-				world,
-			);
+			const result = await handler(synth({ stepperName: "ProductStepper", stepName: "getCount", description: "" }, {}, [2, 3, 4]), world);
 			expect(result.ok).toBe(true);
 			expect(result.products?._seqPath).toEqual([2, 3, 4]);
 		});
@@ -375,10 +364,7 @@ describe("step-dispatch", () => {
 				},
 			};
 			const handler = createStepHandler("Test", "greet", stepDef as TStepperStep);
-			await handler(
-				synth({ stepperName: "Test", stepName: "greet", description: "say hello to {name}" }, { name: "world" }),
-				world,
-			);
+			await handler(synth({ stepperName: "Test", stepName: "greet", description: "say hello to {name}" }, { name: "world" }), world);
 			const fs = capturedFeatureStep as { action: { stepValuesMap?: Record<string, unknown> } };
 			expect(fs.action.stepValuesMap).toBeDefined();
 			expect(fs.action.stepValuesMap?.["name"]).toBeDefined();
@@ -417,9 +403,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected protected tool to be registered");
 
 			const featureStep = buildSyntheticFeatureStep(tool, {}, [0, 1]);
-			await expect(dispatchStep({ registry, world, steppers }, featureStep)).rejects.toThrow(
-				/capability CapabilityStepper:protected required/,
-			);
+			await expect(dispatchStep({ registry, world, steppers }, featureStep)).rejects.toThrow(/capability CapabilityStepper:protected required/);
 		});
 
 		it("emits SeqPath quads for a passing step", async () => {

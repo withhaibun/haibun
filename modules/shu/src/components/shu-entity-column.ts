@@ -5,7 +5,21 @@
  *
  * Events: column-open (entity nav), column-open-filter (filter nav)
  */
-import { appAccessLevel, defaultLabel, esc, escAttr, truncate, errMsg, vertexId, isVisibleKey, isReferenceEdge, extractFieldEntries, pickPreferredBody, renderContentHtml, utf8ToBase64 } from "../util.js";
+import {
+	appAccessLevel,
+	defaultLabel,
+	esc,
+	escAttr,
+	truncate,
+	errMsg,
+	vertexId,
+	isVisibleKey,
+	isReferenceEdge,
+	extractFieldEntries,
+	pickPreferredBody,
+	renderContentHtml,
+	utf8ToBase64,
+} from "../util.js";
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
@@ -73,8 +87,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const client = SseClient.for("");
 			const accessLevel = appAccessLevel();
 			const data = await inAction(
-				(scope) =>
-					client.rpc<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(scope, requireStep("getVertexWithEdges"), { label, id, accessLevel }),
+				(scope) => client.rpc<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(scope, requireStep("getVertexWithEdges"), { label, id, accessLevel }),
 				`entity-column: open ${label}:${id}`,
 			);
 			this.vertex = data.vertex;
@@ -199,10 +212,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			// Inner table: items don't have a per-row label, fall back to projection-only filter.
 			const keys = Object.keys(items[0]).filter((key) => isVisibleKey(key));
 			const header = keys.map((key) => `<th>${esc(key)}</th>`).join("");
-			const rows = items.map((item) => `<tr>${keys.map((key) => {
-				const val = item[key];
-				return `<td>${esc(typeof val === "object" && val !== null ? JSON.stringify(val) : String(val ?? ""))}</td>`;
-			}).join("")}</tr>`).join("");
+			const rows = items
+				.map(
+					(item) =>
+						`<tr>${keys
+							.map((key) => {
+								const val = item[key];
+								return `<td>${esc(typeof val === "object" && val !== null ? JSON.stringify(val) : String(val ?? ""))}</td>`;
+							})
+							.join("")}</tr>`,
+				)
+				.join("");
 			tables.push(`<table class="detail-table items-table"><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table>`);
 		}
 		return tables.join("");
@@ -274,8 +294,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-					.map((b) => `<button class="content-switch-btn${String(b.id ?? "") === activeId ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`)
-					.join("")}</div>`
+						.map(
+							(b) =>
+								`<button class="content-switch-btn${String(b.id ?? "") === activeId ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`,
+						)
+						.join("")}</div>`
 				: "";
 		const raw = String(active.content ?? "");
 		const content = renderContentHtml(raw, String(active.mediaType));

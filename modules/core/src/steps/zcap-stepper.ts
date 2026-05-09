@@ -1,8 +1,7 @@
 import { z } from "zod";
 import type { TDomainDefinition } from "../lib/resources.js";
-import type { TWorld } from "../lib/execution.js";
-import type { IStepperCycles, TEndFeature, TFeatureStep } from "../lib/execution.js";
-import { AStepper, type IHasCycles } from "../lib/astepper.js";
+import type { TWorld } from "../lib/world.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { ZCAP_AUTHORITY, ZCAP_TOKEN_KEY, ZcapAuthority } from "../lib/zcap-authority.js";
 import type { IZcapAuthority } from "../lib/zcap-types.js";

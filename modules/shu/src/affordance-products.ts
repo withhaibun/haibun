@@ -20,17 +20,15 @@ const ProductSchema = z.looseObject({
 const ProductWithViewSchema = ProductSchema.extend({ [PRODUCT_KEY.VIEW]: z.string() });
 
 /** Envelope subtype for payloads that carry products containing a concrete view. */
-export const HasProductsWithViewSchema = z
-	.looseObject({ [PRODUCT_KEY.PRODUCTS]: z.unknown() })
-	.transform((value, ctx) => {
-		const rec = findAffordanceRecord(value[PRODUCT_KEY.PRODUCTS]);
-		const parsed = ProductWithViewSchema.safeParse(rec);
-		if (!parsed.success) {
-			ctx.addIssue({ code: z.ZodIssueCode.custom, message: "products must contain an affordance product with view" });
-			return z.NEVER;
-		}
-		return { ...value, [PRODUCT_KEY.PRODUCTS]: parsed.data };
-	});
+export const HasProductsWithViewSchema = z.looseObject({ [PRODUCT_KEY.PRODUCTS]: z.unknown() }).transform((value, ctx) => {
+	const rec = findAffordanceRecord(value[PRODUCT_KEY.PRODUCTS]);
+	const parsed = ProductWithViewSchema.safeParse(rec);
+	if (!parsed.success) {
+		ctx.addIssue({ code: z.ZodIssueCode.custom, message: "products must contain an affordance product with view" });
+		return z.NEVER;
+	}
+	return { ...value, [PRODUCT_KEY.PRODUCTS]: parsed.data };
+});
 
 export type TAffordanceView = { id: string; description: string; component: string };
 

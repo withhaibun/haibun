@@ -83,10 +83,12 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await inAction((scope) => client.rpc<{
-				edges: Array<{ type: string; target: VertexData }>;
-				total: number;
-			}>(scope, requireStep("getIncomingEdges"), { label, id, limit, offset, accessLevel: appAccessLevel() }));
+			const data = await inAction((scope) =>
+				client.rpc<{
+					edges: Array<{ type: string; target: VertexData }>;
+					total: number;
+				}>(scope, requireStep("getIncomingEdges"), { label, id, limit, offset, accessLevel: appAccessLevel() }),
+			);
 			this.results = data.edges.map((e) => e.target);
 			this.state = { ...this.state, loading: false };
 			this.showResults();

@@ -48,7 +48,9 @@ export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
 		this.shadowRoot.innerHTML = `<style>${STYLES}</style><div class="product-container"></div>`;
 		const container = this.shadowRoot.querySelector(".product-container") as HTMLElement;
 
-		const propagateControls = (el: HTMLElement) => { if (this.showControls) el.setAttribute("data-show-controls", ""); };
+		const propagateControls = (el: HTMLElement) => {
+			if (this.showControls) el.setAttribute("data-show-controls", "");
+		};
 
 		if (products._component) {
 			const view = document.createElement(String(products._component));

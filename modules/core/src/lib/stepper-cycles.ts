@@ -1,5 +1,4 @@
-import { StepperMethodArgs, IStepperCycles } from "./execution.js";
-import { AStepper, IHasCycles } from "./astepper.js";
+import { AStepper, IHasCycles, StepperMethodArgs, IStepperCycles } from "./astepper.js";
 
 export const doStepperCycle = async <K extends keyof IStepperCycles>(
 	steppers: AStepper[],
@@ -27,11 +26,7 @@ export const doStepperCycle = async <K extends keyof IStepperCycles>(
 	return results;
 };
 
-export const doStepperCycleSync = <K extends keyof IStepperCycles>(
-	steppers: AStepper[],
-	method: K,
-	args: StepperMethodArgs[K],
-): void => {
+export const doStepperCycleSync = <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): void => {
 	const hasCycles = (steppers as unknown[] as (AStepper & IHasCycles)[]).filter((c) => c.cycles && c.cycles[method]);
 	for (const cycling of hasCycles) {
 		const cycle = cycling.cycles[method];

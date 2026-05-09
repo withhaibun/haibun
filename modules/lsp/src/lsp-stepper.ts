@@ -18,8 +18,9 @@ import {
 } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { AStepper } from "@haibun/core/lib/astepper.js";
-import type { TWorld, TFeatureStep, TFeature, TStepAction, TFeatures } from "@haibun/core/lib/execution.js";
+import { AStepper, type TFeatureStep, type TStepAction } from "@haibun/core/lib/astepper.js";
+import type { TFeature, TFeatures } from "@haibun/core/lib/execution.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import { StepperRegistry, StepDescriptor } from "@haibun/core/lib/stepper-registry.js";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
 import { expand } from "@haibun/core/lib/features.js";
@@ -346,9 +347,7 @@ export default class LspStepper extends AStepper {
 
 		// Check if we have any matching existing entry
 		// match normalized paths
-		const existingIndex = this.backgrounds.findIndex(
-			(b) => this.normalizePath(b.path) === normUri || b.path.endsWith(normUri) || normUri.endsWith(b.path),
-		);
+		const existingIndex = this.backgrounds.findIndex((b) => this.normalizePath(b.path) === normUri || b.path.endsWith(normUri) || normUri.endsWith(b.path));
 
 		if (isBgFile || existingIndex !== -1) {
 			// Remove ALL matching entries to avoid duplicates/stale versions

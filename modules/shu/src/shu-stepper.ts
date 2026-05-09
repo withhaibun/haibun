@@ -33,7 +33,10 @@ export function loadBundle(): string {
 }
 
 export function buildSpaHtml(basePath: string, bundle: string, hydration: string, extraScripts: string[] = []): string {
-	const extraTags = extraScripts.filter((s) => s.length > 0).map((s) => `  <script>${s.replaceAll("</", "<\\/")}</script>`).join("\n");
+	const extraTags = extraScripts
+		.filter((s) => s.length > 0)
+		.map((s) => `  <script>${s.replaceAll("</", "<\\/")}</script>`)
+		.join("\n");
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>

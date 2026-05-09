@@ -6,6 +6,9 @@ import Haibun from "./haibun.js";
 import VariablesSteppers from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
+import { AStepper } from "../lib/astepper.js";
+import { actionOK } from "../lib/util/index.js";
+import type { StepRegistry } from "../lib/step-dispatch.js";
 
 describe("until", () => {
 	it("until passes", async () => {
@@ -17,24 +20,22 @@ describe("until", () => {
 
 describe("on host", () => {
 	it("routes a step to a hostId-prefixed registry entry", async () => {
-		const { AStepper } = await import("../lib/astepper.js");
-		const { actionOK } = await import("../lib/util/index.js");
-
 		class RemoteMarker extends AStepper {
-			attach(registry: Parameters<typeof Object>[0]) {
-				const reg = registry as { get: (n: string) => unknown; set: (t: unknown) => void };
-				const local = reg.get("TestSteps-passes") as { name: string } | undefined;
+			attach(registry: StepRegistry) {
+				const local = registry.get("TestSteps-passes");
 				if (!local) return;
-				reg.set({
+				registry.set({
 					...local,
 					name: "2:TestSteps-passes",
-					handler: async () => {
+					handler: () => {
 						this.getWorld().runtime.observations.set("remoteCalled", true);
-						return actionOK();
+						return Promise.resolve(actionOK());
 					},
 				});
 			}
-			detach() {}
+			detach() {
+				// required by attachTransportsToRegistry duck-type check
+			}
 			steps = {};
 		}
 
@@ -113,14 +114,7 @@ describe("afterEvery", () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const ins = result.featureResults?.[0].stepResults.map((r) => r.in);
-		expect(ins).toEqual([
-			"have a test",
-			'after every "TestSteps", Noodles, man.',
-			"passes",
-			"Noodles, man.",
-			"passes",
-			"Noodles, man.",
-		]);
+		expect(ins).toEqual(["have a test", 'after every "TestSteps", Noodles, man.', "passes", "Noodles, man.", "passes", "Noodles, man."]);
 	});
 
 	it("afterEvery effect injects hierarchical step with parent seqPath extended", async () => {
@@ -210,9 +204,7 @@ describe("backgrounds", () => {
 	it("where with Backgrounds shows condition, directive, background steps, then parent", async () => {
 		const feature = { path: "/features/test.feature", content: "where passes, Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "ok"' };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
 		// Condition uses dir=-1, body uses dir=1: condition [0,1,1,1,-1], background steps [0,1,1,1,1] and [0,1,1,1,2], parent [0,1,1,1]
@@ -227,18 +219,14 @@ describe("backgrounds", () => {
 	it("not with Backgrounds fails", async () => {
 		const feature = { path: "/features/test.feature", content: "not Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: "fails" };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 
 	it("not with Backgrounds passes", async () => {
 		const feature = { path: "/features/test.feature", content: "not Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: "passes" };
-		const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(false);
 	});
 
@@ -264,9 +252,7 @@ describe("backgrounds", () => {
 			content: 'set ran to "false"\nwhere variable "ran" is "false", Backgrounds: bg',
 		};
 		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "ok"' };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
 		const paths = result.featureResults?.[0].stepResults.map((r) => r.path);
@@ -312,9 +298,7 @@ describe("backgrounds", () => {
 			content: "Backgrounds: bg\nScenario: Run Activity\n    ensure Test Activity",
 		};
 
-		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
 		// The "set x to 1" step should have lineNumber 2 (in bg.feature) and path backgrounds/bg.feature

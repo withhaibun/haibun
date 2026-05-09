@@ -18,7 +18,7 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 	for (const e of events) {
 		if (e.kind === "artifact") {
 			allIds.add(e.id);
-			let parentId = e.id.includes(".artifact.") ? e.id.split(".artifact.")[0] : (e.id.split(".").length > 1 ? e.id.split(".").slice(0, -1).join(".") : e.id);
+			let parentId = e.id.includes(".artifact.") ? e.id.split(".artifact.")[0] : e.id.split(".").length > 1 ? e.id.split(".").slice(0, -1).join(".") : e.id;
 			parentId = normalizeId(parentId);
 			if (!map.has(parentId)) map.set(parentId, []);
 			map.get(parentId)?.push(e as TArtifactEvent);
@@ -34,7 +34,15 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 			embeddedArtifacts.forEach((artifact: Record<string, unknown>, idx: number) => {
 				const id = `${parentId}.artifact.${idx}`;
 				allIds.add(id);
-				map.get(parentId)?.push({ id, timestamp: e.timestamp, source: "haibun", kind: "artifact", artifactType: artifact.artifactType, mimetype: artifact.mimetype || "application/octet-stream", ...artifact } as TArtifactEvent);
+				map.get(parentId)?.push({
+					id,
+					timestamp: e.timestamp,
+					source: "haibun",
+					kind: "artifact",
+					artifactType: artifact.artifactType,
+					mimetype: artifact.mimetype || "application/octet-stream",
+					...artifact,
+				} as TArtifactEvent);
 			});
 		}
 	}
@@ -42,7 +50,11 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 }
 
 /** Generate markdown + data-attribute HTML for document view. Returns raw markdown string and set of visible event IDs. */
-export function generateDocumentMarkdown(events: THaibunEvent[], artifactsByStep: Map<string, TArtifactEvent[]>, minLogLevel: THaibunLogLevel = "info"): { md: string; visibleIds: Set<string> } {
+export function generateDocumentMarkdown(
+	events: THaibunEvent[],
+	artifactsByStep: Map<string, TArtifactEvent[]>,
+	minLogLevel: THaibunLogLevel = "info",
+): { md: string; visibleIds: Set<string> } {
 	let md = "";
 	let lastType: "none" | "prose" | "technical" = "none";
 	let previousRenderedDepth = 0;
@@ -117,7 +129,10 @@ export function generateDocumentMarkdown(events: THaibunEvent[], artifactsByStep
 					let isInstigator = false;
 					for (let j = i + 1; j < events.length; j++) {
 						const next = events[j];
-						if (next.id && le.id && next.id.startsWith(le.id + ".") && next.kind === "lifecycle" && (next as TLifecycleEvent).stage === "start") { isInstigator = true; break; }
+						if (next.id && le.id && next.id.startsWith(le.id + ".") && next.kind === "lifecycle" && (next as TLifecycleEvent).stage === "start") {
+							isInstigator = true;
+							break;
+						}
 						if (next.id === le.id) continue;
 						if (next.id && le.id && !next.id.startsWith(le.id)) break;
 					}

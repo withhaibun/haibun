@@ -4,11 +4,32 @@ import type { THaibunEvent } from "../schema/protocol.js";
 import { LifecycleEvent } from "../schema/protocol.js";
 
 function featureEvent(featurePath: string, featureName: string): THaibunEvent {
-	return { id: "feat-1", timestamp: 1000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "feature", featurePath, featureName, status: "running" } as unknown as THaibunEvent;
+	return {
+		id: "feat-1",
+		timestamp: 1000,
+		source: "haibun",
+		level: "info",
+		kind: "lifecycle",
+		stage: "start",
+		type: "feature",
+		featurePath,
+		featureName,
+		status: "running",
+	} as unknown as THaibunEvent;
 }
 
 function scenarioEvent(scenarioName: string): THaibunEvent {
-	return { id: "feat-1.scen-1", timestamp: 2000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "scenario", scenarioName, status: "running" } as unknown as THaibunEvent;
+	return {
+		id: "feat-1.scen-1",
+		timestamp: 2000,
+		source: "haibun",
+		level: "info",
+		kind: "lifecycle",
+		stage: "start",
+		type: "scenario",
+		scenarioName,
+		status: "running",
+	} as unknown as THaibunEvent;
 }
 
 describe("generateDocumentMarkdown", () => {
@@ -21,7 +42,19 @@ describe("generateDocumentMarkdown", () => {
 	});
 
 	it("renders Feature: with featurePath when featureName is missing", () => {
-		const events = [{ id: "feat-1", timestamp: 1000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "feature", featurePath: "/path/to/test.feature", status: "running" } as unknown as THaibunEvent];
+		const events = [
+			{
+				id: "feat-1",
+				timestamp: 1000,
+				source: "haibun",
+				level: "info",
+				kind: "lifecycle",
+				stage: "start",
+				type: "feature",
+				featurePath: "/path/to/test.feature",
+				status: "running",
+			} as unknown as THaibunEvent,
+		];
 		const { artifactsByStep } = buildArtifactIndex(events);
 		const { md } = generateDocumentMarkdown(events, artifactsByStep);
 		expect(md).toContain("# Feature: /path/to/test.feature");
@@ -38,8 +71,33 @@ describe("generateDocumentMarkdown", () => {
 
 	it("handles JSON-serialized events (SSE round-trip)", () => {
 		const raw = [
-			JSON.parse(JSON.stringify({ id: "feat-1", timestamp: 1000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "feature", featurePath: "/test.feature", featureName: "My Feature", status: "running" })),
-			JSON.parse(JSON.stringify({ id: "feat-1.scen-1", timestamp: 2000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "scenario", scenarioName: "My Scenario", status: "running" })),
+			JSON.parse(
+				JSON.stringify({
+					id: "feat-1",
+					timestamp: 1000,
+					source: "haibun",
+					level: "info",
+					kind: "lifecycle",
+					stage: "start",
+					type: "feature",
+					featurePath: "/test.feature",
+					featureName: "My Feature",
+					status: "running",
+				}),
+			),
+			JSON.parse(
+				JSON.stringify({
+					id: "feat-1.scen-1",
+					timestamp: 2000,
+					source: "haibun",
+					level: "info",
+					kind: "lifecycle",
+					stage: "start",
+					type: "scenario",
+					scenarioName: "My Scenario",
+					status: "running",
+				}),
+			),
 		] as THaibunEvent[];
 		const { artifactsByStep } = buildArtifactIndex(raw);
 		const { md } = generateDocumentMarkdown(raw, artifactsByStep);
@@ -49,8 +107,29 @@ describe("generateDocumentMarkdown", () => {
 	});
 
 	it("handles events parsed through LifecycleEvent.parse()", () => {
-		const featureInput = { id: "feat-1", timestamp: 1000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "feature", featurePath: "/test.feature", featureName: "My Feature", status: "running" };
-		const scenarioInput = { id: "feat-1.scen-1", timestamp: 2000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "scenario", scenarioName: "My Scenario", status: "running" };
+		const featureInput = {
+			id: "feat-1",
+			timestamp: 1000,
+			source: "haibun",
+			level: "info",
+			kind: "lifecycle",
+			stage: "start",
+			type: "feature",
+			featurePath: "/test.feature",
+			featureName: "My Feature",
+			status: "running",
+		};
+		const scenarioInput = {
+			id: "feat-1.scen-1",
+			timestamp: 2000,
+			source: "haibun",
+			level: "info",
+			kind: "lifecycle",
+			stage: "start",
+			type: "scenario",
+			scenarioName: "My Scenario",
+			status: "running",
+		};
 		const parsedFeature = LifecycleEvent.parse(featureInput);
 		const parsedScenario = LifecycleEvent.parse(scenarioInput);
 		// Simulate getEvents serialization — only specific fields are passed through
@@ -70,8 +149,28 @@ describe("generateDocumentMarkdown", () => {
 
 	it("never renders undefined in headings", () => {
 		const events = [
-			{ id: "feat-1", timestamp: 1000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "feature", featurePath: "/test", status: "running" } as unknown as THaibunEvent,
-			{ id: "feat-1.scen-1", timestamp: 2000, source: "haibun", level: "info", kind: "lifecycle", stage: "start", type: "scenario", scenarioName: "Test Scenario", status: "running" } as unknown as THaibunEvent,
+			{
+				id: "feat-1",
+				timestamp: 1000,
+				source: "haibun",
+				level: "info",
+				kind: "lifecycle",
+				stage: "start",
+				type: "feature",
+				featurePath: "/test",
+				status: "running",
+			} as unknown as THaibunEvent,
+			{
+				id: "feat-1.scen-1",
+				timestamp: 2000,
+				source: "haibun",
+				level: "info",
+				kind: "lifecycle",
+				stage: "start",
+				type: "scenario",
+				scenarioName: "Test Scenario",
+				status: "running",
+			} as unknown as THaibunEvent,
 		];
 		const { artifactsByStep } = buildArtifactIndex(events);
 		const { md } = generateDocumentMarkdown(events, artifactsByStep);

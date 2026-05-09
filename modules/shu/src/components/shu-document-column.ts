@@ -108,7 +108,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		if (this.renderedEventCount >= this.events.length) return;
 		const newEvents = this.events.slice(this.renderedEventCount);
 		const html = this.generateHtml(newEvents);
-		if (!html.trim()) { this.renderedEventCount = this.events.length; return; }
+		if (!html.trim()) {
+			this.renderedEventCount = this.events.length;
+			return;
+		}
 		const fragment = document.createElement("div");
 		fragment.innerHTML = html;
 		this.postProcessElements(fragment);
@@ -164,7 +167,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		for (const e of events) {
 			if (e.kind !== "lifecycle") continue;
 			const products = (e as Record<string, unknown>).products as Record<string, unknown> | undefined;
-			if (products?._component === "shu-document-column") { documentShowTime = e.timestamp; break; }
+			if (products?._component === "shu-document-column") {
+				documentShowTime = e.timestamp;
+				break;
+			}
 		}
 		const map = new Map<string, Record<string, unknown>>();
 		for (const e of events) {
@@ -214,8 +220,14 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 				this.applyTimeCursor();
 			});
 		};
-		els(".header-block").forEach((el) => { el.classList.add("doc-row"); addRowClick(el); });
-		els(".prose-block").forEach((el) => { el.classList.add("doc-row"); addRowClick(el); });
+		els(".header-block").forEach((el) => {
+			el.classList.add("doc-row");
+			addRowClick(el);
+		});
+		els(".prose-block").forEach((el) => {
+			el.classList.add("doc-row");
+			addRowClick(el);
+		});
 		els(".log-row").forEach((el) => {
 			const depth = parseInt(el.getAttribute("data-depth") || "0");
 			el.classList.add("doc-row");
@@ -226,10 +238,12 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		});
 		els(".feature-artifacts").forEach((el) => {
 			const ids = el.getAttribute("data-ids")?.split(",") || [];
-			el.innerHTML = ids.map((id: string) => {
-				const artifact = this.events.find((e) => e.id === id) as TArtifactEvent | undefined;
-				return artifact ? this.renderArtifact(artifact) : "";
-			}).join("");
+			el.innerHTML = ids
+				.map((id: string) => {
+					const artifact = this.events.find((e) => e.id === id) as TArtifactEvent | undefined;
+					return artifact ? this.renderArtifact(artifact) : "";
+				})
+				.join("");
 		});
 		els(".standalone-artifact").forEach((el) => {
 			const id = el.getAttribute("data-id");
@@ -251,7 +265,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		if (type === "image" && artifactPath) {
 			return `<shu-artifact-frame caption="${esc(String(a.path ?? a.url ?? "Screenshot"))}"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
 		}
-		if (type === "html" && artifactPath) return `<shu-artifact-frame caption="${esc(String(a.path ?? "HTML"))}"><iframe src="${esc(String(artifactPath))}" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
+		if (type === "html" && artifactPath)
+			return `<shu-artifact-frame caption="${esc(String(a.path ?? "HTML"))}"><iframe src="${esc(String(artifactPath))}" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
 		if (type === "json" && a.json) return `<shu-artifact-frame caption="JSON"><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
 		if (type === "file" && a.path) return `<shu-artifact-frame caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
 		return "";

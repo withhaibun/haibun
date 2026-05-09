@@ -90,9 +90,7 @@ export async function inAction<T>(fn: (scope: ActionScope) => Promise<T>, why?: 
 	// Synthesize one — cached RPC responses are keyed by method+params, not by
 	// seqPath, so a synthetic root never confuses lookups, and there's no live
 	// server-side observation channel that could collide.
-	const seqPath = ShuElement.offline
-		? [0]
-		: (await SseClient.for("").rpcOpen<{ seqPath: number[] }>("session.beginAction", why ? { why } : {})).seqPath;
+	const seqPath = ShuElement.offline ? [0] : (await SseClient.for("").rpcOpen<{ seqPath: number[] }>("session.beginAction", why ? { why } : {})).seqPath;
 	if (!Array.isArray(seqPath) || seqPath.length === 0) {
 		throw new Error("session.beginAction returned no seqPath");
 	}

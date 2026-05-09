@@ -55,7 +55,13 @@ export interface TQuadPattern {
 /** Emit a quadObservation event via an event logger. Canonical envelope for all quad emissions. */
 export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>) => void }, id: string, quad: TQuad): void {
 	logger.emit({
-		id, timestamp: quad.timestamp, source: "haibun", level: "debug", kind: "artifact", artifactType: "json", mimetype: "application/json",
+		id,
+		timestamp: quad.timestamp,
+		source: "haibun",
+		level: "debug",
+		kind: "artifact",
+		artifactType: "json",
+		mimetype: "application/json",
 		json: { quadObservation: quad },
 	});
 }
@@ -68,7 +74,14 @@ export function extractQuadsFromEvents(events: Record<string, unknown>[]): TQuad
 		const json = e.json as { quadObservation?: TQuad } | undefined;
 		const q = json?.quadObservation;
 		if (q?.subject && q.predicate && q.namedGraph) {
-			quads.push({ subject: q.subject, predicate: q.predicate, object: q.object, namedGraph: q.namedGraph, timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(), properties: q.properties });
+			quads.push({
+				subject: q.subject,
+				predicate: q.predicate,
+				object: q.object,
+				namedGraph: q.namedGraph,
+				timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(),
+				properties: q.properties,
+			});
 		}
 	}
 	return quads;
@@ -100,11 +113,7 @@ export interface IQuadStore {
 	upsertVertex(label: string, data: unknown): Promise<string>;
 	getVertex<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
 	deleteVertex(label: string, id: string): Promise<void>;
-	queryVertices<T = Record<string, unknown>>(
-		label: string,
-		filters?: Record<string, unknown>,
-		options?: { limit?: number; offset?: number },
-	): Promise<T[]>;
+	queryVertices<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
 	distinctPropertyValues(label: string, property: string): Promise<string[]>;
 
 	/**

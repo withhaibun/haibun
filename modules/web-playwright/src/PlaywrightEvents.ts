@@ -2,7 +2,8 @@ import { Page, Request, Route, Response } from "playwright";
 
 import { HttpTraceArtifact, Origin } from "@haibun/core/schema/protocol.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
-import { TWorld, registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution.js";
+import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { trackHttpHost, trackHttpRequest } from "@haibun/core/lib/http-observations.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -75,12 +76,16 @@ export class PlaywrightEvents {
 		void this.log(`response ${etc.status}`, "response", frameURL, response.url(), etc);
 
 		// Track request using shared helper
-		trackHttpRequest(this.world, {
-			url: response.url(),
-			status: response.status(),
-			time: duration,
-			method: request.method(),
-		}, this.routes);
+		trackHttpRequest(
+			this.world,
+			{
+				url: response.url(),
+				status: response.status(),
+				time: duration,
+				method: request.method(),
+			},
+			this.routes,
+		);
 
 		return;
 	}
@@ -90,16 +95,8 @@ export class PlaywrightEvents {
 			const provenance = { in: "PlaywrightEvents.framenavigated", seq: [] as number[], when: "framenavigated" };
 
 			// fire-and-forget: sync event handler cannot await; in-memory QuadStore resolves synchronously
-			void this.world.shared.setForStepper(
-				"WebPlaywright",
-				{ term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var },
-				provenance,
-			);
-			void this.world.shared.setForStepper(
-				"WebPlaywright",
-				{ term: "navigateCount", value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var },
-				provenance,
-			);
+			void this.world.shared.setForStepper("WebPlaywright", { term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var }, provenance);
+			void this.world.shared.setForStepper("WebPlaywright", { term: "navigateCount", value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, provenance);
 
 			const visitedPages = (this.world.runtime.observations.get("visitedPages") as string[]) || [];
 			visitedPages.push(url);

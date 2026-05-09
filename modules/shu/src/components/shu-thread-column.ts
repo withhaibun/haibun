@@ -77,9 +77,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await inAction((scope) => client.rpc<{ items: ThreadVertex[]; contextRoot: string }>(
-				scope, requireStep("getRelated"), { label, id, depth: this.state.depth },
-			));
+			const data = await inAction((scope) => client.rpc<{ items: ThreadVertex[]; contextRoot: string }>(scope, requireStep("getRelated"), { label, id, depth: this.state.depth }));
 			this.thread = data.items ?? [];
 			this.setState({ loading: false });
 		} catch (err) {
@@ -131,7 +129,14 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 				card.addEventListener("click", (e) => {
 					const id = (card as HTMLElement).dataset.id;
 					const cardLabel = (card as HTMLElement).dataset.label || this.state.label;
-					if (id) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel, addToSelection: (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey }, bubbles: true, composed: true }));
+					if (id)
+						this.dispatchEvent(
+							new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
+								detail: { subject: id, label: cardLabel, addToSelection: (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey },
+								bubbles: true,
+								composed: true,
+							}),
+						);
 				});
 			});
 			const current = contentArea.querySelector(".thread-card.current");
@@ -183,7 +188,26 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		const subject = String(v.subject ?? v.name ?? v.topic ?? "");
 		const date = String(v.dateSent ?? v.timestamp ?? v.published ?? "");
 		const preview = String(v.body ?? v.text ?? v.content ?? "");
-		const knownFields = new Set(["_id", "_inReplyTo", "_edges", "_label", "_type", "_links", "from", "author", "attributedTo", "subject", "name", "topic", "dateSent", "timestamp", "published", "body", "text", "content"]);
+		const knownFields = new Set([
+			"_id",
+			"_inReplyTo",
+			"_edges",
+			"_label",
+			"_type",
+			"_links",
+			"from",
+			"author",
+			"attributedTo",
+			"subject",
+			"name",
+			"topic",
+			"dateSent",
+			"timestamp",
+			"published",
+			"body",
+			"text",
+			"content",
+		]);
 		const hasKnownContent = sender || subject || date || preview;
 
 		// Extra fields not covered by the semantic slots
@@ -220,5 +244,4 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		}
 		return quads;
 	}
-
 }

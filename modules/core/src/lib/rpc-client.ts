@@ -61,12 +61,7 @@ export class RpcClient {
 	 * Blocking JSON-RPC call. Returns parsed JSON on success; an RpcError
 	 * object (with string `error` field) on HTTP or application error.
 	 */
-	call<T = unknown>(
-		method: string,
-		params: Record<string, unknown>,
-		seqPath: number[],
-		opts: RpcCallOptions = {},
-	): Promise<T | RpcError> {
+	call<T = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): Promise<T | RpcError> {
 		return this.withRetry(async (signal) => {
 			const url = `${this.baseUrl}/rpc/${encodeURIComponent(method)}`;
 			const res = await this.fetchImpl(url, {
@@ -90,12 +85,7 @@ export class RpcClient {
 	 * (one JSON object per line). Completes when the stream closes.
 	 * Consumers may `break` early; the underlying connection is aborted.
 	 */
-	async *stream<TChunk = unknown>(
-		method: string,
-		params: Record<string, unknown>,
-		seqPath: number[],
-		opts: RpcCallOptions = {},
-	): AsyncGenerator<TChunk, void, unknown> {
+	async *stream<TChunk = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): AsyncGenerator<TChunk, void, unknown> {
 		const controller = new AbortController();
 		if (opts.signal) {
 			if (opts.signal.aborted) controller.abort();
@@ -135,10 +125,7 @@ export class RpcClient {
 	 * on fetch network errors; does NOT retry on application errors
 	 * (RpcError with `error` string) — those are the server's answer.
 	 */
-	private async withRetry<T>(
-		operation: (signal: AbortSignal) => Promise<T | RpcError>,
-		outerSignal?: AbortSignal,
-	): Promise<T | RpcError> {
+	private async withRetry<T>(operation: (signal: AbortSignal) => Promise<T | RpcError>, outerSignal?: AbortSignal): Promise<T | RpcError> {
 		let lastErr: unknown;
 		for (let attempt = 0; attempt < this.maxAttempts; attempt++) {
 			const controller = new AbortController();

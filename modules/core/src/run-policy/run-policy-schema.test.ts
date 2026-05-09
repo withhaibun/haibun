@@ -6,11 +6,7 @@ import type { TRunPolicy } from "./run-policy-schema.js";
 import { ACCESS_LEVELS } from "./run-policy-types.js";
 
 /** Helper: build a policy in hierarchical JSON Schema format */
-function makePolicy(
-	envs: string[],
-	dirs: string[],
-	deny: Array<{ place?: string; dir?: string; access?: string }> = [],
-): TRunPolicy {
+function makePolicy(envs: string[], dirs: string[], deny: Array<{ place?: string; dir?: string; access?: string }> = []): TRunPolicy {
 	return {
 		type: "object",
 		properties: {

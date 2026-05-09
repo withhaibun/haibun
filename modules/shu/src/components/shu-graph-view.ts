@@ -54,9 +54,7 @@ const StateSchema = z.object({
 	hiddenRels: z.array(z.string()).default([]),
 	expandedGraphs: z.array(z.string()).default([]),
 	maxPerSubgraph: z.number().default(DEFAULT_MAX_PER_SUBGRAPH),
-	clusters: z
-		.array(z.object({ type: z.string(), totalCount: z.number(), sampledCount: z.number(), omittedCount: z.number(), sampledSubjects: z.array(z.string()) }))
-		.default([]),
+	clusters: z.array(z.object({ type: z.string(), totalCount: z.number(), sampledCount: z.number(), omittedCount: z.number(), sampledSubjects: z.array(z.string()) })).default([]),
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 });
 
@@ -309,10 +307,15 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		this.relPredicateMap = relToPredicates;
 		const sortedRels = [...relToPredicates.keys()].sort();
 
-		const edgeFilterHtml = sortedRels.length > 0 ? sortedRels.map((rel) => {
-			const predicates = [...(relToPredicates.get(rel) ?? [])].sort().join(", ");
-			return `<label title="${predicates}"><input type="checkbox" data-rel="${rel}" ${hiddenRelSet.has(rel) ? "" : "checked"}> ${rel}</label>`;
-		}).join("") : "";
+		const edgeFilterHtml =
+			sortedRels.length > 0
+				? sortedRels
+						.map((rel) => {
+							const predicates = [...(relToPredicates.get(rel) ?? [])].sort().join(", ");
+							return `<label title="${predicates}"><input type="checkbox" data-rel="${rel}" ${hiddenRelSet.has(rel) ? "" : "checked"}> ${rel}</label>`;
+						})
+						.join("")
+				: "";
 
 		this.lastMermaidSource = "";
 		// Toolbar drops the standalone "limit <input>" \u2014 the filter row's slider is the
@@ -505,7 +508,12 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			await getAvailableSteps();
 			const client = SseClient.for("");
 			const data = await inAction(
-				(scope) => client.rpc<{ vertex: Record<string, unknown>; edges: Array<{ type: string; target: Record<string, unknown> }> }>(scope, requireStep("getVertexWithEdges"), { label, id: subject, accessLevel: appAccessLevel() }),
+				(scope) =>
+					client.rpc<{ vertex: Record<string, unknown>; edges: Array<{ type: string; target: Record<string, unknown> }> }>(scope, requireStep("getVertexWithEdges"), {
+						label,
+						id: subject,
+						accessLevel: appAccessLevel(),
+					}),
 				`graph-view: fetch missing selection ${label}:${subject}`,
 			);
 			if (!data?.vertex) return;

@@ -12,8 +12,7 @@ export const ACCESS_TOKEN = "access_token";
 
 const HTTP = "HTTP";
 
-export const base64Encode = ({ username, password }: { username: string; password: string }) =>
-	Buffer.from(`${username}:${password}`).toString("base64");
+export const base64Encode = ({ username, password }: { username: string; password: string }) => Buffer.from(`${username}:${password}`).toString("base64");
 
 export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 	({
@@ -77,9 +76,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			action: async ({ endpoint }: { method: string; endpoint: string }, featureStep) => {
 				const method = getStepTerm(featureStep, "method")?.toLowerCase() ?? "";
 				// Allow all methods - for payload methods (POST/PUT/PATCH), send without body
-				const requestOptions = PAYLOAD_METHODS.includes(method)
-					? { postData: "", headers: { "Content-Type": "application/json" } }
-					: undefined;
+				const requestOptions = PAYLOAD_METHODS.includes(method) ? { postData: "", headers: { "Content-Type": "application/json" } } : undefined;
 				const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
 				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
@@ -204,12 +201,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			gwta: `${HTTP} response property {property} is {value}`,
 			action: async ({ property, value }: { property: string; value: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
-				if (
-					lastResponse &&
-					lastResponse.json &&
-					!Array.isArray(lastResponse.json) &&
-					(lastResponse.json as TJsonRecord)[property] === value
-				) {
+				if (lastResponse && lastResponse.json && !Array.isArray(lastResponse.json) && (lastResponse.json as TJsonRecord)[property] === value) {
 					return OK;
 				}
 				return actionNotOK(

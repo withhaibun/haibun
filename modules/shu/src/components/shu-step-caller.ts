@@ -308,7 +308,7 @@ export class StepCaller extends HTMLElement {
 		return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
 	}
 
-private renderCell(value: unknown): string {
+	private renderCell(value: unknown): string {
 		const s = typeof value === "string" ? value : JSON.stringify(value);
 		const custom = renderValue(s);
 		if (custom !== null) return custom;

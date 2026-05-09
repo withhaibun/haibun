@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import TuiMonitorStepper from "./index.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { TWorld } from "@haibun/core/lib/execution.js";
+import { TWorld } from "@haibun/core/lib/world.js";
 
 // Mock ink render to avoid actual TUI output during tests
 vi.mock("ink", () => {

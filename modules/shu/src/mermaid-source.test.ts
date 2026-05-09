@@ -76,9 +76,7 @@ describe("buildMermaidSource with THREAD_CLASSIFIER", () => {
 	});
 
 	it("uses name predicate as node label", () => {
-		const quads = [
-			{ subject: "email-1", predicate: "name", object: "RE: Meeting notes", namedGraph: "Email", timestamp: 1 },
-		];
+		const quads = [{ subject: "email-1", predicate: "name", object: "RE: Meeting notes", namedGraph: "Email", timestamp: 1 }];
 		const result = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
 		expect(result.source).toContain("RE: Meeting notes");
 	});
@@ -88,7 +86,16 @@ describe("end-to-end: show domains → thread → graph", () => {
 	it("renders edges between domain types from show domains products", () => {
 		// Simulate show domains product items
 		const rawItems = [
-			{ name: "muskeg-email", description: "Email message", members: 0, vertexLabel: "Email", _edges: [{ type: "from", targetId: PERSON_LABEL }, { type: "subject", targetId: "string" }] },
+			{
+				name: "muskeg-email",
+				description: "Email message",
+				members: 0,
+				vertexLabel: "Email",
+				_edges: [
+					{ type: "from", targetId: PERSON_LABEL },
+					{ type: "subject", targetId: "string" },
+				],
+			},
 			{ name: "muskeg-contact", description: PERSON_LABEL, members: 0, vertexLabel: PERSON_LABEL, _edges: [] },
 			{ name: "string", description: "Plain string literal", members: 0, _edges: [] },
 		];
@@ -130,19 +137,35 @@ describe("end-to-end: show domains → thread → graph", () => {
 		// and attachments. Incoming edges are stored as "← from" on the contact item.
 		const rawItems = [
 			{
-				name: "person-1@example.org", _label: PERSON_LABEL, _id: "person-1@example.org",
-				_edges: [{ type: "← from", targetId: "msg-1" }, { type: "← to", targetId: "msg-2" }],
+				name: "person-1@example.org",
+				_label: PERSON_LABEL,
+				_id: "person-1@example.org",
+				_edges: [
+					{ type: "← from", targetId: "msg-1" },
+					{ type: "← to", targetId: "msg-2" },
+				],
 			},
 			{
-				name: "Meeting invite", _label: "Email", _id: "msg-1", subject: "Meeting invite",
-				_edges: [{ type: "from", targetId: "person-1@example.org" }, { type: "attachment", targetId: "invite.ics" }],
+				name: "Meeting invite",
+				_label: "Email",
+				_id: "msg-1",
+				subject: "Meeting invite",
+				_edges: [
+					{ type: "from", targetId: "person-1@example.org" },
+					{ type: "attachment", targetId: "invite.ics" },
+				],
 			},
 			{
-				name: "Newsletter", _label: "Email", _id: "msg-2", subject: "Newsletter",
+				name: "Newsletter",
+				_label: "Email",
+				_id: "msg-2",
+				subject: "Newsletter",
 				_edges: [{ type: "to", targetId: "person-1@example.org" }],
 			},
 			{
-				name: "invite.ics", _label: "File", _id: "invite.ics",
+				name: "invite.ics",
+				_label: "File",
+				_id: "invite.ics",
 				_edges: [],
 			},
 		];
