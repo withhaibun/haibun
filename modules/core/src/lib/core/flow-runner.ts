@@ -1,7 +1,7 @@
 import { TWorld, TFeatureStep, TStepInput } from "../execution.js";
 import { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from "../../schema/protocol.js";
 import { AStepper } from "../astepper.js";
-import { actionNotOK } from "../util/index.js";
+import { actionNotOK, errorDetail } from "../util/index.js";
 import { Resolver } from "../../phases/Resolver.js";
 import { incSeqPath, syntheticSeqPathDirection } from "../../phases/Executor.js";
 import { StepRegistry, dispatchStep } from "../step-dispatch.js";
@@ -44,7 +44,7 @@ export class FlowRunner {
 			action = this.resolver.findSingleStepAction(statementWithArgs);
 		} catch (e: unknown) {
 			if (intent.mode === "speculative") {
-				return actionNotOK(e instanceof Error ? e.message : String(e));
+				return actionNotOK(errorDetail(e));
 			}
 			throw e;
 		}
@@ -98,7 +98,7 @@ export class FlowRunner {
 			return result;
 		} catch (e: unknown) {
 			if (intent.mode === "speculative") {
-				return actionNotOK(e instanceof Error ? e.message : String(e));
+				return actionNotOK(errorDetail(e));
 			}
 			throw e;
 		}
@@ -140,7 +140,7 @@ export class FlowRunner {
 				if (!lastResult.ok) return lastResult;
 			} catch (e) {
 				if (intent.mode === "speculative") {
-					return actionNotOK(e instanceof Error ? e.message : String(e));
+					return actionNotOK(errorDetail(e));
 				}
 				throw e;
 			}

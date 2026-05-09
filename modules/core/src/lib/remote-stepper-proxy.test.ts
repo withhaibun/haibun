@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
 import { StepRegistry } from "./step-dispatch.js";
 import { AStepper } from "./astepper.js";
-import { actionOKWithProducts } from "./util/index.js";
+import { actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
 import type { TWorld } from "./execution.js";
 import { serve } from "@hono/node-server";
@@ -62,7 +62,7 @@ describe("RemoteStepperProxy", () => {
 				if (result.ok) return c.json(result.products ?? {});
 				return c.json({ error: result.errorMessage }, 422);
 			} catch (err) {
-				return c.json({ error: err instanceof Error ? err.message : String(err) }, 422);
+				return c.json({ error: errorDetail(err) }, 422);
 			}
 		});
 

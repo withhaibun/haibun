@@ -5,7 +5,7 @@ import { TFeatureStep, TWorld, IStepperCycles, TStartScenario } from "../lib/exe
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from "../schema/protocol.js";
 import { TAnyFixme } from "../lib/fixme.js";
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
-import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm } from "../lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/util/index.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { FeatureVariables, OBSCURED_VALUE } from "../lib/feature-variables.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
@@ -668,7 +668,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			registerDomains(this.getWorld(), [[definition]]);
 			return OK;
 		} catch (error) {
-			return actionNotOK(error instanceof Error ? error.message : String(error));
+			return actionNotOK(errorDetail(error));
 		}
 	}
 
@@ -695,7 +695,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			registerDomains(this.getWorld(), [[definition]]);
 			return OK;
 		} catch (error) {
-			return actionNotOK(error instanceof Error ? error.message : String(error));
+			return actionNotOK(errorDetail(error));
 		}
 	}
 }

@@ -15,7 +15,7 @@ import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/as
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import type { TWorld } from "@haibun/core/lib/execution.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import { getFromRuntime, getStepperOption, constructorName, stringOrError } from "@haibun/core/lib/util/index.js";
+import { getFromRuntime, getStepperOption, constructorName, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import {
 	buildStepRegistry,
@@ -148,7 +148,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		try {
 			return await toolDef.handler(args, grantedCapability);
 		} catch (err: unknown) {
-			const msg = err instanceof Error ? err.message : String(err);
+			const msg = errorDetail(err);
 			return { isError: true, content: [{ type: "text", text: msg }] };
 		}
 	}

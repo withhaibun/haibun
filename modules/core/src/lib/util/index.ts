@@ -103,6 +103,16 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Serialize an unknown thrown value to a full diagnostic string, including error code and cause chain. */
+export function errorDetail(err: unknown): string {
+	if (!(err instanceof Error)) return String(err);
+	const parts: string[] = [err.message];
+	const code = (err as NodeJS.ErrnoException).code;
+	if (code) parts.push(`code=${code}`);
+	if (err.cause) parts.push(`cause: ${errorDetail(err.cause)}`);
+	return parts.join("; ");
+}
+
 export function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CStepper[]) {
 	const moduleOptions = { ...inExtraOptions };
 	Object.entries(moduleOptions)?.map(([option, value]) => {

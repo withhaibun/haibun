@@ -2,6 +2,7 @@ import { AStepper } from "./astepper.js";
 import type { TStepAction, TFeatures } from "./execution.js";
 import { Resolver } from "../phases/Resolver.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
+import { errorDetail } from "./util/index.js";
 
 /**
  * Result of validating a step text against registered steppers.
@@ -28,7 +29,7 @@ export function validateStep(text: string, steppers: AStepper[], backgrounds?: T
 		const action = resolver.findSingleStepAction(text);
 		return { valid: true, action };
 	} catch (e) {
-		return { valid: false, error: e instanceof Error ? e.message : String(e) };
+		return { valid: false, error: errorDetail(e) };
 	}
 }
 

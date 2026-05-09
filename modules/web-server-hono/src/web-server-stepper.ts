@@ -2,7 +2,7 @@ import path from "path";
 
 import type { TWorld, TEndFeature, IStepperCycles } from "@haibun/core/lib/execution.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
 import { allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
@@ -163,7 +163,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					this.webserver?.checkAddStaticFolder(String(loc), "/");
 					return OK;
 				} catch (e) {
-					const message = e instanceof Error ? e.message : String(e);
+					const message = errorDetail(e);
 					return actionNotOK(message);
 				}
 			},
@@ -175,7 +175,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					this.webserver?.checkAddStaticFolder(String(loc), String(where));
 					return OK;
 				} catch (e) {
-					const message = e instanceof Error ? e.message : String(e);
+					const message = errorDetail(e);
 					return actionNotOK(message);
 				}
 			},
@@ -187,7 +187,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					this.webserver?.checkAddIndexFolder(String(loc), "/");
 					return OK;
 				} catch (e) {
-					const message = e instanceof Error ? e.message : String(e);
+					const message = errorDetail(e);
 					return actionNotOK(message);
 				}
 			},
@@ -272,7 +272,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						}
 						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
-						const detail = err instanceof Error ? err.message : String(err);
+						const detail = errorDetail(err);
 						logger.error(`[RPC] ${method}: ${detail}`);
 						return { error: `${method}: ${detail}` };
 					}

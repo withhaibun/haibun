@@ -10,6 +10,7 @@ import { esc, truncate } from "../util.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
 import type { ShuGraphView } from "./shu-graph-view.js";
 import { COMMENT_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 const ThreadColumnSchema = z.object({
 	label: z.string().default(""),
@@ -82,7 +83,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			this.thread = data.items ?? [];
 			this.setState({ loading: false });
 		} catch (err) {
-			this.setState({ loading: false, error: err instanceof Error ? err.message : String(err) });
+			this.setState({ loading: false, error: errorDetail(err) });
 		}
 	}
 

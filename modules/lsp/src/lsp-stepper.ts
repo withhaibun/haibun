@@ -25,7 +25,7 @@ import { Resolver } from "@haibun/core/phases/Resolver.js";
 import { expand } from "@haibun/core/lib/features.js";
 import { TStepValue } from "@haibun/core/schema/protocol.js";
 import { findHaibunWorkspace, loadBackgroundsFromPath, countFeatures } from "@haibun/core/lib/workspace-discovery.js";
-import { constructorName } from "@haibun/core/lib/util/index.js";
+import { constructorName, errorDetail } from "@haibun/core/lib/util/index.js";
 
 // Semantic token types - indices matter for the legend
 const tokenTypes = ["keyword", "function", "parameter", "string", "number", "comment"];
@@ -559,7 +559,7 @@ export default class LspStepper extends AStepper {
 			expandedFeatures = await expand({ features: [feature], backgrounds: backgroundsToApply });
 		} catch (e) {
 			// Report the expansion error as a diagnostic (e.g., missing Backgrounds: include)
-			const errorMessage = e instanceof Error ? e.message : String(e);
+			const errorMessage = errorDetail(e);
 
 			// Try to find the line with the Backgrounds: directive that caused the issue
 			const lines = content.split("\n");
@@ -586,7 +586,7 @@ export default class LspStepper extends AStepper {
 				expandedFeatures = await expand({ features: [feature], backgrounds: [] });
 			} catch (e2) {
 				// If even that fails, we can't do anything
-				const errorMessage2 = e2 instanceof Error ? e2.message : String(e2);
+				const errorMessage2 = errorDetail(e2);
 				const diagnostics: Diagnostic[] = [
 					{
 						severity: DiagnosticSeverity.Error,

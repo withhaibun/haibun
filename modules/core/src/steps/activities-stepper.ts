@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
 import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen, TStepInput } from "../lib/execution.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
-import { actionOK, actionNotOK, actionOKWithProducts, getActionable, formatCurrentSeqPath } from "../lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getActionable, formatCurrentSeqPath, errorDetail } from "../lib/util/index.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
@@ -191,7 +191,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 					return actionOK();
 				} catch (err) {
-					const msg = err instanceof Error ? err.message : String(err);
+					const msg = errorDetail(err);
 					return actionNotOK(`waypoint: failed to execute proof steps: ${msg}`);
 				}
 			},
@@ -284,7 +284,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						return actionNotOK(`ensure: waypoint "${outcomeKey}" succeeded but returned no proofStatements`);
 					}
 				} catch (err) {
-					const msg = err instanceof Error ? err.message : String(err);
+					const msg = errorDetail(err);
 					this.emitEnsureEnd(featureStep, outcomeKey, false, msg);
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" proof execution error: ${msg}`);
 				}
@@ -323,7 +323,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						waypointResults[instanceKey] = {
 							proof: instanceData.proof.join("; "),
 							currentlyValid: false,
-							error: error instanceof Error ? error.message : String(error),
+							error: errorDetail(error),
 						};
 					}
 				}
