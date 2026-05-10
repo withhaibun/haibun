@@ -4,7 +4,7 @@
  * Pure function over the loaded stepper set, registered domains, current working-memory
  * fact set, and the caller's capability set. Returns:
  *   - forward: steps whose preconditions are currently satisfiable. The forward-chaining
- *     frontier. Each carries readyToFire indicating whether all input domains have at
+ *     frontier. Each carries readyToRun indicating whether all input domains have at
  *     least one fact (true) or whether some inputs need to be provided as gwta args (false).
  *   - goals: for each registered domain, the resolver's verdict (satisfied | resolvable
  *     | unreachable). Resolvable carries the plan so a client can preview it.
@@ -28,7 +28,7 @@ export type TForwardAffordance = {
 	inputDomains: string[];
 	outputDomains: string[];
 	/** True when every input domain has at least one asserted fact (no gwta args needed). */
-	readyToFire: boolean;
+	readyToRun: boolean;
 	/** Capability the caller must hold to dispatch this step; absent for ungated steps. */
 	capability?: string;
 };
@@ -70,7 +70,7 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], capabili
 		// typically infrastructure (Activity:, scenario:, etc.) that don't participate in
 		// the typed graph; including them as affordances clutters the frontier.
 		if (step.inputDomains.length === 0 && step.outputDomains.length === 0) continue;
-		const readyToFire = step.inputDomains.every((d) => assertedDomains.has(d) || d === SOURCE_DOMAIN);
+		const readyToRun = step.inputDomains.every((d) => assertedDomains.has(d) || d === SOURCE_DOMAIN);
 		out.push({
 			method: stepMethodName(step.stepperName, step.stepName),
 			stepperName: step.stepperName,
@@ -78,7 +78,7 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], capabili
 			gwta: step.gwta,
 			inputDomains: step.inputDomains,
 			outputDomains: step.outputDomains,
-			readyToFire,
+			readyToRun,
 			capability: step.capability,
 		});
 	}

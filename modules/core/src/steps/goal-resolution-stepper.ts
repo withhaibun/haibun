@@ -3,10 +3,10 @@
  *
  *   how to get {goal: domain-key}                   → DOMAIN_GOAL_RESOLUTION
  *   how to get {goal: domain-key} matching {filter} → DOMAIN_GOAL_RESOLUTION (filter unused in v1)
- *   run plan {plan: goal-resolution}                → fires the plan step-by-step
+ *   run plan {plan: goal-resolution}                → runs the plan step-by-step
  *
  * Plans are advisory. `run plan` re-checks every precondition at dispatch time;
- * the resolver never auto-fires anything.
+ * the resolver never auto-runs anything.
  */
 import {
 	AStepper,

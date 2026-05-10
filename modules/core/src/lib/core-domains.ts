@@ -101,7 +101,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 					gwta: z.string().optional(),
 					inputDomains: z.array(z.string()),
 					outputDomains: z.array(z.string()),
-					readyToFire: z.boolean(),
+					readyToRun: z.boolean(),
 					capability: z.string().optional(),
 				}),
 			),
