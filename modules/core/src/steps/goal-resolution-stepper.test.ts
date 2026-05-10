@@ -71,4 +71,14 @@ variable goalResolution.finding is "satisfied"`,
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
 	});
+
+	it("show affordances exposes the forward frontier and goal verdicts as a product", async () => {
+		const feature = {
+			path: "/features/show-affordances.feature",
+			content: `set affordances from show affordances
+variable affordances exists`,
+		};
+		const result = await passWithDefaults([feature], steppers);
+		expect(result.ok).toBe(true);
+	});
 });
