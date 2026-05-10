@@ -24,6 +24,7 @@ export const DOMAIN_TEST_SCRATCH = "test-scratch";
 export const DOMAIN_DOMAIN_KEY = "domain-key";
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_AFFORDANCES = "affordances";
+export const DOMAIN_CHAIN_LINT = "domain-chain-lint";
 
 export type TEnumDomainInput = {
 	name: string;
