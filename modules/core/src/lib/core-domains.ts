@@ -7,7 +7,6 @@ import {
 	DOMAIN_AFFORDANCES,
 	DOMAIN_CHAIN_LINT,
 	DOMAIN_DATE,
-	DOMAIN_DOMAIN_KEY,
 	DOMAIN_GOAL_RESOLUTION,
 	DOMAIN_JSON,
 	DOMAIN_LINK,
@@ -66,11 +65,8 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: z.unknown(),
 		description: "Permissive test-only domain for steps that have not yet been migrated to a typed output domain.",
 	},
-	{
-		selectors: [DOMAIN_DOMAIN_KEY],
-		schema: z.string().min(1, "domain key cannot be empty"),
-		description: "A registered domain identifier — referenced by goal-resolution and meta-introspection steps.",
-	},
+	// DOMAIN_DOMAIN_KEY is registered dynamically in Executor.addStepperConcerns
+	// after all other domains are collected, so its enum reflects the live registry.
 	{
 		selectors: [DOMAIN_GOAL_RESOLUTION],
 		schema: z.discriminatedUnion("finding", [

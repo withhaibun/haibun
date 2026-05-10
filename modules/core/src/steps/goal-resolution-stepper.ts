@@ -107,8 +107,12 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				facts,
 				capabilities: this.grantedCapabilities(),
 			});
+			const seqPath = world.runtime.currentSeqPath;
+			if (!seqPath) {
+				throw new Error("GoalResolutionStepper.afterStep: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking afterStep cycles.");
+			}
 			world.eventLogger.emit({
-				id: `affordances.${world.runtime.currentSeqPath ?? "ad-hoc"}`,
+				id: `affordances.${seqPath}`,
 				timestamp: Date.now(),
 				source: "haibun",
 				kind: "artifact",
@@ -212,7 +216,9 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		if (!tool) return `step not found: ${planStep.stepperName}.${planStep.stepName}`;
 		// Build a synthetic FeatureStep for the plan step. The current seqPath
 		// nests under the runPlan step's own seqPath via the runtime currentSeqPath.
-		const syntheticSeqPath = [...(world.runtime.currentSeqPath?.split(".").map((n) => Number(n)) ?? [0]), 0];
+		const current = world.runtime.currentSeqPath;
+		if (!current) throw new Error("dispatchPlanStep: world.runtime.currentSeqPath is unset. runPlan must be called inside an active step.");
+		const syntheticSeqPath = [...current.split(".").map((n) => Number(n)), 0];
 		const featureStep: TFeatureStep = {
 			in: planStep.gwta ?? `${planStep.stepperName}.${planStep.stepName}`,
 			seqPath: syntheticSeqPath,

@@ -399,7 +399,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 */
 	private async checkDeclarativeGoal(domainKey: string): Promise<{ satisfied: boolean; refused?: string }> {
 		const world = this.getWorld();
-		const steppers = (world.runtime.steppers ?? []) as AStepper[];
+		if (!world.runtime.steppers) {
+			throw new Error("ActivitiesStepper: world.runtime.steppers is unset. Executor.executeFeatures must set it before cycles run.");
+		}
+		const steppers = world.runtime.steppers as AStepper[];
 		const graph = buildDomainChain(steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 		const resolution = resolveGoal(domainKey, { graph, facts, capabilities: new Set() });
@@ -417,11 +420,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 */
 	private async runDeclarativeEnsure(domainKey: string, featureStep: TFeatureStep): Promise<{ handled: boolean; ok: boolean; errorMessage?: string }> {
 		const world = this.getWorld();
-		const steppers = (world.runtime.steppers ?? []) as AStepper[];
+		if (!world.runtime.steppers) {
+			throw new Error("ActivitiesStepper: world.runtime.steppers is unset. Executor.executeFeatures must set it before cycles run.");
+		}
+		const steppers = world.runtime.steppers as AStepper[];
 		const graph = buildDomainChain(steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 		const capabilities = new Set<string>();
-		// Diagnostic: log graph shape on each declarative ensure for debugging.
 		const resolution = resolveGoal(domainKey, { graph, facts, capabilities });
 
 		if (resolution.finding === "satisfied") return { handled: true, ok: true };
