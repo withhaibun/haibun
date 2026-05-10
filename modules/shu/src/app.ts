@@ -93,6 +93,20 @@ const STATIC_AFFORDANCE_OPENS: ReadonlyArray<TStaticAffordanceOpen> = [
 	{ eventName: SHU_EVENT.COLUMN_OPEN_SEQUENCE, view: "sequence", label: "Sequence", component: "shu-sequence-diagram", actionName: "open sequence column" },
 	{ eventName: SHU_EVENT.COLUMN_OPEN_DOCUMENT, view: "document", label: "Document", component: "shu-document-column", actionName: "open document column" },
 	{ eventName: SHU_EVENT.COLUMN_OPEN_GRAPH, view: "graph", label: "Graph", component: "shu-graph-view", actionName: "open graph column" },
+	{
+		eventName: SHU_EVENT.COLUMN_OPEN_AFFORDANCES_PANEL,
+		view: "affordances",
+		label: "Affordances",
+		component: "shu-affordances-panel",
+		actionName: "open affordances column",
+	},
+	{
+		eventName: SHU_EVENT.COLUMN_OPEN_DOMAIN_CHAIN,
+		view: "domain-chain",
+		label: "Domain chain",
+		component: "shu-domain-chain-view",
+		actionName: "open domain-chain column",
+	},
 ];
 
 const main = async (): Promise<void> => {
