@@ -10,6 +10,8 @@ export const SHU_EVENT = {
 	COLUMN_OPEN_STEP: "column-open-step",
 	COLUMN_OPEN_DOCUMENT: "column-open-document",
 	COLUMN_OPEN_AFFORDANCE: "column-open-affordance",
+	COLUMN_OPEN_AFFORDANCES_PANEL: "column-open-affordances-panel",
+	COLUMN_OPEN_DOMAIN_CHAIN: "column-open-domain-chain",
 	COLUMN_CLOSE_AFFORDANCE: "column-close-affordance",
 	COLUMN_CLOSE: "column-close",
 	COLUMN_ACTIVATE: "column-activate",
