@@ -212,12 +212,17 @@ export class ShuAffordancesPanel extends HTMLElement {
 			.join("");
 
 		const status = this.invokeStatus ? `<div class="status">${esc(this.invokeStatus)}</div>` : "";
+		const sectionHeader = (title: string, count: number) =>
+			`<div class="section-header"><h3>${esc(title)} (${count})</h3><button data-action="copy-${title.replace(/\s+/g, "-")}" title="Copy ${esc(title)} JSON to clipboard">Copy</button></div>`;
 
 		this.shadowRoot.innerHTML = `
 			<style>
 				${styles}
-				:host { display: block; padding: 12px; font-family: -apple-system, system-ui, sans-serif; }
-				h3 { margin: 12px 0 6px; font-size: 13px; color: #444; text-transform: uppercase; letter-spacing: 0.04em; }
+				:host { display: block; padding: 12px; font-family: inherit; }
+				h3 { margin: 0; font-size: 13px; color: #444; }
+				.section-header { display: flex; justify-content: space-between; align-items: baseline; margin: 12px 0 6px; }
+				.section-header button { padding: 3px 8px; font-size: 11px; background: #fafafa; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; }
+				.section-header button:hover { background: #eee; }
 				.explanation { margin-bottom: 12px; padding: 8px; background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; }
 				.explanation summary { cursor: pointer; font-size: 12px; color: #555; }
 				.explanation-body { padding: 6px 0; font-size: 12px; color: #333; }
@@ -252,7 +257,7 @@ export class ShuAffordancesPanel extends HTMLElement {
 				.goal-refused { border-left: 4px solid #b58105; }
 				.goal-header { display: flex; justify-content: space-between; align-items: center; }
 				.goal-name { font-size: 13px; }
-				.finding { font-size: 11px; padding: 2px 6px; border-radius: 2px; background: #eee; color: #444; text-transform: uppercase; letter-spacing: 0.04em; }
+				.finding { font-size: 11px; padding: 2px 6px; border-radius: 2px; background: #eee; color: #444; }
 				.goal-satisfied .finding { background: #d8edd8; color: #1a6b3c; }
 				.goal-plan .finding { background: #d8e1f0; color: #2848a8; }
 				.goal-unreachable .finding { background: #fdd; color: #a02828; }
@@ -270,11 +275,18 @@ export class ShuAffordancesPanel extends HTMLElement {
 			${status}
 			${this.invokeError ? `<div class="error">${esc(this.invokeError)}</div>` : ""}
 			${empty ? '<div class="empty">No affordances available yet. The first event arrives after the first step runs.</div>' : ""}
-			<h3>Forward affordances (${fwd.length})</h3>
+			${sectionHeader("Forward affordances", fwd.length)}
 			${forwardHtml || '<div class="empty">No forward affordances.</div>'}
-			<h3>Goals (${goals.length})</h3>
+			${sectionHeader("Goals", goals.length)}
 			${goalsHtml || '<div class="empty">No goal-producing steps loaded.</div>'}
 		`;
+
+		this.shadowRoot.querySelector('button[data-action="copy-Forward-affordances"]')?.addEventListener("click", () => {
+			void navigator.clipboard.writeText(JSON.stringify(fwd, null, 2));
+		});
+		this.shadowRoot.querySelector('button[data-action="copy-Goals"]')?.addEventListener("click", () => {
+			void navigator.clipboard.writeText(JSON.stringify(goals, null, 2));
+		});
 
 		for (const button of Array.from(this.shadowRoot.querySelectorAll(".expander:not(:disabled)"))) {
 			button.addEventListener("click", (e) => {
