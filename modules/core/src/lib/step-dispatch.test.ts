@@ -444,4 +444,90 @@ describe("step-dispatch", () => {
 			expect(status).toBe(SEQ_PATH_STATUS.failed);
 		});
 	});
+
+	describe("domain-anchored I/O", () => {
+		const TestEmailSchema = z.object({ id: z.string(), subject: z.string() });
+
+		class DomainEchoStepper extends AStepper {
+			steps = {
+				produceEmail: {
+					gwta: "produce an email",
+					outputDomain: "muskeg-test-email",
+					action: () => actionOKWithProducts({ id: "e1", subject: "hi" }),
+				},
+				badInputDomain: {
+					gwta: "send {who: string}",
+					inputDomains: { who: "muskeg-test-email" },
+					action: () => OK,
+				},
+				ungatedConsumer: {
+					gwta: "consume an email {who: string}",
+					inputDomains: { who: "string" },
+					action: () => OK,
+				},
+				dualOutput: {
+					gwta: "produce two outputs",
+					outputDomain: "muskeg-test-email",
+					outputDomains: { x: "string" },
+					action: () => actionOKWithProducts({ id: "e", subject: "s" }),
+				},
+				unknownDomain: {
+					gwta: "produce a ghost",
+					outputDomain: "muskeg-not-registered",
+					action: () => actionOKWithProducts({}),
+				},
+			};
+		}
+
+		beforeEach(() => {
+			registerDomains(world, [
+				[
+					{
+						selectors: ["muskeg-test-email"],
+						schema: TestEmailSchema,
+						description: "Test email",
+					},
+				],
+			]);
+		});
+
+		it("registers a step with outputDomain referencing a known domain", () => {
+			class JustProduce extends AStepper {
+				steps = { produceEmail: new DomainEchoStepper().steps.produceEmail };
+			}
+			const registry = buildStepRegistry([new JustProduce()], world);
+			const tool = registry.get("JustProduce-produceEmail");
+			expect(tool?.outputSchema).toBeDefined();
+		});
+
+		it("rejects inputDomains that disagrees with the gwta-derived domain", () => {
+			const stepper = new DomainEchoStepper();
+			const subset = { ...stepper.steps, badInputDomain: stepper.steps.badInputDomain };
+			class JustBad extends AStepper {
+				steps = { badInputDomain: subset.badInputDomain };
+			}
+			expect(() => buildStepRegistry([new JustBad()], world)).toThrow(/disagrees/);
+		});
+
+		it("accepts inputDomains aligned with the gwta-derived domain", () => {
+			class JustOk extends AStepper {
+				steps = { ungatedConsumer: new DomainEchoStepper().steps.ungatedConsumer };
+			}
+			expect(() => buildStepRegistry([new JustOk()], world)).not.toThrow();
+		});
+
+		it("rejects mutually exclusive outputDomain and outputDomains", () => {
+			class JustDual extends AStepper {
+				steps = { dualOutput: new DomainEchoStepper().steps.dualOutput };
+			}
+			expect(() => buildStepRegistry([new JustDual()], world)).toThrow(/mutually exclusive/);
+		});
+
+		it("rejects outputDomain referencing an unregistered domain", () => {
+			class JustUnknown extends AStepper {
+				steps = { unknownDomain: new DomainEchoStepper().steps.unknownDomain };
+			}
+			expect(() => buildStepRegistry([new JustUnknown()], world)).toThrow(/not a registered domain/);
+		});
+	});
 });
