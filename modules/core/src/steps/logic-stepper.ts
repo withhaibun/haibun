@@ -5,39 +5,37 @@ import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { z } from "zod";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
+import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 
-// Built-in observation sources
-// Note: Step names are sanitized (dots → underscores) to avoid variable name conflicts
+// Built-in observation sources read step-execution counts from the quad store under
+// the observation/step-usage named graph. Step names are sanitized (dots → underscores)
+// to avoid variable name conflicts with the "observed in {source}" quantifier output.
 
 const sanitizeKey = (key: string) => key.replace(/\./g, "_");
 
 const builtInSources: IObservationSource[] = [
 	{
 		name: "step usage",
-		observe: (world: TWorld) => {
-			const usage = (world.runtime.observations?.get("stepUsage") as Map<string, number>) || new Map();
-			const items = [...usage.keys()].map(sanitizeKey);
+		observe: async (world: TWorld) => {
+			const quads = await queryFacts(world, "count", OBSERVATION_GRAPH.STEP_USAGE);
+			const items = quads.map((q) => sanitizeKey(q.subject));
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const [key, count] of usage.entries()) {
-				metrics[sanitizeKey(key)] = { count };
-			}
+			for (const q of quads) metrics[sanitizeKey(q.subject)] = { count: q.object };
 			return { items, metrics };
 		},
 	},
 	{
 		name: "stepper usage",
-		observe: (world: TWorld) => {
-			const usage = (world.runtime.observations?.get("stepUsage") as Map<string, number>) || new Map();
+		observe: async (world: TWorld) => {
+			const quads = await queryFacts(world, "count", OBSERVATION_GRAPH.STEP_USAGE);
 			const stepperCounts = new Map<string, number>();
-			for (const [key, count] of usage.entries()) {
-				const stepperName = key.split(".")[0];
-				stepperCounts.set(stepperName, (stepperCounts.get(stepperName) || 0) + count);
+			for (const q of quads) {
+				const stepperName = q.subject.split(".")[0];
+				stepperCounts.set(stepperName, (stepperCounts.get(stepperName) || 0) + (q.object as number));
 			}
 			const items = [...stepperCounts.keys()];
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const [stepper, count] of stepperCounts.entries()) {
-				metrics[stepper] = { count };
-			}
+			for (const [stepper, count] of stepperCounts.entries()) metrics[stepper] = { count };
 			return { items, metrics };
 		},
 	},
@@ -99,7 +97,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			const sourceName = observedMatch[1].trim();
 			const source = this.getSource(sourceName);
 			if (!source) return { values: [], error: `Unknown observation source: "${sourceName}"` };
-			const { items, metrics } = source.observe(this.getWorld());
+			const { items, metrics } = await source.observe(this.getWorld());
 			return { values: items, metrics };
 		}
 
