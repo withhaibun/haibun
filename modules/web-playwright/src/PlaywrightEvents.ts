@@ -6,6 +6,8 @@ import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { trackHttpHost, trackHttpRequest } from "@haibun/core/lib/http-observations.js";
+import { assertFact } from "@haibun/core/lib/working-memory.js";
+import { VISITED_PAGES_OBSERVATION_GRAPH } from "./cycles.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 
 type TEtc = {
@@ -75,8 +77,8 @@ export class PlaywrightEvents {
 
 		void this.log(`response ${etc.status}`, "response", frameURL, response.url(), etc);
 
-		// Track request using shared helper
-		trackHttpRequest(
+		// fire-and-forget: in-memory QuadStore resolves synchronously
+		void trackHttpRequest(
 			this.world,
 			{
 				url: response.url(),
@@ -98,9 +100,8 @@ export class PlaywrightEvents {
 			void this.world.shared.setForStepper("WebPlaywright", { term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var }, provenance);
 			void this.world.shared.setForStepper("WebPlaywright", { term: "navigateCount", value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, provenance);
 
-			const visitedPages = (this.world.runtime.observations.get("visitedPages") as string[]) || [];
-			visitedPages.push(url);
-			this.world.runtime.observations.set("visitedPages", visitedPages);
+			// fire-and-forget: in-memory QuadStore resolves synchronously
+			void assertFact(this.world, "url", `visited:${this.navigateCount}`, url, VISITED_PAGES_OBSERVATION_GRAPH);
 
 			this.navigateCount++;
 		}
@@ -121,8 +122,8 @@ export class PlaywrightEvents {
 			...etc,
 		};
 
-		// Track HTTP hosts using shared helper
-		trackHttpHost(this.world, targetURL);
+		// fire-and-forget: in-memory QuadStore resolves synchronously
+		void trackHttpHost(this.world, targetURL);
 
 		// Emit HTTP trace artifact
 		const artifact = HttpTraceArtifact.parse({

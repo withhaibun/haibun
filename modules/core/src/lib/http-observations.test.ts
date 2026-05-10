@@ -3,6 +3,7 @@ import { trackHttpRequest, classifyHttpPath, OBSERVATION_GRAPH } from "./http-ob
 import { extractQuadsFromEvents } from "./quad-types.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";
+import { QuadStore } from "./quad-store.js";
 
 const MOUNTED: IRouteRegistry = {
 	mounted: {
@@ -14,7 +15,12 @@ const PATHS = registeredPaths(MOUNTED);
 
 function mockWorld(): { world: TWorld; emitted: Record<string, unknown>[] } {
 	const emitted: Record<string, unknown>[] = [];
-	const world = { runtime: { observations: new Map(), stepResults: [] }, eventLogger: { emit: (e: Record<string, unknown>) => emitted.push(e) } } as unknown as TWorld;
+	const store = new QuadStore();
+	const world = {
+		runtime: { stepResults: [] },
+		eventLogger: { emit: (e: Record<string, unknown>) => emitted.push(e) },
+		shared: { getStore: () => store },
+	} as unknown as TWorld;
 	return { world, emitted };
 }
 
@@ -41,9 +47,9 @@ describe("classifyHttpPath", () => {
 });
 
 describe("trackHttpRequest", () => {
-	it("emits name and endpoint quads with correct namedGraph", () => {
+	it("emits name and endpoint quads with correct namedGraph", async () => {
 		const { world, emitted } = mockWorld();
-		trackHttpRequest(world, { url: "http://localhost:8223/.well-known/did.json", status: 200, time: 5, method: "GET" }, PATHS);
+		await trackHttpRequest(world, { url: "http://localhost:8223/.well-known/did.json", status: 200, time: 5, method: "GET" }, PATHS);
 		const quads = extractQuadsFromEvents(emitted);
 		const nameQuad = quads.find((q) => q.predicate === "name");
 		const edgeQuad = quads.find((q) => q.predicate === "endpoint");
@@ -52,17 +58,17 @@ describe("trackHttpRequest", () => {
 		expect(edgeQuad?.object).toBe("/.well-known/did.json");
 	});
 
-	it("classifies external URLs with no endpoint edge", () => {
+	it("classifies external URLs with no endpoint edge", async () => {
 		const { world, emitted } = mockWorld();
-		trackHttpRequest(world, { url: "http://fonts.google.com/css2", status: 200, time: 100, method: "GET" }, PATHS);
+		await trackHttpRequest(world, { url: "http://fonts.google.com/css2", status: 200, time: 100, method: "GET" }, PATHS);
 		const quads = extractQuadsFromEvents(emitted);
 		expect(quads).toHaveLength(1);
 		expect(quads[0].namedGraph).toBe(OBSERVATION_GRAPH.EXTERNAL);
 	});
 
-	it("classifies RPC calls as observation/service with parameterized endpoint", () => {
+	it("classifies RPC calls as observation/service with parameterized endpoint", async () => {
 		const { world, emitted } = mockWorld();
-		trackHttpRequest(world, { url: "http://localhost:8223/rpc/step.list", status: 200, time: 30, method: "POST" }, PATHS);
+		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/step.list", status: 200, time: 30, method: "POST" }, PATHS);
 		const quads = extractQuadsFromEvents(emitted);
 		expect(quads[0].namedGraph).toBe(OBSERVATION_GRAPH.SERVICE);
 		const edgeQuad = quads.find((q) => q.predicate === "endpoint");

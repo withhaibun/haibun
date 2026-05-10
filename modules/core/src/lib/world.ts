@@ -34,8 +34,6 @@ export type TRuntime = {
 	steppers?: AStepper[];
 	/** Shared step registry. Set by Executor, used for dynamic step registration. */
 	stepRegistry?: StepRegistry;
-	/** Generic storage for observation data, cleared between features */
-	observations: Map<string, TAnyFixme>;
 	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
 	exhaustionError?: string;
 	/**

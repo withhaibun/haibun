@@ -9,6 +9,7 @@
 import type { TWorld } from "./world.js";
 import { emitQuadObservation } from "./quad-types.js";
 import { LinkRelations } from "./resources.js";
+import { OBSERVATION_GRAPH as WORKING_MEMORY_GRAPH, assertFact, getFact } from "./working-memory.js";
 
 export const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;
 
@@ -45,37 +46,29 @@ export type THttpRequestObservation = {
 };
 
 /**
- * Track an HTTP host in observations for the 'http-trace hosts' observation source.
+ * Track an HTTP host in working memory for the 'http-trace hosts' observation source.
  * Both NodeHttpEvents and PlaywrightEvents use this.
  */
-export function trackHttpHost(world: TWorld, url: string): void {
+export async function trackHttpHost(world: TWorld, url: string): Promise<void> {
+	let host: string;
 	try {
-		const parsedUrl = new URL(url);
-		const host = parsedUrl.hostname;
-		if (!world.runtime.observations) {
-			world.runtime.observations = new Map();
-		}
-		const httpHosts = (world.runtime.observations.get("httpHosts") as Map<string, number>) || new Map<string, number>();
-		httpHosts.set(host, (httpHosts.get(host) || 0) + 1);
-		world.runtime.observations.set("httpHosts", httpHosts);
+		host = new URL(url).hostname;
 	} catch {
-		// Invalid URL, skip tracking
+		return;
 	}
+	const priorCount = ((await getFact(world, "count", host, WORKING_MEMORY_GRAPH.HTTP_HOST)) as number | undefined) ?? 0;
+	await assertFact(world, "count", host, priorCount + 1, WORKING_MEMORY_GRAPH.HTTP_HOST);
 }
 
 /**
- * Track an HTTP request in observations for the 'http-trace' observation source.
+ * Track an HTTP request in working memory for the 'http-trace' observation source.
  * Pass registeredPaths (from IWebServer.mounted) to classify observations into namedGraphs.
  */
-export function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>): void {
-	if (!world.runtime.observations) {
-		world.runtime.observations = new Map();
-	}
-	const requests = (world.runtime.observations.get("httpRequests") as Map<string, THttpRequestObservation>) || new Map<string, THttpRequestObservation>();
-	const count = requests.size;
-	const id = `req-${count + 1}`;
-	requests.set(id, observation);
-	world.runtime.observations.set("httpRequests", requests);
+export async function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>): Promise<void> {
+	const priorCount = ((await getFact(world, "count", "__index__", WORKING_MEMORY_GRAPH.HTTP_REQUEST)) as number | undefined) ?? 0;
+	const id = `req-${priorCount + 1}`;
+	await assertFact(world, "observation", id, observation, WORKING_MEMORY_GRAPH.HTTP_REQUEST);
+	await assertFact(world, "count", "__index__", priorCount + 1, WORKING_MEMORY_GRAPH.HTTP_REQUEST);
 
 	const timestamp = Date.now();
 	const path = observation.url.startsWith("/") ? observation.url : new URL(observation.url).pathname;

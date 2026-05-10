@@ -174,13 +174,16 @@ export const CycleWhen = {
 /**
  * Observation source for the 'observed in' quantifier pattern.
  * Provides ephemeral iteration over runtime metrics.
+ *
+ * Implementations may read from the quad store via `queryFacts` (async). The
+ * `observe` method is async to allow that.
  */
 export interface IObservationSource {
 	name: string;
-	observe(world: TWorld): {
+	observe(world: TWorld): Promise<{
 		items: string[];
 		metrics: Record<string, Record<string, unknown>>;
-	};
+	}>;
 }
 
 export interface IStepperConcerns {

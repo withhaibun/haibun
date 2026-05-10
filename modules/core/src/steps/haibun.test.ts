@@ -9,6 +9,7 @@ import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionOK } from "../lib/util/index.js";
 import type { StepRegistry } from "../lib/step-dispatch.js";
+import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
 
 describe("until", () => {
 	it("until passes", async () => {
@@ -27,9 +28,9 @@ describe("on host", () => {
 				registry.set({
 					...local,
 					name: "2:TestSteps-passes",
-					handler: () => {
-						this.getWorld().runtime.observations.set("remoteCalled", true);
-						return Promise.resolve(actionOK());
+					handler: async () => {
+						await assertFact(this.getWorld(), "flag", "remoteCalled", true, OBSERVATION_GRAPH.RUNTIME_FLAG);
+						return actionOK();
 					},
 				});
 			}
@@ -45,7 +46,8 @@ describe("on host", () => {
 		const ins = result.featureResults?.[0].stepResults.map((r) => r.in);
 		// Sub-step records before its wrapping `on host` step's own result is pushed.
 		expect(ins).toEqual(["passes", "passes", "on host 2, passes"]);
-		const remoteCalled = result.world?.runtime.observations.get("remoteCalled");
+		if (!result.world) throw new Error("result.world missing");
+		const remoteCalled = await getFact(result.world, "flag", "remoteCalled", OBSERVATION_GRAPH.RUNTIME_FLAG);
 		expect(remoteCalled).toBe(true);
 	});
 

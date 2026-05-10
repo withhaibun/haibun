@@ -195,45 +195,33 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 		showObservations: {
 			gwta: "show observations",
-			action: () => {
-				const observations = this.getWorld().runtime.observations;
-				if (!observations) {
+			action: async () => {
+				// Walk the quad store, collect every quad in an "observation/*" named graph,
+				// then group by named graph for display.
+				const allQuads = await this.getWorld().shared.getStore().all();
+				const observationQuads = allQuads.filter((q) => q.namedGraph.startsWith("observation/"));
+				if (observationQuads.length === 0) {
 					this.getWorld().eventLogger.info(`observations: none`);
 					return actionOK();
 				}
 
-				// Correlate observations with their providers
-				const providers: Record<string, string> = {};
+				const sourceProviders: Record<string, string> = {};
 				for (const stepper of this.steppers) {
 					if ("cycles" in stepper) {
 						const concerns = (stepper as unknown as IHasCycles).cycles.getConcerns?.();
 						if (concerns?.sources) {
-							for (const source of concerns.sources) {
-								providers[source.name] = stepper.constructor.name;
-							}
+							for (const source of concerns.sources) sourceProviders[source.name] = stepper.constructor.name;
 						}
 					}
 				}
 
-				const systemProviders: Record<string, string> = {
-					stepUsage: "Executor",
-				};
-
-				const summary: Record<string, { provider: string; items: unknown }> = {};
-				for (const [name, items] of observations.entries()) {
-					// Handle Maps (like httpRequests/httpHosts) by converting to object/array
-					let displayItems = items;
-					if (items instanceof Map) {
-						displayItems = Object.fromEntries(items);
-					}
-
-					summary[name] = {
-						provider: providers[name] || systemProviders[name] || "unknown",
-						items: displayItems,
-					};
+				const summary: Record<string, { items: Array<{ subject: string; predicate: string; object: unknown }> }> = {};
+				for (const quad of observationQuads) {
+					if (!summary[quad.namedGraph]) summary[quad.namedGraph] = { items: [] };
+					summary[quad.namedGraph].items.push({ subject: quad.subject, predicate: quad.predicate, object: quad.object });
 				}
 
-				this.getWorld().eventLogger.info(JSON.stringify(summary, null, 2));
+				this.getWorld().eventLogger.info(JSON.stringify({ summary, sourceProviders }, null, 2));
 				return actionOK();
 			},
 		},
