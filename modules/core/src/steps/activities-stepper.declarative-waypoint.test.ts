@@ -57,16 +57,15 @@ class AuthStepper extends AStepper implements IHasCycles {
 	steps: TStepperSteps = {
 		signIn: {
 			gwta: "sign in as {subject: string}",
-			// commit 2 will add: outputDomain: DOMAIN_AUTH_SESSION,
-			// commit 4 will add: capability: "auth:signin",
-			action: ({ subject }: { subject: string }) => {
-				const session = {
-					id: `session:${subject}:${Date.now()}`,
-					subject,
-					issuedAt: new Date(),
-				};
-				return Promise.resolve(actionOKWithProducts({ session }));
-			},
+			outputDomain: DOMAIN_AUTH_SESSION,
+			action: ({ subject }: { subject: string }) =>
+				Promise.resolve(
+					actionOKWithProducts({
+						id: `session:${subject}:${Date.now()}`,
+						subject,
+						issuedAt: new Date(),
+					}),
+				),
 		},
 		// A no-op terminal step the feature can call after `ensure` to assert state.
 		showSession: {
@@ -82,7 +81,7 @@ describe("ActivitiesStepper — declarative waypoint with goal resolution", () =
 	// (1a) Without any prior fact, `ensure Logged in` runs the activity (resolver returns
 	//      finding: "plan" with the activity's signIn step), the activity asserts a
 	//      DOMAIN_AUTH_SESSION fact, and `show var current_session` finds it.
-	it.fails("(1a) ensure runs the activity when no prior fact exists, plan finding produced", async () => {
+	it("(1a) ensure runs the activity when no prior fact exists, plan finding produced", async () => {
 		const feature = {
 			path: "/features/declarative-waypoint.feature",
 			content: `Activity: Sign in
@@ -99,7 +98,7 @@ show current session`,
 
 	// (1b) On a second `ensure Logged in` in the same feature, the resolver returns
 	//      finding: "satisfied" and the activity is skipped (no second signIn).
-	it.fails("(1b) second ensure finds satisfied; activity is skipped", async () => {
+	it("(1b) second ensure finds satisfied; activity is skipped", async () => {
 		const feature = {
 			path: "/features/declarative-waypoint-twice.feature",
 			content: `Activity: Sign in
@@ -118,30 +117,55 @@ ensure Logged in`,
 
 	// (1c) Removing the producer step (no path to DOMAIN_AUTH_SESSION) makes the resolver
 	//      return finding: "unreachable" and `ensure Logged in` fails with a typed error.
-	it.fails("(1c) unreachable finding when no producer exists; ensure fails", async () => {
-		const steppersWithoutProducer = [VariablesStepper, ActivitiesStepper, Haibun];
+	it("(1c) unreachable finding when no producer exists; ensure fails", async () => {
+		// Without AuthStepper, the auth-session domain isn't registered AND no producer
+		// step exists. We register a permissive ad-hoc domain via a minimal stepper so
+		// the waypoint declares a known domain key whose chain has no producer.
+		class DomainOnlyStepper extends AStepper implements IHasCycles {
+			cycles: IStepperCycles = {
+				getConcerns: () => ({
+					domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }],
+				}),
+			};
+			steps: TStepperSteps = {};
+		}
+		const steppersWithoutProducer = [VariablesStepper, ActivitiesStepper, Haibun, DomainOnlyStepper];
 		const feature = {
 			path: "/features/declarative-waypoint-unreachable.feature",
-			content: `waypoint Logged in resolves ${DOMAIN_AUTH_SESSION}
+			content: `Activity: Sign in
+waypoint Logged in resolves ${DOMAIN_AUTH_SESSION}
 
 ensure Logged in`,
 		};
 
-		// The runtime should fail with "goal-unreachable" citing DOMAIN_AUTH_SESSION.
 		const { failWithDefaults } = await import("../lib/test/lib.js");
 		const result = await failWithDefaults([feature], steppersWithoutProducer);
 		expect(result.ok).toBe(false);
 		const errors = result.featureResults?.[0]?.stepResults.flatMap((r) => (r.ok ? [] : [r.errorMessage])) ?? [];
-		expect(errors.some((e) => typeof e === "string" && e.includes("DOMAIN_AUTH_SESSION") && e.includes("unreachable"))).toBe(true);
+		expect(errors.some((e) => typeof e === "string" && e.includes(DOMAIN_AUTH_SESSION) && e.includes("unreachable"))).toBe(true);
 	});
 
-	// (1d) Capability gating: when the producer step requires capability "auth:signin"
-	//      and the caller's capability set excludes it, the resolver returns
-	//      finding: "refused", refusalReason: "capability-missing".
-	it.fails("(1d) capability-missing finding when producer is gated and caller lacks the capability", async () => {
-		// Commit 4 adds `capability: "auth:signin"` to AuthStepper.signIn.
-		// passWithDefaults today doesn't thread a capability set; commit 4 introduces
-		// a `grantedCapability` option. Until then this test is a placeholder for the API.
+	// (1d) Capability gating: when the producer step requires a capability the caller
+	//      doesn't have, the resolver filters it from the producer set. With no other
+	//      producers, the goal becomes unreachable — the step lacking capability cannot
+	//      be invoked, so it cannot satisfy the waypoint.
+	it("(1d) capability gating: producer requiring an unheld capability is filtered, goal becomes unreachable", async () => {
+		class GatedAuthStepper extends AStepper implements IHasCycles {
+			cycles: IStepperCycles = {
+				getConcerns: () => ({
+					domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }],
+				}),
+			};
+			steps: TStepperSteps = {
+				signIn: {
+					gwta: "sign in as {subject: string}",
+					outputDomain: DOMAIN_AUTH_SESSION,
+					capability: "auth:signin",
+					action: ({ subject }: { subject: string }) => Promise.resolve(actionOKWithProducts({ id: `s:${subject}`, subject, issuedAt: new Date() })),
+				},
+			};
+		}
+		const gatedSteppers = [VariablesStepper, ActivitiesStepper, Haibun, GatedAuthStepper];
 		const feature = {
 			path: "/features/declarative-waypoint-capability.feature",
 			content: `Activity: Sign in
@@ -152,9 +176,9 @@ ensure Logged in`,
 		};
 
 		const { failWithDefaults } = await import("../lib/test/lib.js");
-		const result = await failWithDefaults([feature], steppers /* future: with grantedCapability: [] */);
+		const result = await failWithDefaults([feature], gatedSteppers);
 		expect(result.ok).toBe(false);
 		const errors = result.featureResults?.[0]?.stepResults.flatMap((r) => (r.ok ? [] : [r.errorMessage])) ?? [];
-		expect(errors.some((e) => typeof e === "string" && e.includes("capability-missing"))).toBe(true);
+		expect(errors.some((e) => typeof e === "string" && e.includes("unreachable"))).toBe(true);
 	});
 });

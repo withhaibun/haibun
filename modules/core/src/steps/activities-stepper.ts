@@ -8,6 +8,10 @@ import { actionOK, actionNotOK, actionOKWithProducts, getActionable, formatCurre
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
+import { buildDomainChain } from "../lib/domain-chain.js";
+import { resolveGoal } from "../lib/goal-resolver.js";
+import { FACT_GRAPH } from "../lib/working-memory.js";
+import { stepMethodName } from "../lib/step-dispatch.js";
 
 // need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
@@ -37,8 +41,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private lastResolutionPath: string = "";
 	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
 	private ensureAttempts: Map<string, number> = new Map();
-	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: TStepInput[]; lineNumber?: number }> =
-		new Map();
+	private registeredOutcomeMetadata: Map<
+		string,
+		{ proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: TStepInput[]; lineNumber?: number; resolvesDomain?: string }
+	> = new Map();
 	private backgroundSteps: Record<string, TStepperStep> = {};
 	private inActivityBlock = false;
 
@@ -236,7 +242,22 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}
 
 				const metadata = this.registeredOutcomeMetadata.get(pattern);
-				if (!metadata || metadata.proofStatements.length === 0) {
+				if (!metadata) {
+					this.emitEnsureEnd(featureStep, outcomeKey, false, "no metadata for waypoint");
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no metadata.`);
+				}
+
+				if (metadata.resolvesDomain) {
+					const resolverOutcome = await this.runDeclarativeEnsure(metadata.resolvesDomain, featureStep);
+					if (resolverOutcome.handled) {
+						this.emitEnsureEnd(featureStep, outcomeKey, resolverOutcome.ok, resolverOutcome.errorMessage);
+						this.ensureAttempts.delete(attemptKey);
+						return resolverOutcome.ok ? actionOK() : actionNotOK(`ensure: waypoint "${outcomeKey}" goal resolution failed: ${resolverOutcome.errorMessage}`);
+					}
+					// Resolver was refused — fall through to imperative proof if one exists.
+				}
+
+				if (metadata.proofStatements.length === 0) {
 					this.emitEnsureEnd(featureStep, outcomeKey, false, "no proof defined");
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof. ensure can only be used with waypoints that have a proof.`);
 				}
@@ -331,6 +352,47 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		this.runner = new FlowRunner(world, steppers);
 	}
 
+	/**
+	 * Run a declarative-ensure: invoke the goal resolver for `domainKey`. When the
+	 * resolver returns satisfied or successfully runs a plan, return ok=true. When
+	 * the resolver refuses (e.g. capability missing or anonymous outputs present),
+	 * return handled=false so the caller can fall through to the imperative proof
+	 * if one was also declared.
+	 */
+	private async runDeclarativeEnsure(domainKey: string, featureStep: TFeatureStep): Promise<{ handled: boolean; ok: boolean; errorMessage?: string }> {
+		const world = this.getWorld();
+		const steppers = (world.runtime.steppers ?? []) as AStepper[];
+		const graph = buildDomainChain(steppers, world.domains);
+		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+		const capabilities = new Set<string>();
+		// Diagnostic: log graph shape on each declarative ensure for debugging.
+		const resolution = resolveGoal(domainKey, { graph, facts, capabilities });
+
+		if (resolution.finding === "satisfied") return { handled: true, ok: true };
+		if (resolution.finding === "refused") return { handled: false, ok: false, errorMessage: `goal-${resolution.refusalReason}: ${resolution.detail}` };
+		if (resolution.finding === "unreachable") {
+			return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (missing: ${resolution.missing.join(", ")})` };
+		}
+
+		// Run the plan. Each plan step's preconditions are re-checked at dispatch time.
+		const registry = world.runtime.stepRegistry;
+		if (!registry) return { handled: true, ok: false, errorMessage: "no step registry available" };
+		for (const planStep of resolution.steps) {
+			const tool = registry.get(stepMethodName(planStep.stepperName, planStep.stepName));
+			if (!tool) return { handled: true, ok: false, errorMessage: `plan step not in registry: ${planStep.stepperName}.${planStep.stepName}` };
+			const syntheticSeqPath = [...featureStep.seqPath, 0];
+			const synthetic: TFeatureStep = {
+				in: planStep.gwta ?? `${planStep.stepperName}.${planStep.stepName}`,
+				seqPath: syntheticSeqPath,
+				source: featureStep.source,
+				action: { actionName: planStep.stepName, stepperName: planStep.stepperName, step: { action: () => actionOK() }, stepValuesMap: {} },
+			};
+			const result = await tool.handler(synthetic, world);
+			if (!result.ok) return { handled: true, ok: false, errorMessage: `plan step ${planStep.stepperName}.${planStep.stepName} failed: ${result.errorMessage}` };
+		}
+		return { handled: true, ok: true };
+	}
+
 	private emitEnsureEnd(featureStep: TFeatureStep, outcomeKey: string, ok: boolean, error?: string): void {
 		this.getWorld().eventLogger.emit(
 			LifecycleEvent.parse({
@@ -356,6 +418,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		activityBlockSteps?: (string | TStepInput)[],
 		lineNumber?: number,
 		actualSourcePath?: string,
+		resolvesDomain?: string,
 	) {
 		if (this.steps[outcome]) {
 			const existing = this.steps[outcome];
@@ -385,6 +448,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			isBackground: isBackground ?? false,
 			activityBlockSteps: normalizedActivitySteps,
 			lineNumber,
+			resolvesDomain,
 		});
 
 		if (isBackground) {
@@ -541,8 +605,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 		let outcome: string;
 		let proofStatements: string[] = [];
+		let resolvesDomain: string | undefined;
 
-		if (requireProof) {
+		// Declarative form: `waypoint Outcome resolves <domain-key>`
+		const resolvesMatch = line.match(/^waypoint\s+(.+?)\s+resolves\s+(\S+)\s*$/i);
+		if (resolvesMatch) {
+			outcome = resolvesMatch[1].trim();
+			resolvesDomain = resolvesMatch[2].trim();
+		} else if (requireProof) {
 			if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
 				return false;
 			}
@@ -603,7 +673,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				activityBlockSteps = blockLines;
 			}
 		}
-		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps, lineIndex !== undefined ? lineIndex + 1 : undefined, actualSourcePath);
+		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps, lineIndex !== undefined ? lineIndex + 1 : undefined, actualSourcePath, resolvesDomain);
 		return true;
 	}
 }
