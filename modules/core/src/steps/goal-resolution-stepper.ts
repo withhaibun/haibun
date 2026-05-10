@@ -48,6 +48,23 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	}
 
 	cycles: IStepperCycles = {
+		startExecution: () => {
+			// Emit a one-time domain-chain lint report at startup so monitors and the
+			// shu UI can surface orphan/starved/unreachable findings before any step runs.
+			const world = this.getWorld();
+			const graph = buildDomainChain(this.steppers, world.domains);
+			const lint = lintDomainChain(graph, world.domains);
+			world.eventLogger.emit({
+				id: "domain-chain.lint.startup",
+				timestamp: Date.now(),
+				source: "haibun",
+				kind: "artifact",
+				artifactType: "json",
+				mimetype: "application/json",
+				level: "debug",
+				json: { domainChainLint: lint } as Record<string, unknown>,
+			});
+		},
 		afterStep: async (_after: TAfterStep): Promise<TAfterStepResult> => {
 			// Emit the current affordances snapshot so monitors and the shu panel can
 			// render "what can I do next?" without polling. Identity is the seqPath.
