@@ -305,11 +305,19 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		if (ServerHono.listeningPorts.has(this.port)) {
 			return;
 		}
-		// Try to stop a previous instance on this port before binding
+		// Try to stop a previous instance on this port before binding. The new
+		// instance's `why` becomes the reason on the prior /stop so logs identify
+		// who took the port.
 		try {
 			const host = this.hostname || "127.0.0.1";
-			const res = await fetch(`http://${host}:${this.port}/stop`, { method: "POST", signal: AbortSignal.timeout(2000) });
-			if (res.ok) this.getWorld().eventLogger.info(`Stopped previous instance on port ${this.port}`);
+			const reason = `port-claim-by ${why}`;
+			const res = await fetch(`http://${host}:${this.port}/stop`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ reason }),
+				signal: AbortSignal.timeout(2000),
+			});
+			if (res.ok) this.getWorld().eventLogger.info(`Stopped previous instance on port ${this.port} for ${why}`);
 			await new Promise((r) => setTimeout(r, 500));
 		} catch {
 			/* no previous instance */
