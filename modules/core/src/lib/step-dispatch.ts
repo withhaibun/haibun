@@ -496,7 +496,12 @@ async function checkInputPreconditions(world: TWorld, step: TStepperStep, featur
  */
 async function autoAssertProducts(world: TWorld, step: TStepperStep, actionResult: TActionResult): Promise<void> {
 	if (!actionResult.products) return;
-	const seqPathKey = world.runtime.currentSeqPath ?? "ad-hoc";
+	const seqPathKey = world.runtime.currentSeqPath;
+	if (!seqPathKey) {
+		throw new Error(
+			"autoAssertProducts: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking the action; if you see this, the dispatch path is missing the assignment.",
+		);
+	}
 	if (step.outputDomain) {
 		await assertFact(world, normalizeDomainKey(step.outputDomain), seqPathKey, actionResult.products, FACT_GRAPH);
 		return;
