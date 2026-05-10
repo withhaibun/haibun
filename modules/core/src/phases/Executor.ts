@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DOMAIN_VERTEX_LABEL } from "../lib/resources.js";
+import { DOMAIN_DOMAIN_KEY } from "../lib/domains.js";
 import type { TWorld } from "../lib/world.js";
 import { TResolvedFeature, TEndFeature } from "../lib/astepper.js";
 import {
@@ -348,6 +349,20 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 		.map((d) => d.topology?.vertexLabel as string);
 	if (vertexLabels.length > 0) {
 		registerDomains(world, [[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }]]);
+	}
+	// Register domain-key domain as an enum over every domain currently in the
+	// registry. Renders as a dropdown in form-based step callers (shu step-caller).
+	const domainKeys = Object.keys(world.domains).sort();
+	if (domainKeys.length > 0) {
+		registerDomains(world, [
+			[
+				{
+					selectors: [DOMAIN_DOMAIN_KEY],
+					schema: z.enum(domainKeys as [string, ...string[]]),
+					description: "A registered domain identifier — referenced by goal-resolution and meta-introspection steps.",
+				},
+			],
+		]);
 	}
 };
 
