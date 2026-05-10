@@ -8,7 +8,7 @@ import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
-import { OBSERVATION_GRAPH, assertFact, getFact } from "./working-memory.js";
+import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
@@ -130,10 +130,12 @@ export function buildStepRegistry(steppers: AStepper[], world: TWorld): Map<stri
 export function createStepTool(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): StepTool {
 	const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepDef, world);
 	const name = stepMethodName(stepperName, stepName);
+	validateInputDomains(stepperName, stepName, stepDef, paramDomainKeys);
+	const resolvedOutputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
 	let outputSchema: Record<string, unknown> | undefined;
-	if (stepDef.outputSchema) {
+	if (resolvedOutputSchema) {
 		try {
-			outputSchema = z.toJSONSchema(stepDef.outputSchema) as Record<string, unknown>;
+			outputSchema = z.toJSONSchema(resolvedOutputSchema) as Record<string, unknown>;
 		} catch {
 			/* skip if schema can't be converted */
 		}
@@ -321,7 +323,17 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		let doAction = true;
 		while (doAction) {
 			await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+			const preconditionError = await checkInputPreconditions(world, action.step, featureStep);
+			if (preconditionError) {
+				actionResult = actionNotOK(preconditionError);
+				lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
+				world.runtime.stepResults.push(lastStepResult);
+				ok = false;
+				doAction = false;
+				continue;
+			}
 			actionResult = await tool.handler(featureStep, world);
+			if (actionResult.ok) await autoAssertProducts(world, action.step, actionResult);
 			if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
 				world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
 			}
@@ -410,6 +422,95 @@ export function authorizeToolCapability(tool: Pick<StepTool, "name" | "capabilit
 	if (!tool.capability) return;
 	if (capabilityAllows(granted, tool.capability)) return;
 	throw new Error(`${tool.name}: capability ${tool.capability} required`);
+}
+
+/**
+/**
+ * Cross-check a step's declared `inputDomains` against the gwta-derived param-domain
+ * bindings. Mismatch is a registration error — better to fail at boot than to leave
+ * the goal-resolver with a graph that disagrees with dispatch.
+ */
+function validateInputDomains(stepperName: string, stepName: string, stepDef: TStepperStep, paramDomainKeys: Map<string, string>): void {
+	if (!stepDef.inputDomains) return;
+	for (const [param, declaredDomain] of Object.entries(stepDef.inputDomains)) {
+		const gwtaDomain = paramDomainKeys.get(param);
+		if (!gwtaDomain) {
+			throw new Error(`step ${stepperName}.${stepName}: inputDomains.${param} declared as "${declaredDomain}" but gwta has no {${param}:...} slot`);
+		}
+		if (normalizeDomainKey(declaredDomain) !== gwtaDomain) {
+			throw new Error(`step ${stepperName}.${stepName}: inputDomains.${param}="${declaredDomain}" disagrees with gwta {${param}:${gwtaDomain}}`);
+		}
+	}
+}
+
+/**
+ * Resolve a step's output schema from its declarations. When `outputDomain` is set,
+ * the schema is the domain's. When `outputDomains` is set, build an object schema
+ * keyed by field. Falls back to legacy `outputSchema` for unmigrated steps.
+ */
+function resolveOutputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): z.ZodType | undefined {
+	if (stepDef.outputDomain && stepDef.outputDomains) {
+		throw new Error(`step ${stepperName}.${stepName}: outputDomain and outputDomains are mutually exclusive`);
+	}
+	if (stepDef.outputDomain) {
+		const domain = world.domains?.[normalizeDomainKey(stepDef.outputDomain)];
+		if (!domain) throw new Error(`step ${stepperName}.${stepName}: outputDomain "${stepDef.outputDomain}" is not a registered domain`);
+		return domain.schema;
+	}
+	if (stepDef.outputDomains) {
+		const fields: Record<string, z.ZodType> = {};
+		for (const [field, domainKey] of Object.entries(stepDef.outputDomains)) {
+			const domain = world.domains?.[normalizeDomainKey(domainKey)];
+			if (!domain) throw new Error(`step ${stepperName}.${stepName}: outputDomains.${field} = "${domainKey}" is not a registered domain`);
+			fields[field] = domain.schema;
+		}
+		return z.object(fields);
+	}
+	return stepDef.outputSchema;
+}
+
+/**
+ * Verify each declared input domain has at least one matching fact OR that the
+ * gwta-resolved value for that param validates against the domain schema. Returns
+ * an error message when a precondition is unsatisfiable; undefined when all pass.
+ */
+async function checkInputPreconditions(world: TWorld, step: TStepperStep, featureStep: TFeatureStep): Promise<string | undefined> {
+	if (!step.inputDomains) return undefined;
+	const stepValuesMap = featureStep.action.stepValuesMap ?? {};
+	for (const [param, domainKey] of Object.entries(step.inputDomains)) {
+		const normalized = normalizeDomainKey(domainKey);
+		const stepValue = stepValuesMap[param];
+		if (stepValue !== undefined) {
+			const domain = world.domains?.[normalized];
+			if (!domain) continue;
+			const result = domain.schema.safeParse(stepValue.value);
+			if (result.success) continue;
+		}
+		const facts = await queryFacts(world, normalized, FACT_GRAPH);
+		if (facts.length === 0) return `precondition-not-satisfied: domain "${domainKey}" has no asserted facts and no resolved value for {${param}}`;
+	}
+	return undefined;
+}
+
+/**
+ * Auto-assert step products into the facts graph using the step's declared
+ * output domain(s). The seqPath is the fact identity so re-firing a step
+ * upserts its assertion rather than duplicating it.
+ */
+async function autoAssertProducts(world: TWorld, step: TStepperStep, actionResult: TActionResult): Promise<void> {
+	if (!actionResult.products) return;
+	const seqPathKey = world.runtime.currentSeqPath ?? "ad-hoc";
+	if (step.outputDomain) {
+		await assertFact(world, normalizeDomainKey(step.outputDomain), seqPathKey, actionResult.products, FACT_GRAPH);
+		return;
+	}
+	if (step.outputDomains) {
+		const products = actionResult.products as Record<string, unknown>;
+		for (const [field, domainKey] of Object.entries(step.outputDomains)) {
+			if (!(field in products)) continue;
+			await assertFact(world, normalizeDomainKey(domainKey), `${seqPathKey}#${field}`, products[field], FACT_GRAPH);
+		}
+	}
 }
 
 /**

@@ -33,6 +33,13 @@ export const OBSERVATION_GRAPH = {
 } as const;
 
 /**
+ * Named graph holding step-product assertions auto-asserted by the dispatcher
+ * when a step declares `outputDomain` or `outputDomains`. Each fact's predicate is
+ * the domain key; subject is the step's seqPath; object is the product value.
+ */
+export const FACT_GRAPH = "facts";
+
+/**
  * Assert a single typed fact into a named graph.
  *
  * Maps to a quad write:  `subject=identity, predicate=domain, object=object, namedGraph`.

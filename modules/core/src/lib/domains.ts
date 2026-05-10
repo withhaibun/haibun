@@ -15,6 +15,11 @@ export const DOMAIN_LIFECYCLE_EVENT = "lifecycle-event";
 export const DOMAIN_INFRASTRUCTURE_ERROR = "infrastructure-error";
 export const DOMAIN_CAPABILITY_DENIAL = "capability-denial";
 
+// Test-only escape hatch. Steps in tests that don't yet have a registered output
+// domain can declare `outputDomain: DOMAIN_TEST_SCRATCH` to satisfy the dispatcher
+// without first registering a typed schema. Production steps must use a real domain.
+export const DOMAIN_TEST_SCRATCH = "test-scratch";
+
 export type TEnumDomainInput = {
 	name: string;
 	values: string[];
