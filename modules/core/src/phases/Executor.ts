@@ -45,16 +45,18 @@ export function calculateShouldClose({
 	return true;
 }
 
-function initExecutionRuntime(world: TWorld): void {
-	if (!world.runtime.observations) {
-		world.runtime.observations = new Map();
-	}
+function initExecutionRuntime(_world: TWorld): void {
+	// Working-memory observations live in the quad store under the observation/* named
+	// graphs (see working-memory.ts). The store is created with the world; nothing to
+	// initialize here. Kept as an extension point for future per-execution setup.
 }
 
-function initFeatureRuntime(world: TWorld): void {
-	if (world.runtime) {
-		world.runtime.observations = new Map();
-	}
+async function initFeatureRuntime(world: TWorld): Promise<void> {
+	// Clear observation/* graphs between features so cross-feature state doesn't leak.
+	const store = world.shared.getStore();
+	const allQuads = await store.all();
+	const observationGraphs = new Set(allQuads.filter((q) => q.namedGraph.startsWith("observation/")).map((q) => q.namedGraph));
+	for (const graph of observationGraphs) await store.clear(graph);
 }
 
 /**
@@ -165,7 +167,7 @@ export class Executor {
 				tag: { ...world.tag, featureNum, featureName },
 			};
 
-			initFeatureRuntime(newWorld);
+			await initFeatureRuntime(newWorld);
 
 			const featureExecutor = new FeatureExecutor(steppers, stepRegistry, newWorld);
 

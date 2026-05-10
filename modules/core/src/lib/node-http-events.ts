@@ -113,8 +113,8 @@ export class NodeHttpEvents {
 
 		const url = `${request.origin || ""}${request.path || ""}`;
 
-		// Track HTTP hosts using shared helper
-		trackHttpHost(world, url);
+		// fire-and-forget: in-memory QuadStore resolves synchronously
+		void trackHttpHost(world, url);
 
 		const artifact = HttpTraceArtifact.parse({
 			id: `http-trace-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,

@@ -2,54 +2,54 @@ import { rmSync } from "fs";
 import { relative, resolve } from "path";
 
 import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction } from "@haibun/core/lib/astepper.js";
-import { THttpRequestObservation } from "@haibun/core/lib/http-observations.js";
+import { OBSERVATION_GRAPH, queryFacts } from "@haibun/core/lib/working-memory.js";
 
 import { VideoArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { WebPlaywright } from "./web-playwright.js";
 import { WebPlaywrightDomains } from "./domains.js";
 
-// HTTP trace observation sources
+// Observation source for the visited-pages list. Append-only so we use a synthetic
+// per-page subject ordered by insertion timestamp; identity-as-position lets the
+// quantifier output preserve navigation order.
+const VISITED_PAGES_GRAPH = "observation/visited-page";
+
+// HTTP trace observation sources read from the quad store under the observation/* graphs.
 const httpTraceSources: IObservationSource[] = [
 	{
 		name: "http-trace hosts",
-		observe: (world) => {
-			const httpHosts = world.runtime.observations?.get("httpHosts") as Map<string, number> | undefined;
-			if (!httpHosts) return { items: [], metrics: {} };
-			const items = [...httpHosts.keys()];
+		observe: async (world) => {
+			const quads = await queryFacts(world, "count", OBSERVATION_GRAPH.HTTP_HOST);
+			const items = quads.map((q) => q.subject);
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const [host, count] of httpHosts.entries()) {
-				metrics[host] = { count };
-			}
+			for (const q of quads) metrics[q.subject] = { count: q.object };
 			return { items, metrics };
 		},
 	},
 	{
 		name: "http-trace",
-		observe: (world) => {
-			const requests = world.runtime.observations?.get("httpRequests") as Map<string, THttpRequestObservation> | undefined;
-			if (!requests) return { items: [], metrics: {} };
-			const items = [...requests.keys()];
+		observe: async (world) => {
+			const quads = await queryFacts(world, "observation", OBSERVATION_GRAPH.HTTP_REQUEST);
+			const items = quads.map((q) => q.subject);
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const [id, data] of requests.entries()) {
-				metrics[id] = data;
-			}
+			for (const q of quads) metrics[q.subject] = q.object as Record<string, unknown>;
 			return { items, metrics };
 		},
 	},
 	{
 		name: "visited pages",
-		observe: (world) => {
-			const visitedPages = world.runtime.observations?.get("visitedPages") as string[] | undefined;
-			if (!visitedPages) return { items: [], metrics: {} };
+		observe: async (world) => {
+			const quads = await queryFacts(world, "url", VISITED_PAGES_GRAPH);
+			const ordered = [...quads].sort((a, b) => a.timestamp - b.timestamp);
+			const items = ordered.map((q) => q.object as string);
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (let i = 0; i < visitedPages.length; i++) {
-				metrics[visitedPages[i]] = { index: i };
-			}
-			return { items: visitedPages, metrics };
+			for (let i = 0; i < items.length; i++) metrics[items[i]] = { index: i };
+			return { items, metrics };
 		},
 	},
 ];
+
+export const VISITED_PAGES_OBSERVATION_GRAPH = VISITED_PAGES_GRAPH;
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	getConcerns: () => ({ domains: WebPlaywrightDomains, sources: httpTraceSources }),

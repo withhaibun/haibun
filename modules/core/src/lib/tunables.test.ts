@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { AStepper, getTunableOptions, type IHasTunables, type TStepperSteps, type TTunableOption } from "./astepper.js";
+import { AStepper, type TStepperSteps } from "./astepper.js";
+import { getTunableOptions, type IHasTunables, type TTunableOption } from "./tunables.js";
 import { intOrError } from "./util/index.js";
 
 class PlainStepper extends AStepper {

@@ -10,6 +10,11 @@ export const DOMAIN_JSON = "json";
 export const DOMAIN_DATE = "date";
 export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
+// Event domains (used as quad predicate in the observation/event named graph).
+export const DOMAIN_LIFECYCLE_EVENT = "lifecycle-event";
+export const DOMAIN_INFRASTRUCTURE_ERROR = "infrastructure-error";
+export const DOMAIN_CAPABILITY_DENIAL = "capability-denial";
+
 export type TEnumDomainInput = {
 	name: string;
 	values: string[];
