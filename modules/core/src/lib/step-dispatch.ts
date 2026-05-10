@@ -8,6 +8,7 @@ import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
+import { OBSERVATION_GRAPH, assertFact, getFact } from "./working-memory.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
@@ -271,7 +272,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const { action } = featureStep;
 	const start = Timer.since();
 
-	if (!world.runtime.observations) world.runtime.observations = new Map();
 	if (!world.runtime.stepResults) world.runtime.stepResults = [];
 
 	const pushAndReturn = (result: TStepResult): TStepResult => {
@@ -305,12 +305,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	authorizeToolCapability(tool, grantedCapability);
 
 	const usageKey = `${action.stepperName}.${action.actionName}`;
-	let stepUsage = world.runtime.observations.get("stepUsage") as Map<string, number> | undefined;
-	if (!stepUsage) {
-		stepUsage = new Map();
-		world.runtime.observations.set("stepUsage", stepUsage);
-	}
-	stepUsage.set(usageKey, (stepUsage.get(usageKey) ?? 0) + 1);
+	const priorCount = ((await getFact(world, "count", usageKey, OBSERVATION_GRAPH.STEP_USAGE)) as number | undefined) ?? 0;
+	await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
 
 	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
 	await emitSeqPathStart(world, featureStep);
