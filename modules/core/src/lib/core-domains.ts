@@ -5,6 +5,7 @@ import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";
 import {
 	DOMAIN_AFFORDANCES,
+	DOMAIN_CHAIN_LINT,
 	DOMAIN_DATE,
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_GOAL_RESOLUTION,
@@ -108,6 +109,19 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 			goals: z.array(z.object({ domain: z.string(), resolution: z.unknown() })),
 		}),
 		description: "What can I do next: forward-reachable steps and goal-resolution verdicts.",
+	},
+	{
+		selectors: [DOMAIN_CHAIN_LINT],
+		schema: z.object({
+			findings: z.array(z.unknown()),
+			summary: z.object({
+				"orphan-step": z.number(),
+				"starved-step": z.number(),
+				"unreachable-domain": z.number(),
+				"unproduced-domain": z.number(),
+			}),
+		}),
+		description: "Domain-chain lint report: orphans, starved steps, unreachable domains.",
 	},
 	{
 		selectors: [DOMAIN_STATEMENT],
