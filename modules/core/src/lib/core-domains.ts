@@ -105,6 +105,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 			goals: z.array(z.object({ domain: z.string(), resolution: z.unknown() })),
 		}),
 		description: "What can I do next: forward-reachable steps and goal-resolution verdicts.",
+		ui: { component: "shu-affordances-panel" },
 	},
 	{
 		selectors: [DOMAIN_CHAIN_LINT],
@@ -118,6 +119,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 			}),
 		}),
 		description: "Domain-chain lint report: orphans, starved steps, unreachable domains.",
+		ui: { component: "shu-domain-chain-view" },
 	},
 	{
 		selectors: [DOMAIN_STATEMENT],
