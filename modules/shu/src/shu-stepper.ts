@@ -115,7 +115,18 @@ export default class ShuStepper extends AStepper {
 
 	cycles = {
 		getConcerns: () => ({
-			domains: [{ selectors: [DOMAIN_SHU_VIEW_ID], schema: ShuViewIdSchema, description: "Shu view id" }],
+			domains: [
+				{ selectors: [DOMAIN_SHU_VIEW_ID], schema: ShuViewIdSchema, description: "Shu view id" },
+				// Built-in shu views — registering them as domains makes them discoverable
+				// via `show views` (the picker iterates domains with `ui.component`),
+				// matching the pattern used by external views (e.g. shu-fisheye-graph-view
+				// in spopg). Without this, only the static affordance-open events bind
+				// these views to columns, and they don't appear in the picker.
+				{ selectors: ["shu-graph-view"], schema: z.object({}), description: "Quad-store graph (Mermaid)", ui: { component: "shu-graph-view" } },
+				{ selectors: ["shu-monitor-column"], schema: z.object({}), description: "Execution monitor and event log", ui: { component: "shu-monitor-column" } },
+				{ selectors: ["shu-sequence-diagram"], schema: z.object({}), description: "Sequence diagram of step trace", ui: { component: "shu-sequence-diagram" } },
+				{ selectors: ["shu-document-column"], schema: z.object({}), description: "Document/artifact viewer", ui: { component: "shu-document-column" } },
+			],
 		}),
 	};
 
