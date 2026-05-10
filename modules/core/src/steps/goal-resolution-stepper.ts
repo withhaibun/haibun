@@ -8,7 +8,17 @@
  * Plans are advisory. `run plan` re-checks every precondition at dispatch time;
  * the resolver never auto-fires anything.
  */
-import { AStepper, type TStepperSteps, type TFeatureStep, type IHasOptions, type TStepperOption } from "../lib/astepper.js";
+import {
+	AStepper,
+	type IHasCycles,
+	type IStepperCycles,
+	type TAfterStep,
+	type TAfterStepResult,
+	type TStepperSteps,
+	type TFeatureStep,
+	type IHasOptions,
+	type TStepperOption,
+} from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
 import { DOMAIN_AFFORDANCES, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
@@ -19,7 +29,7 @@ import { stepMethodName } from "../lib/step-dispatch.js";
 
 const GRANTED_CAPABILITY = "GRANTED_CAPABILITY";
 
-export class GoalResolutionStepper extends AStepper implements IHasOptions {
+export class GoalResolutionStepper extends AStepper implements IHasOptions, IHasCycles {
 	description = "Backward-chaining goal resolver and plan runner";
 
 	options: Record<string, TStepperOption> = {
@@ -35,6 +45,32 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 	}
+
+	cycles: IStepperCycles = {
+		afterStep: async (_after: TAfterStep): Promise<TAfterStepResult> => {
+			// Emit the current affordances snapshot so monitors and the shu panel can
+			// render "what can I do next?" without polling. Identity is the seqPath.
+			const world = this.getWorld();
+			const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+			const affordances = buildAffordances({
+				steppers: this.steppers,
+				domains: world.domains,
+				facts,
+				capabilities: this.grantedCapabilities(),
+			});
+			world.eventLogger.emit({
+				id: `affordances.${world.runtime.currentSeqPath ?? "ad-hoc"}`,
+				timestamp: Date.now(),
+				source: "haibun",
+				kind: "artifact",
+				artifactType: "json",
+				mimetype: "application/json",
+				level: "debug",
+				json: { affordances } as Record<string, unknown>,
+			});
+			return { failed: false };
+		},
+	};
 
 	private grantedCapabilities(): ReadonlySet<string> {
 		const raw = getStepperOption(this, GRANTED_CAPABILITY, this.getWorld().moduleOptions);
