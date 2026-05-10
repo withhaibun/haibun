@@ -65,25 +65,25 @@ describe("buildAffordances", () => {
 		expect(result.goals).toEqual([]);
 	});
 
-	it("includes terminal producers in the forward frontier with readyToFire=true", () => {
+	it("includes terminal producers in the forward frontier with readyToRun=true", () => {
 		const result = buildAffordances({ steppers: [new SessionTerminal()], domains: fixedDomains(), facts: [], capabilities: new Set() });
 		const newSession = result.forward.find((f) => f.stepName === "newSession");
 		expect(newSession).toBeDefined();
-		expect(newSession?.readyToFire).toBe(true);
+		expect(newSession?.readyToRun).toBe(true);
 		expect(newSession?.method).toBe("SessionTerminal-newSession");
 	});
 
-	it("marks steps with unsatisfied input domains as not readyToFire", () => {
+	it("marks steps with unsatisfied input domains as not readyToRun", () => {
 		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [], capabilities: new Set() });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
-		expect(issue?.readyToFire).toBe(false);
+		expect(issue?.readyToRun).toBe(false);
 	});
 
-	it("marks steps with satisfied input domains as readyToFire", () => {
+	it("marks steps with satisfied input domains as readyToRun", () => {
 		const fact: TQuad = { subject: "p:alice", predicate: PERSON, object: { id: "alice" }, namedGraph: "facts", timestamp: 1 };
 		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [fact], capabilities: new Set() });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
-		expect(issue?.readyToFire).toBe(true);
+		expect(issue?.readyToRun).toBe(true);
 	});
 
 	it("filters out gated steps the caller lacks capability for", () => {

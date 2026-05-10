@@ -15,7 +15,7 @@
  *     filters producer steps by it. No optimistic assumptions.
  *   - Cycle protection mandatory: visited set + depth limit; cycles return unreachable.
  *   - Plans are advisory, never auto-executed: this module is pure search; a separate
- *     "run plan" step actually fires the chain.
+ *     "run plan" step actually runs the chain.
  */
 import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./domain-chain.js";
 import type { TQuad } from "./quad-types.js";
