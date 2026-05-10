@@ -5,7 +5,7 @@ import { SHU_EVENT } from "../consts.js";
 import { getVertexUi } from "../rels-cache.js";
 import { parseAffordanceProduct } from "../affordance-products.js";
 import { renderValue } from "./value-renderers.js";
-import { esc, escAttr } from "../util.js";
+import { esc, escAttr, prettifyGwta } from "../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 type InputProperty = {
@@ -213,7 +213,7 @@ export class StepCaller extends HTMLElement {
 		};
 
 		// Parse the gwta pattern into text segments and inline inputs
-		const pattern = desc.pattern || "";
+		const pattern = prettifyGwta(desc.pattern || "");
 		const parts: string[] = [];
 		let last = 0;
 		const paramRegex = /\{(\w+)(?::\s*[^}]*)?\}/g;

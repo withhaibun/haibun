@@ -13,7 +13,7 @@ import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterP
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHARED_STYLES } from "./styles.js";
-import { errMsg } from "../util.js";
+import { errMsg, prettifyGwta } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
 import { getProperties, getSelectValues, getSiteMetadataSync, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
@@ -639,9 +639,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const options = [
 				...contextSteps.map((s) => ({
 					value: s.method,
-					label: `● ${s.pattern}`,
+					label: `● ${prettifyGwta(s.pattern)}`,
 				})),
-				...otherSteps.map((s) => ({ value: s.method, label: s.pattern })),
+				...otherSteps.map((s) => ({ value: s.method, label: prettifyGwta(s.pattern) })),
 			];
 			stepCombo.setOptions(options);
 		}
