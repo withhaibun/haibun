@@ -218,11 +218,13 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		// nests under the runPlan step's own seqPath via the runtime currentSeqPath.
 		const current = world.runtime.currentSeqPath;
 		if (!current) throw new Error("dispatchPlanStep: world.runtime.currentSeqPath is unset. runPlan must be called inside an active step.");
+		const featurePath = world.runtime.feature;
+		if (!featurePath) throw new Error("dispatchPlanStep: world.runtime.feature is unset. runPlan must be called inside an active feature execution.");
 		const syntheticSeqPath = [...current.split(".").map((n) => Number(n)), 0];
 		const featureStep: TFeatureStep = {
 			in: planStep.gwta ?? `${planStep.stepperName}.${planStep.stepName}`,
 			seqPath: syntheticSeqPath,
-			source: { path: world.runtime.feature ?? "plan" },
+			source: { path: featurePath },
 			action: { actionName: planStep.stepName, stepperName: planStep.stepperName, step: { action: () => actionOK() }, stepValuesMap: {} },
 		};
 		const result = await tool.handler(featureStep, world);
