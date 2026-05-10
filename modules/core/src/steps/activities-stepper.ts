@@ -248,13 +248,53 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}
 
 				if (metadata.resolvesDomain) {
-					const resolverOutcome = await this.runDeclarativeEnsure(metadata.resolvesDomain, featureStep);
-					if (resolverOutcome.handled) {
-						this.emitEnsureEnd(featureStep, outcomeKey, resolverOutcome.ok, resolverOutcome.errorMessage);
+					// P ∨ (¬P ∧ [A]P) for declarative goals:
+					//   1. Already satisfied? skip activity.
+					//   2. Otherwise run the imperative activity (which provides parameter
+					//      bindings the goal-resolver itself can't infer); the activity's
+					//      step(s) auto-assert their outputDomain product as a fact.
+					//   3. Re-check the goal.
+					const initial = await this.checkDeclarativeGoal(metadata.resolvesDomain);
+					if (initial.refused) {
+						// Resolver refused (e.g. anonymous outputs present). Fall through to
+						// imperative proof if one was also declared, otherwise bail.
+					} else if (initial.satisfied) {
+						this.emitEnsureEnd(featureStep, outcomeKey, true);
 						this.ensureAttempts.delete(attemptKey);
-						return resolverOutcome.ok ? actionOK() : actionNotOK(`ensure: waypoint "${outcomeKey}" goal resolution failed: ${resolverOutcome.errorMessage}`);
+						return actionOK();
+					} else if (metadata.activityBlockSteps && metadata.activityBlockSteps.length > 0) {
+						// Run the activity body imperatively.
+						try {
+							const activityResult = await this.runner.runStatements(metadata.activityBlockSteps, {
+								intent: { mode: "authoritative", usage: featureStep.intent?.usage },
+								parentStep: featureStep,
+							});
+							if (!activityResult.ok) {
+								this.emitEnsureEnd(featureStep, outcomeKey, false, activityResult.errorMessage);
+								return actionNotOK(`ensure: waypoint "${outcomeKey}" activity failed: ${activityResult.errorMessage}`);
+							}
+						} catch (err) {
+							const msg = errorDetail(err);
+							this.emitEnsureEnd(featureStep, outcomeKey, false, msg);
+							return actionNotOK(`ensure: waypoint "${outcomeKey}" activity error: ${msg}`);
+						}
+						const recheck = await this.checkDeclarativeGoal(metadata.resolvesDomain);
+						if (recheck.satisfied) {
+							this.emitEnsureEnd(featureStep, outcomeKey, true);
+							this.ensureAttempts.delete(attemptKey);
+							return actionOK();
+						}
+						this.emitEnsureEnd(featureStep, outcomeKey, false, `goal ${metadata.resolvesDomain} not asserted after activity`);
+						return actionNotOK(`ensure: waypoint "${outcomeKey}" — activity ran but goal "${metadata.resolvesDomain}" was not asserted as a fact.`);
+					} else {
+						// No imperative activity body. Try running the resolver's plan as a
+						// fallback (with the limitations on parameter binding noted in the
+						// resolver — this works for parameterless producers).
+						const planOutcome = await this.runDeclarativeEnsure(metadata.resolvesDomain, featureStep);
+						this.emitEnsureEnd(featureStep, outcomeKey, planOutcome.ok, planOutcome.errorMessage);
+						this.ensureAttempts.delete(attemptKey);
+						return planOutcome.ok ? actionOK() : actionNotOK(`ensure: waypoint "${outcomeKey}" goal resolution failed: ${planOutcome.errorMessage}`);
 					}
-					// Resolver was refused — fall through to imperative proof if one exists.
 				}
 
 				if (metadata.proofStatements.length === 0) {
@@ -353,11 +393,27 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Run a declarative-ensure: invoke the goal resolver for `domainKey`. When the
-	 * resolver returns satisfied or successfully runs a plan, return ok=true. When
-	 * the resolver refuses (e.g. capability missing or anonymous outputs present),
-	 * return handled=false so the caller can fall through to the imperative proof
-	 * if one was also declared.
+	 * Check whether the declarative goal is already satisfied in working memory.
+	 * Returns satisfied=true if a fact of the goal domain exists. The resolver's
+	 * `refused` finding is surfaced too so the caller can decide to fall through.
+	 */
+	private async checkDeclarativeGoal(domainKey: string): Promise<{ satisfied: boolean; refused?: string }> {
+		const world = this.getWorld();
+		const steppers = (world.runtime.steppers ?? []) as AStepper[];
+		const graph = buildDomainChain(steppers, world.domains);
+		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+		const resolution = resolveGoal(domainKey, { graph, facts, capabilities: new Set() });
+		if (resolution.finding === "satisfied") return { satisfied: true };
+		if (resolution.finding === "refused") return { satisfied: false, refused: `${resolution.refusalReason}: ${resolution.detail}` };
+		return { satisfied: false };
+	}
+
+	/**
+	 * Run a declarative-ensure via the goal resolver: invoke the resolver, and if it
+	 * returns a plan, dispatch each plan step. Used only when no imperative activity
+	 * body exists for the waypoint. Limited utility — plan steps run with empty
+	 * stepValuesMap (no parameter binding from facts to step args). Useful for
+	 * parameterless producers; for parameterized ones, declare an imperative activity.
 	 */
 	private async runDeclarativeEnsure(domainKey: string, featureStep: TFeatureStep): Promise<{ handled: boolean; ok: boolean; errorMessage?: string }> {
 		const world = this.getWorld();
