@@ -10,9 +10,10 @@
  */
 import { AStepper, type TStepperSteps, type TFeatureStep, type IHasOptions, type TStepperOption } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
-import { DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
+import { DOMAIN_AFFORDANCES, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { resolveGoal, type TGoalResolution, type TPlanStep } from "../lib/goal-resolver.js";
+import { buildAffordances } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { stepMethodName } from "../lib/step-dispatch.js";
 
@@ -72,6 +73,22 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions {
 				// v1: constraints are accepted but not yet propagated through the resolver.
 				const resolution = await this.runResolution(goal);
 				return actionOKWithProducts(resolution as unknown as Record<string, unknown>);
+			},
+		},
+
+		showAffordances: {
+			gwta: "show affordances",
+			outputDomain: DOMAIN_AFFORDANCES,
+			action: async () => {
+				const world = this.getWorld();
+				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+				const affordances = buildAffordances({
+					steppers: this.steppers,
+					domains: world.domains,
+					facts,
+					capabilities: this.grantedCapabilities(),
+				});
+				return actionOKWithProducts(affordances as unknown as Record<string, unknown>);
 			},
 		},
 

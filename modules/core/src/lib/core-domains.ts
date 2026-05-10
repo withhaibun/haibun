@@ -4,6 +4,7 @@ import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";
 import {
+	DOMAIN_AFFORDANCES,
 	DOMAIN_DATE,
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_GOAL_RESOLUTION,
@@ -88,6 +89,25 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 			}),
 		]),
 		description: "The four findings of the goal resolver: satisfied, plan, unreachable, refused.",
+	},
+	{
+		selectors: [DOMAIN_AFFORDANCES],
+		schema: z.object({
+			forward: z.array(
+				z.object({
+					method: z.string(),
+					stepperName: z.string(),
+					stepName: z.string(),
+					gwta: z.string().optional(),
+					inputDomains: z.array(z.string()),
+					outputDomains: z.array(z.string()),
+					readyToFire: z.boolean(),
+					capability: z.string().optional(),
+				}),
+			),
+			goals: z.array(z.object({ domain: z.string(), resolution: z.unknown() })),
+		}),
+		description: "What can I do next: forward-reachable steps and goal-resolution verdicts.",
 	},
 	{
 		selectors: [DOMAIN_STATEMENT],
