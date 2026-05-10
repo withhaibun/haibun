@@ -2,6 +2,21 @@ export function esc(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/**
+ * Render a gwta pattern in human-friendly form. Strips regex-style optional groups
+ * `(...)?` (typical of patterns like `set( empty)? {what} as {domain} to {value}`)
+ * so labels and inputs show the canonical form without internal regex syntax.
+ */
+export function prettifyGwta(gwta: string): string {
+	if (!gwta) return gwta;
+	let out = gwta;
+	// Strip optional groups: `(...)?` anywhere.
+	out = out.replace(/\(\s*[^()]*?\s*\)\?/g, "");
+	// Collapse runs of whitespace produced by stripped groups.
+	out = out.replace(/ {2,}/g, " ").trim();
+	return out;
+}
+
 export function escAttr(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
