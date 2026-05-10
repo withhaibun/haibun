@@ -23,6 +23,7 @@ export const DOMAIN_TEST_SCRATCH = "test-scratch";
 // Goal resolver domains.
 export const DOMAIN_DOMAIN_KEY = "domain-key";
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
+export const DOMAIN_AFFORDANCES = "affordances";
 
 export type TEnumDomainInput = {
 	name: string;
