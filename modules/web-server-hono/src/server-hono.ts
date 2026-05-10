@@ -39,14 +39,29 @@ export class ServerHono implements IWebServer {
 
 	private createApp(): void {
 		this._app = new Hono({ router: new LinearRouter() });
-		this._app.post("/stop", (c) => {
-			this.eventLogger.info("Received /stop — shutting down");
+		this._app.post("/stop", async (c) => {
+			// Require a `reason` so logs and post-mortems can identify what asked
+			// the server to stop. Reasons can come from a query param or a JSON body.
+			let reason = c.req.query("reason");
+			if (!reason) {
+				try {
+					const body = (await c.req.json()) as { reason?: unknown };
+					if (typeof body?.reason === "string") reason = body.reason;
+				} catch {
+					/* no parseable body */
+				}
+			}
+			if (!reason || !reason.trim()) {
+				this.eventLogger.warn("/stop refused: missing reason");
+				return c.json({ stopped: false, error: "missing required 'reason' (query param or JSON body)" }, 400);
+			}
+			this.eventLogger.info(`Received /stop — shutting down. Reason: ${reason}`);
 			// Defer the signal so the response is fully flushed first. Emitting
 			// SIGTERM to self lets every installed shutdown handler run (e.g. a
 			// persistent graph store flushing WAL) — `process.exit` would skip them
 			// and risk on-disk corruption.
 			setTimeout(() => process.kill(process.pid, "SIGTERM"), 100);
-			return c.json({ stopped: true });
+			return c.json({ stopped: true, reason });
 		});
 	}
 

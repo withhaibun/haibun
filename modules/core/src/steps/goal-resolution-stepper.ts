@@ -29,6 +29,7 @@ import { FACT_GRAPH } from "../lib/working-memory.js";
 import { stepMethodName } from "../lib/step-dispatch.js";
 
 const GRANTED_CAPABILITY = "GRANTED_CAPABILITY";
+const SMOKE_GOALS = "SMOKE_GOALS";
 
 export class GoalResolutionStepper extends AStepper implements IHasOptions, IHasCycles {
 	description = "Backward-chaining goal resolver and plan runner";
@@ -36,6 +37,10 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	options: Record<string, TStepperOption> = {
 		[GRANTED_CAPABILITY]: {
 			desc: "Comma-separated list of capabilities the caller holds; passed to the goal resolver",
+			parse: (input: string) => stringOrError(input),
+		},
+		[SMOKE_GOALS]: {
+			desc: "Comma-separated list of domain keys to resolve at boot as a drift-detection signal",
 			parse: (input: string) => stringOrError(input),
 		},
 	};
@@ -48,7 +53,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	}
 
 	cycles: IStepperCycles = {
-		startExecution: () => {
+		startExecution: async () => {
 			// Emit a one-time domain-chain lint report at startup so monitors and the
 			// shu UI can surface orphan/starved/unreachable findings before any step runs.
 			const world = this.getWorld();
@@ -64,6 +69,32 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				level: "debug",
 				json: { domainChainLint: lint } as Record<string, unknown>,
 			});
+
+			// Smoke-goals drift detector. Resolve each declared smoke goal and emit
+			// the verdict. Consumers (the user, a CI checker) compare against the
+			// previous snapshot to detect graph-shape regressions.
+			const smokeRaw = getStepperOption(this, SMOKE_GOALS, world.moduleOptions);
+			if (smokeRaw) {
+				const goals = smokeRaw
+					.split(",")
+					.map((s: string) => s.trim())
+					.filter((s: string) => s.length > 0);
+				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+				const smokeFindings = goals.map((goal: string) => {
+					const resolution = resolveGoal(goal, { graph, facts, capabilities: this.grantedCapabilities() });
+					return { goal, finding: resolution.finding };
+				});
+				world.eventLogger.emit({
+					id: "domain-chain.smoke.startup",
+					timestamp: Date.now(),
+					source: "haibun",
+					kind: "artifact",
+					artifactType: "json",
+					mimetype: "application/json",
+					level: "info",
+					json: { domainChainSmoke: { goals: smokeFindings } } as Record<string, unknown>,
+				});
+			}
 		},
 		afterStep: async (_after: TAfterStep): Promise<TAfterStepResult> => {
 			// Emit the current affordances snapshot so monitors and the shu panel can
