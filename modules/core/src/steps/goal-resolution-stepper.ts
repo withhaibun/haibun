@@ -20,8 +20,9 @@ import {
 	type TStepperOption,
 } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
-import { DOMAIN_AFFORDANCES, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
+import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
+import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, type TGoalResolution, type TPlanStep } from "../lib/goal-resolver.js";
 import { buildAffordances } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
@@ -125,6 +126,17 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					capabilities: this.grantedCapabilities(),
 				});
 				return actionOKWithProducts(affordances as unknown as Record<string, unknown>);
+			},
+		},
+
+		showDomainChainLint: {
+			gwta: "show domain chain lint",
+			outputDomain: DOMAIN_CHAIN_LINT,
+			action: () => {
+				const world = this.getWorld();
+				const graph = buildDomainChain(this.steppers, world.domains);
+				const report = lintDomainChain(graph, world.domains);
+				return Promise.resolve(actionOKWithProducts(report as unknown as Record<string, unknown>));
 			},
 		},
 
