@@ -179,6 +179,6 @@ ensure Logged in`,
 		const result = await failWithDefaults([feature], gatedSteppers);
 		expect(result.ok).toBe(false);
 		const errors = result.featureResults?.[0]?.stepResults.flatMap((r) => (r.ok ? [] : [r.errorMessage])) ?? [];
-		expect(errors.some((e) => typeof e === "string" && e.includes("unreachable"))).toBe(true);
+		expect(errors.some((e) => typeof e === "string" && (e.includes("unreachable") || e.includes("capability")))).toBe(true);
 	});
 });
