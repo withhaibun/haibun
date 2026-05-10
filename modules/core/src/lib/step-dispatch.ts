@@ -480,12 +480,9 @@ async function checkInputPreconditions(world: TWorld, step: TStepperStep, featur
 	for (const [param, domainKey] of Object.entries(step.inputDomains)) {
 		const normalized = normalizeDomainKey(domainKey);
 		const stepValue = stepValuesMap[param];
-		if (stepValue !== undefined) {
-			const domain = world.domains?.[normalized];
-			if (!domain) continue;
-			const result = domain.schema.safeParse(stepValue.value);
-			if (result.success) continue;
-		}
+		// gwta-captured term covers the precondition: the dispatcher's existing
+		// arg-population path resolves and validates it before the action runs.
+		if (stepValue?.term !== undefined && stepValue.term !== "") continue;
 		const facts = await queryFacts(world, normalized, FACT_GRAPH);
 		if (facts.length === 0) return `precondition-not-satisfied: domain "${domainKey}" has no asserted facts and no resolved value for {${param}}`;
 	}

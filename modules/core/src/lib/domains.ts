@@ -20,6 +20,10 @@ export const DOMAIN_CAPABILITY_DENIAL = "capability-denial";
 // without first registering a typed schema. Production steps must use a real domain.
 export const DOMAIN_TEST_SCRATCH = "test-scratch";
 
+// Goal resolver domains.
+export const DOMAIN_DOMAIN_KEY = "domain-key";
+export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
+
 export type TEnumDomainInput = {
 	name: string;
 	values: string[];
