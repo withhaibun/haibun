@@ -11,8 +11,16 @@
  * later; the data is the same.
  */
 import mermaid from "mermaid";
-import { sanitizeId } from "../mermaid-source.js";
 import { esc } from "../util.js";
+
+/**
+ * Mermaid v10+ rejects hyphens in unquoted node IDs (`domain-key[...]` parses as
+ * `domain - key[...]`). Map every non-alphanumeric character to `_` so domain
+ * keys like `muskeg-verification-products` produce valid identifiers.
+ */
+function mermaidId(s: string): string {
+	return s.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60);
+}
 
 type TForwardAffordance = {
 	stepperName: string;
@@ -79,7 +87,7 @@ export class ShuDomainChainView extends HTMLElement {
 		const lines: string[] = ["graph LR"];
 
 		for (const d of domains) {
-			const id = sanitizeId(d);
+			const id = mermaidId(d);
 			const label = d === SOURCE_DOMAIN ? "∅<br/>(no preconditions)" : esc(d);
 			lines.push(`  ${id}["${label}"]`);
 			const finding = goalFindings.get(d);
@@ -96,8 +104,8 @@ export class ShuDomainChainView extends HTMLElement {
 			const ins = f.inputDomains.length === 0 ? [SOURCE_DOMAIN] : f.inputDomains;
 			for (const from of ins) {
 				for (const to of f.outputDomains) {
-					const fromId = sanitizeId(from);
-					const toId = sanitizeId(to);
+					const fromId = mermaidId(from);
+					const toId = mermaidId(to);
 					const arrow = f.readyToRun ? "==>" : "-->";
 					lines.push(`  ${fromId} ${arrow}|"${escapedLabel}"| ${toId}`);
 				}
@@ -119,9 +127,7 @@ export class ShuDomainChainView extends HTMLElement {
 		const headerHtml = `
 			<div class="header">
 				<h3>Domain chain</h3>
-				<div class="controls">
-					<button data-action="copy" title="Copy Mermaid source to clipboard">Copy</button>
-				</div>
+				<shu-copy-button label="Copy" title="Copy Mermaid source to clipboard"></shu-copy-button>
 			</div>
 			<details class="explanation">
 				<summary>How to read this</summary>
@@ -156,9 +162,8 @@ export class ShuDomainChainView extends HTMLElement {
 
 	private bindActions(source: string): void {
 		if (!this.shadowRoot) return;
-		this.shadowRoot.querySelector('button[data-action="copy"]')?.addEventListener("click", () => {
-			void navigator.clipboard.writeText(source);
-		});
+		const copy = this.shadowRoot.querySelector("shu-copy-button") as (HTMLElement & { source: string }) | null;
+		if (copy) copy.source = source;
 	}
 }
 
@@ -166,8 +171,6 @@ const STYLES = `
 	:host { display: block; padding: 12px; font-family: inherit; }
 	.header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
 	.header h3 { margin: 0; font-size: 13px; color: #444; }
-	.controls button { padding: 3px 8px; font-size: 11px; background: #fafafa; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; }
-	.controls button:hover { background: #eee; }
 	.explanation summary { cursor: pointer; font-size: 12px; color: #555; padding: 4px 0; }
 	.explanation p { margin: 4px 0; font-size: 12px; color: #333; }
 	.graph { padding: 8px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; overflow: auto; }
