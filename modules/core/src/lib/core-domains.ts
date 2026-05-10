@@ -3,7 +3,18 @@ import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";
-import { DOMAIN_DATE, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING, DOMAIN_TEST_SCRATCH, mapDefinitionsToDomains } from "./domains.js";
+import {
+	DOMAIN_DATE,
+	DOMAIN_DOMAIN_KEY,
+	DOMAIN_GOAL_RESOLUTION,
+	DOMAIN_JSON,
+	DOMAIN_LINK,
+	DOMAIN_NUMBER,
+	DOMAIN_STATEMENT,
+	DOMAIN_STRING,
+	DOMAIN_TEST_SCRATCH,
+	mapDefinitionsToDomains,
+} from "./domains.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 
 const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value) => Number.isFinite(value), "invalid number");
@@ -52,6 +63,31 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		selectors: [DOMAIN_TEST_SCRATCH],
 		schema: z.unknown(),
 		description: "Permissive test-only domain for steps that have not yet been migrated to a typed output domain.",
+	},
+	{
+		selectors: [DOMAIN_DOMAIN_KEY],
+		schema: z.string().min(1, "domain key cannot be empty"),
+		description: "A registered domain identifier — referenced by goal-resolution and meta-introspection steps.",
+	},
+	{
+		selectors: [DOMAIN_GOAL_RESOLUTION],
+		schema: z.discriminatedUnion("finding", [
+			z.object({ finding: z.literal("satisfied"), goal: z.string(), factIdentity: z.string() }),
+			z.object({
+				finding: z.literal("plan"),
+				goal: z.string(),
+				steps: z.array(z.object({ stepperName: z.string(), stepName: z.string(), gwta: z.string().optional() })),
+				assumes: z.array(z.object({ domain: z.string(), identity: z.string() })),
+			}),
+			z.object({ finding: z.literal("unreachable"), goal: z.string(), missing: z.array(z.string()) }),
+			z.object({
+				finding: z.literal("refused"),
+				goal: z.string(),
+				refusalReason: z.enum(["anonymous-outputs-present", "capability-context-required"]),
+				detail: z.string(),
+			}),
+		]),
+		description: "The four findings of the goal resolver: satisfied, plan, unreachable, refused.",
 	},
 	{
 		selectors: [DOMAIN_STATEMENT],
