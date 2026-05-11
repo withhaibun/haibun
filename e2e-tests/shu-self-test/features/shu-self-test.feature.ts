@@ -6,11 +6,9 @@ import Haibun from "@haibun/core/steps/haibun.js";
 import { ShuStepper, SHU_TEST_IDS, flattenTestIds } from "@haibun/shu";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 
-const wp = new WebPlaywright();
-const { waitFor, click, selectionOption, gotoPage, reloadPage } = withAction(wp);
+const { waitFor, click, selectionOption, gotoPage, reloadPage } = withAction(new WebPlaywright());
 const { serveShuApp } = withAction(new ShuStepper());
-const vs = new VariablesStepper();
-const { set, setAs } = withAction(vs);
+const { set, setAs } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
 const { feature } = withAction(new Haibun());
 

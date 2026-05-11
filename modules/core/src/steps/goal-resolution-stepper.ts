@@ -23,7 +23,7 @@ import { actionNotOK, actionOK, actionOKWithProducts, getStepperOption, stringOr
 import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
-import { resolveGoal, type TGoalResolution, type TPlanStep } from "../lib/goal-resolver.js";
+import { GOAL_FINDING, resolveGoal, type TGoalResolution, type TPlanStep } from "../lib/goal-resolver.js";
 import { buildAffordances } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { stepMethodName } from "../lib/step-dispatch.js";
@@ -196,7 +196,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			gwta: `run plan {plan: ${DOMAIN_GOAL_RESOLUTION}}`,
 			inputDomains: { plan: DOMAIN_GOAL_RESOLUTION },
 			action: async ({ plan }: { plan: TGoalResolution }, _featureStep?: TFeatureStep) => {
-				if (plan.finding !== "plan") return actionNotOK(`run plan: cannot run a "${plan.finding}" finding`);
+				if (plan.finding !== GOAL_FINDING.PLAN) return actionNotOK(`run plan: cannot run a "${plan.finding}" finding`);
 				const world = this.getWorld();
 				if (!world.runtime.stepRegistry) return actionNotOK("run plan: no step registry available on world.runtime");
 				for (const planStep of plan.steps) {
