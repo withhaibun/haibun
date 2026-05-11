@@ -9,7 +9,7 @@ import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
-import { resolveGoal } from "../lib/goal-resolver.js";
+import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { stepMethodName } from "../lib/step-dispatch.js";
 
@@ -406,8 +406,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const graph = buildDomainChain(steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 		const resolution = resolveGoal(domainKey, { graph, facts, capabilities: new Set() });
-		if (resolution.finding === "satisfied") return { satisfied: true };
-		if (resolution.finding === "refused") return { satisfied: false, refused: `${resolution.refusalReason}: ${resolution.detail}` };
+		if (resolution.finding === GOAL_FINDING.SATISFIED) return { satisfied: true };
+		if (resolution.finding === GOAL_FINDING.REFUSED) return { satisfied: false, refused: `${resolution.refusalReason}: ${resolution.detail}` };
 		return { satisfied: false };
 	}
 
@@ -429,9 +429,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const capabilities = new Set<string>();
 		const resolution = resolveGoal(domainKey, { graph, facts, capabilities });
 
-		if (resolution.finding === "satisfied") return { handled: true, ok: true };
-		if (resolution.finding === "refused") return { handled: false, ok: false, errorMessage: `goal-${resolution.refusalReason}: ${resolution.detail}` };
-		if (resolution.finding === "unreachable") {
+		if (resolution.finding === GOAL_FINDING.SATISFIED) return { handled: true, ok: true };
+		if (resolution.finding === GOAL_FINDING.REFUSED) return { handled: false, ok: false, errorMessage: `goal-${resolution.refusalReason}: ${resolution.detail}` };
+		if (resolution.finding === GOAL_FINDING.UNREACHABLE) {
 			return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (missing: ${resolution.missing.join(", ")})` };
 		}
 
