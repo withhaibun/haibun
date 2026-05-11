@@ -31,13 +31,32 @@ export type TAssumption = {
 	identity: string;
 };
 
-export type TRefusalReason = "anonymous-outputs-present" | "capability-context-required";
+/**
+ * The four findings the goal resolver can return. Every consumer (UI, tests, runtime
+ * routing) should reference this object instead of bare string literals.
+ */
+export const GOAL_FINDING = {
+	SATISFIED: "satisfied",
+	PLAN: "plan",
+	UNREACHABLE: "unreachable",
+	REFUSED: "refused",
+} as const;
+
+export type TGoalFinding = (typeof GOAL_FINDING)[keyof typeof GOAL_FINDING];
+
+/** Reasons the resolver may decline to operate. */
+export const REFUSAL_REASON = {
+	ANONYMOUS_OUTPUTS_PRESENT: "anonymous-outputs-present",
+	CAPABILITY_CONTEXT_REQUIRED: "capability-context-required",
+} as const;
+
+export type TRefusalReason = (typeof REFUSAL_REASON)[keyof typeof REFUSAL_REASON];
 
 export type TGoalResolution =
-	| { finding: "satisfied"; goal: string; factIdentity: string }
-	| { finding: "plan"; goal: string; steps: TPlanStep[]; assumes: TAssumption[] }
-	| { finding: "unreachable"; goal: string; missing: string[] }
-	| { finding: "refused"; goal: string; refusalReason: TRefusalReason; detail: string };
+	| { finding: typeof GOAL_FINDING.SATISFIED; goal: string; factIdentity: string }
+	| { finding: typeof GOAL_FINDING.PLAN; goal: string; steps: TPlanStep[]; assumes: TAssumption[] }
+	| { finding: typeof GOAL_FINDING.UNREACHABLE; goal: string; missing: string[] }
+	| { finding: typeof GOAL_FINDING.REFUSED; goal: string; refusalReason: TRefusalReason; detail: string };
 
 export interface TResolverInputs {
 	graph: TDomainChainGraph;
@@ -59,7 +78,7 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 
 	const factOfGoal = inputs.facts.find((q) => q.predicate === goal);
 	if (factOfGoal) {
-		return { finding: "satisfied", goal, factIdentity: factOfGoal.subject };
+		return { finding: GOAL_FINDING.SATISFIED, goal, factIdentity: factOfGoal.subject };
 	}
 
 	const depthLimit = inputs.depthLimit ?? DEFAULT_DEPTH_LIMIT;
@@ -69,7 +88,7 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 
 	if (planResult) {
 		return {
-			finding: "plan",
+			finding: GOAL_FINDING.PLAN,
 			goal,
 			steps: planResult.steps,
 			assumes: planResult.assumes,
@@ -77,7 +96,7 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 	}
 
 	return {
-		finding: "unreachable",
+		finding: GOAL_FINDING.UNREACHABLE,
 		goal,
 		missing: dedupe(missing.length > 0 ? missing : [goal]),
 	};
@@ -90,18 +109,18 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 function checkResolverInvariants(inputs: TResolverInputs, goal: string): TGoalResolution | undefined {
 	if (!inputs.capabilities) {
 		return {
-			finding: "refused",
+			finding: GOAL_FINDING.REFUSED,
 			goal,
-			refusalReason: "capability-context-required",
+			refusalReason: REFUSAL_REASON.CAPABILITY_CONTEXT_REQUIRED,
 			detail: "resolver requires an explicit capability set; pass an empty Set if the caller has none",
 		};
 	}
 	const anonymous = inputs.graph.steps.filter((s) => s.outputDomains.length === 0 && producesAnything(s));
 	if (anonymous.length > 0) {
 		return {
-			finding: "refused",
+			finding: GOAL_FINDING.REFUSED,
 			goal,
-			refusalReason: "anonymous-outputs-present",
+			refusalReason: REFUSAL_REASON.ANONYMOUS_OUTPUTS_PRESENT,
 			detail: `${anonymous.length} step(s) produce content without a declared outputDomain; resolver cannot see their products. Offending: ${anonymous
 				.slice(0, 3)
 				.map((s) => `${s.stepperName}.${s.stepName}`)
