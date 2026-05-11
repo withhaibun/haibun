@@ -20,6 +20,7 @@ import { SHARED_STYLES } from "./styles.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { esc, escAttr } from "../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 
 type TForwardAffordance = {
 	method: string;
@@ -81,7 +82,7 @@ export class ShuAffordancesPanel extends HTMLElement {
 		this.affordances = json.affordances;
 		// Derive the set of asserted domains from goal verdicts so we can mark
 		// individual input domains as satisfied/unsatisfied on forward cards.
-		this.assertedDomains = new Set(json.affordances.goals.filter((g) => g.resolution.finding === "satisfied").map((g) => g.domain));
+		this.assertedDomains = new Set(json.affordances.goals.filter((g) => g.resolution.finding === GOAL_FINDING.SATISFIED).map((g) => g.domain));
 		// Re-broadcast the snapshot for the domain-chain view (and any other
 		// listener that wants the same data without duplicating the SSE filter).
 		document.dispatchEvent(new CustomEvent("shu:affordances", { detail: json.affordances }));
@@ -135,10 +136,10 @@ export class ShuAffordancesPanel extends HTMLElement {
 
 	private renderResolution(g: TGoalAffordance): string {
 		const r = g.resolution;
-		if (r.finding === "satisfied") {
+		if (r.finding === GOAL_FINDING.SATISFIED) {
 			return `<span class="resolution-detail">already asserted as fact <code>${esc(r.factIdentity)}</code></span>`;
 		}
-		if (r.finding === "plan") {
+		if (r.finding === GOAL_FINDING.PLAN) {
 			const stepList = r.steps.map((s) => `<li><code>${esc(s.stepperName)}.${esc(s.stepName)}</code>${s.gwta ? ` — ${esc(s.gwta)}` : ""}</li>`).join("");
 			const assumesList =
 				r.assumes.length > 0 ? `<div class="assumes">assumes facts: ${r.assumes.map((a) => `<code>${esc(a.domain)}#${esc(a.identity)}</code>`).join(", ")}</div>` : "";
@@ -147,7 +148,7 @@ export class ShuAffordancesPanel extends HTMLElement {
 				${assumesList}
 			</div>`;
 		}
-		if (r.finding === "unreachable") {
+		if (r.finding === GOAL_FINDING.UNREACHABLE) {
 			return `<span class="resolution-detail">no producer chain. Missing leaves: ${r.missing.map((m) => `<code>${esc(m)}</code>`).join(", ")}</span>`;
 		}
 		return `<span class="resolution-detail">refused: ${esc(r.refusalReason)} — ${esc(r.detail)}</span>`;

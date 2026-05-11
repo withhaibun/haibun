@@ -12,6 +12,7 @@
  */
 import mermaid from "mermaid";
 import { esc } from "../util.js";
+import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 
 /**
  * Mermaid v10+ rejects hyphens in unquoted node IDs (`domain-key[...]` parses as
@@ -91,10 +92,10 @@ export class ShuDomainChainView extends HTMLElement {
 			const label = d === SOURCE_DOMAIN ? "∅<br/>(no preconditions)" : esc(d);
 			lines.push(`  ${id}["${label}"]`);
 			const finding = goalFindings.get(d);
-			if (finding === "satisfied") lines.push(`  style ${id} fill:#d8edd8,stroke:#1a6b3c,stroke-width:2px`);
-			else if (finding === "plan") lines.push(`  style ${id} fill:#d8e1f0,stroke:#2848a8`);
-			else if (finding === "unreachable") lines.push(`  style ${id} fill:#fdd,stroke:#a02828`);
-			else if (finding === "refused") lines.push(`  style ${id} fill:#fde6c4,stroke:#b58105`);
+			if (finding === GOAL_FINDING.SATISFIED) lines.push(`  style ${id} fill:#d8edd8,stroke:#1a6b3c,stroke-width:2px`);
+			else if (finding === GOAL_FINDING.PLAN) lines.push(`  style ${id} fill:#d8e1f0,stroke:#2848a8`);
+			else if (finding === GOAL_FINDING.UNREACHABLE) lines.push(`  style ${id} fill:#fdd,stroke:#a02828`);
+			else if (finding === GOAL_FINDING.REFUSED) lines.push(`  style ${id} fill:#fde6c4,stroke:#b58105`);
 			else lines.push(`  style ${id} fill:#eee,stroke:#999`);
 		}
 

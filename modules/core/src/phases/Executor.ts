@@ -53,11 +53,15 @@ function initExecutionRuntime(_world: TWorld): void {
 }
 
 async function initFeatureRuntime(world: TWorld): Promise<void> {
-	// Clear observation/* graphs between features so cross-feature state doesn't leak.
+	// Clear transient graphs between features so cross-feature state doesn't leak:
+	//   - observation/* — runtime metrics and counters
+	//   - facts        — step-product assertions (auto-asserted by dispatchStep)
+	// Variables (SHARED_GRAPH) survive intentionally — features can carry named
+	// state forward through the feature-variables layer.
 	const store = world.shared.getStore();
 	const allQuads = await store.all();
-	const observationGraphs = new Set(allQuads.filter((q) => q.namedGraph.startsWith("observation/")).map((q) => q.namedGraph));
-	for (const graph of observationGraphs) await store.clear(graph);
+	const transientGraphs = new Set(allQuads.filter((q) => q.namedGraph.startsWith("observation/") || q.namedGraph === "facts").map((q) => q.namedGraph));
+	for (const graph of transientGraphs) await store.clear(graph);
 }
 
 /**
