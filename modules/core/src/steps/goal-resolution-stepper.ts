@@ -182,7 +182,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 
 		showDomainChainLint: {
-			gwta: "show domain chain lint",
+			gwta: "show chain lint",
 			outputDomain: DOMAIN_CHAIN_LINT,
 			action: () => {
 				const world = this.getWorld();
