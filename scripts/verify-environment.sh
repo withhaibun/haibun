@@ -24,27 +24,68 @@ else
   npm view @haibun/cli name 2>&1 || echo "WARNING: could not view @haibun/cli (scope may not exist yet)"
 fi
 
-# ── branch protection ────────────────────────────────────────────────────────
+# ── PR approval policy (CODEOWNERS + branch protection rules) ───────────────
 GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 REPO="${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)}"
 
 if [ -z "$GH_TOKEN" ] || [ -z "$REPO" ]; then
-  echo "ERROR: GH_TOKEN/REPO not set; cannot verify branch protection."
+  echo "ERROR: GH_TOKEN/REPO not set; cannot verify PR approval policy."
   ERRORS=$((ERRORS + 1))
 else
-  for branch in 3.x next alpha beta rc; do
-    HTTP_STATUS=$(gh api "repos/${REPO}/branches/${branch}/protection" \
-      --silent --include 2>&1 | awk '/^HTTP/ {print $2}' | head -1 || echo "000")
-    RESULT=$(gh api "repos/${REPO}/branches/${branch}/protection" 2>&1 || true)
-    if echo "$RESULT" | grep -q "required_status_checks\|required_pull_request_reviews\|enforce_admins"; then
-      echo "Branch protection $branch: OK"
-    elif echo "$RESULT" | grep -q "Branch not found\|Not Found"; then
-      echo "Branch protection $branch: branch does not exist (skipping)"
-    else
-      echo "ERROR: Branch protection not configured for $branch — run scripts/protect-branches.sh"
+  if [ ! -f ".github/CODEOWNERS" ]; then
+    echo "ERROR: .github/CODEOWNERS is missing; cannot enforce code owner approvals."
+    ERRORS=$((ERRORS + 1))
+  elif ! grep -Eq '^[[:space:]]*[^#[:space:]].*@[[:alnum:]]' .github/CODEOWNERS; then
+    echo "ERROR: .github/CODEOWNERS has no active owner rule entries."
+    ERRORS=$((ERRORS + 1))
+  else
+    OWNER="${REPO%%/*}"
+    REPO_NAME="${REPO##*/}"
+    RULES_JSON=$(gh api graphql \
+      -f query='
+        query($owner: String!, $name: String!) {
+          repository(owner: $owner, name: $name) {
+            branchProtectionRules(first: 100) {
+              nodes {
+                pattern
+                requiresApprovingReviews
+                requiredApprovingReviewCount
+                requiresCodeOwnerReviews
+              }
+            }
+          }
+        }' \
+      -F owner="$OWNER" \
+      -F name="$REPO_NAME" 2>/dev/null || true)
+
+    if [ -z "$RULES_JSON" ] || ! echo "$RULES_JSON" | jq -e '.data.repository.branchProtectionRules.nodes' >/dev/null 2>&1; then
+      echo "ERROR: Unable to read branch protection rules for PR approval policy verification."
       ERRORS=$((ERRORS + 1))
+    else
+      RULE_COUNT=$(echo "$RULES_JSON" | jq '.data.repository.branchProtectionRules.nodes | length')
+      if [ "$RULE_COUNT" -eq 0 ]; then
+        echo "ERROR: No branch protection rules found; required code owner PR approval cannot be verified."
+        ERRORS=$((ERRORS + 1))
+      else
+        NON_COMPLIANT_PATTERNS=$(echo "$RULES_JSON" | jq -r '
+          .data.repository.branchProtectionRules.nodes[]
+          | select(
+              (.requiresApprovingReviews != true)
+              or (.requiresCodeOwnerReviews != true)
+              or ((.requiredApprovingReviewCount // 0) < 1)
+            )
+          | .pattern
+        ')
+        if [ -n "$NON_COMPLIANT_PATTERNS" ]; then
+          echo "ERROR: PR approval policy missing required code owner review on branch protection rule patterns:"
+          echo "$NON_COMPLIANT_PATTERNS" | sed 's/^/  - /'
+          ERRORS=$((ERRORS + 1))
+        else
+          echo "PR approval policy: branch protection rules require code owner reviews with at least one approval: OK"
+        fi
+      fi
     fi
-  done
+  fi
 fi
 
 # ── result ───────────────────────────────────────────────────────────────────
