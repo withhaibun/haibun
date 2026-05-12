@@ -32,20 +32,26 @@ if [ -z "$GH_TOKEN" ] || [ -z "$REPO" ]; then
   echo "ERROR: GH_TOKEN/REPO not set; cannot verify PR approval policy."
   ERRORS=$((ERRORS + 1))
 else
+  # Require at least one non-comment CODEOWNERS rule with a GitHub owner reference
+  # (user `@name` or team `@org/team`).
   if [ ! -f ".github/CODEOWNERS" ]; then
     echo "ERROR: .github/CODEOWNERS is missing; cannot enforce code owner approvals."
     ERRORS=$((ERRORS + 1))
-  elif ! grep -Eq '^[[:space:]]*[^#[:space:]].*@[[:alnum:]]' .github/CODEOWNERS; then
+  elif ! grep -Eq '^[[:space:]]*[^#[:space:]].*[[:space:]]+@[[:alnum:]][[:alnum:]_.-]*(/[[:alnum:]_.-]+)?' .github/CODEOWNERS; then
     echo "ERROR: .github/CODEOWNERS has no active owner rule entries."
     ERRORS=$((ERRORS + 1))
   else
+    PAGE_SIZE=100
     OWNER="${REPO%%/*}"
     REPO_NAME="${REPO##*/}"
     RULES_JSON=$(gh api graphql \
       -f query='
-        query($owner: String!, $name: String!) {
+        query($owner: String!, $name: String!, $first: Int!) {
           repository(owner: $owner, name: $name) {
-            branchProtectionRules(first: 100) {
+            branchProtectionRules(first: $first) {
+              pageInfo {
+                hasNextPage
+              }
               nodes {
                 pattern
                 requiresApprovingReviews
@@ -56,29 +62,36 @@ else
           }
         }' \
       -F owner="$OWNER" \
-      -F name="$REPO_NAME" 2>/dev/null || true)
+      -F name="$REPO_NAME" \
+      -F first="$PAGE_SIZE" 2>/dev/null || true)
 
     if [ -z "$RULES_JSON" ] || ! echo "$RULES_JSON" | jq -e '.data.repository.branchProtectionRules.nodes' >/dev/null 2>&1; then
       echo "ERROR: Unable to read branch protection rules for PR approval policy verification."
       ERRORS=$((ERRORS + 1))
     else
+      RULE_PAGE_HAS_NEXT=$(echo "$RULES_JSON" | jq -r '.data.repository.branchProtectionRules.pageInfo.hasNextPage')
       RULE_COUNT=$(echo "$RULES_JSON" | jq '.data.repository.branchProtectionRules.nodes | length')
-      if [ "$RULE_COUNT" -eq 0 ]; then
+      if [ "$RULE_PAGE_HAS_NEXT" = "true" ]; then
+        echo "ERROR: More than $PAGE_SIZE branch protection rules found; unable to fully verify PR approval policy."
+        ERRORS=$((ERRORS + 1))
+      elif [ "$RULE_COUNT" -eq 0 ]; then
         echo "ERROR: No branch protection rules found; required code owner PR approval cannot be verified."
         ERRORS=$((ERRORS + 1))
       else
-        NON_COMPLIANT_PATTERNS=$(echo "$RULES_JSON" | jq -r '
+        NON_COMPLIANT_RULES=$(echo "$RULES_JSON" | jq -r '
           .data.repository.branchProtectionRules.nodes[]
-          | select(
-              (.requiresApprovingReviews != true)
-              or (.requiresCodeOwnerReviews != true)
-              or ((.requiredApprovingReviewCount // 0) < 1)
-            )
-          | .pattern
+          | . as $rule
+          | [
+              (if $rule.requiresApprovingReviews == true then empty else "approving reviews not required" end),
+              (if $rule.requiresCodeOwnerReviews == true then empty else "code owner reviews not required" end),
+              (if (($rule.requiredApprovingReviewCount // 0) >= 1) then empty else "required approving review count is less than 1" end)
+            ] as $issues
+          | select(($issues | length) > 0)
+          | "\($rule.pattern): \($issues | join(", "))"
         ')
-        if [ -n "$NON_COMPLIANT_PATTERNS" ]; then
+        if [ -n "$NON_COMPLIANT_RULES" ]; then
           echo "ERROR: PR approval policy missing required code owner review on branch protection rule patterns:"
-          echo "$NON_COMPLIANT_PATTERNS" | sed 's/^/  - /'
+          echo "$NON_COMPLIANT_RULES" | sed 's/^/  - /'
           ERRORS=$((ERRORS + 1))
         else
           echo "PR approval policy: branch protection rules require code owner reviews with at least one approval: OK"
