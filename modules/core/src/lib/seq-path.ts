@@ -21,6 +21,26 @@ export function formatSeqPath(seqPath: number[]): string {
 	return seqPath.join(".");
 }
 
+/** Parse the canonical dot-joined form back to the number tuple. Returns null when the input is not seqPath-shaped. */
+export function parseSeqPath(id: string): number[] | null {
+	if (!/^-?\d+(\.-?\d+)*$/.test(id)) return null;
+	return id.split(".").map((p) => Number.parseInt(p, 10));
+}
+
+/**
+ * Total order on seqPath tuples by lexicographic segment compare. Shorter
+ * prefixes precede their extensions, mirroring the depth-first dispatch
+ * order used when seqPaths are assigned. Returns -1 / 0 / 1.
+ */
+export function compareSeqPath(a: number[], b: number[]): number {
+	const n = Math.min(a.length, b.length);
+	for (let i = 0; i < n; i++) {
+		if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+	}
+	if (a.length !== b.length) return a.length < b.length ? -1 : 1;
+	return 0;
+}
+
 /** SeqPath vertex field names — single source of truth shared by schema, topology, and emission. */
 export const SEQ_PATH_FIELD = {
 	id: "id",
@@ -39,6 +59,11 @@ export const SEQ_PATH_EDGE = {
 
 const STATUS_VALUES = Object.values(SEQ_PATH_STATUS) as [string, ...string[]];
 
+// Non-strict: emitSeqPathStart writes isPartOf/precededBy into the same
+// upsert as the vertex properties (declared as edges in topology, but
+// inlined for the start record). Strict mode would reject those keys
+// before upsertVertex can route them — same passthrough constraint as
+// CommentSchema and BodySchema.
 export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.id]: z.string(),
 	[SEQ_PATH_FIELD.stepText]: z.string(),

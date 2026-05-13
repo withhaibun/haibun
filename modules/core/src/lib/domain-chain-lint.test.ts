@@ -27,7 +27,7 @@ class EmailFromPerson extends AStepper {
 		issueEmail: {
 			gwta: `issue email for {who: ${PERSON}}`,
 			inputDomains: { who: PERSON },
-			outputDomain: EMAIL,
+			productsDomain: EMAIL,
 			action: () => actionOKWithProducts({ id: "e1" }),
 		},
 	};
@@ -38,7 +38,7 @@ class ArchiveEmail extends AStepper {
 		archive: {
 			gwta: `archive {email: ${EMAIL}}`,
 			inputDomains: { email: EMAIL },
-			outputDomain: ARCHIVED,
+			productsDomain: ARCHIVED,
 			action: () => actionOKWithProducts({ id: "a1" }),
 		},
 	};
@@ -49,7 +49,7 @@ class StarvedConsumer extends AStepper {
 		nourish: {
 			gwta: `nourish {who: ${PERSON}}`,
 			inputDomains: { who: PERSON },
-			outputDomain: ORPHAN_OUTPUT,
+			productsDomain: ORPHAN_OUTPUT,
 			action: () => actionOKWithProducts({}),
 		},
 	};

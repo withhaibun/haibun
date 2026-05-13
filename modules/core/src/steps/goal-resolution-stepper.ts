@@ -1,12 +1,15 @@
 /**
  * GoalResolutionStepper — exposes the goal resolver as steps.
  *
- *   how to get {goal: domain-key}                   → DOMAIN_GOAL_RESOLUTION
- *   how to get {goal: domain-key} matching {filter} → DOMAIN_GOAL_RESOLUTION (filter unused in v1)
- *   run plan {plan: goal-resolution}                → runs the plan step-by-step
+ *   resolve {goal: domain-key}                          → DOMAIN_GOAL_RESOLUTION
+ *   resolve {goal: domain-key} where {constraint: json} → DOMAIN_GOAL_RESOLUTION (constraint unused in v1)
+ *   show affordances                                    → DOMAIN_AFFORDANCES (forward edges + goal verdicts)
+ *   show chain lint                                     → DOMAIN_CHAIN_LINT (orphan/starved/unreachable findings + affordance overlay)
  *
- * Plans are advisory. `run plan` re-checks every precondition at dispatch time;
- * the resolver never auto-runs anything.
+ * The resolver is pure search; it never auto-runs anything. Multi-step
+ * execution along a resolved michi happens through the chain-walker
+ * (`advanceChainInstance` in lib/chain-walker.js), which drives one step at
+ * a time so the SPA can collect per-step user input.
  */
 import {
 	AStepper,
@@ -15,21 +18,25 @@ import {
 	type TAfterStep,
 	type TAfterStepResult,
 	type TStepperSteps,
-	type TFeatureStep,
 	type IHasOptions,
 	type TStepperOption,
 } from "../lib/astepper.js";
-import { actionNotOK, actionOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
 import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
-import { GOAL_FINDING, resolveGoal, type TGoalResolution, type TPlanStep } from "../lib/goal-resolver.js";
+import { resolveGoal, type TGoalResolution } from "../lib/goal-resolver.js";
 import { buildAffordances } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
-import { stepMethodName } from "../lib/step-dispatch.js";
+import { parseSeqPath } from "../lib/seq-path.js";
 
 const GRANTED_CAPABILITY = "GRANTED_CAPABILITY";
 const SMOKE_GOALS = "SMOKE_GOALS";
+const COMPOSITE_DECOMPOSITION = "COMPOSITE_DECOMPOSITION";
+const COMPOSITE_MAX_DEPTH = "COMPOSITE_MAX_DEPTH";
+
+const COMPOSITE_DECOMPOSITION_DEFAULT = true;
+const COMPOSITE_MAX_DEPTH_DEFAULT = 4;
 
 export class GoalResolutionStepper extends AStepper implements IHasOptions, IHasCycles {
 	description = "Backward-chaining goal resolver and plan runner";
@@ -41,6 +48,14 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 		[SMOKE_GOALS]: {
 			desc: "Comma-separated list of domain keys to resolve at boot as a drift-detection signal",
+			parse: (input: string) => stringOrError(input),
+		},
+		[COMPOSITE_DECOMPOSITION]: {
+			desc: `Recurse into composite input domains via topology.ranges when resolving goals (haibun equivalent of sh:node/rdfs:range). "true" / "false". Default ${COMPOSITE_DECOMPOSITION_DEFAULT}.`,
+			parse: (input: string) => stringOrError(input),
+		},
+		[COMPOSITE_MAX_DEPTH]: {
+			desc: `Cap on composite recursion depth, independent of the producer-chain depth budget. Default ${COMPOSITE_MAX_DEPTH_DEFAULT}.`,
 			parse: (input: string) => stringOrError(input),
 		},
 	};
@@ -81,7 +96,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					.filter((s: string) => s.length > 0);
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 				const smokeFindings = goals.map((goal: string) => {
-					const resolution = resolveGoal(goal, { graph, facts, capabilities: this.grantedCapabilities() });
+					const resolution = resolveGoal(goal, { graph, facts, capabilities: this.grantedCapabilities(), ...this.compositeOptions() });
 					return { goal, finding: resolution.finding };
 				});
 				world.eventLogger.emit({
@@ -101,11 +116,14 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			// render "what can I do next?" without polling. Identity is the seqPath.
 			const world = this.getWorld();
 			const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+			const composite = this.compositeOptions();
 			const affordances = buildAffordances({
 				steppers: this.steppers,
 				domains: world.domains,
 				facts,
 				capabilities: this.grantedCapabilities(),
+				compositeDecomposition: composite.compositeDecomposition,
+				compositeMaxDepth: composite.compositeMaxDepth,
 			});
 			const seqPath = world.runtime.currentSeqPath;
 			if (!seqPath) {
@@ -136,30 +154,66 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		);
 	}
 
+	/**
+	 * Returns composite-decomposition resolver options threaded from stepper config.
+	 * Defaults: decomposition enabled, depth 4. Call sites spread these into the
+	 * resolver inputs so every entry point shares the same configuration.
+	 */
+	private compositeOptions(): { domains: import("../lib/world.js").TWorld["domains"]; compositeDecomposition: boolean; compositeMaxDepth: number } {
+		const world = this.getWorld();
+		const decompositionRaw = getStepperOption(this, COMPOSITE_DECOMPOSITION, world.moduleOptions);
+		const compositeDecomposition = decompositionRaw === undefined ? COMPOSITE_DECOMPOSITION_DEFAULT : decompositionRaw !== "false";
+		const depthRaw = getStepperOption(this, COMPOSITE_MAX_DEPTH, world.moduleOptions);
+		const parsed = depthRaw === undefined ? Number.NaN : Number(depthRaw);
+		const compositeMaxDepth = Number.isInteger(parsed) && parsed > 0 ? parsed : COMPOSITE_MAX_DEPTH_DEFAULT;
+		return { domains: world.domains, compositeDecomposition, compositeMaxDepth };
+	}
+
 	private async runResolution(goal: string): Promise<TGoalResolution> {
 		const world = this.getWorld();
 		const graph = buildDomainChain(this.steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-		return resolveGoal(goal, { graph, facts, capabilities: this.grantedCapabilities() });
+		return resolveGoal(goal, { graph, facts, capabilities: this.grantedCapabilities(), ...this.compositeOptions() });
+	}
+
+	/**
+	 * Shared affordances builder for the live and as-of variants. When `asOf`
+	 * is set, the projection drops facts asserted after that seqPath so the
+	 * panel reconstructs the run state at that point.
+	 */
+	private async computeAffordances(asOf: number[] | undefined) {
+		const world = this.getWorld();
+		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+		const composite = this.compositeOptions();
+		const affordances = buildAffordances({
+			steppers: this.steppers,
+			domains: world.domains,
+			facts,
+			capabilities: this.grantedCapabilities(),
+			compositeDecomposition: composite.compositeDecomposition,
+			compositeMaxDepth: composite.compositeMaxDepth,
+			asOfSeqPath: asOf,
+		});
+		return actionOKWithProducts(affordances as unknown as Record<string, unknown>);
 	}
 
 	steps: TStepperSteps = {
-		howToGet: {
-			gwta: `how to get {goal: ${DOMAIN_DOMAIN_KEY}}`,
+		resolve: {
+			gwta: `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			inputDomains: { goal: DOMAIN_DOMAIN_KEY },
-			outputDomain: DOMAIN_GOAL_RESOLUTION,
+			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
 				return actionOKWithProducts(resolution as unknown as Record<string, unknown>);
 			},
 		},
 
-		howToGetMatching: {
-			gwta: `how to get {goal: ${DOMAIN_DOMAIN_KEY}} matching {constraint: ${DOMAIN_JSON}}`,
+		resolveWhere: {
+			gwta: `resolve {goal: ${DOMAIN_DOMAIN_KEY}} where {constraint: ${DOMAIN_JSON}}`,
 			inputDomains: { goal: DOMAIN_DOMAIN_KEY, constraint: DOMAIN_JSON },
-			outputDomain: DOMAIN_GOAL_RESOLUTION,
+			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: async ({ goal }: { goal: string; constraint: unknown }) => {
-				// v1: constraints are accepted but not yet propagated through the resolver.
+				// constraints accepted but not yet propagated through the resolver.
 				const resolution = await this.runResolution(goal);
 				return actionOKWithProducts(resolution as unknown as Record<string, unknown>);
 			},
@@ -167,9 +221,31 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 
 		showAffordances: {
 			gwta: "show affordances",
-			outputDomain: DOMAIN_AFFORDANCES,
+			productsDomain: DOMAIN_AFFORDANCES,
+			action: async () => this.computeAffordances(undefined),
+		},
+
+		showAffordancesAsOf: {
+			gwta: "show affordances as of {asOf: string}",
+			productsDomain: DOMAIN_AFFORDANCES,
+			action: async ({ asOf }: { asOf: string }) => {
+				const parsed = parseSeqPath(asOf);
+				if (!parsed) return actionNotOK(`show affordances as of: ${asOf} is not a seqPath (expected dot-joined integers, e.g. "0.-1.5.1")`);
+				return this.computeAffordances(parsed);
+			},
+		},
+
+		showDomainChainLint: {
+			gwta: "show chain lint",
+			productsDomain: DOMAIN_CHAIN_LINT,
 			action: async () => {
 				const world = this.getWorld();
+				const graph = buildDomainChain(this.steppers, world.domains);
+				const report = lintDomainChain(graph, world.domains);
+				// The bound view (`shu-domain-chain-view`) renders the chain as a Mermaid
+				// graph from affordance data (forward edges + goal verdicts). Include both
+				// shapes so opening the lint pane shows the graph immediately, with lint
+				// findings available for overlaying orphan/starved/unreachable nodes.
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 				const affordances = buildAffordances({
 					steppers: this.steppers,
@@ -177,60 +253,10 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					facts,
 					capabilities: this.grantedCapabilities(),
 				});
-				return actionOKWithProducts(affordances as unknown as Record<string, unknown>);
-			},
-		},
-
-		showDomainChainLint: {
-			gwta: "show chain lint",
-			outputDomain: DOMAIN_CHAIN_LINT,
-			action: () => {
-				const world = this.getWorld();
-				const graph = buildDomainChain(this.steppers, world.domains);
-				const report = lintDomainChain(graph, world.domains);
-				return Promise.resolve(actionOKWithProducts(report as unknown as Record<string, unknown>));
-			},
-		},
-
-		runPlan: {
-			gwta: `run plan {plan: ${DOMAIN_GOAL_RESOLUTION}}`,
-			inputDomains: { plan: DOMAIN_GOAL_RESOLUTION },
-			action: async ({ plan }: { plan: TGoalResolution }, _featureStep?: TFeatureStep) => {
-				if (plan.finding !== GOAL_FINDING.PLAN) return actionNotOK(`run plan: cannot run a "${plan.finding}" finding`);
-				const world = this.getWorld();
-				if (!world.runtime.stepRegistry) return actionNotOK("run plan: no step registry available on world.runtime");
-				for (const planStep of plan.steps) {
-					const error = await this.dispatchPlanStep(planStep);
-					if (error) return actionNotOK(`run plan: ${planStep.stepperName}.${planStep.stepName} failed: ${error}`);
-				}
-				return actionOK();
+				return actionOKWithProducts({ ...(report as unknown as Record<string, unknown>), forward: affordances.forward, goals: affordances.goals });
 			},
 		},
 	};
-
-	private async dispatchPlanStep(planStep: TPlanStep): Promise<string | undefined> {
-		const world = this.getWorld();
-		const registry = world.runtime.stepRegistry;
-		if (!registry) return "no step registry";
-		const tool = registry.get(stepMethodName(planStep.stepperName, planStep.stepName));
-		if (!tool) return `step not found: ${planStep.stepperName}.${planStep.stepName}`;
-		// Build a synthetic FeatureStep for the plan step. The current seqPath
-		// nests under the runPlan step's own seqPath via the runtime currentSeqPath.
-		const current = world.runtime.currentSeqPath;
-		if (!current) throw new Error("dispatchPlanStep: world.runtime.currentSeqPath is unset. runPlan must be called inside an active step.");
-		const featurePath = world.runtime.feature;
-		if (!featurePath) throw new Error("dispatchPlanStep: world.runtime.feature is unset. runPlan must be called inside an active feature execution.");
-		const syntheticSeqPath = [...current.split(".").map((n) => Number(n)), 0];
-		const featureStep: TFeatureStep = {
-			in: planStep.gwta ?? `${planStep.stepperName}.${planStep.stepName}`,
-			seqPath: syntheticSeqPath,
-			source: { path: featurePath },
-			action: { actionName: planStep.stepName, stepperName: planStep.stepperName, step: { action: () => actionOK() }, stepValuesMap: {} },
-		};
-		const result = await tool.handler(featureStep, world);
-		if (!result.ok) return result.errorMessage;
-		return undefined;
-	}
 }
 
 export default GoalResolutionStepper;

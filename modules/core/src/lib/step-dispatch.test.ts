@@ -7,7 +7,7 @@ import {
 	stepMethodName,
 	createStepHandler,
 	discoverSteps,
-	buildSyntheticFeatureStep,
+	buildFeatureStepForTransport,
 	authorizeToolCapability,
 	capabilityAllows,
 	dispatchStep,
@@ -41,11 +41,19 @@ class PlainStepper extends AStepper {
 	};
 }
 
+const PRODUCT_COUNT_DOMAIN = "product-count";
+const ProductCountSchema = z.object({ count: z.number() });
+
 class ProductStepper extends AStepper {
+	cycles = {
+		getConcerns: () => ({
+			domains: [{ selectors: [PRODUCT_COUNT_DOMAIN], schema: ProductCountSchema, description: "A counted product" }],
+		}),
+	};
 	steps = {
 		getCount: {
 			gwta: "get the count",
-			outputSchema: z.object({ count: z.number() }),
+			productsDomain: PRODUCT_COUNT_DOMAIN,
 			action: () => {
 				return actionOKWithProducts({ count: 42 });
 			},
@@ -80,6 +88,7 @@ describe("step-dispatch", () => {
 
 	beforeEach(() => {
 		world = getDefaultWorld();
+		world.domains[PRODUCT_COUNT_DOMAIN] = { selectors: [PRODUCT_COUNT_DOMAIN], schema: ProductCountSchema, coerce: (p) => p.value, description: "A counted product" };
 	});
 
 	describe("stepMethodName", () => {
@@ -312,15 +321,17 @@ describe("step-dispatch", () => {
 
 	describe("createStepHandler", () => {
 		const synth = (tool: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
-			buildSyntheticFeatureStep(tool as StepTool, input, seqPath);
+			buildFeatureStepForTransport(tool as StepTool, input, seqPath);
 
-		it("returns ok with products for successful step with products", async () => {
+		it("returns ok with products exactly as the action returned them — framework metadata (_seqPath etc.) is injected by dispatchStep, not the handler", async () => {
 			const stepper = new ProductStepper();
 			const handler = createStepHandler("ProductStepper", "getCount", stepper.steps.getCount);
 			const result = await handler(synth({ stepperName: "ProductStepper", stepName: "getCount", description: "" }, {}), world);
 			expect(result.ok).toBe(true);
 			expect(result.products).toMatchObject({ count: 42 });
-			expect(result.products?._seqPath).toEqual([0]);
+			// `_seqPath` is dispatcher-level metadata; createStepHandler intentionally
+			// leaves products untouched so output schemas can stay strict.
+			expect(result.products?._seqPath).toBeUndefined();
 		});
 
 		it("returns ok for plain step", async () => {
@@ -330,12 +341,12 @@ describe("step-dispatch", () => {
 			expect(result.ok).toBe(true);
 		});
 
-		it("uses provided seqPath in products", async () => {
+		it("the bare handler does not stamp the seqPath into products (dispatcher does that after validation)", async () => {
 			const stepper = new ProductStepper();
 			const handler = createStepHandler("ProductStepper", "getCount", stepper.steps.getCount);
 			const result = await handler(synth({ stepperName: "ProductStepper", stepName: "getCount", description: "" }, {}, [2, 3, 4]), world);
 			expect(result.ok).toBe(true);
-			expect(result.products?._seqPath).toEqual([2, 3, 4]);
+			expect(result.products?._seqPath).toBeUndefined();
 		});
 
 		it("returns errorMessage for failed step", async () => {
@@ -388,7 +399,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected protected tool to be registered");
 
 			const validatedParams = validateToolInput([0, 7], tool, { message: "hello" }, world);
-			const featureStep = buildSyntheticFeatureStep(tool, validatedParams, [0, 7]);
+			const featureStep = buildFeatureStepForTransport(tool, validatedParams, [0, 7]);
 			const result = await dispatchStep({ registry, world, steppers, grantedCapability: ["Remote:invoke"] }, featureStep);
 
 			expect(result.ok).toBe(true);
@@ -402,7 +413,7 @@ describe("step-dispatch", () => {
 			const tool = registry.get("CapabilityStepper-protectedPing");
 			if (!tool) throw new Error("Expected protected tool to be registered");
 
-			const featureStep = buildSyntheticFeatureStep(tool, {}, [0, 1]);
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
 			await expect(dispatchStep({ registry, world, steppers }, featureStep)).rejects.toThrow(/capability CapabilityStepper:protected required/);
 		});
 
@@ -413,7 +424,7 @@ describe("step-dispatch", () => {
 			const tool = registry.get("ProductStepper-getCount");
 			if (!tool) throw new Error("Expected ProductStepper-getCount to be registered");
 
-			const featureStep = buildSyntheticFeatureStep(tool, {}, [0, 3, 5]);
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 3, 5]);
 			const result = await dispatchStep({ registry, world, steppers }, featureStep);
 			expect(result.ok).toBe(true);
 
@@ -435,7 +446,7 @@ describe("step-dispatch", () => {
 			const tool = registry.get("ProductStepper-failStep");
 			if (!tool) throw new Error("Expected ProductStepper-failStep to be registered");
 
-			const featureStep = buildSyntheticFeatureStep(tool, {}, [0, 9]);
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 9]);
 			const result = await dispatchStep({ registry, world, steppers }, featureStep);
 			expect(result.ok).toBe(false);
 
@@ -452,12 +463,12 @@ describe("step-dispatch", () => {
 			steps = {
 				produceEmail: {
 					gwta: "produce an email",
-					outputDomain: "muskeg-test-email",
+					productsDomain: "test-email",
 					action: () => actionOKWithProducts({ id: "e1", subject: "hi" }),
 				},
 				badInputDomain: {
 					gwta: "send {who: string}",
-					inputDomains: { who: "muskeg-test-email" },
+					inputDomains: { who: "test-email" },
 					action: () => OK,
 				},
 				ungatedConsumer: {
@@ -467,13 +478,13 @@ describe("step-dispatch", () => {
 				},
 				dualOutput: {
 					gwta: "produce two outputs",
-					outputDomain: "muskeg-test-email",
-					outputDomains: { x: "string" },
+					productsDomain: "test-email",
+					productsDomains: { x: "string" },
 					action: () => actionOKWithProducts({ id: "e", subject: "s" }),
 				},
 				unknownDomain: {
 					gwta: "produce a ghost",
-					outputDomain: "muskeg-not-registered",
+					productsDomain: "not-registered",
 					action: () => actionOKWithProducts({}),
 				},
 			};
@@ -483,7 +494,7 @@ describe("step-dispatch", () => {
 			registerDomains(world, [
 				[
 					{
-						selectors: ["muskeg-test-email"],
+						selectors: ["test-email"],
 						schema: TestEmailSchema,
 						description: "Test email",
 					},
@@ -491,7 +502,7 @@ describe("step-dispatch", () => {
 			]);
 		});
 
-		it("registers a step with outputDomain referencing a known domain", () => {
+		it("registers a step with productsDomain referencing a known domain", () => {
 			class JustProduce extends AStepper {
 				steps = { produceEmail: new DomainEchoStepper().steps.produceEmail };
 			}
@@ -516,14 +527,14 @@ describe("step-dispatch", () => {
 			expect(() => buildStepRegistry([new JustOk()], world)).not.toThrow();
 		});
 
-		it("rejects mutually exclusive outputDomain and outputDomains", () => {
+		it("rejects mutually exclusive productsDomain and productsDomains", () => {
 			class JustDual extends AStepper {
 				steps = { dualOutput: new DomainEchoStepper().steps.dualOutput };
 			}
-			expect(() => buildStepRegistry([new JustDual()], world)).toThrow(/mutually exclusive/);
+			expect(() => buildStepRegistry([new JustDual()], world)).toThrow(/only one of/);
 		});
 
-		it("rejects outputDomain referencing an unregistered domain", () => {
+		it("rejects productsDomain referencing an unregistered domain", () => {
 			class JustUnknown extends AStepper {
 				steps = { unknownDomain: new DomainEchoStepper().steps.unknownDomain };
 			}

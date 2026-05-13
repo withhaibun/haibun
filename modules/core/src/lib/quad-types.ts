@@ -7,31 +7,41 @@
  */
 import { z } from "zod";
 
+/**
+ * Named graph holding stepper variables (feature-variables projection of TStepValue).
+ * Declared here so quad-store can reference it without a cycle through feature-variables.
+ */
+export const SHARED_GRAPH = "variables";
+
 // --- Graph query schema (core domain, used by any graph/quad query UI) ---
 
 export const DOMAIN_GRAPH_QUERY = "graph-query";
 
-export const SearchConditionSchema = z.object({
-	predicate: z.string().min(1),
-	operator: z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between"]),
-	value: z.string(),
-	value2: z.string().optional(),
-});
+export const SearchConditionSchema = z
+	.object({
+		predicate: z.string().min(1),
+		operator: z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between"]),
+		value: z.string(),
+		value2: z.string().optional(),
+	})
+	.strict();
 
-export const GraphQuerySchema = z.object({
-	label: z.string().optional(),
-	filters: z.array(SearchConditionSchema).default([]),
-	textQuery: z.string().optional(),
-	sortBy: z.string().optional(),
-	sortOrder: z.enum(["asc", "desc"]).default("desc"),
-	limit: z.number().int().positive().default(50),
-	offset: z.number().int().nonnegative().default(0),
-	accessLevel: z.enum(["private", "public", "opened", "all"]).default("private"),
-	fields: z.array(z.string()).optional(),
-	explain: z.boolean().default(false),
-	/** When true, skip the separate total-count query; `total` returns the page length only. */
-	skipCount: z.boolean().default(false),
-});
+export const GraphQuerySchema = z
+	.object({
+		label: z.string().optional(),
+		filters: z.array(SearchConditionSchema).default([]),
+		textQuery: z.string().optional(),
+		sortBy: z.string().optional(),
+		sortOrder: z.enum(["asc", "desc"]).default("desc"),
+		limit: z.number().int().positive().default(50),
+		offset: z.number().int().nonnegative().default(0),
+		accessLevel: z.enum(["private", "public", "opened", "all"]).default("private"),
+		fields: z.array(z.string()).optional(),
+		explain: z.boolean().default(false),
+		/** When true, skip the separate total-count query; `total` returns the page length only. */
+		skipCount: z.boolean().default(false),
+	})
+	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
 
 export { type ResourceRels, buildResourceRels, parseTimestampValue } from "./hypermedia.js";
