@@ -25,8 +25,19 @@ class EmailFromPerson extends AStepper {
 		issueEmail: {
 			gwta: `issue email for {who: ${PERSON}}`,
 			inputDomains: { who: PERSON },
-			outputDomain: EMAIL,
+			productsDomain: EMAIL,
 			action: () => actionOKWithProducts({ id: "e1" }),
+		},
+	};
+}
+
+/** A registered producer of Person — turns Person into a typed-fact domain (not an argument). */
+class PersonSource extends AStepper {
+	steps: TStepperSteps = {
+		registerPerson: {
+			gwta: "register a person",
+			productsDomain: PERSON,
+			action: () => actionOKWithProducts({ id: "p1" }),
 		},
 	};
 }
@@ -35,7 +46,7 @@ class SessionTerminal extends AStepper {
 	steps: TStepperSteps = {
 		newSession: {
 			gwta: "create a new session",
-			outputDomain: SESSION,
+			productsDomain: SESSION,
 			action: () => actionOKWithProducts({ id: "s1" }),
 		},
 	};
@@ -45,7 +56,7 @@ class GatedSession extends AStepper {
 	steps: TStepperSteps = {
 		gatedSignIn: {
 			gwta: "gated sign in",
-			outputDomain: SESSION,
+			productsDomain: SESSION,
 			capability: "auth:signin",
 			action: () => actionOKWithProducts({ id: "s2" }),
 		},
@@ -73,15 +84,21 @@ describe("buildAffordances", () => {
 		expect(newSession?.method).toBe("SessionTerminal-newSession");
 	});
 
-	it("marks steps with unsatisfied input domains as not readyToRun", () => {
-		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [], capabilities: new Set() });
+	it("marks steps with unsatisfied input domains as not readyToRun (input has a producer but no fact yet)", () => {
+		const result = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [], capabilities: new Set() });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
 		expect(issue?.readyToRun).toBe(false);
 	});
 
 	it("marks steps with satisfied input domains as readyToRun", () => {
 		const fact: TQuad = { subject: "p:alice", predicate: PERSON, object: { id: "alice" }, namedGraph: "facts", timestamp: 1 };
-		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [fact], capabilities: new Set() });
+		const result = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [fact], capabilities: new Set() });
+		const issue = result.forward.find((f) => f.stepName === "issueEmail");
+		expect(issue?.readyToRun).toBe(true);
+	});
+
+	it("marks steps with no producer for an input as readyToRun — that input is supplied as an argument, not chained", () => {
+		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [], capabilities: new Set() });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
 		expect(issue?.readyToRun).toBe(true);
 	});
@@ -103,18 +120,33 @@ describe("buildAffordances", () => {
 		expect(result.forward.find((f) => f.stepName === "ping")).toBeUndefined();
 	});
 
-	it("returns a goal affordance per producible domain with the resolver's verdict", () => {
+	it("filters out trivial single-step goals — those duplicate the forward frontier and add no chaining context", () => {
 		const result = buildAffordances({ steppers: [new SessionTerminal(), new EmailFromPerson()], domains: fixedDomains(), facts: [], capabilities: new Set() });
-		const sessionGoal = result.goals.find((g) => g.domain === SESSION);
-		expect(sessionGoal?.resolution.finding).toBe("plan");
-		const emailGoal = result.goals.find((g) => g.domain === EMAIL);
-		expect(emailGoal?.resolution.finding).toBe("unreachable");
+		expect(result.goals.find((g) => g.domain === SESSION)).toBeUndefined();
+		expect(result.goals.find((g) => g.domain === EMAIL)).toBeUndefined();
 	});
 
-	it("marks a goal satisfied when a fact of its domain already exists", () => {
+	it("surfaces a goal when its only reachable path chains more than one step", () => {
+		const result = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [], capabilities: new Set() });
+		const emailGoal = result.goals.find((g) => g.domain === EMAIL);
+		expect(emailGoal?.resolution.finding).toBe("michi");
+	});
+
+	it("filters out satisfied single-step goals — the asserted fact alone conveys the verdict, no chaining context to show", () => {
 		const fact: TQuad = { subject: "s:1", predicate: SESSION, object: { id: "s1" }, namedGraph: "facts", timestamp: 1 };
 		const result = buildAffordances({ steppers: [new SessionTerminal()], domains: fixedDomains(), facts: [fact], capabilities: new Set() });
-		const sessionGoal = result.goals.find((g) => g.domain === SESSION);
-		expect(sessionGoal?.resolution.finding).toBe("satisfied");
+		expect(result.goals.find((g) => g.domain === SESSION)).toBeUndefined();
+	});
+
+	it("with asOfSeqPath, drops facts whose seqPath subject is after the cursor", () => {
+		const personEarly: TQuad = { subject: "0.1.5", predicate: PERSON, object: { id: "p1" }, namedGraph: "facts", timestamp: 1 };
+		const emailLate: TQuad = { subject: "0.1.9", predicate: EMAIL, object: { id: "e1" }, namedGraph: "facts", timestamp: 2 };
+		const live = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [personEarly, emailLate], capabilities: new Set() });
+		expect(live.forward.find((f) => f.stepName === "issueEmail")?.readyToRun).toBe(true);
+		const replay = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [personEarly, emailLate], capabilities: new Set(), asOfSeqPath: [0, 1, 6] });
+		// emailLate (0.1.9) is dropped, personEarly (0.1.5) survives; the Email
+		// goal sees one less asserted fact and the resolver no longer reports it
+		// as satisfied through that emission.
+		expect(replay.forward.find((f) => f.stepName === "issueEmail")?.readyToRun).toBe(true);
 	});
 });

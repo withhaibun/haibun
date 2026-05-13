@@ -25,7 +25,7 @@ class EmailFromPerson extends AStepper {
 		issue: {
 			gwta: `issue email for {who: ${PERSON_DOMAIN}}`,
 			inputDomains: { who: PERSON_DOMAIN },
-			outputDomain: EMAIL_DOMAIN,
+			productsDomain: EMAIL_DOMAIN,
 			action: () => actionOKWithProducts({ id: "e1" }),
 		},
 	};
@@ -36,7 +36,7 @@ class SessionFromPerson extends AStepper {
 		signIn: {
 			gwta: `sign in {who: ${PERSON_DOMAIN}}`,
 			inputDomains: { who: PERSON_DOMAIN },
-			outputDomain: SESSION_DOMAIN,
+			productsDomain: SESSION_DOMAIN,
 			capability: "auth:signin",
 			action: () => actionOKWithProducts({ id: "s1" }),
 		},

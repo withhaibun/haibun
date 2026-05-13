@@ -56,8 +56,8 @@ describe("RemoteStepperProxy", () => {
 			const tool = localRegistry.get(data.method);
 			if (!tool) return c.json({ error: `not found: ${data.method}` }, 422);
 			try {
-				const { buildSyntheticFeatureStep } = await import("./step-dispatch.js");
-				const featureStep = buildSyntheticFeatureStep(tool, data.params ?? {}, [0, 1]);
+				const { buildFeatureStepForTransport } = await import("./step-dispatch.js");
+				const featureStep = buildFeatureStepForTransport(tool, data.params ?? {}, [0, 1]);
 				const result = await tool.handler(featureStep, world);
 				if (result.ok) return c.json(result.products ?? {});
 				return c.json({ error: result.errorMessage }, 422);
@@ -96,8 +96,8 @@ describe("RemoteStepperProxy", () => {
 		// Bare name (local form) must NOT be registered — prefixing is total.
 		expect(registry.get("EchoStepper-echo")).toBeUndefined();
 
-		const { buildSyntheticFeatureStep } = await import("./step-dispatch.js");
-		const featureStep = buildSyntheticFeatureStep(tool, { message: "hello" }, [0, 1]);
+		const { buildFeatureStepForTransport } = await import("./step-dispatch.js");
+		const featureStep = buildFeatureStepForTransport(tool, { message: "hello" }, [0, 1]);
 		const result = await tool.handler(featureStep, world);
 		expect(result.ok).toBe(true);
 		expect(result.products).toMatchObject({ echoed: "hello" });

@@ -3,7 +3,7 @@ import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type 
 import type { TWorld } from "./world.js";
 import { buildConcernCatalog, type TConcernCatalog } from "./hypermedia.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../schema/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, DispatchTraceArtifact } from "../schema/protocol.js";
+import { HYPERMEDIA, TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, DispatchTraceArtifact } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
@@ -11,7 +11,7 @@ import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { isVertexTopology, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 
 /**
@@ -25,10 +25,13 @@ export type StepTool = {
 	paramSchemas: Map<string, z.ZodType>;
 	/** Domain key for each parameter, keyed by parameter name. Used for domain.coerce() after Zod validation. */
 	paramDomainKeys: Map<string, string>;
-	/** JSON Schema describing the products this step returns. Built from outputSchema on step definition. */
+	/** JSON Schema describing the products this step returns. Built from the step's productsDomain, productsDomains, or productsSchema. */
 	outputSchema?: Record<string, unknown>;
 	stepperName: string;
 	stepName: string;
+	/** The registered stepper-step definition. Carries productsDomain, productsDomains, productsSchema, capability, gwta, etc.
+	 * Absent for proxy tools (RemoteStepperProxy, subprocess) where dispatch happens out-of-process. */
+	stepDef?: TStepperStep;
 	/**
 	 * Optional capability label for permission gating (ZCAP-LD hook).
 	 * Transports check this before dispatching. e.g. "GraphStepper:read", "LlmStepper:*"
@@ -150,6 +153,7 @@ export function createStepTool(stepperName: string, stepName: string, stepDef: T
 		outputSchema,
 		stepperName,
 		stepName,
+		stepDef,
 		capability: stepDef.capability,
 		isAsync: stepDef.action.constructor.name === "AsyncFunction",
 		handler: createStepHandler(stepperName, stepName, stepDef),
@@ -225,11 +229,7 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
 		try {
 			const args = await populateActionArgs(featureStep, world, world.runtime.steppers);
-			const result = await stepDef.action(args, featureStep);
-			if (result.ok && result.products) {
-				return { ...result, products: { ...result.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
-			}
-			return result;
+			return await stepDef.action(args, featureStep);
 		} catch (caught) {
 			const err = caught instanceof Error ? caught : new Error(String(caught));
 			return actionNotOK(`${stepperName}-${stepName}: ${err.message}`);
@@ -238,16 +238,21 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 }
 
 /**
- * Build a synthetic featureStep from raw RPC input params.
- * Used by external transports (SSE, MCP, subprocess) that don't have a real featureStep.
+ * Build a TFeatureStep for a transport-originated call (RPC, MCP, subprocess).
+ * Feature-file dispatch already has one; transports construct it from the tool +
+ * raw input. Uses the same registered stepDef so downstream dispatch (augment,
+ * autoAssert, preconditions) sees the identical shape both paths produce.
  */
-export function buildSyntheticFeatureStep(tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath): TFeatureStep {
+export function buildFeatureStepForTransport(tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath): TFeatureStep {
+	// Proxy tools (RemoteStepperProxy, subprocess) dispatch out-of-process and have no
+	// local stepDef. Construct a carrier with just the description so the handler can run.
+	const step = tool.stepDef ?? ({ gwta: tool.description, action: () => actionNotOK(`no in-process stepDef for ${tool.name}`) } as TStepperStep);
 	return {
 		in: tool.description,
 		action: {
 			stepperName: tool.stepperName,
 			actionName: tool.stepName,
-			step: { gwta: tool.description, action: () => actionNotOK("synthetic step — dispatch through handler") } as TStepperStep,
+			step,
 			stepValuesMap: mapInputToStepValues(input, tool.description),
 		},
 		seqPath,
@@ -333,7 +338,18 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 				continue;
 			}
 			actionResult = await tool.handler(featureStep, world);
-			if (actionResult.ok) await autoAssertProducts(world, action.step, actionResult);
+			if (actionResult.ok) {
+				const productsError = validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products);
+				if (productsError) {
+					actionResult = actionNotOK(productsError);
+				} else {
+					if (actionResult.products) {
+						actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+					}
+					actionResult = augmentViewHypermedia(world, action.step, actionResult);
+					await autoAssertProducts(world, action.step, actionResult);
+				}
+			}
 			if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
 				world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
 			}
@@ -443,30 +459,51 @@ function validateInputDomains(stepperName: string, stepName: string, stepDef: TS
 	}
 }
 
+/** Validate step products against the declared output schema; returns error string or undefined. */
+export function validateProducts(stepperName: string, actionName: string, stepDef: TStepperStep, world: TWorld, products: unknown): string | undefined {
+	const schema = resolveOutputSchema(stepperName, actionName, stepDef, world);
+	if (!schema) return undefined;
+	if (products === undefined || products === null) {
+		return `step ${stepperName}.${actionName} declared an output schema but action returned no products`;
+	}
+	const result = schema.safeParse(products);
+	if (result.success) return undefined;
+	return `step ${stepperName}.${actionName} products failed schema validation: ${result.error.issues.map((i) => `${i.path.join(".") || "(root)"} ${i.message}`).join("; ")}`;
+}
+
 /**
- * Resolve a step's output schema from its declarations. When `outputDomain` is set,
- * the schema is the domain's. When `outputDomains` is set, build an object schema
- * keyed by field. Falls back to legacy `outputSchema` for unmigrated steps.
+ * Resolve a step's output schema from its declarations. Exactly one of `productsDomain`,
+ * `productsDomains`, or `productsSchema` may be set:
+ *   - `productsDomain` looks up a registered domain and uses its schema.
+ *   - `productsDomains` looks up multiple domains and builds an object schema keyed by field.
+ *   - `productsSchema` uses an inline Zod schema with no domain registration.
+ * A step with none of these produces no typed output.
  */
 function resolveOutputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): z.ZodType | undefined {
-	if (stepDef.outputDomain && stepDef.outputDomains) {
-		throw new Error(`step ${stepperName}.${stepName}: outputDomain and outputDomains are mutually exclusive`);
+	const declared = [stepDef.productsDomain ? "productsDomain" : null, stepDef.productsDomains ? "productsDomains" : null, stepDef.productsSchema ? "productsSchema" : null].filter(
+		Boolean,
+	);
+	if (declared.length > 1) {
+		throw new Error(`step ${stepperName}.${stepName}: only one of productsDomain, productsDomains, productsSchema may be set (got: ${declared.join(", ")})`);
 	}
-	if (stepDef.outputDomain) {
-		const domain = world.domains?.[normalizeDomainKey(stepDef.outputDomain)];
-		if (!domain) throw new Error(`step ${stepperName}.${stepName}: outputDomain "${stepDef.outputDomain}" is not a registered domain`);
+	if (stepDef.productsDomain) {
+		const domain = world.domains?.[normalizeDomainKey(stepDef.productsDomain)];
+		if (!domain) throw new Error(`step ${stepperName}.${stepName}: productsDomain "${stepDef.productsDomain}" is not a registered domain`);
 		return domain.schema;
 	}
-	if (stepDef.outputDomains) {
+	if (stepDef.productsDomains) {
 		const fields: Record<string, z.ZodType> = {};
-		for (const [field, domainKey] of Object.entries(stepDef.outputDomains)) {
+		for (const [field, domainKey] of Object.entries(stepDef.productsDomains)) {
 			const domain = world.domains?.[normalizeDomainKey(domainKey)];
-			if (!domain) throw new Error(`step ${stepperName}.${stepName}: outputDomains.${field} = "${domainKey}" is not a registered domain`);
+			if (!domain) throw new Error(`step ${stepperName}.${stepName}: productsDomains.${field} = "${domainKey}" is not a registered domain`);
 			fields[field] = domain.schema;
 		}
 		return z.object(fields);
 	}
-	return stepDef.outputSchema;
+	if (stepDef.productsSchema) {
+		return stepDef.productsSchema;
+	}
+	return undefined;
 }
 
 /**
@@ -490,9 +527,73 @@ async function checkInputPreconditions(world: TWorld, step: TStepperStep, featur
 }
 
 /**
+ * Inject hypermedia markers (`_type`, `_summary`, and where applicable `_component`,
+ * `id`, `view`) into a step's products. The single source of truth is the registered
+ * domain: every step with a `productsDomain` gets markers; their values come from the
+ * domain's `ui` configuration. Steps with `productsSchema` (no domain registration) get
+ * no markers — they are local typed outputs, not domain-scoped resources. Actions never
+ * emit `_type` / `_summary` themselves.
+ *
+ * - `_type` is the registered `ui.component` if set, else the domain key.
+ * - `_summary` is `ui.summary` — either a string template or a function taking the
+ *   products object. Falls back to the domain key.
+ * - `_component`, `id`, `view` are injected only when the domain has `ui.component`,
+ *   because those markers exist for the SPA's pane-opener and are meaningless for
+ *   diagnostic/data-only domains.
+ *
+ * If `_component` is already present in products (a step explicitly setting its own),
+ * the entire augmentation is skipped to preserve the action's intent.
+ */
+function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionResult: TActionResult): TActionResult {
+	if (!actionResult.ok || !actionResult.products) return actionResult;
+	const productsDomain = step.productsDomain;
+	if (!productsDomain) return actionResult;
+	const products = actionResult.products as Record<string, unknown>;
+	if (typeof products[HYPERMEDIA.COMPONENT] === "string") return actionResult;
+	const ui = world.domains[normalizeDomainKey(productsDomain)]?.ui;
+	const component = typeof ui?.component === "string" ? ui.component : undefined;
+	const rawSummary = ui?.summary;
+	let summary: string;
+	if (typeof rawSummary === "function") summary = String((rawSummary as (p: Record<string, unknown>) => unknown)(products));
+	else if (typeof rawSummary === "string") summary = rawSummary;
+	else summary = productsDomain;
+	const markers: Record<string, unknown> = {
+		[HYPERMEDIA.TYPE]: component ?? productsDomain,
+		[HYPERMEDIA.SUMMARY]: summary,
+	};
+	if (component) {
+		markers[HYPERMEDIA.COMPONENT] = component;
+		markers.id = productsDomain;
+		markers.view = productsDomain;
+	}
+	return { ...actionResult, products: { ...products, ...markers } };
+}
+
+/**
+ * A domain that exists only to render a view (its schema is empty, its `ui.component`
+ * names the pane to open) carries no knowledge worth chaining on. Asserting such a
+ * "fact" creates a loop: each affordances refresh sees the asserted view, includes
+ * it in the snapshot, and the SPA re-opens the pane, accumulating duplicates.
+ *
+ * A domain is view-only iff it declares `ui.component` AND its registered schema
+ * has no fields. Real product-bearing domains (DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT,
+ * domain-key, etc.) carry data even if they ALSO map to a view, and stay assertable.
+ */
+function isViewOnlyDomain(world: TWorld, domainKey: string): boolean {
+	const domain = world.domains[normalizeDomainKey(domainKey)];
+	if (!domain?.ui?.component || typeof domain.ui.component !== "string") return false;
+	const jsonSchema = z.toJSONSchema(domain.schema) as { properties?: Record<string, unknown>; type?: string };
+	if (jsonSchema.type !== "object") return false;
+	return !jsonSchema.properties || Object.keys(jsonSchema.properties).length === 0;
+}
+
+/**
  * Auto-assert step products into the facts graph using the step's declared
  * output domain(s). The seqPath is the fact identity so re-firing a step
  * upserts its assertion rather than duplicating it.
+ *
+ * View-only outputs (e.g. `show monitor` → `shu-monitor-column`) are skipped:
+ * see `isViewOnlyDomain` for why.
  */
 async function autoAssertProducts(world: TWorld, step: TStepperStep, actionResult: TActionResult): Promise<void> {
 	if (!actionResult.products) return;
@@ -502,14 +603,16 @@ async function autoAssertProducts(world: TWorld, step: TStepperStep, actionResul
 			"autoAssertProducts: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking the action; if you see this, the dispatch path is missing the assignment.",
 		);
 	}
-	if (step.outputDomain) {
-		await assertFact(world, normalizeDomainKey(step.outputDomain), seqPathKey, actionResult.products, FACT_GRAPH);
+	if (step.productsDomain) {
+		if (isViewOnlyDomain(world, step.productsDomain)) return;
+		await assertFact(world, normalizeDomainKey(step.productsDomain), seqPathKey, actionResult.products, FACT_GRAPH);
 		return;
 	}
-	if (step.outputDomains) {
+	if (step.productsDomains) {
 		const products = actionResult.products as Record<string, unknown>;
-		for (const [field, domainKey] of Object.entries(step.outputDomains)) {
+		for (const [field, domainKey] of Object.entries(step.productsDomains)) {
 			if (!(field in products)) continue;
+			if (isViewOnlyDomain(world, domainKey)) continue;
 			await assertFact(world, normalizeDomainKey(domainKey), `${seqPathKey}#${field}`, products[field], FACT_GRAPH);
 		}
 	}
@@ -667,7 +770,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 			description: domain.description,
 			values,
 			stepperName: domain.stepperName,
-			vertexLabel: domain.topology?.vertexLabel,
+			vertexLabel: isVertexTopology(domain.topology) ? domain.topology.vertexLabel : undefined,
 			ui: domain.ui,
 		};
 	}

@@ -172,6 +172,7 @@ export const LinkRelations = {
 	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
 	URL: { rel: "url", uri: "as:url", range: "literal" },
 	// PROV-O — provenance and lineage
+	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
 	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
 	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri" },
@@ -339,13 +340,35 @@ export function isContentPropertyDef(def: TPropertyDef | undefined): def is TCon
 /** Edge definition: target vertex type. The rel is resolved from EdgePredicates[key]; override with explicit rel for domain-specific edges not in the canonical set. */
 export type TEdgeDef = { range: string; rel?: TRel };
 
-/** Domain topology — vertex label, id field, property rels, edges, indexes. Drives CRUD, JSON-LD, and UI. */
-export type TDomainTopology = {
+/**
+ * Per-property domain ranges. Maps a schema field name to another registered
+ * domain key, declaring "values of this field range over instances of that
+ * domain." This is the haibun equivalent of SHACL's `sh:node` / RDFS's
+ * `rdfs:range` — a structural claim about what kind of thing a property
+ * carries, read by the goal resolver to decompose composite inputs into their
+ * typed component goals and by the chain view to emit field nodes.
+ *
+ * Distinct from `TVertexTopology.edges`: edges declare outgoing graph edges
+ * keyed by predicate name (with their own rel + range); ranges annotate the
+ * scalar / nested-object schema fields already enumerated in `properties`
+ * with their declared domain. A field with no ranges entry is treated as
+ * primitive by the resolver (resolves to an `argument` binding).
+ */
+export type TDomainRanges = Record<string, string>;
+
+/**
+ * Vertex topology — fully describes a vertex domain. Required together:
+ * `vertexLabel`, `id`, `properties`. The hypermedia builder validates these
+ * (presence of an identifier rel, a published rel, etc.).
+ */
+export type TVertexTopology = {
 	vertexLabel: string;
 	type?: string;
 	id: string;
 	properties: Record<string, TPropertyDef>;
 	edges?: Record<string, TEdgeDef>;
+	/** Per-property ranges (sh:node / rdfs:range). See TDomainRanges. */
+	ranges?: TDomainRanges;
 	/** Hypermedia affordance: properties that should be exposed as query filters/selects. */
 	filterProperties?: string[];
 	/** DB-specific: which properties to index for fast lookup. */
@@ -353,6 +376,29 @@ export type TDomainTopology = {
 	/** DB-specific: default sort columns per property. */
 	sortColumns?: Record<string, string>;
 };
+
+/**
+ * Lightweight topology for non-vertex domains — schemas that aren't themselves
+ * vertices but whose fields range over registered vertex domains (typical for
+ * step *input* composite shapes). Carries only `ranges`; the hypermedia
+ * builder skips it; only the resolver reads it.
+ */
+export type TRangesTopology = {
+	ranges: TDomainRanges;
+};
+
+/**
+ * Domain topology — discriminated union of full vertex topology and a
+ * lightweight ranges-only declaration. A topology must be one or the other;
+ * mixing partial vertex fields without a vertexLabel is structurally invalid
+ * and the type system rejects it.
+ */
+export type TDomainTopology = TVertexTopology | TRangesTopology;
+
+/** True when a domain's topology promotes it to a vertex in the hypermedia sense. */
+export function isVertexTopology(topology: TDomainTopology | undefined): topology is TVertexTopology {
+	return !!topology && "vertexLabel" in topology && typeof topology.vertexLabel === "string";
+}
 
 /** Domain name for type labels — auto-populated from registered domains with topology. */
 export const DOMAIN_VERTEX_LABEL = "vertex-label";
@@ -413,6 +459,10 @@ export type TRegisteredDomain = {
  * "user:alice", "stepper:llm", "llm:gpt-x"). Legacy data may lack it.
  * Structured-Actor hydration is a query-time projection, not storage.
  */
+// Vertex schemas accept passthrough fields: callers attach edge-construction
+// rels (`discourse`, `inReplyTo`, …) that upsertVertex's partition step
+// routes to edges rather than to the vertex properties. Strict mode would
+// reject those before the partition can run.
 export const CommentSchema = z.object({
 	id: z.string(),
 	author: z.string().optional(),
@@ -458,6 +508,8 @@ export const commentDomainDefinition: TDomainDefinition = {
  * not metadata on the parent resource's topology, so JSON-LD round-trips and
  * graph queries see mediaType as a first-class triple.
  */
+// Body schema same constraint as Comment: parent vertices supply content
+// fields that the partition step extracts before persistence.
 export const BodySchema = z.object({
 	id: z.string(),
 	content: z.string(),

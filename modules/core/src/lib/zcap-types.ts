@@ -3,7 +3,7 @@
  *
  * haibun-core itself implements only the bearer presentation; the signed
  * ZCAP-LD path is supplied by an `IZcapVerifier` that consumers register
- * with the authority (e.g., a spopg-side adapter wrapping `@digitalbazaar/zcap`).
+ * with the authority — typically an adapter wrapping a ZCAP-LD library.
  *
  * Field names track the ZCAP-LD spec (id, controller, parentCapability,
  * invocationTarget, allowedAction, expires) so consumers and types match
@@ -53,8 +53,8 @@ export type TZcapInvocation = {
 
 /**
  * Pluggable verifier for signed ZCAP-LD invocations. haibun-core declares the
- * interface; consumers (e.g., spopg) implement it using the actual
- * `@digitalbazaar/zcap` library and register it with the authority.
+ * interface; consumers implement it against a ZCAP-LD library and register
+ * the implementation with the authority.
  */
 export interface IZcapVerifier {
 	verify(invocation: TZcapInvocation, expected: { action: string; target: string; rootCapability?: string }): Promise<{ ok: boolean; error?: string }>;

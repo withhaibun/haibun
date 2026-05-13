@@ -98,7 +98,8 @@ function collectInputDomains(stepDef: TStepperStep): string[] {
 }
 
 function collectOutputDomains(stepDef: TStepperStep): string[] {
-	if (stepDef.outputDomain) return [normalizeDomainKey(stepDef.outputDomain)];
-	if (stepDef.outputDomains) return Object.values(stepDef.outputDomains).map((d) => normalizeDomainKey(d));
+	if (stepDef.productsDomain) return [normalizeDomainKey(stepDef.productsDomain)];
+	if (stepDef.productsDomains) return Object.values(stepDef.productsDomains).map((d) => normalizeDomainKey(d));
+	// productsSchema is local-only and does NOT contribute to the resolver graph.
 	return [];
 }

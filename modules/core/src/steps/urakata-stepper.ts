@@ -8,6 +8,9 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/util/index.js";
 import { URAKATA, URAKATA_ID_DOMAIN, UrakataRegistry, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/urakata.js";
 
+const DOMAIN_URAKATA_LIST = "urakata-list";
+const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema) });
+
 class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 	description = "Out-of-band step execution: tickers and watchers, with introspection and clean shutdown";
 
@@ -19,7 +22,12 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 	}
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: [urakataIdDomainDefinition] }),
+		getConcerns: () => ({
+			domains: [
+				urakataIdDomainDefinition,
+				{ selectors: [DOMAIN_URAKATA_LIST], schema: UrakataListSchema, description: "List of running urakata", ui: { component: "shu-result-table", summary: "Urakata" } },
+			],
+		}),
 		startFeature: () => {
 			const world = this.getWorld();
 			this.registry = new UrakataRegistry(world, (id, seqPath, err) => {
@@ -44,8 +52,8 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 	steps = {
 		showUrakata: {
 			gwta: "show urakata",
-			outputSchema: z.object({ urakata: z.array(UrakataSchema) }),
-			action: () => actionOKWithProducts({ _type: "view", _summary: "Urakata", _component: "shu-result-table", view: "urakata", urakata: this.urakata().list() }),
+			productsDomain: DOMAIN_URAKATA_LIST,
+			action: () => actionOKWithProducts({ urakata: this.urakata().list() }),
 		},
 
 		stopUrakata: {

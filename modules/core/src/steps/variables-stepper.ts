@@ -15,11 +15,44 @@ const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.getStore().clear();
 };
 
+const DOMAIN_ENV_SNAPSHOT = "env-snapshot";
+const DOMAIN_VARS_SNAPSHOT = "vars-snapshot";
+const DOMAIN_VAR_SNAPSHOT = "var-snapshot";
+
+const EnvSnapshotSchema = z.object({ env: z.record(z.string(), z.string()) });
+const VarsSnapshotSchema = z.object({ vars: z.record(z.string(), z.unknown()) });
+const VarSnapshotSchema = z.object({ term: z.string(), value: z.unknown(), domain: z.string().optional(), secret: z.boolean().optional() });
+
+const envSummary = (p: Record<string, unknown>) => {
+	const env = p.env as Record<string, string> | undefined;
+	const count = env ? Object.keys(env).length : 0;
+	return `${count} environment variable${count === 1 ? "" : "s"}`;
+};
+
+const varsSummary = (p: Record<string, unknown>) => {
+	const vars = p.vars as Record<string, unknown> | undefined;
+	const count = vars ? Object.keys(vars).length : 0;
+	return `${count} variable${count === 1 ? "" : "s"}`;
+};
+
+const varSummary = (p: Record<string, unknown>) => {
+	const term = String(p.term ?? "");
+	const display = p.secret ? OBSCURED_VALUE : typeof p.value === "object" ? JSON.stringify(p.value) : String(p.value);
+	return `${term} = ${display}`;
+};
+
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 	startFeature: clearVars(variablesStepper),
 	startScenario: async ({ scopedVars }: TStartScenario) => {
 		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...(await scopedVars.all()) });
 	},
+	getConcerns: () => ({
+		domains: [
+			{ selectors: [DOMAIN_ENV_SNAPSHOT], schema: EnvSnapshotSchema, description: "Snapshot of environment variables", ui: { summary: envSummary } },
+			{ selectors: [DOMAIN_VARS_SNAPSHOT], schema: VarsSnapshotSchema, description: "Snapshot of feature variables", ui: { summary: varsSummary } },
+			{ selectors: [DOMAIN_VAR_SNAPSHOT], schema: VarSnapshotSchema, description: "Snapshot of a single variable", ui: { summary: varSummary } },
+		],
+	}),
 });
 
 class VariablesStepper extends AStepper implements IHasCycles {
@@ -161,22 +194,22 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showEnv: {
 			gwta: "show env",
 			exposeMCP: false,
+			productsDomain: DOMAIN_ENV_SNAPSHOT,
 			action: () => {
 				const envVars = this.world.options.envVariables || {};
 				const shared = this.getWorld().shared;
 				const safeEnv = sanitizeObjectSecrets(envVars, (key) => shared.isSecret(key));
-				const count = Object.keys(safeEnv).length;
-				return actionOKWithProducts({ _type: "Environment", _summary: `${count} environment variables`, env: safeEnv });
+				return actionOKWithProducts({ env: safeEnv });
 			},
 		},
 		showVars: {
 			gwta: "show vars",
+			productsDomain: DOMAIN_VARS_SNAPSHOT,
 			action: async () => {
 				const shared = this.getWorld().shared;
 				const displayVars = Object.fromEntries(Object.entries(await shared.all()).map(([key, variable]) => [key, variable.value]));
 				const safeVars = sanitizeObjectSecrets(displayVars, (key) => shared.isSecret(key));
-				const count = Object.keys(safeVars).length;
-				return actionOKWithProducts({ _type: "Variables", _summary: `${count} variables`, vars: safeVars });
+				return actionOKWithProducts({ vars: safeVars });
 			},
 		},
 		set: {
@@ -336,8 +369,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			handlesUndefined: ["what"],
 			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
 				const term = (getStepTerm(featureStep, "what") ?? what) as string;
-				const sharedVars = await this.getWorld().shared.all();
-				if (sharedVars[term]) return OK;
+				// Dot-path aware: matches the resolution used by `matches`, `show var`, and
+				// every other variable-consuming step. Without this, `variable
+				// foo.bar exists` fails even when `foo` is a JSON-stored object whose
+				// `bar` key is defined, contradicting the rest of the variables-stepper.
+				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
+				if (resolved.value !== undefined) return OK;
 				const envVars = this.getWorld().options.envVariables || {};
 				return envVars[term] !== undefined ? OK : actionNotOK(`${what} not set`);
 			},
@@ -345,7 +382,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVar: {
 			gwta: "show var {what}",
 			handlesUndefined: ["what"],
-			outputSchema: z.object({ term: z.string(), value: z.unknown(), domain: z.string().optional() }),
+			productsDomain: DOMAIN_VAR_SNAPSHOT,
 			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
 				const rawTerm = getStepTerm(featureStep, "what");
 				if (rawTerm === undefined) return actionNotOK("variable not provided");
@@ -361,9 +398,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					this.getWorld().eventLogger.info(`${term} is undefined`);
 					return actionOKWithProducts({ term, value: undefined, domain: stepValue.domain });
 				}
-				const displayValue = isSecret ? OBSCURED_VALUE : stepValue.value;
-				const summary = `${term} = ${typeof displayValue === "object" ? JSON.stringify(displayValue) : String(displayValue)}`;
-				return actionOKWithProducts({ _type: "Variable", _summary: summary, term, value: stepValue.value, domain: stepValue.domain });
+				return actionOKWithProducts({ term, value: stepValue.value, domain: stepValue.domain, secret: isSecret });
 			},
 		},
 		showDomains: {

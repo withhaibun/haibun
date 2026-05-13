@@ -34,6 +34,19 @@ const zcapGrantSchema = z.object({
 	controller: z.string().optional(),
 });
 
+const zcapGrantIssuedSchema = z.object({
+	token: zcapTokenSchema,
+	allowedAction: z.array(zcapActionSchema),
+	revoked: z.boolean(),
+});
+
+const zcapGrantRevokedSchema = z.object({
+	token: zcapTokenSchema,
+	revoked: z.number().int().nonnegative(),
+});
+
+const zcapGrantsListSchema = z.object({ grants: z.array(zcapGrantSchema) });
+
 const zcapDomains: TDomainDefinition[] = [
 	{
 		selectors: [ZCAP_TOKEN_DOMAIN],
@@ -78,11 +91,7 @@ class ZcapStepper extends AStepper implements IHasCycles {
 	steps = {
 		issueZcapBearerGrant: {
 			gwta: `issue zcap bearer grant for token {token: ${ZCAP_TOKEN_DOMAIN}} with action {action: ${ZCAP_ACTION_DOMAIN}}`,
-			outputSchema: z.object({
-				token: zcapTokenSchema,
-				allowedAction: z.array(zcapActionSchema),
-				revoked: z.boolean(),
-			}),
+			productsSchema: zcapGrantIssuedSchema,
 			action: ({ token, action }: { token: string; action: string }, featureStep: TFeatureStep) => {
 				const grant = this.getAuthority().issueBearerGrant({
 					token,
@@ -99,10 +108,7 @@ class ZcapStepper extends AStepper implements IHasCycles {
 		},
 		revokeZcapBearerGrant: {
 			gwta: `revoke zcap bearer grant for token {token: ${ZCAP_TOKEN_DOMAIN}}`,
-			outputSchema: z.object({
-				token: zcapTokenSchema,
-				revoked: z.number().int().nonnegative(),
-			}),
+			productsSchema: zcapGrantRevokedSchema,
 			action: ({ token }: { token: string }) => {
 				const revoked = this.getAuthority().revokeBearerGrant(token);
 				if (revoked === 0) {
@@ -113,7 +119,7 @@ class ZcapStepper extends AStepper implements IHasCycles {
 		},
 		showZcapBearerGrants: {
 			exact: "show zcap bearer grants",
-			outputSchema: z.object({ grants: z.array(zcapGrantSchema) }),
+			productsSchema: zcapGrantsListSchema,
 			action: () => {
 				const grants = this.getAuthority().listBearerGrants();
 				this.getWorld().eventLogger.info(JSON.stringify(grants, null, 2));

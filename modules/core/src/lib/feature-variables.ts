@@ -5,10 +5,10 @@ import type { TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
-import { IQuadStore, TQuad, emitQuadObservation } from "./quad-types.js";
+import { IQuadStore, SHARED_GRAPH, TQuad, emitQuadObservation } from "./quad-types.js";
 import { LinkRelations } from "./resources.js";
 
-export const SHARED_GRAPH = "variables";
+export { SHARED_GRAPH };
 export const OBSERVATION_GRAPH = "observation";
 export const OBSCURED_VALUE = "[o̴b̵s̵c̷u̶r̸e̵d̵]";
 
@@ -22,7 +22,7 @@ export class FeatureVariables {
 		this.store = new QuadStore();
 		if (world.shared) {
 			const prev = world.shared.getStore();
-			if (prev instanceof QuadStore) prev.inheritBackingStores(this.store as QuadStore);
+			if (prev instanceof QuadStore) prev.carryNonVariableQuadsTo(this.store as QuadStore);
 		}
 		if (initial) {
 			for (const [name, sv] of Object.entries(initial)) {

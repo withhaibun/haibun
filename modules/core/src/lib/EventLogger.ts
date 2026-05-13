@@ -3,6 +3,7 @@ import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "../schema/pr
 import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
 import { formatCurrentSeqPath } from "./util/index.js";
+import { failFastOrLog } from "./dev-mode.js";
 
 export type TIsSecretFn = (name: string) => boolean;
 
@@ -98,7 +99,10 @@ export class EventLogger implements IEventLogger {
 			try {
 				subscriber(eventWithEmitter);
 			} catch (e) {
-				console.error("EventLogger subscriber error:", e);
+				// Same fan-out isolation as SseSubscriber.dispatch: one broken
+				// subscriber must not silence the others. DEV throws so the bug
+				// surfaces; PROD logs and continues.
+				failFastOrLog("EventLogger subscriber error:", e);
 			}
 		}
 		if (!this.suppressConsole) {
