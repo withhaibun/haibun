@@ -2,6 +2,7 @@ import { SseClient } from "./sse-client.js";
 import { setRpcCache, findCachedMethod } from "./rpc-cache.js";
 import { getConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { z } from "zod";
 
 export type StepDescriptor = {
@@ -11,6 +12,7 @@ export type StepDescriptor = {
 	pattern: string;
 	params: Record<string, "string" | "number">;
 	paramDomains?: Record<string, string>;
+	productsDomain?: string;
 	capability?: string;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
@@ -46,6 +48,7 @@ const StepDescriptorSchema = z
 		pattern: z.string().min(1),
 		params: z.record(z.string(), z.union([z.literal("string"), z.literal("number")])),
 		paramDomains: z.record(z.string(), z.string()).optional(),
+		productsDomain: z.string().optional(),
 		capability: z.string().optional(),
 		inputSchema: z.record(z.string(), z.unknown()).optional(),
 		outputSchema: z.record(z.string(), z.unknown()).optional(),
@@ -146,7 +149,7 @@ function readHydration(): ShuHydration | null {
 	try {
 		return JSON.parse(el.textContent) as ShuHydration;
 	} catch (err) {
-		console.warn("[shu] Failed to parse hydration data:", err);
+		failFastOrLog("[shu] Failed to parse hydration data:", err);
 		return null;
 	}
 }

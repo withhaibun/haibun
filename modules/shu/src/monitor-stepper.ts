@@ -51,6 +51,24 @@ export const EventsFilterSchema = z.object({
 });
 export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
 
+const MonitorEventsSchema = z.object({ events: z.array(z.unknown()) });
+
+const DispatchTracesSchema = z.object({ traces: z.array(z.unknown()) });
+
+const ClusteredQuadsSchema = z.object({
+	quads: z.array(z.unknown()),
+	clusters: z.array(
+		z.object({
+			type: z.string(),
+			totalCount: z.number(),
+			sampledCount: z.number(),
+			omittedCount: z.number(),
+			sampledSubjects: z.array(z.string()),
+			displayLabels: z.record(z.string(), z.string()).optional(),
+		}),
+	),
+});
+
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions, IHasTunables {
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
@@ -237,24 +255,27 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				return actionOKWithProducts({ path: written });
 			},
 		},
-		// Singleton view products. Shape matches per-instance external views (e.g. fisheye)
-		// so one parser path opens both: `_type` + `_component` + `id` + `view` + `_summary`.
-		// `id === view` for singletons; per-instance views set `id = <component>:<uuid>`.
+		// Singleton view openers. Hypermedia markers (`_type` + `_component` + `id` + `view`
+		// + `_summary`) are injected by the dispatcher from each domain's `ui.component`,
+		// so every view-opening step shares the same single mechanism.
 		showMonitor: {
 			gwta: "show monitor",
-			action: () => actionOKWithProducts({ _type: "shu-monitor-column", _summary: "Monitor log stream", _component: "shu-monitor-column", id: "monitor", view: "monitor" }),
+			productsDomain: "shu-monitor-column",
+			action: () => actionOKWithProducts({}),
 		},
 		showSequenceDiagram: {
 			gwta: "show sequence diagram",
-			action: () => actionOKWithProducts({ _type: "shu-sequence-diagram", _summary: "Sequence diagram", _component: "shu-sequence-diagram", id: "sequence", view: "sequence" }),
+			productsDomain: "shu-sequence-diagram",
+			action: () => actionOKWithProducts({}),
 		},
 		showDocument: {
 			gwta: "show document",
-			action: () => actionOKWithProducts({ _type: "shu-document-column", _summary: "Document view", _component: "shu-document-column", id: "document", view: "document" }),
+			productsDomain: "shu-document-column",
+			action: () => actionOKWithProducts({}),
 		},
 		getEvents: {
 			gwta: `get monitor events {filter: ${DOMAIN_EVENTS_FILTER}}`,
-			outputSchema: z.object({ events: z.array(z.unknown()) }),
+			productsSchema: MonitorEventsSchema,
 			action: ({ filter }: { filter: TEventsFilter }) => {
 				const { level, kind, since } = filter;
 				let filtered: THaibunEvent[] = this.events;
@@ -285,7 +306,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		getDispatchTraces: {
 			gwta: "get dispatch traces",
-			outputSchema: z.object({ traces: z.array(z.unknown()) }),
+			productsSchema: DispatchTracesSchema,
 			action: () => {
 				const traces = this.events
 					.filter((e) => e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace")
@@ -298,23 +319,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		showGraphView: {
 			gwta: "show graph view",
-			action: () => actionOKWithProducts({ _type: "shu-graph-view", _summary: "Graph view", _component: "shu-graph-view", id: "graph", view: "graph" }),
+			productsDomain: "shu-graph-view",
+			action: () => actionOKWithProducts({}),
 		},
 		getClusteredQuads: {
 			gwta: "get clustered quads",
-			outputSchema: z.object({
-				quads: z.array(z.unknown()),
-				clusters: z.array(
-					z.object({
-						type: z.string(),
-						totalCount: z.number(),
-						sampledCount: z.number(),
-						omittedCount: z.number(),
-						sampledSubjects: z.array(z.string()),
-						displayLabels: z.record(z.string(), z.string()).optional(),
-					}),
-				),
-			}),
+			productsSchema: ClusteredQuadsSchema,
 			action: async (args: { perTypeLimit?: number | string; types?: string[] | string } = {}) => {
 				const store = this.getWorld().shared.getStore();
 				// RPC params arrive stringified through the synthetic-step plumbing; coerce both back to native shapes.

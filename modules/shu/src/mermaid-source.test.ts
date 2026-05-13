@@ -87,7 +87,7 @@ describe("end-to-end: show domains → thread → graph", () => {
 		// Simulate show domains product items
 		const rawItems = [
 			{
-				name: "muskeg-email",
+				name: "test-email",
 				description: "Email message",
 				members: 0,
 				vertexLabel: "Email",
@@ -96,7 +96,7 @@ describe("end-to-end: show domains → thread → graph", () => {
 					{ type: "subject", targetId: "string" },
 				],
 			},
-			{ name: "muskeg-contact", description: PERSON_LABEL, members: 0, vertexLabel: PERSON_LABEL, _edges: [] },
+			{ name: "test-contact", description: PERSON_LABEL, members: 0, vertexLabel: PERSON_LABEL, _edges: [] },
 			{ name: "string", description: "Plain string literal", members: 0, _edges: [] },
 		];
 

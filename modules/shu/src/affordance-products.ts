@@ -35,8 +35,8 @@ export type TAffordanceView = { id: string; description: string; component: stri
 export type TAffordanceProductAction =
 	| { kind: "none" }
 	| { kind: "close"; view: string }
-	| { kind: "open-component"; view: string; component: string; label: string }
-	| { kind: "open-type"; id: string; type: string; label: string }
+	| { kind: "open-component"; view: string; component: string; label: string; products: Record<string, unknown> }
+	| { kind: "open-type"; id: string; type: string; label: string; products: Record<string, unknown> }
 	| { kind: "show-views"; views: TAffordanceView[]; label: string };
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined => (value && typeof value === "object" ? (value as Record<string, unknown>) : undefined);
@@ -97,13 +97,13 @@ export function parseAffordanceProduct(product: unknown): TAffordanceProductActi
 		const view = requiredString(idOrView, "Affordance component product requires string id or view");
 		const summary = parsed[HYPERMEDIA.SUMMARY];
 		const label = typeof summary === "string" ? summary : component;
-		return { kind: "open-component", view, component, label };
+		return { kind: "open-component", view, component, label, products: candidate as Record<string, unknown> };
 	}
 	if (typeof typeStr === "string" && typeof parsed[PRODUCT_KEY.ID] === "string") {
 		const id = requiredString(parsed[PRODUCT_KEY.ID], "Affordance type product requires string id");
 		const summary = parsed[HYPERMEDIA.SUMMARY];
 		const label = typeof summary === "string" ? summary : typeStr;
-		return { kind: "open-type", id, type: typeStr, label };
+		return { kind: "open-type", id, type: typeStr, label, products: candidate as Record<string, unknown> };
 	}
 	if (typeof parsed[PRODUCT_KEY.VIEW] === "string") throw new Error(`Unexpected view-only product shape: ${parsed[PRODUCT_KEY.VIEW]}`);
 	return { kind: "none" };

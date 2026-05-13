@@ -1,170 +1,99 @@
 /**
- * ShuDomainChainView — visualizes the typed step graph as Mermaid.
+ * ShuDomainChainView — type-centric chain visualization.
  *
- * Subscribes to the affordances SSE event for the latest graph snapshot, then
- * renders domains as nodes and steps as labeled edges. Each domain node carries
- * its key. Each step edge shows the step's gwta or stepper.stepName. Capability-
- * gated steps are styled distinctly. Steps with no inputs originate from a single
- * sentinel "∅" source node.
+ * Subscribes to the latest affordances snapshot from the goal-resolver and
+ * delegates rendering to `shu-graph` after projecting the snapshot into a
+ * renderer-agnostic `TGraph`. Domains become nodes (coloured by goal finding)
+ * and steps become labeled edges (bold when ready, dashed when blocked,
+ * dotted when capability-gated).
  *
- * This is the type-centric view. A step-centric (bipartite) variant can be added
- * later; the data is the same.
+ * A step-centric (bipartite) variant can be added later by swapping in a
+ * different projection function; the data is the same.
  */
-import mermaid from "mermaid";
-import { esc } from "../util.js";
-import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
+import { SseClient, inAction } from "../sse-client.js";
+import { projectDomainChain, type TAffordancesSnapshot } from "../graph/project-domain-chain.js";
+import { buildMermaidSource } from "../graph/mermaid-renderer.js";
 
-/**
- * Mermaid v10+ rejects hyphens in unquoted node IDs (`domain-key[...]` parses as
- * `domain - key[...]`). Map every non-alphanumeric character to `_` so domain
- * keys like `muskeg-verification-products` produce valid identifiers.
- */
-function mermaidId(s: string): string {
-	return s.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60);
-}
-
-type TForwardAffordance = {
-	stepperName: string;
-	stepName: string;
-	gwta?: string;
-	inputDomains: string[];
-	outputDomains: string[];
-	readyToRun: boolean;
-	capability?: string;
-};
-
-type TAffordances = {
-	forward: TForwardAffordance[];
-	goals: Array<{ domain: string; resolution: { finding: string } }>;
-};
-
-const SOURCE_DOMAIN = "∅";
-
-let mermaidInitialized = false;
+type TLoadState = "idle" | "fetching" | "loaded" | "empty";
 
 export class ShuDomainChainView extends HTMLElement {
-	private affordances: TAffordances | null = null;
-	private unsubscribe: (() => void) | null = null;
-	private renderId = 0;
+	private affordances: TAffordancesSnapshot | null = null;
+	private loadState: TLoadState = "idle";
 
 	connectedCallback(): void {
 		if (!this.shadowRoot) this.attachShadow({ mode: "open" });
-		const handler = (e: Event) => {
-			const detail = (e as CustomEvent<TAffordances>).detail;
-			if (detail) {
-				this.affordances = detail;
-				void this.renderComponent();
+		if (!this.hasAttribute("data-testid")) this.setAttribute("data-testid", "shu-domain-chain");
+		this.renderComponent();
+		if (this.affordances === null) void this.fetchInitial();
+	}
+
+	/**
+	 * View-open contract: `pane-opener` assigns this property with the producing step's
+	 * products (e.g. `show chain lint`'s `{findings, summary, forward, goals, ...}`).
+	 * The chain graph renders from `forward` + `goals`; absence of those fields throws
+	 * — the producing step must supply chain data, no fallbacks.
+	 */
+	set products(p: Record<string, unknown>) {
+		if (!Array.isArray(p.forward) || !Array.isArray(p.goals)) {
+			throw new Error(
+				`shu-domain-chain-view requires products with \`forward\` and \`goals\` arrays. Received keys: [${Object.keys(p).join(", ")}]. The step's productsDomain schema must include forward+goals; the action must populate them.`,
+			);
+		}
+		this.affordances = { forward: p.forward as TAffordancesSnapshot["forward"], goals: p.goals as TAffordancesSnapshot["goals"] };
+		this.loadState = "loaded";
+		this.renderComponent();
+	}
+
+	private async fetchInitial(): Promise<void> {
+		this.loadState = "fetching";
+		this.renderComponent();
+		try {
+			const sse = SseClient.for("");
+			const response = await inAction((scope) => sse.rpc<Record<string, unknown>>(scope, "GoalResolutionStepper-showAffordances", {}));
+			if (Array.isArray(response?.forward) && Array.isArray(response?.goals)) {
+				this.affordances = { forward: response.forward as TAffordancesSnapshot["forward"], goals: response.goals as TAffordancesSnapshot["goals"] };
+				this.loadState = "loaded";
+				this.renderComponent();
+				return;
 			}
-		};
-		document.addEventListener("shu:affordances", handler);
-		this.unsubscribe = () => document.removeEventListener("shu:affordances", handler);
-		void this.renderComponent();
-	}
-
-	disconnectedCallback(): void {
-		this.unsubscribe?.();
-		this.unsubscribe = null;
-	}
-
-	/** Allow programmatic update without SSE for tests and explicit pushes. */
-	setAffordances(a: TAffordances): void {
-		this.affordances = a;
-		void this.renderComponent();
-	}
-
-	private buildMermaidSource(a: TAffordances): string {
-		const domains = new Set<string>();
-		let hasSource = false;
-		for (const f of a.forward) {
-			for (const d of f.inputDomains) domains.add(d);
-			for (const d of f.outputDomains) domains.add(d);
-			if (f.inputDomains.length === 0 && f.outputDomains.length > 0) hasSource = true;
+			this.loadState = "empty";
+			this.renderComponent();
+		} catch {
+			this.loadState = "empty";
+			this.renderComponent();
 		}
-		if (hasSource) domains.add(SOURCE_DOMAIN);
-
-		const goalFindings = new Map<string, string>();
-		for (const g of a.goals) goalFindings.set(g.domain, g.resolution.finding);
-
-		const lines: string[] = ["graph LR"];
-
-		for (const d of domains) {
-			const id = mermaidId(d);
-			const label = d === SOURCE_DOMAIN ? "∅<br/>(no preconditions)" : esc(d);
-			lines.push(`  ${id}["${label}"]`);
-			const finding = goalFindings.get(d);
-			if (finding === GOAL_FINDING.SATISFIED) lines.push(`  style ${id} fill:#d8edd8,stroke:#1a6b3c,stroke-width:2px`);
-			else if (finding === GOAL_FINDING.PLAN) lines.push(`  style ${id} fill:#d8e1f0,stroke:#2848a8`);
-			else if (finding === GOAL_FINDING.UNREACHABLE) lines.push(`  style ${id} fill:#fdd,stroke:#a02828`);
-			else if (finding === GOAL_FINDING.REFUSED) lines.push(`  style ${id} fill:#fde6c4,stroke:#b58105`);
-			else lines.push(`  style ${id} fill:#eee,stroke:#999`);
-		}
-
-		for (const f of a.forward) {
-			const label = (f.gwta ?? `${f.stepperName}.${f.stepName}`) + (f.capability ? " ⚷" : "");
-			const escapedLabel = label.replace(/"/g, "'");
-			const ins = f.inputDomains.length === 0 ? [SOURCE_DOMAIN] : f.inputDomains;
-			for (const from of ins) {
-				for (const to of f.outputDomains) {
-					const fromId = mermaidId(from);
-					const toId = mermaidId(to);
-					const arrow = f.readyToRun ? "==>" : "-->";
-					lines.push(`  ${fromId} ${arrow}|"${escapedLabel}"| ${toId}`);
-				}
-			}
-		}
-
-		return lines.join("\n");
 	}
 
-	private async renderComponent(): Promise<void> {
+	private renderComponent(): void {
 		if (!this.shadowRoot) return;
 		const a = this.affordances;
 		if (!a) {
-			this.shadowRoot.innerHTML = `<style>${STYLES}</style><div class="empty">No domain-chain data yet — run a step to populate.</div>`;
+			if (this.loadState === "fetching") {
+				this.shadowRoot.innerHTML = `<style>${STYLES}</style><shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
+				return;
+			}
+			this.shadowRoot.innerHTML = `<style>${STYLES}</style><div class="empty" data-testid="domain-chain-empty">No chain data yet. Invoke <code>show chain lint</code> from the actions bar (Step mode), or run any step — every step end emits a chain snapshot.</div>`;
 			return;
 		}
 
-		const source = this.buildMermaidSource(a);
-		const headerHtml = `
+		const graph = projectDomainChain(a);
+		const mermaidSource = buildMermaidSource(graph);
+		this.shadowRoot.innerHTML = `
+			<style>${STYLES}</style>
 			<div class="header">
 				<h3>Domain chain</h3>
 				<shu-copy-button label="Copy" title="Copy Mermaid source to clipboard"></shu-copy-button>
 			</div>
 			<details class="explanation">
 				<summary>How to read this</summary>
-				<p>Each node is a registered domain. Each edge is a step that consumes its source domain(s) and produces its target domain. Bold (==>) edges are ready-to-run now; dashed (-->) edges have unsatisfied preconditions. ⚷ marks capability-gated steps. Node colours show the goal-resolver's verdict for that domain: green = satisfied (a fact exists), blue = plan (a chain reaches it), red = unreachable, amber = refused.</p>
+				<p>Each node is a registered domain. Each edge is a step that consumes its source domain(s) and produces its target domain. Bold (==>) edges are ready-to-run now; dashed (-->) edges have unsatisfied preconditions. Dotted (-.->) edges are capability-gated. Node colours show the goal-resolver's verdict for that domain: green = satisfied (a fact exists), blue = reachable (a path reaches it), red = unreachable, amber = refused.</p>
 			</details>
+			<shu-graph data-testid="domain-chain-graph"></shu-graph>
 		`;
-
-		if (!mermaidInitialized) {
-			mermaid.initialize({
-				startOnLoad: false,
-				theme: "default",
-				securityLevel: "loose",
-				fontFamily: "ui-sans-serif, system-ui, sans-serif",
-				maxTextSize: 1_000_000,
-				maxEdges: 5000,
-				flowchart: { htmlLabels: true },
-			});
-			mermaidInitialized = true;
-		}
-
-		const id = `domain-chain-${++this.renderId}`;
-		try {
-			const { svg } = await mermaid.render(id, source);
-			this.shadowRoot.innerHTML = `<style>${STYLES}</style>${headerHtml}<div class="graph">${svg}</div>`;
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
-			this.shadowRoot.innerHTML = `<style>${STYLES}</style>${headerHtml}<div class="graph"><div class="error">mermaid render failed: ${esc(msg)}</div><pre class="source-fallback">${esc(source)}</pre></div>`;
-		}
-
-		this.bindActions(source);
-	}
-
-	private bindActions(source: string): void {
-		if (!this.shadowRoot) return;
+		const graphEl = this.shadowRoot.querySelector("shu-graph") as (HTMLElement & { products: Record<string, unknown> }) | null;
+		if (graphEl) graphEl.products = { graph };
 		const copy = this.shadowRoot.querySelector("shu-copy-button") as (HTMLElement & { source: string }) | null;
-		if (copy) copy.source = source;
+		if (copy) copy.source = mermaidSource;
 	}
 }
 
@@ -174,8 +103,6 @@ const STYLES = `
 	.header h3 { margin: 0; font-size: 13px; color: #444; }
 	.explanation summary { cursor: pointer; font-size: 12px; color: #555; padding: 4px 0; }
 	.explanation p { margin: 4px 0; font-size: 12px; color: #333; }
-	.graph { padding: 8px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; overflow: auto; }
-	.source-fallback { padding: 8px; font-family: monospace; font-size: 11px; white-space: pre; color: #444; }
-	.error { color: #a02828; padding: 6px; background: #fdecec; border-radius: 3px; margin-bottom: 4px; font-size: 12px; }
-	.empty { color: #888; font-style: italic; font-size: 12px; }
+	.empty { color: #555; font-size: 12px; padding: 12px; background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; }
+	.empty code { background: #eee; padding: 1px 4px; border-radius: 2px; font-size: 11px; }
 `;

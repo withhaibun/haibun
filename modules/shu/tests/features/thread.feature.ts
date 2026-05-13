@@ -4,7 +4,7 @@ import ShuStepper from "../../build/shu-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SHU_TEST_IDS } from "../../build/test-ids.js";
-import { createStepUI, stepTestIds, flattenTestIds } from "../../build/index.js";
+import { createStepUI, flattenTestIds } from "../../build/index.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
@@ -16,9 +16,6 @@ const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
 
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
-const stepIdSetup = stepTestIds(["label", "id", "data", "text", "fromLabel", "fromId", "rel", "toLabel", "toId"]).map((id) =>
-	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
-);
 
 const json = (obj: Record<string, unknown>) => `"${JSON.stringify(obj)}"`;
 
@@ -27,7 +24,6 @@ export const features: TKirejiExport = {
 		feature({ feature: "Comments and getRelated for conversation threading" }),
 
 		...testIdSetup,
-		...stepIdSetup,
 
 		scenario({ scenario: "Set up graph with threaded conversation" }),
 		"The tutorial graph stepper provides an in-memory graph store.",

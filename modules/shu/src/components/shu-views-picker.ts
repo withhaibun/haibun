@@ -1,12 +1,10 @@
 /**
- * <shu-views-picker> — Lists available views (id, description) and opens one
- * on click via COLUMN_OPEN_AFFORDANCE. Populated by the host via setViews().
- * Stays out of the affordance-product flow once a view is chosen — the picker
- * itself is just a shell, the real view it opens carries its own affordance.
+ * <shu-views-picker> — Lists available views (id, description) and opens one on
+ * click via PaneState. Populated by the host via setViews().
  */
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { PaneState } from "../pane-state.js";
 import { esc } from "../util.js";
 
 const ViewsPickerSchema = z.object({});
@@ -40,16 +38,9 @@ export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
 		this.shadowRoot.querySelectorAll(".view-row").forEach((row) => {
 			row.addEventListener("click", () => {
 				const el = row as HTMLElement;
-				const id = el.dataset.viewId ?? "";
 				const component = el.dataset.component ?? "";
-				const description = el.querySelector(".view-desc")?.textContent ?? id;
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.COLUMN_OPEN_AFFORDANCE, {
-						detail: { view: id, label: description, component },
-						bubbles: true,
-						composed: true,
-					}),
-				);
+				const description = el.querySelector(".view-desc")?.textContent ?? component;
+				if (component) PaneState.request({ paneType: "component", tag: component, label: description });
 			});
 		});
 	}
