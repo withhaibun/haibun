@@ -65,7 +65,15 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	private get filtered(): TComboboxOption[] {
 		const q = this.state.filterText.toLowerCase();
 		if (!q) return this.state.options;
-		return this.state.options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q));
+		// Rank label hits above value/secondary hits so what the user typed surfaces
+		// in the visible text first; metadata-only matches still appear, but lower down.
+		const labelHits: TComboboxOption[] = [];
+		const otherHits: TComboboxOption[] = [];
+		for (const o of this.state.options) {
+			if (o.label.toLowerCase().includes(q)) labelHits.push(o);
+			else if (o.value.toLowerCase().includes(q) || (o.secondary?.toLowerCase().includes(q) ?? false)) otherHits.push(o);
+		}
+		return [...labelHits, ...otherHits];
 	}
 
 	protected render(): void {
@@ -99,20 +107,54 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 
 		if (items.length > 0) {
 			const hostTestId = this.getAttribute("testid");
+			const hasAnyDetails = items.some((o) => o.details);
+			if (hasAnyDetails) ul.style.minWidth = "320px";
 			for (let i = 0; i < items.length; i++) {
 				const li = document.createElement("li");
 				li.setAttribute("role", "option");
 				li.dataset.value = items[i].value;
 				if (hostTestId) li.setAttribute("data-testid", `${hostTestId}-option-${items[i].value}`);
-				li.textContent = items[i].label;
+				// Primary label on one line, optional secondary text below in a
+				// dimmer / smaller style. Details (when present) live in a
+				// nested block that the focused / hovered option reveals.
+				const main = document.createElement("div");
+				main.textContent = items[i].label;
+				li.appendChild(main);
+				if (items[i].secondary) {
+					const sec = document.createElement("div");
+					sec.textContent = items[i].secondary ?? "";
+					Object.assign(sec.style, { color: "#777", fontSize: "0.85em", whiteSpace: "nowrap" });
+					li.appendChild(sec);
+				}
+				if (items[i].details) {
+					const det = document.createElement("pre");
+					det.textContent = items[i].details ?? "";
+					Object.assign(det.style, {
+						display: i === this._focusIndex ? "block" : "none",
+						margin: "4px 0 0",
+						padding: "4px 6px",
+						borderTop: "1px solid #eee",
+						background: "#fafafa",
+						color: "#333",
+						fontSize: "0.85em",
+						fontFamily: "ui-monospace, monospace",
+						whiteSpace: "pre-wrap",
+					});
+					det.dataset.role = "details";
+					li.appendChild(det);
+				}
 				Object.assign(li.style, LI_STYLE);
-				if (items[i].value === selectedValue) li.style.fontWeight = "600";
+				if (items[i].value === selectedValue) main.style.fontWeight = "600";
 				if (i === this._focusIndex) li.style.background = "#e8f0fe";
 				li.addEventListener("mouseenter", () => {
 					li.style.background = "#e8f0fe";
+					const det = li.querySelector('[data-role="details"]') as HTMLElement | null;
+					if (det) det.style.display = "block";
 				});
 				li.addEventListener("mouseleave", () => {
 					li.style.background = i === this._focusIndex ? "#e8f0fe" : "";
+					const det = li.querySelector('[data-role="details"]') as HTMLElement | null;
+					if (det && i !== this._focusIndex) det.style.display = "none";
 				});
 				ul.appendChild(li);
 			}
