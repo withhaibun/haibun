@@ -11,6 +11,9 @@ export const DOMAIN_PAGE_TITLE = "page-title";
 export const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
 
 const locatorSchema = z.string().min(1, "locator cannot be empty");
+export const PageContentsSchema = z.object({ html: z.string() });
+export const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
+export const RestFilteredCountSchema = z.object({ summary: z.string(), count: z.number() });
 
 export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{

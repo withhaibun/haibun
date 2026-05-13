@@ -106,7 +106,17 @@ export class SSETransport implements ITransport, IStepTransport {
 				}
 				const response = result as Record<string, unknown>;
 				const status = response.error ? 422 : 200;
-				return c.json(response, status);
+				try {
+					return c.json(response, status);
+				} catch (serializeErr) {
+					// V8 raises RangeError when JSON.stringify is asked for a string
+					// longer than ~512MB. Return a structured error instead of
+					// letting the unhandled throw stall the client's fetch.
+					const method = (data as Record<string, unknown>).method ?? "unknown";
+					const reason = serializeErr instanceof Error ? serializeErr.message : String(serializeErr);
+					this.eventLogger.error(`RPC ${method} response too large to serialize: ${reason}`);
+					return c.json({ ok: false, error: `${method}: response too large to serialize (${reason}). Narrow the query or return a summary.` }, 413);
+				}
 			} catch (e) {
 				this.eventLogger.error(`Error parsing RPC POST message: ${e}`);
 				return c.json({ ok: false, error: String(e) }, 400);
@@ -119,7 +129,28 @@ export class SSETransport implements ITransport, IStepTransport {
 		if (data?.type === "init") {
 			this.history = [];
 		}
-		const payload = JSON.stringify(data);
+		let payload: string;
+		try {
+			payload = JSON.stringify(data);
+		} catch (err) {
+			// Payload too large to serialize (V8 raises RangeError around 512MB) or
+			// otherwise unstringifiable. Emit a replacement event so the SSE stream
+			// stays alive — losing one oversized broadcast is acceptable; losing
+			// every subsequent event because the transport silently throws is not.
+			const fallback = {
+				id: data?.id,
+				timestamp: data?.timestamp,
+				kind: data?.kind,
+				type: data?.type,
+				stage: data?.stage,
+				status: data?.status,
+				level: data?.level,
+				dropped: true,
+				droppedReason: err instanceof Error ? err.message : String(err),
+			};
+			payload = JSON.stringify(fallback);
+			this.eventLogger.error(`SSE event dropped (payload too large to serialize): ${fallback.droppedReason}`);
+		}
 		this.history.push(payload);
 		this.hub.emit("event", payload);
 	}

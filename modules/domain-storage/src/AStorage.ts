@@ -9,6 +9,8 @@ import { AStepper, StepperKinds } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 
+const FileContentsSchema = z.object({ contents: z.string() });
+
 /**
  * Result from saveArtifact with paths for different consumption contexts.
  */
@@ -25,6 +27,7 @@ export abstract class AStorage extends AStepper {
 	description = "Create files, directories, and manage test artifacts";
 
 	kind = StepperKinds.STORAGE;
+
 	abstract readFile(path: string, coding?: string): TAnyFixme;
 	abstract rm(path: string): void;
 	abstract readdir(dir: string): Promise<string[]>;
@@ -194,7 +197,7 @@ export abstract class AStorage extends AStepper {
 		},
 		readFile: {
 			gwta: `read file {where}`,
-			outputSchema: z.object({ contents: z.string() }),
+			productsSchema: FileContentsSchema,
 			action: async ({ where }: TStepArgs) => {
 				const contents = await this.readFile(String(where), "utf-8");
 				return actionOKWithProducts({ contents });
