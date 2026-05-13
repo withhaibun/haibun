@@ -17,7 +17,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getFromRuntime, getStepperOption, constructorName, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
-import { buildStepRegistry, dispatchStep, validateToolInput, buildSyntheticFeatureStep, StepRegistry, type StepTool } from "@haibun/core/lib/step-dispatch.js";
+import { buildStepRegistry, dispatchStep, validateToolInput, buildFeatureStepForTransport, StepRegistry, type StepTool } from "@haibun/core/lib/step-dispatch.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
 import type { IStepTransport } from "./step-transport.js";
@@ -77,6 +77,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	cycles = {
 		startFeature: async () => {
+			this.populateToolRegistries();
 			await this.setupMcp();
 		},
 		endFeature: async () => {
@@ -114,7 +115,6 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			accessToken: this.accessToken || undefined,
 			accessCapability: this.accessCapability || undefined,
 		});
-		this.populateToolRegistries();
 	}
 
 	public getTools(): Tool[] {
@@ -417,7 +417,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 						const world = this.getWorld();
 						const seqPath = allocateSyntheticSeqPath(world);
 						const validatedParams = validateToolInput(seqPath, stepTool, input, world);
-						const featureStep = buildSyntheticFeatureStep(stepTool, validatedParams, seqPath);
+						const featureStep = buildFeatureStepForTransport(stepTool, validatedParams, seqPath);
 						const hr = await dispatchStep({ registry: this.getOrCreateRegistry(), world, steppers: this.steppers, grantedCapability }, featureStep);
 						if (!hr.ok) {
 							return { isError: true, content: [{ type: "text", text: hr.errorMessage ?? "Step failed" }] };

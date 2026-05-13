@@ -4,7 +4,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
+import { discoverSteps, dispatchStep, validateToolInput, buildFeatureStepForTransport, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
 import { allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
@@ -269,7 +269,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 							accessCapability: this.rpcAccessCapability,
 						});
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
-						const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
+						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
 						const hr = await dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep);
 						if (hr.ok) {
 							const result = hr.products ?? { ok: true };

@@ -5,8 +5,7 @@ import { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, TActionResult, TStepResult } from "@haibun/core/schema/protocol.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
-import { z } from "zod";
-import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID } from "./domains.js";
+import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, PageContentsSchema } from "./domains.js";
 import { pickLocatorDomain } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
@@ -86,8 +85,23 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		shouldSeeTestId: {
 			gwta: "has test id {testId}",
 			action: async ({ testId }: { testId: string }) => {
-				const found = await wp.withPage(async (page: Page) => await page.getByTestId(testId));
-				return found ? OK : actionNotOK(`Did not find test id ${testId}`);
+				// `getByTestId` returns a Locator unconditionally; the truthiness
+				// check below would silently pass for absent elements. Resolve
+				// by counting matching elements (traversing shadow roots, since
+				// the wider waitFor implementation already does).
+				const count = await wp.withPage(async (page: Page) =>
+					page.evaluate((id) => {
+						function walk(root: Document | ShadowRoot): boolean {
+							if (root.querySelector(`[data-testid="${id}"]`)) return true;
+							for (const child of root.querySelectorAll("*")) {
+								if (child.shadowRoot && walk(child.shadowRoot)) return true;
+							}
+							return false;
+						}
+						return walk(document);
+					}, testId),
+				);
+				return count ? OK : actionNotOK(`Did not find test id ${testId}`);
 			},
 		},
 		seeText: {
@@ -539,7 +553,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		getPageContents: {
 			gwta: "get page contents",
-			outputSchema: z.object({ html: z.string() }),
+			productsSchema: PageContentsSchema,
 			action: async () => {
 				const contents = await wp.withPage<string>(async (page: Page) => await page.content());
 				return actionOKWithProducts({ html: contents || "" });
