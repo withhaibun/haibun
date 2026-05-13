@@ -214,7 +214,7 @@ describe("Discourse rels", () => {
 describe("CommentSchema", () => {
 	const baseComment = {
 		id: "c1",
-		text: "hello",
+		body: "hello",
 		timestamp: new Date().toISOString(),
 	};
 

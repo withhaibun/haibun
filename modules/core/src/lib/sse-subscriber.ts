@@ -16,15 +16,86 @@
  * `data` field is a JSON envelope with `{ type, event, ... }` or a
  * plain event payload. Payloads that don't parse as JSON are passed
  * through verbatim so callers can handle wire-format variants.
+ *
+ * --- Replay buffer (`ReplayBuffer`) ---
+ * Every dispatched event is also recorded in a `ReplayBuffer` (a fixed-
+ * size FIFO) so that a `subscribe()` call AFTER the connection opened
+ * still sees the prior run history. The server replays its own history
+ * on /sse connect, but that dispatch fires before any consumer has
+ * subscribed — without the buffer those replayed events would be lost.
+ *
+ * The buffer is an explicit, exported class (not a hidden field) so
+ * consumers can inspect it (`getReplayBuffer()`) and the contract is
+ * legible from one read of the file.
  */
 
 import type { THaibunEvent } from "../schema/protocol.js";
+import { failFastOrLog } from "./dev-mode.js";
 
 type EventHandler = (event: THaibunEvent) => void;
 type EventFilter = (event: THaibunEvent) => boolean;
 
 // biome-ignore lint/suspicious/noExplicitAny: EventSource is a DOM/Node global that may be polyfilled.
 type EventSourceCtor = new (url: string) => any;
+
+/** Default cap for the per-subscriber replay buffer. Overrideable via SseSubscriberConfig. */
+export const REPLAY_BUFFER_LIMIT_DEFAULT = 5000;
+
+/**
+ * Fixed-size FIFO of recently dispatched events. A `subscribe()` call
+ * synchronously walks the buffer and re-invokes the new handler with
+ * each event, so consumers that mount AFTER the SSE connection opened
+ * still see the run history the server replayed on connect.
+ *
+ * Public methods are intentionally narrow: callers `record` an event,
+ * `replay` to a handler, or read `size` / `limit`. The buffer never
+ * filters — that's a per-subscriber decision in `replay()`.
+ */
+export class ReplayBuffer {
+	private readonly events: THaibunEvent[] = [];
+	private _totalRecorded = 0;
+	constructor(readonly limit: number) {
+		if (limit <= 0) throw new Error(`ReplayBuffer: limit must be positive, got ${limit}`);
+	}
+
+	/** Append an event, dropping the oldest when the cap is exceeded. */
+	record(event: THaibunEvent): void {
+		this.events.push(event);
+		this._totalRecorded++;
+		if (this.events.length > this.limit) this.events.splice(0, this.events.length - this.limit);
+	}
+
+	/** Synchronously invoke `handler` for every buffered event that passes `filter` (or all when filter is undefined). */
+	replay(handler: EventHandler, filter?: EventFilter): void {
+		for (const event of this.events) {
+			if (!filter || filter(event)) handler(event);
+		}
+	}
+
+	/** Current number of buffered events. */
+	get size(): number {
+		return this.events.length;
+	}
+
+	/**
+	 * Total events ever recorded, including ones the buffer has since dropped.
+	 * Exceeds `size` only after the buffer has wrapped — that difference is what
+	 * tells a UI it's looking at a truncated tail.
+	 */
+	get totalRecorded(): number {
+		return this._totalRecorded;
+	}
+
+	/** Snapshot of the buffer for inspection. Returns a copy to keep the internal array opaque. */
+	snapshot(): THaibunEvent[] {
+		return this.events.slice();
+	}
+
+	/** Drop every buffered event. Used by callers that want a fresh start. */
+	clear(): void {
+		this.events.length = 0;
+	}
+}
 
 export type SseSubscriberConfig = {
 	/** Full URL of the SSE endpoint — absolute for remote hosts, relative for same-origin. */
@@ -38,6 +109,8 @@ export type SseSubscriberConfig = {
 	EventSourceCtor?: EventSourceCtor;
 	/** Short tag included in log lines to distinguish multiple subscribers. */
 	clientId?: string;
+	/** Cap for the per-subscriber replay buffer. Defaults to REPLAY_BUFFER_LIMIT_DEFAULT. */
+	replayBufferLimit?: number;
 };
 
 export class SseSubscriber {
@@ -52,6 +125,8 @@ export class SseSubscriber {
 	private closed = false;
 	private lastEventAt: number | null = null;
 	private connectedAt: number | null = null;
+	/** Replay buffer — see file header and the `ReplayBuffer` class. */
+	private readonly replayBuffer: ReplayBuffer;
 
 	constructor(config: SseSubscriberConfig) {
 		this.url = config.url;
@@ -62,6 +137,7 @@ export class SseSubscriber {
 		}
 		this.EventSourceCtor = ctor;
 		this.clientId = config.clientId ?? `sse-${Math.random().toString(36).slice(2, 8)}`;
+		this.replayBuffer = new ReplayBuffer(config.replayBufferLimit ?? REPLAY_BUFFER_LIMIT_DEFAULT);
 	}
 
 	/** Open the stream. Subsequent subscribe/close calls operate on this connection. Idempotent. */
@@ -94,10 +170,15 @@ export class SseSubscriber {
 		};
 	}
 
-	/** Register a listener. Returns an unsubscribe function. */
+	/**
+	 * Register a listener. Returns an unsubscribe function. The new handler
+	 * synchronously receives every buffered event from the `ReplayBuffer`
+	 * before subscribe returns, then continues to receive live dispatches.
+	 */
 	subscribe(handler: EventHandler, filter?: EventFilter): () => void {
 		const entry = { handler, filter };
 		this.listeners.push(entry);
+		this.replayBuffer.replay(handler, filter);
 		return () => {
 			const idx = this.listeners.indexOf(entry);
 			if (idx >= 0) this.listeners.splice(idx, 1);
@@ -107,6 +188,11 @@ export class SseSubscriber {
 	/** Tag for log correlation. */
 	get id(): string {
 		return this.clientId;
+	}
+
+	/** Inspect the replay buffer. Exposed so consumers can report buffer size or drain it for debugging. */
+	getReplayBuffer(): ReplayBuffer {
+		return this.replayBuffer;
 	}
 
 	/** Close the connection and stop reconnecting. */
@@ -141,11 +227,18 @@ export class SseSubscriber {
 
 	private dispatch(event: THaibunEvent): void {
 		this.lastEventAt = Date.now();
+		this.replayBuffer.record(event);
 		for (const { handler, filter } of this.listeners) {
+			if (filter && !filter(event)) continue;
+			// Live-dispatch isolation across listeners: a thrown handler must not
+			// silence its siblings. `failFastOrLog` re-throws in DEV so the
+			// developer sees the failure immediately; in PROD it logs and the
+			// loop continues. Replay (in `subscribe`) stays fail-fast — a
+			// listener that can't process a buffered event is a bug to surface.
 			try {
-				if (!filter || filter(event)) handler(event);
-			} catch {
-				// Listener errors don't take down the subscriber.
+				handler(event);
+			} catch (err) {
+				failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw during dispatch`, err);
 			}
 		}
 	}

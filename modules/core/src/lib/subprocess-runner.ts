@@ -12,10 +12,11 @@
 
 import type { TWorld } from "./world.js";
 import type { CStepper } from "./astepper.js";
-import { StepRegistry, validateToolInput, buildSyntheticFeatureStep } from "./step-dispatch.js";
+import { StepRegistry, validateToolInput, buildFeatureStepForTransport, validateProducts } from "./step-dispatch.js";
 import { createSteppers, setStepperWorldsAndDomains, errorDetail } from "./util/index.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
+import { TRACE_SEQ_PATH } from "../schema/protocol.js";
 
 export type SubprocessReadyMessage = { type: "ready"; steps: StepDescriptor[] };
 export type SubprocessCallMessage = { type: "call"; method: string; params?: Record<string, unknown>; seqPath?: number[] };
@@ -54,10 +55,18 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 
 		try {
 			const validated = validateToolInput(msg.seqPath, tool, msg.params ?? {}, world);
-			const featureStep = buildSyntheticFeatureStep(tool, validated, msg.seqPath);
+			const featureStep = buildFeatureStepForTransport(tool, validated, msg.seqPath);
 			const hr = await tool.handler(featureStep, world);
 			if (hr.ok) {
-				process.send?.({ type: "result", ok: true, products: hr.products ?? {} } satisfies SubprocessResultMessage);
+				if (tool.stepDef) {
+					const productsError = validateProducts(tool.stepperName, tool.stepName, tool.stepDef, world, hr.products);
+					if (productsError) {
+						process.send?.({ type: "result", ok: false, error: productsError } satisfies SubprocessResultMessage);
+						return;
+					}
+				}
+				const products = { ...(hr.products ?? {}), [TRACE_SEQ_PATH]: msg.seqPath };
+				process.send?.({ type: "result", ok: true, products } satisfies SubprocessResultMessage);
 			} else {
 				process.send?.({ type: "result", ok: false, error: hr.errorMessage ?? "Step failed" } satisfies SubprocessResultMessage);
 			}

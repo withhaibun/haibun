@@ -3,6 +3,8 @@ import { AStepper } from "../astepper.js";
 import { actionOKWithProducts, getStepperOption } from "../util/index.js";
 import { z } from "zod";
 
+const TestOptionResultSchema = z.object({ summary: z.string() });
+
 export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper implements IHasOptions {
 	options = {
 		EXISTS: {
@@ -13,7 +15,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 	steps = {
 		test: {
 			exact: "have a stepper option",
-			outputSchema: z.object({ summary: z.string() }),
+			productsSchema: TestOptionResultSchema,
 			action: () => {
 				const _res = getStepperOption(this, "EXISTS", this.getWorld().moduleOptions);
 				return Promise.resolve(actionOKWithProducts({ summary: "options" }));

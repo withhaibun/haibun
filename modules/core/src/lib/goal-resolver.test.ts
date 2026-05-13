@@ -28,23 +28,94 @@ describe("resolveGoal", () => {
 		const graph = singleProducerGraph("a", "b");
 		const fact: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
 		const result = resolveGoal("b", inputs(graph, [fact]));
-		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, goal: "b", factIdentity: "fact-1" });
+		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, goal: "b", factIds: ["fact-1"] });
 	});
 
-	it("returns unreachable when no producer exists", () => {
+	it("a satisfied goal still surfaces producer paths so the user can run again to produce another instance", () => {
+		const graph = singleProducerGraph("a", "b");
+		const existingGoalFact: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const result = resolveGoal("b", inputs(graph, [existingGoalFact]));
+		expect(result.finding).toBe(GOAL_FINDING.SATISFIED);
+		if (result.finding !== GOAL_FINDING.SATISFIED) throw new Error("unreachable");
+		expect(result.factIds).toEqual(["fact-1"]);
+		// `b` has a producer step that takes `a` as input; even though `b` is satisfied,
+		// the user must still have the option to run the chain again.
+		expect(result.michi.length).toBeGreaterThan(0);
+		expect(result.michi[0].steps.map((s) => s.stepName)).toEqual(["make"]);
+	});
+
+	it("returns satisfied with every matching fact id (multiple facts of the same goal)", () => {
+		const graph = singleProducerGraph("a", "b");
+		const f1: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const f2: TQuad = { subject: "fact-2", predicate: "b", object: { id: "y" }, namedGraph: "facts", timestamp: 2 };
+		const result = resolveGoal("b", inputs(graph, [f1, f2]));
+		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, factIds: ["fact-1", "fact-2"] });
+	});
+
+	it("returns unreachable when no producer exists and goal isn't its own argument leaf", () => {
+		// "z" is the goal itself, not an input — and the empty graph has no edges into it.
 		const result = resolveGoal("z", inputs(emptyGraph()));
 		expect(result.finding).toBe(GOAL_FINDING.UNREACHABLE);
 		if (result.finding === GOAL_FINDING.UNREACHABLE) expect(result.missing).toContain("z");
 	});
 
-	it("returns a plan when a producer chain exists from current facts", () => {
+	it("returns michi when a producer chain exists from current facts", () => {
 		const graph = singleProducerGraph("a", "b");
 		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
 		const result = resolveGoal("b", inputs(graph, [fact]));
-		expect(result.finding).toBe(GOAL_FINDING.PLAN);
-		if (result.finding === GOAL_FINDING.PLAN) {
-			expect(result.steps.map((s) => s.stepName)).toEqual(["make"]);
-			expect(result.assumes).toEqual([{ domain: "a", identity: "fact-1" }]);
+		expect(result.finding).toBe(GOAL_FINDING.MICHI);
+		if (result.finding === GOAL_FINDING.MICHI) {
+			expect(result.michi).toHaveLength(1);
+			expect(result.michi[0].steps.map((s) => s.stepName)).toEqual(["make"]);
+			expect(result.michi[0].bindings).toEqual([{ kind: "fact", domain: "a", factId: "fact-1" }]);
+		}
+	});
+
+	it("enumerates every distinct chain when multiple producers exist (choose your own adventure)", () => {
+		const graph: TDomainChainGraph = {
+			domains: [
+				{ key: "a", hasTopology: false },
+				{ key: "b", hasTopology: false },
+			],
+			steps: [
+				{ stepperName: "S", stepName: "make1", inputDomains: ["a"], outputDomains: ["b"] },
+				{ stepperName: "S", stepName: "make2", inputDomains: ["a"], outputDomains: ["b"] },
+			],
+			edges: [
+				{ from: "a", to: "b", stepperName: "S", stepName: "make1" },
+				{ from: "a", to: "b", stepperName: "S", stepName: "make2" },
+			],
+		};
+		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const result = resolveGoal("b", inputs(graph, [fact]));
+		expect(result.finding).toBe(GOAL_FINDING.MICHI);
+		if (result.finding === GOAL_FINDING.MICHI) {
+			expect(result.michi.map((m) => m.steps[0].stepName).sort()).toEqual(["make1", "make2"]);
+		}
+	});
+
+	it("filters facts by shibari `where` (value equality)", () => {
+		const graph = singleProducerGraph("a", "b");
+		const f1: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x", role: "issuer" }, namedGraph: "facts", timestamp: 1 };
+		const f2: TQuad = { subject: "fact-2", predicate: "b", object: { id: "y", role: "verifier" }, namedGraph: "facts", timestamp: 2 };
+		const result = resolveGoal("b", { graph, facts: [f1, f2], capabilities: new Set(), where: { role: "issuer" } });
+		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, factIds: ["fact-1"] });
+	});
+
+	it("a step input with no producer is treated as a user-supplied argument binding", () => {
+		// "a" has no producer in the graph — chase treats it as an argument leaf.
+		const graph: TDomainChainGraph = {
+			domains: [
+				{ key: "a", hasTopology: false },
+				{ key: "b", hasTopology: false },
+			],
+			steps: [{ stepperName: "S", stepName: "make", inputDomains: ["a"], outputDomains: ["b"] }],
+			edges: [{ from: "a", to: "b", stepperName: "S", stepName: "make" }],
+		};
+		const result = resolveGoal("b", inputs(graph));
+		expect(result.finding).toBe(GOAL_FINDING.MICHI);
+		if (result.finding === GOAL_FINDING.MICHI) {
+			expect(result.michi[0].bindings).toEqual([{ kind: "argument", domain: "a" }]);
 		}
 	});
 
@@ -94,7 +165,7 @@ describe("resolveGoal", () => {
 		const graph = singleProducerGraph("a", "b", "auth:signin");
 		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
 		const result = resolveGoal("b", inputs(graph, [fact], new Set(["auth:signin"])));
-		expect(result.finding).toBe(GOAL_FINDING.PLAN);
+		expect(result.finding).toBe(GOAL_FINDING.MICHI);
 	});
 
 	it("refuses when the capability set is missing entirely", () => {

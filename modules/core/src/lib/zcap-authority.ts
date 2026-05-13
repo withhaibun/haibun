@@ -5,8 +5,8 @@
  *   - Bearer presentation (built in): unsigned grants resolved by token. Used
  *     for in-process step-dispatch gating.
  *   - Signed ZCAP-LD (consumer-supplied): verifySigned delegates to a
- *     registered IZcapVerifier — typically a spopg-side adapter wrapping
- *     `@digitalbazaar/zcap`. haibun-core stays crypto-free.
+ *     registered IZcapVerifier — typically an adapter wrapping a ZCAP-LD
+ *     library. haibun-core stays crypto-free.
  *
  * Field/method naming tracks the ZCAP-LD spec (controller, allowedAction,
  * created, expires, parentCapability, invocationTarget) so consumers and the

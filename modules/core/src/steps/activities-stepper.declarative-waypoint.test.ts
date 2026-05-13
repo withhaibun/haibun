@@ -1,19 +1,11 @@
 /**
- * Phase 0 acceptance test for declarative waypoints with goal resolution.
+ * Acceptance test for declarative waypoints with goal resolution.
  *
- * The test references the future API:
- *   - `waypoint Outcome resolves DOMAIN_X` (declarative form)
+ * The test exercises:
+ *   - `waypoint Outcome resolves DOMAIN_X` declarative form
  *   - `ensure Outcome` routes to `resolveGoal(DOMAIN_X)` when the waypoint is declarative
- *   - findings: "satisfied" | "plan" | "unreachable" | "refused"
+ *   - findings: "satisfied" | "michi" | "unreachable" | "refused"
  *   - capability gating via `step.capability` filtered into the resolver's producer set
- *
- * Every `it` is marked `it.fails` until the corresponding commit lands. As each commit
- * adds the machinery these assertions exercise, the matching `it.fails` is flipped to `it`.
- *
- * Mapping (commit → assertion):
- *   commit 2 → registers DOMAIN_AUTH_SESSION; (1a) compiles
- *   commit 4 → resolveGoal + runPlan; (1a) and (1b) pass
- *   commit 5 → declarative waypoint form + ensure routing; (1a)–(1d) all pass
  */
 import { describe, it, expect } from "vitest";
 
@@ -38,7 +30,7 @@ const AuthSessionSchema = z.object({
 
 /**
  * Test stepper that produces DOMAIN_AUTH_SESSION when its `signIn` step fires.
- * After commit 2, `outputDomain: DOMAIN_AUTH_SESSION` is the declared postcondition;
+ * After commit 2, `productsDomain: DOMAIN_AUTH_SESSION` is the declared postcondition;
  * the runtime auto-asserts the product as a fact. Until then, products land in shared.
  */
 class AuthStepper extends AStepper implements IHasCycles {
@@ -57,7 +49,7 @@ class AuthStepper extends AStepper implements IHasCycles {
 	steps: TStepperSteps = {
 		signIn: {
 			gwta: "sign in as {subject: string}",
-			outputDomain: DOMAIN_AUTH_SESSION,
+			productsDomain: DOMAIN_AUTH_SESSION,
 			action: ({ subject }: { subject: string }) =>
 				Promise.resolve(
 					actionOKWithProducts({
@@ -79,9 +71,9 @@ describe("ActivitiesStepper — declarative waypoint with goal resolution", () =
 	const steppers = [VariablesStepper, ActivitiesStepper, Haibun, AuthStepper];
 
 	// (1a) Without any prior fact, `ensure Logged in` runs the activity (resolver returns
-	//      finding: "plan" with the activity's signIn step), the activity asserts a
+	//      finding: "michi" with the activity's signIn step), the activity asserts a
 	//      DOMAIN_AUTH_SESSION fact, and `show var current_session` finds it.
-	it("(1a) ensure runs the activity when no prior fact exists, plan finding produced", async () => {
+	it("(1a) ensure runs the activity when no prior fact exists, michi finding produced", async () => {
 		const feature = {
 			path: "/features/declarative-waypoint.feature",
 			content: `Activity: Sign in
@@ -159,7 +151,7 @@ ensure Logged in`,
 			steps: TStepperSteps = {
 				signIn: {
 					gwta: "sign in as {subject: string}",
-					outputDomain: DOMAIN_AUTH_SESSION,
+					productsDomain: DOMAIN_AUTH_SESSION,
 					capability: "auth:signin",
 					action: ({ subject }: { subject: string }) => Promise.resolve(actionOKWithProducts({ id: `s:${subject}`, subject, issuedAt: new Date() })),
 				},

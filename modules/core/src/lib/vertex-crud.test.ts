@@ -9,19 +9,19 @@ describe("vertex CRUD on QuadStore", () => {
 	it("upsert and get via generated steps", async () => {
 		const store = new QuadStore();
 		store.registerVertexType("Widget", WidgetSchema, "name");
-		const steps = vertexCrudSteps("Widget", "my-widget", () => store);
+		const steps = vertexCrudSteps("Widget", "my-widget", "my-widget-list", () => store);
 
 		const createResult = await steps.createWidget.action({ data: { name: "cog", size: 7, color: "red" } });
 		expect(createResult.ok).toBe(true);
 
 		const getResult = await steps.getWidget.action({ id: "cog" });
 		expect(getResult.ok).toBe(true);
-		expect(getResult.products?.vertex).toMatchObject({ name: "cog", size: 7, color: "red" });
+		expect(getResult.products).toMatchObject({ name: "cog", size: 7, color: "red" });
 	});
 
 	it("get returns error for missing vertex", async () => {
 		const store = new QuadStore();
-		const steps = vertexCrudSteps("Widget", "my-widget", () => store);
+		const steps = vertexCrudSteps("Widget", "my-widget", "my-widget-list", () => store);
 		const result = await steps.getWidget.action({ id: "missing" });
 		expect(result.ok).toBe(false);
 	});
@@ -29,7 +29,7 @@ describe("vertex CRUD on QuadStore", () => {
 	it("delete removes vertex", async () => {
 		const store = new QuadStore();
 		store.registerVertexType("Widget", WidgetSchema, "name");
-		const steps = vertexCrudSteps("Widget", "my-widget", () => store);
+		const steps = vertexCrudSteps("Widget", "my-widget", "my-widget-list", () => store);
 		await steps.createWidget.action({ data: { name: "cog", size: 7 } });
 		await steps.deleteWidget.action({ id: "cog" });
 		const result = await steps.getWidget.action({ id: "cog" });
@@ -39,7 +39,7 @@ describe("vertex CRUD on QuadStore", () => {
 	it("list returns all vertices", async () => {
 		const store = new QuadStore();
 		store.registerVertexType("Widget", WidgetSchema, "name");
-		const steps = vertexCrudSteps("Widget", "my-widget", () => store);
+		const steps = vertexCrudSteps("Widget", "my-widget", "my-widget-list", () => store);
 		await steps.createWidget.action({ data: { name: "a", size: 1 } });
 		await steps.createWidget.action({ data: { name: "b", size: 2 } });
 		const result = await steps.listWidgets.action({});
@@ -49,7 +49,7 @@ describe("vertex CRUD on QuadStore", () => {
 
 	it("gwta patterns are correct", () => {
 		const store = new QuadStore();
-		const steps = vertexCrudSteps("Widget", "my-widget", () => store);
+		const steps = vertexCrudSteps("Widget", "my-widget", "my-widget-list", () => store);
 		expect(steps.createWidget.gwta).toBe("create widget {data: my-widget}");
 		expect(steps.getWidget.gwta).toBe("get widget {id: string}");
 		expect(steps.deleteWidget.gwta).toBe("delete widget {id: string}");
@@ -59,7 +59,7 @@ describe("vertex CRUD on QuadStore", () => {
 	it("validates against Zod schema on create", async () => {
 		const store = new QuadStore();
 		store.registerVertexType("Widget", WidgetSchema, "name");
-		const steps = vertexCrudSteps("Widget", "my-widget", () => store);
+		const steps = vertexCrudSteps("Widget", "my-widget", "my-widget-list", () => store);
 		await expect(steps.createWidget.action({ data: { name: 123, size: "bad" } })).rejects.toThrow();
 	});
 });

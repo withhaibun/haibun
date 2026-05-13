@@ -84,11 +84,12 @@ describe("urakata-stepper", () => {
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
 		expect(result.ok).toBe(true);
-		const showResult = (result.world.runtime.stepResults as TStepResult[]).find((sr) => sr.products?.view === "urakata");
+		const showResult = (result.world.runtime.stepResults as TStepResult[]).find((sr) => sr.products?.view === "urakata-list");
 		expect(showResult).toBeDefined();
 		const products = showResult?.products as Record<string, unknown> | undefined;
-		expect(products?._type).toBe("view");
+		expect(products?._type).toBe("shu-result-table");
 		expect(products?._component).toBe("shu-result-table");
+		expect(products?._summary).toBe("Urakata");
 		const list = products?.urakata as Array<Record<string, unknown>>;
 		expect(list).toHaveLength(1);
 		expect(list[0].id).toBe("test.tick");

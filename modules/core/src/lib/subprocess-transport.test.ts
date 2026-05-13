@@ -3,7 +3,7 @@ import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 import { getDefaultWorld } from "./test/lib.js";
 import { SubprocessTransport } from "./subprocess-transport.js";
-import { StepRegistry, buildSyntheticFeatureStep } from "./step-dispatch.js";
+import { StepRegistry, buildFeatureStepForTransport } from "./step-dispatch.js";
 import { AStepper } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 
@@ -94,7 +94,7 @@ describe("SubprocessTransport", () => {
 
 		const tool = registry.get("EchoStepper-echo");
 		if (!tool) throw new Error("Expected subprocess tool to be injected");
-		const featureStep = buildSyntheticFeatureStep(tool, { message: "from-registry" }, [5]);
+		const featureStep = buildFeatureStepForTransport(tool, { message: "from-registry" }, [5]);
 		const result = await tool.handler(featureStep, world);
 		expect(result.ok).toBe(true);
 		expect(result.products?.echoed).toBe("from-registry");
