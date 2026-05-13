@@ -59,6 +59,7 @@ jobs:
       issues: write
       pull-requests: write
       id-token: write
+      administration: read
 
     steps:
       - name: Check out code
