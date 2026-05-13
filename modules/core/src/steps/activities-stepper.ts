@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const ActivityOutcomeSchema = z.object({ proofStatements: z.array(z.string()) });
+
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/astepper.js";
 import type { TFeatures, TStepInput } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
@@ -12,6 +14,17 @@ import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { stepMethodName } from "../lib/step-dispatch.js";
+import { buildAffordances } from "../lib/affordances.js";
+import { DOMAIN_AFFORDANCES } from "../lib/domains.js";
+
+/** Extract `{slot}` and `{slot:domain}` placeholders from a gwta pattern. Returns the slot names in order. */
+function parseParamSlots(gwta: string): string[] {
+	const slots: string[] = [];
+	const re = /\{([^{}:]+)(?::[^{}]+)?\}/g;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(gwta)) !== null) slots.push(m[1].trim());
+	return slots;
+}
 
 // need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
@@ -347,38 +360,63 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		showWaypoints: {
-			exact: "show waypoints",
+			gwta: "show waypoints",
+			productsDomain: DOMAIN_AFFORDANCES,
 			action: async (_args, featureStep: TFeatureStep) => {
-				const waypointResults: Record<
-					string,
-					{
-						proof: string;
-						currentlyValid: boolean;
-						error?: string;
-					}
-				> = {};
+				const world = this.getWorld();
+				const steppers = (world.runtime.steppers as AStepper[]) ?? [];
+				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+				const affordances = buildAffordances({ steppers, domains: world.domains, facts, capabilities: new Set() });
+				const graph = buildDomainChain(steppers, world.domains);
 
-				for (const [instanceKey, instanceData] of this.ensuredInstances.entries()) {
-					try {
-						const result = await this.runner.runStatements(instanceData.proof, {
-							intent: { mode: "speculative" },
-							parentStep: featureStep,
-						});
+				const waypoints: Array<{
+					outcome: string;
+					kind: "imperative" | "declarative";
+					method: string;
+					paramSlots: string[];
+					proofStatements: string[];
+					resolvesDomain?: string;
+					currentlyValid: boolean;
+					error?: string;
+					source: { path: string; lineNumber?: number };
+					isBackground: boolean;
+				}> = [];
 
-						waypointResults[instanceKey] = {
-							proof: instanceData.proof.join("; "),
-							currentlyValid: result.ok,
-						};
-					} catch (error) {
-						waypointResults[instanceKey] = {
-							proof: instanceData.proof.join("; "),
-							currentlyValid: false,
-							error: errorDetail(error),
-						};
+				for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
+					const kind: "imperative" | "declarative" = metadata.resolvesDomain ? "declarative" : "imperative";
+					const paramSlots = parseParamSlots(outcome);
+					const method = stepMethodName("ActivitiesStepper", outcome);
+					let currentlyValid = false;
+					let error: string | undefined;
+
+					if (metadata.resolvesDomain) {
+						const resolution = resolveGoal(metadata.resolvesDomain, { graph, facts, capabilities: new Set() });
+						currentlyValid = resolution.finding === GOAL_FINDING.SATISFIED;
+					} else if (metadata.proofStatements.length > 0) {
+						try {
+							const result = await this.runner.runStatements(metadata.proofStatements, { intent: { mode: "speculative" }, parentStep: featureStep });
+							currentlyValid = result.ok;
+							if (!result.ok && result.errorMessage) error = result.errorMessage;
+						} catch (err) {
+							error = errorDetail(err);
+						}
 					}
+
+					waypoints.push({
+						outcome,
+						kind,
+						method,
+						paramSlots,
+						proofStatements: metadata.proofStatements,
+						resolvesDomain: metadata.resolvesDomain,
+						currentlyValid,
+						error,
+						source: { path: metadata.proofPath, lineNumber: metadata.lineNumber },
+						isBackground: metadata.isBackground,
+					});
 				}
 
-				return actionOK();
+				return actionOKWithProducts({ forward: affordances.forward, goals: affordances.goals, composites: affordances.composites, waypoints });
 			},
 		},
 	} as const satisfies TActivitiesFixedSteps;
@@ -435,10 +473,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (missing: ${resolution.missing.join(", ")})` };
 		}
 
-		// Run the plan. Each plan step's preconditions are re-checked at dispatch time.
+		// The resolver returns multiple michi (paths). The declarative waypoint always runs
+		// the first; choice-driven flows go through the chain-walker (advanceChainInstance),
+		// which steps one michi forward at a time so the SPA can collect per-step input.
 		const registry = world.runtime.stepRegistry;
 		if (!registry) return { handled: true, ok: false, errorMessage: "no step registry available" };
-		for (const planStep of resolution.steps) {
+		const firstMichi = resolution.michi[0];
+		if (!firstMichi) return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (no michi returned)` };
+		for (const planStep of firstMichi.steps) {
 			const tool = registry.get(stepMethodName(planStep.stepperName, planStep.stepName));
 			if (!tool) return { handled: true, ok: false, errorMessage: `plan step not in registry: ${planStep.stepperName}.${planStep.stepName}` };
 			const syntheticSeqPath = [...featureStep.seqPath, 0];
@@ -528,7 +570,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				path: actualSourcePath || proofPath,
 			},
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join("; ")}`,
-			outputSchema: z.object({ proofStatements: z.array(z.string()) }),
+			productsSchema: ActivityOutcomeSchema,
 			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
 				const robustArgs: Record<string, string> = { ...(args as Record<string, string>) };
 				if (featureStep.action.stepValuesMap) {

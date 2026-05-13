@@ -17,7 +17,22 @@ import type { TRegisteredDomain } from "./resources.js";
 import type { TQuad } from "./quad-types.js";
 import { stepMethodName } from "./step-dispatch.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { resolveGoal, type TGoalResolution } from "./goal-resolver.js";
+import { BASE_TYPES, DOMAIN_DOMAIN_KEY } from "./domains.js";
+import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
+import { compareSeqPath, parseSeqPath } from "./seq-path.js";
+
+/** Primitive domains: their values come from step arguments, not from facts. */
+export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([...BASE_TYPES, DOMAIN_DOMAIN_KEY]);
+
+/**
+ * Does this domain's value come from a step argument? True when the domain is a
+ * primitive, or when no registered step produces it (no fact source exists, so the
+ * value must be passed in as an argument).
+ */
+export function isArgumentDomain(domain: string, forward: ReadonlyArray<{ outputDomains: string[] }>): boolean {
+	if (PRIMITIVE_DOMAINS.has(domain)) return true;
+	return !forward.some((f) => f.outputDomains.includes(domain));
+}
 
 export type TForwardAffordance = {
 	/** RPC name `StepperName-stepName` — directly callable via the existing transport. */
@@ -35,12 +50,22 @@ export type TForwardAffordance = {
 
 export type TGoalAffordance = {
 	domain: string;
+	description: string;
 	resolution: TGoalResolution;
 };
+
+/**
+ * Per-domain composite-field map. Each entry names the registered field-domain
+ * for one schema field, sourced from `topology.ranges`. Empty for atomic domains.
+ * Consumed by the chain view to emit synthetic field nodes between a composite
+ * and its component domains.
+ */
+export type TCompositeRanges = Record<string, Record<string, string>>;
 
 export type TAffordances = {
 	forward: TForwardAffordance[];
 	goals: TGoalAffordance[];
+	composites?: TCompositeRanges;
 };
 
 export interface TAffordancesInputs {
@@ -48,6 +73,17 @@ export interface TAffordancesInputs {
 	domains: Record<string, TRegisteredDomain>;
 	facts: TQuad[];
 	capabilities: ReadonlySet<string>;
+	/** When true, the goal frontier asks the resolver to decompose composite input domains via topology.ranges. */
+	compositeDecomposition?: boolean;
+	/** Composite recursion depth budget passed through to the resolver. */
+	compositeMaxDepth?: number;
+	/**
+	 * Replay the affordances at a historical point. When set, only typed facts
+	 * whose seqPath subject is `≤ asOfSeqPath` enter the projection — facts
+	 * asserted later in the run are dropped. Lets the panel reconstruct
+	 * mid-flight state from any seqPath the user has on hand.
+	 */
+	asOfSeqPath?: number[];
 }
 
 /**
@@ -55,22 +91,51 @@ export interface TAffordancesInputs {
  */
 export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 	const graph = buildDomainChain(inputs.steppers, inputs.domains);
+	const facts = inputs.asOfSeqPath ? filterFactsAsOf(inputs.facts, inputs.asOfSeqPath) : inputs.facts;
 	return {
-		forward: buildForwardFrontier(graph, inputs.facts, inputs.capabilities),
-		goals: buildGoalFrontier(graph, inputs.facts, inputs.capabilities),
+		forward: buildForwardFrontier(graph, facts, inputs.capabilities),
+		goals: buildGoalFrontier(graph, facts, inputs.capabilities, inputs.domains, inputs.compositeDecomposition, inputs.compositeMaxDepth),
+		composites: collectCompositeRanges(inputs.domains),
 	};
+}
+
+/**
+ * Keep only facts whose seqPath subject is at or before the cursor. Non-
+ * seqPath subjects (rare, but possible for hand-asserted facts) are kept
+ * unconditionally — they have no temporal ordering against seqPaths.
+ */
+function filterFactsAsOf(facts: TQuad[], asOf: number[]): TQuad[] {
+	return facts.filter((q) => {
+		const parsed = parseSeqPath(q.subject);
+		if (!parsed) return true;
+		return compareSeqPath(parsed, asOf) <= 0;
+	});
+}
+
+/** Project the registered domains' `topology.ranges` into the wire-format snapshot. Empty when no domain declares any ranges. */
+function collectCompositeRanges(domains: Record<string, TRegisteredDomain>): TCompositeRanges | undefined {
+	const out: TCompositeRanges = {};
+	let any = false;
+	for (const [key, def] of Object.entries(domains)) {
+		const ranges = def.topology?.ranges;
+		if (ranges && Object.keys(ranges).length > 0) {
+			out[key] = { ...ranges };
+			any = true;
+		}
+	}
+	return any ? out : undefined;
 }
 
 function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], capabilities: ReadonlySet<string>): TForwardAffordance[] {
 	const assertedDomains = new Set(facts.map((q) => q.predicate));
+	const producedDomains = new Set<string>();
+	for (const step of graph.steps) for (const d of step.outputDomains) producedDomains.add(d);
+	const isArgument = (d: string) => PRIMITIVE_DOMAINS.has(d) || !producedDomains.has(d);
 	const out: TForwardAffordance[] = [];
 	for (const step of graph.steps) {
 		if (step.capability && !capabilities.has(step.capability)) continue;
-		// Skip "noise" steps with no declared inputs and no declared outputs — these are
-		// typically infrastructure (Activity:, scenario:, etc.) that don't participate in
-		// the typed graph; including them as affordances clutters the frontier.
 		if (step.inputDomains.length === 0 && step.outputDomains.length === 0) continue;
-		const readyToRun = step.inputDomains.every((d) => assertedDomains.has(d) || d === SOURCE_DOMAIN);
+		const readyToRun = step.inputDomains.every((d) => isArgument(d) || assertedDomains.has(d) || d === SOURCE_DOMAIN);
 		out.push({
 			method: stepMethodName(step.stepperName, step.stepName),
 			stepperName: step.stepperName,
@@ -85,14 +150,64 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], capabili
 	return out;
 }
 
-function buildGoalFrontier(graph: TDomainChainGraph, facts: TQuad[], capabilities: ReadonlySet<string>): TGoalAffordance[] {
+function buildGoalFrontier(
+	graph: TDomainChainGraph,
+	facts: TQuad[],
+	capabilities: ReadonlySet<string>,
+	domains: Record<string, TRegisteredDomain>,
+	compositeDecomposition?: boolean,
+	compositeMaxDepth?: number,
+): TGoalAffordance[] {
 	const out: TGoalAffordance[] = [];
-	// Consider every domain that any step declares as an output — the producible domains.
 	const producibleDomains = new Set<string>();
 	for (const step of graph.steps) for (const d of step.outputDomains) producibleDomains.add(d);
 	for (const domain of producibleDomains) {
-		const resolution = resolveGoal(domain, { graph, facts, capabilities });
-		out.push({ domain, resolution });
+		const resolution = resolveGoal(domain, { graph, facts, capabilities, domains, compositeDecomposition, compositeMaxDepth });
+		// Trivial goals duplicate the forward frontier: a single producer step
+		// whose inputs are all arguments — no upstream facts, no composite
+		// decomposition with fact-bindings. Skip those. Paths that exercise
+		// composite ranges (fact-bindings, recursive decomposition) stay visible
+		// even when they collapse to one step late in a chain.
+		if ((resolution.finding === GOAL_FINDING.MICHI || resolution.finding === GOAL_FINDING.SATISFIED) && Array.isArray(resolution.michi) && resolution.michi.every(isTrivialMichi)) continue;
+		// Every goal-producing domain must declare a human description so the goal
+		// index reads as prose, not a wall of codenames. Two sources, in order:
+		//   1. `description` on the domain definition (explicit override).
+		//   2. The schema's Zod `.describe(...)` metadata — the canonical place
+		//      because the description travels with the schema wherever it is
+		//      reused (other steppers, downstream consumers).
+		// Fail loud when neither is set, naming both fix points so the omission
+		// is repaired at the source of truth.
+		const def = domains[domain];
+		const description = def?.description ?? (typeof def?.schema?.description === "string" ? def.schema.description : "");
+		if (description.length === 0) {
+			throw new Error(
+				`buildGoalFrontier: domain "${domain}" is goal-producing but has no description. Either add \`.describe("…")\` to its Zod schema (preferred — travels with the schema) or set \`description\` on its TDomainDefinition in the stepper's getConcerns().domains entry. Descriptions render in the goal index where users pick which goal to expand.`,
+			);
+		}
+		out.push({ domain, description, resolution });
 	}
 	return out;
+}
+
+/**
+ * A michi is "trivial" when it duplicates a forward-frontier entry: one
+ * producer step whose every binding ultimately resolves to a user-supplied
+ * argument (no facts, no chained sub-paths). Composite bindings count as
+ * trivial when every field is itself an argument, since the form-rendered
+ * step already exposes those fields.
+ */
+function isTrivialMichi(m: { steps: unknown[]; bindings: unknown[] }): boolean {
+	if (m.steps.length > 1) return false;
+	return m.bindings.every(isArgumentBinding);
+}
+
+function isArgumentBinding(b: unknown): boolean {
+	if (!b || typeof b !== "object") return false;
+	const kind = (b as { kind: string }).kind;
+	if (kind === "argument") return true;
+	if (kind === "composite") {
+		const fields = (b as { fields?: Array<{ kind: string }> }).fields ?? [];
+		return fields.every((f) => f.kind === "argument");
+	}
+	return false;
 }
