@@ -25,7 +25,9 @@ export const registerComponents = async (): Promise<void> => {
 	const { ShuViewsPicker } = await import("./components/shu-views-picker.js");
 	const { ShuAffordancesPanel } = await import("./components/shu-affordances-panel.js");
 	const { ShuDomainChainView } = await import("./components/shu-domain-chain-view.js");
+	const { ShuGraph } = await import("./components/shu-graph.js");
 	const { ShuCopyButton } = await import("./components/shu-copy-button.js");
+	const { ShuRef } = await import("./components/shu-ref.js");
 	// Self-registering renderers
 	await import("./query-uri.js");
 
@@ -52,7 +54,9 @@ export const registerComponents = async (): Promise<void> => {
 		["shu-views-picker", ShuViewsPicker],
 		["shu-affordances-panel", ShuAffordancesPanel],
 		["shu-domain-chain-view", ShuDomainChainView],
+		["shu-graph", ShuGraph],
 		["shu-copy-button", ShuCopyButton],
+		["shu-ref", ShuRef],
 	];
 
 	for (const [tag, component] of components) {

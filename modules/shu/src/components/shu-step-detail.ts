@@ -10,7 +10,9 @@ import { ShuElement } from "./shu-element.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
-import { openQuadDetailPane, escHtml } from "../quad-detail-pane.js";
+import { escHtml } from "../quad-detail-pane.js";
+import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
+import { PaneState } from "../pane-state.js";
 
 const StateSchema = z.object({
 	seqPath: z.array(z.number()).default([]),
@@ -174,8 +176,16 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		});
 	}
 
-	private showQuadDetail(graph: string, subject: string): void {
-		const quads = this.state.allQuads.filter((q) => q.subject === subject && q.namedGraph === graph);
-		openQuadDetailPane(graph, subject, quads, this);
+	/**
+	 * Non-vertex entity link → navigate to the subject's origin step-detail.
+	 * The subject is the producing seqPath (or `${seqPath}#${field}` for
+	 * multi-product steps); strip the field suffix and route to that step's
+	 * detail pane. Anything that doesn't parse is silently skipped.
+	 */
+	private showQuadDetail(_graph: string, subject: string): void {
+		const head = subject.includes("#") ? subject.slice(0, subject.indexOf("#")) : subject;
+		const seqPath = parseSeqPath(head);
+		if (!seqPath) return;
+		PaneState.request({ paneType: "step-detail", seqPath });
 	}
 }

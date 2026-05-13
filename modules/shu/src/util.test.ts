@@ -94,7 +94,7 @@ describe("isReferenceEdge", () => {
 
 describe("extractFieldEntries", () => {
 	const emailWithInlinedBodies = {
-		"@id": "muskeg:email/abc",
+		"@id": "ex:email/abc",
 		"@type": "Email",
 		_label: "Email",
 		messageId: "abc@example.com",
@@ -105,7 +105,7 @@ describe("extractFieldEntries", () => {
 		account: "zooid",
 		accessLevel: "private",
 		seqPath: "0.1.2.26.1",
-		hasBody: [{ "@id": "muskeg:body/body-abc-default-text-plain", "@type": "Body", id: "body-abc-default-text-plain", content: "moocoo", mediaType: "text/plain" }],
+		hasBody: [{ "@id": "ex:body/body-abc-default-text-plain", "@type": "Body", id: "body-abc-default-text-plain", content: "moocoo", mediaType: "text/plain" }],
 	};
 
 	it("does NOT include hasBody as a field entry — even when it leaks back as a string", () => {

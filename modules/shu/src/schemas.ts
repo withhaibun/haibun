@@ -8,6 +8,22 @@ import { z } from "zod";
 export const ComboboxOptionSchema = z.object({
 	value: z.string(),
 	label: z.string(),
+	/**
+	 * Optional secondary line shown below the label as smaller, dimmer text.
+	 * Carries the "what does this represent" detail — input/output domain
+	 * summary for a step option, the type or distinguishing field for a
+	 * vertex-ref option. Filter matches on label OR secondary so a user can
+	 * type either the visible label or a contextual hint.
+	 */
+	secondary: z.string().optional(),
+	/**
+	 * Optional expanded-detail block shown when the option is focused
+	 * (keyboard) or hovered (mouse). Multiple lines welcome — full step gwta
+	 * with inputs / outputs, or every persisted field of a vertex. Rendered
+	 * in a panel adjacent to the dropdown so the user reads what they're
+	 * picking before committing.
+	 */
+	details: z.string().optional(),
 });
 export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 

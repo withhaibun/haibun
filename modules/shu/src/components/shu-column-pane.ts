@@ -7,20 +7,8 @@ import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnPaneSchema } from "../schemas.js";
 import { esc } from "../util.js";
-import { getJsonCookie, setJsonCookie } from "../cookies.js";
-
-const SHOW_CONTROLS_COOKIE = "shu-show-controls";
-
-/** Read per-component show-controls preference. Components default to OFF — a fresh user sees graph/fisheye/etc. without their settings rows. */
-export function readShowControlsCookie(componentTag: string): boolean {
-	return Boolean(getJsonCookie<Record<string, boolean>>(SHOW_CONTROLS_COOKIE, {})[componentTag]);
-}
-
-function writeShowControlsCookie(componentTag: string, show: boolean): void {
-	const map = getJsonCookie<Record<string, boolean>>(SHOW_CONTROLS_COOKIE, {});
-	map[componentTag] = show;
-	setJsonCookie(SHOW_CONTROLS_COOKIE, map);
-}
+import { readShowControlsCookie, writeShowControlsCookie } from "../show-controls.js";
+export { readShowControlsCookie };
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	constructor() {

@@ -19,7 +19,7 @@ import { WEBSERVER, type IWebServer, type Context } from "@haibun/web-server-hon
 const TEST_COMPONENT_JS = `
 class VoiceUITestComponent extends HTMLElement {
 	connectedCallback() {
-		this.attachShadow({ mode: "open" }).innerHTML = '<button data-testid="voice-ui-test-mic">🎙️</button>';
+		this.attachShadow({ mode: "open" }).innerHTML = '<button data-testid="voice-ui-test-mic">🗣️️</button>';
 	}
 }
 customElements.define("voice-ui-test-component", VoiceUITestComponent);
