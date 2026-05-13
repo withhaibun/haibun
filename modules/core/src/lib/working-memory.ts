@@ -34,7 +34,7 @@ export const OBSERVATION_GRAPH = {
 
 /**
  * Named graph holding step-product assertions auto-asserted by the dispatcher
- * when a step declares `outputDomain` or `outputDomains`. Each fact's predicate is
+ * when a step declares `productsDomain` or `productsDomains`. Each fact's predicate is
  * the domain key; subject is the step's seqPath; object is the product value.
  */
 export const FACT_GRAPH = "facts";

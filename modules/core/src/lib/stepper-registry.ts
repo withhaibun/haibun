@@ -14,6 +14,13 @@ export interface StepDescriptor {
 	params: Record<string, "string" | "number">;
 	/** Domain key for each parameter (e.g., { data: 'haibun-email', id: 'string' }) */
 	paramDomains?: Record<string, string>;
+	/**
+	 * Domain key of the products this step produces (`productsDomain` on the
+	 * step definition). Used by the actions-bar step picker to show
+	 * `… → muskeg-revocation` so the user sees what the step yields before
+	 * running it.
+	 */
+	productsDomain?: string;
 	capability?: string;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
@@ -48,7 +55,7 @@ export class StepperRegistry {
 						}
 					}
 					const method = `${stepperName}-${stepName}`;
-					return { stepperName, stepName, method, pattern, params, paramDomains, capability: stepDef.capability };
+					return { stepperName, stepName, method, pattern, params, paramDomains, productsDomain: stepDef.productsDomain, capability: stepDef.capability };
 				});
 		});
 	}

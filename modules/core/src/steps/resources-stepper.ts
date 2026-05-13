@@ -18,6 +18,9 @@ import { actionOKWithProducts } from "../lib/util/index.js";
 import { BODY_LABEL, COMMENT_LABEL, DOMAIN_VERTEX_LABEL, LinkRelations, bodyDomainDefinition, commentDomainDefinition } from "../lib/resources.js";
 import { seqPathDomainDefinition } from "../lib/seq-path.js";
 
+const CommentCreatedSchema = z.object({ commentId: z.string(), contextRoot: z.string() });
+const RelatedItemsSchema = z.object({ items: z.array(z.unknown()), contextRoot: z.string() });
+
 const cycles = (): IStepperCycles => ({
 	getConcerns: () => ({
 		domains: [bodyDomainDefinition, commentDomainDefinition, seqPathDomainDefinition],
@@ -32,7 +35,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 	steps = {
 		comment: {
 			gwta: `comment on {label: ${DOMAIN_VERTEX_LABEL}} {id: string} with {text: string}`,
-			outputSchema: z.object({ commentId: z.string() }),
+			productsSchema: CommentCreatedSchema,
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
 				const store = this.getWorld().shared.getStore();
 				const commentId = crypto.randomUUID();
@@ -66,7 +69,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		getRelated: {
 			gwta: `get related for {label: ${DOMAIN_VERTEX_LABEL}} {id: string}`,
-			outputSchema: z.object({ items: z.array(z.unknown()), contextRoot: z.string() }),
+			productsSchema: RelatedItemsSchema,
 			action: async ({ label, id }: { label: string; id: string }) => {
 				const store = this.getWorld().shared.getStore();
 				const contextQuads = await store.query({ subject: id, predicate: LinkRelations.CONTEXT.rel });

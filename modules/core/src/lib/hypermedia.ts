@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { edgeRel, REL_CONTEXT, LinkRelations, getRelRange, isContentPropertyDef, type TPropertyDef, type TRel } from "./resources.js";
+import { edgeRel, REL_CONTEXT, LinkRelations, getRelRange, isContentPropertyDef, isVertexTopology, type TPropertyDef, type TRel } from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or content-object form. */
 function relOf(def: TPropertyDef): TRel {
@@ -72,9 +72,23 @@ const VertexConcernSchema = z.object({
 });
 type TVertexConcern = z.infer<typeof VertexConcernSchema>;
 
-/** All vertex concerns emitted by a running server, keyed by vertex label. */
+/**
+ * Reference-domain concern — a non-vertex composite whose `topology.ranges.id`
+ * points at a vertex domain. The client uses this to recognise inputs that
+ * should render as a vertex picker instead of a typed-from-scratch composite.
+ * Built by `vertexRefDomain(refKey, targetKey)` in `domains.ts`.
+ */
+const ReferenceConcernSchema = z.object({
+	refDomain: z.string(),
+	targetDomain: z.string(),
+	targetVertexLabel: z.string().optional(),
+});
+type TReferenceConcern = z.infer<typeof ReferenceConcernSchema>;
+
+/** All concerns emitted by a running server. */
 export const ConcernCatalogSchema = z.object({
 	vertices: z.record(z.string(), VertexConcernSchema),
+	references: z.record(z.string(), ReferenceConcernSchema).default({}),
 });
 export type TConcernCatalog = z.infer<typeof ConcernCatalogSchema>;
 
@@ -91,8 +105,8 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 	const vertices: Record<string, TVertexConcern> = {};
 
 	for (const [domainKey, domain] of Object.entries(domains)) {
+		if (!isVertexTopology(domain.topology)) continue;
 		const topology = domain.topology;
-		if (!topology?.vertexLabel) continue;
 		const label = topology.vertexLabel;
 
 		if (!topology.id) throw new Error(`Vertex domain "${label}" (${domainKey}) is missing required "id" field`);
@@ -153,7 +167,22 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		});
 	}
 
-	return { vertices };
+	// Reference domains: non-vertex composites whose `topology.ranges.id`
+	// points at a vertex domain. The client looks them up by domain key when
+	// rendering a step input so it can present an "existing vertex" picker
+	// instead of asking the user to construct the composite from scratch.
+	const references: Record<string, TReferenceConcern> = {};
+	for (const [domainKey, domain] of Object.entries(domains)) {
+		if (!domain.topology || isVertexTopology(domain.topology)) continue;
+		const ranges = (domain.topology as { ranges?: Record<string, string> }).ranges;
+		const targetDomain = ranges?.id;
+		if (!targetDomain) continue;
+		const target = domains[targetDomain];
+		if (!target || !isVertexTopology(target.topology)) continue;
+		references[domainKey] = { refDomain: domainKey, targetDomain, targetVertexLabel: target.topology.vertexLabel };
+	}
+
+	return { vertices, references };
 }
 
 // ============================================================================
@@ -180,8 +209,8 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const schemas = new Map<string, z.ZodType>();
 
 	for (const domain of Object.values(domains)) {
+		if (!isVertexTopology(domain.topology)) continue;
 		const topology = domain.topology;
-		if (!topology?.vertexLabel) continue;
 		const type = topology.vertexLabel;
 		types.push(type);
 		idFields.set(type, topology.id);
@@ -313,8 +342,8 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		haibun: "/ns/",
 	};
 	for (const domain of Object.values(domains)) {
+		if (!isVertexTopology(domain.topology)) continue;
 		const topology = domain.topology;
-		if (!topology?.vertexLabel) continue;
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
 			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;

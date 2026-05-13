@@ -141,32 +141,32 @@ type TStepperStepBase = {
 	 */
 	inputDomains?: Record<string, string>;
 	/**
-	 * Single-product postcondition. The step's action must return products that match
-	 * the named domain's schema; the dispatcher auto-asserts the product as a typed fact.
-	 * Mutually exclusive with `outputDomains`.
+	 * Single-product postcondition. The step's action must return products matching
+	 * the named domain's schema. The dispatcher auto-asserts the product as a typed
+	 * fact, registers a producer edge in the resolver graph, and exposes the JSON
+	 * Schema for discovery. Mutually exclusive with `productsDomains` and `productsSchema`.
 	 */
-	outputDomain?: string;
+	productsDomain?: string;
 	/**
 	 * Multi-product postconditions, keyed by product field. Each field's value must
-	 * match its declared domain's schema; the dispatcher auto-asserts each as a typed
-	 * fact. Mutually exclusive with `outputDomain`.
+	 * match its declared domain's schema. The dispatcher auto-asserts each as a typed
+	 * fact and registers producer edges per field. Mutually exclusive with `productsDomain`
+	 * and `productsSchema`.
 	 */
-	outputDomains?: Record<string, string>;
+	productsDomains?: Record<string, string>;
+	/**
+	 * Inline Zod schema for the step's products. The dispatcher validates against this
+	 * schema and exposes the derived JSON Schema for discovery, but does NOT register a
+	 * producer edge in the resolver graph and does NOT auto-assert facts. Use this for
+	 * typed step outputs that are local to the step — handles, identifiers, or readouts
+	 * with no shared semantics. Mutually exclusive with `productsDomain` and `productsDomains`.
+	 */
+	productsSchema?: z.ZodType;
 };
 
-/** Step that declares an output schema — action MUST return products on success. */
-type TStepperStepWithProducts = TStepperStepBase & {
-	outputSchema: z.ZodType;
+export type TStepperStep = TStepperStepBase & {
 	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
 };
-
-/** Step without output schema — no products on success. */
-type TStepperStepPlain = TStepperStepBase & {
-	outputSchema?: undefined;
-	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
-};
-
-export type TStepperStep = TStepperStepWithProducts | TStepperStepPlain;
 
 export interface CStepper {
 	new (): AStepper;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOMAIN_VERTEX_LABEL } from "../lib/resources.js";
+import { DOMAIN_VERTEX_LABEL, isVertexTopology } from "../lib/resources.js";
 import { DOMAIN_DOMAIN_KEY } from "../lib/domains.js";
 import type { TWorld } from "../lib/world.js";
 import { TResolvedFeature, TEndFeature } from "../lib/astepper.js";
@@ -349,8 +349,8 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 	registerDomains(world, [allDomains]);
 	// Register vertex-label domain from all registered vertex types
 	const vertexLabels = Object.values(world.domains)
-		.filter((d) => d.topology?.vertexLabel)
-		.map((d) => d.topology?.vertexLabel as string);
+		.filter((d) => isVertexTopology(d.topology))
+		.map((d) => (d.topology as { vertexLabel: string }).vertexLabel);
 	if (vertexLabels.length > 0) {
 		registerDomains(world, [[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }]]);
 	}
