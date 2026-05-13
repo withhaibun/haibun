@@ -23,6 +23,7 @@ import {
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
@@ -369,33 +370,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						);
 						break;
 					case "describedby":
-						this.dispatchEvent(
-							new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
-								detail: {
-									property: value,
-									label: this.state.vertexLabel,
-									type: "property",
-								},
-								bubbles: true,
-								composed: true,
-							}),
-						);
+						PaneState.request({ paneType: "filter-prop", vertexLabel: this.state.vertexLabel, predicate: value });
 						break;
 					case "filter":
 					default:
 						if (propertyName) {
-							this.dispatchEvent(
-								new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
-									detail: {
-										property: propertyName,
-										value,
-										label: this.state.vertexLabel,
-										type: "filter",
-									},
-									bubbles: true,
-									composed: true,
-								}),
-							);
+							PaneState.request({ paneType: "filter-eq", vertexLabel: this.state.vertexLabel, predicate: propertyName, value });
 						}
 						break;
 				}
@@ -426,23 +406,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		// "What links here" — clickable to open a filter column
 		this.shadowRoot?.querySelector(".links-here-link")?.addEventListener("click", (e) => {
 			e.preventDefault();
-			this.dispatchEvent(
-				new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
-					detail: { property: "linksTo", value: this.state.vertexId, label: this.state.vertexLabel, type: "incoming" },
-					bubbles: true,
-					composed: true,
-				}),
-			);
+			PaneState.request({ paneType: "filter-incoming", vertexLabel: this.state.vertexLabel, subject: this.state.vertexId });
 		});
 		this.shadowRoot?.querySelector(".thread-link")?.addEventListener("click", (e) => {
 			e.preventDefault();
-			this.dispatchEvent(
-				new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, {
-					detail: { subject: this.state.vertexId, label: this.state.vertexLabel },
-					bubbles: true,
-					composed: true,
-				}),
-			);
+			PaneState.request({ paneType: "thread", vertexLabel: this.state.vertexLabel, subject: this.state.vertexId });
 		});
 
 		bindCopyButtons(this.shadowRoot as ShadowRoot);

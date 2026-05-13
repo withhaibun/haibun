@@ -17,10 +17,6 @@ const IDS = SHU_TEST_IDS;
 
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 
-const stepIdSetup = stepTestIds(["label", "id", "data", "fromLabel", "fromId", "rel", "toLabel", "toId"]).map((id) =>
-	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
-);
-
 const json = (obj: Record<string, unknown>) => `"${JSON.stringify(obj)}"`;
 
 export const features: TKirejiExport = {
@@ -28,7 +24,6 @@ export const features: TKirejiExport = {
 		feature({ feature: "Hypermedia Fundamentals through shu UI" }),
 
 		...testIdSetup,
-		...stepIdSetup,
 
 		scenario({ scenario: "Start shu with empty graph" }),
 		"enable rpc",

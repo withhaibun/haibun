@@ -51,7 +51,7 @@ describe("rels-cache property accessors", () => {
 
 describe("siteMetadataFromConcerns — propertyDefinitions derivation", () => {
 	it("populates propertyDefinitions from LinkRelations seeds", () => {
-		const emptyCatalog: TConcernCatalog = { vertices: {} };
+		const emptyCatalog: TConcernCatalog = { vertices: {}, references: {} };
 		const meta = siteMetadataFromConcerns(emptyCatalog);
 		// Sanity: the seed includes the canonical body/governance/summary rels.
 		expect(meta.propertyDefinitions.hasBody?.presentation).toBe("body");
@@ -66,7 +66,7 @@ describe("siteMetadataFromConcerns — propertyDefinitions derivation", () => {
 	});
 
 	it("propagates declared subPropertyOf links", () => {
-		const emptyCatalog: TConcernCatalog = { vertices: {} };
+		const emptyCatalog: TConcernCatalog = { vertices: {}, references: {} };
 		const meta = siteMetadataFromConcerns(emptyCatalog);
 		expect(meta.propertyDefinitions.wasInformedBy?.subPropertyOf).toBe("inReplyTo");
 		expect(meta.propertyDefinitions.invalidated?.subPropertyOf).toBe("inReplyTo");

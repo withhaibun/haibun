@@ -1,5 +1,5 @@
 import { defaultLabel } from "./util.js";
-import { SHU_EVENT, SHU_ATTR, SHU_TYPE } from "./consts.js";
+import { SHU_EVENT, SHU_ATTR } from "./consts.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
@@ -13,15 +13,16 @@ import { SseClient, inAction } from "./sse-client.js";
 import { getUiByComponent, getVertexUi } from "./rels-cache.js";
 import { parseAffordanceProduct } from "./affordance-products.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
-import { openPinnedColumn as openPinnedColumnHelper } from "./pane-opener.js";
+import { PaneState } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
 import type { ShuFilterColumn } from "./components/shu-filter-column.js";
 import type { ShuActionsBar } from "./components/shu-actions-bar.js";
 import type { ShuGraphQuery } from "./components/shu-graph-query.js";
-import { HYPERMEDIA, type THypermediaProducts, type THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { type THypermediaProducts, type THaibunEvent } from "@haibun/core/schema/protocol.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -86,28 +87,6 @@ function seedHashFromQueryString(): void {
 	ShuElement.pushHash(`#?${hashParams.toString()}`);
 }
 
-type TStaticAffordanceOpen = { eventName: string; view: string; label: string; component: string; actionName: string };
-
-const STATIC_AFFORDANCE_OPENS: ReadonlyArray<TStaticAffordanceOpen> = [
-	{ eventName: SHU_EVENT.COLUMN_OPEN_MONITOR, view: "monitor", label: "Monitor", component: "shu-monitor-column", actionName: "open monitor column" },
-	{ eventName: SHU_EVENT.COLUMN_OPEN_SEQUENCE, view: "sequence", label: "Sequence", component: "shu-sequence-diagram", actionName: "open sequence column" },
-	{ eventName: SHU_EVENT.COLUMN_OPEN_DOCUMENT, view: "document", label: "Document", component: "shu-document-column", actionName: "open document column" },
-	{ eventName: SHU_EVENT.COLUMN_OPEN_GRAPH, view: "graph", label: "Graph", component: "shu-graph-view", actionName: "open graph column" },
-	{
-		eventName: SHU_EVENT.COLUMN_OPEN_AFFORDANCES_PANEL,
-		view: "affordances",
-		label: "Affordances",
-		component: "shu-affordances-panel",
-		actionName: "open affordances column",
-	},
-	{
-		eventName: SHU_EVENT.COLUMN_OPEN_DOMAIN_CHAIN,
-		view: "domain-chain",
-		label: "Domain chain",
-		component: "shu-domain-chain-view",
-		actionName: "open domain-chain column",
-	},
-];
 
 const main = async (): Promise<void> => {
 	hydrateFromDom();
@@ -142,30 +121,25 @@ const main = async (): Promise<void> => {
 
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
-	const closePaneByType = (view: string) => {
-		const strip = getStrip();
-		if (!strip) return;
-		const idx = strip.panes.findIndex((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === view);
-		if (idx >= 0) strip.removePane(idx);
-	};
 
-	/** Remove non-query, non-pinned panes at indices > sourceIdx. Pass -1 to prune all. */
+	/** Dismiss every non-query, non-pinned pane at indices > sourceIdx via PaneState. Pass -1 to prune all. */
 	const prunePanesAfterIndex = (strip: ShuColumnStrip, sourceIdx: number): void => {
 		const panes = strip.panes;
 		for (let i = panes.length - 1; i > sourceIdx; i--) {
-			if (panes[i].getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query" && !panes[i].hasAttribute(SHU_ATTR.PINNED)) {
-				strip.removePane(i);
-			}
+			const pane = panes[i];
+			if (pane.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query" || pane.hasAttribute(SHU_ATTR.PINNED)) continue;
+			const paneId = pane.dataset.columnKey;
+			if (paneId) PaneState.dismiss(paneId);
 		}
 	};
-	/** Remove all non-query, non-pinned panes from the strip. */
+	/** Dismiss every non-query, non-pinned pane via PaneState. */
 	const removeTransientPanes = (strip: ShuColumnStrip) => prunePanesAfterIndex(strip, -1);
 
 	// Boot-time smoke test for the diagnostic channel.
 	const reportBootDiagnostic = (level: "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
 		void inAction(async (scope) => {
 			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, source: "shu-app-boot", message: msg, attributes: attrs } });
-		}).catch((e) => console.error("[shu-boot] diagnostic failed:", e));
+		}).catch((e) => failFastOrLog("[shu-boot] diagnostic failed:", e));
 	};
 	reportBootDiagnostic("info", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
 
@@ -206,18 +180,6 @@ const main = async (): Promise<void> => {
 		reportClientLog(level, message, attributes);
 	};
 
-	const surfaceAsyncError = (action: string, err: unknown): never => {
-		const message = `[shu] ${action} failed: ${errorDetail(err)}`;
-		reportClientLog("error", message);
-		throw err instanceof Error ? err : new Error(message);
-	};
-
-	const runAsyncOrFail = (action: string, task: Promise<void>) => {
-		task.catch((err) => {
-			queueMicrotask(() => surfaceAsyncError(action, err));
-		});
-	};
-
 	const updateHashActiveView = (index: number) => {
 		const currentHash = ShuElement.getHash();
 		const h = currentHash.startsWith("#?") ? currentHash : "#?";
@@ -232,29 +194,8 @@ const main = async (): Promise<void> => {
 		ShuElement.pushHash(newHash);
 	};
 
-	/** Create an entity column pane with label encoded in key for hash persistence. */
-	const createEntityPane = (id: string, vertexLabel: string = defaultLabel()): { pane: ShuColumnPane; entity: ShuEntityColumn } => {
-		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
-		pane.setAttribute("label", id);
-		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, "entity");
-		pane.dataset.columnKey = `e:${vertexLabel}:${id}`;
-		const entity = document.createElement("shu-entity-column") as ShuEntityColumn;
-		pane.appendChild(entity);
-		return { pane, entity };
-	};
-
-	/** Create a filter column pane. */
-	const createFilterPane = (colLabel: string, key: string): { pane: ShuColumnPane; filter: ShuFilterColumn } => {
-		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
-		pane.setAttribute("label", colLabel);
-		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, "filter");
-		pane.dataset.columnKey = key;
-		const filter = document.createElement("shu-filter-column") as ShuFilterColumn;
-		pane.appendChild(filter);
-		return { pane, filter };
-	};
-
-	// Build DOM — strip with query pane, then query component after (so .results-target exists first)
+	// Build DOM — strip with query pane, then query component after (so .results-target exists first).
+	// All other pane creation goes through PaneState (initialized further down).
 	appRoot.innerHTML = `
 		<div class="app-container">
 			<shu-actions-bar api-base="${apiBase}" testid-prefix="app-"></shu-actions-bar>
@@ -276,46 +217,40 @@ const main = async (): Promise<void> => {
 	// click in `detail.addToSelection` opts out and appends instead. Programmatic
 	// dispatches that pass no modifier default to replace.
 	appRoot.addEventListener(
+		SHU_EVENT.PANE_DISMISS,
+		((e: CustomEvent) => {
+			const paneId = e.detail?.paneId;
+			if (typeof paneId === "string" && paneId !== "query") PaneState.dismiss(paneId);
+		}) as EventListener,
+		{ signal },
+	);
+
+	appRoot.addEventListener(
+		SHU_EVENT.STEP_CHOOSE,
+		((e: CustomEvent) => {
+			const method = e.detail?.method;
+			if (typeof method !== "string") return;
+			const args = e.detail?.args as Record<string, unknown> | undefined;
+			const auto = Boolean(e.detail?.auto);
+			getActionsBar()?.chooseStep?.(method, args, auto);
+		}) as EventListener,
+		{ signal },
+	);
+
+	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_OPEN,
 		((e: CustomEvent) => {
 			const { subject, label, addToSelection } = e.detail || {};
 			if (!subject) return;
 			const strip = getStrip();
 			if (!strip) return;
-
+			// Miller-column: a click in column x replaces subsequent panes unless modifier-clicked.
 			if (!addToSelection) {
 				const sourcePane = e.composedPath().find((el): el is HTMLElement => el instanceof HTMLElement && el.tagName === "SHU-COLUMN-PANE") as ShuColumnPane | undefined;
 				const sourceIdx = sourcePane ? strip.panes.indexOf(sourcePane) : -1;
 				if (sourceIdx >= 0) prunePanesAfterIndex(strip, sourceIdx);
 			}
-
-			const vertexLabel = label || defaultLabel();
-			const { pane, entity } = createEntityPane(subject, vertexLabel);
-			strip.addPane(pane);
-			void entity.open(subject, vertexLabel);
-		}) as EventListener,
-		{ signal },
-	);
-
-	// Filter/property navigation from entity columns
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_OPEN_FILTER,
-		((e: CustomEvent) => {
-			const { property, value, label, type } = e.detail || {};
-			if (!property) return;
-			const strip = getStrip();
-			if (!strip) return;
-			const colLabel = value ? `${property}=${value}` : property;
-			const key = value ? `f:${label || defaultLabel()}:${property}=${value}` : `p:${label || defaultLabel()}:${property}`;
-			const { pane, filter } = createFilterPane(colLabel, key);
-			strip.addPane(pane);
-			if (type === "incoming") {
-				void filter.openIncoming(value, label || defaultLabel());
-			} else if (type === "property") {
-				void filter.openProperty(property, label || defaultLabel());
-			} else {
-				void filter.openFiltered(property, value, label || defaultLabel());
-			}
+			PaneState.request({ paneType: "entity", id: subject, vertexLabel: label || defaultLabel() });
 		}) as EventListener,
 		{ signal },
 	);
@@ -352,129 +287,19 @@ const main = async (): Promise<void> => {
 		reportExternalComponent("info", "mounted", childTag, { "haibun.shu.external-component.url": src });
 	};
 
-	const openPinnedColumn = (columnType: string, label: string, childTag: string) =>
-		openPinnedColumnHelper(columnType, label, childTag, {
-			getStrip,
-			ensureUiComponentLoaded,
-			report: (message, attrs) => reportClientLog("info", message, attrs),
-		});
-
-	const openAffordanceColumn = (view: string, label: string, component: string, actionName?: string) => {
-		runAsyncOrFail(actionName ?? `open affordance column ${view}`, openPinnedColumn(view, label, component));
-	};
-
-	const dispatchAffordanceOpen = (view: string, label: string, component: string) => {
-		appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_AFFORDANCE, { detail: { view, label, component }, bubbles: true }));
-	};
-
-	for (const def of STATIC_AFFORDANCE_OPENS) {
-		appRoot.addEventListener(def.eventName, (() => openAffordanceColumn(def.view, def.label, def.component, def.actionName)) as EventListener, { signal });
-	}
-
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_OPEN_AFFORDANCE,
-		((e: CustomEvent) => {
-			const detail = e.detail as { view?: unknown; label?: unknown; component?: unknown } | undefined;
-			const view = detail?.view;
-			const label = detail?.label;
-			const component = detail?.component;
-			if (typeof view !== "string" || typeof label !== "string" || typeof component !== "string") {
-				throw new Error("[shu] invalid affordance open payload");
-			}
-			reportClientLog("info", `affordance-open received: view=${view} component=${component}`, {
-				"haibun.shu.affordance.event": "open-received",
-				"haibun.shu.affordance.view": view,
-				"haibun.shu.affordance.component": component,
-			});
-			openAffordanceColumn(view, label, component);
-		}) as EventListener,
-		{ signal },
-	);
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_CLOSE_AFFORDANCE,
-		((e: CustomEvent) => {
-			const { view } = e.detail || {};
-			if (typeof view !== "string") return;
-			closePaneByType(view);
-		}) as EventListener,
-		{ signal },
-	);
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_OPEN_STEP,
-		((e: CustomEvent) => {
-			const seqPath = e.detail?.seqPath as number[] | undefined;
-			if (!seqPath?.length) return;
-			const strip = getStrip();
-			if (!strip) return;
-			const pane = document.createElement("shu-column-pane") as ShuColumnPane;
-			pane.setAttribute("label", `Step [${seqPath.join(".")}]`);
-			const detail = document.createElement("shu-step-detail");
-			pane.appendChild(detail);
-			strip.addPane(pane);
-			void (detail as HTMLElement & { open(s: number[]): Promise<void> }).open(seqPath);
-		}) as EventListener,
-		{ signal },
-	);
-
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_OPEN_RELATED,
-		((e: CustomEvent) => {
-			const { subject, label } = e.detail || {};
-			if (!subject || !label) return;
-			const strip = getStrip();
-			if (!strip) return;
-			const pane = document.createElement("shu-column-pane") as ShuColumnPane;
-			pane.setAttribute("label", `Replies: ${subject}`);
-			pane.setAttribute(SHU_ATTR.COLUMN_TYPE, "thread");
-			pane.dataset.columnKey = `t:${label}:${subject}`;
-			const thread = document.createElement("shu-thread-column") as import("./components/shu-thread-column.js").ShuThreadColumn;
-			pane.appendChild(thread);
-			strip.addPane(pane);
-			void thread.open(label, subject);
-		}) as EventListener,
-		{ signal },
-	);
-
-	const openViewsPicker = (label: string, views: Array<{ id: string; description: string; component: string }>) => {
-		const strip = getStrip();
-		if (!strip) return;
-		const existing = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "views");
-		if (existing) {
-			const child = existing.querySelector("shu-views-picker") as (HTMLElement & { setViews(v: typeof views): void }) | null;
-			child?.setViews(views);
-			return;
-		}
-		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
-		pane.setAttribute("label", label);
-		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, "views");
-		const picker = document.createElement("shu-views-picker") as HTMLElement & { setViews(v: typeof views): void };
-		pane.appendChild(picker);
-		strip.addPane(pane);
-		picker.setViews(views);
-	};
-
+	// Every step-end emits hypermedia products; if they carry view markers, route to PaneState.
 	const sseClient = SseClient.for("");
 	sseClient.onEvent((event) => {
 		const e = event as THaibunEvent & { products?: THypermediaProducts };
 		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed" || !e.products) return;
-
 		const action = parseAffordanceProduct(e.products);
 		if (action.kind === "none") return;
-		if (action.kind === "close") {
-			closePaneByType(action.view);
-			return;
-		}
-		if (action.kind === "open-component") {
-			dispatchAffordanceOpen(action.view, action.label, action.component);
-			return;
-		}
-		if (action.kind === "show-views") {
-			openViewsPicker(action.label, action.views);
-			return;
-		}
+		if (action.kind === "close") return PaneState.dismiss(action.view);
+		if (action.kind === "open-component") return PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products });
+		if (action.kind === "show-views") return PaneState.request({ paneType: "views-picker", views: action.views, label: action.label });
 		const ui = getVertexUi(action.type);
 		if (!ui?.component || typeof ui.component !== "string") throw new Error(`No affordance component mapped for type ${action.type}`);
-		dispatchAffordanceOpen(action.id, action.label, ui.component);
+		PaneState.request({ paneType: "component", tag: ui.component, label: action.label, data: action.products });
 	});
 
 	// Results changed → remove all non-query panes
@@ -677,23 +502,13 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Columns changed → update breadcrumb and hash
+	// Columns changed → forward column labels to the actions-bar breadcrumb.
+	// Hash output is owned by PaneState, not by this listener.
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMNS_CHANGED,
 		((e: CustomEvent) => {
 			const columns: string[] = e.detail?.columns || [];
-			const keys: string[] = e.detail?.keys || columns;
 			getActionsBar()?.setColumns?.(columns);
-			const h = ShuElement.getHash();
-			const base = h.startsWith("#?") ? h : "#?";
-			const params = new URLSearchParams(base.slice(2));
-			params.delete("col");
-			for (const key of keys) {
-				params.append("col", key);
-			}
-			cleanParams(params);
-			const newHash = `#?${params.toString()}`;
-			ShuElement.pushHash(newHash);
 		}) as EventListener,
 		{ signal },
 	);
@@ -707,98 +522,45 @@ const main = async (): Promise<void> => {
 		if (queryPane) queryPane.setWidth(parseInt(savedQueryWidth, 10));
 	}
 
-	// Restore columns from URL hash
-	const hash = ShuElement.getHash().replace(/^#\??/, "");
-	const hashParams = new URLSearchParams(hash);
-	const colParams = hashParams.getAll("col");
-	const activeParam = hashParams.get("active");
-	const idParam = hashParams.get("id");
-	const labelParam = hashParams.get("label");
-	// Auto-open entity column when id is specified in URL
-	if (idParam && labelParam && colParams.length === 0) {
-		const strip = getStrip();
-		if (strip) {
-			const { pane, entity } = createEntityPane(idParam, labelParam);
-			strip.addPane(pane);
-			void entity.open(idParam, labelParam);
-		}
-	} else if (colParams.length > 0) {
-		const strip = getStrip();
-		if (strip) {
-			void (async () => {
-				for (const rawCol of colParams) {
-					const maximized = rawCol.endsWith("~max");
-					const minimized = !maximized && rawCol.endsWith("~min");
-					const col = maximized ? rawCol.slice(0, -4) : minimized ? rawCol.slice(0, -4) : rawCol;
-					let pane: ShuColumnPane | undefined;
-					if (col.startsWith("f:")) {
-						const rest = col.slice(2);
-						const colonIdx = rest.indexOf(":");
-						const lbl = rest.slice(0, colonIdx);
-						const eqPart = rest.slice(colonIdx + 1);
-						const eqIdx = eqPart.indexOf("=");
-						const prop = eqPart.slice(0, eqIdx);
-						const val = eqPart.slice(eqIdx + 1);
-						const created = createFilterPane(`${prop}=${val}`, col);
-						pane = created.pane;
-						strip.addPane(pane);
-						await created.filter.openFiltered(prop, val, lbl);
-					} else if (col.startsWith("p:")) {
-						const rest = col.slice(2);
-						const colonIdx = rest.indexOf(":");
-						const lbl = rest.slice(0, colonIdx);
-						const prop = rest.slice(colonIdx + 1);
-						const created = createFilterPane(prop, col);
-						pane = created.pane;
-						strip.addPane(pane);
-						await created.filter.openProperty(prop, lbl);
-					} else if (col.startsWith("e:")) {
-						const rest = col.slice(2);
-						const colonIdx = rest.indexOf(":");
-						const lbl = rest.slice(0, colonIdx);
-						const vid = rest.slice(colonIdx + 1);
-						const created = createEntityPane(vid, lbl);
-						pane = created.pane;
-						strip.addPane(pane);
-						await created.entity.open(vid, lbl);
-					} else if (col.startsWith("t:")) {
-						const rest = col.slice(2);
-						const colonIdx = rest.indexOf(":");
-						const lbl = rest.slice(0, colonIdx);
-						const vid = rest.slice(colonIdx + 1);
-						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, { detail: { subject: vid, label: lbl }, bubbles: true }));
-						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "thread");
-					} else {
-						const normalized = col.endsWith(":") ? col.slice(0, -1) : col;
-						const staticAffordance = STATIC_AFFORDANCE_OPENS.find((d) => normalized === d.view || normalized === d.component || col.startsWith(`${d.view}:`));
-						if (staticAffordance) {
-							appRoot.dispatchEvent(new CustomEvent(staticAffordance.eventName, { bubbles: true }));
-							pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === staticAffordance.view);
-						} else {
-							const sepIdx = normalized.indexOf(":");
-							const componentPart = sepIdx >= 0 ? normalized.slice(0, sepIdx) : normalized;
-							const ui = getUiByComponent(componentPart);
-							if (ui?.component && typeof ui.component === "string") {
-								const label = typeof ui.summary === "string" ? ui.summary : normalized;
-								dispatchAffordanceOpen(normalized, label, ui.component);
-								pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === normalized);
-							}
-						}
-					}
-					if (minimized && pane) {
-						pane.setCollapsed(true);
-						pane.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
-					}
-					if (maximized && pane) {
-						pane.setAttribute(SHU_ATTR.DATA_MAXIMIZED, "");
-						pane.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { bubbles: true, composed: true }));
-					}
-				}
-				const activeIdx = activeParam !== null ? parseInt(activeParam, 10) : 0;
-				getActionsBar()?.setActiveView?.(activeIdx);
-				strip.activatePane(activeIdx);
-			})();
-		}
+	// PaneState owns the URL hash and every pane-creation path. The afterAttach hooks
+	// adapt each variant's data into the existing column-component's open() RPC. Adding
+	// a new pane variant means: add a schema entry + register one hook.
+	if (strip0) {
+		PaneState.init(strip0, {
+			ensureLoaded: (tag) => ensureUiComponentLoaded(tag).catch(() => undefined),
+			afterAttach: {
+				entity: (d, child) => {
+					if (d.paneType !== "entity") return;
+					return (child as ShuEntityColumn).open(d.id, d.vertexLabel);
+				},
+				"filter-eq": (d, child) => {
+					if (d.paneType !== "filter-eq") return;
+					return (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.vertexLabel);
+				},
+				"filter-prop": (d, child) => {
+					if (d.paneType !== "filter-prop") return;
+					return (child as ShuFilterColumn).openProperty(d.predicate, d.vertexLabel);
+				},
+				"filter-incoming": (d, child) => {
+					if (d.paneType !== "filter-incoming") return;
+					return (child as ShuFilterColumn).openIncoming(d.subject, d.vertexLabel);
+				},
+				thread: (d, child) => {
+					if (d.paneType !== "thread") return;
+					return (child as import("./components/shu-thread-column.js").ShuThreadColumn).open(d.vertexLabel, d.subject);
+				},
+				"step-detail": (d, child) => {
+					if (d.paneType !== "step-detail") return;
+					return (child as HTMLElement & { open(s: number[]): Promise<void> }).open(d.seqPath);
+				},
+				"views-picker": (d, child) => {
+					if (d.paneType !== "views-picker") return;
+					const setViews = (child as HTMLElement & { setViews(v: unknown[]): void }).setViews;
+					setViews.call(child, d.views);
+				},
+			},
+		});
+		PaneState.fromHash();
 	}
 };
 

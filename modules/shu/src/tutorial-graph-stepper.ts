@@ -6,6 +6,8 @@ import { z } from "zod";
 
 const DOMAIN_TUTORIAL_QUERY = "tutorial-graph-query";
 const DOMAIN_VERTEX_DATA = "tutorial-vertex-data";
+const DOMAIN_TUTORIAL_RESEARCHER = "tutorial-researcher";
+const DOMAIN_TUTORIAL_PAPER = "tutorial-paper";
 
 export const TutorialLabels = {
 	Researcher: "Researcher",
@@ -24,6 +26,21 @@ const VertexResultSchema = z.object({
 	label: z.string(),
 	vertexLabel: z.string(),
 	properties: z.record(z.string(), z.unknown()),
+});
+
+const ResearcherSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	context: z.string().default(""),
+	published: z.string().default(""),
+});
+
+const PaperSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	content: z.string().default(""),
+	published: z.string().default(""),
+	updated: z.string().default(""),
 });
 
 const EdgeSchema = z.object({
@@ -193,8 +210,8 @@ export default class TutorialGraphStepper extends AStepper {
 					description: "Vertex properties as JSON",
 				},
 				{
-					selectors: ["tutorial-researcher"],
-					schema: VertexResultSchema,
+					selectors: [DOMAIN_TUTORIAL_RESEARCHER],
+					schema: ResearcherSchema,
 					topology: {
 						vertexLabel: TutorialLabels.Researcher,
 						id: "id",
@@ -213,8 +230,8 @@ export default class TutorialGraphStepper extends AStepper {
 					},
 				},
 				{
-					selectors: ["tutorial-paper"],
-					schema: VertexResultSchema,
+					selectors: [DOMAIN_TUTORIAL_PAPER],
+					schema: PaperSchema,
 					topology: {
 						vertexLabel: TutorialLabels.Paper,
 						id: "id",
@@ -244,7 +261,7 @@ export default class TutorialGraphStepper extends AStepper {
 	steps = {
 		graphQuery: {
 			gwta: `graph query {query: ${DOMAIN_TUTORIAL_QUERY}}`,
-			outputSchema: QueryResultSchema,
+			productsSchema: QueryResultSchema,
 			action: ({ query }: { query: z.infer<typeof GraphQuerySchema> }) => {
 				try {
 					const { label, textQuery, limit, offset } = query;
@@ -266,7 +283,7 @@ export default class TutorialGraphStepper extends AStepper {
 
 		getVertexWithEdges: {
 			gwta: `get vertex {label: ${DOMAIN_VERTEX_LABEL}} with id {id: string} and its outgoing edges`,
-			outputSchema: VertexWithEdgesSchema,
+			productsSchema: VertexWithEdgesSchema,
 			action: ({ label, id }: { label: string; id: string }) => {
 				try {
 					const result = this.store.getVertexWithEdges(label, id);
@@ -293,7 +310,7 @@ export default class TutorialGraphStepper extends AStepper {
 
 		getIncomingEdges: {
 			gwta: `get incoming edges for {label: ${DOMAIN_VERTEX_LABEL}} vertex {id: string} with limit {limit} and offset {offset}`,
-			outputSchema: IncomingEdgesResultSchema,
+			productsSchema: IncomingEdgesResultSchema,
 			action: ({ label, id, limit = 100, offset = 0 }: { label: string; id: string; limit?: number; offset?: number }) => {
 				try {
 					const raw = this.store.getIncomingEdges(label, id, limit, offset);
@@ -312,7 +329,6 @@ export default class TutorialGraphStepper extends AStepper {
 
 		createVertex: {
 			gwta: `create vertex {label: ${DOMAIN_VERTEX_LABEL}} with id {id: string} and properties {data: ${DOMAIN_VERTEX_DATA}}`,
-			outputSchema: VertexResultSchema,
 			action: ({ label, id, data }: { label: string; id: string; data: Record<string, unknown> }) => {
 				try {
 					const vertex = this.store.createVertex(label, id, data);
@@ -326,9 +342,48 @@ export default class TutorialGraphStepper extends AStepper {
 			},
 		},
 
+		createResearcher: {
+			gwta: "create researcher named {name: string}",
+			productsDomain: DOMAIN_TUTORIAL_RESEARCHER,
+			action: ({ name }: { name: string }) => {
+				try {
+					const vertex = this.store.createVertex(TutorialLabels.Researcher, name, { id: name, name, context: "", published: "" });
+					return actionOKWithProducts({ id: vertex.id, name: name, context: "", published: "" });
+				} catch (err) {
+					return actionNotOK(String(err));
+				}
+			},
+		},
+
+		createPaper: {
+			gwta: "create paper titled {title: string}",
+			productsDomain: DOMAIN_TUTORIAL_PAPER,
+			action: ({ title }: { title: string }) => {
+				try {
+					const vertex = this.store.createVertex(TutorialLabels.Paper, title, { id: title, name: title, content: "", published: "", updated: "" });
+					return actionOKWithProducts({ id: vertex.id, name: title, content: "", published: "", updated: "" });
+				} catch (err) {
+					return actionNotOK(String(err));
+				}
+			},
+		},
+
+		publishPaper: {
+			gwta: "publish paper titled {title: string} on {date: string}",
+			productsDomain: DOMAIN_TUTORIAL_PAPER,
+			action: ({ title, date }: { title: string; date: string }) => {
+				try {
+					const vertex = this.store.createVertex(TutorialLabels.Paper, title, { id: title, name: title, content: "", published: date, updated: date });
+					return actionOKWithProducts({ id: vertex.id, name: title, content: "", published: date, updated: date });
+				} catch (err) {
+					return actionNotOK(String(err));
+				}
+			},
+		},
+
 		createEdge: {
 			gwta: "create edge from {fromLabel: string} {fromId: string} with rel {rel: string} to {toLabel: string} {toId: string}",
-			outputSchema: z.object({ edge: EdgeSchema }),
+			productsSchema: z.object({ edge: EdgeSchema }),
 			action: ({ fromLabel, fromId, rel, toLabel, toId }: { fromLabel: string; fromId: string; rel: string; toLabel: string; toId: string }) => {
 				try {
 					return actionOKWithProducts({
@@ -342,10 +397,7 @@ export default class TutorialGraphStepper extends AStepper {
 
 		exportGraphAsJsonLd: {
 			gwta: "export graph as JSON-LD",
-			outputSchema: z.object({
-				"@context": z.record(z.string(), z.unknown()),
-				"@graph": z.array(z.record(z.string(), z.unknown())),
-			}),
+			productsSchema: z.object({ "@context": z.record(z.string(), z.unknown()), "@graph": z.array(z.record(z.string(), z.unknown())) }),
 			action: () => {
 				try {
 					return actionOKWithProducts(this.store.exportAsJsonLd());

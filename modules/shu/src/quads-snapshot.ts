@@ -1,4 +1,5 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { SseClient, inAction } from "./sse-client.js";
 import { getAvailableSteps } from "./rpc-registry.js";
 
@@ -136,7 +137,7 @@ function notify(s: Store): void {
 		try {
 			fn(snap, s.viewContext);
 		} catch (err) {
-			console.error("[quads-snapshot] listener failed:", err);
+			failFastOrLog("[quads-snapshot] listener failed:", err);
 		}
 	}
 }
@@ -194,7 +195,25 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 		clusterByType.set(c.type, c);
 		sampledByType.set(c.type, new Set(c.sampledSubjects));
 	}
+	// Dedup index by (namedGraph, subject, predicate). The live stream can emit
+	// the same fact twice — graph-store emits the vertex's property quad on
+	// upsert AND the explicit edge quad on createEdge, and a key like
+	// `assertionMethod` shows up in both. Match the snapshot's behaviour
+	// (`vertexToQuads` drops the property when an edge with the same predicate
+	// exists) by replacing-in-place: the later arrival wins on object + ts.
+	const quadIndex = new Map<string, number>();
+	for (let i = 0; i < snap.quads.length; i++) {
+		const q = snap.quads[i];
+		quadIndex.set(`${q.namedGraph}|${q.subject}|${q.predicate}`, i);
+	}
 	for (const q of quads) {
+		const key = `${q.namedGraph}|${q.subject}|${q.predicate}`;
+		const existingIdx = quadIndex.get(key);
+		if (existingIdx !== undefined) {
+			snap.quads[existingIdx] = q;
+			continue;
+		}
+		quadIndex.set(key, snap.quads.length);
 		snap.quads.push(q);
 		let cluster = clusterByType.get(q.namedGraph);
 		if (!cluster) {

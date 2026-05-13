@@ -10,7 +10,6 @@ import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { SseClient, inAction } from "../sse-client.js";
-import type { ShuTimeline } from "./shu-timeline.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
 import "./shu-artifact-frame.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
@@ -35,7 +34,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	private startTime = 0;
 	private endTime = 0;
 	private renderedEventCount = 0;
-	private appendTimer = 0;
 
 	constructor() {
 		super(DocumentColumnSchema, { level: "info" });
@@ -56,14 +54,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 		if (this.hasAttribute("data-snapshot-time")) return;
 
-		this.unsubscribe = client.onEvent((event) => {
-			this.addEvent(event as Record<string, unknown>);
-			if (!this.appendTimer) {
-				this.appendTimer = window.setTimeout(() => {
-					this.appendTimer = 0;
-					this.appendNew();
-				}, 500);
-			}
+		this.unsubscribe = this.subscribeBatched({
+			onBatch: (events) => {
+				for (const event of events) this.addEvent(event);
+				this.appendNew();
+			},
 		});
 	}
 
@@ -129,13 +124,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return DOMPurify.sanitize(rawHtml, SANITIZE_OPTS);
 	}
 
-	private updateTimeline(): void {
-		const timeline = this.shadowRoot?.querySelector("shu-timeline") as ShuTimeline | null;
-		if (timeline && this.startTime && this.endTime) {
-			timeline.setBounds(this.startTime, this.endTime);
-			if (this.timeCursor === null) timeline.seek(this.endTime - this.startTime);
-		}
-	}
+	/**
+	 * Timeline state lives in the actions-bar's shu-timeline; this column
+	 * consumes TIME_SYNC and re-renders. Stub kept for the existing call sites.
+	 */
+	private updateTimeline(): void {}
 
 	private applyTimeCursor(): void {
 		const body = this.shadowRoot?.querySelector(".document-body");
@@ -214,8 +207,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 				const rawTime = parseFloat(el.getAttribute("data-raw-time") || "0");
 				const absTime = this.startTime + rawTime;
 				this.timeCursor = absTime;
-				const timeline = this.shadowRoot?.querySelector("shu-timeline") as ShuTimeline | null;
-				if (timeline) timeline.seek(rawTime);
+				// TIME_SYNC fans out app-wide; the shu-timeline in the actions-bar
+				// catches it and seeks itself without a direct DOM reference here.
 				this.dispatchEvent(new CustomEvent(SHU_EVENT.TIME_SYNC, { detail: { currentTime: absTime }, bubbles: true, composed: true }));
 				this.applyTimeCursor();
 			});

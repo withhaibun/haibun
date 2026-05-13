@@ -228,6 +228,15 @@ export class SseClient {
 		return ensureSSE().subscribe(handler, filter);
 	}
 
+	/**
+	 * Total events the shared subscriber has ever recorded, including ones the
+	 * replay buffer has since dropped. Used by the timeline to label the slider
+	 * knob with `current / count / total` when the buffer has wrapped.
+	 */
+	totalRecorded(): number {
+		return ensureSSE().getReplayBuffer().totalRecorded;
+	}
+
 	/** Close the shared SSE connection. */
 	close(): void {
 		sharedSubscriber?.close();

@@ -1,26 +1,31 @@
 /**
  * <shu-graph-filter> — type checkbox legend + per-type sample-limit slider
- * shared by graph views. Hosts publish the available types via `setClusters`
- * (and optionally a quad count via `setQuadCount`); on change the component
- * dispatches `graph-filter-change` with `{ types, perTypeLimit }`. Bubbles +
- * composed so any ancestor can listen.
+ * shared by every graph view. Hosts publish their raw data via `setSource`;
+ * on change, the component dispatches `graph-filter-change` with
+ * `{ types, perTypeLimit }`. Bubbles + composed so any ancestor can listen.
+ *
+ * Time-aware. The filter is itself a `ShuElement`, so it receives TIME_SYNC
+ * directly and derives the visible cluster list from the host's snapshot
+ * (`knownClusters`) plus the time-filtered subset of the host's quads. Hosts
+ * no longer wire their own `onTimeSync` to push fresh clusters — they call
+ * `setSource` whenever the data changes and the filter handles cursor moves
+ * on its own. The shared projection lives in `graph-filter-projection.ts`.
  *
  * Visible only when the host carries `show-controls` — the column-pane's
  * settings toggle is the single switch for revealing every settings surface.
  */
 import { z } from "zod";
-import type { TCluster } from "@haibun/core/lib/quad-types.js";
+import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
+import { projectFilterClusters } from "../graph-filter-projection.js";
 
 const StateSchema = z.object({
-	clusters: z.array(z.object({ type: z.string(), totalCount: z.number(), sampledCount: z.number(), omittedCount: z.number(), sampledSubjects: z.array(z.string()) })).default([]),
 	hiddenTypes: z.array(z.string()).default([]),
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
-	quadCount: z.number().int().nonnegative().default(0),
 });
 
 const COOKIE_NAME = "shu-graph-filter";
@@ -61,28 +66,61 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		return { hiddenTypes: persisted?.hiddenTypes ?? [], perTypeLimit: persisted?.perTypeLimit ?? DEFAULT_PER_TYPE_LIMIT };
 	}
 
+	private knownClusters = new Map<string, TCluster>();
+	private quads: TQuad[] = [];
+	private docTimeSyncAbort?: AbortController;
+
 	constructor() {
 		const persisted = readCookie();
 		super(StateSchema, {
-			clusters: [],
 			hiddenTypes: persisted?.hiddenTypes ?? [],
 			perTypeLimit: persisted?.perTypeLimit ?? DEFAULT_PER_TYPE_LIMIT,
-			quadCount: 0,
 		});
 	}
 
-	setClusters(clusters: TCluster[]): void {
-		this.setState({ clusters });
+	connectedCallback(): void {
+		super.connectedCallback();
+		// The timeline lives in a different shadow tree, so its TIME_SYNC reaches
+		// document but never enters this filter's host shadow root via natural
+		// propagation. Listen at the document level so the filter is time-aware
+		// wherever it's mounted. ShuElement's per-instance listener still fires
+		// when a host explicitly dispatches TIME_SYNC into its own shadow, so
+		// guard against the double-handle by skipping events that already
+		// bubbled through `this`.
+		this.docTimeSyncAbort?.abort();
+		this.docTimeSyncAbort = new AbortController();
+		document.addEventListener(
+			SHU_EVENT.TIME_SYNC,
+			(e) => {
+				const ce = e as CustomEvent;
+				if (ce.composedPath().includes(this)) return;
+				if (this.hasAttribute("data-snapshot-time")) return;
+				this.timeCursor = ce.detail?.currentTime ?? null;
+				this.onTimeSync(this.timeCursor);
+			},
+			{ signal: this.docTimeSyncAbort.signal },
+		);
 	}
 
-	setQuadCount(quadCount: number): void {
-		if (quadCount === this.state.quadCount) return;
-		this.setState({ quadCount });
+	disconnectedCallback(): void {
+		this.docTimeSyncAbort?.abort();
+	}
+
+	/**
+	 * Publish the host's current data. Hosts call this whenever the snapshot
+	 * arrives or the quad set changes; the filter takes it from there and
+	 * re-derives its legend on every TIME_SYNC.
+	 */
+	setSource(knownClusters: Map<string, TCluster>, quads: TQuad[]): void {
+		this.knownClusters = knownClusters;
+		this.quads = quads;
+		this.render();
 	}
 
 	private dispatchChange(): void {
 		writeCookie({ hiddenTypes: this.state.hiddenTypes, perTypeLimit: this.state.perTypeLimit });
-		const visibleTypes = this.state.clusters.map((c) => c.type).filter((t) => !this.state.hiddenTypes.includes(t));
+		const visibleClusters = this.deriveClusters();
+		const visibleTypes = visibleClusters.map((c) => c.type).filter((t) => !this.state.hiddenTypes.includes(t));
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.GRAPH_FILTER_CHANGE, {
 				detail: { types: visibleTypes, perTypeLimit: this.state.perTypeLimit },
@@ -92,10 +130,17 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		);
 	}
 
+	private deriveClusters(): TCluster[] {
+		const visibleQuads = this.filterByTime(this.quads);
+		return projectFilterClusters({ knownClusters: this.knownClusters, allQuads: this.quads, visibleQuads, timeCursor: this.timeCursor });
+	}
+
 	protected render(): void {
 		if (!this.shadowRoot) return;
-		const { clusters, hiddenTypes, perTypeLimit, quadCount } = this.state;
+		const { hiddenTypes, perTypeLimit } = this.state;
 		const hiddenSet = new Set(hiddenTypes);
+		const clusters = this.deriveClusters();
+		const quadCount = this.filterByTime(this.quads).length;
 		const typeChecks = clusters
 			.slice()
 			.sort((a, b) => a.type.localeCompare(b.type))

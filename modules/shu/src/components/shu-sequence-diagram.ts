@@ -123,13 +123,20 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 
 		if (this.hasAttribute("data-snapshot-time")) return;
 
-		// Live updates via SSE — capture event timestamp onto the trace
-		this.unsubscribe = client.onEvent((event) => {
-			const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace; timestamp?: number };
-			if (e.kind === "artifact" && e.artifactType === "dispatch-trace" && e.trace) {
-				const parsed = DispatchTrace.safeParse({ ...e.trace, timestamp: e.timestamp ?? Date.now() });
-				if (parsed.success) this.setState({ traces: [...this.state.traces, parsed.data] });
-			}
+		// Live updates via SSE — capture each batch's dispatch-trace artifacts and
+		// run a single setState. Per-event setState would re-render the diagram
+		// once per trace; a replay-window burst would re-render N times.
+		this.unsubscribe = this.subscribeBatched({
+			onBatch: (events) => {
+				const additions: TDispatchTrace[] = [];
+				for (const event of events) {
+					const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace; timestamp?: number };
+					if (e.kind !== "artifact" || e.artifactType !== "dispatch-trace" || !e.trace) continue;
+					const parsed = DispatchTrace.safeParse({ ...e.trace, timestamp: e.timestamp ?? Date.now() });
+					if (parsed.success) additions.push(parsed.data);
+				}
+				if (additions.length > 0) this.setState({ traces: [...this.state.traces, ...additions] });
+			},
 		});
 	}
 
