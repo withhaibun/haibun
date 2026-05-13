@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { parseAffordanceProduct } from "./affordance-products.js";
 import { SHU_TYPE } from "./consts.js";
@@ -12,7 +13,7 @@ describe("parseAffordanceProduct", () => {
 
 	it("recognises a singleton component product (e.g. `show graph view`) using `view` as the id when `id` is absent", () => {
 		const product = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-graph-view", view: "graph" };
-		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-graph-view", label: "Graph view" });
+		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-graph-view", label: "Graph view", products: product });
 	});
 
 	it("uses `id` when both `id` and `view` are present (per-instance components like fisheye)", () => {
@@ -28,6 +29,7 @@ describe("parseAffordanceProduct", () => {
 			view: "shu-fisheye-graph-view:abc-123",
 			component: "shu-fisheye-graph-view",
 			label: "Fisheye 3D graph view",
+			products: product,
 		});
 	});
 
@@ -56,7 +58,7 @@ describe("parseAffordanceProduct", () => {
 
 	it("recognises a type product (open-type) when `_component` is absent but `_type` + `id` are present", () => {
 		const product = { [HYPERMEDIA.TYPE]: "Email", id: "email-42", [HYPERMEDIA.SUMMARY]: "Inbox: Subject" };
-		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-type", id: "email-42", type: "Email", label: "Inbox: Subject" });
+		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-type", id: "email-42", type: "Email", label: "Inbox: Subject", products: product });
 	});
 
 	it("rejects a component product that has neither `id` nor `view`", () => {
@@ -65,8 +67,9 @@ describe("parseAffordanceProduct", () => {
 	});
 
 	it("unwraps a `{ products: <affordance> }` envelope", () => {
-		const product = { products: { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-graph-view", view: "graph" } };
-		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-graph-view", label: "Graph view" });
+		const inner = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-graph-view", view: "graph" };
+		const product = { products: inner };
+		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-graph-view", label: "Graph view", products: inner });
 	});
 });
 
@@ -81,23 +84,25 @@ describe("parseAffordanceProduct", () => {
  * with a new action kind. That's the point — these are the SPA's view-opening
  * affordances, and any drift here means the SPA can't open them.
  */
-describe("MonitorStepper show* products parse to consistent open-component actions", () => {
+describe("show* steps declare a productsDomain whose ui.component opens the view consistently", () => {
 	const stepper = new MonitorStepper();
-	const sharedShape = (component: string, view: string, label: string) => ({ kind: "open-component", view, component, label });
 
-	const cases: Array<{ name: keyof typeof stepper.steps; expected: { component: string; view: string; label: string } }> = [
-		{ name: "showGraphView", expected: { component: "shu-graph-view", view: "graph", label: "Graph view" } },
-		{ name: "showMonitor", expected: { component: "shu-monitor-column", view: "monitor", label: "Monitor log stream" } },
-		{ name: "showSequenceDiagram", expected: { component: "shu-sequence-diagram", view: "sequence", label: "Sequence diagram" } },
-		{ name: "showDocument", expected: { component: "shu-document-column", view: "document", label: "Document view" } },
+	// Every view-opening step declares a `productsDomain`. The dispatcher injects
+	// the hypermedia markers (`_type`, `_component`, `_summary`, `id`, `view`) from
+	// the domain's `ui.component` at runtime, so every view opens through one path.
+	// The step's action body returns plain `{}` products; this test verifies the contract
+	// at the step-definition layer.
+	const cases: Array<{ name: keyof typeof stepper.steps; productsDomain: string }> = [
+		{ name: "showGraphView", productsDomain: "shu-graph-view" },
+		{ name: "showMonitor", productsDomain: "shu-monitor-column" },
+		{ name: "showSequenceDiagram", productsDomain: "shu-sequence-diagram" },
+		{ name: "showDocument", productsDomain: "shu-document-column" },
 	];
 
-	for (const { name, expected } of cases) {
-		it(`${name} → open-component { component: "${expected.component}", view: "${expected.view}" }`, async () => {
-			const step = stepper.steps[name] as { action: () => unknown };
-			const result = (await step.action()) as { products?: Record<string, unknown> };
-			expect(result.products).toBeDefined();
-			expect(parseAffordanceProduct(result.products)).toEqual(sharedShape(expected.component, expected.view, expected.label));
+	for (const { name, productsDomain } of cases) {
+		it(`${name} declares productsDomain "${productsDomain}" for dispatcher view-marker injection`, () => {
+			const step = stepper.steps[name] as { productsDomain?: string };
+			expect(step.productsDomain).toBe(productsDomain);
 		});
 	}
 
@@ -114,6 +119,7 @@ describe("MonitorStepper show* products parse to consistent open-component actio
 			view: "shu-fisheye-graph-view:abc-123",
 			component: "shu-fisheye-graph-view",
 			label: "Fisheye 3D graph view",
+			products: product,
 		});
 	});
 });

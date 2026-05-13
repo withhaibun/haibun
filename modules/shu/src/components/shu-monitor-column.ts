@@ -7,10 +7,10 @@
 import { z } from "zod";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "../quad-detail-pane.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { esc } from "../util.js";
-import type { ShuTimeline } from "./shu-timeline.js";
 
 const MonitorColumnSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
@@ -95,11 +95,12 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 		if (this.hasAttribute("data-snapshot-time")) return;
 
-		this.unsubscribe = client.onEvent((event) => {
-			const e = event as Record<string, unknown>;
-			this.addEvent(e);
-			this.updateTimeline();
-			this.renderRows();
+		this.unsubscribe = this.subscribeBatched({
+			onBatch: (events) => {
+				for (const event of events) this.addEvent(event);
+				this.updateTimeline();
+				this.renderRows();
+			},
 		});
 	}
 
@@ -164,14 +165,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (isStart && seqPath) this.startRowIndex.set(seqPath.join("."), rowIdx);
 	}
 
-	private updateTimeline(): void {
-		const timeline = this.shadowRoot?.querySelector("shu-timeline") as ShuTimeline | null;
-		if (timeline && this.startTime && this.endTime) {
-			timeline.setBounds(this.startTime, this.endTime);
-			// On first load, set slider to end (show all data)
-			if (this.timeCursor === null) timeline.seek(this.endTime - this.startTime);
-		}
-	}
+	/**
+	 * Timeline state lives in the shu-timeline component, mounted in the
+	 * actions-bar. The monitor no longer manages bounds — it just consumes
+	 * TIME_SYNC and re-renders. Kept as a no-op stub to avoid touching
+	 * existing call sites mid-refactor.
+	 */
+	private updateTimeline(): void {}
 
 	protected render(): void {
 		if (!this.shadowRoot) return;
@@ -182,7 +182,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				<label class="hide-start"><input type="checkbox" data-action="hide-start" ${hideStart ? "checked" : ""}> hide start</label>
 				<span class="count">${this.rows.length} events</span>
 			</div>
-			<shu-timeline></shu-timeline><div class="log-rows"></div>`;
+			<div class="log-rows"></div>`;
 
 		this.shadowRoot.querySelector("[data-action=level]")?.addEventListener("change", (e) => {
 			this.setState({ level: (e.target as HTMLSelectElement).value as typeof level });
@@ -243,14 +243,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			})
 			.join("");
 
-		// Click on time or seqPath → seek timeline and dispatch TIME_SYNC
+		// Click on time or seqPath → dispatch TIME_SYNC. The shu-timeline
+		// (mounted in the actions-bar) catches the event and seeks itself; the
+		// app-level fan-out delivers the same event to every other listener.
 		container.querySelectorAll(".time-group[data-timestamp]").forEach((el) => {
 			el.addEventListener("click", (e) => {
 				e.stopPropagation();
 				const ts = parseInt((el as HTMLElement).dataset.timestamp ?? "0", 10);
 				this.timeCursor = ts;
-				const timeline = this.shadowRoot?.querySelector("shu-timeline") as ShuTimeline | null;
-				if (timeline && this.startTime) timeline.seek(ts - this.startTime);
 				this.dispatchEvent(
 					new CustomEvent(SHU_EVENT.TIME_SYNC, {
 						bubbles: true,
@@ -266,7 +266,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		container.querySelectorAll(".row-content[data-seqpath]").forEach((el) => {
 			el.addEventListener("click", () => {
 				const seqPath = (el as HTMLElement).dataset.seqpath?.split(",").map(Number);
-				if (seqPath) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_STEP, { detail: { seqPath }, bubbles: true, composed: true }));
+				if (seqPath) PaneState.request({ paneType: "step-detail", seqPath });
 			});
 		});
 

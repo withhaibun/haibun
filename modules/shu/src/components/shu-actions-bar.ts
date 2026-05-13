@@ -12,10 +12,11 @@ import { SHU_EVENT } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg, prettifyGwta } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
-import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
+import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import { getProperties, getSelectValues, getSiteMetadataSync, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -26,6 +27,40 @@ const md = new MarkdownIt();
 const MODEL_COOKIE = "shu-model";
 const MODE_COOKIE = "shu-mode";
 const HEIGHT_COOKIE = "shu-actions-height";
+
+/**
+ * Build the secondary line shown under a step's gwta in the step picker.
+ * Reads `paramDomains` and `productsDomain` from the descriptor and renders
+ * `inputs · A, B → outputs C`. Falls back to fewer parts when the step has
+ * no declared inputs or outputs.
+ */
+function stepSecondary(s: StepDescriptor): string {
+	const inputs = s.paramDomains ? Object.values(s.paramDomains).join(", ") : "";
+	const out = s.productsDomain ?? "";
+	if (inputs && out) return `${inputs} → ${out}`;
+	if (inputs) return inputs;
+	if (out) return `→ ${out}`;
+	return "";
+}
+
+/**
+ * Full multi-line details for a step option, revealed when the option is
+ * focused / hovered in the picker. Includes the full gwta pattern, per-param
+ * domain map, products domain, and capability requirement when present.
+ */
+function stepDetails(s: StepDescriptor): string {
+	// The label already shows the gwta pattern; don't repeat it. Details
+	// carries only the structured metadata — per-param domains, products,
+	// capability — that the label can't convey.
+	const lines: string[] = [];
+	if (s.paramDomains && Object.keys(s.paramDomains).length > 0) {
+		lines.push("inputs:");
+		for (const [k, v] of Object.entries(s.paramDomains)) lines.push(`  ${k}: ${v}`);
+	}
+	if (s.productsDomain) lines.push(`outputs: ${s.productsDomain}`);
+	if (s.capability) lines.push(`capability: ${s.capability}`);
+	return lines.join("\n");
+}
 
 function getCookie(name: string): string {
 	const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
@@ -45,6 +80,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _contextPatterns: TContextPattern[] = [];
 	private _contextAccessLevel: string = Access.private;
 	private _statusMessage = "";
+	private _timeOffsetLabel = "now";
 	private _columns: string[] = [];
 	private _queryLabel = "All";
 	private _activeViewIndex = 0;
@@ -58,7 +94,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectFilters: Record<string, string> = {};
 	private _selectedLabel = "";
 	private _textSearch = "";
-	private _steps: Array<{ method: string; pattern: string; stepName: string }> = [];
+	private _steps: StepDescriptor[] = [];
 	private _models: Array<{ id: string }> = [];
 	private _selectedModel = "";
 	private _selectedStep = "";
@@ -173,6 +209,47 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 	}
 
+	/**
+	 * Open the step input pre-selected to `method`. Used by the affordances panel so clicking a card
+	 * routes through the same step-caller flow as the actions-bar combo. When `args` are supplied,
+	 * they are passed as fixed params (rendered inline, not editable); when `auto` is true, the
+	 * step-caller dispatches immediately on mount without showing the input form.
+	 */
+	chooseStep(method: string, args?: Record<string, unknown>, auto?: boolean): void {
+		this.state = { ...this.state, mode: "step", askExpanded: true };
+		this.render();
+		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
+		stepCombo?.setValue?.(method);
+		const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
+		if (!output) return;
+		this.openStepCaller(output, method, args, auto);
+	}
+
+	/**
+	 * Append (or reuse) a step-caller for the given method. The caller carries
+	 * the qualified method as `method` (canonical identity) and a `call-index`
+	 * counting prior callers for the same method, so its testids are unique
+	 * across the page even when the same step is invoked multiple times.
+	 */
+	private openStepCaller(output: HTMLElement, method: string, args?: Record<string, unknown>, auto?: boolean): void {
+		const countOthers = () => output.querySelectorAll(`shu-step-caller[method="${method}"]`).length;
+		const lastCaller = output.querySelector("shu-step-caller:last-of-type") as (HTMLElement & { executed?: boolean; reset?: (name: string) => void }) | null;
+		if (lastCaller && !lastCaller.executed && lastCaller.reset && !args && !auto) {
+			const wasSame = lastCaller.getAttribute("method") === method;
+			lastCaller.setAttribute("method", method);
+			lastCaller.setAttribute("call-index", String(countOthers() - (wasSame ? 1 : 0)));
+			lastCaller.reset(method);
+			return;
+		}
+		const caller = document.createElement("shu-step-caller");
+		caller.setAttribute("step", method);
+		caller.setAttribute("method", method);
+		caller.setAttribute("call-index", String(countOthers()));
+		if (args) caller.setAttribute("params", JSON.stringify(args));
+		if (auto) caller.setAttribute("auto", "");
+		output.appendChild(caller);
+	}
+
 	private updateBreadcrumbDisplay(): void {
 		const bc = this.shadowRoot?.querySelector("shu-breadcrumb") as
 			| (HTMLElement & {
@@ -285,7 +362,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				},
 			});
 		}).catch((err) => {
-			console.error(`[shu-actions-bar] reportActionsBar dispatch failed: ${errorDetail(err)}`);
+			failFastOrLog(`[shu-actions-bar] reportActionsBar dispatch failed: ${errorDetail(err)}`, err);
 		});
 	}
 
@@ -313,12 +390,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private async loadSteps(): Promise<void> {
-		const steps = await getAvailableSteps();
-		this._steps = steps.map((s) => ({
-			method: s.method,
-			pattern: s.pattern,
-			stepName: s.stepName,
-		}));
+		this._steps = await getAvailableSteps();
 	}
 
 	private async loadDomainOptions(): Promise<void> {
@@ -426,6 +498,33 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 	}
 
+	/**
+	 * Track the timeline cursor as elapsed seconds since the first event, so the
+	 * collapsed summary bar reads `0s` at start and grows positive toward `now`.
+	 * The display sits next to the access-indicator and is read-only.
+	 */
+	protected onTimeSync(cursor: number | null): void {
+		const label = this.formatTimeOffset(cursor);
+		if (label === this._timeOffsetLabel) return;
+		this._timeOffsetLabel = label;
+		const el = this.shadowRoot?.querySelector(".time-offset");
+		if (el) el.textContent = label;
+	}
+
+	private _firstEventTime = 0;
+	private _latestEventTime = 0;
+
+	private formatTimeOffset(cursor: number | null): string {
+		if (cursor == null || cursor <= 0) return "now";
+		if (this._firstEventTime === 0 || cursor < this._firstEventTime) this._firstEventTime = cursor;
+		if (cursor > this._latestEventTime) this._latestEventTime = cursor;
+		const elapsed = cursor - this._firstEventTime;
+		const seconds = Math.round(elapsed / 1000);
+		if (cursor >= this._latestEventTime) return "now";
+		if (seconds < 60) return `${seconds}s`;
+		return `${Math.round(seconds / 60)}m`;
+	}
+
 	protected render(): void {
 		if (!this.shadowRoot) return;
 
@@ -463,7 +562,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<div class="summary-bar">
 				<span class="status-area" style="${this._statusMessage ? "" : "display:none"}">${this._statusMessage}</span>
 				<shu-breadcrumb></shu-breadcrumb>
-				<span class="access-indicator">${this._contextAccessLevel}</span>
+				<span class="time-offset" ${this.tid("time-offset")}>${this._timeOffsetLabel}</span>
+				<span class="access-indicator" ${this.tid("access-indicator")}>${this._contextAccessLevel}</span>
 				<button class="twisty" ${this.tid("ask-button")}>${twisty}</button>
 			</div>`;
 
@@ -479,7 +579,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 		const filterControls = this.state.askExpanded
 			? `<div class="filter-bar">
-					<select class="access-select">${AccessQueryLevelSchema.options.map((a) => `<option value="${a}"${a === this._contextAccessLevel ? " selected" : ""}>${a}</option>`).join("")}</select>
+					<select class="access-select" ${this.tid("access-select")}>${AccessQueryLevelSchema.options.map((a) => `<option value="${a}"${a === this._contextAccessLevel ? " selected" : ""}>${a}</option>`).join("")}</select>
+					<shu-timeline class="bar-timeline"></shu-timeline>
 					${labelSelect}
 					${selectDropdowns}
 					<input type="text" class="text-search" ${this.tid("text-search")} placeholder="search..." value="${this._textSearch}" />
@@ -636,31 +737,24 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			// Option value is the fully-qualified method (StepperName-stepName) —
 			// stepName alone collides when multiple steppers expose the same key
 			// (e.g. ResourcesStepper.comment vs a peer stepper's comment).
-			const options = [
-				...contextSteps.map((s) => ({
-					value: s.method,
-					label: `● ${prettifyGwta(s.pattern)}`,
-				})),
-				...otherSteps.map((s) => ({ value: s.method, label: prettifyGwta(s.pattern) })),
-			];
+			const toOption = (s: StepDescriptor, contextMark: boolean) => ({
+				value: s.method,
+				label: contextMark ? `● ${prettifyGwta(s.pattern)}` : prettifyGwta(s.pattern),
+				secondary: stepSecondary(s),
+				details: stepDetails(s),
+			});
+			const options = [...contextSteps.map((s) => toOption(s, true)), ...otherSteps.map((s) => toOption(s, false))];
 			stepCombo.setOptions(options);
 		}
 		stepCombo?.addEventListener("combo-change", ((e: CustomEvent) => {
-			const stepName = e.detail?.value;
-			if (!stepName) return;
-			this._selectedStep = stepName;
+			const method = e.detail?.value;
+			if (!method) return;
+			this._selectedStep = method;
 
 			const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
 			if (!output) return;
 
-			const lastCaller = output.querySelector("shu-step-caller:last-of-type") as (HTMLElement & { executed?: boolean; reset?: (name: string) => void }) | null;
-			if (lastCaller && !lastCaller.executed && lastCaller.reset) {
-				lastCaller.reset(stepName);
-			} else {
-				const caller = document.createElement("shu-step-caller") as HTMLElement;
-				caller.setAttribute("step", stepName);
-				output.appendChild(caller);
-			}
+			this.openStepCaller(output, method);
 
 			const chatOut = this.shadowRoot?.querySelector(".chat-output");
 			if (chatOut)
@@ -985,7 +1079,7 @@ const STYLES = `
 	}
 	.twisty { background: none; border: none; font-size: 10px; color: #aaa; cursor: pointer; padding: 0 2px; flex-shrink: 0; }
 	shu-breadcrumb { flex: 1; font-size: 13px; min-width: 0; overflow: hidden; }
-	.access-indicator { font-size: 11px; color: #999; flex-shrink: 0; }
+	.access-indicator, .time-offset { font-size: 11px; color: #999; flex-shrink: 0; }
 	.filter-bar { display: flex; gap: 4px; align-items: center; padding: 3px 6px; flex-wrap: wrap; }
 	input[type="text"], input:not([type]), textarea, .text-input {
 		font: inherit; padding: 2px 6px; border: none;
@@ -997,7 +1091,8 @@ const STYLES = `
 		background: transparent; color: inherit; outline: none;
 	}
 	.filter-bar .access-select, .filter-bar .label-select, .filter-bar .select-filter { width: auto; flex: 0 0 auto; }
-	.filter-bar .text-search { flex: 1 1 80px; min-width: 60px; }
+	.filter-bar .text-search { flex: 1 1 20ch; min-width: 20ch; }
+	.filter-bar .bar-timeline { flex: 2 1 0; min-width: 0; }
 	.compound-filters { display: flex; gap: 3px; flex-wrap: wrap; margin-left: auto; }
 	.filter-group {
 		display: inline-flex; gap: 2px; align-items: center;

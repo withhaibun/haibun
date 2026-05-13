@@ -3,6 +3,11 @@ import { SHU_EVENT } from "../consts.js";
 import { TIME_SYNC_CLASS, TIME_SYNC_CSS, TIME_SYNC_STYLE } from "../time-sync.js";
 import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
+import * as ViewHash from "../view-hash.js";
+import { snapshotUiState, restoreUiState, type TUiStateSnapshot } from "./ui-state.js";
+import { SseClient, type TEventFilter } from "../sse-client.js";
+
+type TBatchEvent = Record<string, unknown>;
 
 /**
  * Abstract base class for Shu web components.
@@ -14,24 +19,21 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
  */
 export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 	/** True when running offline from an exported HTML file. No server, no RPC, no SSE. Set once at startup. */
-	static offline = false;
-
-	private static _storedHash = "";
+	static get offline(): boolean {
+		return ViewHash.isOffline();
+	}
+	static set offline(v: boolean) {
+		ViewHash.setOffline(v);
+	}
 
 	/** Get the current view hash — from URL when online, from stored state when offline. */
 	static getHash(): string {
-		return ShuElement.offline ? ShuElement._storedHash : location.hash;
+		return ViewHash.getHash();
 	}
 
 	/** Update view hash. Online: writes to URL. Offline: updates stored state only. */
 	static pushHash(newHash: string): void {
-		ShuElement._storedHash = newHash;
-		if (ShuElement.offline) return;
-		try {
-			if (location.hash !== newHash) history.replaceState(null, "", newHash);
-		} catch {
-			/* file:// security restriction */
-		}
+		ViewHash.pushHash(newHash);
 	}
 
 	protected state: z.infer<T>;
@@ -152,6 +154,59 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 	/** Wrap styles with TIME_SYNC_CSS automatically included. */
 	protected css(styles: string): string {
 		return `<style>${TIME_SYNC_CSS}\n${styles}</style>`;
+	}
+
+	/** Snapshot UI state that should survive a re-render. See `./ui-state.ts`. */
+	protected snapshotUiState(): TUiStateSnapshot {
+		return snapshotUiState(this);
+	}
+
+	/** Reapply the snapshot taken by `snapshotUiState()`. Safe to call after `innerHTML` rebuilds. */
+	protected restoreUiState(snapshot: TUiStateSnapshot): void {
+		restoreUiState(this, snapshot);
+	}
+
+	/**
+	 * Subscribe to SSE events, batching all events received between paints into
+	 * one `onBatch(events)` call inside an animation frame.
+	 *
+	 * Why this exists: `SseClient.onEvent` replays the entire history buffer
+	 * synchronously when the subscriber registers. A fresh component mount that
+	 * processes-and-renders per event blocks the main thread for N×handler-cost
+	 * milliseconds before the page can paint. `subscribeBatched` queues raw
+	 * events on the synchronous path (cheap push), drains them once per rAF
+	 * tick, and runs the per-batch processor — typically a render — exactly
+	 * once per frame. Replay then costs one render, not N.
+	 *
+	 * Returns an unsubscribe function. The caller wires it into
+	 * `disconnectedCallback`; the queue is dropped on unsubscribe so a stray
+	 * frame after disconnect can't reach into a torn-down component.
+	 */
+	protected subscribeBatched(opts: { onBatch: (events: TBatchEvent[]) => void; filter?: TEventFilter; basePath?: string }): () => void {
+		const client = SseClient.for(opts.basePath ?? "");
+		let pending: TBatchEvent[] = [];
+		let scheduled = false;
+		let active = true;
+		const drain = () => {
+			scheduled = false;
+			if (!active || pending.length === 0) return;
+			const batch = pending;
+			pending = [];
+			opts.onBatch(batch);
+		};
+		const innerUnsub = client.onEvent((event) => {
+			if (!active) return;
+			pending.push(event);
+			if (!scheduled) {
+				scheduled = true;
+				requestAnimationFrame(drain);
+			}
+		}, opts.filter);
+		return () => {
+			active = false;
+			pending = [];
+			innerUnsub();
+		};
 	}
 }
 

@@ -5,13 +5,22 @@
  * all in one diagram. Named graphs become subgraph clusters. Cross-graph edges visible.
  *
  * Data comes from MonitorStepper-getQuads RPC + live SSE quad observation events.
+ *
+ * This view consumes `mermaid-source.ts` directly rather than the generic
+ * `TGraph` + `shu-graph` pipeline. The quad-store visualisation needs
+ * Mermaid-specific affordances — position-based edge-label matching, summary
+ * and cluster node ids, hover/scroll/click semantics tied to the rendered SVG
+ * structure — that aren't part of the renderer-agnostic graph abstraction.
+ * The chain-view and combined affordance graphs do go through `TGraph`; the
+ * abstraction is intentionally not forced onto views whose needs exceed it.
  */
 import { z } from "zod";
 import mermaid from "mermaid";
 import { ShuElement } from "./shu-element.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
-import { openQuadDetailPane } from "../quad-detail-pane.js";
+import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
+import { PaneState } from "../pane-state.js";
 import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
 import { getStepperForType, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
@@ -211,12 +220,34 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		// Snapshot mode: fetch once, no live updates
 		if (isSnapshot) return;
 
-		this.unsubscribe = client.onEvent((event) => {
-			const quads = extractQuadsFromEvents([event as Record<string, unknown>]);
-			if (quads.length > 0) {
+		this.unsubscribe = this.subscribeBatched({
+			onBatch: (events) => {
+				const quads = extractQuadsFromEvents(events);
+				if (quads.length === 0) return;
 				mergeQuadsIntoSnapshot(quads);
-				this.setState({ quads: [...this.state.quads, ...quads] });
-			}
+				// Dedup by (namedGraph, subject, predicate) against the local
+				// state.quads. Without this, the same fact arriving twice (once
+				// as a vertex property emission, once as an edge emission for
+				// the same predicate) accumulates and the mermaid renderer
+				// shows it as `predicate ×N`.
+				const seen = new Map<string, number>();
+				for (let i = 0; i < this.state.quads.length; i++) {
+					const q = this.state.quads[i];
+					seen.set(`${q.namedGraph}|${q.subject}|${q.predicate}`, i);
+				}
+				const next = [...this.state.quads];
+				for (const q of quads) {
+					const key = `${q.namedGraph}|${q.subject}|${q.predicate}`;
+					const existingIdx = seen.get(key);
+					if (existingIdx !== undefined) {
+						next[existingIdx] = q;
+					} else {
+						seen.set(key, next.length);
+						next.push(q);
+					}
+				}
+				this.setState({ quads: next });
+			},
 		});
 
 		this.unsubscribeSnapshot = subscribeViewContext({
@@ -242,18 +273,21 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	private timeSyncTimer = 0;
 
 	protected override onTimeSync(): void {
-		// Throttle: render at most every 500ms during continuous play
-		const now = Date.now();
-		if (now - this.lastTimeSyncRender >= 500) {
-			this.lastTimeSyncRender = now;
+		// Throttle the diagram re-render to 500ms during continuous play.
+		// `<shu-graph-filter>` is a ShuElement of its own and re-derives its
+		// legend on every TIME_SYNC independently.
+		const apply = () => {
+			this.lastTimeSyncRender = Date.now();
 			this.visibleQuads = this.filterByTime(this.state.quads);
 			void this.renderMermaid();
+		};
+		const now = Date.now();
+		if (now - this.lastTimeSyncRender >= 500) {
+			apply();
 		} else if (!this.timeSyncTimer) {
 			this.timeSyncTimer = window.setTimeout(() => {
 				this.timeSyncTimer = 0;
-				this.lastTimeSyncRender = Date.now();
-				this.visibleQuads = this.filterByTime(this.state.quads);
-				void this.renderMermaid();
+				apply();
 			}, 500);
 		}
 	}
@@ -310,11 +344,11 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		const edgeFilterHtml =
 			sortedRels.length > 0
 				? sortedRels
-						.map((rel) => {
-							const predicates = [...(relToPredicates.get(rel) ?? [])].sort().join(", ");
-							return `<label title="${predicates}"><input type="checkbox" data-rel="${rel}" ${hiddenRelSet.has(rel) ? "" : "checked"}> ${rel}</label>`;
-						})
-						.join("")
+					.map((rel) => {
+						const predicates = [...(relToPredicates.get(rel) ?? [])].sort().join(", ");
+						return `<label title="${predicates}"><input type="checkbox" data-rel="${rel}" ${hiddenRelSet.has(rel) ? "" : "checked"}> ${rel}</label>`;
+					})
+					.join("")
 				: "";
 
 		this.lastMermaidSource = "";
@@ -336,28 +370,12 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 					<div id="${this.diagramId}"></div>
 				</div>
 			</div>`;
-		const filterEl = this.shadowRoot.querySelector("shu-graph-filter") as ShuGraphFilter | null;
+		const filterEl = this.shadowRoot?.querySelector("shu-graph-filter") as ShuGraphFilter | null;
 		if (filterEl) {
 			if (this.showControls) filterEl.setAttribute("show-controls", "");
 			else filterEl.removeAttribute("show-controls");
-			// Synthesize cluster entries for any namedGraph that appears in the
-			// quads but isn't in the snapshot's clusters list \u2014 otherwise the
-			// legend is incomplete relative to what mermaid actually renders.
-			const seen = new Set<string>();
-			const merged: TCluster[] = [];
-			for (const c of this.knownClusters.values()) {
-				merged.push(c);
-				seen.add(c.type);
-			}
-			for (const q of this.state.quads) {
-				if (seen.has(q.namedGraph)) continue;
-				seen.add(q.namedGraph);
-				merged.push({ type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [] });
-			}
-			filterEl.setClusters(merged);
-			filterEl.setQuadCount(visibleQuads.length);
+			filterEl.setSource(this.knownClusters, this.state.quads);
 		}
-
 		this.bindToolbar();
 		void this.renderMermaid();
 	}
@@ -503,6 +521,11 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	 */
 	private async fetchIfMissing(subject: string, label: string): Promise<void> {
 		if (this.subjectToRawId.has(subject) || this.fetchedSubjects.has(subject)) return;
+		// `getVertexWithEdges` only accepts registered vertex labels. Named graphs that
+		// carry quads but aren't vertex types — `facts`, `observation/*`, `variables` —
+		// have no rels in the rels cache. Skip the RPC; the quad-detail click path
+		// handles these via `showQuadDetail` directly.
+		if (!getRels(label)) return;
 		this.fetchedSubjects.add(subject);
 		try {
 			await getAvailableSteps();
@@ -701,12 +724,14 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		}
 	}
 
-	private showQuadDetail(graph: string, subject: string): void {
-		openQuadDetailPane(
-			graph,
-			subject,
-			this.state.quads.filter((q) => q.subject === subject && q.namedGraph === graph),
-			this,
-		);
+	/**
+	 * Route a non-vertex node click to the step-detail pane. Typed-fact
+	 * subjects are the producing seqPath (single-product steps) or
+	 * `${seqPath}#${field}` for multi-product steps; the suffix is stripped
+	 * before parsing so both forms reach the same pane.
+	 */
+	private showQuadDetail(_graph: string, subject: string): void {
+		const head = subject.includes("#") ? subject.slice(0, subject.indexOf("#")) : subject;
+		PaneState.request({ paneType: "step-detail", seqPath: parseSeqPath(head)! });
 	}
 }

@@ -74,4 +74,14 @@ export const SHU_TEST_IDS = {
 	GRAPH_VIEW: {
 		ROOT: "graph-view-toolbar",
 	},
+	AFFORDANCES: {
+		ROOT: "shu-affordances",
+		FORWARD_LIST: "affordances-forward",
+		GOALS_LIST: "affordances-goals",
+		EMPTY: "affordances-empty",
+	},
+	DOMAIN_CHAIN: {
+		ROOT: "shu-domain-chain",
+		GRAPH: "domain-chain-graph",
+	},
 } as const;

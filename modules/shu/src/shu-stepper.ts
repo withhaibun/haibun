@@ -10,16 +10,23 @@ import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { vertexDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
-import { isContentPropertyDef, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
+import { isContentPropertyDef, isVertexTopology, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
-import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { SHU_TYPE } from "./consts.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 
 export const DOMAIN_SHU_VIEW_ID = "shu-view-id";
+const DOMAIN_SHU_VIEW_COLLECTION = "shu-view-collection";
+const DOMAIN_SHU_VIEW_CLOSE = "shu-view-close";
 const ShuViewIdSchema = z.string();
+const ShuViewCollectionSchema = z.object({
+	view: z.string().optional(),
+	views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
+});
+const ShuViewCloseSchema = z.object({ view: z.string() });
+const ShuSelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -118,14 +125,24 @@ export default class ShuStepper extends AStepper {
 			domains: [
 				{ selectors: [DOMAIN_SHU_VIEW_ID], schema: ShuViewIdSchema, description: "Shu view id" },
 				// Built-in shu views — registering them as domains makes them discoverable
-				// via `show views` (the picker iterates domains with `ui.component`),
-				// matching the pattern used by external views (e.g. shu-fisheye-graph-view
-				// in spopg). Without this, only the static affordance-open events bind
-				// these views to columns, and they don't appear in the picker.
+				// via `show views` (the picker iterates domains with `ui.component`).
+				// External steppers register their own view domains the same way.
 				{ selectors: ["shu-graph-view"], schema: z.object({}), description: "Quad-store graph (Mermaid)", ui: { component: "shu-graph-view" } },
 				{ selectors: ["shu-monitor-column"], schema: z.object({}), description: "Execution monitor and event log", ui: { component: "shu-monitor-column" } },
 				{ selectors: ["shu-sequence-diagram"], schema: z.object({}), description: "Sequence diagram of step trace", ui: { component: "shu-sequence-diagram" } },
 				{ selectors: ["shu-document-column"], schema: z.object({}), description: "Document/artifact viewer", ui: { component: "shu-document-column" } },
+				{
+					selectors: [DOMAIN_SHU_VIEW_COLLECTION],
+					schema: ShuViewCollectionSchema,
+					description: "Catalog of registered views",
+					ui: { component: SHU_TYPE.VIEW_COLLECTION, summary: "Available Views" },
+				},
+				{
+					selectors: [DOMAIN_SHU_VIEW_CLOSE],
+					schema: ShuViewCloseSchema,
+					description: "Request to close a view",
+					ui: { component: SHU_TYPE.CLOSE_VIEW },
+				},
 			],
 		}),
 	};
@@ -153,22 +170,22 @@ export default class ShuStepper extends AStepper {
 		},
 		showViews: {
 			gwta: "show views",
-			outputSchema: z.object({ views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })) }),
+			productsDomain: DOMAIN_SHU_VIEW_COLLECTION,
 			action: () => {
 				const domains = this.getWorld().domains;
 				const views = Object.values(domains)
 					.filter((d) => typeof d.ui?.component === "string")
 					.map((d) => ({
-						id: d.topology?.vertexLabel || d.selectors[0],
+						id: (isVertexTopology(d.topology) ? d.topology.vertexLabel : undefined) || d.selectors[0],
 						description: d.description || d.selectors[0],
 						component: String(d.ui?.component),
 					}));
-				return actionOKWithProducts({ [HYPERMEDIA.TYPE]: SHU_TYPE.VIEW_COLLECTION, [HYPERMEDIA.SUMMARY]: "Available Views", view: "views", views });
+				return actionOKWithProducts({ view: "views", views });
 			},
 		},
 		getSelectValues: {
 			gwta: "get select values for {label: string}",
-			outputSchema: z.object({ values: z.record(z.string(), z.array(z.string())) }),
+			productsSchema: ShuSelectValuesSchema,
 			action: async ({ label }: { label: string }) => {
 				const store = this.getWorld().shared.getStore() as IQuadStore;
 				const domain = vertexDomainMap(this.getWorld().domains).get(label);
@@ -183,7 +200,8 @@ export default class ShuStepper extends AStepper {
 		},
 		closeView: {
 			gwta: `close view {id: ${DOMAIN_SHU_VIEW_ID}}`,
-			action: ({ id }: { id: string }) => actionOKWithProducts({ [HYPERMEDIA.TYPE]: SHU_TYPE.CLOSE_VIEW, view: id }),
+			productsDomain: DOMAIN_SHU_VIEW_CLOSE,
+			action: ({ id }: { id: string }) => actionOKWithProducts({ view: id }),
 		},
 	} satisfies TStepperSteps;
 }
