@@ -1,8 +1,8 @@
 import { actionNotOK, actionOKWithProducts, getStepTerm } from "@haibun/core/lib/util/index.js";
-import { z } from "zod";
 import WebPlaywright from "./web-playwright.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { RestFilteredCountSchema, RestJsonCountSchema } from "./domains.js";
 
 const PAYLOAD_METHODS = ["post", "put", "patch"];
 const NO_PAYLOAD_METHODS = ["get", "delete", "head"];
@@ -106,7 +106,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		showResponseLength: {
 			gwta: `show JSON response count`,
-			outputSchema: z.object({ summary: z.string(), details: z.object({ count: z.number() }) }),
+			productsSchema: RestJsonCountSchema,
 			action: async () => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.json || typeof lastResponse.json.length !== "number") {
@@ -122,7 +122,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		showFilteredLength: {
 			gwta: `show filtered response count`,
-			outputSchema: z.object({ summary: z.string(), count: z.number() }),
+			productsSchema: RestFilteredCountSchema,
 			action: async () => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.filtered || typeof lastResponse.filtered.length !== "number") {
