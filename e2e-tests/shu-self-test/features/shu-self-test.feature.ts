@@ -59,23 +59,28 @@ export const features: TKirejiExport = {
 		"The SPA is a single-page app served at /haibun. Navigating here boots the shu app shell, which connects to /sse for live events and to /rpc for step invocations. If the bundle fails to register web components or the SSE handshake fails, subsequent waitFor calls will time out — which is the signal we want.",
 		gotoPage({ name: `"${host}/haibun"` }),
 
-		scenario({ scenario: "Open the monitor column and exercise the timeline" }),
+		scenario({ scenario: "Actions-bar timeline mounts and the scrubber moves" }),
 
-		"The monitor column subscribes to SSE artifact events and renders them as a log stream with a timeline scrubber. The timeline controls are part of the same component because monitoring and time-travel share the same event stream. Exercising play/restart verifies the cursor moves through history.",
-		"show monitor",
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
+		"The timeline scrubber lives in the actions-bar at the page level (not inside any pane) — it consumes the same SSE event stream as the monitor and drives time-travel for every view via TIME_SYNC. The actions-bar's filter row (where the scrubber sits) collapses until the twisty is clicked; expand it first, then assert the timeline is interactive. Exercising play/restart proves the cursor moves through history rather than parking at the latest event.",
+		waitFor({ target: IDS.APP.TWISTY }),
+		click({ target: IDS.APP.TWISTY }),
 		waitFor({ target: IDS.TIMELINE.SLIDER }),
 		waitFor({ target: IDS.TIMELINE.PLAY_PAUSE }),
 		waitFor({ target: IDS.TIMELINE.RESTART }),
 		waitFor({ target: IDS.TIMELINE.SPEED }),
-		"Restart, then play for two seconds, then pause — proves the scrubber actually moves rather than sitting at the latest event.",
+		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
 		click({ target: IDS.TIMELINE.RESTART }),
 		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
 		click({ target: IDS.TIMELINE.PLAY_PAUSE }),
 		"pause for 2s",
 		click({ target: IDS.TIMELINE.PLAY_PAUSE }),
 		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
+
+		scenario({ scenario: "Open the monitor column" }),
+
+		"The monitor column subscribes to SSE artifact events and renders them as a log stream. Opening it asserts the SSE handshake reached the client and the event projection runs.",
+		"show monitor",
+		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
 		scenario({ scenario: "Open the sequence diagram" }),
 
