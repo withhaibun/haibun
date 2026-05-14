@@ -94,13 +94,12 @@ export const features: TKirejiExport = {
 		"show graph view",
 		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
 
-		scenario({ scenario: "Invoke `show affordances` from Step mode and inspect both sections" }),
+		scenario({ scenario: "Invoke `show affordances` from Step mode and inspect the goals section" }),
 
-		"The affordances panel renders the goal resolver's view of the world: forward-reachable steps (steps whose inputs are satisfied right now) and per-goal verdicts (satisfied / michi / unreachable / refused). Both sections must mount with their test-id-wrapped containers visible.",
+		"The affordances panel renders the goal resolver's per-goal verdicts (satisfied / michi / unreachable / refused). Forward-reachable steps are not duplicated in the panel; they live in the actions-bar's step picker. The goals section must mount with its test-id-wrapped container visible.",
 		...enterStepMode,
 		...passesStepExecution("show affordances"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
-		waitFor({ target: IDS.AFFORDANCES.FORWARD_LIST }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
 
 		scenario({ scenario: "Invoke `show chain lint` and verify the domain-chain Mermaid graph renders" }),
@@ -109,18 +108,6 @@ export const features: TKirejiExport = {
 		...passesStepExecution("show chain lint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
-
-		scenario({ scenario: "View settings reveals every chain-view control as one group" }),
-
-		"View settings (the gear in the column-pane header) is the single switch for every per-view control: zoom, layout, axis filter. Toggling it on the chain pane reveals the whole controls block at once — this scenario pins the unified-gate invariant so that zoom doesn't drift back into its own toolbar.",
-		"in shu-column-pane:has(shu-domain-chain-view), click pane-controls-toggle",
-		waitFor({ target: IDS.DOMAIN_CHAIN.CONTROLS }),
-
-		scenario({ scenario: "View settings reveals every graph-view control as one group" }),
-
-		"Same invariant for the graph view: toolbar (zoom + layout + copy) and the predicate / axis filters all toggle together off a single gear click.",
-		"in shu-column-pane:has(shu-graph-view), click pane-controls-toggle",
-		waitFor({ target: IDS.GRAPH_VIEW.CONTROLS }),
 
 		scenario({ scenario: "Goal resolution: `resolve` returns a verdict for a registered domain" }),
 
@@ -141,11 +128,12 @@ export const features: TKirejiExport = {
 		reloadPage({}),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
-		"After hash-restore, monitor / timeline / sequence-diagram / graph-view should also have come back.",
+		"After hash-restore, monitor / sequence-diagram / graph-view should also have come back. Timeline lives in the actions-bar's collapsible filter row; expand it again after reload to confirm the scrubber survives.",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
 		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
 		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
+		click({ target: IDS.APP.TWISTY }),
+		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
 
 		scenario({ scenario: "Variable inspection: `show vars` should produce an entry per seeded variable" }),
 
@@ -167,6 +155,18 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.APP.TYPE_SELECT }),
 		selectionOption({ option: `"${COMMENT_LABEL}"`, field: IDS.APP.TYPE_SELECT }),
 		waitFor({ target: IDS.QUERY.TABLE }),
+
+		scenario({ scenario: "View settings reveals every chain-view control as one group" }),
+
+		"View settings (the gear in the column-pane header) is the single switch for every per-view control: zoom, layout, axis filter. Toggling it on the chain pane reveals the whole controls block at once — this scenario pins the unified-gate invariant so that zoom doesn't drift back into its own toolbar.",
+		"in shu-column-pane:has(shu-domain-chain-view), click pane-controls-toggle",
+		waitFor({ target: IDS.DOMAIN_CHAIN.CONTROLS }),
+
+		scenario({ scenario: "View settings reveals every graph-view control as one group" }),
+
+		"Same invariant for the graph view: toolbar (zoom + layout + copy) and the predicate / axis filters all toggle together off a single gear click.",
+		"in shu-column-pane:has(shu-graph-view), click pane-controls-toggle",
+		waitFor({ target: IDS.GRAPH_VIEW.CONTROLS }),
 
 		scenario({ scenario: "Write the standalone HTML report mid-feature" }),
 
