@@ -95,6 +95,42 @@ describe("shu-graph", () => {
 		expect(received[0].nodeId).toBe("x");
 	});
 
+	it("setZoom mutates the diagram-container CSS transform without re-rendering through the injected renderer", async () => {
+		// Regression: zoom changes must not retrigger mermaid layout. The container's
+		// transform updates directly; the renderer's call count stays put.
+		const el = document.createElement("shu-graph") as ShuGraph;
+		const renderer = new RecordingRenderer();
+		el.setRenderer(renderer);
+		document.body.appendChild(el);
+		(el as ShuGraph & { products: Record<string, unknown> }).products = { graph: { nodes: [{ id: "a", label: "A" }], edges: [] } };
+		await Promise.resolve();
+		await Promise.resolve();
+		const before = renderer.calls.length;
+		el.setZoom(125);
+		el.setZoom(75);
+		expect(renderer.calls.length).toBe(before);
+		const container = el.shadowRoot?.querySelector(".container") as HTMLElement;
+		expect(container.style.transform).toBe("scale(0.75)");
+	});
+
+	it("repaint skips renderer.render when the projected mermaid source is byte-identical to the previous paint", async () => {
+		// Regression: live affordance pings that don't change the graph shape must not
+		// retrigger mermaid layout — preserves scroll position and stops the diagram jumping.
+		const el = document.createElement("shu-graph") as ShuGraph;
+		const renderer = new RecordingRenderer();
+		el.setRenderer(renderer);
+		document.body.appendChild(el);
+		const graph = { nodes: [{ id: "a", label: "A" }], edges: [] };
+		(el as ShuGraph & { products: Record<string, unknown> }).products = { graph };
+		await Promise.resolve();
+		await Promise.resolve();
+		const before = renderer.calls.length;
+		(el as ShuGraph & { products: Record<string, unknown> }).products = { graph: { nodes: [{ id: "a", label: "A" }], edges: [] } };
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(renderer.calls.length).toBe(before);
+	});
+
 	it("throws when products lacks a TGraph (no silent failure)", () => {
 		const el = document.createElement("shu-graph") as ShuGraph;
 		document.body.appendChild(el);

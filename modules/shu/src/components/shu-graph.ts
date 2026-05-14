@@ -11,9 +11,14 @@
  * `graph-node-hover` / `graph-node-leave` events; callers drive selection via
  * the `selectedNodeId` property so the URL / pane state can stay in sync.
  *
- * The component is consumer-agnostic: it does not know whether the graph
- * represents a domain chain, a quad store, an affordance combined-graph, or
- * anything else. View-specific projection happens in the calling component.
+ * Stability invariants:
+ *  - Zoom is a CSS-only transform on the diagram container. Updating zoom never
+ *    triggers a mermaid re-layout — the rendered SVG stays put.
+ *  - `repaint()` skips `renderer.render()` when the projected mermaid source is
+ *    byte-identical to the previous one, so live affordances updates that don't
+ *    change the graph shape don't re-lay it out.
+ *  - Selection lives outside the Zod state and applies via CSS classes; toggling
+ *    selection does not re-render.
  */
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
@@ -70,23 +75,29 @@ const GraphRenderOptionsSchema = z.object({
 const ShuGraphSchema = z.object({
 	graph: GraphSchema.nullable(),
 	options: GraphRenderOptionsSchema.optional(),
-	zoom: z.number().default(100),
 });
 
 export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 	private renderer: IGraphRenderer = new MermaidGraphRenderer();
 	private renderPending = false;
+	/** UI-only zoom percentage. Lives outside Zod state so changing it never triggers
+	 * a re-render — the CSS transform on `.container` updates directly. */
+	private zoomPercent = 100;
 	/** UI-only selection — sits outside the Zod state so toggling it doesn't trigger
 	 * a re-render (which would re-run mermaid layout and shift the graph). Applied
 	 * as CSS classes to the existing SVG via `applySelectionToSvg`. */
 	private selectedNodeIdValue = "";
+	/** Byte-identical-source guard. mermaid.render is O(n²)-ish on large graphs and
+	 * resets scroll/zoom on every paint, so live affordance updates that don't change
+	 * the projection must not retrigger it. */
+	private lastMermaidSource = "";
 	/** Per-paint caches so hover / selection handlers don't re-walk the SVG on every event. */
 	private svgNodeElements = new Map<string, SVGGElement>();
 	private svgNodeEdgeElements = new Map<string, Set<Element>>();
 	private svgNeighbors = new Map<string, Set<string>>();
 
 	constructor() {
-		super(ShuGraphSchema, { graph: null, zoom: 100 });
+		super(ShuGraphSchema, { graph: null });
 	}
 
 	/**
@@ -95,6 +106,7 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 	 */
 	setRenderer(renderer: IGraphRenderer): void {
 		this.renderer = renderer;
+		this.lastMermaidSource = "";
 		void this.repaint();
 	}
 
@@ -117,41 +129,50 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 		this.applySelectionToSvg();
 	}
 
-	/** Zoom percentage (100 = 1x). Updates the diagram container transform without
-	 * re-painting mermaid. */
+	/** Zoom percentage (100 = 1x). Updates the diagram-container CSS transform directly —
+	 * no re-render, no mermaid relayout. */
 	setZoom(zoom: number): void {
-		this.setState({ zoom });
+		if (zoom === this.zoomPercent) return;
+		this.zoomPercent = zoom;
+		const container = this.shadowRoot?.querySelector(".container") as HTMLElement | null;
+		if (container) container.style.transform = `scale(${zoom / 100})`;
+	}
+
+	getZoom(): number {
+		return this.zoomPercent;
 	}
 
 	protected render(): void {
 		if (!this.shadowRoot) return;
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}
-			<div class="toolbar"><shu-copy-button data-testid="shu-graph-copy" label="Copy" title="Copy Mermaid source to clipboard"></shu-copy-button></div>
-			<div class="scroll"><div class="container" data-testid="shu-graph-container" style="transform: scale(${this.state.zoom / 100}); transform-origin: top left;"></div></div>`;
-		const container = this.shadowRoot.querySelector(".container") as HTMLElement;
-		container.addEventListener(SHU_EVENT.GRAPH_NODE_CLICK as string, (e) => {
-			e.stopPropagation();
-			const ce = e as CustomEvent;
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: ce.detail, bubbles: true, composed: true }));
-		});
-		// Hover-highlight: immediate neighbours when no selection; selection wins.
-		container.addEventListener(SHU_EVENT.GRAPH_NODE_HOVER as string, (e) => {
-			e.stopPropagation();
-			if (this.selectedNodeIdValue) return;
-			const nodeId = (e as CustomEvent).detail?.nodeId as string | undefined;
-			if (nodeId) this.paintHighlight(nodeId, false);
-		});
-		container.addEventListener(SHU_EVENT.GRAPH_NODE_LEAVE as string, (e) => {
-			e.stopPropagation();
-			if (this.selectedNodeIdValue) return;
-			this.clearHighlight();
-		});
-		// Click on empty SVG background clears selection — bubbles up to the consumer
-		// via GRAPH_NODE_CLICK with no nodeId so the consumer can also clear deep-links.
-		container.addEventListener("click", (e) => {
-			if (e.target instanceof Element && e.target.closest("g.node")) return;
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: { nodeId: "", node: null }, bubbles: true, composed: true }));
-		});
+		// Build the shadow-DOM scaffold (copy strip + container) once. Subsequent renders
+		// only repaint the mermaid SVG; rebuilding innerHTML on every setState would wipe
+		// the SVG and force mermaid to re-lay-out, defeating the byte-identical-source guard.
+		if (!this.shadowRoot.querySelector(".container")) {
+			this.shadowRoot.innerHTML = `${this.css(STYLES)}
+				<div class="copy-strip"><shu-copy-button data-testid="shu-graph-copy" label="Copy" title="Copy Mermaid source to clipboard"></shu-copy-button></div>
+				<div class="scroll"><div class="container" data-testid="shu-graph-container" style="transform: scale(${this.zoomPercent / 100}); transform-origin: top left;"></div></div>`;
+			const container = this.shadowRoot.querySelector(".container") as HTMLElement;
+			container.addEventListener(SHU_EVENT.GRAPH_NODE_CLICK as string, (e) => {
+				e.stopPropagation();
+				const ce = e as CustomEvent;
+				this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: ce.detail, bubbles: true, composed: true }));
+			});
+			container.addEventListener(SHU_EVENT.GRAPH_NODE_HOVER as string, (e) => {
+				e.stopPropagation();
+				if (this.selectedNodeIdValue) return;
+				const nodeId = (e as CustomEvent).detail?.nodeId as string | undefined;
+				if (nodeId) this.paintHighlight(nodeId, false);
+			});
+			container.addEventListener(SHU_EVENT.GRAPH_NODE_LEAVE as string, (e) => {
+				e.stopPropagation();
+				if (this.selectedNodeIdValue) return;
+				this.clearHighlight();
+			});
+			container.addEventListener("click", (e) => {
+				if (e.target instanceof Element && e.target.closest("g.node")) return;
+				this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: { nodeId: "", node: null }, bubbles: true, composed: true }));
+			});
+		}
 		void this.repaint();
 	}
 
@@ -164,11 +185,14 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 		const container = this.shadowRoot.querySelector(".container") as HTMLElement | null;
 		const graph = this.state.graph;
 		if (!container || !graph) return;
+		const source = buildMermaidSource(graph, this.state.options);
 		const copyBtn = this.shadowRoot.querySelector('shu-copy-button[data-testid="shu-graph-copy"]') as (HTMLElement & { source: string }) | null;
-		if (copyBtn) copyBtn.source = buildMermaidSource(graph, this.state.options);
+		if (copyBtn) copyBtn.source = source;
+		// Skip the mermaid layout if the projected source is identical to the last paint —
+		// avoids re-laying-out on live affordance pings that don't change graph shape.
+		if (source === this.lastMermaidSource) return;
+		this.lastMermaidSource = source;
 		await this.renderer.render(graph, container, this.state.options);
-		// Rebuild SVG caches after every paint; the renderer replaced container.innerHTML
-		// so previous element references are stale.
 		this.svgNodeElements = findSvgNodes(graph, container);
 		this.svgNodeEdgeElements = findSvgEdges(graph, container);
 		this.svgNeighbors = buildNeighbors(graph);
@@ -213,7 +237,11 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 
 const STYLES = `
 	:host { display: block; }
-	.toolbar { display: flex; justify-content: flex-end; padding: 2px 0 4px; }
+	/* The copy strip is a single per-graph control. It lives outside the view-controls
+	   block because every graph (chain view, affordances goal-graph, future renderers)
+	   benefits from "copy the mermaid source" without being part of the view's gear-gated
+	   controls. Consumers that want to suppress it can hide via host CSS. */
+	.copy-strip { display: flex; justify-content: flex-end; padding: 2px 0 4px; }
 	.scroll { overflow: auto; max-height: 100%; }
 	.container { padding: 8px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; }
 	.error { color: #a02828; padding: 6px; background: #fdecec; border-radius: 3px; font-size: 12px; }

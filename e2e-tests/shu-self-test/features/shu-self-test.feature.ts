@@ -18,10 +18,11 @@ const { enterStepMode, passesStepExecution } = createStepUI(wp);
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
-// Register the step-caller test-ids so `click({target: "current-step-run"})` resolves
-// via `getByTestId` rather than the `getByText` fallback. createStepUI's helpers all
-// target ids in this list.
-const stepIdSetup = stepTestIds([]).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+// Step-caller test-ids are generated per-invocation by createStepUI's helpers
+// (method + callIndex + param), so there's nothing to pre-register at file scope —
+// each invocation does its own setAs via the helper. The empty list is here so the
+// `...stepIdSetup` spread below remains a stable extension point.
+const stepIdSetup: ReturnType<typeof setAs>[] = [];
 
 const FRAGMENT = "ISECRET";
 export const SECRETS = { FRAGMENT, TEST_PASSWORD: `${FRAGMENT}_shu_test` };
@@ -103,6 +104,18 @@ export const features: TKirejiExport = {
 		...passesStepExecution("show chain lint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
+
+		scenario({ scenario: "View settings reveals every chain-view control as one group" }),
+
+		"View settings (the gear in the column-pane header) is the single switch for every per-view control: zoom, layout, axis filter. Toggling it on the chain pane reveals the whole controls block at once — this scenario pins the unified-gate invariant so that zoom doesn't drift back into its own toolbar.",
+		"in shu-column-pane:has(shu-domain-chain-view), click pane-controls-toggle",
+		waitFor({ target: IDS.DOMAIN_CHAIN.CONTROLS }),
+
+		scenario({ scenario: "View settings reveals every graph-view control as one group" }),
+
+		"Same invariant for the graph view: toolbar (zoom + layout + copy) and the predicate / axis filters all toggle together off a single gear click.",
+		"in shu-column-pane:has(shu-graph-view), click pane-controls-toggle",
+		waitFor({ target: IDS.GRAPH_VIEW.CONTROLS }),
 
 		scenario({ scenario: "Goal resolution: `resolve` returns a verdict for a registered domain" }),
 
