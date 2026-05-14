@@ -200,16 +200,19 @@ export class StepCaller extends HTMLElement {
 	}
 
 	/**
-	 * Unique per-invocation testid prefix: `${method}-${callIndex}` where
-	 * `method` is the full `StepperName-stepName` (set by the actions bar)
-	 * and `callIndex` is the count of prior callers for the same method.
-	 * Using the qualified method name (not just the short step name) keeps
-	 * testids stable across steppers that expose the same short step name.
+	 * Unique per-invocation testid prefix: `${gwta}-${callIndex}` where
+	 * `gwta` is the user-facing step pattern (e.g. "show affordances") that the
+	 * actions bar threads through, and `callIndex` is the count of prior callers
+	 * for the same method. Falls back to the qualified method when no gwta is
+	 * supplied (defensive, for callers that mount step-caller directly without
+	 * going through the actions bar). Using gwta keeps test selectors readable
+	 * — feature files target "show affordances-0-step-run" rather than
+	 * "GoalResolutionStepper-showAffordances-0-step-run".
 	 */
 	private idPrefix(): string {
-		const method = this.getAttribute("method") || this.getAttribute("step") || "";
+		const key = this.getAttribute("gwta") || this.getAttribute("method") || this.getAttribute("step") || "";
 		const callIndex = this.getAttribute("call-index") ?? "0";
-		return `${method}-${callIndex}`;
+		return `${key}-${callIndex}`;
 	}
 
 	private renderComponent(): void {
