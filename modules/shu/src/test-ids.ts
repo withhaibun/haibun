@@ -78,7 +78,6 @@ export const SHU_TEST_IDS = {
 	},
 	AFFORDANCES: {
 		ROOT: "shu-affordances",
-		FORWARD_LIST: "affordances-forward",
 		GOALS_LIST: "affordances-goals",
 		EMPTY: "affordances-empty",
 	},
