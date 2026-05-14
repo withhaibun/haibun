@@ -136,15 +136,15 @@ const main = async (): Promise<void> => {
 	const removeTransientPanes = (strip: ShuColumnStrip) => prunePanesAfterIndex(strip, -1);
 
 	// Boot-time smoke test for the diagnostic channel.
-	const reportBootDiagnostic = (level: "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
+	const reportBootDiagnostic = (level: "debug" | "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
 		if (ShuElement.offline) return;
 		void inAction(async (scope) => {
 			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, source: "shu-app-boot", message: msg, attributes: attrs } });
 		}).catch((e) => failFastOrLog("[shu-boot] diagnostic failed:", e));
 	};
-	reportBootDiagnostic("info", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
+	reportBootDiagnostic("debug", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
 
-	const reportClientLog = (level: "info" | "warn" | "error", message: string, attributes?: Record<string, unknown>) => {
+	const reportClientLog = (level: "debug" | "info" | "warn" | "error", message: string, attributes?: Record<string, unknown>) => {
 		// Offline (standalone shu.html): no server to log to. Skip silently — the
 		// diagnostic channel only exists in live mode.
 		if (ShuElement.offline) return;
@@ -165,7 +165,7 @@ const main = async (): Promise<void> => {
 	 * channel it uses for IMAP skips and lifecycle step failures — no per-source plumbing.
 	 */
 	const reportExternalComponent = (
-		level: "info" | "warn" | "error",
+		level: "debug" | "error" | "info" | "warn" | "error",
 		phase: "lookup" | "fetch" | "register" | "mount" | "missing-ui" | "missing-script" | "fetch-failed" | "register-failed" | "mounted",
 		component: string,
 		extra: Record<string, unknown> = {},
@@ -261,10 +261,10 @@ const main = async (): Promise<void> => {
 
 	const ensureUiComponentLoaded = async (childTag: string): Promise<void> => {
 		if (customElements.get(childTag)) {
-			reportExternalComponent("info", "register", childTag, { "haibun.shu.external-component.already-registered": true });
+			reportExternalComponent("debug", "register", childTag, { "haibun.shu.external-component.already-registered": true });
 			return;
 		}
-		reportExternalComponent("info", "lookup", childTag);
+		reportExternalComponent("debug", "lookup", childTag);
 		const ui = getUiByComponent(childTag);
 		if (!ui) {
 			reportExternalComponent("error", "missing-ui", childTag);
@@ -288,7 +288,7 @@ const main = async (): Promise<void> => {
 			reportExternalComponent("error", "register-failed", childTag, { "haibun.shu.external-component.url": src });
 			throw new Error(`[shu] ${childTag} loaded from ${src} but customElements.get(${JSON.stringify(childTag)}) is undefined — bundle did not register the element`);
 		}
-		reportExternalComponent("info", "mounted", childTag, { "haibun.shu.external-component.url": src });
+		reportExternalComponent("debug", "mounted", childTag, { "haibun.shu.external-component.url": src });
 	};
 
 	// Every step-end emits hypermedia products; if they carry view markers, route to PaneState.
