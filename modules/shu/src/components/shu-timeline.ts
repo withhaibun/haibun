@@ -296,7 +296,7 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 				<div class="track-overlay">${segments}</div>
 				<div class="markers">${markers}</div>
 				<input type="range" data-testid="timeline-slider" min="0" max="${total}" value="${display}">
-				<span class="knob-label" data-testid="timeline-knob-label" style="left:${knobPct.toFixed(2)}%">${knobLabel}</span>
+				<span class="knob-label" data-testid="timeline-time" style="left:${knobPct.toFixed(2)}%">${knobLabel}</span>
 			</div>`;
 		this.shadowRoot.querySelector("[data-action=restart]")?.addEventListener("click", () => {
 			// Cursor parks one millisecond before the first event so views that

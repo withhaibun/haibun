@@ -35,7 +35,6 @@ const StateSchema = z.object({
 	fetchError: z.string().default(""),
 	hiddenSteppers: z.array(z.string()).default([]),
 	hiddenKinds: z.array(z.string()).default([]),
-	zoom: z.number().default(100),
 	layout: z.enum(["TB", "LR"]).default("LR"),
 });
 
@@ -63,10 +62,14 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			// First-time visitors see only actionable nodes; "unreachable" stays available
 			// via view settings so users debugging a missing producer can opt back in.
 			hiddenKinds: persisted.kind ?? ["unreachable"],
-			zoom: 100,
 			layout: "LR",
 		});
 	}
+
+	/** UI-only zoom percentage. Lives outside Zod state so changing it never triggers
+	 * a chain-view re-render — the shu-graph element receives setZoom() directly and
+	 * applies a CSS transform to its container without re-running mermaid. */
+	private zoomPercent = 100;
 
 	static get observedAttributes(): string[] {
 		return ["data-show-controls"];
@@ -171,7 +174,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	protected render(): void {
 		if (!this.shadowRoot) return;
 		const a = this.affordances;
-		const { loadState, fetchError, zoom, layout } = this.state;
+		const { loadState, fetchError, layout } = this.state;
 		if (!a) {
 			if (loadState === "fetching") {
 				this.shadowRoot.innerHTML = `<style>${STYLES}</style><shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
@@ -189,13 +192,15 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		const graph = filterGraph(rawGraph, { hiddenSteppers, hiddenKinds });
 		graph.direction = layout;
 
-		const toolbar = `<div class="toolbar" data-testid="domain-chain-toolbar">
+		// View controls — zoom, layout, axis filter. All gated together by `data-show-controls`
+		// (the column-pane's gear); per the view-controls convention, no per-control gating.
+		const toolbar = `<div class="view-controls" data-testid="domain-chain-toolbar">
 			<button data-action="layout" title="Toggle layout direction">${layout}</button>
 			<button data-action="zoom-out" title="Zoom out">&minus;</button>
-			<span class="zoom-label">${zoom}%</span>
+			<span class="zoom-label">${this.zoomPercent}%</span>
 			<button data-action="zoom-in" title="Zoom in">+</button>
-		</div>
-		<shu-graph-filter data-axis-cookie-key="${FILTER_KEY}"></shu-graph-filter>`;
+			<shu-graph-filter data-axis-cookie-key="${FILTER_KEY}"></shu-graph-filter>
+		</div>`;
 
 		this.shadowRoot.innerHTML = `<style>${STYLES}</style>
 			<div class="header">
@@ -227,7 +232,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		const graphEl = this.shadowRoot.querySelector("shu-graph") as (ShuGraph & HTMLElement) | null;
 		if (graphEl) {
 			graphEl.products = { graph, options: {} };
-			graphEl.setZoom?.(zoom);
+			graphEl.setZoom(this.zoomPercent);
 			graphEl.addEventListener(SHU_EVENT.GRAPH_NODE_CLICK as string, (e) => {
 				const detail = (e as CustomEvent).detail as { nodeId?: string; node?: { id?: string; kind?: string; link?: { href?: string }; wasGeneratedBy?: { factId: string; domain: string } } | null };
 				const node = detail?.node;
@@ -251,12 +256,15 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	}
 
 	private bindToolbar(): void {
-		for (const btn of Array.from(this.shadowRoot?.querySelectorAll<HTMLButtonElement>(".toolbar button") ?? [])) {
+		for (const btn of Array.from(this.shadowRoot?.querySelectorAll<HTMLButtonElement>(".view-controls button[data-action]") ?? [])) {
 			btn.addEventListener("click", () => {
 				const action = btn.dataset.action;
 				if (action === "zoom-in" || action === "zoom-out") {
-					const zoom = action === "zoom-in" ? Math.min(400, this.state.zoom + 10) : Math.max(10, this.state.zoom - 10);
-					this.setState({ zoom });
+					this.zoomPercent = action === "zoom-in" ? Math.min(400, this.zoomPercent + 10) : Math.max(10, this.zoomPercent - 10);
+					const graphEl = this.shadowRoot?.querySelector("shu-graph") as (ShuGraph & HTMLElement) | null;
+					graphEl?.setZoom(this.zoomPercent);
+					const label = this.shadowRoot?.querySelector(".zoom-label");
+					if (label) label.textContent = `${this.zoomPercent}%`;
 					return;
 				}
 				if (action === "layout") {
@@ -370,8 +378,12 @@ const STYLES = `
 	.empty { color: #555; font-size: 12px; padding: 12px; margin: 12px; background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; }
 	.empty code { background: #eee; padding: 1px 4px; border-radius: 2px; font-size: 11px; }
 	.error { color: #a02828; font-size: 12px; padding: 8px 12px; margin: 8px 12px; background: #fdecec; border: 1px solid #f5c6c6; border-radius: 3px; }
-	.toolbar { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; background: #fff; flex-shrink: 0; }
-	.toolbar button { padding: 2px 8px; cursor: pointer; }
+	/* View controls (zoom + layout + axis filter) toggle together as one group via
+	   the column-pane's gear (which mirrors its state onto data-show-controls on us). */
+	.view-controls { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; background: #fff; flex-shrink: 0; flex-wrap: wrap; }
+	.view-controls button { padding: 2px 8px; cursor: pointer; }
+	.view-controls shu-graph-filter { flex: 1; min-width: 0; }
+	:host(:not([data-show-controls])) .view-controls { display: none; }
 	.zoom-label { color: #666; font-size: 12px; min-width: 38px; text-align: center; }
 	shu-graph { flex: 1; min-height: 0; overflow: hidden; }
 `;
