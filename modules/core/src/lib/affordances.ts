@@ -54,6 +54,23 @@ export type TGoalAffordance = {
 	resolution: TGoalResolution;
 };
 
+export const WAYPOINT_KIND = { IMPERATIVE: "imperative", DECLARATIVE: "declarative" } as const;
+export type TWaypointKind = (typeof WAYPOINT_KIND)[keyof typeof WAYPOINT_KIND];
+
+export type TWaypointEntry = {
+	outcome: string;
+	kind: TWaypointKind;
+	method: string;
+	paramSlots: string[];
+	proofStatements: string[];
+	resolvesDomain?: string;
+	/** True when this waypoint has been ensured: either `ensure` ran its proof to success, or its declarative goal currently has a satisfying fact. */
+	ensured: boolean;
+	error?: string;
+	source: { path: string; lineNumber?: number };
+	isBackground: boolean;
+};
+
 /**
  * Per-domain composite-field map. Each entry names the registered field-domain
  * for one schema field, sourced from `topology.ranges`. Empty for atomic domains.
@@ -66,6 +83,22 @@ export type TAffordances = {
 	forward: TForwardAffordance[];
 	goals: TGoalAffordance[];
 	composites?: TCompositeRanges;
+	/**
+	 * Every domain that currently has at least one asserted fact in working memory.
+	 * Distinct from `goals[].resolution.finding === satisfied` — that list is filtered
+	 * to drop trivial single-step goals, whereas this set captures all asserted
+	 * domains (including ones produced by argument-only single-step paths). Used by
+	 * the chain view to color every node by actual state rather than the
+	 * affordance-panel-shaped goals projection.
+	 */
+	satisfiedDomains: string[];
+	/**
+	 * Per-domain map of asserted fact identifiers (the producing seqPath, in string
+	 * form). The chain view uses this to render individual fact-instance nodes
+	 * attached to their domain — so the user sees "an issuer was created at 0.1.3.2"
+	 * rather than just "the issuer domain is satisfied". Keyed by domain name.
+	 */
+	satisfiedFacts: Record<string, string[]>;
 };
 
 export interface TAffordancesInputs {
@@ -92,9 +125,17 @@ export interface TAffordancesInputs {
 export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 	const graph = buildDomainChain(inputs.steppers, inputs.domains);
 	const facts = inputs.asOfSeqPath ? filterFactsAsOf(inputs.facts, inputs.asOfSeqPath) : inputs.facts;
+	const satisfiedDomains = [...new Set(facts.map((q) => q.predicate))].sort();
+	const satisfiedFacts: Record<string, string[]> = {};
+	for (const q of facts) {
+		if (!satisfiedFacts[q.predicate]) satisfiedFacts[q.predicate] = [];
+		satisfiedFacts[q.predicate].push(q.subject);
+	}
 	return {
 		forward: buildForwardFrontier(graph, facts, inputs.capabilities),
 		goals: buildGoalFrontier(graph, facts, inputs.capabilities, inputs.domains, inputs.compositeDecomposition, inputs.compositeMaxDepth),
+		satisfiedDomains,
+		satisfiedFacts,
 		composites: collectCompositeRanges(inputs.domains),
 	};
 }

@@ -1,7 +1,4 @@
 import { z } from "zod";
-
-const ActivityOutcomeSchema = z.object({ proofStatements: z.array(z.string()) });
-
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/astepper.js";
 import type { TFeatures, TStepInput } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
@@ -14,17 +11,11 @@ import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { stepMethodName } from "../lib/step-dispatch.js";
-import { buildAffordances } from "../lib/affordances.js";
+import { buildAffordances, WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
 import { DOMAIN_AFFORDANCES } from "../lib/domains.js";
+import { namedInterpolation } from "../lib/namedVars.js";
 
-/** Extract `{slot}` and `{slot:domain}` placeholders from a gwta pattern. Returns the slot names in order. */
-function parseParamSlots(gwta: string): string[] {
-	const slots: string[] = [];
-	const re = /\{([^{}:]+)(?::[^{}]+)?\}/g;
-	let m: RegExpExecArray | null;
-	while ((m = re.exec(gwta)) !== null) slots.push(m[1].trim());
-	return slots;
-}
+const ActivityOutcomeSchema = z.object({ proofStatements: z.array(z.string()) });
 
 // need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
@@ -366,36 +357,29 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const world = this.getWorld();
 				const steppers = (world.runtime.steppers as AStepper[]) ?? [];
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-				const affordances = buildAffordances({ steppers, domains: world.domains, facts, capabilities: new Set() });
-				const graph = buildDomainChain(steppers, world.domains);
+				// `compositeDecomposition: true` matches GoalResolutionStepper's default; without it
+				// composite-input goals (issuer-vertex inside issueCredential, …) get filtered as
+				// trivial when no fact exists yet, leaving the panel with empty goals[].
+				const affordances = buildAffordances({ steppers, domains: world.domains, facts, capabilities: new Set(), compositeDecomposition: true });
+				const satisfiedDomains = new Set(affordances.goals.filter((g) => g.resolution.finding === GOAL_FINDING.SATISFIED).map((g) => g.domain));
 
-				const waypoints: Array<{
-					outcome: string;
-					kind: "imperative" | "declarative";
-					method: string;
-					paramSlots: string[];
-					proofStatements: string[];
-					resolvesDomain?: string;
-					currentlyValid: boolean;
-					error?: string;
-					source: { path: string; lineNumber?: number };
-					isBackground: boolean;
-				}> = [];
-
+				const waypoints: TWaypointEntry[] = [];
 				for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
-					const kind: "imperative" | "declarative" = metadata.resolvesDomain ? "declarative" : "imperative";
-					const paramSlots = parseParamSlots(outcome);
+					const kind: TWaypointKind = metadata.resolvesDomain ? WAYPOINT_KIND.DECLARATIVE : WAYPOINT_KIND.IMPERATIVE;
+					const paramSlots = Object.keys(namedInterpolation(outcome).stepValuesMap ?? {});
 					const method = stepMethodName("ActivitiesStepper", outcome);
-					let currentlyValid = false;
+					let ensured = false;
 					let error: string | undefined;
 
 					if (metadata.resolvesDomain) {
-						const resolution = resolveGoal(metadata.resolvesDomain, { graph, facts, capabilities: new Set() });
-						currentlyValid = resolution.finding === GOAL_FINDING.SATISFIED;
-					} else if (metadata.proofStatements.length > 0) {
+						ensured = satisfiedDomains.has(metadata.resolvesDomain);
+					} else if (this.ensuredInstances.has(outcome) && metadata.proofStatements.length > 0) {
+						// Only verify imperative proofs that have actually been ensured. A speculative
+						// re-run for waypoints that never executed has no variable bindings in scope,
+						// produces cryptic "<term> is not set" errors, and tells the user nothing useful.
 						try {
 							const result = await this.runner.runStatements(metadata.proofStatements, { intent: { mode: "speculative" }, parentStep: featureStep });
-							currentlyValid = result.ok;
+							ensured = result.ok;
 							if (!result.ok && result.errorMessage) error = result.errorMessage;
 						} catch (err) {
 							error = errorDetail(err);
@@ -409,14 +393,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						paramSlots,
 						proofStatements: metadata.proofStatements,
 						resolvesDomain: metadata.resolvesDomain,
-						currentlyValid,
+						ensured,
 						error,
 						source: { path: metadata.proofPath, lineNumber: metadata.lineNumber },
 						isBackground: metadata.isBackground,
 					});
 				}
 
-				return actionOKWithProducts({ forward: affordances.forward, goals: affordances.goals, composites: affordances.composites, waypoints });
+				return actionOKWithProducts({ forward: affordances.forward, goals: affordances.goals, composites: affordances.composites, satisfiedDomains: affordances.satisfiedDomains, satisfiedFacts: affordances.satisfiedFacts, waypoints });
 			},
 		},
 	} as const satisfies TActivitiesFixedSteps;

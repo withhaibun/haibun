@@ -156,6 +156,8 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 						.strict(),
 				),
 				goals: z.array(z.object({ domain: z.string(), description: z.string(), resolution: z.unknown() }).strict()),
+				satisfiedDomains: z.array(z.string()).default([]),
+				satisfiedFacts: z.record(z.string(), z.array(z.string())).default({}),
 				// Per-domain composite-field map (haibun's sh:node / rdfs:range equivalent).
 				// Carries the registered `topology.ranges` declarations so the SPA's
 				// chain view can emit synthetic field nodes between composite domains
@@ -176,7 +178,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 								paramSlots: z.array(z.string()),
 								proofStatements: z.array(z.string()),
 								resolvesDomain: z.string().optional(),
-								currentlyValid: z.boolean(),
+								ensured: z.boolean(),
 								error: z.string().optional(),
 								source: z.object({ path: z.string(), lineNumber: z.number().optional() }).strict(),
 								isBackground: z.boolean(),
