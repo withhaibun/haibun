@@ -138,7 +138,8 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			if (ctrlBtn) ctrlBtn.classList.toggle("active", Boolean(child?.hasAttribute("data-show-controls")));
 		});
 
-		// Minimize toggle
+		// Minimize toggle — event detail carries the new state so PaneState can update
+		// its canonical `desired.flag` without inspecting DOM attributes after the fact.
 		this.shadowRoot.querySelector(".pane-minimize")?.addEventListener("click", (e) => {
 			e.stopPropagation();
 			const minimize = !this.isCollapsed;
@@ -149,7 +150,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				this.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
 			}
 			this.syncCollapsedControls();
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { bubbles: true, composed: true }));
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { detail: { minimized: minimize }, bubbles: true, composed: true }));
 		});
 
 		// Maximize toggle
@@ -161,7 +162,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			} else {
 				this.removeAttribute(SHU_ATTR.DATA_MAXIMIZED);
 			}
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { bubbles: true, composed: true }));
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { detail: { maximized: maximize }, bubbles: true, composed: true }));
 		});
 
 		// Controls toggle — toggles data-show-controls on the slotted child view

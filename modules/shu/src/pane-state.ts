@@ -120,6 +120,41 @@ class PaneStateImpl {
 		this.strip = strip;
 		this.hooks = hooks;
 		window.addEventListener("hashchange", () => this.fromHash());
+		// User-initiated per-pane control toggles (minimize / maximize / expand) update
+		// the canonical `desired.flag` so subsequent reconciles preserve the user's choice
+		// and the URL hash stays in sync. Without this, any later `request()` would call
+		// `applyFlag(existing, undefined)` and wipe the user's minimized / maximized state.
+		strip.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, ((e: CustomEvent) => {
+			const pane = e.target as HTMLElement;
+			const id = pane.dataset?.columnKey;
+			if (!id) return;
+			const minimized = Boolean(e.detail?.minimized);
+			this.setFlag(id, minimized ? "min" : undefined);
+		}) as EventListener);
+		strip.addEventListener(SHU_EVENT.COLUMN_MAXIMIZE, ((e: CustomEvent) => {
+			const pane = e.target as HTMLElement;
+			const id = pane.dataset?.columnKey;
+			if (!id) return;
+			const maximized = Boolean(e.detail?.maximized);
+			this.setFlag(id, maximized ? "max" : undefined);
+		}) as EventListener);
+		strip.addEventListener(SHU_EVENT.COLUMN_EXPAND, ((e: Event) => {
+			const pane = e.target as HTMLElement;
+			const id = pane.dataset?.columnKey;
+			if (!id) return;
+			this.setFlag(id, undefined);
+		}) as EventListener);
+	}
+
+	/** Update the flag for a pane already in `desired`. No-op when the pane is unknown
+	 * (e.g. the query pane, which lives outside PaneState's tracked set). Writes the
+	 * URL hash so the user's choice survives a reload. */
+	private setFlag(paneId: string, flag: DesiredPane["flag"]): void {
+		const d = this.desired.get(paneId);
+		if (!d) return;
+		if (d.flag === flag) return;
+		this.desired.set(paneId, { ...d, flag } as DesiredPane);
+		this.writeHash();
 	}
 
 	/** Parse the URL hash into desired panes and reconcile. */
@@ -205,7 +240,15 @@ class PaneStateImpl {
 			const id = p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE);
 			if (id && id !== "query") live.set(id, p);
 		}
-		for (const [id, pane] of live) if (!this.desired.has(id)) pane.remove();
+		// Route removals through `removePane` so the strip emits COLUMNS_CHANGED for each
+		// dismissal. A bare `pane.remove()` mutates the DOM but the actions-bar breadcrumb
+		// (which listens on COLUMNS_CHANGED) would never update.
+		for (const [id, pane] of live) {
+			if (this.desired.has(id)) continue;
+			const idx = this.strip.panes.indexOf(pane);
+			if (idx >= 0) this.strip.removePane(idx);
+			else pane.remove();
+		}
 		for (const d of this.desired.values()) {
 			const id = paneIdOf(d);
 			const existing = live.get(id);
