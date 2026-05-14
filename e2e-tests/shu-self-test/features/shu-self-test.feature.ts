@@ -10,7 +10,7 @@ import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 const wp = new WebPlaywright();
 const { waitFor, click, selectionOption, gotoPage, reloadPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
-const { set, setAs, is, exists, setFromStatement } = withAction(new VariablesStepper());
+const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
 const { feature, scenario } = withAction(new Haibun());
 const { enterStepMode, passesStepExecution } = createStepUI(wp);

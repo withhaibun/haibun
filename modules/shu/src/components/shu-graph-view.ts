@@ -212,7 +212,8 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		if (this.state.dataSource === "external") return;
 		const isSnapshot = this.hasAttribute("data-snapshot-time");
 
-		const client = SseClient.for("");
+		// Force-initialize the shared SSE client singleton for side effects (replay buffer wiring).
+		void SseClient.for("");
 
 		const initial = ShuGraphFilter.getPersistedFilter();
 		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
@@ -732,6 +733,8 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	 */
 	private showQuadDetail(_graph: string, subject: string): void {
 		const head = subject.includes("#") ? subject.slice(0, subject.indexOf("#")) : subject;
-		PaneState.request({ paneType: "step-detail", seqPath: parseSeqPath(head)! });
+		const seqPath = parseSeqPath(head);
+		if (!seqPath) throw new Error(`shu-graph-view: quad subject "${subject}" is not a parseable seqPath`);
+		PaneState.request({ paneType: "step-detail", seqPath });
 	}
 }

@@ -228,7 +228,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		showAffordancesAsOf: {
 			gwta: "show affordances as of {asOf: string}",
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: async ({ asOf }: { asOf: string }) => {
+			action: ({ asOf }: { asOf: string }) => {
 				const parsed = parseSeqPath(asOf);
 				if (!parsed) return actionNotOK(`show affordances as of: ${asOf} is not a seqPath (expected dot-joined integers, e.g. "0.-1.5.1")`);
 				return this.computeAffordances(parsed);

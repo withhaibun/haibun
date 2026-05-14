@@ -227,7 +227,9 @@ export class SseClient {
 	 * return a no-op unsubscribe.
 	 */
 	onEvent(handler: TEventHandler, filter?: TEventFilter): () => void {
-		if (ShuElement.offline) return () => {};
+		if (ShuElement.offline) {
+			return () => undefined;
+		}
 		return ensureSSE().subscribe(handler, filter);
 	}
 
