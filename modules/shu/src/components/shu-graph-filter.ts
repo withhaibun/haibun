@@ -44,6 +44,22 @@ function writeCookie(value: Persisted): void {
 	setJsonCookie(COOKIE_NAME, value);
 }
 
+const AXIS_COOKIE_PREFIX = "shu-graph-filter-axes";
+
+function readAxisCookie(key: string): Record<string, string[]> {
+	const parsed = getJsonCookie<Record<string, unknown> | null>(`${AXIS_COOKIE_PREFIX}-${key}`, null);
+	if (!parsed || typeof parsed !== "object") return {};
+	const out: Record<string, string[]> = {};
+	for (const [axis, values] of Object.entries(parsed)) {
+		if (Array.isArray(values)) out[axis] = values.filter((v): v is string => typeof v === "string");
+	}
+	return out;
+}
+
+function writeAxisCookie(key: string, value: Record<string, string[]>): void {
+	setJsonCookie(`${AXIS_COOKIE_PREFIX}-${key}`, value);
+}
+
 const STYLES = `
 :host { display: block; padding: 4px 8px; font-size: 12px; background: #fff; border-bottom: 1px solid #ddd; }
 :host(:not([show-controls])) { display: none; }
@@ -69,6 +85,12 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	private knownClusters = new Map<string, TCluster>();
 	private quads: TQuad[] = [];
 	private docTimeSyncAbort?: AbortController;
+	// Axis mode: alternative to quad/cluster source. When set, the filter renders
+	// one section of checkboxes per named axis (e.g. stepper, kind) and emits
+	// `graph-filter-change` with `{ hiddenByAxis }`. Used by the chain-graph view
+	// where the data is `TGraph`-shaped, not quad-shaped.
+	private axisSource: { axes: Record<string, string[]>; hidden: Record<string, Set<string>> } | null = null;
+	private axisCookieKey: string | null = null;
 
 	constructor() {
 		const persisted = readCookie();
@@ -114,10 +136,46 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	setSource(knownClusters: Map<string, TCluster>, quads: TQuad[]): void {
 		this.knownClusters = knownClusters;
 		this.quads = quads;
+		this.axisSource = null;
 		this.render();
 	}
 
+	/**
+	 * Axis-mode source. The chain-graph view supplies pre-computed axes (stepper,
+	 * kind, etc.) instead of quads; the filter renders one row of checkboxes per
+	 * axis and emits `graph-filter-change` with `{ hiddenByAxis }`. The host
+	 * attribute `data-axis-cookie-key` namespaces persistence so different chain
+	 * views remember their own filters.
+	 */
+	setAxes(axes: Record<string, string[]>): void {
+		const cookieKey = this.dataset.axisCookieKey ?? "default";
+		this.axisCookieKey = cookieKey;
+		const persisted = readAxisCookie(cookieKey);
+		const hidden: Record<string, Set<string>> = {};
+		for (const axis of Object.keys(axes)) hidden[axis] = new Set(persisted[axis] ?? []);
+		this.axisSource = { axes, hidden };
+		this.render();
+	}
+
+	/** Hosts call this before their first paint so the persisted hidden-set applies on initial load. */
+	static getPersistedAxes(cookieKey: string): Record<string, string[]> {
+		return readAxisCookie(cookieKey);
+	}
+
 	private dispatchChange(): void {
+		if (this.axisSource) {
+			const hiddenByAxis: Record<string, string[]> = {};
+			for (const [axis, set] of Object.entries(this.axisSource.hidden)) hiddenByAxis[axis] = [...set];
+			if (this.axisCookieKey) writeAxisCookie(this.axisCookieKey, hiddenByAxis);
+			this.dispatchEvent(
+				new CustomEvent(SHU_EVENT.GRAPH_FILTER_CHANGE, {
+					detail: { hiddenByAxis },
+					bubbles: true,
+					composed: true,
+				}),
+			);
+			return;
+		}
 		writeCookie({ hiddenTypes: this.state.hiddenTypes, perTypeLimit: this.state.perTypeLimit });
 		const visibleClusters = this.deriveClusters();
 		const visibleTypes = visibleClusters.map((c) => c.type).filter((t) => !this.state.hiddenTypes.includes(t));
@@ -137,6 +195,10 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 
 	protected render(): void {
 		if (!this.shadowRoot) return;
+		if (this.axisSource) {
+			this.renderAxes();
+			return;
+		}
 		const { hiddenTypes, perTypeLimit } = this.state;
 		const hiddenSet = new Set(hiddenTypes);
 		const clusters = this.deriveClusters();
@@ -160,6 +222,34 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			<span class="quad-count">${quadCount} quads</span>
 		</div>`;
 		this.bind();
+	}
+
+	private renderAxes(): void {
+		if (!this.shadowRoot || !this.axisSource) return;
+		const rows = Object.entries(this.axisSource.axes)
+			.map(([axis, values]) => {
+				const hidden = this.axisSource?.hidden[axis] ?? new Set<string>();
+				const chips = values
+					.slice()
+					.sort((a, b) => a.localeCompare(b))
+					.map((v) => `<label class="type" style="background:${colorForType(v)}"><input type="checkbox" data-axis="${axis}" data-value="${v.replace(/"/g, "&quot;")}" ${hidden.has(v) ? "" : "checked"}>${v}</label>`)
+					.join("");
+				return `<div class="row"><span class="label">${axis}:</span>${chips || '<span class="meta">none</span>'}</div>`;
+			})
+			.join("");
+		this.shadowRoot.innerHTML = `${this.css(STYLES)}${rows}`;
+		for (const cb of Array.from(this.shadowRoot.querySelectorAll<HTMLInputElement>("input[data-axis]"))) {
+			cb.addEventListener("change", () => {
+				const axis = cb.dataset.axis ?? "";
+				const value = cb.dataset.value ?? "";
+				if (!this.axisSource) return;
+				const set = this.axisSource.hidden[axis] ?? new Set<string>();
+				if (cb.checked) set.delete(value);
+				else set.add(value);
+				this.axisSource.hidden[axis] = set;
+				this.dispatchChange();
+			});
+		}
 	}
 
 	private bind(): void {

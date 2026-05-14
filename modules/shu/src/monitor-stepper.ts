@@ -89,7 +89,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 */
 	tunables = {
 		MAX_EVENTS: {
-			desc: "Cap on the monitor's in-memory event buffer (and observation-quads buffer). Default: 10000.",
+			desc: "Limit on the monitor's in-memory event buffer (and observation-quads buffer). Default: 10000.",
 			parse: intOrError,
 			range: { kind: "number" as const, min: 100, max: 1_000_000 },
 			rateLimit: { maxChangesPerDay: 48 },
@@ -202,14 +202,39 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		if (!rpcCache["step.list"]) {
 			rpcCache["step.list"] = { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
 		}
-		// Reconstruct view hash from events (view products) and cache (last query label)
+		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
+		// the early empty-graph state; the panel's offline render uses the cache, so the
+		// last live snapshot is the one that matters. Re-run the parameterless producers
+		// to overwrite with end-of-run forward / goals / waypoints.
+		const steppers = (this.getWorld().runtime.steppers as AStepper[] | undefined) ?? [];
+		for (const stepper of steppers) {
+			const refreshable = ["showWaypoints", "showAffordances"];
+			for (const name of refreshable) {
+				const step = stepper.steps?.[name];
+				if (!step || typeof (step as { action?: unknown }).action !== "function") continue;
+				const key = `${stepper.constructor.name}-${name}`;
+				try {
+					const r = (await ((step as { action: (a: Record<string, unknown>) => unknown }).action)({})) as { products?: Record<string, unknown> } | undefined;
+					if (r?.products) rpcCache[key] = r.products;
+				} catch (err) {
+					logger.warn(`[shu writeStandaloneReport] ${key} refresh failed: ${err instanceof Error ? err.message : err}`);
+				}
+			}
+		}
+		// Reconstruct view hash from events (view products) and cache (last query label).
+		// `view` is the productsDomain key (e.g. "affordances"); pane-state expects the
+		// component tag (e.g. "shu-affordances-panel"). Resolve via the registered domain's
+		// `ui.component` so the offline file uses the same vocabulary as live runs.
+		const domains = this.getWorld().domains;
 		const cols: string[] = [];
 		let label = "";
 		for (const e of this.events) {
 			const ev = e as Record<string, unknown>;
 			if (ev.kind !== "lifecycle" || ev.stage !== "end") continue;
 			const view = (ev.products as Record<string, unknown>)?.view;
-			if (typeof view === "string" && !cols.includes(`${view}:`)) cols.push(`${view}:`);
+			if (typeof view !== "string") continue;
+			const component = (domains[view]?.ui as { component?: string } | undefined)?.component ?? view;
+			if (!cols.includes(component)) cols.push(component);
 		}
 		for (const key of Object.keys(rpcCache)) {
 			if (!key.includes("graphQuery:")) continue;
