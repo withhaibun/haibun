@@ -211,45 +211,38 @@ export class MermaidGraphRenderer implements IGraphRenderer {
 	}
 
 	private wireNodeClicks(graph: TGraph, container: HTMLElement): void {
-		const sanitisedToRaw = new Map<string, string>();
-		for (const n of graph.nodes) sanitisedToRaw.set(sanitiseId(n.id), n.id);
-		// Match the chain-view's prior selector + id-parsing logic verbatim. Using
-		// `g[id]` (not just `g.node`) catches every node mermaid emits regardless of
-		// class. Using `getAttribute("id")` + `indexOf("flowchart-")` (anywhere in the
-		// id, not start-anchored) handles mermaid v11's occasional nested-prefix
-		// emissions (e.g. `shu-graph-3-flowchart-vc-22`). The strict `^flowchart-`
-		// regex was missing real nodes whose svg id was prefixed by the render id.
-		for (const g of Array.from(container.querySelectorAll<SVGGElement>("g[id]"))) {
-			const idAttr = g.getAttribute("id") ?? "";
-			const idx = idAttr.indexOf("flowchart-");
-			if (idx < 0) continue;
-			const rawSvgId = idAttr.slice(idx + "flowchart-".length).replace(/-\d+$/, "");
-			const rawId = sanitisedToRaw.get(rawSvgId);
-			if (!rawId) continue;
-			const node = graph.nodes.find((n) => n.id === rawId);
+		const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+		for (const [rawId, element] of findSvgNodes(graph, container)) {
+			const node = nodeById.get(rawId);
 			if (!node) continue;
-			g.style.cursor = "pointer";
-			g.addEventListener("click", (e) => {
+			element.style.cursor = "pointer";
+			element.addEventListener("click", (e) => {
 				e.stopPropagation();
 				container.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: { nodeId: rawId, node }, bubbles: true, composed: true }));
 			});
-			g.addEventListener("mouseenter", () => {
-				container.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_HOVER, { detail: { nodeId: rawId, node, element: g }, bubbles: true, composed: true }));
+			element.addEventListener("mouseenter", () => {
+				container.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_HOVER, { detail: { nodeId: rawId, node, element }, bubbles: true, composed: true }));
 			});
-			g.addEventListener("mouseleave", () => {
-				container.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_LEAVE, { detail: { nodeId: rawId, node, element: g }, bubbles: true, composed: true }));
+			element.addEventListener("mouseleave", () => {
+				container.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_LEAVE, { detail: { nodeId: rawId, node, element }, bubbles: true, composed: true }));
 			});
 		}
 	}
 }
 
 /**
- * Reverse-lookup map from raw node id to SVG `<g.node>` element. Both the
- * renderer (for emit) and consumers (for selection / highlight overlays) need
- * this map, so it's a free function that runs over the painted container.
+ * Reverse-lookup map from raw node id to SVG `<g>` element. Both the renderer
+ * (for click/hover wiring) and consumers (for selection / highlight overlays)
+ * need this map, so it lives as a free function over the painted container.
  *
- * Mermaid sanitises ids via `sanitiseId` and may suffix `-NN` for repeats;
- * this function inverts that to find each raw id's SVG element.
+ * Selector + parsing notes:
+ *  - `g[id]` (not `g.node`) — mermaid sometimes paints node elements without the
+ *    `.node` class, especially for grouped / subgraph entries.
+ *  - `indexOf("flowchart-")` anywhere in the id — mermaid may prefix the id with
+ *    the render container's id (e.g. `shu-graph-3-flowchart-vc-22`), so anchoring
+ *    on `^flowchart-` misses real nodes.
+ *  - Trailing `-N` suffix is the repeat counter mermaid appends when the same
+ *    sanitised id appears twice; strip it before mapping back to raw id.
  */
 export function findSvgNodes(graph: TGraph, container: Element): Map<string, SVGGElement> {
 	const sanitisedToRaw = new Map<string, string>();
