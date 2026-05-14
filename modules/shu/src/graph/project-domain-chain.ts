@@ -29,9 +29,23 @@ export type TForwardAffordance = {
 	capability?: string;
 };
 
+export type TWaypointSnapshot = {
+	outcome: string;
+	kind: "imperative" | "declarative";
+	method: string;
+	resolvesDomain?: string;
+	ensured: boolean;
+};
+
+/** Minimal goal-resolver path shape the projection consumes. The full TMichi
+ * carries bindings (composite / fact / argument trees) too; the chain projection
+ * only needs the step list to tag schema edges. */
+export type TPathStepRef = { stepperName: string; stepName: string };
+export type TGoalPathRef = { steps: TPathStepRef[] };
+
 export type TAffordancesSnapshot = {
 	forward: TForwardAffordance[];
-	goals: Array<{ domain: string; resolution: { finding: string } }>;
+	goals: Array<{ domain: string; resolution: { finding: string; michi?: TGoalPathRef[]; factIds?: string[] } }>;
 	/**
 	 * Per-domain field-range map carried from the server's `topology.ranges`
 	 * (haibun's SHACL `sh:node` / RDFS `rdfs:range` equivalent). When present,
@@ -40,7 +54,34 @@ export type TAffordancesSnapshot = {
 	 * structural relationships the resolver decomposes.
 	 */
 	composites?: Record<string, Record<string, string>>;
+	/** Registered ActivitiesStepper waypoints — folded into the graph as nodes. */
+	waypoints?: TWaypointSnapshot[];
+	/**
+	 * Every domain that currently has at least one asserted fact. Sourced
+	 * unfiltered from working memory — distinct from `goals[]` which the
+	 * affordances panel filters down to non-trivial entries. Used by the chain
+	 * view to color satisfied domains even when their only producer is a
+	 * single-step argument-only path.
+	 */
+	satisfiedDomains?: string[];
+	/**
+	 * Per-domain map of asserted fact identifiers. Each fact becomes a small
+	 * instance node attached to its domain, so the user sees individual
+	 * created vertices (e.g. each issuer) in the chain rather than just a
+	 * green domain blob.
+	 */
+	satisfiedFacts?: Record<string, string[]>;
 };
+
+/** Id of the synthetic fact-instance node for a given factId. */
+export function factNodeId(factId: string): string {
+	return `fact:${factId}`;
+}
+
+/** Id of the synthetic waypoint node for an outcome. */
+export function waypointNodeId(outcome: string): string {
+	return `waypoint:${outcome}`;
+}
 
 /**
  * Id used for the sentinel "no-preconditions" source node.
@@ -73,7 +114,16 @@ function fieldNodeId(domain: string, fieldName: string): string {
 
 export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	const goalFindings = new Map<string, string>();
-	for (const g of a.goals) goalFindings.set(g.domain, g.resolution.finding);
+	const goalDomains = new Set<string>();
+	for (const g of a.goals) {
+		goalFindings.set(g.domain, g.resolution.finding);
+		goalDomains.add(g.domain);
+	}
+	// Working-memory truth: a domain with a fact is satisfied, regardless of whether
+	// the goal-frontier kept it (trivial-filtered goals are absent from `goals[]` but
+	// their producing fact may still exist).
+	const satisfied = new Set(a.satisfiedDomains ?? []);
+	for (const d of satisfied) goalFindings.set(d, GOAL_FINDING.SATISFIED);
 
 	const domains = new Set<string>();
 	let hasSource = false;
@@ -84,14 +134,36 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	}
 	if (hasSource) domains.add(SOURCE_DOMAIN);
 
+	// Producer index: for each domain, the unique step (if exactly one) that produces it.
+	// Used to route clicks on trivial-filtered domain nodes directly to the step-caller.
+	const producersByDomain = new Map<string, TForwardAffordance>();
+	const ambiguousProducer = new Set<string>();
+	for (const f of a.forward) {
+		for (const out of f.outputDomains) {
+			if (ambiguousProducer.has(out)) continue;
+			if (producersByDomain.has(out)) {
+				ambiguousProducer.add(out);
+				producersByDomain.delete(out);
+			} else {
+				producersByDomain.set(out, f);
+			}
+		}
+	}
+
 	const nodes: TGraphNode[] = [];
 	for (const d of domains) {
 		const isSource = d === SOURCE_DOMAIN;
-		nodes.push({
+		const node: TGraphNode = {
 			id: d,
 			label: isSource ? "∅ no preconditions" : d,
 			kind: isSource ? "default" : findingToKind(goalFindings.get(d)),
-		});
+		};
+		if (!isSource) {
+			node.link = { href: `?aff-goal=${encodeURIComponent(d)}` };
+			const producer = producersByDomain.get(d);
+			if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
+		}
+		nodes.push(node);
 	}
 
 	const edges: TGraphEdge[] = [];
@@ -107,25 +179,95 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 				const key = `${from}${to}${f.stepperName}.${f.stepName}`;
 				if (edgeKeys.has(key)) continue;
 				edgeKeys.add(key);
-				edges.push({ from, to, label, kind: edgeKind(f) });
+				edges.push({ from, to, label, kind: edgeKind(f), stepperName: f.stepperName, stepName: f.stepName });
 			}
 		}
 	}
 
 	// Composite ranges: for each declared field, emit a synthetic field node and
 	// connect (component domain → field node → composite). The chain view then
-	// shows the structural decomposition the resolver follows.
+	// shows the structural decomposition the resolver follows. The field node
+	// deep-links to its component domain so clicking the typed slot opens the
+	// affordances panel for the domain the slot accepts.
 	if (a.composites) {
 		for (const [composite, ranges] of Object.entries(a.composites)) {
 			for (const [fieldName, fieldDomain] of Object.entries(ranges)) {
 				const fieldId = fieldNodeId(composite, fieldName);
-				nodes.push({ id: fieldId, label: `${fieldName} : ${fieldDomain}`, kind: "field" });
+				nodes.push({ id: fieldId, label: `${fieldName} : ${fieldDomain}`, kind: "field", link: { href: `?aff-goal=${encodeURIComponent(fieldDomain)}` } });
 				if (!domains.has(fieldDomain)) {
-					nodes.push({ id: fieldDomain, label: fieldDomain, kind: findingToKind(goalFindings.get(fieldDomain)) });
+					const node: TGraphNode = { id: fieldDomain, label: fieldDomain, kind: findingToKind(goalFindings.get(fieldDomain)) };
+					node.link = { href: `?aff-goal=${encodeURIComponent(fieldDomain)}` };
+					const producer = producersByDomain.get(fieldDomain);
+					if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
+					nodes.push(node);
 					domains.add(fieldDomain);
 				}
 				edges.push({ from: fieldDomain, to: fieldId, label: undefined, kind: "default" });
 				edges.push({ from: fieldId, to: composite, label: fieldName, kind: "default" });
+			}
+		}
+	}
+
+	// Waypoint nodes: registered ActivitiesStepper outcomes. Declarative waypoints
+	// link back to their resolvesDomain via a dashed edge so the chain shows that
+	// the waypoint depends on the goal being satisfied.
+	if (Array.isArray(a.waypoints)) {
+		for (const w of a.waypoints) {
+			const id = waypointNodeId(w.outcome);
+			const kind = w.ensured ? "waypoint-ensured" : w.kind === "declarative" ? "waypoint-declarative" : "waypoint-imperative";
+			const [stepperName, stepName] = w.method.includes("-") ? [w.method.slice(0, w.method.indexOf("-")), w.method.slice(w.method.indexOf("-") + 1)] : [w.method, w.method];
+			nodes.push({
+				id,
+				label: `waypoint: ${w.outcome}`,
+				kind,
+				link: { href: `?aff-waypoint=${encodeURIComponent(w.outcome)}` },
+				invokes: { stepperName, stepName },
+			});
+			if (w.resolvesDomain && domains.has(w.resolvesDomain)) {
+				edges.push({ from: w.resolvesDomain, to: id, label: "ensures", kind: "default" });
+			}
+		}
+	}
+
+	// APG annotation pass — tag every schema edge with the goal-resolver paths it
+	// participates in. The renderer reads `edge.paths` to style active edges
+	// (any goal-path traverses them) distinctly from potential edges (a real step
+	// the user could invoke, but no current goal-path runs through it). One edge
+	// per step in the topology; metadata carries the path semantics.
+	const edgesByStep = new Map<string, TGraphEdge[]>();
+	for (const edge of edges) {
+		if (!edge.stepperName || !edge.stepName) continue;
+		const key = `${edge.stepperName}.${edge.stepName}`;
+		const bucket = edgesByStep.get(key);
+		if (bucket) bucket.push(edge);
+		else edgesByStep.set(key, [edge]);
+	}
+	for (const goal of a.goals) {
+		const michi = goal.resolution.michi ?? [];
+		michi.forEach((m, pathIdx) => {
+			const pid = `${goal.domain}/path-${pathIdx}`;
+			for (const step of m.steps) {
+				const bucket = edgesByStep.get(`${step.stepperName}.${step.stepName}`);
+				if (!bucket) continue;
+				for (const edge of bucket) {
+					edge.paths ??= [];
+					if (!edge.paths.includes(pid)) edge.paths.push(pid);
+				}
+			}
+		});
+	}
+
+	// Fact-instance nodes: every asserted fact gets a small node attached to its
+	// domain so the user sees the actual created entities (e.g. each issuer they made)
+	// rather than just a coloured domain blob.
+	if (a.satisfiedFacts) {
+		for (const [domain, factIds] of Object.entries(a.satisfiedFacts)) {
+			if (!domains.has(domain)) continue;
+			for (const factId of factIds) {
+				const id = factNodeId(factId);
+				const label = factId.length > 24 ? `${factId.slice(0, 12)}…${factId.slice(-10)}` : factId;
+				nodes.push({ id, label, kind: "fact-instance", wasGeneratedBy: { factId, domain } });
+				edges.push({ from: domain, to: id, label: undefined, kind: "default" });
 			}
 		}
 	}
