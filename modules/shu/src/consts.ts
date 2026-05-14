@@ -17,6 +17,8 @@ export const SHU_EVENT = {
 	GRAPH_FILTER_CHANGE: "graph-filter-change",
 	GRAPH_CLUSTER_EXPAND: "graph-cluster-expand",
 	GRAPH_NODE_CLICK: "graph-node-click",
+	GRAPH_NODE_HOVER: "graph-node-hover",
+	GRAPH_NODE_LEAVE: "graph-node-leave",
 	RESULTS_CHANGED: "results-changed",
 	ROW_CLICK: "row-click",
 	SORT_CHANGE: "sort-change",
