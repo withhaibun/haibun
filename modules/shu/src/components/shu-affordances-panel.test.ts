@@ -11,6 +11,9 @@ import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
 describe("shu-affordances-panel", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
+		// jsdom doesn't ship Element.scrollIntoView — polyfill once so the panel's
+		// scroll-once-on-open path runs without throwing.
+		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
 		// Clear any aff-goal / aff-waypoint params left by previous tests so the panel's
 		// constructor reads a clean URL; otherwise the deep-link state leaks across tests.
 		const url = new URL(window.location.href);
