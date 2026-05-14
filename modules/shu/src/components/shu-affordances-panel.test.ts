@@ -11,6 +11,11 @@ import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
 describe("shu-affordances-panel", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
+		// Clear any aff-goal / aff-waypoint params left by previous tests so the panel's
+		// constructor reads a clean URL; otherwise the deep-link state leaks across tests.
+		const url = new URL(window.location.href);
+		for (const key of ["aff-goal", "aff-waypoint"]) url.searchParams.delete(key);
+		window.history.replaceState(window.history.state, "", url.toString());
 		if (!customElements.get("shu-affordances-panel")) customElements.define("shu-affordances-panel", ShuAffordancesPanel);
 		if (!customElements.get("shu-spinner")) {
 			class FakeSpinner extends HTMLElement {}
@@ -36,7 +41,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
-			goals: [{ domain: "g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-1"] } }],
+			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-1"] } }],
 		};
 		const root = panel.shadowRoot?.innerHTML ?? "";
 		expect(root).toContain('data-testid="affordances-goals"');
@@ -52,12 +57,16 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			forward: [],
-			goals: [{ domain: "session", resolution: { finding: "satisfied", goal: "session", factIds: ["s-1", "s-2", "s-3"] } }],
+			goals: [{ domain: "session", description: "Session", resolution: { finding: "satisfied", goal: "session", factIds: ["s-1", "s-2", "s-3"] } }],
 		};
+		// The inline fact summary on the closed goal carries the fact ids at a glance.
+		const closed = panel.shadowRoot?.innerHTML ?? "";
+		expect(closed).toContain("s-1");
+		expect(closed).toContain("s-2");
+		expect(closed).toContain("s-3");
+		// Opening the goal surfaces the resolver's plural "asserted as facts" wording.
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-session-toggle"]') as HTMLButtonElement | null)?.click();
 		const html = panel.shadowRoot?.innerHTML ?? "";
-		expect(html).toContain("s-1");
-		expect(html).toContain("s-2");
-		expect(html).toContain("s-3");
 		expect(html).toMatch(/asserted as facts/);
 	});
 
@@ -69,6 +78,7 @@ describe("shu-affordances-panel", () => {
 			goals: [
 				{
 					domain: "vc",
+					description: "Verifiable credential",
 					resolution: {
 						finding: "michi",
 						goal: "vc",
@@ -87,6 +97,8 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
+		// Goals render closed by default; open the goal to surface its path cards.
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
 		const html = panel.shadowRoot?.innerHTML ?? "";
 		expect(html).toMatch(/2 ways to reach this/);
 		expect(html).toMatch(/issue credential/);
@@ -104,13 +116,15 @@ describe("shu-affordances-panel", () => {
 		};
 		panel.products = {
 			forward: [],
-			goals: [{ domain: "vc", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [path] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [path] } }],
 		};
 		type TStepChoose = { method?: string; args?: Record<string, unknown>; auto?: boolean };
 		const received: TStepChoose[] = [];
 		document.addEventListener("step-choose", ((e: CustomEvent) => {
 			received.push(e.detail as TStepChoose);
 		}) as EventListener);
+		// Open the goal to surface its Start-this-path buttons.
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
 		const startBtn = panel.shadowRoot?.querySelector(".start-path") as HTMLButtonElement;
 		startBtn.click();
 		const last = received[received.length - 1];
@@ -127,6 +141,7 @@ describe("shu-affordances-panel", () => {
 			goals: [
 				{
 					domain: "vc",
+					description: "Verifiable credential",
 					resolution: {
 						finding: "michi",
 						goal: "vc",
@@ -136,6 +151,8 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
+		// Open the goal to surface the path heading that includes the truncation notice.
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
 		const html = panel.shadowRoot?.innerHTML ?? "";
 		expect(html).toMatch(/more exist/);
 	});
@@ -148,6 +165,7 @@ describe("shu-affordances-panel", () => {
 			goals: [
 				{
 					domain: "vc",
+					description: "Verifiable credential",
 					resolution: {
 						finding: "michi",
 						goal: "vc",
@@ -157,6 +175,8 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
+		// Open the goal to mount its embedded shu-graph.
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
 		const graphEl = panel.shadowRoot?.querySelector('shu-graph[data-testid="goal-graph-0"]') as
 			| (HTMLElement & { lastProducts?: { graph?: { nodes: unknown[]; edges: unknown[] } } })
 			| null;
@@ -173,7 +193,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			forward: [],
-			goals: [{ domain: "g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }],
+			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }],
 		};
 		const explain = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
 		expect(explain).toBeTruthy();
@@ -183,8 +203,8 @@ describe("shu-affordances-panel", () => {
 		panel.products = {
 			forward: [],
 			goals: [
-				{ domain: "g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } },
-				{ domain: "h", resolution: { finding: "satisfied", goal: "h", factIds: ["fact-y"] } },
+				{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } },
+				{ domain: "h", description: "Goal h", resolution: { finding: "satisfied", goal: "h", factIds: ["fact-y"] } },
 			],
 		};
 		const explainAfter = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
@@ -211,8 +231,10 @@ describe("shu-affordances-panel", () => {
 		};
 		panel.products = {
 			forward: [],
-			goals: [{ domain: "vc", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
 		};
+		// Open the goal so its composite-binding tree is mounted in the DOM.
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
 		const composite = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:vc"]');
 		expect(composite).toBeTruthy();
 		if (!composite) throw new Error("unreachable");
@@ -220,7 +242,7 @@ describe("shu-affordances-panel", () => {
 		// New affordances snapshot arrives — the composite-binding open state must survive.
 		panel.products = {
 			forward: [],
-			goals: [{ domain: "vc", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
 		};
 		const after = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:vc"]');
 		expect(after?.open).toBe(true);
@@ -234,6 +256,7 @@ describe("shu-affordances-panel", () => {
 			goals: [
 				{
 					domain: "credential",
+					description: "Credential",
 					resolution: {
 						finding: "satisfied",
 						goal: "credential",
@@ -244,6 +267,11 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
+		// Closed-by-default: the inline fact summary shows fact ids; the Run-again section
+		// lives in the goal's resolution detail and renders once the goal is open.
+		const htmlClosed = panel.shadowRoot?.innerHTML ?? "";
+		expect(htmlClosed).toContain("fact-1");
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-credential-toggle"]') as HTMLButtonElement | null)?.click();
 		const html = panel.shadowRoot?.innerHTML ?? "";
 		expect(html).toContain("fact-1");
 		expect(html).toMatch(/Run again to produce another/);
