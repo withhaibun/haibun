@@ -12,18 +12,23 @@ const NODE_DEFAULTS: Record<string, { fill: string; stroke: string; strokeWidth?
 	default: { fill: "#eee", stroke: "#999" },
 	satisfied: { fill: "#d8edd8", stroke: "#1a6b3c", strokeWidth: 2 },
 	reachable: { fill: "#d8e1f0", stroke: "#2848a8" },
-	unreachable: { fill: "#fdd", stroke: "#a02828" },
 	refused: { fill: "#fde6c4", stroke: "#b58105" },
-	argument: { fill: "#fff7e6", stroke: "#b58105" },
-	current: { fill: "#dbeafe", stroke: "#1d3680", strokeWidth: 3 },
+	unreachable: { fill: "#fdd", stroke: "#a02828" },
+	current: { fill: "#fde68a", stroke: "#a16207", strokeWidth: 4 },
 	field: { fill: "#f4f0fa", stroke: "#6a4f9a" },
+	"fact-instance": { fill: "#ecfdf5", stroke: "#1a6b3c" },
+	"waypoint-ensured": { fill: "#d8edd8", stroke: "#1a6b3c", strokeWidth: 2 },
+	"waypoint-declarative": { fill: "#fde6c4", stroke: "#b58105" },
+	"waypoint-imperative": { fill: "#fde6c4", stroke: "#b58105" },
 };
 
-/** Mermaid arrow syntax per edge kind. */
+/** Mermaid arrow syntax per edge kind. Blocked and capability-gated share the
+ * dashed style; the capability requirement is signalled by the lock glyph on
+ * the label, not by a separate arrow style. */
 const EDGE_ARROW: Record<string, string> = {
 	default: "-->",
 	ready: "==>",
-	blocked: "-->",
+	blocked: "-.->",
 	"capability-gated": "-.->",
 };
 
@@ -48,7 +53,10 @@ function escHtml(s: string): string {
  * with a reserved word, and remap non-id characters to `_`.
  */
 export function sanitiseId(s: string): string {
-	return `n_${s.replace(/[^a-zA-Z0-9_-]/g, "_")}`.slice(0, 60);
+	// Mermaid normalises hyphens to underscores in its emitted SVG ids; collapse them
+	// up-front so the source and the rendered SVG share one canonical form. Without
+	// this the reverse-lookup in `bindNodeClicks` cannot match hyphenated raw ids.
+	return `n_${s.replace(/[^a-zA-Z0-9_]/g, "_")}`.slice(0, 60);
 }
 
 function arrowForEdge(edge: TGraphEdge): string {
@@ -137,20 +145,29 @@ export function buildMermaidSource(graph: TGraph, options?: TGraphRenderOptions)
 	for (const n of nodesByGroup.get(undefined) ?? []) emitNode(n, "  ");
 	for (const gid of childGroups.get(undefined) ?? []) emitGroup(gid, "  ");
 
-	// Edges.
+	// Edges. Track which edge indices are "active" — participating in at least one
+	// goal-resolver path — so we can apply a distinct linkStyle per index. Mermaid
+	// numbers edges in source order, so the index here matches the rendered svg.
 	const highlight = options?.highlightedPath;
-	for (const e of graph.edges) {
+	const activeEdgeIndices: number[] = [];
+	graph.edges.forEach((e, i) => {
 		const dimmed = highlight && e.paths && !e.paths.includes(highlight);
 		const arrow = dimmed ? "-.->" : arrowForEdge(e);
 		const label = e.label ? `|"${escLabel(e.label)}"|` : "";
 		lines.push(`  ${idFor(e.from)} ${arrow}${label} ${idFor(e.to)}`);
-	}
+		if (!dimmed && (e.paths?.length ?? 0) > 0) activeEdgeIndices.push(i);
+	});
 
 	// Styles per node.
 	for (const n of graph.nodes) {
 		const line = styleLine(idFor(n.id), n.kind, graph.styles);
 		if (line) lines.push(line);
 	}
+
+	// Active-edge style: edges tagged with one or more goal-resolver paths render
+	// in amber so the user can see which steps a goal currently routes through.
+	// Potential edges (no path traversal yet) keep their kind-based default style.
+	if (activeEdgeIndices.length > 0) lines.push(`  linkStyle ${activeEdgeIndices.join(",")} stroke:#a16207,stroke-width:2px`);
 
 	return lines.join("\n");
 }
@@ -194,18 +211,20 @@ export class MermaidGraphRenderer implements IGraphRenderer {
 	}
 
 	private wireNodeClicks(graph: TGraph, container: HTMLElement): void {
-		const sanitisedIds = new Map<string, string>();
-		for (const n of graph.nodes) sanitisedIds.set(sanitiseId(n.id), n.id);
-
-		// Mermaid emits nodes as SVG `<g class="node" id="flowchart-<sanitisedId>-N">`.
-		const svgNodes = container.querySelectorAll<SVGGElement>("g.node");
-		for (const g of Array.from(svgNodes)) {
-			const idAttr = g.id;
-			if (!idAttr) continue;
-			// Mermaid prefixes `flowchart-` and may suffix `-NN` for repeats.
-			const match = idAttr.match(/^flowchart-(.+?)(?:-\d+)?$/);
-			if (!match) continue;
-			const rawId = sanitisedIds.get(match[1]);
+		const sanitisedToRaw = new Map<string, string>();
+		for (const n of graph.nodes) sanitisedToRaw.set(sanitiseId(n.id), n.id);
+		// Match the chain-view's prior selector + id-parsing logic verbatim. Using
+		// `g[id]` (not just `g.node`) catches every node mermaid emits regardless of
+		// class. Using `getAttribute("id")` + `indexOf("flowchart-")` (anywhere in the
+		// id, not start-anchored) handles mermaid v11's occasional nested-prefix
+		// emissions (e.g. `shu-graph-3-flowchart-vc-22`). The strict `^flowchart-`
+		// regex was missing real nodes whose svg id was prefixed by the render id.
+		for (const g of Array.from(container.querySelectorAll<SVGGElement>("g[id]"))) {
+			const idAttr = g.getAttribute("id") ?? "";
+			const idx = idAttr.indexOf("flowchart-");
+			if (idx < 0) continue;
+			const rawSvgId = idAttr.slice(idx + "flowchart-".length).replace(/-\d+$/, "");
+			const rawId = sanitisedToRaw.get(rawSvgId);
 			if (!rawId) continue;
 			const node = graph.nodes.find((n) => n.id === rawId);
 			if (!node) continue;
@@ -214,6 +233,77 @@ export class MermaidGraphRenderer implements IGraphRenderer {
 				e.stopPropagation();
 				container.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: { nodeId: rawId, node }, bubbles: true, composed: true }));
 			});
+			g.addEventListener("mouseenter", () => {
+				container.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_HOVER, { detail: { nodeId: rawId, node, element: g }, bubbles: true, composed: true }));
+			});
+			g.addEventListener("mouseleave", () => {
+				container.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_LEAVE, { detail: { nodeId: rawId, node, element: g }, bubbles: true, composed: true }));
+			});
 		}
 	}
+}
+
+/**
+ * Reverse-lookup map from raw node id to SVG `<g.node>` element. Both the
+ * renderer (for emit) and consumers (for selection / highlight overlays) need
+ * this map, so it's a free function that runs over the painted container.
+ *
+ * Mermaid sanitises ids via `sanitiseId` and may suffix `-NN` for repeats;
+ * this function inverts that to find each raw id's SVG element.
+ */
+export function findSvgNodes(graph: TGraph, container: Element): Map<string, SVGGElement> {
+	const sanitisedToRaw = new Map<string, string>();
+	for (const n of graph.nodes) sanitisedToRaw.set(sanitiseId(n.id), n.id);
+	const out = new Map<string, SVGGElement>();
+	for (const g of Array.from(container.querySelectorAll<SVGGElement>("g[id]"))) {
+		const idAttr = g.getAttribute("id") ?? "";
+		const idx = idAttr.indexOf("flowchart-");
+		if (idx < 0) continue;
+		const rawSvgId = idAttr.slice(idx + "flowchart-".length).replace(/-\d+$/, "");
+		const rawId = sanitisedToRaw.get(rawSvgId);
+		if (rawId) out.set(rawId, g);
+	}
+	return out;
+}
+
+/**
+ * Build a map from raw node id to the set of SVG path + edge-label elements
+ * that connect to that node. Used by hover / selection highlight overlays so
+ * consumers don't re-walk the SVG on every event.
+ *
+ * Mermaid v11 emits edges as `path.flowchart-link` with id pattern
+ * `L_<fromSanitised>_<toSanitised>_<idx>`; edge labels in `.edgeLabels > .edgeLabel`
+ * are paired by position. Both are bucketed under both endpoints.
+ */
+export function findSvgEdges(graph: TGraph, container: Element): Map<string, Set<Element>> {
+	const sanitisedIds = new Map<string, string>();
+	for (const n of graph.nodes) sanitisedIds.set(sanitiseId(n.id), n.id);
+	const out = new Map<string, Set<Element>>();
+	const add = (rawId: string, el: Element): void => {
+		const set = out.get(rawId) ?? new Set<Element>();
+		set.add(el);
+		out.set(rawId, set);
+	};
+	const edgePaths = Array.from(container.querySelectorAll("path.flowchart-link"));
+	const edgeLabels = Array.from(container.querySelectorAll(".edgeLabels > .edgeLabel"));
+	for (let i = 0; i < edgePaths.length; i++) {
+		const path = edgePaths[i];
+		const label = edgeLabels[i];
+		const pid = path.getAttribute("id") ?? "";
+		const lIdx = pid.indexOf("-L_");
+		if (lIdx < 0) continue;
+		const body = pid.slice(lIdx + 3, pid.lastIndexOf("_"));
+		for (let j = 1; j < body.length; j++) {
+			if (body[j] !== "_") continue;
+			const from = sanitisedIds.get(body.slice(0, j));
+			const to = sanitisedIds.get(body.slice(j + 1));
+			if (!from || !to) continue;
+			for (const nid of [from, to]) {
+				add(nid, path);
+				if (label) add(nid, label);
+			}
+			break;
+		}
+	}
+	return out;
 }
