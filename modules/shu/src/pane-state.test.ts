@@ -80,6 +80,9 @@ describe("PaneState", () => {
 						this.appendChild(p);
 					}
 					activatePane(_i: number) {}
+					removePane(i: number) {
+						this.panes[i]?.remove();
+					}
 				},
 			);
 		}
