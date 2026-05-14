@@ -14,16 +14,13 @@ export function flattenTestIds(obj: Record<string, unknown>): string[] {
 
 const IDS = SHU_TEST_IDS;
 
-// Step-caller testids are keyed by `${method}-${callIndex}-${suffix}` where
-// `method` is the fully-qualified `StepperName-stepName` (canonical identity
-// surfaced by the actions bar) and `callIndex` counts prior invocations of
-// the same method on the page. Sub-input testids use `-` joins (no dots) so
-// haibun variable resolution does not parse the dot as a sub-path.
-const stepRun = (method: string, callIndex: number) => `${method}-${callIndex}-step-run`;
-const stepDone = (method: string, callIndex: number) => `${method}-${callIndex}-step-done`;
-const stepResult = (method: string, callIndex: number) => `${method}-${callIndex}-step-result`;
-const stepError = (method: string, callIndex: number) => `${method}-${callIndex}-step-error`;
-const stepInput = (method: string, callIndex: number, param: string) => `${method}-${callIndex}-step-input-${param}`;
+import { normalizeStepKey } from "../util.js";
+export { normalizeStepKey };
+const stepRun = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-run`;
+const stepDone = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-done`;
+const stepResult = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-result`;
+const stepError = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-error`;
+const stepInput = (method: string, callIndex: number, param: string) => `${normalizeStepKey(method)}-${callIndex}-step-input-${param}`;
 
 export function stepTestIds(method: string, callIndex: number, inputParams: string[]): string[] {
 	return [stepRun(method, callIndex), stepDone(method, callIndex), stepResult(method, callIndex), stepError(method, callIndex), ...inputParams.map((p) => stepInput(method, callIndex, p))];
