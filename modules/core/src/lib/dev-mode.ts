@@ -20,7 +20,6 @@
  */
 
 declare global {
-	// biome-ignore lint/style/noVar: declare global needs var.
 	var __HAIBUN_PROD__: boolean | undefined;
 }
 

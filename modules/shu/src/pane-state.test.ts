@@ -79,9 +79,13 @@ describe("PaneState", () => {
 					addPane(p: HTMLElement) {
 						this.appendChild(p);
 					}
-					activatePane(_i: number) {}
+					activatePane(_i: number) {
+						/* test stub — activation side-effects are not under test here */
+					}
 					removePane(i: number) {
-						this.panes[i]?.remove();
+						const p = this.panes[i];
+						if (!p) throw new Error(`test stub strip: removePane index ${i} out of range (have ${this.panes.length})`);
+						p.remove();
 					}
 				},
 			);
