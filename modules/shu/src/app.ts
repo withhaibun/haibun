@@ -137,6 +137,7 @@ const main = async (): Promise<void> => {
 
 	// Boot-time smoke test for the diagnostic channel.
 	const reportBootDiagnostic = (level: "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
+		if (ShuElement.offline) return;
 		void inAction(async (scope) => {
 			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, source: "shu-app-boot", message: msg, attributes: attrs } });
 		}).catch((e) => failFastOrLog("[shu-boot] diagnostic failed:", e));
@@ -144,6 +145,9 @@ const main = async (): Promise<void> => {
 	reportBootDiagnostic("info", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
 
 	const reportClientLog = (level: "info" | "warn" | "error", message: string, attributes?: Record<string, unknown>) => {
+		// Offline (standalone shu.html): no server to log to. Skip silently — the
+		// diagnostic channel only exists in live mode.
+		if (ShuElement.offline) return;
 		// Fail-fast — surface RPC plumbing issues that would otherwise hide every diagnostic.
 		void inAction(async (scope) => {
 			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, message, source: "shu-app", attributes } });
