@@ -116,7 +116,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				<span class="pane-label" title="${esc(label)}">${esc(label)}</span>
 				<button class="pane-minimize" title="Minimize">\u2015</button>
 				<button class="pane-maximize" data-testid="pane-maximize" title="Maximize">\u2922</button>
-				<button class="pane-controls${this.children[0]?.hasAttribute?.("data-show-controls") ? " active" : ""}" title="Toggle controls">\u2699</button>
+				<button class="pane-controls${this.children[0]?.hasAttribute?.("data-show-controls") ? " active" : ""}" data-testid="pane-controls-toggle" title="Toggle controls">\u2699</button>
 				<button class="pane-pin${this.state.pinned ? " pinned" : ""}" title="${this.state.pinned ? "Unpin" : "Pin"}">\ud83d\udccc</button>
 				${closable ? '<button class="pane-close" title="Close">\u00d7</button>' : ""}
 			</div>

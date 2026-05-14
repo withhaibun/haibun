@@ -44,6 +44,48 @@ describe("shu-domain-chain-view", () => {
 		// In jsdom the fetch path fails fast; the test asserts the empty state appears.
 	});
 
+	it("the view-controls block (zoom + layout + axis filter) is gated as one group by data-show-controls — no per-control gating", () => {
+		// Regression: zoom, layout, and the filter axis used to be partially separate; this
+		// scenario pins the unified-toggle invariant. The gating is a single CSS rule on
+		// :host(:not([data-show-controls])) .view-controls; everything inside hides together.
+		if (!customElements.get("shu-graph-filter")) {
+			class FakeFilter extends HTMLElement {
+				setAxes(_axes: unknown): void {
+					/* test stub */
+				}
+				setSource(_clusters: unknown, _quads: unknown): void {
+					/* test stub */
+				}
+			}
+			customElements.define("shu-graph-filter", FakeFilter);
+		}
+		if (!customElements.get("shu-graph")) {
+			class FakeGraph extends HTMLElement {
+				selectedNodeId = "";
+				set products(_p: Record<string, unknown>) {
+					/* test stub */
+				}
+				setZoom(_z: number): void {
+					/* test stub */
+				}
+			}
+			customElements.define("shu-graph", FakeGraph);
+		}
+		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView & { applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean };
+		document.body.appendChild(view);
+		view.applySseSnapshot({
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
+			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
+		});
+		const controls = view.shadowRoot?.querySelector('[data-testid="domain-chain-toolbar"]') as HTMLElement | null;
+		expect(controls).toBeTruthy();
+		// Every control sits inside the same block.
+		expect(controls?.querySelector('button[data-action="zoom-in"]')).toBeTruthy();
+		expect(controls?.querySelector('button[data-action="zoom-out"]')).toBeTruthy();
+		expect(controls?.querySelector('button[data-action="layout"]')).toBeTruthy();
+		expect(controls?.querySelector("shu-graph-filter")).toBeTruthy();
+	});
+
 	it("forwards graph-node-click from the embedded shu-graph to routeNodeClick so a deep-link node opens the affordances panel", () => {
 		// Regression: clicking a blue (reachable) node in the chain must open the affordances
 		// panel deep-linked to that goal. The flow is: shu-graph dispatches graph-node-click on
