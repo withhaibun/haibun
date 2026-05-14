@@ -137,6 +137,52 @@ describe("withAction", () => {
 	});
 });
 
+describe("withAction object argument encoding", () => {
+	class ObjectArgStepper extends AStepper {
+		steps = {
+			createIssuer: {
+				gwta: "create issuer {issuer}",
+				action: () => Promise.resolve(OK),
+			},
+			issueCredential: {
+				gwta: "issue credential {credential}",
+				action: () => Promise.resolve(OK),
+			},
+		} as const satisfies TStepperSteps;
+	}
+	const { createIssuer, issueCredential } = withAction(new ObjectArgStepper());
+
+	it("plain object argument is encoded as JSON, not the haibun composite-literal form", () => {
+		const action = createIssuer({ issuer: { did: "did:example:issuer", name: "Example Issuer" } })();
+		expect(action.gwta).toBe('create issuer {"did":"did:example:issuer","name":"Example Issuer"}');
+	});
+
+	it("a pre-stringified inner field (e.g. W3C VC claims as z.string()) survives round-trip through JSON.parse on the rendered gwta arg", () => {
+		const claims = '{"sector":"unlicensed","commune":"Lux"}';
+		const action = issueCredential({ credential: { type: ["VC"], issuer: "did:x", claims } })();
+		const jsonMatch = action.gwta.match(/^issue credential (.+)$/);
+		expect(jsonMatch).not.toBeNull();
+		const parsed = JSON.parse(jsonMatch?.[1] ?? "") as { claims: string };
+		expect(parsed.claims).toBe(claims);
+		expect(typeof parsed.claims).toBe("string");
+	});
+
+	it("nested object values stay as JSON objects (not strings) so the runtime receives the same shape it would from JSON.parse", () => {
+		const action = issueCredential({ credential: { issuer: "did:x", nested: { key: "value" } } })();
+		const jsonMatch = action.gwta.match(/^issue credential (.+)$/);
+		const parsed = JSON.parse(jsonMatch?.[1] ?? "") as { nested: { key: string } };
+		expect(parsed.nested).toEqual({ key: "value" });
+	});
+
+	it("object value containing characters that need JSON-escaping (quotes, backslashes, newlines) round-trips cleanly", () => {
+		const issuer = { name: 'Has "quotes" and \n newlines and \\ backslash' };
+		const action = createIssuer({ issuer })();
+		const jsonMatch = action.gwta.match(/^create issuer (.+)$/);
+		const parsed = JSON.parse(jsonMatch?.[1] ?? "") as { name: string };
+		expect(parsed.name).toBe(issuer.name);
+	});
+});
+
 describe("withAction with optional patterns", () => {
 	const { setOptional, clickOptional } = withAction(optionalPatternStepper);
 
