@@ -11,7 +11,7 @@ import { SseClient, inAction } from "../sse-client.js";
 import { esc, escAttr } from "../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";
-import { isArgumentDomain } from "@haibun/core/lib/affordances.js";
+import { isArgumentDomain, type TWaypointEntry } from "@haibun/core/lib/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/step-dispatch.js";
 import { SHU_EVENT } from "../consts.js";
 import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
@@ -42,19 +42,6 @@ type TGoalAffordance = {
 	| { finding: "refused"; goal: string; refusalReason: string; detail: string };
 };
 
-type TWaypointEntry = {
-	outcome: string;
-	kind: "imperative" | "declarative";
-	method: string;
-	paramSlots: string[];
-	proofStatements: string[];
-	resolvesDomain?: string;
-	currentlyValid: boolean;
-	error?: string;
-	source: { path: string; lineNumber?: number };
-	isBackground: boolean;
-};
-
 type TAffordances = {
 	forward: TForwardAffordance[];
 	goals: TGoalAffordance[];
@@ -69,27 +56,29 @@ function findingLabel(finding: string): string {
 
 
 const ShuAffordancesPanelSchema = z.object({
-	loadState: z.enum(["idle", "fetching", "loaded", "empty"]).default("idle"),
+	loadState: z.enum(["idle", "fetching", "loaded"]).default("idle"),
 	fetchError: z.string().default(""),
 	openGoal: z.string().default(""),
+	openWaypoint: z.string().default(""),
 });
 
 const AFF_GOAL_PARAM = "aff-goal";
+const AFF_WAYPOINT_PARAM = "aff-waypoint";
 
-function readOpenGoalFromUrl(): string {
+function readParamFromUrl(name: string): string {
 	if (typeof window === "undefined") return "";
 	try {
-		return new URL(window.location.href).searchParams.get(AFF_GOAL_PARAM) ?? "";
+		return new URL(window.location.href).searchParams.get(name) ?? "";
 	} catch {
 		return "";
 	}
 }
 
-function writeOpenGoalToUrl(domain: string): void {
+function writeParamToUrl(name: string, value: string): void {
 	if (typeof window === "undefined") return;
 	const url = new URL(window.location.href);
-	if (domain) url.searchParams.set(AFF_GOAL_PARAM, domain);
-	else url.searchParams.delete(AFF_GOAL_PARAM);
+	if (value) url.searchParams.set(name, value);
+	else url.searchParams.delete(name);
 	window.history.replaceState(window.history.state, "", url.toString());
 }
 
@@ -97,13 +86,14 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private affordances: TAffordances | null = null;
 	private assertedDomains: Set<string> = new Set();
 	private lastScrolledGoal: string = "";
+	private lastScrolledWaypoint: string = "";
 	private sse: SseClient | null = null;
 	private unsubscribe: (() => void) | null = null;
 
 	private popstateHandler: (() => void) | null = null;
 
 	constructor() {
-		super(ShuAffordancesPanelSchema, { loadState: "idle", fetchError: "", openGoal: readOpenGoalFromUrl() });
+		super(ShuAffordancesPanelSchema, { loadState: "idle", fetchError: "", openGoal: readParamFromUrl(AFF_GOAL_PARAM), openWaypoint: readParamFromUrl(AFF_WAYPOINT_PARAM) });
 	}
 
 	override connectedCallback(): void {
@@ -133,12 +123,13 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				(event) => typeof event.id === "string" && event.id.startsWith("affordances."),
 			);
 		}
-		// Back/forward navigation should re-sync the open goal from the URL so the
+		// Back/forward navigation should re-sync the open goal / waypoint from the URL so the
 		// panel reflects the address bar. Storing in history rather than state means
-		// a copy-pasted URL also opens the right goal on first load.
+		// a copy-pasted URL also opens the right entry on first load.
 		this.popstateHandler = () => {
-			const fromUrl = readOpenGoalFromUrl();
-			if (fromUrl !== this.state.openGoal) this.setState({ openGoal: fromUrl });
+			const goal = readParamFromUrl(AFF_GOAL_PARAM);
+			const waypoint = readParamFromUrl(AFF_WAYPOINT_PARAM);
+			if (goal !== this.state.openGoal || waypoint !== this.state.openWaypoint) this.setState({ openGoal: goal, openWaypoint: waypoint });
 		};
 		window.addEventListener("popstate", this.popstateHandler);
 	}
@@ -152,7 +143,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	private toggleGoal(domain: string): void {
 		const next = this.state.openGoal === domain ? "" : domain;
-		writeOpenGoalToUrl(next);
+		writeParamToUrl(AFF_GOAL_PARAM, next);
 		this.setState({ openGoal: next });
 	}
 
@@ -392,8 +383,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	private renderWaypointEntry(w: TWaypointEntry): string {
-		const stateClass = w.currentlyValid ? "wp-valid" : "wp-pending";
-		const stateLabel = w.currentlyValid ? "satisfied" : w.kind === "declarative" ? "needs activity" : "needs proof";
+		const stateClass = w.ensured ? "wp-ensured" : "wp-pending";
+		const stateLabel = w.ensured ? "ensured" : w.kind === "declarative" ? "needs activity" : "needs proof";
 		const slotsHtml = w.paramSlots.length > 0 ? `<div class="wp-slots">slots: ${w.paramSlots.map((s) => `<code>${esc(s)}</code>`).join(", ")}</div>` : "";
 		const proofHtml = w.proofStatements.length > 0 ? `<div class="wp-proof">proof: ${w.proofStatements.map((p) => `<code>${esc(p)}</code>`).join(" · ")}</div>` : "";
 		const resolvesHtml = w.resolvesDomain ? `<div class="wp-resolves">resolves: <code>${esc(w.resolvesDomain)}</code></div>` : "";
@@ -418,7 +409,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const snapshot = this.snapshotUiState();
 		const styles = SHARED_STYLES;
 		const loading = this.state.loadState === "fetching";
-		const empty = this.state.loadState === "idle" || this.state.loadState === "empty";
+		const empty = this.state.loadState === "idle";
 		const goals = this.affordances?.goals ?? [];
 		const waypoints = this.affordances?.waypoints ?? [];
 
@@ -438,9 +429,20 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const openGoal = this.state.openGoal;
 		const goalsHtml = goals
 			.map((g, idx) => {
-				const cls = `goal goal-${g.resolution.finding}${openGoal === g.domain ? " goal-open" : ""}`;
-				const expanded = openGoal === g.domain ? "true" : "false";
-				const detail = openGoal === g.domain ? this.renderResolution(g, idx) : "";
+				if (typeof g.description !== "string") throw new Error(`shu-affordances-panel: goal "${g.domain}" is missing a description. The goal-domain registry must declare one — see TRegisteredDomain.description. Got: ${JSON.stringify(g).slice(0, 200)}.`);
+				const isOpen = openGoal === g.domain;
+				const cls = `goal goal-${g.resolution.finding}${isOpen ? " goal-open" : ""}`;
+				const expanded = isOpen ? "true" : "false";
+				// Closed-by-default: a goal renders only its header until the user clicks it
+				// (or a deep-link from the chain view sets `?aff-goal=<domain>` which the
+				// popstate handler maps back to `openGoal`). The full resolution detail —
+				// paths, michi graph, binding tree — renders only when expanded.
+				const detail = isOpen ? this.renderResolution(g, idx) : "";
+				// Asserted fact ids appear inline on satisfied goals so the user sees what
+				// already exists at a glance, without having to expand the goal first.
+				const factSummary = g.resolution.finding === GOAL_FINDING.SATISFIED && Array.isArray(g.resolution.factIds) && g.resolution.factIds.length > 0
+					? `<div class="goal-fact-summary" data-testid="goal-${escAttr(g.domain)}-facts">${g.resolution.factIds.map((id) => factIdRef(id)).join(", ")}</div>`
+					: "";
 				return `<div class="${cls}" data-testid="goal-${escAttr(g.domain)}" data-goal-domain="${escAttr(g.domain)}">
 					<button class="goal-header" type="button" data-goal-domain="${escAttr(g.domain)}" aria-expanded="${expanded}" data-testid="goal-${escAttr(g.domain)}-toggle">
 						<div class="goal-heading">
@@ -449,6 +451,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 						</div>
 						<span class="finding" data-testid="goal-${escAttr(g.domain)}-finding">${esc(findingLabel(g.resolution.finding))}</span>
 					</button>
+					${factSummary}
 					${detail}
 				</div>`;
 			})
@@ -538,13 +541,13 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				.as-of-clear { padding: 2px 8px; background: #fff; border: 1px solid #d6b257; border-radius: 2px; cursor: pointer; font: inherit; }
 				.as-of-clear:hover { background: #ffeebf; }
 				.waypoint { padding: 8px 10px; margin: 4px 0; border: 1px solid #ddd; border-radius: 4px; background: #fafafa; }
-				.waypoint.wp-valid { border-left: 4px solid #1a6b3c; }
+				.waypoint.wp-ensured { border-left: 4px solid #1a6b3c; }
 				.waypoint.wp-pending { border-left: 4px solid #b58105; }
 				.wp-header { display: flex; gap: 8px; align-items: baseline; }
 				.wp-outcome { flex: 1; font-size: 13px; }
 				.wp-kind { font-size: 10px; color: #6a4f9a; letter-spacing: 0.3px; }
 				.wp-state { font-size: 11px; padding: 2px 6px; border-radius: 2px; background: #eee; color: #444; }
-				.wp-valid .wp-state { background: #d8edd8; color: #1a6b3c; }
+				.wp-ensured .wp-state { background: #d8edd8; color: #1a6b3c; }
 				.wp-pending .wp-state { background: #fde6c4; color: #b58105; }
 				.wp-resolves, .wp-slots, .wp-proof { font-size: 11px; color: #555; margin-top: 4px; }
 				.wp-error { font-size: 11px; color: #a02828; margin-top: 4px; }
@@ -651,13 +654,32 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 		this.restoreUiState(snapshot);
 
-		// Scroll only once per open-goal change; leaves manual scroll alone during live re-renders.
+		// Scroll only once per open-goal / open-waypoint change; leaves manual scroll
+		// alone during live re-renders. Look up the card by walking the relevant
+		// data attribute rather than building an escaped attribute selector — that
+		// avoids relying on `CSS.escape` (absent in jsdom) and on any domain-name
+		// characters needing CSS-attribute-selector escaping.
+		const openWaypoint = this.state.openWaypoint;
+		const findByAttr = (attr: string, value: string): HTMLElement | null => {
+			for (const el of Array.from(this.shadowRoot?.querySelectorAll<HTMLElement>(`[${attr}]`) ?? [])) {
+				if (el.getAttribute(attr) === value) return el;
+			}
+			return null;
+		};
 		if (!openGoal) this.lastScrolledGoal = "";
 		else if (openGoal !== this.lastScrolledGoal) {
-			const card = this.shadowRoot.querySelector<HTMLElement>(`[data-goal-domain="${CSS.escape(openGoal)}"]`);
+			const card = findByAttr("data-goal-domain", openGoal);
 			if (card) {
-				requestAnimationFrame(() => card.scrollIntoView({ block: "start", behavior: "auto" }));
+				requestAnimationFrame(() => card.scrollIntoView?.({ block: "start", behavior: "auto" }));
 				this.lastScrolledGoal = openGoal;
+			}
+		}
+		if (!openWaypoint) this.lastScrolledWaypoint = "";
+		else if (openWaypoint !== this.lastScrolledWaypoint) {
+			const card = findByAttr("data-testid", `waypoint-${openWaypoint}`);
+			if (card) {
+				requestAnimationFrame(() => card.scrollIntoView?.({ block: "start", behavior: "auto" }));
+				this.lastScrolledWaypoint = openWaypoint;
 			}
 		}
 	}
