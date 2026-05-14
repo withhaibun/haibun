@@ -141,6 +141,13 @@ const COMPOSITE_DEFAULT_DEPTH = 4;
  * answer (because the graph is incomplete or capabilities are unknown), it returns
  * `refused` rather than guessing.
  */
+/** Hard ceiling on enumerate() invocations per resolveGoal call. Even with depthLimit +
+ * maxMichi, cartesian fanout across composite fields can push the recursion count into
+ * the millions before truncating. This counter throws fast so a runaway resolve doesn't
+ * hang the test (or the live RPC) — typical resolves finish in well under 10k calls. */
+const ENUMERATE_BUDGET = 200_000;
+let enumerateCallCount = 0;
+
 export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolution {
 	const refusal = checkResolverInvariants(inputs, goal);
 	if (refusal) return refusal;
@@ -153,9 +160,13 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 	const depthLimit = inputs.depthLimit ?? DEFAULT_DEPTH_LIMIT;
 	const maxMichi = inputs.maxMichi ?? MAX_MICHI;
 	const missing: string[] = [];
+	enumerateCallCount = 0;
+	const t0 = Date.now();
 	const enumeration = hasProducerEdge
 		? enumerate(goal, { ...inputs, facts: inputs.facts.filter((q) => q.predicate !== goal) }, new Set<string>([keyForVisited(goal, "")]), missing, depthLimit, 0, maxMichi, "")
 		: { michi: [], truncated: false };
+	const elapsed = Date.now() - t0;
+	if (elapsed > 500) console.warn(`[goal-resolver] resolveGoal(${goal}) took ${elapsed}ms, ${enumerateCallCount} enumerate calls, ${enumeration.michi.length} michi`);
 
 	if (matchingFacts.length > 0) {
 		return { finding: GOAL_FINDING.SATISFIED, goal, factIds: matchingFacts.map((q) => q.subject), michi: enumeration.michi, truncated: enumeration.truncated };
@@ -235,6 +246,9 @@ function enumerate(
 	maxMichi: number,
 	path: string,
 ): TEnumResult {
+	if (++enumerateCallCount > ENUMERATE_BUDGET) {
+		throw new Error(`[goal-resolver] enumerate() budget of ${ENUMERATE_BUDGET} calls exceeded for target=${target} depth=${depth} path=${path}. Likely a cycle the visited-set doesn't catch (cartesian composite explosion, or recursive field-domain reference). visited=[${[...visited].slice(0, 10).join(", ")}${visited.size > 10 ? `, ...${visited.size} total` : ""}]`);
+	}
 	if (depth > depthLimit) return { michi: [], truncated: false };
 	if (target === SOURCE_DOMAIN) return { michi: [{ steps: [], bindings: [] }], truncated: false };
 
