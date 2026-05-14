@@ -226,17 +226,23 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	/**
-	 * Append (or reuse) a step-caller for the given method. The caller carries
-	 * the qualified method as `method` (canonical identity) and a `call-index`
-	 * counting prior callers for the same method, so its testids are unique
-	 * across the page even when the same step is invoked multiple times.
+	 * Append (or reuse) a step-caller for the given method. The caller carries:
+	 *   - `method`: qualified method (canonical identity, used to dispatch)
+	 *   - `gwta`: the user-facing gwta pattern, used as the test-id prefix so
+	 *     test selectors read naturally ("show affordances-0-step-run" rather
+	 *     than "GoalResolutionStepper-showAffordances-0-step-run")
+	 *   - `call-index`: counts prior callers for the same method so test-ids
+	 *     stay unique across repeated invocations
 	 */
 	private openStepCaller(output: HTMLElement, method: string, args?: Record<string, unknown>, auto?: boolean): void {
 		const countOthers = () => output.querySelectorAll(`shu-step-caller[method="${method}"]`).length;
+		const descriptor = this._steps.find((s) => s.method === method);
+		const gwta = descriptor ? prettifyGwta(descriptor.pattern) : method;
 		const lastCaller = output.querySelector("shu-step-caller:last-of-type") as (HTMLElement & { executed?: boolean; reset?: (name: string) => void }) | null;
 		if (lastCaller && !lastCaller.executed && lastCaller.reset && !args && !auto) {
 			const wasSame = lastCaller.getAttribute("method") === method;
 			lastCaller.setAttribute("method", method);
+			lastCaller.setAttribute("gwta", gwta);
 			lastCaller.setAttribute("call-index", String(countOthers() - (wasSame ? 1 : 0)));
 			lastCaller.reset(method);
 			return;
@@ -244,6 +250,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const caller = document.createElement("shu-step-caller");
 		caller.setAttribute("step", method);
 		caller.setAttribute("method", method);
+		caller.setAttribute("gwta", gwta);
 		caller.setAttribute("call-index", String(countOthers()));
 		if (args) caller.setAttribute("params", JSON.stringify(args));
 		if (auto) caller.setAttribute("auto", "");
