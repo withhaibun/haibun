@@ -44,14 +44,18 @@ describe("shu-domain-chain-view", () => {
 		// In jsdom the fetch path fails fast; the test asserts the empty state appears.
 	});
 
-	it("forwards graph-node-click from the embedded shu-graph to routeNodeClick so a deep-link node opens the affordances panel", async () => {
+	it("forwards graph-node-click from the embedded shu-graph to routeNodeClick so a deep-link node opens the affordances panel", () => {
 		// Regression: clicking a blue (reachable) node in the chain must open the affordances
 		// panel deep-linked to that goal. The flow is: shu-graph dispatches graph-node-click on
 		// itself → chain view's listener catches → routeNodeClick pushes URL + dispatches popstate.
 		if (!customElements.get("shu-graph-filter")) {
 			class FakeFilter extends HTMLElement {
-				setAxes(_axes: unknown): void {}
-				setSource(_clusters: unknown, _quads: unknown): void {}
+				setAxes(_axes: unknown): void {
+					/* test stub — chain view writes to the filter; the filter's behavior isn't under test here */
+				}
+				setSource(_clusters: unknown, _quads: unknown): void {
+					/* test stub */
+				}
 			}
 			customElements.define("shu-graph-filter", FakeFilter);
 		}
@@ -61,7 +65,9 @@ describe("shu-domain-chain-view", () => {
 				set products(_p: Record<string, unknown>) {
 					// no-op for this test; only the event forwarding matters
 				}
-				setZoom(_z: number): void {}
+				setZoom(_z: number): void {
+					/* test stub */
+				}
 			}
 			customElements.define("shu-graph", FakeGraph);
 		}
@@ -98,8 +104,12 @@ describe("shu-domain-chain-view", () => {
 		//   - node.invokes alone (no link.href) → no-op; the projection is expected to set link.href on every domain node.
 		if (!customElements.get("shu-graph-filter")) {
 			class FakeFilter extends HTMLElement {
-				setAxes(_axes: unknown): void {}
-				setSource(_clusters: unknown, _quads: unknown): void {}
+				setAxes(_axes: unknown): void {
+					/* test stub — chain view writes to the filter; the filter's behavior isn't under test here */
+				}
+				setSource(_clusters: unknown, _quads: unknown): void {
+					/* test stub */
+				}
 			}
 			customElements.define("shu-graph-filter", FakeFilter);
 		}
@@ -145,8 +155,12 @@ describe("shu-domain-chain-view", () => {
 		const mount = (): ShuDomainChainView => {
 			if (!customElements.get("shu-graph-filter")) {
 				class FakeFilter extends HTMLElement {
-					setAxes(_axes: unknown): void {}
-					setSource(_clusters: unknown, _quads: unknown): void {}
+					setAxes(_axes: unknown): void {
+						/* test stub */
+					}
+					setSource(_clusters: unknown, _quads: unknown): void {
+						/* test stub */
+					}
 				}
 				customElements.define("shu-graph-filter", FakeFilter);
 			}

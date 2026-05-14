@@ -171,7 +171,9 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	 * TIME_SYNC and re-renders. Kept as a no-op stub to avoid touching
 	 * existing call sites mid-refactor.
 	 */
-	private updateTimeline(): void {}
+	private updateTimeline(): void {
+		/* no-op — see comment above */
+	}
 
 	protected render(): void {
 		if (!this.shadowRoot) return;

@@ -128,7 +128,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	 * Timeline state lives in the actions-bar's shu-timeline; this column
 	 * consumes TIME_SYNC and re-renders. Stub kept for the existing call sites.
 	 */
-	private updateTimeline(): void {}
+	private updateTimeline(): void {
+		/* no-op — see comment above */
+	}
 
 	private applyTimeCursor(): void {
 		const body = this.shadowRoot?.querySelector(".document-body");

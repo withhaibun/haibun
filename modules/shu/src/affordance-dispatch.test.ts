@@ -22,7 +22,9 @@ describe("dispatchAffordanceFromResponse", () => {
 					addPane(p: HTMLElement) {
 						this.appendChild(p);
 					}
-					activatePane(_i: number) {}
+					activatePane(_i: number) {
+						/* test stub */
+					}
 				},
 			);
 		}

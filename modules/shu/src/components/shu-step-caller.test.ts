@@ -139,9 +139,15 @@ describe("shu-step-caller", () => {
 		// constructor (called lazily by SseClient.for) doesn't throw before fetch
 		// can be intercepted.
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
-			addEventListener(): void {}
-			removeEventListener(): void {}
-			close(): void {}
+			addEventListener(): void {
+				/* stub — no real SSE in jsdom */
+			}
+			removeEventListener(): void {
+				/* stub */
+			}
+			close(): void {
+				/* stub */
+			}
 		};
 		// jsdom also leaves scrollIntoView unset on HTMLElement; stub it so the
 		// post-render scroll call in callStep doesn't crash the test.
@@ -151,16 +157,18 @@ describe("shu-step-caller", () => {
 		// an `error` field, mirroring the SPA's wire contract. The SSE client
 		// throws on either non-OK status or `data.error`, so callStep's catch
 		// branch fires regardless of which trigger the runtime sees first.
-		globalThis.fetch = async (input: unknown): Promise<Response> => {
+		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/session.beginAction")) return new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } });
+			if (url.endsWith("/rpc/session.beginAction")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
 			if (url.endsWith("/rpc/IssueStepper-issueCredential")) {
-				return new Response(JSON.stringify({ error: 'IssueStepper-issueCredential: "type" must include `VerifiableCredential`.' }), {
-					status: 422,
-					headers: { "Content-Type": "application/json" },
-				});
+				return Promise.resolve(
+					new Response(JSON.stringify({ error: 'IssueStepper-issueCredential: "type" must include `VerifiableCredential`.' }), {
+						status: 422,
+						headers: { "Content-Type": "application/json" },
+					}),
+				);
 			}
-			return new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } });
+			return Promise.resolve(new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } }));
 		};
 		try {
 			const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
@@ -193,22 +201,30 @@ describe("shu-step-caller", () => {
 			inputSchema: { properties: { query: { type: "object" } }, required: ["query"] },
 		};
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
-			addEventListener(): void {}
-			removeEventListener(): void {}
-			close(): void {}
+			addEventListener(): void {
+				/* stub — no real SSE in jsdom */
+			}
+			removeEventListener(): void {
+				/* stub */
+			}
+			close(): void {
+				/* stub */
+			}
 		};
 		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
 		const realFetch = globalThis.fetch;
-		globalThis.fetch = async (input: unknown): Promise<Response> => {
+		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/session.beginAction")) return new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } });
+			if (url.endsWith("/rpc/session.beginAction")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
 			if (url.endsWith("/rpc/GraphStepper-graphQuery")) {
-				return new Response(JSON.stringify({ ok: false, error: "GraphStepper-graphQuery: response too large to serialize (Invalid string length). Narrow the query or return a summary." }), {
-					status: 413,
-					headers: { "Content-Type": "application/json" },
-				});
+				return Promise.resolve(
+					new Response(JSON.stringify({ ok: false, error: "GraphStepper-graphQuery: response too large to serialize (Invalid string length). Narrow the query or return a summary." }), {
+						status: 413,
+						headers: { "Content-Type": "application/json" },
+					}),
+				);
 			}
-			return new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } });
+			return Promise.resolve(new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } }));
 		};
 		try {
 			const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
