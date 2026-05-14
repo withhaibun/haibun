@@ -3,7 +3,7 @@ import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, findStep, requireStep, type StepDescriptor } from "../rpc-registry.js";
 import { dispatchAffordanceFromResponse } from "../affordance-dispatch.js";
 import { renderValue } from "./value-renderers.js";
-import { esc, escAttr, prettifyGwta } from "../util.js";
+import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../step-input-validator.js";
 import { getConcernCatalog } from "../rels-cache.js";
@@ -199,20 +199,10 @@ export class StepCaller extends HTMLElement {
 		this.scrollIntoView({ behavior: "smooth", block: "nearest" });
 	}
 
-	/**
-	 * Unique per-invocation testid prefix: `${gwta}-${callIndex}` where
-	 * `gwta` is the user-facing step pattern (e.g. "show affordances") that the
-	 * actions bar threads through, and `callIndex` is the count of prior callers
-	 * for the same method. Falls back to the qualified method when no gwta is
-	 * supplied (defensive, for callers that mount step-caller directly without
-	 * going through the actions bar). Using gwta keeps test selectors readable
-	 * — feature files target "show affordances-0-step-run" rather than
-	 * "GoalResolutionStepper-showAffordances-0-step-run".
-	 */
 	private idPrefix(): string {
 		const key = this.getAttribute("gwta") || this.getAttribute("method") || this.getAttribute("step") || "";
 		const callIndex = this.getAttribute("call-index") ?? "0";
-		return `${key}-${callIndex}`;
+		return `${normalizeStepKey(key)}-${callIndex}`;
 	}
 
 	private renderComponent(): void {

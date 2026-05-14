@@ -73,7 +73,7 @@ describe("shu-step-caller", () => {
 		// Force a render path that runs after descriptor + attributes are set.
 		(caller as unknown as { renderComponent: () => void }).renderComponent?.();
 		const html = caller.shadowRoot?.innerHTML ?? "";
-		expect(html).toContain('data-testid="createIssuer-0-step-input-issuer-did"');
+		expect(html).toContain('data-testid="create-issuer-0-step-input-issuer-did"');
 	});
 
 	it("composite-input testids use `-` (not `.`) so haibun variable resolution doesn't parse them as dot-paths", () => {
@@ -96,9 +96,8 @@ describe("shu-step-caller", () => {
 		caller.setAttribute("call-index", "0");
 		(caller as unknown as { renderComponent: () => void }).renderComponent?.();
 		const html = caller.shadowRoot?.innerHTML ?? "";
-		// testids are unique per invocation: `<stepName>-<callIndex>-step-input-<paramName>-<subField>`.
-		expect(html).toContain('data-testid="IssueStepper-createIssuer-0-step-input-issuer-did"');
-		expect(html).toContain('data-testid="IssueStepper-createIssuer-0-step-input-issuer-name"');
+		expect(html).toContain('data-testid="create-issuer-0-step-input-issuer-did"');
+		expect(html).toContain('data-testid="create-issuer-0-step-input-issuer-name"');
 		expect(html).toContain('name="issuer.did"');
 		expect(html).toContain('name="issuer.name"');
 	});
