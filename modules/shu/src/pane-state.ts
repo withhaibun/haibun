@@ -126,21 +126,21 @@ class PaneStateImpl {
 		// `applyFlag(existing, undefined)` and wipe the user's minimized / maximized state.
 		strip.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, ((e: CustomEvent) => {
 			const pane = e.target as HTMLElement;
-			const id = pane.dataset?.columnKey;
+			const id = pane.dataset.columnKey;
 			if (!id) return;
 			const minimized = Boolean(e.detail?.minimized);
 			this.setFlag(id, minimized ? "min" : undefined);
 		}) as EventListener);
 		strip.addEventListener(SHU_EVENT.COLUMN_MAXIMIZE, ((e: CustomEvent) => {
 			const pane = e.target as HTMLElement;
-			const id = pane.dataset?.columnKey;
+			const id = pane.dataset.columnKey;
 			if (!id) return;
 			const maximized = Boolean(e.detail?.maximized);
 			this.setFlag(id, maximized ? "max" : undefined);
 		}) as EventListener);
 		strip.addEventListener(SHU_EVENT.COLUMN_EXPAND, ((e: Event) => {
 			const pane = e.target as HTMLElement;
-			const id = pane.dataset?.columnKey;
+			const id = pane.dataset.columnKey;
 			if (!id) return;
 			this.setFlag(id, undefined);
 		}) as EventListener);

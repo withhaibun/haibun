@@ -624,21 +624,23 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			const graph: TGraph = projectGoalPaths({ goal: goal.domain, finding: r.finding, michi, factIds });
 			(graphEl as HTMLElement & { products: Record<string, unknown> }).products = { graph, options: {} };
 			graphEl.addEventListener(SHU_EVENT.GRAPH_NODE_CLICK as string, (e) => {
-				const detail = (e as CustomEvent).detail as { node?: { invokes?: { stepperName?: string; stepName?: string }; wasGeneratedBy?: { factId?: string } } };
-				const invokes = detail?.node?.invokes;
+				const detail = (e as CustomEvent).detail as { node: { invokes?: { stepperName?: string; stepName?: string }; wasGeneratedBy?: { factId?: string } } | null };
+				const node = detail.node;
+				// Background clicks dispatch a null `node` — no view to open from the goal-graph.
+				if (!node) return;
+				const invokes = node.invokes;
 				if (invokes?.stepperName && invokes?.stepName) {
 					this.chooseStep(stepMethodName(invokes.stepperName, invokes.stepName));
 					return;
 				}
-				// `wasGeneratedBy.factId` is the producing seqPath (string form).
-				// Open the step-detail for that seqPath so the user can inspect the
-				// asserted fact alongside the rest of the step's quads.
-				const wasGeneratedBy = detail?.node?.wasGeneratedBy;
-				if (typeof wasGeneratedBy?.factId === "string") {
-					const head = wasGeneratedBy.factId.includes("#") ? wasGeneratedBy.factId.slice(0, wasGeneratedBy.factId.indexOf("#")) : wasGeneratedBy.factId;
-					const seqPath = parseSeqPath(head);
-					if (seqPath) PaneState.request({ paneType: "step-detail", seqPath });
-				}
+				const factId = node.wasGeneratedBy?.factId;
+				if (typeof factId !== "string") return;
+				// `wasGeneratedBy.factId` may carry a `#field` suffix for multi-product steps —
+				// strip it before parsing so both forms reach the same step-detail seqPath.
+				const head = factId.includes("#") ? factId.slice(0, factId.indexOf("#")) : factId;
+				const seqPath = parseSeqPath(head);
+				if (!seqPath) return;
+				PaneState.request({ paneType: "step-detail", seqPath });
 			});
 			const cards = this.shadowRoot.querySelectorAll<HTMLElement>(`.path-card[data-testid^="path-card-${goalIdx}-"]`);
 			for (const card of Array.from(cards)) {
@@ -670,7 +672,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		else if (openGoal !== this.lastScrolledGoal) {
 			const card = findByAttr("data-goal-domain", openGoal);
 			if (card) {
-				requestAnimationFrame(() => card.scrollIntoView?.({ block: "start", behavior: "auto" }));
+				requestAnimationFrame(() => card.scrollIntoView({ block: "start", behavior: "auto" }));
 				this.lastScrolledGoal = openGoal;
 			}
 		}
@@ -678,7 +680,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		else if (openWaypoint !== this.lastScrolledWaypoint) {
 			const card = findByAttr("data-testid", `waypoint-${openWaypoint}`);
 			if (card) {
-				requestAnimationFrame(() => card.scrollIntoView?.({ block: "start", behavior: "auto" }));
+				requestAnimationFrame(() => card.scrollIntoView({ block: "start", behavior: "auto" }));
 				this.lastScrolledWaypoint = openWaypoint;
 			}
 		}
