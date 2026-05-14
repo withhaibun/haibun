@@ -87,11 +87,10 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Show affordances; the panel renders both michi cards for the paper goal" }),
 
-		"The affordances panel mounts in response to show affordances. The signature of the picker UI: one card per goal-producing domain, with one michi card per enumerated path. The paper goal has two michi cards: michi-card-N-0 and michi-card-N-1.",
+		"The affordances panel mounts in response to show affordances. The signature of the picker UI: one card per goal-producing domain, with one michi card per enumerated path. The paper goal has two michi cards: michi-card-N-0 and michi-card-N-1. Forward-reachable steps are no longer duplicated in the panel — they live in the actions-bar's step picker — so the panel asserts goals only.",
 		...enterStepMode,
 		...passesStepExecution("show affordances"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
-		waitFor({ target: IDS.AFFORDANCES.FORWARD_LIST }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
 
 		scenario({ scenario: "Run createPaper; the paper goal becomes satisfied" }),
