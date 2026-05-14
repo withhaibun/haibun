@@ -38,11 +38,17 @@ type TPlaceholderEntry<P extends string> = P extends `${infer Name}:${infer Doma
 
 type TNestedArgValue = string | number | boolean | null | TActionExecutor<string> | TNestedArgValue[] | { [key: string]: TNestedArgValue };
 
+// A slot's input type matches what `resolveArgValue` actually accepts at runtime:
+// strings (the common case), nested objects/arrays (encoded as JSON), and action
+// executors (statement slots resolve to the executed step's gwta). Keeping the
+// type in sync with the runtime — rather than narrowing to `string` — lets feature
+// files pass JS literals (`{ did, name }`) for fields whose stepper takes a
+// composite, without forcing manual `JSON.stringify` at every call site.
 type TPlaceholderValueType<Name extends string, Domain extends string | undefined> = Domain extends "statement"
 	? string | TActionExecutor<string>
 	: Name extends "statement"
 		? string | TActionExecutor<string>
-		: string;
+		: TNestedArgValue;
 
 type TPlaceholderDomain<Entries extends ReadonlyArray<[string, string | undefined]>, Name extends string> =
 	Extract<Entries[number], [Name, string | undefined]> extends [Name, infer Domain] ? (Domain extends string | undefined ? Domain : undefined) : undefined;
