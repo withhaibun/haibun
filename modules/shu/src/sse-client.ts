@@ -222,9 +222,12 @@ export class SseClient {
 
 	/**
 	 * Subscribe to server-pushed events with optional filtering.
-	 * Returns an unsubscribe function.
+	 * Returns an unsubscribe function. In offline mode there is no SSE source —
+	 * skip the connect attempt (which would 404 against the file:// origin) and
+	 * return a no-op unsubscribe.
 	 */
 	onEvent(handler: TEventHandler, filter?: TEventFilter): () => void {
+		if (ShuElement.offline) return () => {};
 		return ensureSSE().subscribe(handler, filter);
 	}
 
