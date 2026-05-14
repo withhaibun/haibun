@@ -67,12 +67,14 @@ export const SHU_TEST_IDS = {
 	},
 	COLUMN_PANE: {
 		MAXIMIZE: "pane-maximize",
+		CONTROLS_TOGGLE: "pane-controls-toggle",
 	},
 	DOCUMENT: {
 		ROOT: "document-view",
 	},
 	GRAPH_VIEW: {
 		ROOT: "graph-view-toolbar",
+		CONTROLS: "graph-view-toolbar",
 	},
 	AFFORDANCES: {
 		ROOT: "shu-affordances",
@@ -83,5 +85,6 @@ export const SHU_TEST_IDS = {
 	DOMAIN_CHAIN: {
 		ROOT: "shu-domain-chain",
 		GRAPH: "domain-chain-graph",
+		CONTROLS: "domain-chain-toolbar",
 	},
 } as const;

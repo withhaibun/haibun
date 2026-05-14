@@ -69,7 +69,11 @@ const StateSchema = z.object({
 
 const STYLES = `
 :host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-:host(:not([data-show-controls])) .toolbar { display: none; }
+/* All per-view controls (toolbar, axis filter, predicate filter) toggle together as
+   one group via the column-pane's gear (which sets data-show-controls on us). */
+:host(:not([data-show-controls])) .toolbar,
+:host(:not([data-show-controls])) shu-graph-filter,
+:host(:not([data-show-controls])) .graph-filters { display: none; }
 .toolbar { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; flex-wrap: wrap; flex-shrink: 0; background: #fff; z-index: 10; }
 .toolbar button { padding: 2px 8px; cursor: pointer; }
 .toolbar label { font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 2px; }
