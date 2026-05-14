@@ -96,10 +96,8 @@ const resolveArgValue = (value: TNestedArgValue): string => {
 		return value.map(resolveArgValue).join(" ");
 	}
 
-	if (typeof value === "object") {
-		const entries = Object.entries(value).map(([key, nested]) => `${key}: ${resolveArgValue(nested)}`);
-		return `{ ${entries.join(", ")} }`;
-	}
+	// JSON, not haibun composite-literal form — Zod-validated step inputs expect JSON.
+	if (typeof value === "object") return JSON.stringify(value);
 
 	// Escape newlines in string values for BDD format
 	return String(value).replace(/\n/g, "\\n");
