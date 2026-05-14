@@ -2,6 +2,16 @@ export function esc(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/** Must stay byte-identical with the same call in shu-step-caller's idPrefix() —
+ * feature-test selectors converge on this slug regardless of which form (gwta or
+ * qualified method) the test typed into the step picker. */
+export function normalizeStepKey(input: string): string {
+	let s = input.replace(/\{[^}]*\}/g, "");
+	if (/^[A-Z]\w+-/.test(s)) s = s.replace(/^[A-Z]\w+-/, "");
+	s = s.replace(/([a-z0-9])([A-Z])/g, "$1-$2");
+	return s.toLowerCase().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+
 /**
  * Render a gwta pattern in human-friendly form. Strips regex-style optional groups
  * `(...)?` (typical of patterns like `set( empty)? {what} as {domain} to {value}`)
