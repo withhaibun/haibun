@@ -49,6 +49,9 @@ export type TGraphEdge = {
 	kind?: string;
 	/** Path ids this edge participates in. Used by path-aware highlighting; absent for non-path graphs. */
 	paths?: string[];
+	/** Stepper and step that produced this edge (for filtering / click routing on chain-style projections). Absent for synthetic edges (fields, ensures). */
+	stepperName?: string;
+	stepName?: string;
 };
 
 export type TGraphGroup = {
