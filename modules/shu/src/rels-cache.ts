@@ -126,20 +126,6 @@ export function getVertexUi(label: string): Record<string, unknown> | undefined 
 	return metadata?.ui[label];
 }
 
-/**
- * Resolve a vertex domain key to its registered vertex label.
- * `_type` carries the productsDomain when no `ui.component` is declared, so
- * fallback paths that pass it to `getVertexWithEdges` must translate first —
- * that step's `label` is validated against registered vertex labels.
- */
-export function vertexLabelForDomain(domainKey: string): string | undefined {
-	if (!concernCatalog) return undefined;
-	for (const [label, vertex] of Object.entries(concernCatalog.vertices)) {
-		if (vertex.domainKey === domainKey) return label;
-	}
-	return undefined;
-}
-
 /** Resolve a UI extension by component tag name from concern-derived metadata. */
 export function getUiByComponent(component: string): Record<string, unknown> | undefined {
 	if (!metadata) return undefined;
