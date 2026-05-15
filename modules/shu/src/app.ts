@@ -10,7 +10,7 @@ import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { SseClient, inAction } from "./sse-client.js";
-import { getUiByComponent, getVertexUi, vertexLabelForDomain } from "./rels-cache.js";
+import { getUiByComponent, getVertexUi } from "./rels-cache.js";
 import { parseAffordanceProduct } from "./affordance-products.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
 import { PaneState } from "./pane-state.js";
@@ -304,12 +304,10 @@ const main = async (): Promise<void> => {
 		const ui = getVertexUi(action.type);
 		if (ui?.component && typeof ui.component === "string") {
 			PaneState.request({ paneType: "component", tag: ui.component, label: action.label, data: action.products });
-			return;
 		}
-		// No ui.component: fall back to the generic entity pane.
-		// `action.type` is the productsDomain key; translate to its vertex label.
-		const vertexLabel = vertexLabelForDomain(action.type) ?? action.type;
-		PaneState.request({ paneType: "entity", id: action.id, vertexLabel, label: action.label });
+		// No ui.component declared → not a view. SSE-driven products without a
+		// registered component aren't auto-pinned; users open vertices via the
+		// query/entity column flow.
 	});
 
 	// Results changed → remove all non-query panes
