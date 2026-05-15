@@ -18,10 +18,14 @@ export function dispatchAffordanceFromResponse(response: unknown): ReturnType<ty
 	} else if (action.kind === "open-type") {
 		const ui = getVertexUi(action.type);
 		const component = ui?.component;
-		if (typeof component !== "string") {
-			throw new Error(`No ui.component registered for type "${action.type}" — domain must declare \`ui.component\` to be openable.`);
+		if (typeof component === "string") {
+			PaneState.request({ paneType: "component", tag: component, label: action.label, data: action.products });
+		} else {
+			// Generic path: any vertex domain is openable via shu-entity-column from id+label.
+			// `ui.component` is opt-in — domains without one default to the generic pane
+			// rather than killing the dispatch path.
+			PaneState.request({ paneType: "entity", id: action.id, vertexLabel: action.type, label: action.label });
 		}
-		PaneState.request({ paneType: "component", tag: component, label: action.label, data: action.products });
 	}
 	return action;
 }
