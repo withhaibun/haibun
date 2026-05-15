@@ -6,7 +6,7 @@
  * no custom events, no event-bus indirection. PaneState owns the pane lifecycle.
  */
 import { parseAffordanceProduct } from "./affordance-products.js";
-import { getVertexUi } from "./rels-cache.js";
+import { getVertexUi, vertexLabelForDomain } from "./rels-cache.js";
 import { PaneState, paneIdOf } from "./pane-state.js";
 
 export function dispatchAffordanceFromResponse(response: unknown): ReturnType<typeof parseAffordanceProduct> {
@@ -21,10 +21,10 @@ export function dispatchAffordanceFromResponse(response: unknown): ReturnType<ty
 		if (typeof component === "string") {
 			PaneState.request({ paneType: "component", tag: component, label: action.label, data: action.products });
 		} else {
-			// Generic path: any vertex domain is openable via shu-entity-column from id+label.
-			// `ui.component` is opt-in — domains without one default to the generic pane
-			// rather than killing the dispatch path.
-			PaneState.request({ paneType: "entity", id: action.id, vertexLabel: action.type, label: action.label });
+			// No ui.component: any vertex domain is openable via shu-entity-column.
+			// Map the productsDomain key to its vertex label for getVertexWithEdges.
+			const vertexLabel = vertexLabelForDomain(action.type) ?? action.type;
+			PaneState.request({ paneType: "entity", id: action.id, vertexLabel, label: action.label });
 		}
 	}
 	return action;
