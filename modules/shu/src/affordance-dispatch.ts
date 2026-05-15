@@ -6,7 +6,7 @@
  * no custom events, no event-bus indirection. PaneState owns the pane lifecycle.
  */
 import { parseAffordanceProduct } from "./affordance-products.js";
-import { getVertexUi, vertexLabelForDomain } from "./rels-cache.js";
+import { getVertexUi } from "./rels-cache.js";
 import { PaneState, paneIdOf } from "./pane-state.js";
 
 export function dispatchAffordanceFromResponse(response: unknown): ReturnType<typeof parseAffordanceProduct> {
@@ -20,12 +20,8 @@ export function dispatchAffordanceFromResponse(response: unknown): ReturnType<ty
 		const component = ui?.component;
 		if (typeof component === "string") {
 			PaneState.request({ paneType: "component", tag: component, label: action.label, data: action.products });
-		} else {
-			// No ui.component: any vertex domain is openable via shu-entity-column.
-			// Map the productsDomain key to its vertex label for getVertexWithEdges.
-			const vertexLabel = vertexLabelForDomain(action.type) ?? action.type;
-			PaneState.request({ paneType: "entity", id: action.id, vertexLabel, label: action.label });
 		}
+		// No ui.component → not a view; the step-caller's result rendering stands on its own.
 	}
 	return action;
 }
