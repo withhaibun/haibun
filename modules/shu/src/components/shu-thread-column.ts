@@ -5,12 +5,10 @@
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
-import { SseClient, inAction } from "../sse-client.js";
 import { esc, truncate } from "../util.js";
-import { getAvailableSteps, requireStep } from "../rpc-registry.js";
+import { callStep } from "../pane-fetch.js";
 import type { ShuGraphView } from "./shu-graph-view.js";
 import { COMMENT_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 const ThreadColumnSchema = z.object({
 	label: z.string().default(""),
@@ -74,15 +72,17 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	async open(label: string, id: string, depth?: number): Promise<void> {
 		if (depth !== undefined) this.state = { ...this.state, depth };
 		this.setState({ label, vertexId: id, loading: true, error: undefined });
-		try {
-			await getAvailableSteps();
-			const client = SseClient.for("");
-			const data = await inAction((scope) => client.rpc<{ items: ThreadVertex[]; contextRoot: string }>(scope, requireStep("getRelated"), { label, id, depth: this.state.depth }));
-			this.thread = data.items ?? [];
-			this.setState({ loading: false });
-		} catch (err) {
-			this.setState({ loading: false, error: errorDetail(err) });
+		const res = await callStep<{ items: ThreadVertex[]; contextRoot: string }>(
+			"getRelated",
+			{ label, id, depth: this.state.depth },
+			`thread-column: open ${label}:${id}`,
+		);
+		if (!res.ok) {
+			this.setState({ loading: false, error: res.error });
+			return;
 		}
+		this.thread = res.value.items ?? [];
+		this.setState({ loading: false });
 	}
 
 	protected render(): void {

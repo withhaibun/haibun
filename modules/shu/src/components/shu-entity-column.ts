@@ -11,7 +11,6 @@ import {
 	esc,
 	escAttr,
 	truncate,
-	errMsg,
 	vertexId,
 	isVisibleKey,
 	isReferenceEdge,
@@ -28,8 +27,7 @@ import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { renderValue } from "./value-renderers.js";
-import { SseClient, inAction } from "../sse-client.js";
-import { getAvailableSteps, requireStep } from "../rpc-registry.js";
+import { callStep } from "../pane-fetch.js";
 import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields } from "../rels-cache.js";
 
 type VertexData = Record<string, unknown>;
@@ -83,28 +81,27 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			loading: true,
 			error: undefined,
 		});
-		try {
-			await getAvailableSteps();
-			const client = SseClient.for("");
-			const accessLevel = appAccessLevel();
-			const data = await inAction(
-				(scope) => client.rpc<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(scope, requireStep("getVertexWithEdges"), { label, id, accessLevel }),
-				`entity-column: open ${label}:${id}`,
-			);
-			this.vertex = data.vertex;
-			this.edges = data.edges ?? [];
-			this.incomingCount = data.incomingCount ?? 0;
-			this.setState({ loading: false });
-			this.dispatchEvent(
-				new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-					detail: { patterns: [{ s: id }], accessLevel, label },
-					bubbles: true,
-					composed: true,
-				}),
-			);
-		} catch (err) {
-			this.setState({ loading: false, error: errMsg(err) });
+		const accessLevel = appAccessLevel();
+		const res = await callStep<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(
+			"getVertexWithEdges",
+			{ label, id, accessLevel },
+			`entity-column: open ${label}:${id}`,
+		);
+		if (!res.ok) {
+			this.setState({ loading: false, error: res.error });
+			return;
 		}
+		this.vertex = res.value.vertex;
+		this.edges = res.value.edges ?? [];
+		this.incomingCount = res.value.incomingCount ?? 0;
+		this.setState({ loading: false });
+		this.dispatchEvent(
+			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
+				detail: { patterns: [{ s: id }], accessLevel, label },
+				bubbles: true,
+				composed: true,
+			}),
+		);
 	}
 
 	protected render(): void {
