@@ -7,6 +7,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import { stringOrError, findStepperFromOptionOrKind, intOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
+import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 import { SSEPrompter } from "./prompter.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
@@ -137,12 +138,11 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
 		let savedPath = this.outputPath;
 
-		// check if any world (env) secrets are in the html. If they are, throw an error.
-		const secrets = this.world.shared.getSecrets();
-		for (const [secretName, secretValue] of Object.entries(secrets)) {
-			if (html.includes(secretValue)) {
-				throw new Error(`[MonitorBrowser] World (env) secret "${secretName}" is in the html for ${featureFile}, cannot write monitor.`);
-			}
+		// Belt-and-suspenders: redact any raw env-secret values that escaped the
+		// obscure-on-resolve path before serializing the monitor html.
+		const secrets = await this.world.shared.getSecrets();
+		for (const [, secretValue] of Object.entries(secrets)) {
+			if (secretValue) html = html.split(secretValue).join(OBSCURED_VALUE);
 		}
 
 		if (savedPath) {
