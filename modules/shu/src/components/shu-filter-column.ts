@@ -7,9 +7,7 @@ import { appAccessLevel, defaultLabel } from "../util.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
-import { errMsg } from "../util.js";
-import { SseClient, inAction } from "../sse-client.js";
-import { getAvailableSteps, requireStep } from "../rpc-registry.js";
+import { callStep } from "../pane-fetch.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 
@@ -80,37 +78,32 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	}
 
 	private async fetchIncoming(label: string, id: string, limit: number, offset: number): Promise<void> {
-		try {
-			await getAvailableSteps();
-			const client = SseClient.for("");
-			const data = await inAction((scope) =>
-				client.rpc<{
-					edges: Array<{ type: string; target: VertexData }>;
-					total: number;
-				}>(scope, requireStep("getIncomingEdges"), { label, id, limit, offset, accessLevel: appAccessLevel() }),
-			);
-			this.results = data.edges.map((e) => e.target);
-			this.state = { ...this.state, loading: false };
-			this.showResults();
-			if (this.resultTable) this.resultTable.setPagination(data.total, limit, offset);
-		} catch (err) {
-			this.state = { ...this.state, loading: false, error: errMsg(err) };
-			this.showError(errMsg(err));
+		const res = await callStep<{ edges: Array<{ type: string; target: VertexData }>; total: number }>(
+			"getIncomingEdges",
+			{ label, id, limit, offset, accessLevel: appAccessLevel() },
+			`filter-column: incoming ${label}:${id}`,
+		);
+		if (!res.ok) {
+			this.state = { ...this.state, loading: false, error: res.error };
+			this.showError(res.error);
+			return;
 		}
+		this.results = res.value.edges.map((e) => e.target);
+		this.state = { ...this.state, loading: false };
+		this.showResults();
+		if (this.resultTable) this.resultTable.setPagination(res.value.total, limit, offset);
 	}
 
 	private async fetchResults(query: Record<string, unknown>): Promise<void> {
-		try {
-			await getAvailableSteps();
-			const client = SseClient.for("");
-			const data = await inAction((scope) => client.rpc<{ vertices: VertexData[]; total: number }>(scope, requireStep("graphQuery"), { query }));
-			this.results = data.vertices ?? [];
-			this.state = { ...this.state, loading: false };
-			this.showResults();
-		} catch (err) {
-			this.state = { ...this.state, loading: false, error: errMsg(err) };
-			this.showError(errMsg(err));
+		const res = await callStep<{ vertices: VertexData[]; total: number }>("graphQuery", { query }, `filter-column: query`);
+		if (!res.ok) {
+			this.state = { ...this.state, loading: false, error: res.error };
+			this.showError(res.error);
+			return;
 		}
+		this.results = res.value.vertices ?? [];
+		this.state = { ...this.state, loading: false };
+		this.showResults();
 	}
 
 	/** Build the stable DOM structure once. */
