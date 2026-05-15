@@ -83,12 +83,8 @@ function writeParamToUrl(name: string, value: string): void {
 }
 
 /**
- * `aff-goal` and `aff-waypoint` are mutually exclusive selections in the
- * affordances panel. Any caller (chain-view deep-link, manual URL paste, etc.)
- * can stamp just its own param onto the URL — this normalizer resolves the
- * coexistence: the param that differs from prior state is the newcomer and
- * wins; the other is dropped. If both differ (initial load with both set),
- * waypoint takes precedence as the more granular selection.
+ * Mutually exclusive selections: when both URL params are set, the one that
+ * differs from prior state wins; waypoint wins ties (more granular).
  */
 function normalizeSelection(goalInUrl: string, waypointInUrl: string, priorGoal: string, priorWaypoint: string): { goal: string; waypoint: string } {
 	if (!goalInUrl || !waypointInUrl) return { goal: goalInUrl, waypoint: waypointInUrl };
@@ -146,9 +142,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// a copy-pasted URL also opens the right entry on first load.
 		this.popstateHandler = () => {
 			const { goal, waypoint } = normalizeSelection(readParamFromUrl(AFF_GOAL_PARAM), readParamFromUrl(AFF_WAYPOINT_PARAM), this.state.openGoal, this.state.openWaypoint);
-			// Persist the normalized form so a caller that only stamped its own
-			// param (e.g. chain-view deep-link) ends up with a single selection
-			// in the URL too — any next reader sees a clean state.
+			// Write the normalized form back so the next reader sees a single selection.
 			writeParamToUrl(AFF_GOAL_PARAM, goal);
 			writeParamToUrl(AFF_WAYPOINT_PARAM, waypoint);
 			if (goal !== this.state.openGoal || waypoint !== this.state.openWaypoint) this.setState({ openGoal: goal, openWaypoint: waypoint });

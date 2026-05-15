@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-/**
- * Regression: when the entity-column's open() RPC fails (e.g. "Issuer not found"),
- * the pane must transition out of `loading` and surface the error in its banner.
- * Before this fix, an erroring fetch left `loading: true` because the catch branch
- * never set state (or the error path was missed in audit).
- */
+/** Regression: a failing open() RPC must flip loading off and render the error banner. */
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 
@@ -13,8 +8,7 @@ describe("shu-entity-column error surfacing", () => {
 		document.body.innerHTML = "";
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
-		// Stub fetch for the session.beginAction RPC + the actual getVertexWithEdges RPC.
-		// The 422 response simulates a server-side actionNotOK for "Issuer not found".
+		// 422 + {error} mirrors a server actionNotOK response.
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith("/rpc/session.beginAction")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
@@ -47,7 +41,7 @@ describe("shu-entity-column error surfacing", () => {
 			}
 			return Promise.resolve(new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } }));
 		};
-		// jsdom doesn't ship EventSource; stub one so SseClient.for("") doesn't throw.
+		// jsdom lacks EventSource; stub so SseClient.for("") doesn't throw.
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
 			addEventListener(): void {
 				/* stub */
