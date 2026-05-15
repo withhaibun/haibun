@@ -82,6 +82,23 @@ function writeParamToUrl(name: string, value: string): void {
 	window.history.replaceState(window.history.state, "", url.toString());
 }
 
+/**
+ * `aff-goal` and `aff-waypoint` are mutually exclusive selections in the
+ * affordances panel. Any caller (chain-view deep-link, manual URL paste, etc.)
+ * can stamp just its own param onto the URL — this normalizer resolves the
+ * coexistence: the param that differs from prior state is the newcomer and
+ * wins; the other is dropped. If both differ (initial load with both set),
+ * waypoint takes precedence as the more granular selection.
+ */
+function normalizeSelection(goalInUrl: string, waypointInUrl: string, priorGoal: string, priorWaypoint: string): { goal: string; waypoint: string } {
+	if (!goalInUrl || !waypointInUrl) return { goal: goalInUrl, waypoint: waypointInUrl };
+	const goalChanged = goalInUrl !== priorGoal;
+	const waypointChanged = waypointInUrl !== priorWaypoint;
+	if (waypointChanged && !goalChanged) return { goal: "", waypoint: waypointInUrl };
+	if (goalChanged && !waypointChanged) return { goal: goalInUrl, waypoint: "" };
+	return { goal: "", waypoint: waypointInUrl };
+}
+
 export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSchema> {
 	private affordances: TAffordances | null = null;
 	private assertedDomains: Set<string> = new Set();
@@ -93,7 +110,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private popstateHandler: (() => void) | null = null;
 
 	constructor() {
-		super(ShuAffordancesPanelSchema, { loadState: "idle", fetchError: "", openGoal: readParamFromUrl(AFF_GOAL_PARAM), openWaypoint: readParamFromUrl(AFF_WAYPOINT_PARAM) });
+		const { goal, waypoint } = normalizeSelection(readParamFromUrl(AFF_GOAL_PARAM), readParamFromUrl(AFF_WAYPOINT_PARAM), "", "");
+		super(ShuAffordancesPanelSchema, { loadState: "idle", fetchError: "", openGoal: goal, openWaypoint: waypoint });
 	}
 
 	override connectedCallback(): void {
@@ -127,8 +145,12 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// panel reflects the address bar. Storing in history rather than state means
 		// a copy-pasted URL also opens the right entry on first load.
 		this.popstateHandler = () => {
-			const goal = readParamFromUrl(AFF_GOAL_PARAM);
-			const waypoint = readParamFromUrl(AFF_WAYPOINT_PARAM);
+			const { goal, waypoint } = normalizeSelection(readParamFromUrl(AFF_GOAL_PARAM), readParamFromUrl(AFF_WAYPOINT_PARAM), this.state.openGoal, this.state.openWaypoint);
+			// Persist the normalized form so a caller that only stamped its own
+			// param (e.g. chain-view deep-link) ends up with a single selection
+			// in the URL too — any next reader sees a clean state.
+			writeParamToUrl(AFF_GOAL_PARAM, goal);
+			writeParamToUrl(AFF_WAYPOINT_PARAM, waypoint);
 			if (goal !== this.state.openGoal || waypoint !== this.state.openWaypoint) this.setState({ openGoal: goal, openWaypoint: waypoint });
 		};
 		window.addEventListener("popstate", this.popstateHandler);
