@@ -302,8 +302,13 @@ const main = async (): Promise<void> => {
 		if (action.kind === "open-component") return PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products });
 		if (action.kind === "show-views") return PaneState.request({ paneType: "views-picker", views: action.views, label: action.label });
 		const ui = getVertexUi(action.type);
-		if (!ui?.component || typeof ui.component !== "string") throw new Error(`No affordance component mapped for type ${action.type}`);
-		PaneState.request({ paneType: "component", tag: ui.component, label: action.label, data: action.products });
+		if (ui?.component && typeof ui.component === "string") {
+			PaneState.request({ paneType: "component", tag: ui.component, label: action.label, data: action.products });
+			return;
+		}
+		// No custom UI registered for this type — fall back to the generic entity pane.
+		// Throwing here would kill the SSE dispatch and stall every subsequent affordance.
+		PaneState.request({ paneType: "entity", id: action.id, vertexLabel: action.type, label: action.label });
 	});
 
 	// Results changed → remove all non-query panes
