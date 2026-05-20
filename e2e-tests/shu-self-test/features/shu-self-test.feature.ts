@@ -98,14 +98,14 @@ export const features: TKirejiExport = {
 
 		"The affordances panel renders the goal resolver's per-goal verdicts (satisfied / michi / unreachable / refused). Forward-reachable steps are not duplicated in the panel; they live in the actions-bar's step picker. The goals section must mount with its test-id-wrapped container visible.",
 		...enterStepMode,
-		...passesStepExecution("show affordances"),
+		...passesStepExecution("GoalResolutionStepper-showAffordances"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
 
 		scenario({ scenario: "Invoke `show chain lint` and verify the domain-chain Mermaid graph renders" }),
 
 		"The chain-lint step returns both the lint findings (orphan steps, starved steps, unreachable domains) and the graph data (forward edges, goal verdicts). The bound view consumes the graph data to render the Mermaid flowchart — opening the pane without a graph would indicate the producer step or the view-open data-threading is broken.",
-		...passesStepExecution("show chain lint"),
+		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 
@@ -118,7 +118,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
 
 		"Each view-open product is a one-shot signal to mount the pane, not a fact to chain on. Running the same show-X step twice must reuse the existing pane — without that, every refresh of the affordances stream would accumulate new mermaid panes. The dispatcher skips auto-assert for view-only domains; this scenario verifies the no-duplication outcome.",
-		...passesStepExecution("show chain lint"),
+		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 
