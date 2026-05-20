@@ -15,6 +15,7 @@ import { errMsg } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getSiteMetadataSync } from "../rels-cache.js";
+import { getCookie, setCookie } from "../cookies.js";
 import type { TContextPattern, TSearchCondition } from "../schemas.js";
 
 const MODEL_COOKIE = "shu-model";
@@ -22,15 +23,6 @@ const TOOL_LIMIT_COOKIE = "shu-tool-limit";
 const TOOL_LIMIT_DEFAULT = 5;
 const TOOL_LIMIT_MIN = 0;
 const TOOL_LIMIT_MAX = 99;
-
-function getCookie(name: string): string {
-	const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-	return match ? decodeURIComponent(match[1]) : "";
-}
-
-function setCookie(name: string, value: string): void {
-	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${60 * 60 * 24 * 365}`;
-}
 
 function readToolLimitCookie(): number {
 	const raw = getCookie(TOOL_LIMIT_COOKIE);
@@ -125,6 +117,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	private async loadModels(): Promise<void> {
+		if (this._models.length > 0) return;
 		await getAvailableSteps();
 		if (!findStep("showKihans")) return;
 		const client = SseClient.for("");
