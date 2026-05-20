@@ -89,7 +89,7 @@ export const features: TKirejiExport = {
 
 		"The affordances panel mounts in response to show affordances. The signature of the picker UI: one card per goal-producing domain, with one michi card per enumerated path. The paper goal has two michi cards: michi-card-N-0 and michi-card-N-1. Forward-reachable steps are no longer duplicated in the panel — they live in the actions-bar's step picker — so the panel asserts goals only.",
 		...enterStepMode,
-		...passesStepExecution("show affordances"),
+		...passesStepExecution("GoalResolutionStepper-showAffordances"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
 
@@ -117,7 +117,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Show chain lint; the structured report renders in its bound view" }),
 
 		"The chain-lint pane mounts on show chain lint. Its bound view renders a Mermaid graph of the registered domain chain.",
-		...passesStepExecution("show chain lint"),
+		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 
