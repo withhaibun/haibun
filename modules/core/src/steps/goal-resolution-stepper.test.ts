@@ -5,6 +5,7 @@ import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import VariablesStepper from "./variables-stepper.js";
+import LogicStepper from "./logic-stepper.js";
 import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
@@ -76,7 +77,7 @@ class CompositeStepper extends AStepper implements IHasCycles {
 }
 
 describe("GoalResolutionStepper — integration via passWithDefaults", () => {
-	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper];
+	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper, LogicStepper];
 
 	it("resolve returns unreachable for a goal no producer can derive", async () => {
 		// Use a domain key that's registered (via DOMAIN_TEST_SCRATCH in core-domains)
@@ -119,6 +120,50 @@ variable affordances exists`,
 		};
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
+	});
+
+	describe("pursue {goal} — A1 idempotent goal-driven execution", () => {
+		it("pursue on a satisfied goal is a no-op: returns finding=satisfied, no execution side-effect", async () => {
+			const feature = {
+				path: "/features/pursue-satisfied.feature",
+				content: `sign in as "alice"
+set first from pursue "${DOMAIN_AUTH_SESSION}"
+variable first.finding is "satisfied"
+set second from pursue "${DOMAIN_AUTH_SESSION}"
+variable second.finding is "satisfied"`,
+			};
+			const result = await passWithDefaults([feature], steppers);
+			expect(result.ok).toBe(true);
+		});
+
+		it("pursue refuses when the michi has argument bindings the caller hasn't supplied — naming what's needed", async () => {
+			// AuthSession's producer (`sign in as {subject}`) takes a string argument with no fact backing — so a fresh world has finding=michi and pursue must refuse rather than guess.
+			const feature = {
+				path: "/features/pursue-needs-arg.feature",
+				content: `not pursue "${DOMAIN_AUTH_SESSION}"`,
+			};
+			const result = await passWithDefaults([feature], steppers);
+			expect(result.ok).toBe(true);
+		});
+
+		it("pursue refuses an unreachable goal with the missing-producers list named in the error", async () => {
+			const feature = {
+				path: "/features/pursue-unreachable.feature",
+				content: `not pursue "test-scratch"`,
+			};
+			const result = await passWithDefaults([feature], steppers);
+			expect(result.ok).toBe(true);
+		});
+
+		it("pursue refuses (overall fails) when the goal can't be reached", async () => {
+			// Same goal as above but WITHOUT the `not` wrapper — the bare pursue must propagate the refusal so callers can branch on it.
+			const feature = {
+				path: "/features/pursue-bare-unreachable.feature",
+				content: `pursue "test-scratch"`,
+			};
+			const result = await failWithDefaults([feature], steppers);
+			expect(result.ok).toBe(false);
+		});
 	});
 });
 

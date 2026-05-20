@@ -64,7 +64,7 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 				if (!statement) {
 					return actionNotOK("finalizer statement is required");
 				}
-				const featurePath = this.getWorld().runtime.currentFeaturePath || featureStep.source.path;
+				const featurePath = this.getWorld().runtime.currentFeaturePath || featureStep.source?.path;
 				const statements = this.registeredStatementsByFeature.get(featurePath) || [];
 				statements.push(statement);
 				this.registeredStatementsByFeature.set(featurePath, statements);

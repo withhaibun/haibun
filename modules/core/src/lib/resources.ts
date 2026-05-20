@@ -541,6 +541,9 @@ export const bodyDomainDefinition: TDomainDefinition = {
 			mediaType: LinkRelations.MEDIA_TYPE.rel,
 			createdAt: LinkRelations.PUBLISHED.rel,
 		},
+		// Declared query surface for the one-path graph-store: callers can filter
+		// or sort Body rows by mediaType (e.g. "all PDF bodies") or createdAt.
+		sortColumns: { mediaType: "TEXT", createdAt: "TIMESTAMPTZ" },
 	},
 };
 

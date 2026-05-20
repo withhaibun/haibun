@@ -21,6 +21,10 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 			return;
 		}
 
+		if (featureStep.programmatic) {
+			return;
+		}
+
 		const { action } = featureStep;
 		if (debuggerStepper.debuggingType === TDebuggingType.StepByStep || debuggerStepper.debugSteppers.includes(action.stepperName)) {
 			const prompt = debuggerStepper.debugSteppers.includes(action.stepperName) ? `Debugging ${action.stepperName}` : "Debug";
@@ -33,6 +37,9 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 		}
 
 		if (!actionResult.ok && (featureStep.intent?.mode === "speculative" || featureStep.intent?.usage === "polling")) {
+			return;
+		}
+		if (!actionResult.ok && featureStep.programmatic) {
 			return;
 		}
 		if (!actionResult.ok) {

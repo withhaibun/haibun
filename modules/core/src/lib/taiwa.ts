@@ -32,6 +32,8 @@ export const AskOptionsSchema = z.object({
 	system: z.string().optional(),
 	budget: z.number().optional(),
 	timeoutMs: z.number().optional(),
+	/** Per-call ceiling on chained tool dispatches the router provider may run. Router providers honour it; others ignore. Range 0-99. */
+	maxToolCalls: z.number().int().min(0).max(99).optional(),
 });
 export type TAskOptions = z.infer<typeof AskOptionsSchema> & {
 	signal?: AbortSignal;
@@ -46,13 +48,20 @@ export type TAskChunk = z.infer<typeof AskChunkSchema>;
 
 export interface ITaiwa {
 	ask(prompt: string, opts?: TAskOptions): Promise<string>;
+	/**
+	 * True iff the currently-active provider/model runs without leaving the host
+	 * — the local-provider allow-list. The autonomic loop and any other callers
+	 * that gate private content on locality consult this; it MUST be implemented.
+	 */
+	isLocal(): boolean;
 }
 
 /**
  * Return the single taiwa-bridge among `steppers`, or undefined if none.
  * Throws when more than one taiwa stepper is loaded (ambiguity must be
- * resolved explicitly) or when the TAIWA-kinded stepper doesn't
- * implement `ask`.
+ * resolved explicitly) or when the TAIWA-kinded stepper doesn't fully
+ * implement the contract — every required method is verified up front so
+ * downstream callers don't have to defend against missing methods.
  */
 export function findTaiwa(steppers: AStepper[]): ITaiwa | undefined {
 	const matches = steppers.filter((s) => s.kind === StepperKinds.TAIWA);
@@ -62,8 +71,12 @@ export function findTaiwa(steppers: AStepper[]): ITaiwa | undefined {
 		throw new Error(`Multiple taiwa steppers loaded (${names}); deployments must pick one.`);
 	}
 	const candidate = matches[0] as unknown as Partial<ITaiwa>;
+	const name = matches[0].constructor.name;
 	if (typeof candidate.ask !== "function" || candidate.ask.length < 1) {
-		throw new Error(`${matches[0].constructor.name} declares kind=${StepperKinds.TAIWA} but does not implement ask(prompt, opts?).`);
+		throw new Error(`${name} declares kind=${StepperKinds.TAIWA} but does not implement ask(prompt, opts?).`);
+	}
+	if (typeof candidate.isLocal !== "function") {
+		throw new Error(`${name} declares kind=${StepperKinds.TAIWA} but does not implement isLocal(): boolean.`);
 	}
 	return candidate as ITaiwa;
 }

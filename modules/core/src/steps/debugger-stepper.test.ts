@@ -5,6 +5,9 @@ import DebuggerStepper, { TDebuggingType } from "./debugger-stepper.js";
 import Haibun from "./haibun.js";
 import { IPrompter, TPrompt, TPromptResponse } from "../lib/prompter.js";
 import { ReadlinePrompter } from "../lib/readline-prompter.js";
+import { AStepper } from "../lib/astepper.js";
+import { actionNotOK } from "../lib/util/index.js";
+import { buildFeatureStepForTransport, dispatchStep, StepRegistry } from "../lib/step-dispatch.js";
 
 class TestPrompter implements IPrompter {
 	prompt = (_p: TPrompt) => Promise.resolve("continue");
@@ -169,5 +172,82 @@ describe("DebuggerStepper sequence integration", () => {
 		// ('debug step by step' doesn't trigger a prompt, it just sets the mode)
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("DebuggerStepper RPC dispatch", () => {
+	// buildFeatureStepForTransport stamps source.path === "rpc" on every transport-
+	// driven dispatch. Those callers have no human at the prompter, so the
+	// debugger's before/afterStep hooks must not enter debugLoop — otherwise
+	// prompter.prompt() awaits forever, stepEnd never fires, and the caller hangs.
+	// Regression for the "fetching forever" symptom of a missing-vertex RPC.
+
+	it("does not prompt on actionNotOK when dispatched via RPC transport", async () => {
+		const failing = new (class extends AStepper {
+			steps = {
+				alwaysFails: {
+					gwta: "always fails",
+					action: async () => actionNotOK("intentional failure"),
+				},
+			};
+		})();
+
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		world.prompter.unsubscribe(new ReadlinePrompter());
+		const trap: IPrompter = {
+			prompt: () => {
+				throw new Error("Debugger entered debugLoop on RPC dispatch — prompter must not be called for source.path === 'rpc'");
+			},
+			cancel: () => undefined,
+			resolve: () => undefined,
+		};
+		world.prompter.subscribe(trap);
+
+		const debuggerStepper = new DebuggerStepper();
+		const steppers = [debuggerStepper, failing];
+		await debuggerStepper.setWorld(world, steppers);
+		const registry = new StepRegistry(steppers, world);
+		const tool = registry.get(`${failing.constructor.name}-alwaysFails`);
+		if (!tool) throw new Error("alwaysFails not registered");
+
+		const featureStep = buildFeatureStepForTransport(tool, {}, [0, 99]);
+		expect(featureStep.programmatic).toBe(true);
+		const result = await dispatchStep({ registry, world, steppers }, featureStep);
+		expect(result.ok).toBe(false);
+		expect(result.errorMessage).toBe("intentional failure");
+	});
+
+	it("does not prompt before step-by-step RPC dispatch", async () => {
+		const echo = new (class extends AStepper {
+			steps = {
+				echo: {
+					gwta: "echo {what: string}",
+					action: async ({ what }: { what: string }) => ({ ok: true, products: { echoed: what } }),
+				},
+			};
+		})();
+
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		world.prompter.unsubscribe(new ReadlinePrompter());
+		const trap: IPrompter = {
+			prompt: () => {
+				throw new Error("Debugger entered beforeStep debugLoop on RPC dispatch with StepByStep mode");
+			},
+			cancel: () => undefined,
+			resolve: () => undefined,
+		};
+		world.prompter.subscribe(trap);
+
+		const debuggerStepper = new DebuggerStepper();
+		debuggerStepper.debuggingType = TDebuggingType.StepByStep;
+		const steppers = [debuggerStepper, echo];
+		await debuggerStepper.setWorld(world, steppers);
+		const registry = new StepRegistry(steppers, world);
+		const tool = registry.get(`${echo.constructor.name}-echo`);
+		if (!tool) throw new Error("echo not registered");
+
+		const featureStep = buildFeatureStepForTransport(tool, { what: "hi" }, [0, 100]);
+		const result = await dispatchStep({ registry, world, steppers }, featureStep);
+		expect(result.ok).toBe(true);
 	});
 });

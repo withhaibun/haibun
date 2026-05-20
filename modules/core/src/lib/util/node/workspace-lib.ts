@@ -46,32 +46,22 @@ export const getDirname = (meta: TImportMeta) => fileURLToPath(new URL(".", meta
 
 function getWorkspaceRoot() {
 	let currentDir = path.resolve(process.cwd());
-	const tried: string[] = [];
 
-	// eslint-disable-next-line no-constant-condition
 	while (true) {
-		tried.push(currentDir);
 		const packageJsonPath = path.resolve(currentDir, "package.json");
-
 		if (nodeFS.existsSync(packageJsonPath)) {
 			try {
-				const packageJson = JSON.parse(nodeFS.readFileSync(packageJsonPath, "utf-8"));
-				if (packageJson.name === "haibun") {
-					return currentDir;
-				}
+				const pkg = JSON.parse(nodeFS.readFileSync(packageJsonPath, "utf-8"));
+				if (pkg.name === "haibun" || pkg.workspaces) return currentDir;
 			} catch {
 				// Ignore JSON parse errors and continue searching
 			}
 		}
-
 		const parentDir = dirname(currentDir);
-		if (parentDir === currentDir) {
-			break;
-		}
+		if (parentDir === currentDir) break;
 		currentDir = parentDir;
 	}
 
-	// Fallback to process.cwd() for external projects, matching previous behavior.
 	return process.cwd();
 }
 
