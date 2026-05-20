@@ -39,6 +39,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private incomingCount = 0;
 	private predicateLinkCount = 0;
 	private edgeTargetCount = 0;
+	/** Full augmented products from getVertexWithEdges (vertex + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so the chat-context harvester sees the same hypermedia an agent following `_links` would. */
+	private products: Record<string, unknown> | null = null;
 
 	constructor() {
 		super(EntityColumnSchema, {
@@ -66,6 +68,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.vertex = data;
 		this.edges = [];
 		this.incomingCount = 0;
+		this.products = products;
 		this.setState({ vertexId: String(_summary || ""), vertexLabel: label, loading: false });
 	}
 
@@ -94,6 +97,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.vertex = res.value.vertex;
 		this.edges = res.value.edges ?? [];
 		this.incomingCount = res.value.incomingCount ?? 0;
+		this.products = res.value as unknown as Record<string, unknown>;
 		this.setState({ loading: false });
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
@@ -191,6 +195,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 		this.shadowRoot.innerHTML = `
 			<style>${STYLES}</style>
+			${this.emitHypermediaScript(this.products)}
 			<div class="entity-content">
 				${contentHtml}
 			</div>

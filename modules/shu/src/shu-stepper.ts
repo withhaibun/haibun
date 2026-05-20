@@ -73,8 +73,14 @@ ${extraTags}
 </html>`;
 }
 
-function createSpaHandler(basePath: string, bundle: string, hydration: string) {
-	return (c: Context) => c.html(buildSpaHtml(basePath, bundle, hydration));
+function createSpaHandler(basePath: string, hydration: string) {
+	// Read the bundle from disk on every request rather than caching the
+	// string at handler construction. An iterative edit/build cycle on shu
+	// (or any SPA component bundled into shu-bundle.js) is visible after
+	// `npm run build` + browser reload, with no service restart required.
+	// The bundle is ~3.7MB; readFileSync per request is fast (sub-ms on a
+	// warm page cache) and the SPA isn't hot enough to need a memoised path.
+	return (c: Context) => c.html(buildSpaHtml(basePath, loadBundle(), hydration));
 }
 
 function validateMountPath(path: string): string | undefined {
@@ -155,8 +161,7 @@ export default class ShuStepper extends AStepper {
 				if (!webserver) return actionNotOK("webserver not available — load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
-				const bundle = loadBundle();
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, bundle, "{}"));
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, "{}"));
 				const jsonLdContext = getJsonLdContext(this.getWorld().domains);
 				const jsonLdHandler = (c: Context) => c.json(jsonLdContext);
 				webserver.addRoute("get", "/.well-known/haibun-context.jsonld", { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);

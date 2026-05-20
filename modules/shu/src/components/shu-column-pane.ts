@@ -108,11 +108,12 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	protected render(): void {
 		if (!this.shadowRoot) return;
-		const { label, closable } = this.state;
+		const { label, closable, columnType } = this.state;
+		const browserTestId = columnType !== "query" ? ' data-testid="browser-column"' : "";
 
 		this.shadowRoot.innerHTML = `
 			<style>${STYLES}</style>
-			<div class="pane-header${label || closable ? "" : " empty"}">
+			<div class="pane-header${label || closable ? "" : " empty"}"${browserTestId}>
 				<span class="pane-label" title="${esc(label)}">${esc(label)}</span>
 				<button class="pane-minimize" title="Minimize">\u2015</button>
 				<button class="pane-maximize" data-testid="pane-maximize" title="Maximize">\u2922</button>
