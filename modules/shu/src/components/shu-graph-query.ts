@@ -13,6 +13,7 @@ import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "../rpc-registry.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 
 type ConditionRow = TSearchCondition;
 
@@ -36,6 +37,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private inflightPromise: Promise<void> | null = null;
 	private hashChangeHandler: (() => void) | null = null;
 	private selectedIds = new Set<string>();
+	/** Unsubscribe handle for the rAF-batched SSE auto-refresh subscription. Set in connectedCallback, called in disconnectedCallback. */
+	private unsubscribeAutoRefresh: (() => void) | null = null;
 
 	static get observedAttributes(): string[] {
 		return ["label", "sort-by", "sort-order", "results-target"];
@@ -64,12 +67,28 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		};
 		window.addEventListener("hashchange", this.hashChangeHandler);
 		void this.loadMetadata().then(() => this.executeQuery());
+
+		if (!ShuElement.offline) {
+			this.unsubscribeAutoRefresh = this.subscribeBatched({
+				onBatch: (events) => {
+					const quads = extractQuadsFromEvents(events);
+					if (quads.length === 0) return;
+					const label = this.state.label;
+					const relevant = !label || quads.some((q) => q.namedGraph === label);
+					if (relevant) void this.executeQuery();
+				},
+			});
+		}
 	}
 
 	disconnectedCallback(): void {
 		if (this.hashChangeHandler) {
 			window.removeEventListener("hashchange", this.hashChangeHandler);
 			this.hashChangeHandler = null;
+		}
+		if (this.unsubscribeAutoRefresh) {
+			this.unsubscribeAutoRefresh();
+			this.unsubscribeAutoRefresh = null;
 		}
 	}
 

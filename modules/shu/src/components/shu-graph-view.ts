@@ -28,7 +28,7 @@ import { buildGraphModelFromQuads } from "../graph-model.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { getGraphSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, subscribeViewContext } from "../quads-snapshot.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
-import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
+import { edgeRel as coreEdgeRel, LinkRelations } from "@haibun/core/lib/resources.js";
 import { appAccessLevel } from "../util.js";
 import { buildMermaidSource, buildClassifier, sanitizeId, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
 
@@ -369,7 +369,16 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		</div>
 		<shu-graph-filter></shu-graph-filter>
 		${edgeFilterHtml ? `<div class="graph-filters" data-testid="graph-predicate-filters">${edgeFilterHtml}</div>` : ""}`;
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}
+		// Cluster digest (one entry per known namedGraph + counts) — the same
+		// shape an `_links`-style consumer would get from a per-cluster query.
+		// Emitted as JSON-LD so the chat-context harvester sees the same
+		// hypermedia an agent reading the graph would.
+		const clusterDigest = (() => {
+			const counts = new Map<string, number>();
+			for (const q of visibleQuads) counts.set(q.namedGraph, (counts.get(q.namedGraph) ?? 0) + 1);
+			return { "@type": "graph-cluster-digest", clusters: [...counts.entries()].map(([name, count]) => ({ name, count })), total: visibleQuads.length };
+		})();
+		this.shadowRoot.innerHTML = `${this.css(STYLES)}${this.emitHypermediaScript(clusterDigest)}${toolbar}
 			<div class="graph-scroll">
 				<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
 					<div id="${this.diagramId}"></div>
@@ -526,10 +535,11 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	 */
 	private async fetchIfMissing(subject: string, label: string): Promise<void> {
 		if (this.subjectToRawId.has(subject) || this.fetchedSubjects.has(subject)) return;
-		// `getVertexWithEdges` only accepts registered vertex labels. Named graphs that
-		// carry quads but aren't vertex types — `facts`, `observation/*`, `variables` —
-		// have no rels in the rels cache. Skip the RPC; the quad-detail click path
-		// handles these via `showQuadDetail` directly.
+		// `getVertexWithEdges` only accepts registered vertex labels. Named graphs
+		// that carry quads but aren't vertex types — `facts`, `observation/*`,
+		// `variables` — have no rels in the rels cache. Skip the RPC; the click
+		// handler routes seqPath subjects to `step-detail` and the rest to
+		// `CONTEXT_CHANGE` directly.
 		if (!getRels(label)) return;
 		this.fetchedSubjects.add(subject);
 		try {
@@ -713,7 +723,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 					return;
 				}
 				const entry = this.currentNodeMap.get(rawId);
-				if (!entry) return;
+				if (!entry) throw new Error(`shu-graph-view: clicked node "${rawId}" has no entry in currentNodeMap — the render and the click handlers are out of sync`);
 				if (getRels(entry.graph)) {
 					this.dispatchEvent(
 						new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
@@ -722,23 +732,32 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 							composed: true,
 						}),
 					);
-				} else {
-					this.showQuadDetail(entry.graph, entry.subject);
+					return;
 				}
+				// Non-vertex graph (no rels registered for the namedGraph). Two
+				// shapes reach here:
+				//   • seqPath subjects (single-product steps emit the producing
+				//     seqPath as the subject; multi-product steps emit
+				//     `${seqPath}#${field}`) → step-detail pane.
+				//   • Anything else (working-memory variables, goal-affordance
+				//     bindings, …) → not a step-detail; make the subject the
+				//     chat context so the user can ask the LLM about it. Same
+				//     `CONTEXT_CHANGE` event row clicks dispatch, so the actions-
+				//     bar, status badge, and chat hypermedia all see this pick
+				//     through the same channel.
+				const head = entry.subject.includes("#") ? entry.subject.slice(0, entry.subject.indexOf("#")) : entry.subject;
+				const directSeqPath = parseSeqPath(head);
+				if (directSeqPath) {
+					PaneState.request({ paneType: "step-detail", seqPath: directSeqPath });
+					return;
+				}
+				const seqPathQuad = this.state.quads.find((q) => q.subject === entry.subject && q.predicate === LinkRelations.SEQ_PATH.rel);
+				if (!seqPathQuad) throw new Error(`shu-graph-view: no producing seqPath recorded for subject "${entry.subject}" in graph "${entry.graph}" — the writing dispatch emits a (subject, seqPath, <path>) quad and this view should have it`);
+				const writtenSeqPath = parseSeqPath(String(seqPathQuad.object));
+				if (!writtenSeqPath) throw new Error(`shu-graph-view: producing seqPath quad for "${entry.subject}" has unparseable object: ${JSON.stringify(seqPathQuad.object)}`);
+				PaneState.request({ paneType: "step-detail", seqPath: writtenSeqPath });
 			});
 		}
 	}
 
-	/**
-	 * Route a non-vertex node click to the step-detail pane. Typed-fact
-	 * subjects are the producing seqPath (single-product steps) or
-	 * `${seqPath}#${field}` for multi-product steps; the suffix is stripped
-	 * before parsing so both forms reach the same pane.
-	 */
-	private showQuadDetail(_graph: string, subject: string): void {
-		const head = subject.includes("#") ? subject.slice(0, subject.indexOf("#")) : subject;
-		const seqPath = parseSeqPath(head);
-		if (!seqPath) throw new Error(`shu-graph-view: quad subject "${subject}" is not a parseable seqPath`);
-		PaneState.request({ paneType: "step-detail", seqPath });
-	}
 }
