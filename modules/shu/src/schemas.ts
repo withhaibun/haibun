@@ -165,7 +165,11 @@ export const ResultTableSchema = z.object({
 	paginated: z.boolean().default(false),
 });
 
-// --- Context patterns (SPA→LLM wire format; abbreviated triple pattern) ---
+// --- Triple pattern queries ---
+// Canonical query shape across the system: a list of SPO triple patterns, AND-conjoined.
+// Omitted position = variable; equality is implicit (operator extension planned via an `op` field).
+// Used end-to-end: SPA selection → LLM context resolution, _links.params for relational affordances,
+// goal resolver backward chaining.
 
 export const ContextPatternSchema = z.object({
 	s: z.string().optional(),
@@ -173,7 +177,7 @@ export const ContextPatternSchema = z.object({
 	o: z.string().optional(),
 });
 export type TContextPattern = z.infer<typeof ContextPatternSchema>;
-export const ContextQuerySchema = z.array(ContextPatternSchema).min(1);
+export const ContextQuerySchema = z.array(ContextPatternSchema);
 
 // --- Dispatch trace (shared by sequence diagram, monitor column, step detail) ---
 
