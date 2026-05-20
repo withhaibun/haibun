@@ -17,6 +17,8 @@ import { errMsg, prettifyGwta } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import { getProperties, getSelectValues, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
+import { getCookie, setCookie } from "../cookies.js";
+import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 
@@ -55,15 +57,6 @@ function stepDetails(s: StepDescriptor): string {
 	if (s.productsDomain) lines.push(`outputs: ${s.productsDomain}`);
 	if (s.capability) lines.push(`capability: ${s.capability}`);
 	return lines.join("\n");
-}
-
-function getCookie(name: string): string {
-	const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-	return match ? decodeURIComponent(match[1]) : "";
-}
-
-function setCookie(name: string, value: string): void {
-	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${60 * 60 * 24 * 365}`;
 }
 
 type TMode = z.infer<typeof ActionsBarSchema>["mode"];
@@ -211,7 +204,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.render();
 		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
 		stepCombo?.setValue?.(method);
-		const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
+		const output = this.shadowRoot?.querySelector(".step-output") as HTMLElement | null;
 		if (!output) return;
 		this.openStepCaller(output, method, args, auto);
 	}
@@ -501,7 +494,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	protected render(): void {
 		if (!this.shadowRoot) return;
 
-		const liveChat = this.shadowRoot.querySelector("shu-kihan-chat");
+		const liveChat = this.shadowRoot.querySelector(ShuKihanChat.domainSelector);
 		if (liveChat) {
 			this._detachedChat = liveChat;
 			liveChat.remove();
@@ -517,7 +510,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.setState({ mode: "step" });
 			return;
 		}
-		const modeToggle = `<select class="mode-select" ${this.tid("mode-select")}>
+		const modeToggle = (slot?: string) => `<select ${slot ? `slot="${slot}" ` : ""}class="mode-select" ${this.tid("mode-select")}>
 			${hasAsk ? `<option value="ask"${this.state.mode === "ask" ? " selected" : ""}>Ask</option>` : ""}
 			<option value="step"${this.state.mode === "step" ? " selected" : ""}>Step</option>
 		</select>`;
@@ -561,12 +554,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				</div>`
 			: "";
 
-		const slottedModeToggle = modeToggle.replace('<select class="mode-select"', '<select slot="mode-toggle" class="mode-select"');
-		const askMode = `<shu-kihan-chat testid-prefix="${this.testIdPrefix}">${slottedModeToggle}</shu-kihan-chat>`;
+		const askMode = `<shu-kihan-chat testid-prefix="${this.testIdPrefix}">${modeToggle("mode-toggle")}</shu-kihan-chat>`;
 		const stepMode = `
 			<div class="step-output" ${this.tid("chat-output")}></div>
 			<div class="input-line">
-				${modeToggle}
+				${modeToggle()}
 				${stepCombobox}
 			</div>`;
 
@@ -598,7 +590,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 
 		if (this.state.askExpanded && this.state.mode === "ask" && this._detachedChat) {
-			const slot = this.shadowRoot.querySelector("shu-kihan-chat");
+			const slot = this.shadowRoot.querySelector(ShuKihanChat.domainSelector);
 			if (slot) slot.replaceWith(this._detachedChat);
 			this._detachedChat = null;
 		}
@@ -614,7 +606,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private pushContextToChat(): void {
-		const chat = this.shadowRoot?.querySelector("shu-kihan-chat") as { setContext?: (p: TContextPattern[], a: string, extra?: { label?: string; textQuery?: string; conditions?: TSearchCondition[] }) => void } | null;
+		const chat = this.shadowRoot?.querySelector(ShuKihanChat.domainSelector) as { setContext?: (p: TContextPattern[], a: string, extra?: { label?: string; textQuery?: string; conditions?: TSearchCondition[] }) => void } | null;
 		chat?.setContext?.(this._contextPatterns, this._contextAccessLevel, {
 			label: this._selectedLabel,
 			textQuery: this._textSearch,
@@ -722,16 +714,14 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const method = e.detail?.value;
 			if (!method) return;
 
-			const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
+			const output = this.shadowRoot?.querySelector(".step-output") as HTMLElement | null;
 			if (!output) return;
 
 			this.openStepCaller(output, method);
 
-			const chatOut = this.shadowRoot?.querySelector(".chat-output");
-			if (chatOut)
-				requestAnimationFrame(() => {
-					chatOut.scrollTop = chatOut.scrollHeight;
-				});
+			requestAnimationFrame(() => {
+				output.scrollTop = output.scrollHeight;
+			});
 		}) as EventListener);
 
 		// Filter controls
