@@ -24,10 +24,6 @@ export class RemoteTransport implements ITransport {
 		// Remote control not yet implemented for piggybacking
 	}
 
-	onStreamMessage(): void {
-		// Streaming not supported for remote transport
-	}
-
 	private consecutiveFailures = 0;
 	private disabled = false;
 
