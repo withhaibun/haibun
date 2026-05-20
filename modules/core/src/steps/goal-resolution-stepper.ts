@@ -25,7 +25,9 @@ import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } fr
 import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
-import { resolveGoal, type TGoalResolution } from "../lib/goal-resolver.js";
+import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
+import { StepRegistry, dispatchStep, buildFeatureStepForTransport, stepMethodName } from "../lib/step-dispatch.js";
+import { allocateSyntheticSeqPath } from "../lib/host-id.js";
 import { buildAffordances } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { parseSeqPath } from "../lib/seq-path.js";
@@ -176,6 +178,25 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		return resolveGoal(goal, { graph, facts, capabilities: this.grantedCapabilities(), ...this.compositeOptions() });
 	}
 
+	/** Walk a michi's steps in order, dispatching each through the synthetic-seqPath path used by other transports. Returns the produced factIds on success; surfaces the offending step's error on first failure. */
+	private async executeMichi(goal: string, michi: TMichi): Promise<ReturnType<typeof actionOKWithProducts> | ReturnType<typeof actionNotOK>> {
+		const world = this.getWorld();
+		const registry = new StepRegistry(this.steppers, world);
+		const factIds: string[] = [];
+		for (let i = 0; i < michi.steps.length; i++) {
+			const step = michi.steps[i];
+			const method = stepMethodName(step.stepperName, step.stepName);
+			const tool = registry.get(method);
+			if (!tool) return actionNotOK(`pursue ${goal}: step ${i} (${method}) not registered`);
+			const seqPath = allocateSyntheticSeqPath(world);
+			const featureStep = buildFeatureStepForTransport(tool, {}, seqPath);
+			const result = await dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: Array.from(this.grantedCapabilities()) }, featureStep);
+			if (!result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${result.errorMessage ?? "(no message)"}`);
+			factIds.push(seqPath.join("."));
+		}
+		return actionOKWithProducts({ finding: "executed", goal, factIds });
+	}
+
 	/**
 	 * Shared affordances builder for the live and as-of variants. When `asOf`
 	 * is set, the projection drops facts asserted after that seqPath so the
@@ -205,6 +226,43 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
 				return actionOKWithProducts(resolution as unknown as Record<string, unknown>);
+			},
+		},
+
+		/**
+		 * A1 · `pursue {goal}` — close the goal-resolution loop with idempotent execution.
+		 *
+		 *  satisfied   → no-op, returns the satisfying factIds (matches activities/waypoints' `ensure` skip-when-proven contract)
+		 *  michi (fact-only bindings) → execute each step in the first michi sequentially via dispatchStep; returns the produced factIds
+		 *  michi with `kind: "argument"` bindings → refuses with what's missing (the caller must supply args via a follow-up; the SPA's path-card UI is the existing surface)
+		 *  unreachable → refuses with the list of missing producers
+		 *  refused     → refuses with the resolver's reason
+		 *
+		 *  The shape mirrors the architecture's activities pattern: check the world, act only if necessary, surface what's needed when stuck. Same primitives a Kihan reading affordances would follow — codified in one verb.
+		 */
+		pursue: {
+			gwta: `pursue {goal: ${DOMAIN_DOMAIN_KEY}}`,
+			inputDomains: { goal: DOMAIN_DOMAIN_KEY },
+			productsDomain: DOMAIN_GOAL_RESOLUTION,
+			action: async ({ goal }: { goal: string }) => {
+				const resolution = await this.runResolution(goal);
+				if (resolution.finding === GOAL_FINDING.SATISFIED) {
+					return actionOKWithProducts(resolution as unknown as Record<string, unknown>);
+				}
+				if (resolution.finding === GOAL_FINDING.UNREACHABLE) {
+					return actionNotOK(`pursue ${goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
+				}
+				if (resolution.finding === GOAL_FINDING.REFUSED) {
+					return actionNotOK(`pursue ${goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
+				}
+				// finding === MICHI — take the first path
+				const michi: TMichi = resolution.michi[0];
+				if (!michi) return actionNotOK(`pursue ${goal}: no michi returned`);
+				const argBindings = collectArgumentBindings(michi.bindings);
+				if (argBindings.length > 0) {
+					return actionNotOK(`pursue ${goal}: ${argBindings.length} argument binding(s) need supplying — domains: ${argBindings.join(", ")}. Use the SPA's path-card or extend pursue with explicit args.`);
+				}
+				return await this.executeMichi(goal, michi);
 			},
 		},
 
@@ -260,3 +318,20 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 }
 
 export default GoalResolutionStepper;
+
+/**
+ * Walk a michi's bindings (and their nested composite fields) and collect
+ * domain names that need argument values supplied by the caller. The list is
+ * what `pursue` surfaces when execution can't proceed without input.
+ */
+function collectArgumentBindings(bindings: TBinding[]): string[] {
+	const out: string[] = [];
+	const visit = (b: TBinding | { kind: string; domain?: string; fields?: unknown[] }): void => {
+		if ((b as TBinding).kind === "argument") out.push(((b as TBinding).domain) ?? "(unknown)");
+		else if ((b as TBinding).kind === "composite") {
+			for (const f of ((b as { kind: "composite"; fields: TBinding[] }).fields) ?? []) visit(f);
+		}
+	};
+	for (const b of bindings) visit(b);
+	return out;
+}
