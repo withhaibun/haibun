@@ -526,11 +526,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const actualPattern = interpolated.value;
 
-				// Convert glob pattern to regex
-				// Escape regex special chars except *, then replace * with .*
 				const escaped = actualPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 				const regexPattern = escaped.replace(/\*/g, ".*");
-				const regex = new RegExp(`^${regexPattern}$`);
+				const regex = new RegExp(`^${regexPattern}$`, "s");
 
 				const isMatch = regex.test(actualValue);
 
