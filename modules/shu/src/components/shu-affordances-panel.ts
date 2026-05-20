@@ -570,6 +570,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				.wp-run { margin-top: 6px; background: #2848a8; color: #fff; border: 0; border-radius: 3px; padding: 3px 10px; font: inherit; font-size: 11px; cursor: pointer; }
 				.wp-run:hover { background: #1d3680; }
 			</style>
+			${this.affordances ? this.emitHypermediaScript({ "@type": "goal-affordances", ...this.affordances }) : ""}
 			${explanationHtml}
 			${this.renderAsOfBanner()}
 			${this.state.fetchError ? `<div class="error">${esc(this.state.fetchError)}</div>` : ""}

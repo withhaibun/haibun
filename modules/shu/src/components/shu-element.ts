@@ -156,6 +156,13 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 		return `<style>${TIME_SYNC_CSS}\n${styles}</style>`;
 	}
 
+	/** Wrap a view's hypermedia products as a W3C `<script type="application/ld+json">` block. */
+	protected emitHypermediaScript(products: unknown): string {
+		if (products == null) throw new Error(`${this.constructor.name}.emitHypermediaScript called with ${products === null ? "null" : "undefined"} products`);
+		// `</` inside a script body would prematurely close the host script element; the escape is syntactic and leaves the parsed JSON unchanged.
+		return `<script type="application/ld+json">${JSON.stringify(products).replaceAll("</", "<\\/")}</script>`;
+	}
+
 	/** Snapshot UI state that should survive a re-render. See `./ui-state.ts`. */
 	protected snapshotUiState(): TUiStateSnapshot {
 		return snapshotUiState(this);
