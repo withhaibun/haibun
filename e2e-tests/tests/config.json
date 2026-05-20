@@ -9,6 +9,7 @@
 		"@haibun/monitor-browser",
 		"@haibun/monitor-tui",
 		"variables-stepper",
+		"@haibun/core/steps/goal-resolution-stepper",
 		"resources-stepper",
 		"logic-stepper",
 		"activities-stepper",
