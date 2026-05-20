@@ -314,6 +314,8 @@ export const HYPERMEDIA = {
 	TYPE: "_type",
 	/** Human-readable one-liner for CLI output and document view captions */
 	SUMMARY: "_summary",
+	/** Inline description from the registered domain schema's `.describe()`. Travels with the data so a consumer (human, LLM, agent) can interpret a product without round-tripping to `step.list`. Unset when the producing step's domain has no description. */
+	DESCRIPTION: "_description",
 	/** Web component tag that renders this product (e.g. "shu-graph-view") */
 	COMPONENT: "_component",
 	/** HATEOAS affordances — what can be done next, keyed by rel */
@@ -326,6 +328,7 @@ export type THypermediaProducts = {
 	[TRACE_SEQ_PATH]?: TSeqPath;
 	[HYPERMEDIA.TYPE]?: string;
 	[HYPERMEDIA.SUMMARY]?: string;
+	[HYPERMEDIA.DESCRIPTION]?: string;
 	[HYPERMEDIA.COMPONENT]?: string;
 	[HYPERMEDIA.LINKS]?: Record<string, { method: string; params?: Record<string, unknown>; schema?: Record<string, unknown> }>;
 	[HYPERMEDIA.UNDO]?: { condition: string; apply: string };

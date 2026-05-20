@@ -81,10 +81,11 @@ export type TResolvedFeature = {
 	featureSteps: TFeatureStep[];
 };
 
-export type TFeatureStep = TSourceLocation & {
+export type TFeatureStep = {
 	in: string;
 	seqPath: TSeqPath;
 	action: TStepAction;
+	source?: TSourceLocation["source"];
 	isSubStep?: boolean;
 	/** True if this step was triggered by an afterEvery hook (prevents recursive afterEvery) */
 	isAfterEveryStep?: boolean;
@@ -98,6 +99,8 @@ export type TFeatureStep = TSourceLocation & {
 	 * `on host {hostId} {statement}` in haibun.ts.
 	 */
 	targetHostId?: number;
+	/** True for dispatches that did not run a feature for a human — RPC, MCP, subprocess. Lifecycle hooks that would otherwise call `world.prompter.prompt()` skip when this is set. */
+	programmatic?: boolean;
 };
 
 export type TStepAction = {
