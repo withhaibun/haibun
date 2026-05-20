@@ -17,8 +17,7 @@ export interface StepDescriptor {
 	/**
 	 * Domain key of the products this step produces (`productsDomain` on the
 	 * step definition). Used by the actions-bar step picker to show
-	 * `… → muskeg-revocation` so the user sees what the step yields before
-	 * running it.
+	 * `… → <domain>` so the user sees what the step yields before running it.
 	 */
 	productsDomain?: string;
 	capability?: string;

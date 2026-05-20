@@ -541,4 +541,160 @@ describe("step-dispatch", () => {
 			expect(() => buildStepRegistry([new JustUnknown()], world)).toThrow(/not a registered domain/);
 		});
 	});
+
+	describe("_links derivation — H1 next-action affordances from paramDomains", () => {
+		const VcSchema = z.object({ id: z.string(), subject: z.string() }).describe("A signed claim about a subject.");
+		const VcRefSchema = z.object({ id: z.string() }).describe("Reference to a credential by id.");
+
+		class IssuerStepper extends AStepper {
+			steps = {
+				issueDemoCredential: {
+					gwta: "issue demo credential",
+					productsDomain: "demo-vc",
+					action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }),
+				},
+				revokeDemo: {
+					gwta: "revoke {credential: demo-vc}",
+					productsDomain: "demo-vc",
+					action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }),
+				},
+				suspendDemo: {
+					gwta: "suspend {credential: demo-vc}",
+					productsDomain: "demo-vc",
+					action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }),
+				},
+				unrelatedStep: {
+					gwta: "do unrelated thing {name: string}",
+					action: () => OK,
+				},
+			};
+		}
+
+		beforeEach(() => {
+			registerDomains(world, [
+				[
+					{ selectors: ["demo-vc"], schema: VcSchema, description: "Verifiable credential vertex" },
+					{ selectors: ["demo-vc-ref"], schema: VcRefSchema, description: "Credential reference" },
+				],
+			]);
+		});
+
+		it("populates `_links` with every step whose param domain matches the product's productsDomain", async () => {
+			const stepper = new IssuerStepper();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("IssuerStepper-issueDemoCredential");
+			if (!tool) throw new Error("Expected IssuerStepper-issueDemoCredential to be registered");
+
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
+			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			expect(result.ok).toBe(true);
+
+			const products = result.products as Record<string, unknown>;
+			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
+			expect(links).toBeDefined();
+			// Two follow-on verbs accept demo-vc as input — revoke and suspend. The issue step itself accepts no demo-vc input so it is NOT listed.
+			expect(Object.keys(links ?? {}).sort()).toEqual(["revokeDemo", "suspendDemo"]);
+			// Method is the canonical fully-qualified dispatch address; params skeleton is populated from the product's `id`.
+			expect(links?.revokeDemo).toEqual({ method: "IssuerStepper-revokeDemo", params: { credential: { id: "vc-1" } } });
+			expect(links?.suspendDemo).toEqual({ method: "IssuerStepper-suspendDemo", params: { credential: { id: "vc-1" } } });
+		});
+
+		it("emits no `_links` when no other step accepts this product's domain", async () => {
+			class IsolatedStepper extends AStepper {
+				steps = {
+					produce: {
+						gwta: "produce a lone product",
+						productsDomain: "lone-domain",
+						action: () => actionOKWithProducts({ id: "x" }),
+					},
+				};
+			}
+			registerDomains(world, [[{ selectors: ["lone-domain"], schema: z.object({ id: z.string() }), description: "Lone" }]]);
+			const stepper = new IsolatedStepper();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("IsolatedStepper-produce");
+			if (!tool) throw new Error("Expected IsolatedStepper-produce to be registered");
+
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
+			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			expect(result.ok).toBe(true);
+
+			const products = result.products as Record<string, unknown>;
+			// No follow-on verbs accept lone-domain — the `_links` marker must be absent, not an empty object, so consumers can rely on `_links` always being a non-empty Record when present.
+			expect(products._links).toBeUndefined();
+		});
+
+		it("follows topology.ranges.id from a ref domain to the vertex domain — `revoke {credential: vc-ref}` links from a `vc-vertex` product", async () => {
+			// vertexRef pattern: a step accepts a ref domain whose schema is `{id}` and whose topology.ranges.id points to the produce-side vertex domain. The affordance derivation must walk this indirection — the SAME pattern @haibun/core's vertexRefDomain establishes for every CRUD verb in the credentials / imap-graph / file-stepper / person-stepper steppers.
+			class VertexRefStepper extends AStepper {
+				steps = {
+					produceVc: {
+						gwta: "produce a vc",
+						productsDomain: "vc-vertex",
+						action: () => actionOKWithProducts({ id: "vc-1" }),
+					},
+					revokeVc: {
+						gwta: "revoke {credential: vc-ref}",
+						productsDomain: "vc-revocation",
+						action: () => actionOKWithProducts({ revoked: true }),
+					},
+				};
+			}
+			registerDomains(world, [
+				[
+					{ selectors: ["vc-vertex"], schema: z.object({ id: z.string() }), description: "VC vertex" },
+					{ selectors: ["vc-ref"], schema: z.object({ id: z.string() }), description: "Reference to a VC by id", topology: { ranges: { id: "vc-vertex" } } },
+					{ selectors: ["vc-revocation"], schema: z.object({ revoked: z.boolean() }), description: "Revocation outcome" },
+				],
+			]);
+			const stepper = new VertexRefStepper();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("VertexRefStepper-produceVc");
+			if (!tool) throw new Error("Expected VertexRefStepper-produceVc to be registered");
+
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
+			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			expect(result.ok).toBe(true);
+
+			const products = result.products as Record<string, unknown>;
+			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
+			expect(links).toBeDefined();
+			// revokeVc accepts `vc-ref`, whose topology.ranges.id === "vc-vertex". The derivation follows that range and emits the affordance, populating the ref's `{id}` shape from the product's id.
+			expect(links?.revokeVc).toEqual({ method: "VertexRefStepper-revokeVc", params: { credential: { id: "vc-1" } } });
+		});
+
+		it("omits params skeleton when the product has no `id` — the consumer fills params from step.list", async () => {
+			class IdlessStepper extends AStepper {
+				steps = {
+					produce: {
+						gwta: "produce an idless thing",
+						productsDomain: "idless",
+						action: () => actionOKWithProducts({ name: "thing" }),
+					},
+					consume: {
+						gwta: "consume {what: idless}",
+						action: () => OK,
+					},
+				};
+			}
+			registerDomains(world, [[{ selectors: ["idless"], schema: z.object({ name: z.string() }), description: "Idless" }]]);
+			const stepper = new IdlessStepper();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("IdlessStepper-produce");
+			if (!tool) throw new Error("Expected IdlessStepper-produce to be registered");
+
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
+			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			expect(result.ok).toBe(true);
+
+			const products = result.products as Record<string, unknown>;
+			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
+			expect(links).toBeDefined();
+			expect(links?.consume).toEqual({ method: "IdlessStepper-consume" });
+		});
+	});
 });
