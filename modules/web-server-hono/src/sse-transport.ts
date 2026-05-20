@@ -5,6 +5,7 @@ import type { IWebServer } from "./defs.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { truncateForLog } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-dispatch.js";
+import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
 
 export type TTransportRequestInfo = {
@@ -13,16 +14,9 @@ export type TTransportRequestInfo = {
 
 type TMessageHandler = (data: unknown, requestInfo?: TTransportRequestInfo) => unknown | Promise<unknown>;
 
-/** Writer for streaming NDJSON chunks back over an HTTP response. */
-export type TStreamWriter = (chunk: unknown) => Promise<void>;
-
-/** Stream handler: receives the parsed request, a writer, and an abort signal. Returns true if it handled the request. */
-type TStreamHandler = (data: unknown, write: TStreamWriter, signal: AbortSignal) => Promise<boolean>;
-
 export interface ITransport {
 	send(data: unknown): void;
 	onMessage(handler: TMessageHandler): void;
-	onStreamMessage(handler: TStreamHandler): void;
 }
 
 export const TRANSPORT = "transport";
@@ -33,7 +27,6 @@ export class SSETransport implements ITransport, IStepTransport {
 	public webserver: IWebServer;
 	private eventLogger: IEventLogger;
 	private messageHandlers: TMessageHandler[] = [];
-	private streamHandlers: TStreamHandler[] = [];
 	private history: string[] = [];
 
 	constructor(webserver: IWebServer, eventLogger: IEventLogger) {
@@ -74,52 +67,59 @@ export class SSETransport implements ITransport, IStepTransport {
 		});
 
 		this.webserver.addRoute("post", "/rpc/:_method", { description: "JSON-RPC dispatch for stepper methods" }, async (c) => {
+			let data: unknown;
 			try {
-				const data = await c.req.json();
-				const requestInfo: TTransportRequestInfo = { headers: c.req.header() };
-				const isStream = (data as Record<string, unknown>).stream === true;
-
-				if (isStream) {
-					c.header("Content-Type", "application/x-ndjson");
-					return stream(c, async (s) => {
-						const abortController = new AbortController();
-						s.onAbort(() => abortController.abort());
-						const write: TStreamWriter = async (chunk) => {
-							await s.write(new TextEncoder().encode(JSON.stringify(chunk) + "\n"));
-						};
-						let handled = false;
-						for (const handler of this.streamHandlers) {
-							handled = await handler(data, write, abortController.signal);
-							if (handled) break;
-						}
-						if (!handled) {
-							await write({ error: "No stream handler for this method" });
-						}
-					});
-				}
-
-				this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
-				const result = await this.handleMessage(data, requestInfo);
-				if (result === undefined) {
-					const method = (data as Record<string, unknown>).method ?? "unknown";
-					return c.json({ ok: false, error: `No handler for RPC method: ${method}` }, 404);
-				}
-				const response = result as Record<string, unknown>;
-				const status = response.error ? 422 : 200;
-				try {
-					return c.json(response, status);
-				} catch (serializeErr) {
-					// V8 raises RangeError when JSON.stringify is asked for a string
-					// longer than ~512MB. Return a structured error instead of
-					// letting the unhandled throw stall the client's fetch.
-					const method = (data as Record<string, unknown>).method ?? "unknown";
-					const reason = serializeErr instanceof Error ? serializeErr.message : String(serializeErr);
-					this.eventLogger.error(`RPC ${method} response too large to serialize: ${reason}`);
-					return c.json({ ok: false, error: `${method}: response too large to serialize (${reason}). Narrow the query or return a summary.` }, 413);
-				}
+				data = await c.req.json();
 			} catch (e) {
 				this.eventLogger.error(`Error parsing RPC POST message: ${e}`);
 				return c.json({ ok: false, error: String(e) }, 400);
+			}
+			const requestInfo: TTransportRequestInfo = { headers: c.req.header() };
+			const isStream = (data as Record<string, unknown>).stream === true;
+
+			// Streaming requests open an NDJSON response and run the same dispatcher inside `streamContext`. Step actions read the per-request emit callback from AsyncLocalStorage and push chunks during execution; the final dispatchStep result (success or refusal) lands on the seqPath via stepStart/stepEnd lifecycle events. No dual handler path — one dispatcher, one error contract.
+			if (isStream) {
+				c.header("Content-Type", "application/x-ndjson");
+				return stream(c, async (s) => {
+					const abortController = new AbortController();
+					s.onAbort(() => abortController.abort());
+					const writeChunk = async (chunk: TStreamChunk | Record<string, unknown>) => {
+						await s.write(new TextEncoder().encode(JSON.stringify(chunk) + "\n"));
+					};
+					const emit = (chunk: TStreamChunk) => {
+						// Fire-and-forget: NDJSON write order is preserved by hono's stream; awaiting from a synchronous callback would force the action to be aware of backpressure, which is a leaky abstraction.
+						void writeChunk(chunk);
+					};
+					await streamContext.run({ emit, signal: abortController.signal }, async () => {
+						const result = await this.handleMessage(data, requestInfo);
+						if (result === undefined) {
+							const method = (data as Record<string, unknown>).method ?? "unknown";
+							await writeChunk({ error: `No handler for RPC method: ${method}` });
+							return;
+						}
+						const response = result as Record<string, unknown>;
+						// Successful dispatch already pushed its content via streamContext.emit; emitting the products again would duplicate the stream. On refusal, emit the error as a terminating record so the client surfaces it. The lifecycle stepEnd event already fired on the seqPath via dispatchStep — seq-bound consumers see the canonical record there.
+						if (response.error) await writeChunk({ error: response.error });
+					});
+				});
+			}
+
+			this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
+			const result = await this.handleMessage(data, requestInfo);
+			if (result === undefined) {
+				const method = (data as Record<string, unknown>).method ?? "unknown";
+				return c.json({ ok: false, error: `No handler for RPC method: ${method}` }, 404);
+			}
+			const response = result as Record<string, unknown>;
+			const status = response.error ? 422 : 200;
+			try {
+				return c.json(response, status);
+			} catch (serializeErr) {
+				// V8 raises RangeError when JSON.stringify is asked for a string longer than ~512MB. Return a structured error instead of letting the unhandled throw stall the client's fetch.
+				const method = (data as Record<string, unknown>).method ?? "unknown";
+				const reason = serializeErr instanceof Error ? serializeErr.message : String(serializeErr);
+				this.eventLogger.error(`RPC ${method} response too large to serialize: ${reason}`);
+				return c.json({ ok: false, error: `${method}: response too large to serialize (${reason}). Narrow the query or return a summary.` }, 413);
 			}
 		});
 	}
@@ -159,10 +159,6 @@ export class SSETransport implements ITransport, IStepTransport {
 		this.messageHandlers.push(handler);
 	}
 
-	public onStreamMessage(handler: TStreamHandler) {
-		this.streamHandlers.push(handler);
-	}
-
 	/** IStepTransport: register the step registry (routes already set up at construction). */
 	attach(_registry: StepRegistry, _webserver: IWebServer): void {
 		// Routes set up in constructor; registry is provided via WebServerStepper's enableRpc step
@@ -171,7 +167,6 @@ export class SSETransport implements ITransport, IStepTransport {
 	/** IStepTransport: clear handlers on teardown. */
 	detach(): void {
 		this.messageHandlers = [];
-		this.streamHandlers = [];
 	}
 
 	private async handleMessage(data: unknown, requestInfo?: TTransportRequestInfo): Promise<unknown> {

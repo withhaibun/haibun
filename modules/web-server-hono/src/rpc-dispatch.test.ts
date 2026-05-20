@@ -5,6 +5,7 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import ZcapStepper from "@haibun/core/steps/zcap-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
+import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 
 class PingStepper extends AStepper {
 	steps = {
@@ -376,5 +377,132 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 			},
 		});
 		expect(result.ok).toBe(true);
+	});
+
+	it("stream:true routes through dispatchStep — chunks flow via streamContext, errors land on seqPath", async () => {
+		const port = 8242;
+		const collectedChunks: TStreamChunk[] = [];
+
+		class StreamingStepper extends AStepper {
+			steps = {
+				stream3: {
+					gwta: "emit three streaming chunks",
+					action: async () => {
+						const sctx = streamContext.getStore();
+						sctx?.emit({ status: "starting" });
+						sctx?.emit({ text: "alpha" });
+						sctx?.emit({ text: "beta" });
+						return actionOKWithProducts({ text: "alphabeta" });
+					},
+				},
+				failStream: {
+					gwta: "stream that refuses",
+					action: () => actionNotOK("stream refused"),
+				},
+			};
+		}
+
+		class StreamingRpcVerifyStepper extends AStepper {
+			steps = {
+				streamChunksArrive: {
+					gwta: "stream rpc call to {url} method {method} emits chunks",
+					action: async ({ url, method }: TStepArgs) => {
+						const res = await fetch(String(url), {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1], stream: true }),
+						});
+						if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
+						if (!res.body) return actionNotOK("no response body");
+						const reader = res.body.getReader();
+						const decoder = new TextDecoder();
+						let buf = "";
+						while (true) {
+							const { done, value } = await reader.read();
+							if (done) break;
+							buf += decoder.decode(value, { stream: true });
+							const lines = buf.split("\n");
+							buf = lines.pop() ?? "";
+							for (const line of lines) {
+								if (!line.trim()) continue;
+								collectedChunks.push(JSON.parse(line) as TStreamChunk);
+							}
+						}
+						return OK;
+					},
+				},
+			};
+		}
+
+		const feature = {
+			path: "/features/stream-rpc.feature",
+			content: `
+enable rpc
+webserver is listening for "stream-rpc"
+stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" method "StreamingStepper-stream3" emits chunks
+`,
+		};
+		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingRpcVerifyStepper], makeOptions(port));
+		expect(result.ok).toBe(true);
+		// All three streamed chunks arrived via streamContext.emit; no terminal "products" record because dispatch was OK.
+		expect(collectedChunks).toEqual([{ status: "starting" }, { text: "alpha" }, { text: "beta" }]);
+	});
+
+	it("stream:true refusal emits a single terminating {error} record (seq-bound stepEnd already fired)", async () => {
+		const port = 8243;
+		const collectedChunks: Record<string, unknown>[] = [];
+
+		class StreamingStepper extends AStepper {
+			steps = {
+				refuse: {
+					gwta: "refuse the stream",
+					action: () => actionNotOK("nope"),
+				},
+			};
+		}
+
+		class StreamingErrorVerifyStepper extends AStepper {
+			steps = {
+				streamErrorArrives: {
+					gwta: "stream rpc call to {url} method {method} emits an error",
+					action: async ({ url, method }: TStepArgs) => {
+						const res = await fetch(String(url), {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1], stream: true }),
+						});
+						if (!res.body) return actionNotOK("no response body");
+						const reader = res.body.getReader();
+						const decoder = new TextDecoder();
+						let buf = "";
+						while (true) {
+							const { done, value } = await reader.read();
+							if (done) break;
+							buf += decoder.decode(value, { stream: true });
+							const lines = buf.split("\n");
+							buf = lines.pop() ?? "";
+							for (const line of lines) {
+								if (!line.trim()) continue;
+								collectedChunks.push(JSON.parse(line) as Record<string, unknown>);
+							}
+						}
+						return OK;
+					},
+				},
+			};
+		}
+
+		const feature = {
+			path: "/features/stream-rpc-error.feature",
+			content: `
+enable rpc
+webserver is listening for "stream-rpc-error"
+stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-refuse" method "StreamingStepper-refuse" emits an error
+`,
+		};
+		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingErrorVerifyStepper], makeOptions(port));
+		expect(result.ok).toBe(true);
+		expect(collectedChunks).toHaveLength(1);
+		expect(collectedChunks[0].error).toContain("nope");
 	});
 });
