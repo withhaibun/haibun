@@ -47,15 +47,30 @@ function encodeCompositeFieldLiteral(value: unknown): string {
 }
 
 export function createStepUI(wp: WebPlaywright) {
-	const { waitFor, click, setValue, selectionOption, press, shouldSeeTestId } = withAction(wp);
+	const { waitFor, click, setValue, selectionOption, press, shouldSeeTestId, type: typeText } = withAction(wp);
 	const { setAs } = withAction(new VariablesStepper());
 
-	const enterStepMode: TKirejiStep[] = [
-		waitFor({ target: IDS.APP.TWISTY }),
-		click({ target: IDS.APP.TWISTY }),
-		selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }),
-		waitFor({ target: IDS.APP.STEP_SELECT }),
-	];
+	/** Set every leaf string in `idSets` as a `page-test-id` variable. Replaces the per-feature setAs boilerplate. */
+	function registerTestIds(...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): TKirejiStep[] {
+		const flat = idSets.flatMap((set) => (Array.isArray(set) ? [...set] : flattenTestIds(set as Record<string, unknown>)));
+		return [...new Set(flat)].map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+	}
+
+	/** Ensure the actions-bar is expanded. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent — the click is skipped when MODE_SELECT is already on the page. */
+	const expandActionsBar: TKirejiStep[] = [`where not has test id ${IDS.APP.MODE_SELECT}, click ${IDS.APP.TWISTY}`, waitFor({ target: IDS.APP.MODE_SELECT })];
+
+	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
+
+	/** Expand the actions-bar and switch to Ask mode. Symmetric to enterStepMode. */
+	const enterAskMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Ask"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.CHAT_INPUT })];
+
+	/** Type a prompt into the Ask area's chat-input and submit. */
+	function askExchange(prompt: string): TKirejiStep[] {
+		return [click({ target: IDS.APP.CHAT_INPUT }), typeText({ text: `"${prompt}"` }), click({ target: IDS.APP.CHAT_SUBMIT }), waitFor({ target: IDS.APP.CHAT_OUTPUT })];
+	}
+
+	/** Click the first row of the current shu-query result table; waits for the column-browser pane to appear. */
+	const selectQueryFirstRow: TKirejiStep[] = [waitFor({ target: IDS.QUERY.FIRST_ROW }), click({ target: IDS.QUERY.FIRST_ROW }), waitFor({ target: IDS.COLUMN_BROWSER.COLUMN })];
 
 	// Per-method invocation counter. Each runStep call increments the next index
 	// for that method so repeated invocations produce unique testids.
@@ -128,15 +143,15 @@ export function createStepUI(wp: WebPlaywright) {
 		return runStep(method, false, params);
 	}
 
-	/** Open actions bar and select a vertex type from the type dropdown. */
-	function chooseGraphLabel(label: string): TKirejiStep[] {
-		return [
-			waitFor({ target: IDS.APP.TWISTY }),
-			click({ target: IDS.APP.TWISTY }),
-			waitFor({ target: IDS.APP.TYPE_SELECT }),
-			selectionOption({ option: `"${label}"`, field: IDS.APP.TYPE_SELECT }),
-		];
+	/** Pick a vertex type from the type dropdown. Assumes the actions-bar is already expanded — compose with `expandActionsBar` when starting from a collapsed state. */
+	function selectGraphLabel(label: string): TKirejiStep[] {
+		return [waitFor({ target: IDS.APP.TYPE_SELECT }), selectionOption({ option: `"${label}"`, field: IDS.APP.TYPE_SELECT })];
 	}
 
-	return { enterStepMode, runStep, passesStepExecution, failsStepExecution, chooseGraphLabel };
+	/** Open the actions bar and pick a vertex type. Convenience for the collapsed→labelled flow. */
+	function chooseGraphLabel(label: string): TKirejiStep[] {
+		return [...expandActionsBar, ...selectGraphLabel(label)];
+	}
+
+	return { enterStepMode, enterAskMode, expandActionsBar, askExchange, selectQueryFirstRow, registerTestIds, runStep, passesStepExecution, failsStepExecution, chooseGraphLabel, selectGraphLabel };
 }

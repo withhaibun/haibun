@@ -184,13 +184,15 @@ export class SseClient {
 		return data as T;
 	}
 
-	/** Streaming RPC call. Throws in standalone mode (no server). */
-	async rpcStream(scope: ActionScope, method: string, params: Record<string, unknown>, onChunk: (data: unknown) => void, signal?: AbortSignal): Promise<void> {
+	/** Streaming RPC call. Throws in standalone mode (no server). Returns the seqPath assigned to this dispatch so the caller can correlate the rendered DOM artefact with the canonical call identity — same key the server uses on lifecycle events. `onStart` is invoked with the seqPath BEFORE the fetch goes out, so the DOM can be stamped before any chunk arrives. */
+	async rpcStream(scope: ActionScope, method: string, params: Record<string, unknown>, onChunk: (data: unknown) => void, signal?: AbortSignal, onStart?: (seqPath: number[]) => void): Promise<{ seqPath: number[] }> {
 		const id = nextId();
+		const seqPath = nextScopeSeqPath(scope);
+		onStart?.(seqPath);
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath: nextScopeSeqPath(scope), stream: true }),
+			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath, stream: true }),
 			signal,
 		});
 		if (!res.ok) throw new Error(`RPC stream failed: ${res.status}`);
@@ -218,6 +220,7 @@ export class SseClient {
 			if (chunk.error) throw new Error(String(chunk.error));
 			onChunk(chunk);
 		}
+		return { seqPath };
 	}
 
 	/**
