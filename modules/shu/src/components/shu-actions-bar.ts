@@ -5,7 +5,6 @@
  * Ask mode: streams LLM chat responses using server-side context resolution.
  * Step mode: executes a haibun step via RPC and collects log events.
  */
-import MarkdownIt from "markdown-it";
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
@@ -16,15 +15,11 @@ import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg, prettifyGwta } from "../util.js";
 import { SseClient, inAction } from "../sse-client.js";
-import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
-import { getProperties, getSelectValues, getSiteMetadataSync, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
-import type { ShuSpinner } from "./shu-spinner.js";
+import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
+import { getProperties, getSelectValues, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 
-const md = new MarkdownIt();
-
-const MODEL_COOKIE = "shu-model";
 const MODE_COOKIE = "shu-mode";
 const HEIGHT_COOKIE = "shu-actions-height";
 
@@ -95,15 +90,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectedLabel = "";
 	private _textSearch = "";
 	private _steps: StepDescriptor[] = [];
-	private _models: Array<{ id: string }> = [];
-	private _selectedModel = "";
-	private _selectedStep = "";
-	private _lastPrompt = "";
-	private _fullText = "";
+	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
-	private _abortController: AbortController | null = null;
-	private _renderPending = false;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
+	private _detachedChat: Element | null = null;
+	private _detachedStepOutput: Element | null = null;
 	private _onDocumentClick = (e: Event): void => {
 		if (!this.state.askExpanded) return;
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
@@ -291,7 +282,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		super.connectedCallback();
 		document.addEventListener("click", this._onDocumentClick, true);
 		this.loadProperties();
-		void Promise.all([this.loadDomainOptions(), this.loadModels(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
+		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			this.failFast(`ShuActionsBar initialization failed: ${errMsg(err)}`);
 		});
 
@@ -381,23 +372,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return this._syncEventSeq > this._queriedSyncSeq;
 	}
 
-	private async loadModels(): Promise<void> {
-		await getAvailableSteps();
-		if (!findStep("showKihans")) return;
-		const client = SseClient.for("");
-		const data = await inAction((scope) => client.rpc<{ vertices: Array<{ id: string }> }>(scope, requireStep("showKihans")));
-		if (data.vertices) {
-			this._models = data.vertices;
-			if (this._models.length > 0 && !this._selectedModel) {
-				const preferred = getCookie(MODEL_COOKIE);
-				const match = preferred && this._models.find((m) => m.id === preferred);
-				this._selectedModel = match ? match.id : this._models[0].id;
-			}
-		}
-	}
-
 	private async loadSteps(): Promise<void> {
 		this._steps = await getAvailableSteps();
+		this._hasAskCapableStep = !!this._steps.find((s) => s.method.endsWith("chatWithContext"));
 	}
 
 	private async loadDomainOptions(): Promise<void> {
@@ -455,17 +432,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const data = await inAction((scope) => client.rpc<{ values: Record<string, string[]> }>(scope, requireStep("getSelectValues"), { label: target }));
 		if (data.values) setSelectValues(target, data.values);
 		this.render();
-	}
-
-	private activeChatContext(): TContextPattern[] {
-		if (this._activeViewIndex === 0) {
-			return this._contextPatterns;
-		}
-		const subject = this._columns[this._activeViewIndex - 1];
-		if (!subject) return this._contextPatterns;
-		const fieldPat = this._contextPatterns.find((p) => p.s === subject && p.p);
-		if (fieldPat) return [fieldPat];
-		return [{ s: subject }];
 	}
 
 	private dispatchFilterChange(): void {
@@ -535,28 +501,26 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	protected render(): void {
 		if (!this.shadowRoot) return;
 
-		const savedOutput = this.shadowRoot.querySelector(".chat-output");
-		if (savedOutput) savedOutput.remove();
+		const liveChat = this.shadowRoot.querySelector("shu-kihan-chat");
+		if (liveChat) {
+			this._detachedChat = liveChat;
+			liveChat.remove();
+		}
+		const liveStepOutput = this.shadowRoot.querySelector(".step-output");
+		if (liveStepOutput) {
+			this._detachedStepOutput = liveStepOutput;
+			liveStepOutput.remove();
+		}
 
-		const modelSelect =
-			this.state.mode === "ask" && this._models.length > 0
-				? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>`
-				: "";
-
-		const hasAsk = !!this._steps.find((s) => s.method.endsWith("chatWithContext"));
-		const modeToggle = `<select class="mode-select" ${this.tid("mode-select")}>
-			${hasAsk ? `<option value="ask"${this.state.mode === "ask" ? " selected" : ""}>Ask</option>` : ""}
-			<option value="step"${this.state.mode === "step" ? " selected" : ""}>Step</option>
-		</select>`;
-
-		// Default to step mode if Ask is not available but selected
+		const hasAsk = this._hasAskCapableStep;
 		if (!hasAsk && this.state.mode === "ask") {
 			this.setState({ mode: "step" });
 			return;
 		}
-
-		const placeholder = this.state.mode === "ask" ? "Ask about this..." : "Enter step (e.g. get types)";
-		const submitLabel = this.state.mode === "ask" ? "Send" : "Run";
+		const modeToggle = `<select class="mode-select" ${this.tid("mode-select")}>
+			${hasAsk ? `<option value="ask"${this.state.mode === "ask" ? " selected" : ""}>Ask</option>` : ""}
+			<option value="step"${this.state.mode === "step" ? " selected" : ""}>Step</option>
+		</select>`;
 
 		const stepCombobox =
 			this.state.mode === "step" && this._steps.length > 0
@@ -597,23 +561,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				</div>`
 			: "";
 
-		const uiExtensions = Object.values(getSiteMetadataSync()?.ui || {})
-			.filter((ui) => ui.slot === "action-bar-chat")
-			.map((ui) => `<${ui.component}></${ui.component}>`)
-			.join("");
-
-		const askInput = `
-			<div class="input-line">
-				${modeToggle}
-				<textarea class="chat-input" placeholder="${placeholder}" ${this.tid("chat-input")} rows="1" autofocus></textarea>
-				${modelSelect}
-				${uiExtensions}
-				<button type="submit" class="send-btn" ${this.tid("chat-submit")}>${submitLabel}</button>
-				<button type="button" class="stop-btn" ${this.tid("chat-stop")} style="display:none">Stop</button>
-				<button type="button" class="save-btn" ${this.tid("save-summary")} style="display:none">Save</button>
-			</div>`;
-
-		const stepInput = `
+		const slottedModeToggle = modeToggle.replace('<select class="mode-select"', '<select slot="mode-toggle" class="mode-select"');
+		const askMode = `<shu-kihan-chat testid-prefix="${this.testIdPrefix}">${slottedModeToggle}</shu-kihan-chat>`;
+		const stepMode = `
+			<div class="step-output" ${this.tid("chat-output")}></div>
 			<div class="input-line">
 				${modeToggle}
 				${stepCombobox}
@@ -621,7 +572,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 		if (this.state.askExpanded) {
 			this.setAttribute("expanded", "");
-			// Auto-size; dragged height becomes max-height
 			this.style.height = "";
 			const saved = getCookie(HEIGHT_COOKIE);
 			if (saved) this.style.maxHeight = `${saved}px`;
@@ -630,8 +580,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				${this.css(STYLES)}
 				<div class="actions-bar">
 					${filterControls}
-					<div class="chat-output" ${this.tid("chat-output")}></div>
-					${this.state.mode === "step" ? stepInput : askInput}
+					${this.state.mode === "ask" ? askMode : stepMode}
 					${summaryBar}
 				</div>
 			`;
@@ -648,13 +597,29 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			`;
 		}
 
-		const newOutputSlot = this.shadowRoot?.querySelector(".chat-output");
-		if (savedOutput && newOutputSlot) {
-			newOutputSlot.replaceWith(savedOutput);
+		if (this.state.askExpanded && this.state.mode === "ask" && this._detachedChat) {
+			const slot = this.shadowRoot.querySelector("shu-kihan-chat");
+			if (slot) slot.replaceWith(this._detachedChat);
+			this._detachedChat = null;
+		}
+		if (this.state.askExpanded && this.state.mode === "step" && this._detachedStepOutput) {
+			const slot = this.shadowRoot.querySelector(".step-output");
+			if (slot) slot.replaceWith(this._detachedStepOutput);
+			this._detachedStepOutput = null;
 		}
 
+		this.pushContextToChat();
 		this.bindEvents();
 		this.updateBreadcrumbDisplay();
+	}
+
+	private pushContextToChat(): void {
+		const chat = this.shadowRoot?.querySelector("shu-kihan-chat") as { setContext?: (p: TContextPattern[], a: string, extra?: { label?: string; textQuery?: string; conditions?: TSearchCondition[] }) => void } | null;
+		chat?.setContext?.(this._contextPatterns, this._contextAccessLevel, {
+			label: this._selectedLabel,
+			textQuery: this._textSearch,
+			conditions: this._filterConditions,
+		});
 	}
 
 	private bindEvents(): void {
@@ -756,7 +721,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		stepCombo?.addEventListener("combo-change", ((e: CustomEvent) => {
 			const method = e.detail?.value;
 			if (!method) return;
-			this._selectedStep = method;
 
 			const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
 			if (!output) return;
@@ -854,219 +818,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			if (this._searchDebounce) clearTimeout(this._searchDebounce);
 			this.dispatchFilterChange();
 		});
-
-		const modelCombo = this.shadowRoot?.querySelector(".model-select") as ShuCombobox | null;
-		if (modelCombo) {
-			modelCombo.setOptions(this._models.map((m) => ({ value: m.id, label: m.id })));
-			if (this._selectedModel) modelCombo.setValue(this._selectedModel);
-		}
-		modelCombo?.addEventListener("combo-change", ((e: CustomEvent) => {
-			this._selectedModel = e.detail?.value || "";
-			setCookie(MODEL_COOKIE, this._selectedModel);
-		}) as EventListener);
-
-		const chatInput = this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null;
-		chatInput?.addEventListener("input", () => {
-			if (chatInput) {
-				chatInput.style.height = "auto";
-				chatInput.style.height = `${chatInput.scrollHeight}px`;
-			}
-		});
-
-		const submitChat = () => {
-			if (chatInput?.value) {
-				const value = chatInput.value;
-				chatInput.value = "";
-				chatInput.style.height = "auto";
-				void this.handleChat(value);
-			}
-		};
-
-		chatInput?.addEventListener("keydown", (e) => {
-			if (e.key === "Enter" && !e.shiftKey) {
-				e.preventDefault();
-				submitChat();
-			}
-		});
-
-		this.shadowRoot?.querySelector(".send-btn")?.addEventListener("click", submitChat);
-		this.shadowRoot?.querySelector(".stop-btn")?.addEventListener("click", () => {
-			this._abortController?.abort();
-		});
-		this.shadowRoot?.querySelector(".save-btn")?.addEventListener("click", () => {
-			void this.handleSave();
-		});
-
-		this.shadowRoot?.addEventListener("shu-voice-input", ((e: CustomEvent) => {
-			const transcript = e.detail?.text;
-			if (transcript && chatInput) {
-				chatInput.value = transcript;
-				chatInput.style.height = "auto";
-				chatInput.style.height = `${chatInput.scrollHeight}px`;
-				submitChat();
-			}
-		}) as EventListener);
-	}
-
-	private async handleChat(prompt: string): Promise<void> {
-		await getAvailableSteps();
-		const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
-		if (!output) return;
-
-		this._lastPrompt = prompt;
-		this._fullText = "";
-		this._abortController = new AbortController();
-
-		const saveBtn = this.shadowRoot?.querySelector(".save-btn") as HTMLElement | null;
-		if (saveBtn) saveBtn.style.display = "none";
-		const stopBtn = this.shadowRoot?.querySelector(".stop-btn") as HTMLElement | null;
-		if (stopBtn) stopBtn.style.display = "";
-
-		const userMsg = document.createElement("div");
-		userMsg.className = "msg msg-user";
-		const promptEl = document.createElement("div");
-		promptEl.className = "chat-prompt";
-		promptEl.textContent = prompt;
-		userMsg.appendChild(promptEl);
-		output.appendChild(userMsg);
-
-		const aiMsg = document.createElement("div");
-		aiMsg.className = "msg msg-ai";
-		const aiContent = document.createElement("div");
-		aiContent.className = "msg-content";
-		const spinner = document.createElement("shu-spinner") as ShuSpinner;
-		spinner.setAttribute("data-testid", `${this.testIdPrefix}spinner`);
-		spinner.status = "Sending...";
-		spinner.visible = true;
-		aiContent.appendChild(spinner);
-		aiMsg.appendChild(aiContent);
-		output.appendChild(aiMsg);
-
-		let textDiv: HTMLDivElement | null = null;
-
-		const abortSignal = this._abortController.signal;
-		try {
-			const client = SseClient.for("");
-			await inAction((scope) =>
-				client.rpcStream(
-					scope,
-					requireStep("chatWithContext"),
-					{
-						prompt,
-						context: JSON.stringify(this.activeChatContext()),
-						accessLevel: this._contextAccessLevel,
-						model: this._selectedModel || undefined,
-					},
-					(chunk: unknown) => {
-						const data = chunk as Record<string, unknown>;
-						if (data.status) {
-							spinner.status = String(data.status);
-							spinner.visible = true;
-						}
-						if (data.text) {
-							this._fullText += String(data.text);
-							if (!textDiv) {
-								textDiv = document.createElement("div");
-								textDiv.className = "chat-text";
-								aiContent.appendChild(textDiv);
-							}
-							if (!this._renderPending) {
-								this._renderPending = true;
-								requestAnimationFrame(() => {
-									this._renderPending = false;
-									if (textDiv) textDiv.innerHTML = md.render(this._fullText);
-									spinner.pulse();
-								});
-							}
-						}
-						if (data.error) {
-							spinner.visible = false;
-							const errEl = document.createElement("div");
-							errEl.className = "chat-error";
-							errEl.textContent = String(data.error);
-							aiContent.appendChild(errEl);
-						}
-					},
-					abortSignal,
-				),
-			);
-			if (this._fullText) {
-				const sb = this.shadowRoot?.querySelector(".save-btn") as HTMLElement | null;
-				if (sb) sb.style.display = "";
-			}
-		} catch (err) {
-			if (this._abortController.signal.aborted) {
-				spinner.status = "Stopped";
-				spinner.spinning = false;
-				spinner.visible = true;
-			} else {
-				spinner.visible = false;
-				const errEl = document.createElement("div");
-				errEl.className = "chat-error";
-				errEl.textContent = errMsg(err);
-				aiContent.appendChild(errEl);
-			}
-		} finally {
-			const aborted = this._abortController?.signal.aborted;
-			if (stopBtn) stopBtn.style.display = "none";
-			if (!aborted) {
-				spinner.spinning = false;
-				spinner.visible = false;
-			}
-			if (this._fullText && !aborted) {
-				this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
-					const maybeSpeak = (el as { speak?: unknown }).speak;
-					if (typeof maybeSpeak === "function") maybeSpeak.call(el, this._fullText);
-				});
-			}
-			this._abortController = null;
-		}
-		const chatOut = this.shadowRoot?.querySelector(".chat-output");
-		if (chatOut) chatOut.scrollTop = chatOut.scrollHeight;
-	}
-
-	private async handleSave(): Promise<void> {
-		if (!this._fullText || !this._lastPrompt) return;
-		await getAvailableSteps();
-
-		const saveBtn = this.shadowRoot?.querySelector(".save-btn") as HTMLButtonElement | null;
-		if (saveBtn) {
-			saveBtn.disabled = true;
-			saveBtn.textContent = "Saving...";
-		}
-
-		try {
-			const client = SseClient.for("");
-			await inAction((scope) =>
-				client.rpc(scope, requireStep("saveSummary"), {
-					topic: this._lastPrompt.slice(0, 80),
-					content: this._fullText,
-					prompt: this._lastPrompt,
-					conditions: {
-						conditions: this._filterConditions,
-						label: this._selectedLabel,
-						textQuery: this._textSearch,
-					},
-					accessLevel: this._contextAccessLevel || Access.private,
-				}),
-			);
-
-			if (saveBtn) {
-				saveBtn.textContent = "Saved";
-			}
-		} catch (err) {
-			if (saveBtn) {
-				saveBtn.disabled = false;
-				saveBtn.textContent = "Save";
-			}
-			const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
-			if (output) {
-				const errEl = document.createElement("div");
-				errEl.className = "chat-error";
-				errEl.textContent = `Save failed: ${errMsg(err)}`;
-				output.appendChild(errEl);
-			}
-		}
 	}
 }
 
@@ -1119,31 +870,8 @@ const STYLES = `
 	.filter-bar .add-filter:hover, .filter-bar .search-go:hover { background: #e0e0e0; }
 	shu-step-caller { display: block; padding: 4px 6px; margin: 2px 6px; background: #f5f5f5; border-radius: 3px; }
 	.mode-select { flex-shrink: 0; width: auto; }
-	.model-select { font: inherit; font-size: inherit; color: #444; max-width: 200px; }
-	.chat-output { font-size: inherit; padding: 3px 6px; width: 100%; min-width: 0; flex: 1; overflow-y: auto; }
-	.msg { display: grid; grid-template-columns: 20px 1fr; }
-	.msg::before { font-size: 11px; display: flex; align-items: flex-start; justify-content: center; padding-top: 4px; }
-	.msg-user { background: #fdf8f2; }
-	.msg-user::before { content: "\\1F9D8"; background: #f5e9d8; }
-	.msg-ai { background: #f8f8f6; }
-	.msg-ai::before { content: "\\1F916"; background: #ececea; }
-	.msg > :nth-child(2), .msg-content { min-width: 0; padding: 3px 6px; }
-	.chat-prompt { font-weight: 600; padding: 2px 0; }
-	.chat-status { display: block; color: #999; font-style: italic; font-size: inherit; }
-	.chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
-	.chat-text p { margin: 3px 0; }
-	.chat-text ul, .chat-text ol { margin: 3px 0; padding-left: 18px; }
-	.chat-text code { background: #f0f0f0; padding: 1px 3px; font-size: inherit; border-radius: 2px; }
-	.chat-text pre { background: #f0f0f0; padding: 4px 6px; overflow-x: auto; font-size: inherit; border-radius: 3px; }
-	.chat-error { display: block; color: #c00; font-size: inherit; }
+	.step-output { font-size: inherit; padding: 3px 6px; width: 100%; min-width: 0; flex: 1; overflow-y: auto; }
 	.input-line { display: flex; gap: 3px; align-items: stretch; padding: 3px 6px; flex-shrink: 0; }
-	.chat-input { flex: 1 1 200px; min-width: 120px; resize: none; overflow: hidden; field-sizing: content; }
 	.step-combo { flex: 1 1 120px; min-width: 80px; width: auto; }
-	.send-btn { padding: 2px 6px; background: #333; color: #fff; border: none; border-radius: 3px; font: inherit; font-size: inherit; cursor: pointer; flex-shrink: 0; }
-	.send-btn:hover { background: #555; }
-	.stop-btn { background: #c00 !important; color: #fff !important; }
-	.stop-btn:hover { background: #900 !important; }
-	.save-btn { background: #1a6b3c !important; color: #fff !important; }
-	.save-btn:hover { background: #145530 !important; }
-	.save-btn:disabled { opacity: 0.6; cursor: default; }
+	shu-kihan-chat { display: flex; flex: 1; min-height: 0; }
 `;
