@@ -98,36 +98,6 @@ jobs:
           REPO: ${{ github.repository }}
         run: bash scripts/verify-environment.sh
 
-      - name: Diagnose app token identity
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          set +e
-          probe_path=".github/diag/probe-${{ github.run_id }}.txt"
-          probe_content_b64=$(printf 'diagnostic probe' | base64 -w0)
-          echo "=== Contents API PUT to 3.x: $probe_path ==="
-          put_response=$(gh api -X PUT "/repos/${{ github.repository }}/contents/$probe_path" \
-            -f message="diag: probe write to 3.x via Contents API [skip ci]" \
-            -f content="$probe_content_b64" \
-            -f branch="3.x" \
-            --include 2>&1)
-          echo "$put_response" | head -1
-          echo "$put_response" | grep -iE '"message"|"documentation_url"' | head -5
-          content_sha=$(echo "$put_response" | sed -n 's/^.*"content":[[:space:]]*{[^}]*"sha":[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-          echo "Created content sha: ${content_sha:-<none>}"
-          if [ -n "$content_sha" ]; then
-            echo "=== Contents API DELETE on 3.x: $probe_path ==="
-            del_response=$(gh api -X DELETE "/repos/${{ github.repository }}/contents/$probe_path" \
-              -f message="diag: cleanup probe [skip ci]" \
-              -f sha="$content_sha" \
-              -f branch="3.x" \
-              --include 2>&1)
-            echo "$del_response" | head -1
-            echo "$del_response" | grep -iE '"message"|"documentation_url"' | head -5
-          else
-            echo "Skipping delete — PUT did not return a content sha."
-          fi
-
       - name: Release
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
