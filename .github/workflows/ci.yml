@@ -103,22 +103,30 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set +e
-          echo "=== /installation/repositories ==="
-          gh api /installation/repositories --jq '{total_count, repositories: [.repositories[].full_name]}'
-          echo "=== ruleset bypass actors (admin:read needed) ==="
-          gh api /repos/${{ github.repository }}/rulesets/3116695 --jq '.bypass_actors'
-          echo "=== probe: try to create a throwaway ref via Contents:Write ==="
-          sha=$(gh api /repos/${{ github.repository }}/git/refs/heads/3.x --jq '.object.sha')
-          echo "3.x SHA: $sha"
-          probe_ref="refs/heads/diag/app-write-probe-${{ github.run_id }}"
-          echo "Probe ref: $probe_ref"
-          create_status=$(gh api -X POST /repos/${{ github.repository }}/git/refs \
-            -f ref="$probe_ref" -f sha="$sha" \
-            --include 2>&1 | head -1)
-          echo "Create response status: $create_status"
-          echo "=== probe: delete the throwaway ref ==="
-          delete_out=$(gh api -X DELETE /repos/${{ github.repository }}/git/${probe_ref#refs/} --include 2>&1 | head -1)
-          echo "Delete response status: $delete_out"
+          probe_path=".github/diag/probe-${{ github.run_id }}.txt"
+          probe_content_b64=$(printf 'diagnostic probe' | base64 -w0)
+          echo "=== Contents API PUT to 3.x: $probe_path ==="
+          put_response=$(gh api -X PUT "/repos/${{ github.repository }}/contents/$probe_path" \
+            -f message="diag: probe write to 3.x via Contents API [skip ci]" \
+            -f content="$probe_content_b64" \
+            -f branch="3.x" \
+            --include 2>&1)
+          echo "$put_response" | head -1
+          echo "$put_response" | grep -iE '"message"|"documentation_url"' | head -5
+          content_sha=$(echo "$put_response" | sed -n 's/^.*"content":[[:space:]]*{[^}]*"sha":[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+          echo "Created content sha: ${content_sha:-<none>}"
+          if [ -n "$content_sha" ]; then
+            echo "=== Contents API DELETE on 3.x: $probe_path ==="
+            del_response=$(gh api -X DELETE "/repos/${{ github.repository }}/contents/$probe_path" \
+              -f message="diag: cleanup probe [skip ci]" \
+              -f sha="$content_sha" \
+              -f branch="3.x" \
+              --include 2>&1)
+            echo "$del_response" | head -1
+            echo "$del_response" | grep -iE '"message"|"documentation_url"' | head -5
+          else
+            echo "Skipping delete — PUT did not return a content sha."
+          fi
 
       - name: Release
         env:
