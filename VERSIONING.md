@@ -1,58 +1,19 @@
 # Versioning
 
-One version number is shared across all modules. Bumping it runs tests, updates every module, commits, tags, and pushes.
+Versions come from commit messages, not typed by hand. semantic-release reads the commits since the last tag, decides whether the change is a patch, minor, or major bump, writes the new version into every module, tags the commit, publishes to npm, and updates `CHANGELOG.md`. The whole repo ships one version — `scripts/sync-versions.mjs` keeps every module under `modules/tsconfig.json` aligned with the root, so `@haibun/cli@4.0.0` always pairs with `@haibun/core@4.0.0`. Internal `@haibun/*` deps use `*`, which resolves to the workspace copy.
 
-## Quick reference
+There are two release lines. `3.x` is the stable line — its releases become `@latest` on npm, so a plain `npm install @haibun/core` gets a 3.x version. The branch is pinned to the `3.x` semver range, so a `BREAKING CHANGE` commit fails the release rather than silently jumping to 4. `4.x` is the next major; its releases go under the `@next` dist-tag, so `npm install @haibun/core@next` opts in. 4.x doesn't displace `@latest`.
 
-Starting from `3.8.4`:
+## Shipping a change
 
-```sh
-# Preview releases (alpha → beta → rc)
-npm run version-alpha            # → 3.8.5-alpha.0
-npm run version-alpha            # → 3.8.5-alpha.1   (repeat to iterate)
-npm run version-alpha:minor      # → 3.9.0-alpha.0
-npm run version-alpha:major      # → 4.0.0-alpha.0
+Work on a topic branch off `3.x` or `4.x`, open a PR, and write the PR title in [conventional commits](https://www.conventionalcommits.org/) form — that's what semantic-release reads at squash-merge time. `feat:` triggers a minor bump, `fix:` a patch, `chore:` or `ci:` no release. A `BREAKING CHANGE:` footer triggers a major bump (only meaningful on 4.x — 3.x's range pin rejects it). Granular changelog bullets go in the PR body and end up in the GitHub release notes.
 
-npm run version-beta             # → same version, -beta.0
-npm run version-rc               # → same version, -rc.0
-npm run version-graduate         # drops the suffix: 4.0.0-rc.0 → 4.0.0
+After merge, CI runs semantic-release end to end. The bump comes back as `chore(release): X.Y.Z [skip ci]` so it doesn't trigger another release loop.
 
-# Final releases (skip previews)
-npm run version-patch            # 3.8.4 → 3.8.5
-npm run version-minor            # 3.8.4 → 3.9.0
-npm run version-major            # 3.8.4 → 4.0.0
-```
+## Adding a module
 
-Then publish:
+Add its path to `modules/tsconfig.json` references and the release pipeline picks it up automatically. A module left out stays at whatever version is in its own `package.json` and isn't published — useful for internal-only modules like `e2e-tests`.
 
-```sh
-npm run publish-all              # final releases
-npm run publish-all:alpha        # alpha previews
-npm run publish-all:beta         # beta previews
-npm run publish-all:rc           # rc previews
-```
+## Manual publish
 
-## Multiple release lines
-
-`main` currently ships `4.x` alphas. The `3.x` branch still gets patch releases.
-
-Each branch bumps its own version independently — run `version-patch` on `3.x` to ship `3.8.6`, run `version-alpha` on `main` to ship the next `4.0.0-alpha.N`. Publish `3.x` finals with `publish-all` (they become `@latest` on npm); publish `4.x` previews with `publish-all:alpha` (they go under the `@alpha` tag and don't displace `@latest`).
-
-## What a bump does
-
-1. Runs `npm run test`. If tests fail, nothing is bumped.
-2. Writes the new version into every `modules/*/package.json` and into `modules/core/src/currentVersion.ts`.
-3. Creates a git commit and tag.
-4. Pushes the commit and tag.
-
-Internal `@haibun/*` dependencies use `*`, so modules always resolve to the matching workspace version.
-
-## Skipping tests (hotfix)
-
-```sh
-npm version patch --ignore-scripts
-node scripts/sync-versions.mjs
-git add -A && git commit -m "v$(node -p 'require(\"./package.json\").version')"
-git tag "v$(node -p 'require(\"./package.json\").version')"
-git push && git push --tags
-```
+If CI is down, `node scripts/publish-all.mjs [dist-tag]` publishes the current checked-out tree. It refuses to run if module versions have drifted from the root, so run `scripts/sync-versions.mjs <version>` first if needed. There's also a `Publish all (manual)` workflow on Actions that does the same thing from CI — handy when a release commit landed but the publish step failed.
