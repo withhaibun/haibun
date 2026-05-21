@@ -60,6 +60,7 @@
 		"@haibun/web-http": "*",
 		"@haibun/web-playwright": "*",
 		"@haibun/recorder": "*",
+		"@haibun/shu": "*",
 		"@haibun/web-server-hono": "*",
 		"@types/express-fileupload": "^1.5.1",
 		"express-fileupload": "^1.5.2",
