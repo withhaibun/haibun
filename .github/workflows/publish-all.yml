@@ -1,0 +1,46 @@
+name: 'Publish all (manual)'
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'npm dist-tag (omit for @latest)'
+        required: false
+        default: ''
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          registry-url: https://registry.npmjs.org
+
+      - name: Remove deprecated npm always-auth config
+        run: npm config delete always-auth || true
+
+      - name: Install main deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish all modules
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "ERROR: NPM_TOKEN is not set; cannot publish."
+            exit 1
+          fi
+          node scripts/publish-all.mjs '${{ inputs.tag }}'
