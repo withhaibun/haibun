@@ -102,14 +102,23 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          echo "=== /installation/repositories (token's installation scope) ==="
-          gh api /installation/repositories --jq '{total_count, repositories: [.repositories[].full_name]}' || true
-          echo "=== /repos/${{ github.repository }} permissions (what this token can do here) ==="
-          gh api /repos/${{ github.repository }} --jq '.permissions' || true
-          echo "=== app slug / id resolved from this token ==="
-          gh api /app --jq '{id, slug, name, owner: .owner.login}' || true
-          echo "=== ruleset bypass actors as seen via this token ==="
-          gh api /repos/${{ github.repository }}/rulesets/3116695 --jq '.bypass_actors' || true
+          set +e
+          echo "=== /installation/repositories ==="
+          gh api /installation/repositories --jq '{total_count, repositories: [.repositories[].full_name]}'
+          echo "=== ruleset bypass actors (admin:read needed) ==="
+          gh api /repos/${{ github.repository }}/rulesets/3116695 --jq '.bypass_actors'
+          echo "=== probe: try to create a throwaway ref via Contents:Write ==="
+          sha=$(gh api /repos/${{ github.repository }}/git/refs/heads/3.x --jq '.object.sha')
+          echo "3.x SHA: $sha"
+          probe_ref="refs/heads/diag/app-write-probe-${{ github.run_id }}"
+          echo "Probe ref: $probe_ref"
+          create_status=$(gh api -X POST /repos/${{ github.repository }}/git/refs \
+            -f ref="$probe_ref" -f sha="$sha" \
+            --include 2>&1 | head -1)
+          echo "Create response status: $create_status"
+          echo "=== probe: delete the throwaway ref ==="
+          delete_out=$(gh api -X DELETE /repos/${{ github.repository }}/git/${probe_ref#refs/} --include 2>&1 | head -1)
+          echo "Delete response status: $delete_out"
 
       - name: Release
         env:
