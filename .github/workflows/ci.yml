@@ -51,7 +51,7 @@ jobs:
           npm test
 
   release:
-    if: ${{ github.event_name == 'push' && contains(fromJSON('["3.x","alpha","beta","rc"]'), github.ref_name) }}
+    if: ${{ github.event_name == 'push' && contains(fromJSON('["3.x","4.x","alpha","beta","rc"]'), github.ref_name) }}
     needs: test
     runs-on: ubuntu-latest
     permissions:
