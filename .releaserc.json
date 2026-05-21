@@ -1,6 +1,5 @@
 {
   "branches": [
-    { "name": "3.x", "range": "3.x", "channel": false },
     { "name": "4.x", "channel": "next" }
   ],
   "plugins": [
