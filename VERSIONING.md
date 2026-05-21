@@ -1,74 +1,35 @@
 # Versioning
 
-Releases are automated by [semantic-release](https://semantic-release.gitbook.io/). Version numbers come from commit messages; CI publishes. You never type a version number.
+Versions come from commit messages, not typed by hand. semantic-release reads the commits since the last tag, decides whether the change is a patch, minor, or major bump, writes the new version into every module, tags the commit, publishes to npm, and updates `CHANGELOG.md`. The whole repo ships one version — `scripts/sync-versions.mjs` keeps every module under `modules/tsconfig.json` aligned with the root, so `@haibun/cli@4.0.0` always pairs with `@haibun/core@4.0.0`. Internal `@haibun/*` deps use `*`, which resolves to the workspace copy.
 
-## How to ship a change
+There are two release lines. `3.x` is the stable line — its releases become `@latest` on npm, so a plain `npm install @haibun/core` gets a 3.x version. The branch is pinned to the `3.x` semver range, so a `BREAKING CHANGE` commit fails the release rather than silently jumping to 4. `4.x` is the next major; its releases go under the `@next` dist-tag, so `npm install @haibun/core@next` opts in. 4.x doesn't displace `@latest`.
 
-1. Work on a feature branch. Commit messages on the branch can say anything — they're squashed at merge.
-2. Open a PR targeting the right release branch:
-   - `3.x` for stable 3.x (patches + minor features)
-   - `alpha` for 4.x previews
-3. Write the **PR title** in conventional-commits format. Examples:
-   - `feat: add retry logic to http stepper` — triggers a minor bump
-   - `fix: monitor crashes on empty trace` — triggers a patch bump
-   - `chore: clean up imports` — no release
-4. Put bullets in the PR **body** for granular changelog entries.
-5. For a breaking change, add a footer to the body:
-   ```
-   BREAKING CHANGE: kireji withAction signature changed
-   ```
-6. Squash-merge. CI runs semantic-release, which bumps all modules, publishes to npm, updates `CHANGELOG.md`, tags, and creates a GitHub release.
+## Shipping a change
 
-## Branches and npm dist-tags
+Work on a topic branch off `3.x` or `4.x`, open a PR, and write the PR title in [conventional commits](https://www.conventionalcommits.org/) form — that's what semantic-release reads at squash-merge time. `feat:` triggers a minor bump, `fix:` a patch, `chore:` or `ci:` no release. A `BREAKING CHANGE:` footer triggers a major bump (only meaningful on 4.x — 3.x's range pin rejects it). Granular changelog bullets go in the PR body and end up in the GitHub release notes.
 
-| Branch | npm tag | Version shape |
-|---|---|---|
-| `3.x` | `@latest` | `3.8.5`, `3.9.0`, ... (stable 3.x) |
-| `alpha` | `@alpha` | `4.0.0-alpha.N` |
-| `beta` | `@beta` | `4.0.0-beta.N` |
-| `rc` | `@rc` | `4.0.0-rc.N` |
+After merge, CI runs semantic-release end to end. The bump comes back as `chore(release): X.Y.Z [skip ci]` so it doesn't trigger another release loop.
 
-`npm install @haibun/core` gets stable 3.x. 4.x previews require an explicit tag: `npm install @haibun/core@alpha`.
+## Adding a module
 
-`3.x` is pinned to the `3.x` range in [.releaserc.json](.releaserc.json) — it will not accidentally jump to 4.x. When 4.x is ready to ship as stable, change the branch config (e.g. to `4.x`) and demote the old line to a maintenance branch.
+Add its path to `modules/tsconfig.json` references and the release pipeline picks it up automatically. A module left out stays at whatever version is in its own `package.json` and isn't published — useful for internal-only modules like `e2e-tests`.
 
-## One version for all modules
+## Manual publish
 
-Every module under `modules/tsconfig.json` ships at the same version. When the root bumps, `scripts/sync-versions.mjs` propagates the new version to every module's `package.json` and to `modules/core/src/currentVersion.ts`. Internal `@haibun/*` deps use `*`, so they always resolve to the matching workspace version.
+If CI is down, `node scripts/publish-all.mjs [dist-tag]` publishes the current checked-out tree. It refuses to run if module versions have drifted from the root, so run `scripts/sync-versions.mjs <version>` first if needed. There's also a `Publish all (manual)` workflow on Actions that does the same thing from CI — handy when a release commit landed but the publish step failed.
 
-To add a new module to the release: add it to `modules/tsconfig.json` references. It's then built, versioned, and published automatically.
+## How it's set up on GitHub
 
-Modules that should not publish (e.g. `recorder`, `e2e-tests`) are marked `"private": true` in their own `package.json` and left out of `modules/tsconfig.json`.
+Each release branch carries its own [`.releaserc.json`](.releaserc.json) listing just that branch — `3.x` lists `3.x`, `4.x` lists `4.x`. Cross-branch awareness isn't needed because semantic-release only releases the branch it's running on. The `range`/`channel` settings there decide which npm dist-tag a release lands under.
 
-## Manual publish (CI down)
+CI lives in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On every push to `3.x` or `4.x` it runs the test job and, if that passes, a release job that calls `npx semantic-release`. PRs run tests only. The release job also exists as a standalone manual workflow at [`.github/workflows/publish-all.yml`](.github/workflows/publish-all.yml) for when semantic-release succeeds but the publish step has to be retried by hand.
 
-If CI is unavailable, `npm run publish-all[:alpha|:beta|:rc]` publishes whatever is at the current root version. See [scripts/publish-all.mjs](scripts/publish-all.mjs). It refuses to run if module versions have drifted from the root.
+Pushing the `chore(release):` commit and the version tag back to `3.x` would normally be blocked by the branch's ruleset ("Changes must be made through a pull request"). The release job authenticates as a GitHub App — `haibun-release-bot` — whose actor ID is on the ruleset's bypass list. The job mints a short-lived installation token via `actions/create-github-app-token@v1`, hands it to `actions/checkout` with `persist-credentials: true`, and semantic-release's `git push` rides on that credential.
 
-## Checking the current version
+Three repo secrets feed this:
 
-```sh
-node -p "require('./package.json').version"   # root (source of truth)
-npm pkg get version
-git describe --tags --abbrev=0                 # latest tag
-```
+- `RELEASE_APP_ID` — the App ID of `haibun-release-bot` (a plain integer).
+- `RELEASE_APP_PRIVATE_KEY` — the PEM-formatted private key downloaded when the App was created.
+- `NPM_TOKEN` — an npm Automation token with publish access to the `@haibun` scope.
 
-At runtime, `currentVersion` is exported from `@haibun/core`.
-
-## Required one-time setup in GitHub
-
-Before the first automated release works:
-
-1. Repo secret: `NPM_TOKEN` with publish rights on the `@haibun` scope.
-2. Settings → General → Pull Requests: allow **squash merging only**, set "Default to pull request title and description" for squash commits.
-3. Create the `alpha` branch from the current 4.x working branch (`centralize-rpc-shu-monitor`).
-4. **Apply branch protection** — run locally with `gh` authenticated:
-   ```sh
-   gh auth login   # once, if not already authenticated
-   bash scripts/protect-branches.sh
-   ```
-   This enforces on `3.x`, `alpha`, `beta`, and `rc`:
-   - PRs required (no direct pushes except from `GITHUB_TOKEN` used by semantic-release)
-   - `test` CI job must pass before merge
-   - Force-pushes and deletions blocked
-
-   To re-apply after adding a new release branch, just run the script again.
+When publish fails with a 404 on PUT to `registry.npmjs.org`, the NPM_TOKEN has expired or lost scope access; rotate it on npmjs.com and update the secret. When push fails with `GH013: Repository rule violations`, the App is missing from the bypass list (or a *classic* branch protection rule is layered on top of the ruleset and the bypass-list mechanism doesn't reach it).
