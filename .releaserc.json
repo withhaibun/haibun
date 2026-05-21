@@ -1,5 +1,6 @@
 {
   "branches": [
+    "main",
     { "name": "4.x", "channel": "next" }
   ],
   "plugins": [
