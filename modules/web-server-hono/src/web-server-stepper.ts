@@ -25,14 +25,14 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 				coerce: objectCoercer(EndpointSchema),
 				description: "HTTP endpoint — route registered on the web server",
 				topology: {
-					vertexLabel: EndpointLabels.Endpoint,
+					persistedAs: EndpointLabels.Endpoint,
 					type: "as:Service",
 					id: "url",
 					properties: {
 						url: LinkRelations.IDENTIFIER.rel,
 						method: LinkRelations.TAG.rel,
 						description: LinkRelations.NAME.rel,
-						registeredAt: LinkRelations.PUBLISHED.rel,
+						generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 					},
 				},
 			},
@@ -228,8 +228,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (method === "step.list") {
 						// Capability-filter the manifest: an LLM or other scoped
 						// caller should see only the tools it can actually
-						// invoke. Absent header = unscoped (full manifest),
-						// preserving legacy behaviour.
+						// invoke. An absent capability header means unscoped — the full manifest.
 						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, this.getWorld().runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
@@ -240,11 +239,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					}
 					if (method === "step.validate") return validateStep(String(params.text || ""), this.steppers);
 
-					// Session bootstrap: client asks for a globally-unique seqPath
+					// Action bootstrap: client asks for a globally-unique seqPath
 					// root before issuing any state-changing RPC. Returns the
 					// root; client appends monotonic sub-seqs for each call
 					// within the action scope.
-					if (method === "session.beginAction") {
+					if (method === "action.begin") {
 						const seqPath = this.allocateSessionSeqPath();
 						// seqPath[0] is the hostId; returning it explicitly saves remote
 						// callers from having to reach into the seqPath to learn which

@@ -3,7 +3,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.j
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import ZcapStepper from "@haibun/core/steps/zcap-stepper.js";
+import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 
@@ -244,7 +244,7 @@ capture step list at "http://localhost:${port + 10}/rpc/step.list"
 		expect(Array.isArray((capturedStepList as { steps: unknown }).steps)).toBe(true);
 	});
 
-	it("session.beginAction allocates a unique seqPath root per call", async () => {
+	it("action.begin allocates a unique seqPath root per call", async () => {
 		const port = 8240;
 		let first: number[] | undefined;
 		let second: number[] | undefined;
@@ -255,7 +255,7 @@ capture step list at "http://localhost:${port + 10}/rpc/step.list"
 					gwta: "begin action twice at {url}",
 					action: async ({ url }: { url: string }) => {
 						const u = String(url);
-						const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: "session.beginAction", params: {} });
+						const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: "action.begin", params: {} });
 						const headers = { "Content-Type": "application/json" };
 						const r1 = (await (await fetch(u, { method: "POST", headers, body })).json()) as Record<string, unknown>;
 						const r2 = (await (await fetch(u, { method: "POST", headers, body })).json()) as Record<string, unknown>;
@@ -272,7 +272,7 @@ capture step list at "http://localhost:${port + 10}/rpc/step.list"
 			content: `
 enable rpc
 webserver is listening for "rpc-begin-action"
-begin action twice at "http://localhost:${port}/rpc/session.beginAction"
+begin action twice at "http://localhost:${port}/rpc/action.begin"
 `,
 		};
 		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, BeginActionStepper], makeOptions(port));
@@ -353,7 +353,7 @@ revoke zcap bearer grant for token "zcap-token"
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied when bearer token is "zcap-token"
 `,
 		};
-		const result = await passWithDefaults([feature], [ZcapStepper, ...steppers], makeOptions(port));
+		const result = await passWithDefaults([feature], [AuthorityStepper, ...steppers], makeOptions(port));
 		expect(result.ok).toBe(true);
 	});
 
