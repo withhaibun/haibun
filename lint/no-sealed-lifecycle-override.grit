@@ -1,0 +1,12 @@
+language js
+
+// ShuElement seals connectedCallback / disconnectedCallback / attributeChangedCallback and owns the
+// super-call chain (SignalWatcher cleanup, lit attribute reflection, the time-sync effect, the
+// schema-driven attribute reflection). A subclass that overrides one of these silently bypasses all of
+// that. Override the protected onConnected / onDisconnected / onAttributeChanged hooks instead.
+// Scoped to `extends ShuElement`, so the base class itself and the plain-HTMLElement components are unaffected.
+`$method($args) { $body }` where {
+  $method <: or { `connectedCallback`, `disconnectedCallback`, `attributeChangedCallback` },
+  $method <: within `class $_ extends ShuElement$_ { $_ }`,
+  register_diagnostic(span = $method, message = "Override the protected onConnected/onDisconnected/onAttributeChanged hook, not the sealed ShuElement lifecycle method — the base owns the super-call chain.")
+}

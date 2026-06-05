@@ -1,0 +1,34 @@
+graph TD
+    %% Definitions for the three main groups
+    subgraph AppLayer ["Application Layer"]
+        direction TB
+        Orchestrator["Orchestrator"]
+        Stepper["Steppers (Glue Code)"]
+        Lib["Low-level Library (e.g., Playwright)"]
+
+        %% Control flow within the application layer
+        Orchestrator -- "Reads features & directs" --> Stepper
+        Stepper -- "Calls browser actions" --> Lib
+    end
+
+    subgraph DomainLayer ["Domain Layer"]
+        Feature["Feature Files"]
+        Waypoints["reusable Waypoints"]
+        Results["Test Results & Artifacts"]
+    end
+
+    subgraph EnvLayer ["Environment"]
+        Local["Local Machine"]
+        Cloud["Cloud (e.g., Azure)"]
+        Otel["Observability (e.g., OpenTelemetry)"]
+    end
+
+    %% Relationships between layers
+    Orchestrator -.->|"Reads as Input"| Feature
+    Feature -.->|"Uses"| Waypoints
+    Lib -.->|"Performs actions to generate"| Results
+    Lib -.->|"Emits telemetry to"| Otel
+
+    %% The entire process runs within the environment
+    AppLayer --->|"Executes within"| EnvLayer
+    DomainLayer -.->|"Exists within"| EnvLayer
