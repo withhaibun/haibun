@@ -12,18 +12,24 @@ export const ComboboxOptionSchema = z.object({
 	 * Optional secondary line shown below the label as smaller, dimmer text.
 	 * Carries the "what does this represent" detail — input/output domain
 	 * summary for a step option, the type or distinguishing field for a
-	 * vertex-ref option. Filter matches on label OR secondary so a user can
-	 * type either the visible label or a contextual hint.
+	 * persisted-ref option. Filter matches on label OR secondary so either the
+	 * visible label or a contextual hint can be typed.
 	 */
 	secondary: z.string().optional(),
 	/**
 	 * Optional expanded-detail block shown when the option is focused
 	 * (keyboard) or hovered (mouse). Multiple lines welcome — full step gwta
-	 * with inputs / outputs, or every persisted field of a vertex. Rendered
-	 * in a panel adjacent to the dropdown so the user reads what they're
-	 * picking before committing.
+	 * with inputs / outputs, or every persisted field of a node. Rendered in a
+	 * panel adjacent to the dropdown to show what an option holds before it is
+	 * picked.
 	 */
 	details: z.string().optional(),
+	/**
+	 * Optional section heading. Consecutive options sharing a `group` are
+	 * rendered under one non-selectable header in the dropdown — e.g.
+	 * "Declared" vs "Built-in" types in the type selector.
+	 */
+	group: z.string().optional(),
 });
 export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 
@@ -34,7 +40,6 @@ export const ComboboxSchema = z.object({
 	filterText: z.string().default(""),
 	open: z.boolean().default(false),
 });
-export type TComboboxState = z.infer<typeof ComboboxSchema>;
 
 // --- Search conditions ---
 
@@ -80,13 +85,6 @@ export function serializeFilterParam(c: TSearchCondition): string {
 	return parts.join("|");
 }
 
-/** Edge result from getVertexWithEdges. */
-export const EdgeResultSchema = z.object({
-	type: z.string(),
-	target: z.record(z.string(), z.unknown()),
-});
-export type EdgeResult = z.infer<typeof EdgeResultSchema>;
-
 // --- Query view schema (for shu-graph-query component state) ---
 
 export const QueryViewSchema = z.object({
@@ -106,14 +104,15 @@ export const ColumnPaneSchema = z.object({
 	width: z.number().optional(),
 	closable: z.boolean().default(true),
 	pinned: z.boolean().default(false),
-	columnType: z.enum(["query", "entity", "filter", "property", "monitor", "sequence", "thread", "document"]).default("query"),
+	// Free-form: PaneState writes the component tag for component panes; CSS only matches the well-known values.
+	columnType: z.string().default("query"),
 });
 
 // --- Entity column ---
 
 export const EntityColumnSchema = z.object({
-	vertexId: z.string(),
-	vertexLabel: z.string(),
+	individualId: z.string(),
+	persistedAs: z.string(),
 	loading: z.boolean().default(false),
 	error: z.string().optional(),
 });
@@ -121,7 +120,7 @@ export const EntityColumnSchema = z.object({
 // --- Filter column ---
 
 export const FilterColumnSchema = z.object({
-	vertexLabel: z.string().optional(),
+	persistedAs: z.string().optional(),
 	property: z.string().optional(),
 	value: z.string().optional(),
 	loading: z.boolean().default(false),
@@ -137,18 +136,17 @@ export const BreadcrumbSchema = z.object({
 	hasSync: z.boolean().default(false),
 });
 
-// --- Spinner ---
-
-export const SpinnerSchema = z.object({
-	status: z.string(),
-	visible: z.boolean().default(false),
-	spinning: z.boolean().default(true),
-});
-
 // --- Column strip ---
 
 export const ColumnStripSchema = z.object({
 	activeIndex: z.number().default(-1),
+});
+
+// --- Theme switch ---
+
+export const ThemeSwitchSchema = z.object({
+	theme: z.enum(["auto", "light", "dark"]).default("auto"),
+	scale: z.string().default("1"),
 });
 
 // --- Result table ---
@@ -167,7 +165,7 @@ export const ResultTableSchema = z.object({
 
 // --- Triple pattern queries ---
 // Canonical query shape across the system: a list of SPO triple patterns, AND-conjoined.
-// Omitted position = variable; equality is implicit (operator extension planned via an `op` field).
+// Omitted position = variable; equality is implicit.
 // Used end-to-end: SPA selection → LLM context resolution, _links.params for relational affordances,
 // goal resolver backward chaining.
 

@@ -1,3 +1,4 @@
+import { html, css, type TemplateResult } from "lit";
 import { defaultLabel } from "../util.js";
 import { SHU_EVENT } from "../consts.js";
 /**
@@ -7,11 +8,11 @@ import { SHU_EVENT } from "../consts.js";
 import { ShuElement } from "./shu-element.js";
 import { QueryViewSchema, type TSearchCondition, parseFilterParam, serializeFilterParam } from "../schemas.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import { SHARED_STYLES } from "./styles.js";
+import { shuBaseStyles } from "./styles.js";
 import { esc, errMsg, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
-import { SseClient, inAction } from "../sse-client.js";
+import { conduit, isOffline } from "../hypermedia.js";
 import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "../rpc-registry.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 
@@ -21,11 +22,16 @@ type ConditionRow = TSearchCondition;
 type VertexRow = Record<string, unknown>;
 
 export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
+	static styles = [shuBaseStyles, css`
+		:host { display: block; color: var(--shu-fg); }
+	`];
+
 	static schema = QueryViewSchema;
 	static domainSelector = "shu-graph-query";
 
 	private conditions: ConditionRow[] = [];
 	private results: VertexRow[] = [];
+	private sortableFields: string[] = [];
 	private labels: string[] = [];
 	private accessLevel: string = Access.private;
 	private total = 0;
@@ -35,60 +41,44 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private lastQueryKey = "";
 	/** In-flight promise — coalesces concurrent identical `executeQuery` calls. The key is `lastQueryKey` (set immediately after the dedup check). */
 	private inflightPromise: Promise<void> | null = null;
-	private hashChangeHandler: (() => void) | null = null;
 	private selectedIds = new Set<string>();
-	/** Unsubscribe handle for the rAF-batched SSE auto-refresh subscription. Set in connectedCallback, called in disconnectedCallback. */
-	private unsubscribeAutoRefresh: (() => void) | null = null;
 
-	static get observedAttributes(): string[] {
-		return ["label", "sort-by", "sort-order", "results-target"];
-	}
+	static observedHtmlAttributes = ["label", "sort-by", "sort-order", "results-target"];
 
 	constructor() {
 		super(QueryViewSchema, { sortOrder: "desc" as const });
 	}
 
-	attributeChangedCallback(): void {
+	protected override onAttributeChanged(name: string, _old: string | null, _val: string | null): void {
 		if (!this.hasHash()) {
 			this.syncFromAttributes();
 		}
 	}
 
-	connectedCallback(): void {
+	protected override onConnected(): void {
 		if (this.hasHash()) {
 			this.syncHashState();
 		} else {
 			this.syncFromAttributes();
 		}
-		super.connectedCallback();
-		this.hashChangeHandler = () => {
+		this.autoListen(window, "hashchange", () => {
 			this.syncHashState();
 			void this.executeQuery();
-		};
-		window.addEventListener("hashchange", this.hashChangeHandler);
+		});
 		void this.loadMetadata().then(() => this.executeQuery());
 
-		if (!ShuElement.offline) {
-			this.unsubscribeAutoRefresh = this.subscribeBatched({
-				onBatch: (events) => {
-					const quads = extractQuadsFromEvents(events);
-					if (quads.length === 0) return;
-					const label = this.state.label;
-					const relevant = !label || quads.some((q) => q.namedGraph === label);
-					if (relevant) void this.executeQuery();
-				},
-			});
-		}
-	}
-
-	disconnectedCallback(): void {
-		if (this.hashChangeHandler) {
-			window.removeEventListener("hashchange", this.hashChangeHandler);
-			this.hashChangeHandler = null;
-		}
-		if (this.unsubscribeAutoRefresh) {
-			this.unsubscribeAutoRefresh();
-			this.unsubscribeAutoRefresh = null;
+		if (!isOffline()) {
+			this.autoTeardown(
+				this.subscribeBatched({
+					onBatch: (events) => {
+						const quads = extractQuadsFromEvents(events);
+						if (quads.length === 0) return;
+						const label = this.state.label;
+						const relevant = !label || quads.some((q) => q.namedGraph === label);
+						if (relevant) void this.executeQuery();
+					},
+				}),
+			);
 		}
 	}
 
@@ -216,17 +206,16 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const derivedMeta = getConcernDerivedMetadata();
 		const step = findStep("getSiteMetadata");
 		if (step) {
-			const client = SseClient.for("");
-			const serverMeta = await inAction((scope) => client.rpc<import("../rels-cache.js").SiteMetadata>(scope, step.method));
+			const serverMeta = await conduit().follow<import("../rels-cache.js").SiteMetadata>({ method: step.method }, "graph-query: load site metadata");
 			Object.assign(derivedMeta, serverMeta);
 		}
 		setSiteMetadata(derivedMeta);
-		const vertexLabels = Object.values(domains)
-			.map((d) => d.vertexLabel)
+		const persistedTypes = Object.values(domains)
+			.map((d) => d.persistedAs)
 			.filter((l): l is string => !!l);
-		this.labels = vertexLabels.length > 0 ? vertexLabels : derivedMeta.types;
+		this.labels = persistedTypes.length > 0 ? persistedTypes : derivedMeta.types;
 		if (derivedMeta.idFields) setIdFields(derivedMeta.idFields);
-		this.render();
+		this.requestUpdate();
 	}
 
 	async executeQuery(): Promise<void> {
@@ -269,14 +258,16 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					limit: this.limit,
 					offset: this.offset,
 				};
-				const client = SseClient.for("");
 				const method = requireStep("graphQuery");
-				const data = await inAction(
-					(scope) => client.rpc<{ vertices: VertexRow[]; total: number; cypher: string }>(scope, method, { query: payload }),
-					`graph-query: ${label || "(any)"}${textQuery ? ` "${textQuery}"` : ""}`,
-				);
+				const data = await conduit().follow<{
+					vertices: VertexRow[];
+					total: number;
+					cypher: string;
+					sort?: { fields: string[]; orders: ("asc" | "desc")[]; current: { field?: string; order: "asc" | "desc" } };
+				}>({ method, params: { query: payload } }, `graph-query: ${label || "(any)"}${textQuery ? ` "${textQuery}"` : ""}`);
 				this.results = data.vertices ?? [];
 				this.total = data.total ?? this.results.length;
+				this.sortableFields = data.sort?.fields ?? [];
 				if (data.cypher) {
 					const pane = this.closest("shu-column-pane");
 					if (pane) pane.setAttribute("label", data.cypher);
@@ -304,12 +295,11 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return document.querySelector(selector);
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
-		this.shadowRoot.innerHTML = `
-			${this.css(SHARED_STYLES)}
-			<style>${QUERY_STYLES}</style>
-		`;
+	render(): TemplateResult {
+		return html``;
+	}
+
+	protected updated(): void {
 		this.renderResults();
 	}
 
@@ -345,7 +335,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			}) as EventListener);
 
 			table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
-				const { vertexId: vid, deselect, ctrlKey } = e.detail;
+				const { individualId: vid, deselect, ctrlKey } = e.detail;
 				if (deselect) {
 					this.selectedIds.clear();
 					this.dispatchContextChange();
@@ -409,12 +399,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			selectable: true,
 			paginated: this.total > this.limit,
 		});
-		if (this.state.label) table.vertexLabel = this.state.label;
+		if (this.state.label) table.persistedAs = this.state.label;
+		table.setSortableFields(this.sortableFields);
 		table.setResults(this.results);
 		table.setPagination(this.total, this.limit, this.offset);
 	}
 }
-
-const QUERY_STYLES = `
-	:host { display: block; font-family: inherit; color: #222; }
-`;

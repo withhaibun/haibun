@@ -10,7 +10,7 @@ type TestItem = Record<string, unknown> & { _id: string; _edges: { type: string;
 
 /** Simulate normalizeItem from shu-product-view */
 function normalizeItem(item: Record<string, unknown>): TestItem {
-	const _id = String(item["@id"] ?? item._id ?? item.vertexLabel ?? item.id ?? item.name ?? "");
+	const _id = String(item["@id"] ?? item._id ?? item.persistedAs ?? item.id ?? item.name ?? "");
 	const existingEdges = (item._edges ?? []) as { type: string; targetId: string }[];
 	return { ...item, _id, _edges: existingEdges };
 }
@@ -20,7 +20,7 @@ function threadToQuads(items: TestItem[], label: string) {
 	const quads: { subject: string; predicate: string; object: string; namedGraph: string; timestamp: number }[] = [];
 	const itemIds = new Set(items.map((v) => v._id));
 	for (const v of items) {
-		const vlabel = String(v.vertexLabel ?? v._label ?? label);
+		const vlabel = String(v.persistedAs ?? v._label ?? label);
 		const name = String(v.subject ?? v.name ?? v.text ?? v._id);
 		quads.push({ subject: v._id, predicate: "name", object: name, namedGraph: vlabel, timestamp: 1 });
 		for (const edge of v._edges ?? []) {
@@ -90,17 +90,17 @@ describe("end-to-end: show domains → thread → graph", () => {
 				name: "test-email",
 				description: "Email message",
 				members: 0,
-				vertexLabel: "Email",
+				persistedAs: "Email",
 				_edges: [
 					{ type: "from", targetId: PERSON_LABEL },
 					{ type: "subject", targetId: "string" },
 				],
 			},
-			{ name: "test-contact", description: PERSON_LABEL, members: 0, vertexLabel: PERSON_LABEL, _edges: [] },
+			{ name: "test-contact", description: PERSON_LABEL, members: 0, persistedAs: PERSON_LABEL, _edges: [] },
 			{ name: "string", description: "Plain string literal", members: 0, _edges: [] },
 		];
 
-		// normalizeItem sets _id from vertexLabel or name
+		// normalizeItem sets _id from persistedAs or name
 		const items = rawItems.map(normalizeItem);
 		expect(items[0]._id).toBe("Email");
 		expect(items[1]._id).toBe(PERSON_LABEL);

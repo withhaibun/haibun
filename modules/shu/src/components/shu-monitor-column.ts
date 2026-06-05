@@ -1,24 +1,25 @@
 /**
  * <shu-monitor-column> — Live execution log stream in a miller column.
- * Fetches initial events from MonitorStepper via RPC on connect,
- * then subscribes to SSE for live updates. No polling.
+ * Fetches initial events from MonitorStepper via RPC on connect, then
+ * subscribes to the EventStream for live updates (via subscribeBatched).
  * Clickable time values dispatch TIME_SYNC for cross-view synchronization.
  */
+import { html, css, type TemplateResult } from "lit";
+import { property } from "lit/decorators.js";
 import { z } from "zod";
+import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "../quad-detail-pane.js";
-import { SseClient, inAction } from "../sse-client.js";
-import { esc } from "../util.js";
+import { conduit } from "../hypermedia.js";
+import type { TDispatchTrace } from "../schemas.js";
 
 const MonitorColumnSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
 	tail: z.boolean().default(true),
 	hideStart: z.boolean().default(true),
 });
-
-import type { TDispatchTrace } from "../schemas.js";
 
 type TLogRow = {
 	time: string;
@@ -33,99 +34,87 @@ type TLogRow = {
 	dispatch?: TDispatchTrace;
 };
 
-const LEVEL_ICONS: Record<string, string> = {
-	error: "\u274c",
-	warn: "\u26a0\ufe0f",
-	info: "\u2139\ufe0f",
-	debug: "\ud83d\udcac",
-	trace: "\ud83d\udd0d",
-};
+const LEVEL_ICONS: Record<string, string> = { error: "❌", warn: "⚠️", info: "ℹ️", debug: "💬", trace: "🔍" };
 const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
-const STYLES = `
-:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: ui-monospace, monospace; font-size: 12px; }
-:host(:not([data-show-controls])) .toolbar { display: none; }
-.toolbar { display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: #f5f5f5; border-bottom: 1px solid #ddd; flex: 0 0 auto; }
-.toolbar select { font-size: 11px; padding: 1px 4px; }
-.toolbar .count { margin-left: auto; color: #888; font-size: 11px; }
-.toolbar .hide-start { font-size: 10px; color: #888; cursor: pointer; display: flex; align-items: center; gap: 2px; }
-.log-rows { flex: 1; overflow: auto; }
-.log-row { display: grid; grid-template-columns: 130px 1fr; border-bottom: 1px solid #f0f0f0; font-size: 11px; line-height: 1.4; }
-.log-row:hover { background: #f8f8f8; }
-.log-row .time-group { display: flex; gap: 4px; padding: 1px 4px; cursor: pointer; border-right: 1px solid #eee; }
-.log-row .time-group:hover { color: #E87A5D; }
-.log-row .row-content { padding: 1px 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.log-row .time { color: #888; margin-left: auto; }
-.log-row .time-group:hover .time { color: #E87A5D; }
-.log-row .seqpath { color: #555; font-size: 10px; }
-.log-row .dispatch { color: #888; font-size: 10px; margin-left: 4px; }
-.loader { display: inline-block; width: 10px; height: 10px; border: 2px solid #ddd; border-top-color: #E87A5D; border-radius: 50%; animation: spin 1.2s linear infinite; vertical-align: middle; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.log-row .step { color: #333; font-weight: 500; }
-.log-row .msg { color: #555; }
-.log-row.error { background: #fff0f0; }
-.log-row.warn { background: #fffde7; }
-.log-row.speculative { opacity: 0.5; }
-.empty { padding: 16px; color: #888; text-align: center; }
-`;
-
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
-	private rows: TLogRow[] = [];
-	private unsubscribe?: () => void;
+	static styles = [
+		shuBaseStyles,
+		css`
+		:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: var(--shu-font-family); font-size: var(--shu-font-md); }
+		:host(:not([data-show-controls])) .toolbar { display: none; }
+		.toolbar { display: flex; gap: var(--shu-space-3); align-items: center; padding: var(--shu-space-2) var(--shu-space-4); flex: 0 0 auto;
+			background: var(--shu-bg-soft); border-bottom: var(--shu-border-w) solid var(--shu-border); }
+		.toolbar select { font-size: var(--shu-font-sm); padding: 1px var(--shu-space-2); }
+		.toolbar .count { margin-left: auto; color: var(--shu-fg-muted); font-size: var(--shu-font-sm); }
+		.toolbar .hide-start { font-size: var(--shu-font-xs); color: var(--shu-fg-muted); cursor: pointer; display: flex; align-items: center; gap: var(--shu-space-1); }
+		.log-rows { flex: 1; overflow: auto; }
+		.log-row { display: grid; grid-template-columns: 130px 1fr; border-bottom: var(--shu-border-w) solid var(--shu-border); font-size: var(--shu-font-sm); line-height: 1.4; }
+		.log-row:hover { background: var(--shu-bg-hover); }
+		.log-row .time-group { display: flex; gap: var(--shu-space-2); padding: 1px var(--shu-space-2); cursor: pointer; border-right: var(--shu-border-w) solid var(--shu-border); }
+		.log-row .time-group:hover { color: var(--shu-accent); }
+		.log-row .row-content { padding: 1px var(--shu-space-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+		.log-row .time { color: var(--shu-fg-muted); margin-left: auto; }
+		.log-row .time-group:hover .time { color: var(--shu-accent); }
+		.log-row .seqpath { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); }
+		.log-row .dispatch { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
+		.loader { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--shu-border); border-top-color: var(--shu-accent);
+			border-radius: 50%; animation: spin 1.2s linear infinite; vertical-align: middle; }
+		@keyframes spin { to { transform: rotate(360deg); } }
+		.log-row .step { color: var(--shu-fg); font-weight: 500; }
+		.log-row .msg { color: var(--shu-fg-muted); }
+		.log-row.error { background: var(--shu-bg-error-soft); }
+		.log-row.warn { background: var(--shu-bg-warn-soft); }
+		.log-row.speculative { opacity: 0.5; }
+		.empty { padding: var(--shu-space-6); color: var(--shu-fg-muted); text-align: center; }
+	`,
+	];
+
+	@property({ attribute: false }) accessor rows: TLogRow[] = [];
+
 	private startTime = 0;
 	private endTime = 0;
+	private startRowIndex = new Map<string, number>();
+	private seenEventIds = new Set<string>();
 
 	constructor() {
 		super(MonitorColumnSchema, { level: "info", tail: true, hideStart: true });
 	}
 
-	async connectedCallback(): Promise<void> {
-		super.connectedCallback();
-		const client = SseClient.for("");
+	protected override async onConnected(): Promise<void> {
 		try {
-			const data = await inAction((scope) => client.rpc<{ events: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getEvents", { filter: {} }));
-			if (data.events) {
-				for (const e of data.events) this.addEvent(e);
-				this.updateTimeline();
-				this.renderRows();
-			}
+			const data = await conduit().follow<{ events: Array<Record<string, unknown>> }>(
+				{ method: "MonitorStepper-getEvents", params: { filter: {} } },
+				"monitor-column: initial events backfill",
+			);
+			if (data.events) for (const e of data.events) this.addEvent(e);
 		} catch {
-			// load failure isn't fatal — the column stays in its current state and the next refresh tries again.
+			/* not fatal */
 		}
-
+		this.rows = [...this.rows];
 		if (this.hasAttribute("data-snapshot-time")) return;
-
-		this.unsubscribe = this.subscribeBatched({
-			onBatch: (events) => {
-				for (const event of events) this.addEvent(event);
-				this.updateTimeline();
-				this.renderRows();
-			},
-		});
+		this.autoTeardown(
+			this.subscribeBatched({
+				onBatch: (events) => {
+					for (const event of events) this.addEvent(event);
+					this.rows = [...this.rows];
+				},
+			}),
+		);
 	}
 
 	protected override onTimeSync(): void {
-		this.renderRows();
+		this.requestUpdate();
 	}
-
-	disconnectedCallback(): void {
-		this.unsubscribe?.();
-	}
-
-	private startRowIndex = new Map<string, number>();
-	private seenEventIds = new Set<string>();
 
 	private addEvent(e: Record<string, unknown>): void {
-		// Deduplicate by event id + stage (backfill + SSE can overlap)
 		const eventKey = `${e.id}:${e.stage || e.kind}`;
 		if (this.seenEventIds.has(eventKey)) return;
 		this.seenEventIds.add(eventKey);
-		// Attach dispatch trace to matching start row
 		if (e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace") {
 			const trace = (e as Record<string, unknown>).trace as TDispatchTrace | undefined;
 			if (trace?.seqPath) {
-				const key = trace.seqPath.join(".");
-				const idx = this.startRowIndex.get(key);
+				const idx = this.startRowIndex.get(trace.seqPath.join("."));
 				if (idx !== undefined) this.rows[idx].dispatch = trace;
 			}
 			return;
@@ -142,75 +131,55 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		let message = "";
 		if (e.kind === "log") message = String((e as { message?: string }).message || "");
 		else if (e.kind === "lifecycle" && e.stage === "end") {
-			const status = e.status === "completed" ? "\u2705" : e.status === "failed" ? "\u274c" : "";
+			const status = e.status === "completed" ? "✅" : e.status === "failed" ? "❌" : "";
 			message = `${status} ${String(e.actionName || "")}`;
-		} else if (isStart) {
-			message = "";
-		} else if (e.kind === "lifecycle" && e.stage === "start") {
-			message = `\u25b8 ${String(e.type || "")}`;
-		}
+		} else if (isStart) message = "";
+		else if (e.kind === "lifecycle" && e.stage === "start") message = `▸ ${String(e.type || "")}`;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
 		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string);
-
-		// Match step start/end by seqPath
 		const isEnd = isStep && e.stage === "end";
 		if (isEnd && seqPath) {
 			const startIdx = this.startRowIndex.get(seqPath.join("."));
 			if (startIdx !== undefined) this.rows[startIdx].hasEnd = true;
 		}
-
 		const rowIdx = this.rows.length;
 		const isAsync = isStart && e.isAsync === true;
 		this.rows.push({ time: `${relTime}s`, timestamp: ts, level, step, message, seqPath, isStart, isAsync });
 		if (isStart && seqPath) this.startRowIndex.set(seqPath.join("."), rowIdx);
 	}
 
-	/**
-	 * Timeline state lives in the shu-timeline component, mounted in the
-	 * actions-bar. The monitor no longer manages bounds — it just consumes
-	 * TIME_SYNC and re-renders. Kept as a no-op stub to avoid touching
-	 * existing call sites mid-refactor.
-	 */
-	private updateTimeline(): void {
-		/* no-op — see comment above */
+	private onLevelChange = (e: Event): void => {
+		this.setState({ level: (e.target as HTMLSelectElement).value as z.infer<typeof MonitorColumnSchema>["level"] });
+	};
+
+	private onHideStartChange = (e: Event): void => {
+		this.setState({ hideStart: (e.target as HTMLInputElement).checked });
+	};
+
+	private onTimeClick =
+		(ts: number) =>
+		(e: Event): void => {
+			e.stopPropagation();
+			this.timeCursor = ts;
+		};
+
+	private onRowClick = (seqPath: number[] | undefined) => (e: Event): void => {
+		if (!seqPath) return;
+		const addToSelection = Boolean((e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey);
+		PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, addToSelection);
+	};
+
+	protected updated(): void {
+		if (this.timeCursor !== null) return;
+		if (!this.state.tail) return;
+		const container = this.shadowRoot?.querySelector(".log-rows") as HTMLElement | null;
+		if (container) container.scrollTop = container.scrollHeight;
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
+	render(): TemplateResult {
 		const { level, hideStart } = this.state;
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}
-			<div class="toolbar" data-testid="monitor-log-stream">
-				<select data-action="level">${LEVEL_ORDER.map((l) => `<option value="${l}"${l === level ? " selected" : ""}>${l}</option>`).join("")}</select>
-				<label class="hide-start"><input type="checkbox" data-action="hide-start" ${hideStart ? "checked" : ""}> hide start</label>
-				<span class="count">${this.rows.length} events</span>
-			</div>
-			<div class="log-rows"></div>`;
-
-		this.shadowRoot.querySelector("[data-action=level]")?.addEventListener("change", (e) => {
-			this.setState({ level: (e.target as HTMLSelectElement).value as typeof level });
-		});
-		this.shadowRoot.querySelector("[data-action=hide-start]")?.addEventListener("change", (e) => {
-			this.setState({ hideStart: (e.target as HTMLInputElement).checked });
-		});
-		this.updateTimeline();
-		this.renderRows();
-	}
-
-	private renderRows(): void {
-		const container = this.shadowRoot?.querySelector(".log-rows");
-		if (!container) return;
-		const minLevel = LEVEL_ORDER.indexOf(this.state.level);
-		const { hideStart } = this.state;
+		const minLevel = LEVEL_ORDER.indexOf(level);
 		const filtered = this.rows.filter((r) => LEVEL_ORDER.indexOf(r.level) >= minLevel && !(hideStart && r.isStart && r.hasEnd));
-		const count = this.shadowRoot?.querySelector(".count");
-		if (count) count.textContent = `${filtered.length} events`;
-
-		if (filtered.length === 0) {
-			container.innerHTML = `<div class="empty">No events at this level.</div>`;
-			return;
-		}
-
-		// Find the current row (closest at or before cursor)
 		let currentIdx = -1;
 		if (this.timeCursor !== null) {
 			for (let i = filtered.length - 1; i >= 0; i--) {
@@ -220,63 +189,36 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				}
 			}
 		}
-
-		container.innerHTML = filtered
-			.map((r, i) => {
-				let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
-				if (this.timeCursor !== null) {
-					if (this.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
-					if (i === currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
-				}
-				const clickAttr = r.seqPath ? ` data-seqpath="${r.seqPath.join(",")}"` : "";
-				const seqLabel = r.seqPath ? `<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : "";
-				// Show dispatch info (transport, duration) from the matching start row
-				let dispatchLabel = "";
-				if (!r.isStart && r.seqPath) {
-					const startIdx = this.startRowIndex.get(r.seqPath.join("."));
-					const dispatch = startIdx !== undefined ? this.rows[startIdx].dispatch : undefined;
-					if (dispatch) {
-						const dur = dispatch.durationMs !== undefined ? `${dispatch.durationMs}ms` : "";
-						dispatchLabel = ` <span class="dispatch">${esc(dispatch.transport)}${dur ? ` ${dur}` : ""}</span>`;
-					}
-				}
-				const statusIcon = r.isAsync && !r.hasEnd ? '<span class="loader"></span>' : `<span class="icon">${LEVEL_ICONS[r.level] ?? "\u2753"}</span>`;
-				return `<div class="log-row${cls}"><span class="time-group" data-timestamp="${r.timestamp}">${seqLabel}<span class="time">${esc(r.time)}</span></span><span class="row-content"${clickAttr}>${statusIcon} <span class="step">${esc(r.step)}</span> <span class="msg">${esc(r.message)}</span>${dispatchLabel}</span></div>`;
-			})
-			.join("");
-
-		// Click on time or seqPath → dispatch TIME_SYNC. The shu-timeline
-		// (mounted in the actions-bar) catches the event and seeks itself; the
-		// app-level fan-out delivers the same event to every other listener.
-		container.querySelectorAll(".time-group[data-timestamp]").forEach((el) => {
-			el.addEventListener("click", (e) => {
-				e.stopPropagation();
-				const ts = parseInt((el as HTMLElement).dataset.timestamp ?? "0", 10);
-				this.timeCursor = ts;
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.TIME_SYNC, {
-						bubbles: true,
-						composed: true,
-						detail: { currentTime: ts, startTime: this.startTime },
-					}),
-				);
-				this.renderRows();
-			});
-		});
-
-		// Click on row content → open step detail
-		container.querySelectorAll(".row-content[data-seqpath]").forEach((el) => {
-			el.addEventListener("click", () => {
-				const seqPath = (el as HTMLElement).dataset.seqpath?.split(",").map(Number);
-				if (seqPath) PaneState.request({ paneType: "step-detail", seqPath });
-			});
-		});
-
-		// Scroll: if cursor active, scroll to current row; otherwise tail
-		if (this.timeCursor !== null && currentIdx >= 0) {
-			container.children[currentIdx]?.scrollIntoView({ block: "center", behavior: "smooth" });
-		} else if (this.state.tail) {
-			container.scrollTop = container.scrollHeight;
-		}
+		return html`
+			<div class="toolbar" data-testid="monitor-log-stream">
+				<select data-action="level" @change=${this.onLevelChange}>${LEVEL_ORDER.map((l) => html`<option value=${l} ?selected=${l === level}>${l}</option>`)}</select>
+				<label class="hide-start"><input type="checkbox" data-action="hide-start" .checked=${hideStart} @change=${this.onHideStartChange}/> hide start</label>
+				<span class="count">${filtered.length} events</span>
+			</div>
+			<div class="log-rows">${
+				filtered.length === 0
+					? html`<div class="empty">No events at this level.</div>`
+					: filtered.map((r, i) => {
+							let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
+							if (this.timeCursor !== null) {
+								if (this.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
+								if (i === currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
+							}
+							let dispatchText = "";
+							if (!r.isStart && r.seqPath) {
+								const startIdx = this.startRowIndex.get(r.seqPath.join("."));
+								const dispatch = startIdx !== undefined ? this.rows[startIdx].dispatch : undefined;
+								if (dispatch) {
+									const dur = dispatch.durationMs !== undefined ? `${dispatch.durationMs}ms` : "";
+									dispatchText = `${dispatch.transport}${dur ? ` ${dur}` : ""}`;
+								}
+							}
+							return html`<div class="log-row${cls}">
+					<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${r.seqPath ? html`<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : ""}<span class="time">${r.time}</span></span>
+					<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.isAsync && !r.hasEnd ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}</span>
+				</div>`;
+						})
+			}</div>
+		`;
 	}
 }

@@ -2,8 +2,8 @@
  * End-to-end pin for the `show monitor` → open-component chain.
  *
  * Confirms: a step whose productsDomain has `ui.component` produces a response whose
- * markers the SPA parser recognises as an open-component action. If this regresses
- * the user clicks "show monitor" and nothing happens.
+ * markers the SPA parser recognises as an open-component action. A regression makes
+ * the "show monitor" affordance a no-op.
  */
 import { describe, it, expect } from "vitest";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";

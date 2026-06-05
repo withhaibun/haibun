@@ -1,38 +1,59 @@
-import { appAccessLevel, defaultLabel } from "../util.js";
 /**
- * <shu-filter-column> — Query results column.
- * Creates result table ONCE on connect. Updates data without replacing DOM.
- * No innerHTML rewrites — stable DOM, no stale references.
+ * <shu-filter-column> — Query results column. Uses lit-html for the stable
+ * structure (spinner, error banner, result table) and reactive `state` for
+ * loading/error transitions. The contained `<shu-result-table>` keeps its
+ * identity across updates via the `data-key` attribute so its inner DOM
+ * survives.
  */
+import { html, css, type TemplateResult } from "lit";
+import { property } from "lit/decorators.js";
+import { ref, createRef } from "lit/directives/ref.js";
 import { ShuElement } from "./shu-element.js";
+import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
 import { callStep } from "../pane-fetch.js";
+import { appAccessLevel, defaultLabel } from "../util.js";
+import { getIdField } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
-import type { ShuSpinner } from "./shu-spinner.js";
 
 type VertexData = Record<string, unknown>;
 
 export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
-	private results: VertexData[] = [];
-	private resultTable: ShuResultTable | null = null;
-	private spinner: ShuSpinner | null = null;
-	private errorEl: HTMLElement | null = null;
+	static styles = [
+		shuBaseStyles,
+		css`
+			:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+			.error-banner {
+				padding: var(--shu-space-3) var(--shu-space-4);
+				margin: var(--shu-space-2);
+				background: var(--shu-bg-error-soft);
+				border: var(--shu-border-w) solid var(--shu-error);
+				color: var(--shu-error);
+				border-radius: var(--shu-radius);
+			}
+		`,
+	];
+
+	@property({ attribute: false }) accessor results: VertexData[] = [];
+	@property({ attribute: false }) accessor spinnerStatus = "Waiting...";
+
+	private tableRef = createRef<ShuResultTable>();
 
 	constructor() {
 		super(FilterColumnSchema, { loading: true });
 	}
 
 	async openFiltered(property: string, value: string, label: string = defaultLabel()): Promise<void> {
-		this.state = {
-			...this.state,
-			property,
-			value,
-			vertexLabel: label,
-			loading: true,
-			error: undefined,
-		};
-		this.showSpinner("Fetching...");
+		// The idField is never a query filter (queryIndividuals rejects predicates not
+		// in sortColumns). A filter request keyed on it is really an open-by-id, so
+		// redirect to the entity column instead of issuing a doomed graphQuery.
+		if (property === getIdField(label)) {
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: value, label }, bubbles: true, composed: true }));
+			return;
+		}
+		this.setState({ property, value, persistedAs: label, loading: true, error: undefined });
+		this.spinnerStatus = "Fetching...";
 		await this.fetchResults({
 			label,
 			filters: [{ predicate: property, operator: "eq", value }],
@@ -45,35 +66,14 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	}
 
 	async openProperty(property: string, label: string = defaultLabel()): Promise<void> {
-		this.state = {
-			...this.state,
-			property,
-			vertexLabel: label,
-			loading: true,
-			error: undefined,
-		};
-		this.showSpinner("Fetching...");
-		await this.fetchResults({
-			label,
-			filters: [],
-			sortBy: property,
-			sortOrder: "asc",
-			limit: 50,
-			offset: 0,
-			accessLevel: appAccessLevel(),
-		});
+		this.setState({ property, persistedAs: label, loading: true, error: undefined });
+		this.spinnerStatus = "Fetching...";
+		await this.fetchResults({ label, filters: [], sortBy: property, sortOrder: "asc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
 	}
 
 	async openIncoming(targetId: string, targetLabel: string): Promise<void> {
-		this.state = {
-			...this.state,
-			vertexLabel: targetLabel,
-			property: "linksTo",
-			value: targetId,
-			loading: true,
-			error: undefined,
-		};
-		this.showSpinner("Fetching...");
+		this.setState({ persistedAs: targetLabel, property: "linksTo", value: targetId, loading: true, error: undefined });
+		this.spinnerStatus = "Fetching...";
 		await this.fetchIncoming(targetLabel, targetId, 50, 0);
 	}
 
@@ -84,121 +84,63 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			`filter-column: incoming ${label}:${id}`,
 		);
 		if (!res.ok) {
-			this.state = { ...this.state, loading: false, error: res.error };
-			this.showError(res.error);
+			this.setState({ loading: false, error: res.error });
 			return;
 		}
 		this.results = res.value.edges.map((e) => e.target);
-		this.state = { ...this.state, loading: false };
-		this.showResults();
-		if (this.resultTable) this.resultTable.setPagination(res.value.total, limit, offset);
+		this.setState({ loading: false });
+		this.tableRef.value?.setPagination(res.value.total, limit, offset);
 	}
 
 	private async fetchResults(query: Record<string, unknown>): Promise<void> {
 		const res = await callStep<{ vertices: VertexData[]; total: number }>("graphQuery", { query }, `filter-column: query`);
 		if (!res.ok) {
-			this.state = { ...this.state, loading: false, error: res.error };
-			this.showError(res.error);
+			this.setState({ loading: false, error: res.error });
 			return;
 		}
 		this.results = res.value.vertices ?? [];
-		this.state = { ...this.state, loading: false };
-		this.showResults();
+		this.setState({ loading: false });
 	}
 
-	/** Build the stable DOM structure once. */
-	protected render(): void {
-		if (!this.shadowRoot) return;
+	private onRowClick = (e: Event): void => {
+		const { individualId: vid, label: rowLabel, ctrlKey } = (e as CustomEvent).detail;
+		if (!vid) return;
+		this.dispatchEvent(
+			new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
+				detail: { subject: vid, label: rowLabel || this.state.persistedAs || defaultLabel(), addToSelection: ctrlKey },
+				bubbles: true,
+				composed: true,
+			}),
+		);
+	};
 
-		// Create elements once — never replace via innerHTML after this
-		const style = document.createElement("style");
-		style.textContent = STYLES;
-		this.shadowRoot.appendChild(style);
+	private onSortChange = (e: Event): void => {
+		const { field, order } = (e as CustomEvent).detail;
+		this.tableRef.value?.updateState({ sortBy: field, sortOrder: order });
+	};
 
-		this.spinner = document.createElement("shu-spinner") as ShuSpinner;
-		this.spinner.status = "Waiting...";
-		this.spinner.visible = true;
-		this.shadowRoot.appendChild(this.spinner);
-
-		this.errorEl = document.createElement("div");
-		this.errorEl.className = "error-banner";
-		this.errorEl.style.display = "none";
-		this.shadowRoot.appendChild(this.errorEl);
-
-		const table = document.createElement("shu-result-table") as ShuResultTable;
-		table.style.display = "none";
-		table.style.flex = "1";
-		this.shadowRoot.appendChild(table);
-		this.resultTable = table;
-
-		// Forward events
-		table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
-			const { vertexId: vid, label: rowLabel, ctrlKey } = e.detail;
-			if (vid) {
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-						detail: {
-							subject: vid,
-							label: rowLabel || this.state.vertexLabel || defaultLabel(),
-							addToSelection: ctrlKey,
-						},
-						bubbles: true,
-						composed: true,
-					}),
-				);
-			}
-		}) as EventListener);
-
-		table.addEventListener(SHU_EVENT.SORT_CHANGE, ((e: CustomEvent) => {
-			const { field, order } = e.detail;
-			table.updateState({ sortBy: field, sortOrder: order });
-		}) as EventListener);
-
-		table.addEventListener(SHU_EVENT.PAGE_CHANGE, ((e: CustomEvent) => {
-			const { offset } = e.detail;
-			if (this.state.property === "linksTo" && this.state.value) {
-				void this.fetchIncoming(this.state.vertexLabel || defaultLabel(), this.state.value, 50, offset);
-			}
-		}) as EventListener);
-	}
-
-	private showSpinner(msg: string): void {
-		if (this.spinner) {
-			this.spinner.status = msg;
-			this.spinner.visible = true;
+	private onPageChange = (e: Event): void => {
+		const { offset } = (e as CustomEvent).detail;
+		if (this.state.property === "linksTo" && this.state.value) {
+			void this.fetchIncoming(this.state.persistedAs || defaultLabel(), this.state.value, 50, offset);
 		}
-		if (this.errorEl) this.errorEl.style.display = "none";
-		if (this.resultTable) this.resultTable.style.display = "none";
+	};
+
+	protected updated(): void {
+		const table = this.tableRef.value;
+		if (!table || this.state.loading || this.state.error) return;
+		table.updateState({ displayMode: "full", fixedProperty: this.state.property });
+		if (this.state.persistedAs) table.persistedAs = this.state.persistedAs;
+		table.setResults(this.results);
+		table.setPagination(this.results.length, 50, 0);
 	}
 
-	private showError(msg: string): void {
-		if (this.spinner) this.spinner.visible = false;
-		if (this.errorEl) {
-			this.errorEl.textContent = msg;
-			this.errorEl.style.display = "";
-		}
-		if (this.resultTable) this.resultTable.style.display = "none";
-	}
-
-	private showResults(): void {
-		if (this.spinner) this.spinner.visible = false;
-		if (this.errorEl) this.errorEl.style.display = "none";
-		if (this.resultTable) {
-			const { property } = this.state;
-			// Filter queries return full vertices — show all properties, just hide the filtered one
-			this.resultTable.updateState({
-				displayMode: "full",
-				fixedProperty: property,
-			});
-			if (this.state.vertexLabel) this.resultTable.vertexLabel = this.state.vertexLabel;
-			this.resultTable.setResults(this.results);
-			this.resultTable.setPagination(this.results.length, 50, 0);
-			this.resultTable.style.display = "";
-		}
+	render(): TemplateResult {
+		const { loading, error } = this.state;
+		return html`
+			${loading ? html`<shu-spinner .status=${this.spinnerStatus} .visible=${true}></shu-spinner>` : ""}
+			${error ? html`<div class="error-banner">${error}</div>` : ""}
+			<shu-result-table ${ref(this.tableRef)} style=${loading || error ? "display:none" : "flex:1"} @row-click=${this.onRowClick} @sort-change=${this.onSortChange} @page-change=${this.onPageChange}></shu-result-table>
+		`;
 	}
 }
-
-const STYLES = `
-	:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-	.error-banner { padding: 6px 8px; margin: 4px; background: #fdd; border: 1px solid #c00; color: #900; border-radius: 3px; }
-`;

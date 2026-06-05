@@ -1,14 +1,14 @@
 /**
  * Pure axis filter for `TGraph`. Drops nodes and edges whose stepper or kind is
- * in the user's hidden set, then prunes any edge that lost an endpoint. Used by
- * the domain-chain view to filter the unified domains/waypoints/goals graph.
+ * in the hidden set, then prunes any edge that lost an endpoint. Used by the
+ * domain-chain view to filter the unified domains/waypoints/goals graph.
  */
 import type { TGraph } from "./types.js";
 
 export type TGraphFilter = {
-	/** Stepper names the user has hidden. Edges matching these (by `stepperName`) drop, along with the orphans they leave. */
+	/** Hidden stepper names. Edges matching these (by `stepperName`) drop, along with the orphans they leave. */
 	hiddenSteppers?: ReadonlySet<string>;
-	/** Node kinds the user has hidden. Nodes matching these drop, along with any edges that lose an endpoint. */
+	/** Hidden node kinds. Nodes matching these drop, along with any edges that lose an endpoint. */
 	hiddenKinds?: ReadonlySet<string>;
 };
 
@@ -42,7 +42,7 @@ export function buildNeighbors(graph: TGraph): Map<string, Set<string>> {
 /**
  * Transitive-closure of nodes reachable from `start` over `neighbors` (undirected). The
  * start node is included. Used by the selection highlight to focus the entire connected
- * component the user clicked on, rather than just immediate neighbours.
+ * component of the selected node, rather than just immediate neighbours.
  */
 export function connectedNodes(neighbors: Map<string, Set<string>>, start: string): Set<string> {
 	const out = new Set<string>([start]);

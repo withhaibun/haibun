@@ -48,9 +48,9 @@ function escHtml(s: string): string {
  * Sanitise an id for Mermaid. Mermaid v11's lexer reserves several leading
  * tokens (`graph`, `flowchart`, `subgraph`, `end`, `direction`, `class`,
  * `click`, `style`, `linkStyle`, `classDef`, `default`). An id like
- * `graph-vertex-with-edges` matches the `graph` keyword at lex time and
- * breaks the parse. Prefix every sanitised id with `n_` so it never collides
- * with a reserved word, and remap non-id characters to `_`.
+ * `graph-node-with-edges` matches the `graph` keyword at lex time and breaks
+ * the parse. Prefix every sanitised id with `n_` so it never collides with a
+ * reserved word, and remap non-id characters to `_`.
  */
 export function sanitiseId(s: string): string {
 	// Mermaid normalises hyphens to underscores in its emitted SVG ids; collapse them
@@ -146,8 +146,8 @@ export function buildMermaidSource(graph: TGraph, options?: TGraphRenderOptions)
 	for (const gid of childGroups.get(undefined) ?? []) emitGroup(gid, "  ");
 
 	// Edges. Track which edge indices are "active" — participating in at least one
-	// goal-resolver path — so we can apply a distinct linkStyle per index. Mermaid
-	// numbers edges in source order, so the index here matches the rendered svg.
+	// goal-resolver path — to apply a distinct linkStyle per index. Mermaid numbers
+	// edges in source order, so the index here matches the rendered svg.
 	const highlight = options?.highlightedPath;
 	const activeEdgeIndices: number[] = [];
 	graph.edges.forEach((e, i) => {
@@ -165,8 +165,8 @@ export function buildMermaidSource(graph: TGraph, options?: TGraphRenderOptions)
 	}
 
 	// Active-edge style: edges tagged with one or more goal-resolver paths render
-	// in amber so the user can see which steps a goal currently routes through.
-	// Potential edges (no path traversal yet) keep their kind-based default style.
+	// in amber to mark which steps a goal currently routes through. Potential
+	// edges (no path traversal) keep their kind-based default style.
 	if (activeEdgeIndices.length > 0) lines.push(`  linkStyle ${activeEdgeIndices.join(",")} stroke:#a16207,stroke-width:2px`);
 
 	return lines.join("\n");

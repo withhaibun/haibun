@@ -2,7 +2,7 @@
  * graph-filter-projection — shared cluster derivation used by every graph
  * view that hosts a `<shu-graph-filter>`.
  *
- * The filter chips show one entry per vertex type with a count. Two regimes
+ * The filter chips show one entry per node type with a count. Two regimes
  * matter:
  *
  *   - No time cursor — the server snapshot's `TCluster` records are
@@ -12,13 +12,13 @@
  *     quads is appended with zero counts so the legend matches what the
  *     diagram actually renders.
  *
- *   - Time cursor pinned — the snapshot counts no longer match what the view
+ *   - Time cursor pinned — the snapshot counts diverge from what the view
  *     shows. Derive clusters directly from `visibleQuads` (already filtered
  *     by `ShuElement.filterByTime`): one cluster per `namedGraph`, count =
  *     unique subjects seen at or before the cursor. Types with no visible
  *     subjects at T drop from the legend, so `Kihan (7)` becomes `Kihan (3)`
  *     at one point in the timeline and disappears entirely before the first
- *     Kihan vertex arrives.
+ *     Kihan node arrives.
  *
  * Hosts (graph-view, fisheye) keep their own `knownClusters` map and quads;
  * this projection is a pure function so each view's render can call it and
@@ -26,12 +26,7 @@
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 
-export function projectFilterClusters(opts: {
-	knownClusters: Map<string, TCluster>;
-	allQuads: TQuad[];
-	visibleQuads: TQuad[];
-	timeCursor: number | null;
-}): TCluster[] {
+export function projectFilterClusters(opts: { knownClusters: Map<string, TCluster>; allQuads: TQuad[]; visibleQuads: TQuad[]; timeCursor: number | null }): TCluster[] {
 	if (opts.timeCursor === null) {
 		const seen = new Set<string>();
 		const merged: TCluster[] = [];

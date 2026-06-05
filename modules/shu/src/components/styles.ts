@@ -1,62 +1,319 @@
-/** Shared CSS for all shu web components */
-export const SHARED_STYLES = `
-  :host {
-    display: block;
-    font-family: monospace;
-    line-height: 1.6;
-    color: #111;
-  }
-  * { box-sizing: border-box; }
-  .container { padding: 8px 0; }
-  h2, h3 { font-weight: normal; margin-bottom: 10px; }
-  .form-group { margin-bottom: 15px; }
-  label { display: block; margin-bottom: 5px; }
-  input, select {
-    width: 100%;
-    padding: 6px;
-    border: 1px solid #000;
-    font-family: monospace;
-  }
-  button {
-    background: #000;
-    color: #fff;
-    border: 1px solid #000;
-    padding: 6px 12px;
-    cursor: pointer;
-    font-family: monospace;
-  }
-  button:hover { background: #333; }
-  button.secondary { background: #fff; color: #000; }
-  button.secondary:hover { background: #eee; }
-  .error {
-    border: 1px solid #c00;
-    color: #c00;
-    padding: 8px;
-    margin-bottom: 10px;
-    font-size: 12px;
-  }
-  .success {
-    border: 1px solid #0a0;
-    color: #0a0;
-    padding: 8px;
-    margin-bottom: 10px;
-    font-size: 12px;
-  }
-  .access-badge {
-    display: inline-block;
-    padding: 2px 6px;
-    border: 1px solid #000;
-    font-size: 11px;
-    margin-left: 8px;
-  }
-  .access-badge.public { background: #fff; }
-  .access-badge.opened { background: #ddd; }
-  .access-badge.private { background: #aaa; color: #fff; }
-  .col-link { color: #1a73e8; text-decoration: none; cursor: pointer; }
-  .col-link:hover { text-decoration: underline; }
-  .pred-link { color: #7b5ea7; text-decoration: none; cursor: pointer; font-style: italic; }
-  .pred-link:hover { text-decoration: underline; }
-  .copy-btn { background: none; border: none; padding: 0 2px; font-size: 14px; cursor: pointer; opacity: 0.6; }
-  .copy-btn:hover { opacity: 1; }
-  .copy-btn.copied { opacity: 1; }
+/**
+ * Cross-SHU design tokens + shared base styles.
+ *
+ * Every visible SHU component is required to express colour, spacing, sizing, and font through these CSS custom properties — no hard-coded colours, no ad-hoc magic numbers. The tokens cascade from `:root` (the document), so:
+ *   - light/dark themes flip with a single attribute / media query, never per-component edits
+ *   - user-overridable scale (`--shu-scale`) multiplies all sizing without re-rendering
+ *   - portrait/narrow breakpoints adjust spacing tokens, not individual rules
+ *
+ * Two-layer contract — the part that makes theming actually work across shadow DOM:
+ *   1. TOKENS are declared ONCE, at the document level, via `installShuTokens()` → `<style>` in `document.head`. CSS custom properties inherit through every shadow boundary, so a `data-theme` flip on `<html>` reaches every component for free.
+ *   2. Components NEVER re-declare tokens in their own shadow root. A `:host { --shu-bg: <default> }` rule inside a shadow tree overrides the inherited value on the host and dams the cascade — the component is then stranded on the default palette regardless of the document theme. Components consume only: `static styles = [shuBaseStyles, css\`…component layout with var(--shu-…)…\`]`. The shared `shuBaseStyles` CSSResult is one constructable stylesheet lit adopts by reference into every shadow root (parsed once, not per-component).
+ */
+
+import { css, unsafeCSS, type CSSResult } from "lit";
+
+/** Design tokens. Apply at `:host` on every shu component (and at `:root` on the page for context). Override via:
+ *  - `<html data-theme="dark">` / `<shu-app data-theme="dark">` for explicit choice
+ *  - `prefers-color-scheme: dark` for OS preference (falls through when no explicit choice)
+ *  - `<html style="--shu-scale: 1.25">` for a user-set zoom multiplier (every size derives from `--shu-scale`).
+ */
+export const SHU_TOKENS = `
+	:host, :root {
+		--shu-scale: 1;
+		--shu-space-1: calc(2px * var(--shu-scale));
+		--shu-space-2: calc(4px * var(--shu-scale));
+		--shu-space-3: calc(6px * var(--shu-scale));
+		--shu-space-4: calc(8px * var(--shu-scale));
+		--shu-space-5: calc(12px * var(--shu-scale));
+		--shu-space-6: calc(16px * var(--shu-scale));
+		--shu-font-xs: calc(10px * var(--shu-scale));
+		--shu-font-sm: calc(11px * var(--shu-scale));
+		--shu-font-md: calc(13px * var(--shu-scale));
+		--shu-font-lg: calc(14px * var(--shu-scale));
+		--shu-radius: 3px;
+		--shu-border-w: 1px;
+		--shu-icon-btn: calc(20px * var(--shu-scale));
+		--shu-row-h: calc(24px * var(--shu-scale));
+		--shu-input-h: calc(22px * var(--shu-scale));
+		--shu-resize-w: 10px;
+
+		/* Light theme defaults */
+		--shu-bg: #ffffff;
+		--shu-bg-soft: #fafafa;
+		--shu-bg-elevated: #f4f4f4;
+		--shu-bg-input: #f0f0f0;
+		--shu-bg-input-focus: #e8e8e8;
+		--shu-bg-hover: rgba(0, 0, 0, 0.06);
+		--shu-fg: #111111;
+		--shu-fg-muted: #555555;
+		--shu-fg-faded: #999999;
+		--shu-border: #d0d0d0;
+		--shu-border-strong: #888888;
+		--shu-accent: #1a6b3c;
+		--shu-accent-fg: #ffffff;
+		--shu-accent-soft: #e8f5e9;
+		--shu-link: #1a73e8;
+		--shu-pred: #7b5ea7;
+		--shu-pred-soft: #f4f0fa;
+		--shu-error: #c00000;
+		--shu-bg-error-soft: #fdecec;
+		--shu-success: #0a8a3a;
+		--shu-bg-success-soft: #d8edd8;
+		--shu-warn: #b58105;
+		--shu-bg-warn-soft: #fdf6e3;
+		--shu-border-warn: #f0e0a0;
+		--shu-info: #2848a8;
+		--shu-info-fg: #ffffff;
+		--shu-bg-info-soft: #d8e1f0;
+		--shu-bg-info-card: #f4f7fc;
+		--shu-border-info: #c8d0e0;
+		--shu-private: #a01a1a;
+		--shu-shadow: rgba(0, 0, 0, 0.18);
+
+		--shu-font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:host, :root {
+			--shu-bg: #161616;
+			--shu-bg-soft: #1d1d1d;
+			--shu-bg-elevated: #232323;
+			--shu-bg-input: #2a2a2a;
+			--shu-bg-input-focus: #333333;
+			--shu-bg-hover: rgba(255, 255, 255, 0.08);
+			--shu-fg: #e6e6e6;
+			--shu-fg-muted: #b0b0b0;
+			--shu-fg-faded: #707070;
+			--shu-border: #383838;
+			--shu-border-strong: #5a5a5a;
+			--shu-accent: #3aa367;
+			--shu-accent-fg: #0e1a13;
+			--shu-accent-soft: #1f3a28;
+			--shu-link: #6ab7ff;
+			--shu-pred: #b88ed4;
+			--shu-pred-soft: #2a1f3a;
+			--shu-error: #ff6868;
+			--shu-bg-error-soft: #3a1f1f;
+			--shu-success: #5cd28c;
+			--shu-bg-success-soft: #1f3a28;
+			--shu-warn: #e6b13a;
+			--shu-bg-warn-soft: #3a2f1a;
+			--shu-border-warn: #6a521a;
+			--shu-info: #6ab7ff;
+			--shu-info-fg: #0e1a2a;
+			--shu-bg-info-soft: #1f2a3a;
+			--shu-bg-info-card: #1a2030;
+			--shu-border-info: #3a4a6a;
+			--shu-private: #ff5c5c;
+			--shu-shadow: rgba(0, 0, 0, 0.5);
+		}
+	}
+
+	:host([data-theme="dark"]), :root[data-theme="dark"] {
+		--shu-bg: #161616;
+		--shu-bg-soft: #1d1d1d;
+		--shu-bg-elevated: #232323;
+		--shu-bg-input: #2a2a2a;
+		--shu-bg-input-focus: #333333;
+		--shu-bg-hover: rgba(255, 255, 255, 0.08);
+		--shu-fg: #e6e6e6;
+		--shu-fg-muted: #b0b0b0;
+		--shu-fg-faded: #707070;
+		--shu-border: #383838;
+		--shu-border-strong: #5a5a5a;
+		--shu-accent: #3aa367;
+		--shu-accent-fg: #0e1a13;
+		--shu-accent-soft: #1f3a28;
+		--shu-link: #6ab7ff;
+		--shu-pred: #b88ed4;
+		--shu-pred-soft: #2a1f3a;
+		--shu-error: #ff6868;
+		--shu-bg-error-soft: #3a1f1f;
+		--shu-success: #5cd28c;
+		--shu-bg-success-soft: #1f3a28;
+		--shu-warn: #e6b13a;
+		--shu-bg-warn-soft: #3a2f1a;
+		--shu-border-warn: #6a521a;
+		--shu-info: #6ab7ff;
+		--shu-info-fg: #0e1a2a;
+		--shu-bg-info-soft: #1f2a3a;
+		--shu-bg-info-card: #1a2030;
+		--shu-border-info: #3a4a6a;
+		--shu-private: #ff5c5c;
+		--shu-shadow: rgba(0, 0, 0, 0.5);
+	}
+
+	:host([data-theme="light"]), :root[data-theme="light"] {
+		--shu-bg: #ffffff;
+		--shu-bg-soft: #fafafa;
+		--shu-bg-elevated: #f4f4f4;
+		--shu-bg-input: #f0f0f0;
+		--shu-bg-input-focus: #e8e8e8;
+		--shu-bg-hover: rgba(0, 0, 0, 0.06);
+		--shu-fg: #111111;
+		--shu-fg-muted: #555555;
+		--shu-fg-faded: #999999;
+		--shu-border: #d0d0d0;
+		--shu-border-strong: #888888;
+		--shu-accent: #1a6b3c;
+		--shu-accent-fg: #ffffff;
+		--shu-accent-soft: #e8f5e9;
+		--shu-link: #1a73e8;
+		--shu-pred: #7b5ea7;
+		--shu-pred-soft: #f4f0fa;
+		--shu-error: #c00000;
+		--shu-bg-error-soft: #fdecec;
+		--shu-success: #0a8a3a;
+		--shu-bg-success-soft: #d8edd8;
+		--shu-warn: #b58105;
+		--shu-bg-warn-soft: #fdf6e3;
+		--shu-border-warn: #f0e0a0;
+		--shu-info: #2848a8;
+		--shu-info-fg: #ffffff;
+		--shu-bg-info-soft: #d8e1f0;
+		--shu-bg-info-card: #f4f7fc;
+		--shu-border-info: #c8d0e0;
+		--shu-private: #a01a1a;
+		--shu-shadow: rgba(0, 0, 0, 0.18);
+	}
+
+	@media (max-width: 600px), (orientation: portrait) {
+		:host, :root {
+			--shu-space-1: calc(3px * var(--shu-scale));
+			--shu-space-2: calc(5px * var(--shu-scale));
+			--shu-space-3: calc(8px * var(--shu-scale));
+			--shu-space-4: calc(10px * var(--shu-scale));
+			--shu-icon-btn: calc(28px * var(--shu-scale));
+			--shu-row-h: calc(32px * var(--shu-scale));
+			--shu-input-h: calc(28px * var(--shu-scale));
+			--shu-font-xs: calc(11px * var(--shu-scale));
+			--shu-font-sm: calc(12px * var(--shu-scale));
+			--shu-font-md: calc(14px * var(--shu-scale));
+		}
+	}
 `;
+
+/** Base reset + element defaults reused by every shu component. Tokens must be in scope (i.e. `${SHU_TOKENS}` precedes this in the template). */
+export const SHU_BASE = `
+	* { box-sizing: border-box; }
+	:host {
+		display: block;
+		font-family: var(--shu-font-family);
+		font-size: var(--shu-font-md);
+		color: var(--shu-fg);
+		line-height: 1.5;
+	}
+	a { color: var(--shu-link); text-decoration: none; }
+	a:hover { text-decoration: underline; }
+	button {
+		font: inherit;
+		color: var(--shu-fg);
+		background: var(--shu-bg-soft);
+		border: var(--shu-border-w) solid transparent;
+		border-radius: var(--shu-radius);
+		padding: var(--shu-space-1) var(--shu-space-3);
+		cursor: pointer;
+	}
+	button:hover { background: var(--shu-bg-hover); }
+	button.primary { background: var(--shu-accent); color: var(--shu-accent-fg); }
+	button.primary:hover { filter: brightness(1.1); }
+	button.icon {
+		width: var(--shu-icon-btn);
+		height: var(--shu-icon-btn);
+		padding: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: calc(var(--shu-font-md) * 0.95);
+		color: var(--shu-fg-muted);
+		background: transparent;
+	}
+	button.icon:hover { background: var(--shu-bg-hover); color: var(--shu-fg); }
+	button.icon[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); }
+	button.icon[aria-pressed="true"]:hover { filter: brightness(1.1); background: var(--shu-accent); }
+	/* Text-like inputs only. checkbox/radio/range render natively — they must NOT get appearance:none + box styling, or the control becomes an empty box that never shows its checked/value state. */
+	input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, .text-input {
+		font: inherit;
+		font-size: var(--shu-font-md);
+		color: var(--shu-fg);
+		background: var(--shu-bg-input);
+		border: var(--shu-border-w) solid var(--shu-border);
+		border-radius: var(--shu-radius);
+		padding: var(--shu-space-1) var(--shu-space-3);
+		outline: none;
+		min-height: var(--shu-input-h);
+		appearance: none;
+		-webkit-appearance: none;
+	}
+	select {
+		padding-right: calc(var(--shu-space-5) + var(--shu-space-2));
+		background-image: linear-gradient(45deg, transparent 50%, var(--shu-fg-muted) 50%), linear-gradient(135deg, var(--shu-fg-muted) 50%, transparent 50%);
+		background-position: calc(100% - var(--shu-space-4)) 50%, calc(100% - var(--shu-space-3)) 50%;
+		background-size: 5px 5px, 5px 5px;
+		background-repeat: no-repeat;
+	}
+	input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus, textarea:focus, select:focus { background-color: var(--shu-bg-input-focus); border-color: var(--shu-border-strong); }
+	input::placeholder, textarea::placeholder { color: var(--shu-fg-faded); }
+	.error { color: var(--shu-error); }
+	.success { color: var(--shu-success); }
+	.access-badge {
+		display: inline-block;
+		padding: 0 var(--shu-space-3);
+		border-radius: var(--shu-radius);
+		font-size: var(--shu-font-xs);
+		border: var(--shu-border-w) solid var(--shu-border);
+	}
+	.access-badge.public { background: var(--shu-bg-soft); }
+	.access-badge.opened { background: var(--shu-bg-elevated); }
+	.access-badge.private { background: var(--shu-private); color: var(--shu-accent-fg); border-color: var(--shu-private); }
+	.col-link { color: var(--shu-link); cursor: pointer; }
+	.col-link:hover { text-decoration: underline; }
+	.pred-link { color: var(--shu-pred); cursor: pointer; font-style: italic; }
+	.pred-link:hover { text-decoration: underline; }
+	.copy-btn { background: none; border: none; padding: 0 var(--shu-space-1); font-size: var(--shu-font-lg); cursor: pointer; opacity: 0.6; color: var(--shu-fg-muted); }
+	.copy-btn:hover, .copy-btn.copied { opacity: 1; }
+	code { font-family: var(--shu-font-family); background: var(--shu-bg-elevated); padding: 0 var(--shu-space-2); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); color: var(--shu-fg); }
+	.muted { color: var(--shu-fg-muted); font-size: var(--shu-font-sm); }
+	.faded { color: var(--shu-fg-faded); }
+	.empty { color: var(--shu-fg-faded); font-style: italic; font-size: var(--shu-font-sm); padding: var(--shu-space-3) 0; }
+	.tag {
+		display: inline-block;
+		padding: 0 var(--shu-space-3);
+		border-radius: var(--shu-radius);
+		font-size: var(--shu-font-sm);
+		background: var(--shu-bg-elevated);
+		color: var(--shu-fg-muted);
+		border: var(--shu-border-w) solid transparent;
+	}
+	.tag.success { background: var(--shu-bg-success-soft); color: var(--shu-success); }
+	.tag.warn { background: var(--shu-bg-warn-soft); color: var(--shu-warn); }
+	.tag.error { background: var(--shu-bg-error-soft); color: var(--shu-error); }
+	.tag.info { background: var(--shu-bg-info-soft); color: var(--shu-info); }
+	.tag.pred { background: var(--shu-pred-soft); color: var(--shu-pred); }
+	.banner { padding: var(--shu-space-3) var(--shu-space-4); border-radius: var(--shu-radius); margin: var(--shu-space-2) 0; font-size: var(--shu-font-sm); display: flex; align-items: center; gap: var(--shu-space-4); }
+	.banner.error { background: var(--shu-bg-error-soft); color: var(--shu-error); border: var(--shu-border-w) solid var(--shu-error); }
+	.banner.warn { background: var(--shu-bg-warn-soft); color: var(--shu-warn); border: var(--shu-border-w) solid var(--shu-border-warn); }
+	.banner.info { background: var(--shu-bg-info-soft); color: var(--shu-info); border: var(--shu-border-w) solid var(--shu-border-info); }
+	.card { padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-2) 0; border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-soft); }
+	.card.success { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
+	.card.warn { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-warn); }
+	.card.error { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-error); }
+	.card.info { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
+	.future-event { opacity: 0.4; }
+	.time-current { background: var(--shu-accent-soft); border-left: calc(var(--shu-border-w) * 3) solid var(--shu-accent); }
+`;
+
+/** The shared base sheet as a lit `CSSResult`, for `static styles = [shuBaseStyles, css\`…\`]`. One object across all components → lit builds the constructable `CSSStyleSheet` once and adopts it by reference into every shadow root (one parse, N cheap adoptions). Consumers only — no token declarations — so it never dams the document-level theme cascade. String-injecting shadow roots (manual `innerHTML`, template `<style>`) use the `SHU_BASE` string form instead. */
+export const shuBaseStyles: CSSResult = css`${unsafeCSS(SHU_BASE)}`;
+
+/** Inject the token sheet into `document.head` so detached overlays (combobox dropdowns, tooltips, modals rendered into document.body) and any plain page chrome can read the same `--shu-…` variables that shadow-DOM components inherit via :host. Idempotent — repeat calls are no-ops. The SPA boot calls this once before any component mounts. */
+export function installShuTokens(): void {
+	if (typeof document === "undefined") return;
+	const ID = "shu-tokens-root";
+	if (document.getElementById(ID)) return;
+	const sheet = document.createElement("style");
+	sheet.id = ID;
+	sheet.textContent = SHU_TOKENS;
+	document.head.appendChild(sheet);
+}

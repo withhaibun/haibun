@@ -4,17 +4,19 @@
  * Uses render-once + append strategy: initial backfill renders the full document,
  * SSE events append new rows incrementally. Embedded components are never destroyed.
  */
+import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
+import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
-import { SseClient, inAction } from "../sse-client.js";
+import { conduit } from "../hypermedia.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
 import "./shu-artifact-frame.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
-import { getVertexUi } from "../rels-cache.js";
+import { getUiByType } from "../rels-cache.js";
 
 const DocumentColumnSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
@@ -28,9 +30,32 @@ const SANITIZE_OPTS = {
 };
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
+	static styles = [shuBaseStyles, css`
+		:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: "Source Serif 4", Georgia, serif; font-size: 15px; line-height: 1.7; color: var(--shu-fg); }
+		.document-body { width: 80%; margin: 0 auto; padding: 2rem 1.5rem; min-width: 0; }
+		@media (max-width: 600px) { .document-body { width: 100%; } }
+		h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--shu-border); }
+		h2 { font-size: 1.35rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--shu-fg-muted); }
+		h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--shu-fg-muted); }
+		p { margin: 0.5em 0; }
+		a { color: var(--shu-link); text-decoration: none; }
+		a:hover { text-decoration: underline; }
+		.doc-row { padding: var(--shu-space-2) var(--shu-space-4); border-radius: var(--shu-radius); cursor: pointer; transition: background 0.15s; }
+		.doc-row:hover { background: var(--shu-bg-hover); }
+		.log-row { font-family: "Source Code Pro", ui-monospace, monospace; font-size: var(--shu-font-sm); color: var(--shu-fg-muted); line-height: 1.5; border-left: 2px solid transparent; padding: var(--shu-space-2) 0; margin-left: 32px; }
+		.log-row.nested { border-left-color: var(--shu-border); margin-left: 48px; }
+		.log-row.show-connector { position: relative; }
+		.log-row.show-connector::before { content: ""; position: absolute; left: -1px; top: 0; width: 8px; height: 1px; background: var(--shu-border); }
+		.h-1 { height: 12px; }
+		.prose-block { font-size: 15px; }
+		.header-block { margin-top: 0.5rem; }
+		.artifact { margin: var(--shu-space-4) 0 var(--shu-space-4) 32px; }
+		.json-block { font-family: "Source Code Pro", monospace; font-size: var(--shu-font-sm); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-4) var(--shu-space-5); overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+		img { display: block; }
+		shu-artifact-frame { margin: var(--shu-space-5) 0; }
+	`];
 	private events: THaibunEvent[] = [];
 	private seenEventIds = new Set<string>();
-	private unsubscribe?: () => void;
 	private startTime = 0;
 	private endTime = 0;
 	private renderedEventCount = 0;
@@ -39,11 +64,12 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		super(DocumentColumnSchema, { level: "info" });
 	}
 
-	async connectedCallback(): Promise<void> {
-		super.connectedCallback();
-		const client = SseClient.for("");
+	protected override async onConnected(): Promise<void> {
 		try {
-			const data = await inAction((scope) => client.rpc<{ events: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getEvents", { filter: {} }));
+			const data = await conduit().follow<{ events: Array<Record<string, unknown>> }>(
+				{ method: "MonitorStepper-getEvents", params: { filter: {} } },
+				"document-column: initial events backfill",
+			);
 			if (data.events) {
 				for (const e of data.events) this.addEvent(e);
 				this.renderFull();
@@ -54,20 +80,18 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 		if (this.hasAttribute("data-snapshot-time")) return;
 
-		this.unsubscribe = this.subscribeBatched({
-			onBatch: (events) => {
-				for (const event of events) this.addEvent(event);
-				this.appendNew();
-			},
-		});
+		this.autoTeardown(
+			this.subscribeBatched({
+				onBatch: (events) => {
+					for (const event of events) this.addEvent(event);
+					this.appendNew();
+				},
+			}),
+		);
 	}
 
 	protected override onTimeSync(): void {
 		this.applyTimeCursor();
-	}
-
-	disconnectedCallback(): void {
-		this.unsubscribe?.();
 	}
 
 	private addEvent(e: Record<string, unknown>): void {
@@ -92,7 +116,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		body.innerHTML = html;
 		this.postProcessElements(body);
 		this.renderedEventCount = this.events.length;
-		this.updateTimeline();
 	}
 
 	/** Append only new events since last render — never touches existing DOM. */
@@ -112,7 +135,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.postProcessElements(fragment);
 		while (fragment.firstChild) body.appendChild(fragment.firstChild);
 		this.renderedEventCount = this.events.length;
-		this.updateTimeline();
 		if (this.timeCursor === null) this.scrollTop = this.scrollHeight;
 	}
 
@@ -124,31 +146,25 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return DOMPurify.sanitize(rawHtml, SANITIZE_OPTS);
 	}
 
-	/**
-	 * Timeline state lives in the actions-bar's shu-timeline; this column
-	 * consumes TIME_SYNC and re-renders. Stub kept for the existing call sites.
-	 */
-	private updateTimeline(): void {
-		/* no-op — see comment above */
-	}
 
 	private applyTimeCursor(): void {
 		const body = this.shadowRoot?.querySelector(".document-body");
 		if (!body) return;
 		const rows = Array.from(body.querySelectorAll(".doc-row")) as HTMLElement[];
+		const cursor = this.timeCursor;
 		let currentRow: HTMLElement | null = null;
 		for (const row of rows) {
 			row.classList.remove(TIME_SYNC_CLASS.FUTURE, TIME_SYNC_CLASS.CURRENT);
-			if (this.timeCursor === null) continue;
+			if (cursor === null) continue;
 			const rawTime = parseFloat(row.getAttribute("data-raw-time") || "0");
 			const absTime = this.startTime + rawTime;
-			if (absTime > this.timeCursor) {
+			if (absTime > cursor) {
 				row.classList.add(TIME_SYNC_CLASS.FUTURE);
 			} else {
 				currentRow = row;
 			}
 		}
-		if (currentRow && this.timeCursor !== null) {
+		if (currentRow && cursor !== null) {
 			currentRow.classList.add(TIME_SYNC_CLASS.CURRENT);
 			const rowTop = (currentRow as HTMLElement).offsetTop;
 			this.scrollTo({ top: rowTop - this.clientHeight / 2, behavior: "smooth" });
@@ -175,7 +191,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			if (!products || (!products._component && !products._type)) continue;
 			const typeStr = products._type as string | undefined;
 			if (typeStr) {
-				const ui = getVertexUi(typeStr);
+				const ui = getUiByType(typeStr);
 				if (ui?.pinnedOnly) continue;
 			}
 			// Don't embed the document view itself
@@ -209,9 +225,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 				const rawTime = parseFloat(el.getAttribute("data-raw-time") || "0");
 				const absTime = this.startTime + rawTime;
 				this.timeCursor = absTime;
-				// TIME_SYNC fans out app-wide; the shu-timeline in the actions-bar
-				// catches it and seeks itself without a direct DOM reference here.
-				this.dispatchEvent(new CustomEvent(SHU_EVENT.TIME_SYNC, { detail: { currentTime: absTime }, bubbles: true, composed: true }));
 				this.applyTimeCursor();
 			});
 		};
@@ -278,34 +291,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="document-body"></div>`;
+	render(): TemplateResult {
+		return html`<div class="document-body"></div>`;
+	}
+
+	protected updated(): void {
 		if (this.events.length > 0) this.renderFull();
 	}
 }
-
-const STYLES = `
-:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: "Source Serif 4", Georgia, serif; font-size: 15px; line-height: 1.7; color: #1a1a2e; }
-.document-body { width: 80%; margin: 0 auto; padding: 2rem 1.5rem; min-width: 0; }
-@media (max-width: 600px) { .document-body { width: 100%; } }
-h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0; }
-h2 { font-size: 1.35rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: #334155; }
-h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #475569; }
-p { margin: 0.5em 0; }
-a { color: #2563eb; text-decoration: none; }
-a:hover { text-decoration: underline; }
-.doc-row { padding: 3px 8px; border-radius: 3px; cursor: pointer; transition: background 0.15s; }
-.doc-row:hover { background: #f1f5f9; }
-.log-row { font-family: "Source Code Pro", ui-monospace, monospace; font-size: 11px; color: #64748b; line-height: 1.5; border-left: 2px solid transparent; padding: 4px 0; margin-left: 32px; }
-.log-row.nested { border-left-color: #e2e8f0; margin-left: 48px; }
-.log-row.show-connector { position: relative; }
-.log-row.show-connector::before { content: ""; position: absolute; left: -1px; top: 0; width: 8px; height: 1px; background: #e2e8f0; }
-.h-1 { height: 12px; }
-.prose-block { font-size: 15px; }
-.header-block { margin-top: 0.5rem; }
-.artifact { margin: 8px 0 8px 32px; }
-.json-block { font-family: "Source Code Pro", monospace; font-size: 11px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px 12px; overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
-img { display: block; }
-shu-artifact-frame { margin: 12px 0; }
-`;

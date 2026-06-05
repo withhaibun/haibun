@@ -26,8 +26,8 @@ export type TGraphNode = {
 	/** Optional click target for the consumer to handle. */
 	link?: { method?: string; href?: string };
 	/**
-	 * `hbn:invoke` — this node represents a step the user can run. The
-	 * consumer of GRAPH_NODE_CLICK opens the actions-bar for the step.
+	 * `hbn:invoke` — this node represents a runnable step. The consumer of
+	 * GRAPH_NODE_CLICK opens the actions-bar for the step.
 	 */
 	invokes?: { stepperName: string; stepName: string; pathIndex?: number; stepIndex?: number };
 	/**
@@ -91,14 +91,13 @@ export type TGraphRenderOptions = {
 };
 
 /**
- * Renderer interface. Implementations: MermaidGraphRenderer (today),
- * server-layout renderer (future).
+ * Renderer interface. Implemented by `MermaidGraphRenderer`.
  *
- * Renderers communicate user interaction by dispatching events on the container:
+ * Renderers dispatch interaction events on the container:
  *   - `graph-node-click` with `{ detail: { nodeId, node } }` for clicks.
  *
- * Renderers are responsible for clearing the container of any prior rendering
- * before painting; consumers can call `render` repeatedly with new graphs.
+ * Renderers clear the container of any prior rendering before painting;
+ * `render` can be called repeatedly with new graphs.
  */
 export interface IGraphRenderer {
 	render(graph: TGraph, container: HTMLElement, options?: TGraphRenderOptions): Promise<void>;

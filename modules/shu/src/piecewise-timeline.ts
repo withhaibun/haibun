@@ -2,10 +2,10 @@
  * Piecewise-linear timeline mapping.
  *
  * Wall-clock event timestamps over a long run can include very long idle
- * intervals (the test ran in 10s then the user idled 10 minutes before
- * running a step). A slider scaled linearly to wall time hides the short
- * burst entirely. The piecewise mapping collapses any gap longer than
- * `idleThresholdMs` to a fixed visual width, so every burst stays visible.
+ * intervals (e.g. a 10s burst then 10 idle minutes before the next step). A
+ * slider scaled linearly to wall time hides the short burst entirely. The
+ * piecewise mapping collapses any gap longer than `idleThresholdMs` to a fixed
+ * visual width, so every burst stays visible.
  *
  * The module is pure: it takes a sorted array of event timestamps and
  * returns segments + bidirectional mappings between an absolute wall-clock
@@ -36,7 +36,11 @@ export const DEFAULT_IDLE_SEGMENT_WIDTH = 12; // display units allocated to one 
  * an empty timeline. A single-event input collapses to a zero-width segment
  * (slider has no range to scrub).
  */
-export function buildPiecewiseTimeline(eventTimes: number[], idleThresholdMs: number = DEFAULT_IDLE_THRESHOLD_MS, idleSegmentWidth: number = DEFAULT_IDLE_SEGMENT_WIDTH): TPiecewiseTimeline {
+export function buildPiecewiseTimeline(
+	eventTimes: number[],
+	idleThresholdMs: number = DEFAULT_IDLE_THRESHOLD_MS,
+	idleSegmentWidth: number = DEFAULT_IDLE_SEGMENT_WIDTH,
+): TPiecewiseTimeline {
 	if (eventTimes.length === 0) return { segments: [], totalDisplay: 0 };
 	const sorted = [...eventTimes].sort((a, b) => a - b);
 	const segments: TPiecewiseSegment[] = [];
@@ -47,7 +51,7 @@ export function buildPiecewiseTimeline(eventTimes: number[], idleThresholdMs: nu
 		const t = sorted[i];
 		const gap = t - prev;
 		if (gap > idleThresholdMs) {
-			// Close the active run we were accumulating.
+			// Close the active run accumulated so far.
 			const activeWidth = prev - activeStart;
 			segments.push({ kind: "active", startTime: activeStart, endTime: prev, displayStart: display, displayEnd: display + activeWidth });
 			display += activeWidth;
@@ -65,9 +69,9 @@ export function buildPiecewiseTimeline(eventTimes: number[], idleThresholdMs: nu
 
 /**
  * Map a display position back to absolute wall-clock time. Positions inside
- * an idle segment snap to the segment's `endTime` (the boundary the user is
- * typically navigating toward), so dragging through a gap parks the cursor
- * at the next event rather than at an in-between value that doesn't exist.
+ * an idle segment snap to the segment's `endTime` (the next event boundary),
+ * so dragging through a gap parks the cursor at the next event rather than at
+ * an in-between value that doesn't exist.
  */
 export function displayToTime(tl: TPiecewiseTimeline, displayPos: number): number {
 	if (tl.segments.length === 0) return 0;

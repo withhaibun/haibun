@@ -6,10 +6,12 @@
  *
  * Usage: element.setTraces(traces) or set the "traces" attribute as JSON.
  */
+import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import mermaid from "mermaid";
 import { ShuElement } from "./shu-element.js";
-import { SseClient, inAction } from "../sse-client.js";
+import { shuBaseStyles } from "./styles.js";
+import { conduit } from "../hypermedia.js";
 import { TIME_SYNC_STYLE } from "../time-sync.js";
 
 let mermaidInitialized = false;
@@ -83,33 +85,34 @@ function buildMermaidSource(traces: TDispatchTrace[]): string {
 	return src;
 }
 
-const STYLES = `
-:host { display: block; font-family: ui-sans-serif, system-ui, sans-serif; }
-:host(:not([data-show-controls])) .toolbar { display: none; }
-.toolbar { display: flex; gap: 8px; align-items: center; padding: 4px 8px; background: #f5f5f5; border-bottom: 1px solid #ddd; font-size: 12px; }
-.toolbar button { padding: 2px 8px; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
-.toolbar button:hover { background: #e8e8e8; }
-.diagram-container { overflow: auto; padding: 8px; }
-.zoom-label { color: #666; }
-.trace-count { color: #888; margin-left: auto; }
-.empty { padding: 16px; color: #888; text-align: center; }
-`;
-
 export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
-	private diagramId = `shu-seq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-	private unsubscribe?: () => void;
+	static styles = [shuBaseStyles, css`
+		:host { display: block; font-family: ui-sans-serif, system-ui, sans-serif; }
+		:host(:not([data-show-controls])) .toolbar { display: none; }
+		.toolbar {
+			display: flex; gap: var(--shu-space-4); align-items: center;
+			padding: var(--shu-space-2) var(--shu-space-4); background: var(--shu-bg-soft);
+			border-bottom: var(--shu-border-w) solid var(--shu-border); font-size: var(--shu-font-md);
+		}
+		.toolbar button {
+			padding: var(--shu-space-1) var(--shu-space-4); cursor: pointer;
+			border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg);
+		}
+		.toolbar button:hover { background: var(--shu-bg-hover); }
+		.diagram-container { overflow: auto; padding: var(--shu-space-4); }
+		.zoom-label { color: var(--shu-fg-muted); }
+		.trace-count { color: var(--shu-fg-faded); margin-left: auto; }
+		.empty { padding: var(--shu-space-6); color: var(--shu-fg-faded); text-align: center; }
+	`];
 
+	private diagramId = `shu-seq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 	constructor() {
 		super(StateSchema, { traces: [], zoom: 100, currentIndex: -1 });
 	}
 
-	async connectedCallback(): Promise<void> {
-		super.connectedCallback();
-		const client = SseClient.for("");
-
-		// One-time backfill from stepper
+	protected override async onConnected(): Promise<void> {
 		try {
-			const data = await inAction((scope) => client.rpc<{ traces: TDispatchTrace[] }>(scope, "MonitorStepper-getDispatchTraces"));
+			const data = await conduit().follow<{ traces: TDispatchTrace[] }>({ method: "MonitorStepper-getDispatchTraces" }, "sequence-diagram: backfill dispatch traces");
 			if (data.traces?.length) {
 				const parsed = data.traces
 					.map((t) => DispatchTrace.safeParse(t))
@@ -126,66 +129,59 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 		// Live updates via SSE — capture each batch's dispatch-trace artifacts and
 		// run a single setState. Per-event setState would re-render the diagram
 		// once per trace; a replay-window burst would re-render N times.
-		this.unsubscribe = this.subscribeBatched({
-			onBatch: (events) => {
-				const additions: TDispatchTrace[] = [];
-				for (const event of events) {
-					const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace; timestamp?: number };
-					if (e.kind !== "artifact" || e.artifactType !== "dispatch-trace" || !e.trace) continue;
-					const parsed = DispatchTrace.safeParse({ ...e.trace, timestamp: e.timestamp ?? Date.now() });
-					if (parsed.success) additions.push(parsed.data);
-				}
-				if (additions.length > 0) this.setState({ traces: [...this.state.traces, ...additions] });
-			},
-		});
+		this.autoTeardown(
+			this.subscribeBatched({
+				onBatch: (events) => {
+					const additions: TDispatchTrace[] = [];
+					for (const event of events) {
+						const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace; timestamp?: number };
+						if (e.kind !== "artifact" || e.artifactType !== "dispatch-trace" || !e.trace) continue;
+						const parsed = DispatchTrace.safeParse({ ...e.trace, timestamp: e.timestamp ?? Date.now() });
+						if (parsed.success) additions.push(parsed.data);
+					}
+					if (additions.length > 0) this.setState({ traces: [...this.state.traces, ...additions] });
+				},
+			}),
+		);
 	}
 
 	protected override onTimeSync(): void {
 		this.applyTimeDimming();
 	}
 
-	disconnectedCallback(): void {
-		this.unsubscribe?.();
-	}
-
 	setTraces(traces: TDispatchTrace[]): void {
 		this.setState({ traces });
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
-		const { traces, zoom } = this.state;
+	private onZoomIn = (): void => {
+		this.setState({ zoom: Math.min(200, this.state.zoom + 10) });
+	};
+	private onZoomOut = (): void => {
+		this.setState({ zoom: Math.max(10, this.state.zoom - 10) });
+	};
+	private onCopy = (): void => {
+		navigator.clipboard.writeText(buildMermaidSource(this.state.traces));
+	};
 
-		if (traces.length === 0) {
-			this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="empty">No dispatch traces yet.</div>`;
-			return;
-		}
-
-		const toolbar = `<div class="toolbar" data-testid="monitor-sequence-diagram">
-			<button data-action="zoom-out">−</button>
-			<span class="zoom-label">${zoom}%</span>
-			<button data-action="zoom-in">+</button>
-			<button data-action="copy">Copy</button>
-			<span class="trace-count">${traces.length} steps</span>
-		</div>`;
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}
-			<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
-				<div id="${this.diagramId}"></div>
-			</div>`;
-
-		this.bindToolbar();
-		void this.renderMermaid(traces);
+	protected updated(): void {
+		void this.renderMermaid(this.state.traces);
 	}
 
-	private bindToolbar(): void {
-		this.shadowRoot?.querySelectorAll("[data-action]").forEach((btn) => {
-			btn.addEventListener("click", () => {
-				const action = (btn as HTMLElement).dataset.action;
-				if (action === "zoom-in") this.setState({ zoom: Math.min(200, this.state.zoom + 10) });
-				else if (action === "zoom-out") this.setState({ zoom: Math.max(10, this.state.zoom - 10) });
-				else if (action === "copy") navigator.clipboard.writeText(buildMermaidSource(this.state.traces));
-			});
-		});
+	render(): TemplateResult {
+		const { traces, zoom } = this.state;
+		if (traces.length === 0) return html`<div class="empty">No dispatch traces yet.</div>`;
+		return html`
+			<div class="toolbar" data-testid="monitor-sequence-diagram">
+				<button data-action="zoom-out" @click=${this.onZoomOut}>−</button>
+				<span class="zoom-label">${zoom}%</span>
+				<button data-action="zoom-in" @click=${this.onZoomIn}>+</button>
+				<button data-action="copy" @click=${this.onCopy}>Copy</button>
+				<span class="trace-count">${traces.length} steps</span>
+			</div>
+			<div class="diagram-container" style=${`transform: scale(${zoom / 100}); transform-origin: top left;`}>
+				<div id=${this.diagramId}></div>
+			</div>
+		`;
 	}
 
 	private async renderMermaid(traces: TDispatchTrace[]): Promise<void> {
@@ -206,7 +202,7 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 			this.applyTimeDimming();
 		} catch (err) {
 			const container = this.shadowRoot?.querySelector(".diagram-container");
-			if (container) container.innerHTML = `<pre style="color:red">${err instanceof Error ? err.message : err}</pre>`;
+			if (container) container.innerHTML = `<pre style="color:var(--shu-error)">${err instanceof Error ? err.message : err}</pre>`;
 		}
 	}
 

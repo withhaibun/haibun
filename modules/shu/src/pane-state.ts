@@ -25,13 +25,18 @@ const TagSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 
 export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("component"), tag: TagSchema, label: z.string(), data: z.record(z.string(), z.unknown()).optional(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("entity"), id: z.string(), vertexLabel: z.string(), label: z.string().optional(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("filter-eq"), vertexLabel: z.string(), predicate: z.string(), value: z.string(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("filter-prop"), vertexLabel: z.string(), predicate: z.string(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("filter-incoming"), vertexLabel: z.string(), subject: z.string(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("thread"), vertexLabel: z.string(), subject: z.string(), flag: FlagSchema }),
+	z.object({ paneType: z.literal("entity"), id: z.string(), persistedAs: z.string(), label: z.string().optional(), flag: FlagSchema }),
+	z.object({ paneType: z.literal("filter-eq"), persistedAs: z.string(), predicate: z.string(), value: z.string(), flag: FlagSchema }),
+	z.object({ paneType: z.literal("filter-prop"), persistedAs: z.string(), predicate: z.string(), flag: FlagSchema }),
+	z.object({ paneType: z.literal("filter-incoming"), persistedAs: z.string(), subject: z.string(), flag: FlagSchema }),
+	z.object({ paneType: z.literal("thread"), persistedAs: z.string(), subject: z.string(), flag: FlagSchema }),
 	z.object({ paneType: z.literal("step-detail"), seqPath: z.array(z.number()), flag: FlagSchema }),
-	z.object({ paneType: z.literal("views-picker"), views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })), label: z.string(), flag: FlagSchema }),
+	z.object({
+		paneType: z.literal("views-picker"),
+		views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
+		label: z.string(),
+		flag: FlagSchema,
+	}),
 ]);
 
 export type DesiredPane = z.infer<typeof DesiredPaneSchema>;
@@ -42,15 +47,15 @@ export function paneIdOf(d: DesiredPane): string {
 		case "component":
 			return d.tag;
 		case "entity":
-			return `e:${d.vertexLabel}:${d.id}`;
+			return `e:${d.persistedAs}:${d.id}`;
 		case "filter-eq":
-			return `f:${d.vertexLabel}:${d.predicate}=${d.value}`;
+			return `f:${d.persistedAs}:${d.predicate}=${d.value}`;
 		case "filter-prop":
-			return `p:${d.vertexLabel}:${d.predicate}`;
+			return `p:${d.persistedAs}:${d.predicate}`;
 		case "filter-incoming":
-			return `i:${d.vertexLabel}:${d.subject}`;
+			return `i:${d.persistedAs}:${d.subject}`;
 		case "thread":
-			return `t:${d.vertexLabel}:${d.subject}`;
+			return `t:${d.persistedAs}:${d.subject}`;
 		case "step-detail":
 			return `step:${d.seqPath.join(".")}`;
 		case "views-picker":
@@ -120,10 +125,10 @@ class PaneStateImpl {
 		this.strip = strip;
 		this.hooks = hooks;
 		window.addEventListener("hashchange", () => this.fromHash());
-		// User-initiated per-pane control toggles (minimize / maximize / expand) update
-		// the canonical `desired.flag` so subsequent reconciles preserve the user's choice
-		// and the URL hash stays in sync. Without this, any later `request()` would call
-		// `applyFlag(existing, undefined)` and wipe the user's minimized / maximized state.
+		// Per-pane control toggles (minimize / maximize / expand) update the canonical
+		// `desired.flag` so later reconciles preserve it and the URL hash stays in sync.
+		// Otherwise a later `request()` calls `applyFlag(existing, undefined)` and wipes
+		// the minimized / maximized state.
 		strip.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, ((e: CustomEvent) => {
 			const pane = e.target as HTMLElement;
 			const id = pane.dataset.columnKey;
@@ -148,7 +153,7 @@ class PaneStateImpl {
 
 	/** Update the flag for a pane already in `desired`. No-op when the pane is unknown
 	 * (e.g. the query pane, which lives outside PaneState's tracked set). Writes the
-	 * URL hash so the user's choice survives a reload. */
+	 * URL hash so the flag survives a reload. */
 	private setFlag(paneId: string, flag: DesiredPane["flag"]): void {
 		const d = this.desired.get(paneId);
 		if (!d) return;
@@ -192,6 +197,47 @@ class PaneStateImpl {
 		this.desired.set(id, d);
 		this.activePaneId = id;
 		this.scheduleReconcile();
+	}
+
+	/** Miller-column open. `source` is the originating element or the in-flight event; the source pane is identified via element.closest or event.composedPath. When `addToSelection` is true the prune is skipped. Every view that opens a column MUST route through this method instead of calling `request` directly. */
+	requestFrom(source: Element | Event, input: DesiredPane, addToSelection = false): void {
+		if (!this.strip) {
+			this.request(input);
+			return;
+		}
+		const sourcePane = this.findSourcePane(source);
+		const sourceIdx = sourcePane ? this.strip.panes.indexOf(sourcePane as ShuColumnPane) : -1;
+		if (!addToSelection && sourceIdx >= 0) {
+			const panes = this.strip.panes;
+			for (let i = panes.length - 1; i > sourceIdx; i--) {
+				const pane = panes[i];
+				if (pane.hasAttribute(SHU_ATTR.PINNED)) continue;
+				const paneId = pane.dataset.columnKey;
+				if (paneId) this.dismiss(paneId);
+			}
+		}
+		this.request(input);
+	}
+
+	private findSourcePane(source: Element | Event): HTMLElement | undefined {
+		if (source instanceof Element) {
+			return (source.closest("shu-column-pane") as HTMLElement | null) ?? undefined;
+		}
+		// Event path: try composedPath first (only populated mid-dispatch). Fall back to target ancestry, then currentTarget — each is valid in different bubbling phases.
+		const path = typeof source.composedPath === "function" ? source.composedPath() : [];
+		const fromPath = path.find((el): el is HTMLElement => el instanceof HTMLElement && el.tagName === "SHU-COLUMN-PANE");
+		if (fromPath) return fromPath;
+		const target = source.target;
+		if (target instanceof Element) {
+			const closest = target.closest("shu-column-pane") as HTMLElement | null;
+			if (closest) return closest;
+		}
+		const cur = source.currentTarget;
+		if (cur instanceof Element) {
+			const closest = cur.closest("shu-column-pane") as HTMLElement | null;
+			if (closest) return closest;
+		}
+		return undefined;
 	}
 
 	dismiss(paneId: string): void {
@@ -270,7 +316,7 @@ class PaneStateImpl {
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
 		pane.setAttribute("label", labelOf(d));
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnTypeFor(d));
-		pane.setAttribute(SHU_ATTR.PINNED, "true");
+		// Default unpinned: only explicitly pinned panes survive a Miller-column prune.
 		pane.dataset.columnKey = id;
 		this.strip.addPane(pane);
 		const child = document.createElement(tag);
@@ -345,34 +391,34 @@ export function parseColEntry(raw: string): DesiredPane | null {
 	const body = flag ? raw.slice(0, -4) : raw;
 	const colon = (s: string) => {
 		const i = s.indexOf(":");
-		return i < 0 ? null : [s.slice(0, i), s.slice(i + 1)] as const;
+		return i < 0 ? null : ([s.slice(0, i), s.slice(i + 1)] as const);
 	};
 	if (body.startsWith("e:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
-		return safe({ paneType: "entity", vertexLabel: split[0], id: split[1], flag });
+		return safe({ paneType: "entity", persistedAs: split[0], id: split[1], flag });
 	}
 	if (body.startsWith("f:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
 		const eq = split[1].indexOf("=");
 		if (eq < 0) return null;
-		return safe({ paneType: "filter-eq", vertexLabel: split[0], predicate: split[1].slice(0, eq), value: split[1].slice(eq + 1), flag });
+		return safe({ paneType: "filter-eq", persistedAs: split[0], predicate: split[1].slice(0, eq), value: split[1].slice(eq + 1), flag });
 	}
 	if (body.startsWith("p:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
-		return safe({ paneType: "filter-prop", vertexLabel: split[0], predicate: split[1], flag });
+		return safe({ paneType: "filter-prop", persistedAs: split[0], predicate: split[1], flag });
 	}
 	if (body.startsWith("i:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
-		return safe({ paneType: "filter-incoming", vertexLabel: split[0], subject: split[1], flag });
+		return safe({ paneType: "filter-incoming", persistedAs: split[0], subject: split[1], flag });
 	}
 	if (body.startsWith("t:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
-		return safe({ paneType: "thread", vertexLabel: split[0], subject: split[1], flag });
+		return safe({ paneType: "thread", persistedAs: split[0], subject: split[1], flag });
 	}
 	if (body.startsWith("step:")) {
 		const seq = body.slice(5).split(".").map(Number);

@@ -7,10 +7,10 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { vertexDomainMap } from "@haibun/core/lib/domains.js";
+import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
-import { isContentPropertyDef, isVertexTopology, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
+import { isContentPropertyDef, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
@@ -74,13 +74,18 @@ ${extraTags}
 }
 
 function createSpaHandler(basePath: string, hydration: string) {
-	// Read the bundle from disk on every request rather than caching the
-	// string at handler construction. An iterative edit/build cycle on shu
-	// (or any SPA component bundled into shu-bundle.js) is visible after
-	// `npm run build` + browser reload, with no service restart required.
-	// The bundle is ~3.7MB; readFileSync per request is fast (sub-ms on a
-	// warm page cache) and the SPA isn't hot enough to need a memoised path.
-	return (c: Context) => c.html(buildSpaHtml(basePath, loadBundle(), hydration));
+	// Read the bundle from disk on every request rather than caching it at
+	// handler construction, so a rebuilt shu-bundle.js is served after
+	// `npm run build` + reload with no service restart. The ~3.7MB readFileSync
+	// is sub-ms on a warm cache.
+	// `no-store` is required because the bundle is inlined in the HTML response:
+	// `no-cache` still permits cached storage with revalidation, so a soft reload
+	// could keep serving a stale bundle; `no-store` forbids caching entirely.
+	return (c: Context) => {
+		c.header("Cache-Control", "no-store, must-revalidate");
+		c.header("Pragma", "no-cache");
+		return c.html(buildSpaHtml(basePath, loadBundle(), hydration));
+	};
 }
 
 function validateMountPath(path: string): string | undefined {
@@ -181,7 +186,7 @@ export default class ShuStepper extends AStepper {
 				const views = Object.values(domains)
 					.filter((d) => typeof d.ui?.component === "string")
 					.map((d) => ({
-						id: (isVertexTopology(d.topology) ? d.topology.vertexLabel : undefined) || d.selectors[0],
+						id: (isPersisted(d.topology) ? d.topology.persistedAs : undefined) || d.selectors[0],
 						description: d.description || d.selectors[0],
 						component: String(d.ui?.component),
 					}));
@@ -193,7 +198,7 @@ export default class ShuStepper extends AStepper {
 			productsSchema: ShuSelectValuesSchema,
 			action: async ({ label }: { label: string }) => {
 				const store = this.getWorld().shared.getStore() as IQuadStore;
-				const domain = vertexDomainMap(this.getWorld().domains).get(label);
+				const domain = hypermediaDomainMap(this.getWorld().domains).get(label);
 				if (!domain?.topology?.properties) return actionNotOK(`No filter topology registered for ${label}`);
 				const values: Record<string, string[]> = {};
 				Object.assign(values, selectValuesFromSchema(domain.schema, domain.topology.properties, domain.topology.filterProperties));
