@@ -1,3 +1,13 @@
+## [3.9.5](https://github.com/withhaibun/haibun/compare/v3.9.4...v3.9.5) (2026-06-05)
+
+
+### Bug Fixes
+
+* bunch otel version ([fe3b0bf](https://github.com/withhaibun/haibun/commit/fe3b0bfee0d6c7d4bca0a242431ac32b217b5f5e))
+* **release:** restore 3.x maintenance + next release topology ([165c1f7](https://github.com/withhaibun/haibun/commit/165c1f79d1cb5a94d224ca4a038af0948440ed77))
+* semver update, explicit approve scripts ([b853578](https://github.com/withhaibun/haibun/commit/b853578a4793928750c20696378455c14444e6f2))
+* set semantic-release branches for 3.x/4.x flow ([d11d6e9](https://github.com/withhaibun/haibun/commit/d11d6e9c52d3d6b595838b870069b816d8e1136c))
+
 ## [3.9.4](https://github.com/withhaibun/haibun/compare/v3.9.3...v3.9.4) (2026-05-21)
 
 
