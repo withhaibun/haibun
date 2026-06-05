@@ -35,17 +35,8 @@ describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
 		const result = await passWithDefaults([feature], steppers, undefined, [{ path: "/backgrounds/bg.feature", content: bg }]);
 
 		expect(result.ok).toBe(true);
-		// We can't easily check variables directly from passWithDefaults result without digging,
-		// but if "ensure Main Flow Done" passed, it means "variable ran_steps is 'yes'" must be true.
-		// If 'set ran_steps to "yes"' was skipped, the waypoint proof would fail (initially undefined),
-		// and it would try to run Main Flow again? Or fail if Main Flow IS the current activity?
-		// Actually, "ensure Main Flow Done" calls "Main Flow".
-		// "Main Flow" runs.
-		// If "set ran_steps" is skipped, "ran_steps" remains undefined.
-		// Then "waypoint Main Flow Done" checks proof "variable ran_steps is 'yes'". It fails.
-		// The loop continues? Or errors?
-
-		// If the bug exists, this test might fail with timeout or error, or result.ok = false.
+		// "ensure Main Flow Done" passing implies the waypoint proof "variable ran_steps is 'yes'"
+		// held, so the body's `set ran_steps` step was not skipped.
 	});
 
 	it("should run steps following a satisfied ensure (when remediation ran)", async () => {

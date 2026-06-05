@@ -26,7 +26,7 @@ export class Resolver {
 					try {
 						this.findSingleStepAction(actionable);
 					} catch (e) {
-						// Instead of throwing, collect warnings for LSP tolerance
+						// Collect as a warning rather than throwing, for LSP tolerance
 						this.backgroundWarnings.push({
 							path: background.path,
 							line: lines[i],
@@ -65,10 +65,7 @@ export class Resolver {
 		return steps;
 	}
 
-	/**
-	 * Notify steppers that we're starting to resolve a new feature.
-	 * This allows steppers to clear feature-scoped steps that shouldn't leak between features.
-	 */
+	/** Notify steppers that a new feature is being resolved, letting them clear feature-scoped steps that must not leak between features. */
 	private startFeatureResolution(path: string) {
 		for (const stepper of this.steppers) {
 			if (typeof stepper.startFeatureResolution === "function") {
@@ -273,10 +270,9 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 	if (!world.runtime.backgrounds) {
 		throw new Error("runtime.backgrounds is undefined; cannot expand inline Backgrounds");
 	}
-	// For expandLine, we need to provide a feature context. If the statement is a Backgrounds: directive,
-	// expandLine will ignore this feature and use the actual background files. If it's a regular statement,
-	// expandLine will use this feature's path. So we pass the base (feature path) here.
-	// Note: 'base' parameter is actually the full path, so we set feature.base to it and feature.path to empty
+	// expandLine needs a feature context: a Backgrounds: directive ignores it and uses the actual
+	// background files, while a regular statement uses this feature's path. `base` is the full path,
+	// so it goes in feature.base with feature.path left empty.
 	const contextFeature: TFeature = { path: "", base, name: "statement-context", content: statement };
 	const expanded = expandLine(statement, undefined, world.runtime.backgrounds, contextFeature);
 	// Increment the last segment of seqStart by inc for each expanded step

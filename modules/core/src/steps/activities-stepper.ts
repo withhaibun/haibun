@@ -357,9 +357,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const world = this.getWorld();
 				const steppers = (world.runtime.steppers as AStepper[]) ?? [];
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-				// `compositeDecomposition: true` matches GoalResolutionStepper's default; without it
-				// composite-input goals (issuer-vertex inside issueCredential, …) get filtered as
-				// trivial when no fact exists yet, leaving the panel with empty goals[].
+				// compositeDecomposition retains composite-input goals (e.g. an issuer node inside
+				// issueCredential); without it they are filtered as trivial when no fact exists yet,
+				// leaving the panel with empty goals[].
 				const affordances = buildAffordances({ steppers, domains: world.domains, facts, capabilities: new Set(), compositeDecomposition: true });
 				const satisfiedDomains = new Set(affordances.goals.filter((g) => g.resolution.finding === GOAL_FINDING.SATISFIED).map((g) => g.domain));
 
@@ -375,8 +375,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						ensured = satisfiedDomains.has(metadata.resolvesDomain);
 					} else if (this.ensuredInstances.has(outcome) && metadata.proofStatements.length > 0) {
 						// Only verify imperative proofs that have actually been ensured. A speculative
-						// re-run for waypoints that never executed has no variable bindings in scope,
-						// produces cryptic "<term> is not set" errors, and tells the user nothing useful.
+						// re-run for waypoints that never executed has no variable bindings in scope and
+						// produces cryptic "<term> is not set" errors.
 						try {
 							const result = await this.runner.runStatements(metadata.proofStatements, { intent: { mode: "speculative" }, parentStep: featureStep });
 							ensured = result.ok;
@@ -400,7 +400,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					});
 				}
 
-				return actionOKWithProducts({ forward: affordances.forward, goals: affordances.goals, composites: affordances.composites, satisfiedDomains: affordances.satisfiedDomains, satisfiedFacts: affordances.satisfiedFacts, waypoints });
+				return actionOKWithProducts({
+					forward: affordances.forward,
+					goals: affordances.goals,
+					composites: affordances.composites,
+					satisfiedDomains: affordances.satisfiedDomains,
+					satisfiedFacts: affordances.satisfiedFacts,
+					waypoints,
+				});
 			},
 		},
 	} as const satisfies TActivitiesFixedSteps;
