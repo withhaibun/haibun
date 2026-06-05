@@ -8,7 +8,7 @@
  *
  *   observation/<subtype>   runtime metrics and counters (this module)
  *   variables               feature-variables (see SHARED_GRAPH in feature-variables.ts)
- *   <vertexLabel>           domain-registered topology graphs (e.g. "Email", "Person")
+ *   <persistedAs>           domain-registered topology graphs (e.g. "Email", "Person")
  *
  * The `observation/` prefix matches the existing convention in http-observations.ts
  * (observation/route, observation/shu-service, observation/external) so all runtime

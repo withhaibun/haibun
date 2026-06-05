@@ -8,11 +8,11 @@
  * Contents:
  *   - Resource identity (id/type), Access levels, Comment vocabulary
  *   - LinkRelations + EdgePredicates: semantic labels for properties and edges (ActivityStreams / JSON-LD)
- *   - TRel / TPropertyDef / TEdgeDef / TDomainTopology: the shape of a vertex-type declaration
+ *   - TRel / TPropertyDef / TEdgeDef / TDomainTopology: the shape of a node-type declaration
  *   - TDomainDefinition / TRegisteredDomain: how steppers register a domain
  *   - Helpers: getRel, getMediaType, edgeRel, isReplyEdge
  *
- * Grounded in JSON-LD / ActivityStreams / RDF — vertex label is a local handle, `type` is the
+ * Grounded in JSON-LD / ActivityStreams / RDF — node label is a local handle, `type` is the
  * RDF class URI that JSON-LD emits, `id` is the IRI.
  */
 import { z } from "zod";
@@ -35,8 +35,15 @@ export const ResourceSchema = z.object({
 });
 export type TResource = z.infer<typeof ResourceSchema>;
 
-/** Root vertex label — any resource. Use as edge range when the target is polymorphic. */
+/** Root node label — any resource. Use as edge range when the target is polymorphic. */
 export const RESOURCE_LABEL = "Resource";
+
+/**
+ * A projected JSON-LD individual carries two keywords: `@id` (its IRI) and `@type` (its label).
+ * `jsonLdIndividualOf` stamps them onto a domain schema for a single `@type` and rejects unexpected
+ * fields, so a stepper's query/entity products are validated as strict JSON-LD nodes of a known type.
+ */
+export const jsonLdIndividualOf = (type: string, fields: z.ZodObject<z.ZodRawShape>) => fields.extend({ "@id": z.string(), "@type": z.literal(type) }).strict();
 
 // ============================================================================
 // Access levels
@@ -46,7 +53,7 @@ export const RESOURCE_LABEL = "Resource";
  * Visibility policy for stored resources:
  *   - private: visible only to the resource's owner.
  *   - public: visible to everyone.
- *   - opened: previously private, deliberately widened for audit; history preserves the prior state.
+ *   - opened: private resource deliberately widened for audit; history preserves the prior state.
  *
  * Query contexts also accept `all` to mean "do not filter by access level"; this is not
  * a storage value, only a query-time relaxation.
@@ -87,7 +94,7 @@ export const BODY_DOMAIN = "body";
 export const HAS_BODY_EDGE = "hasBody";
 
 /**
- * SeqPath — the hierarchical step identifier reified as a graph vertex.
+ * SeqPath — the hierarchical step identifier reified as a graph node.
  *
  * `featureStep.seqPath: number[]` is the per-execution hierarchical id
  * (e.g. [0,1,2,10] → "0.1.2.10"). Step dispatch emits SeqPath quads on
@@ -96,7 +103,7 @@ export const HAS_BODY_EDGE = "hasBody";
  */
 export const SEQ_PATH_LABEL = "SeqPath";
 
-/** Status values for a SeqPath vertex's lifecycle. */
+/** Status values for a SeqPath node's lifecycle. */
 export const SEQ_PATH_STATUS = { running: "running", passed: "passed", failed: "failed" } as const;
 export type SeqPathStatus = (typeof SEQ_PATH_STATUS)[keyof typeof SEQ_PATH_STATUS];
 
@@ -114,11 +121,11 @@ export type TDiscourseRel = (typeof DISCOURSE_RELS)[number];
 // ============================================================================
 
 /**
- * Link relation types — the canonical set of semantic rels for vertex properties and edges.
+ * Link relation types — the canonical set of semantic rels for node properties and edges.
  * Declaration order determines column display priority in result tables.
  *
  * `range` is the RDF range of the predicate — what it points at:
- *   - "iri":       points at another resource (an IRI / vertex id). Renders as a navigable item.
+ *   - "iri":       points at another resource (an IRI / node id). Renders as a navigable item.
  *   - "literal":   points at a literal value (string, number, date). Renders as a filter.
  *   - "container": points at a multi-valued structure (bag, list, or nested context).
  *                  Renders as a select/select-like control.
@@ -148,8 +155,7 @@ export type TRelPresentation = "summary" | "body" | "governance";
  * Optional per-rel metadata. RDFS-aligned:
  *   subPropertyOf — names a parent rel; the rel inherits the parent's
  *                   semantics for ancestry walks (rdfs:subPropertyOf).
- *                   Single parent for now; relax to readonly array if a
- *                   rel needs multiple parents.
+ *                   Single parent.
  *   label         — human-readable display name (rdfs:label). Renderers
  *                   show this in place of the raw rel string when set.
  *   icon          — visual badge for the rel. Rendered next to the label
@@ -165,6 +171,7 @@ export const LinkRelations = {
 	UPDATED: { rel: "updated", uri: "as:updated", range: "literal" },
 	CONTENT: { rel: "content", uri: "as:content", range: "literal", presentation: "body" as TRelPresentation },
 	HAS_BODY: { rel: "hasBody", uri: "oa:hasBody", range: "iri", presentation: "body" as TRelPresentation },
+	TARGET: { rel: "hasTarget", uri: "oa:hasTarget", range: "iri" },
 	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal" },
 	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri" },
 	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri" },
@@ -179,6 +186,8 @@ export const LinkRelations = {
 	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal" },
 	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal" },
+	// When the system generated this entity's representation — the required "when" field on every persisted object (distinct from as:published, which is the content's own time).
+	GENERATED_AT_TIME: { rel: "generatedAtTime", uri: "prov:generatedAtTime", range: "literal" },
 	// SOSA / W3C SSN — observation and sensing
 	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal" },
 	RESULT_TIME: { rel: "resultTime", uri: "sosa:resultTime", range: "literal" },
@@ -210,12 +219,22 @@ export const LinkRelations = {
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
-	// RDFS terminology — used by Property vertices to describe rels themselves.
+	// RDFS terminology — used by Property nodes to describe rels themselves.
 	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
 	LABEL: { rel: "label", uri: "rdfs:label", range: "literal" },
 	RANGE: { rel: "range", uri: "rdfs:range", range: "literal" },
 	ICON: { rel: "icon", uri: "hbn:icon", range: "literal" },
 	PRESENTATION: { rel: "presentation", uri: "hbn:presentation", range: "literal" },
+	// W3C Security (sec:) — controllers, delegation, key material, proofs (DID + zcap-LD vocabulary)
+	CONTROLLER: { rel: "controller", uri: "sec:controller", range: "iri" },
+	DELEGATED_FROM: { rel: "delegatedFrom", uri: "sec:delegator", range: "iri" },
+	ALLOWED_ACTION: { rel: "allowedAction", uri: "sec:allowedAction", range: "literal", presentation: "governance" as TRelPresentation },
+	PUBLIC_KEY: { rel: "publicKey", uri: "sec:publicKeyMultibase", range: "literal" },
+	EXPIRES: { rel: "expires", uri: "sec:expiration", range: "literal" },
+	REVOKED: { rel: "revoked", uri: "sec:revoked", range: "literal", presentation: "governance" as TRelPresentation },
+	PROOF: { rel: "proof", uri: "sec:proof", range: "iri" },
+	// W3C Verifiable Credentials (cred:) — credential validity window (distinct from generatedAtTime, the record's creation).
+	VALID_FROM: { rel: "validFrom", uri: "cred:validFrom", range: "literal" },
 } as const;
 
 /** Lookup a rel's RDF range. Returns undefined for unknown rels. */
@@ -240,7 +259,7 @@ export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
 export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri])) as Record<TRel, string>;
 
 /**
- * Standard edge predicates for graph vertices.
+ * Standard edge predicates for graph nodes.
  * Each carries its LinkRelation rel — the single source of truth for predicate→rel resolution.
  * Steppers use these as edge keys in getConcerns().edges and in createEdge() calls.
  */
@@ -250,6 +269,7 @@ export const EdgePredicates = {
 	cc: { rel: LinkRelations.AUDIENCE.rel },
 	author: { rel: LinkRelations.ATTRIBUTED_TO.rel },
 	attachment: { rel: LinkRelations.ATTACHMENT.rel },
+	hasTarget: { rel: LinkRelations.TARGET.rel },
 	inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel },
 	references: { rel: LinkRelations.CONTEXT.rel },
 	endpoint: { rel: LinkRelations.URL.rel },
@@ -259,6 +279,8 @@ export const EdgePredicates = {
 	seqPath: { rel: LinkRelations.SEQ_PATH.rel },
 	isPartOf: { rel: LinkRelations.PART_OF.rel },
 	precededBy: { rel: LinkRelations.PRECEDED_BY.rel },
+	controller: { rel: LinkRelations.CONTROLLER.rel },
+	delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel },
 } as const;
 
 export type TEdgePredicate = keyof typeof EdgePredicates;
@@ -284,7 +306,7 @@ function getSubPropertyOf(rel: string): string | undefined {
 /**
  * RDFS-style ancestry check: returns true if `rel` is `ancestorRel` or
  * transitively reaches it via `subPropertyOf` links. Generic — same
- * machinery serves any future rel hierarchy, not just reply semantics.
+ * machinery serves any rel hierarchy, not just reply semantics.
  * Cycle-guarded: a self-referential or looping `subPropertyOf` chain
  * terminates without recursing forever.
  */
@@ -312,7 +334,7 @@ export function isReplyEdge(edgeType: string): boolean {
 }
 
 // ============================================================================
-// Vertex topology: how a stepper declares a vertex type
+// Hypermedia topology: how a stepper declares a persisted type
 // ============================================================================
 
 /**
@@ -337,7 +359,7 @@ export function isContentPropertyDef(def: TPropertyDef | undefined): def is TCon
 	return typeof def === "object" && def !== null && def.rel === "content";
 }
 
-/** Edge definition: target vertex type. The rel is resolved from EdgePredicates[key]; override with explicit rel for domain-specific edges not in the canonical set. */
+/** Edge definition: target node type. The rel is resolved from EdgePredicates[key]; override with explicit rel for domain-specific edges not in the canonical set. */
 export type TEdgeDef = { range: string; rel?: TRel };
 
 /**
@@ -348,7 +370,7 @@ export type TEdgeDef = { range: string; rel?: TRel };
  * carries, read by the goal resolver to decompose composite inputs into their
  * typed component goals and by the chain view to emit field nodes.
  *
- * Distinct from `TVertexTopology.edges`: edges declare outgoing graph edges
+ * Distinct from `THypermediaTopology.edges`: edges declare outgoing graph edges
  * keyed by predicate name (with their own rel + range); ranges annotate the
  * scalar / nested-object schema fields already enumerated in `properties`
  * with their declared domain. A field with no ranges entry is treated as
@@ -357,12 +379,12 @@ export type TEdgeDef = { range: string; rel?: TRel };
 export type TDomainRanges = Record<string, string>;
 
 /**
- * Vertex topology — fully describes a vertex domain. Required together:
- * `vertexLabel`, `id`, `properties`. The hypermedia builder validates these
+ * Hypermedia topology — fully describes a persisted domain. Required together:
+ * `persistedAs`, `id`, `properties`. The hypermedia builder validates these
  * (presence of an identifier rel, a published rel, etc.).
  */
-export type TVertexTopology = {
-	vertexLabel: string;
+export type THypermediaTopology = {
+	persistedAs: string;
 	type?: string;
 	id: string;
 	properties: Record<string, TPropertyDef>;
@@ -378,8 +400,8 @@ export type TVertexTopology = {
 };
 
 /**
- * Lightweight topology for non-vertex domains — schemas that aren't themselves
- * vertices but whose fields range over registered vertex domains (typical for
+ * Lightweight topology for non-persisted domains — schemas that aren't themselves
+ * persisted but whose fields range over registered persisted domains (typical for
  * step *input* composite shapes). Carries only `ranges`; the hypermedia
  * builder skips it; only the resolver reads it.
  */
@@ -388,20 +410,20 @@ export type TRangesTopology = {
 };
 
 /**
- * Domain topology — discriminated union of full vertex topology and a
+ * Domain topology — discriminated union of full hypermedia topology and a
  * lightweight ranges-only declaration. A topology must be one or the other;
- * mixing partial vertex fields without a vertexLabel is structurally invalid
+ * mixing partial persisted fields without a persistedAs is structurally invalid
  * and the type system rejects it.
  */
-export type TDomainTopology = TVertexTopology | TRangesTopology;
+export type TDomainTopology = THypermediaTopology | TRangesTopology;
 
-/** True when a domain's topology promotes it to a vertex in the hypermedia sense. */
-export function isVertexTopology(topology: TDomainTopology | undefined): topology is TVertexTopology {
-	return !!topology && "vertexLabel" in topology && typeof topology.vertexLabel === "string";
+/** True when a domain's topology marks it as persisted (presence of persistedAs). */
+export function isPersisted(topology: TDomainTopology | undefined): topology is THypermediaTopology {
+	return !!topology && "persistedAs" in topology && typeof topology.persistedAs === "string";
 }
 
-/** Domain name for type labels — auto-populated from registered domains with topology. */
-export const DOMAIN_VERTEX_LABEL = "vertex-label";
+/** Domain name for type labels — auto-populated from registered persisted domains. */
+export const DOMAIN_PERSISTED_TYPE = "persisted-type";
 
 // ============================================================================
 // Domain registration shape
@@ -426,7 +448,7 @@ export type TDomainDefinition = {
 	description?: string;
 	/** Stepper that registered this domain (set automatically by registerDomains) */
 	stepperName?: string;
-	/** Vertex topology — label, id, property rels, edges, indexes. Undefined for non-vertex domains. */
+	/** Hypermedia topology — label, id, property rels, edges, indexes. Undefined for non-persisted domains. */
 	topology?: TDomainTopology;
 	/** UI metadata: slot, component, JS source, etc. Consumed by hypermedia renderers (e.g. SHU SPA). */
 	ui?: Record<string, unknown>;
@@ -453,20 +475,21 @@ export type TRegisteredDomain = {
  * COMMENT_DOMAIN near the top of this file for the vocabulary consts.
  *
  * The speech act is expressed as the edge predicate (a discourse rel, sub-property
- * of inReplyTo), not a `discourse` property on the vertex.
+ * of inReplyTo), not a `discourse` property on the node.
  *
- * `author` stays an optional URI string at the storage layer (e.g.
- * "user:alice", "stepper:llm", "llm:gpt-x"). Legacy data may lack it.
+ * `author` identifies who made the comment — a required URI string (e.g.
+ * "user:alice", "stepper:llm", "llm:gpt-x"); every Comment is attributed.
  * Structured-Actor hydration is a query-time projection, not storage.
  */
-// Vertex schemas accept passthrough fields: callers attach edge-construction
-// rels (`discourse`, `inReplyTo`, …) that upsertVertex's partition step
-// routes to edges rather than to the vertex properties. Strict mode would
+// Persisted schemas accept passthrough fields: callers attach edge-construction
+// rels (`discourse`, `inReplyTo`, …) that upsertIndividual's partition step
+// routes to edges rather than to the individual properties. Strict mode would
 // reject those before the partition can run.
 export const CommentSchema = z.object({
 	id: z.string(),
-	author: z.string().optional(),
-	timestamp: z.string(),
+	author: z.string(),
+	generatedAtTime: z.string(),
+	seqPath: z.string().optional(),
 	body: z.string().optional(),
 });
 
@@ -474,7 +497,7 @@ export type TComment = z.infer<typeof CommentSchema>;
 
 /**
  * Comment domain definition — register this in a stepper's
- * `getConcerns().domains` to expose Comment as a first-class graph vertex.
+ * `getConcerns().domains` to expose Comment as a first-class graph node.
  * Topology uses existing LinkRelations for every property; no new rels
  * introduced here.
  */
@@ -483,18 +506,98 @@ export const commentDomainDefinition: TDomainDefinition = {
 	schema: CommentSchema,
 	description: "Comment",
 	topology: {
-		vertexLabel: COMMENT_LABEL,
+		persistedAs: COMMENT_LABEL,
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			author: LinkRelations.ATTRIBUTED_TO.rel,
-			timestamp: LinkRelations.PUBLISHED.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			seqPath: LinkRelations.SEQ_PATH.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
 		},
 		edges: {
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
+			// What the comment is about — any Resource (an entity, or another Comment in a thread).
+			[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
 			...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),
 		},
+		sortColumns: { author: "TEXT", seqPath: "TEXT" },
+	},
+};
+
+// ============================================================================
+// Principal schema + domain definition
+// ============================================================================
+
+/**
+ * Principal — a standards-based identity in the graph (W3C DID + Security `sec:`
+ * vocabulary + zcap-LD delegation semantics). The acting identity (a Comment's
+ * `author`, an artifact's creator) is a DID string; a Principal node is its
+ * persisted, public descriptor.
+ *
+ * Two kinds persist: the root site principal (self-issued — `controller === id`,
+ * no delegation) and explicit `issue subkey` delegations (linked to the delegating
+ * principal by a single navigable `delegatedFrom` AGE edge, `allowedAction` = the
+ * delegated actions). Ephemeral `as subkey` / `with token` activations do NOT persist a
+ * Principal. Delegation is an edge, not a scalar field — so it never appears in
+ * PrincipalSchema; `persistPrincipalIndividual` writes the lone `delegatedFrom` edge.
+ *
+ * Comment→Principal authorship is by SHARED DID, not an edge: `Comment.author`
+ * (a string) equals the subkey/site `Principal.id`, resolvable via
+ * `getIndividual("Principal", comment.author)`.
+ *
+ * Only PUBLIC material persists — there is no private-key field, by design.
+ */
+export const PRINCIPAL_LABEL = "Principal";
+/** Domain selector — distinct from the runtime "principal" key (see lib/principal.ts) to avoid collision. */
+export const PRINCIPAL_DOMAIN = "principal-individual";
+
+export const PrincipalSchema = z.object({
+	id: z.string(),
+	controller: z.string().optional(),
+	allowedAction: z.string().optional(),
+	publicKey: z.string().optional(),
+	generatedAtTime: z.string(),
+	expires: z.string().optional(),
+	revoked: z.boolean().optional(),
+	proof: z.string().optional(),
+});
+
+export type TPrincipal = z.infer<typeof PrincipalSchema>;
+
+/**
+ * Principal domain definition — register in a stepper's `getConcerns().domains`
+ * to expose Principal as a first-class graph node. `generatedAtTime` is REQUIRED on
+ * purpose: buildConcernCatalog (hypermedia.ts) rejects a persisted domain whose
+ * GENERATED_AT_TIME-rel field is optional.
+ *
+ * Delegation is the lone topology edge, `delegatedFrom` (sec:delegator), ranging
+ * over the delegating Principal — one navigable AGE edge per subkey, written by
+ * `persistPrincipalIndividual`. `controller` is a plain property: in every persist path
+ * `controller === id` (a Principal controls itself), so a self-referential edge
+ * draws nothing useful; it stays a scalar in `properties` + `sortColumns`.
+ */
+export const principalDomainDefinition: TDomainDefinition = {
+	selectors: [PRINCIPAL_DOMAIN],
+	schema: PrincipalSchema,
+	description: "Principal",
+	topology: {
+		persistedAs: PRINCIPAL_LABEL,
+		type: "sec:Controller",
+		id: "id",
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			controller: LinkRelations.CONTROLLER.rel,
+			allowedAction: LinkRelations.ALLOWED_ACTION.rel,
+			publicKey: LinkRelations.PUBLIC_KEY.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			expires: LinkRelations.EXPIRES.rel,
+			revoked: LinkRelations.REVOKED.rel,
+		},
+		edges: {
+			delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel, range: PRINCIPAL_LABEL },
+		},
+		sortColumns: { controller: "TEXT", generatedAtTime: "TIMESTAMPTZ", revoked: "BOOLEAN" },
 	},
 };
 
@@ -508,24 +611,24 @@ export const commentDomainDefinition: TDomainDefinition = {
  * not metadata on the parent resource's topology, so JSON-LD round-trips and
  * graph queries see mediaType as a first-class triple.
  */
-// Body schema same constraint as Comment: parent vertices supply content
+// Body schema same constraint as Comment: parent nodes supply content
 // fields that the partition step extracts before persistence.
 export const BodySchema = z.object({
 	id: z.string(),
 	content: z.string(),
 	mediaType: z.string(),
-	createdAt: z.string(),
+	generatedAtTime: z.string(),
 });
 
 export type TBody = z.infer<typeof BodySchema>;
 
 /**
- * Pick a body's content by media type from a vertex's `hasBody` projection.
+ * Pick a body's content by media type from an individual's `hasBody` projection.
  * Returns undefined if no body matches. Used by readers that consume content
- * after `getVertex` has inlined the linked Body sub-resources.
+ * after `getIndividual` has inlined the linked Body sub-resources.
  */
-export function bodyByMediaType(vertex: { hasBody?: Array<{ mediaType?: string; content?: string }> } | null | undefined, mediaType: string): string | undefined {
-	return vertex?.hasBody?.find((b) => b.mediaType === mediaType)?.content;
+export function bodyByMediaType(individual: { hasBody?: Array<{ mediaType?: string; content?: string }> } | null | undefined, mediaType: string): string | undefined {
+	return individual?.hasBody?.find((b) => b.mediaType === mediaType)?.content;
 }
 
 export const bodyDomainDefinition: TDomainDefinition = {
@@ -533,17 +636,17 @@ export const bodyDomainDefinition: TDomainDefinition = {
 	schema: BodySchema,
 	description: "Opaque content keyed by mediaType (text/markdown, application/json, etc.)",
 	topology: {
-		vertexLabel: BODY_LABEL,
+		persistedAs: BODY_LABEL,
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			content: LinkRelations.CONTENT.rel,
 			mediaType: LinkRelations.MEDIA_TYPE.rel,
-			createdAt: LinkRelations.PUBLISHED.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 		},
 		// Declared query surface for the one-path graph-store: callers can filter
-		// or sort Body rows by mediaType (e.g. "all PDF bodies") or createdAt.
-		sortColumns: { mediaType: "TEXT", createdAt: "TIMESTAMPTZ" },
+		// or sort Body rows by mediaType (e.g. "all PDF bodies") or generatedAtTime.
+		sortColumns: { mediaType: "TEXT", generatedAtTime: "TIMESTAMPTZ" },
 	},
 };
 
