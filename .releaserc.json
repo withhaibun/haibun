@@ -1,5 +1,9 @@
 {
-  "branches": ["3.x", "4.x", "main" ],
+  "branches": [
+    "main",
+    "3.x",
+    { "name": "4.x", "prerelease": true }
+  ],
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
