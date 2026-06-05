@@ -1,11 +1,11 @@
 /**
- * SeqPath — the hierarchical step identifier reified as a graph vertex.
+ * SeqPath — the hierarchical step identifier reified as a graph individual.
  *
- * Every dispatched step writes a SeqPath vertex into the shared quad store
- * via dispatchStep. Vertices form a tree via the `isPartOf` edge: a step
+ * Every dispatched step writes a SeqPath individual into the shared quad store
+ * via dispatchStep. Individuals form a tree via the `isPartOf` edge: a step
  * with seqPath `0.1.2.5` has parent `0.1.2`. Other emissions within a
  * step's run carry a `seqPath` quad pointing back at the step's id, so
- * the entire execution graph queryable from any vertex.
+ * the entire execution graph queryable from any individual.
  *
  * The label and lifecycle status enum live in resources.ts (SEQ_PATH_LABEL,
  * SEQ_PATH_STATUS). This file owns the schema, domain selectors, and the
@@ -27,6 +27,12 @@ export function parseSeqPath(id: string): number[] | null {
 	return id.split(".").map((p) => Number.parseInt(p, 10));
 }
 
+/** Extract the leading dot-joined integer seqPath from an event id, discarding any suffix. Returns null when the id does not start with a seqPath. Examples: "0.1.5.3" → "0.1.5.3"; "0.1.5.3.artifact.0" → "0.1.5.3"; "0.-1.13.1" → "0.-1.13.1"; "foo.bar" → null. */
+export function extractSeqPathPrefix(id: string): string | null {
+	const match = id.match(/^-?\d+(?:\.-?\d+)*/);
+	return match ? match[0] : null;
+}
+
 /**
  * Total order on seqPath tuples by lexicographic segment compare. Shorter
  * prefixes precede their extensions, mirroring the depth-first dispatch
@@ -41,12 +47,12 @@ export function compareSeqPath(a: number[], b: number[]): number {
 	return 0;
 }
 
-/** SeqPath vertex field names — single source of truth shared by schema, topology, and emission. */
+/** SeqPath individual field names — single source of truth shared by schema, topology, and emission. */
 export const SEQ_PATH_FIELD = {
 	id: "id",
 	stepText: "stepText",
 	actionStatus: "actionStatus",
-	startedAtTime: "startedAtTime",
+	generatedAtTime: "generatedAtTime",
 	endedAtTime: "endedAtTime",
 	path: "path",
 } as const;
@@ -60,15 +66,15 @@ export const SEQ_PATH_EDGE = {
 const STATUS_VALUES = Object.values(SEQ_PATH_STATUS) as [string, ...string[]];
 
 // Non-strict: emitSeqPathStart writes isPartOf/precededBy into the same
-// upsert as the vertex properties (declared as edges in topology, but
+// upsert as the individual properties (declared as edges in topology, but
 // inlined for the start record). Strict mode would reject those keys
-// before upsertVertex can route them — same passthrough constraint as
+// before upsertIndividual can route them — same passthrough constraint as
 // CommentSchema and BodySchema.
 export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.id]: z.string(),
 	[SEQ_PATH_FIELD.stepText]: z.string(),
 	[SEQ_PATH_FIELD.actionStatus]: z.enum(STATUS_VALUES),
-	[SEQ_PATH_FIELD.startedAtTime]: z.string(),
+	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
 	[SEQ_PATH_FIELD.path]: z.string().optional(),
 });
@@ -77,15 +83,15 @@ export type TSeqPath = z.infer<typeof SeqPathSchema>;
 export const seqPathDomainDefinition: TDomainDefinition = {
 	selectors: [SEQ_PATH_DOMAIN],
 	schema: SeqPathSchema,
-	description: "Hierarchical step identifier reified as a graph vertex",
+	description: "Hierarchical step identifier reified as a graph individual",
 	topology: {
-		vertexLabel: SEQ_PATH_LABEL,
+		persistedAs: SEQ_PATH_LABEL,
 		id: SEQ_PATH_FIELD.id,
 		properties: {
 			[SEQ_PATH_FIELD.id]: LinkRelations.IDENTIFIER.rel,
 			[SEQ_PATH_FIELD.stepText]: LinkRelations.CONTENT.rel,
 			[SEQ_PATH_FIELD.actionStatus]: LinkRelations.ACTION_STATUS.rel,
-			[SEQ_PATH_FIELD.startedAtTime]: LinkRelations.PUBLISHED.rel,
+			[SEQ_PATH_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.endedAtTime]: LinkRelations.ENDED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.path]: LinkRelations.IDENTIFIER.rel,
 		},

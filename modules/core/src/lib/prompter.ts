@@ -55,8 +55,8 @@ export class Prompter {
 					})
 					.catch(() => {
 						console.log("Prompt cancelled");
-						// Ignore rejections from cancelled prompts - this is expected when another
-						// subscriber responds first and we cancel all other subscribers
+						// Ignore rejections from cancelled prompts - expected when another
+						// subscriber responds first, cancelling the rest
 					});
 			}
 		});

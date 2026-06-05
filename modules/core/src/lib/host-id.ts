@@ -31,6 +31,17 @@ export function resolveHostId(env: Record<string, string | undefined> = process.
 	return n;
 }
 
+export const HAIBUN_SITE_KEY_ENV = "HAIBUN_SITE_KEY";
+const SITE_DID_PREFIX = "did:site:";
+
+/** The default identity this instance acts as. Defaults to `did:site:<hostId>`; HAIBUN_SITE_KEY overrides (bare → `did:site:<key>`, already-`did:` → used as-is). */
+export function resolveSitePrincipal(env: Record<string, string | undefined> = process.env): string {
+	const raw = env[HAIBUN_SITE_KEY_ENV];
+	if (raw && raw.startsWith("did:")) return raw;
+	if (raw) return `${SITE_DID_PREFIX}${raw}`;
+	return `${SITE_DID_PREFIX}${resolveHostId(env)}`;
+}
+
 /**
  * Synthetic seqPath for calls not tied to a feature step — ad-hoc RPC,
  * MCP tool invocations, subprocess transport. Uses SYNTHETIC_FEATURE_NUM

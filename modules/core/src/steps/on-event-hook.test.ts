@@ -8,24 +8,18 @@ describe("onEvent hook infrastructure", () => {
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
 		const feature = { path: "/features/test", content: 'set x to "1"' };
 
-		// Note: Executor.executeFeatures will overwrite this callback to route to steppers
-		// However, the events are still emitted to console.log (visible in test output)
-		// The fact that we see JSON in stdout proves EventLogger.emit() is working
+		// Executor.executeFeatures overwrites this callback to route to steppers, but events
+		// are still emitted to console.log; JSON in stdout confirms EventLogger.emit() runs.
 
 		const res = await testWithWorld(world, [feature], [VariablesStepper, Haibun], []);
 		expect(res.ok).toBe(true);
 
-		// Verification: The JSON output in stdout proves:
-		// 1. EventLogger.emit() is being called for lifecycle events
-		// 2. The event structure includes {kind:'lifecycle', stage:'start'/'end', label, status, ...}
-		// 3. The stepperName and actionName are properly recorded
-
-		// The onEvent hook in IStepperCycles is now available for any stepper to implement
+		// JSON in stdout confirms EventLogger.emit() fires for lifecycle events with
+		// {kind:'lifecycle', stage, label, status, stepperName, actionName}.
 	});
 
 	it("IStepperCycles interface includes onEvent hook", () => {
-		// This is a compile-time verification - the test passing means the interface is correct
-		// The hook is defined in defs.ts: onEvent?(event: THaibunEvent): Promise<void> | void;
+		// Compile-time check: the IStepperCycles.onEvent hook is defined in defs.ts.
 		expect(true).toBe(true);
 	});
 });

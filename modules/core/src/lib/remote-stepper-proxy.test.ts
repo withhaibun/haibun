@@ -38,7 +38,7 @@ describe("RemoteStepperProxy", () => {
 		const app = new Hono();
 		app.post("/rpc/:_method", async (c) => {
 			const data = (await c.req.json()) as { method: string; params?: Record<string, unknown> };
-			if (data.method === "session.beginAction") {
+			if (data.method === "action.begin") {
 				return c.json({ seqPath: [7, -1, 1], hostId: 7 });
 			}
 			if (data.method === "step.list") {

@@ -8,7 +8,7 @@ export const HAIBUN_LOG_LEVELS = ["debug", "trace", "log", "info", "warn", "erro
 export const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 
-// Validation Marks (The "Clear Check/No Marks")
+// Validation Marks
 export const CHECK_YES = "✅";
 export const CHECK_NO = "❌";
 export const CHECK_YIELD = "🔀";
@@ -32,7 +32,7 @@ export const ICON_LOG_ERROR = "⊦"; // Logical contradiction (Assertion failed)
 export const ICON_DEFAULT = "•";
 
 // Structured Output
-export const ICON_ARTIFACT = "⌬"; // Benzene Ring (Your preferred technical symbol)
+export const ICON_ARTIFACT = "⌬"; // Benzene ring
 export enum Origin {
 	defined = "defined",
 	var = "var",
@@ -70,7 +70,7 @@ export const TEND_FEATURE_DEFAULTS = {
 };
 
 // ============================================================================
-// Environment Stubs & Utilities
+// Utilities
 // ============================================================================
 
 export type TAnyFixme = unknown;
@@ -446,7 +446,6 @@ export const BaseEvent = z.object({
 	level: HaibunLogLevel.default("info").describe("Log level for filtering"),
 });
 
-// Lifecycle Events
 // Lifecycle Events
 export const LifecycleEventCommon = BaseEvent.extend({
 	kind: z.literal("lifecycle"),
