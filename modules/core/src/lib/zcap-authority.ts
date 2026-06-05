@@ -83,6 +83,10 @@ export class ZcapAuthority implements IZcapAuthority {
 		return [...seen];
 	}
 
+	resolveController(token: string): string | undefined {
+		return this.grants.get(token)?.[0]?.controller;
+	}
+
 	listBearerGrants(): TZcapGrant[] {
 		return [...this.grants.values()].flatMap((entries) => entries.map((entry) => ({ ...entry, allowedAction: [...entry.allowedAction] })));
 	}
@@ -103,5 +107,5 @@ export class ZcapAuthority implements IZcapAuthority {
 }
 
 export function getZcapAuthority(runtime: TRuntime): IZcapAuthority | undefined {
-	return runtime[ZCAP_AUTHORITY] as IZcapAuthority | undefined;
+	return runtime.keys?.[ZCAP_AUTHORITY] as IZcapAuthority | undefined;
 }
