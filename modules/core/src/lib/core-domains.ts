@@ -35,7 +35,16 @@ function fieldBindingSchema(): z.ZodType {
 	return z.discriminatedUnion("kind", [
 		z.object({ kind: z.literal("fact"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean(), factId: z.string() }).strict(),
 		z.object({ kind: z.literal("argument"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean() }).strict(),
-		z.object({ kind: z.literal("composite"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean(), fields: z.array(z.lazy(fieldBindingSchema)) }).strict(),
+		z
+			.object({
+				kind: z.literal("composite"),
+				fieldName: z.string(),
+				fieldDomain: z.string(),
+				fieldType: z.string(),
+				optional: z.boolean(),
+				fields: z.array(z.lazy(fieldBindingSchema)),
+			})
+			.strict(),
 	]);
 }
 
@@ -59,6 +68,70 @@ function michiSchema(): z.ZodType {
 		})
 		.strict();
 }
+
+/** DOMAIN_GOAL_RESOLUTION product shape — the resolver's four findings. Exported so GoalResolutionStepper validates its products against the same schema the domain registers. */
+export const goalResolutionSchema = z.discriminatedUnion("finding", [
+	z.object({ finding: z.literal("satisfied"), goal: z.string(), factIds: z.array(z.string()), michi: z.array(michiSchema()), truncated: z.boolean() }),
+	z.object({ finding: z.literal("michi"), goal: z.string(), michi: z.array(michiSchema()), truncated: z.boolean() }),
+	z.object({ finding: z.literal("unreachable"), goal: z.string(), missing: z.array(z.string()) }),
+	z.object({ finding: z.literal("refused"), goal: z.string(), refusalReason: z.enum(["anonymous-outputs-present", "capability-context-required"]), detail: z.string() }),
+]);
+
+/** DOMAIN_AFFORDANCES product shape — forward-reachable steps and goal-resolution verdicts. Strict: unknown keys throw, surfacing producer drift instead of silently dropping data on the way to the SPA. */
+export const affordancesSchema = z
+	.object({
+		forward: z.array(
+			z
+				.object({
+					method: z.string(),
+					stepperName: z.string(),
+					stepName: z.string(),
+					gwta: z.string().optional(),
+					inputDomains: z.array(z.string()),
+					outputDomains: z.array(z.string()),
+					readyToRun: z.boolean(),
+					capability: z.string().optional(),
+				})
+				.strict(),
+		),
+		goals: z.array(z.object({ domain: z.string(), description: z.string(), resolution: z.unknown() }).strict()),
+		satisfiedDomains: z.array(z.string()).default([]),
+		satisfiedFacts: z.record(z.string(), z.array(z.string())).default({}),
+		// Per-domain composite-field map (haibun's sh:node / rdfs:range equivalent) — the registered topology.ranges, so the SPA's chain view can emit synthetic field nodes between composite domains and their components. Absent when no domain declares ranges.
+		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+		// Registered waypoints projected as panel entries (populated by `show waypoints`; `show affordances` leaves this empty). Each is a virtual step ActivitiesStepper registers with a gwta the SPA's step-caller renders into a parameter form.
+		waypoints: z
+			.array(
+				z
+					.object({
+						outcome: z.string(),
+						kind: z.enum(["imperative", "declarative"]),
+						method: z.string(),
+						paramSlots: z.array(z.string()),
+						proofStatements: z.array(z.string()),
+						resolvesDomain: z.string().optional(),
+						ensured: z.boolean(),
+						error: z.string().optional(),
+						source: z.object({ path: z.string(), lineNumber: z.number().optional() }).strict(),
+						isBackground: z.boolean(),
+					})
+					.strict(),
+			)
+			.optional(),
+	})
+	.strict();
+
+/** DOMAIN_CHAIN_LINT product shape — orphan/starved/unreachable findings plus an optional affordance overlay (forward/goals) the bound Mermaid view renders. */
+export const chainLintSchema = z
+	.object({
+		findings: z.array(z.unknown()),
+		summary: z.object({ "orphan-step": z.number(), "starved-step": z.number(), "unreachable-domain": z.number(), "unproduced-domain": z.number() }).strict(),
+		// Optional graph payload the bound view (shu-domain-chain-view) renders as a Mermaid chain; the view falls back to subscribing to shu:affordances when the producer omits these.
+		forward: z.array(z.unknown()).optional(),
+		goals: z.array(z.unknown()).optional(),
+		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+	})
+	.strict();
 
 const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
@@ -110,108 +183,18 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	},
 	{
 		selectors: [DOMAIN_GOAL_RESOLUTION],
-		schema: z.discriminatedUnion("finding", [
-			z.object({
-				finding: z.literal("satisfied"),
-				goal: z.string(),
-				factIds: z.array(z.string()),
-				// Producer paths the user can run to create another instance.
-				michi: z.array(michiSchema()),
-				truncated: z.boolean(),
-			}),
-			z.object({
-				finding: z.literal("michi"),
-				goal: z.string(),
-				michi: z.array(michiSchema()),
-				truncated: z.boolean(),
-			}),
-			z.object({ finding: z.literal("unreachable"), goal: z.string(), missing: z.array(z.string()) }),
-			z.object({
-				finding: z.literal("refused"),
-				goal: z.string(),
-				refusalReason: z.enum(["anonymous-outputs-present", "capability-context-required"]),
-				detail: z.string(),
-			}),
-		]),
+		schema: goalResolutionSchema,
 		description: "The four findings of the goal resolver: satisfied (existing facts + paths to produce more), michi (enumerated paths), unreachable, refused.",
 	},
 	{
 		selectors: [DOMAIN_AFFORDANCES],
-		// Strict: unknown keys throw at parse time, surfacing schema/producer drift
-		// instead of silently dropping data on the way to the SPA.
-		schema: z
-			.object({
-				forward: z.array(
-					z
-						.object({
-							method: z.string(),
-							stepperName: z.string(),
-							stepName: z.string(),
-							gwta: z.string().optional(),
-							inputDomains: z.array(z.string()),
-							outputDomains: z.array(z.string()),
-							readyToRun: z.boolean(),
-							capability: z.string().optional(),
-						})
-						.strict(),
-				),
-				goals: z.array(z.object({ domain: z.string(), description: z.string(), resolution: z.unknown() }).strict()),
-				satisfiedDomains: z.array(z.string()).default([]),
-				satisfiedFacts: z.record(z.string(), z.array(z.string())).default({}),
-				// Per-domain composite-field map (haibun's sh:node / rdfs:range equivalent).
-				// Carries the registered `topology.ranges` declarations so the SPA's
-				// chain view can emit synthetic field nodes between composite domains
-				// and their component domains. Optional — absent when no domain
-				// declares any ranges.
-				composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
-				// Registered waypoints projected as panel entries. Populated by
-				// `show waypoints`; `show affordances` leaves this empty. Each entry
-				// is a virtual step registered by ActivitiesStepper with a `gwta`
-				// pattern the SPA's step-caller renders into a parameter form.
-				waypoints: z
-					.array(
-						z
-							.object({
-								outcome: z.string(),
-								kind: z.enum(["imperative", "declarative"]),
-								method: z.string(),
-								paramSlots: z.array(z.string()),
-								proofStatements: z.array(z.string()),
-								resolvesDomain: z.string().optional(),
-								ensured: z.boolean(),
-								error: z.string().optional(),
-								source: z.object({ path: z.string(), lineNumber: z.number().optional() }).strict(),
-								isBackground: z.boolean(),
-							})
-							.strict(),
-					)
-					.optional(),
-			})
-			.strict(),
+		schema: affordancesSchema,
 		description: "What can I do next: forward-reachable steps and goal-resolution verdicts.",
 		ui: { component: "shu-affordances-panel" },
 	},
 	{
 		selectors: [DOMAIN_CHAIN_LINT],
-		schema: z
-			.object({
-				findings: z.array(z.unknown()),
-				summary: z
-					.object({
-						"orphan-step": z.number(),
-						"starved-step": z.number(),
-						"unreachable-domain": z.number(),
-						"unproduced-domain": z.number(),
-					})
-					.strict(),
-				// Optional graph payload the bound view (`shu-domain-chain-view`) renders as
-				// a Mermaid chain. The view falls back to subscribing to `shu:affordances`
-				// when the producer step omits these fields.
-				forward: z.array(z.unknown()).optional(),
-				goals: z.array(z.unknown()).optional(),
-				composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
-			})
-			.strict(),
+		schema: chainLintSchema,
 		description: "Domain-chain lint report: orphans, starved steps, unreachable domains.",
 		ui: { component: "shu-domain-chain-view" },
 	},
