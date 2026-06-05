@@ -215,22 +215,21 @@ describe("CommentSchema", () => {
 	const baseComment = {
 		id: "c1",
 		body: "hello",
-		timestamp: new Date().toISOString(),
+		generatedAtTime: new Date().toISOString(),
 	};
 
 	it("accepts a minimal valid Comment without discourse property", () => {
-		expect(() => CommentSchema.parse({ id: "c1", timestamp: new Date().toISOString() })).not.toThrow();
+		expect(() => CommentSchema.parse({ id: "c1", author: "stepper:llm", generatedAtTime: new Date().toISOString() })).not.toThrow();
 	});
 
-	it("accepts an optional author", () => {
+	it("accepts an author", () => {
 		const withAuthor = { ...baseComment, author: "stepper:llm" };
 		const parsed = CommentSchema.parse(withAuthor);
 		expect(parsed.author).toBe("stepper:llm");
 	});
 
-	it("accepts absence of author", () => {
-		const parsed = CommentSchema.parse({ id: "c1", timestamp: new Date().toISOString() });
-		expect(parsed.author).toBeUndefined();
+	it("requires an author — every Comment is attributed", () => {
+		expect(() => CommentSchema.parse({ id: "c1", generatedAtTime: new Date().toISOString() })).toThrow();
 	});
 });
 
@@ -238,7 +237,7 @@ describe("commentDomainDefinition", () => {
 	it("has the expected topology shape without discourse property", () => {
 		const t = commentDomainDefinition.topology;
 		if (!t) throw new Error("commentDomainDefinition must declare topology");
-		expect(t.vertexLabel).toBe(COMMENT_LABEL);
+		expect(t.persistedAs).toBe(COMMENT_LABEL);
 		expect(t.id).toBe("id");
 		expect((t.properties as Record<string, unknown>).discourse).toBeUndefined();
 		expect(t.properties.author).toBe(LinkRelations.ATTRIBUTED_TO.rel);
@@ -247,7 +246,7 @@ describe("commentDomainDefinition", () => {
 	it("passes buildConcernCatalog validation", () => {
 		const registered = { comment: { ...commentDomainDefinition, coerce: (x: unknown) => x as unknown as import("./resources.js").TDomainDefinition["schema"] } };
 		const cat = buildConcernCatalog(registered as Parameters<typeof buildConcernCatalog>[0]);
-		expect(cat.vertices[COMMENT_LABEL]).toBeDefined();
+		expect(cat.persisted[COMMENT_LABEL]).toBeDefined();
 	});
 });
 

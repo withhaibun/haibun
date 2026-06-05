@@ -35,7 +35,7 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 		// regexPattern so the group pattern can insert the correct single
 		// delimiter.
 		if (precedingChar && ["$", "`", "<", '"'].includes(precedingChar)) {
-			// remove the last character we just added (the delimiter)
+			// drop the already-appended preceding delimiter
 			regexPattern = regexPattern.slice(0, -1);
 		}
 
@@ -59,9 +59,9 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 		} else if (origin === Origin.quoted) {
 			matchGroupPattern = `"(?<${TYPE_QUOTED}${matchIndex}>.+)"`;
 		} else {
-			// For a plain placeholder we accept several syntaxes and capture each
-			// into a distinct named group so callers can detect whether the
-			// value was quoted, backticked or a bare literal.
+			// A plain placeholder accepts several syntaxes, capturing each into a
+			// distinct named group so callers can detect whether the value was
+			// quoted, backticked or a bare literal.
 			matchGroupPattern = `(?:"(?<${TYPE_QUOTED}${matchIndex}>.+)"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${placeholderRegex}))`;
 		}
 

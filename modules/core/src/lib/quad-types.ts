@@ -119,30 +119,39 @@ export interface IQuadStore {
 	/** Get all quads */
 	all(): Promise<TQuad[]>;
 
-	/** Vertex operations — convenience over quads. namedGraph = vertex label. */
-	upsertVertex(label: string, data: unknown): Promise<string>;
-	getVertex<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
-	deleteVertex(label: string, id: string): Promise<void>;
-	queryVertices<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
+	/** Individual operations — convenience over quads. namedGraph = persisted label. */
+	upsertIndividual(label: string, data: unknown): Promise<string>;
+	getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
+	deleteIndividual(label: string, id: string): Promise<void>;
+	queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
 	distinctPropertyValues(label: string, property: string): Promise<string[]>;
 
 	/**
 	 * Type-bounded snapshot for graph view rendering. For each requested type
 	 * (or every known type if `types` is omitted), returns up to `perTypeLimit`
-	 * vertices' quads plus a sidecar cluster summary so the view can render an
+	 * individual's quads plus a sidecar cluster summary so the view can render an
 	 * `+N more` cluster node when sampling truncates.
 	 */
 	getClusteredQuads?(opts: { perTypeLimit: number; types?: string[] }): Promise<TClusteredQuads>;
+
+	/**
+	 * Create a single navigable edge between two individuals (graph-native stores only).
+	 * Backing stores that materialize edges as first-class entities (e.g. AGE) implement
+	 * this so a topology edge becomes a real, walkable relationship rather than a property
+	 * column. The in-memory QuadStore models edges as quads, so callers fall back to `add`
+	 * when this is absent. Idempotent per (from, edge, to) in implementations.
+	 */
+	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 }
 
 export interface TCluster {
-	/** Vertex label this cluster represents. */
+	/** Persisted label this cluster represents. */
 	type: string;
-	/** Total vertices of this type in the store. */
+	/** Total individuals of this type in the store. */
 	totalCount: number;
-	/** Vertices included in `quads` (≤ perTypeLimit). */
+	/** Individuals included in `quads` (≤ perTypeLimit). */
 	sampledCount: number;
-	/** Vertices not represented in `quads` (totalCount − sampledCount). */
+	/** Individuals not represented in `quads` (totalCount − sampledCount). */
 	omittedCount: number;
 	/** Subjects for which quads are present, in sample order. */
 	sampledSubjects: string[];
