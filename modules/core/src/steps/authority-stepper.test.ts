@@ -5,7 +5,7 @@ import { discoverSteps } from "../lib/step-dispatch.js";
 import { AStepper } from "../lib/astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionNotOK } from "../lib/util/index.js";
-import ZcapStepper from "./zcap-stepper.js";
+import AuthorityStepper from "./authority-stepper.js";
 import { getZcapAuthority } from "../lib/zcap-authority.js";
 
 class VerifyZcapStepper extends AStepper {
@@ -27,10 +27,10 @@ class VerifyZcapStepper extends AStepper {
 	};
 }
 
-describe("ZcapStepper", () => {
+describe("AuthorityStepper", () => {
 	it("registers ZCAP domains and exposes schemas through discovery", async () => {
 		const world = getDefaultWorld();
-		const stepper = new ZcapStepper();
+		const stepper = new AuthorityStepper();
 		await stepper.setWorld(world, [stepper]);
 		const concerns = stepper.cycles.getConcerns?.();
 		if (!concerns?.domains) throw new Error("Expected ZCAP domains to be declared");
@@ -49,14 +49,14 @@ describe("ZcapStepper", () => {
 		expect(discovery.domains["zcap-token"]?.description).toContain("Opaque bearer token");
 		expect(discovery.domains["zcap-action"]?.description).toContain("action label");
 
-		const issueStep = discovery.steps.find((step) => step.method === "ZcapStepper-issueZcapBearerGrant");
+		const issueStep = discovery.steps.find((step) => step.method === "AuthorityStepper-issueZcapBearerGrant");
 		expect(issueStep?.inputSchema?.required).toEqual(["token", "action"]);
 		expect(issueStep?.outputSchema).toBeDefined();
 	});
 
 	it("issues and revokes ZCAP bearer grants through normal steps", async () => {
 		const feature = {
-			path: "/features/zcap-stepper.feature",
+			path: "/features/authority-stepper.feature",
 			content: `
 issue zcap bearer grant for token "alpha" with action "Ping:protected"
 verify zcap bearer grant for token "alpha" is active for action "Ping:protected"
@@ -65,7 +65,7 @@ verify zcap bearer grant for token "alpha" is revoked for action "Ping:protected
 `,
 		};
 
-		const result = await passWithDefaults([feature], [ZcapStepper, VerifyZcapStepper]);
+		const result = await passWithDefaults([feature], [AuthorityStepper, VerifyZcapStepper]);
 		if (!result.ok) {
 			throw new Error(JSON.stringify(result.featureResults, null, 2));
 		}
