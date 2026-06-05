@@ -35,8 +35,7 @@ describe("ConsoleMonitorStepper", () => {
 
 			expect(res.ok).toBe(true);
 
-			// Verify the monitor received events (it logs to console)
-			// We should see at least one step completion
+			// At least one step completion should have been logged to console.
 			const stepLogs = consoleLogs.filter((log) => log.includes("✅") || log.includes("❌"));
 			expect(stepLogs.length).toBeGreaterThan(0);
 		} finally {

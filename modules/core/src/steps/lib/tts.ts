@@ -157,14 +157,10 @@ export function copyPreRenderedAudio(dir: string, renderedAudio: TRenderedAudioM
 	return { path: cacheFilename, durationS };
 }
 
-/**
- * Play audio file using ffmpeg.
- * This replaces the TTS_PLAY option entirely.
- */
+/** Play an audio file through the system speakers using ffplay. */
 export function playAudioFile(audioPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		try {
-			// Use ffplay to play audio through system speakers
 			const proc = spawn("ffplay", ["-nodisp", "-autoexit", audioPath], {
 				stdio: ["ignore", "pipe", "pipe"],
 				detached: false,
