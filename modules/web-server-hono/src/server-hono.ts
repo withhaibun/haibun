@@ -245,7 +245,7 @@ export class ServerHono implements IWebServer {
 		const timestamp = Date.now();
 		const method = type.toUpperCase();
 		// Single quad bundles the full endpoint descriptor in `properties`, aligning with
-		// WebServerStepper's haibun-endpoint topology (url→identifier, method→tag, description→name, registeredAt→published).
+		// WebServerStepper's haibun-endpoint topology (url→identifier, method→tag, description→name, generatedAtTime→prov:generatedAtTime).
 		emitQuadObservation(this.eventLogger, `quad-endpoint-${timestamp}-${type}-${path}`, {
 			subject: path,
 			predicate: "type",
@@ -257,7 +257,7 @@ export class ServerHono implements IWebServer {
 				[LinkRelations.IDENTIFIER.rel]: path,
 				[LinkRelations.TAG.rel]: method,
 				[LinkRelations.NAME.rel]: purpose.description,
-				[LinkRelations.PUBLISHED.rel]: new Date(timestamp).toISOString(),
+				[LinkRelations.GENERATED_AT_TIME.rel]: new Date(timestamp).toISOString(),
 			},
 		});
 	}

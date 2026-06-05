@@ -133,7 +133,7 @@ describe("ServerHono", () => {
 			expect(props.identifier).toBe("/.well-known/did.json");
 			expect(props.tag).toBe("GET");
 			expect(props.name).toBe("DID document resolution");
-			expect(props.published).toBeDefined();
+			expect(props.generatedAtTime).toBeDefined();
 			await s.close();
 		});
 	});

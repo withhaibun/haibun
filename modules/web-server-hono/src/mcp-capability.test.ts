@@ -4,7 +4,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.j
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import ZcapStepper from "@haibun/core/steps/zcap-stepper.js";
+import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
@@ -146,7 +146,7 @@ verify protected mcp tool on port ${port} is denied
 			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
 		};
 
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ZcapStepper, ProtectedStepper], {
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, ProtectedStepper], {
 			...DEF_PROTO_OPTIONS,
 			moduleOptions,
 		});
