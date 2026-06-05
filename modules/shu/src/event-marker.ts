@@ -6,7 +6,18 @@
  * The event shape is the SSE wire form; this helper only reads fields it
  * understands and returns a safe default for anything else.
  */
-import { ICON_FEATURE, ICON_SCENARIO, ICON_STEP_RUNNING, ICON_STEP_FAILED, ICON_STEP_COMPLETED, ICON_LOG_INFO, ICON_LOG_WARN, ICON_LOG_ERROR, ICON_DEFAULT, ICON_ARTIFACT } from "@haibun/core/schema/protocol.js";
+import {
+	ICON_FEATURE,
+	ICON_SCENARIO,
+	ICON_STEP_RUNNING,
+	ICON_STEP_FAILED,
+	ICON_STEP_COMPLETED,
+	ICON_LOG_INFO,
+	ICON_LOG_WARN,
+	ICON_LOG_ERROR,
+	ICON_DEFAULT,
+	ICON_ARTIFACT,
+} from "@haibun/core/schema/protocol.js";
 
 export type TEventMarkerStyle = { color: string; icon: string };
 

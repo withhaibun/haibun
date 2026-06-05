@@ -103,10 +103,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		await super.setWorld(world, steppers);
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
-		// Initial tunable read via the shared option-reading path plus this
-		// tunable's own declared `parse`. Live updates (when a consumer
-		// writes a change targeting MAX_EVENTS) will arrive as
-		// tunable-change events once that path exists.
+		// Read the initial MAX_EVENTS tunable via the shared option path and this
+		// tunable's own declared `parse`.
 		const raw = getStepperOption(this, "MAX_EVENTS", world.moduleOptions);
 		if (raw !== undefined) {
 			const parsed = this.tunables.MAX_EVENTS.parse(String(raw));
@@ -164,7 +162,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.transport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
-			// `saves shu to <path>` is an explicit user request; honor it regardless of HAIBUN_STAY (shouldClose=false).
+			// An explicit `saves shu to <path>` step is honored regardless of HAIBUN_STAY (shouldClose=false).
 			const hasFixedPath = !!this.outputPath;
 			if (!hasFixedPath && !shouldClose) return;
 			if (!hasFixedPath && !this.storage) return;
@@ -214,7 +212,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (!step || typeof (step as { action?: unknown }).action !== "function") continue;
 				const key = `${stepper.constructor.name}-${name}`;
 				try {
-					const r = (await ((step as { action: (a: Record<string, unknown>) => unknown }).action)({})) as { products?: Record<string, unknown> } | undefined;
+					const r = (await (step as { action: (a: Record<string, unknown>) => unknown }).action({})) as { products?: Record<string, unknown> } | undefined;
 					if (r?.products) rpcCache[key] = r.products;
 				} catch (err) {
 					logger.warn(`[shu writeStandaloneReport] ${key} refresh failed: ${err instanceof Error ? err.message : err}`);
@@ -369,7 +367,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					return actionNotOK("QuadStore does not support getClusteredQuads");
 				}
 				const result = await store.getClusteredQuads({ perTypeLimit, types });
-				const quads = [...result.quads, ...this.observationQuads].map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({
+				// The store is canonical; only surface observation quads whose
+				// (namedGraph,subject,predicate,object) isn't already in the store result,
+				// so each fact appears exactly once.
+				const quadKey = ({ namedGraph, subject, predicate, object }: TQuad) => JSON.stringify([namedGraph, subject, predicate, object]);
+				const seen = new Set(result.quads.map(quadKey));
+				const unique = this.observationQuads.filter((q) => !seen.has(quadKey(q)));
+				const quads = [...result.quads, ...unique].map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({
 					subject,
 					predicate,
 					object,

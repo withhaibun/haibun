@@ -4,37 +4,42 @@
  * Dispatches columns-changed, column-activated events.
  * Handles hash serialization via getColumnKeys/restoreColumn.
  */
+import { html, css, type TemplateResult } from "lit";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnStripSchema } from "../schemas.js";
+import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
-type SavedPaneState = { collapsed: boolean; minimized: boolean };
+type SavedPaneState = { collapsed: boolean; minimized: boolean; inlineFlex: string; inlineDisplay: string };
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
+	static styles = [shuBaseStyles, css`
+		:host { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; background: var(--shu-border); }
+		::slotted(shu-column-pane) { background: var(--shu-bg); }
+		@media (max-width: 600px), (orientation: portrait) {
+			:host { flex-wrap: wrap; align-content: flex-start; overflow-y: auto; }
+			::slotted([column-type="query"]) { flex: 0 0 100%; order: 0; height: 40vh; height: 40dvh; max-height: 75vh; max-height: 75dvh; }
+			::slotted([column-type="query"].query-alone) { height: 100%; max-height: none; }
+			::slotted(:not([column-type="query"])) { order: 1; flex: 1 1 200px; min-width: 200px; }
+		}
+	`];
+
 	private savedLayout: Map<PaneEl, SavedPaneState> | null = null;
 
 	constructor() {
 		super(ColumnStripSchema, { activeIndex: -1 });
 	}
 
-	connectedCallback(): void {
-		super.connectedCallback();
-		this.addEventListener(SHU_EVENT.COLUMN_CLOSE, this.handlePaneClose as EventListener);
-		this.addEventListener(SHU_EVENT.COLUMN_ACTIVATE, this.handlePaneActivate as EventListener);
-		this.addEventListener(SHU_EVENT.COLUMN_EXPAND, this.handlePaneExpand as EventListener);
-		this.addEventListener(SHU_EVENT.COLUMN_MAXIMIZE, this.handlePaneMaximize as EventListener);
-		this.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
+	protected override onConnected(): void {
+		this.autoListen(this, SHU_EVENT.COLUMN_CLOSE, this.handlePaneClose as EventListener);
+		this.autoListen(this, SHU_EVENT.COLUMN_ACTIVATE, this.handlePaneActivate as EventListener);
+		this.autoListen(this, SHU_EVENT.COLUMN_EXPAND, this.handlePaneExpand as EventListener);
+		this.autoListen(this, SHU_EVENT.COLUMN_MAXIMIZE, this.handlePaneMaximize as EventListener);
+		this.autoListen(this, SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
 		this.updateQueryAlone();
-	}
-
-	disconnectedCallback(): void {
-		this.removeEventListener(SHU_EVENT.COLUMN_CLOSE, this.handlePaneClose as EventListener);
-		this.removeEventListener(SHU_EVENT.COLUMN_ACTIVATE, this.handlePaneActivate as EventListener);
-		this.removeEventListener(SHU_EVENT.COLUMN_EXPAND, this.handlePaneExpand as EventListener);
-		this.removeEventListener(SHU_EVENT.COLUMN_MAXIMIZE, this.handlePaneMaximize as EventListener);
-		this.removeEventListener(SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
+		this.updateIsLast();
 	}
 
 	/** Get all child panes. */
@@ -47,6 +52,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.appendChild(pane);
 		this.activatePane(this.panes.length - 1);
 		this.updateQueryAlone();
+		this.updateIsLast();
 		this.updateAccordion();
 		this.emitColumnsChanged();
 		requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
@@ -64,8 +70,15 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			this.activatePane(remaining.length - 1);
 		}
 		this.updateQueryAlone();
+		this.updateIsLast();
 		this.updateAccordion();
 		this.emitColumnsChanged();
+	}
+
+	/** Mark the rightmost pane with `is-last` so its resize handle and right border drop off. The pane reads the attribute via `:host([is-last])` selectors; no manual style edits per-pane. */
+	private updateIsLast(): void {
+		const panes = this.panes;
+		for (let i = 0; i < panes.length; i++) panes[i].toggleAttribute(SHU_ATTR.IS_LAST, i === panes.length - 1);
 	}
 
 	/** Activate a pane by index. Updates active attributes without re-rendering other panes. */
@@ -132,13 +145,15 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 				usedWidth += COLLAPSED_WIDTH;
 			} else {
 				panes[i].setCollapsed(false);
-				usedWidth += Math.max(expandedWidth, MIN_PANE_WIDTH);
+				// A user-resized pane occupies its explicit width; the rest share the strip evenly.
+				usedWidth += panes[i].userWidth ?? Math.max(expandedWidth, MIN_PANE_WIDTH);
 			}
 		}
 
-		// Collapse from left, skipping query, active, and user-minimized panes
+		// Collapse from left until they fit, skipping query, active, user-minimized, and user-resized
+		// panes — an explicit resize is respected, so the strip scrolls rather than discarding it.
 		for (let i = 0; i < panes.length && usedWidth > stripWidth; i++) {
-			if (panes[i] === queryPane || i === activeIdx || panes[i].hasAttribute(SHU_ATTR.DATA_MINIMIZED)) continue;
+			if (panes[i] === queryPane || i === activeIdx || panes[i].hasAttribute(SHU_ATTR.DATA_MINIMIZED) || panes[i].userWidth !== undefined) continue;
 			panes[i].setCollapsed(true);
 			usedWidth -= Math.max(expandedWidth, MIN_PANE_WIDTH) - COLLAPSED_WIDTH;
 		}
@@ -152,11 +167,18 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const pane = (e as CustomEvent).target as PaneEl;
 		const isMaximizing = pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
 		if (isMaximizing) {
+			// On maximize: every other pane is fully removed from layout (display:none),
+			// not just collapsed. The maximizing pane takes the entire strip width — including
+			// the query pane area. Snapshot the inline flex + display so un-maximize restores exactly what was there.
 			this.savedLayout = new Map();
-			for (const p of this.panes) this.savedLayout.set(p, { collapsed: p.isCollapsed, minimized: p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) });
+			for (const p of this.panes) this.savedLayout.set(p, { collapsed: p.isCollapsed, minimized: p.hasAttribute(SHU_ATTR.DATA_MINIMIZED), inlineFlex: p.style.flex, inlineDisplay: p.style.display });
 			for (const p of this.panes) {
-				if (p !== pane) p.setCollapsed(true);
-				else p.setCollapsed(false);
+				if (p !== pane) p.style.display = "none";
+				else {
+					p.setCollapsed(false);
+					p.style.display = "";
+					p.style.flex = "1";
+				}
 			}
 			const index = this.panes.indexOf(pane);
 			if (index >= 0) this.activatePane(index);
@@ -164,8 +186,10 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			if (this.savedLayout) {
 				for (const [p, s] of this.savedLayout) {
 					if (!this.contains(p)) continue;
+					p.style.display = s.inlineDisplay;
 					p.setCollapsed(s.collapsed);
 					if (s.minimized) p.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
+					p.style.flex = s.inlineFlex;
 				}
 				this.savedLayout = null;
 			}
@@ -219,51 +243,12 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		);
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
-		this.shadowRoot.innerHTML = `
-			<style>${STYLES}</style>
-			<slot></slot>
-		`;
+	private onSlotChange = (): void => {
+		this.updateQueryAlone();
+		this.updateIsLast();
+	};
+
+	render(): TemplateResult {
+		return html`<slot @slotchange=${this.onSlotChange}></slot>`;
 	}
 }
-
-const STYLES = `
-	:host {
-		display: flex;
-		flex: 1;
-		min-height: 0;
-		overflow-x: auto;
-		overflow-y: hidden;
-		gap: 1px;
-		background: #e0e0e0;
-	}
-	::slotted(shu-column-pane) {
-		background: #fff;
-	}
-	@media (max-width: 600px), (orientation: portrait) {
-		:host {
-			flex-wrap: wrap;
-			align-content: flex-start;
-			overflow-y: auto;
-		}
-		::slotted([column-type="query"]) {
-			flex: 0 0 100%;
-			order: 0;
-			height: 40vh;
-			height: 40dvh;
-			max-height: 75vh;
-			max-height: 75dvh;
-		}
-		/* query-alone class set by JS — ::slotted(:only-child) compound selectors are unreliable in Safari */
-		::slotted([column-type="query"].query-alone) {
-			height: 100%;
-			max-height: none;
-		}
-		::slotted(:not([column-type="query"])) {
-			order: 1;
-			flex: 1 1 200px;
-			min-width: 200px;
-		}
-	}
-`;

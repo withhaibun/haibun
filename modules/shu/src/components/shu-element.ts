@@ -1,32 +1,56 @@
+/**
+ * `ShuElement<T>` — base for every Shu web component. Extends `LitElement`
+ * so each component gets DOM diffing, focus preservation, and batched
+ * update scheduling natively. The Zod schema acts as both the wire
+ * contract and the runtime guard for `setState`.
+ *
+ * Pattern every subclass follows:
+ *
+ *   class Foo extends ShuElement<typeof FooSchema> {
+ *     constructor() { super(FooSchema, FooDefaults); }
+ *     render() { return html`<div>${this.state.label}</div>`; }
+ *   }
+ *
+ * `render()` returns a lit-html `TemplateResult`; Lit reconciles it against
+ * the prior tree, preserving focus on inputs whose identity hasn't changed
+ * and skipping work on unchanged subtrees. No component writes to
+ * `innerHTML` directly.
+ *
+ * `setState(partial)` validates the merged state against the schema and
+ * assigns it to the reactive `state` property — Lit batches the re-render
+ * into the next microtask. State mutations are whole-object replacements
+ * so Lit's change detection (===) fires correctly.
+ *
+ * Time-sync (`SHU_EVENT.TIME_SYNC`) and active-view (`SHU_EVENT.VIEW_ACTIVE`)
+ * are wired in the constructor; subclasses override `onTimeSync(cursor)` /
+ * `onViewActive(active)` for custom behavior. Default time-sync calls
+ * `requestUpdate` so views refresh as the cursor moves.
+ *
+ * Inbound event subscriptions go through `subscribeBatched({onBatch, filter})`
+ * which coalesces every event arriving between paints into one handler call
+ * inside an animation frame. The transport is the installed `EventStream`
+ * (`event-stream.ts`); subscribers never construct `SseClient` or
+ * `EventSource` directly.
+ *
+ * Light DOM: components that must live in the host's light DOM (e.g.
+ * A-Frame embeddings whose `document.querySelector` lookups need to
+ * resolve their children) override `createRenderRoot()` to return `this`.
+ */
+
+import { LitElement, type TemplateResult } from "lit";
+import { property } from "lit/decorators.js";
+import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
 import { SHU_EVENT } from "../consts.js";
-import { TIME_SYNC_CLASS, TIME_SYNC_CSS, TIME_SYNC_STYLE } from "../time-sync.js";
+import { TIME_SYNC_CLASS } from "../time-sync.js";
+import { timeCursorSignal } from "../signals.js";
 import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
-import { snapshotUiState, restoreUiState, type TUiStateSnapshot } from "./ui-state.js";
-import { SseClient, type TEventFilter } from "../sse-client.js";
+import { eventStream, type TEvent, type TEventFilter } from "../event-stream.js";
 
-type TBatchEvent = Record<string, unknown>;
-
-/**
- * Abstract base class for Shu web components.
- * Each subclass declares a Zod schema that serves as both the component's
- * state contract and a Haibun domain definition.
- *
- * Provides automatic TIME_SYNC handling — every component receives time sync events.
- * Subclasses override `onTimeSync()` for custom behavior; default triggers re-render.
- */
-export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
-	/** True when running offline from an exported HTML file. No server, no RPC, no SSE. Set once at startup. */
-	static get offline(): boolean {
-		return ViewHash.isOffline();
-	}
-	static set offline(v: boolean) {
-		ViewHash.setOffline(v);
-	}
-
-	/** Get the current view hash — from URL when online, from stored state when offline. */
+export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
+	/** Get the current view hash — from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
 	static getHash(): string {
 		return ViewHash.getHash();
 	}
@@ -36,31 +60,54 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 		ViewHash.pushHash(newHash);
 	}
 
-	protected state: z.infer<T>;
-	private _schema: T;
+	/** Extra HTML attributes a subclass wants observed, beyond lit's reactive-property attributes. Declare this static array instead of overriding `observedAttributes` directly: lit computes `elementStyles` lazily inside its `observedAttributes` getter, so a raw override that skips `super` never triggers `finalize()` and the component silently inherits the base's empty styles — every `static styles` rule is dropped from the shadow root. */
+	static observedHtmlAttributes: string[] = [];
 
-	/** Current time cursor (absolute epoch ms). null = show all (no time filter). */
-	protected timeCursor: number | null = null;
+	/** Map of observed HTML attribute → state field. The base reflects each into `state` through the Zod schema:
+	 * coerced by the field's type (string / boolean-by-presence / number / enum), validated by setState — an invalid
+	 * value throws, it never silently defaults. Declare this instead of a hand-written attributeChangedCallback
+	 * if-chain. The attribute stays the source of truth; state mirrors it one-way (no reflect → no loops; CSS
+	 * `:host([attr])` keeps working). Use onAttributeChanged only for side effects beyond state (e.g. syncing a child DOM node). */
+	static attributeFields: Record<string, string> = {};
+
+	static get observedAttributes(): string[] {
+		return [...super.observedAttributes, ...Object.keys(this.attributeFields), ...this.observedHtmlAttributes];
+	}
+
+	/** Reactive state. Subclasses read via `this.state`; mutations go through `setState`. The Zod schema is the runtime contract. */
+	@property({ attribute: false })
+	accessor state!: z.infer<T>;
+
+	private readonly _schema: T;
+	#teardowns: Array<() => void> = [];
+
+	/**
+	 * Current time cursor (absolute epoch ms; null = show all). ONE cursor system, two sources: live
+	 * views read the shared global `timeCursorSignal` (scrubbing one view syncs them all); snapshot-pinned
+	 * views replay the frozen instant carried by `data-snapshot-time` (set by shu-product-view when a view
+	 * is opened "as of" a point in history). The attribute is the single store for a pinned time — it is
+	 * declarative, serializable, and already the marker other views check — so there is no parallel field.
+	 * Reading this during an update auto-subscribes the component to cursor changes via SignalWatcher.
+	 * Setting it publishes app-wide for a live view; a pinned view is frozen, so set is a no-op.
+	 */
+	protected get timeCursor(): number | null {
+		if (this.hasAttribute("data-snapshot-time")) {
+			const pinned = Number.parseFloat(this.getAttribute("data-snapshot-time") ?? "");
+			return Number.isNaN(pinned) ? null : pinned;
+		}
+		return timeCursorSignal.get();
+	}
+	protected set timeCursor(v: number | null) {
+		if (!this.hasAttribute("data-snapshot-time")) timeCursorSignal.set(v);
+	}
 
 	/** Whether this view is the strip's active pane child. Updated via VIEW_ACTIVE events fanned out by shu-column-pane.setActive. */
 	protected isActiveView = false;
 
-	constructor(schema: T, defaults: z.infer<T>, opts?: { lightDom?: boolean }) {
+	constructor(schema: T, defaults: z.infer<T>) {
 		super();
 		this._schema = schema;
 		this.state = schema.parse(defaults);
-		// Most components encapsulate via shadow DOM, but e.g. a-frame-based viewers must live
-		// in light DOM so AFRAME's `document.querySelector("#fisheye-rig")` lookups still
-		// resolve. Light-DOM subclasses render into `this.innerHTML` directly.
-		if (!opts?.lightDom) this.attachShadow({ mode: "open" });
-		this.addEventListener(
-			SHU_EVENT.TIME_SYNC as string,
-			((e: CustomEvent) => {
-				if (this.hasAttribute("data-snapshot-time")) return;
-				this.timeCursor = e.detail?.currentTime ?? null;
-				this.onTimeSync(this.timeCursor);
-			}) as EventListener,
-		);
 		this.addEventListener(
 			SHU_EVENT.VIEW_ACTIVE as string,
 			((e: CustomEvent) => {
@@ -68,16 +115,29 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 				this.onViewActive(this.isActiveView);
 			}) as EventListener,
 		);
+		this.#assertSealedLifecycle();
+	}
+
+	// Fail fast: a subclass that overrides a sealed lifecycle method (instead of the onX hook) would silently
+	// bypass the base's super-call chain (SignalWatcher cleanup, lit attribute reflection). Throw at construction.
+	#assertSealedLifecycle(): void {
+		const proto = ShuElement.prototype as unknown as Record<string, unknown>;
+		const self = this as unknown as Record<string, unknown>;
+		for (const m of ["connectedCallback", "disconnectedCallback", "attributeChangedCallback"] as const) {
+			if (self[m] !== proto[m]) {
+				const hook = m === "connectedCallback" ? "onConnected" : m === "disconnectedCallback" ? "onDisconnected" : "onAttributeChanged";
+				throw new Error(`${this.constructor.name} overrides sealed ShuElement.${m}() — override protected ${hook}() instead.`);
+			}
+		}
 	}
 
 	get schema(): T {
 		return this._schema;
 	}
 
+	/** Shallow-merge a partial into state, validate against the schema, and assign it. The `@property accessor state` setter schedules the re-render off the new (Zod-parsed) reference; this also emits `SHU_EVENT.STATE_CHANGE` so external listeners (e.g. test harnesses) observe transitions. Throws if the merged shape fails schema validation — by contract a caller error. Merge is shallow by design (state is treated as a whole-object replacement so `===` change detection fires); pass the full sub-object to update a nested field. */
 	protected setState(partial: Partial<z.infer<T>>): void {
-		const next = this._schema.parse(Object.assign({}, this.state, partial));
-		this.state = next;
-		this.render();
+		this.state = this._schema.parse({ ...(this.state as object), ...partial });
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.STATE_CHANGE, { detail: this.state, bubbles: true, composed: true }));
 	}
 
@@ -87,26 +147,97 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 
 	protected safeValidate(data: unknown): { success: boolean; data?: z.infer<T>; error?: z.ZodError } {
 		const result = this._schema.safeParse(data);
-		if (result.success) return { success: true, data: result.data };
-		return { success: false, error: result.error };
+		return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
 	}
 
+	// SEALED — do not override in a subclass. Override the protected onConnected/onDisconnected/onAttributeChanged
+	// hooks instead; the base owns the super-call chain so SignalWatcher cleanup and lit attribute reflection
+	// can never be silently skipped. A subclass that overrides any of these throws at construction (see #assertSealed).
 	connectedCallback(): void {
-		const snapshot = this.getAttribute("data-snapshot-time");
-		if (snapshot) this.timeCursor = parseFloat(snapshot);
-		this.render();
+		super.connectedCallback();
+		this.#installTimeSyncEffect();
+		this.onConnected();
 	}
 
-	protected abstract render(): void;
+	disconnectedCallback(): void {
+		this.onDisconnected();
+		for (const teardown of this.#teardowns.splice(0)) teardown();
+		super.disconnectedCallback();
+	}
 
-	/** Called when TIME_SYNC is received. Override for custom behavior. Default: re-render. */
+	attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+		super.attributeChangedCallback(name, oldValue, newValue);
+		this.#reflectAttribute(name, newValue);
+		this.onAttributeChanged(name, oldValue, newValue);
+	}
+
+	/** Reflect a bound attribute (declared in static attributeFields) into state via the schema; setState validates (fail-fast). */
+	#reflectAttribute(name: string, val: string | null): void {
+		const field = (this.constructor as typeof ShuElement).attributeFields[name];
+		if (!field) return;
+		const shape = (this._schema as unknown as { shape: Record<string, z.ZodTypeAny> }).shape;
+		const fieldSchema = shape[field];
+		if (!fieldSchema) throw new Error(`${this.constructor.name}: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
+		this.setState({ [field]: coerceAttribute(fieldSchema, val) } as Partial<z.infer<T>>);
+	}
+
+	// Views that dim purely in render() auto-subscribe by reading this.timeCursor there. Views that
+	// override onTimeSync for post-render DOM work (row classes, legends) are driven by this effect:
+	// it reads the live cursor signal and re-runs onTimeSync whenever it changes. Auto-disposed on
+	// disconnect by SignalWatcher. Snapshot-pinned views replay a fixed point, so they opt out.
+	#installTimeSyncEffect(): void {
+		const reactsToTime = this.onTimeSync !== ShuElement.prototype.onTimeSync;
+		if (reactsToTime && !this.hasAttribute("data-snapshot-time")) {
+			let first = true;
+			this.updateEffect(() => {
+				const cursor = timeCursorSignal.get();
+				if (first) {
+					first = false;
+					return;
+				}
+				this.onTimeSync(cursor);
+			});
+		}
+	}
+
+	/** Lit's render contract — return a TemplateResult. */
+	abstract render(): TemplateResult;
+
+	/** Called when TIME_SYNC is received. Default re-renders via `requestUpdate`; override for custom behavior. */
 	protected onTimeSync(_cursor: number | null): void {
-		this.render();
+		this.requestUpdate();
 	}
 
-	/** Called when this view's active state toggles (its containing pane became / stopped being the active pane). Default no-op; override for custom behavior. */
+	/** Called when this view's active state toggles. Default no-op; override for custom behavior. */
 	protected onViewActive(_active: boolean): void {
 		// no-op default; subclasses override.
+	}
+
+	/** Override instead of connectedCallback. Runs after super.connectedCallback() and the time-sync effect are installed. */
+	protected onConnected(): void {
+		// no-op default; subclasses override
+	}
+
+	/** Override instead of disconnectedCallback. Runs before super.disconnectedCallback() (SignalWatcher teardown). Side-effect-only cleanup. */
+	protected onDisconnected(): void {
+		// no-op default; subclasses override
+	}
+
+	/** Override instead of attributeChangedCallback. Runs after lit's attribute→property reflection. */
+	protected onAttributeChanged(_name: string, _oldValue: string | null, _newValue: string | null): void {
+		// no-op default; subclasses override
+	}
+
+	/** addEventListener that auto-removes on disconnect. Register in onConnected; the sealed disconnect path tears it
+	 * down — so a component needs no onDisconnected body and can never leak a forgotten removeEventListener. */
+	protected autoListen(target: EventTarget, type: string, handler: EventListenerOrEventListenerObject, opts?: boolean | AddEventListenerOptions): void {
+		target.addEventListener(type, handler, opts);
+		this.#teardowns.push(() => target.removeEventListener(type, handler, opts));
+	}
+
+	/** Register an arbitrary cleanup (a subscribe() unsub, ResizeObserver.disconnect, clearTimeout, …) to run on disconnect. */
+	protected autoTeardown(cleanup: () => void): void {
+		this.#teardowns.push(cleanup);
 	}
 
 	/** Whether this component should show its toolbar/controls. Set via data-show-controls attribute. */
@@ -114,12 +245,12 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 		return this.hasAttribute("data-show-controls");
 	}
 
-	/** Force a re-render. Used by parent components (e.g., column pane controls toggle). */
+	/** Force a re-render. Most callers should not need this — mutate state via `setState` instead. Kept as an explicit escape hatch for callers that need to refresh after side-channel state change. */
 	refresh(): void {
-		this.render();
+		this.requestUpdate();
 	}
 
-	/** Check if a timestamp is in the future of the current time cursor. */
+	/** True iff the timestamp lies strictly after the current time cursor. When no cursor is set, nothing is in the future. */
 	protected isFuture(timestamp: number): boolean {
 		return this.timeCursor !== null && timestamp > this.timeCursor;
 	}
@@ -131,67 +262,35 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 		return items.filter((item) => item.timestamp <= cursor);
 	}
 
-	/**
-	 * Extract creation timestamp from a vertex using concern metadata.
-	 * Looks for the field with rel "published" (LinkRelations.PUBLISHED), then common fallbacks.
-	 */
+	/** Extract creation timestamp from an individual using concern metadata. Prefers the uniform creation field (rel generatedAtTime), then the published field (LinkRelations.PUBLISHED), then common fallbacks. */
 	protected extractTimestamp(vertex: Record<string, unknown>, label?: string): number | null {
 		if (label) {
 			const rels = getRels(label);
 			if (rels) {
 				for (const [field, rel] of Object.entries(rels)) {
+					if (rel === LinkRelations.GENERATED_AT_TIME.rel) return parseTimestamp(vertex[field]);
+				}
+				for (const [field, rel] of Object.entries(rels)) {
 					if (rel === LinkRelations.PUBLISHED.rel) return parseTimestamp(vertex[field]);
 				}
 			}
 		}
-		for (const key of ["validFrom", "dateCreated", "created", "timestamp"]) {
+		for (const key of ["generatedAtTime", "validFrom", "dateCreated"]) {
 			const val = parseTimestamp(vertex[key]);
 			if (val !== null) return val;
 		}
 		return null;
 	}
 
-	/** Wrap styles with TIME_SYNC_CSS automatically included. */
-	protected css(styles: string): string {
-		return `<style>${TIME_SYNC_CSS}\n${styles}</style>`;
-	}
-
-	/** Wrap a view's hypermedia products as a W3C `<script type="application/ld+json">` block. */
+	/** Wrap a view's hypermedia products as a W3C `<script type="application/ld+json">` block. Used when a view wants to embed its structured payload for the chat-context harvester / a downstream agent following `_links`. */
 	protected emitHypermediaScript(products: unknown): string {
 		if (products == null) throw new Error(`${this.constructor.name}.emitHypermediaScript called with ${products === null ? "null" : "undefined"} products`);
-		// `</` inside a script body would prematurely close the host script element; the escape is syntactic and leaves the parsed JSON unchanged.
 		return `<script type="application/ld+json">${JSON.stringify(products).replaceAll("</", "<\\/")}</script>`;
 	}
 
-	/** Snapshot UI state that should survive a re-render. See `./ui-state.ts`. */
-	protected snapshotUiState(): TUiStateSnapshot {
-		return snapshotUiState(this);
-	}
-
-	/** Reapply the snapshot taken by `snapshotUiState()`. Safe to call after `innerHTML` rebuilds. */
-	protected restoreUiState(snapshot: TUiStateSnapshot): void {
-		restoreUiState(this, snapshot);
-	}
-
-	/**
-	 * Subscribe to SSE events, batching all events received between paints into
-	 * one `onBatch(events)` call inside an animation frame.
-	 *
-	 * Why this exists: `SseClient.onEvent` replays the entire history buffer
-	 * synchronously when the subscriber registers. A fresh component mount that
-	 * processes-and-renders per event blocks the main thread for N×handler-cost
-	 * milliseconds before the page can paint. `subscribeBatched` queues raw
-	 * events on the synchronous path (cheap push), drains them once per rAF
-	 * tick, and runs the per-batch processor — typically a render — exactly
-	 * once per frame. Replay then costs one render, not N.
-	 *
-	 * Returns an unsubscribe function. The caller wires it into
-	 * `disconnectedCallback`; the queue is dropped on unsubscribe so a stray
-	 * frame after disconnect can't reach into a torn-down component.
-	 */
-	protected subscribeBatched(opts: { onBatch: (events: TBatchEvent[]) => void; filter?: TEventFilter; basePath?: string }): () => void {
-		const client = SseClient.for(opts.basePath ?? "");
-		let pending: TBatchEvent[] = [];
+	/** Subscribe to inbound events via the installed `EventStream`, batching all events received between paints into one `onBatch(events)` call inside an animation frame. */
+	protected subscribeBatched(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter }): () => void {
+		let pending: TEvent[] = [];
 		let scheduled = false;
 		let active = true;
 		const drain = () => {
@@ -201,7 +300,7 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 			pending = [];
 			opts.onBatch(batch);
 		};
-		const innerUnsub = client.onEvent((event) => {
+		const innerUnsub = eventStream().subscribe((event) => {
 			if (!active) return;
 			pending.push(event);
 			if (!scheduled) {
@@ -226,5 +325,27 @@ function parseTimestamp(val: unknown): number | null {
 	return null;
 }
 
-/** Re-export for components that need direct access to class names or style values. */
-export { TIME_SYNC_CLASS, TIME_SYNC_STYLE };
+/** Unwrap ZodDefault/Optional/Nullable wrappers to the inner type. */
+function peelSchema(t: z.ZodTypeAny): z.ZodTypeAny {
+	let s = t;
+	for (;;) {
+		const inner = (s as unknown as { _def?: { innerType?: z.ZodTypeAny } })._def?.innerType;
+		if (!inner) return s;
+		s = inner;
+	}
+}
+
+/** Coerce an HTML attribute string into the value its state field's Zod type expects: presence-based boolean,
+ * numeric parse, else the raw string. A removed attribute (null) yields undefined so setState applies the schema default. */
+function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown {
+	// A removed attribute (null) yields undefined so setState falls back to the field's schema default — this is
+	// what makes a default-true boolean (e.g. `closable`) reset to true when absent, not to presence-semantics false.
+	if (val === null) return undefined;
+	const inner = peelSchema(fieldSchema);
+	if (inner instanceof z.ZodBoolean) return val !== "false";
+	if (inner instanceof z.ZodNumber) return Number(val);
+	return val;
+}
+
+/** Re-export so components import the time-sync class names from the same module as ShuElement. */
+export { TIME_SYNC_CLASS };

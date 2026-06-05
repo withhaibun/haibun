@@ -5,12 +5,13 @@
  * and variables set by this step (quads whose provenance includes this seqPath).
  * Entity references are clickable.
  */
+import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
-import { SseClient, inAction } from "../sse-client.js";
+import { shuBaseStyles } from "./styles.js";
+import { conduit } from "../hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
-import { escHtml } from "../quad-detail-pane.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
 
@@ -34,48 +35,43 @@ const StateSchema = z.object({
 	loading: z.boolean().default(true),
 });
 
-const STYLES = `
-:host { display: block; overflow: auto; font-size: 13px; }
-.step-detail { padding: 8px; }
-.step-detail h4 { margin: 0 0 8px; font-size: 14px; }
-.step-detail .field { margin-bottom: 6px; }
-.step-detail .label { font-weight: 600; color: #555; }
-.step-detail .value { margin-left: 4px; }
-.step-detail pre { background: #f5f5f5; padding: 6px; border-radius: 4px; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 4px 0; }
-.step-detail .entity-link { color: #1a6b3c; cursor: pointer; text-decoration: underline; }
-.step-detail .section { border-top: 1px solid #eee; padding-top: 6px; margin-top: 8px; }
-.step-detail .var-row { display: flex; gap: 8px; padding: 2px 0; }
-.step-detail .var-name { font-weight: 600; min-width: 120px; }
-.step-detail .var-value { word-break: break-all; }
-.empty { padding: 16px; color: #888; }
-`;
-
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
+	static styles = [
+		shuBaseStyles,
+		css`
+			:host { display: block; overflow: auto; font-size: var(--shu-font-md); }
+			.step-detail { padding: var(--shu-space-4); }
+			.step-detail h4 { margin: 0 0 var(--shu-space-4); font-size: var(--shu-font-lg); }
+			.step-detail .field { margin-bottom: var(--shu-space-3); }
+			.step-detail .label { font-weight: 600; color: var(--shu-fg-muted); }
+			.step-detail .value { margin-left: var(--shu-space-2); }
+			.step-detail pre { background: var(--shu-bg-elevated); padding: var(--shu-space-3); border-radius: var(--shu-radius); font-size: var(--shu-font-md); white-space: pre-wrap; word-break: break-all; margin: var(--shu-space-2) 0; }
+			.step-detail .entity-link { color: var(--shu-accent); cursor: pointer; text-decoration: underline; }
+			.step-detail .section { border-top: var(--shu-border-w) solid var(--shu-border); padding-top: var(--shu-space-3); margin-top: var(--shu-space-4); }
+			.step-detail .var-row { display: flex; gap: var(--shu-space-4); padding: var(--shu-space-1) 0; }
+			.step-detail .var-name { font-weight: 600; min-width: 120px; }
+			.step-detail .var-value { word-break: break-all; }
+			.empty { padding: var(--shu-space-6); color: var(--shu-fg-faded); }
+		`,
+	];
+
 	constructor() {
 		super(StateSchema, { seqPath: [], loading: true, variablesSet: [], allQuads: [] });
 	}
 
 	async open(seqPath: number[]): Promise<void> {
 		this.setState({ seqPath, loading: true });
-		const client = SseClient.for("");
 		const seqKey = seqPath.join(".");
-
 		try {
-			const { eventsData, tracesData, quadsData } = await inAction(async (scope) => {
-				const eventsData = await client.rpc<{ events: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getEvents", {
-					filter: { kind: "lifecycle" },
-				});
-				const tracesData = await client.rpc<{ traces: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getDispatchTraces");
-				const quadsData = await client.rpc<{
-					quads: Array<{
-						subject: string;
-						predicate: string;
-						object: unknown;
-						namedGraph: string;
-						timestamp: number;
-						properties?: Record<string, unknown>;
-					}>;
-				}>(scope, "MonitorStepper-getClusteredQuads", { perTypeLimit: 1000 });
+			const { eventsData, tracesData, quadsData } = await conduit().group("step-detail: load events + traces + quads for one step", async (g) => {
+				const eventsData = await g.follow<{ events: Array<Record<string, unknown>> }>(
+					{ method: "MonitorStepper-getEvents", params: { filter: { kind: "lifecycle" } } },
+					"step-detail: events",
+				);
+				const tracesData = await g.follow<{ traces: Array<Record<string, unknown>> }>({ method: "MonitorStepper-getDispatchTraces" }, "step-detail: dispatch traces");
+				const quadsData = await g.follow<{
+					quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
+				}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000 } }, "step-detail: clustered quads");
 				return { eventsData, tracesData, quadsData };
 			});
 			const stepEvent =
@@ -89,103 +85,73 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 					return prov.some((p: unknown) => Array.isArray(p) && (p as number[]).join(".") === seqKey);
 				})
 				.map((q) => ({ name: q.subject, value: q.object, graph: q.namedGraph }));
-
-			this.setState({
-				stepEvent: stepEvent ?? undefined,
-				trace: trace ?? undefined,
-				variablesSet,
-				allQuads: quadsData.quads ?? [],
-				loading: false,
-			});
+			this.setState({ stepEvent: stepEvent ?? undefined, trace: trace ?? undefined, variablesSet, allQuads: quadsData.quads ?? [], loading: false });
 		} catch {
 			this.setState({ loading: false });
 		}
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
-		const { seqPath, stepEvent, trace, variablesSet, loading } = this.state;
-
-		if (loading) {
-			this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="empty"><shu-spinner></shu-spinner> Loading step [${seqPath.join(".")}]...</div>`;
+	private onLink = (subject: string, label: string, isVertex: boolean) => (): void => {
+		if (!subject || !label) return;
+		if (isVertex) {
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject, label }, bubbles: true, composed: true }));
 			return;
 		}
-
-		const sections: string[] = [];
-
-		// Step info
-		if (stepEvent) {
-			const stepIn = String(stepEvent.in ?? "");
-			const actionName = String(stepEvent.actionName ?? "");
-			const stepperName = String(stepEvent.stepperName ?? "");
-			const status = stepEvent.status === "completed" ? "\u2705" : stepEvent.status === "failed" ? "\u274c" : "";
-			sections.push(`<div class="field"><span class="label">Step:</span> <span class="value">${escHtml(stepIn)}</span></div>`);
-			sections.push(`<div class="field"><span class="label">Action:</span> <span class="value">${status} ${escHtml(stepperName)}.${escHtml(actionName)}</span></div>`);
-			if (stepEvent.error)
-				sections.push(`<div class="field"><span class="label">Error:</span> <span class="value" style="color:red">${escHtml(String(stepEvent.error))}</span></div>`);
-		}
-
-		// Dispatch trace
-		if (trace) {
-			const transport = String(trace.transport ?? "local");
-			const duration = trace.durationMs ? `${trace.durationMs}ms` : "";
-			const products = Array.isArray(trace.productKeys) ? (trace.productKeys as string[]).join(", ") : "";
-			const capability = trace.capabilityRequired ? `cap: ${trace.capabilityRequired}` : "";
-			sections.push(`<div class="section"><span class="label">Transport:</span> <span class="value">${escHtml(transport)} ${escHtml(duration)}</span></div>`);
-			if (capability) sections.push(`<div class="field"><span class="label">Capability:</span> <span class="value">${escHtml(capability)}</span></div>`);
-			if (products) sections.push(`<div class="field"><span class="label">Products:</span> <span class="value">${escHtml(products)}</span></div>`);
-		}
-
-		// Variables set — name is clickable link, graph shown as context
-		if (variablesSet.length > 0) {
-			const varRows = variablesSet
-				.map((v) => {
-					const isVertex = !!getRels(v.graph);
-					return `<div class="var-row"><span style="color:#888;font-size:11px">${escHtml(v.graph)}</span> <span class="entity-link" data-subject="${escHtml(v.name)}" data-label="${escHtml(v.graph)}" data-vertex="${isVertex}">${escHtml(v.name)}</span></div>`;
-				})
-				.join("");
-			sections.push(`<div class="section"><span class="label">Data set (${variablesSet.length}):</span>${varRows}</div>`);
-		}
-
-		// Raw event data
-		if (stepEvent) {
-			const rawJson = JSON.stringify(stepEvent, null, 2).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-			sections.push(`<details class="section"><summary class="label">Raw event</summary><pre>${rawJson}</pre></details>`);
-		}
-
-		if (sections.length === 0) {
-			this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="empty">No data found for step [${seqPath.join(".")}]</div>`;
-			return;
-		}
-
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="step-detail"><h4>Step [${seqPath.join(".")}]</h4>${sections.join("")}</div>`;
-
-		// Bind entity links
-		this.shadowRoot.querySelectorAll(".entity-link").forEach((el) => {
-			el.addEventListener("click", () => {
-				const subject = (el as HTMLElement).dataset.subject ?? "";
-				const label = (el as HTMLElement).dataset.label ?? "";
-				const isVertex = (el as HTMLElement).dataset.vertex === "true";
-				if (!subject || !label) return;
-				if (isVertex) {
-					this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject, label }, bubbles: true, composed: true }));
-				} else {
-					this.showQuadDetail(label, subject);
-				}
-			});
-		});
-	}
-
-	/**
-	 * Non-vertex entity link → navigate to the subject's origin step-detail.
-	 * The subject is the producing seqPath (or `${seqPath}#${field}` for
-	 * multi-product steps); strip the field suffix and route to that step's
-	 * detail pane. Anything that doesn't parse is silently skipped.
-	 */
-	private showQuadDetail(_graph: string, subject: string): void {
 		const head = subject.includes("#") ? subject.slice(0, subject.indexOf("#")) : subject;
 		const seqPath = parseSeqPath(head);
-		if (!seqPath) return;
-		PaneState.request({ paneType: "step-detail", seqPath });
+		if (seqPath) PaneState.request({ paneType: "step-detail", seqPath });
+	};
+
+	render(): TemplateResult {
+		const { seqPath, stepEvent, trace, variablesSet, loading } = this.state;
+		const key = seqPath.join(".");
+		if (loading) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`;
+
+		const status = stepEvent?.status === "completed" ? "✅" : stepEvent?.status === "failed" ? "❌" : "";
+		const stepIn = String(stepEvent?.in ?? "");
+		const actionName = String(stepEvent?.actionName ?? "");
+		const stepperName = String(stepEvent?.stepperName ?? "");
+		const transport = String(trace?.transport ?? "local");
+		const duration = trace?.durationMs ? `${trace.durationMs}ms` : "";
+		const products = Array.isArray(trace?.productKeys) ? (trace.productKeys as string[]).join(", ") : "";
+		const capability = trace?.capabilityRequired ? `cap: ${trace.capabilityRequired}` : "";
+
+		const hasContent = stepEvent || trace || variablesSet.length > 0;
+		if (!hasContent) return html`<div class="empty">No data found for step [${key}]</div>`;
+
+		return html`<div class="step-detail">
+			<h4>Step [${key}]</h4>
+			${
+				stepEvent
+					? html`
+				<div class="field"><span class="label">Step:</span> <span class="value">${stepIn}</span></div>
+				<div class="field"><span class="label">Action:</span> <span class="value">${status} ${stepperName}.${actionName}</span></div>
+				${stepEvent.error ? html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${String(stepEvent.error)}</span></div>` : ""}
+			`
+					: ""
+			}
+			${
+				trace
+					? html`
+				<div class="section"><span class="label">Transport:</span> <span class="value">${transport} ${duration}</span></div>
+				${capability ? html`<div class="field"><span class="label">Capability:</span> <span class="value">${capability}</span></div>` : ""}
+				${products ? html`<div class="field"><span class="label">Products:</span> <span class="value">${products}</span></div>` : ""}
+			`
+					: ""
+			}
+			${
+				variablesSet.length > 0
+					? html`
+				<div class="section"><span class="label">Data set (${variablesSet.length}):</span>
+					${variablesSet.map((v) => {
+						const isVertex = !!getRels(v.graph);
+						return html`<div class="var-row"><span style="color:var(--shu-fg-faded);font-size:var(--shu-font-sm)">${v.graph}</span> <span class="entity-link" @click=${this.onLink(v.name, v.graph, isVertex)}>${v.name}</span></div>`;
+					})}
+				</div>
+			`
+					: ""
+			}
+			${stepEvent ? html`<details class="section"><summary class="label">Raw event</summary><pre>${JSON.stringify(stepEvent, null, 2)}</pre></details>` : ""}
+		</div>`;
 	}
 }

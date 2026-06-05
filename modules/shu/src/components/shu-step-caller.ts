@@ -1,8 +1,7 @@
-import { SHARED_STYLES } from "./styles.js";
-import { SseClient, inAction } from "../sse-client.js";
+import { SHU_BASE } from "./styles.js";
+import { conduit } from "../hypermedia.js";
 import { getAvailableSteps, findStep, requireStep, type StepDescriptor } from "../rpc-registry.js";
 import { dispatchAffordanceFromResponse } from "../affordance-dispatch.js";
-import { renderValue } from "./value-renderers.js";
 import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../step-input-validator.js";
@@ -20,9 +19,8 @@ type InputProperty = {
 
 /**
  * Recognise a composite (z.object) input property — render one field per
- * sub-property instead of a single stringified-JSON text input. Without this,
- * typing into a composite input requires the user to hand-type valid JSON and
- * silently crashes on anything else.
+ * sub-property instead of a single stringified-JSON text input. A single input
+ * would require hand-typed valid JSON and crash silently on anything else.
  */
 function isCompositeProperty(prop: InputProperty | undefined): prop is InputProperty & { properties: Record<string, InputProperty> } {
 	return prop?.type === "object" && !!prop.properties && Object.keys(prop.properties).length > 0;
@@ -145,8 +143,8 @@ export class StepCaller extends HTMLElement {
 		}
 		// Client-side schema validation against the same JSON Schema the server
 		// exposes through `findStep().inputSchema`. Single source of truth: the
-		// Zod schema on the server. Validating here gives the user inline,
-		// per-field feedback before the RPC roundtrip.
+		// Zod schema on the server. Validating here yields inline, per-field
+		// feedback before the RPC roundtrip.
 		const fieldErrors = validateStepInput(params, this.descriptor.inputSchema as Parameters<typeof validateStepInput>[1]);
 		if (fieldErrors.length > 0) {
 			this.fieldErrors = collectFieldErrors(fieldErrors);
@@ -159,22 +157,27 @@ export class StepCaller extends HTMLElement {
 			return;
 		}
 		this.fieldErrors = {};
-		const client = SseClient.for("");
 
 		try {
 			const method = this.descriptor.method;
-			this.result = await inAction((scope) => client.rpc(scope, method, params));
+			this.result = await conduit().follow({ method, params }, `step-caller: ${method}`);
 			const action = dispatchAffordanceFromResponse(this.result);
-			void inAction(async (scope) => {
-				await SseClient.for("").rpc(scope, "MonitorStepper-logClient", {
-					event: {
-						level: "info",
-						source: "shu-step-caller",
-						message: `step ${method} returned action.kind=${action.kind}`,
-						attributes: { "haibun.shu.step-caller.method": method, "haibun.shu.step-caller.action": action.kind },
+			void conduit()
+				.follow(
+					{
+						method: "MonitorStepper-logClient",
+						params: {
+							event: {
+								level: "info",
+								source: "shu-step-caller",
+								message: `step ${method} returned action.kind=${action.kind}`,
+								attributes: { "haibun.shu.step-caller.method": method, "haibun.shu.step-caller.action": action.kind },
+							},
+						},
 					},
-				});
-			}).catch(() => undefined);
+					`step-caller: log post-step action`,
+				)
+				.catch(() => undefined);
 			this.dispatchEvent(
 				new CustomEvent("step-success", {
 					bubbles: true,
@@ -263,11 +266,11 @@ export class StepCaller extends HTMLElement {
 						`<select name="${escAttr(paramName)}" class="inline-select"${tid(`step-input-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
 					);
 				} else if (this.refTargetLabel(desc, paramName)) {
-					// Vertex-ref input: the parameter is a single-field composite
-					// `{id}` whose `id` ranges over a registered vertex domain.
+					// Persisted-ref input: the parameter is a single-field composite
+					// `{id}` whose `id` ranges over a registered persisted domain.
 					// Render a combobox populated from the live snapshot of that
-					// vertex type instead of asking the user to type an id from
-					// memory. The combobox propagates `testid` to its inner
+					// persisted type rather than a free-text id field. The combobox
+					// propagates `testid` to its inner
 					// `<input>` so Playwright's `fill()` (and the existing
 					// `setValue` step) work directly. A hidden `${paramName}.id`
 					// input carries the chosen id into the form's submit handler.
@@ -276,7 +279,7 @@ export class StepCaller extends HTMLElement {
 					const innerTestId = `${prefix}-step-input-${paramName}`;
 					parts.push(
 						`<span class="ref-input" data-param="${escAttr(paramName)}">` +
-							`<shu-combobox testid="${escAttr(innerTestId)}" data-vertex-ref="${escAttr(targetLabel)}" data-param="${escAttr(paramName)}" placeholder="${escAttr(paramName + " (pick or type id)")}"></shu-combobox>` +
+							`<shu-combobox testid="${escAttr(innerTestId)}" data-persisted-ref="${escAttr(targetLabel)}" data-param="${escAttr(paramName)}" placeholder="${escAttr(paramName + " (pick or type id)")}"></shu-combobox>` +
 							`<input type="hidden" name="${escAttr(paramName + ".id")}" value="${escAttr(saved)}" />` +
 							`</span>`,
 					);
@@ -296,7 +299,8 @@ export class StepCaller extends HTMLElement {
 						// must declare one or the other.
 						const format = (subProp as { format?: string }).format;
 						const typeLabel = format ?? subProp.type;
-						if (!typeLabel) throw new Error(`shu-step-caller: composite sub-field "${fullName}" has no \`type\` or \`format\` in its JSON Schema. The schema producer must declare one.`);
+						if (!typeLabel)
+							throw new Error(`shu-step-caller: composite sub-field "${fullName}" has no \`type\` or \`format\` in its JSON Schema. The schema producer must declare one.`);
 						const placeholder = `${subName}${requiredMark}: ${typeLabel}`;
 						const sz = Math.max(saved.length, placeholder.length, 4);
 						const fieldError = this.fieldErrors[fullName];
@@ -384,8 +388,6 @@ export class StepCaller extends HTMLElement {
 
 	private renderCell(value: unknown): string {
 		const s = typeof value === "string" ? value : JSON.stringify(value);
-		const custom = renderValue(s);
-		if (custom !== null) return custom;
 		return esc(s);
 	}
 
@@ -415,34 +417,41 @@ export class StepCaller extends HTMLElement {
 				input.addEventListener("input", resize);
 			});
 
-			// Vertex-ref combobox wiring. Each `shu-combobox[data-vertex-ref]`
-			// is populated from a live snapshot of that vertex label, and its
+			// Persisted-ref combobox wiring. Each `shu-combobox[data-persisted-ref]`
+			// is populated from a live snapshot of that persisted type, and its
 			// picked value flows into the hidden `${param}.id` input that the
 			// form's submit handler reads.
-			form.querySelectorAll<HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void }>("shu-combobox[data-vertex-ref]").forEach((cb) => {
-				const targetLabel = cb.dataset.vertexRef;
+			form.querySelectorAll<HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void; updateComplete?: Promise<unknown> }>("shu-combobox[data-persisted-ref]").forEach((cb) => {
+				const targetLabel = cb.dataset.persistedRef;
 				const paramName = cb.dataset.param;
 				if (!targetLabel || !paramName) return;
 				const hidden = form.querySelector<HTMLInputElement>(`input[name="${CSS.escape(paramName)}\\.id"]`);
 				cb.addEventListener("combo-change", (e) => {
 					if (hidden) hidden.value = (e as CustomEvent).detail?.value ?? "";
 				});
-				// A user (or a Playwright test) can type an id directly without
-				// picking an option. Mirror the typed text into the hidden input
-				// so the submit handler always carries something — `combo-change`
-				// will overwrite it later if the user picks from the dropdown.
-				const inputEl = cb.shadowRoot?.querySelector("input") as HTMLInputElement | null;
-				inputEl?.addEventListener("input", () => {
-					if (hidden) hidden.value = inputEl.value;
-				});
-				void this.populateVertexRef(cb, targetLabel);
+				// An id can be typed directly without picking an option. Mirror the
+				// typed text into the hidden input so the submit handler always
+				// carries something — `combo-change` overwrites it on a dropdown pick.
+				// `await updateComplete` waits for lit's first render of the
+				// combobox's inner `<input>`; without this the `querySelector`
+				// returns null because lit's render is scheduled in the next
+				// microtask, leaving Playwright's `fill()` unwired.
+				const wireInputMirror = () => {
+					const inputEl = cb.shadowRoot?.querySelector("input") as HTMLInputElement | null;
+					inputEl?.addEventListener("input", () => {
+						if (hidden) hidden.value = inputEl.value;
+					});
+				};
+				if (cb.updateComplete) void cb.updateComplete.then(wireInputMirror);
+				else wireInputMirror();
+				void this.populatePersistedRef(cb, targetLabel);
 			});
 		}
 	}
 
 	/**
-	 * If the named param is a vertex-ref input (its domain is registered as a
-	 * reference in the concern catalog), returns the target vertex's label.
+	 * If the named param is a persisted-ref input (its domain is registered as a
+	 * reference in the concern catalog), returns the target persisted type's label.
 	 * `undefined` means render the param as a normal composite or primitive.
 	 */
 	private refTargetLabel(desc: StepDescriptor, paramName: string): string | undefined {
@@ -450,22 +459,23 @@ export class StepCaller extends HTMLElement {
 		if (!domainKey) return undefined;
 		try {
 			const ref = getConcernCatalog().references?.[domainKey];
-			return ref?.targetVertexLabel;
+			return ref?.targetPersistedAs;
 		} catch {
 			return undefined;
 		}
 	}
 
-	private async populateVertexRef(cb: HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void }, label: string): Promise<void> {
+	private async populatePersistedRef(cb: HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void }, label: string): Promise<void> {
 		try {
 			const method = requireStep("graphQuery");
-			const data = await inAction((scope) =>
-				SseClient.for("").rpc<{ vertices: Array<Record<string, unknown>> }>(scope, method, { query: { label, limit: 50 } }),
+			const data = await conduit().follow<{ vertices: Array<Record<string, unknown>> }>(
+				{ method, params: { query: { label, limit: 50 } } },
+				`step-caller: populate ${label} persisted-ref combobox`,
 			);
 			const concerns = getConcernCatalog();
-			const vertexConcern = Object.values(concerns.vertices).find((v) => v.label === label);
-			const idField = vertexConcern?.idField ?? "id";
-			const nameField = this.pickNameField(vertexConcern);
+			const concern = Object.values(concerns.persisted).find((c) => c.label === label);
+			const idField = concern?.idField ?? "id";
+			const nameField = this.pickNameField(concern);
 			const options: TComboboxOption[] = (data.vertices ?? []).map((v) => {
 				const id = String((v as Record<string, unknown>)[idField] ?? "");
 				const name = nameField ? String((v as Record<string, unknown>)[nameField] ?? "") : "";
@@ -482,7 +492,7 @@ export class StepCaller extends HTMLElement {
 		}
 	}
 
-	/** Pick a field that's the most user-friendly identifier for a vertex (name > title > label). Returns undefined if no candidate exists. */
+	/** Pick the most readable identifier field for an individual (name > title > label). Returns undefined if no candidate exists. */
 	private pickNameField(vertexConcern: { properties?: Record<string, unknown> } | undefined): string | undefined {
 		if (!vertexConcern?.properties) return undefined;
 		for (const candidate of ["name", "title", "label", "subject"]) {
@@ -493,51 +503,51 @@ export class StepCaller extends HTMLElement {
 
 	private css(): string {
 		return `<style>
-			${SHARED_STYLES}
-			table { width: 100%; border-collapse: collapse; font-size: 13px; }
-			th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #eee; }
-			th { font-weight: normal; color: #666; border-bottom: 2px solid #000; }
-			td { font-family: monospace; }
-			.loading { color: #666; font-style: italic; }
-			dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
-			dt { font-weight: bold; }
-			pre { white-space: pre-wrap; font-size: 12px; }
-			ul { list-style: none; padding: 0; }
-			ul li { padding: 2px 0; border-bottom: 1px solid #eee; }
+			${SHU_BASE}
 			:host { display: block; }
+			table { width: 100%; border-collapse: collapse; font-size: var(--shu-font-md); }
+			th, td { text-align: left; padding: var(--shu-space-2) var(--shu-space-4); border-bottom: var(--shu-border-w) solid var(--shu-border); }
+			th { font-weight: normal; color: var(--shu-fg-muted); border-bottom-width: 2px; border-bottom-color: var(--shu-border-strong); }
+			.loading { color: var(--shu-fg-muted); font-style: italic; }
+			dl { display: grid; grid-template-columns: auto 1fr; gap: var(--shu-space-2) var(--shu-space-5); }
+			dt { font-weight: bold; }
+			pre { white-space: pre-wrap; font-size: var(--shu-font-md); }
+			ul { list-style: none; padding: 0; }
+			ul li { padding: var(--shu-space-1) 0; border-bottom: var(--shu-border-w) solid var(--shu-border); }
 			.step-sentence {
-				display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px;
-				font: inherit; line-height: 1.8; padding: 2px 0;
+				display: flex; flex-wrap: wrap; align-items: center; gap: var(--shu-space-2) var(--shu-space-3);
+				font: inherit; line-height: 1.6; padding: var(--shu-space-1) 0; color: var(--shu-fg);
 			}
-			.step-text { color: #888; white-space: nowrap; }
-			.step-fixed { color: #333; font-weight: 500; white-space: nowrap; }
-			.inline-input {
-				font: inherit; padding: 2px 4px; margin: 1px 0;
-				border: 1px solid #ddd; border-radius: 3px;
-				background: #f8f8f8; color: #222; outline: none;
-				width: auto;
+			.step-text { color: var(--shu-fg-muted); white-space: nowrap; }
+			.step-fixed { color: var(--shu-fg); font-weight: 500; white-space: nowrap; }
+			.inline-input, .inline-select {
+				font: inherit; font-size: var(--shu-font-md);
+				padding: var(--shu-space-1) var(--shu-space-3); margin: 1px 0;
+				border: var(--shu-border-w) solid var(--shu-border);
+				border-radius: var(--shu-radius);
+				background: var(--shu-bg-input); color: var(--shu-fg);
+				min-height: var(--shu-input-h);
+				outline: none; width: auto;
 			}
-			.inline-input:focus { border-color: #888; background: #fff; }
-			.inline-input::placeholder { color: #bbb; }
-			.inline-select {
-				font: inherit; padding: 2px 4px; margin: 1px 0;
-				border: 1px solid #ddd; border-radius: 3px;
-				background: #f8f8f8; color: #222; outline: none;
-				width: auto;
-			}
-			.inline-select:focus { border-color: #888; background: #fff; }
+			.inline-input:focus, .inline-select:focus { border-color: var(--shu-border-strong); background: var(--shu-bg-input-focus); }
+			.inline-input::placeholder { color: var(--shu-fg-faded); }
 			.run-inline {
-				padding: 2px 8px; background: #1a6b3c; color: #fff; border: 1px solid #1a6b3c;
-				border-radius: 3px; font: inherit; cursor: pointer; margin-left: 2px; font-size: 12px;
+				padding: var(--shu-space-1) var(--shu-space-4);
+				background: var(--shu-accent); color: var(--shu-accent-fg);
+				border: var(--shu-border-w) solid var(--shu-accent);
+				border-radius: var(--shu-radius); font: inherit; cursor: pointer;
+				margin-left: var(--shu-space-1); font-size: var(--shu-font-md);
+				min-height: var(--shu-input-h);
 			}
-			.run-inline:hover { background: #145530; }
-			.run-inline.rerun { background: #2a7b4c; }
+			.run-inline:hover { filter: brightness(1.1); }
+			.run-inline.rerun { background: var(--shu-success); border-color: var(--shu-success); }
 			.dismiss-btn {
-				float: right; background: none; border: none; color: #999; cursor: pointer;
-				font-size: 12px; padding: 0 4px; line-height: 1; width: auto;
+				float: right; background: none; border: none; color: var(--shu-fg-faded);
+				cursor: pointer; font-size: var(--shu-font-sm);
+				padding: 0 var(--shu-space-2); line-height: 1; width: auto;
 			}
-			.dismiss-btn:hover { color: #c00; }
-			.field-error { display: inline-block; color: #c92a2a; font-size: 11px; margin-left: 4px; }
+			.dismiss-btn:hover { color: var(--shu-error); }
+			.field-error { display: inline-block; color: var(--shu-error); font-size: var(--shu-font-sm); margin-left: var(--shu-space-1); }
 		</style>`;
 	}
 }

@@ -25,47 +25,46 @@ export const features: TKirejiExport = {
 
 		...testIdSetup,
 
-		scenario({ scenario: "Set up graph with threaded conversation" }),
-		"The tutorial graph stepper provides an in-memory graph store.",
-		"Two researchers are created, then a paper. One researcher replies to the other via an edge.",
+		scenario({ scenario: "Set up a recipe and a variation of it" }),
+		"A recipe and a variation of it form a small tree; a comment on the recipe joins the conversation.",
 		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "thread-test"',
 
-		scenario({ scenario: "Create vertices with inReplyTo chain" }),
+		scenario({ scenario: "Create a recipe and a variation linked by variationOf" }),
 		gotoPage({ name: `"${host}/spa"` }),
 		"page has settled",
 		...enterStepMode,
 
-		"Create root vertex.",
+		"Create the root recipe.",
 		...passesStepExecution("TutorialGraphStepper-createVertex", {
-			label: '"Researcher"',
-			id: '"alice"',
-			data: json({ name: "Alice Chen", context: "Linked Data", published: "2026-01-01T00:00:00.000Z" }),
+			label: '"Recipe"',
+			id: '"classic-cheesecake"',
+			data: json({ name: "Classic Cheesecake", description: "The reference cheesecake.", published: "2021-05-01T00:00:00.000Z" }),
 		}),
 
-		"Create a reply vertex.",
+		"Create a variation.",
 		...passesStepExecution("TutorialGraphStepper-createVertex", {
-			label: '"Researcher"',
-			id: '"bob"',
-			data: json({ name: "Bob Smith", context: "Semantic Web", published: "2026-01-02T00:00:00.000Z" }),
+			label: '"Recipe"',
+			id: '"lemon-cheesecake"',
+			data: json({ name: "Lemon Cheesecake", description: "The classic, brightened with lemon.", published: "2022-03-14T00:00:00.000Z" }),
 		}),
 
-		"Link Bob as a reply to Alice.",
+		"Link the variation to the recipe it is based on.",
 		...passesStepExecution("TutorialGraphStepper-createEdge", {
-			fromLabel: '"Researcher"',
-			fromId: '"bob"',
+			fromLabel: '"Recipe"',
+			fromId: '"lemon-cheesecake"',
 			rel: '"inReplyTo"',
-			toLabel: '"Researcher"',
-			toId: '"alice"',
+			toLabel: '"Recipe"',
+			toId: '"classic-cheesecake"',
 		}),
 
-		scenario({ scenario: "Comment on a vertex" }),
-		"Create a comment on Alice. The comment becomes part of the conversation.",
-		...passesStepExecution("ResourcesStepper-comment", { label: '"Researcher"', id: '"alice"', text: '"This researcher is interesting"' }),
+		scenario({ scenario: "Comment on the recipe" }),
+		"Create a comment on the classic recipe. The comment becomes part of the conversation.",
+		...passesStepExecution("ResourcesStepper-comment", { label: '"Recipe"', id: '"classic-cheesecake"', text: '"Best with a graham crust."' }),
 
 		scenario({ scenario: "Get related items" }),
-		"The getRelated step returns all items in the conversation: the root, the reply, and the comment.",
-		...passesStepExecution("ResourcesStepper-getRelated", { label: '"Researcher"', id: '"alice"' }),
+		"The getRelated step returns everything in the conversation: the recipe, its variation, and the comment.",
+		...passesStepExecution("ResourcesStepper-getRelated", { label: '"Recipe"', id: '"classic-cheesecake"' }),
 	],
 };

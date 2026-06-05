@@ -12,7 +12,7 @@ export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
  * hasn't fetched the concern catalog yet). Walks the same rel priority as the
  * server via the shared `resolveDisplayLabel`.
  */
-export function displayLabelForVertex(label: string, subject: string, propertyQuads: TQuad[]): string {
+export function displayLabelForIndividual(label: string, subject: string, propertyQuads: TQuad[]): string {
 	const resolved = resolveDisplayLabel(getRels(label), (field) => {
 		const q = propertyQuads.find((p) => p.predicate === field && (typeof p.object === "string" || typeof p.object === "number"));
 		return q?.object;
@@ -58,7 +58,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		if (!nodeMap.has(q.subject)) nodeMap.set(q.subject, { id: q.subject, type: q.namedGraph });
 	}
 	for (const node of nodeMap.values()) {
-		node.displayLabel = displayLabelForVertex(node.type, node.id, quadsBySubject.get(node.id) ?? []);
+		node.displayLabel = displayLabelForIndividual(node.type, node.id, quadsBySubject.get(node.id) ?? []);
 	}
 
 	const edges: GraphEdge[] = [];

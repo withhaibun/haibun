@@ -13,29 +13,18 @@
  *
  * Step readiness drives edge `kind`:
  *   - ready      →  inputs satisfied; bold arrow
- *   - blocked    →  inputs not yet satisfied; dashed arrow
+ *   - blocked    →  inputs unsatisfied; dashed arrow
  *   - capability-gated  →  step requires an unmet capability
  */
 import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
+import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
 import type { TGraph, TGraphEdge, TGraphNode } from "./types.js";
 
-export type TForwardAffordance = {
-	stepperName: string;
-	stepName: string;
-	gwta?: string;
-	inputDomains: string[];
-	outputDomains: string[];
-	readyToRun: boolean;
-	capability?: string;
-};
+/** The chain projection consumes the waypoint fields it renders — a subset of the core panel entry. */
+export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "kind" | "method" | "resolvesDomain" | "ensured">;
 
-export type TWaypointSnapshot = {
-	outcome: string;
-	kind: "imperative" | "declarative";
-	method: string;
-	resolvesDomain?: string;
-	ensured: boolean;
-};
+/** Forward affordance as the chain reads it — without the RPC `method`, which it doesn't route on (it uses stepperName/stepName). */
+type TForwardEdge = Omit<TForwardAffordance, "method">;
 
 /** Minimal goal-resolver path shape the projection consumes. The full TMichi
  * carries bindings (composite / fact / argument trees) too; the chain projection
@@ -44,7 +33,7 @@ export type TPathStepRef = { stepperName: string; stepName: string };
 export type TGoalPathRef = { steps: TPathStepRef[] };
 
 export type TAffordancesSnapshot = {
-	forward: TForwardAffordance[];
+	forward: TForwardEdge[];
 	goals: Array<{ domain: string; resolution: { finding: string; michi?: TGoalPathRef[]; factIds?: string[] } }>;
 	/**
 	 * Per-domain field-range map carried from the server's `topology.ranges`
@@ -53,7 +42,7 @@ export type TAffordancesSnapshot = {
 	 * and its component domains, so the type-centric view reflects the
 	 * structural relationships the resolver decomposes.
 	 */
-	composites?: Record<string, Record<string, string>>;
+	composites?: TCompositeRanges;
 	/** Registered ActivitiesStepper waypoints — folded into the graph as nodes. */
 	waypoints?: TWaypointSnapshot[];
 	/**
@@ -66,9 +55,9 @@ export type TAffordancesSnapshot = {
 	satisfiedDomains?: string[];
 	/**
 	 * Per-domain map of asserted fact identifiers. Each fact becomes a small
-	 * instance node attached to its domain, so the user sees individual
-	 * created vertices (e.g. each issuer) in the chain rather than just a
-	 * green domain blob.
+	 * instance node attached to its domain, surfacing individual created
+	 * instances (e.g. each issuer) in the chain rather than just a green
+	 * domain blob.
 	 */
 	satisfiedFacts?: Record<string, string[]>;
 };
@@ -102,7 +91,7 @@ function findingToKind(finding: string | undefined): string {
 	return "default";
 }
 
-function edgeKind(f: TForwardAffordance): string {
+function edgeKind(f: TForwardEdge): string {
 	if (f.capability) return "capability-gated";
 	return f.readyToRun ? "ready" : "blocked";
 }
@@ -136,7 +125,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 
 	// Producer index: for each domain, the unique step (if exactly one) that produces it.
 	// Used to route clicks on trivial-filtered domain nodes directly to the step-caller.
-	const producersByDomain = new Map<string, TForwardAffordance>();
+	const producersByDomain = new Map<string, TForwardEdge>();
 	const ambiguousProducer = new Set<string>();
 	for (const f of a.forward) {
 		for (const out of f.outputDomains) {
@@ -231,9 +220,9 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 
 	// APG annotation pass — tag every schema edge with the goal-resolver paths it
 	// participates in. The renderer reads `edge.paths` to style active edges
-	// (any goal-path traverses them) distinctly from potential edges (a real step
-	// the user could invoke, but no current goal-path runs through it). One edge
-	// per step in the topology; metadata carries the path semantics.
+	// (traversed by some goal-path) distinctly from potential edges (a runnable
+	// step with no current goal-path through it). One edge per step in the
+	// topology; metadata carries the path semantics.
 	const edgesByStep = new Map<string, TGraphEdge[]>();
 	for (const edge of edges) {
 		if (!edge.stepperName || !edge.stepName) continue;
@@ -258,8 +247,8 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	}
 
 	// Fact-instance nodes: every asserted fact gets a small node attached to its
-	// domain so the user sees the actual created entities (e.g. each issuer they made)
-	// rather than just a coloured domain blob.
+	// domain, surfacing the actual created entities (e.g. each issuer) rather
+	// than just a coloured domain blob.
 	if (a.satisfiedFacts) {
 		for (const [domain, factIds] of Object.entries(a.satisfiedFacts)) {
 			if (!domains.has(domain)) continue;

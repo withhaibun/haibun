@@ -1,7 +1,7 @@
 /**
  * <shu-graph-view> — Renders all quads as a mermaid graph with subgraphs by namedGraph.
  *
- * Shows the unified quad/graph view: variables, observations, vertices, annotations
+ * Shows the unified quad/graph view: variables, observations, nodes, annotations
  * all in one diagram. Named graphs become subgraph clusters. Cross-graph edges visible.
  *
  * Data comes from MonitorStepper-getQuads RPC + live SSE quad observation events.
@@ -14,10 +14,13 @@
  * The chain-view and combined affordance graphs do go through `TGraph`; the
  * abstraction is intentionally not forced onto views whose needs exceed it.
  */
+import { html, css, type TemplateResult } from "lit";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
 import mermaid from "mermaid";
 import { ShuElement } from "./shu-element.js";
-import { SseClient, inAction } from "../sse-client.js";
+import { conduit } from "../hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
@@ -26,11 +29,11 @@ import { getStepperForType, getAvailableSteps, requireStep } from "../rpc-regist
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "../graph-model.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
-import { getGraphSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, subscribeViewContext } from "../quads-snapshot.js";
+import { getGraphSnapshot, mergeQuadsIntoSnapshot, currentSnapshot, DEFAULT_PER_TYPE_LIMIT, subscribeViewContext } from "../quads-snapshot.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { edgeRel as coreEdgeRel, LinkRelations } from "@haibun/core/lib/resources.js";
-import { appAccessLevel } from "../util.js";
-import { buildMermaidSource, buildClassifier, sanitizeId, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
+import { appAccessLevel, idOf } from "../util.js";
+import { buildMermaidSource, buildClassifier, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
 
 let mermaidInitialized = false;
 
@@ -67,56 +70,32 @@ const StateSchema = z.object({
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 });
 
-const STYLES = `
-:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-/* All per-view controls (toolbar, axis filter, predicate filter) toggle together as
-   one group via the column-pane's gear (which sets data-show-controls on us). */
-:host(:not([data-show-controls])) .toolbar,
-:host(:not([data-show-controls])) shu-graph-filter,
-:host(:not([data-show-controls])) .graph-filters { display: none; }
-.toolbar { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; flex-wrap: wrap; flex-shrink: 0; background: #fff; z-index: 10; }
-.toolbar button { padding: 2px 8px; cursor: pointer; }
-.toolbar label { font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 2px; }
-.graph-scroll { flex: 1; overflow: auto; }
-.diagram-container { padding: 8px; }
-.diagram-container .node rect, .diagram-container .node polygon { cursor: pointer; }
-.diagram-container .nodeLabel { text-align: left !important; }
-.diagram-container .node, .diagram-container .edgeLabel, .diagram-container .cluster, .diagram-container path.flowchart-link { transition: opacity 0.15s; }
-.diagram-container path.edge-pattern-dotted { stroke-dasharray: 8 4 !important; stroke-width: 1.5px !important; opacity: 0.7; }
-.zoom-label { color: #666; }
-.quad-count { color: #888; margin-left: auto; }
-.empty { padding: 16px; color: #888; text-align: center; }
-.graph-filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 8px; }
-.diagram-container.filter-highlight .node, .diagram-container.filter-highlight .cluster { opacity: 0.1; }
-.diagram-container.filter-highlight path.flowchart-link, .diagram-container.filter-highlight .edgeLabel { opacity: 0; }
-.diagram-container.filter-highlight .filter-match, .diagram-container.filter-highlight .filter-match * { opacity: 1 !important; }
-`;
-
 const HIDDEN_GRAPHS_COOKIE = "shu-graph-hidden";
 
 const readHiddenGraphsCookie = (): string[] => getJsonCookie<string[]>(HIDDEN_GRAPHS_COOKIE, []);
 const writeHiddenGraphsCookie = (hidden: string[]): void => setJsonCookie(HIDDEN_GRAPHS_COOKIE, hidden);
 
 /**
- * Convert a vertex + its outgoing edges (the shape returned by
- * `getVertexWithEdges`) into the quad shape mermaid + the snapshot consume.
+ * Convert an individual + its outgoing edges (the shape returned by
+ * `getIndividualWithEdges`) into the quad shape mermaid + the snapshot consume.
  *
  * One quad per scalar property; one quad per edge (predicate = edge type,
- * object = target id). Underscore-prefixed projections (`_id`, `_links`,
- * etc.) are skipped — those are HATEOAS metadata, not graph data.
+ * object = target id). JSON-LD keywords (`@id`, `@type`) and underscore-prefixed
+ * projections (`_links`, etc.) are skipped — identity, type, and HATEOAS
+ * metadata, not graph-property data.
  */
 function vertexAndEdgesToQuads(label: string, vertex: Record<string, unknown>, edges: Array<{ type: string; target: Record<string, unknown> }>): TQuad[] {
-	const subject = String(vertex._id ?? vertex.id ?? vertex["@id"] ?? "");
+	const subject = idOf(vertex);
 	if (!subject) return [];
 	const timestamp = Date.now();
 	const quads: TQuad[] = [];
 	for (const [k, v] of Object.entries(vertex)) {
-		if (k.startsWith("_") || k === "id") continue;
+		if (k.startsWith("_") || k.startsWith("@") || k === "id") continue;
 		if (v === undefined || v === null) continue;
 		quads.push({ subject, predicate: k, object: v, namedGraph: label, timestamp });
 	}
 	for (const e of edges) {
-		const targetId = String(e.target?._id ?? e.target?.id ?? e.target?.["@id"] ?? "");
+		const targetId = idOf(e.target);
 		if (!targetId) continue;
 		quads.push({ subject, predicate: e.type, object: targetId, namedGraph: label, timestamp });
 	}
@@ -124,6 +103,26 @@ function vertexAndEdgesToQuads(label: string, vertex: Record<string, unknown>, e
 }
 
 export class ShuGraphView extends ShuElement<typeof StateSchema> {
+	static styles = [shuBaseStyles, css`
+		:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+		:host(:not([data-show-controls])) .toolbar, :host(:not([data-show-controls])) shu-graph-filter, :host(:not([data-show-controls])) .graph-filters { display: none; }
+		.toolbar { display: flex; gap: var(--shu-space-2); align-items: center; padding: var(--shu-space-2) var(--shu-space-4); border-bottom: var(--shu-border-w) solid var(--shu-border); flex-wrap: wrap; flex-shrink: 0; background: var(--shu-bg); z-index: 10; }
+		.toolbar button { padding: var(--shu-space-1) var(--shu-space-4); cursor: pointer; }
+		.toolbar label { font-size: var(--shu-font-md); cursor: pointer; display: flex; align-items: center; gap: var(--shu-space-1); }
+		.graph-scroll { flex: 1; overflow: auto; }
+		.diagram-container { padding: var(--shu-space-4); }
+		.diagram-container .node rect, .diagram-container .node polygon { cursor: pointer; }
+		.diagram-container .nodeLabel { text-align: left !important; }
+		.diagram-container .node, .diagram-container .edgeLabel, .diagram-container .cluster, .diagram-container path.flowchart-link { transition: opacity 0.15s; }
+		.diagram-container path.edge-pattern-dotted { stroke-dasharray: 8 4 !important; stroke-width: 1.5px !important; opacity: 0.7; }
+		.zoom-label { color: var(--shu-fg-muted); }
+		.quad-count { color: var(--shu-fg-faded); margin-left: auto; }
+		.empty { padding: var(--shu-space-6); color: var(--shu-fg-faded); text-align: center; }
+		.graph-filters { display: flex; gap: var(--shu-space-3); flex-wrap: wrap; padding: var(--shu-space-2) var(--shu-space-4); }
+		.diagram-container.filter-highlight .node, .diagram-container.filter-highlight .cluster { opacity: 0.1; }
+		.diagram-container.filter-highlight path.flowchart-link, .diagram-container.filter-highlight .edgeLabel { opacity: 0; }
+		.diagram-container.filter-highlight .filter-match, .diagram-container.filter-highlight .filter-match * { opacity: 1 !important; }
+	`];
 	private diagramId = `shu-graph-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 	private unsubscribe?: () => void;
 	private currentNodeMap = new Map<string, { graph: string; subject: string }>();
@@ -144,7 +143,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	/** Currently selected subject pinned via `.filter-match`. Cleared on selection change; reapplied after each mermaid re-render. */
 	private selectedHighlightSubject: string | null = null;
 	private unsubscribeSnapshot?: () => void;
-	/** Subjects already fetched on-demand (clustered → individually loaded). Avoids re-fetching the same subject + edges every time the user re-selects it. */
+	/** Subjects already fetched on-demand (clustered → individually loaded). Avoids re-fetching the same subject + edges on re-selection. */
 	private fetchedSubjects = new Set<string>();
 
 	/** Provide quads externally — sets dataSource to external, skipping RPC. */
@@ -152,11 +151,9 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		this.setState({ quads, dataSource: "external" });
 	}
 
-	static get observedAttributes(): string[] {
-		return ["data-classifier", "data-source"];
-	}
+	static observedHtmlAttributes = ["data-classifier", "data-source"];
 
-	attributeChangedCallback(name: string, _old: string | null, val: string | null): void {
+	protected override onAttributeChanged(name: string, _old: string | null, val: string | null): void {
 		if (name === "data-classifier" && val && val in CLASSIFIERS) {
 			this.state = { ...this.state, classifierMode: val as "browser" | "thread" };
 		}
@@ -186,8 +183,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		});
 	}
 
-	async connectedCallback(): Promise<void> {
-		super.connectedCallback();
+	protected override async onConnected(): Promise<void> {
 		if (this.initialized) return;
 		this.initialized = true;
 
@@ -216,9 +212,6 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		if (this.state.dataSource === "external") return;
 		const isSnapshot = this.hasAttribute("data-snapshot-time");
 
-		// Force-initialize the shared SSE client singleton for side effects (replay buffer wiring).
-		void SseClient.for("");
-
 		const initial = ShuGraphFilter.getPersistedFilter();
 		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
 
@@ -230,28 +223,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				const quads = extractQuadsFromEvents(events);
 				if (quads.length === 0) return;
 				mergeQuadsIntoSnapshot(quads);
-				// Dedup by (namedGraph, subject, predicate) against the local
-				// state.quads. Without this, the same fact arriving twice (once
-				// as a vertex property emission, once as an edge emission for
-				// the same predicate) accumulates and the mermaid renderer
-				// shows it as `predicate ×N`.
-				const seen = new Map<string, number>();
-				for (let i = 0; i < this.state.quads.length; i++) {
-					const q = this.state.quads[i];
-					seen.set(`${q.namedGraph}|${q.subject}|${q.predicate}`, i);
-				}
-				const next = [...this.state.quads];
-				for (const q of quads) {
-					const key = `${q.namedGraph}|${q.subject}|${q.predicate}`;
-					const existingIdx = seen.get(key);
-					if (existingIdx !== undefined) {
-						next[existingIdx] = q;
-					} else {
-						seen.set(key, next.length);
-						next.push(q);
-					}
-				}
-				this.setState({ quads: next });
+				this.syncFromSnapshot();
 			},
 		});
 
@@ -297,7 +269,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		}
 	}
 
-	disconnectedCallback(): void {
+	protected override onDisconnected(): void {
 		this.unsubscribe?.();
 		this.unsubscribeSnapshot?.();
 	}
@@ -318,15 +290,18 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		}
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
+	/** Set the render quads + clusters from the shared snapshot; `extra` merges sibling state in the same update. */
+	private syncFromSnapshot(extra: Partial<z.infer<typeof StateSchema>> = {}): void {
+		const snap = currentSnapshot();
+		for (const c of snap.clusters) this.knownClusters.set(c.type, c);
+		this.setState({ quads: snap.quads, clusters: snap.clusters, ...extra });
+	}
+
+	render(): TemplateResult {
 		this.lastMermaidSource = "";
 		const { quads, zoom, layout } = this.state;
 
-		if (quads.length === 0) {
-			this.shadowRoot.innerHTML = `${this.css(STYLES)}<div class="empty"><shu-spinner></shu-spinner> Loading graph data...</div>`;
-			return;
-		}
+		if (quads.length === 0) return html`<div class="empty"><shu-spinner></shu-spinner> Loading graph data...</div>`;
 
 		// Filter quads by time cursor — show graph state at that moment
 		this.visibleQuads = this.filterByTime(quads);
@@ -346,29 +321,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		this.relPredicateMap = relToPredicates;
 		const sortedRels = [...relToPredicates.keys()].sort();
 
-		const edgeFilterHtml =
-			sortedRels.length > 0
-				? sortedRels
-					.map((rel) => {
-						const predicates = [...(relToPredicates.get(rel) ?? [])].sort().join(", ");
-						return `<label title="${predicates}"><input type="checkbox" data-rel="${rel}" ${hiddenRelSet.has(rel) ? "" : "checked"}> ${rel}</label>`;
-					})
-					.join("")
-				: "";
-
 		this.lastMermaidSource = "";
-		// Toolbar drops the standalone "limit <input>" \u2014 the filter row's slider is the
-		// single control for per-type sample size. Quad count moves into the filter row
-		// (rendered via shu-graph-filter) so settings sit on one line.
-		const toolbar = `<div class="toolbar" data-testid="graph-view-toolbar">
-			<button data-action="layout">${layout}</button>
-			<button data-action="zoom-out">\u2212</button>
-			<span class="zoom-label">${zoom}%</span>
-			<button data-action="zoom-in">+</button>
-			<button data-action="copy">Copy</button>
-		</div>
-		<shu-graph-filter></shu-graph-filter>
-		${edgeFilterHtml ? `<div class="graph-filters" data-testid="graph-predicate-filters">${edgeFilterHtml}</div>` : ""}`;
 		// Cluster digest (one entry per known namedGraph + counts) — the same
 		// shape an `_links`-style consumer would get from a per-cluster query.
 		// Emitted as JSON-LD so the chat-context harvester sees the same
@@ -378,94 +331,79 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			for (const q of visibleQuads) counts.set(q.namedGraph, (counts.get(q.namedGraph) ?? 0) + 1);
 			return { "@type": "graph-cluster-digest", clusters: [...counts.entries()].map(([name, count]) => ({ name, count })), total: visibleQuads.length };
 		})();
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}${this.emitHypermediaScript(clusterDigest)}${toolbar}
+		return html`
+			${unsafeHTML(this.emitHypermediaScript(clusterDigest))}
+			<div class="toolbar" data-testid="graph-view-toolbar">
+				<button data-action="layout" @click=${this.onToolbarClick}>${layout}</button>
+				<button data-action="zoom-out" @click=${this.onToolbarClick}>−</button>
+				<span class="zoom-label"></span>
+				<button data-action="zoom-in" @click=${this.onToolbarClick}>+</button>
+				<button data-action="copy" @click=${this.onToolbarClick}>Copy</button>
+			</div>
+			<shu-graph-filter></shu-graph-filter>
+			${
+				sortedRels.length > 0
+					? html`<div class="graph-filters" data-testid="graph-predicate-filters">${sortedRels.map((rel) => {
+							const predicates = [...(relToPredicates.get(rel) ?? [])].sort().join(", ");
+							return html`<label title=${predicates} @mouseenter=${() => this.highlightRel(rel)} @mouseleave=${() => this.clearFilterHighlight()}><input type="checkbox" data-rel=${rel} ?checked=${!hiddenRelSet.has(rel)} @change=${(e: Event) => this.toggleRel(rel, (e.target as HTMLInputElement).checked)}> ${rel}</label>`;
+						})}</div>`
+					: ""
+			}
 			<div class="graph-scroll">
-				<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
-					<div id="${this.diagramId}"></div>
+				<div class="diagram-container" style=${`transform: scale(${zoom / 100}); transform-origin: top left;`}>
+					<div id=${this.diagramId}></div>
 				</div>
-			</div>`;
+			</div>
+		`;
+	}
+
+	protected updated(): void {
+		const zoomLabel = this.shadowRoot?.querySelector(".zoom-label");
+		if (zoomLabel) zoomLabel.textContent = `${this.state.zoom}%`;
 		const filterEl = this.shadowRoot?.querySelector("shu-graph-filter") as ShuGraphFilter | null;
 		if (filterEl) {
 			if (this.showControls) filterEl.setAttribute("show-controls", "");
 			else filterEl.removeAttribute("show-controls");
 			filterEl.setSource(this.knownClusters, this.state.quads);
 		}
-		this.bindToolbar();
 		void this.renderMermaid();
 	}
 
-	private bindToolbar(): void {
-		this.shadowRoot?.querySelectorAll("[data-action]").forEach((btn) => {
-			btn.addEventListener("click", () => {
-				const action = (btn as HTMLElement).dataset.action;
-				if (action === "zoom-in" || action === "zoom-out") {
-					const zoom = action === "zoom-in" ? this.state.zoom + 10 : Math.max(1, this.state.zoom - 10);
-					this.state.zoom = zoom;
-					const container = this.shadowRoot?.querySelector(".diagram-container") as HTMLElement | null;
-					if (container) container.style.transform = `scale(${zoom / 100})`;
-					const label = this.shadowRoot?.querySelector(".zoom-label");
-					if (label) label.textContent = `${zoom}%`;
-					return;
-				}
-				if (action === "layout") this.setState({ layout: this.state.layout === "TD" ? "LR" : "TD" });
-				else if (action === "copy") navigator.clipboard.writeText(buildMermaidSource(this.visibleQuads, this.buildOpts(), this.activeClassifier).source);
-			});
-		});
-		this.shadowRoot?.querySelectorAll("input[data-graph]").forEach((cb) => {
-			cb.addEventListener("change", () => {
-				const graph = (cb as HTMLInputElement).dataset.graph ?? "";
-				const checked = (cb as HTMLInputElement).checked;
-				const hidden = new Set(this.state.hiddenGraphs);
-				if (checked) hidden.delete(graph);
-				else hidden.add(graph);
-				const hiddenArray = [...hidden];
-				writeHiddenGraphsCookie(hiddenArray);
-				this.setState({ hiddenGraphs: hiddenArray });
-			});
-		});
-		this.shadowRoot?.querySelectorAll("input[data-rel]").forEach((cb) => {
-			cb.addEventListener("change", () => {
-				const rel = (cb as HTMLInputElement).dataset.rel ?? "";
-				const checked = (cb as HTMLInputElement).checked;
-				const hidden = new Set(this.state.hiddenRels);
-				if (checked) hidden.delete(rel);
-				else hidden.add(rel);
-				this.setState({ hiddenRels: [...hidden] });
-			});
-		});
+	private onToolbarClick(e: Event): void {
+		const action = (e.currentTarget as HTMLElement).dataset.action;
+		if (action === "zoom-in" || action === "zoom-out") {
+			const zoom = action === "zoom-in" ? this.state.zoom + 10 : Math.max(1, this.state.zoom - 10);
+			this.state.zoom = zoom;
+			const container = this.shadowRoot?.querySelector(".diagram-container") as HTMLElement | null;
+			if (container) container.style.transform = `scale(${zoom / 100})`;
+			const label = this.shadowRoot?.querySelector(".zoom-label");
+			if (label) label.textContent = `${zoom}%`;
+			return;
+		}
+		if (action === "layout") this.setState({ layout: this.state.layout === "TD" ? "LR" : "TD" });
+		else if (action === "copy") navigator.clipboard.writeText(buildMermaidSource(this.visibleQuads, this.buildOpts(), this.activeClassifier).source);
+	}
+
+	private toggleRel(rel: string, checked: boolean): void {
+		const hidden = new Set(this.state.hiddenRels);
+		if (checked) hidden.delete(rel);
+		else hidden.add(rel);
+		this.setState({ hiddenRels: [...hidden] });
+	}
+
+	/** Hover-highlight every edge carrying this rel, plus the nodes it connects. */
+	private highlightRel(rel: string): void {
 		const container = this.shadowRoot?.querySelector(".diagram-container");
-		this.shadowRoot?.querySelectorAll("input[data-graph], input[data-rel]").forEach((cb) => {
-			const label = cb.closest("label");
-			label?.addEventListener("mouseenter", () => {
-				const graphName = (cb as HTMLInputElement).dataset.graph;
-				const relName = (cb as HTMLInputElement).dataset.rel;
-				if (!container) return;
-				container.classList.add("filter-highlight");
-				if (graphName) {
-					const graphId = sanitizeId(graphName);
-					container.querySelectorAll(`[id*="${graphId}"]`).forEach((el) => {
-						const node = el.closest(".node") ?? el.closest(".cluster");
-						if (node) node.classList.add("filter-match");
-					});
-					// Also highlight edges connecting to/from nodes in this graph
-					for (const [rawId, entry] of this.currentNodeMap) {
-						if (entry.graph !== graphName) continue;
-						this.svgNodeEdgeElements.get(rawId)?.forEach((el) => el.classList.add("filter-match"));
-					}
-				}
-				if (relName) {
-					const predicates = this.edgeRelToPredicates(relName);
-					for (const edge of this.svgEdges) {
-						if (edge.labelText !== relName && !predicates.has(edge.labelText)) continue;
-						edge.pathEl.classList.add("filter-match");
-						if (edge.labelEl) edge.labelEl.classList.add("filter-match");
-						this.svgNodeElements.get(edge.fromId)?.classList.add("filter-match");
-						this.svgNodeElements.get(edge.toId)?.classList.add("filter-match");
-					}
-				}
-			});
-			label?.addEventListener("mouseleave", () => this.clearFilterHighlight());
-		});
+		if (!container) return;
+		container.classList.add("filter-highlight");
+		const predicates = this.edgeRelToPredicates(rel);
+		for (const edge of this.svgEdges) {
+			if (edge.labelText !== rel && !predicates.has(edge.labelText)) continue;
+			edge.pathEl.classList.add("filter-match");
+			if (edge.labelEl) edge.labelEl.classList.add("filter-match");
+			this.svgNodeElements.get(edge.fromId)?.classList.add("filter-match");
+			this.svgNodeElements.get(edge.toId)?.classList.add("filter-match");
+		}
 	}
 
 	private edgeRelToPredicates(rel: string): Set<string> {
@@ -496,8 +434,8 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 
 	/**
 	 * Pin highlight on a subject + its immediate neighbours, mirroring the hover
-	 * appearance. The subject string is the vertex id used in the strip's
-	 * COLUMN_OPEN / CONTEXT_CHANGE flow; here we resolve it to the SVG raw id
+	 * appearance. The subject string is the node id used in the strip's
+	 * COLUMN_OPEN / CONTEXT_CHANGE flow; resolved to the SVG raw id
 	 * (which prefixes the graph name) by scanning currentNodeMap.
 	 */
 	private applySelectionHighlight(subject: string | null): void {
@@ -523,20 +461,20 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	}
 
 	/**
-	 * If `subject` isn't already in the loaded data — typical when the user
-	 * selects a vertex from a query result that the clustered snapshot only
-	 * sampled, or when the selected subject's neighbours are still in their
-	 * cluster — fetch the vertex + its outgoing edges and merge them into
-	 * `state.quads`. The mermaid re-render then includes the subject + linked
-	 * targets, and the post-render reapply highlights them.
+	 * If `subject` isn't already in the loaded data — typical for a node selected
+	 * from a query result that the clustered snapshot only sampled, or when the
+	 * selected subject's neighbours are still in their cluster — fetch the node +
+	 * its outgoing edges and merge them into `state.quads`. The mermaid re-render
+	 * then includes the subject + linked targets, and the post-render reapply
+	 * highlights them.
 	 *
 	 * Each subject is fetched at most once per view lifetime (`fetchedSubjects`)
-	 * so re-selecting the same vertex doesn't repeat the RPC.
+	 * so re-selecting the same node doesn't repeat the RPC.
 	 */
 	private async fetchIfMissing(subject: string, label: string): Promise<void> {
 		if (this.subjectToRawId.has(subject) || this.fetchedSubjects.has(subject)) return;
-		// `getVertexWithEdges` only accepts registered vertex labels. Named graphs
-		// that carry quads but aren't vertex types — `facts`, `observation/*`,
+		// `getIndividualWithEdges` only accepts registered individual labels. Named graphs
+		// that carry quads but aren't individual types — `facts`, `observation/*`,
 		// `variables` — have no rels in the rels cache. Skip the RPC; the click
 		// handler routes seqPath subjects to `step-detail` and the rest to
 		// `CONTEXT_CHANGE` directly.
@@ -544,28 +482,17 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		this.fetchedSubjects.add(subject);
 		try {
 			await getAvailableSteps();
-			const client = SseClient.for("");
-			const data = await inAction(
-				(scope) =>
-					client.rpc<{ vertex: Record<string, unknown>; edges: Array<{ type: string; target: Record<string, unknown> }> }>(scope, requireStep("getVertexWithEdges"), {
-						label,
-						id: subject,
-						accessLevel: appAccessLevel(),
-					}),
+			const data = await conduit().follow<{ vertex: Record<string, unknown>; edges: Array<{ type: string; target: Record<string, unknown> }> }>(
+				{ method: requireStep("getIndividualWithEdges"), params: { label, id: subject, accessLevel: appAccessLevel() } },
 				`graph-view: fetch missing selection ${label}:${subject}`,
 			);
 			if (!data?.vertex) return;
 			const newQuads = vertexAndEdgesToQuads(label, data.vertex, data.edges ?? []);
 			if (newQuads.length === 0) return;
 			mergeQuadsIntoSnapshot(newQuads);
-			// Adding quads is necessary but not sufficient: when the subject's type
-			// has more members than `maxPerSubgraph`, buildMermaidSource collapses
-			// the whole type into a single `cluster:<label>` node and the subject
-			// stays hidden. Explicitly expand the subject's graph so individual
-			// vertices in that type render — the user just declared interest in one
-			// of them, the rest of the type is now relevant context.
+			// Expand the subject's graph so its individual nodes render instead of staying folded inside a collapsed cluster:<label> node.
 			const expanded = this.state.expandedGraphs.includes(label) ? this.state.expandedGraphs : [...this.state.expandedGraphs, label];
-			this.setState({ quads: [...this.state.quads, ...newQuads], expandedGraphs: expanded });
+			this.syncFromSnapshot({ expandedGraphs: expanded });
 		} catch {
 			this.fetchedSubjects.delete(subject); // allow retry on next selection
 		}
@@ -621,7 +548,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			}
 		} catch (err) {
 			const container = this.shadowRoot?.querySelector(".diagram-container");
-			if (container) container.innerHTML = `<pre style="color:red">${err instanceof Error ? err.message : err}</pre>`;
+			if (container) container.innerHTML = `<pre style="color:var(--shu-error)">${err instanceof Error ? err.message : err}</pre>`;
 		}
 	}
 
@@ -696,7 +623,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		this.svgNodeElements = nodeElements;
 		this.svgNodeEdgeElements = nodeEdgeElements;
 		this.svgNeighbors = neighbors;
-		// Reapply selection highlight if we already had a sticky selection: the SVG was just rebuilt and lost any prior `.filter-match` classes.
+		// The rebuilt SVG lost any prior `.filter-match` classes; reapply a sticky selection highlight.
 		if (this.selectedHighlightSubject) this.paintHighlight(this.selectedHighlightSubject);
 
 		for (const [rawId, g] of nodeElements) {
@@ -734,30 +661,31 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 					);
 					return;
 				}
-				// Non-vertex graph (no rels registered for the namedGraph). Two
+				// Non-individual graph (no rels registered for the namedGraph). Two
 				// shapes reach here:
 				//   • seqPath subjects (single-product steps emit the producing
 				//     seqPath as the subject; multi-product steps emit
 				//     `${seqPath}#${field}`) → step-detail pane.
 				//   • Anything else (working-memory variables, goal-affordance
 				//     bindings, …) → not a step-detail; make the subject the
-				//     chat context so the user can ask the LLM about it. Same
-				//     `CONTEXT_CHANGE` event row clicks dispatch, so the actions-
-				//     bar, status badge, and chat hypermedia all see this pick
-				//     through the same channel.
+				//     chat context. Same `CONTEXT_CHANGE` event row clicks dispatch,
+				//     so the actions-bar, status badge, and chat hypermedia all see
+				//     this pick through the same channel.
 				const head = entry.subject.includes("#") ? entry.subject.slice(0, entry.subject.indexOf("#")) : entry.subject;
 				const directSeqPath = parseSeqPath(head);
 				if (directSeqPath) {
-					PaneState.request({ paneType: "step-detail", seqPath: directSeqPath });
+					PaneState.requestFrom(this, { paneType: "step-detail", seqPath: directSeqPath });
 					return;
 				}
 				const seqPathQuad = this.state.quads.find((q) => q.subject === entry.subject && q.predicate === LinkRelations.SEQ_PATH.rel);
-				if (!seqPathQuad) throw new Error(`shu-graph-view: no producing seqPath recorded for subject "${entry.subject}" in graph "${entry.graph}" — the writing dispatch emits a (subject, seqPath, <path>) quad and this view should have it`);
+				if (!seqPathQuad)
+					throw new Error(
+						`shu-graph-view: no producing seqPath recorded for subject "${entry.subject}" in graph "${entry.graph}" — the writing dispatch emits a (subject, seqPath, <path>) quad and this view should have it`,
+					);
 				const writtenSeqPath = parseSeqPath(String(seqPathQuad.object));
 				if (!writtenSeqPath) throw new Error(`shu-graph-view: producing seqPath quad for "${entry.subject}" has unparseable object: ${JSON.stringify(seqPathQuad.object)}`);
-				PaneState.request({ paneType: "step-detail", seqPath: writtenSeqPath });
+				PaneState.requestFrom(this, { paneType: "step-detail", seqPath: writtenSeqPath });
 			});
 		}
 	}
-
 }

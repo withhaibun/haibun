@@ -16,10 +16,10 @@ function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 		clear: vi.fn(async () => undefined),
 		remove: vi.fn(async () => undefined),
 		all: vi.fn(async () => []),
-		upsertVertex: vi.fn(async () => ""),
-		getVertex: vi.fn(async () => undefined),
-		deleteVertex: vi.fn(async () => undefined),
-		queryVertices: vi.fn(async () => []),
+		upsertIndividual: vi.fn(async () => ""),
+		getIndividual: vi.fn(async () => undefined),
+		deleteIndividual: vi.fn(async () => undefined),
+		queryIndividuals: vi.fn(async () => []),
 		distinctPropertyValues: vi.fn(async () => []),
 		...overrides,
 	};
@@ -86,7 +86,7 @@ describe("ShuStepper", () => {
 				schema: z.object({ id: z.string(), account: z.string(), folder: z.string(), accessLevel: AccessLevelSchema, dateSent: z.date() }),
 				coerce: (proto: { value?: unknown }) => proto.value,
 				topology: {
-					vertexLabel: "Email",
+					persistedAs: "Email",
 					id: "id",
 					properties: {
 						id: LinkRelations.IDENTIFIER.rel,

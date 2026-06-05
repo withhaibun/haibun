@@ -8,6 +8,7 @@
 import { LinkRelations, edgeRel as coreEdgeRel, getRelRange, isReplyEdge } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { colorForType } from "./type-colors.js";
+import { STORED_TYPE_PROP } from "./consts.js";
 
 export type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
 
@@ -25,7 +26,7 @@ export interface PropertyClassifier {
 	classify(graph: string, predicate: string): TPropKind;
 	/** Return the link relation for an edge predicate (e.g., "attributedTo", "inReplyTo"). */
 	relForEdge?(graph: string, predicate: string): string | undefined;
-	stepperForType?(vertexLabel: string): string | undefined;
+	stepperForType?(persistedAs: string): string | undefined;
 }
 
 export type TGraphViewOpts = { layout: "TD" | "LR"; hiddenGraphs: Set<string>; expandedGraphs: Set<string>; maxPerSubgraph: number; hiddenRels?: Set<string> };
@@ -34,7 +35,7 @@ export type TBuildResult = { source: string; nodeMap: Map<string, { graph: strin
 export const DEFAULT_MAX_PER_SUBGRAPH = 20;
 
 /** Properties that are opaque blobs or graph-store internals — excluded from graph rendering. */
-export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel", "vertexLabel"]);
+export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel", STORED_TYPE_PROP]);
 
 /** URL is the only literal-ranged rel rendered as an edge (URI-string targets are conventionally navigable). */
 const isLiteralEdgeRel = (rel: string): boolean => rel === LinkRelations.URL.rel;
@@ -76,7 +77,7 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 	const visible = quads.filter((q) => !hiddenGraphs.has(q.namedGraph));
 	const entityIds = new Set(visible.map((q) => q.subject));
 
-	// Collect external URI references (edge targets not in our entity set)
+	// Collect external URI references (edge targets not in the entity set)
 	const externalIds = new Set<string>();
 	for (const q of visible) {
 		if (typeof q.object === "string" && classifier.classify(q.namedGraph, q.predicate) === "edge" && !entityIds.has(q.object) && q.object !== q.subject && isUri(q.object)) {
@@ -100,11 +101,10 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 		subjectQuads.push(q);
 	}
 
-	// Mermaid's `TD` / `LR` keywords don't match the visual orientation users
-	// expect from this view's layout button: when the user toggles to "TD" they
-	// want a top-down-looking diagram, but mermaid renders `graph TD` with
-	// subgraphs side-by-side (visually horizontal). Swap the keywords so the
-	// button label matches what the user sees.
+	// Mermaid's `TD` / `LR` keywords don't match this view's layout button: mermaid
+	// renders `graph TD` with subgraphs side-by-side (visually horizontal), so a "TD"
+	// button selection must emit `LR` for a top-down-looking diagram. Swap the keywords
+	// so the rendered orientation matches the button label.
 	const mermaidDir = layout === "TD" ? "LR" : "TD";
 	const lines: string[] = [`graph ${mermaidDir}`];
 	const nodeIds = new Set<string>();
@@ -215,7 +215,7 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 		lines.push("  end");
 	}
 
-	// Add referenced resource nodes (URIs referenced by edges but without full vertex data)
+	// Add referenced resource nodes (URIs referenced by edges but without full node data)
 	if (externalIds.size > 0) {
 		for (const uri of externalIds) {
 			const refId = sanitizeId(`ref_${uri}`);
@@ -233,7 +233,7 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 	}
 	lines.push(...edges);
 
-	// Color subgraphs by vertex type — same palette/key as the fisheye view,
+	// Color subgraphs by node type — same palette/key as the fisheye view,
 	// so an "Email" subgraph in mermaid matches the colour of "Email" plates
 	// in 3D. Cross-view pattern-matching depends on this consistency.
 	for (const graph of byGraph.keys()) {

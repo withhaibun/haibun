@@ -8,27 +8,28 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { PaneState, parseColEntry, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "./pane-state.js";
 import { ShuElement } from "./components/shu-element.js";
+import * as ViewHash from "./view-hash.js";
 
 describe("derived helpers", () => {
 	it("paneIdOf is unique per variant data", () => {
 		expect(paneIdOf({ paneType: "component", tag: "shu-graph-view", label: "G" })).toBe("shu-graph-view");
-		expect(paneIdOf({ paneType: "entity", id: "msg-1", vertexLabel: "Email" })).toBe("e:Email:msg-1");
-		expect(paneIdOf({ paneType: "filter-eq", vertexLabel: "Email", predicate: "from", value: "a@b" })).toBe("f:Email:from=a@b");
-		expect(paneIdOf({ paneType: "thread", vertexLabel: "Email", subject: "msg-42" })).toBe("t:Email:msg-42");
+		expect(paneIdOf({ paneType: "entity", id: "msg-1", persistedAs: "Email" })).toBe("e:Email:msg-1");
+		expect(paneIdOf({ paneType: "filter-eq", persistedAs: "Email", predicate: "from", value: "a@b" })).toBe("f:Email:from=a@b");
+		expect(paneIdOf({ paneType: "thread", persistedAs: "Email", subject: "msg-42" })).toBe("t:Email:msg-42");
 		expect(paneIdOf({ paneType: "step-detail", seqPath: [0, 1, 2] })).toBe("step:0.1.2");
 	});
 
 	it("tagOf maps each paneType to its column-component, components reuse their tag", () => {
 		expect(tagOf({ paneType: "component", tag: "shu-graph-view", label: "G" })).toBe("shu-graph-view");
-		expect(tagOf({ paneType: "entity", id: "x", vertexLabel: "Email" })).toBe("shu-entity-column");
-		expect(tagOf({ paneType: "filter-eq", vertexLabel: "Email", predicate: "p", value: "v" })).toBe("shu-filter-column");
-		expect(tagOf({ paneType: "thread", vertexLabel: "Email", subject: "s" })).toBe("shu-thread-column");
+		expect(tagOf({ paneType: "entity", id: "x", persistedAs: "Email" })).toBe("shu-entity-column");
+		expect(tagOf({ paneType: "filter-eq", persistedAs: "Email", predicate: "p", value: "v" })).toBe("shu-filter-column");
+		expect(tagOf({ paneType: "thread", persistedAs: "Email", subject: "s" })).toBe("shu-thread-column");
 	});
 
 	it("labelOf derives a display label per variant", () => {
-		expect(labelOf({ paneType: "filter-eq", vertexLabel: "Email", predicate: "from", value: "a@b" })).toBe("from=a@b");
-		expect(labelOf({ paneType: "entity", id: "msg-1", vertexLabel: "Email" })).toBe("msg-1");
-		expect(labelOf({ paneType: "entity", id: "msg-1", vertexLabel: "Email", label: "Override" })).toBe("Override");
+		expect(labelOf({ paneType: "filter-eq", persistedAs: "Email", predicate: "from", value: "a@b" })).toBe("from=a@b");
+		expect(labelOf({ paneType: "entity", id: "msg-1", persistedAs: "Email" })).toBe("msg-1");
+		expect(labelOf({ paneType: "entity", id: "msg-1", persistedAs: "Email", label: "Override" })).toBe("Override");
 	});
 });
 
@@ -66,7 +67,7 @@ describe("PaneState", () => {
 	beforeEach(() => {
 		PaneState.__resetForTests();
 		document.body.innerHTML = "";
-		ShuElement.offline = true;
+		ViewHash.setOffline(true);
 		ShuElement.pushHash("#?");
 		if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", class extends HTMLElement {});
 		if (!customElements.get("shu-column-strip")) {
@@ -80,7 +81,7 @@ describe("PaneState", () => {
 						this.appendChild(p);
 					}
 					activatePane(_i: number) {
-						/* test stub — activation side-effects are not under test here */
+						/* no-op: activation side-effects are not under test here */
 					}
 					removePane(i: number) {
 						const p = this.panes[i];
@@ -186,14 +187,74 @@ describe("PaneState", () => {
 		PaneState.init(document.querySelector("shu-column-strip") as any, {
 			afterAttach: {
 				entity: (d) => {
-					if (d.paneType === "entity") opened = { id: d.id, label: d.vertexLabel };
+					if (d.paneType === "entity") opened = { id: d.id, label: d.persistedAs };
 				},
 			},
 		});
-		PaneState.request({ paneType: "entity", vertexLabel: "Email", id: "msg-1" });
+		PaneState.request({ paneType: "entity", persistedAs: "Email", id: "msg-1" });
 		await flush();
 		expect(opened).toEqual({ id: "msg-1", label: "Email" });
 		const pane = document.querySelector("shu-column-pane") as HTMLElement | null;
 		expect(pane?.dataset.columnKey).toBe("e:Email:msg-1");
+	});
+
+	it("requestFrom prunes every non-pinned pane to the right of the source (pane tracked + hash updated)", async () => {
+		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
+		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
+		await flush();
+		expect(document.querySelectorAll("shu-column-pane")).toHaveLength(3);
+		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-graph-view") as HTMLElement;
+		// Pass the source pane element directly. This is the path the app uses when it can hand the originating row/button to PaneState — closest("shu-column-pane") resolves synchronously without depending on Event.composedPath validity.
+		PaneState.requestFrom(graphPane, { paneType: "entity", persistedAs: "Email", id: "msg-1" });
+		await flush();
+		const ids = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
+		expect(ids).toEqual(["shu-graph-view", "e:Email:msg-1"]);
+		// And the URL hash (single source of truth for cross-reload column state) reflects the pruned set.
+		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col");
+		expect(cols).toEqual(["shu-graph-view", "e:Email:msg-1"]);
+	});
+
+	it("requestFrom from a child element inside the source pane prunes via element.closest", async () => {
+		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
+		await flush();
+		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-graph-view") as HTMLElement;
+		const inner = document.createElement("button");
+		graphPane.appendChild(inner);
+		PaneState.requestFrom(inner, { paneType: "entity", persistedAs: "Email", id: "msg-x" });
+		await flush();
+		const ids = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
+		expect(ids).toEqual(["shu-graph-view", "e:Email:msg-x"]);
+	});
+
+	it("requestFrom honours pinned panes and addToSelection skips the prune (hash kept in sync)", async () => {
+		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
+		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
+		await flush();
+		const monitor = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-monitor-column") as HTMLElement;
+		monitor.setAttribute("pinned", "true");
+		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-graph-view") as HTMLElement;
+
+		PaneState.requestFrom(graphPane, { paneType: "entity", persistedAs: "Email", id: "msg-2" });
+		await flush();
+		const ids = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
+		// Pinned monitor survives; non-pinned affordances-panel that was to the right is dismissed.
+		expect(ids).toContain("shu-graph-view");
+		expect(ids).toContain("shu-monitor-column");
+		expect(ids).toContain("e:Email:msg-2");
+		expect(ids).not.toContain("shu-affordances-panel");
+		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col");
+		expect(cols).not.toContain("shu-affordances-panel");
+		expect(cols).toContain("shu-monitor-column");
+		expect(cols).toContain("e:Email:msg-2");
+
+		// addToSelection: do NOT prune anything; the existing entity column survives alongside the new one.
+		PaneState.requestFrom(graphPane, { paneType: "entity", persistedAs: "Email", id: "msg-3" }, true);
+		await flush();
+		const afterAdd = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
+		expect(afterAdd).toContain("e:Email:msg-2");
+		expect(afterAdd).toContain("e:Email:msg-3");
 	});
 });
