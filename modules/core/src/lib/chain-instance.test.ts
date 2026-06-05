@@ -81,5 +81,4 @@ describe("chain-instance", () => {
 		const reloaded = await getChainInstance(world, inst.id);
 		expect(reloaded).toBeUndefined();
 	});
-
 });

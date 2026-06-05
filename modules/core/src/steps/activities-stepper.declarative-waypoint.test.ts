@@ -17,9 +17,7 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } fr
 import { actionOK, actionOKWithProducts } from "../lib/util/index.js";
 import { z } from "zod";
 
-// Future domains — to be registered in commit 2's core-domains.ts migration.
-// Until then, this string constant is just a stepper-local placeholder; the
-// `getConcerns` block below registers it for the duration of the test.
+// Domain key registered for the test by the `getConcerns` block below.
 const DOMAIN_AUTH_SESSION = "domain-auth-session";
 
 const AuthSessionSchema = z.object({
@@ -30,8 +28,7 @@ const AuthSessionSchema = z.object({
 
 /**
  * Test stepper that produces DOMAIN_AUTH_SESSION when its `signIn` step fires.
- * After commit 2, `productsDomain: DOMAIN_AUTH_SESSION` is the declared postcondition;
- * the runtime auto-asserts the product as a fact. Until then, products land in shared.
+ * `productsDomain: DOMAIN_AUTH_SESSION` is the declared postcondition.
  */
 class AuthStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
@@ -103,15 +100,14 @@ ensure Logged in`,
 
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
-		// stronger assertion: only one signIn dispatched. After commit 5 lands, the
-		// step-execution event count for AuthStepper-signIn should be exactly 1.
+		// stronger assertion: only one signIn dispatched (step-execution count for AuthStepper-signIn == 1).
 	});
 
 	// (1c) Removing the producer step (no path to DOMAIN_AUTH_SESSION) makes the resolver
 	//      return finding: "unreachable" and `ensure Logged in` fails with a typed error.
 	it("(1c) unreachable finding when no producer exists; ensure fails", async () => {
 		// Without AuthStepper, the auth-session domain isn't registered AND no producer
-		// step exists. We register a permissive ad-hoc domain via a minimal stepper so
+		// step exists. A permissive ad-hoc domain is registered via a minimal stepper so
 		// the waypoint declares a known domain key whose chain has no producer.
 		class DomainOnlyStepper extends AStepper implements IHasCycles {
 			cycles: IStepperCycles = {

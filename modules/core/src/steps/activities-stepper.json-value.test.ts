@@ -1,7 +1,7 @@
 /**
  * Repro: a parameterized activity whose body uses `set X as <typed-domain> to {JSON}`
  * to build a composite from the slot value, then passes the variable to a typed step.
- * Mirrors the shu-web feature's parameterized issuer activity but with a stub typed
+ * Mirrors the shu-web feature's parameterized issuer activity but with a minimal typed
  * domain to keep the test self-contained.
  */
 import { describe, it, expect } from "vitest";

@@ -221,5 +221,4 @@ variable goalResolution.finding is "michi"`,
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
 	});
-
 });

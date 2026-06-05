@@ -21,13 +21,9 @@ const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "p
 
 const michiCardTestId = (goalIdx: number, michiIdx: number) => `michi-card-${goalIdx}-${michiIdx}`;
 const runMichiTestId = (goalIdx: number, michiIdx: number) => `run-michi-${goalIdx}-${michiIdx}`;
-const extraTestIds = [
-	michiCardTestId(0, 0),
-	michiCardTestId(0, 1),
-	runMichiTestId(0, 0),
-	runMichiTestId(0, 1),
-	IDS.AFFORDANCES.EMPTY,
-].map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const extraTestIds = [michiCardTestId(0, 0), michiCardTestId(0, 1), runMichiTestId(0, 0), runMichiTestId(0, 1), IDS.AFFORDANCES.EMPTY].map((id) =>
+	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
+);
 
 const DOMAIN_RESEARCHER = "tutorial-researcher";
 const DOMAIN_PAPER = "tutorial-paper";
