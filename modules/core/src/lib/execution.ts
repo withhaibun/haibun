@@ -67,14 +67,11 @@ export type TStepInput = TSourceLocation & {
 };
 
 // ============================================================================
-// Vertex query result (runtime read shape with routing metadata)
+// Individual query result (runtime read shape with routing metadata)
 // ============================================================================
 
-/** A vertex returned from graph operations, with routing metadata. */
-export type TVertexResult = Record<string, unknown> & {
-	_id: string;
-	_label?: string;
-	_inReplyTo?: string;
+/** A projected JSON-LD individual (carries `@id`/`@type`) plus its related-edge list, as returned by getRelated. */
+export type TIndividualResult = Record<string, unknown> & {
 	_edges?: Array<{ type: string; targetId: string }>;
 };
 

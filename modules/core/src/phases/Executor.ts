@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { DOMAIN_VERTEX_LABEL, isVertexTopology } from "../lib/resources.js";
 import { DOMAIN_DOMAIN_KEY } from "../lib/domains.js";
 import type { TWorld } from "../lib/world.js";
 import { TResolvedFeature, TEndFeature } from "../lib/astepper.js";
@@ -22,7 +21,7 @@ import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/
 import { StepRegistry, dispatchStep } from "../lib/step-dispatch.js";
 import { SCENARIO_START } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
-import { registerDomains } from "../lib/domains.js";
+import { registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";
 import { doStepperCycle, doStepperCycleSync } from "../lib/stepper-cycles.js";
 import { basename } from "path";
 
@@ -48,8 +47,7 @@ export function calculateShouldClose({
 
 function initExecutionRuntime(_world: TWorld): void {
 	// Working-memory observations live in the quad store under the observation/* named
-	// graphs (see working-memory.ts). The store is created with the world; nothing to
-	// initialize here. Kept as an extension point for future per-execution setup.
+	// graphs; the store is created with the world, so nothing to initialize here.
 }
 
 async function initFeatureRuntime(world: TWorld): Promise<void> {
@@ -74,12 +72,11 @@ async function initFeatureRuntime(world: TWorld): Promise<void> {
  *     entry, no webserver).
  *
  *   - WebServerStepper's `enable rpc` / `refresh steppers` steps,
- *     which create their own registry and must re-attach transports
- *     into it. Delegating here keeps both call sites consistent.
+ *     which create their own registry and re-attach transports into
+ *     it. Delegating here keeps both call sites consistent.
  *
- * The webserver argument is whatever the caller has. Core's Executor
- * invocation passes undefined; transports that truly need a webserver
- * (e.g. SSE adding routes) check and no-op when absent. Remote-proxy
+ * Core's Executor invocation passes no webserver; transports that need
+ * one (e.g. SSE adding routes) no-op when it is absent. Remote-proxy
  * transports don't use it.
  */
 // biome-ignore lint/suspicious/noExplicitAny: duck-typed webserver shape varies by caller.
@@ -121,12 +118,11 @@ export class Executor {
 		const stepRegistry = new StepRegistry(steppers, world);
 		world.runtime.stepRegistry = stepRegistry;
 		// Any stepper that implements IStepTransport (duck-typed: has `attach`
-		// and `detach` methods) injects its tools into the registry now. This
-		// covers RemoteStepperProxy entries from `{remote}` config lines,
-		// subprocess transports, and any future transport. WebServerStepper's
-		// enable-rpc step re-attaches into a fresh registry when it builds
-		// one; the registry.set is keyed by method name so duplicate
-		// injections are idempotent.
+		// and `detach` methods) injects its tools into the registry now,
+		// covering RemoteStepperProxy entries from `{remote}` config lines and
+		// subprocess transports. WebServerStepper's enable-rpc step re-attaches
+		// into a fresh registry when it builds one; registry.set is keyed by
+		// method name so duplicate injections are idempotent.
 		attachTransportsToRegistry(steppers, stepRegistry);
 
 		const onEventHandler = (event: THaibunEvent) => {
@@ -239,7 +235,10 @@ export class Executor {
 		);
 
 		await doStepperCycle(steppers, "endExecution", results);
-		world.eventLogger.unsubscribe(onEventHandler);
+		// Stay mode keeps the process serving requests after execute() returns; unsubscribing here would stop
+		// routing events to live consumers while the server is still emitting them. Keep it while staying.
+		const willStay = stayAlways || (stayOnFailure && !okSoFar);
+		if (!willStay) world.eventLogger.unsubscribe(onEventHandler);
 		return results;
 	}
 }
@@ -347,13 +346,8 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 		}
 	}
 	registerDomains(world, [allDomains]);
-	// Register vertex-label domain from all registered vertex types
-	const vertexLabels = Object.values(world.domains)
-		.filter((d) => isVertexTopology(d.topology))
-		.map((d) => (d.topology as { vertexLabel: string }).vertexLabel);
-	if (vertexLabels.length > 0) {
-		registerDomains(world, [[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }]]);
-	}
+	// Register the persisted-type enum over all registered persisted types.
+	refreshHypermediaTypeDomain(world);
 	// Register domain-key domain as an enum over every domain currently in the
 	// registry. Renders as a dropdown in form-based step callers (shu step-caller).
 	const domainKeys = Object.keys(world.domains).sort();

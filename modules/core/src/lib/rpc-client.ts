@@ -72,7 +72,7 @@ export class RpcClient {
 			});
 			const body = (await res.json()) as T | RpcError;
 			if (!res.ok) {
-				// 422 = application error with a body we want to surface intact.
+				// 422 = application error whose body is surfaced intact.
 				if (typeof (body as RpcError).error === "string") return body as RpcError;
 				return { error: `HTTP ${res.status}` };
 			}
