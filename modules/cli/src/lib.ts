@@ -5,6 +5,7 @@ import type { TBase, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { getCreateSteppers, getDefaultTag } from "@haibun/core/lib/test/lib.js";
+import { resolveSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/util/index.js";
 import { BaseOptions } from "./BaseOptions.js";
 import { TFileSystem, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
@@ -165,7 +166,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: { stepResults: [], observations: new Map<string, TAnyFixme>() },
+		runtime: { stepResults: [], observations: new Map<string, TAnyFixme>(), keys: { principal: resolveSitePrincipal() } },
 		eventLogger,
 		prompter: new Prompter(),
 		...protoOptions,

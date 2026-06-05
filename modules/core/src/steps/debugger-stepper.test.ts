@@ -180,7 +180,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 	// driven dispatch. Those callers have no human at the prompter, so the
 	// debugger's before/afterStep hooks must not enter debugLoop — otherwise
 	// prompter.prompt() awaits forever, stepEnd never fires, and the caller hangs.
-	// Regression for the "fetching forever" symptom of a missing-vertex RPC.
+	// Regression for the "fetching forever" symptom of a missing-node RPC.
 
 	it("does not prompt on actionNotOK when dispatched via RPC transport", async () => {
 		const failing = new (class extends AStepper {
