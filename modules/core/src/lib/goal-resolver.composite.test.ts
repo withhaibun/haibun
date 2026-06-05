@@ -28,10 +28,10 @@ function reg(schema: z.ZodType, topology?: TRegisteredDomain["topology"]): TRegi
 
 function makeDomains(): Record<string, TRegisteredDomain> {
 	return {
-		"issuer": reg(IssuerSchema, { vertexLabel: "Issuer", id: "did", properties: {} }),
-		"proof": reg(ProofSchema, { vertexLabel: "Proof", id: "value", properties: {} }),
-		"vc": reg(VcSchema, {
-			vertexLabel: "VerifiableCredential",
+		issuer: reg(IssuerSchema, { persistedAs: "Issuer", id: "did", properties: {} }),
+		proof: reg(ProofSchema, { persistedAs: "Proof", id: "value", properties: {} }),
+		vc: reg(VcSchema, {
+			persistedAs: "VerifiableCredential",
 			id: "subject",
 			properties: {},
 			ranges: { issuer: "issuer", proof: "proof" },
@@ -105,7 +105,7 @@ describe("resolveGoal — composite decomposition", () => {
 		// Self-referential composite: deep.next ranges over deep itself.
 		const SelfSchema = z.object({ next: z.string() });
 		const domains: Record<string, TRegisteredDomain> = {
-			deep: reg(SelfSchema, { vertexLabel: "Deep", id: "next", properties: {}, ranges: { next: "deep" } }),
+			deep: reg(SelfSchema, { persistedAs: "Deep", id: "next", properties: {}, ranges: { next: "deep" } }),
 			leaf: reg(z.object({ id: z.string() })),
 		};
 		const graph: TDomainChainGraph = {
@@ -117,7 +117,7 @@ describe("resolveGoal — composite decomposition", () => {
 			edges: [{ from: "deep", to: "leaf", stepperName: "S", stepName: "f" }],
 		};
 		const result = resolveGoal("leaf", { graph, facts: [], capabilities: new Set(), domains, compositeDecomposition: true, compositeMaxDepth: 2 });
-		// We just need it to terminate and return some finding without hanging or producing infinite michi.
+		// Must terminate with some finding, without hanging or producing infinite michi.
 		expect(result.finding === GOAL_FINDING.MICHI || result.finding === GOAL_FINDING.UNREACHABLE).toBe(true);
 	});
 

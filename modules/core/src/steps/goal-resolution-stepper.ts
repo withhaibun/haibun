@@ -2,7 +2,7 @@
  * GoalResolutionStepper — exposes the goal resolver as steps.
  *
  *   resolve {goal: domain-key}                          → DOMAIN_GOAL_RESOLUTION
- *   resolve {goal: domain-key} where {constraint: json} → DOMAIN_GOAL_RESOLUTION (constraint unused in v1)
+ *   resolve {goal: domain-key} where {constraint: json} → DOMAIN_GOAL_RESOLUTION (constraint accepted; resolution runs on the goal)
  *   show affordances                                    → DOMAIN_AFFORDANCES (forward edges + goal verdicts)
  *   show chain lint                                     → DOMAIN_CHAIN_LINT (orphan/starved/unreachable findings + affordance overlay)
  *
@@ -23,6 +23,7 @@ import {
 } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
 import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
+import { affordancesSchema, chainLintSchema, goalResolutionSchema } from "../lib/core-domains.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
@@ -87,9 +88,8 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				json: { domainChainLint: lint } as Record<string, unknown>,
 			});
 
-			// Smoke-goals drift detector. Resolve each declared smoke goal and emit
-			// the verdict. Consumers (the user, a CI checker) compare against the
-			// previous snapshot to detect graph-shape regressions.
+			// Smoke-goals drift detector: resolve each declared smoke goal and emit
+			// the verdict for comparison against a prior snapshot to detect graph-shape regressions.
 			const smokeRaw = getStepperOption(this, SMOKE_GOALS, world.moduleOptions);
 			if (smokeRaw) {
 				const goals = smokeRaw
@@ -215,7 +215,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			compositeMaxDepth: composite.compositeMaxDepth,
 			asOfSeqPath: asOf,
 		});
-		return actionOKWithProducts(affordances as unknown as Record<string, unknown>);
+		return actionOKWithProducts(affordancesSchema.parse(affordances));
 	}
 
 	steps: TStepperSteps = {
@@ -225,7 +225,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
-				return actionOKWithProducts(resolution as unknown as Record<string, unknown>);
+				return actionOKWithProducts(goalResolutionSchema.parse(resolution));
 			},
 		},
 
@@ -247,7 +247,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
 				if (resolution.finding === GOAL_FINDING.SATISFIED) {
-					return actionOKWithProducts(resolution as unknown as Record<string, unknown>);
+					return actionOKWithProducts(goalResolutionSchema.parse(resolution));
 				}
 				if (resolution.finding === GOAL_FINDING.UNREACHABLE) {
 					return actionNotOK(`pursue ${goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
@@ -260,7 +260,9 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				if (!michi) return actionNotOK(`pursue ${goal}: no michi returned`);
 				const argBindings = collectArgumentBindings(michi.bindings);
 				if (argBindings.length > 0) {
-					return actionNotOK(`pursue ${goal}: ${argBindings.length} argument binding(s) need supplying — domains: ${argBindings.join(", ")}. Use the SPA's path-card or extend pursue with explicit args.`);
+					return actionNotOK(
+						`pursue ${goal}: ${argBindings.length} argument binding(s) need supplying — domains: ${argBindings.join(", ")}. Use the SPA's path-card or extend pursue with explicit args.`,
+					);
 				}
 				return await this.executeMichi(goal, michi);
 			},
@@ -271,9 +273,9 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			inputDomains: { goal: DOMAIN_DOMAIN_KEY, constraint: DOMAIN_JSON },
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: async ({ goal }: { goal: string; constraint: unknown }) => {
-				// constraints accepted but not yet propagated through the resolver.
+				// constraint is accepted as a domain input; resolution runs on the goal alone.
 				const resolution = await this.runResolution(goal);
-				return actionOKWithProducts(resolution as unknown as Record<string, unknown>);
+				return actionOKWithProducts(goalResolutionSchema.parse(resolution));
 			},
 		},
 
@@ -311,7 +313,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					facts,
 					capabilities: this.grantedCapabilities(),
 				});
-				return actionOKWithProducts({ ...(report as unknown as Record<string, unknown>), forward: affordances.forward, goals: affordances.goals });
+				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals }));
 			},
 		},
 	};
@@ -327,9 +329,9 @@ export default GoalResolutionStepper;
 function collectArgumentBindings(bindings: TBinding[]): string[] {
 	const out: string[] = [];
 	const visit = (b: TBinding | { kind: string; domain?: string; fields?: unknown[] }): void => {
-		if ((b as TBinding).kind === "argument") out.push(((b as TBinding).domain) ?? "(unknown)");
+		if ((b as TBinding).kind === "argument") out.push((b as TBinding).domain ?? "(unknown)");
 		else if ((b as TBinding).kind === "composite") {
-			for (const f of ((b as { kind: "composite"; fields: TBinding[] }).fields) ?? []) visit(f);
+			for (const f of (b as { kind: "composite"; fields: TBinding[] }).fields ?? []) visit(f);
 		}
 	};
 	for (const b of bindings) visit(b);

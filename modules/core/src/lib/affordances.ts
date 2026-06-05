@@ -95,7 +95,7 @@ export type TAffordances = {
 	/**
 	 * Per-domain map of asserted fact identifiers (the producing seqPath, in string
 	 * form). The chain view uses this to render individual fact-instance nodes
-	 * attached to their domain — so the user sees "an issuer was created at 0.1.3.2"
+	 * attached to their domain — renders "an issuer was created at 0.1.3.2"
 	 * rather than just "the issuer domain is satisfied". Keyed by domain name.
 	 */
 	satisfiedFacts: Record<string, string[]>;
@@ -114,7 +114,7 @@ export interface TAffordancesInputs {
 	 * Replay the affordances at a historical point. When set, only typed facts
 	 * whose seqPath subject is `≤ asOfSeqPath` enter the projection — facts
 	 * asserted later in the run are dropped. Lets the panel reconstruct
-	 * mid-flight state from any seqPath the user has on hand.
+	 * mid-flight state from any prior seqPath.
 	 */
 	asOfSeqPath?: number[];
 }
@@ -209,7 +209,8 @@ function buildGoalFrontier(
 		// decomposition with fact-bindings. Skip those. Paths that exercise
 		// composite ranges (fact-bindings, recursive decomposition) stay visible
 		// even when they collapse to one step late in a chain.
-		if ((resolution.finding === GOAL_FINDING.MICHI || resolution.finding === GOAL_FINDING.SATISFIED) && Array.isArray(resolution.michi) && resolution.michi.every(isTrivialMichi)) continue;
+		if ((resolution.finding === GOAL_FINDING.MICHI || resolution.finding === GOAL_FINDING.SATISFIED) && Array.isArray(resolution.michi) && resolution.michi.every(isTrivialMichi))
+			continue;
 		// Every goal-producing domain must declare a human description so the goal
 		// index reads as prose, not a wall of codenames. Two sources, in order:
 		//   1. `description` on the domain definition (explicit override).

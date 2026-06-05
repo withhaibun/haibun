@@ -2,8 +2,7 @@ import { AStepper } from "../lib/astepper.js";
 import { Resolver } from "../phases/Resolver.js";
 import { TActionExecutor, TCurriedAction, withAction } from "./withAction.js";
 
-// The structure of a kireji feature, using the ActionExecutor for type safety.
-// Steps can be either TActionExecutor functions or plain strings (prose)
+// A kireji feature: steps are either TActionExecutor functions or plain prose strings.
 type TkirejiFeature = {
 	[key: string]: (TActionExecutor<string> | string)[];
 };
@@ -14,9 +13,8 @@ export type TBddWithLineMap = {
 };
 
 /**
- * Converts a Kireji feature object into a BDD formatted string.
- * It iterates through the feature's steps, executing any functional steps to get their GWTA string,
- * and mapping the resulting lines to the original step indices for source tracking.
+ * Convert a kireji feature object into a BDD-formatted string, executing functional steps to
+ * obtain their GWTA and mapping each output line to its source step index.
  */
 export const toBdd = (feature: TkirejiFeature): TBddWithLineMap => {
 	let bddString = "";
@@ -47,10 +45,8 @@ export const toBdd = (feature: TkirejiFeature): TBddWithLineMap => {
 };
 
 /**
- * Converts a BDD formatted string back into a Kireji feature object.
- * This function parses the string to extract the feature name and steps,
- * then uses the provided steppers to resolve each step prose back to a
- * functional action with arguments.
+ * Convert a BDD-formatted string back into a kireji feature object, resolving each step's prose
+ * to a functional action with arguments via the provided steppers.
  */
 export const fromBdd = (bdd: string, steppers: AStepper[]): Promise<TkirejiFeature> => {
 	const lines = bdd.split("\n");

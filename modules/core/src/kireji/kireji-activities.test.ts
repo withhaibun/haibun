@@ -16,7 +16,7 @@ describe("kireji activities", () => {
 				activity({ activity: "Setup variables" }),
 				waypointWithProof({
 					outcome: "Variables are set",
-					// NB multiple lines line this can oonly be called from kijeji, they would have to be handled via Backgrounds in BDD.
+					// Multi-line proof only works from kireji; in BDD it must come via Backgrounds.
 					proof: `set x to 1
 set y to 2
 set z to 3`,

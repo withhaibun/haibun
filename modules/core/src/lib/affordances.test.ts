@@ -143,9 +143,15 @@ describe("buildAffordances", () => {
 		const emailLate: TQuad = { subject: "0.1.9", predicate: EMAIL, object: { id: "e1" }, namedGraph: "facts", timestamp: 2 };
 		const live = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [personEarly, emailLate], capabilities: new Set() });
 		expect(live.forward.find((f) => f.stepName === "issueEmail")?.readyToRun).toBe(true);
-		const replay = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [personEarly, emailLate], capabilities: new Set(), asOfSeqPath: [0, 1, 6] });
+		const replay = buildAffordances({
+			steppers: [new EmailFromPerson(), new PersonSource()],
+			domains: fixedDomains(),
+			facts: [personEarly, emailLate],
+			capabilities: new Set(),
+			asOfSeqPath: [0, 1, 6],
+		});
 		// emailLate (0.1.9) is dropped, personEarly (0.1.5) survives; the Email
-		// goal sees one less asserted fact and the resolver no longer reports it
+		// goal sees one less asserted fact, so the resolver does not report it
 		// as satisfied through that emission.
 		expect(replay.forward.find((f) => f.stepName === "issueEmail")?.readyToRun).toBe(true);
 	});

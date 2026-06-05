@@ -16,9 +16,7 @@ describe("ActivitiesStepper speculative execution", () => {
         not ensure Fail
       `,
 		};
-		// If 'fails' runs authoritatively, it might log errors or cause issues.
-		// But mainly we want to ensure the test passes (meaning 'not' caught the failure).
-		// If 'ensure Fail' throws or fails hard, 'not' might not catch it correctly or we might see error logs.
+		// `not ensure Fail` must catch the failure rather than letting it throw or fail hard.
 		const result = await passWithDefaults([feature], [ActivitiesStepper, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
 	});
