@@ -8,12 +8,10 @@ export type TProtoFeature = { base?: string; path: string; content: string }[];
 
 export const asFeatures = (w: TProtoFeature) => w.map((i) => withNameType(i.base || TEST_BASE, i.path, i.content));
 
-// FIXME can't really do this without reproducing resolve
 export const asExpandedFeatures = (w: { base?: string; path: string; content: string }[]): TExpandedFeature[] =>
 	asFeatures(w).map((i) => {
 		const expanded: TExpandedLine[] = featureSplit(i.content).map((a, idx) => ({ line: a, lineNumber: idx + 1, feature: i }));
 		const a: TAnyFixme = { ...i, expanded };
 		delete (a as { content?: string }).content;
-		// a.featureLine = asFeatureLine()
 		return a as TExpandedFeature;
 	});

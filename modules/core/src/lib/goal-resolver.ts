@@ -47,9 +47,9 @@ export type TBinding = { domain: string } & ({ kind: "fact"; factId: string } | 
 /**
  * One field within a composite binding. `fieldDomain` is empty when the field
  * has no declared `topology.ranges` entry — in that case the field is treated
- * as a primitive argument supplied by the user. `fieldType` is the Zod type
- * label (`"string"`, `"number"`, `"date"`, `"array"`, etc.) so consumers can
- * show the user what shape to supply.
+ * as a primitive argument. `fieldType` is the Zod type label (`"string"`,
+ * `"number"`, `"date"`, `"array"`, etc.) so consumers can show what shape
+ * to supply.
  */
 export type TFieldBinding = {
 	fieldName: string;
@@ -247,7 +247,9 @@ function enumerate(
 	path: string,
 ): TEnumResult {
 	if (++enumerateCallCount > ENUMERATE_BUDGET) {
-		throw new Error(`[goal-resolver] enumerate() budget of ${ENUMERATE_BUDGET} calls exceeded for target=${target} depth=${depth} path=${path}. Likely a cycle the visited-set doesn't catch (cartesian composite explosion, or recursive field-domain reference). visited=[${[...visited].slice(0, 10).join(", ")}${visited.size > 10 ? `, ...${visited.size} total` : ""}]`);
+		throw new Error(
+			`[goal-resolver] enumerate() budget of ${ENUMERATE_BUDGET} calls exceeded for target=${target} depth=${depth} path=${path}. Likely a cycle the visited-set doesn't catch (cartesian composite explosion, or recursive field-domain reference). visited=[${[...visited].slice(0, 10).join(", ")}${visited.size > 10 ? `, ...${visited.size} total` : ""}]`,
+		);
 	}
 	if (depth > depthLimit) return { michi: [], truncated: false };
 	if (target === SOURCE_DOMAIN) return { michi: [{ steps: [], bindings: [] }], truncated: false };
@@ -431,7 +433,9 @@ function resolveFieldOptions(
 		// an `argument`-kind field-binding so the consumer surfaces "you
 		// supply" semantics for the field as a whole, while the outer michi's
 		// `steps` carries the producing chain.
-		const fieldBinding: TFieldBinding = leaf ? makeFieldBinding(field, leaf) : { fieldName: field.fieldName, fieldDomain: field.fieldDomain ?? "", fieldType, optional: field.optional, kind: "argument" };
+		const fieldBinding: TFieldBinding = leaf
+			? makeFieldBinding(field, leaf)
+			: { fieldName: field.fieldName, fieldDomain: field.fieldDomain ?? "", fieldType, optional: field.optional, kind: "argument" };
 		options.push({ field: fieldBinding, steps: m.steps });
 	}
 	return { options, truncated: sub.truncated };

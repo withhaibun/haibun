@@ -51,7 +51,7 @@ variable haibunUrl is "https://en.wikipedia.org/wiki/Haibun"
 	});
 
 	it("should skip activity body when proof already passes", async () => {
-		// This test shows that if the proof already passes, we skip the activity body
+		// When the proof already passes, the activity body is skipped.
 
 		const background = {
 			path: "/backgrounds/test.feature",

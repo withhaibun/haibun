@@ -39,7 +39,7 @@ describe("resolveGoal", () => {
 		if (result.finding !== GOAL_FINDING.SATISFIED) throw new Error("unreachable");
 		expect(result.factIds).toEqual(["fact-1"]);
 		// `b` has a producer step that takes `a` as input; even though `b` is satisfied,
-		// the user must still have the option to run the chain again.
+		// the chain must still be runnable again.
 		expect(result.michi.length).toBeGreaterThan(0);
 		expect(result.michi[0].steps.map((s) => s.stepName)).toEqual(["make"]);
 	});
