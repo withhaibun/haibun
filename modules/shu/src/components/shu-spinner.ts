@@ -76,8 +76,14 @@ export class ShuSpinner extends HTMLElement {
 		this.shadowRoot.innerHTML = `
 <style>
   :host { display: block; }
-  .spinner-container { display: ${this._visible ? "flex" : "none"}; align-items: center; gap: 6px; padding: 2px 0; color: #666; font-style: italic; font-size: inherit; }
-  .spinner-dot { width: 12px; height: 12px; border: 2px solid #ccc; border-top-color: #555; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  .spinner-container {
+    display: ${this._visible ? "flex" : "none"}; align-items: center; gap: var(--shu-space-3);
+    padding: var(--shu-space-1) 0; color: var(--shu-fg-muted); font-style: italic; font-size: inherit;
+  }
+  .spinner-dot {
+    width: 12px; height: 12px; border: 2px solid var(--shu-border); border-top-color: var(--shu-fg-muted);
+    border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;
+  }
   .spinner-dot.pulse { animation: spin 0.8s linear infinite, ping 0.4s ease-out; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(85,85,85,0.5); } 100% { box-shadow: 0 0 0 6px rgba(85,85,85,0); } }

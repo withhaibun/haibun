@@ -38,9 +38,9 @@ const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 export function validateAgainstSchema(value: unknown, schema: TJsonSchema, fieldPath = ""): TFieldError[] {
 	const errors: TFieldError[] = [];
 	if (value === undefined || value === null || value === "") {
-		// Required-checking lives at the parent level (we don't know if this
-		// node is required without context). Empty values short-circuit other
-		// checks since "must be a uri" on undefined is unhelpful noise.
+		// Required-checking lives at the parent level (whether this node is
+		// required isn't knowable without context). Empty values short-circuit
+		// other checks since "must be a uri" on undefined is unhelpful noise.
 		return errors;
 	}
 	if (schema.enum && !schema.enum.includes(value)) errors.push({ field: fieldPath, message: `must be one of: ${schema.enum.join(", ")}` });
@@ -53,7 +53,8 @@ export function validateAgainstSchema(value: unknown, schema: TJsonSchema, field
 	if (schema.type === "string" || (schema.type === undefined && typeof value === "string")) {
 		if (typeof value !== "string") errors.push({ field: fieldPath, message: "must be a string" });
 		else {
-			if (schema.minLength !== undefined && value.length < schema.minLength) errors.push({ field: fieldPath, message: `must be at least ${schema.minLength} character${schema.minLength === 1 ? "" : "s"}` });
+			if (schema.minLength !== undefined && value.length < schema.minLength)
+				errors.push({ field: fieldPath, message: `must be at least ${schema.minLength} character${schema.minLength === 1 ? "" : "s"}` });
 			if (schema.format === "uri" || schema.format === "url") {
 				if (!URI_PATTERN.test(value)) errors.push({ field: fieldPath, message: `must be a uri (e.g. did:web:example.com or https://…) — got "${value}"` });
 			} else if (schema.format === "email") {

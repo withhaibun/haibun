@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { extractFieldEntries, isReferenceEdge, isVisibleKey, pickPreferredBody, SPA_PROPS } from "./util.js";
+import { STORED_TYPE_PROP } from "./consts.js";
 import { setSiteMetadata } from "./rels-cache.js";
 
 // Seed the rels cache so isVisibleKey can resolve property → rel for known labels.
@@ -22,6 +23,7 @@ setSiteMetadata({
 	},
 	edgeRanges: { Email: { hasBody: "Body", inReplyTo: "Email" } },
 	properties: { Email: ["messageId", "subject", "from", "to", "folder", "account", "body", "bodyHtml", "bodyMarkdown", "accessLevel"] },
+	queryable: { Email: ["subject", "from", "folder"] },
 	summary: { Email: ["subject"] },
 	ui: {},
 	propertyDefinitions: {
@@ -46,8 +48,8 @@ describe("isVisibleKey", () => {
 	});
 
 	it("hides SPA artifacts", () => {
-		expect(SPA_PROPS.has("vertexLabel")).toBe(true);
-		expect(isVisibleKey("vertexLabel")).toBe(false);
+		expect(SPA_PROPS.has(STORED_TYPE_PROP)).toBe(true);
+		expect(isVisibleKey(STORED_TYPE_PROP)).toBe(false);
 	});
 
 	it("hides keys whose name is itself a body-presentation rel (covers inlined edges like hasBody)", () => {

@@ -12,6 +12,8 @@ export const SHU_TEST_IDS = {
 		CHAT_INPUT: "app-chat-input",
 		CHAT_SUBMIT: "app-chat-submit",
 		CHAT_OUTPUT: "app-chat-output",
+		CHAT_TEXT: "app-chat-text",
+		SESSION_SELECT: "app-session-select",
 		STEP_SELECT: "app-step-select",
 		MODE_SELECT: "app-mode-select",
 		MODEL_SELECT: "app-model-select",

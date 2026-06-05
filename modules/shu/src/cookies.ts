@@ -17,11 +17,6 @@ export function setCookie(name: string, value: string): void {
 	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR}`;
 }
 
-export function clearCookie(name: string): void {
-	if (typeof document === "undefined") return;
-	document.cookie = `${name}=; path=/; max-age=0`;
-}
-
 export function getJsonCookie<T>(name: string, fallback: T): T {
 	const raw = getCookie(name);
 	if (!raw) return fallback;

@@ -1,4 +1,4 @@
-import { SseClient } from "./sse-client.js";
+import { conduit } from "./hypermedia.js";
 import { setRpcCache, findCachedMethod } from "./rpc-cache.js";
 import { getConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
@@ -22,7 +22,7 @@ export type DomainInfo = {
 	description?: string;
 	values?: string[];
 	stepperName?: string;
-	vertexLabel?: string;
+	persistedAs?: string;
 	ui?: Record<string, unknown>;
 };
 
@@ -32,7 +32,12 @@ export type DomainOption = {
 	description?: string;
 	stepperName?: string;
 	selectable: boolean;
+	/** Section heading for the type selector: "Declared" (runtime `set of …`) or "Built-in" (compiled stepper). */
+	group: string;
 };
+
+/** Section headings for the type selector, partitioning on a concern's `declared` flag. */
+export const DOMAIN_GROUP = { declared: "Declared", builtIn: "Built-in" } as const;
 
 export type StepListResponse = {
 	steps: StepDescriptor[];
@@ -60,7 +65,7 @@ const DomainInfoSchema = z
 		description: z.string().optional(),
 		values: z.array(z.string()).optional(),
 		stepperName: z.string().optional(),
-		vertexLabel: z.string().optional(),
+		persistedAs: z.string().optional(),
 		ui: z.record(z.string(), z.unknown()).optional(),
 	})
 	.strict();
@@ -90,21 +95,26 @@ export async function getAvailableDomains(): Promise<Record<string, DomainInfo>>
 	return domains;
 }
 
-/** Get the stepper name for a vertex type label. */
-export function getStepperForType(vertexLabel: string): string | undefined {
+/** Get the stepper name for a persisted type label. */
+export function getStepperForType(persistedAs: string): string | undefined {
 	if (!cachedDomains) return undefined;
 	for (const info of Object.values(cachedDomains)) {
-		if (info.vertexLabel === vertexLabel) return info.stepperName;
+		if (info.persistedAs === persistedAs) return info.stepperName;
 	}
 	return undefined;
 }
 
-/** Build selectable domain options. Vertex domains (those with vertexLabel) are selectable. */
+/**
+ * Build selectable domain options. Persisted domains (those with persistedAs) are
+ * selectable. Partitions on `concern.declared` into "Declared" (runtime
+ * `set of {domain} by …`) vs "Built-in" (compiled stepper) groups, declared
+ * first so feature-authored types surface above the system ones.
+ */
 export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainOption[] {
 	const concerns = getConcernCatalog();
 
-	return Object.values(concerns.vertices).map((vertex) => {
-		const v = vertex as { label: unknown; domainKey: string };
+	const options = Object.values(concerns.persisted).map((concern) => {
+		const v = concern as { label: unknown; domainKey: string; declared?: boolean };
 		if (typeof v.label !== "string") throw new Error(`Concern label for domain ${v.domainKey} must be a string`);
 		if (/^\s*\[.*\]\s*$/.test(v.label)) throw new Error(`Concern label for domain ${v.domainKey} looks like a stringified array: ${v.label}`);
 		const info = domains[v.domainKey];
@@ -114,8 +124,11 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainO
 			description: info?.description ?? "",
 			stepperName: info?.stepperName ?? "",
 			selectable: true,
+			group: v.declared ? DOMAIN_GROUP.declared : DOMAIN_GROUP.builtIn,
 		};
 	});
+	// Declared first so consecutive same-group options render under one header.
+	return options.sort((a, b) => (a.group === b.group ? 0 : a.group === DOMAIN_GROUP.declared ? -1 : 1));
 }
 
 async function getStepList(): Promise<StepListResponse> {
@@ -177,23 +190,24 @@ export function getHydratedViewHash(): string {
 }
 
 async function discover(): Promise<StepListResponse> {
-	const client = SseClient.for("");
-	const result = await client.rpcOpen<unknown>("step.list");
+	const result = await conduit().follow<unknown>({ method: "step.list" }, "rpc-registry: discover available steps");
 	const parsed: StepListResponse = StepListResponseSchema.parse(result);
 	const { steps, domains, concerns } = parsed;
 	setConcernCatalog(concerns, domains);
-	for (const [label, vertex] of Object.entries(concerns.vertices)) {
-		if (/^\s*\[.*\]\s*$/.test(vertex.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${vertex.label}`);
+	for (const [label, concern] of Object.entries(concerns.persisted)) {
+		if (/^\s*\[.*\]\s*$/.test(concern.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${concern.label}`);
 	}
 	cachedSteps = steps;
 	cachedDomains = domains;
 	return { steps, domains, concerns };
 }
 
+/** Look up a registered step by either its friendly name (e.g. `"graphQuery"`) or its full `Stepper-method` form. The name is the wire contract — resolution, and any "unknown step" outcome, happen at runtime against the loaded registry. */
 export function findStep(name: string): StepDescriptor | undefined {
 	return cachedSteps?.find((s) => s.stepName === name || s.method === name);
 }
 
+/** Resolve a friendly name (e.g. `"graphQuery"`) to the loaded stepper's full method (e.g. `"GraphStepper-graphQuery"`). A name no loaded stepper provides fails fast at runtime. */
 export function requireStep(name: string): string {
 	const step = findStep(name);
 	if (step) return step.method;
@@ -202,9 +216,9 @@ export function requireStep(name: string): string {
 }
 
 /**
- * Find steps relevant to the current vertex label.
+ * Find steps relevant to the current type label.
  * Matches by: param domain, graph-query domain,
- * vertex-label domain, or step pattern containing the label name.
+ * persisted-type domain, or step pattern containing the label name.
  */
 export function stepsForContext(label: string): StepDescriptor[] {
 	if (!cachedSteps || !cachedDomains) return [];
@@ -212,7 +226,7 @@ export function stepsForContext(label: string): StepDescriptor[] {
 	// Find domain keys that relate to this label
 	const contextDomains = new Set<string>();
 	for (const [key, info] of Object.entries(cachedDomains)) {
-		if (info.vertexLabel === label) contextDomains.add(key);
+		if (info.persistedAs === label) contextDomains.add(key);
 		if (key.toLowerCase().includes(lc)) contextDomains.add(key);
 	}
 	return cachedSteps.filter((step) => {

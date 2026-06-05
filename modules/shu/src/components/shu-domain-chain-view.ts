@@ -6,8 +6,8 @@
  * as labeled edges. Schema edges that participate in at least one goal-resolver
  * path are tagged with the path id in the projection (`annotateGoalPaths`) and
  * the renderer paints them as "active" — a distinct stroke colour over the
- * default thin / dashed style. Potential edges (real steps the user could
- * invoke that no current goal-path runs through) keep the kind-based style.
+ * default thin / dashed style. Potential edges (invokable steps that no current
+ * goal-path runs through) keep the kind-based style.
  *
  * The chain view owns: toolbar (layout / zoom / copy via shu-graph),
  * shu-graph-filter integration (kind + stepper axes, cookie-persisted),
@@ -15,8 +15,11 @@
  * PaneState. Rendering, hover-highlight, selection-highlight, and the mermaid
  * lifecycle live in shu-graph.
  */
+import { html, css, type TemplateResult } from "lit";
+import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
-import { SseClient, inAction } from "../sse-client.js";
+import { conduit } from "../hypermedia.js";
+import { eventStream } from "../event-stream.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
 import { filterGraph, graphAxes } from "../graph/filter-graph.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -39,6 +42,32 @@ const StateSchema = z.object({
 });
 
 export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
+	static styles = [shuBaseStyles, css`
+		:host { display: flex; flex-direction: column; height: 100%; font-family: inherit; }
+		.header { display: flex; justify-content: space-between; align-items: baseline; padding: var(--shu-space-4) var(--shu-space-5) var(--shu-space-2); flex-shrink: 0; }
+		.header h3 { margin: 0; font-size: var(--shu-font-md); color: var(--shu-fg-muted); }
+		.explanation { padding: 0 var(--shu-space-5); flex-shrink: 0; }
+		.explanation summary { cursor: pointer; font-size: var(--shu-font-md); color: var(--shu-fg-muted); padding: var(--shu-space-2) 0; }
+		.explanation p { margin: var(--shu-space-2) 0; font-size: var(--shu-font-md); color: var(--shu-fg); }
+		.empty {
+			color: var(--shu-fg-muted); font-size: var(--shu-font-md); padding: var(--shu-space-5); margin: var(--shu-space-5);
+			background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius);
+		}
+		.empty code { background: var(--shu-bg-elevated); padding: var(--shu-space-1) var(--shu-space-2); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); }
+		.error {
+			color: var(--shu-error); font-size: var(--shu-font-md); padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-4) var(--shu-space-5);
+			background: var(--shu-bg-error-soft); border: var(--shu-border-w) solid var(--shu-error); border-radius: var(--shu-radius);
+		}
+		.view-controls {
+			display: flex; gap: var(--shu-space-2); align-items: center; padding: var(--shu-space-2) var(--shu-space-4);
+			border-bottom: var(--shu-border-w) solid var(--shu-border); background: var(--shu-bg); flex-shrink: 0; flex-wrap: wrap;
+		}
+		.view-controls button { padding: var(--shu-space-1) var(--shu-space-4); cursor: pointer; }
+		.view-controls shu-graph-filter { flex: 1; min-width: 0; }
+		:host(:not([data-show-controls])) .view-controls { display: none; }
+		.zoom-label { color: var(--shu-fg-muted); font-size: var(--shu-font-md); min-width: 38px; text-align: center; }
+		shu-graph { flex: 1; min-height: 0; overflow: hidden; }
+	`];
 	static domainSelector = "shu-domain-chain-view";
 
 	private affordances: TAffordancesSnapshot | null = null;
@@ -46,9 +75,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	getAffordances(): TAffordancesSnapshot | null {
 		return this.affordances;
 	}
-	private sseUnsubscribe: (() => void) | null = null;
 	private lastSnapshotFingerprint = "";
-	private popstateHandler: (() => void) | null = null;
 	/** UI-only selection, kept outside the Zod state so toggling it doesn't trigger
 	 * a re-render. Pushed to the embedded shu-graph via its `selectedNodeId` property. */
 	private selectedNodeId = "";
@@ -71,51 +98,41 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	 * applies a CSS transform to its container without re-running mermaid. */
 	private zoomPercent = 100;
 
-	static get observedAttributes(): string[] {
-		return ["data-show-controls"];
+	static observedHtmlAttributes = ["data-show-controls"];
+
+	protected override onAttributeChanged(name: string, _old: string | null, _val: string | null): void {
+		if (name === "data-show-controls") this.requestUpdate();
 	}
 
-	attributeChangedCallback(name: string): void {
-		if (name === "data-show-controls" && this.shadowRoot) this.render();
-	}
-
-	override connectedCallback(): void {
+	protected override onConnected(): void {
 		if (!this.hasAttribute("data-testid")) this.setAttribute("data-testid", "shu-domain-chain");
-		super.connectedCallback();
 		if (this.affordances === null) void this.fetchInitial();
-		// Live updates: subscribe to the goal-resolver's `affordances.<seqPath>` events
-		// so the chain repaints as the graph state changes. Each step's afterStep emits
-		// an event regardless of whether it changed anything, so dedup against a fingerprint
-		// of the fields we actually render — otherwise every step kicks a full mermaid
-		// re-render even when the snapshot is byte-identical.
+		// Subscribe to the goal-resolver's `affordances.<seqPath>` events so the chain
+		// repaints as the graph state changes. Each step's afterStep emits an event
+		// regardless of whether it changed anything, so dedup against a fingerprint of
+		// the rendered fields — otherwise every step kicks a full mermaid re-render
+		// even when the snapshot is byte-identical.
 		try {
-			const sse = SseClient.for("");
-			this.sseUnsubscribe = sse.onEvent(
-				(event) => {
-					const body = event.json as { affordances?: TAffordancesSnapshot } | undefined;
-					if (!body?.affordances) return;
-					this.applySseSnapshot(body.affordances);
-				},
-				(event) => typeof event.id === "string" && event.id.startsWith("affordances."),
+			this.autoTeardown(
+				eventStream().subscribe(
+					(event) => {
+						const body = event.json as { affordances?: TAffordancesSnapshot } | undefined;
+						if (!body?.affordances) return;
+						this.applySseSnapshot(body.affordances);
+					},
+					(event) => typeof event.id === "string" && event.id.startsWith("affordances."),
+				),
 			);
 		} catch {
-			// No SSE in this environment (jsdom, standalone). Ignore.
+			// No EventStream installed (early jsdom test, standalone). Ignore.
 		}
 		// React to URL changes so the highlight (`?aff-goal=` / `?aff-waypoint=`) follows
-		// the address bar. Selection lives outside the state schema, so we update the
+		// the address bar. Selection lives outside the state schema, so update the
 		// shu-graph's selectedNodeId directly — no mermaid re-layout, no graph movement.
-		this.popstateHandler = () => {
+		this.autoListen(window, "popstate", () => {
 			this.syncSelectionFromUrl();
 			this.applySelectionToGraph();
-		};
-		window.addEventListener("popstate", this.popstateHandler);
-	}
-
-	disconnectedCallback(): void {
-		this.sseUnsubscribe?.();
-		this.sseUnsubscribe = null;
-		if (this.popstateHandler) window.removeEventListener("popstate", this.popstateHandler);
-		this.popstateHandler = null;
+		});
 	}
 
 	/** View-open contract — pane-opener assigns producer products on mount. */
@@ -138,19 +155,11 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 
 	private async fetchInitial(): Promise<void> {
 		this.setState({ loadState: "fetching" });
-		let sse: SseClient;
-		try {
-			sse = SseClient.for("");
-		} catch (err) {
-			// No EventSource (jsdom, standalone). Surface the empty state with the reason.
-			this.setState({ loadState: "empty", fetchError: `SSE unavailable: ${errorDetail(err)}` });
-			return;
-		}
 		const candidates = ["ActivitiesStepper-showWaypoints", "GoalResolutionStepper-showAffordances"];
 		let lastError = "";
 		for (const method of candidates) {
 			try {
-				const response = await inAction((scope) => sse.rpc<Record<string, unknown>>(scope, method, {}));
+				const response = await conduit().follow<Record<string, unknown>>({ method }, `domain-chain-view: ${method}`);
 				if (Array.isArray(response?.forward) && Array.isArray(response?.goals)) {
 					this.affordances = {
 						forward: response.forward as TAffordancesSnapshot["forward"],
@@ -171,41 +180,18 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		this.setState({ loadState: "empty", fetchError: lastError });
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
+	render(): TemplateResult {
 		const a = this.affordances;
 		const { loadState, fetchError, layout } = this.state;
 		if (!a) {
-			if (loadState === "fetching") {
-				this.shadowRoot.innerHTML = `<style>${STYLES}</style><shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
-				return;
-			}
-			const errHtml = fetchError ? `<div class="error" data-testid="domain-chain-error">${fetchError}</div>` : "";
-			this.shadowRoot.innerHTML = `<style>${STYLES}</style>${errHtml}<div class="empty" data-testid="domain-chain-empty">No chain data yet. Invoke <code>show waypoints</code> or <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>`;
-			return;
+			if (loadState === "fetching") return html`<shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
+			return html`
+				${fetchError ? html`<div class="error" data-testid="domain-chain-error">${fetchError}</div>` : ""}
+				<div class="empty" data-testid="domain-chain-empty">No chain data yet. Invoke <code>show waypoints</code> or <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>
+			`;
 		}
-
-		const rawGraph = projectDomainChain(a);
-		rawGraph.direction = layout;
-		const hiddenSteppers = new Set(this.state.hiddenSteppers);
-		const hiddenKinds = new Set(this.state.hiddenKinds);
-		const graph = filterGraph(rawGraph, { hiddenSteppers, hiddenKinds });
-		graph.direction = layout;
-
-		// View controls — zoom, layout, axis filter. All gated together by `data-show-controls`
-		// (the column-pane's gear); per the view-controls convention, no per-control gating.
-		const toolbar = `<div class="view-controls" data-testid="domain-chain-toolbar">
-			<button data-action="layout" title="Toggle layout direction">${layout}</button>
-			<button data-action="zoom-out" title="Zoom out">&minus;</button>
-			<span class="zoom-label">${this.zoomPercent}%</span>
-			<button data-action="zoom-in" title="Zoom in">+</button>
-			<shu-graph-filter data-axis-cookie-key="${FILTER_KEY}"></shu-graph-filter>
-		</div>`;
-
-		this.shadowRoot.innerHTML = `<style>${STYLES}</style>
-			<div class="header">
-				<h3>Domain chain</h3>
-			</div>
+		return html`
+			<div class="header"><h3>Domain chain</h3></div>
 			<details class="explanation">
 				<summary>How to read this</summary>
 				<p>Attributed property graph of the schemas. Nodes: domains, waypoints, fact instances. Edges: steps from input domains to output domain.</p>
@@ -213,10 +199,30 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 				<p><strong>Edge style</strong> — solid bold: ready; dashed: blocked. Edges traversed by a goal-resolver path render in amber to mark which steps the resolver currently routes through. A ⚷ on the label means the step needs a capability that has not been granted.</p>
 				<p>Click a domain or waypoint to open it in the affordances panel. Click a fact instance to open its producing step.</p>
 			</details>
-			${toolbar}
-			<shu-graph data-testid="domain-chain-graph"></shu-graph>`;
+			<div class="view-controls" data-testid="domain-chain-toolbar">
+				<button data-action="layout" title="Toggle layout direction">${layout}</button>
+				<button data-action="zoom-out" title="Zoom out">−</button>
+				<span class="zoom-label"></span>
+				<button data-action="zoom-in" title="Zoom in">+</button>
+				<shu-graph-filter data-axis-cookie-key=${FILTER_KEY}></shu-graph-filter>
+			</div>
+			<shu-graph data-testid="domain-chain-graph"></shu-graph>
+		`;
+	}
 
-		const filterEl = this.shadowRoot.querySelector("shu-graph-filter") as (ShuGraphFilter & HTMLElement) | null;
+	protected updated(): void {
+		const zoomLabel = this.shadowRoot?.querySelector(".zoom-label");
+		if (zoomLabel) zoomLabel.textContent = `${this.zoomPercent}%`;
+		const a = this.affordances;
+		if (!a) return;
+		const rawGraph = projectDomainChain(a);
+		rawGraph.direction = this.state.layout;
+		const hiddenSteppers = new Set(this.state.hiddenSteppers);
+		const hiddenKinds = new Set(this.state.hiddenKinds);
+		const graph = filterGraph(rawGraph, { hiddenSteppers, hiddenKinds });
+		graph.direction = this.state.layout;
+
+		const filterEl = this.shadowRoot?.querySelector("shu-graph-filter") as (ShuGraphFilter & HTMLElement) | null;
 		if (filterEl) {
 			if (this.showControls) filterEl.setAttribute("show-controls", "");
 			else filterEl.removeAttribute("show-controls");
@@ -229,15 +235,17 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			});
 		}
 
-		const graphEl = this.shadowRoot.querySelector("shu-graph") as (ShuGraph & HTMLElement) | null;
+		const graphEl = this.shadowRoot?.querySelector("shu-graph") as (ShuGraph & HTMLElement) | null;
 		if (graphEl) {
 			graphEl.products = { graph, options: {} };
 			graphEl.setZoom(this.zoomPercent);
 			graphEl.addEventListener(SHU_EVENT.GRAPH_NODE_CLICK as string, (e) => {
-				const detail = (e as CustomEvent).detail as { nodeId?: string; node?: { id?: string; kind?: string; link?: { href?: string }; wasGeneratedBy?: { factId: string; domain: string } } | null };
+				const detail = (e as CustomEvent).detail as {
+					nodeId?: string;
+					node?: { id?: string; kind?: string; link?: { href?: string }; wasGeneratedBy?: { factId: string; domain: string } } | null;
+				};
 				const node = detail?.node;
 				if (!detail?.nodeId || !node) {
-					// Background click: clear selection + drop deep-link params.
 					this.selectedNodeId = "";
 					graphEl.selectedNodeId = "";
 					this.clearAffordanceUrl();
@@ -247,7 +255,6 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 				graphEl.selectedNodeId = detail.nodeId;
 				this.routeNodeClick(node);
 			});
-			// Apply the URL-derived selection after the graph mounts.
 			this.syncSelectionFromUrl();
 			queueMicrotask(() => this.applySelectionToGraph());
 		}
@@ -338,7 +345,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	/** Click router for a graph node. Public for testability. */
 	routeNodeClick(node: { id?: string; kind?: string; link?: { href?: string }; wasGeneratedBy?: { factId: string; domain: string } }): void {
 		// Fact-instance nodes carry the producing seqPath as `wasGeneratedBy.factId`.
-		// Open the step-detail pane so the user can inspect the producing step.
+		// Open the step-detail pane onto the producing step.
 		if (node.kind === "fact-instance" && node.wasGeneratedBy?.factId) {
 			const factId = node.wasGeneratedBy.factId;
 			const seqPath = parseSeqPath(factId);
@@ -367,23 +374,3 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		console.log("[chain] routeNodeClick: node has no link.href to open; check the projection emitted a deep-link", node);
 	}
 }
-
-const STYLES = `
-	:host { display: flex; flex-direction: column; height: 100%; font-family: inherit; }
-	.header { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 12px 4px; flex-shrink: 0; }
-	.header h3 { margin: 0; font-size: 13px; color: #444; }
-	.explanation { padding: 0 12px; flex-shrink: 0; }
-	.explanation summary { cursor: pointer; font-size: 12px; color: #555; padding: 4px 0; }
-	.explanation p { margin: 4px 0; font-size: 12px; color: #333; }
-	.empty { color: #555; font-size: 12px; padding: 12px; margin: 12px; background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; }
-	.empty code { background: #eee; padding: 1px 4px; border-radius: 2px; font-size: 11px; }
-	.error { color: #a02828; font-size: 12px; padding: 8px 12px; margin: 8px 12px; background: #fdecec; border: 1px solid #f5c6c6; border-radius: 3px; }
-	/* View controls (zoom + layout + axis filter) toggle together as one group via
-	   the column-pane's gear (which mirrors its state onto data-show-controls on us). */
-	.view-controls { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; background: #fff; flex-shrink: 0; flex-wrap: wrap; }
-	.view-controls button { padding: 2px 8px; cursor: pointer; }
-	.view-controls shu-graph-filter { flex: 1; min-width: 0; }
-	:host(:not([data-show-controls])) .view-controls { display: none; }
-	.zoom-label { color: #666; font-size: 12px; min-width: 38px; text-align: center; }
-	shu-graph { flex: 1; min-height: 0; overflow: hidden; }
-`;

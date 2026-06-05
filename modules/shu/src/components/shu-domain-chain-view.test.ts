@@ -27,27 +27,20 @@ describe("shu-domain-chain-view", () => {
 		}
 	});
 
-	it("must NOT show only a spinner forever when mounted without products (regression: reload shows nothing actionable)", () => {
-		// Hash restoration mounts the view from the URL with no products. Either the
-		// view fetches its own state, or it shows an actionable empty-state message.
-		// What it MUST NOT do is sit on a spinner with no path forward.
+	it("must NOT show only a spinner forever when mounted without products (regression: reload shows nothing actionable)", async () => {
 		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView;
 		document.body.appendChild(view);
+		await view.updateComplete;
 		const html = view.shadowRoot?.innerHTML ?? "";
-		// In a test env the fetch will fail (no EventSource); the empty state must surface.
-		// Either the spinner is gone OR an actionable empty message is visible.
 		const hasEmptyState = /no chain data yet|invoke `show chain lint`/i.test(html);
 		const hasSpinner = /shu-spinner/.test(html);
 		const hasGraph = /domain-chain-graph/.test(html);
-		expect(hasEmptyState || hasGraph || hasSpinner).toBe(true); // some terminal state, not blank
-		// And specifically: we cannot end up with ONLY a spinner and nothing else (forever).
-		// In jsdom the fetch path fails fast; the test asserts the empty state appears.
+		expect(hasEmptyState || hasGraph || hasSpinner).toBe(true);
 	});
 
-	it("the view-controls block (zoom + layout + axis filter) is gated as one group by data-show-controls — no per-control gating", () => {
-		// Regression: zoom, layout, and the filter axis used to be partially separate; this
-		// scenario pins the unified-toggle invariant. The gating is a single CSS rule on
-		// :host(:not([data-show-controls])) .view-controls; everything inside hides together.
+	it("the view-controls block (zoom + layout + axis filter) is gated as one group by data-show-controls — no per-control gating", async () => {
+		// Zoom, layout, and the filter axis gate as one group. The gating is a single CSS rule
+		// on :host(:not([data-show-controls])) .view-controls; everything inside hides together.
 		if (!customElements.get("shu-graph-filter")) {
 			class FakeFilter extends HTMLElement {
 				setAxes(_axes: unknown): void {
@@ -71,12 +64,15 @@ describe("shu-domain-chain-view", () => {
 			}
 			customElements.define("shu-graph", FakeGraph);
 		}
-		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView & { applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean };
+		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView & {
+			applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean;
+		};
 		document.body.appendChild(view);
 		view.applySseSnapshot({
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
 		});
+		await view.updateComplete;
 		const controls = view.shadowRoot?.querySelector('[data-testid="domain-chain-toolbar"]') as HTMLElement | null;
 		expect(controls).toBeTruthy();
 		// Every control sits inside the same block.
@@ -86,7 +82,7 @@ describe("shu-domain-chain-view", () => {
 		expect(controls?.querySelector("shu-graph-filter")).toBeTruthy();
 	});
 
-	it("forwards graph-node-click from the embedded shu-graph to routeNodeClick so a deep-link node opens the affordances panel", () => {
+	it("forwards graph-node-click from the embedded shu-graph to routeNodeClick so a deep-link node opens the affordances panel", async () => {
 		// Regression: clicking a blue (reachable) node in the chain must open the affordances
 		// panel deep-linked to that goal. The flow is: shu-graph dispatches graph-node-click on
 		// itself → chain view's listener catches → routeNodeClick pushes URL + dispatches popstate.
@@ -117,13 +113,16 @@ describe("shu-domain-chain-view", () => {
 		for (const k of ["aff-goal", "aff-waypoint"]) url.searchParams.delete(k);
 		window.history.replaceState(window.history.state, "", url.toString());
 
-		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView & { applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean };
+		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView & {
+			applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean;
+		};
 		document.body.appendChild(view);
 		// Populate affordances so render() actually mounts the shu-graph.
 		view.applySseSnapshot({
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
 		});
+		await view.updateComplete;
 
 		let popstateCount = 0;
 		const onPop = () => popstateCount++;
@@ -245,9 +244,20 @@ describe("shu-domain-chain-view", () => {
 
 		it("preserves waypoints across an afterStep snapshot that omits them", () => {
 			// `showWaypoints` returns waypoints; the goal-resolver's afterStep snapshot does not.
-			// Merging must keep the previously seen waypoints rather than dropping them.
+			// Merging must keep the earlier waypoints rather than dropping them.
 			const view = mount();
-			const waypoints = [{ outcome: "VC issued", kind: "imperative" as const, method: "ActivitiesStepper-VC issued", paramSlots: [], proofStatements: [], ensured: false, source: { path: "f.feature" }, isBackground: false }];
+			const waypoints = [
+				{
+					outcome: "VC issued",
+					kind: "imperative" as const,
+					method: "ActivitiesStepper-VC issued",
+					paramSlots: [],
+					proofStatements: [],
+					ensured: false,
+					source: { path: "f.feature" },
+					isBackground: false,
+				},
+			];
 			view.applySseSnapshot({ ...mkSnap(5), waypoints });
 			// Subsequent snapshot has the same forward length AND a different goals shape, but no waypoints.
 			view.applySseSnapshot({ ...mkSnap(5), goals: [{ domain: "d0", resolution: { finding: "satisfied" } }] });
@@ -289,9 +299,9 @@ describe("shu-domain-chain-view", () => {
 		});
 
 		it("routes a fact-instance node click to step-detail (the producing seqPath) without pushing ?aff-goal", () => {
-			// Reproduce-path: each fact-instance's id is `fact:<seqPath>`. Clicking it should
-			// open the step-detail pane for that seqPath so the user can inspect the
-			// producing step. It must NOT deep-link into the affordances panel.
+			// Each fact-instance's id is `fact:<seqPath>`. Clicking it opens the step-detail
+			// pane for that seqPath onto the producing step. It must NOT deep-link into the
+			// affordances panel.
 			const view = mount();
 			let popstateCount = 0;
 			const onPop = () => popstateCount++;

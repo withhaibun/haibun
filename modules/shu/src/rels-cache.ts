@@ -1,10 +1,10 @@
 /**
  * Schema metadata cache — populated once from getSiteMetadata RPC call.
- * Provides rels, edge ranges, and properties for all vertex types.
+ * Provides rels, edge ranges, and properties for all node types.
  */
 
 /**
- * Per-rel runtime metadata — the Property vertex projection.
+ * Per-rel runtime metadata — the Property node projection.
  * Keyed by rel name (e.g. "hasBody"), one entry per RDF Property.
  *   iri            — RDFS URI for the rel (rdfs:Property's @id).
  *   range          — RDF range: "iri" | "literal" | "container".
@@ -28,6 +28,8 @@ export interface SiteMetadata {
 	rels: Record<string, Record<string, string>>;
 	edgeRanges: Record<string, Record<string, string>>;
 	properties: Record<string, string[]>;
+	/** Fields the server accepts as query filters (the topology's sortColumns), per label. */
+	queryable: Record<string, string[]>;
 	summary: Record<string, string[]>;
 	ui: Record<string, Record<string, unknown>>;
 	/** Per-rel metadata (label, icon, subPropertyOf, presentation, range, iri). */
@@ -79,7 +81,7 @@ export function getEdgeRanges(label: string): Record<string, string> | undefined
 	return metadata?.edgeRanges[label];
 }
 
-/** Sync lookup — returns target label for an edge type from a source vertex label. Falls back to global index. */
+/** Sync lookup — returns target label for an edge type from a source node label. Falls back to global index. */
 export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): string | undefined {
 	if (sourceLabel) {
 		const target = metadata?.edgeRanges[sourceLabel]?.[edgeType];
@@ -88,18 +90,19 @@ export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): stri
 	return edgeTypeIndex.get(edgeType);
 }
 
-/** Sync lookup — returns edge types whose target is a given label. */
-export function getEdgeTypesForLabel(targetLabel: string): Set<string> {
-	const types = new Set<string>();
-	for (const [edge, label] of edgeTypeIndex) {
-		if (label === targetLabel) types.add(edge);
-	}
-	return types;
-}
-
 /** Get cached properties for a label. */
 export function getProperties(label: string): string[] | undefined {
 	return metadata?.properties[label];
+}
+
+/** Get the identifier field name for a label (the `@id` / idField of its concern). */
+export function getIdField(label: string): string | undefined {
+	return metadata?.idFields[label];
+}
+
+/** Get the fields a label accepts as query filters (the topology's sortColumns). The idField is never among them. */
+export function getQueryableFields(label: string): string[] {
+	return metadata?.queryable[label] ?? [];
 }
 
 /** Get cached summary fields for a label. */
@@ -121,8 +124,8 @@ export function getPropertyOrder(label: string): string[] {
 	return [...byPriority, ...rest];
 }
 
-/** Get the UI extension declared by a vertex domain (if any). Used by the actions bar / SPA chrome to discover custom components. */
-export function getVertexUi(label: string): Record<string, unknown> | undefined {
+/** Get the UI extension declared by a type's domain (if any). Used by the actions bar / SPA chrome to discover custom components. */
+export function getUiByType(label: string): Record<string, unknown> | undefined {
 	return metadata?.ui[label];
 }
 
@@ -152,19 +155,12 @@ export function getSiteMetadataSync(): SiteMetadata | null {
 	return metadata;
 }
 
-/** Lookup the Property definition for a rel. Returns undefined if cache not initialized or rel unknown. */
-export function getPropertyDefinition(rel: string): PropertyDefinition | undefined {
-	return metadata?.propertyDefinitions?.[rel];
-}
-
-/** Display label for a rel — falls back to the rel name itself when no label is declared. */
-export function getRelLabel(rel: string): string {
-	return metadata?.propertyDefinitions?.[rel]?.label ?? rel;
-}
-
-/** Icon for a rel — undefined when none is declared. */
-export function getRelIcon(rel: string): string | undefined {
-	return metadata?.propertyDefinitions?.[rel]?.icon;
+/** Custom-element tags declared by domain `ui` extensions for the actions-bar chat row.
+ *  Rendered identically in ask and step modes, so both the actions bar and the kihan chat read it here. */
+export function getActionBarChatExtensionTags(): string[] {
+	return Object.values(metadata?.ui || {})
+		.filter((ui) => ui.slot === "action-bar-chat" && typeof ui.component === "string")
+		.map((ui) => String(ui.component));
 }
 
 /** Get the edge name → rel mapping from concern catalog. Cached; rebuilt on setConcernCatalog. */
@@ -198,8 +194,8 @@ export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<str
 	setSiteMetadata(cachedConcernMeta);
 	edgeRelMap.clear();
 	cachedEdgeRelRecord = null;
-	for (const vertex of Object.values(catalog.vertices)) {
-		for (const [edgeName, edge] of Object.entries(vertex.edges)) {
+	for (const concern of Object.values(catalog.persisted)) {
+		for (const [edgeName, edge] of Object.entries(concern.edges)) {
 			edgeRelMap.set(edgeName, edge.rel);
 		}
 	}
@@ -219,22 +215,24 @@ export function getConcernCatalog(): TConcernCatalog {
 	return concernCatalog;
 }
 
-/** Derive SiteMetadata from the concern catalog. Covers any stepper that declares vertex concerns. */
+/** Derive SiteMetadata from the concern catalog. Covers any stepper that declares persisted concerns. */
 export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Record<string, TDomainUiInfo>): SiteMetadata {
 	const types: string[] = [];
 	const idFields: Record<string, string> = {};
 	const rels: Record<string, Record<string, string>> = {};
 	const edgeRanges: Record<string, Record<string, string>> = {};
 	const properties: Record<string, string[]> = {};
+	const queryable: Record<string, string[]> = {};
 	const summary: Record<string, string[]> = {};
 	const ui: Record<string, Record<string, unknown>> = {};
-	for (const [label, vertex] of Object.entries(catalog.vertices)) {
+	for (const [label, concern] of Object.entries(catalog.persisted)) {
 		types.push(label);
-		idFields[label] = vertex.idField;
+		idFields[label] = concern.idField;
+		if (concern.queryable.length > 0) queryable[label] = concern.queryable;
 		const labelRels: Record<string, string> = {};
 		const labelProps: string[] = [];
 		const labelSummary: string[] = [];
-		for (const [field, prop] of Object.entries(vertex.properties)) {
+		for (const [field, prop] of Object.entries(concern.properties)) {
 			labelRels[field] = prop.rel;
 			labelProps.push(field);
 			if (prop.rel === LinkRelations.NAME.rel || prop.rel === LinkRelations.CONTEXT.rel) labelSummary.push(field);
@@ -243,11 +241,11 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		properties[label] = labelProps;
 		if (labelSummary.length > 0) summary[label] = labelSummary;
 		const labelEdges: Record<string, string> = {};
-		for (const [edgeName, edge] of Object.entries(vertex.edges)) {
+		for (const [edgeName, edge] of Object.entries(concern.edges)) {
 			labelEdges[edgeName] = edge.target;
 		}
 		if (Object.keys(labelEdges).length > 0) edgeRanges[label] = labelEdges;
-		if (vertex.ui) ui[label] = vertex.ui;
+		if (concern.ui) ui[label] = concern.ui;
 	}
 	if (domains) {
 		const seenComponents = new Set<string>();
@@ -256,8 +254,8 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		}
 		for (const [domainKey, info] of Object.entries(domains)) {
 			if (!info?.ui || ui[domainKey]) continue;
-			// A single concern that declares both `topology.vertexLabel` and a `selector`
-			// arrives twice — once via catalog.vertices (keyed by label), once via
+			// A single concern that declares both `topology.persistedAs` and a `selector`
+			// arrives twice — once via catalog.persisted (keyed by label), once via
 			// `domains` (keyed by selector). Dedup by component so one declaration
 			// produces one rendered element, not two.
 			const component = typeof info.ui.component === "string" ? info.ui.component : null;
@@ -281,6 +279,7 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		rels,
 		edgeRanges,
 		properties,
+		queryable,
 		summary,
 		ui,
 		propertyDefinitions,

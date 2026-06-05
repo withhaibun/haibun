@@ -9,8 +9,12 @@ import { hydrateFromDom, isStandaloneMode, getHydratedViewHash } from "./rpc-reg
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
-import { SseClient, inAction } from "./sse-client.js";
-import { getUiByComponent, getVertexUi } from "./rels-cache.js";
+import { conduit, setConduit, LiveConduit, SerializedConduit, isOffline, type TDispatch } from "./hypermedia.js";
+import { installShuTokens } from "./components/styles.js";
+import { applyShuPreferences } from "./components/shu-theme-switch.js";
+import * as ViewHash from "./view-hash.js";
+import { eventStream, setEventStream, LiveEventStream, SerializedEventStream } from "./event-stream.js";
+import { getUiByComponent, getUiByType } from "./rels-cache.js";
 import { parseAffordanceProduct } from "./affordance-products.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
 import { PaneState } from "./pane-state.js";
@@ -87,11 +91,26 @@ function seedHashFromQueryString(): void {
 	ShuElement.pushHash(`#?${hashParams.toString()}`);
 }
 
-
 const main = async (): Promise<void> => {
 	hydrateFromDom();
-	ShuElement.offline = isStandaloneMode();
-	if (ShuElement.offline) ShuElement.pushHash(getHydratedViewHash());
+	const standalone = isStandaloneMode();
+	// `ViewHash.setOffline` flips the URL/stored-state routing for view-hash IO so a standalone HTML report doesn't try to mutate `location.hash`.
+	ViewHash.setOffline(standalone);
+	if (standalone) ShuElement.pushHash(getHydratedViewHash());
+	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
+	installShuTokens();
+	applyShuPreferences();
+	// Install the conduit + event-stream pair before anything else; every component reads via the accessor and would otherwise throw on first use. The Conduit identity (Serialized vs Live) is from this point the single source of truth for "is the SPA offline" — callers read `isOffline()` from hypermedia.ts.
+	if (standalone) {
+		const offlineDispatch: TDispatch = (method, params) => {
+			throw new Error(`shu offline mode: no captured response for ${method} ${JSON.stringify(params).slice(0, 200)}`);
+		};
+		setConduit(new SerializedConduit(offlineDispatch));
+		setEventStream(new SerializedEventStream());
+	} else {
+		setConduit(new LiveConduit(""));
+		setEventStream(new LiveEventStream("/sse"));
+	}
 	seedHashFromQueryString();
 	await registerComponents();
 
@@ -102,7 +121,7 @@ const main = async (): Promise<void> => {
 		const { getAvailableSteps } = await import("./rpc-registry.js");
 		await getAvailableSteps();
 	} catch (err) {
-		if (!ShuElement.offline) {
+		if (!isOffline()) {
 			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${errorDetail(err)}</div>`;
 			return;
 		}
@@ -122,40 +141,36 @@ const main = async (): Promise<void> => {
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
 
-	/** Dismiss every non-query, non-pinned pane at indices > sourceIdx via PaneState. Pass -1 to prune all. */
-	const prunePanesAfterIndex = (strip: ShuColumnStrip, sourceIdx: number): void => {
-		const panes = strip.panes;
-		for (let i = panes.length - 1; i > sourceIdx; i--) {
-			const pane = panes[i];
+	/** Dismiss every non-query, non-pinned pane. Used on RESULTS_CHANGED — the query pane is what fires that event, so it stays. Per-click pruning lives in `PaneState.requestFrom` so the source pane index is computed at the origin, not by the listener tree. */
+	const removeTransientPanes = (strip: ShuColumnStrip): void => {
+		for (const pane of strip.panes) {
 			if (pane.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query" || pane.hasAttribute(SHU_ATTR.PINNED)) continue;
 			const paneId = pane.dataset.columnKey;
 			if (paneId) PaneState.dismiss(paneId);
 		}
 	};
-	/** Dismiss every non-query, non-pinned pane via PaneState. */
-	const removeTransientPanes = (strip: ShuColumnStrip) => prunePanesAfterIndex(strip, -1);
 
 	// Boot-time smoke test for the diagnostic channel.
 	const reportBootDiagnostic = (level: "debug" | "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
-		if (ShuElement.offline) return;
-		void inAction(async (scope) => {
-			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, source: "shu-app-boot", message: msg, attributes: attrs } });
-		}).catch((e) => failFastOrLog("[shu-boot] diagnostic failed:", e));
+		if (isOffline()) return;
+		void conduit()
+			.follow({ method: "MonitorStepper-logClient", params: { event: { level, source: "shu-app-boot", message: msg, attributes: attrs } } }, `app: boot diagnostic ${level}`)
+			.catch((e) => failFastOrLog("[shu-boot] diagnostic failed:", e));
 	};
 	reportBootDiagnostic("debug", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
 
 	const reportClientLog = (level: "debug" | "info" | "warn" | "error", message: string, attributes?: Record<string, unknown>) => {
 		// Offline (standalone shu.html): no server to log to. Skip silently — the
 		// diagnostic channel only exists in live mode.
-		if (ShuElement.offline) return;
+		if (isOffline()) return;
 		// Fail-fast — surface RPC plumbing issues that would otherwise hide every diagnostic.
-		void inAction(async (scope) => {
-			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", { event: { level, message, source: "shu-app", attributes } });
-		}).catch((err) => {
-			const detail = errorDetail(err);
-			console.error(`[shu] reportClientLog dispatch failed: ${detail}`, { level, message, attributes });
-			throw new Error(`[shu] reportClientLog dispatch failed: ${detail}`);
-		});
+		void conduit()
+			.follow({ method: "MonitorStepper-logClient", params: { event: { level, message, source: "shu-app", attributes } } }, `app: client log ${level}`)
+			.catch((err) => {
+				const detail = errorDetail(err);
+				console.error(`[shu] reportClientLog dispatch failed: ${detail}`, { level, message, attributes });
+				throw new Error(`[shu] reportClientLog dispatch failed: ${detail}`);
+			});
 	};
 
 	/**
@@ -209,6 +224,7 @@ const main = async (): Promise<void> => {
 				</shu-column-pane>
 			</shu-column-strip>
 			<shu-graph-query api-base="${apiBase}" label="${defaultLabel()}" sort-order="desc" results-target=".results-target"></shu-graph-query>
+			<shu-theme-switch></shu-theme-switch>
 		</div>
 	`;
 
@@ -246,15 +262,8 @@ const main = async (): Promise<void> => {
 		((e: CustomEvent) => {
 			const { subject, label, addToSelection } = e.detail || {};
 			if (!subject) return;
-			const strip = getStrip();
-			if (!strip) return;
-			// Miller-column: a click in column x replaces subsequent panes unless modifier-clicked.
-			if (!addToSelection) {
-				const sourcePane = e.composedPath().find((el): el is HTMLElement => el instanceof HTMLElement && el.tagName === "SHU-COLUMN-PANE") as ShuColumnPane | undefined;
-				const sourceIdx = sourcePane ? strip.panes.indexOf(sourcePane) : -1;
-				if (sourceIdx >= 0) prunePanesAfterIndex(strip, sourceIdx);
-			}
-			PaneState.request({ paneType: "entity", id: subject, vertexLabel: label || defaultLabel() });
+			// PaneState.requestFrom centralizes the Miller-column behaviour (dismiss every non-pinned pane to the right of the source). Every component that opens a column from a row click must reach this same path; direct `request` calls in views would skip the pruning and leak stale panes.
+			PaneState.requestFrom(e, { paneType: "entity", id: subject, persistedAs: label || defaultLabel() }, Boolean(addToSelection));
 		}) as EventListener,
 		{ signal },
 	);
@@ -292,8 +301,7 @@ const main = async (): Promise<void> => {
 	};
 
 	// Every step-end emits hypermedia products; if they carry view markers, route to PaneState.
-	const sseClient = SseClient.for("");
-	sseClient.onEvent((event) => {
+	eventStream().subscribe((event) => {
 		const e = event as THaibunEvent & { products?: THypermediaProducts };
 		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed" || !e.products) return;
 		const action = parseAffordanceProduct(e.products);
@@ -301,12 +309,12 @@ const main = async (): Promise<void> => {
 		if (action.kind === "close") return PaneState.dismiss(action.view);
 		if (action.kind === "open-component") return PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products });
 		if (action.kind === "show-views") return PaneState.request({ paneType: "views-picker", views: action.views, label: action.label });
-		const ui = getVertexUi(action.type);
+		const ui = getUiByType(action.type);
 		if (ui?.component && typeof ui.component === "string") {
 			PaneState.request({ paneType: "component", tag: ui.component, label: action.label, data: action.products });
 		}
 		// No ui.component declared → not a view. SSE-driven products without a
-		// registered component aren't auto-pinned; users open vertices via the
+		// registered component aren't auto-pinned; nodes open via the
 		// query/entity column flow.
 	});
 
@@ -319,23 +327,6 @@ const main = async (): Promise<void> => {
 			const strip = getStrip();
 			if (!strip) return;
 			removeTransientPanes(strip);
-		}) as EventListener,
-		{ signal },
-	);
-
-	// Time sync → fan out to all panes and light-DOM components
-	appRoot.addEventListener(
-		SHU_EVENT.TIME_SYNC,
-		((e: CustomEvent) => {
-			const strip = getStrip();
-			if (!strip) return;
-			for (const pane of strip.panes) {
-				const child = pane.firstElementChild;
-				if (child && child !== e.target) child.dispatchEvent(new CustomEvent(SHU_EVENT.TIME_SYNC, { detail: e.detail }));
-			}
-			appRoot.querySelectorAll("shu-result-table").forEach((el) => {
-				el.dispatchEvent(new CustomEvent(SHU_EVENT.TIME_SYNC, { detail: e.detail }));
-			});
 		}) as EventListener,
 		{ signal },
 	);
@@ -368,9 +359,9 @@ const main = async (): Promise<void> => {
 	);
 
 	// Closing the column whose content carries the current selection clears the
-	// selection — otherwise viewers remain "focus-locked" on a subject the user
-	// has navigated away from. Views surface their subject via `data-subject` so
-	// the contract is the attribute, not the protected `state` field.
+	// selection — otherwise viewers stay "focus-locked" on a subject whose column
+	// is gone. Views surface their subject via `data-subject` so the contract is
+	// the attribute, not the protected `state` field.
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_CLOSE,
 		((e: CustomEvent) => {
@@ -539,23 +530,23 @@ const main = async (): Promise<void> => {
 			afterAttach: {
 				entity: (d, child) => {
 					if (d.paneType !== "entity") return;
-					return (child as ShuEntityColumn).open(d.id, d.vertexLabel);
+					return (child as ShuEntityColumn).open(d.id, d.persistedAs);
 				},
 				"filter-eq": (d, child) => {
 					if (d.paneType !== "filter-eq") return;
-					return (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.vertexLabel);
+					return (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.persistedAs);
 				},
 				"filter-prop": (d, child) => {
 					if (d.paneType !== "filter-prop") return;
-					return (child as ShuFilterColumn).openProperty(d.predicate, d.vertexLabel);
+					return (child as ShuFilterColumn).openProperty(d.predicate, d.persistedAs);
 				},
 				"filter-incoming": (d, child) => {
 					if (d.paneType !== "filter-incoming") return;
-					return (child as ShuFilterColumn).openIncoming(d.subject, d.vertexLabel);
+					return (child as ShuFilterColumn).openIncoming(d.subject, d.persistedAs);
 				},
 				thread: (d, child) => {
 					if (d.paneType !== "thread") return;
-					return (child as import("./components/shu-thread-column.js").ShuThreadColumn).open(d.vertexLabel, d.subject);
+					return (child as import("./components/shu-thread-column.js").ShuThreadColumn).open(d.persistedAs, d.subject);
 				},
 				"step-detail": (d, child) => {
 					if (d.paneType !== "step-detail") return;

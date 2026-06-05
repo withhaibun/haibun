@@ -14,9 +14,17 @@ import { StepCaller } from "./shu-step-caller.js";
  *      rejection (the original crash this test was added for).
  */
 
+import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
+import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
+
 describe("shu-step-caller", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
+		resetConduit();
+		resetEventStream();
+		// LiveConduit goes through the stubbed `fetch` set in each test; SerializedEventStream stands in for the SSE source.
+		setConduit(new LiveConduit(""));
+		setEventStream(new SerializedEventStream());
 		if (!customElements.get("shu-step-caller")) customElements.define("shu-step-caller", StepCaller);
 	});
 
@@ -47,7 +55,7 @@ describe("shu-step-caller", () => {
 		// the form, since the descriptor is normally resolved via findStep on connect.
 		caller.setAttribute("step", "IssueStepper-createIssuer");
 		// Drive render manually via the public refresh path most components expose; the
-		// step-caller renders on render() so we exercise it via its dispatched property.
+		// step-caller renders on render(), exercised via its dispatched property.
 		(caller as unknown as { renderComponent: () => void }).renderComponent?.();
 		const html = caller.shadowRoot?.innerHTML ?? "";
 		expect(html).toContain('name="issuer.did"');
@@ -127,8 +135,8 @@ describe("shu-step-caller", () => {
 		// Pattern: dispatchStep returns actionNotOK, web-server returns
 		// `{ error: "<method>: <message>" }` body with HTTP 200 — so the
 		// SSE client throws and the step-caller catches. The error div
-		// must include the server message verbatim so the user sees what
-		// the schema rejected. This pins the contract.
+		// must include the server message verbatim to surface what the
+		// schema rejected. This pins the contract.
 		const descriptor = {
 			method: "IssueStepper-issueCredential",
 			pattern: "issue credential {credential}",
@@ -158,7 +166,8 @@ describe("shu-step-caller", () => {
 		// branch fires regardless of which trigger the runtime sees first.
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/session.beginAction")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (url.endsWith("/rpc/action.begin"))
+				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
 			if (url.endsWith("/rpc/IssueStepper-issueCredential")) {
 				return Promise.resolve(
 					new Response(JSON.stringify({ error: 'IssueStepper-issueCredential: "type" must include `VerifiableCredential`.' }), {
@@ -179,9 +188,8 @@ describe("shu-step-caller", () => {
 			const html = caller.shadowRoot?.innerHTML ?? "";
 			expect(html).toMatch(/class="error"[^>]*data-testid="[^"]*-step-error"/);
 			expect(html).toContain('"type" must include');
-			// Loading indicator must be cleared on error — the user-reported
-			// regression was the step-caller stuck on "loading..." indefinitely
-			// after server-side validation rejected the input.
+			// Loading indicator must be cleared on error: the step-caller must not
+			// stay stuck on "loading..." after server-side validation rejects the input.
 			expect(html).not.toMatch(/class="loading"/);
 		} finally {
 			globalThis.fetch = realFetch;
@@ -214,13 +222,17 @@ describe("shu-step-caller", () => {
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/session.beginAction")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (url.endsWith("/rpc/action.begin"))
+				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
 			if (url.endsWith("/rpc/GraphStepper-graphQuery")) {
 				return Promise.resolve(
-					new Response(JSON.stringify({ ok: false, error: "GraphStepper-graphQuery: response too large to serialize (Invalid string length). Narrow the query or return a summary." }), {
-						status: 413,
-						headers: { "Content-Type": "application/json" },
-					}),
+					new Response(
+						JSON.stringify({ ok: false, error: "GraphStepper-graphQuery: response too large to serialize (Invalid string length). Narrow the query or return a summary." }),
+						{
+							status: 413,
+							headers: { "Content-Type": "application/json" },
+						},
+					),
 				);
 			}
 			return Promise.resolve(new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } }));
