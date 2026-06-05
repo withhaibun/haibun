@@ -1,6 +1,4 @@
 /**
- * subprocess-fixture.ts
- *
  * Child process entry point for subprocess-transport tests.
  * Run by SubprocessTransport.spawn() to verify the stdio protocol.
  */

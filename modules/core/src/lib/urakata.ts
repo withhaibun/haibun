@@ -165,8 +165,8 @@ export class UrakataRegistry implements IUrakataRegistry {
 	}
 
 	list(): readonly TUrakata[] {
-		// Returned values are snapshots: subsequent registry mutations (stop, forget, errorCount++)
-		// do not retroactively change a previously-listed array.
+		// Returned values are snapshots: later registry mutations (stop, forget, errorCount++)
+		// do not retroactively change an already-returned array.
 		return [...this.entries.values()].map((e) => ({ ...e.urakata }));
 	}
 

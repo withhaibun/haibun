@@ -11,7 +11,7 @@ import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { isVertexTopology, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { isPersisted, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 
 /**
@@ -576,7 +576,7 @@ function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionResult: 
 	return { ...actionResult, products: { ...products, ...markers } };
 }
 
-/** Pull the top-level `.describe()` text off a Zod schema if present. We only need the schema's own description, not field-level descriptions (those travel through `outputSchema` to `step.list`). */
+/** Pull the top-level `.describe()` text off a Zod schema if present — only the schema's own description, not field-level descriptions (those travel through `outputSchema` to `step.list`). */
 function readSchemaDescription(schema: unknown): string | undefined {
 	if (!schema || typeof schema !== "object") return undefined;
 	const desc = (schema as { description?: unknown; _def?: { description?: unknown } }).description ?? (schema as { _def?: { description?: unknown } })._def?.description;
@@ -591,22 +591,27 @@ function readSchemaDescription(schema: unknown): string | undefined {
  *
  * Matching is in two layers:
  *   1. direct — a step's param domain equals the product's domain.
- *   2. ref→vertex — a step's param domain is a ref domain whose
+ *   2. ref→individual — a step's param domain is a ref domain whose
  *      `topology.ranges.id` points at the product's domain. This is how
- *      `vertexRefDomain(refKey, targetKey)` declares "this ref's id ranges
- *      over a targetKey vertex"; the affordance derivation follows that
+ *      `individualRefDomain(refKey, targetKey)` declares "this ref's id ranges
+ *      over a targetKey individual"; the affordance derivation follows that
  *      declared range so revoke/suspend/recover (which accept the ref) link
- *      to vertices produced by issue (which produces the target).
+ *      to individuals produced by issue (which produces the target).
  *
  * The params skeleton: if the product carries a top-level `id`, populate the
- * matching parameter with `{ id: <product.id> }` (the convention every vertex
- * ref domain uses today — `{credential: {id}}`, `{label, id}` for getVertex,
+ * matching parameter with `{ id: <product.id> }` (the convention every individual
+ * ref domain uses today — `{credential: {id}}`, `{label, id}` for getIndividual,
  * etc.). Otherwise pass an empty object — the consumer fills the rest from the
  * step's own inputSchema (already in step.list).
  *
  * H1: a single derivation; no per-step authoring needed.
  */
-function deriveActionLinks(productsDomain: string, products: Record<string, unknown>, steppers: AStepper[], world: TWorld): Record<string, { method: string; params?: Record<string, unknown> }> {
+function deriveActionLinks(
+	productsDomain: string,
+	products: Record<string, unknown>,
+	steppers: AStepper[],
+	world: TWorld,
+): Record<string, { method: string; params?: Record<string, unknown> }> {
 	const out: Record<string, { method: string; params?: Record<string, unknown> }> = {};
 	const productId = typeof products.id === "string" ? products.id : undefined;
 	const matchesProduct = (paramDomain: string): boolean => {
@@ -791,7 +796,7 @@ export type DomainDiscoveryInfo = {
 	description?: string;
 	values?: string[];
 	stepperName?: string;
-	vertexLabel?: string;
+	persistedAs?: string;
 	ui?: Record<string, unknown>;
 };
 
@@ -799,7 +804,7 @@ export type StepDiscovery = {
 	steps: StepDescriptor[];
 	/** Domain definitions from world.domains, serializable for SPA/RPC consumers. */
 	domains: Record<string, DomainDiscoveryInfo>;
-	/** Hypermedia concern catalog — vertex types with ActivityStreams/JSON-LD metadata. */
+	/** Hypermedia concern catalog — persisted types with ActivityStreams/JSON-LD metadata. */
 	concerns: TConcernCatalog;
 };
 
@@ -844,7 +849,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 			description: domain.description,
 			values,
 			stepperName: domain.stepperName,
-			vertexLabel: isVertexTopology(domain.topology) ? domain.topology.vertexLabel : undefined,
+			persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined,
 			ui: domain.ui,
 		};
 	}
@@ -853,7 +858,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 }
 
 /**
- * Emit a SeqPath vertex on step entry so child vertices created during the
+ * Emit a SeqPath individual on step entry so child individuals created during the
  * step can link back to it as a real graph edge. Status and endedAtTime are
  * updated by `emitSeqPathEnd` after the action completes.
  */
@@ -862,12 +867,12 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep): Promi
 	const id = formatSeqPath(featureStep.seqPath);
 	// Single upsert with all required fields — partial writes via sequential set() let a concurrent
 	// reader (e.g. getClusteredQuads from a polling tick) observe a SeqPath missing its
-	// startedAtTime and trip the SeqPathSchema invariant.
+	// generatedAtTime and trip the SeqPathSchema invariant.
 	const record: Record<string, unknown> = {
 		[SEQ_PATH_FIELD.id]: id,
 		[SEQ_PATH_FIELD.stepText]: featureStep.in,
 		[SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running,
-		[SEQ_PATH_FIELD.startedAtTime]: new Date().toISOString(),
+		[SEQ_PATH_FIELD.generatedAtTime]: new Date().toISOString(),
 	};
 	if (featureStep.source?.path) record[SEQ_PATH_FIELD.path] = featureStep.source.path;
 	if (featureStep.seqPath.length > 1) {
@@ -877,7 +882,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep): Promi
 			record[LinkRelations.PRECEDED_BY.rel] = formatSeqPath([...featureStep.seqPath.slice(0, -1), lastIndex - 1]);
 		}
 	}
-	await store.upsertVertex(SEQ_PATH_LABEL, record);
+	await store.upsertIndividual(SEQ_PATH_LABEL, record);
 }
 
 async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, ok: boolean): Promise<void> {

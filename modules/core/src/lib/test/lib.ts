@@ -3,7 +3,7 @@ import { CStepper } from "../astepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
 import { createSteppers } from "./../util/index.js";
 import { getRunTag } from "../ttag.js";
-import { resolveHostId } from "../host-id.js";
+import { resolveHostId, resolveSitePrincipal } from "../host-id.js";
 import { getSteppers } from "../util/node/workspace-lib.js";
 import { Timer } from "../../schema/protocol.js";
 import { asFeatures } from "../resolver-features.js";
@@ -97,7 +97,7 @@ export function getDefaultWorld(env = process.env): TWorld {
 		timer: new Timer(),
 		tag: getRunTag(0),
 		prompter: new Prompter(),
-		runtime: { stepResults: [], steppers: [], feature: "test-feature", stepUsage: new Map() },
+		runtime: { stepResults: [], steppers: [], feature: "test-feature", stepUsage: new Map(), keys: { principal: resolveSitePrincipal() } },
 		options: { DEST: DEFAULT_DEST, envVariables: env },
 		moduleOptions: {},
 		bases: ["/features/"],

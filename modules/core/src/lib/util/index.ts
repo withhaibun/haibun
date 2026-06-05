@@ -81,7 +81,7 @@ export function getActionable(value: string) {
 }
 
 export function constructorName(stepper: AStepper) {
-	// FIXME deal with vitest / esbuild keepNames nonsense
+	// Strip the trailing "2" that vitest/esbuild keepNames appends to class names.
 	return stepper.constructor.name.replace(/2$/, "");
 }
 
@@ -235,12 +235,10 @@ function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], mo
 }
 
 /**
- * Find a stepper by option value, or fall back to finding a single stepper of the given kind.
- * If no stepper-level option is defined, returns any single stepper matching the first optionName as kind.
- * Throws if multiple steppers match the kind and no option is specified.
+ * Find a stepper by option value; absent an option, fall back to the single stepper whose kind matches the first optionName.
+ * Throws if multiple steppers match that kind and no option is specified.
  */
 export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
-	// First, try to find via option
 	const val = optionNames.reduce<string | undefined>((v, n) => {
 		const r = getStepperOption(stepper, n, moduleOptions);
 		return v || r;
@@ -271,7 +269,6 @@ export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper:
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
 	const stepper = <Type>(steppers.find((s) => constructorName(s) === name) as TAnyFixme);
 	if (!stepper) {
-		// FIXME does not cascade
 		throw Error(
 			`Cannot find stepper ${name} from ${JSON.stringify(
 				steppers.map((s) => constructorName(s)),

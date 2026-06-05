@@ -112,7 +112,7 @@ describe("calculateShouldClose", () => {
 		});
 
 		it("closes after failed non-last feature when NOT continuing after error", () => {
-			// This is "effectively last" because we're stopping due to failure
+			// "Effectively last": execution stops on failure
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: false, continueAfterError: false });
 			expect(result).toBe(true); // close by default
 		});
@@ -123,7 +123,7 @@ describe("calculateShouldClose", () => {
 		});
 
 		it("stays open on failed non-last feature when stayOnFailure is true and NOT continuing", () => {
-			// "Effectively last" because we're stopping due to failure
+			// "Effectively last": execution stops on failure
 			const result = calculateShouldClose({
 				...defaults,
 				thisFeatureOK: false,

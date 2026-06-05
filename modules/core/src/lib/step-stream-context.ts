@@ -20,7 +20,8 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
-export type TStreamChunk = { status?: string; text?: string };
+/** One streamed step chunk: a status update, a text fragment, and/or a terminal error. The same shape is serialized to NDJSON/SSE by the transport and consumed by the shu client. */
+export type TStreamChunk = { status?: string; text?: string; error?: string };
 
 export type TStreamCtx = {
 	emit: (chunk: TStreamChunk) => void;
