@@ -68,6 +68,7 @@ export interface IZcapAuthority {
 	issueBearerGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string }): TZcapGrant;
 	revokeBearerGrant(token: string, action?: string): number;
 	resolveBearer(token: string): string[];
+	resolveController(token: string): string | undefined;
 	listBearerGrants(): TZcapGrant[];
 	registerVerifier(verifier: IZcapVerifier): void;
 	verifySigned(invocation: TZcapInvocation, expected: { action: string; target: string; rootCapability?: string }): Promise<{ ok: boolean; error?: string }>;
