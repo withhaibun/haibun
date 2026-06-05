@@ -605,9 +605,8 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				const text = await wp.withPage<string>(async (page: Page) => {
 					const locator = await wp.locateByDomain(page, featureStep, "element");
 					const content = await locator.textContent();
-					if (content !== null && content.trim() !== "") {
-						return content.trim();
-					}
+					// Empty `<div>` returns "" (not null); falling through to `inputValue()` on a non-form node throws. Trust `textContent` for any non-null return and only reach for `inputValue` when the element exposes no text node at all (rare — implies the locator hit a void element or shadow-rooted custom element with no light-DOM text).
+					if (content !== null) return content.trim();
 					return await locator.inputValue();
 				});
 				await wp.getWorld().shared.set({ term: where, value: text, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));

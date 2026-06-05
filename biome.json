@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -8,6 +8,7 @@
 	"files": {
 		"includes": ["**", "!!**/dist", "!**/mcp-session.test.ts", "!**/twin-page.ts", "!**/monitor-browser/src/client/index.css", "!**/*.html"]
 	},
+	"plugins": ["./lint/no-sealed-lifecycle-override.grit"],
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab",
