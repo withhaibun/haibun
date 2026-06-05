@@ -327,7 +327,7 @@ variable choice is less than no`;
 
 describe("enum superdomains", () => {
 	it.skip("inherits values from referenced superdomains", async () => {
-		// TODO: Mixing superdomain references with literal values not yet implemented
+		// Skipped: mixing superdomain references with literal values is unsupported.
 		const content = `set of baseIndications is ["red" "green"]
 set of derivedIndications as [baseIndications "blue"]
 set indication as derivedIndications to "red"

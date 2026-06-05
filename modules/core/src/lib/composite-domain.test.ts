@@ -60,7 +60,7 @@ describe("getCompositeFields", () => {
 			issuer: reg(IssuerSchema),
 			proof: reg(ProofSchema),
 			"verifiable-credential": reg(VcSchema, {
-				vertexLabel: "VerifiableCredential",
+				persistedAs: "VerifiableCredential",
 				id: "id",
 				properties: {},
 				ranges: { issuer: "issuer", proof: "proof" },
@@ -76,7 +76,7 @@ describe("getCompositeFields", () => {
 	it("drops a ranges entry that points at an unregistered domain (silent fall-back to primitive)", () => {
 		const registry: Record<string, TRegisteredDomain> = {
 			"verifiable-credential": reg(VcSchema, {
-				vertexLabel: "VerifiableCredential",
+				persistedAs: "VerifiableCredential",
 				id: "id",
 				properties: {},
 				ranges: { issuer: "not-registered" },

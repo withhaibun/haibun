@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isVertexTopology, type TDomainDefinition, type TRegisteredDomain, type TVertexTopology } from "./resources.js";
+import { DOMAIN_PERSISTED_TYPE, isPersisted, type TDomainDefinition, type TRegisteredDomain, type THypermediaTopology } from "./resources.js";
 import type { TWorld } from "./world.js";
 
 export const DOMAIN_STATEMENT = "statement";
@@ -127,37 +127,37 @@ export function objectCoercer<T extends z.ZodType>(schema: T) {
 }
 
 /**
- * Schema for a vertex reference — a single-field composite that carries just
- * the referenced vertex's id. Steps whose action only needs the id of an
- * existing vertex use this so the resolver can chain through that vertex's
+ * Schema for an individual reference — a single-field composite that carries just
+ * the referenced individual's id. Steps whose action only needs the id of an
+ * existing individual use this so the resolver can chain through that individual's
  * producers (or fact-bind an existing instance) without forcing the full
- * vertex payload through dispatch.
+ * individual payload through dispatch.
  */
-export const vertexRefSchema = z.object({ id: z.string() }).strict();
-export type TVertexRef = z.infer<typeof vertexRefSchema>;
+export const individualRefSchema = z.object({ id: z.string() }).strict();
+export type TIndividualRef = z.infer<typeof individualRefSchema>;
 
 /**
- * Normalise a value to `{ id }`. Step actions whose input is a
- * `vertexRefDomain` use this in lieu of accessing `.id` directly: the
+ * Normalise a value to `{ id }`. Step actions whose input is an
+ * `individualRefDomain` use this in lieu of accessing `.id` directly: the
  * feature-file dispatch path resolves a bare-name variable through that
  * variable's STORED domain (typically `string`), so the action receives the
  * raw id string rather than the `{id}` object the RPC path produces. Calling
- * `asVertexRef` is idempotent — accepts an id string, a full vertex (extracts
+ * `asIndividualRef` is idempotent — accepts an id string, a full individual (extracts
  * `id`), or an already-normalised `{id}` ref.
  */
-export function asVertexRef(value: unknown): TVertexRef {
+export function asIndividualRef(value: unknown): TIndividualRef {
 	if (typeof value === "string") return { id: value };
 	if (value && typeof value === "object") {
 		const obj = value as Record<string, unknown>;
 		if (typeof obj.id === "string") return { id: obj.id };
 	}
-	throw new Error(`asVertexRef: cannot normalise ${typeof value} to a vertex reference; expected an id string or an object with an "id" string`);
+	throw new Error(`asIndividualRef: cannot normalise ${typeof value} to an individual reference; expected an id string or an object with an "id" string`);
 }
 
 /**
- * Build a reusable "reference to vertex X" input domain. The resulting
+ * Build a reusable "reference to individual X" input domain. The resulting
  * `TDomainDefinition` registers `refKey` as a composite with one `id` field
- * whose range is `targetKey` (a registered vertex domain). The composite-
+ * whose range is `targetKey` (a registered persisted domain). The composite-
  * decomposition layer then treats the field as either a fact-binding (an
  * existing X) or a chain through X's producer steps.
  *
@@ -166,10 +166,10 @@ export function asVertexRef(value: unknown): TVertexRef {
  * Either form is normalised to `{ id }` so the action's parameter is the same
  * regardless of how the test or UI supplied the reference.
  */
-export function vertexRefDomain(refKey: string, targetKey: string, description?: string): TDomainDefinition {
+export function individualRefDomain(refKey: string, targetKey: string, description?: string): TDomainDefinition {
 	return {
 		selectors: [refKey],
-		schema: vertexRefSchema,
+		schema: individualRefSchema,
 		coerce: (proto) => {
 			const v = (proto as { value?: unknown }).value;
 			// String: an id directly, or a JSON-stringified `{id}` ref.
@@ -178,35 +178,48 @@ export function vertexRefDomain(refKey: string, targetKey: string, description?:
 				if (trimmed.startsWith("{")) {
 					const parsed = JSON.parse(trimmed) as Record<string, unknown>;
 					if (typeof parsed?.id === "string") return { id: parsed.id };
-					throw new Error(`vertex ref expected an "id" string; got ${trimmed.slice(0, 120)}`);
+					throw new Error(`individual ref expected an "id" string; got ${trimmed.slice(0, 120)}`);
 				}
 				return { id: v };
 			}
-			// Object: accept either a {id} ref or a full vertex (extract .id).
+			// Object: accept either a {id} ref or a full individual (extract .id).
 			// Without the extraction path, a test that passes the whole
-			// resolved-variable vertex (the common haibun pattern) would
+			// resolved-variable individual (the common haibun pattern) would
 			// fail strict parsing.
 			if (v && typeof v === "object") {
 				const obj = v as Record<string, unknown>;
 				if (typeof obj.id === "string") return { id: obj.id };
 			}
-			throw new Error(`vertex ref expects a string id or an object with an "id" string; got ${typeof v}`);
+			throw new Error(`individual ref expects a string id or an object with an "id" string; got ${typeof v}`);
 		},
 		description: description ?? `Reference to a ${targetKey} by id`,
 		topology: { ranges: { id: targetKey } },
 	};
 }
 
-/** Build a Map from vertexLabel → TRegisteredDomain for all vertex domains. Returned domains carry a TVertexTopology so consumers can read id/properties/edges without narrowing. */
-export function vertexDomainMap(domains: Record<string, TRegisteredDomain>): Map<string, TRegisteredDomain & { topology: TVertexTopology }> {
-	const map = new Map<string, TRegisteredDomain & { topology: TVertexTopology }>();
+/** Build a Map from persistedAs → TRegisteredDomain for all persisted domains. Returned domains carry a THypermediaTopology so consumers can read id/properties/edges without narrowing. */
+export function hypermediaDomainMap(domains: Record<string, TRegisteredDomain>): Map<string, TRegisteredDomain & { topology: THypermediaTopology }> {
+	const map = new Map<string, TRegisteredDomain & { topology: THypermediaTopology }>();
 	for (const domain of Object.values(domains)) {
-		if (isVertexTopology(domain.topology)) map.set(domain.topology.vertexLabel, domain as TRegisteredDomain & { topology: TVertexTopology });
+		if (isPersisted(domain.topology)) map.set(domain.topology.persistedAs, domain as TRegisteredDomain & { topology: THypermediaTopology });
 	}
 	return map;
 }
 
-/** Get all vertex domains (those whose topology promotes them to a vertex) as an array. */
-export function getVertexDomains(domains: Record<string, TRegisteredDomain>): Array<TRegisteredDomain & { topology: TVertexTopology }> {
-	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: TVertexTopology } => isVertexTopology(d.topology));
+/** Get all persisted domains (those whose topology marks them as persisted) as an array. */
+export function getPersistedDomains(domains: Record<string, TRegisteredDomain>): Array<TRegisteredDomain & { topology: THypermediaTopology }> {
+	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: THypermediaTopology } => isPersisted(d.topology));
 }
+
+/** (Re)register the `persisted-type` enum over all currently-declared persisted domains. Overwrites the
+ * existing key (registerDomains skips existing keys), so a type declared at runtime becomes a valid
+ * `{label: persisted-type}` argument for the generic graph steps. */
+export const refreshHypermediaTypeDomain = (world: TWorld) => {
+	const persistedTypes = getPersistedDomains(world.domains).map((d) => d.topology.persistedAs);
+	if (!persistedTypes.length) return;
+	world.domains[asDomainKey([DOMAIN_PERSISTED_TYPE])] = toRegisteredDomain({
+		selectors: [DOMAIN_PERSISTED_TYPE],
+		schema: z.enum(persistedTypes as [string, ...string[]]),
+		description: "Persisted type",
+	});
+};

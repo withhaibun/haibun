@@ -24,6 +24,8 @@ export type TWorld = {
 };
 
 export type TRuntime = {
+	/** Generic keyed store for subsystem runtime state. */
+	keys?: Record<string, unknown>;
 	backgrounds?: TFeature[];
 	scenario?: string;
 	feature?: string;

@@ -9,7 +9,9 @@ import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail }
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { FeatureVariables, OBSCURED_VALUE } from "../lib/feature-variables.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, refreshHypermediaTypeDomain, objectCoercer } from "../lib/domains.js";
+import { hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
+import { REL_CONTEXT, LinkRelations, type TRel } from "../lib/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.getStore().clear();
@@ -86,6 +88,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			handlesUndefined: ["domain"],
 			action: ({ domain, values }: { domain: string; values: TFeatureStep[] }, featureStep: TFeatureStep) =>
 				this.registerValuesDomainFromStatement(domain, values, featureStep, { ordered: false, label: "set" }),
+		},
+		// Declare a persisted hypermedia domain (a domain carrying a hypermedia topology) from a JSON-LD
+		// @context or its prose shorthand. `by` is the direction word (not `from`, which means "from a
+		// statement's result").
+		defineHypermediaDomain: {
+			gwta: `set of {domain: string} by {spec: string}`,
+			handlesUndefined: ["domain"],
+			action: ({ domain, spec }: { domain: string; spec: string }, featureStep: TFeatureStep) =>
+				this.registerHypermediaDomain(domain, spec, featureStep),
 		},
 		statementSetValues: {
 			exposeMCP: false,
@@ -406,12 +417,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: async () => {
 				const domains = this.getWorld().domains;
 				const allVars = await this.getWorld().shared.all();
-				type DomainItem = { name: string; description: string | string[]; members: number; vertexLabel?: string; _edges?: { type: string; targetId: string }[] };
+				type DomainItem = { name: string; description: string | string[]; members: number; persistedAs?: string; _edges?: { type: string; targetId: string }[] };
 				const items: DomainItem[] = [];
-				// Collect vertexLabel→name mapping for base type edge targets
+				// Collect persistedAs→name mapping for base type edge targets
 				const labelToDomain = new Map<string, string>();
 				for (const [dname, ddef] of Object.entries(domains)) {
-					const vl = (ddef.topology as Record<string, unknown> | undefined)?.vertexLabel as string | undefined;
+					const vl = (ddef.topology as Record<string, unknown> | undefined)?.persistedAs as string | undefined;
 					labelToDomain.set(vl || dname, vl || dname);
 				}
 				for (const [name, def] of Object.entries(domains)) {
@@ -421,16 +432,16 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					}
 					const description = def.values || def.description || "schema";
 					const topology = def.topology as Record<string, unknown> | undefined;
-					const vertexLabel = topology?.vertexLabel as string | undefined;
+					const persistedAs = topology?.persistedAs as string | undefined;
 					const _edges: { type: string; targetId: string }[] = [];
-					// Edges from topology (vertex→vertex relationships like Email→Contact)
+					// Edges from topology (persisted-type→persisted-type relationships like Email→Contact)
 					const topologyEdges = topology?.edges as Record<string, { rel: string; range: string }> | undefined;
 					if (topologyEdges) {
 						for (const [edgeName, edge] of Object.entries(topologyEdges)) {
-							if (edge.range && edge.range !== vertexLabel) _edges.push({ type: edgeName, targetId: edge.range });
+							if (edge.range && edge.range !== persistedAs) _edges.push({ type: edgeName, targetId: edge.range });
 						}
 					}
-					items.push({ name, description, members, ...(vertexLabel ? { vertexLabel } : {}), ...(_edges.length ? { _edges } : {}) });
+					items.push({ name, description, members, ...(persistedAs ? { persistedAs } : {}), ...(_edges.length ? { _edges } : {}) });
 				}
 				return actionOKWithProducts({ _type: "Domain", _summary: `${items.length} domains`, items });
 			},
@@ -458,10 +469,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		// Membership check: value is in domain (enum or member values)
 		// Handles quoted ("value"), braced ({var}), or bare (value) forms
-		// fallback: true lets quantifiers take precedence when both match
+		// fallback: true lets quantifiers (every/some) win on the full line; precludes Haibun.prose
+		// so the inner membership statement still resolves to a real step, not the catch-all narrative.
 		isIn: {
 			match: /^(.+) is in ([a-zA-Z][a-zA-Z0-9 ]*)$/,
 			fallback: true,
+			precludes: ["Haibun.prose"],
 			action: async (_: unknown, featureStep: TFeatureStep) => {
 				const matchResult = featureStep.in.match(/^(.+) is in ([a-zA-Z][a-zA-Z0-9 ]*)$/);
 				if (!matchResult) {
@@ -579,10 +592,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		return actionNotOK(`Unsupported operator: ${operator}`);
 	}
 
-	/**
-	 * Interpolates a template string by replacing {varName} placeholders with variable values.
-	 * Returns the interpolated string or an error if a variable is not found.
-	 */
+	/** Replaces {varName} placeholders with variable values; errors if a variable is not found. */
 	private async interpolateTemplate(template: string, featureStep?: TFeatureStep): Promise<{ value?: string; error?: string; secret?: boolean }> {
 		const placeholderRegex = /\{([^}]+)\}/g;
 		let result = template;
@@ -591,7 +601,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 		while ((match = placeholderRegex.exec(template)) !== null) {
 			const varName = match[1];
-			// Check if it's secret BEFORE resolving it securely so we know
+			// Determine secrecy before secure resolution masks the value.
 			if (this.getWorld().shared.isSecret(varName)) {
 				secret = true;
 			}
@@ -685,9 +695,60 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			return actionNotOK(errorDetail(error));
 		}
 	}
+
+	private registerHypermediaDomain(domain: string, spec: string, featureStep: TFeatureStep) {
+		try {
+			const effectiveDomain = domain ?? getStepTerm(featureStep, "domain");
+			if (!effectiveDomain) return actionNotOK("Domain name must be provided");
+			const trimmed = (spec ?? "").trim();
+			if (!trimmed) return actionNotOK(`set of ${effectiveDomain}: declaration is empty`);
+			const doc: THypermediaContext = trimmed.startsWith("{") ? JSON.parse(trimmed) : parseHypermediaDeclProse(effectiveDomain, trimmed);
+			const { topology, schema } = hypermediaDomainFromContext(effectiveDomain, doc);
+			const selector = effectiveDomain.toLowerCase();
+			const domainKey = normalizeDomainKey(selector);
+			if (this.getWorld().domains[domainKey]) return actionNotOK(`Domain "${domainKey}" already exists`);
+			registerDomains(this.getWorld(), [[{ selectors: [selector], schema, coerce: objectCoercer(schema), description: effectiveDomain, topology, ui: { declared: true } }]]);
+			refreshHypermediaTypeDomain(this.getWorld());
+			return OK;
+		} catch (error) {
+			return actionNotOK(errorDetail(error));
+		}
+	}
 }
 
 export default VariablesStepper;
+
+const XSD_FOR: Record<string, string> = { number: "xsd:integer", integer: "xsd:integer", decimal: "xsd:decimal", boolean: "xsd:boolean", date: "xsd:date", datetime: "xsd:dateTime", string: "" };
+
+/** Prose shorthand → JSON-LD @context: `id, with name [as number], used in Recipe`. The first clause is
+ * the id field; `with {field}` maps the field to its same-named relation (queryable); `used in {Range}`
+ * is the usedIn (isPartOf) edge. Non-relation field names need the JSON-LD form with an explicit @id. */
+function parseHypermediaDeclProse(domain: string, spec: string): THypermediaContext {
+	const clauses = spec.split(",").map((c) => c.trim()).filter(Boolean);
+	if (!clauses.length) throw new Error(`set of ${domain}: declaration needs an id field (e.g. "by id, with name")`);
+	const context: Record<string, unknown> = { [clauses[0]]: "@id" };
+	const queryable: string[] = [];
+	for (const clause of clauses.slice(1)) {
+		const withM = clause.match(/^with\s+(\S+)(?:\s+as\s+(\S+))?$/);
+		if (withM) {
+			const [, field, type] = withM;
+			const iri = REL_CONTEXT[field as TRel];
+			if (!iri) throw new Error(`set of ${domain}: field "${field}" is not a known relation — use the JSON-LD form with an explicit @id`);
+			const xsd = type ? XSD_FOR[type.toLowerCase()] : "";
+			if (type && xsd === undefined) throw new Error(`set of ${domain}: unknown field type "${type}"`);
+			context[field] = xsd ? { "@id": iri, "@type": xsd } : iri;
+			queryable.push(field);
+			continue;
+		}
+		const usedM = clause.match(/^used in\s+(\S+)$/);
+		if (usedM) {
+			context.usedIn = { "@id": REL_CONTEXT[LinkRelations.PART_OF.rel], range: usedM[1] };
+			continue;
+		}
+		throw new Error(`set of ${domain}: unrecognized clause "${clause}" (expected "with <field> [as <type>]" or "used in <Range>")`);
+	}
+	return { "@context": context, ...(queryable.length ? { "@queryable": queryable } : {}) } as THypermediaContext;
+}
 
 export const didNotOverwrite = (what: string, present: string, value: string) => ({
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },

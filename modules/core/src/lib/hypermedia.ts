@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { edgeRel, REL_CONTEXT, LinkRelations, getRelRange, isContentPropertyDef, isVertexTopology, type TPropertyDef, type TRel } from "./resources.js";
+import { edgeRel, REL_CONTEXT, LinkRelations, getRelRange, isContentPropertyDef, isPersisted, type TPropertyDef, type TRel, type THypermediaTopology } from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or content-object form. */
 function relOf(def: TPropertyDef): TRel {
@@ -41,14 +41,14 @@ function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
 const relValues = Object.values(LinkRelations).map((lr) => lr.rel) as [string, ...string[]];
 export const RelSchema = z.enum(relValues);
 
-/** A single vertex property mapped to its ActivityStreams predicate. */
+/** A single persisted-domain property mapped to its ActivityStreams predicate. */
 const PropertyConcernSchema = z.object({
 	term: z.string(),
 	rel: RelSchema,
 });
 type TPropertyConcern = z.infer<typeof PropertyConcernSchema>;
 
-/** An outgoing edge with its ActivityStreams predicate and target vertex label. */
+/** An outgoing edge with its ActivityStreams predicate and target persisted label. */
 const EdgeConcernSchema = z.object({
 	term: z.string(),
 	rel: RelSchema,
@@ -56,8 +56,8 @@ const EdgeConcernSchema = z.object({
 });
 type TEdgeConcern = z.infer<typeof EdgeConcernSchema>;
 
-/** Complete hypermedia description of a vertex type. */
-const VertexConcernSchema = z.object({
+/** Complete hypermedia description of a persisted type. */
+const HypermediaConcernSchema = z.object({
 	domainKey: z.string(),
 	label: z.string(),
 	idField: z.string(),
@@ -67,27 +67,31 @@ const VertexConcernSchema = z.object({
 	jsonSchema: z.record(z.string(), z.unknown()),
 	properties: z.record(z.string(), PropertyConcernSchema),
 	edges: z.record(z.string(), EdgeConcernSchema).default({}),
+	/** Fields the server will accept as query filters (the topology's sortColumns). */
+	queryable: z.array(z.string()).default([]),
+	/** True when declared at runtime (`set of {domain} by …`) vs by a compiled stepper. */
+	declared: z.boolean().default(false),
 	/** UI metadata: slot, component, JS source, etc. */
 	ui: z.record(z.string(), z.unknown()).optional(),
 });
-type TVertexConcern = z.infer<typeof VertexConcernSchema>;
+type THypermediaConcern = z.infer<typeof HypermediaConcernSchema>;
 
 /**
- * Reference-domain concern — a non-vertex composite whose `topology.ranges.id`
- * points at a vertex domain. The client uses this to recognise inputs that
- * should render as a vertex picker instead of a typed-from-scratch composite.
- * Built by `vertexRefDomain(refKey, targetKey)` in `domains.ts`.
+ * Reference-domain concern — a non-persisted composite whose `topology.ranges.id`
+ * points at a persisted domain. The client uses this to recognise inputs that
+ * should render as a persisted-individual picker instead of a typed-from-scratch composite.
+ * Built by `individualRefDomain(refKey, targetKey)` in `domains.ts`.
  */
 const ReferenceConcernSchema = z.object({
 	refDomain: z.string(),
 	targetDomain: z.string(),
-	targetVertexLabel: z.string().optional(),
+	targetPersistedAs: z.string().optional(),
 });
 type TReferenceConcern = z.infer<typeof ReferenceConcernSchema>;
 
 /** All concerns emitted by a running server. */
 export const ConcernCatalogSchema = z.object({
-	vertices: z.record(z.string(), VertexConcernSchema),
+	persisted: z.record(z.string(), HypermediaConcernSchema),
 	references: z.record(z.string(), ReferenceConcernSchema).default({}),
 });
 export type TConcernCatalog = z.infer<typeof ConcernCatalogSchema>;
@@ -98,19 +102,19 @@ export type TConcernCatalog = z.infer<typeof ConcernCatalogSchema>;
 
 /**
  * Build a ConcernCatalog from world.domains after getConcerns has run.
- * Non-vertex domains (no topology.vertexLabel) are skipped.
- * Vertex domains are validated: id, properties, and valid rels are required.
+ * Non-persisted domains (no topology.persistedAs) are skipped.
+ * Persisted domains are validated: id, properties, and valid rels are required.
  */
 export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>): TConcernCatalog {
-	const vertices: Record<string, TVertexConcern> = {};
+	const persisted: Record<string, THypermediaConcern> = {};
 
 	for (const [domainKey, domain] of Object.entries(domains)) {
-		if (!isVertexTopology(domain.topology)) continue;
+		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
-		const label = topology.vertexLabel;
+		const label = topology.persistedAs;
 
-		if (!topology.id) throw new Error(`Vertex domain "${label}" (${domainKey}) is missing required "id" field`);
-		if (!topology.properties || Object.keys(topology.properties).length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
+		if (!topology.id) throw new Error(`persisted domain "${label}" (${domainKey}) is missing required "id" field`);
+		if (!topology.properties || Object.keys(topology.properties).length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) has no properties`);
 
 		const propertiesByRel = new Map<string, string[]>();
 		for (const [field, def] of Object.entries(topology.properties)) {
@@ -121,41 +125,41 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		}
 
 		const identifierFields = propertiesByRel.get(LinkRelations.IDENTIFIER.rel) ?? [];
-		if (identifierFields.length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
+		if (identifierFields.length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
 
-		const publishedFields = propertiesByRel.get(LinkRelations.PUBLISHED.rel) ?? [];
-		if (publishedFields.length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.PUBLISHED.rel}"`);
-		if (publishedFields.length > 1)
+		const generatedFields = propertiesByRel.get(LinkRelations.GENERATED_AT_TIME.rel) ?? [];
+		if (generatedFields.length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.GENERATED_AT_TIME.rel}"`);
+		if (generatedFields.length > 1)
 			throw new Error(
-				`Vertex domain "${label}" (${domainKey}) declares ${publishedFields.length} properties with rel "${LinkRelations.PUBLISHED.rel}": ${publishedFields.join(", ")}; expected exactly one`,
+				`persisted domain "${label}" (${domainKey}) declares ${generatedFields.length} properties with rel "${LinkRelations.GENERATED_AT_TIME.rel}": ${generatedFields.join(", ")}; expected exactly one`,
 			);
-		const publishedField = publishedFields[0];
+		const generatedField = generatedFields[0];
 		if (domain.schema instanceof z.ZodObject) {
-			const fieldSchema = domain.schema.shape[publishedField];
-			if (!fieldSchema) throw new Error(`Vertex domain "${label}" (${domainKey}) maps published rel to "${publishedField}" but the schema has no such field`);
+			const fieldSchema = domain.schema.shape[generatedField];
+			if (!fieldSchema) throw new Error(`persisted domain "${label}" (${domainKey}) maps generatedAtTime rel to "${generatedField}" but the schema has no such field`);
 			const probe = fieldSchema.safeParse(undefined);
 			if (probe.success && probe.data === undefined)
-				throw new Error(`Vertex domain "${label}" (${domainKey}) published field "${publishedField}" is .optional() — must be required or have a default`);
+				throw new Error(`persisted domain "${label}" (${domainKey}) generatedAtTime field "${generatedField}" is .optional() — must be required or have a default`);
 		}
 
 		const properties: Record<string, TPropertyConcern> = {};
 		for (const [field, propDef] of Object.entries(topology.properties)) {
 			const rel = relOf(propDef);
-			if (!REL_CONTEXT[rel]) throw new Error(`Vertex domain "${label}" property "${field}" has unknown rel "${rel}"`);
+			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" property "${field}" has unknown rel "${rel}"`);
 			properties[field] = { term: REL_CONTEXT[rel], rel };
 		}
 
 		const edges: Record<string, TEdgeConcern> = {};
 		for (const [edgeField, edgeDef] of Object.entries(topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edgeField);
-			if (!rel) throw new Error(`Vertex domain "${label}" edge "${edgeField}" has no rel — add to EdgePredicates or provide explicit rel`);
-			if (!REL_CONTEXT[rel]) throw new Error(`Vertex domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
+			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" has no rel — add to EdgePredicates or provide explicit rel`);
+			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
 			edges[edgeField] = { term: REL_CONTEXT[rel], rel, target: edgeDef.range };
 		}
 
 		const jsonSchema = toJsonSchemaCached(domain.schema);
 
-		vertices[label] = VertexConcernSchema.parse({
+		persisted[label] = HypermediaConcernSchema.parse({
 			domainKey,
 			label,
 			idField: topology.id,
@@ -163,30 +167,106 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			jsonSchema,
 			properties,
 			edges,
+			queryable: Object.keys(topology.sortColumns ?? {}),
+			declared: !!domain.ui?.declared,
 			...(domain.ui ? { ui: domain.ui } : {}),
 		});
 	}
 
-	// Reference domains: non-vertex composites whose `topology.ranges.id`
-	// points at a vertex domain. The client looks them up by domain key when
-	// rendering a step input so it can present an "existing vertex" picker
-	// instead of asking the user to construct the composite from scratch.
+	// Reference domains: non-persisted composites whose `topology.ranges.id`
+	// points at a persisted domain. The client looks them up by domain key when
+	// rendering a step input so it can present an "existing individual" picker
+	// instead of requiring the composite to be constructed from scratch.
 	const references: Record<string, TReferenceConcern> = {};
 	for (const [domainKey, domain] of Object.entries(domains)) {
-		if (!domain.topology || isVertexTopology(domain.topology)) continue;
+		if (!domain.topology || isPersisted(domain.topology)) continue;
 		const ranges = (domain.topology as { ranges?: Record<string, string> }).ranges;
 		const targetDomain = ranges?.id;
 		if (!targetDomain) continue;
 		const target = domains[targetDomain];
-		if (!target || !isVertexTopology(target.topology)) continue;
-		references[domainKey] = { refDomain: domainKey, targetDomain, targetVertexLabel: target.topology.vertexLabel };
+		if (!target || !isPersisted(target.topology)) continue;
+		references[domainKey] = { refDomain: domainKey, targetDomain, targetPersistedAs: target.topology.persistedAs };
 	}
 
-	return { vertices, references };
+	return { persisted, references };
 }
 
 // ============================================================================
-// Resource rels — rel-to-field lookups per vertex type
+// Inverse of the @context emission: a JSON-LD @context → a persisted domain's
+// topology + Zod schema, so a type can be declared in a feature (`set of {domain} by …`)
+// instead of a bespoke stepper. A type IS a domain with a hypermedia topology.
+// ============================================================================
+
+const IRI_TO_REL: Record<string, TRel> = Object.fromEntries(Object.entries(REL_CONTEXT).map(([rel, iri]) => [iri, rel as TRel]));
+
+type TContextEntry = string | { "@id": string; "@type"?: string; range?: string };
+export type THypermediaContext = { "@context": Record<string, TContextEntry>; "@queryable"?: string[] };
+
+/** Type hint (xsd / primitive) → {zod, sql}. Defaults to string/TEXT. */
+const TYPE_KINDS: Record<string, { zod: () => z.ZodType; sql: string }> = {
+	"xsd:integer": { zod: () => z.number(), sql: "BIGINT" },
+	"xsd:decimal": { zod: () => z.number(), sql: "DOUBLE PRECISION" },
+	"xsd:double": { zod: () => z.number(), sql: "DOUBLE PRECISION" },
+	"xsd:boolean": { zod: () => z.boolean(), sql: "BOOLEAN" },
+	"xsd:date": { zod: () => z.string(), sql: "TIMESTAMP" },
+	"xsd:dateTime": { zod: () => z.string(), sql: "TIMESTAMP" },
+};
+const kindOf = (typeHint?: string) => (typeHint && TYPE_KINDS[typeHint]) || { zod: () => z.string(), sql: "TEXT" };
+
+/**
+ * Build a persisted domain's topology + schema from a JSON-LD `@context` (inverse of the emission above).
+ * The field mapped to `@id` is the identifier (required — a persisted type is invalid without one);
+ * entries with a `range` are edges; others are properties whose rel comes from the IRI (canonical
+ * REL_CONTEXT vocabulary). `published` (structural timeline field) is auto-injected if absent;
+ * `@queryable` fields become typed sortColumns.
+ */
+export function hypermediaDomainFromContext(domainName: string, doc: THypermediaContext): { topology: THypermediaTopology; schema: z.ZodType } {
+	const ctx = doc["@context"] ?? {};
+	const properties: Record<string, TRel> = {};
+	const edges: Record<string, { range: string; rel: TRel }> = {};
+	const fields: Record<string, z.ZodType> = {};
+	const sqlKinds: Record<string, string> = {};
+	let idField: string | undefined;
+	for (const [field, entry] of Object.entries(ctx)) {
+		const obj = typeof entry === "string" ? { "@id": entry } : entry;
+		if (obj["@id"] === "@id") {
+			idField = field;
+			properties[field] = LinkRelations.IDENTIFIER.rel;
+			fields[field] = z.string().min(1);
+			continue;
+		}
+		const rel = IRI_TO_REL[obj["@id"]];
+		if (!rel) throw new Error(`set of ${domainName}: unknown rel IRI "${obj["@id"]}" for "${field}" (not in the link-relation vocabulary)`);
+		if (obj.range) {
+			edges[field] = { range: obj.range, rel };
+			continue;
+		}
+		const kind = kindOf(obj["@type"]);
+		properties[field] = rel;
+		fields[field] = kind.zod();
+		sqlKinds[field] = kind.sql;
+	}
+	if (!idField) throw new Error(`set of ${domainName}: declaration needs an @id field — a type is invalid without an identifier`);
+	if (!Object.values(properties).includes(LinkRelations.GENERATED_AT_TIME.rel)) {
+		properties.generatedAtTime = LinkRelations.GENERATED_AT_TIME.rel;
+		// A real ISO timestamp, not "" — the quad/timeline path parses this field and rejects empty.
+		fields.generatedAtTime = z.string().default(() => new Date().toISOString());
+		sqlKinds.generatedAtTime = "TIMESTAMP";
+	}
+	const queryable = doc["@queryable"] ?? [];
+	const sortColumns = Object.fromEntries(queryable.map((f) => [f, sqlKinds[f] ?? "TEXT"]));
+	const topology: THypermediaTopology = {
+		persistedAs: domainName,
+		id: idField,
+		properties,
+		...(Object.keys(edges).length ? { edges } : {}),
+		...(queryable.length ? { sortColumns } : {}),
+	};
+	return { topology, schema: z.object(fields).strict() };
+}
+
+// ============================================================================
+// Resource rels — rel-to-field lookups per persisted type
 // ============================================================================
 
 /** Rel-to-field lookup for resource types. Derived from topology at runtime. */
@@ -194,7 +274,7 @@ export type ResourceRels = {
 	types: string[];
 	field(type: string, rel: string): string | undefined;
 	idField(type: string): string;
-	publishedField(type: string): string;
+	createdField(type: string): string;
 	nameField(type: string): string | undefined;
 	contentField(type: string): string | undefined;
 	fields(type: string): Record<string, string>;
@@ -209,9 +289,9 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const schemas = new Map<string, z.ZodType>();
 
 	for (const domain of Object.values(domains)) {
-		if (!isVertexTopology(domain.topology)) continue;
+		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
-		const type = topology.vertexLabel;
+		const type = topology.persistedAs;
 		types.push(type);
 		idFields.set(type, topology.id);
 		schemas.set(type, domain.schema);
@@ -239,9 +319,9 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 			if (!id) throw new Error(`Unknown resource type: ${type}`);
 			return id;
 		},
-		publishedField: (type) => {
-			const f = fieldByRel(type, LinkRelations.PUBLISHED.rel);
-			if (!f) throw new Error(`Vertex type "${type}" has no property mapped to ${LinkRelations.PUBLISHED.rel}`);
+		createdField: (type) => {
+			const f = fieldByRel(type, LinkRelations.GENERATED_AT_TIME.rel);
+			if (!f) throw new Error(`Persisted type "${type}" has no property mapped to ${LinkRelations.GENERATED_AT_TIME.rel}`);
 			return f;
 		},
 		nameField: (type) => fieldByRel(type, LinkRelations.NAME.rel),
@@ -256,7 +336,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 }
 
 /**
- * Ordered list of property rels searched (in order) to derive a vertex's
+ * Ordered list of property rels searched (in order) to derive an individual's
  * display label. NAME and CONTENT are returned as bare values; the rest are
  * prefixed with the field name (`field: value`) since the value alone wouldn't
  * be self-describing. Shared by server-side cluster builders and client-side
@@ -274,9 +354,9 @@ export const DISPLAY_LABEL_REL_PRIORITY: ReadonlyArray<{ rel: string; bare: bool
 export const MAX_DISPLAY_LABEL_LEN = 80;
 
 /**
- * Resolve a display label for a vertex by walking `DISPLAY_LABEL_REL_PRIORITY`
+ * Resolve a display label for an individual by walking `DISPLAY_LABEL_REL_PRIORITY`
  * against `getProperty(field)`. Returns the first non-empty value or undefined.
- * Server-side callers pass a closure over the vertex row; client-side callers
+ * Server-side callers pass a closure over the individual row; client-side callers
  * pass a closure over the property quads.
  */
 export function resolveDisplayLabel(rels: Record<string, string> | undefined, getProperty: (field: string) => unknown): string | undefined {
@@ -311,7 +391,7 @@ export function parseTimestampValue(val: unknown): number | null {
 
 /**
  * Map a rel's RDF range to its UI rendering category.
- *   iri       → "item"    (navigable link to another vertex)
+ *   iri       → "item"    (navigable link to another individual)
  *   container → "select"  (multi-valued structure; select-like control)
  *   literal   → "filter"  (scalar value; filter/text control)
  *
@@ -332,6 +412,8 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		foaf: "http://xmlns.com/foaf/0.1/",
 		dcterms: "http://purl.org/dc/terms/",
 		prov: "https://www.w3.org/ns/prov#",
+		sec: "https://w3id.org/security#",
+		cred: "https://www.w3.org/2018/credentials#",
 		sosa: "http://www.w3.org/ns/sosa/",
 		schema: "https://schema.org/",
 		oa: "http://www.w3.org/ns/oa#",
@@ -342,7 +424,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		haibun: "/ns/",
 	};
 	for (const domain of Object.values(domains)) {
-		if (!isVertexTopology(domain.topology)) continue;
+		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
