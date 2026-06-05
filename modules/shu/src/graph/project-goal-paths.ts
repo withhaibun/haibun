@@ -33,7 +33,7 @@
  * from intermediate composite slots. A typed-composite argument whose domain
  * has no producer chain still emits a separate `argument`-kind node carrying
  * the domain name — the field slot itself stays a structural `field` node
- * because the user supplies the typed value, not the slot.
+ * because the typed value, not the slot, is supplied as an argument.
  *
  * `pathId(i)` is the stable id used in `TGraphEdge.paths` and in the
  * `TGraphRenderOptions.highlightedPath` option — the consumer chooses which

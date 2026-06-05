@@ -1,6 +1,6 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
-import { SseClient, inAction } from "./sse-client.js";
+import { conduit } from "./hypermedia.js";
 import { getAvailableSteps } from "./rpc-registry.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
@@ -165,8 +165,10 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 	s.pending = (async () => {
 		const steps = await getAvailableSteps();
 		if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
-		const client = SseClient.for("");
-		const data = await inAction((scope) => client.rpc<{ quads: TQuad[]; clusters: TCluster[] }>(scope, "MonitorStepper-getClusteredQuads", { perTypeLimit, types: opts.types }));
+		const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[] }>(
+			{ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types } },
+			"quads-snapshot: fetch clustered quads",
+		);
 		if (!Array.isArray(data.quads)) throw new Error("MonitorStepper-getClusteredQuads returned non-array quads");
 		const snapshot = { quads: data.quads, clusters: data.clusters ?? [] };
 		s.cache = { snapshot, perTypeLimit, typesKey: tk };
@@ -180,6 +182,11 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 	}
 }
 
+/** The shared store's current snapshot, read synchronously (no fetch). Empty before anything loads. */
+export function currentSnapshot(): TGraphSnapshot {
+	return getStore().cache?.snapshot ?? { quads: [], clusters: [] };
+}
+
 /**
  * Merge newly observed quads into the shared snapshot cache. Updates each
  * affected cluster: a new subject promotes from omitted to sampled (caps at
@@ -187,7 +194,9 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
  */
 export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	const s = getStore();
-	if (quads.length === 0 || !s.cache) return;
+	if (quads.length === 0) return;
+	// SSE may populate the snapshot before (or without) a getClusteredQuads RPC; start a cache so the merge has somewhere to land.
+	if (!s.cache) s.cache = { snapshot: { quads: [], clusters: [] }, perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*" };
 	const snap = s.cache.snapshot;
 	const clusterByType = new Map<string, TCluster>();
 	const sampledByType = new Map<string, Set<string>>();
@@ -196,7 +205,7 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 		sampledByType.set(c.type, new Set(c.sampledSubjects));
 	}
 	// Dedup index by (namedGraph, subject, predicate). The live stream can emit
-	// the same fact twice — graph-store emits the vertex's property quad on
+	// the same fact twice — graph-store emits the node's property quad on
 	// upsert AND the explicit edge quad on createEdge, and a key like
 	// `assertionMethod` shows up in both. Match the snapshot's behaviour
 	// (`vertexToQuads` drops the property when an edge with the same predicate

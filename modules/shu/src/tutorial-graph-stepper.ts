@@ -1,86 +1,48 @@
+/**
+ * Tutorial graph stepper — a minimal, self-contained example of how a stepper exposes a graph to the shu SPA.
+ *
+ * The domain is dessert recipes, because the relationships are intuitive:
+ *
+ *   Recipe ──variationOf──▶ Recipe     a recipe can be a variation of another (forming a tree of variations)
+ *   Ingredient ──usedIn──▶ Recipe      an ingredient is used in a recipe
+ *
+ * Every node is projected as a JSON-LD node: `@id` (its IRI) and `@type` (its label) plus its domain
+ * fields. Edges are typed links (`as:inReplyTo`, `schema:isPartOf`) between those `@id`s. The SPA navigates
+ * purely by following `@id`/`@type` and the edges — nothing is hard-coded about recipes. That is the lesson:
+ * the data is the API (HATEOAS), and JSON-LD makes its shape self-describing.
+ *
+ * An in-memory store stands in for a graph database so the example runs with no external service.
+ */
 import { AStepper, type TStepperSteps, type IStepperCycles, type IStepperConcerns } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { LinkRelations, DOMAIN_VERTEX_LABEL } from "@haibun/core/lib/resources.js";
+import { LinkRelations, DOMAIN_PERSISTED_TYPE, jsonLdIndividualOf } from "@haibun/core/lib/resources.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { z } from "zod";
 
-const DOMAIN_TUTORIAL_QUERY = "tutorial-graph-query";
+const DOMAIN_QUERY = "tutorial-graph-query";
 const DOMAIN_VERTEX_DATA = "tutorial-vertex-data";
-const DOMAIN_TUTORIAL_RESEARCHER = "tutorial-researcher";
-const DOMAIN_TUTORIAL_PAPER = "tutorial-paper";
+const DOMAIN_RECIPE = "tutorial-recipe";
+const DOMAIN_INGREDIENT = "tutorial-ingredient";
 
-export const TutorialLabels = {
-	Researcher: "Researcher",
-	Paper: "Paper",
-} as const;
-export const TutorialEdges = {
-	authored: "authored",
-	references: "references",
-	author: "author",
-} as const;
+export const RecipeLabels = { Recipe: "Recipe", Ingredient: "Ingredient" } as const;
+
+const RecipeSchema = z.object({ id: z.string(), name: z.string(), description: z.string().default(""), published: z.string().default(""), generatedAtTime: z.string().default("") });
+const IngredientSchema = z.object({ id: z.string(), name: z.string(), published: z.string().default(""), generatedAtTime: z.string().default("") });
+
+// Query and entity products are strict JSON-LD nodes — a Recipe or an Ingredient, never anything else.
+const VertexSchema = z.union([jsonLdIndividualOf(RecipeLabels.Recipe, RecipeSchema), jsonLdIndividualOf(RecipeLabels.Ingredient, IngredientSchema)]);
+
+const EdgeResultSchema = z.object({ type: z.string(), target: VertexSchema });
+const CreatedEdgeSchema = z.object({ id: z.string(), fromLabel: z.string(), fromId: z.string(), rel: z.string(), toLabel: z.string(), toId: z.string() });
+
+const QueryResultSchema = z.object({ vertices: z.array(VertexSchema), total: z.number(), cypher: z.string() });
+const VertexWithEdgesSchema = z.object({ vertex: VertexSchema, edges: z.array(EdgeResultSchema), incomingCount: z.number() });
+const IncomingEdgesResultSchema = z.object({ edges: z.array(EdgeResultSchema), total: z.number() });
+const JsonLdDocSchema = z.object({ "@context": z.record(z.string(), z.unknown()), "@graph": z.array(VertexSchema) });
 
 const VertexDataSchema = z.record(z.string(), z.unknown());
-
-const VertexResultSchema = z.object({
-	id: z.string(),
-	label: z.string(),
-	vertexLabel: z.string(),
-	properties: z.record(z.string(), z.unknown()),
-});
-
-const ResearcherSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-	context: z.string().default(""),
-	published: z.string().default(""),
-});
-
-const PaperSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-	content: z.string().default(""),
-	published: z.string().default(""),
-	updated: z.string().default(""),
-});
-
-const EdgeSchema = z.object({
-	id: z.string(),
-	fromLabel: z.string(),
-	fromId: z.string(),
-	rel: z.string(),
-	toLabel: z.string(),
-	toId: z.string(),
-});
-
-const QueryResultSchema = z.object({
-	vertices: z.array(VertexResultSchema),
-	total: z.number(),
-	cypher: z.string().optional(),
-});
-
-const VertexWithEdgesSchema = z.object({
-	vertex: VertexResultSchema,
-	edges: z.array(EdgeSchema),
-	incomingCount: z.number(),
-});
-
-const ResolvedEdgeSchema = z.object({
-	type: z.string(),
-	target: z.record(z.string(), z.unknown()),
-});
-const IncomingEdgesResultSchema = z.object({
-	edges: z.array(ResolvedEdgeSchema),
-	total: z.number(),
-});
-
-const FilterSchema = z.object({
-	field: z.string().optional(),
-	value: z.string().optional(),
-});
-
 const GraphQuerySchema = z.object({
 	label: z.string().optional(),
-	filters: z.array(FilterSchema).default([]),
 	textQuery: z.string().optional(),
 	sortBy: z.string().optional(),
 	sortOrder: z.enum(["asc", "desc"]).default("desc"),
@@ -88,13 +50,12 @@ const GraphQuerySchema = z.object({
 	offset: z.number().int().nonnegative().default(0),
 });
 
-interface InMemoryVertex {
+interface StoredVertex {
 	id: string;
 	vertexLabel: string;
 	properties: Record<string, unknown>;
 }
-
-interface InMemoryEdge {
+interface StoredEdge {
 	id: string;
 	fromLabel: string;
 	fromId: string;
@@ -103,27 +64,39 @@ interface InMemoryEdge {
 	toId: string;
 }
 
+/** In-memory stand-in for a graph database: nodes and directed, typed edges between them. */
 class TutorialGraphStore {
-	private vertices: InMemoryVertex[] = [];
-	private edges: InMemoryEdge[] = [];
-	private idCounter = 0;
+	private vertices: StoredVertex[] = [];
+	private edges: StoredEdge[] = [];
+	private edgeSeq = 0;
 
-	createVertex(label: string, id: string, properties: Record<string, unknown>): InMemoryVertex {
+	/** Project a stored node as a JSON-LD node: `@id` (IRI) + `@type` (label) + its fields. */
+	toJsonLd(v: StoredVertex): Record<string, unknown> {
+		return { "@id": `${v.vertexLabel}/${v.id}`, "@type": v.vertexLabel, ...v.properties };
+	}
+
+	createVertex(label: string, id: string, properties: Record<string, unknown>): StoredVertex {
 		const existing = this.vertices.find((v) => v.vertexLabel === label && v.id === id);
 		if (existing) {
 			existing.properties = { ...existing.properties, ...properties };
 			return existing;
 		}
-		const vertex: InMemoryVertex = {
-			id,
-			vertexLabel: label,
-			properties: { id, ...properties },
-		};
+		const vertex: StoredVertex = { id, vertexLabel: label, properties: { id, ...properties } };
 		this.vertices.push(vertex);
 		return vertex;
 	}
 
-	query(label?: string, textFilter?: string): InMemoryVertex[] {
+	createEdge(fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string): StoredEdge {
+		const edge: StoredEdge = { id: `edge-${++this.edgeSeq}`, fromLabel, fromId, rel, toLabel, toId };
+		this.edges.push(edge);
+		return edge;
+	}
+
+	getVertex(label: string, id: string): StoredVertex | undefined {
+		return this.vertices.find((v) => v.vertexLabel === label && v.id === id);
+	}
+
+	query(label?: string, textFilter?: string): StoredVertex[] {
 		let results = this.vertices;
 		if (label) results = results.filter((v) => v.vertexLabel === label);
 		if (textFilter) {
@@ -133,61 +106,24 @@ class TutorialGraphStore {
 		return results;
 	}
 
-	getVertex(label: string, id: string): InMemoryVertex | undefined {
-		return this.vertices.find((v) => v.vertexLabel === label && v.id === id);
+	/** The JSON-LD node an edge points at, resolved from the target's label + id. */
+	target(label: string, id: string): Record<string, unknown> {
+		const v = this.getVertex(label, id);
+		if (!v) throw new Error(`edge points to missing vertex ${label}/${id}`);
+		return this.toJsonLd(v);
 	}
 
-	resolveEdgeTarget(targetLabel: string, targetId: string): Record<string, unknown> {
-		const v = this.getVertex(targetLabel, targetId);
-		return v ? { ...v.properties, _label: targetLabel } : { id: targetId, _label: targetLabel };
+	outgoing(label: string, id: string): StoredEdge[] {
+		return this.edges.filter((e) => e.fromLabel === label && e.fromId === id);
+	}
+	incoming(label: string, id: string): StoredEdge[] {
+		return this.edges.filter((e) => e.toLabel === label && e.toId === id);
 	}
 
-	getVertexWithEdges(label: string, id: string) {
-		const vertex = this.getVertex(label, id);
-		if (!vertex) return null;
-		const outgoing = this.edges.filter((e) => e.fromId === id && e.fromLabel === label);
-		const incomingCount = this.edges.filter((e) => e.toId === id && e.toLabel === label).length;
-		return { vertex, edges: outgoing, incomingCount };
-	}
-
-	getIncomingEdges(label: string, id: string, limit = 100, offset = 0) {
-		const incoming = this.edges.filter((e) => e.toId === id && e.toLabel === label);
-		return {
-			edges: incoming.slice(offset, offset + limit),
-			total: incoming.length,
-		};
-	}
-
-	createEdge(fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string) {
-		const edge: InMemoryEdge = {
-			id: `edge-${++this.idCounter}`,
-			fromLabel,
-			fromId,
-			rel,
-			toLabel,
-			toId,
-		};
-		this.edges.push(edge);
-		return edge;
-	}
-
-	exportAsJsonLd() {
-		const context = {
-			"@vocab": "http://schema.org/",
-			id: "@id",
-			name: "http://schema.org/name",
-			context: "http://purl.org/dc/terms/subject",
-			published: "http://purl.org/dc/terms/issued",
-			updated: "http://purl.org/dc/terms/modified",
-			content: "http://schema.org/description",
-			attributedTo: "http://purl.org/dc/terms/creator",
-			inReplyTo: "http://www.w3.org/2002/07/owl#sameAs",
-		};
-		const graph = this.vertices.map((v) => ({
-			"@type": v.vertexLabel,
-			...v.properties,
-		}));
-		return { "@context": context, "@graph": graph };
+	/** The whole graph as a JSON-LD document: a shared `@context` mapping terms to IRIs, and a `@graph` of nodes. */
+	exportAsJsonLd(): { "@context": Record<string, unknown>; "@graph": Record<string, unknown>[] } {
+		const context = { "@vocab": "http://schema.org/", name: LinkRelations.NAME.uri, description: LinkRelations.CONTENT.uri, published: LinkRelations.PUBLISHED.uri, generatedAtTime: LinkRelations.GENERATED_AT_TIME.uri };
+		return { "@context": context, "@graph": this.vertices.map((v) => this.toJsonLd(v)) };
 	}
 }
 
@@ -197,61 +133,26 @@ export default class TutorialGraphStepper extends AStepper {
 	cycles: IStepperCycles = {
 		getConcerns: (): IStepperConcerns => ({
 			domains: [
+				{ selectors: [DOMAIN_QUERY], schema: GraphQuerySchema, coerce: objectCoercer(GraphQuerySchema), description: "A graph query: optional type, text filter, sort, and paging" },
+				{ selectors: [DOMAIN_VERTEX_DATA], schema: VertexDataSchema, coerce: objectCoercer(VertexDataSchema), description: "Vertex properties as JSON" },
 				{
-					selectors: [DOMAIN_TUTORIAL_QUERY],
-					schema: GraphQuerySchema,
-					coerce: objectCoercer(GraphQuerySchema),
-					description: "Tutorial graph query",
-				},
-				{
-					selectors: [DOMAIN_VERTEX_DATA],
-					schema: VertexDataSchema,
-					coerce: objectCoercer(VertexDataSchema),
-					description: "Vertex properties as JSON",
-				},
-				{
-					selectors: [DOMAIN_TUTORIAL_RESEARCHER],
-					schema: ResearcherSchema,
+					selectors: [DOMAIN_RECIPE],
+					schema: RecipeSchema,
 					topology: {
-						vertexLabel: TutorialLabels.Researcher,
+						persistedAs: RecipeLabels.Recipe,
 						id: "id",
-						properties: {
-							id: LinkRelations.IDENTIFIER.rel,
-							name: LinkRelations.NAME.rel,
-							context: LinkRelations.CONTEXT.rel,
-							published: LinkRelations.PUBLISHED.rel,
-						},
-						edges: {
-							[TutorialEdges.authored]: {
-								rel: LinkRelations.ATTRIBUTED_TO.rel,
-								range: TutorialLabels.Paper,
-							},
-						},
+						properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, description: LinkRelations.CONTENT.rel, published: LinkRelations.PUBLISHED.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+						edges: { variationOf: { rel: LinkRelations.IN_REPLY_TO.rel, range: RecipeLabels.Recipe } },
 					},
 				},
 				{
-					selectors: [DOMAIN_TUTORIAL_PAPER],
-					schema: PaperSchema,
+					selectors: [DOMAIN_INGREDIENT],
+					schema: IngredientSchema,
 					topology: {
-						vertexLabel: TutorialLabels.Paper,
+						persistedAs: RecipeLabels.Ingredient,
 						id: "id",
-						properties: {
-							id: LinkRelations.IDENTIFIER.rel,
-							name: LinkRelations.NAME.rel,
-							content: LinkRelations.CONTENT.rel,
-							published: LinkRelations.PUBLISHED.rel,
-							updated: LinkRelations.UPDATED.rel,
-						},
-						edges: {
-							[TutorialEdges.references]: {
-								rel: LinkRelations.IN_REPLY_TO.rel,
-								range: TutorialLabels.Paper,
-							},
-							[TutorialEdges.author]: {
-								rel: LinkRelations.ATTRIBUTED_TO.rel,
-								range: TutorialLabels.Researcher,
-							},
-						},
+						properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, published: LinkRelations.PUBLISHED.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+						edges: { usedIn: { rel: LinkRelations.PART_OF.rel, range: RecipeLabels.Recipe } },
 					},
 				},
 			],
@@ -260,20 +161,20 @@ export default class TutorialGraphStepper extends AStepper {
 
 	steps = {
 		graphQuery: {
-			gwta: `graph query {query: ${DOMAIN_TUTORIAL_QUERY}}`,
+			gwta: `graph query {query: ${DOMAIN_QUERY}}`,
 			productsSchema: QueryResultSchema,
 			action: ({ query }: { query: z.infer<typeof GraphQuerySchema> }) => {
 				try {
-					const { label, textQuery, limit, offset } = query;
-					const results = this.store.query(label, textQuery);
-					const paginated = results.slice(offset, offset + limit);
+					const { label, textQuery, sortBy, sortOrder, limit, offset } = query;
+					let results = this.store.query(label, textQuery);
+					if (sortBy) {
+						const dir = sortOrder === "asc" ? 1 : -1;
+						results = [...results].sort((a, b) => dir * String(a.properties[sortBy] ?? "").localeCompare(String(b.properties[sortBy] ?? "")));
+					}
 					return actionOKWithProducts({
-						vertices: paginated.map((v) => ({
-							...v.properties,
-							_label: v.vertexLabel,
-						})),
+						vertices: results.slice(offset, offset + limit).map((v) => this.store.toJsonLd(v)),
 						total: results.length,
-						cypher: `MATCH (n:${label || "*"}) RETURN n LIMIT ${limit}`,
+						cypher: `MATCH (n:${label || "*"}) RETURN n SKIP ${offset} LIMIT ${limit}`,
 					});
 				} catch (err) {
 					return actionNotOK(String(err));
@@ -281,26 +182,17 @@ export default class TutorialGraphStepper extends AStepper {
 			},
 		},
 
-		getVertexWithEdges: {
-			gwta: `get vertex {label: ${DOMAIN_VERTEX_LABEL}} with id {id: string} and its outgoing edges`,
+		getIndividualWithEdges: {
+			gwta: `get vertex {label: ${DOMAIN_PERSISTED_TYPE}} with id {id: string} and its outgoing edges`,
 			productsSchema: VertexWithEdgesSchema,
 			action: ({ label, id }: { label: string; id: string }) => {
 				try {
-					const result = this.store.getVertexWithEdges(label, id);
-					if (!result) return actionNotOK(`Vertex ${label}/${id} not found`);
-					const edges = result.edges.map((e) => {
-						return {
-							type: e.rel,
-							target: this.store.resolveEdgeTarget(e.toLabel, e.toId),
-						};
-					});
+					const vertex = this.store.getVertex(label, id);
+					if (!vertex) return actionNotOK(`Vertex ${label}/${id} not found`);
 					return actionOKWithProducts({
-						vertex: {
-							...result.vertex.properties,
-							_label: result.vertex.vertexLabel,
-						},
-						edges,
-						incomingCount: result.incomingCount,
+						vertex: this.store.toJsonLd(vertex),
+						edges: this.store.outgoing(label, id).map((e) => ({ type: e.rel, target: this.store.target(e.toLabel, e.toId) })),
+						incomingCount: this.store.incoming(label, id).length,
 					});
 				} catch (err) {
 					return actionNotOK(String(err));
@@ -309,18 +201,15 @@ export default class TutorialGraphStepper extends AStepper {
 		},
 
 		getIncomingEdges: {
-			gwta: `get incoming edges for {label: ${DOMAIN_VERTEX_LABEL}} vertex {id: string} with limit {limit} and offset {offset}`,
+			gwta: `get incoming edges for {label: ${DOMAIN_PERSISTED_TYPE}} vertex {id: string} with limit {limit} and offset {offset}`,
 			productsSchema: IncomingEdgesResultSchema,
 			action: ({ label, id, limit = 100, offset = 0 }: { label: string; id: string; limit?: number; offset?: number }) => {
 				try {
-					const raw = this.store.getIncomingEdges(label, id, limit, offset);
-					const edges = raw.edges.map((e) => {
-						return {
-							type: e.rel,
-							target: this.store.resolveEdgeTarget(e.fromLabel, e.fromId),
-						};
+					const all = this.store.incoming(label, id);
+					return actionOKWithProducts({
+						edges: all.slice(offset, offset + limit).map((e) => ({ type: e.rel, target: this.store.target(e.fromLabel, e.fromId) })),
+						total: all.length,
 					});
-					return actionOKWithProducts({ edges, total: raw.total });
 				} catch (err) {
 					return actionNotOK(String(err));
 				}
@@ -328,53 +217,11 @@ export default class TutorialGraphStepper extends AStepper {
 		},
 
 		createVertex: {
-			gwta: `create vertex {label: ${DOMAIN_VERTEX_LABEL}} with id {id: string} and properties {data: ${DOMAIN_VERTEX_DATA}}`,
+			gwta: `create vertex {label: ${DOMAIN_PERSISTED_TYPE}} with id {id: string} and properties {data: ${DOMAIN_VERTEX_DATA}}`,
+			productsSchema: VertexSchema,
 			action: ({ label, id, data }: { label: string; id: string; data: Record<string, unknown> }) => {
 				try {
-					const vertex = this.store.createVertex(label, id, data);
-					return actionOKWithProducts({
-						...vertex.properties,
-						_label: vertex.vertexLabel,
-					});
-				} catch (err) {
-					return actionNotOK(String(err));
-				}
-			},
-		},
-
-		createResearcher: {
-			gwta: "create researcher named {name: string}",
-			productsDomain: DOMAIN_TUTORIAL_RESEARCHER,
-			action: ({ name }: { name: string }) => {
-				try {
-					const vertex = this.store.createVertex(TutorialLabels.Researcher, name, { id: name, name, context: "", published: "" });
-					return actionOKWithProducts({ id: vertex.id, name: name, context: "", published: "" });
-				} catch (err) {
-					return actionNotOK(String(err));
-				}
-			},
-		},
-
-		createPaper: {
-			gwta: "create paper titled {title: string}",
-			productsDomain: DOMAIN_TUTORIAL_PAPER,
-			action: ({ title }: { title: string }) => {
-				try {
-					const vertex = this.store.createVertex(TutorialLabels.Paper, title, { id: title, name: title, content: "", published: "", updated: "" });
-					return actionOKWithProducts({ id: vertex.id, name: title, content: "", published: "", updated: "" });
-				} catch (err) {
-					return actionNotOK(String(err));
-				}
-			},
-		},
-
-		publishPaper: {
-			gwta: "publish paper titled {title: string} on {date: string}",
-			productsDomain: DOMAIN_TUTORIAL_PAPER,
-			action: ({ title, date }: { title: string; date: string }) => {
-				try {
-					const vertex = this.store.createVertex(TutorialLabels.Paper, title, { id: title, name: title, content: "", published: date, updated: date });
-					return actionOKWithProducts({ id: vertex.id, name: title, content: "", published: date, updated: date });
+					return actionOKWithProducts(this.store.toJsonLd(this.store.createVertex(label, id, data)));
 				} catch (err) {
 					return actionNotOK(String(err));
 				}
@@ -383,12 +230,10 @@ export default class TutorialGraphStepper extends AStepper {
 
 		createEdge: {
 			gwta: "create edge from {fromLabel: string} {fromId: string} with rel {rel: string} to {toLabel: string} {toId: string}",
-			productsSchema: z.object({ edge: EdgeSchema }),
+			productsSchema: z.object({ edge: CreatedEdgeSchema }),
 			action: ({ fromLabel, fromId, rel, toLabel, toId }: { fromLabel: string; fromId: string; rel: string; toLabel: string; toId: string }) => {
 				try {
-					return actionOKWithProducts({
-						edge: this.store.createEdge(fromLabel, fromId, rel, toLabel, toId),
-					});
+					return actionOKWithProducts({ edge: this.store.createEdge(fromLabel, fromId, rel, toLabel, toId) });
 				} catch (err) {
 					return actionNotOK(String(err));
 				}
@@ -397,7 +242,7 @@ export default class TutorialGraphStepper extends AStepper {
 
 		exportGraphAsJsonLd: {
 			gwta: "export graph as JSON-LD",
-			productsSchema: z.object({ "@context": z.record(z.string(), z.unknown()), "@graph": z.array(z.record(z.string(), z.unknown())) }),
+			productsSchema: JsonLdDocSchema,
 			action: () => {
 				try {
 					return actionOKWithProducts(this.store.exportAsJsonLd());

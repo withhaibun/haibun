@@ -1,14 +1,9 @@
 /**
- * Shared seqPath utilities. The dedicated fact/quad pane was retired: typed-
- * fact subjects ARE the origin seqPath, so click-throughs from the graph view
- * and the step-detail pane now route to <shu-step-detail> via PaneState. This
- * module keeps the bracket-tolerant `parseSeqPath` (consumers feed it user-
- * facing strings like `"[0.1.2]"`) and `escHtml` for HTML escaping.
+ * Shared seqPath utilities. A typed-fact subject IS its origin seqPath, so
+ * click-throughs from the graph view and the step-detail pane route to
+ * <shu-step-detail> via PaneState. `parseSeqPath` is bracket-tolerant, since
+ * consumers feed it display strings like `"[0.1.2]"`.
  */
-
-export function escHtml(s: string): string {
-	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 /** Parse seqPath number array from event ID like "[1.2.3]" or "1.2.3". Returns undefined for non-numeric IDs. */
 export function parseSeqPath(id: string): number[] | undefined {

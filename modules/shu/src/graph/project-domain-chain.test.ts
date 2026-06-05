@@ -102,10 +102,10 @@ describe("projectDomainChain", () => {
 	});
 
 	it("colors a domain as satisfied when satisfiedDomains contains it, even when goals[] omits it (trivial-filtered)", () => {
-		// In live use the affordances panel drops trivial single-step goals from `goals[]`,
-		// so a domain that has been asserted (e.g. an issuer the user just created) would
-		// be invisible to the chain view if it relied on `goals[]` alone. `satisfiedDomains`
-		// is the unfiltered set from working memory; the chain view colours by that.
+		// The affordances panel drops trivial single-step goals from `goals[]`, so an
+		// asserted domain (e.g. a created issuer) would be invisible to the chain view
+		// if it relied on `goals[]` alone. `satisfiedDomains` is the unfiltered set from
+		// working memory; the chain view colours by that.
 		const snap: TAffordancesSnapshot = {
 			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["issuer-vertex"], readyToRun: true }],
 			goals: [],
@@ -116,8 +116,8 @@ describe("projectDomainChain", () => {
 	});
 
 	it("renders fact-instance nodes attached to their satisfied domain", () => {
-		// Regression: after creating an issuer, the user expects to see the specific issuer
-		// instance (its factId) in the chain, not just the green domain blob.
+		// A created issuer surfaces as a specific instance node (its factId) in the
+		// chain, not just the green domain blob.
 		const snap: TAffordancesSnapshot = {
 			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["issuer-vertex"], readyToRun: true }],
 			goals: [],
@@ -132,10 +132,9 @@ describe("projectDomainChain", () => {
 	});
 
 	it("does NOT bake the selected node into the projection — selection is a UI overlay handled in the view", () => {
-		// Regression: prior versions of this projection took `currentDomain` / `currentWaypoint`
-		// and replaced the node's kind with "current", losing the base resolver verdict colour.
-		// Selection is now a CSS class applied to the rendered SVG by the view; the projection
-		// returns the same kinds regardless of which node the user has open.
+		// Selection is a CSS class applied to the rendered SVG by the view, not baked
+		// into the projection: the projection returns the same kinds regardless of which
+		// node is open, preserving each node's base resolver verdict colour.
 		const snap: TAffordancesSnapshot = {
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
 			goals: [{ domain: "b", resolution: { finding: "michi" } }],

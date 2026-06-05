@@ -1,6 +1,6 @@
 /**
- * <shu-entity-column> — Displays a single vertex with edges.
- * Fetches vertex+edges via RPC on open. Renders once per navigation.
+ * <shu-entity-column> — Displays a single individual with edges.
+ * Fetches individual+edges via RPC on open. Renders once per navigation.
  * HATEOAS rel-based clickable values. Fully type-agnostic — driven by schema metadata.
  *
  * Events: column-open (entity nav), column-open-filter (filter nav)
@@ -11,7 +11,7 @@ import {
 	esc,
 	escAttr,
 	truncate,
-	vertexId,
+	idOf,
 	isVisibleKey,
 	isReferenceEdge,
 	extractFieldEntries,
@@ -19,33 +19,70 @@ import {
 	renderContentHtml,
 	utf8ToBase64,
 } from "../util.js";
-import { SHARED_STYLES } from "./styles.js";
+import { html, css, type TemplateResult } from "lit";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
-import { renderValue } from "./value-renderers.js";
 import { callStep } from "../pane-fetch.js";
-import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields } from "../rels-cache.js";
+import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields } from "../rels-cache.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
 
+/** Markdown/plain bodies are rendered locally for a clean, private view — this CSP makes them load NOTHING from the network (no remote images/tracking pixels, fonts, scripts, frames, or fetches); only inline `data:` images and the inline body style are permitted. text/html bodies are the original message and opt out so their remote assets load (scripts stay blocked by the iframe sandbox regardless). */
+const BODY_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
+
+export function buildBodyIframeDoc(content: string, mediaType: string): string {
+	const csp = mediaType === "text/html" ? "" : `<meta http-equiv="Content-Security-Policy" content="${BODY_CSP}">`;
+	return `<!DOCTYPE html><html><head><meta charset="utf-8">${csp}<style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
+}
+
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
+	static styles = [shuBaseStyles, css`
+		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
+		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+		.entity-header { padding: var(--shu-space-2) 0; }
+		.entity-type { font-weight: 600; color: var(--shu-accent); font-size: 0.85em; letter-spacing: 0.5px; margin-right: var(--shu-space-4); }
+		.entity-id { color: var(--shu-fg-muted); word-break: break-all; }
+		.entity-summary { display: flex; flex-wrap: wrap; gap: var(--shu-space-1) 10px; padding: var(--shu-space-1) 0 var(--shu-space-2); color: var(--shu-fg-muted); font-size: 0.9em; }
+		.summary-field:first-child { font-weight: 500; }
+		.references { padding: var(--shu-space-2) 0; margin: var(--shu-space-1) 0; }
+		.ref-group { padding: 1px 0; display: flex; flex-wrap: wrap; gap: var(--shu-space-2); align-items: baseline; }
+		.ref-type { color: var(--shu-fg-faded); font-size: 0.8em; min-width: 70px; }
+		.ref-count { color: var(--shu-fg-faded); }
+		.entity-detail { margin: var(--shu-space-1) 0; font-size: 0.9em; }
+		.detail-toggle { cursor: pointer; color: var(--shu-fg-faded); font-size: 0.8em; padding: var(--shu-space-1) 0; }
+		.detail-toggle:hover { color: var(--shu-fg-muted); }
+		.content-toolbar { display: flex; gap: var(--shu-space-2); padding: var(--shu-space-1) 0; align-items: center; }
+		.content-switcher { display: flex; gap: var(--shu-space-2); }
+		.content-switch-btn { font-size: 0.75em; padding: 1px var(--shu-space-3); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); cursor: pointer; background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
+		.content-switch-btn.active { background: var(--shu-accent); border-color: var(--shu-accent); color: var(--shu-accent-fg); }
+		.hidden { display: none; }
+		.detail-table { width: 100%; border-collapse: collapse; }
+		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; }
+		.field-name { white-space: nowrap; color: var(--shu-fg-faded); width: 80px; font-size: 0.85em; }
+		.body-container { display: flex; flex-direction: column; flex: 1; min-height: 200px; }
+		.body-iframe { width: 100%; height: 100%; min-height: 200px; border: none; background: var(--shu-bg); }
+		.error-banner { padding: var(--shu-space-3) var(--shu-space-4); margin: var(--shu-space-2); background: var(--shu-bg-error-soft); color: var(--shu-error); border-radius: var(--shu-radius); }
+		.loading, .empty { color: var(--shu-fg-faded); padding: var(--shu-space-4); }
+	`];
 	private vertex: VertexData | null = null;
 	private edges: EdgeData[] = [];
 	private incomingCount = 0;
 	private predicateLinkCount = 0;
 	private edgeTargetCount = 0;
-	/** Full augmented products from getVertexWithEdges (vertex + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so the chat-context harvester sees the same hypermedia an agent following `_links` would. */
+	/** Full augmented products from getIndividualWithEdges (individual + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so the chat-context harvester sees the same hypermedia an agent following `_links` would. */
 	private products: Record<string, unknown> | null = null;
 
 	constructor() {
 		super(EntityColumnSchema, {
-			vertexId: "",
-			vertexLabel: "",
+			individualId: "",
+			persistedAs: "",
 			loading: false,
 		});
 	}
@@ -53,7 +90,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	protected override onTimeSync(): void {
 		const container = this.shadowRoot?.querySelector(".container");
 		if (!container) return;
-		const ts = this.extractTimestamp(this.vertex ?? {}, this.state.vertexLabel);
+		const ts = this.extractTimestamp(this.vertex ?? {}, this.state.persistedAs);
 		if (ts !== null && this.isFuture(ts)) {
 			container.classList.add(TIME_SYNC_CLASS.FUTURE);
 		} else {
@@ -61,7 +98,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 	}
 
-	/** Render arbitrary products as a vertex view without RPC fetch. */
+	/** Render arbitrary products as an individual view without RPC fetch. */
 	openProducts(products: Record<string, unknown>): void {
 		const label = String(products._type || "Result");
 		const { _type, _summary, _component, _links, _undo, _seqPath, ...data } = products;
@@ -69,24 +106,24 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.edges = [];
 		this.incomingCount = 0;
 		this.products = products;
-		this.setState({ vertexId: String(_summary || ""), vertexLabel: label, loading: false });
+		this.setState({ individualId: String(_summary || ""), persistedAs: label, loading: false });
 	}
 
-	/** Open a vertex by ID. Fetches data and renders. */
+	/** Open an individual by ID. Fetches data and renders. */
 	async open(id: string, label: string = defaultLabel()): Promise<void> {
 		// Surface the subject as an attribute so external code (e.g. the COLUMN_CLOSE
 		// listener in app.ts) can detect which entity is in this column without
 		// reaching through the protected `state` field.
 		this.setAttribute("data-subject", id);
 		this.setState({
-			vertexId: id,
-			vertexLabel: label,
+			individualId: id,
+			persistedAs: label,
 			loading: true,
 			error: undefined,
 		});
 		const accessLevel = appAccessLevel();
 		const res = await callStep<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(
-			"getVertexWithEdges",
+			"getIndividualWithEdges",
 			{ label, id, accessLevel },
 			`entity-column: open ${label}:${id}`,
 		);
@@ -108,108 +145,71 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		);
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
-		const { loading, error, vertexLabel } = this.state;
+	render(): TemplateResult {
+		const { loading, error, persistedAs } = this.state;
 		this.predicateLinkCount = 0;
 		this.edgeTargetCount = 0;
 
 		if (loading) {
-			const { vertexId: vid, vertexLabel: lbl } = this.state;
-			this.shadowRoot.innerHTML = `<style>${STYLES}</style><shu-spinner status="Fetching ${lbl} ${vid.slice(0, 30)}..." visible></shu-spinner>`;
-			return;
+			const { individualId: vid, persistedAs: lbl } = this.state;
+			return html`<shu-spinner .status=${`Fetching ${lbl} ${vid.slice(0, 30)}...`} .visible=${true}></shu-spinner>`;
 		}
-		if (error) {
-			this.shadowRoot.innerHTML = `<style>${STYLES}</style><div class="error-banner">${esc(error)}</div>`;
-			return;
-		}
+		if (error) return html`<div class="error-banner">${error}</div>`;
 		if (!this.vertex) {
-			// Before open() is called: show spinner. After open() completes with no vertex: show error.
-			const msg = this.state.vertexId ? `Vertex not found: ${esc(this.state.vertexId)}` : "";
-			this.shadowRoot.innerHTML = msg
-				? `<style>${STYLES}</style><div class="error-banner">${msg}</div>`
-				: `<style>${STYLES}</style><shu-spinner status="Waiting..." visible></shu-spinner>`;
-			return;
+			const msg = this.state.individualId ? `Vertex not found: ${this.state.individualId}` : "";
+			return msg ? html`<div class="error-banner">${msg}</div>` : html`<shu-spinner status="Waiting..." visible></shu-spinner>`;
 		}
 
-		const fields = extractFieldEntries(this.vertex, vertexLabel);
-
-		// Stub detection: vertex has ≤1 meaningful properties (just the ID field)
+		const fields = extractFieldEntries(this.vertex, persistedAs);
 		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1;
 
 		let contentHtml: string;
 		if (isStub) {
-			const id = vertexId(this.vertex);
-			contentHtml = `
-				<div class="entity-header" data-testid="entity-stub">
-					<span class="entity-type">${esc(vertexLabel)}</span>
-					<span class="entity-id">${esc(id)}</span>
-				</div>
-				${this.renderReferences()}
-			`;
+			const id = idOf(this.vertex);
+			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${this.renderReferences()}`;
 		} else {
-			const summaryFields = getSummaryFields(vertexLabel);
+			const summaryFields = getSummaryFields(persistedAs);
 			const detailRows = Object.entries(fields)
-				.filter(([k]) => !getEdgeTargetLabel(k, vertexLabel) && !summaryFields.has(k))
+				.filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k))
 				.map(([k, v]) => {
-					const valueHtml = Array.isArray(v) ? v.map((item) => this.clickableValue(item, "filter", k)).join(", ") : this.clickableValue(v, "filter", k);
-					return `<tr>
-					<td class="field-name">${this.clickableValue(k, "describedby")}</td>
-					<td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td>
-				</tr>`;
+					const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
+					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
-			const contentIframe = this.renderContentIframe(vertexLabel);
+			const contentIframe = this.renderContentIframe(persistedAs);
 			const hasBody = contentIframe.length > 0;
 			const openAttr = hasBody ? "" : " open";
-
 			const detailsHtml = detailRows
-				? `<details class="entity-detail"${openAttr} data-testid="entity-details">
-					<summary class="detail-toggle">Details</summary>
-					<table class="detail-table">${detailRows}</table>
-				</details>`
+				? `<details class="entity-detail"${openAttr} data-testid="entity-details"><summary class="detail-toggle">Details</summary><table class="detail-table">${detailRows}</table></details>`
 				: "";
-
 			const summaryHtml =
 				summaryFields.size > 0
-					? `<div class="entity-summary" data-testid="entity-summary">
-					${Array.from(summaryFields)
-						.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
-						.map((k) => {
-							const v = fields[k];
-							const valueHtml = Array.isArray(v) ? v.map((item) => this.clickableValue(item, "filter", k)).join(", ") : this.clickableValue(v, "filter", k);
-							return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")} ${valueHtml}</span>`;
-						})
-						.join(" ")}
-				</div>`
+					? `<div class="entity-summary" data-testid="entity-summary">${Array.from(summaryFields)
+							.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
+							.map((k) => {
+								const v = fields[k];
+								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
+								return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")} ${valueHtml}</span>`;
+							})
+							.join(" ")}</div>`
 					: "";
-
-			contentHtml = `
-				${detailsHtml}
-				${summaryHtml}
-				${this.renderItemsTable()}
-				${this.renderReferences()}
-				${contentIframe}
-			`;
+			contentHtml = `${detailsHtml}${summaryHtml}${this.renderItemsTable()}${this.renderReferences()}${contentIframe}`;
 		}
 
-		this.shadowRoot.innerHTML = `
-			<style>${STYLES}</style>
-			${this.emitHypermediaScript(this.products)}
-			<div class="entity-content">
-				${contentHtml}
-			</div>
-		`;
-		this.bindEvents();
+		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}<div class="entity-content">${unsafeHTML(contentHtml)}</div>`;
+	}
+
+	protected updated(): void {
+		if (!this.state.loading && !this.state.error && this.vertex) this.bindEvents();
 	}
 
 	/** Render arrays of objects as tables (e.g. show domains items). Skips `hasBody` (rendered as iframes), JSON-LD keywords, and underscore-projected keys. */
 	private renderItemsTable(): string {
 		if (!this.vertex) return "";
-		const { vertexLabel } = this.state;
+		const { persistedAs } = this.state;
 		const tables: string[] = [];
 		for (const [k, v] of Object.entries(this.vertex)) {
-			if (!isVisibleKey(k, vertexLabel)) continue;
+			if (!isVisibleKey(k, persistedAs)) continue;
 			if (!Array.isArray(v) || v.length === 0 || typeof v[0] !== "object") continue;
 			const items = v as Record<string, unknown>[];
 			// Inner table: items don't have a per-row label, fall back to projection-only filter.
@@ -233,8 +233,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** Render a clickable edge target with label from HATEOAS edge range. */
 	private renderEdgeTarget(target: VertexData, edgeType: string): string {
-		const id = vertexId(target);
-		const rangeLabel = getEdgeTargetLabel(edgeType, this.state.vertexLabel);
+		const id = idOf(target);
+		const rangeLabel = getEdgeTargetLabel(edgeType, this.state.persistedAs);
 		const label = (rangeLabel === RESOURCE_LABEL ? undefined : rangeLabel) ?? (target["@type"] as string) ?? defaultLabel();
 		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? id);
 		const testId = this.edgeTargetCount === 0 ? ' data-testid="edge-target-first"' : "";
@@ -244,7 +244,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	private renderReferences(): string {
 		// Exclude edges already shown in the summary section
-		const summaryFields = getSummaryFields(this.state.vertexLabel);
+		const summaryFields = getSummaryFields(this.state.persistedAs);
 		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type) && isReferenceEdge(e.type));
 
 		if (outgoing.length === 0 && this.incomingCount === 0) return "";
@@ -254,7 +254,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const grouped = new Map<string, Array<{ target: VertexData; edgeType: string }>>();
 		const sorted = [...outgoing].sort((a, b) => (isReplyEdge(b.type) ? 1 : 0) - (isReplyEdge(a.type) ? 1 : 0));
 		for (const e of sorted) {
-			const tid = vertexId(e.target);
+			const tid = idOf(e.target);
 			if (seen.has(tid)) continue;
 			seen.add(tid);
 			const group = grouped.get(e.type) || [];
@@ -284,7 +284,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 * on each Body's `mediaType` triple — same path for Comment markdown,
 	 * Email plain/html/markdown, Proposal rationale, File markdown, etc.
 	 */
-	private renderContentIframe(_vertexLabel: string): string {
+	private renderContentIframe(_persistedAs: string): string {
 		const vertex = this.vertex;
 		if (!vertex) return "";
 		const bodies = (vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
@@ -305,8 +305,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				: "";
 		const raw = String(active.content ?? "");
 		const content = renderContentHtml(raw, String(active.mediaType));
-		const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
-		const encoded = utf8ToBase64(doc);
+		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType)));
 		const iframeHtml = `<iframe class="body-iframe" data-body-id="${escAttr(String(active.id ?? ""))}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
 		const copyBtn = copyButtonHtml(raw);
@@ -314,25 +313,41 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<div class="body-container">${toolbar}${iframeHtml}</div>`;
 	}
 
-	private clickableValue(value: string, rel: string, propertyName?: string): string {
-		if (rel === "filter" || rel === "item") {
-			const custom = renderValue(value);
-			if (custom) return custom;
+	/**
+	 * Render a field's value with the right navigation affordance:
+	 *   - the idField → an entity-open link (rel="item") back to this individual via
+	 *     getIndividualWithEdges (the idField is never a query filter, so a filter
+	 *     route would throw "filter fields not declared");
+	 *   - a server-declared queryable field → a filter link;
+	 *   - everything else → plain display-only text (no navigation).
+	 * Edge-valued fields are handled inside clickableValue via the "item" rel.
+	 */
+	private fieldValueHtml(value: string, propertyName: string): string {
+		const label = this.state.persistedAs;
+		if (getRelSync(label, propertyName) === "item") return this.clickableValue(value, "filter", propertyName);
+		if (propertyName === getIdField(label)) {
+			const id = idOf(this.vertex ?? {});
+			return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}" data-property="${escAttr(propertyName)}">${esc(truncate(value, 80))}</a>`;
 		}
+		if (getQueryableFields(label).includes(propertyName)) return this.clickableValue(value, "filter", propertyName);
+		return esc(truncate(value, 80));
+	}
+
+	private clickableValue(value: string, rel: string, propertyName?: string): string {
 		// Use HATEOAS rels + edge ranges to determine navigation semantics
 		let labelAttr = "";
 		let resolvedValue = value;
 		if (rel === "filter" && propertyName) {
-			const serverRel = getRelSync(this.state.vertexLabel, propertyName);
+			const serverRel = getRelSync(this.state.persistedAs, propertyName);
 			if (serverRel === "item") {
 				rel = "item";
-				const targetLabel = getEdgeTargetLabel(propertyName, this.state.vertexLabel);
+				const targetLabel = getEdgeTargetLabel(propertyName, this.state.persistedAs);
 				if (targetLabel && targetLabel !== RESOURCE_LABEL) {
 					labelAttr = ` data-label="${escAttr(targetLabel)}"`;
 					// Resolve entity ID from edge target data — the graph edge
-					// carries the actual target vertex with its ID field, regardless of type
+					// carries the actual target node with its ID field, regardless of type
 					const edge = this.edges.find((e) => e.type === propertyName && e.direction === "out");
-					if (edge?.target) resolvedValue = vertexId(edge.target);
+					if (edge?.target) resolvedValue = idOf(edge.target);
 				}
 			}
 		}
@@ -348,7 +363,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	private bindEvents(): void {
-		this.shadowRoot?.querySelectorAll(".col-link:not(.query-link), .pred-link").forEach((el) => {
+		this.shadowRoot?.querySelectorAll(".col-link, .pred-link").forEach((el) => {
 			el.addEventListener("click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
@@ -359,7 +374,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				if (!value) return;
 
 				// Target label comes from data-label (set at render time by HATEOAS rels + edge ranges)
-				const targetLabel = target.dataset.label || this.state.vertexLabel;
+				const targetLabel = target.dataset.label || this.state.persistedAs;
 
 				switch (rel) {
 					case "item":
@@ -372,12 +387,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						);
 						break;
 					case "describedby":
-						PaneState.request({ paneType: "filter-prop", vertexLabel: this.state.vertexLabel, predicate: value });
+						PaneState.request({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: value });
 						break;
 					case "filter":
 					default:
 						if (propertyName) {
-							PaneState.request({ paneType: "filter-eq", vertexLabel: this.state.vertexLabel, predicate: propertyName, value });
+							PaneState.request({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value });
 						}
 						break;
 				}
@@ -396,11 +411,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				if (!body || typeof body.content !== "string" || typeof body.mediaType !== "string") return;
 				const raw = body.content;
 				const content = renderContentHtml(raw, body.mediaType);
-				const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
 				const iframe = this.shadowRoot?.querySelector(".body-iframe") as HTMLIFrameElement | null;
 				if (iframe) {
 					iframe.dataset.bodyId = bodyId;
-					iframe.src = `data:text/html;base64,${utf8ToBase64(doc)}`;
+					iframe.src = `data:text/html;base64,${utf8ToBase64(buildBodyIframeDoc(content, body.mediaType))}`;
 				}
 			});
 		});
@@ -408,44 +422,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		// "What links here" — clickable to open a filter column
 		this.shadowRoot?.querySelector(".links-here-link")?.addEventListener("click", (e) => {
 			e.preventDefault();
-			PaneState.request({ paneType: "filter-incoming", vertexLabel: this.state.vertexLabel, subject: this.state.vertexId });
+			PaneState.request({ paneType: "filter-incoming", persistedAs: this.state.persistedAs, subject: this.state.individualId });
 		});
 		this.shadowRoot?.querySelector(".thread-link")?.addEventListener("click", (e) => {
 			e.preventDefault();
-			PaneState.request({ paneType: "thread", vertexLabel: this.state.vertexLabel, subject: this.state.vertexId });
+			PaneState.request({ paneType: "thread", persistedAs: this.state.persistedAs, subject: this.state.individualId });
 		});
 
 		bindCopyButtons(this.shadowRoot as ShadowRoot);
 	}
 }
-
-const STYLES =
-	SHARED_STYLES +
-	`
-	:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: 6px 8px; font-family: inherit; color: #222; }
-	.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-	.entity-header { padding: 4px 0; }
-	.entity-type { font-weight: 600; color: #1a6b3c; font-size: 0.85em; letter-spacing: 0.5px; margin-right: 8px; }
-	.entity-id { color: #555; word-break: break-all; }
-	.entity-summary { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 2px 0 4px; color: #555; font-size: 0.9em; }
-	.summary-field:first-child { font-weight: 500; }
-	.references { padding: 4px 0; margin: 2px 0; }
-	.ref-group { padding: 1px 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
-	.ref-type { color: #888; font-size: 0.8em; min-width: 70px; }
-	.ref-count { color: #aaa; }
-	.entity-detail { margin: 2px 0; font-size: 0.9em; }
-	.detail-toggle { cursor: pointer; color: #aaa; font-size: 0.8em; padding: 2px 0; }
-	.detail-toggle:hover { color: #555; }
-	.content-toolbar { display: flex; gap: 4px; padding: 2px 0; align-items: center; }
-	.content-switcher { display: flex; gap: 4px; }
-	.content-switch-btn { font-size: 0.75em; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; background: #f5f5f5; color: #555; }
-	.content-switch-btn.active { background: #1a6b3c; border-color: #1a6b3c; color: #fff; }
-	.hidden { display: none; }
-	.detail-table { width: 100%; border-collapse: collapse; }
-	.detail-table td { padding: 1px 4px; vertical-align: top; }
-	.field-name { white-space: nowrap; color: #888; width: 80px; font-size: 0.85em; }
-	.body-container { display: flex; flex-direction: column; flex: 1; min-height: 200px; }
-	.body-iframe { width: 100%; height: 100%; min-height: 200px; border: none; background: #fff; }
-	.error-banner { padding: 6px 8px; margin: 4px; background: #fdd; color: #900; border-radius: 3px; }
-	.loading, .empty { color: #888; padding: 8px; }
-`;

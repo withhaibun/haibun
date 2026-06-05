@@ -1,22 +1,26 @@
 /**
  * <shu-actions-bar> — reusable actions bar with Ask (chat) and Step modes.
- * Faithful translation of old actions-bar.ts using graph fundamentals.
  *
  * Ask mode: streams LLM chat responses using server-side context resolution.
  * Step mode: executes a haibun step via RPC and collects log events.
  */
 import { z } from "zod";
+import { html, nothing, type TemplateResult } from "lit-html";
+import { classMap } from "lit-html/directives/class-map.js";
+import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
+import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
-import { SHARED_STYLES } from "./styles.js";
+import { shuBaseStyles } from "./styles.js";
 import { errMsg, prettifyGwta } from "../util.js";
-import { SseClient, inAction } from "../sse-client.js";
+import { conduit } from "../hypermedia.js";
+import { eventStream, type TEvent } from "../event-stream.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
-import { getProperties, getSelectValues, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
+import { getActionBarChatExtensionTags, getProperties, getSelectValues, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import { getCookie, setCookie } from "../cookies.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -86,8 +90,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
-	private _detachedChat: Element | null = null;
-	private _detachedStepOutput: Element | null = null;
 	private _onDocumentClick = (e: Event): void => {
 		if (!this.state.askExpanded) return;
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
@@ -99,8 +101,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.setState({ askExpanded: false });
 	};
 
-	static get observedAttributes(): string[] {
-		return ["api-base", "testid-prefix"];
+	static observedHtmlAttributes = ["api-base", "testid-prefix"];
+
+	static get styles(): CSSResultGroup {
+		return ACTIONS_BAR_STYLES;
 	}
 
 	private get testIdPrefix(): string {
@@ -149,15 +153,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this._queryLabel = this.contextLabel(patterns, extra);
 		}
 
-		const searchInput = this.shadowRoot?.querySelector(".text-search");
-		const searchFocused = searchInput && this.shadowRoot?.activeElement === searchInput;
-		if (searchFocused) {
-			this.updateBreadcrumbDisplay();
-		} else if (this.state.askExpanded) {
-			this.render();
-		} else {
-			this.updateBreadcrumbDisplay();
-		}
+		this.updateBreadcrumbDisplay();
+		if (this.state.askExpanded) this.requestUpdate();
 	}
 
 	private isEntitySelection(patterns: TContextPattern[]): boolean {
@@ -186,11 +183,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	setActiveView(index: number): void {
 		this._activeViewIndex = index;
-		if (this.state.askExpanded) {
-			this.render();
-		} else {
-			this.updateBreadcrumbDisplay();
-		}
+		if (this.state.askExpanded) this.requestUpdate();
+		else this.updateBreadcrumbDisplay();
 	}
 
 	/**
@@ -199,9 +193,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 * they are passed as fixed params (rendered inline, not editable); when `auto` is true, the
 	 * step-caller dispatches immediately on mount without showing the input form.
 	 */
-	chooseStep(method: string, args?: Record<string, unknown>, auto?: boolean): void {
-		this.state = { ...this.state, mode: "step", askExpanded: true };
-		this.render();
+	async chooseStep(method: string, args?: Record<string, unknown>, auto?: boolean): Promise<void> {
+		this.setState({ mode: "step", askExpanded: true });
+		await this.updateComplete;
 		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
 		stepCombo?.setValue?.(method);
 		const output = this.shadowRoot?.querySelector(".step-output") as HTMLElement | null;
@@ -244,20 +238,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private updateBreadcrumbDisplay(): void {
 		const bc = this.shadowRoot?.querySelector("shu-breadcrumb") as
 			| (HTMLElement & {
-					update?: (label: string, cols: string[], active: number) => void;
+					setTrail?: (label: string, cols: string[], active: number) => void;
 			  })
 			| null;
-		if (!bc?.update) return;
-		bc.update(this._queryLabel, this._columns, this._activeViewIndex);
+		if (!bc?.setTrail) return;
+		bc.setTrail(this._queryLabel, this._columns, this._activeViewIndex);
 	}
 
 	setStatus(message: string): void {
 		this._statusMessage = message;
-		const el = this.shadowRoot?.querySelector(".status-area");
-		if (el) {
-			el.textContent = message;
-			(el as HTMLElement).style.display = message ? "" : "none";
-		}
+		this.requestUpdate();
 	}
 
 	private failFast(message: string): never {
@@ -271,31 +261,27 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		});
 	}
 
-	connectedCallback(): void {
-		super.connectedCallback();
+	protected override onConnected(): void {
 		document.addEventListener("click", this._onDocumentClick, true);
 		this.loadProperties();
 		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			this.failFast(`ShuActionsBar initialization failed: ${errMsg(err)}`);
 		});
 
-		const client = SseClient.for("");
-		this._unsubscribeSync = client.onEvent(
-			(event) => {
-				this._syncEventSeq++;
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, {
-						detail: event,
-						bubbles: true,
-						composed: true,
-					}),
-				);
-			},
-			(event) => event.kind === "imap-sync",
-		);
+		try {
+			this._unsubscribeSync = eventStream().subscribe(
+				(event: TEvent) => {
+					this._syncEventSeq++;
+					this.dispatchEvent(new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, { detail: event, bubbles: true, composed: true }));
+				},
+				(event: TEvent) => event.kind === "imap-sync",
+			);
+		} catch {
+			// No EventStream installed (early-mount in tests); skip live sync wiring.
+		}
 	}
 
-	disconnectedCallback(): void {
+	protected override onDisconnected(): void {
 		document.removeEventListener("click", this._onDocumentClick, true);
 		this._unsubscribeEvents?.();
 		this._unsubscribeEvents = null;
@@ -321,7 +307,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.reportActionsBar("info", `loading action-bar slot extension for ${label} from ${jsUrl}`, { label, jsUrl });
 			try {
 				await import(jsUrl);
-				this.render();
+				this.requestUpdate();
 				this.reportActionsBar("info", `loaded action-bar slot extension for ${label}`, { label, jsUrl });
 			} catch (e) {
 				const message = `Failed to load UI extension for ${label} from ${jsUrl}: ${errMsg(e)}`;
@@ -333,28 +319,34 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private reportActionsBar(level: "info" | "warn" | "error", message: string, attributes: Record<string, unknown> = {}): void {
-		void inAction(async (scope) => {
-			await SseClient.for("").rpc(scope, "MonitorStepper-logClient", {
-				event: {
-					level,
-					source: "shu-actions-bar",
-					message,
-					attributes: {
-						"haibun.shu.actions-bar.event": "ui-extension",
-						...attributes,
-						...(level === "error"
-							? {
-									"haibun.autonomic.event": "step.failure",
-									"exception.type": "ActionsBarUiExtension",
-									"exception.message": typeof attributes.error === "string" ? attributes.error : message,
-								}
-							: {}),
+		void conduit()
+			.follow(
+				{
+					method: "MonitorStepper-logClient",
+					params: {
+						event: {
+							level,
+							source: "shu-actions-bar",
+							message,
+							attributes: {
+								"haibun.shu.actions-bar.event": "ui-extension",
+								...attributes,
+								...(level === "error"
+									? {
+											"haibun.autonomic.event": "step.failure",
+											"exception.type": "ActionsBarUiExtension",
+											"exception.message": typeof attributes.error === "string" ? attributes.error : message,
+										}
+									: {}),
+							},
+						},
 					},
 				},
+				`actions-bar: log ${level}`,
+			)
+			.catch((err: unknown) => {
+				failFastOrLog(`[shu-actions-bar] reportActionsBar dispatch failed: ${errorDetail(err)}`, err);
 			});
-		}).catch((err) => {
-			failFastOrLog(`[shu-actions-bar] reportActionsBar dispatch failed: ${errorDetail(err)}`, err);
-		});
 	}
 
 	notifyQueryCompleted(): void {
@@ -391,7 +383,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.loadProperties(this._selectedLabel);
 		this.triggerSelectValuesLoad(this._selectedLabel);
 		void this.loadUiExtensions();
-		this.render();
+		this.requestUpdate();
 		this.dispatchFilterChange();
 	}
 
@@ -421,10 +413,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (!target) return;
 		if (hasSelectValues(target)) return;
 		await getAvailableSteps();
-		const client = SseClient.for("");
-		const data = await inAction((scope) => client.rpc<{ values: Record<string, string[]> }>(scope, requireStep("getSelectValues"), { label: target }));
+		const data = await conduit().follow<{ values: Record<string, string[]> }>(
+			{ method: requireStep("getSelectValues"), params: { label: target } },
+			`actions-bar: load select values for ${target}`,
+		);
 		if (data.values) setSelectValues(target, data.values);
-		this.render();
+		this.requestUpdate();
 	}
 
 	private dispatchFilterChange(): void {
@@ -473,8 +467,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const label = this.formatTimeOffset(cursor);
 		if (label === this._timeOffsetLabel) return;
 		this._timeOffsetLabel = label;
-		const el = this.shadowRoot?.querySelector(".time-offset");
-		if (el) el.textContent = label;
+		this.requestUpdate();
 	}
 
 	private _firstEventTime = 0;
@@ -491,122 +484,160 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return `${Math.round(seconds / 60)}m`;
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
-
-		const liveChat = this.shadowRoot.querySelector(ShuKihanChat.domainSelector);
-		if (liveChat) {
-			this._detachedChat = liveChat;
-			liveChat.remove();
+	/** Lit handles the render via the standard `render() \u2192 TemplateResult \u2192 reconcile against the shadow root` path. `updated()` is where side-effects that depend on the freshly-reconciled DOM run \u2014 wiring drag handlers to nodes Lit just mounted, pushing combobox option lists, etc. */
+	render(): TemplateResult {
+		const hasAsk = this._hasAskCapableStep;
+		this.style.height = "";
+		if (this.state.askExpanded) {
+			const saved = getCookie(HEIGHT_COOKIE);
+			this.style.maxHeight = saved ? `${saved}px` : "";
+		} else {
+			this.style.maxHeight = "";
 		}
-		const liveStepOutput = this.shadowRoot.querySelector(".step-output");
-		if (liveStepOutput) {
-			this._detachedStepOutput = liveStepOutput;
-			liveStepOutput.remove();
-		}
+		return this.template(hasAsk);
+	}
 
+	protected updated(_changedProperties: PropertyValues): void {
 		const hasAsk = this._hasAskCapableStep;
 		if (!hasAsk && this.state.mode === "ask") {
 			this.setState({ mode: "step" });
 			return;
 		}
-		const modeToggle = (slot?: string) => `<select ${slot ? `slot="${slot}" ` : ""}class="mode-select" ${this.tid("mode-select")}>
-			${hasAsk ? `<option value="ask"${this.state.mode === "ask" ? " selected" : ""}>Ask</option>` : ""}
-			<option value="step"${this.state.mode === "step" ? " selected" : ""}>Step</option>
-		</select>`;
-
-		const stepCombobox =
-			this.state.mode === "step" && this._steps.length > 0
-				? `<shu-combobox class="step-combo" testid="${this.testIdPrefix}step-select" placeholder="type to filter steps..."></shu-combobox>`
-				: "";
-
-		const twisty = this.state.askExpanded ? "\u25B6" : "\u25BC";
-
-		const summaryBar = `
-			<div class="summary-bar">
-				<span class="status-area" style="${this._statusMessage ? "" : "display:none"}">${this._statusMessage}</span>
-				<shu-breadcrumb></shu-breadcrumb>
-				<span class="time-offset" ${this.tid("time-offset")}>${this._timeOffsetLabel}</span>
-				<span class="access-indicator" ${this.tid("access-indicator")}>${this._contextAccessLevel}</span>
-				<button class="twisty" ${this.tid("ask-button")}>${twisty}</button>
-			</div>`;
-
-		const labelSelect = `<select class="label-select" ${this.tid("type-select")}>${this._domainOptions.map((option) => `<option value="${option.key}"${option.key === this._selectedDomainKey ? " selected" : ""}${option.selectable ? "" : " disabled"}>${option.selectable ? option.queryLabel || option.key : `${option.key} (not queryable)`}</option>`).join("")}</select>`;
-		const selectFields = this._selectedLabel && hasSelectValues(this._selectedLabel) ? getSelectValues(this._selectedLabel) : {};
-		const selectDropdowns = Object.entries(selectFields)
-			.filter(([, values]) => values.length > 0)
-			.map(([field, values]) => {
-				const current = this._selectFilters[field] ?? "";
-				return `<select class="select-filter" data-field="${field}" ${this.tid(`select-${field}`)}><option value="">all ${field}s</option>${values.map((v) => `<option value="${v}"${v === current ? " selected" : ""}>${v}</option>`).join("")}</select>`;
-			})
-			.join("");
-
-		const filterControls = this.state.askExpanded
-			? `<div class="filter-bar">
-					<select class="access-select" ${this.tid("access-select")}>${AccessQueryLevelSchema.options.map((a) => `<option value="${a}"${a === this._contextAccessLevel ? " selected" : ""}>${a}</option>`).join("")}</select>
-					<shu-timeline class="bar-timeline"></shu-timeline>
-					${labelSelect}
-					${selectDropdowns}
-					<input type="text" class="text-search" ${this.tid("text-search")} placeholder="search..." value="${this._textSearch}" />
-					<div class="compound-filters">${this._filterConditions.map((c, i) => `<span class="filter-group" data-index="${i}"><shu-combobox class="cond-property" data-index="${i}" ${this.tid(`cond-property-${i}`)} placeholder="property..."></shu-combobox><select class="cond-operator" data-index="${i}" ${this.tid(`cond-operator-${i}`)}>${SEARCH_OPERATORS.map((o) => `<option value="${o.value}"${o.value === c.operator ? " selected" : ""}>${o.label}</option>`).join("")}</select><input type="text" class="cond-value" data-index="${i}" ${this.tid(`cond-value-${i}`)} value="${c.value}" placeholder="value" />${c.operator === "between" ? `<input type="text" class="cond-value2" data-index="${i}" ${this.tid(`cond-value2-${i}`)} value="${c.value2 || ""}" placeholder="to" />` : ""}<button class="remove-filter" data-index="${i}" ${this.tid(`remove-filter-${i}`)}>x</button></span>`).join("")}</div>
-					<button class="add-filter" ${this.tid("add-filter")}>+</button>
-					${this._filterConditions.length > 0 ? `<button class="search-go" ${this.tid("search-go")}>Go</button>` : ""}
-				</div>`
-			: "";
-
-		const askMode = `<shu-kihan-chat testid-prefix="${this.testIdPrefix}">${modeToggle("mode-toggle")}</shu-kihan-chat>`;
-		const stepMode = `
-			<div class="step-output" ${this.tid("chat-output")}></div>
-			<div class="input-line">
-				${modeToggle()}
-				${stepCombobox}
-			</div>`;
-
-		if (this.state.askExpanded) {
-			this.setAttribute("expanded", "");
-			this.style.height = "";
-			const saved = getCookie(HEIGHT_COOKIE);
-			if (saved) this.style.maxHeight = `${saved}px`;
-			this.shadowRoot.innerHTML = `
-				${this.css(SHARED_STYLES)}
-				${this.css(STYLES)}
-				<div class="actions-bar">
-					${filterControls}
-					${this.state.mode === "ask" ? askMode : stepMode}
-					${summaryBar}
-				</div>
-			`;
-		} else {
-			this.removeAttribute("expanded");
-			this.style.height = "";
-			this.style.maxHeight = "";
-			this.shadowRoot.innerHTML = `
-				${this.css(SHARED_STYLES)}
-				${this.css(STYLES)}
-				<div class="actions-bar collapsed">
-					${summaryBar}
-				</div>
-			`;
-		}
-
-		if (this.state.askExpanded && this.state.mode === "ask" && this._detachedChat) {
-			const slot = this.shadowRoot.querySelector(ShuKihanChat.domainSelector);
-			if (slot) slot.replaceWith(this._detachedChat);
-			this._detachedChat = null;
-		}
-		if (this.state.askExpanded && this.state.mode === "step" && this._detachedStepOutput) {
-			const slot = this.shadowRoot.querySelector(".step-output");
-			if (slot) slot.replaceWith(this._detachedStepOutput);
-			this._detachedStepOutput = null;
-		}
-
+		this.populateComboboxes();
 		this.pushContextToChat();
-		this.bindEvents();
 		this.updateBreadcrumbDisplay();
 	}
 
+	private template(hasAsk: boolean): TemplateResult {
+		// Single outer template so lit preserves the `.actions-bar` host across collapse/expand. The expanded-only children (filter bar, body) are returned conditionally so the `app-mode-select` test id genuinely disappears when collapsed — feature tests use `has test id app-mode-select` as the proxy for "bar is expanded" and that check counts elements regardless of CSS visibility.
+		const expanded = this.state.askExpanded;
+		const body = expanded ? (this.state.mode === "ask" ? this.askModeTemplate(hasAsk) : this.stepModeTemplate(hasAsk)) : nothing;
+		const filterBar = expanded ? this.filterBarTemplate() : nothing;
+		return html`<div class=${classMap({ "actions-bar": true, collapsed: !expanded })}>
+				${filterBar}
+				${body}
+				${this.summaryTemplate()}
+			</div>`;
+	}
+
+	private summaryTemplate(): TemplateResult {
+		const twisty = this.state.askExpanded ? "\u25B6" : "\u25BC";
+		return html`<div class="summary-bar" @mousedown=${this.onSummaryMouseDown} @touchstart=${this.onSummaryTouchStart}>
+			<span class="status-area" style=${this._statusMessage ? "" : "display:none"}>${this._statusMessage}</span>
+			<shu-breadcrumb></shu-breadcrumb>
+			<span class="time-offset" data-testid=${`${this.testIdPrefix}time-offset`}>${this._timeOffsetLabel}</span>
+			<span class="access-indicator" data-testid=${`${this.testIdPrefix}access-indicator`}>${this._contextAccessLevel}</span>
+			<button class="twisty" data-testid=${`${this.testIdPrefix}ask-button`}>${twisty}</button>
+		</div>`;
+	}
+
+	private modeToggleTemplate(hasAsk: boolean, slot?: string): TemplateResult {
+		return html`<select
+			class="mode-select"
+			slot=${slot ?? nothing}
+			data-testid=${`${this.testIdPrefix}mode-select`}
+			@change=${this.onModeChange}
+		>
+			${hasAsk ? html`<option value="ask" ?selected=${this.state.mode === "ask"}>Ask</option>` : nothing}
+			<option value="step" ?selected=${this.state.mode === "step"}>Step</option>
+		</select>`;
+	}
+
+	private filterBarTemplate(): TemplateResult {
+		const selectFields = this._selectedLabel && hasSelectValues(this._selectedLabel) ? getSelectValues(this._selectedLabel) : {};
+		const selectEntries = Object.entries(selectFields).filter(([, values]) => values.length > 0);
+		return html`<div class="filter-bar">
+			<select class="access-select" data-testid=${`${this.testIdPrefix}access-select`} @change=${this.onAccessChange}>
+				${AccessQueryLevelSchema.options.map((a) => html`<option value=${a} ?selected=${a === this._contextAccessLevel}>${a}</option>`)}
+			</select>
+			<shu-timeline class="bar-timeline"></shu-timeline>
+			<shu-combobox class="label-select"
+				testid=${`${this.testIdPrefix}type-select`}
+				placeholder="type..."
+				@combo-change=${this.onLabelChange}></shu-combobox>
+			${selectEntries.map(([field, values]) => {
+				const current = this._selectFilters[field] ?? "";
+				return html`<select class="select-filter" data-field=${field} data-testid=${`${this.testIdPrefix}select-${field}`} @change=${this.onSelectFilterChange}>
+					<option value="">all ${field}s</option>
+					${values.map((v) => html`<option value=${v} ?selected=${v === current}>${v}</option>`)}
+				</select>`;
+			})}
+			<input type="text" class="text-search"
+				data-testid=${`${this.testIdPrefix}text-search`}
+				placeholder="search..."
+				.value=${this._textSearch}
+				@input=${this.onTextSearchInput} />
+			<div class="compound-filters">
+				${this._filterConditions.map((c, i) => this.condTemplate(c, i))}
+			</div>
+			<button class="add-filter" data-testid=${`${this.testIdPrefix}add-filter`} @click=${this.onAddFilter}>+</button>
+			${this._filterConditions.length > 0 ? html`<button class="search-go" data-testid=${`${this.testIdPrefix}search-go`} @click=${this.onSearchGo}>Go</button>` : nothing}
+		</div>`;
+	}
+
+	private condTemplate(c: TSearchCondition, i: number): TemplateResult {
+		return html`<span class="filter-group" data-index=${i}>
+			<shu-combobox class="cond-property" data-index=${i}
+				testid=${`${this.testIdPrefix}cond-property-${i}`}
+				placeholder="property..."
+				@combo-change=${(e: CustomEvent) => this.onCondPropertyChange(i, e)}></shu-combobox>
+			<select class="cond-operator" data-index=${i}
+				data-testid=${`${this.testIdPrefix}cond-operator-${i}`}
+				@change=${(e: Event) => this.onCondOperatorChange(i, e)}>
+				${SEARCH_OPERATORS.map((o) => html`<option value=${o.value} ?selected=${o.value === c.operator}>${o.label}</option>`)}
+			</select>
+			<input type="text" class="cond-value" data-index=${i}
+				data-testid=${`${this.testIdPrefix}cond-value-${i}`}
+				.value=${c.value}
+				placeholder="value"
+				@input=${(e: Event) => this.onCondValueChange(i, e)} />
+			${
+				c.operator === "between"
+					? html`<input type="text" class="cond-value2" data-index=${i}
+					data-testid=${`${this.testIdPrefix}cond-value2-${i}`}
+					.value=${c.value2 || ""}
+					placeholder="to"
+					@input=${(e: Event) => this.onCondValue2Change(i, e)} />`
+					: nothing
+			}
+			<button class="remove-filter" data-index=${i}
+				data-testid=${`${this.testIdPrefix}remove-filter-${i}`}
+				@click=${() => this.onRemoveFilter(i)}>x</button>
+		</span>`;
+	}
+
+	private askModeTemplate(hasAsk: boolean): TemplateResult {
+		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix}>${this.modeToggleTemplate(hasAsk, "mode-toggle")}</shu-kihan-chat>`;
+	}
+
+	private stepModeTemplate(hasAsk: boolean): TemplateResult {
+		const stepCombobox =
+			this.state.mode === "step" && this._steps.length > 0
+				? html`<shu-combobox class="step-combo"
+					testid=${`${this.testIdPrefix}step-select`}
+					placeholder="type to filter steps..."
+					@combo-change=${this.onStepComboChange}></shu-combobox>`
+				: nothing;
+		return html`
+			<div class="step-output" data-testid=${`${this.testIdPrefix}chat-output`}></div>
+			<div class="input-line">
+				${this.modeToggleTemplate(hasAsk)}
+				${stepCombobox}
+				${this.uiExtensionsTemplate()}
+			</div>`;
+	}
+
+	/** Render `action-bar-chat` slot custom elements. In ask mode these are rendered inside
+	 *  <shu-kihan-chat>; step mode has no chat element, so the actions bar renders them directly
+	 *  here so the slot is present in both modes (the elements are defined by loadUiExtensions). */
+	private uiExtensionsTemplate(): TemplateResult {
+		return html`${unsafeHTML(getActionBarChatExtensionTags().map((tag) => `<${tag}></${tag}>`).join(""))}`;
+	}
+
 	private pushContextToChat(): void {
-		const chat = this.shadowRoot?.querySelector(ShuKihanChat.domainSelector) as { setContext?: (p: TContextPattern[], a: string, extra?: { label?: string; textQuery?: string; conditions?: TSearchCondition[] }) => void } | null;
+		const chat = this.shadowRoot?.querySelector(ShuKihanChat.domainSelector) as {
+			setContext?: (p: TContextPattern[], a: string, extra?: { label?: string; textQuery?: string; conditions?: TSearchCondition[] }) => void;
+		} | null;
 		chat?.setContext?.(this._contextPatterns, this._contextAccessLevel, {
 			label: this._selectedLabel,
 			textQuery: this._textSearch,
@@ -614,254 +645,250 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		});
 	}
 
-	private bindEvents(): void {
-		const bar = this.shadowRoot?.querySelector(".summary-bar") as HTMLElement | null;
-		if (bar) {
-			let startY = 0;
-			let dragged = false;
-			let rafPending = false;
-			let moveCleanup: (() => void) | null = null;
-			let startedOnTwisty = false;
+	private _dragStartY = 0;
+	private _dragMoved = false;
+	private _dragStartedOnTwisty = false;
+	private _dragRafPending = false;
+	private _dragMoveCleanup: (() => void) | null = null;
 
-			const onMove = (y: number) => {
-				if (!this.state.askExpanded) return;
-				if (Math.abs(y - startY) > 5) {
-					dragged = true;
-					if (!rafPending) {
-						rafPending = true;
-						requestAnimationFrame(() => {
-							rafPending = false;
-							this.dispatchEvent(
-								new CustomEvent(SHU_EVENT.RESIZE_DRAG, {
-									bubbles: true,
-									composed: true,
-									detail: { clientY: y },
-								}),
-							);
-						});
-					}
-				}
-			};
-			const onUp = () => {
-				moveCleanup?.();
-				moveCleanup = null;
-				if (!dragged) {
-					const nextExpanded = startedOnTwisty ? true : !this.state.askExpanded;
-					startedOnTwisty = false;
-					this.setState({ askExpanded: nextExpanded });
-					if (nextExpanded) {
-						requestAnimationFrame(() => {
-							(this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus();
-						});
-					}
-				} else {
-					startedOnTwisty = false;
-					this.dispatchEvent(new CustomEvent(SHU_EVENT.RESIZE_END, { bubbles: true, composed: true }));
-				}
-			};
-			const startListening = () => {
-				moveCleanup?.();
-				const ac = new AbortController();
-				const s = { signal: ac.signal };
-				document.addEventListener("mousemove", (e) => onMove(e.clientY), s);
-				document.addEventListener("mouseup", () => onUp(), s);
-				document.addEventListener("touchmove", (e) => onMove(e.touches[0].clientY), s);
-				document.addEventListener("touchend", () => onUp(), s);
-				moveCleanup = () => ac.abort();
-			};
+	private onSummaryMouseDown = (e: MouseEvent): void => {
+		this.beginSummaryDrag(e.clientY, e.target);
+		e.preventDefault();
+	};
 
-			bar.addEventListener("mousedown", (e) => {
-				startY = e.clientY;
-				dragged = false;
-				startedOnTwisty = !!(e.target instanceof HTMLElement && e.target.closest(".twisty"));
-				startListening();
-				e.preventDefault();
-			});
-			bar.addEventListener("touchstart", (e) => {
-				startY = e.touches[0].clientY;
-				dragged = false;
-				const target = e.target;
-				startedOnTwisty = !!(target instanceof HTMLElement && target.closest(".twisty"));
-				startListening();
-				e.preventDefault();
-			});
-		}
+	private onSummaryTouchStart = (e: TouchEvent): void => {
+		this.beginSummaryDrag(e.touches[0].clientY, e.target);
+		e.preventDefault();
+	};
 
-		this.shadowRoot?.querySelector(".mode-select")?.addEventListener("change", (e) => {
-			const mode = (e.target as HTMLSelectElement).value as TMode;
-			setCookie(MODE_COOKIE, mode);
-			this.setState({ mode });
+	/** Click-or-drag on the summary bar: a small movement collapses/expands the bar (or expands if started on the twisty); a larger one is treated as a resize. The drag state lives in instance fields so lit can re-render freely without losing in-flight drag context. */
+	private beginSummaryDrag(startY: number, target: EventTarget | null): void {
+		this._dragStartY = startY;
+		this._dragMoved = false;
+		this._dragStartedOnTwisty = !!(target instanceof HTMLElement && target.closest(".twisty"));
+		this._dragMoveCleanup?.();
+		const ac = new AbortController();
+		const s = { signal: ac.signal };
+		document.addEventListener("mousemove", (ev) => this.onSummaryDragMove((ev as MouseEvent).clientY), s);
+		document.addEventListener("mouseup", () => this.onSummaryDragEnd(), s);
+		document.addEventListener("touchmove", (ev) => this.onSummaryDragMove((ev as TouchEvent).touches[0].clientY), s);
+		document.addEventListener("touchend", () => this.onSummaryDragEnd(), s);
+		this._dragMoveCleanup = () => ac.abort();
+	}
+
+	private onSummaryDragMove(y: number): void {
+		if (!this.state.askExpanded) return;
+		if (Math.abs(y - this._dragStartY) <= 5) return;
+		this._dragMoved = true;
+		if (this._dragRafPending) return;
+		this._dragRafPending = true;
+		requestAnimationFrame(() => {
+			this._dragRafPending = false;
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.RESIZE_DRAG, { bubbles: true, composed: true, detail: { clientY: y } }));
 		});
+	}
 
+	private onSummaryDragEnd(): void {
+		this._dragMoveCleanup?.();
+		this._dragMoveCleanup = null;
+		if (this._dragMoved) {
+			this._dragStartedOnTwisty = false;
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.RESIZE_END, { bubbles: true, composed: true }));
+			return;
+		}
+		const nextExpanded = this._dragStartedOnTwisty ? true : !this.state.askExpanded;
+		this._dragStartedOnTwisty = false;
+		this.setState({ askExpanded: nextExpanded });
+		if (nextExpanded) requestAnimationFrame(() => (this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus());
+	}
+
+	/** Populate combobox options after each render. The combobox elements themselves persist (lit's diff), so setOptions just refreshes their data without recreating the element — typed-ahead filter text, focus, and open dropdown state survive. */
+	private populateComboboxes(): void {
+		const labelCombo = this.shadowRoot?.querySelector(".label-select") as ShuCombobox | null;
+		if (labelCombo) {
+			// Value is the domain key (what onLabelChange and the hash use); the
+			// visible label is the queryLabel. `group` drives the Declared/Built-in
+			// section headers — buildDomainOptions already orders declared-first.
+			labelCombo.setOptions(this._domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group })));
+			if (this._selectedDomainKey && labelCombo.value !== this._selectedDomainKey) labelCombo.setValue(this._selectedDomainKey);
+		}
 		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
 		if (stepCombo) {
 			const contextSteps = this._selectedLabel ? stepsForContext(this._selectedLabel) : [];
 			const contextMethods = new Set(contextSteps.map((s) => s.method));
 			const otherSteps = this._steps.filter((s) => !contextMethods.has(s.method));
-			// Option value is the fully-qualified method (StepperName-stepName) —
-			// stepName alone collides when multiple steppers expose the same key
-			// (e.g. ResourcesStepper.comment vs a peer stepper's comment).
+			// Option value is the fully-qualified method (StepperName-stepName) — stepName
+			// alone collides when multiple steppers expose the same key.
 			const toOption = (s: StepDescriptor, contextMark: boolean) => ({
 				value: s.method,
 				label: contextMark ? `● ${prettifyGwta(s.pattern)}` : prettifyGwta(s.pattern),
 				secondary: stepSecondary(s),
 				details: stepDetails(s),
 			});
-			const options = [...contextSteps.map((s) => toOption(s, true)), ...otherSteps.map((s) => toOption(s, false))];
-			stepCombo.setOptions(options);
+			stepCombo.setOptions([...contextSteps.map((s) => toOption(s, true)), ...otherSteps.map((s) => toOption(s, false))]);
 		}
-		stepCombo?.addEventListener("combo-change", ((e: CustomEvent) => {
-			const method = e.detail?.value;
-			if (!method) return;
-
-			const output = this.shadowRoot?.querySelector(".step-output") as HTMLElement | null;
-			if (!output) return;
-
-			this.openStepCaller(output, method);
-
-			requestAnimationFrame(() => {
-				output.scrollTop = output.scrollHeight;
-			});
-		}) as EventListener);
-
-		// Filter controls
-		this.shadowRoot?.querySelectorAll(".select-filter").forEach((el) => {
-			el.addEventListener("change", (e) => {
-				const select = e.target as HTMLSelectElement;
-				const field = select.dataset.field;
-				if (field) this._selectFilters[field] = select.value;
-				this.dispatchFilterChange();
-			});
-		});
-		this.shadowRoot?.querySelector(".label-select")?.addEventListener("change", (e) => {
-			this._selectedDomainKey = (e.target as HTMLSelectElement).value;
-			const selectedOption = this._domainOptions.find((option) => option.key === this._selectedDomainKey);
-			this._selectedLabel = selectedOption?.queryLabel ?? "";
-			this._selectFilters = {};
-			this.loadProperties(this._selectedLabel);
-			this.triggerSelectValuesLoad(this._selectedLabel);
-			this.dispatchFilterChange();
-		});
-		this.shadowRoot?.querySelector(".access-select")?.addEventListener("change", (e) => {
-			this._contextAccessLevel = (e.target as HTMLSelectElement).value;
-			this.dispatchFilterChange();
-		});
-
-		this.shadowRoot?.querySelector(".add-filter")?.addEventListener("click", () => {
-			this._filterConditions.push({
-				predicate: "",
-				operator: "eq",
-				value: "",
-			});
-			this.render();
-		});
-
-		const propOpts = this._filterProperties.map((p) => ({
-			value: p,
-			label: p,
-		}));
+		const propOpts = this._filterProperties.map((p) => ({ value: p, label: p }));
 		this.shadowRoot?.querySelectorAll(".cond-property").forEach((el) => {
 			const combo = el as ShuCombobox;
 			const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
 			combo.setOptions(propOpts);
 			if (this._filterConditions[idx]?.predicate) combo.setValue(this._filterConditions[idx].predicate);
-			el.addEventListener("combo-change", ((e: CustomEvent) => {
-				this._filterConditions[idx].predicate = e.detail?.value || "";
-			}) as EventListener);
-		});
-		this.shadowRoot?.querySelectorAll(".cond-operator").forEach((el) => {
-			const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
-			el.addEventListener("change", () => {
-				const prev = this._filterConditions[idx].operator;
-				this._filterConditions[idx].operator = (el as HTMLSelectElement).value as import("../schemas.js").TSearchOperator;
-				if ((prev === "between") !== (this._filterConditions[idx].operator === "between")) {
-					this.render();
-				}
-			});
-		});
-		this.shadowRoot?.querySelectorAll(".cond-value").forEach((el) => {
-			const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
-			el.addEventListener("input", () => {
-				this._filterConditions[idx].value = (el as HTMLInputElement).value;
-			});
-		});
-		this.shadowRoot?.querySelectorAll(".cond-value2").forEach((el) => {
-			const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
-			el.addEventListener("input", () => {
-				this._filterConditions[idx].value2 = (el as HTMLInputElement).value;
-			});
-		});
-		this.shadowRoot?.querySelectorAll(".remove-filter").forEach((el) => {
-			el.addEventListener("click", () => {
-				const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
-				this._filterConditions.splice(idx, 1);
-				this.render();
-				this.dispatchFilterChange();
-			});
-		});
-		this.shadowRoot?.querySelector(".text-search")?.addEventListener("input", (e) => {
-			this._textSearch = (e.target as HTMLInputElement).value;
-			if (this._searchDebounce) clearTimeout(this._searchDebounce);
-			this._searchDebounce = setTimeout(() => this.dispatchFilterChange(), 300);
-		});
-		this.shadowRoot?.querySelector(".search-go")?.addEventListener("click", () => {
-			if (this._searchDebounce) clearTimeout(this._searchDebounce);
-			this.dispatchFilterChange();
 		});
 	}
+
+	// --- inline event handlers wired via lit-html @event=${} directives ---
+
+	private onModeChange = (e: Event): void => {
+		const mode = (e.target as HTMLSelectElement).value as TMode;
+		setCookie(MODE_COOKIE, mode);
+		this.setState({ mode });
+	};
+
+	private onAccessChange = (e: Event): void => {
+		this._contextAccessLevel = (e.target as HTMLSelectElement).value;
+		this.dispatchFilterChange();
+	};
+
+	private onLabelChange = (e: CustomEvent): void => {
+		const key = e.detail?.value;
+		if (!key) return;
+		this._selectedDomainKey = key;
+		const selectedOption = this._domainOptions.find((option) => option.key === this._selectedDomainKey);
+		this._selectedLabel = selectedOption?.queryLabel ?? "";
+		this._selectFilters = {};
+		this.loadProperties(this._selectedLabel);
+		this.triggerSelectValuesLoad(this._selectedLabel);
+		this.dispatchFilterChange();
+	};
+
+	private onSelectFilterChange = (e: Event): void => {
+		const select = e.target as HTMLSelectElement;
+		const field = select.dataset.field;
+		if (field) this._selectFilters[field] = select.value;
+		this.dispatchFilterChange();
+	};
+
+	private onTextSearchInput = (e: Event): void => {
+		this._textSearch = (e.target as HTMLInputElement).value;
+		if (this._searchDebounce) clearTimeout(this._searchDebounce);
+		this._searchDebounce = setTimeout(() => this.dispatchFilterChange(), 300);
+	};
+
+	private onSearchGo = (): void => {
+		if (this._searchDebounce) clearTimeout(this._searchDebounce);
+		this.dispatchFilterChange();
+	};
+
+	private onAddFilter = (): void => {
+		this._filterConditions.push({ predicate: "", operator: "eq", value: "" });
+		this.requestUpdate();
+	};
+
+	private onRemoveFilter(idx: number): void {
+		this._filterConditions.splice(idx, 1);
+		this.requestUpdate();
+		this.dispatchFilterChange();
+	}
+
+	private onCondPropertyChange(idx: number, e: CustomEvent): void {
+		this._filterConditions[idx].predicate = e.detail?.value || "";
+	}
+
+	private onCondOperatorChange(idx: number, e: Event): void {
+		const prev = this._filterConditions[idx].operator;
+		this._filterConditions[idx].operator = (e.target as HTMLSelectElement).value as import("../schemas.js").TSearchOperator;
+		if ((prev === "between") !== (this._filterConditions[idx].operator === "between")) {
+			this.requestUpdate();
+		}
+	}
+
+	private onCondValueChange(idx: number, e: Event): void {
+		this._filterConditions[idx].value = (e.target as HTMLInputElement).value;
+	}
+
+	private onCondValue2Change(idx: number, e: Event): void {
+		this._filterConditions[idx].value2 = (e.target as HTMLInputElement).value;
+	}
+
+	private onStepComboChange = (e: CustomEvent): void => {
+		const method = e.detail?.value;
+		if (!method) return;
+		const output = this.shadowRoot?.querySelector(".step-output") as HTMLElement | null;
+		if (!output) return;
+		this.openStepCaller(output, method);
+		requestAnimationFrame(() => {
+			output.scrollTop = output.scrollHeight;
+		});
+	};
 }
 
 const STYLES = `
-	:host { display: flex; flex-direction: column; color: #222; font-family: inherit; min-width: 0; overflow: hidden; }
-	.actions-bar { padding: 0; background: #fafafa; display: flex; flex-direction: column; min-width: 0; overflow: hidden; flex: 1; min-height: 0; }
+	:host { display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--shu-bg-soft); border-top: var(--shu-border-w) solid var(--shu-border); }
+	.actions-bar { padding: 0; background: var(--shu-bg-soft); display: flex; flex-direction: column; min-width: 0; overflow: hidden; flex: 1; min-height: 0; }
 	.summary-bar {
-		display: flex; align-items: center; gap: 6px; padding: 4px 8px;
-		min-height: 28px; flex-shrink: 0;
+		display: flex; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-2) var(--shu-space-4);
+		min-height: var(--shu-row-h); flex-shrink: 0;
 		cursor: ns-resize; user-select: none; touch-action: none;
-		margin-top: auto; background: #f4f4f4;
+		margin-top: auto; background: var(--shu-bg-elevated);
+		border-top: var(--shu-border-w) solid var(--shu-border);
 	}
-	.actions-bar.collapsed .summary-bar { cursor: pointer; margin-top: 0; background: #fafafa; }
+	.actions-bar.collapsed .summary-bar { cursor: pointer; margin-top: 0; background: var(--shu-bg-soft); border-top: none; }
 	.status-area {
-		font-size: 12px; color: #888; padding: 0 4px; cursor: pointer;
+		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
 		max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
-	.twisty { background: none; border: none; font-size: 10px; color: #aaa; cursor: pointer; padding: 0 2px; flex-shrink: 0; }
-	shu-breadcrumb { flex: 1; font-size: 13px; min-width: 0; overflow: hidden; }
-	.access-indicator, .time-offset { font-size: 11px; color: #999; flex-shrink: 0; }
-	.filter-bar { display: flex; gap: 4px; align-items: center; padding: 3px 6px; flex-wrap: wrap; }
-	input[type="text"], input:not([type]), textarea, .text-input {
-		font: inherit; padding: 2px 6px; border: none;
-		background: #f0f0f0; border-radius: 3px; color: inherit; outline: none;
+	.twisty {
+		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
+		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
+		display: inline-flex; align-items: center; justify-content: center;
+		font-size: var(--shu-font-xs); color: var(--shu-fg-faded);
+		border-radius: var(--shu-radius);
 	}
-	input[type="text"]:focus, input:not([type]):focus, textarea:focus, .text-input:focus { background: #e8e8e8; }
-	select {
-		font: inherit; padding: 2px 4px; border: none;
-		background: transparent; color: inherit; outline: none;
+	.twisty:hover { color: var(--shu-fg); background: var(--shu-bg-hover); }
+	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
+	.access-indicator, .time-offset { font-size: var(--shu-font-xs); color: var(--shu-fg-faded); flex-shrink: 0; }
+	.filter-bar {
+		display: flex; gap: var(--shu-space-2); align-items: center;
+		padding: var(--shu-space-2) var(--shu-space-3); flex-wrap: wrap;
+		border-bottom: var(--shu-border-w) solid var(--shu-border);
 	}
+	/* Inputs/selects style is centralised in SHU_BASE (above). The actions-bar only adds layout. */
 	.filter-bar .access-select, .filter-bar .label-select, .filter-bar .select-filter { width: auto; flex: 0 0 auto; }
-	.filter-bar .text-search { flex: 1 1 20ch; min-width: 20ch; }
+	.filter-bar .text-search { flex: 1 1 20ch; min-width: 16ch; }
 	.filter-bar .bar-timeline { flex: 2 1 0; min-width: 0; }
-	.compound-filters { display: flex; gap: 3px; flex-wrap: wrap; margin-left: auto; }
+	.compound-filters { display: flex; gap: var(--shu-space-1); flex-wrap: wrap; margin-left: auto; }
 	.filter-group {
-		display: inline-flex; gap: 2px; align-items: center;
-		background: #f0f0f0; border-radius: 3px; padding: 1px 3px;
+		display: inline-flex; gap: var(--shu-space-1); align-items: center;
+		background: var(--shu-bg-input); border-radius: var(--shu-radius);
+		padding: var(--shu-space-1) var(--shu-space-2);
 		flex: 0 0 auto;
 	}
 	.filter-group select, .filter-group input { width: auto; }
 	.filter-group .cond-property { max-width: 10em; }
 	.filter-group .cond-operator { max-width: 5em; }
 	.filter-group .cond-value, .filter-group .cond-value2 { max-width: 8em; }
-	.filter-group .remove-filter { border: none; background: none; color: #bbb; padding: 0 3px; cursor: pointer; }
-	.filter-group .remove-filter:hover { color: #c00; }
+	.filter-group .remove-filter { border: none; background: none; color: var(--shu-fg-faded); padding: 0 var(--shu-space-1); cursor: pointer; }
+	.filter-group .remove-filter:hover { color: var(--shu-error); }
 	.filter-bar .add-filter, .filter-bar .search-go {
-		font: inherit; padding: 2px 8px; border: none;
-		background: #eee; color: #444; cursor: pointer; flex: 0 0 auto; border-radius: 3px;
+		font: inherit; padding: var(--shu-space-1) var(--shu-space-4); border: var(--shu-border-w) solid var(--shu-border);
+		background: var(--shu-bg-elevated); color: var(--shu-fg); cursor: pointer; flex: 0 0 auto;
+		border-radius: var(--shu-radius);
+		min-height: var(--shu-input-h);
 	}
-	.filter-bar .add-filter:hover, .filter-bar .search-go:hover { background: #e0e0e0; }
-	shu-step-caller { display: block; padding: 4px 6px; margin: 2px 6px; background: #f5f5f5; border-radius: 3px; }
-	.mode-select { flex-shrink: 0; width: auto; }
-	.step-output { font-size: inherit; padding: 3px 6px; width: 100%; min-width: 0; flex: 1; overflow-y: auto; }
-	.input-line { display: flex; gap: 3px; align-items: stretch; padding: 3px 6px; flex-shrink: 0; }
-	.step-combo { flex: 1 1 120px; min-width: 80px; width: auto; }
-	shu-kihan-chat { display: flex; flex: 1; min-height: 0; }
+	.filter-bar .add-filter:hover, .filter-bar .search-go:hover { background: var(--shu-bg-hover); }
+	.filter-bar .search-go { background: var(--shu-accent); color: var(--shu-accent-fg); border-color: var(--shu-accent); }
+	shu-step-caller {
+		display: block; padding: var(--shu-space-3); margin: var(--shu-space-2) var(--shu-space-4);
+		background: var(--shu-bg-elevated); border-radius: var(--shu-radius); border: var(--shu-border-w) solid var(--shu-border);
+	}
+	.mode-select { flex-shrink: 0; width: auto; min-width: 5em; }
+	.step-output { font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; overflow-y: auto; }
+	.input-line {
+		display: flex; gap: var(--shu-space-2); align-items: stretch;
+		padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0;
+	}
+	.step-combo { flex: 1 1 280px; min-width: 12ch; width: auto; }
+	shu-kihan-chat { display: flex; flex: 1; min-height: 0; min-width: 0; }
 `;
+
+const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, css`${unsafeCSS(STYLES)}`];

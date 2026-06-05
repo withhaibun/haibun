@@ -1,12 +1,35 @@
+import { html, css, type TemplateResult } from "lit";
 import type { ZodType } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { ComboboxSchema, type TComboboxOption } from "../schemas.js";
-import { escAttr } from "../util.js";
+import { shuBaseStyles } from "./styles.js";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
+	static styles = [shuBaseStyles, css`
+		:host { display: inline-block; font: inherit; }
+		.combo-input {
+			border: var(--shu-border-w) solid transparent;
+			border-radius: var(--shu-radius);
+			background: var(--shu-bg-input);
+			color: var(--shu-fg);
+			padding: var(--shu-space-1) var(--shu-space-3);
+			font: inherit;
+			font-size: var(--shu-font-md);
+			width: 100%;
+			min-height: var(--shu-input-h);
+			box-sizing: border-box;
+			outline: none;
+		}
+		.combo-input:focus {
+			background: var(--shu-bg-input-focus);
+			border-color: var(--shu-border-strong);
+		}
+		.combo-input::placeholder { color: var(--shu-fg-faded); }
+	`];
+
 	private _focusIndex = -1;
 	private _input: HTMLInputElement | null = null;
-	private _list: HTMLUListElement | null = null;
+	private _list: HTMLElement | null = null;
 	private _bound = false;
 	private _valueSchema: ZodType | null = null;
 	private _blurTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -26,11 +49,9 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		this._valueSchema = schema;
 	}
 
-	static get observedAttributes(): string[] {
-		return ["placeholder", "value", "testid"];
-	}
+	static observedHtmlAttributes = ["placeholder", "value", "testid"];
 
-	attributeChangedCallback(name: string, _old: string | null, val: string | null): void {
+	protected override onAttributeChanged(name: string, _old: string | null, val: string | null): void {
 		if (name === "placeholder" && val !== null) {
 			this.state = { ...this.state, placeholder: val };
 			if (this._input) this._input.placeholder = val;
@@ -65,7 +86,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	private get filtered(): TComboboxOption[] {
 		const q = this.state.filterText.toLowerCase();
 		if (!q) return this.state.options;
-		// Rank label hits above value/secondary hits so what the user typed surfaces
+		// Rank label hits above value/secondary hits so the typed query surfaces
 		// in the visible text first; metadata-only matches still appear, but lower down.
 		const labelHits: TComboboxOption[] = [];
 		const otherHits: TComboboxOption[] = [];
@@ -76,14 +97,15 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		return [...labelHits, ...otherHits];
 	}
 
-	protected render(): void {
-		if (!this.shadowRoot) return;
+	render(): TemplateResult {
+		const testId = this.getAttribute("testid") ?? "";
+		return html`<input type="text" class="combo-input" placeholder=${this.state.placeholder} .value=${this.state.filterText} autocomplete="off" data-testid=${testId} />`;
+	}
 
-		if (!this._bound) {
-			const testId = this.getAttribute("testid");
-			this.shadowRoot.innerHTML = `${this.css(STYLES)}
-<input type="text" class="combo-input" placeholder="${escAttr(this.state.placeholder)}" value="${escAttr(this.state.filterText)}" autocomplete="off"${testId ? ` data-testid="${escAttr(testId)}"` : ""} />`;
-			this._input = this.shadowRoot.querySelector(".combo-input");
+	protected updated(): void {
+		if (this._bound) return;
+		this._input = this.shadowRoot?.querySelector(".combo-input") as HTMLInputElement | null;
+		if (this._input) {
 			this.bindEvents();
 			this._bound = true;
 		}
@@ -97,73 +119,93 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 
 		const items = this.filtered;
 		const selectedValue = this.state.value;
+		const hasAnyDetails = items.some((o) => o.details);
+		const container = document.createElement("div");
+		Object.assign(container.style, LIST_STYLE, { display: "flex", padding: "0" });
 		const ul = document.createElement("ul");
 		ul.setAttribute("role", "listbox");
 		const root = this.getRootNode();
 		if (root instanceof ShadowRoot && root.host instanceof HTMLElement) {
 			ul.dataset.comboOwner = root.host.tagName.toLowerCase();
 		}
-		Object.assign(ul.style, LIST_STYLE);
+		Object.assign(ul.style, { margin: "0", padding: "0", listStyle: "none", overflowY: "auto", flex: "0 0 auto", maxHeight: "inherit" });
+		const detailsPanel = hasAnyDetails ? document.createElement("aside") : null;
+		if (detailsPanel) {
+			Object.assign(detailsPanel.style, {
+				borderLeft: "var(--shu-border-w) solid var(--shu-border)",
+				background: "var(--shu-bg-soft)",
+				color: "var(--shu-fg)",
+				fontSize: "var(--shu-font-sm)",
+				fontFamily: "var(--shu-font-family)",
+				whiteSpace: "pre-wrap",
+				padding: "var(--shu-space-2) var(--shu-space-3)",
+				flex: "1 1 auto",
+				minWidth: "240px",
+				maxWidth: "480px",
+				overflowY: "auto",
+				maxHeight: "inherit",
+			});
+			detailsPanel.dataset.role = "details-panel";
+		}
+		const setDetails = (i: number) => {
+			if (!detailsPanel) return;
+			detailsPanel.textContent = items[i]?.details ?? "";
+		};
 
 		if (items.length > 0) {
 			const hostTestId = this.getAttribute("testid");
-			const hasAnyDetails = items.some((o) => o.details);
-			if (hasAnyDetails) ul.style.minWidth = "320px";
+			let lastGroup: string | undefined;
 			for (let i = 0; i < items.length; i++) {
+				if (items[i].group && items[i].group !== lastGroup) {
+					lastGroup = items[i].group;
+					const header = document.createElement("li");
+					header.textContent = lastGroup ?? "";
+					header.setAttribute("role", "presentation");
+					Object.assign(header.style, GROUP_HEADER_STYLE);
+					ul.appendChild(header);
+				}
 				const li = document.createElement("li");
 				li.setAttribute("role", "option");
+				const isSelected = items[i].value === selectedValue;
+				li.setAttribute("aria-selected", String(isSelected));
 				li.dataset.value = items[i].value;
 				if (hostTestId) li.setAttribute("data-testid", `${hostTestId}-option-${items[i].value}`);
-				// Primary label on one line, optional secondary text below in a
-				// dimmer / smaller style. Details (when present) live in a
-				// nested block that the focused / hovered option reveals.
+				const mark = document.createElement("span");
+				mark.setAttribute("aria-hidden", "true");
+				mark.textContent = isSelected ? "✓" : "";
+				Object.assign(mark.style, MARK_STYLE);
+				const body = document.createElement("div");
+				Object.assign(body.style, { flex: "1 1 auto", minWidth: "0" });
 				const main = document.createElement("div");
 				main.textContent = items[i].label;
-				li.appendChild(main);
+				body.appendChild(main);
 				if (items[i].secondary) {
 					const sec = document.createElement("div");
 					sec.textContent = items[i].secondary ?? "";
-					Object.assign(sec.style, { color: "#777", fontSize: "0.85em", whiteSpace: "nowrap" });
-					li.appendChild(sec);
+					Object.assign(sec.style, { color: "var(--shu-fg-muted)", fontSize: "var(--shu-font-sm)", whiteSpace: "nowrap" });
+					body.appendChild(sec);
 				}
-				if (items[i].details) {
-					const det = document.createElement("pre");
-					det.textContent = items[i].details ?? "";
-					Object.assign(det.style, {
-						display: i === this._focusIndex ? "block" : "none",
-						margin: "4px 0 0",
-						padding: "4px 6px",
-						borderTop: "1px solid #eee",
-						background: "#fafafa",
-						color: "#333",
-						fontSize: "0.85em",
-						fontFamily: "ui-monospace, monospace",
-						whiteSpace: "pre-wrap",
-					});
-					det.dataset.role = "details";
-					li.appendChild(det);
-				}
+				li.appendChild(mark);
+				li.appendChild(body);
 				Object.assign(li.style, LI_STYLE);
-				if (items[i].value === selectedValue) main.style.fontWeight = "600";
-				if (i === this._focusIndex) li.style.background = "#e8f0fe";
+				if (isSelected) main.style.fontWeight = "600";
+				if (i === this._focusIndex) li.style.background = "var(--shu-bg-hover)";
 				li.addEventListener("mouseenter", () => {
-					li.style.background = "#e8f0fe";
-					const det = li.querySelector('[data-role="details"]') as HTMLElement | null;
-					if (det) det.style.display = "block";
+					li.style.background = "var(--shu-bg-hover)";
+					setDetails(i);
 				});
 				li.addEventListener("mouseleave", () => {
-					li.style.background = i === this._focusIndex ? "#e8f0fe" : "";
-					const det = li.querySelector('[data-role="details"]') as HTMLElement | null;
-					if (det && i !== this._focusIndex) det.style.display = "none";
+					li.style.background = i === this._focusIndex ? "var(--shu-bg-hover)" : "";
 				});
 				ul.appendChild(li);
 			}
+			setDetails(this._focusIndex >= 0 ? this._focusIndex : 0);
 		} else {
 			const li = document.createElement("li");
 			li.textContent = "No matches";
 			Object.assign(li.style, {
 				...LI_STYLE,
-				color: "#999",
+				color: "var(--shu-fg-faded)",
 				fontStyle: "italic",
 				cursor: "default",
 			});
@@ -173,7 +215,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		// Pick on mousedown (so the input's blur listener doesn't close the
 		// dropdown before the click fires) AND on click (Playwright synthesises
 		// click but its mousedown sequence is sometimes unreliable in shadow-DOM
-		// adjacent contexts; clicking is the action the user actually performs).
+		// adjacent contexts; clicking is the real interaction).
 		const handlePick = (e: Event) => {
 			e.preventDefault();
 			const li = (e.target as HTMLElement).closest("li[data-value]") as HTMLLIElement | null;
@@ -184,22 +226,25 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		ul.addEventListener("mousedown", handlePick);
 		ul.addEventListener("click", handlePick);
 
-		// Position in document.body to escape overflow:hidden ancestors
-		const rect = this._input.getBoundingClientRect();
-		ul.style.top = `${rect.bottom}px`;
-		ul.style.left = `${rect.left}px`;
-		ul.style.width = `${Math.max(rect.width, 200)}px`;
-		document.body.appendChild(ul);
-		this._list = ul;
+		container.appendChild(ul);
+		if (detailsPanel) container.appendChild(detailsPanel);
 
-		if (this._focusIndex >= 0 && this._focusIndex < ul.children.length) {
-			(ul.children[this._focusIndex] as HTMLElement).scrollIntoView({
-				block: "nearest",
-			});
+		const rect = this._input.getBoundingClientRect();
+		container.style.top = `${rect.bottom}px`;
+		container.style.left = `${rect.left}px`;
+		const listWidth = Math.max(rect.width, 200);
+		ul.style.width = `${listWidth}px`;
+		document.body.appendChild(container);
+		this._list = container;
+
+		if (this._focusIndex >= 0 && this._focusIndex < items.length) {
+			// Headers are non-selectable <li>s interleaved with option <li>s, so the
+			// focused option's DOM index != _focusIndex. Scroll by data-value instead.
+			ul.querySelector(`li[data-value="${CSS.escape(items[this._focusIndex].value)}"]`)?.scrollIntoView({ block: "nearest" });
 		}
 	}
 
-	disconnectedCallback(): void {
+	protected override onDisconnected(): void {
 		if (this._blurTimeout) clearTimeout(this._blurTimeout);
 		this._list?.remove();
 		this._list = null;
@@ -308,36 +353,52 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	}
 }
 
-const STYLES = `
-:host { display: inline-block; font: inherit; }
-.combo-input {
-  border: none; border-radius: 3px; background: #f0f0f0;
-  padding: 2px 6px; font: inherit; width: 100%; height: 100%; box-sizing: border-box;
-  outline: none;
-}
-.combo-input:focus { background: #e8e8e8; }
-`;
-
-// Inline styles for the dropdown rendered in document.body (escapes overflow:hidden ancestors)
+// Inline styles for the dropdown rendered in document.body (escapes overflow:hidden ancestors).
+// The token vars resolve because the SPA boot installs SHU_TOKENS at document level via
+// `installShuTokens()`; otherwise the dropdown would fall back to the browser default colours.
 const LIST_STYLE: Partial<CSSStyleDeclaration> = {
 	position: "fixed",
 	zIndex: "10000",
 	margin: "0",
 	padding: "0",
 	listStyle: "none",
-	background: "#fff",
-	border: "none",
-	boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-	maxHeight: "200px",
+	background: "var(--shu-bg)",
+	color: "var(--shu-fg)",
+	border: "var(--shu-border-w) solid var(--shu-border)",
+	borderRadius: "var(--shu-radius)",
+	boxShadow: "0 2px 8px var(--shu-shadow)",
+	maxHeight: "240px",
 	overflowY: "auto",
 	overflowX: "auto",
 	fontFamily: "inherit",
-	fontSize: "inherit",
+	fontSize: "var(--shu-font-md)",
 	boxSizing: "border-box",
 };
 
 const LI_STYLE: Partial<CSSStyleDeclaration> = {
-	padding: "2px 6px",
+	display: "flex",
+	alignItems: "baseline",
+	gap: "var(--shu-space-2)",
+	padding: "var(--shu-space-1) var(--shu-space-3)",
 	cursor: "pointer",
 	whiteSpace: "nowrap",
+};
+
+// Fixed-width tick column so the selected option's ✓ aligns and unselected rows stay flush.
+const MARK_STYLE: Partial<CSSStyleDeclaration> = {
+	flex: "0 0 1.1em",
+	textAlign: "center",
+	color: "var(--shu-fg)",
+};
+
+const GROUP_HEADER_STYLE: Partial<CSSStyleDeclaration> = {
+	padding: "var(--shu-space-1) var(--shu-space-3)",
+	fontSize: "var(--shu-font-xs)",
+	fontWeight: "600",
+	textTransform: "uppercase",
+	letterSpacing: "0.05em",
+	color: "var(--shu-fg-faded)",
+	background: "var(--shu-bg-soft)",
+	cursor: "default",
+	userSelect: "none",
 };

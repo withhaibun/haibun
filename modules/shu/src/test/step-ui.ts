@@ -23,7 +23,13 @@ const stepError = (method: string, callIndex: number) => `${normalizeStepKey(met
 const stepInput = (method: string, callIndex: number, param: string) => `${normalizeStepKey(method)}-${callIndex}-step-input-${param}`;
 
 export function stepTestIds(method: string, callIndex: number, inputParams: string[]): string[] {
-	return [stepRun(method, callIndex), stepDone(method, callIndex), stepResult(method, callIndex), stepError(method, callIndex), ...inputParams.map((p) => stepInput(method, callIndex, p))];
+	return [
+		stepRun(method, callIndex),
+		stepDone(method, callIndex),
+		stepResult(method, callIndex),
+		stepError(method, callIndex),
+		...inputParams.map((p) => stepInput(method, callIndex, p)),
+	];
 }
 
 /**
@@ -50,7 +56,7 @@ export function createStepUI(wp: WebPlaywright) {
 	const { waitFor, click, setValue, selectionOption, press, shouldSeeTestId, type: typeText } = withAction(wp);
 	const { setAs } = withAction(new VariablesStepper());
 
-	/** Set every leaf string in `idSets` as a `page-test-id` variable. Replaces the per-feature setAs boilerplate. */
+	/** Set every leaf string in `idSets` as a `page-test-id` variable. */
 	function registerTestIds(...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): TKirejiStep[] {
 		const flat = idSets.flatMap((set) => (Array.isArray(set) ? [...set] : flattenTestIds(set as Record<string, unknown>)));
 		return [...new Set(flat)].map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
@@ -65,8 +71,9 @@ export function createStepUI(wp: WebPlaywright) {
 	const enterAskMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Ask"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.CHAT_INPUT })];
 
 	/** Type a prompt into the Ask area's chat-input and submit. */
+	// The turn must FULLY complete (cookie written + server-side recordChatComments persisted) before later steps re-mount the chat, or the turn is lost. The session combo (app-session-select) only renders after handleChat's post-stream block runs refreshSessionList, so waiting for it blocks until completion — far more reliable than network-idle on a long-lived stream.
 	function askExchange(prompt: string): TKirejiStep[] {
-		return [click({ target: IDS.APP.CHAT_INPUT }), typeText({ text: `"${prompt}"` }), click({ target: IDS.APP.CHAT_SUBMIT }), waitFor({ target: IDS.APP.CHAT_OUTPUT })];
+		return [click({ target: IDS.APP.CHAT_INPUT }), typeText({ text: `"${prompt}"` }), click({ target: IDS.APP.CHAT_SUBMIT }), waitFor({ target: IDS.APP.CHAT_OUTPUT }), waitFor({ target: IDS.APP.CHAT_TEXT }), waitFor({ target: IDS.APP.SESSION_SELECT })];
 	}
 
 	/** Click the first row of the current shu-query result table; waits for the column-browser pane to appear. */
@@ -143,15 +150,32 @@ export function createStepUI(wp: WebPlaywright) {
 		return runStep(method, false, params);
 	}
 
-	/** Pick a vertex type from the type dropdown. Assumes the actions-bar is already expanded — compose with `expandActionsBar` when starting from a collapsed state. */
+	/** Pick a node type from the type combobox. Assumes the actions-bar is already expanded — compose with `expandActionsBar` when starting from a collapsed state. The type selector is a <shu-combobox>: click to focus+open, type the label to filter, Enter to pick the exact-label match. */
 	function selectGraphLabel(label: string): TKirejiStep[] {
-		return [waitFor({ target: IDS.APP.TYPE_SELECT }), selectionOption({ option: `"${label}"`, field: IDS.APP.TYPE_SELECT })];
+		return [
+			waitFor({ target: IDS.APP.TYPE_SELECT }),
+			click({ target: IDS.APP.TYPE_SELECT }),
+			setValue({ what: `"${label}"`, field: IDS.APP.TYPE_SELECT }),
+			press({ key: '"Enter"' }),
+		];
 	}
 
-	/** Open the actions bar and pick a vertex type. Convenience for the collapsed→labelled flow. */
+	/** Open the actions bar and pick a node type. Convenience for the collapsed→labelled flow. */
 	function chooseGraphLabel(label: string): TKirejiStep[] {
 		return [...expandActionsBar, ...selectGraphLabel(label)];
 	}
 
-	return { enterStepMode, enterAskMode, expandActionsBar, askExchange, selectQueryFirstRow, registerTestIds, runStep, passesStepExecution, failsStepExecution, chooseGraphLabel, selectGraphLabel };
+	return {
+		enterStepMode,
+		enterAskMode,
+		expandActionsBar,
+		askExchange,
+		selectQueryFirstRow,
+		registerTestIds,
+		runStep,
+		passesStepExecution,
+		failsStepExecution,
+		chooseGraphLabel,
+		selectGraphLabel,
+	};
 }

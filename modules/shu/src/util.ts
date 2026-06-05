@@ -42,14 +42,15 @@ export function errMsg(err: unknown): string {
 
 import { Access } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { STORED_TYPE_PROP } from "./consts.js";
 
 /**
  * The SPA's current access level. Single source of truth for every RPC caller
  * that reads/writes data — read from the URL hash (`#?access=...`), defaulting
- * to `private` when no override is set. The hash is also the form
- * `shu-graph-query` writes when the user changes access via the actions-bar
- * dropdown, so the value round-trips through the URL rather than being held
- * in component state copies.
+ * to `private` when no override is set. The hash is also where
+ * `shu-graph-query` writes an access change from the actions-bar dropdown, so
+ * the value round-trips through the URL rather than being held in component
+ * state copies.
  */
 export function appAccessLevel(): string {
 	if (typeof window === "undefined") return Access.private;
@@ -61,13 +62,14 @@ export function appAccessLevel(): string {
 
 import { getSiteMetadataSync } from "./rels-cache.js";
 
-/** First available vertex label from domain metadata. No hard-coded default. */
+/** First available persisted type from domain metadata. No hard-coded default. */
 export function defaultLabel(): string {
 	return getSiteMetadataSync()?.types?.[0] ?? "";
 }
 
 import MarkdownIt from "markdown-it";
-const md = new MarkdownIt();
+// html:true renders inline HTML the source carries (e.g. <br> from HTML-derived email markdown) and linkify turns bare URLs into links. Safe because renderContentHtml output is only injected into shu-entity-column's email-body iframe, which is sandboxed without allow-scripts. Do not reuse this renderer for a non-sandboxed sink.
+const md = new MarkdownIt({ html: true, linkify: true });
 
 /** Render a content field value to HTML given its MIME type. */
 export function renderContentHtml(raw: string, mimeType: string): string {
@@ -92,21 +94,21 @@ export function setIdFields(fields: Record<string, string>): void {
 	idFields = fields;
 }
 
-/** Get the identity value from a vertex record. Prefers JSON-LD `@id` (parses the IRI tail) and falls back to label-keyed id fields or common id-bearing fields. */
-export function vertexId(v: Record<string, unknown>): string {
+/** Get the identity value from a record. Prefers JSON-LD `@id` (parses the IRI tail) and falls back to label-keyed id fields or common id-bearing fields. */
+export function idOf(v: Record<string, unknown>): string {
 	const iri = v["@id"];
 	if (typeof iri === "string" && iri.length > 0) {
 		const slash = iri.indexOf("/");
 		if (slash >= 0) return iri.slice(slash + 1);
 	}
-	const label = (v["@type"] ?? v._label) as string | undefined;
+	const label = v["@type"] as string | undefined;
 	if (label && idFields[label]) return String(v[idFields[label]] ?? "");
 	return String(v.messageId ?? v.email ?? v.id ?? v.path ?? v.name ?? v.account ?? "");
 }
 
-/** Get the vertex type label, preferring JSON-LD `@type` and falling back to legacy `_label`. */
-export function vertexLabel(v: Record<string, unknown>): string {
-	return String(v["@type"] ?? v._label ?? "");
+/** Get the persisted type label — the JSON-LD `@type`. Records reaching the frontend are projected, so `@type` is always present; a record without it is a projection bug and fails naturally downstream. */
+export function persistedTypeOf(v: Record<string, unknown>): string {
+	return v["@type"] as string;
 }
 
 /**
@@ -114,8 +116,10 @@ export function vertexLabel(v: Record<string, unknown>): string {
  * meaning (no rel) and should not appear in field tables.
  * Anything domain-meaningful (body, hasBody, accessLevel, …) lives in
  * `LinkRelations` with a `presentation` hint instead.
+ * `STORED_TYPE_PROP` is the literal AGE storage property spopg stamps on parsed
+ * graph rows — a storage internal, not the wire `persistedAs` field.
  */
-export const SPA_PROPS = new Set(["vertexLabel"]);
+export const SPA_PROPS = new Set([STORED_TYPE_PROP]);
 
 import { getRelPresentation } from "@haibun/core/lib/resources.js";
 import { getRelSync } from "./rels-cache.js";
@@ -155,7 +159,7 @@ export function isReferenceEdge(edgeType: string): boolean {
 }
 
 /**
- * Extract a vertex's displayed scalar/array-of-scalar fields for the
+ * Extract a node's displayed scalar/array-of-scalar fields for the
  * field-table renderer. Drops:
  *   - rels routed elsewhere by presentation (body / governance)
  *   - SPA artifacts and projection-internal keys

@@ -1,8 +1,8 @@
 /**
  * <shu-ref> — a clickable reference to a navigable pane. Every panel that
  * surfaces a structured identifier (seqPath, entity id, domain key, step
- * descriptor) uses this component so the user can always click through to
- * the referenced view. Centralising the click → PaneState routing here
+ * descriptor) uses this component for click-through to the referenced view.
+ * Centralising the click → PaneState routing here
  * keeps the link vocabulary consistent: panels emit `<shu-ref kind="…">`
  * markup and never wire their own click handlers.
  *
@@ -10,7 +10,7 @@
  *   kind        — "seqPath" | "entity" | "domain" | "step"
  *   linkTarget  — JSON describing the target. Shape varies by kind:
  *                 seqPath → `{ "seqPath": [0,1,2] }`
- *                 entity  → `{ "vertexLabel": "Issuer", "id": "..." }`
+ *                 entity  → `{ "persistedAs": "Issuer", "id": "..." }`
  *                 step    → `{ "stepperName": "...", "stepName": "..." }`
  *                 domain  — `{ "domain": "..." }`
  *   text        — display label (defaults to a derived label per kind)
@@ -40,9 +40,7 @@ export class ShuRef extends HTMLElement {
 		this.removeEventListener("click", this.handleClick);
 	}
 
-	static get observedAttributes(): string[] {
-		return ["kind", "linkTarget", "text"];
-	}
+	static observedHtmlAttributes = ["kind", "linkTarget", "text"];
 
 	attributeChangedCallback(): void {
 		if (this.shadowRoot) this.render();
@@ -68,9 +66,9 @@ export class ShuRef extends HTMLElement {
 		const text = this.getAttribute("text") ?? defaultLabel(this.getAttribute("kind"), this.getAttribute("linkTarget"));
 		this.shadowRoot.innerHTML = `<style>
 			:host { display: inline; }
-			a { color: #0366d6; text-decoration: none; cursor: pointer; }
+			a { color: var(--shu-link); text-decoration: none; cursor: pointer; }
 			a:hover { text-decoration: underline; }
-			code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95em; }
+			code { font-family: var(--shu-font-family); font-size: 0.95em; }
 		</style><a role="link" tabindex="0"><code>${esc(text)}</code></a>`;
 	}
 }
@@ -90,11 +88,7 @@ export function renderRef(kind: TRefKind, linkTarget: Record<string, unknown>, t
  */
 export const refSeqPath = (seqPath: number[], text?: string): string => renderRef("seqPath", { seqPath }, text ?? seqPath.join("."));
 
-export const refEntity = (vertexLabel: string, id: string, text?: string): string => renderRef("entity", { vertexLabel, id }, text ?? id);
-
 export const refDomain = (domain: string, text?: string): string => renderRef("domain", { domain }, text ?? domain);
-
-export const refStep = (stepperName: string, stepName: string, text?: string): string => renderRef("step", { stepperName, stepName }, text ?? `${stepperName}.${stepName}`);
 
 /**
  * Render a fact-id reference. Typed-fact subjects produced by `dispatchStep`
@@ -131,13 +125,12 @@ function openRef(kind: TRefKind, linkTarget: Record<string, unknown>): void {
 	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) {
 		// Typed-fact subjects ARE seqPaths, so a seqPath ref doubles as the
 		// quad-view link: step-detail loads every quad emitted at that seqPath
-		// (including the fact), and the user can drill into individual quads
-		// from there.
+		// (including the fact), drillable into individual quads from there.
 		PaneState.request({ paneType: "step-detail", seqPath: linkTarget.seqPath as number[] });
 		return;
 	}
-	if (kind === "entity" && typeof linkTarget.vertexLabel === "string" && typeof linkTarget.id === "string") {
-		PaneState.request({ paneType: "entity", vertexLabel: linkTarget.vertexLabel, id: linkTarget.id });
+	if (kind === "entity" && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
+		PaneState.request({ paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id });
 		return;
 	}
 	// domain / step kinds: no dedicated pane yet — fall through (no-op), so the

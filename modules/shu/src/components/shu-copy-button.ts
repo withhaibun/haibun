@@ -70,15 +70,15 @@ export class ShuCopyButton extends HTMLElement {
 const STYLES = `
 	:host { display: inline-block; }
 	button {
-		padding: 3px 8px;
-		font-size: 11px;
+		padding: 3px var(--shu-space-4);
+		font-size: var(--shu-font-sm);
 		font-family: inherit;
-		background: #fafafa;
-		color: #222;
-		border: 1px solid #ccc;
-		border-radius: 3px;
+		background: var(--shu-bg-soft);
+		color: var(--shu-fg);
+		border: var(--shu-border-w) solid var(--shu-border);
+		border-radius: var(--shu-radius);
 		cursor: pointer;
 	}
-	button:hover { background: #eee; }
-	button:focus-visible { outline: 2px solid #1a6b3c; outline-offset: 1px; }
+	button:hover { background: var(--shu-bg-hover); }
+	button:focus-visible { outline: 2px solid var(--shu-accent); outline-offset: 1px; }
 `;

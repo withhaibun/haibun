@@ -1,5 +1,13 @@
 /** Shared constants for custom events and data attributes across shu components. */
 
+/**
+ * Per-row property name that spopg's `parseAgtypeVertex` stamps with the stored
+ * AGE node label, then `project()` converts to `@type`. The value is the literal
+ * AGE storage handle and must not change — existing rows are filtered by it.
+ * Shared across the spopg → @haibun/shu boundary so neither side spells it inline.
+ */
+export const STORED_TYPE_PROP = "vertexLabel";
+
 export const SHU_EVENT = {
 	COLUMN_OPEN: "column-open",
 	COLUMN_CLOSE: "column-close",
@@ -27,7 +35,6 @@ export const SHU_EVENT = {
 	SYNC_AVAILABLE: "sync-available",
 	RESIZE_DRAG: "resize-drag",
 	RESIZE_END: "resize-end",
-	TIME_SYNC: "time-sync",
 	VIEW_ACTIVE: "view-active",
 } as const;
 
@@ -39,10 +46,12 @@ export const SHU_TYPE = {
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
 	DATA_MAXIMIZED: "data-maximized",
+	DATA_CONTROLS_ON: "data-controls-on",
 	PINNED: "pinned",
 	ACTIVE: "active",
 	CLOSABLE: "closable",
 	COLLAPSED: "collapsed",
+	IS_LAST: "is-last",
 	SHOW_CONTROLS: "data-show-controls",
 	COLUMN_TYPE: "column-type",
 } as const;

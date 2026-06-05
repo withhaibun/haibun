@@ -1,31 +1,69 @@
 /**
- * <shu-result-table> — Shared sortable, clickable, paginated vertex table.
+ * <shu-result-table> — Shared sortable, clickable, paginated individual table.
  * Used by both the main query pane and filter columns.
  * Owns: table HTML, sort indicators, row selection, scrollbar, wheel/touch paging.
  * Parent owns: RPC fetch, hash state, metadata.
  *
  * Events dispatched:
- *   row-click: { vertexId, label, ctrlKey }
+ *   row-click: { individualId, label, ctrlKey }
  *   sort-change: { field, order }
  *   page-change: { offset }
  */
+import { html, css, type TemplateResult } from "lit";
+import { shuBaseStyles } from "./styles.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
-import { esc, escAttr, truncate, formatDate, isDateValue, vertexId, vertexLabel, isVisibleKey } from "../util.js";
+import { truncate, formatDate, isDateValue, idOf, persistedTypeOf, isVisibleKey } from "../util.js";
 import { getRelSync, getPropertyOrder } from "../rels-cache.js";
 import { TIME_SYNC_CLASS } from "./shu-element.js";
 
 type VertexRow = Record<string, unknown>;
 
 export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
+	static styles = [shuBaseStyles, css`
+		:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
+		.results-wrapper { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+		.results-area { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; }
+		table { width: 100%; border-collapse: collapse; }
+		th, td { text-align: left; padding: 1px var(--shu-space-3); white-space: nowrap; }
+		th {
+			position: sticky; top: 0; background: var(--shu-bg-soft); z-index: 1; font-weight: 500; color: var(--shu-fg-muted);
+			font-size: 0.85em; letter-spacing: 0.3px; cursor: default; user-select: none; padding: 3px var(--shu-space-3);
+		}
+		th.sortable { cursor: pointer; }
+		th.sortable:hover { color: var(--shu-fg); background: var(--shu-bg-input); }
+		th.sorted { font-weight: 700; color: var(--shu-fg); }
+		td { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+		.clickable-row { cursor: pointer; }
+		.clickable-row:hover { background: var(--shu-bg-hover); }
+		.clickable-row.selected { background: var(--shu-bg-info-soft); }
+		.result-total {
+			position: absolute; bottom: var(--shu-space-1); right: var(--shu-space-2);
+			font-size: var(--shu-font-md); color: var(--shu-fg-muted); pointer-events: none; font-weight: 500;
+		}
+		.scroll-track { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 32px; user-select: none; }
+		.scroll-pos { font-size: var(--shu-font-md); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; }
+		.scroll-rail { position: relative; flex: 1; width: 14px; background: var(--shu-bg-input); cursor: pointer; }
+		.scroll-thumb { position: absolute; left: 0; right: 0; background: var(--shu-border-strong); min-height: 16px; cursor: grab; }
+		.scroll-thumb:hover { background: var(--shu-fg-muted); }
+		.scroll-thumb:active { background: var(--shu-fg-muted); cursor: grabbing; }
+		.scroll-pos-bottom { margin-top: auto; }
+		.group-header th {
+			background: var(--shu-bg-input); color: var(--shu-fg-muted); font-size: 0.75em; font-weight: 600;
+			letter-spacing: 0.5px; padding: var(--shu-space-2) var(--shu-space-3); position: sticky; top: 22px; z-index: 1;
+		}
+	`];
+
 	private results: VertexRow[] = [];
 	private allProperties: string[] = [];
-	vertexLabel = "UNSET_VERTEX_LABEL";
+	private sortableFields: ReadonlySet<string> = new Set();
+	persistedAs = "";
 	private selectedIds = new Set<string>();
 	private resizeObserver: ResizeObserver | null = null;
 	private rafPending = false;
+	private boundEvents = false;
 	constructor() {
 		super(ResultTableSchema, {
 			sortOrder: "desc",
@@ -48,7 +86,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		rows.forEach((row, i) => {
 			const vertex = this.results[i];
 			if (!vertex) return;
-			const ts = this.extractTimestamp(vertex, this.vertexLabel);
+			const ts = this.extractTimestamp(vertex, this.persistedAs);
 			if (ts !== null && this.isFuture(ts)) {
 				row.classList.add(TIME_SYNC_CLASS.FUTURE);
 			} else {
@@ -62,33 +100,31 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		this.setState(partial);
 	}
 
+	/** Set the server-advertised sortable surface for the current label. Only headers whose field is in this set are rendered as clickable sort triggers — others render as plain text. Empty set means no sorting offered (used for textSearch results across mixed types where no single label's sort applies). */
+	setSortableFields(fields: ReadonlyArray<string>): void {
+		this.sortableFields = new Set(fields);
+	}
+
 	/** Set results and derive visible properties. Called by parent after RPC fetch. */
 	setResults(rows: VertexRow[]): void {
 		this.results = rows;
 		const propSet = new Set<string>();
 		for (const v of rows) {
 			for (const k of Object.keys(v)) {
-				if (isVisibleKey(k, this.vertexLabel)) propSet.add(k);
+				if (isVisibleKey(k, this.persistedAs)) propSet.add(k);
 			}
 		}
-		// Order by rel priority from concern metadata, then remaining alphabetically
-		const relOrder = getPropertyOrder(this.vertexLabel).filter((p) => propSet.has(p));
+		const relOrder = getPropertyOrder(this.persistedAs).filter((p) => propSet.has(p));
 		const rest = Array.from(propSet)
 			.filter((p) => !relOrder.includes(p))
 			.sort();
 		this.allProperties = [...relOrder, ...rest];
-		this.render();
+		this.requestUpdate();
 	}
 
 	/** Set pagination info. */
 	setPagination(total: number, limit: number, offset: number): void {
-		this.state = {
-			...this.state,
-			total,
-			limit,
-			offset,
-			paginated: total > limit,
-		};
+		this.setState({ total, limit, offset, paginated: total > limit });
 		this.updateScrollbar();
 	}
 
@@ -102,8 +138,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		this.shadowRoot?.querySelectorAll(".clickable-row").forEach((r) => r.classList.remove("selected"));
 	}
 
-	connectedCallback(): void {
-		super.connectedCallback();
+	protected override onConnected(): void {
 		this.resizeObserver = new ResizeObserver(() => {
 			if (this.rafPending) return;
 			this.rafPending = true;
@@ -113,76 +148,58 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			});
 		});
 		this.resizeObserver.observe(this);
+		this.autoTeardown(() => this.resizeObserver?.disconnect());
 	}
 
-	disconnectedCallback(): void {
-		this.resizeObserver?.disconnect();
-		this.resizeObserver = null;
-	}
-
-	protected render(): void {
-		if (!this.shadowRoot) return;
-		const { sortBy, sortOrder, displayMode, fixedProperty } = this.state;
+	render(): TemplateResult {
+		const { sortBy, sortOrder, displayMode, fixedProperty, total } = this.state;
 		const props = this.getVisibleProperties(displayMode, fixedProperty);
-
-		this.shadowRoot.innerHTML = `
-			<style>${STYLES}</style>
+		const firstLabel = this.results[0]?.["@type"];
+		const isMultiType = this.results.some((v) => v["@type"] && v["@type"] !== firstLabel);
+		let lastLabel: unknown;
+		return html`
 			<div class="results-wrapper" data-testid="query-results">
 				<div class="results-area">
 					<table data-testid="query-table">
-						<thead><tr>
-							${props
-								.map((p) => {
-									const isSorted = sortBy === p;
-									const indicator = isSorted ? (sortOrder === "asc" ? " &#9650;" : " &#9660;") : "";
-									const cls = isSorted ? ' class="sorted"' : "";
-									return `<th${cls} data-field="${escAttr(p)}">${esc(p)}${indicator}</th>`;
-								})
-								.join("")}
-						</tr></thead>
-						<tbody>
-						${(() => {
-							const firstLabel = this.results[0]?._label;
-							const isMultiType = this.results.some((v) => v._label && v._label !== firstLabel);
-							let lastLabel: string | undefined;
-							return this.results
-								.map((v, i) => {
-									const vid = vertexId(v);
-									const vlabel = vertexLabel(v);
-									const labelAttr = vlabel ? ` data-vertex-label="${escAttr(vlabel)}"` : "";
-									const header = isMultiType && v._label !== lastLabel ? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>` : "";
-									lastLabel = v._label as string | undefined;
-									return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr}>
-								${props
-									.map((p, j) => {
-										const raw = String(v[p] ?? "");
-										const display = isDateValue(raw) ? formatDate(raw) : truncate(raw);
-										const tid = j === 0 ? ` data-testid="${i === 0 ? "query-row-first" : "query-row"}"` : "";
-										return `<td title="${esc(raw)}"${tid}>${esc(display)}</td>`;
-									})
-									.join("")}
-								</tr>`;
-								})
-								.join("");
-						})()}
-						</tbody>
+						<thead><tr>${props.map((p) => {
+							const sortable = this.sortableFields.has(p);
+							const isSorted = sortable && sortBy === p;
+							const indicator = isSorted ? (sortOrder === "asc" ? " ▲" : " ▼") : "";
+							return html`<th class=${[isSorted ? "sorted" : "", sortable ? "sortable" : ""].filter(Boolean).join(" ")} data-field=${sortable ? p : ""}>${p}${indicator}</th>`;
+						})}</tr></thead>
+						<tbody>${this.results.map((v, i) => {
+							const vid = idOf(v);
+							const vlabel = persistedTypeOf(v);
+							const groupHeader = isMultiType && v["@type"] !== lastLabel ? html`<tr class="group-header"><th colspan=${props.length}>${String(v["@type"] ?? "")}</th></tr>` : "";
+							lastLabel = v["@type"];
+							return html`${groupHeader}<tr class="clickable-row" data-individual-id=${vid} data-persisted-as=${vlabel || ""}>${props.map((p, j) => {
+								const raw = String(v[p] ?? "");
+								const display = isDateValue(raw) ? formatDate(raw) : truncate(raw);
+								return html`<td title=${raw} data-testid=${j === 0 ? (i === 0 ? "query-row-first" : "query-row") : ""}>${display}</td>`;
+							})}</tr>`;
+						})}</tbody>
 					</table>
 				</div>
 			</div>
-			${this.state.total > 0 ? `<span class="result-total" data-testid="query-total">${this.state.total}</span>` : ""}
+			${total > 0 ? html`<span class="result-total" data-testid="query-total">${total}</span>` : ""}
 		`;
+	}
 
-		this.bindEvents();
+	protected updated(): void {
+		if (!this.boundEvents) {
+			this.bindEvents();
+			this.boundEvents = true;
+		}
 		requestAnimationFrame(() => this.updateScrollbar());
 	}
 
 	private getVisibleProperties(displayMode: string, fixedProperty?: string): string[] {
 		if (displayMode === "objects") {
-			// Show only the vertex identity — all rows share the fixed property value
+			// Show only the individual identity — all rows share the fixed property value
 			return this.allProperties.filter((p) => p !== fixedProperty).slice(0, 1);
 		}
 		if (displayMode === "pairs") {
-			const label = vertexLabel(this.results[0]);
+			const label = persistedTypeOf(this.results[0]);
 			const idProp = label ? this.allProperties.find((p) => getRelSync(label, p) === "item") : undefined;
 			if (!idProp) return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
 			return fixedProperty ? [idProp, fixedProperty] : this.allProperties.slice(0, 2);
@@ -403,16 +420,16 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 					this.deselectAll();
 					this.dispatchEvent(
 						new CustomEvent(SHU_EVENT.ROW_CLICK, {
-							detail: { vertexId: null, deselect: true },
+							detail: { individualId: null, deselect: true },
 							bubbles: true,
 							composed: true,
 						}),
 					);
 					return;
 				}
-				const vid = row.dataset.vertexId;
+				const vid = row.dataset.individualId;
 				if (!vid) return;
-				const vlabel = row.dataset.vertexLabel;
+				const vlabel = row.dataset.persistedAs;
 				const multi = (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey;
 				if (multi) {
 					if (this.selectedIds.has(vid)) {
@@ -433,7 +450,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				}
 				this.dispatchEvent(
 					new CustomEvent(SHU_EVENT.ROW_CLICK, {
-						detail: { vertexId: vid, label: vlabel, ctrlKey: multi },
+						detail: { individualId: vid, label: vlabel, ctrlKey: multi },
 						bubbles: true,
 						composed: true,
 					}),
@@ -442,41 +459,3 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		}
 	}
 }
-
-const STYLES = `
-	:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
-	.results-wrapper { display: flex; flex: 1; min-height: 0; overflow: hidden; }
-	.results-area { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; }
-	table { width: 100%; border-collapse: collapse; }
-	th, td { text-align: left; padding: 1px 6px; white-space: nowrap; }
-	th {
-		position: sticky; top: 0; background: #fafafa; z-index: 1;
-		font-weight: 500; color: #888; font-size: 0.85em;
-		letter-spacing: 0.3px; cursor: pointer; user-select: none; padding: 3px 6px;
-	}
-	th:hover { color: #000; background: #f0f0f0; }
-	th.sorted { font-weight: 700; color: #000; }
-	td { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-	.clickable-row { cursor: pointer; }
-	.clickable-row:hover { background: #f5f5f5; }
-	.clickable-row.selected { background: #e8f0fe; }
-	.result-total {
-		position: absolute; bottom: 2px; right: 4px;
-		font-size: 13px; color: #777; pointer-events: none; font-weight: 500;
-	}
-	.scroll-track {
-		display: flex; flex-direction: column; align-items: center;
-		flex-shrink: 0; width: 32px; user-select: none;
-	}
-	.scroll-pos { font-size: 13px; color: #777; padding: 2px 0; line-height: 1; font-weight: 500; }
-	.scroll-rail { position: relative; flex: 1; width: 14px; background: #f0f0f0; cursor: pointer; }
-	.scroll-thumb { position: absolute; left: 0; right: 0; background: #999; min-height: 16px; cursor: grab; }
-	.scroll-thumb:hover { background: #777; }
-	.scroll-thumb:active { background: #555; cursor: grabbing; }
-	.scroll-pos-bottom { margin-top: auto; }
-	.group-header th {
-		background: #f0f0f0; color: #555; font-size: 0.75em; font-weight: 600;
-		letter-spacing: 0.5px; padding: 4px 6px;
-		position: sticky; top: 22px; z-index: 1;
-	}
-`;

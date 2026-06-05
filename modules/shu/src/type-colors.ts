@@ -1,16 +1,16 @@
 /**
- * Single source of truth for vertex-type colors. Both shu-graph-view (mermaid
+ * Single source of truth for node-type colors. Both shu-graph-view (mermaid
  * subgraph fills) and shu-fisheye-graph-view (3D plate colors) call
- * `colorForType(typeName)` so the same vertex type gets the same colour
- * regardless of which view a user is looking at — important for cross-view
- * pattern-matching (an Email is the same colour everywhere).
+ * `colorForType(typeName)` so the same node type gets the same colour
+ * across views — important for cross-view pattern-matching (an Email is the
+ * same colour everywhere).
  *
  * Mapping is deterministic per type *name*: a hash of the string indexes into
  * the palette, so loading a different subset of types doesn't reshuffle
  * colours, and a type's colour is stable across page reloads.
  */
 
-/** 24-colour palette — broad enough that a typical schema (under ~20 vertex types) gets distinct colours, with collision-resistant spacing across the wheel. */
+/** 24-colour palette — broad enough that a typical schema (under ~20 node types) gets distinct colours, with collision-resistant spacing across the wheel. */
 export const TYPE_PALETTE: ReadonlyArray<string> = [
 	"#8ecae6", // pale blue
 	"#ffb703", // amber
