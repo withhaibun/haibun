@@ -4,9 +4,8 @@ import type { TWorld } from "../world.js";
 import { THaibunEvent } from "../../schema/protocol.js";
 
 /**
- * EventCollectorStepper - Collects events for test inspection.
+ * Collects events for test inspection.
  *
- * Usage in tests:
  * ```ts
  * const collector = new EventCollectorStepper();
  * const res = await passWithDefaults(content, [collector, ...steppers]);
@@ -30,27 +29,23 @@ export class EventCollectorStepper extends AStepper {
 
 	steps = {};
 
-	/** Get all collected events */
 	getEvents(): THaibunEvent[] {
 		return [...this.events];
 	}
 
-	/** Get step lifecycle events only */
+	/** Step lifecycle events only. */
 	getStepEvents(): THaibunEvent[] {
 		return this.events.filter((e) => "type" in e && e.type === "step");
 	}
 
-	/** Get events matching a predicate */
 	findEvents(predicate: (e: THaibunEvent) => boolean): THaibunEvent[] {
 		return this.events.filter(predicate);
 	}
 
-	/** Clear collected events */
 	clear(): void {
 		this.events = [];
 	}
 
-	/** Unsubscribe from event logger */
 	close(): void {
 		if (this.subscriberCallback && this.world?.eventLogger) {
 			this.world.eventLogger.unsubscribe(this.subscriberCallback);

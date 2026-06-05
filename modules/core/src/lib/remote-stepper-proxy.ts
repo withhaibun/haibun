@@ -23,7 +23,7 @@ export class RemoteStepperProxy extends AStepper {
 	private stepDescriptors: StepDescriptor[] = [];
 	private rpc: RpcClient;
 	/**
-	 * Remote host's hostId, discovered at setWorld via session.beginAction.
+	 * Remote host's hostId, discovered at setWorld via action.begin.
 	 * Used to prefix registry keys so multiple remotes (and local) don't
 	 * collide on identical method names.
 	 */
@@ -46,15 +46,15 @@ export class RemoteStepperProxy extends AStepper {
 		await this.fetchStepDescriptors();
 	}
 
-	/** Read hostId from session.beginAction so injected tools carry a correct prefix. */
+	/** Read hostId from action.begin so injected tools carry a correct prefix. */
 	private async discoverHostId(): Promise<void> {
-		const result = await this.rpc.call<{ hostId?: number; seqPath?: number[] }>("session.beginAction", {}, []);
+		const result = await this.rpc.call<{ hostId?: number; seqPath?: number[] }>("action.begin", {}, []);
 		if ("error" in result) {
-			throw new Error(`RemoteStepperProxy: session.beginAction failed at ${this.remoteUrl}: ${(result as { error: string }).error}`);
+			throw new Error(`RemoteStepperProxy: action.begin failed at ${this.remoteUrl}: ${(result as { error: string }).error}`);
 		}
 		const id = (result as { hostId?: number; seqPath?: number[] }).hostId ?? (result as { seqPath?: number[] }).seqPath?.[0];
 		if (typeof id !== "number") {
-			throw new Error(`RemoteStepperProxy: session.beginAction at ${this.remoteUrl} did not surface a hostId`);
+			throw new Error(`RemoteStepperProxy: action.begin at ${this.remoteUrl} did not surface a hostId`);
 		}
 		this.hostId = id;
 	}
@@ -66,9 +66,8 @@ export class RemoteStepperProxy extends AStepper {
 
 	/**
 	 * Fetch step.list from the remote host. step.list is introspection,
-	 * explicitly exempt from the seqPath-required rule (per commit 5), so
-	 * we pass an empty seqPath — the remote's step.list handler doesn't
-	 * look at it.
+	 * explicitly exempt from the seqPath-required rule, so the seqPath is
+	 * empty — the remote's step.list handler ignores it.
 	 */
 	private async fetchStepDescriptors(): Promise<void> {
 		const result = await this.rpc.call<{ steps?: StepDescriptor[] }>("step.list", {}, []);

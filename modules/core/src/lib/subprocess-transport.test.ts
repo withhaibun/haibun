@@ -51,7 +51,7 @@ describe("SubprocessTransport", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.products.echoed).toBe("hello");
-			// _seqPath should reflect the seqPath we sent
+			// _seqPath should reflect the seqPath passed to call
 			expect(result.products._seqPath).toEqual([1, 2, 3]);
 		}
 	});

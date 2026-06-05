@@ -433,7 +433,7 @@ describe("step-dispatch", () => {
 			const quads = await store.query({ subject: id, namedGraph: SEQ_PATH_LABEL });
 			const byPredicate = Object.fromEntries(quads.map((q) => [q.predicate, q.object]));
 			expect(byPredicate[SEQ_PATH_FIELD.actionStatus]).toBe(SEQ_PATH_STATUS.passed);
-			expect(byPredicate[SEQ_PATH_FIELD.startedAtTime]).toEqual(expect.any(String));
+			expect(byPredicate[SEQ_PATH_FIELD.generatedAtTime]).toEqual(expect.any(String));
 			expect(byPredicate[SEQ_PATH_FIELD.endedAtTime]).toEqual(expect.any(String));
 			expect(byPredicate[LinkRelations.PART_OF.rel]).toBe(formatSeqPath([0, 3]));
 			expect(byPredicate[SEQ_PATH_FIELD.stepText]).toEqual(expect.any(String));
@@ -626,8 +626,8 @@ describe("step-dispatch", () => {
 			expect(products._links).toBeUndefined();
 		});
 
-		it("follows topology.ranges.id from a ref domain to the vertex domain — `revoke {credential: vc-ref}` links from a `vc-vertex` product", async () => {
-			// vertexRef pattern: a step accepts a ref domain whose schema is `{id}` and whose topology.ranges.id points to the produce-side vertex domain. The affordance derivation must walk this indirection — the SAME pattern @haibun/core's vertexRefDomain establishes for every CRUD verb in the credentials / imap-graph / file-stepper / person-stepper steppers.
+		it("follows topology.ranges.id from a ref domain to the persisted domain — `revoke {credential: vc-ref}` links from a `vc-vertex` product", async () => {
+			// individualRef pattern: a step accepts a ref domain whose schema is `{id}` and whose topology.ranges.id points to the produce-side persisted domain. The affordance derivation must walk this indirection — the SAME pattern @haibun/core's individualRefDomain establishes for every CRUD verb in the credentials / imap-graph / file-stepper / person-stepper steppers.
 			class VertexRefStepper extends AStepper {
 				steps = {
 					produceVc: {
