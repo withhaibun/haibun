@@ -30,7 +30,7 @@ export const EndpointSchema = z.object({
 	url: z.string(),
 	method: z.string().default("GET"),
 	description: z.string(),
-	registeredAt: z.coerce.date().default(() => new Date()),
+	generatedAtTime: z.coerce.date().default(() => new Date()),
 });
 export type Endpoint = z.infer<typeof EndpointSchema>;
 export const EndpointLabels = { Endpoint: "Endpoint" } as const;
