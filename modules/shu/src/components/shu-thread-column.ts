@@ -175,20 +175,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		const subject = String(v.subject ?? v.name ?? v.topic ?? "");
 		const date = String(v.dateSent ?? v.generatedAtTime ?? v.published ?? "");
 		const preview = String(v.body ?? v.text ?? v.content ?? "");
-		const knownFields = new Set([
-			"from",
-			"author",
-			"attributedTo",
-			"subject",
-			"name",
-			"topic",
-			"dateSent",
-			"generatedAtTime",
-			"published",
-			"body",
-			"text",
-			"content",
-		]);
+		const knownFields = new Set(["from", "author", "attributedTo", "subject", "name", "topic", "dateSent", "generatedAtTime", "published", "body", "text", "content"]);
 		const hasKnownContent = !!(sender || subject || date || preview);
 		const isComment = label === COMMENT_LABEL;
 		const extraFields = Object.entries(v).filter(([k, val]) => !k.startsWith("_") && !k.startsWith("@") && !knownFields.has(k) && val !== undefined && val !== null && val !== "");
@@ -207,10 +194,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	}
 
 	/** Build quads from thread items. */
-	private threadToQuads(): { subject: string; predicate: string; object: string; namedGraph: string; timestamp: number }[] {
-		const quads: { subject: string; predicate: string; object: string; namedGraph: string; timestamp: number }[] = [];
+	private threadToQuads(): { subject: string; predicate: string; object: string; namedGraph: string; objectType?: string; timestamp: number }[] {
+		const quads: { subject: string; predicate: string; object: string; namedGraph: string; objectType?: string; timestamp: number }[] = [];
 		const now = Date.now();
-		const itemIds = new Set(this.thread.map((v) => idOf(v)));
+		const labelById = new Map(this.thread.map((v) => [idOf(v), persistedTypeOf(v) || this.state.label]));
 		for (const v of this.thread) {
 			const id = idOf(v);
 			const vlabel = persistedTypeOf(v) || this.state.label;
@@ -218,8 +205,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			quads.push({ subject: id, predicate: LinkRelations.NAME.rel, object: name, namedGraph: vlabel, timestamp: now });
 			for (const edge of v._edges ?? []) {
 				// Only emit edges where both endpoints exist in the thread
-				if (itemIds.has(edge.targetId)) {
-					quads.push({ subject: id, predicate: edge.type, object: edge.targetId, namedGraph: vlabel, timestamp: now });
+				if (labelById.has(edge.targetId)) {
+					quads.push({ subject: id, predicate: edge.type, object: edge.targetId, namedGraph: vlabel, objectType: labelById.get(edge.targetId), timestamp: now });
 				}
 			}
 		}
