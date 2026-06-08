@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { buildMermaidSource, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH } from "./mermaid-source.js";
+import { buildMermaidSource, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type PropertyClassifier, type TPropKind } from "./mermaid-source.js";
 import { COMMENT_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
+import { formatDate } from "./util.js";
 
 const NARRATE_EDGE = LinkRelations.NARRATE.rel;
 
@@ -17,15 +18,15 @@ function normalizeItem(item: Record<string, unknown>): TestItem {
 
 /** Simulate threadToQuads from shu-thread-column */
 function threadToQuads(items: TestItem[], label: string) {
-	const quads: { subject: string; predicate: string; object: string; namedGraph: string; timestamp: number }[] = [];
-	const itemIds = new Set(items.map((v) => v._id));
+	const quads: { subject: string; predicate: string; object: string; namedGraph: string; objectType?: string; timestamp: number }[] = [];
+	const labelById = new Map(items.map((v) => [v._id, String(v.persistedAs ?? v._label ?? label)]));
 	for (const v of items) {
 		const vlabel = String(v.persistedAs ?? v._label ?? label);
 		const name = String(v.subject ?? v.name ?? v.text ?? v._id);
 		quads.push({ subject: v._id, predicate: "name", object: name, namedGraph: vlabel, timestamp: 1 });
 		for (const edge of v._edges ?? []) {
-			if (itemIds.has(edge.targetId)) {
-				quads.push({ subject: v._id, predicate: edge.type, object: edge.targetId, namedGraph: vlabel, timestamp: 1 });
+			if (labelById.has(edge.targetId)) {
+				quads.push({ subject: v._id, predicate: edge.type, object: edge.targetId, namedGraph: vlabel, objectType: labelById.get(edge.targetId), timestamp: 1 });
 			}
 		}
 	}
@@ -33,6 +34,120 @@ function threadToQuads(items: TestItem[], label: string) {
 }
 
 const opts = { layout: "TD" as const, hiddenGraphs: new Set<string>(), expandedGraphs: new Set<string>(), maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH };
+
+// Classifier that names `name`, treats `body` as content, the rest scalar — for node-title tests.
+const titleClassifier: PropertyClassifier = { classify: (_g, p) => (p === "name" ? "name" : p === "body" ? "content" : "scalar") };
+
+describe("node title is the store display label, else name, else content, else id", () => {
+	it("uses the displayLabel (the column-view label) as the title", () => {
+		const quads = [{ subject: "att1", predicate: "attributes", object: '["lux-resident"]', namedGraph: "PeerAttestation", timestamp: 1 }];
+		const dl = { ...opts, displayLabel: (g: string, s: string) => (g === "PeerAttestation" && s === "att1" ? "attributes: lux-resident" : undefined) };
+		expect(buildMermaidSource(quads, dl, titleClassifier).source).toContain("attributes: lux-resident");
+	});
+	it("titles a content-only node by its content, not its id, with no duplicate content line", () => {
+		const quads = [{ subject: "c1", predicate: "body", object: "First note about Technology", namedGraph: "Comment", timestamp: 1 }];
+		const src = buildMermaidSource(quads, opts, titleClassifier).source;
+		expect(src).toContain('Comment_c1["First note about Technology"]');
+		expect(src.match(/First note about Technology/g)?.length).toBe(1);
+	});
+	it("titles a body-backed node by its concise linked Body content, not a large blob", () => {
+		const big = "x".repeat(200);
+		const quads = [
+			{ subject: "att1", predicate: "hasBody", object: "b-sig", namedGraph: "PeerAttestation", objectType: "Body", timestamp: 1 },
+			{ subject: "att1", predicate: "hasBody", object: "b-attr", namedGraph: "PeerAttestation", objectType: "Body", timestamp: 1 },
+			{ subject: "b-sig", predicate: "content", object: big, namedGraph: "Body", timestamp: 1 },
+			{ subject: "b-attr", predicate: "content", object: "lux-resident", namedGraph: "Body", timestamp: 1 },
+		];
+		expect(buildMermaidSource(quads, opts, titleClassifier).source).toContain('PeerAttestation_att1["lux-resident');
+	});
+	it("titles by name and shows content as a second line when both exist", () => {
+		const quads = [
+			{ subject: "e1", predicate: "name", object: "RE: Meeting", namedGraph: "Email", timestamp: 1 },
+			{ subject: "e1", predicate: "body", object: "see attached", namedGraph: "Email", timestamp: 1 },
+		];
+		const src = buildMermaidSource(quads, opts, titleClassifier).source;
+		expect(src).toContain("RE: Meeting");
+		expect(src).toContain("see attached");
+	});
+});
+
+// Classifier driven by rel ROLES (not field names): the node contents derive author/date/identifier from the rel, so the
+// same logic serves any type. Maps a few predicates to a kind + rel the way the real domain registry would.
+const ROLE_KIND: Record<string, TPropKind> = {
+	name: "name",
+	email: "identifier",
+	did: "identifier",
+	author: "edge",
+	hasBody: "edge",
+	generatedAtTime: "scalar",
+	proofPurpose: "scalar",
+	attributes: "scalar",
+	body: "content",
+};
+const ROLE_REL: Record<string, string> = {
+	name: LinkRelations.NAME.rel,
+	email: LinkRelations.IDENTIFIER.rel,
+	did: LinkRelations.IDENTIFIER.rel,
+	author: LinkRelations.ATTRIBUTED_TO.rel,
+	hasBody: LinkRelations.HAS_BODY.rel,
+	generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+	proofPurpose: LinkRelations.CONTEXT.rel,
+	attributes: LinkRelations.TAG.rel,
+	body: LinkRelations.CONTENT.rel,
+};
+const roleClassifier: PropertyClassifier = { classify: (_g, p) => ROLE_KIND[p] ?? "scalar", rel: (_g, p) => ROLE_REL[p] };
+
+describe("node contents surface a node's significant info by rel role, each value once", () => {
+	it("Comment contents: body preview as title, author by ATTRIBUTED_TO, friendly date by temporal rel", () => {
+		const quads = [
+			{ subject: "c1", predicate: "body", object: "Lawrence vouches for this", namedGraph: COMMENT_LABEL, timestamp: 1 },
+			{ subject: "c1", predicate: "author", object: "did:lawrence", namedGraph: COMMENT_LABEL, objectType: PERSON_LABEL, timestamp: 1 },
+			{ subject: "c1", predicate: "generatedAtTime", object: "2026-06-05T20:59:00Z", namedGraph: COMMENT_LABEL, timestamp: 1 },
+		];
+		const dl = { ...opts, displayLabel: (g: string, s: string) => (g === PERSON_LABEL && s === "did:lawrence" ? "Lawrence" : undefined) };
+		const src = buildMermaidSource(quads, dl, roleClassifier).source;
+		expect(src).toContain("Lawrence vouches for this");
+		expect(src).toContain("by Lawrence");
+		expect(src).toContain(formatDate("2026-06-05T20:59:00Z"));
+	});
+
+	it("Person contents: name as title plus the email identifier", () => {
+		const quads = [
+			{ subject: "urn:uuid:p-1", predicate: "name", object: "Lawrence", namedGraph: PERSON_LABEL, timestamp: 1 },
+			{ subject: "urn:uuid:p-1", predicate: "email", object: "lawrence@lux.example", namedGraph: PERSON_LABEL, timestamp: 1 },
+		];
+		const src = buildMermaidSource(quads, opts, roleClassifier).source;
+		expect(src).toContain("Lawrence");
+		expect(src).toContain("lawrence@lux.example");
+	});
+
+	it("omits an opaque uuid identifier (no machine ids in the contents)", () => {
+		const quads = [
+			{ subject: "n1", predicate: "name", object: "Some Thing", namedGraph: "Widget", timestamp: 1 },
+			{ subject: "n1", predicate: "did", object: "urn:uuid:5f1e0000-0000-4000-8000-000000000000", namedGraph: "Widget", timestamp: 1 },
+		];
+		const src = buildMermaidSource(quads, opts, roleClassifier).source;
+		expect(src).toContain("Some Thing");
+		expect(src).not.toContain("urn:uuid");
+	});
+
+	it("shows a repeated value (proofPurpose echoed by the display label) only once", () => {
+		const quads = [{ subject: "p1", predicate: "proofPurpose", object: "assertionMethod", namedGraph: "Proof", timestamp: 1 }];
+		const dl = { ...opts, displayLabel: (g: string, s: string) => (g === "Proof" && s === "p1" ? "proofPurpose: assertionMethod" : undefined) };
+		const src = buildMermaidSource(quads, dl, roleClassifier).source;
+		expect(src.match(/assertionMethod/g)?.length).toBe(1);
+	});
+
+	it("does not render a hasBody edge target as a scalar text line", () => {
+		const quads = [
+			{ subject: "att1", predicate: "attributes", object: "lux-resident", namedGraph: "PeerAttestation", timestamp: 1 },
+			{ subject: "att1", predicate: "hasBody", object: "urn:uuid:body-1", namedGraph: "PeerAttestation", objectType: "Body", timestamp: 1 },
+		];
+		const src = buildMermaidSource(quads, opts, roleClassifier).source;
+		expect(src).toContain("attributes: lux-resident");
+		expect(src).not.toContain("hasBody:");
+	});
+});
 
 describe("THREAD_CLASSIFIER", () => {
 	it("classifies name as name, edges as edge, internal as internal", () => {
@@ -47,7 +162,7 @@ describe("buildMermaidSource with THREAD_CLASSIFIER", () => {
 	it("renders edges between nodes", () => {
 		const quads = [
 			{ subject: "Email", predicate: "name", object: "Email", namedGraph: "Email", timestamp: 1 },
-			{ subject: "Email", predicate: "from", object: PERSON_LABEL, namedGraph: "Email", timestamp: 1 },
+			{ subject: "Email", predicate: "from", object: PERSON_LABEL, namedGraph: "Email", objectType: PERSON_LABEL, timestamp: 1 },
 			{ subject: PERSON_LABEL, predicate: "name", object: PERSON_LABEL, namedGraph: PERSON_LABEL, timestamp: 1 },
 		];
 		const result = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
@@ -59,7 +174,7 @@ describe("buildMermaidSource with THREAD_CLASSIFIER", () => {
 	it("renders property-type edges between vertex and base type", () => {
 		const quads = [
 			{ subject: "Email", predicate: "name", object: "Email message", namedGraph: "Email", timestamp: 1 },
-			{ subject: "Email", predicate: "subject", object: "string", namedGraph: "Email", timestamp: 1 },
+			{ subject: "Email", predicate: "subject", object: "string", namedGraph: "Email", objectType: "string", timestamp: 1 },
 			{ subject: "string", predicate: "name", object: "string", namedGraph: "string", timestamp: 1 },
 		];
 		const result = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
@@ -190,13 +305,78 @@ describe("hiddenRels filtering", () => {
 	it("hides edges matching hiddenRels", () => {
 		const quads = [
 			{ subject: "Email", predicate: "name", object: "Email", namedGraph: "Email", timestamp: 1 },
-			{ subject: "Email", predicate: "from", object: PERSON_LABEL, namedGraph: "Email", timestamp: 1 },
-			{ subject: "Email", predicate: "to", object: PERSON_LABEL, namedGraph: "Email", timestamp: 1 },
+			{ subject: "Email", predicate: "from", object: PERSON_LABEL, namedGraph: "Email", objectType: PERSON_LABEL, timestamp: 1 },
+			{ subject: "Email", predicate: "to", object: PERSON_LABEL, namedGraph: "Email", objectType: PERSON_LABEL, timestamp: 1 },
 			{ subject: PERSON_LABEL, predicate: "name", object: PERSON_LABEL, namedGraph: PERSON_LABEL, timestamp: 1 },
 		];
 		// Thread classifier has no relForEdge, so predicate name IS the rel
 		const result = buildMermaidSource(quads, { ...opts, hiddenRels: new Set(["from"]) }, THREAD_CLASSIFIER);
 		expect(result.source).not.toContain("-->|from|");
 		expect(result.source).toContain("-->|to|");
+	});
+});
+
+describe("objectType resolves edge targets across shared ids (no guessing, fail fast)", () => {
+	const sharedId = [
+		{ subject: "did:bron", predicate: "name", object: "Bron", namedGraph: "Principal", timestamp: 1 },
+		{ subject: "did:bron", predicate: "name", object: "Bron", namedGraph: "Issuer", timestamp: 1 },
+		{ subject: "att1", predicate: "name", object: "vouch", namedGraph: "PeerAttestation", timestamp: 1 },
+		{ subject: "att1", predicate: "attestedBy", object: "did:bron", namedGraph: "PeerAttestation", objectType: "Principal", timestamp: 1 },
+		{ subject: "cap1", predicate: "name", object: "cap", namedGraph: "Capability", timestamp: 1 },
+		{ subject: "cap1", predicate: "controller", object: "did:bron", namedGraph: "Capability", objectType: "Issuer", timestamp: 1 },
+	];
+
+	it("links each edge to the node of its declared objectType, even when the id is shared", () => {
+		const { source } = buildMermaidSource(sharedId, opts, THREAD_CLASSIFIER);
+		expect(source).toMatch(/attestedBy\|[^\n]*Principal/);
+		expect(source).toMatch(/controller\|[^\n]*Issuer/);
+		expect(source).not.toMatch(/attestedBy\|[^\n]*Issuer/);
+	});
+
+	it("does not draw an edge whose quad has no objectType (an id-valued property, not a typed relationship)", () => {
+		const quads = [
+			{ subject: "did:bron", predicate: "name", object: "Bron", namedGraph: "Principal", timestamp: 1 },
+			{ subject: "att1", predicate: "name", object: "vouch", namedGraph: "PeerAttestation", timestamp: 1 },
+			{ subject: "att1", predicate: "attestedBy", object: "did:bron", namedGraph: "PeerAttestation", timestamp: 1 },
+		];
+		expect(buildMermaidSource(quads, opts, THREAD_CLASSIFIER).source).not.toContain("attestedBy");
+	});
+});
+
+describe("buildMermaidSource diagnostics explain why each edge draws or not", () => {
+	it("reports a drawn edge with its declared objectType and the graph subject counts", () => {
+		const quads = [
+			{ subject: "did:bron", predicate: "name", object: "Bron", namedGraph: "Principal", timestamp: 1 },
+			{ subject: "did:bron", predicate: "name", object: "Bron", namedGraph: "Issuer", timestamp: 1 },
+			{ subject: "att1", predicate: "name", object: "vouch", namedGraph: "PeerAttestation", timestamp: 1 },
+			{ subject: "att1", predicate: "attestedBy", object: "did:bron", namedGraph: "PeerAttestation", objectType: "Principal", timestamp: 1 },
+			{ subject: "cap1", predicate: "name", object: "cap", namedGraph: "Capability", timestamp: 1 },
+			{ subject: "cap1", predicate: "controller", object: "did:bron", namedGraph: "Capability", objectType: "Issuer", timestamp: 1 },
+		];
+		const { diagnostics } = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
+		expect(diagnostics.edgesDrawn).toBe(2);
+		expect(diagnostics.totalQuads).toBe(6);
+		expect(diagnostics.edges.find((e) => e.predicate === "attestedBy")).toMatchObject({ drawn: true, objectType: "Principal" });
+		expect(diagnostics.graphs).toEqual(expect.arrayContaining([{ name: "Principal", subjects: 1 }]));
+	});
+
+	it("reports reason 'no-objectType' for a declared edge quad missing its target type", () => {
+		const quads = [
+			{ subject: "did:bron", predicate: "name", object: "Bron", namedGraph: "Principal", timestamp: 1 },
+			{ subject: "att1", predicate: "attestedBy", object: "did:bron", namedGraph: "PeerAttestation", timestamp: 1 },
+		];
+		const { diagnostics } = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
+		expect(diagnostics.edgesDrawn).toBe(0);
+		expect(diagnostics.edges.find((e) => e.predicate === "attestedBy")?.reason).toBe("no-objectType");
+	});
+
+	it("reports reason 'target-type-mismatch' when the object exists only under a different type", () => {
+		const quads = [
+			{ subject: "did:bron", predicate: "name", object: "Bron", namedGraph: "Principal", timestamp: 1 },
+			{ subject: "att1", predicate: "name", object: "vouch", namedGraph: "PeerAttestation", timestamp: 1 },
+			{ subject: "att2", predicate: "attestedBy", object: "att1", namedGraph: "PeerAttestation", objectType: "Principal", timestamp: 1 },
+		];
+		const { diagnostics } = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
+		expect(diagnostics.edges.find((e) => e.predicate === "attestedBy")?.reason).toBe("target-type-mismatch");
 	});
 });
