@@ -146,31 +146,3 @@ export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<
 
 	return actions as TActionsFromStepper<TStepMap<T>>;
 };
-
-/**
- * Generate kireji action factories for individual CRUD from a label and domain key, without a stepper
- * instance. The registry generates the actual handlers from domain definitions at runtime.
- */
-export const withIndividualActions = (label: string, domainKey: string) => {
-	const lc = label.toLowerCase();
-	const makeAction = (actionName: string, gwta: string, argNames: string[]): [string, TActionFactory] => {
-		return [
-			actionName,
-			(args: Record<string, TNestedArgValue>) => {
-				for (const name of argNames) {
-					if (args[name] === undefined) throw new Error(`Missing argument "${name}" for action "${actionName}"`);
-				}
-				const normalizedArgs: Record<string, string> = {};
-				for (const name of argNames) normalizedArgs[name] = resolveArgValue(args[name]);
-				return () => ({ actionName, args: normalizedArgs, gwta: interpolateGwta(gwta, normalizedArgs) });
-			},
-		];
-	};
-
-	return Object.fromEntries([
-		makeAction(`create${label}`, `create ${lc} {data: ${domainKey}}`, ["data"]),
-		makeAction(`get${label}`, `get ${lc} {id: string}`, ["id"]),
-		makeAction(`delete${label}`, `delete ${lc} {id: string}`, ["id"]),
-		makeAction(`show${label}s`, `show ${lc}s`, []),
-	]);
-};
