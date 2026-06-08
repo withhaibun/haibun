@@ -1,3 +1,5 @@
+import { copyText } from "../copy-util.js";
+
 /**
  * <shu-copy-button> — Standard "copy to clipboard" button used across shu views.
  *
@@ -43,19 +45,16 @@ export class ShuCopyButton extends HTMLElement {
 	}
 
 	private async copy(): Promise<void> {
-		try {
-			await navigator.clipboard.writeText(this._source);
-			this._copied = true;
+		// copyText falls back to execCommand when the async Clipboard API is blocked/absent (e.g. a file:// report).
+		if (!(await copyText(this._source))) return;
+		this._copied = true;
+		this.render();
+		if (this._resetTimer !== null) window.clearTimeout(this._resetTimer);
+		this._resetTimer = window.setTimeout(() => {
+			this._copied = false;
+			this._resetTimer = null;
 			this.render();
-			if (this._resetTimer !== null) window.clearTimeout(this._resetTimer);
-			this._resetTimer = window.setTimeout(() => {
-				this._copied = false;
-				this._resetTimer = null;
-				this.render();
-			}, 1500);
-		} catch {
-			// silent: clipboard may be denied in some contexts. User can re-attempt.
-		}
+		}, 1500);
 	}
 
 	private render(): void {
