@@ -29,7 +29,7 @@ import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { callStep } from "../pane-fetch.js";
-import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields } from "../rels-cache.js";
+import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription } from "../rels-cache.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -49,6 +49,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.entity-header { padding: var(--shu-space-2) 0; }
 		.entity-type { font-weight: 600; color: var(--shu-accent); font-size: 0.85em; letter-spacing: 0.5px; margin-right: var(--shu-space-4); }
 		.entity-id { color: var(--shu-fg-muted); word-break: break-all; }
+		.entity-type-description { color: var(--shu-fg-muted); font-size: 0.85em; padding: var(--shu-space-1) 0; }
 		.entity-summary { display: flex; flex-wrap: wrap; gap: var(--shu-space-1) 10px; padding: var(--shu-space-1) 0 var(--shu-space-2); color: var(--shu-fg-muted); font-size: 0.9em; }
 		.summary-field:first-child { font-weight: 500; }
 		.references { padding: var(--shu-space-2) 0; margin: var(--shu-space-1) 0; }
@@ -161,12 +162,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 
 		const fields = extractFieldEntries(this.vertex, persistedAs);
-		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1;
+		// Renderable body sub-resources (email/file/comment/credential content) make this a full view, never a stub: the
+		// body is the substance even when there are few scalar fields, so it must always reach renderContentIframe.
+		const contentIframe = this.renderContentIframe(persistedAs);
+		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1 && contentIframe.length === 0;
+		const typeLine = this.typeDescriptionLine(persistedAs);
 
 		let contentHtml: string;
 		if (isStub) {
 			const id = idOf(this.vertex);
-			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${this.renderReferences()}`;
+			const stubDetails = typeLine ? `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${typeLine}</details>` : "";
+			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${stubDetails}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);
 			const detailRows = Object.entries(fields)
@@ -176,11 +182,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
-			const contentIframe = this.renderContentIframe(persistedAs);
 			const hasBody = contentIframe.length > 0;
 			const openAttr = hasBody ? "" : " open";
-			const detailsHtml = detailRows
-				? `<details class="entity-detail"${openAttr} data-testid="entity-details"><summary class="detail-toggle">Details</summary><table class="detail-table">${detailRows}</table></details>`
+			const detailsInner = `${typeLine}${detailRows ? `<table class="detail-table">${detailRows}</table>` : ""}`;
+			const detailsHtml = detailsInner
+				? `<details class="entity-detail"${openAttr} data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${detailsInner}</details>`
 				: "";
 			const summaryHtml =
 				summaryFields.size > 0
@@ -201,6 +207,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	protected updated(): void {
 		if (!this.state.loading && !this.state.error && this.vertex) this.bindEvents();
+	}
+
+	// The type's description, shown inside the disclosure (the type name itself is the disclosure summary). Empty for an ad-hoc result view with no registered type.
+	private typeDescriptionLine(persistedAs: string): string {
+		const desc = getTypeDescription(persistedAs);
+		if (!desc) return "";
+		return `<div class="entity-type-description" data-testid="entity-type-description">${esc(desc)}</div>`;
 	}
 
 	/** Render arrays of objects as tables (e.g. show domains items). Skips `hasBody` (rendered as iframes), JSON-LD keywords, and underscore-projected keys. */
