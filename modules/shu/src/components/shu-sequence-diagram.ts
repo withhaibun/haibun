@@ -8,13 +8,12 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import mermaid from "mermaid";
 import { ShuElement } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
+import { requireStep } from "../rpc-registry.js";
 import { TIME_SYNC_STYLE } from "../time-sync.js";
 
-let mermaidInitialized = false;
 
 import { DispatchTraceSchema, type TDispatchTrace } from "../schemas.js";
 const DispatchTrace = DispatchTraceSchema;
@@ -185,18 +184,9 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 	}
 
 	private async renderMermaid(traces: TDispatchTrace[]): Promise<void> {
-		if (!mermaidInitialized) {
-			mermaid.initialize({
-				startOnLoad: false,
-				theme: "default",
-				securityLevel: "loose",
-				fontFamily: "ui-sans-serif, system-ui, sans-serif",
-			});
-			mermaidInitialized = true;
-		}
 		const source = buildMermaidSource(traces);
 		try {
-			const { svg } = await mermaid.render(this.diagramId, source);
+			const { svg } = await conduit().follow<{ svg: string }>({ method: requireStep("renderMermaid"), params: { source } }, "sequence-diagram: render mermaid");
 			const container = this.shadowRoot?.querySelector(".diagram-container");
 			if (container) container.innerHTML = `<div>${svg}</div>`;
 			this.applyTimeDimming();
