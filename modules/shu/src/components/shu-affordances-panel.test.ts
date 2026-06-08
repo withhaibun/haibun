@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
+import { setConduit, resetConduit, SerializedConduit } from "../hypermedia.js";
 
 /**
  * The panel always reaches a terminal display state — rendering the forward/goals lists when
@@ -38,6 +39,8 @@ describe("shu-affordances-panel", () => {
 			customElements.define("shu-graph", FakeGraph);
 		}
 	});
+
+	afterEach(() => resetConduit());
 
 	it("renders the goals section when products are assigned", async () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
@@ -275,5 +278,21 @@ describe("shu-affordances-panel", () => {
 		const goalsList = panel.shadowRoot?.querySelector('[data-testid="affordances-goals"]');
 		const waypointsList = panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]');
 		expect(!!emptyState || !!goalsList || !!waypointsList).toBe(true);
+	});
+
+	it("loads waypoints from the activities stepper when products arrive without them (affordances view, not only reload)", async () => {
+		// `show affordances` produces forward+goals but no waypoints. Setting products before connect mirrors the
+		// pane-opener threading products in, which makes onConnected skip the waypoint-preferring fetchInitial — so
+		// the waypoint section can only appear via the set-products refresh. Guards the reload-only regression.
+		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
+		setConduit(new SerializedConduit(async (method: string) => (method === "ActivitiesStepper-showWaypoints" ? { waypoints: [wp], forward: [], goals: [] } : {})));
+		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		panel.products = { forward: [], goals: [] };
+		document.body.appendChild(panel);
+		await panel.updateComplete;
+		await new Promise((r) => setTimeout(r, 0)); // let the fetchWaypoints RPC resolve
+		await panel.updateComplete;
+		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
+		expect(panel.shadowRoot?.querySelector('[data-testid="waypoint-deliver-report"]')).toBeTruthy();
 	});
 });
