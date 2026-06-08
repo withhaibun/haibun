@@ -10,16 +10,17 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { SHU_EVENT } from "../consts.js";
 import { conduit } from "../hypermedia.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
 import "./shu-artifact-frame.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
 import { getUiByType } from "../rels-cache.js";
+import { isStandaloneMode } from "../rpc-registry.js";
 
 const DocumentColumnSchema = z.object({
-	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
+	level: z.enum(HAIBUN_LOG_LEVELS).default("log"),
 });
 
 const mdRenderer = new MarkdownIt({ html: true, linkify: true, typographer: true });
@@ -53,6 +54,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		.json-block { font-family: "Source Code Pro", monospace; font-size: var(--shu-font-sm); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-4) var(--shu-space-5); overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
 		img { display: block; }
 		shu-artifact-frame { margin: var(--shu-space-5) 0; }
+		.doc-controls { padding: var(--shu-space-2) var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 	`];
 	private events: THaibunEvent[] = [];
 	private seenEventIds = new Set<string>();
@@ -61,7 +63,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	private renderedEventCount = 0;
 
 	constructor() {
-		super(DocumentColumnSchema, { level: "info" });
+		super(DocumentColumnSchema, { level: "log" });
 	}
 
 	protected override async onConnected(): Promise<void> {
@@ -153,6 +155,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const rows = Array.from(body.querySelectorAll(".doc-row")) as HTMLElement[];
 		const cursor = this.timeCursor;
 		let currentRow: HTMLElement | null = null;
+		let currentTime = Number.NEGATIVE_INFINITY;
 		for (const row of rows) {
 			row.classList.remove(TIME_SYNC_CLASS.FUTURE, TIME_SYNC_CLASS.CURRENT);
 			if (cursor === null) continue;
@@ -160,7 +163,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			const absTime = this.startTime + rawTime;
 			if (absTime > cursor) {
 				row.classList.add(TIME_SYNC_CLASS.FUTURE);
-			} else {
+			} else if (absTime > currentTime) {
+				// The current row is the one closest to the cursor (greatest time ≤ cursor), not the last in DOM order:
+				// events can append out of timestamp order, so DOM order ≠ time order, and "last ≤ cursor" lands on a trailing row.
+				currentTime = absTime;
 				currentRow = row;
 			}
 		}
@@ -269,7 +275,15 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	private renderArtifact(artifact: TArtifactEvent): string {
 		const type = artifact.artifactType;
 		const a = artifact as Record<string, unknown>;
-		const artifactPath = a.url ?? (a.path ? `/artifacts/${String(a.path).replace(/^\.?\//, "")}` : undefined);
+		// Serialized (file://): shu.html sits in the feature dir, so reference artifacts by their feature-relative path
+		// (e.g. ./image/x.png). The emitter supplies `featureRelativePath`; the fallback derives it by dropping the
+		// leading `featn-N/` segment of the base-relative `path`. Live: the /artifacts route serves the base-relative `path`.
+		const url = a.url as string | undefined;
+		const base = a.path ? String(a.path).replace(/^\.?\//, "") : undefined;
+		const featureRelativeFallback = base ? `./${base.split("/").slice(1).join("/")}` : undefined;
+		const artifactPath = isStandaloneMode()
+			? ((a.featureRelativePath as string | undefined) ?? url ?? featureRelativeFallback)
+			: (url ?? (base ? `/artifacts/${base}` : undefined));
 		if (type === "image" && artifactPath) {
 			return `<shu-artifact-frame caption="${esc(String(a.path ?? a.url ?? "Screenshot"))}"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
 		}
@@ -292,7 +306,18 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	render(): TemplateResult {
-		return html`<div class="document-body"></div>`;
+		return html`
+			<div class="doc-controls">
+				<label>level <select @change=${this.onLevelChange}>
+					${HAIBUN_LOG_LEVELS.map((l) => html`<option value=${l} ?selected=${l === this.state.level}>${l}</option>`)}
+				</select></label>
+			</div>
+			<div class="document-body"></div>
+		`;
+	}
+
+	private onLevelChange(e: Event): void {
+		this.setState({ level: (e.target as HTMLSelectElement).value as THaibunLogLevel });
 	}
 
 	protected updated(): void {
