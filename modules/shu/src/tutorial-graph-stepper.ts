@@ -138,6 +138,7 @@ export default class TutorialGraphStepper extends AStepper {
 				{
 					selectors: [DOMAIN_RECIPE],
 					schema: RecipeSchema,
+					description: "A recipe — its name, method, and the recipe it is a variation of.",
 					topology: {
 						persistedAs: RecipeLabels.Recipe,
 						id: "id",
@@ -148,6 +149,7 @@ export default class TutorialGraphStepper extends AStepper {
 				{
 					selectors: [DOMAIN_INGREDIENT],
 					schema: IngredientSchema,
+					description: "An ingredient and the recipes it is used in.",
 					topology: {
 						persistedAs: RecipeLabels.Ingredient,
 						id: "id",
