@@ -286,7 +286,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const buffer = (await this.withPage(async (page: Page) => await page.screenshot())) as Buffer;
 		const saved = await this.storage.saveArtifact(filename, buffer, EMediaTypes.image, "image");
 
-		// Emit new-style artifact event with baseRelativePath for live serving
+		// baseRelativePath drives the live /artifacts route; featureRelativePath ("./image/x.png") drives the serialized
+		// report, whose shu.html sits in the same feature dir as the image.
 		const world = this.getWorld();
 		const artifactEvent = ImageArtifact.parse({
 			id: `${details.step.seqPath.join(".")}.artifact.0`,
@@ -294,6 +295,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			kind: "artifact",
 			artifactType: "image",
 			path: saved.baseRelativePath,
+			featureRelativePath: saved.featureRelativePath,
 			mimetype: "image/png",
 		});
 		const featureStep = {
