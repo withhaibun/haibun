@@ -73,6 +73,8 @@ const HypermediaConcernSchema = z.object({
 	declared: z.boolean().default(false),
 	/** UI metadata: slot, component, JS source, etc. */
 	ui: z.record(z.string(), z.unknown()).optional(),
+	/** The domain's human description, surfaced so the client can show what a type is. */
+	description: z.string(),
 });
 type THypermediaConcern = z.infer<typeof HypermediaConcernSchema>;
 
@@ -170,6 +172,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			queryable: Object.keys(topology.sortColumns ?? {}),
 			declared: !!domain.ui?.declared,
 			...(domain.ui ? { ui: domain.ui } : {}),
+			description: domain.description,
 		});
 	}
 

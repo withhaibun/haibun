@@ -281,6 +281,7 @@ export const EdgePredicates = {
 	precededBy: { rel: LinkRelations.PRECEDED_BY.rel },
 	controller: { rel: LinkRelations.CONTROLLER.rel },
 	delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel },
+	hasBody: { rel: LinkRelations.HAS_BODY.rel },
 } as const;
 
 export type TEdgePredicate = keyof typeof EdgePredicates;
@@ -445,7 +446,7 @@ export type TDomainDefinition = {
 	coerce?: TDomainCoercer;
 	comparator?: TDomainComparator;
 	values?: string[];
-	description?: string;
+	description: string;
 	/** Stepper that registered this domain (set automatically by registerDomains) */
 	stepperName?: string;
 	/** Hypermedia topology — label, id, property rels, edges, indexes. Undefined for non-persisted domains. */
@@ -460,7 +461,7 @@ export type TRegisteredDomain = {
 	coerce: TDomainCoercer;
 	comparator?: TDomainComparator;
 	values?: string[];
-	description?: string;
+	description: string;
 	stepperName?: string;
 	topology?: TDomainTopology;
 	ui?: Record<string, unknown>;

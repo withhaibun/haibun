@@ -85,6 +85,7 @@ describe("ShuStepper", () => {
 				selectors: ["test-email"],
 				schema: z.object({ id: z.string(), account: z.string(), folder: z.string(), accessLevel: AccessLevelSchema, dateSent: z.date() }),
 				coerce: (proto: { value?: unknown }) => proto.value,
+				description: "An email message.",
 				topology: {
 					persistedAs: "Email",
 					id: "id",
