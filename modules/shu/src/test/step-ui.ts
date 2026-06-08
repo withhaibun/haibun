@@ -1,7 +1,17 @@
 import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
+import { INSTRUMENTATION_GRAPHS } from "@haibun/core/lib/instrumentation-graphs.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import ShuGraphViewControls from "../components/shu-graph-view.controls.js";
+
+const { setGraphVisibility } = withAction(new ShuGraphViewControls());
+
+// Hide the engine's instrumentation graphs so a feature's view shows only its domain data. Args are
+// quoted because an unquoted value would be resolved as a variable name rather than a literal.
+export function hideInstrumentationGraphs(): TKirejiStep {
+	return setGraphVisibility({ operation: '"hide"', types: `"${INSTRUMENTATION_GRAPHS.join(",")}"` });
+}
 
 export function flattenTestIds(obj: Record<string, unknown>): string[] {
 	const result: string[] = [];
