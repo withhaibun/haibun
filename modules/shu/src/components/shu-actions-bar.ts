@@ -20,7 +20,7 @@ import { errMsg, prettifyGwta } from "../util.js";
 import { conduit } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
-import { getActionBarChatExtensionTags, getProperties, getSelectValues, hasSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
+import { getActionBarChatExtensionTags, getProperties, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import { getCookie, setCookie } from "../cookies.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -90,10 +90,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
+	private _settingsOpen = false;
 	private _onDocumentClick = (e: Event): void => {
-		if (!this.state.askExpanded) return;
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
-		if (path.includes(this)) return;
+		const inside = path.includes(this);
+		if (this._settingsOpen && !inside) {
+			this._settingsOpen = false;
+			this.requestUpdate();
+		}
+		if (!this.state.askExpanded) return;
+		if (inside) return;
 		const target = e.target instanceof Element ? e.target : null;
 		// Combobox popups are rendered into document.body, so suggestion picks are
 		// outside the host path but still part of actions-bar interaction.
@@ -255,8 +261,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		throw new Error(message);
 	}
 
-	private triggerSelectValuesLoad(label?: string): void {
-		void this.loadSelectValues(label).catch((err) => {
+	private triggerSelectValuesLoad(label?: string, force = false): void {
+		void this.loadSelectValues(label, force).catch((err) => {
 			this.failFast(`ShuActionsBar select-values load failed: ${errMsg(err)}`);
 		});
 	}
@@ -408,10 +414,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._filterProperties = target ? (getProperties(target) ?? []) : [];
 	}
 
-	private async loadSelectValues(label?: string): Promise<void> {
+	private async loadSelectValues(label?: string, force = false): Promise<void> {
 		const target = label || this._selectedLabel;
 		if (!target) return;
-		if (hasSelectValues(target)) return;
+		// Refetch unless we already hold usable (non-empty) values: a fetch made before the label's data
+		// was indexed returns empty dropdowns, and caching that as "loaded" would freeze them until a full
+		// page reload. `force` lets an explicit type selection always pull the current values.
+		if (!force && hasUsableSelectValues(target)) return;
 		await getAvailableSteps();
 		const data = await conduit().follow<{ values: Record<string, string[]> }>(
 			{ method: requireStep("getSelectValues"), params: { label: target } },
@@ -514,10 +523,19 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const body = expanded ? (this.state.mode === "ask" ? this.askModeTemplate(hasAsk) : this.stepModeTemplate(hasAsk)) : nothing;
 		const filterBar = expanded ? this.filterBarTemplate() : nothing;
 		return html`<div class=${classMap({ "actions-bar": true, collapsed: !expanded })}>
+				${this.settingsPopoverTemplate()}
 				${filterBar}
 				${body}
 				${this.summaryTemplate()}
 			</div>`;
+	}
+
+	/** Theme + scale controls sit in the top-right of the open panel; the gear on the summary bar toggles them. */
+	private settingsPopoverTemplate(): TemplateResult | typeof nothing {
+		if (!this._settingsOpen) return nothing;
+		return html`<div class="settings-popover" data-testid=${`${this.testIdPrefix}settings-popover`}>
+			<shu-theme-switch></shu-theme-switch>
+		</div>`;
 	}
 
 	private summaryTemplate(): TemplateResult {
@@ -527,9 +545,27 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<shu-breadcrumb></shu-breadcrumb>
 			<span class="time-offset" data-testid=${`${this.testIdPrefix}time-offset`}>${this._timeOffsetLabel}</span>
 			<span class="access-indicator" data-testid=${`${this.testIdPrefix}access-indicator`}>${this._contextAccessLevel}</span>
+			<button class="settings-button" aria-label="Settings" aria-expanded=${this._settingsOpen} data-testid=${`${this.testIdPrefix}settings-button`}
+				@mousedown=${this.stopSummaryPropagation} @touchstart=${this.stopSummaryPropagation} @click=${this.onSettingsToggle}>\u2699</button>
 			<button class="twisty" data-testid=${`${this.testIdPrefix}ask-button`}>${twisty}</button>
 		</div>`;
 	}
+
+	/** Keep a gear press from starting the summary bar's drag/expand gesture. */
+	private stopSummaryPropagation = (e: Event): void => {
+		e.stopPropagation();
+	};
+
+	private onSettingsToggle = (e: Event): void => {
+		e.stopPropagation();
+		this._settingsOpen = !this._settingsOpen;
+		// The controls render in the top-right of the open panel, so opening them opens the bar.
+		if (this._settingsOpen && !this.state.askExpanded) {
+			this.setState({ askExpanded: true });
+			return;
+		}
+		this.requestUpdate();
+	};
 
 	private modeToggleTemplate(hasAsk: boolean, slot?: string): TemplateResult {
 		return html`<select
@@ -631,7 +667,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  <shu-kihan-chat>; step mode has no chat element, so the actions bar renders them directly
 	 *  here so the slot is present in both modes (the elements are defined by loadUiExtensions). */
 	private uiExtensionsTemplate(): TemplateResult {
-		return html`${unsafeHTML(getActionBarChatExtensionTags().map((tag) => `<${tag}></${tag}>`).join(""))}`;
+		return html`${unsafeHTML(
+			getActionBarChatExtensionTags()
+				.map((tag) => `<${tag}></${tag}>`)
+				.join(""),
+		)}`;
 	}
 
 	private pushContextToChat(): void {
@@ -757,7 +797,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._selectedLabel = selectedOption?.queryLabel ?? "";
 		this._selectFilters = {};
 		this.loadProperties(this._selectedLabel);
-		this.triggerSelectValuesLoad(this._selectedLabel);
+		this.triggerSelectValuesLoad(this._selectedLabel, true);
 		this.dispatchFilterChange();
 	};
 
@@ -824,7 +864,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 const STYLES = `
 	:host { display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--shu-bg-soft); border-top: var(--shu-border-w) solid var(--shu-border); }
-	.actions-bar { padding: 0; background: var(--shu-bg-soft); display: flex; flex-direction: column; min-width: 0; overflow: hidden; flex: 1; min-height: 0; }
+	.actions-bar { padding: 0; background: var(--shu-bg-soft); display: flex; flex-direction: column; min-width: 0; overflow: hidden; flex: 1; min-height: 0; position: relative; }
 	.summary-bar {
 		display: flex; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-2) var(--shu-space-4);
 		min-height: var(--shu-row-h); flex-shrink: 0;
@@ -845,6 +885,23 @@ const STYLES = `
 		border-radius: var(--shu-radius);
 	}
 	.twisty:hover { color: var(--shu-fg); background: var(--shu-bg-hover); }
+	.settings-button {
+		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
+		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
+		display: inline-flex; align-items: center; justify-content: center;
+		font-size: var(--shu-font-sm); color: var(--shu-fg-faded);
+		border-radius: var(--shu-radius);
+	}
+	.settings-button:hover, .settings-button[aria-expanded="true"] { color: var(--shu-fg); background: var(--shu-bg-hover); }
+	.settings-popover {
+		position: absolute; top: var(--shu-space-2); right: var(--shu-space-3);
+		z-index: 10; cursor: default;
+		display: inline-flex; align-items: center;
+		padding: var(--shu-space-2) var(--shu-space-3);
+		background: var(--shu-bg-elevated); color: var(--shu-fg);
+		border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius);
+		box-shadow: 0 1px 4px var(--shu-shadow);
+	}
 	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
 	.access-indicator, .time-offset { font-size: var(--shu-font-xs); color: var(--shu-fg-faded); flex-shrink: 0; }
 	.filter-bar {
