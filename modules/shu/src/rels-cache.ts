@@ -215,6 +215,11 @@ export function getConcernCatalog(): TConcernCatalog {
 	return concernCatalog;
 }
 
+// A registered type's description. Undefined for ad-hoc result views that aren't a registered type.
+export function getTypeDescription(label: string): string | undefined {
+	return concernCatalog?.persisted[label]?.description;
+}
+
 /** Derive SiteMetadata from the concern catalog. Covers any stepper that declares persisted concerns. */
 export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Record<string, TDomainUiInfo>): SiteMetadata {
 	const types: string[] = [];
