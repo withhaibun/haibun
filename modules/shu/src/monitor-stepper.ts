@@ -7,6 +7,7 @@
 import { resolve } from "path";
 import { z } from "zod";
 import { writeFileSync } from "fs";
+import { gzipSync } from "node:zlib";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
@@ -23,12 +24,50 @@ import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { parseSeqPath } from "./quad-detail-pane.js";
-import { loadBundle, buildSpaHtml } from "./shu-stepper.js";
+import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
+import { renderMermaidToSvg } from "./mermaid-render.js";
+import { GET_EVENTS_METHOD, RENDER_MERMAID_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
+import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
+import { INSTRUMENTATION_GRAPHS } from "@haibun/core/lib/instrumentation-graphs.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 
 const MAX_EVENTS_DEFAULT = 9e9;
+
+type TReportEvent = Record<string, unknown>;
+
+/** Event `products` reduced to the subfields the offline views read (column reconstruction + display caption). */
+function slimReportProducts(products: Record<string, unknown>): Record<string, unknown> | undefined {
+	const keep: Record<string, unknown> = {};
+	for (const f of ["view", "_component", "_type", "_summary"]) if (products[f] !== undefined) keep[f] = products[f];
+	return Object.keys(keep).length ? keep : undefined;
+}
+
+/**
+ * Slim one event for the offline report. Debug-level artifacts (the per-quad observations, ~all of the bulk) are dropped
+ * entirely — they feed the live graph via SSE, but the offline graph renders from the embedded clustered quads, and the
+ * offline event stream is never replayed. `stepValuesMap` is dropped and `products` reduced to its display subfields.
+ */
+function slimReportEvent(e: TReportEvent): TReportEvent | null {
+	if (e.kind === "artifact" && e.level === "debug") return null;
+	const out: TReportEvent = { ...e };
+	delete out.stepValuesMap;
+	if (out.products) out.products = slimReportProducts(out.products as Record<string, unknown>);
+	return out;
+}
+
+/**
+ * Component JS to inline in the offline report: a domain's `ui.jsContent`, but only for components whose view is in the
+ * final report (the columns shown at endFeature). A heavy external-component bundle is embedded only when its view is
+ * actually shown, and never paid for otherwise. Pure + exported so the inclusion rule is unit-tested.
+ */
+export function inlineScriptsForView(domains: Record<string, unknown>, finalViewComponents: Set<string>): string[] {
+	return Object.values(domains)
+		.map((d) => (d as { ui?: { component?: string; jsContent?: string } } | undefined)?.ui)
+		.filter((u): u is { component: string; jsContent: string } => typeof u?.jsContent === "string" && u.jsContent.length > 0 && typeof u.component === "string" && finalViewComponents.has(u.component))
+		.map((u) => u.jsContent);
+}
 
 export const DOMAIN_LOG_EVENT = "shu-log-event";
 
@@ -153,6 +192,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 						predicate: q.predicate,
 						object: q.object,
 						namedGraph: q.namedGraph,
+						objectType: q.objectType,
 						timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(),
 						properties: q.properties,
 					});
@@ -167,6 +207,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			if (!hasFixedPath && !shouldClose) return;
 			if (!hasFixedPath && !this.storage) return;
 			await this.writeStandaloneReport({ fixedPath: this.outputPath });
+			// Each feature's report stands alone: clear the per-feature buffers so the next feature's report (and the live
+			// getEvents backfill) holds only its own events — and serialized artifacts resolve from the report's own dir.
+			// Live SSE streaming is unaffected; events forward as they happen.
+			this.events = [];
+			this.observationQuads = [];
 		},
 	};
 
@@ -179,10 +224,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private async writeStandaloneReport({ fixedPath }: { fixedPath?: string }): Promise<string> {
 		const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
 		// Ensure essential data is always available offline:
-		// 1. Events (the test execution log — core of the monitor view)
-		if (!rpcCache["MonitorStepper-getEvents"]) {
-			rpcCache["MonitorStepper-getEvents"] = { events: this.events };
-		}
+		// 1. Events — embed one complete end-of-run copy under the bare key; drop the per-filter copies the live run
+		//    cached (getCachedResponse serves the bare copy for any filter; the views filter themselves).
+		for (const key of Object.keys(rpcCache)) if (key.startsWith(`${GET_EVENTS_METHOD}:`)) delete rpcCache[key];
+		rpcCache[GET_EVENTS_METHOD] = { events: this.events };
 		// 2. Parameterless steps with view products (deterministic view toggles)
 		const candidates = Object.entries(this.steps).filter(([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{"));
 		const logger = this.getWorld().eventLogger;
@@ -219,6 +264,20 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}
 		}
+		// Pre-render the curated default graph SVG (instrumentation hidden) server-side and store it under the bare
+		// renderMermaid key — the client ships no mermaid, so offline the graph is this embedded SVG. Drop the live run's per-source copies first.
+		for (const key of Object.keys(rpcCache)) if (key.startsWith(`${RENDER_MERMAID_METHOD}:`)) delete rpcCache[key];
+		const built = await buildGraphSource(this.getWorld(), new Set(INSTRUMENTATION_GRAPHS));
+		// Drop the live run's many per-params getClusteredQuads copies; offline serves ONE canonical response — the quad
+		// set this SVG was rendered from (built.quads), so any view that reads the snapshot sees the same graph.
+		for (const key of Object.keys(rpcCache)) if (key === CLUSTERED_QUADS_METHOD || key.startsWith(`${CLUSTERED_QUADS_METHOD}:`)) delete rpcCache[key];
+		if (built) {
+			// Store the SVG together with the nodeMap + drawnEdges of the SAME render. Offline the client's own
+			// buildMermaidSource can differ (different hidden-graph/limit opts), so it adopts these to make hover/click
+			// line up with the embedded SVG exactly rather than its locally-rebuilt graph.
+			rpcCache[RENDER_MERMAID_METHOD] = { svg: await renderMermaidToSvg(built.source), nodeMap: [...built.nodeMap.entries()], drawnEdges: built.drawnEdges };
+			rpcCache[CLUSTERED_QUADS_METHOD] = { quads: built.quads, clusters: built.clusters };
+		} else logger.warn("[shu writeStandaloneReport] graph SVG not pre-rendered: QuadStore has no getClusteredQuads; the offline graph will be unavailable");
 		// Reconstruct view hash from events (view products) and cache (last query label).
 		// `view` is the productsDomain key (e.g. "affordances"); pane-state expects the
 		// component tag (e.g. "shu-affordances-panel"). Resolve via the registered domain's
@@ -237,7 +296,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		for (const key of Object.keys(rpcCache)) {
 			if (!key.includes("graphQuery:")) continue;
 			try {
-				const params = JSON.parse(key.slice(key.indexOf(":") + 1));
+				const params = rpcCacheKeyParams(key) as { query?: { label?: string } } | undefined;
 				if (params?.query?.label) label = params.query.label;
 			} catch {
 				/* */
@@ -247,16 +306,17 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		if (label) hashParts.set("label", label);
 		for (const col of cols) hashParts.append("col", col);
 		const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
-		const hydration = JSON.stringify({ events: this.events, rpcCache, viewHash });
-		const bundle = loadBundle();
-		const extraScripts = Object.values(this.getWorld().domains)
-			.map((d) => (d?.ui as Record<string, unknown> | undefined)?.jsContent)
-			.filter((c): c is string => typeof c === "string" && c.length > 0);
-		let html = buildSpaHtml(".", bundle, hydration, extraScripts);
+		// Slim the embedded events to what the offline document reads (log/lifecycle narrative): drop the bulk per-quad
+		// debug artifacts, stepValuesMap, and reduce products to display subfields. The whole payload is then compressed.
+		const getEvents = rpcCache[GET_EVENTS_METHOD] as { events?: TReportEvent[] } | undefined;
+		if (getEvents?.events) getEvents.events = getEvents.events.map(slimReportEvent).filter((e): e is TReportEvent => e !== null);
+		// `events` lives only in the rpcCache (getEvents); hydrateFromDom reads rpcCache + viewHash, never a top-level events field.
+		const hydration = JSON.stringify({ rpcCache, viewHash });
+		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
+		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
 		const secrets = await this.getWorld().shared.getSecrets();
-		for (const [, value] of Object.entries(secrets)) {
-			if (value) html = html.replaceAll(value, OBSCURED_VALUE);
-		}
+		for (const [, value] of Object.entries(secrets)) if (value) payload = payload.replaceAll(value, OBSCURED_VALUE);
+		const html = buildReportHtml(".", gzipSync(payload).toString("base64"));
 		if (fixedPath) {
 			writeFileSync(fixedPath, html);
 			logger.info(`shu standalone report: ${actualURI(fixedPath)}`);
@@ -323,6 +383,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				const line = `${prefix}${message}`;
 				if (level === "warn") this.getWorld().eventLogger.warn(line, attributes);
 				else if (level === "error") this.getWorld().eventLogger.error(line, attributes);
+				else if (level === "debug") this.getWorld().eventLogger.debug(line, attributes);
 				else this.getWorld().eventLogger.info(line, attributes);
 				return actionOKWithProducts({});
 			},
@@ -373,10 +434,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				const quadKey = ({ namedGraph, subject, predicate, object }: TQuad) => JSON.stringify([namedGraph, subject, predicate, object]);
 				const seen = new Set(result.quads.map(quadKey));
 				const unique = this.observationQuads.filter((q) => !seen.has(quadKey(q)));
-				const quads = [...result.quads, ...unique].map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({
+				const quads = [...result.quads, ...unique].map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({
 					subject,
 					predicate,
 					object,
+					objectType,
 					namedGraph,
 					timestamp,
 					properties,
