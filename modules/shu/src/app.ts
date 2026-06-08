@@ -228,7 +228,6 @@ const main = async (): Promise<void> => {
 				</shu-column-pane>
 			</shu-column-strip>
 			<shu-graph-query api-base="${apiBase}" label="${defaultLabel()}" sort-order="desc" results-target=".results-target"></shu-graph-query>
-			<shu-theme-switch></shu-theme-switch>
 		</div>
 	`;
 
