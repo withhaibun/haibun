@@ -1,10 +1,10 @@
 /** Shared constants for custom events and data attributes across shu components. */
 
 /**
- * Per-row property name that spopg's `parseAgtypeVertex` stamps with the stored
- * AGE node label, then `project()` converts to `@type`. The value is the literal
- * AGE storage handle and must not change — existing rows are filtered by it.
- * Shared across the spopg → @haibun/shu boundary so neither side spells it inline.
+ * Per-row property name that the consumer's graph store stamps with the stored
+ * vertex-label handle, then `project()` converts to `@type`. The value is the
+ * store's literal label handle and must not change — existing rows are filtered by it.
+ * Shared across the consumer → @haibun/shu boundary so neither side spells it inline.
  */
 export const STORED_TYPE_PROP = "vertexLabel";
 

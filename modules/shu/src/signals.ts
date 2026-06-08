@@ -2,7 +2,7 @@
  * Shared lit signals for cross-component reactive state.
  *
  * SCOPE — signals are NOT a cross-bundle transport. Two things must be shared for
- * a signal to work across the app's separate IIFE bundles (main app vs the fisheye
+ * a signal to work across the app's separate IIFE bundles (main app vs an external viewer
  * viewer), and the library gives neither for free:
  *   1. The signal INSTANCE — a `Signal.State` is a per-module object, so each bundle
  *      gets its own unless the singleton is pinned on `globalThis` (the same trick

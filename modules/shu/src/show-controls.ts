@@ -7,7 +7,7 @@ import { getJsonCookie, setJsonCookie } from "./cookies.js";
 
 const SHOW_CONTROLS_COOKIE = "shu-show-controls";
 
-/** Components default to OFF — graph/fisheye/etc. render without settings rows until opted in. */
+/** Components default to OFF — graph and other views render without settings rows until opted in. */
 export function readShowControlsCookie(componentTag: string): boolean {
 	return Boolean(getJsonCookie<Record<string, boolean>>(SHOW_CONTROLS_COOKIE, {})[componentTag]);
 }

@@ -33,7 +33,7 @@ type Store = {
 };
 
 /**
- * The shu app and external clustered viewers (fisheye) ship as separate IIFE
+ * The shu app and external clustered viewers ship as separate IIFE
  * bundles. Each bundle has its own copy of this module's variable bindings, so
  * a Set / object held inside a closure here is duplicated per bundle. Hoisting
  * the live state onto a globalThis-keyed singleton means every importer
