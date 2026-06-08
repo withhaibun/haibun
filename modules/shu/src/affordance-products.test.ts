@@ -16,19 +16,19 @@ describe("parseAffordanceProduct", () => {
 		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-graph-view", label: "Graph view", products: product });
 	});
 
-	it("uses `id` when both `id` and `view` are present (per-instance components like fisheye)", () => {
+	it("uses `id` when both `id` and `view` are present (per-instance components)", () => {
 		const product = {
-			[HYPERMEDIA.TYPE]: "shu-fisheye-graph-view",
-			[HYPERMEDIA.SUMMARY]: "Fisheye 3D graph view",
-			_component: "shu-fisheye-graph-view",
-			id: "shu-fisheye-graph-view:abc-123",
-			view: "shu-fisheye-graph-view:abc-123",
+			[HYPERMEDIA.TYPE]: "x-clustered-viewer",
+			[HYPERMEDIA.SUMMARY]: "Clustered 3D view",
+			_component: "x-clustered-viewer",
+			id: "x-clustered-viewer:abc-123",
+			view: "x-clustered-viewer:abc-123",
 		};
 		expect(parseAffordanceProduct(product)).toEqual({
 			kind: "open-component",
-			view: "shu-fisheye-graph-view:abc-123",
-			component: "shu-fisheye-graph-view",
-			label: "Fisheye 3D graph view",
+			view: "x-clustered-viewer:abc-123",
+			component: "x-clustered-viewer",
+			label: "Clustered 3D view",
 			products: product,
 		});
 	});
@@ -75,7 +75,7 @@ describe("parseAffordanceProduct", () => {
 
 /**
  * Each `show <view>` step in MonitorStepper must produce a product that the
- * parser converts into a well-formed `open-component` action. The fisheye flow
+ * parser converts into a well-formed `open-component` action. The per-instance flow
  * works the same way (per-instance id), so passing the same shape contract
  * here guarantees one parser path covers both built-in and external views.
  *
@@ -106,19 +106,19 @@ describe("show* steps declare a productsDomain whose ui.component opens the view
 		});
 	}
 
-	it("a per-instance product (fisheye-style with `id = <component>:<uuid>`) parses through the same path", () => {
+	it("a per-instance product (per-instance-style with `id = <component>:<uuid>`) parses through the same path", () => {
 		const product = {
-			[HYPERMEDIA.TYPE]: "shu-fisheye-graph-view",
-			[HYPERMEDIA.SUMMARY]: "Fisheye 3D graph view",
-			_component: "shu-fisheye-graph-view",
-			id: "shu-fisheye-graph-view:abc-123",
-			view: "shu-fisheye-graph-view:abc-123",
+			[HYPERMEDIA.TYPE]: "x-clustered-viewer",
+			[HYPERMEDIA.SUMMARY]: "Clustered 3D view",
+			_component: "x-clustered-viewer",
+			id: "x-clustered-viewer:abc-123",
+			view: "x-clustered-viewer:abc-123",
 		};
 		expect(parseAffordanceProduct(product)).toEqual({
 			kind: "open-component",
-			view: "shu-fisheye-graph-view:abc-123",
-			component: "shu-fisheye-graph-view",
-			label: "Fisheye 3D graph view",
+			view: "x-clustered-viewer:abc-123",
+			component: "x-clustered-viewer",
+			label: "Clustered 3D view",
 			products: product,
 		});
 	});
