@@ -45,6 +45,7 @@ const ShuAffordancesPanelSchema = z.object({
 
 const AFF_GOAL_PARAM = "aff-goal";
 const AFF_WAYPOINT_PARAM = "aff-waypoint";
+const WAYPOINTS_METHOD = "ActivitiesStepper-showWaypoints";
 
 function readParamFromUrl(name: string): string {
 	if (typeof window === "undefined") return "";
@@ -139,11 +140,29 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				`shu-affordances-panel requires products with \`forward\` and \`goals\` arrays. Received keys: [${Object.keys(p).join(", ")}]. The step's productsDomain schema must include both fields; the action must populate them.`,
 			);
 		}
-		this.applyAffordances({
-			forward: p.forward as TAffordances["forward"],
-			goals: p.goals as TAffordances["goals"],
-			waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined,
-		});
+		const waypoints = Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined;
+		this.applyAffordances({ forward: p.forward as TAffordances["forward"], goals: p.goals as TAffordances["goals"], waypoints });
+		// `show affordances` carries no waypoints, and applyAffordances only preserves the last-known set — so a
+		// waypoint added since the panel loaded would stay hidden (it only appears on reload, which re-runs the
+		// waypoint-preferring fetchInitial). Pull the current waypoints here so the affordances view stays current too.
+		if (waypoints === undefined) void this.fetchWaypoints();
+	}
+
+	/**
+	 * Refresh just the waypoint section from the activities stepper. No-op for as-of replay (no waypoint
+	 * history to replay) and for projects without the activities stepper loaded (the RPC rejects → kept as-is).
+	 */
+	private async fetchWaypoints(): Promise<void> {
+		if (this.getAttribute("as-of")) return;
+		try {
+			const response = await conduit().follow<{ waypoints?: unknown }>({ method: WAYPOINTS_METHOD, params: {} }, "affordances-panel: refresh waypoints");
+			if (Array.isArray(response?.waypoints) && this.affordances) {
+				this.affordances = { ...this.affordances, waypoints: response.waypoints as TWaypointEntry[] };
+				this.requestUpdate();
+			}
+		} catch {
+			// No conduit (standalone HTML) or the activities stepper isn't loaded (no waypoints in this project) — leave the panel as-is.
+		}
 	}
 
 	private applyAffordances(a: TAffordances): void {
@@ -173,7 +192,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// Fall back to GoalResolutionStepper-showAffordances when ActivitiesStepper is not loaded so the
 		// panel still works in projects that don't use waypoints. The as-of replay path is goal-resolver
 		// only — there is no waypoint history to replay.
-		const candidates = asOf ? ["GoalResolutionStepper-showAffordancesAsOf"] : ["ActivitiesStepper-showWaypoints", "GoalResolutionStepper-showAffordances"];
+		const candidates = asOf ? ["GoalResolutionStepper-showAffordancesAsOf"] : [WAYPOINTS_METHOD, "GoalResolutionStepper-showAffordances"];
 
 		let lastError = "";
 		for (const method of candidates) {
@@ -366,7 +385,9 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	/** Layout-only — colours, badges, state borders all come from SHU_BASE token primitives. */
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: block; padding: var(--shu-space-5); }
 		h3 { margin: 0; font-size: var(--shu-font-md); color: var(--shu-fg-muted); }
 		.section-header { display: flex; justify-content: space-between; align-items: baseline; margin: var(--shu-space-5) 0 var(--shu-space-3); }
@@ -442,7 +463,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.wp-error { color: var(--shu-error); margin-top: var(--shu-space-2); }
 		.wp-run { margin-top: var(--shu-space-3); background: var(--shu-info); color: var(--shu-info-fg); border: 0; }
 		.wp-run:hover { filter: brightness(1.1); }
-	`];
+	`,
+	];
 
 	render(): TemplateResult {
 		const loading = this.state.loadState === "fetching";
