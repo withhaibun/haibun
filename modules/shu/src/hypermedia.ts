@@ -24,7 +24,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
 
-/** Wire link: a named action the consumer can invoke next. The shape every spopg/haibun step emits in `_links`. `method` is the full `Stepper-methodName` the server dispatches — the wire contract; each call site names the method it follows, the server rejects unknown methods at runtime. */
+/** Wire link: a named action the consumer can invoke next. The shape every haibun step emits in `_links`. `method` is the full `Stepper-methodName` the server dispatches — the wire contract; each call site names the method it follows, the server rejects unknown methods at runtime. */
 export type TLink = { method: string; params?: Record<string, unknown>; summary?: string };
 
 /** Wire-format Representation of a Resource. Hypermedia markers are optional — a bare projection without `_links` is still a Representation; the type is the wire shape, not a promise of affordances. */

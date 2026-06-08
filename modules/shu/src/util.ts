@@ -116,8 +116,8 @@ export function persistedTypeOf(v: Record<string, unknown>): string {
  * meaning (no rel) and should not appear in field tables.
  * Anything domain-meaningful (body, hasBody, accessLevel, …) lives in
  * `LinkRelations` with a `presentation` hint instead.
- * `STORED_TYPE_PROP` is the literal AGE storage property spopg stamps on parsed
- * graph rows — a storage internal, not the wire `persistedAs` field.
+ * `STORED_TYPE_PROP` is the literal storage property the consumer's graph store
+ * stamps on parsed graph rows — a storage internal, not the wire `persistedAs` field.
  */
 export const SPA_PROPS = new Set([STORED_TYPE_PROP]);
 

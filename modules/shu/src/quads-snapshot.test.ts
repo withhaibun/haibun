@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /**
- * The shu app and external clustered viewers (fisheye) ship as separate IIFE
+ * The shu app and external clustered viewers ship as separate IIFE
  * bundles. Each carries its own copy of this module's *bindings*, but the
  * live store (cache, listeners, viewContext) is hoisted to a `globalThis`
  * singleton. That means a `setSelectedSubject` call from the shu app's bundle
- * notifies subscribers registered in the fisheye bundle, and one HTTP fetch
+ * notifies subscribers registered in an external viewer bundle, and one HTTP fetch
  * populates one in-memory snapshot regardless of how many bundles are
  * importing the module.
  *
