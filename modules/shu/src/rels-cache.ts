@@ -174,6 +174,11 @@ export function hasSelectValues(label: string): boolean {
 	return selectCache.has(label);
 }
 
+/** Check if a label holds at least one non-empty select-value list — usable dropdown options, as opposed to a cached-empty result fetched before the data existed. */
+export function hasUsableSelectValues(label: string): boolean {
+	return Object.values(getSelectValues(label)).some((v) => v.length > 0);
+}
+
 // --- Concern catalog (for haibun domain discovery) ---
 
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
