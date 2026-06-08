@@ -9,13 +9,37 @@ import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
-import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
+import { getJsonLdContext, buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { isContentPropertyDef, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 import { SHU_TYPE } from "./consts.js";
-import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
+import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
+import { buildMermaidSource, buildClassifier, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type TBuildResult } from "./mermaid-source.js";
+import { siteMetadataFromConcerns } from "./rels-cache.js";
+import { renderMermaidToSvg } from "./mermaid-render.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
+
+/**
+ * Build the SPA graph's mermaid source server-side from the persisted quads, using the same classifier the SPA
+ * derives from the concern catalog. The SPA computes the identical source client-side; this is the one place the
+ * server reproduces it (for `get graph layout` and for baking the offline report's graph). `hiddenGraphs` filters
+ * clusters: empty shows everything, INSTRUMENTATION_GRAPHS yields the curated view.
+ */
+export async function buildGraphSource(world: TWorld, hiddenGraphs: Set<string>): Promise<(TBuildResult & { clusters: Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"]; quads: TQuad[] }) | undefined> {
+	const store = world.shared.getStore();
+	if (!store.getClusteredQuads) return undefined;
+	const { quads, clusters } = await store.getClusteredQuads({ perTypeLimit: 10000 });
+	const catalog = buildConcernCatalog(world.domains);
+	const meta = siteMetadataFromConcerns(catalog);
+	const edgeRelMap: Record<string, string> = {};
+	for (const concern of Object.values(catalog.persisted)) for (const [name, edge] of Object.entries(concern.edges)) edgeRelMap[name] = edge.rel;
+	const classifier = buildClassifier((g) => meta.rels[g], (g) => meta.edgeRanges[g], undefined, edgeRelMap);
+	const labelsByType = new Map(clusters.map((c) => [c.type, c.displayLabels ?? {}]));
+	const opts: TGraphViewOpts = { layout: "TD", hiddenGraphs, expandedGraphs: new Set(), maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH, displayLabel: (g, s) => labelsByType.get(g)?.[s] };
+	return { ...buildMermaidSource(quads as TQuad[], opts, classifier), clusters, quads: quads as TQuad[] };
+}
 
 export const DOMAIN_SHU_VIEW_ID = "shu-view-id";
 const DOMAIN_SHU_VIEW_COLLECTION = "shu-view-collection";
@@ -28,6 +52,14 @@ const ShuViewCollectionSchema = z.object({
 const ShuViewCloseSchema = z.object({ view: z.string() });
 const ShuSelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
 
+// Nodes and edges as pipe-delimited tokens — node `graph|subject|label`, edge `source|predicate|target` —
+// so a feature can match a relationship without parsing mermaid (e.g. `matches g.edges with "*|discloses|*"`).
+const GraphLayoutSchema = z.object({
+	nodes: z.array(z.string()),
+	edges: z.array(z.string()),
+	clusters: z.array(z.object({ type: z.string(), total: z.number(), sampled: z.number() })),
+});
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export function loadBundle(): string {
@@ -39,11 +71,16 @@ export function loadBundle(): string {
 	}
 }
 
-export function buildSpaHtml(basePath: string, bundle: string, hydration: string, extraScripts: string[] = []): string {
-	const extraTags = extraScripts
-		.filter((s) => s.length > 0)
-		.map((s) => `  <script>${s.replaceAll("</", "<\\/")}</script>`)
-		.join("\n");
+/** The bundle for the standalone report: the minified production build (≈half the dev bundle, no sourcemap). Falls back to the sourcemap-stripped dev bundle if the report bundle isn't built yet. */
+export function loadReportBundle(): string {
+	try {
+		return readFileSync(join(__dirname, "..", "build", "shu-report-bundle.js"), "utf-8");
+	} catch {
+		return loadBundle().replace(/\n?\/\/# sourceMappingURL=data:application\/json;[^\n]*/g, "");
+	}
+}
+
+function spaDocument(basePath: string, scriptsHtml: string): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -66,11 +103,39 @@ export function buildSpaHtml(basePath: string, bundle: string, hydration: string
     <main id="shu-main" data-testid="shu-main" data-api-base="${basePath}" style="height:100%;">
     </main>
   </div>
-  <script type="application/json" id="shu-hydration">${hydration.replaceAll("</", "<\\/")}</script>
-${extraTags}
-  <script>${bundle}</script>
+${scriptsHtml}
 </body>
 </html>`;
+}
+
+export function buildSpaHtml(basePath: string, bundle: string, hydration: string, extraScripts: string[] = []): string {
+	const extraTags = extraScripts
+		.filter((s) => s.length > 0)
+		.map((s) => `  <script>${s.replaceAll("</", "<\\/")}</script>`)
+		.join("\n");
+	const scripts = `  <script type="application/json" id="shu-hydration">${hydration.replaceAll("</", "<\\/")}</script>\n${extraTags}\n  <script>${bundle}</script>`;
+	return spaDocument(basePath, scripts);
+}
+
+/**
+ * Offline report: one gzip+base64 payload `{bundle, hydration, scripts}` plus a tiny inflate loader. The loader inflates
+ * it (DecompressionStream), recreates the `#shu-hydration` script the bundle reads, injects the in-view component scripts,
+ * then the bundle (which boots via app.ts's readyState check). Compressing the whole payload is what keeps the file small;
+ * base64 contains no `</` so it needs no escaping.
+ */
+export function buildReportHtml(basePath: string, payloadBase64: string): string {
+	const loader = `  <script type="application/octet-stream" id="shu-payload">${payloadBase64}</script>
+  <script>
+  (async () => {
+    const raw = Uint8Array.from(atob(document.getElementById("shu-payload").textContent), (c) => c.charCodeAt(0));
+    const text = await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+    const { bundle, hydration, scripts } = JSON.parse(text);
+    const h = document.createElement("script"); h.type = "application/json"; h.id = "shu-hydration"; h.textContent = hydration; document.body.appendChild(h);
+    for (const s of scripts) { const el = document.createElement("script"); el.textContent = s; document.body.appendChild(el); }
+    const b = document.createElement("script"); b.textContent = bundle; document.body.appendChild(b);
+  })();
+  </script>`;
+	return spaDocument(basePath, loader);
 }
 
 function createSpaHandler(basePath: string, hydration: string) {
@@ -212,6 +277,25 @@ export default class ShuStepper extends AStepper {
 			gwta: `close view {id: ${DOMAIN_SHU_VIEW_ID}}`,
 			productsDomain: DOMAIN_SHU_VIEW_CLOSE,
 			action: ({ id }: { id: string }) => actionOKWithProducts({ view: id }),
+		},
+		getGraphLayout: {
+			gwta: "get graph layout",
+			productsSchema: GraphLayoutSchema,
+			action: async () => {
+				const built = await buildGraphSource(this.getWorld(), new Set());
+				if (!built) return actionNotOK("QuadStore does not support getClusteredQuads");
+				const { nodeMap, diagnostics, clusters } = built;
+				const labelOf = (g: string, s: string) => clusters.find((c) => c.type === g)?.displayLabels?.[s] ?? s;
+				const nodes = [...nodeMap.values()].map((n) => `${n.graph}|${n.subject}|${labelOf(n.graph, n.subject)}`);
+				const edges = diagnostics.edges.filter((e) => e.drawn).map((e) => `${e.source}|${e.predicate}|${e.object}`);
+				const layoutClusters = clusters.map((c) => ({ type: c.type, total: c.totalCount, sampled: c.sampledCount }));
+				return actionOKWithProducts({ nodes, edges, clusters: layoutClusters });
+			},
+		},
+		renderMermaid: {
+			gwta: "render mermaid {source: string}",
+			productsSchema: z.object({ svg: z.string() }),
+			action: async ({ source }: { source: string }) => actionOKWithProducts({ svg: await renderMermaidToSvg(source) }),
 		},
 	} satisfies TStepperSteps;
 }

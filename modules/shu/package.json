@@ -11,7 +11,7 @@
 		"./bundle": "./build/shu-bundle.js"
 	},
 	"scripts": {
-		"build": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --sourcemap=inline --conditions=development",
+		"build": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --sourcemap=inline --conditions=development && esbuild src/app.ts --bundle --outfile=build/shu-report-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
 		"build:prod": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
 		"test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_TOKEN=rpc-protected-token HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_CAPABILITY=TestServer:protected haibun-cli -c ./tests/config.json ./tests",
 		"test": "vitest run",
@@ -23,6 +23,7 @@
 		"@huggingface/transformers": "^4.2.0",
 		"@lit-labs/signals": "^0.3.0",
 		"dompurify": "^3.3.3",
+		"jsdom": "^28.1.0",
 		"lit": "^3.3.3",
 		"markdown-it": "^14.0.0",
 		"mermaid": "^11.14.0",
