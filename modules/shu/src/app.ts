@@ -6,6 +6,7 @@ import { SHU_EVENT, SHU_ATTR } from "./consts.js";
  * Each pane is resizable and independently rendered.
  */
 import { hydrateFromDom, isStandaloneMode, getHydratedViewHash } from "./rpc-registry.js";
+import { getCachedResponse } from "./rpc-cache.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
@@ -103,6 +104,9 @@ const main = async (): Promise<void> => {
 	// Install the conduit + event-stream pair before anything else; every component reads via the accessor and would otherwise throw on first use. The Conduit identity (Serialized vs Live) is from this point the single source of truth for "is the SPA offline" — callers read `isOffline()` from hypermedia.ts.
 	if (standalone) {
 		const offlineDispatch: TDispatch = (method, params) => {
+			// Serve responses captured during the live run (embedded in the report) — including the server-rendered graph SVG.
+			const { found, value } = getCachedResponse(method, params ?? {});
+			if (found) return value;
 			throw new Error(`shu offline mode: no captured response for ${method} ${JSON.stringify(params).slice(0, 200)}`);
 		};
 		setConduit(new SerializedConduit(offlineDispatch));
@@ -285,7 +289,7 @@ const main = async (): Promise<void> => {
 			throw new Error(`[shu] concern for ${childTag} has no ui.js script URL`);
 		}
 		const src = js.startsWith("/") ? js : `/${js}`;
-		reportExternalComponent("info", "fetch", childTag, { "haibun.shu.external-component.url": src });
+		reportExternalComponent("debug", "fetch", childTag, { "haibun.shu.external-component.url": src });
 		try {
 			await import(src);
 		} catch (err) {
@@ -435,7 +439,7 @@ const main = async (): Promise<void> => {
 				}
 				syncBuffer.clear();
 				syncDebounce = null;
-				reportClientLog("info", `Synced ${parts.join(", ")}`);
+				reportClientLog("debug", `Synced ${parts.join(", ")}`);
 			}, SYNC_DEBOUNCE_MS);
 		}) as EventListener,
 		{ signal },

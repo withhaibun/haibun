@@ -9,6 +9,7 @@ import { allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haib
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
+import { rpcCacheKey } from "@haibun/core/lib/rpc-cache-key.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
 import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
@@ -269,6 +270,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						});
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
+						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
+						// log them at trace so they don't bury the run's own steps in the timeline. Still visible at debug.
+						featureStep.isSubStep = true;
 						const hr = await dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep);
 						if (hr.ok) {
 							const result = hr.products ?? { ok: true };
@@ -326,8 +330,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 
 	private cacheRpcResponse(method: string, params: Record<string, unknown>, result: unknown): void {
 		const cache = (this.getWorld().runtime[RPC_CACHE] ??= {}) as Record<string, unknown>;
-		const key = Object.keys(params).length === 0 ? method : `${method}:${JSON.stringify(params)}`;
-		cache[key] = result;
+		cache[rpcCacheKey(method, params)] = result;
 	}
 }
 
