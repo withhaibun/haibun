@@ -1,5 +1,5 @@
-import mermaid from "mermaid";
-
+import { conduit } from "../hypermedia.js";
+import { requireStep } from "../rpc-registry.js";
 import { SHU_EVENT } from "../consts.js";
 import type { IGraphRenderer, TGraph, TGraphEdge, TGraphNode, TGraphRenderOptions } from "./types.js";
 
@@ -172,23 +172,6 @@ export function buildMermaidSource(graph: TGraph, options?: TGraphRenderOptions)
 	return lines.join("\n");
 }
 
-let mermaidInitialised = false;
-let renderCounter = 0;
-
-function ensureMermaidInitialised(): void {
-	if (mermaidInitialised) return;
-	mermaid.initialize({
-		startOnLoad: false,
-		theme: "default",
-		securityLevel: "loose",
-		fontFamily: "ui-sans-serif, system-ui, sans-serif",
-		maxTextSize: 1_000_000,
-		maxEdges: 5000,
-		flowchart: { htmlLabels: true },
-	});
-	mermaidInitialised = true;
-}
-
 /**
  * Renderer that paints the graph as Mermaid-rendered SVG. The container's
  * contents are replaced on each render. Node-click is wired so each node's
@@ -197,11 +180,10 @@ function ensureMermaidInitialised(): void {
  */
 export class MermaidGraphRenderer implements IGraphRenderer {
 	async render(graph: TGraph, container: HTMLElement, options?: TGraphRenderOptions): Promise<void> {
-		ensureMermaidInitialised();
 		const source = buildMermaidSource(graph, options);
-		const id = `shu-graph-${++renderCounter}`;
 		try {
-			const { svg } = await mermaid.render(id, source);
+			// mermaid renders server-side; the SVG keeps mermaid's structure so wireNodeClicks works unchanged.
+			const { svg } = await conduit().follow<{ svg: string }>({ method: requireStep("renderMermaid"), params: { source } }, "graph-renderer: render mermaid");
 			container.innerHTML = svg;
 			this.wireNodeClicks(graph, container);
 		} catch (err) {
