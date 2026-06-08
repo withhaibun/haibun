@@ -2,7 +2,7 @@
  * Signed-capability path of AuthorityStepper: `as subkey holding capability {cap} at {target}, {what}`.
  * Mirrors the bearer `as subkey` attribution test, but the principal is proven by a *signed* capability
  * verified through a registered IZcapVerifier (a test double here — haibun-core stays crypto-free; the
- * ZCAP-LD verifier lives in the consumer, spopg). On verified, the capability's controller becomes the
+ * ZCAP-LD verifier lives in the consumer). On verified, the capability's controller becomes the
  * principal so authored writes are attributed to it.
  */
 import { describe, expect, it } from "vitest";

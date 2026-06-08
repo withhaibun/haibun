@@ -90,7 +90,7 @@ export function parseAffordanceProduct(product: unknown): TAffordanceProductActi
 	}
 	if (typeof parsed[PRODUCT_KEY.COMPONENT] === "string") {
 		const component = requiredString(parsed[PRODUCT_KEY.COMPONENT], "Affordance component product requires string _component");
-		// `id` carries a per-instance identity for multi-pane components (e.g. fisheye uses
+		// `id` carries a per-instance identity for multi-pane components (e.g. a clustered viewer uses
 		// `<component>:<uuid>`). Singleton views (graph, monitor, sequence) only set `view`.
 		// Either form is sufficient — prefer `id`, fall back to `view`.
 		const idOrView = parsed[PRODUCT_KEY.ID] ?? parsed[PRODUCT_KEY.VIEW];

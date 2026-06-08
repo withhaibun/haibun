@@ -33,7 +33,7 @@
  * `EventSource` directly.
  *
  * Light DOM: components that must live in the host's light DOM (e.g.
- * A-Frame embeddings whose `document.querySelector` lookups need to
+ * embedded 3D scenes whose `document.querySelector` lookups need to
  * resolve their children) override `createRenderRoot()` to return `this`.
  */
 

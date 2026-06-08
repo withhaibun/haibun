@@ -20,7 +20,7 @@
  *     at one point in the timeline and disappears entirely before the first
  *     Kihan node arrives.
  *
- * Hosts (graph-view, fisheye) keep their own `knownClusters` map and quads;
+ * Hosts (graph-view and external viewers) keep their own `knownClusters` map and quads;
  * this projection is a pure function so each view's render can call it and
  * hand the result straight to `filterEl.setClusters(...)`.
  */
