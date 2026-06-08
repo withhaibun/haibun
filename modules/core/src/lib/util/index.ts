@@ -23,7 +23,12 @@ export const basesFrom = (s: string | undefined): string[] => s?.split(",").map(
 
 export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
-	return { ok: false, errorMessage, artifact, controlSignal };
+	// Callers sometimes pass a caught Error (the param is typed string, but TS can't enforce that at the throw site).
+	// Coerce to the message string so errorMessage is always a string: the failure text is preserved, and string-typed
+	// consumers (the event-log schema) validate it instead of rejecting a non-string and reporting that in place of the real error.
+	const raw = errorMessage as unknown;
+	const message = typeof raw === "string" ? raw : raw instanceof Error ? raw.message : String(raw);
+	return { ok: false, errorMessage: message, artifact, controlSignal };
 }
 export function randomString() {
 	return ["rnd", Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join("_");

@@ -387,7 +387,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 			steps = {
 				stream3: {
 					gwta: "emit three streaming chunks",
-					action: async () => {
+					action: () => {
 						const sctx = streamContext.getStore();
 						sctx?.emit({ status: "starting" });
 						sctx?.emit({ text: "alpha" });
