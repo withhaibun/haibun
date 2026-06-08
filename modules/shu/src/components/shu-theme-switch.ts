@@ -1,5 +1,5 @@
 /**
- * <shu-theme-switch> — Floating control panel for theme + scale.
+ * <shu-theme-switch> — Theme + scale control cluster, shown in the actions bar's settings popover.
  *
  * Sets `data-theme` on documentElement (resolved by SHU_TOKENS via :root[data-theme="…"])
  * and writes `--shu-scale` as a custom property on the root, which every SHU component
@@ -47,17 +47,13 @@ export function applyShuPreferences(): void {
 }
 
 export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host {
-			position: fixed; bottom: var(--shu-space-4); right: var(--shu-space-4);
-			z-index: 9999;
 			display: inline-flex; align-items: center; gap: var(--shu-space-2);
-			padding: var(--shu-space-2) var(--shu-space-3);
-			background: var(--shu-bg-elevated);
+			flex-wrap: wrap;
 			color: var(--shu-fg);
-			border: var(--shu-border-w) solid var(--shu-border);
-			border-radius: var(--shu-radius);
-			box-shadow: 0 1px 4px var(--shu-shadow);
 			font: inherit; font-size: var(--shu-font-sm);
 			user-select: none;
 		}
@@ -85,7 +81,8 @@ export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 		}
 		.group > button:hover:not([aria-pressed="true"]) { background: var(--shu-bg-hover); color: var(--shu-fg); }
 		.label { color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); }
-	`];
+	`,
+	];
 
 	constructor() {
 		super(ThemeSwitchSchema, { theme: readTheme(), scale: readScale() });
