@@ -51,6 +51,8 @@ export interface TQuad {
 	predicate: string;
 	object: unknown;
 	namedGraph: string;
+	/** For edge quads: the declared type (range) of the target node. Lets a renderer resolve an edge to the exact (type, id) node instead of guessing by id — necessary when one id exists under several types (e.g. a DID that is both a Principal and an Issuer). */
+	objectType?: string;
 	timestamp: number;
 	properties?: Record<string, unknown>;
 }
@@ -89,6 +91,7 @@ export function extractQuadsFromEvents(events: Record<string, unknown>[]): TQuad
 				predicate: q.predicate,
 				object: q.object,
 				namedGraph: q.namedGraph,
+				objectType: q.objectType,
 				timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(),
 				properties: q.properties,
 			});
