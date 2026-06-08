@@ -511,6 +511,9 @@ export const LogEvent = BaseEvent.extend({
 // Artifact Events - Base
 const BaseArtifact = BaseEvent.extend({
 	kind: z.literal("artifact"),
+	// Path relative to the feature dir (e.g. "./image/x.png"). The serialized report's shu.html lives in that dir, so it
+	// references artifacts by this short relative path; `path` carries the base-relative form for the live /artifacts route.
+	featureRelativePath: z.string().optional(),
 });
 
 // Artifact Subtypes
