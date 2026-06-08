@@ -299,16 +299,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		for (const [label, ui] of Object.entries(meta.ui)) {
 			if (ui.slot === "action-bar-chat" && ui.js) slotted.push([label, ui]);
 		}
-		this.reportActionsBar("info", `loadUiExtensions: ${slotted.length} action-bar slot extensions found`, { count: slotted.length });
+		this.reportActionsBar("debug", `loadUiExtensions: ${slotted.length} action-bar slot extensions found`, { count: slotted.length });
 		for (const [label, ui] of slotted) {
 			const raw = String(ui.js);
 			const apiBase = this.getAttribute("api-base") || "";
 			const jsUrl = raw.startsWith("http") || raw.startsWith("/") ? raw : `${apiBase}/${raw}`;
-			this.reportActionsBar("info", `loading action-bar slot extension for ${label} from ${jsUrl}`, { label, jsUrl });
+			this.reportActionsBar("debug", `loading action-bar slot extension for ${label} from ${jsUrl}`, { label, jsUrl });
 			try {
 				await import(jsUrl);
 				this.requestUpdate();
-				this.reportActionsBar("info", `loaded action-bar slot extension for ${label}`, { label, jsUrl });
+				this.reportActionsBar("debug", `loaded action-bar slot extension for ${label}`, { label, jsUrl });
 			} catch (e) {
 				const message = `Failed to load UI extension for ${label} from ${jsUrl}: ${errMsg(e)}`;
 				this.reportActionsBar("error", message, { label, jsUrl, error: errMsg(e) });
@@ -318,7 +318,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (errors.length > 0) throw new Error(errors.join("\n"));
 	}
 
-	private reportActionsBar(level: "info" | "warn" | "error", message: string, attributes: Record<string, unknown> = {}): void {
+	private reportActionsBar(level: "debug" | "info" | "warn" | "error", message: string, attributes: Record<string, unknown> = {}): void {
 		void conduit()
 			.follow(
 				{
