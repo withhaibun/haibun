@@ -17,6 +17,7 @@ import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { SHU_ATTR, SHU_EVENT } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
+import { savedColumnWidth } from "./column-widths.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 
@@ -318,6 +319,9 @@ class PaneStateImpl {
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnTypeFor(d));
 		// Default unpinned: only explicitly pinned panes survive a Miller-column prune.
 		pane.dataset.columnKey = id;
+		// Restore a width the user previously set for this column, so a reload keeps their chosen sizing.
+		const savedWidth = savedColumnWidth(id);
+		if (savedWidth !== undefined) pane.setWidth(savedWidth);
 		this.strip.addPane(pane);
 		const child = document.createElement(tag);
 		if (readShowControlsCookie(tag)) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");

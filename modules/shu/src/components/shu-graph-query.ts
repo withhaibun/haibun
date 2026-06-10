@@ -22,9 +22,12 @@ type ConditionRow = TSearchCondition;
 type VertexRow = Record<string, unknown>;
 
 export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: block; color: var(--shu-fg); }
-	`];
+	`,
+	];
 
 	static schema = QueryViewSchema;
 	static domainSelector = "shu-graph-query";
@@ -85,7 +88,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	/** Apply filters from the actions bar and re-execute the query. */
 	setFilters(filters: { accessLevel?: string; label?: string; textQuery?: string; conditions?: TSearchCondition[] }): void {
 		if (filters.accessLevel !== undefined) this.accessLevel = filters.accessLevel;
-		if (filters.label !== undefined) this.state = { ...this.state, label: filters.label || undefined };
+		if (filters.label !== undefined) {
+			const nextLabel = filters.label || undefined;
+			// Sort columns are label-specific — the server rejects a sortBy not in the new label's topology.sortColumns
+			// — so switching type drops any sort carried over from the previous type (the new label sorts by its default).
+			this.state = nextLabel !== this.state.label ? { ...this.state, label: nextLabel, sortBy: undefined } : { ...this.state, label: nextLabel };
+		}
 		if (filters.textQuery !== undefined) this.state = { ...this.state, textQuery: filters.textQuery || undefined };
 		if (filters.conditions) this.conditions = filters.conditions;
 		this.offset = 0;
@@ -268,6 +276,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				this.results = data.vertices ?? [];
 				this.total = data.total ?? this.results.length;
 				this.sortableFields = data.sort?.fields ?? [];
+				// Reflect the server's resolved sort — including the per-type default the client didn't explicitly pick — so the result-table indicator highlights the active column.
+				if (data.sort?.current?.field && !this.state.sortBy) this.state = { ...this.state, sortBy: data.sort.current.field, sortOrder: data.sort.current.order };
 				if (data.cypher) {
 					const pane = this.closest("shu-column-pane");
 					if (pane) pane.setAttribute("label", data.cypher);

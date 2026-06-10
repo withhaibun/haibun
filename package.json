@@ -38,7 +38,7 @@
 		"build-watch:monitor-browser": "npm run dev -w @haibun/monitor-browser",
 		"build": "npm run build --workspaces --if-present && npm run postbuild",
 		"postbuild": "node scripts/chmod-shebangs.mjs",
-		"build-watch": "concurrently \"npm:build-watch:tsc\" \"npm:build-watch:monitor-browser\"",
+		"build-watch": "concurrently \"npm:build-watch:tsc\" \"npm:build-watch:monitor-browser\" \"npm:build-watch:shu-bundles\"",
 		"format": "biome format --write .",
 		"lint": "biome lint .",
 		"check": "biome check .",
@@ -58,7 +58,8 @@
 		"publish-all": "node scripts/publish-all.mjs",
 		"publish-all:alpha": "node scripts/publish-all.mjs alpha",
 		"publish-all:beta": "node scripts/publish-all.mjs beta",
-		"publish-all:rc": "node scripts/publish-all.mjs rc"
+		"publish-all:rc": "node scripts/publish-all.mjs rc",
+		"build-watch:shu-bundles": "npm run bundle:watch -w @haibun/shu"
 	},
 	"version": "4.0.0-alpha.3",
 	"overrides": {

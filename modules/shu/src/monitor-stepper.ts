@@ -11,6 +11,7 @@ import { gzipSync } from "node:zlib";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
+import { AccessLevelSchema } from "@haibun/core/lib/resources.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -65,7 +66,10 @@ function slimReportEvent(e: TReportEvent): TReportEvent | null {
 export function inlineScriptsForView(domains: Record<string, unknown>, finalViewComponents: Set<string>): string[] {
 	return Object.values(domains)
 		.map((d) => (d as { ui?: { component?: string; jsContent?: string } } | undefined)?.ui)
-		.filter((u): u is { component: string; jsContent: string } => typeof u?.jsContent === "string" && u.jsContent.length > 0 && typeof u.component === "string" && finalViewComponents.has(u.component))
+		.filter(
+			(u): u is { component: string; jsContent: string } =>
+				typeof u?.jsContent === "string" && u.jsContent.length > 0 && typeof u.component === "string" && finalViewComponents.has(u.component),
+		)
 		.map((u) => u.jsContent);
 }
 
@@ -409,11 +413,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		getClusteredQuads: {
 			gwta: "get clustered quads",
 			productsSchema: ClusteredQuadsSchema,
-			action: async (args: { perTypeLimit?: number | string; types?: string[] | string } = {}) => {
+			action: async (args: { perTypeLimit?: number | string; types?: string[] | string; accessLevel?: string } = {}) => {
 				const store = this.getWorld().shared.getStore();
 				// RPC params arrive stringified through the synthetic-step plumbing; coerce both back to native shapes.
 				const limitNum = typeof args.perTypeLimit === "string" ? Number(args.perTypeLimit) : args.perTypeLimit;
 				const perTypeLimit = Math.max(1, Math.min(10000, Number.isFinite(limitNum) ? (limitNum as number) : 100));
+				// Required, same as the dereference/query paths — no default ceiling, so the cluster view honors the caller's access exactly.
+				const accessLevel = AccessLevelSchema.parse(args.accessLevel);
 				let types: string[] | undefined;
 				if (Array.isArray(args.types)) types = args.types;
 				else if (typeof args.types === "string" && args.types.length > 0) {
@@ -427,7 +433,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (!store.getClusteredQuads) {
 					return actionNotOK("QuadStore does not support getClusteredQuads");
 				}
-				const result = await store.getClusteredQuads({ perTypeLimit, types });
+				const result = await store.getClusteredQuads({ perTypeLimit, types, accessLevel });
 				// The store is canonical; only surface observation quads whose
 				// (namedGraph,subject,predicate,object) isn't already in the store result,
 				// so each fact appears exactly once.
