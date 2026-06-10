@@ -37,7 +37,7 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 		for (const q of opts.allQuads) {
 			if (seen.has(q.namedGraph)) continue;
 			seen.add(q.namedGraph);
-			merged.push({ type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [] });
+			merged.push({ type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [], displayLabels: {} });
 		}
 		return merged;
 	}
@@ -53,7 +53,11 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 	const clusters: TCluster[] = [];
 	for (const [type, subs] of subjectsByType) {
 		const sampledSubjects = [...subs];
-		clusters.push({ type, totalCount: sampledSubjects.length, sampledCount: sampledSubjects.length, omittedCount: 0, sampledSubjects });
+		// Carry over the source cluster's labels for the still-visible subjects.
+		const sourceLabels = opts.knownClusters.get(type)?.displayLabels ?? {};
+		const displayLabels: Record<string, string> = {};
+		for (const s of sampledSubjects) if (sourceLabels[s] !== undefined) displayLabels[s] = sourceLabels[s];
+		clusters.push({ type, totalCount: sampledSubjects.length, sampledCount: sampledSubjects.length, omittedCount: 0, sampledSubjects, displayLabels });
 	}
 	return clusters;
 }

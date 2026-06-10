@@ -19,6 +19,7 @@ import { getUiByComponent, getUiByType } from "./rels-cache.js";
 import { parseAffordanceProduct } from "./affordance-products.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
 import { PaneState } from "./pane-state.js";
+import { saveColumnWidth } from "./column-widths.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
@@ -334,13 +335,18 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Column resize → persist query pane width to cookie
+	// Column resize → persist the new width so a reload keeps it. The query pane is the fixed root (its own cookie);
+	// every other column persists by its columnKey, restored when the column reopens (see PaneState.openPane).
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_RESIZE,
 		((e: CustomEvent) => {
-			const pane = (e.target as HTMLElement)?.closest("shu-column-pane");
-			if (pane?.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query" && e.detail?.width) {
-				document.cookie = `${QUERY_WIDTH_COOKIE}=${e.detail.width}; path=/; max-age=${60 * 60 * 24 * 365}`;
+			const pane = (e.target as HTMLElement)?.closest("shu-column-pane") as HTMLElement | null;
+			const width = e.detail?.width;
+			if (!pane || typeof width !== "number") return;
+			if (pane.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query") {
+				document.cookie = `${QUERY_WIDTH_COOKIE}=${width}; path=/; max-age=${60 * 60 * 24 * 365}`;
+			} else if (pane.dataset.columnKey) {
+				saveColumnWidth(pane.dataset.columnKey, width);
 			}
 		}) as EventListener,
 		{ signal },

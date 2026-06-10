@@ -49,7 +49,9 @@ function readToolLimitCookie(): number {
 const ChatSchema = z.object({});
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; overflow: hidden; }
 		.chat-output {
 			font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4);
@@ -92,7 +94,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			font-size: var(--shu-font-sm); color: var(--shu-fg-muted); flex: 0 0 auto;
 		}
 		.tool-limit { width: 4em; font-size: var(--shu-font-sm); }
-		.send-btn, .stop-btn, .save-btn {
+		.send-btn, .stop-btn {
 			padding: var(--shu-space-1) var(--shu-space-4); border: var(--shu-border-w) solid transparent;
 			border-radius: var(--shu-radius); font: inherit; font-size: var(--shu-font-md);
 			cursor: pointer; flex-shrink: 0; min-height: var(--shu-input-h);
@@ -101,16 +103,14 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		.send-btn:hover { filter: brightness(1.1); }
 		.stop-btn { background: var(--shu-error); color: var(--shu-accent-fg); border-color: var(--shu-error); }
 		.stop-btn:hover { filter: brightness(1.1); }
-		.save-btn { background: var(--shu-accent); color: var(--shu-accent-fg); border-color: var(--shu-accent); }
-		.save-btn:hover { filter: brightness(1.1); }
-	`];
+	`,
+	];
 	static schema = ChatSchema;
 	static domainSelector = "shu-kihan-chat";
 
-	private _models: Array<{ id: string }> = [];
+	private _models: Array<{ id: string; displayName?: string }> = [];
 	private _selectedModel = "";
 	private _toolLimit: number = readToolLimitCookie();
-	private _lastPrompt = "";
 	private _fullText = "";
 	private _abortController: AbortController | null = null;
 	private _sessionSeqPath: string | null = null;
@@ -120,7 +120,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private _messages: TChatMessage[] = [];
 	private _msgCounter = 0;
 	private _streaming = false;
-	private _showSave = false;
 	private _scrollPending = false;
 	private _flushScheduled = false;
 	private _flushId: string | null = null;
@@ -211,7 +210,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this._messages = messages;
 		// Thread the next turn onto this session's last reply (and clear any prior session's value) so inReplyTo points within the loaded session, never null on the first post-hydration turn nor across sessions.
 		this._lastReplySeqPath = data.turns.length > 0 ? data.turns[data.turns.length - 1].seqPath : null;
-		this._showSave = false;
 		this._scrollPending = true;
 		this.requestUpdate();
 	}
@@ -264,7 +262,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		if (this._models.length > 0) return;
 		await getAvailableSteps();
 		if (!findStep("showKihans")) return;
-		const data = await conduit().follow<{ vertices: Array<{ id: string }> }>({ method: requireStep("showKihans") }, "kihan-chat: load model catalog");
+		const data = await conduit().follow<{ vertices: Array<{ id: string; displayName?: string }> }>({ method: requireStep("showKihans") }, "kihan-chat: load model catalog");
 		if (data.vertices) {
 			this._models = data.vertices;
 			if (this._models.length > 0 && !this._selectedModel) {
@@ -281,7 +279,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const uiExtensionTags = getActionBarChatExtensionTags();
 		return html`
 			<div class="chat-output" data-testid=${`${this.testIdPrefix}chat-output`}>
-				${repeat(this._messages, (m) => m.id, (m) => html`<shu-chat-message .message=${m}></shu-chat-message>`)}
+				${repeat(
+					this._messages,
+					(m) => m.id,
+					(m) => html`<shu-chat-message .message=${m}></shu-chat-message>`,
+				)}
 			</div>
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
@@ -295,7 +297,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				${unsafeHTML(uiExtensionTags.map((tag) => `<${tag}></${tag}>`).join(""))}
 				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${this._streaming ? "display:none" : ""} @click=${this.submitChat}>Send</button>
 				<button type="button" class="stop-btn" data-testid=${`${this.testIdPrefix}chat-stop`} style=${this._streaming ? "" : "display:none"} @click=${this.onStop}>Stop</button>
-				<button type="button" class="save-btn" data-testid=${`${this.testIdPrefix}save-summary`} style=${this._showSave ? "" : "display:none"} @click=${this.onSave}>Save</button>
 			</div>
 		`;
 	}
@@ -316,7 +317,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this._comboSig = sig;
 		const modelCombo = this.shadowRoot?.querySelector(".model-select") as ShuCombobox | null;
 		if (modelCombo) {
-			modelCombo.setOptions(this._models.map((m) => ({ value: m.id, label: m.id })));
+			modelCombo.setOptions(this._models.map((m) => ({ value: m.id, label: m.displayName || m.id })));
 			if (this._selectedModel) modelCombo.setValue(this._selectedModel);
 		}
 		const sessionCombo = this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null;
@@ -362,10 +363,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private onStop = (): void => {
 		this._abortController?.abort();
 	};
-	private onSave = (): void => {
-		void this.handleSave();
-	};
-
 	private nextId(): string {
 		return `m${++this._msgCounter}`;
 	}
@@ -404,9 +401,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		await getAvailableSteps();
 		await this.loadModels();
 
-		this._lastPrompt = prompt;
 		this._fullText = "";
-		this._showSave = false;
 		this._streaming = true;
 		this._scrollPending = true;
 		this._abortController = new AbortController();
@@ -452,7 +447,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			this.flushTextNow(aiId, accumulated);
 			this._fullText = accumulated;
 			this.patchMessage(aiId, { status: "completed" });
-			if (this._fullText) this._showSave = true;
 			if (turnSeqPath) {
 				if (!this._sessionSeqPath) {
 					this._sessionSeqPath = turnSeqPath;
@@ -477,42 +471,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			this._abortController = null;
 			this._scrollPending = true;
 			this.requestUpdate();
-		}
-	}
-
-	private async handleSave(): Promise<void> {
-		if (!this._fullText || !this._lastPrompt) return;
-		await getAvailableSteps();
-		const saveBtn = this.shadowRoot?.querySelector(".save-btn") as HTMLButtonElement | null;
-		if (saveBtn) {
-			saveBtn.disabled = true;
-			saveBtn.textContent = "Saving...";
-		}
-		try {
-			await conduit().follow(
-				{
-					method: requireStep("saveSummary"),
-					params: {
-						topic: this._lastPrompt.slice(0, 80),
-						content: this._fullText,
-						prompt: this._lastPrompt,
-						conditions: {
-							conditions: this._filterConditions,
-							label: this._selectedLabel,
-							textQuery: this._textSearch,
-						},
-						accessLevel: this._contextAccessLevel || Access.private,
-					},
-				},
-				"kihan-chat: save summary",
-			);
-			if (saveBtn) saveBtn.textContent = "Saved";
-		} catch (err) {
-			if (saveBtn) {
-				saveBtn.disabled = false;
-				saveBtn.textContent = "Save";
-			}
-			this.appendMessages(ChatMessageSchema.parse({ id: this.nextId(), role: "llm", error: `Save failed: ${errMsg(err)}` }));
 		}
 	}
 }
