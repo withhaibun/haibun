@@ -1,6 +1,10 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { displayLabelForQuads } from "@haibun/core/lib/hypermedia.js";
+import { BODY_LABEL } from "@haibun/core/lib/resources.js";
+import { appAccessLevel } from "./util.js";
 import { conduit } from "./hypermedia.js";
+import { getRels } from "./rels-cache.js";
 import { getAvailableSteps } from "./rpc-registry.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
@@ -18,7 +22,25 @@ export type TViewContext = { activeViewId: string | null; selectedSubject: strin
 /** Subscribers fired after the cached snapshot or shared view-context changes. */
 type SnapshotListener = (snapshot: TGraphSnapshot | null, context: TViewContext) => void;
 
-type CacheEntry = { snapshot: TGraphSnapshot; perTypeLimit: number; typesKey: string };
+type CacheEntry = {
+	snapshot: TGraphSnapshot;
+	perTypeLimit: number;
+	typesKey: string;
+	/** Visibility ceiling the snapshot was fetched under; a change refetches so the view never shows nodes the new ceiling hides. */
+	accessLevel: string;
+	/** Dedup index `(namedGraph|subject|predicate) → snapshot quad index`, maintained incrementally so a merge never rescans `snapshot.quads`. */
+	quadIndex: Map<string, number>;
+	/** Subjects the user explicitly expanded (node-neighborhood fetch). Retained in the working set regardless of the per-type budget; never evicted by streamed data. */
+	pinned: Set<string>;
+};
+
+const quadKey = (q: TQuad): string => `${q.namedGraph}|${q.subject}|${q.predicate}`;
+
+function buildQuadIndex(quads: TQuad[]): Map<string, number> {
+	const index = new Map<string, number>();
+	for (let i = 0; i < quads.length; i++) index.set(quadKey(quads[i]), i);
+	return index;
+}
 
 /**
  * Underlying store. The cache, view context, and listener set live here so a
@@ -156,7 +178,9 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 	const s = getStore();
 	const perTypeLimit = opts.perTypeLimit ?? DEFAULT_PER_TYPE_LIMIT;
 	const tk = typesKey(opts.types);
-	if (opts.forceRefresh || !s.cache || s.cache.perTypeLimit !== perTypeLimit || s.cache.typesKey !== tk) {
+	const accessLevel = appAccessLevel();
+	const priorPinned = s.cache?.pinned;
+	if (opts.forceRefresh || !s.cache || s.cache.perTypeLimit !== perTypeLimit || s.cache.typesKey !== tk || s.cache.accessLevel !== accessLevel) {
 		s.cache = null;
 		s.pending = null;
 	}
@@ -166,12 +190,12 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 		const steps = await getAvailableSteps();
 		if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
 		const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[] }>(
-			{ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types } },
+			{ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types, accessLevel } },
 			"quads-snapshot: fetch clustered quads",
 		);
 		if (!Array.isArray(data.quads)) throw new Error("MonitorStepper-getClusteredQuads returned non-array quads");
 		const snapshot = { quads: data.quads, clusters: data.clusters ?? [] };
-		s.cache = { snapshot, perTypeLimit, typesKey: tk };
+		s.cache = { snapshot, perTypeLimit, typesKey: tk, accessLevel, quadIndex: buildQuadIndex(snapshot.quads), pinned: priorPinned ?? new Set() };
 		notify(s);
 		return snapshot;
 	})();
@@ -188,56 +212,124 @@ export function currentSnapshot(): TGraphSnapshot {
 }
 
 /**
- * Merge newly observed quads into the shared snapshot cache. Updates each
- * affected cluster: a new subject promotes from omitted to sampled (caps at
- * the requested limit; further omitted subjects bump `totalCount`).
+ * Pin subjects into the working set so streamed data can never evict them. Used by
+ * node-expansion: a neighborhood the user explicitly revealed stays visible even
+ * once a type is at its per-type budget. Bounded by how much the user expands.
+ */
+export function pinSubjects(subjects: Iterable<string>): void {
+	const s = getStore();
+	if (!s.cache)
+		s.cache = {
+			snapshot: { quads: [], clusters: [] },
+			perTypeLimit: DEFAULT_PER_TYPE_LIMIT,
+			typesKey: "*",
+			accessLevel: appAccessLevel(),
+			quadIndex: new Map(),
+			pinned: new Set(),
+		};
+	for (const id of subjects) s.cache.pinned.add(id);
+}
+
+/**
+ * Merge newly observed quads into the shared snapshot cache, bounded by the cached
+ * `perTypeLimit` budget: a quad for an already-present subject updates in place; a
+ * brand-new subject is admitted only while its type is under budget (or it is pinned),
+ * otherwise it is counted as omitted and its quad is dropped. So `snapshot.quads`
+ * stays bounded by the budget (+ pinned subjects) no matter how much streams in — the
+ * working set tracks what the user chose to materialize, not total DB size.
+ *
+ * The dedup index lives on the cache and is updated per quad (no rescan of
+ * `snapshot.quads`), and every retained subject is labelled via the shared
+ * `composeDisplayLabel`, so a node's title comes from one rule across all views.
  */
 export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	const s = getStore();
 	if (quads.length === 0) return;
 	// SSE may populate the snapshot before (or without) a getClusteredQuads RPC; start a cache so the merge has somewhere to land.
-	if (!s.cache) s.cache = { snapshot: { quads: [], clusters: [] }, perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*" };
-	const snap = s.cache.snapshot;
+	if (!s.cache)
+		s.cache = {
+			snapshot: { quads: [], clusters: [] },
+			perTypeLimit: DEFAULT_PER_TYPE_LIMIT,
+			typesKey: "*",
+			accessLevel: appAccessLevel(),
+			quadIndex: new Map(),
+			pinned: new Set(),
+		};
+	const { snapshot: snap, quadIndex, pinned, perTypeLimit: budget } = s.cache;
 	const clusterByType = new Map<string, TCluster>();
 	const sampledByType = new Map<string, Set<string>>();
 	for (const c of snap.clusters) {
 		clusterByType.set(c.type, c);
 		sampledByType.set(c.type, new Set(c.sampledSubjects));
 	}
-	// Dedup index by (namedGraph, subject, predicate). The live stream can emit
-	// the same fact twice — graph-store emits the node's property quad on
-	// upsert AND the explicit edge quad on createEdge, and a key like
-	// `assertionMethod` shows up in both. Match the snapshot's behaviour
-	// (`vertexToQuads` drops the property when an edge with the same predicate
-	// exists) by replacing-in-place: the later arrival wins on object + ts.
-	const quadIndex = new Map<string, number>();
-	for (let i = 0; i < snap.quads.length; i++) {
-		const q = snap.quads[i];
-		quadIndex.set(`${q.namedGraph}|${q.subject}|${q.predicate}`, i);
-	}
+	// Count each genuinely-new subject once per call, even when it arrives as many quads — its
+	// later quads (omitted, so unindexed) would otherwise re-inflate totalCount.
+	const countedThisCall = new Set<string>();
+	const touched = new Set<string>();
 	for (const q of quads) {
-		const key = `${q.namedGraph}|${q.subject}|${q.predicate}`;
+		const key = quadKey(q);
 		const existingIdx = quadIndex.get(key);
+		// The live stream can emit the same fact twice (a property quad on upsert and the edge
+		// quad on createEdge); replace in place so the later arrival wins.
 		if (existingIdx !== undefined) {
 			snap.quads[existingIdx] = q;
+			touched.add(q.subject);
 			continue;
 		}
-		quadIndex.set(key, snap.quads.length);
-		snap.quads.push(q);
 		let cluster = clusterByType.get(q.namedGraph);
 		if (!cluster) {
-			cluster = { type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [] };
+			cluster = { type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [], displayLabels: {} };
 			snap.clusters.push(cluster);
 			clusterByType.set(q.namedGraph, cluster);
 			sampledByType.set(q.namedGraph, new Set());
 		}
 		const sampled = sampledByType.get(q.namedGraph) ?? new Set<string>();
-		if (sampled.has(q.subject)) continue;
-		sampled.add(q.subject);
-		cluster.sampledSubjects.push(q.subject);
-		cluster.sampledCount = sampled.size;
-		cluster.totalCount = Math.max(cluster.totalCount + 1, cluster.sampledCount);
+		const known = sampled.has(q.subject) || pinned.has(q.subject);
+		if (!known) {
+			const subjectKey = `${q.namedGraph}|${q.subject}`;
+			if (!countedThisCall.has(subjectKey)) {
+				countedThisCall.add(subjectKey);
+				cluster.totalCount += 1;
+			}
+			if (sampled.size < budget) {
+				sampled.add(q.subject);
+				cluster.sampledSubjects.push(q.subject);
+				cluster.sampledCount = sampled.size;
+			} else {
+				// Type is at budget and the subject isn't pinned — omit it: count it, drop its quad.
+				cluster.omittedCount = Math.max(0, cluster.totalCount - cluster.sampledCount);
+				continue;
+			}
+		}
+		quadIndex.set(key, snap.quads.length);
+		snap.quads.push(q);
 		cluster.omittedCount = Math.max(0, cluster.totalCount - cluster.sampledCount);
+		touched.add(q.subject);
 	}
+	relabelTouched(snap, clusterByType, touched);
 	notify(s);
+}
+
+/** Recompute `displayLabels` for the subjects a merge touched, via the one shared rule. */
+function relabelTouched(snap: TGraphSnapshot, clusterByType: Map<string, TCluster>, touched: Set<string>): void {
+	if (touched.size === 0) return;
+	// Body content + each touched subject's quads, gathered in one pass over the (bounded) snapshot.
+	const bodyContentBySubject = new Map<string, string>();
+	const quadsBySubject = new Map<string, TQuad[]>();
+	for (const q of snap.quads) {
+		if (q.namedGraph === BODY_LABEL && q.predicate === "content" && typeof q.object === "string") bodyContentBySubject.set(q.subject, q.object);
+		if (!touched.has(q.subject)) continue;
+		let bucket = quadsBySubject.get(q.subject);
+		if (!bucket) {
+			bucket = [];
+			quadsBySubject.set(q.subject, bucket);
+		}
+		bucket.push(q);
+	}
+	for (const [subject, subjectQuads] of quadsBySubject) {
+		const type = subjectQuads[0]?.namedGraph ?? "";
+		const cluster = clusterByType.get(type);
+		if (!cluster) continue;
+		cluster.displayLabels[subject] = displayLabelForQuads(type, subject, subjectQuads, (b) => bodyContentBySubject.get(b), getRels(type));
+	}
 }
