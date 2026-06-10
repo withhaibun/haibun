@@ -398,6 +398,8 @@ export type THypermediaTopology = {
 	propertyIndexes?: string[];
 	/** DB-specific: default sort columns per property. */
 	sortColumns?: Record<string, string>;
+	/** Default sort field when a query specifies none. Must be one of this type's sort columns. Declare it for a type whose meaningful event/content time differs from its record-creation time (e.g. an email's received time vs its import time); otherwise the universal generatedAtTime is used. */
+	defaultSort?: string;
 };
 
 /**
@@ -505,7 +507,7 @@ export type TComment = z.infer<typeof CommentSchema>;
 export const commentDomainDefinition: TDomainDefinition = {
 	selectors: [COMMENT_DOMAIN],
 	schema: CommentSchema,
-	description: "Comment",
+	description: "Comment with links to its origin and discourse",
 	topology: {
 		persistedAs: COMMENT_LABEL,
 		id: "id",

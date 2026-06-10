@@ -2,10 +2,11 @@
  * QuadStore Types for Core
  *
  * Property graph quad model — each quad can carry optional properties,
- * aligning with AGE's vertex properties for seamless PG persistence.
+ * aligning with a property-graph backing store's vertex properties for seamless persistence.
  * All methods are async to support both in-memory and database-backed stores.
  */
 import { z } from "zod";
+import type { AccessLevel } from "./resources.js";
 
 /**
  * Named graph holding stepper variables (feature-variables projection of TStepValue).
@@ -133,13 +134,18 @@ export interface IQuadStore {
 	 * Type-bounded snapshot for graph view rendering. For each requested type
 	 * (or every known type if `types` is omitted), returns up to `perTypeLimit`
 	 * individual's quads plus a sidecar cluster summary so the view can render an
-	 * `+N more` cluster node when sampling truncates.
+	 * `+N more` cluster node when sampling truncates. Required: every quad store
+	 * owns its bounded clustered query — there is no unbounded `all()`-then-slice
+	 * fallback. At scale this must sample at the source, not load every row.
+	 * `accessLevel` is the visibility ceiling, identical to every other read path:
+	 * the sample, its edges, body-preview labels and the `+N more` totals are all
+	 * computed under it, so the view never surfaces a node the caller can't open.
 	 */
-	getClusteredQuads?(opts: { perTypeLimit: number; types?: string[] }): Promise<TClusteredQuads>;
+	getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads>;
 
 	/**
 	 * Create a single navigable edge between two individuals (graph-native stores only).
-	 * Backing stores that materialize edges as first-class entities (e.g. AGE) implement
+	 * Backing stores that materialize edges as first-class entities (a property-graph engine) implement
 	 * this so a topology edge becomes a real, walkable relationship rather than a property
 	 * column. The in-memory QuadStore models edges as quads, so callers fall back to `add`
 	 * when this is absent. Idempotent per (from, edge, to) in implementations.
@@ -159,12 +165,12 @@ export interface TCluster {
 	/** Subjects for which quads are present, in sample order. */
 	sampledSubjects: string[];
 	/**
-	 * Hypermedia-driven display label per sampled subject — derived server-side
-	 * from the topology's NAME / CONTENT rel so views don't have to compute it
-	 * (and don't have to depend on client-side rels-cache being populated).
-	 * Falls back to the subject id when no name/content rel resolves.
+	 * Display label for every sampled subject — the single source of a node's title.
+	 * Required and total: each producer fills one entry per `sampledSubjects` via the
+	 * shared `composeDisplayLabel` (name/content rel → shortest linked-body preview →
+	 * id), so views render straight from it and never compute their own label.
 	 */
-	displayLabels?: Record<string, string>;
+	displayLabels: Record<string, string>;
 }
 
 export interface TClusteredQuads {
