@@ -1,24 +1,8 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { resolveDisplayLabel } from "@haibun/core/lib/hypermedia.js";
-import { getRels } from "./rels-cache.js";
 
 export type GraphNode = { id: string; type: string; isCluster?: boolean; omittedCount?: number; displayLabel?: string };
 export type GraphEdge = { from: string; to: string; predicate: string; graph: string };
 export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
-
-/**
- * Client-side fallback display label, used when the server didn't ship a
- * pre-computed value (e.g. the rels-cache is unpopulated in a bundle that
- * hasn't fetched the concern catalog yet). Walks the same rel priority as the
- * server via the shared `resolveDisplayLabel`.
- */
-export function displayLabelForIndividual(label: string, subject: string, propertyQuads: TQuad[]): string {
-	const resolved = resolveDisplayLabel(getRels(label), (field) => {
-		const q = propertyQuads.find((p) => p.predicate === field && (typeof p.object === "string" || typeof p.object === "number"));
-		return q?.object;
-	});
-	return resolved ?? subject;
-}
 
 type BuildGraphModelOptions = {
 	ignoreInternalPredicates?: boolean;
@@ -46,19 +30,9 @@ export function clusterId(type: string): string {
 export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphModelOptions = {}): GraphModel {
 	const opts = { ...DEFAULT_OPTIONS, ...options };
 	const nodeMap = new Map<string, GraphNode>();
-	const quadsBySubject = new Map<string, TQuad[]>();
 	for (const q of quads) {
 		if (typeof q.subject !== "string" || q.subject.length === 0) continue;
-		let bucket = quadsBySubject.get(q.subject);
-		if (!bucket) {
-			bucket = [];
-			quadsBySubject.set(q.subject, bucket);
-		}
-		bucket.push(q);
 		if (!nodeMap.has(q.subject)) nodeMap.set(q.subject, { id: q.subject, type: q.namedGraph });
-	}
-	for (const node of nodeMap.values()) {
-		node.displayLabel = displayLabelForIndividual(node.type, node.id, quadsBySubject.get(node.id) ?? []);
 	}
 
 	const edges: GraphEdge[] = [];
@@ -72,9 +46,8 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 	}
 
 	if (options.clusters?.length) {
-		// Apply server-side displayLabels to sampled nodes first — these take precedence over the rels-cache fallback computed above (which is empty in bundles that haven't loaded the concern catalog).
+		// The cluster's server-computed displayLabels are the sole source of a node's title.
 		for (const c of options.clusters) {
-			if (!c.displayLabels) continue;
 			for (const [subject, label] of Object.entries(c.displayLabels)) {
 				const node = nodeMap.get(subject);
 				if (node) node.displayLabel = label;

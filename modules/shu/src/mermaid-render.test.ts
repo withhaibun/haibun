@@ -5,7 +5,7 @@ import { renderMermaidToSvg } from "./mermaid-render.js";
 import { buildMermaidSource, type PropertyClassifier, type TGraphViewOpts } from "./mermaid-source.js";
 
 const CONTENT_CLASSIFIER: PropertyClassifier = { classify: (_g, p) => (p === "content" ? "content" : p === "name" ? "name" : p === "narrate" ? "edge" : "scalar") };
-const OPTS: TGraphViewOpts = { layout: "TD", hiddenGraphs: new Set(), expandedGraphs: new Set(), maxPerSubgraph: 20 };
+const OPTS: TGraphViewOpts = { layout: "TD", hiddenGraphs: new Set(), expandedGraphs: new Set(), maxPerSubgraph: 20, displayLabel: () => undefined };
 const q = (subject: string, predicate: string, object: string, objectType?: string) => ({ subject, predicate, object, objectType, namedGraph: "G", timestamp: 0 });
 
 describe("renderMermaidToSvg (server-side)", () => {
