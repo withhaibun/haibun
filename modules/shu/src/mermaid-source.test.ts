@@ -1,9 +1,31 @@
 import { describe, it, expect } from "vitest";
-import { buildMermaidSource, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type PropertyClassifier, type TPropKind } from "./mermaid-source.js";
+import { buildMermaidSource, sanitizeId, esc, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type PropertyClassifier, type TPropKind } from "./mermaid-source.js";
 import { COMMENT_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { formatDate } from "./util.js";
 
 const NARRATE_EDGE = LinkRelations.NARRATE.rel;
+
+describe("esc keeps labels render-safe", () => {
+	// Regression: a garbled extraction (e.g. a PDF that decodes to control bytes) put raw C0/DEL chars in a Body label,
+	// which mermaid renders into an SVG with no drawable geometry. esc must strip them.
+	it("strips C0 control + DEL characters (collapsing to a single space)", () => {
+		const out = esc("a\u0001\u001b\u007Fb");
+		expect(out).toBe("a b"); // each control char becomes a space and collapses; none survive
+	});
+	it("leaves ordinary text intact", () => {
+		expect(esc("Xerox PrimeLink C9065")).toBe("Xerox PrimeLink C9065");
+	});
+});
+
+describe("sanitizeId keeps node ids mermaid-safe", () => {
+	// Regression: a "--" in a subject (e.g. a filename like "report--draft-v2.pdf") must not survive into a node id,
+	// or mermaid parses it as an edge operator and the whole diagram fails to render.
+	it("strips hyphens so '--' cannot be read as an edge operator", () => {
+		const id = sanitizeId("report--draft-v2.pdf");
+		expect(id).not.toContain("-");
+		expect(id).toBe("report__draft_v2_pdf");
+	});
+});
 
 const PERSON_LABEL = "Person";
 
@@ -33,39 +55,30 @@ function threadToQuads(items: TestItem[], label: string) {
 	return quads;
 }
 
-const opts = { layout: "TD" as const, hiddenGraphs: new Set<string>(), expandedGraphs: new Set<string>(), maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH };
+const opts = { layout: "TD" as const, hiddenGraphs: new Set<string>(), expandedGraphs: new Set<string>(), maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH, displayLabel: () => undefined };
 
 // Classifier that names `name`, treats `body` as content, the rest scalar — for node-title tests.
 const titleClassifier: PropertyClassifier = { classify: (_g, p) => (p === "name" ? "name" : p === "body" ? "content" : "scalar") };
 
-describe("node title is the store display label, else name, else content, else id", () => {
-	it("uses the displayLabel (the column-view label) as the title", () => {
+describe("node title is the server display label, else the subject id", () => {
+	it("uses the displayLabel (the server-computed label) as the title", () => {
 		const quads = [{ subject: "att1", predicate: "attributes", object: '["lux-resident"]', namedGraph: "PeerAttestation", timestamp: 1 }];
 		const dl = { ...opts, displayLabel: (g: string, s: string) => (g === "PeerAttestation" && s === "att1" ? "attributes: lux-resident" : undefined) };
 		expect(buildMermaidSource(quads, dl, titleClassifier).source).toContain("attributes: lux-resident");
 	});
-	it("titles a content-only node by its content, not its id, with no duplicate content line", () => {
+	it("falls back to the subject id when no display label resolves, and still shows content as a line", () => {
 		const quads = [{ subject: "c1", predicate: "body", object: "First note about Technology", namedGraph: "Comment", timestamp: 1 }];
-		const src = buildMermaidSource(quads, opts, titleClassifier).source;
-		expect(src).toContain('Comment_c1["First note about Technology"]');
-		expect(src.match(/First note about Technology/g)?.length).toBe(1);
+		const src = buildMermaidSource(quads, opts, titleClassifier).source; // opts.displayLabel returns undefined
+		expect(src).toContain('Comment_c1["c1'); // title is the id, never derived from the body client-side
+		expect(src).toContain("First note about Technology"); // content still rendered as a secondary line
 	});
-	it("titles a body-backed node by its concise linked Body content, not a large blob", () => {
-		const big = "x".repeat(200);
-		const quads = [
-			{ subject: "att1", predicate: "hasBody", object: "b-sig", namedGraph: "PeerAttestation", objectType: "Body", timestamp: 1 },
-			{ subject: "att1", predicate: "hasBody", object: "b-attr", namedGraph: "PeerAttestation", objectType: "Body", timestamp: 1 },
-			{ subject: "b-sig", predicate: "content", object: big, namedGraph: "Body", timestamp: 1 },
-			{ subject: "b-attr", predicate: "content", object: "lux-resident", namedGraph: "Body", timestamp: 1 },
-		];
-		expect(buildMermaidSource(quads, opts, titleClassifier).source).toContain('PeerAttestation_att1["lux-resident');
-	});
-	it("titles by name and shows content as a second line when both exist", () => {
+	it("shows content as a second line under the label", () => {
 		const quads = [
 			{ subject: "e1", predicate: "name", object: "RE: Meeting", namedGraph: "Email", timestamp: 1 },
 			{ subject: "e1", predicate: "body", object: "see attached", namedGraph: "Email", timestamp: 1 },
 		];
-		const src = buildMermaidSource(quads, opts, titleClassifier).source;
+		const dl = { ...opts, displayLabel: (_g: string, s: string) => (s === "e1" ? "RE: Meeting" : undefined) };
+		const src = buildMermaidSource(quads, dl, titleClassifier).source;
 		expect(src).toContain("RE: Meeting");
 		expect(src).toContain("see attached");
 	});
@@ -116,7 +129,9 @@ describe("node contents surface a node's significant info by rel role, each valu
 			{ subject: "urn:uuid:p-1", predicate: "name", object: "Lawrence", namedGraph: PERSON_LABEL, timestamp: 1 },
 			{ subject: "urn:uuid:p-1", predicate: "email", object: "lawrence@lux.example", namedGraph: PERSON_LABEL, timestamp: 1 },
 		];
-		const src = buildMermaidSource(quads, opts, roleClassifier).source;
+		// The server derives the title from the name; the test supplies that label.
+		const dl = { ...opts, displayLabel: (g: string, s: string) => (g === PERSON_LABEL && s === "urn:uuid:p-1" ? "Lawrence" : undefined) };
+		const src = buildMermaidSource(quads, dl, roleClassifier).source;
 		expect(src).toContain("Lawrence");
 		expect(src).toContain("lawrence@lux.example");
 	});
@@ -126,7 +141,8 @@ describe("node contents surface a node's significant info by rel role, each valu
 			{ subject: "n1", predicate: "name", object: "Some Thing", namedGraph: "Widget", timestamp: 1 },
 			{ subject: "n1", predicate: "did", object: "urn:uuid:5f1e0000-0000-4000-8000-000000000000", namedGraph: "Widget", timestamp: 1 },
 		];
-		const src = buildMermaidSource(quads, opts, roleClassifier).source;
+		const dl = { ...opts, displayLabel: (_g: string, s: string) => (s === "n1" ? "Some Thing" : undefined) };
+		const src = buildMermaidSource(quads, dl, roleClassifier).source;
 		expect(src).toContain("Some Thing");
 		expect(src).not.toContain("urn:uuid");
 	});
@@ -190,9 +206,10 @@ describe("buildMermaidSource with THREAD_CLASSIFIER", () => {
 		expect(result.source).not.toContain("MissingNode");
 	});
 
-	it("uses name predicate as node label", () => {
+	it("uses the server display label as the node label", () => {
 		const quads = [{ subject: "email-1", predicate: "name", object: "RE: Meeting notes", namedGraph: "Email", timestamp: 1 }];
-		const result = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
+		const dl = { ...opts, displayLabel: (_g: string, s: string) => (s === "email-1" ? "RE: Meeting notes" : undefined) };
+		const result = buildMermaidSource(quads, dl, THREAD_CLASSIFIER);
 		expect(result.source).toContain("RE: Meeting notes");
 	});
 });

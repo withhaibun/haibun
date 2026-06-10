@@ -106,8 +106,15 @@ function installStubs(win: { SVGElement: { prototype: Record<string, unknown> };
 	};
 }
 
+/** Viewport the diagram should fill (the live graph-view's scroll area). Absent for the offline report, which scales responsively. */
+type TFit = { width: number; height: number };
+
 /** Recompute the diagram's `viewBox`/size from the laid-out geometry — mermaid set it from a root-`<svg>` getBBox jsdom can't measure. */
-function fixViewBox(svg: string, win: { DOMParser: new () => { parseFromString(s: string, t: string): { documentElement: El } }; XMLSerializer: new () => { serializeToString(n: unknown): string } }): string {
+function fixViewBox(
+	svg: string,
+	win: { DOMParser: new () => { parseFromString(s: string, t: string): { documentElement: El } }; XMLSerializer: new () => { serializeToString(n: unknown): string } },
+	fit?: TFit,
+): string {
 	const root = new win.DOMParser().parseFromString(svg, "image/svg+xml").documentElement;
 	let minX = Infinity;
 	let minY = Infinity;
@@ -132,13 +139,24 @@ function fixViewBox(svg: string, win: { DOMParser: new () => { parseFromString(s
 	const w = maxX - minX + 2 * PAD;
 	const h = maxY - minY + 2 * PAD;
 	el.setAttribute("viewBox", `${minX - PAD} ${minY - PAD} ${w} ${h}`);
-	el.setAttribute("width", "100%");
-	el.removeAttribute("height");
-	el.setAttribute("style", `max-width: ${w}px;`);
+	if (fit) {
+		// Live view: fill the sent viewport so the diagram uses the available vertical space (and the TD/LR
+		// orientation is visible) instead of rendering at its natural pixel size capped narrow. `meet` scales
+		// the whole diagram to fit; zoom + scroll handle detail beyond that.
+		el.setAttribute("width", String(fit.width));
+		el.setAttribute("height", String(fit.height));
+		el.setAttribute("preserveAspectRatio", "xMidYMid meet");
+		el.removeAttribute("style");
+	} else {
+		// Offline report: responsive width, natural height, capped so it never exceeds its content.
+		el.setAttribute("width", "100%");
+		el.removeAttribute("height");
+		el.setAttribute("style", `max-width: ${w}px;`);
+	}
 	return new win.XMLSerializer().serializeToString(root);
 }
 
-async function renderOnce(source: string): Promise<string> {
+async function renderOnce(source: string, fit?: TFit): Promise<string> {
 	const dom = new JSDOM("<!DOCTYPE html><body></body>", { pretendToBeVisual: true });
 	installStubs(dom.window);
 	const g = globalThis as Record<string, unknown>;
@@ -152,7 +170,7 @@ async function renderOnce(source: string): Promise<string> {
 			mermaid.initialize({ startOnLoad: false, securityLevel: "loose", flowchart: { htmlLabels: true } });
 		}
 		const { svg } = await mermaid.render(`mr-${counter++}`, source);
-		return fixViewBox(svg, dom.window);
+		return fixViewBox(svg, dom.window, fit);
 	} finally {
 		g.document = savedDoc;
 		g.window = savedWin;
@@ -160,8 +178,8 @@ async function renderOnce(source: string): Promise<string> {
 }
 
 /** Render mermaid `source` to an SVG string, server-side. Calls are serialized so the transient DOM globals never overlap. */
-export function renderMermaidToSvg(source: string): Promise<string> {
-	const run = chain.then(() => renderOnce(source));
+export function renderMermaidToSvg(source: string, fit?: TFit): Promise<string> {
+	const run = chain.then(() => renderOnce(source, fit));
 	chain = run.catch(() => undefined);
 	return run;
 }
