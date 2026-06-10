@@ -16,7 +16,6 @@ const makeView = (): Probe => {
 
 describe("shu-graph-view control contract (isolated)", () => {
 	beforeEach(() => {
-		document.cookie = "shu-graph-hidden=; path=/; max-age=0";
 		if (!customElements.get("shu-graph-view")) customElements.define("shu-graph-view", ShuGraphView);
 	});
 
