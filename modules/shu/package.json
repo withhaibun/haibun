@@ -2,7 +2,7 @@
 	"name": "@haibun/shu",
 	"version": "4.0.0-alpha.3",
 	"type": "module",
-	"description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
+	"description": "Haibun hypermedia SPA \u2014 renders any domain-driven application from stepper concerns",
 	"main": "build/app.js",
 	"types": "build/app.d.ts",
 	"exports": {
@@ -11,13 +11,17 @@
 		"./bundle": "./build/shu-bundle.js"
 	},
 	"scripts": {
-		"build": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --sourcemap=inline --conditions=development && esbuild src/app.ts --bundle --outfile=build/shu-report-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
+		"build": "tsc -b . && npm run bundle:app && npm run bundle:report",
 		"build:prod": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
 		"test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_TOKEN=rpc-protected-token HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_CAPABILITY=TestServer:protected haibun-cli -c ./tests/config.json ./tests",
 		"test": "vitest run",
 		"lint": "biome lint .",
 		"format": "biome format --write .",
-		"check": "biome check ."
+		"check": "biome check .",
+		"build:watch": "tsc -b . --watch --preserveWatchOutput & npm run bundle:watch & wait",
+		"bundle:app": "esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --sourcemap=inline --conditions=development",
+		"bundle:report": "esbuild src/app.ts --bundle --outfile=build/shu-report-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
+		"bundle:watch": "npm run bundle:app -- --watch=forever & npm run bundle:report -- --watch=forever & wait"
 	},
 	"dependencies": {
 		"@huggingface/transformers": "^4.2.0",
