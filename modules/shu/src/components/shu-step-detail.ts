@@ -12,6 +12,7 @@ import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
+import { appAccessLevel } from "../util.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
 
@@ -71,7 +72,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 				const tracesData = await g.follow<{ traces: Array<Record<string, unknown>> }>({ method: "MonitorStepper-getDispatchTraces" }, "step-detail: dispatch traces");
 				const quadsData = await g.follow<{
 					quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
-				}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000 } }, "step-detail: clustered quads");
+				}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } }, "step-detail: clustered quads");
 				return { eventsData, tracesData, quadsData };
 			});
 			const stepEvent =

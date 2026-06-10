@@ -104,7 +104,9 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	/** Whether this view is the strip's active pane child. Updated via VIEW_ACTIVE events fanned out by shu-column-pane.setActive. */
 	protected isActiveView = false;
 
-	constructor(schema: T, defaults: z.infer<T>) {
+	// Input type, not output: fields with a Zod `.default()` may be omitted (parse fills them), so a subclass whose
+	// schema is all-defaulted can pass `{}`.
+	constructor(schema: T, defaults: z.input<T>) {
 		super();
 		this._schema = schema;
 		this.state = schema.parse(defaults);

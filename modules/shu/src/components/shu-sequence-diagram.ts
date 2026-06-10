@@ -11,9 +11,9 @@ import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
+import { copyText } from "../copy-util.js";
 import { requireStep } from "../rpc-registry.js";
 import { TIME_SYNC_STYLE } from "../time-sync.js";
-
 
 import { DispatchTraceSchema, type TDispatchTrace } from "../schemas.js";
 const DispatchTrace = DispatchTraceSchema;
@@ -85,7 +85,9 @@ function buildMermaidSource(traces: TDispatchTrace[]): string {
 }
 
 export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: block; font-family: ui-sans-serif, system-ui, sans-serif; }
 		:host(:not([data-show-controls])) .toolbar { display: none; }
 		.toolbar {
@@ -102,7 +104,8 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 		.zoom-label { color: var(--shu-fg-muted); }
 		.trace-count { color: var(--shu-fg-faded); margin-left: auto; }
 		.empty { padding: var(--shu-space-6); color: var(--shu-fg-faded); text-align: center; }
-	`];
+	`,
+	];
 
 	private diagramId = `shu-seq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 	constructor() {
@@ -158,8 +161,15 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 	private onZoomOut = (): void => {
 		this.setState({ zoom: Math.max(10, this.state.zoom - 10) });
 	};
-	private onCopy = (): void => {
-		navigator.clipboard.writeText(buildMermaidSource(this.state.traces));
+	private onCopy = async (e: Event): Promise<void> => {
+		// copyText falls back to execCommand when the async Clipboard API is blocked (e.g. a file:// report).
+		const ok = await copyText(buildMermaidSource(this.state.traces));
+		const btn = e.currentTarget as HTMLElement | null;
+		if (!btn) return;
+		btn.textContent = ok ? "Copied" : "Copy failed";
+		setTimeout(() => {
+			btn.textContent = "Copy";
+		}, 1500);
 	};
 
 	protected updated(): void {

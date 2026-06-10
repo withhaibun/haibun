@@ -8,11 +8,15 @@ import { html, css, type TemplateResult } from "lit";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnStripSchema } from "../schemas.js";
+import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
 type SavedPaneState = { collapsed: boolean; minimized: boolean; inlineFlex: string; inlineDisplay: string };
+
+/** Cookie holding the keys of user-minimized panes, so the minimize state survives a reload. */
+const MINIMIZED_COOKIE = "shu-pane-min";
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	static styles = [shuBaseStyles, css`
@@ -47,15 +51,25 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		return Array.from(this.querySelectorAll("shu-column-pane")) as PaneEl[];
 	}
 
-	/** Add a new pane. Appends at end (after afterIndex if given, for insertion order). */
+	/** Add a new pane. Appends at end (after afterIndex if given, for insertion order). A pane the user last minimized restores minimized and never takes activation. */
 	addPane(pane: PaneEl, _afterIndex?: number): void {
 		this.appendChild(pane);
-		this.activatePane(this.panes.length - 1);
+		const restoreMinimized = getJsonCookie<string[]>(MINIMIZED_COOKIE, []).includes(this.paneKey(pane));
+		if (restoreMinimized) pane.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
+		else this.activatePane(this.panes.length - 1);
 		this.updateQueryAlone();
 		this.updateIsLast();
 		this.updateAccordion();
 		this.emitColumnsChanged();
-		requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
+		if (!restoreMinimized) requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
+	}
+
+	private paneKey(p: PaneEl): string {
+		return p.dataset.columnKey || `${p.getAttribute(SHU_ATTR.COLUMN_TYPE) || ""}:${p.getAttribute("label") || ""}`;
+	}
+
+	private persistMinimized(): void {
+		setJsonCookie(MINIMIZED_COOKIE, this.panes.filter((p) => p.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).map((p) => this.paneKey(p)));
 	}
 
 	/** Remove a pane by index. */
@@ -78,7 +92,13 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	/** Mark the rightmost pane with `is-last` so its resize handle and right border drop off. The pane reads the attribute via `:host([is-last])` selectors; no manual style edits per-pane. */
 	private updateIsLast(): void {
 		const panes = this.panes;
-		for (let i = 0; i < panes.length; i++) panes[i].toggleAttribute(SHU_ATTR.IS_LAST, i === panes.length - 1);
+		for (let i = 0; i < panes.length; i++) {
+			const isLast = i === panes.length - 1;
+			panes[i].toggleAttribute(SHU_ATTR.IS_LAST, isLast);
+			// The rightmost pane always absorbs the remaining strip width: an explicit width is meaningless there,
+			// and keeping it (flex 0 0 px) would block shrinking and overflow the strip on narrow windows.
+			if (isLast && panes[i].userWidth !== undefined) panes[i].setWidth(undefined);
+		}
 	}
 
 	/** Activate a pane by index. Updates active attributes without re-rendering other panes. */
@@ -108,9 +128,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		return this.panes
 			.filter((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query")
 			.map((p) => {
-				const type = p.getAttribute(SHU_ATTR.COLUMN_TYPE) || "";
-				const label = p.getAttribute("label") || "";
-				const key = p.dataset.columnKey || `${type}:${label}`;
+				const key = this.paneKey(p);
 				if (p.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return `${key}~max`;
 				return p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) ? `${key}~min` : key;
 			});
@@ -193,6 +211,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 				}
 				this.savedLayout = null;
 			}
+			this.updateIsLast();
 			this.updateAccordion();
 		}
 		this.emitColumnsChanged();
@@ -203,6 +222,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const index = this.panes.indexOf(pane);
 		if (index >= 0) {
 			pane.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
+			this.persistMinimized();
 			this.activatePane(index);
 			this.updateAccordion();
 			// Mirror handlePaneMinimize: the `~min` suffix in column keys depends
@@ -222,7 +242,25 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_DISMISS, { detail: { paneId }, bubbles: true, composed: true }));
 	};
 
-	private handlePaneMinimize = (_e: Event): void => {
+	private handlePaneMinimize = (e: Event): void => {
+		const event = e as CustomEvent<{ minimized: boolean }>;
+		const panes = this.panes;
+		const index = panes.indexOf(event.target as PaneEl);
+		// A minimized column can't stay active: shift to the nearest expanded column to its right, else to its left.
+		if (event.detail?.minimized && index === this.state.activeIndex) {
+			const expanded = (p: PaneEl) => !p.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
+			let target = panes.findIndex((p, i) => i > index && expanded(p));
+			if (target === -1) {
+				for (let i = index - 1; i >= 0; i--) {
+					if (expanded(panes[i])) {
+						target = i;
+						break;
+					}
+				}
+			}
+			if (target !== -1) this.activatePane(target);
+		}
+		this.persistMinimized();
 		this.updateAccordion();
 		this.emitColumnsChanged();
 	};

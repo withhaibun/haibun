@@ -10,7 +10,7 @@ import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
 import { getJsonLdContext, buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { isContentPropertyDef, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
+import { Access, isContentPropertyDef, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
@@ -27,17 +27,32 @@ import type { TWorld } from "@haibun/core/lib/world.js";
  * server reproduces it (for `get graph layout` and for baking the offline report's graph). `hiddenGraphs` filters
  * clusters: empty shows everything, INSTRUMENTATION_GRAPHS yields the curated view.
  */
-export async function buildGraphSource(world: TWorld, hiddenGraphs: Set<string>): Promise<(TBuildResult & { clusters: Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"]; quads: TQuad[] }) | undefined> {
+export async function buildGraphSource(
+	world: TWorld,
+	hiddenGraphs: Set<string>,
+): Promise<(TBuildResult & { clusters: Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"]; quads: TQuad[] }) | undefined> {
 	const store = world.shared.getStore();
 	if (!store.getClusteredQuads) return undefined;
-	const { quads, clusters } = await store.getClusteredQuads({ perTypeLimit: 10000 });
+	// The offline report bakes the run owner's full snapshot, so it renders at full visibility.
+	const { quads, clusters } = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private });
 	const catalog = buildConcernCatalog(world.domains);
 	const meta = siteMetadataFromConcerns(catalog);
 	const edgeRelMap: Record<string, string> = {};
 	for (const concern of Object.values(catalog.persisted)) for (const [name, edge] of Object.entries(concern.edges)) edgeRelMap[name] = edge.rel;
-	const classifier = buildClassifier((g) => meta.rels[g], (g) => meta.edgeRanges[g], undefined, edgeRelMap);
+	const classifier = buildClassifier(
+		(g) => meta.rels[g],
+		(g) => meta.edgeRanges[g],
+		undefined,
+		edgeRelMap,
+	);
 	const labelsByType = new Map(clusters.map((c) => [c.type, c.displayLabels ?? {}]));
-	const opts: TGraphViewOpts = { layout: "TD", hiddenGraphs, expandedGraphs: new Set(), maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH, displayLabel: (g, s) => labelsByType.get(g)?.[s] };
+	const opts: TGraphViewOpts = {
+		layout: "TD",
+		hiddenGraphs,
+		expandedGraphs: new Set(),
+		maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH,
+		displayLabel: (g, s) => labelsByType.get(g)?.[s],
+	};
 	return { ...buildMermaidSource(quads as TQuad[], opts, classifier), clusters, quads: quads as TQuad[] };
 }
 
@@ -295,7 +310,11 @@ export default class ShuStepper extends AStepper {
 		renderMermaid: {
 			gwta: "render mermaid {source: string}",
 			productsSchema: z.object({ svg: z.string() }),
-			action: async ({ source }: { source: string }) => actionOKWithProducts({ svg: await renderMermaidToSvg(source) }),
+			// width/height (RPC params from the live view) make the SVG fill that viewport; absent (offline report) it scales responsively.
+			action: async ({ source, width, height }: { source: string; width?: number; height?: number }) => {
+				const fit = typeof width === "number" && width > 0 && typeof height === "number" && height > 0 ? { width, height } : undefined;
+				return actionOKWithProducts({ svg: await renderMermaidToSvg(source, fit) });
+			},
 		},
 	} satisfies TStepperSteps;
 }

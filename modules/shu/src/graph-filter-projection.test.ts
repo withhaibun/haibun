@@ -7,7 +7,7 @@ function quad(namedGraph: string, subject: string, timestamp = 1): TQuad {
 }
 
 function cluster(type: string, totalCount: number, sampledCount = totalCount, omittedCount = 0): TCluster {
-	return { type, totalCount, sampledCount, omittedCount, sampledSubjects: [] };
+	return { type, totalCount, sampledCount, omittedCount, sampledSubjects: [], displayLabels: {} };
 }
 
 describe("projectFilterClusters", () => {
