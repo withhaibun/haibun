@@ -9,7 +9,18 @@
  */
 
 import { z } from "zod";
-import { edgeRel, REL_CONTEXT, LinkRelations, getRelRange, isContentPropertyDef, isPersisted, type TPropertyDef, type TRel, type THypermediaTopology } from "./resources.js";
+import {
+	edgeRel,
+	REL_CONTEXT,
+	LinkRelations,
+	BODY_LABEL,
+	getRelRange,
+	isContentPropertyDef,
+	isPersisted,
+	type TPropertyDef,
+	type TRel,
+	type THypermediaTopology,
+} from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or content-object form. */
 function relOf(def: TPropertyDef): TRel {
@@ -339,22 +350,48 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 }
 
 /**
- * Ordered list of property rels searched (in order) to derive an individual's
- * display label. NAME and CONTENT are returned as bare values; the rest are
- * prefixed with the field name (`field: value`) since the value alone wouldn't
- * be self-describing. Shared by server-side cluster builders and client-side
- * graph-model fallbacks so priorities can't drift.
+ * Property rels searched to derive an individual's display label, split by strength.
+ * HEADLINE rels (NAME, CONTENT) are the node's own title, returned bare. WEAK rels
+ * (seqPath, schemaObject, context) are provenance pointers, returned prefixed
+ * (`field: value`) since the value alone isn't self-describing — they only label a
+ * node that has nothing better. `composeDisplayLabel` slots the linked-body preview
+ * BETWEEN them: a body-backed node (e.g. a Comment with a seqPath) is titled by its
+ * body, never by its seqPath. Shared by every cluster producer so priorities can't drift.
  */
-export const DISPLAY_LABEL_REL_PRIORITY: ReadonlyArray<{ rel: string; bare: boolean }> = [
+const DISPLAY_LABEL_HEADLINE: ReadonlyArray<{ rel: string; bare: boolean }> = [
 	{ rel: LinkRelations.NAME.rel, bare: true },
 	{ rel: LinkRelations.CONTENT.rel, bare: true },
+];
+const DISPLAY_LABEL_WEAK: ReadonlyArray<{ rel: string; bare: boolean }> = [
 	{ rel: LinkRelations.SEQ_PATH.rel, bare: false },
 	{ rel: LinkRelations.SCHEMA_OBJECT.rel, bare: false },
 	{ rel: LinkRelations.CONTEXT.rel, bare: false },
 ];
+/** Full priority (headline then weak) — the legacy single-list resolution order. */
+export const DISPLAY_LABEL_REL_PRIORITY: ReadonlyArray<{ rel: string; bare: boolean }> = [...DISPLAY_LABEL_HEADLINE, ...DISPLAY_LABEL_WEAK];
 
 /** Maximum length for a display label (bytes/chars). Truncated values are suffixed with an ellipsis. */
 export const MAX_DISPLAY_LABEL_LEN = 80;
+
+function resolveFromCandidates(
+	rels: Record<string, string> | undefined,
+	getProperty: (field: string) => unknown,
+	candidates: ReadonlyArray<{ rel: string; bare: boolean }>,
+): string | undefined {
+	if (!rels) return undefined;
+	const fieldByRel = new Map<string, string>();
+	for (const [field, rel] of Object.entries(rels)) {
+		if (!fieldByRel.has(rel)) fieldByRel.set(rel, field);
+	}
+	for (const candidate of candidates) {
+		const field = fieldByRel.get(candidate.rel);
+		if (!field) continue;
+		const value = getProperty(field);
+		if (value === undefined || value === null || value === "") continue;
+		return candidate.bare ? String(value) : `${field}: ${value}`;
+	}
+	return undefined;
+}
 
 /**
  * Resolve a display label for an individual by walking `DISPLAY_LABEL_REL_PRIORITY`
@@ -363,19 +400,84 @@ export const MAX_DISPLAY_LABEL_LEN = 80;
  * pass a closure over the property quads.
  */
 export function resolveDisplayLabel(rels: Record<string, string> | undefined, getProperty: (field: string) => unknown): string | undefined {
-	if (!rels) return undefined;
-	const fieldByRel = new Map<string, string>();
-	for (const [field, rel] of Object.entries(rels)) {
-		if (!fieldByRel.has(rel)) fieldByRel.set(rel, field);
+	return resolveFromCandidates(rels, getProperty, DISPLAY_LABEL_REL_PRIORITY);
+}
+
+/** Clamp a label to MAX_DISPLAY_LABEL_LEN, ellipsizing if needed — so every producer truncates identically. */
+export function clampDisplayLabel(s: string): string {
+	const t = s.trim();
+	return t.length > MAX_DISPLAY_LABEL_LEN ? `${t.slice(0, MAX_DISPLAY_LABEL_LEN - 1)}…` : t;
+}
+
+/** Shortest non-empty trimmed string — the concise linked-body summary, not a large signed or encoded blob. */
+function shortestBody(values: ReadonlyArray<string | null | undefined>): string | undefined {
+	let best: string | undefined;
+	for (const v of values) {
+		const s = typeof v === "string" ? v.trim() : "";
+		if (s && (best === undefined || s.length < best.length)) best = s;
 	}
-	for (const candidate of DISPLAY_LABEL_REL_PRIORITY) {
-		const field = fieldByRel.get(candidate.rel);
-		if (!field) continue;
-		const value = getProperty(field);
-		if (value === undefined || value === null || value === "") continue;
-		return candidate.bare ? String(value) : `${field}: ${value}`;
+	return best;
+}
+
+/**
+ * The single rule for a node's display label, used by every cluster producer (quad
+ * stores and the live-snapshot merge) so a node's title can never differ between
+ * views. Priority: the node's own headline (NAME/CONTENT) → the shortest linked-body
+ * preview → a weak provenance pointer (seqPath/schemaObject/context) → the subject id.
+ * The body outranks the weak pointers so a body-backed node (e.g. a Comment carrying a
+ * seqPath) is titled by its body, not "seqPath: …". Always returns a non-empty,
+ * length-bounded string.
+ */
+export function composeDisplayLabel(args: {
+	rels: Record<string, string> | undefined;
+	getProperty: (field: string) => unknown;
+	bodyContents?: ReadonlyArray<string | null | undefined>;
+	id: string;
+}): string {
+	const headline = resolveFromCandidates(args.rels, args.getProperty, DISPLAY_LABEL_HEADLINE);
+	const body = headline ? undefined : shortestBody(args.bodyContents ?? []);
+	const weak = headline || body ? undefined : resolveFromCandidates(args.rels, args.getProperty, DISPLAY_LABEL_WEAK);
+	return clampDisplayLabel(headline ?? body ?? weak ?? args.id);
+}
+
+/**
+ * Contents of a subject's linked Body sub-resources, gathered from quads already in
+ * memory: for each `hasBody` edge (object typed as the body label) look up that body's
+ * content via `contentOfBody`. Feeds `composeDisplayLabel` where the preview must come
+ * from quads rather than a server-side index.
+ */
+export function linkedBodyContents(
+	subjectQuads: ReadonlyArray<{ object: unknown; objectType?: string }>,
+	contentOfBody: (bodySubject: string) => string | undefined,
+	bodyLabel: string = BODY_LABEL,
+): string[] {
+	const out: string[] = [];
+	for (const q of subjectQuads) {
+		if (q.objectType !== bodyLabel || typeof q.object !== "string") continue;
+		const c = contentOfBody(q.object);
+		if (typeof c === "string" && c.length > 0) out.push(c);
 	}
-	return undefined;
+	return out;
+}
+
+type LabelQuad = { predicate: string; object: unknown; objectType?: string };
+
+/**
+ * Display label for a subject from quads alone — the one quad-based label builder shared by every
+ * quad-holding producer (the in-memory store and the live-snapshot merge), so they can't drift.
+ * `bodyContentOf` resolves a linked Body subject to its content; `rels` is the field→rel map (absent
+ * where no concern catalog is loaded — then only the body preview and id apply).
+ */
+export function displayLabelForQuads(
+	type: string,
+	subject: string,
+	subjectQuads: ReadonlyArray<LabelQuad>,
+	bodyContentOf: (bodySubject: string) => string | undefined,
+	rels: Record<string, string> | undefined,
+): string {
+	const bodyContents = type === BODY_LABEL ? [] : linkedBodyContents(subjectQuads, bodyContentOf);
+	const getProperty = (field: string) => subjectQuads.find((q) => q.predicate === field && (typeof q.object === "string" || typeof q.object === "number"))?.object;
+	return composeDisplayLabel({ rels, getProperty, bodyContents, id: subject });
 }
 
 /** Parse a value as epoch ms (ISO date string or number). */
@@ -429,6 +531,9 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
+		// Map the bare-label type term to its vocabulary IRI so `@type: "Person"` resolves to e.g. `foaf:Person`;
+		// a type without a declared vocabulary falls back to the local namespace, so every `@type` is a real IRI.
+		context[topology.persistedAs] = topology.type ?? `haibun:${topology.persistedAs}`;
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
 			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;
