@@ -5,7 +5,7 @@
  * `get graph diagnostics` step. Environment-specific property classification is
  * injected via the PropertyClassifier interface.
  */
-import { LinkRelations, BODY_LABEL, edgeRel as coreEdgeRel, getRelRange, isReplyEdge } from "@haibun/core/lib/resources.js";
+import { LinkRelations, edgeRel as coreEdgeRel, getRelRange, isReplyEdge } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { colorForType } from "./type-colors.js";
 import { STORED_TYPE_PROP } from "./consts.js";
@@ -38,8 +38,13 @@ export type TGraphViewOpts = {
 	expandedGraphs: Set<string>;
 	maxPerSubgraph: number;
 	hiddenRels?: Set<string>;
-	/** Per-node display title from the store's hypermedia label derivation (the same `displayLabels` the column views use), keyed by (graph, subject). */
-	displayLabel?: (graph: string, subject: string) => string | undefined;
+	/**
+	 * The sole source of a node's title: the server-computed `displayLabels` keyed by
+	 * (graph, subject). Required — the view never derives a label from quads. Returns
+	 * undefined only for a referenced node not in the displayed sample (e.g. an author);
+	 * the caller uses the id in that case, the same terminal rule the server applies.
+	 */
+	displayLabel: (graph: string, subject: string) => string | undefined;
 };
 
 /** Per-edge-candidate render outcome — why an edge-classified quad did or didn't draw. */
@@ -95,14 +100,20 @@ function arrowForEdge(predicate: string, rel: string | undefined): string {
 
 /** Escape mermaid special chars in labels. */
 export function esc(s: string): string {
-	return String(s)
-		.replace(/\s+/g, " ") // collapse whitespace runs: a literal newline would split the single-line ["..."] label and break mermaid
-		.replace(/"/g, "#quot;")
-		.replace(/[[\](){}|<>]/g, " ");
+	return (
+		String(s)
+			// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional — strip raw C0/DEL bytes (e.g. from a garbled extraction) so they never reach the SVG label and blank the diagram
+			.replace(/[\u0000-\u001F\u007F]/g, " ")
+			.replace(/\s+/g, " ") // collapse whitespace runs: a literal newline would split the single-line ["..."] label and break mermaid
+			.replace(/"/g, "#quot;")
+			.replace(/[[\](){}|<>]/g, " ")
+	);
 }
 
 export function sanitizeId(s: string): string {
-	return s.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
+	// Alphanumeric + underscore only: a "-" in a node id (and especially "--", e.g. from a filename like
+	// "report--draft.pdf") is parsed as a mermaid edge operator and breaks the diagram. The real value lives in the label.
+	return s.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60);
 }
 
 /** Truncate a value for a mermaid node/edge label: escape FIRST (so a cut can't split a `#quot;` entity and the label
@@ -118,41 +129,17 @@ export function isUri(s: string): boolean {
 }
 
 /**
- * Content of a node's smallest linked Body sub-resource — the concise summary (a Comment's text, an attestation's
- * attributes) rather than a large signed or encoded blob — for a node with no inline name or content of its own.
- */
-function linkedBodyContent(subjectQuads: TQuad[], byGraph: Map<string, Map<string, TQuad[]>>): string | undefined {
-	let best: string | undefined;
-	for (const q of subjectQuads) {
-		if (typeof q.object !== "string" || q.objectType !== BODY_LABEL) continue;
-		const content = byGraph
-			.get(BODY_LABEL)
-			?.get(q.object)
-			?.find((b) => b.predicate === "content")?.object;
-		const s = typeof content === "string" ? content.trim() : "";
-		if (s && (best === undefined || s.length < best.length)) best = s;
-	}
-	return best;
-}
-
-/**
  * A node's contents, driven by hypermedia rel ROLES (not field names): title, identifier (skipping opaque uuids),
  * author (ATTRIBUTED_TO), a friendly date, then any remaining scalars. Each value shows once.
  */
-function nodeContents(
-	graph: string,
-	subject: string,
-	subjectQuads: TQuad[],
-	opts: TGraphViewOpts,
-	classifier: PropertyClassifier,
-	byGraph: Map<string, Map<string, TQuad[]>>,
-): string {
+function nodeContents(graph: string, subject: string, subjectQuads: TQuad[], opts: TGraphViewOpts, classifier: PropertyClassifier): string {
 	const kind = (q: TQuad) => classifier.classify(graph, q.predicate);
 	const nameQuad = subjectQuads.find((q) => kind(q) === "name");
 	const contentQuad = subjectQuads.find((q) => kind(q) === "content");
 	const idQuad = subjectQuads.find((q) => kind(q) === "identifier");
-	const title =
-		opts.displayLabel?.(graph, subject) ?? (nameQuad ? String(nameQuad.object) : contentQuad ? String(contentQuad.object) : (linkedBodyContent(subjectQuads, byGraph) ?? subject));
+	// The title is the server-computed display label and nothing else (it already folds in
+	// name/content/linked-body). The id is the terminal rule, only for a node with no label.
+	const title = opts.displayLabel(graph, subject) ?? subject;
 	const lines = [truncateLabel(title, 40)];
 	const seen = new Set([String(title).trim()]);
 	const add = (s: string) => {
@@ -168,7 +155,7 @@ function nodeContents(
 		if (v !== String(title) && !isOpaqueId(v)) add(v);
 	}
 	const authorQuad = subjectQuads.find((q) => typeof q.object === "string" && classifier.rel?.(graph, q.predicate) === LinkRelations.ATTRIBUTED_TO.rel);
-	if (authorQuad) add(`by ${opts.displayLabel?.(String(authorQuad.objectType ?? ""), String(authorQuad.object)) ?? String(authorQuad.object)}`);
+	if (authorQuad) add(`by ${opts.displayLabel(String(authorQuad.objectType ?? ""), String(authorQuad.object)) ?? String(authorQuad.object)}`);
 	const dateQuad = subjectQuads.find((q) => {
 		const r = classifier.rel?.(graph, q.predicate);
 		return r !== undefined && TEMPORAL_RELS.has(r);
@@ -312,7 +299,7 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 			nodeIds.add(nodeId);
 			nodeMap.set(nodeId, { graph, subject });
 
-			lines.push(`    ${nodeId}["${nodeContents(graph, subject, subjectQuads, opts, classifier, byGraph)}"]`);
+			lines.push(`    ${nodeId}["${nodeContents(graph, subject, subjectQuads, opts, classifier)}"]`);
 
 			for (const q of subjectQuads) processEdge(nodeId, q, graph, subject);
 		}
