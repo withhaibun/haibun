@@ -1,9 +1,9 @@
 /**
- * Shared base for every view that renders the clustered-quad snapshot as a graph (the mermaid overview and the
- * 3D force-graph fisheye). It owns the one data pathway — fetch, live SSE merge, type filter, cluster +
+ * Shared base for every view that renders the clustered-quad snapshot as a graph (the reactive mermaid
+ * overview and any imperative canvas renderer a consumer mounts). It owns the one data pathway — fetch, live SSE merge, type filter, cluster +
  * neighborhood expansion, selection — so the two views can't drift. A subclass overrides only `onGraphConnected`
  * (mount its renderer), `onGraphData` (repaint), and `onGraphSelection` (highlight). Data lives on `this.state`:
- * `setState` repaints the overview reactively, while `onGraphData` drives an imperative renderer (the fisheye's
+ * `setState` repaints the overview reactively, while `onGraphData` drives an imperative renderer (e.g. a
  * WebGL canvas) that lit can't reconcile.
  */
 import { z } from "zod";
@@ -67,11 +67,42 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	}
 
 	/** Awaited before the first load — a subclass mounts its renderer here (after its render root exists). */
-	protected onGraphConnected(): void | Promise<void> {}
-	/** Repaint after a data change. The overview repaints reactively via setState, so it leaves this empty; the fisheye redraws its canvas. */
-	protected onGraphData(): void {}
+	protected onGraphConnected(): void | Promise<void> {
+		/* no-op default; subclasses override */
+	}
+	/** Repaint after a data change. The overview repaints reactively via setState, so it leaves this empty; an imperative canvas view redraws here. */
+	protected onGraphData(): void {
+		/* no-op default; subclasses override */
+	}
 	/** A selection (from any view) — the overview highlights it; the base also fetches its neighborhood (below). */
-	protected onGraphSelection(_subject: string | null, _label: string | null): void {}
+	protected onGraphSelection(_subject: string | null, _label: string | null): void {
+		/* no-op default; subclasses override */
+	}
+
+	/** The time-visible slice of the snapshot: quads at/before the global time cursor (all of them with no cursor).
+	 * The ONE time pathway every clustered graph view renders from — never `state.quads` directly — so scrubbing
+	 * the shared timeline hides/restores the same objects in every view. */
+	protected get visibleQuads(): TQuad[] {
+		return this.filterByTime(this.cgState.quads);
+	}
+
+	private lastTimeSync = 0;
+	private timeSyncTimer = 0;
+	/** The cursor moves continuously during timeline play: coalesce repaints to 500ms; the trailing call lands the final position. */
+	protected override onTimeSync(): void {
+		const apply = () => {
+			this.lastTimeSync = Date.now();
+			this.refresh(); // the reactive overview re-renders from visibleQuads
+			this.onGraphData(); // an imperative renderer re-derives its model from visibleQuads
+		};
+		if (Date.now() - this.lastTimeSync >= 500) apply();
+		else if (!this.timeSyncTimer) {
+			this.timeSyncTimer = window.setTimeout(() => {
+				this.timeSyncTimer = 0;
+				apply();
+			}, 500);
+		}
+	}
 
 	protected override async onConnected(): Promise<void> {
 		if (this.graphInitialized) return;

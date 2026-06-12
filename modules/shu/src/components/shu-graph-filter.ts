@@ -22,6 +22,7 @@ import { SHU_EVENT } from "../consts.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
+import { readElementPrefs } from "../element-prefs.js";
 import { projectFilterClusters } from "../graph-filter-projection.js";
 
 const StateSchema = z.object({
@@ -29,22 +30,8 @@ const StateSchema = z.object({
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 });
 
-const COOKIE_NAME = "shu-graph-filter";
-
-type Persisted = { hiddenTypes: string[]; perTypeLimit: number };
-
-function readCookie(): Persisted | null {
-	const parsed = getJsonCookie<Partial<Persisted> | null>(COOKIE_NAME, null);
-	if (!parsed) return null;
-	const hiddenTypes = Array.isArray(parsed.hiddenTypes) ? parsed.hiddenTypes.filter((t) => typeof t === "string") : [];
-	const perTypeLimit = typeof parsed.perTypeLimit === "number" && parsed.perTypeLimit > 0 ? Math.floor(parsed.perTypeLimit) : DEFAULT_PER_TYPE_LIMIT;
-	return { hiddenTypes, perTypeLimit };
-}
-
-function writeCookie(value: Persisted): void {
-	setJsonCookie(COOKIE_NAME, value);
-}
-
+// The per-axis hidden-set (chain-graph mode) is a separate keyed store, not this component's own state, so it
+// keeps its own namespaced cookie rather than going through persistFields.
 const AXIS_COOKIE_PREFIX = "shu-graph-filter-axes";
 
 function readAxisCookie(key: string): Record<string, string[]> {
@@ -81,10 +68,14 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		`,
 	];
 
-	/** Hosts read this before their first fetch so the persisted filter applies on initial load (no double round-trip). */
+	/** The hidden/limit choice is remembered across reloads (ShuElement.persistFields; singleton key shared by every embedded filter). */
+	static persistFields = ["hiddenTypes", "perTypeLimit"] as const;
+
+	/** Hosts read this before their first fetch so the persisted filter applies on initial load (no double round-trip). Reads the same persistFields store the instance restores from, validated to the schema's defaults. */
 	static getPersistedFilter(): { hiddenTypes: string[]; perTypeLimit: number } {
-		const persisted = readCookie();
-		return { hiddenTypes: persisted?.hiddenTypes ?? [], perTypeLimit: persisted?.perTypeLimit ?? DEFAULT_PER_TYPE_LIMIT };
+		const saved = readElementPrefs("shu-graph-filter", "");
+		const parsed = StateSchema.safeParse(saved ?? {});
+		return parsed.success ? { hiddenTypes: parsed.data.hiddenTypes, perTypeLimit: parsed.data.perTypeLimit } : { hiddenTypes: [], perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
 	}
 
 	private knownClusters = new Map<string, TCluster>();
@@ -97,11 +88,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	private axisCookieKey: string | null = null;
 
 	constructor() {
-		const persisted = readCookie();
-		super(StateSchema, {
-			hiddenTypes: persisted?.hiddenTypes ?? [],
-			perTypeLimit: persisted?.perTypeLimit ?? DEFAULT_PER_TYPE_LIMIT,
-		});
+		// persistFields restores hiddenTypes/perTypeLimit on connect; defaults until then.
+		super(StateSchema, {});
 	}
 
 	/**
@@ -152,7 +140,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			);
 			return;
 		}
-		writeCookie({ hiddenTypes: this.state.hiddenTypes, perTypeLimit: this.state.perTypeLimit });
+		// hiddenTypes/perTypeLimit persist automatically via setState (persistFields); the dispatch just notifies hosts.
 		const visibleClusters = this.deriveClusters();
 		const visibleTypes = visibleClusters.map((c) => c.type).filter((t) => !this.state.hiddenTypes.includes(t));
 		this.dispatchEvent(
@@ -162,6 +150,11 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 				composed: true,
 			}),
 		);
+	}
+
+	/** Hovering a type label previews it — broadcast so the graph views dim the other types. null ends the preview. */
+	private previewType(type: string | null): void {
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_TYPE_PREVIEW, { detail: { type }, bubbles: true, composed: true }));
 	}
 
 	private deriveClusters(): TCluster[] {
@@ -229,7 +222,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 									: c.totalCount > 0
 										? html` <span class="meta">(${c.totalCount})</span>`
 										: "";
-							return html`<label class="type" style=${`background:${colorForType(c.type)}`}><input type="checkbox" .checked=${!hiddenSet.has(c.type)} @change=${this.onTypeChange(c.type)}>${c.type}${omitted}</label>`;
+							return html`<label class="type" style=${`background:${colorForType(c.type)}`} @mouseenter=${() => this.previewType(c.type)} @mouseleave=${() => this.previewType(null)}><input type="checkbox" .checked=${!hiddenSet.has(c.type)} @change=${this.onTypeChange(c.type)}>${c.type}${omitted}</label>`;
 						})
 			}
 			<span class="label">|</span>
