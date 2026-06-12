@@ -102,6 +102,8 @@ export const ColumnPaneSchema = z.object({
 	label: z.string(),
 	active: z.boolean().default(false),
 	width: z.number().optional(),
+	// User-minimized — a persisted choice, distinct from the strip's transient accordion auto-collapse.
+	minimized: z.boolean().default(false),
 	closable: z.boolean().default(true),
 	pinned: z.boolean().default(false),
 	// Free-form: PaneState writes the component tag for component panes; CSS only matches the well-known values.

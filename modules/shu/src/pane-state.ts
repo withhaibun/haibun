@@ -17,7 +17,7 @@ import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { SHU_ATTR, SHU_EVENT } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
-import { savedColumnWidth } from "./column-widths.js";
+import { readElementPrefs } from "./element-prefs.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 
@@ -174,11 +174,11 @@ class PaneStateImpl {
 		const rawCols = params.getAll("col");
 		if (idParam && labelParam && rawCols.length === 0) {
 			const d = parseColEntry(`e:${labelParam}:${idParam}`);
-			if (d) next.set(paneIdOf(d), d);
+			if (d) next.set(paneIdOf(d), withPersistedFlag(d));
 		}
 		for (const raw of rawCols) {
 			const d = parseColEntry(raw);
-			if (d) next.set(paneIdOf(d), d);
+			if (d) next.set(paneIdOf(d), withPersistedFlag(d));
 		}
 		this.activePaneId = active && next.has(active) ? active : firstKeyOf(next);
 		this.desired = next;
@@ -187,9 +187,12 @@ class PaneStateImpl {
 
 	/** Add or update a pane. Validates against the schema; throws loudly on a bad input. */
 	request(input: DesiredPane): void {
-		const d = DesiredPaneSchema.parse(input);
-		const id = paneIdOf(d);
+		const parsed = DesiredPaneSchema.parse(input);
+		const id = paneIdOf(parsed);
 		const existing = this.desired.get(id);
+		// A re-request without an explicit flag keeps the live pane's flag (a click on an already-open,
+		// minimized column must not silently expand it); a brand-new pane defaults from its persisted state.
+		const d = parsed.flag ? parsed : existing?.flag ? ({ ...parsed, flag: existing.flag } as DesiredPane) : withPersistedFlag(parsed);
 		// Re-request with fresh component data: hand it to the live child directly.
 		if (existing && d.paneType === "component" && d.data) {
 			const live = this.findLiveChild(id);
@@ -301,11 +304,12 @@ class PaneStateImpl {
 			const existing = live.get(id);
 			if (existing) {
 				existing.setAttribute("label", labelOf(d));
-				applyFlag(existing, d.flag);
+				applyFlag(this.strip, existing, d.flag);
 				continue;
 			}
 			await this.openPane(d, id);
 		}
+		this.strip.updateAccordion(); // flag changes on existing panes shift the layout budget
 		this.writeHash();
 		this.activate();
 	}
@@ -318,16 +322,17 @@ class PaneStateImpl {
 		pane.setAttribute("label", labelOf(d));
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnTypeFor(d));
 		// Default unpinned: only explicitly pinned panes survive a Miller-column prune.
+		// The columnKey is also the pane's persistence identity: its remembered width/minimize
+		// restore when it attaches (ShuElement.persistFields), so no width plumbing here.
 		pane.dataset.columnKey = id;
-		// Restore a width the user previously set for this column, so a reload keeps their chosen sizing.
-		const savedWidth = savedColumnWidth(id);
-		if (savedWidth !== undefined) pane.setWidth(savedWidth);
+		// Pre-mark a minimized arrival so addPane neither activates nor scrolls to it.
+		if (d.flag === "min") pane.setMinimized(true);
 		this.strip.addPane(pane);
 		const child = document.createElement(tag);
 		if (readShowControlsCookie(tag)) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		if (d.paneType === "component" && d.data) (child as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		pane.appendChild(child);
-		applyFlag(pane, d.flag);
+		applyFlag(this.strip, pane, d.flag);
 		await this.hooks.afterAttach?.[d.paneType]?.(d, child);
 	}
 
@@ -369,18 +374,24 @@ function columnTypeFor(d: DesiredPane): string {
 	return d.paneType;
 }
 
-function applyFlag(pane: ShuColumnPane, flag: DesiredPane["flag"]): void {
-	if (flag === "min") {
-		pane.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
-		pane.removeAttribute(SHU_ATTR.DATA_MAXIMIZED);
-	} else if (flag === "max") {
-		pane.setAttribute(SHU_ATTR.DATA_MAXIMIZED, "");
-		pane.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
-		pane.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { bubbles: true, composed: true }));
-	} else {
-		pane.removeAttribute(SHU_ATTR.DATA_MAXIMIZED);
-		pane.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
-	}
+/** Apply a desired flag to a live pane. Minimize goes through the pane's one owning path (state + persistence);
+ * maximize toggles the attribute (the pane derives its flex from it) and the strip's layout runs only on a real
+ * transition — re-affirming an existing maximize must never re-snapshot the already-hidden layout. */
+function applyFlag(strip: ShuColumnStrip, pane: ShuColumnPane, flag: DesiredPane["flag"]): void {
+	const wasMax = pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
+	const max = flag === "max";
+	pane.setMinimized(flag === "min");
+	pane.toggleAttribute(SHU_ATTR.DATA_MAXIMIZED, max);
+	if (max !== wasMax) strip.applyMaximize(pane, max);
+}
+
+/** A column the user last minimized reopens minimized: its pane persists `minimized` (ShuElement.persistFields),
+ * and that remembered state becomes the default flag when the hash or caller doesn't specify one. Only `min` is
+ * defaulted — re-applying a remembered maximize would unexpectedly hide the rest of the workspace. */
+function withPersistedFlag(d: DesiredPane): DesiredPane {
+	if (d.flag) return d;
+	const saved = readElementPrefs("shu-column-pane", paneIdOf(d));
+	return saved?.minimized === true ? ({ ...d, flag: "min" } as DesiredPane) : d;
 }
 
 /**

@@ -12,7 +12,15 @@ describe("dispatchAffordanceFromResponse", () => {
 		document.body.innerHTML = "";
 		ViewHash.setOffline(true);
 		ShuElement.pushHash("#?");
-		if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", class extends HTMLElement {});
+		if (!customElements.get("shu-column-pane"))
+			customElements.define(
+				"shu-column-pane",
+				class extends HTMLElement {
+					setMinimized(m: boolean) {
+						this.toggleAttribute("data-minimized", m);
+					}
+				},
+			);
 		if (!customElements.get("shu-column-strip")) {
 			customElements.define(
 				"shu-column-strip",
@@ -24,6 +32,12 @@ describe("dispatchAffordanceFromResponse", () => {
 						this.appendChild(p);
 					}
 					activatePane(_i: number) {
+						/* no-op */
+					}
+					updateAccordion() {
+						/* no-op */
+					}
+					applyMaximize(_p: HTMLElement, _max: boolean) {
 						/* no-op */
 					}
 				},
