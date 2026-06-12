@@ -82,7 +82,6 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 	private currentNodeMap = new Map<string, { graph: string; subject: string }>();
 	/** Drawn edges in render order from buildMermaidSource — the nth entry is the nth SVG edge path (exact from/to node ids). */
 	private currentDrawnEdges: { from: string; to: string }[] = [];
-	private visibleQuads: TQuad[] = [];
 	private lastMermaidSource = "";
 	/** Last viewport + zoom the SVG was sized for; a change (resize or zoom) forces a re-render so the server bakes in the current scale. */
 	private lastFitW = 0;
@@ -155,36 +154,15 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 		this.applySelectionHighlight(subject);
 	}
 
-	private lastTimeSyncRender = 0;
-	private timeSyncTimer = 0;
-
-	protected override onTimeSync(): void {
-		// Throttle the diagram re-render to 500ms during continuous play.
-		// `<shu-graph-filter>` is a ShuElement of its own and re-derives its
-		// legend on every TIME_SYNC independently.
-		const apply = () => {
-			this.lastTimeSyncRender = Date.now();
-			this.visibleQuads = this.filterByTime(this.state.quads);
-			this.scheduleRender();
-		};
-		const now = Date.now();
-		if (now - this.lastTimeSyncRender >= 500) {
-			apply();
-		} else if (!this.timeSyncTimer) {
-			this.timeSyncTimer = window.setTimeout(() => {
-				this.timeSyncTimer = 0;
-				apply();
-			}, 500);
-		}
-	}
+	// Time-cursor filtering lives on the base (visibleQuads + throttled onTimeSync): one pathway for every
+	// clustered view. `<shu-graph-filter>` is a ShuElement of its own and re-derives its legend independently.
 
 	render(): TemplateResult {
 		const { quads, layout } = this.state;
 
 		if (quads.length === 0) return html`<div class="empty"><shu-spinner></shu-spinner> Loading graph data...</div>`;
 
-		// Filter quads by time cursor — show graph state at that moment
-		this.visibleQuads = this.filterByTime(quads);
+		// The base's time-filtered slice — the graph state at the cursor's moment
 		const visibleQuads = this.visibleQuads;
 		const hiddenRelSet = new Set(this.state.hiddenRels);
 		const classifier = this.activeClassifier;

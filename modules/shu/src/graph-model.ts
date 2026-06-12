@@ -7,12 +7,14 @@ export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 type BuildGraphModelOptions = {
 	ignoreInternalPredicates?: boolean;
 	requireObjectSubject?: boolean;
+	requireObjectType?: boolean;
 	clusters?: TCluster[];
 };
 
-const DEFAULT_OPTIONS: Required<Pick<BuildGraphModelOptions, "ignoreInternalPredicates" | "requireObjectSubject">> = {
+const DEFAULT_OPTIONS: Required<Pick<BuildGraphModelOptions, "ignoreInternalPredicates" | "requireObjectSubject" | "requireObjectType">> = {
 	ignoreInternalPredicates: true,
 	requireObjectSubject: true,
+	requireObjectType: true,
 };
 
 export const CLUSTER_PREDICATE = "clusterOf";
@@ -39,6 +41,11 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 	for (const q of quads) {
 		if (typeof q.subject !== "string" || typeof q.object !== "string") continue;
 		if (q.subject === q.object) continue;
+		// An edge is a TYPED reference: the quad carries `objectType` — the JSON-LD range of its target. A plain-string
+		// property (no objectType) is never an edge, even if its value coincidentally matches a node id. This is the
+		// same rule the overview's mermaid classifier applies ("declared by the range, never guessed from the id");
+		// guessing is what mis-linked string properties like `account` onto whatever node shared their value.
+		if (opts.requireObjectType && (typeof q.objectType !== "string" || q.objectType.length === 0)) continue;
 		if (opts.ignoreInternalPredicates && q.predicate.startsWith("_")) continue;
 		if (!nodeMap.has(q.subject)) continue;
 		if (opts.requireObjectSubject && !nodeMap.has(q.object)) continue;
