@@ -68,7 +68,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; }
 		.field-name { white-space: nowrap; color: var(--shu-fg-faded); width: 80px; font-size: 0.85em; }
 		.body-container { display: flex; flex-direction: column; flex: 1; min-height: 200px; }
-		.body-iframe { width: 100%; height: 100%; min-height: 200px; border: none; background: var(--shu-bg); }
+		.body-iframe { width: 100%; height: 100%; min-height: 200px; border: none; background: #fff; }
+		/* Locally-rendered (black-on-white) bodies invert in dark themes so they read natively; a text/html body is
+		   the original document with its own colours and never inverts (see renderContentIframe). */
+		.body-iframe.invertible { filter: invert(var(--shu-invert, 0)) hue-rotate(calc(var(--shu-invert, 0) * 180deg)); }
 		.error-banner { padding: var(--shu-space-3) var(--shu-space-4); margin: var(--shu-space-2); background: var(--shu-bg-error-soft); color: var(--shu-error); border-radius: var(--shu-radius); }
 		.loading, .empty { color: var(--shu-fg-faded); padding: var(--shu-space-4); }
 	`];
@@ -319,7 +322,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const raw = String(active.content ?? "");
 		const content = renderContentHtml(raw, String(active.mediaType));
 		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType)));
-		const iframeHtml = `<iframe class="body-iframe" data-body-id="${escAttr(String(active.id ?? ""))}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
+		const invertible = String(active.mediaType) !== "text/html" ? " invertible" : "";
+		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(String(active.id ?? ""))}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
 		const copyBtn = copyButtonHtml(raw);
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}</div>`;
@@ -427,6 +431,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				const iframe = this.shadowRoot?.querySelector(".body-iframe") as HTMLIFrameElement | null;
 				if (iframe) {
 					iframe.dataset.bodyId = bodyId;
+					iframe.classList.toggle("invertible", body.mediaType !== "text/html");
 					iframe.src = `data:text/html;base64,${utf8ToBase64(buildBodyIframeDoc(content, body.mediaType))}`;
 				}
 			});

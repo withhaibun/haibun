@@ -70,12 +70,15 @@ export const SHU_TOKENS = `
 		--shu-border-info: #c8d0e0;
 		--shu-private: #a01a1a;
 		--shu-shadow: rgba(0, 0, 0, 0.18);
+		/* 1 in dark themes: locally-rendered (black-on-white) embedded documents are colour-inverted to match. */
+		--shu-invert: 0;
 
 		--shu-font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 	}
 
 	@media (prefers-color-scheme: dark) {
 		:host, :root {
+			--shu-invert: 1;
 			--shu-bg: #161616;
 			--shu-bg-soft: #1d1d1d;
 			--shu-bg-elevated: #232323;
@@ -111,6 +114,7 @@ export const SHU_TOKENS = `
 	}
 
 	:host([data-theme="dark"]), :root[data-theme="dark"] {
+		--shu-invert: 1;
 		--shu-bg: #161616;
 		--shu-bg-soft: #1d1d1d;
 		--shu-bg-elevated: #232323;
@@ -145,6 +149,7 @@ export const SHU_TOKENS = `
 	}
 
 	:host([data-theme="light"]), :root[data-theme="light"] {
+		--shu-invert: 0;
 		--shu-bg: #ffffff;
 		--shu-bg-soft: #fafafa;
 		--shu-bg-elevated: #f4f4f4;

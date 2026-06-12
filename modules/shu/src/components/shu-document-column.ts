@@ -55,6 +55,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		img { display: block; }
 		shu-artifact-frame { margin: var(--shu-space-5) 0; }
 		.doc-controls { padding: var(--shu-space-2) var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
+		/* The level selector is a settings surface: visible only when the column's controls toggle (the pane's ⚙, which sets data-show-controls) is on. */
+		:host(:not([data-show-controls])) .doc-controls { display: none; }
 	`];
 	private events: THaibunEvent[] = [];
 	private seenEventIds = new Set<string>();
