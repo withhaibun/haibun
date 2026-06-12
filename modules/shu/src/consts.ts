@@ -23,6 +23,8 @@ export const SHU_EVENT = {
 	CONTEXT_CHANGE: "context-change",
 	FILTER_CHANGE: "filter-change",
 	GRAPH_FILTER_CHANGE: "graph-filter-change",
+	// Hovering a type in the filter previews it: views dim every other type so the hovered one stands out. null = preview ended.
+	GRAPH_TYPE_PREVIEW: "graph-type-preview",
 	GRAPH_CLUSTER_EXPAND: "graph-cluster-expand",
 	GRAPH_NODE_CLICK: "graph-node-click",
 	GRAPH_NODE_HOVER: "graph-node-hover",
