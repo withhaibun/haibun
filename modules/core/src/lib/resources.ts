@@ -507,7 +507,8 @@ export type TComment = z.infer<typeof CommentSchema>;
 export const commentDomainDefinition: TDomainDefinition = {
 	selectors: [COMMENT_DOMAIN],
 	schema: CommentSchema,
-	description: "Comment with links to its origin and discourse",
+	description:
+		"A note about another record. It links to what it is about and to any replies, so conversations stay attached to their subject.",
 	topology: {
 		persistedAs: COMMENT_LABEL,
 		id: "id",
@@ -583,7 +584,7 @@ export type TPrincipal = z.infer<typeof PrincipalSchema>;
 export const principalDomainDefinition: TDomainDefinition = {
 	selectors: [PRINCIPAL_DOMAIN],
 	schema: PrincipalSchema,
-	description: "Principal",
+	description: "A person or service that acts in this system — the author behind records, comments, and decisions — identified by a DID (a public, verifiable address).",
 	topology: {
 		persistedAs: PRINCIPAL_LABEL,
 		type: "sec:Controller",
@@ -637,7 +638,7 @@ export function bodyByMediaType(individual: { hasBody?: Array<{ mediaType?: stri
 export const bodyDomainDefinition: TDomainDefinition = {
 	selectors: [BODY_DOMAIN],
 	schema: BodySchema,
-	description: "Opaque content keyed by mediaType (text/markdown, application/json, etc.)",
+	description: "The full content of another record — a message's text, a document's data — stored alongside it so large content loads only when opened.",
 	topology: {
 		persistedAs: BODY_LABEL,
 		id: "id",
