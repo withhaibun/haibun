@@ -21,12 +21,11 @@ import { conduit } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags, getProperties, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
-import { getCookie, setCookie } from "../cookies.js";
+import { getCookie } from "../cookies.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 
-const MODE_COOKIE = "shu-mode";
 const HEIGHT_COOKIE = "shu-actions-height";
 
 /**
@@ -121,9 +120,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return `data-testid="${this.testIdPrefix}${id}"`;
 	}
 
+	/** The ask/step mode toggle is remembered across reloads (ShuElement.persistFields; singleton key). */
+	static persistFields = ["mode"] as const;
+
 	constructor() {
-		const mode = (getCookie(MODE_COOKIE) as TMode) || "step";
-		super(ActionsBarSchema, { askExpanded: false, mode });
+		super(ActionsBarSchema, { askExpanded: false, mode: "step" });
 	}
 
 	setContext(
@@ -780,7 +781,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private onModeChange = (e: Event): void => {
 		const mode = (e.target as HTMLSelectElement).value as TMode;
-		setCookie(MODE_COOKIE, mode);
 		this.setState({ mode });
 	};
 
