@@ -38,3 +38,24 @@ function getSignals(): ShuSignals {
 }
 
 export const timeCursorSignal = getSignals().timeCursor;
+
+/** Cross-bundle explicit subscribe for the time cursor (signal reactive tracking doesn't cross esbuild bundle
+ * boundaries because the polyfill's dependency context is module-level). Any bundle — including external viewers
+ * bundled separately from the shu-app — can subscribe here; the callback list lives on globalThis so both sides
+ * share it regardless of which bundle calls subscribe or notify. */
+const CURSOR_SUBS_KEY = "__SHU_TIME_CURSOR_SUBS__";
+
+function getCursorSubscribers(): Set<(cursor: number | null) => void> {
+	const g = globalThis as unknown as Record<string, Set<(cursor: number | null) => void>>;
+	return (g[CURSOR_SUBS_KEY] ??= new Set());
+}
+
+export function subscribeTimeCursor(cb: (cursor: number | null) => void): () => void {
+	const subs = getCursorSubscribers();
+	subs.add(cb);
+	return () => subs.delete(cb);
+}
+
+export function notifyTimeCursorSubscribers(cursor: number | null): void {
+	for (const cb of getCursorSubscribers()) cb(cursor);
+}
