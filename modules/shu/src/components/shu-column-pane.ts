@@ -25,6 +25,8 @@ const TEST_ID = { MAX: "pane-maximize", CONTROLS: "pane-controls-toggle", BROWSE
 const MIN_RESIZED_WIDTH = 120;
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
+	static override observedHtmlAttributes = [SHU_ATTR.IS_LAST, SHU_ATTR.DATA_MAXIMIZED];
+
 	static styles = [shuBaseStyles, css`
 		:host {
 			display: flex; flex-direction: column;
@@ -144,6 +146,47 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	static attributeFields = { label: "label", active: "active", closable: "closable", pinned: "pinned", "column-type": "columnType" };
 
+	/** Width and user-minimize are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity. Maximize is deliberately not remembered — it lives in the URL hash only. */
+	static persistFields = ["width", "minimized"] as const;
+
+	/** A pane's persistence identity is its column key (assigned before attach by PaneState; "query" for the root pane). A pane without one doesn't persist. */
+	protected override get persistKey(): string | null {
+		return this.dataset.columnKey ?? null;
+	}
+
+	/** Transient accordion auto-collapse (strip layout), unioned with the persisted `minimized` state into the `collapsed` attribute. */
+	#accordionCollapsed = false;
+
+	get accordionCollapsed(): boolean {
+		return this.#accordionCollapsed;
+	}
+
+	protected override onConnected(): void {
+		this.#reflectLayout(); // persisted width/minimized restored just before this — reflect synchronously so the strip's addPane sees the attributes
+	}
+
+	protected override onAttributeChanged(name: string): void {
+		if (name === SHU_ATTR.IS_LAST || name === SHU_ATTR.DATA_MAXIMIZED) this.#reflectLayout();
+	}
+
+	/** Single writer of layout-derived DOM: the data-minimized attribute mirrors state for CSS and the strip's queries; collapsed is the union of user-minimize and accordion collapse; inline flex from #applyFlex. */
+	#reflectLayout(): void {
+		this.toggleAttribute(SHU_ATTR.DATA_MINIMIZED, this.state.minimized);
+		this.toggleAttribute(SHU_ATTR.COLLAPSED, this.state.minimized || this.#accordionCollapsed);
+		this.#applyFlex();
+	}
+
+	/** Inline flex computed from full state — one writer, so no path strands a stale width. Maximized fills the
+	 * strip; collapsed defers to the :host([collapsed]) CSS; the rightmost pane absorbs the remaining strip width
+	 * (its stored width stays put and reapplies when it stops being last); otherwise an explicit user width is
+	 * fixed; default shares the strip via :host { flex: 1 }. */
+	#applyFlex(): void {
+		const w = this.state.width;
+		if (this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) this.style.flex = "1";
+		else if (this.isCollapsed || w === undefined || this.hasAttribute(SHU_ATTR.IS_LAST)) this.style.flex = "";
+		else this.style.flex = `0 0 ${w}px`;
+	}
+
 	/** Toggle active state. Reflects to the `[active]` host attribute so the `:host([active])` CSS rules apply without re-rendering, and dispatches `VIEW_ACTIVE` to the slotted child so it can adjust selection/update behavior. */
 	setActive(active: boolean): void {
 		if (this.state.active === active) return;
@@ -154,43 +197,38 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		if (child) child.dispatchEvent(new CustomEvent(SHU_EVENT.VIEW_ACTIVE, { detail: { active } }));
 	}
 
-	/** Set user-resized width. Undefined = auto (flex: 1). */
+	/** Set user-resized width (persisted). Undefined = auto (flex: 1). */
 	setWidth(width: number | undefined): void {
 		this.setState({ width });
-		this.style.flex = width !== undefined ? `0 0 ${width}px` : "1";
+		this.#reflectLayout();
 	}
 
-	/** The explicit resized width, if any. The strip's accordion treats these panes as fixed-width and never auto-collapses them, so an explicit resize survives opening other columns. */
-	get userWidth(): number | undefined {
-		return this.state.width;
+	/** The width to count as fixed in strip layout math: the user's explicit width, except a last or maximized pane, which always renders flexible (the stored width stays put for when it isn't). */
+	get fixedWidth(): number | undefined {
+		return this.hasAttribute(SHU_ATTR.IS_LAST) || this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED) ? undefined : this.state.width;
 	}
 
-	/** Collapse to header-only (accordion). Stash any inline flex so the host CSS rule wins without !important, then restore on un-collapse. */
+	/** Accordion auto-collapse (strip layout only). User minimize goes through setMinimized. */
 	setCollapsed(collapsed: boolean): void {
-		if (collapsed) {
-			if (this.style.flex) this.dataset.savedFlex = this.style.flex;
-			this.style.flex = "";
-			this.setAttribute("collapsed", "");
-		} else {
-			this.removeAttribute("collapsed");
-			if (this.dataset.savedFlex) {
-				this.style.flex = this.dataset.savedFlex;
-				delete this.dataset.savedFlex;
-			}
-		}
-		this.requestUpdate();
+		this.#accordionCollapsed = collapsed;
+		this.#reflectLayout();
 	}
 
 	get isCollapsed(): boolean {
-		return this.hasAttribute("collapsed");
+		return this.hasAttribute(SHU_ATTR.COLLAPSED);
+	}
+
+	/** User-minimize (persisted). The one path that owns the minimize state — clicks, hash flags, and restores all land here. */
+	setMinimized(minimized: boolean): void {
+		if (this.state.minimized === minimized) return;
+		this.setState({ minimized });
+		this.#reflectLayout();
 	}
 
 	private onMinimize = (e: Event): void => {
 		e.stopPropagation();
-		const minimize = !this.isCollapsed;
-		this.setCollapsed(minimize);
-		if (minimize) this.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
-		else this.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
+		const minimize = !this.state.minimized;
+		this.setMinimized(minimize);
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { detail: { minimized: minimize }, bubbles: true, composed: true }));
 	};
 

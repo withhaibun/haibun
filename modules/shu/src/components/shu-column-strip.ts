@@ -2,21 +2,19 @@
  * <shu-column-strip> — Horizontal scrolling container for column panes.
  * Manages pane insertion/removal via DOM API (NOT innerHTML).
  * Dispatches columns-changed, column-activated events.
- * Handles hash serialization via getColumnKeys/restoreColumn.
+ * Pane open-state and the URL hash are owned by PaneState; per-pane width/minimize
+ * persistence is owned by the panes themselves (ShuElement.persistFields).
  */
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnStripSchema } from "../schemas.js";
-import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
-type SavedPaneState = { collapsed: boolean; minimized: boolean; inlineFlex: string; inlineDisplay: string };
-
-/** Cookie holding the keys of user-minimized panes, so the minimize state survives a reload. */
-const MINIMIZED_COOKIE = "shu-pane-min";
+/** Layout snapshot taken when a pane maximizes; restored on un-maximize. Flex is derived state (the pane recomputes it), so only display and accordion collapse are stashed. */
+type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	static styles = [shuBaseStyles, css`
@@ -51,25 +49,17 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		return Array.from(this.querySelectorAll("shu-column-pane")) as PaneEl[];
 	}
 
-	/** Add a new pane. Appends at end (after afterIndex if given, for insertion order). A pane the user last minimized restores minimized and never takes activation. */
-	addPane(pane: PaneEl, _afterIndex?: number): void {
+	/** Add a new pane (appends at end). A pane arriving minimized — pre-marked by PaneState or restored from its persisted state on attach — never takes activation or scroll. */
+	addPane(pane: PaneEl): void {
 		this.appendChild(pane);
-		const restoreMinimized = getJsonCookie<string[]>(MINIMIZED_COOKIE, []).includes(this.paneKey(pane));
-		if (restoreMinimized) pane.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
-		else this.activatePane(this.panes.length - 1);
+		const minimized = pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
+		if (!minimized) this.activatePane(this.panes.length - 1);
 		this.updateQueryAlone();
 		this.updateIsLast();
 		this.updateAccordion();
 		this.emitColumnsChanged();
-		if (!restoreMinimized) requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
-	}
-
-	private paneKey(p: PaneEl): string {
-		return p.dataset.columnKey || `${p.getAttribute(SHU_ATTR.COLUMN_TYPE) || ""}:${p.getAttribute("label") || ""}`;
-	}
-
-	private persistMinimized(): void {
-		setJsonCookie(MINIMIZED_COOKIE, this.panes.filter((p) => p.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).map((p) => this.paneKey(p)));
+		if (!minimized) requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
+		if (pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) this.applyMaximize(pane, true);
 	}
 
 	/** Remove a pane by index. */
@@ -89,16 +79,10 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.emitColumnsChanged();
 	}
 
-	/** Mark the rightmost pane with `is-last` so its resize handle and right border drop off. The pane reads the attribute via `:host([is-last])` selectors; no manual style edits per-pane. */
+	/** Mark the rightmost pane with `is-last` so its resize handle and right border drop off and it renders flexible (the pane observes the attribute and recomputes its flex; its stored width is kept for when it stops being last). */
 	private updateIsLast(): void {
 		const panes = this.panes;
-		for (let i = 0; i < panes.length; i++) {
-			const isLast = i === panes.length - 1;
-			panes[i].toggleAttribute(SHU_ATTR.IS_LAST, isLast);
-			// The rightmost pane always absorbs the remaining strip width: an explicit width is meaningless there,
-			// and keeping it (flex 0 0 px) would block shrinking and overflow the strip on narrow windows.
-			if (isLast && panes[i].userWidth !== undefined) panes[i].setWidth(undefined);
-		}
+		for (let i = 0; i < panes.length; i++) panes[i].toggleAttribute(SHU_ATTR.IS_LAST, i === panes.length - 1);
 	}
 
 	/** Activate a pane by index. Updates active attributes without re-rendering other panes. */
@@ -123,17 +107,6 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		return this.panes.filter((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query").map((p) => p.getAttribute("label") || "");
 	}
 
-	/** Serialize column state for URL hash. Appends ~min suffix for minimized panes. */
-	getColumnKeys(): string[] {
-		return this.panes
-			.filter((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query")
-			.map((p) => {
-				const key = this.paneKey(p);
-				if (p.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return `${key}~max`;
-				return p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) ? `${key}~min` : key;
-			});
-	}
-
 	/** Toggle query-alone class on the query pane for CSS-safe :only-child equivalent. */
 	private updateQueryAlone(): void {
 		const panes = this.panes;
@@ -141,11 +114,16 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		if (queryPane) queryPane.classList.toggle("query-alone", panes.length === 1);
 	}
 
-	/** Collapse panes that don't fit, keeping active + query panes expanded. Collapses leftmost first. */
+	/**
+	 * Keep every column open, flex-sharing the strip — collapse one only when the columns that share the remaining
+	 * width would each fall below a usable minimum (i.e. the strip is genuinely too narrow). Then collapse the
+	 * FEWEST leftmost columns needed so the rest clear that minimum; never the query, active, user-minimized, or
+	 * user-resized panes. A purposeful minimize is the user's; the accordion only touches auto-collapse.
+	 */
 	updateAccordion(): void {
 		if (this.isMaximized) return;
 		const COLLAPSED_WIDTH = 32;
-		const MIN_PANE_WIDTH = 200;
+		const MIN_USABLE_WIDTH = 150; // below this a flex-shared column is too thin to read — collapse instead of showing a sliver
 		const panes = this.panes;
 		const stripWidth = this.clientWidth;
 		// In portrait/wrap mode the flex-wrap CSS handles layout; accordion math assumes a single row.
@@ -154,26 +132,28 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const queryPane = panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query");
 		const activeIdx = this.state.activeIndex;
 
-		// Expand auto-collapsed panes (skip user-minimized), then collapse from left until they fit
-		const expandedWidth = stripWidth / Math.max(panes.length, 1);
-		let usedWidth = 0;
+		// Start from everything-open: un-collapse every auto-collapsed pane (a user-minimized one stays minimized).
+		for (const p of panes) if (!p.hasAttribute(SHU_ATTR.DATA_MINIMIZED)) p.setCollapsed(false);
 
-		for (let i = 0; i < panes.length; i++) {
-			if (panes[i].hasAttribute(SHU_ATTR.DATA_MINIMIZED)) {
-				usedWidth += COLLAPSED_WIDTH;
-			} else {
-				panes[i].setCollapsed(false);
-				// A user-resized pane occupies its explicit width; the rest share the strip evenly.
-				usedWidth += panes[i].userWidth ?? Math.max(expandedWidth, MIN_PANE_WIDTH);
-			}
+		// Space the flex panes share = strip minus the slivers of minimized panes and the fixed widths of resized panes.
+		let fixed = 0;
+		let flexCount = 0;
+		for (const p of panes) {
+			if (p.hasAttribute(SHU_ATTR.DATA_MINIMIZED)) fixed += COLLAPSED_WIDTH;
+			else if (p.fixedWidth !== undefined) fixed += p.fixedWidth;
+			else flexCount++;
 		}
 
-		// Collapse from left until they fit, skipping query, active, user-minimized, and user-resized
-		// panes — an explicit resize is respected, so the strip scrolls rather than discarding it.
-		for (let i = 0; i < panes.length && usedWidth > stripWidth; i++) {
-			if (panes[i] === queryPane || i === activeIdx || panes[i].hasAttribute(SHU_ATTR.DATA_MINIMIZED) || panes[i].userWidth !== undefined) continue;
-			panes[i].setCollapsed(true);
-			usedWidth -= Math.max(expandedWidth, MIN_PANE_WIDTH) - COLLAPSED_WIDTH;
+		// Collapse leftmost flex panes (never query/active/minimized/resized) only while the remaining flex panes
+		// can't each clear MIN_USABLE_WIDTH — and stop the moment they can, so the minimum number collapse.
+		let avail = stripWidth - fixed;
+		for (let i = 0; i < panes.length; i++) {
+			if (flexCount <= 1 || avail / flexCount >= MIN_USABLE_WIDTH) break;
+			const p = panes[i];
+			if (p === queryPane || i === activeIdx || p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) || p.fixedWidth !== undefined) continue;
+			p.setCollapsed(true);
+			avail -= COLLAPSED_WIDTH;
+			flexCount--;
 		}
 	}
 
@@ -183,51 +163,49 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	private handlePaneMaximize = (e: Event): void => {
 		const pane = (e as CustomEvent).target as PaneEl;
-		const isMaximizing = pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
-		if (isMaximizing) {
-			// On maximize: every other pane is fully removed from layout (display:none),
-			// not just collapsed. The maximizing pane takes the entire strip width — including
-			// the query pane area. Snapshot the inline flex + display so un-maximize restores exactly what was there.
+		this.applyMaximize(pane, pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED));
+	};
+
+	/** Maximize layout: every other pane is fully removed from layout (display:none), not just collapsed —
+	 * the maximizing pane takes the entire strip width including the query pane area. The snapshot guard makes
+	 * this idempotent: a re-application while already maximized (e.g. a PaneState reconcile re-affirming the
+	 * flag) can never re-snapshot the hidden layout and corrupt the restore. The pane's flex is derived from
+	 * its data-maximized attribute, so only display and accordion collapse need stashing. */
+	applyMaximize(pane: PaneEl, maximizing: boolean): void {
+		if (maximizing) {
+			if (this.savedLayout) return;
 			this.savedLayout = new Map();
-			for (const p of this.panes) this.savedLayout.set(p, { collapsed: p.isCollapsed, minimized: p.hasAttribute(SHU_ATTR.DATA_MINIMIZED), inlineFlex: p.style.flex, inlineDisplay: p.style.display });
+			for (const p of this.panes) this.savedLayout.set(p, { accordionCollapsed: p.accordionCollapsed, inlineDisplay: p.style.display });
 			for (const p of this.panes) {
 				if (p !== pane) p.style.display = "none";
 				else {
 					p.setCollapsed(false);
 					p.style.display = "";
-					p.style.flex = "1";
 				}
 			}
 			const index = this.panes.indexOf(pane);
 			if (index >= 0) this.activatePane(index);
 		} else {
-			if (this.savedLayout) {
-				for (const [p, s] of this.savedLayout) {
-					if (!this.contains(p)) continue;
-					p.style.display = s.inlineDisplay;
-					p.setCollapsed(s.collapsed);
-					if (s.minimized) p.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
-					p.style.flex = s.inlineFlex;
-				}
-				this.savedLayout = null;
+			if (!this.savedLayout) return;
+			for (const [p, s] of this.savedLayout) {
+				if (!this.contains(p)) continue;
+				p.style.display = s.inlineDisplay;
+				p.setCollapsed(s.accordionCollapsed);
 			}
+			this.savedLayout = null;
 			this.updateIsLast();
 			this.updateAccordion();
 		}
 		this.emitColumnsChanged();
-	};
+	}
 
 	private handlePaneExpand = (e: Event): void => {
 		const pane = (e as CustomEvent).target as PaneEl;
 		const index = this.panes.indexOf(pane);
 		if (index >= 0) {
-			pane.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
-			this.persistMinimized();
+			pane.setMinimized(false);
 			this.activatePane(index);
 			this.updateAccordion();
-			// Mirror handlePaneMinimize: the `~min` suffix in column keys depends
-			// on the pane's `data-minimized` attribute, so toggling it must emit
-			// COLUMNS_CHANGED for the URL hash to track expand the same way it tracks minimize.
 			this.emitColumnsChanged();
 			requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "center" }));
 		}
@@ -260,7 +238,6 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			}
 			if (target !== -1) this.activatePane(target);
 		}
-		this.persistMinimized();
 		this.updateAccordion();
 		this.emitColumnsChanged();
 	};
@@ -274,7 +251,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	private emitColumnsChanged(): void {
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.COLUMNS_CHANGED, {
-				detail: { columns: this.getColumnLabels(), keys: this.getColumnKeys() },
+				detail: { columns: this.getColumnLabels() },
 				bubbles: true,
 				composed: true,
 			}),

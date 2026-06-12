@@ -5,8 +5,9 @@
  * The user-facing complaints these tests pin down:
  *   - minimize click reflects `collapsed` host attribute (column shrinks via CSS rule)
  *   - maximize click reflects `data-maximized` host attribute and bubbles COLUMN_MAXIMIZE
- *   - strip's maximize handler clears any inline `flex` on the maximizing pane so a
- *     prior resize doesn't pin its width; restores the original inline value on un-maximize
+ *   - a pane's inline flex is derived from its full state (width, is-last, maximized, collapsed),
+ *     so a maximize or is-last phase never destroys a stored width
+ *   - width + minimize persist per column key and restore on a fresh pane (the reload contract)
  *   - controls-toggle and pin click reflect `aria-pressed` so the SHU base style highlights
  *   - rightmost pane gets the `is-last` host attribute when added to the strip
  */
@@ -14,8 +15,21 @@ import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
+import { flushPersistWrites } from "../element-prefs.js";
+import { setJsonCookie } from "../cookies.js";
+
+/** Flush any pending debounced persistence and clear the pane prefs cookie so tests are isolated. */
+function resetPanePrefs(): void {
+	flushPersistWrites();
+	setJsonCookie("shu-prefs-shu-column-pane", {});
+}
 
 beforeAll(() => {
+	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
+	if (!Element.prototype.scrollIntoView)
+		Element.prototype.scrollIntoView = () => {
+			/* jsdom has no layout to scroll */
+		};
 	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
 	if (!customElements.get("shu-column-strip")) customElements.define("shu-column-strip", ShuColumnStrip);
 });
@@ -37,6 +51,7 @@ describe("shu-column-pane buttons", () => {
 	let pane: ShuColumnPane;
 
 	beforeEach(async () => {
+		resetPanePrefs();
 		document.body.innerHTML = "";
 		pane = makePane();
 		document.body.appendChild(pane);
@@ -101,19 +116,52 @@ describe("shu-column-pane buttons", () => {
 		expect(pane.isConnected).toBe(true);
 	});
 
-	it("setWidth applies inline flex; setWidth(undefined) restores flex:1", () => {
+	it("setWidth applies inline flex; setWidth(undefined) defers to the :host flex default", () => {
 		pane.setWidth(320);
 		expect(pane.style.flex).toMatch(/^0 0 320px$/);
 		pane.setWidth(undefined);
-		expect(pane.style.flex.replace(/\s+/g, " ")).toMatch(/^(1|1 1 0%?)$/);
+		expect(pane.style.flex).toBe("");
 	});
 
-	it("userWidth reflects an explicit resize so the accordion can treat it as fixed-width (not auto-collapse it)", () => {
-		expect(pane.userWidth).toBeUndefined();
+	it("fixedWidth reflects an explicit resize so the accordion can treat it as fixed-width (not auto-collapse it)", () => {
+		expect(pane.fixedWidth).toBeUndefined();
 		pane.setWidth(320);
-		expect(pane.userWidth).toBe(320);
+		expect(pane.fixedWidth).toBe(320);
 		pane.setWidth(undefined);
-		expect(pane.userWidth).toBeUndefined();
+		expect(pane.fixedWidth).toBeUndefined();
+	});
+
+	it("a last pane renders flexible but keeps its stored width, reapplying it when it stops being last", () => {
+		pane.setWidth(320);
+		pane.toggleAttribute(SHU_ATTR.IS_LAST, true);
+		expect(pane.style.flex).toBe("");
+		expect(pane.fixedWidth).toBeUndefined();
+		pane.toggleAttribute(SHU_ATTR.IS_LAST, false);
+		expect(pane.style.flex).toBe("0 0 320px");
+		expect(pane.fixedWidth).toBe(320);
+	});
+
+	it("persists width and minimize per column key and restores both on a fresh pane with that key (the reload contract)", async () => {
+		pane.setWidth(280);
+		pane.setMinimized(true);
+		flushPersistWrites();
+		const again = makePane(); // same label → same columnKey
+		document.body.appendChild(again);
+		await nextFrame(again);
+		expect(again.fixedWidth).toBe(280);
+		expect(again.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(true);
+		expect(again.hasAttribute("collapsed")).toBe(true);
+	});
+
+	it("an explicit pre-attach state (a URL-hash flag) outranks the remembered value; untouched fields still restore", async () => {
+		pane.setWidth(280); // persists { width: 280, minimized: false }
+		flushPersistWrites();
+		const again = makePane();
+		again.setMinimized(true); // hash flag ~min applied before attach
+		document.body.appendChild(again);
+		await nextFrame(again);
+		expect(again.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(true);
+		expect(again.fixedWidth).toBe(280);
 	});
 
 	it("resize handle drag updates inline flex through document mousemove and emits column-resize on mouseup", () => {
