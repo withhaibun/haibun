@@ -49,6 +49,7 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
 import { eventStream, type TEvent, type TEventFilter } from "../event-stream.js";
 import { readElementPrefs, schedulePersistWrite } from "../element-prefs.js";
+import { notifyTimeCursorSubscribers } from "../signals.js";
 
 export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
 	/** Get the current view hash — from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
@@ -116,7 +117,10 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return timeCursorSignal.get();
 	}
 	protected set timeCursor(v: number | null) {
-		if (!this.hasAttribute("data-snapshot-time")) timeCursorSignal.set(v);
+		if (!this.hasAttribute("data-snapshot-time")) {
+			timeCursorSignal.set(v);
+			notifyTimeCursorSubscribers(v);
+		}
 	}
 
 	/** Whether this view is the strip's active pane child. Updated via VIEW_ACTIVE events fanned out by shu-column-pane.setActive. */
