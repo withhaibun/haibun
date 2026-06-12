@@ -19,7 +19,6 @@ import { getUiByComponent, getUiByType } from "./rels-cache.js";
 import { parseAffordanceProduct } from "./affordance-products.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
 import { PaneState } from "./pane-state.js";
-import { saveColumnWidth } from "./column-widths.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
@@ -134,7 +133,6 @@ const main = async (): Promise<void> => {
 
 	const apiBase = appRoot.getAttribute("data-api-base") || "/shu";
 	const SPLITTER_COOKIE = "shu-actions-height";
-	const QUERY_WIDTH_COOKIE = "shu-query-width";
 
 	if (!document.getElementById("graph-style")) {
 		const style = document.createElement("style");
@@ -224,7 +222,7 @@ const main = async (): Promise<void> => {
 		<div class="app-container">
 			<shu-actions-bar api-base="${apiBase}" testid-prefix="app-"></shu-actions-bar>
 			<shu-column-strip>
-				<shu-column-pane label="" column-type="query" closable="false" active>
+				<shu-column-pane label="" column-type="query" closable="false" active data-column-key="query">
 					<div class="results-target" style="height:100%;overflow:hidden;"></div>
 				</shu-column-pane>
 			</shu-column-strip>
@@ -335,22 +333,7 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Column resize → persist the new width so a reload keeps it. The query pane is the fixed root (its own cookie);
-	// every other column persists by its columnKey, restored when the column reopens (see PaneState.openPane).
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_RESIZE,
-		((e: CustomEvent) => {
-			const pane = (e.target as HTMLElement)?.closest("shu-column-pane") as HTMLElement | null;
-			const width = e.detail?.width;
-			if (!pane || typeof width !== "number") return;
-			if (pane.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query") {
-				document.cookie = `${QUERY_WIDTH_COOKIE}=${width}; path=/; max-age=${60 * 60 * 24 * 365}`;
-			} else if (pane.dataset.columnKey) {
-				saveColumnWidth(pane.dataset.columnKey, width);
-			}
-		}) as EventListener,
-		{ signal },
-	);
+	// Column widths persist via the pane's own ShuElement.persistFields (keyed by data-column-key) — no listener here.
 
 	// Context change → forward to actions bar + publish selected subject onto the shared view-context store.
 	appRoot.addEventListener(
@@ -367,19 +350,17 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Closing the column whose content carries the current selection clears the
-	// selection — otherwise viewers stay "focus-locked" on a subject whose column
-	// is gone. Views surface their subject via `data-subject` so the contract is
-	// the attribute, not the protected `state` field.
+	// A selection only holds while some un-minimized column actually shows it. Whenever the column set changes
+	// (close, Miller-prune, minimize, expand), a selection whose column is gone or minimized is cleared so every
+	// view undims — otherwise viewers stay focus-locked on a subject with no live column. Views surface their
+	// subject via `data-subject`, so the contract is the attribute, not the protected `state` field.
 	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_CLOSE,
-		((e: CustomEvent) => {
-			const pane = e.target as HTMLElement | null;
-			if (!pane) return;
+		SHU_EVENT.COLUMNS_CHANGED,
+		(() => {
 			const ctx = getViewContext();
 			if (!ctx.selectedSubject) return;
-			const closingSubject = pane.firstElementChild?.getAttribute("data-subject");
-			if (closingSubject === ctx.selectedSubject) setSelectedSubject(null, null);
+			const live = getStrip()?.panes.some((p) => !p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) && p.firstElementChild?.getAttribute("data-subject") === ctx.selectedSubject);
+			if (!live) setSelectedSubject(null, null);
 		}) as EventListener,
 		{ signal },
 	);
@@ -521,14 +502,9 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Activate query pane on start, restore saved width
+	// Activate query pane on start. Its width restores itself via persistFields (data-column-key="query").
 	const strip0 = getStrip();
 	strip0?.activatePane(0);
-	const savedQueryWidth = document.cookie.match(new RegExp(`(?:^|; )${QUERY_WIDTH_COOKIE}=([^;]*)`))?.[1];
-	if (savedQueryWidth && strip0) {
-		const queryPane = strip0.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query");
-		if (queryPane) queryPane.setWidth(parseInt(savedQueryWidth, 10));
-	}
 
 	// PaneState owns the URL hash and every pane-creation path. The afterAttach hooks
 	// adapt each variant's data into the existing column-component's open() RPC. Adding

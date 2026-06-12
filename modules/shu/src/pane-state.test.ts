@@ -69,7 +69,15 @@ describe("PaneState", () => {
 		document.body.innerHTML = "";
 		ViewHash.setOffline(true);
 		ShuElement.pushHash("#?");
-		if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", class extends HTMLElement {});
+		if (!customElements.get("shu-column-pane"))
+			customElements.define(
+				"shu-column-pane",
+				class extends HTMLElement {
+					setMinimized(m: boolean) {
+						this.toggleAttribute("data-minimized", m);
+					}
+				},
+			);
 		if (!customElements.get("shu-column-strip")) {
 			customElements.define(
 				"shu-column-strip",
@@ -87,6 +95,12 @@ describe("PaneState", () => {
 						const p = this.panes[i];
 						if (!p) throw new Error(`test stub strip: removePane index ${i} out of range (have ${this.panes.length})`);
 						p.remove();
+					}
+					updateAccordion() {
+						/* no-op: layout is not under test here */
+					}
+					applyMaximize(_p: HTMLElement, _max: boolean) {
+						/* no-op: layout is not under test here */
 					}
 				},
 			);
