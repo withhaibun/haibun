@@ -3,16 +3,22 @@
  * Behaviour contract for shu-column-strip minimize handling:
  *   - a minimized column never stays active: activation shifts to the nearest expanded column to its
  *     right, falling back to the left when none remain on the right
- *   - minimize state persists to a cookie and a re-added pane with the same key restores minimized,
- *     without stealing activation
+ *   - minimize persists via the pane's own persistFields, so a re-added pane with the same column key
+ *     restores minimized — without stealing activation
  */
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
-import { getJsonCookie, setJsonCookie } from "../cookies.js";
+import { flushPersistWrites, writeElementPrefs } from "../element-prefs.js";
+import { setJsonCookie } from "../cookies.js";
 
 beforeAll(() => {
+	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
+	if (!Element.prototype.scrollIntoView)
+		Element.prototype.scrollIntoView = () => {
+			/* jsdom has no layout to scroll */
+		};
 	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
 	if (!customElements.get("shu-column-strip")) customElements.define("shu-column-strip", ShuColumnStrip);
 });
@@ -26,7 +32,7 @@ function makePane(label: string): ShuColumnPane {
 }
 
 function minimize(pane: ShuColumnPane): void {
-	pane.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
+	pane.setMinimized(true);
 	pane.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { detail: { minimized: true }, bubbles: true, composed: true }));
 }
 
@@ -35,7 +41,8 @@ describe("shu-column-strip minimize", () => {
 	let panes: ShuColumnPane[];
 
 	beforeEach(async () => {
-		setJsonCookie("shu-pane-min", []);
+		flushPersistWrites();
+		setJsonCookie("shu-prefs-shu-column-pane", {});
 		document.body.innerHTML = "";
 		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
 		document.body.appendChild(strip);
@@ -56,19 +63,22 @@ describe("shu-column-strip minimize", () => {
 		expect((strip as unknown as { state: { activeIndex: number } }).state.activeIndex).toBe(1);
 	});
 
-	it("persists minimized keys to the cookie and clears them on expand", () => {
+	it("expand clears the persisted minimize so the column reopens expanded", () => {
 		minimize(panes[1]);
-		expect(getJsonCookie<string[]>("shu-pane-min", [])).toEqual(["B"]);
 		panes[1].dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
-		expect(getJsonCookie<string[]>("shu-pane-min", [])).toEqual([]);
+		flushPersistWrites();
+		const again = makePane("B");
+		strip.addPane(again as ShuColumnPane & HTMLElement);
+		expect(again.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(false);
 	});
 
-	it("restores a cookie-minimized pane as minimized without giving it activation", () => {
-		setJsonCookie("shu-pane-min", ["D"]);
+	it("restores a remembered-minimized pane as minimized without giving it activation", () => {
+		writeElementPrefs("shu-column-pane", "D", { minimized: true });
 		const before = (strip as unknown as { state: { activeIndex: number } }).state.activeIndex;
 		const d = makePane("D");
 		strip.addPane(d as ShuColumnPane & HTMLElement);
 		expect(d.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(true);
+		expect(d.hasAttribute(SHU_ATTR.COLLAPSED)).toBe(true);
 		expect((strip as unknown as { state: { activeIndex: number } }).state.activeIndex).toBe(before);
 	});
 });
