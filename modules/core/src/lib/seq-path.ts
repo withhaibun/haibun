@@ -83,7 +83,7 @@ export type TSeqPath = z.infer<typeof SeqPathSchema>;
 export const seqPathDomainDefinition: TDomainDefinition = {
 	selectors: [SEQ_PATH_DOMAIN],
 	schema: SeqPathSchema,
-	description: "Hierarchical step identifier reified as a graph individual",
+	description: "A step in an automated run. Records made during that step point back here, so you can see exactly when and where something was produced.",
 	topology: {
 		persistedAs: SEQ_PATH_LABEL,
 		id: SEQ_PATH_FIELD.id,
