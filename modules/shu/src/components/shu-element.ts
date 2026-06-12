@@ -48,6 +48,7 @@ import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
 import { eventStream, type TEvent, type TEventFilter } from "../event-stream.js";
+import { readElementPrefs, schedulePersistWrite } from "../element-prefs.js";
 
 export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
 	/** Get the current view hash — from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
@@ -74,12 +75,29 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return [...super.observedAttributes, ...Object.keys(this.attributeFields), ...this.observedHtmlAttributes];
 	}
 
+	/** State fields remembered across reloads — THE mechanism for any persisted UI option, declared like
+	 * `attributeFields` and wired by the base: `setState` write-through-persists them (debounced, via
+	 * element-prefs) and the sealed connect path restores them before `onConnected`. A field set explicitly
+	 * via setState earlier in this element's lifetime (e.g. a URL-hash flag applied before attach) is never
+	 * overwritten by the remembered value. Do not hand-roll component cookies — declare the field here. */
+	static persistFields: readonly string[] = [];
+
+	/** Identity under which `persistFields` store: "" (default) is a per-tag singleton; a multi-instance
+	 * component overrides this with its instance identity (e.g. a column key); null means "no identity yet,
+	 * don't persist". */
+	protected get persistKey(): string | null {
+		return "";
+	}
+
 	/** Reactive state. Subclasses read via `this.state`; mutations go through `setState`. The Zod schema is the runtime contract. */
 	@property({ attribute: false })
 	accessor state!: z.infer<T>;
 
 	private readonly _schema: T;
 	#teardowns: Array<() => void> = [];
+	#dirtyFields = new Set<string>();
+	#persistRestored = false;
+	#restoring = false;
 
 	/**
 	 * Current time cursor (absolute epoch ms; null = show all). ONE cursor system, two sources: live
@@ -110,6 +128,12 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		super();
 		this._schema = schema;
 		this.state = schema.parse(defaults);
+		// Fail fast on a typo'd persistFields entry — a name absent from the schema would otherwise silently never persist.
+		const persisted = (this.constructor as typeof ShuElement).persistFields;
+		if (persisted.length > 0) {
+			const shape = (schema as unknown as { shape?: Record<string, unknown> }).shape;
+			for (const f of persisted) if (!shape?.[f]) throw new Error(`${this.constructor.name}: persistFields names "${f}", which is absent from the schema`);
+		}
 		this.addEventListener(
 			SHU_EVENT.VIEW_ACTIVE as string,
 			((e: CustomEvent) => {
@@ -140,7 +164,49 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	/** Shallow-merge a partial into state, validate against the schema, and assign it. The `@property accessor state` setter schedules the re-render off the new (Zod-parsed) reference; this also emits `SHU_EVENT.STATE_CHANGE` so external listeners (e.g. test harnesses) observe transitions. Throws if the merged shape fails schema validation — by contract a caller error. Merge is shallow by design (state is treated as a whole-object replacement so `===` change detection fires); pass the full sub-object to update a nested field. */
 	protected setState(partial: Partial<z.infer<T>>): void {
 		this.state = this._schema.parse({ ...(this.state as object), ...partial });
+		if (!this.#restoring) {
+			for (const k of Object.keys(partial)) this.#dirtyFields.add(k);
+			this.#persistChanged(Object.keys(partial));
+		}
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.STATE_CHANGE, { detail: this.state, bubbles: true, composed: true }));
+	}
+
+	/** Write-through for persistFields touched by a setState. Debounced in element-prefs; values are collected at flush time so the latest state wins. */
+	#persistChanged(changed: string[]): void {
+		const fields = (this.constructor as typeof ShuElement).persistFields;
+		if (fields.length === 0 || !changed.some((k) => fields.includes(k))) return;
+		const key = this.persistKey;
+		if (key === null) return;
+		schedulePersistWrite(this.tagName.toLowerCase(), key, () => {
+			const state = this.state as Record<string, unknown>;
+			const out: Record<string, unknown> = {};
+			for (const f of fields) if (state[f] !== undefined) out[f] = state[f];
+			return out;
+		});
+	}
+
+	/** Restore persisted fields on first connect (persistKey is settled by then — e.g. a pane's columnKey is
+	 * assigned before attach). Fields the element already set explicitly stay; a stale or invalid remembered
+	 * value is dropped by schema validation rather than crashing the boot. */
+	#restorePersisted(): void {
+		const fields = (this.constructor as typeof ShuElement).persistFields;
+		if (this.#persistRestored || fields.length === 0) return;
+		this.#persistRestored = true;
+		const key = this.persistKey;
+		if (key === null) return;
+		const saved = readElementPrefs(this.tagName.toLowerCase(), key);
+		if (!saved) return;
+		const patch: Record<string, unknown> = {};
+		for (const f of fields) if (f in saved && !this.#dirtyFields.has(f)) patch[f] = saved[f];
+		if (Object.keys(patch).length === 0) return;
+		const merged = this._schema.safeParse({ ...(this.state as object), ...patch });
+		if (!merged.success) return;
+		this.#restoring = true;
+		try {
+			this.setState(patch as Partial<z.infer<T>>);
+		} finally {
+			this.#restoring = false;
+		}
 	}
 
 	protected validate(data: unknown): z.infer<T> {
@@ -157,6 +223,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	// can never be silently skipped. A subclass that overrides any of these throws at construction (see #assertSealed).
 	connectedCallback(): void {
 		super.connectedCallback();
+		this.#restorePersisted();
 		this.#installTimeSyncEffect();
 		this.onConnected();
 	}
