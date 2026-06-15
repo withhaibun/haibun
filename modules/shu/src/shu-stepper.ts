@@ -9,51 +9,44 @@ import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
-import { getJsonLdContext, buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import { Access, isContentPropertyDef, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 import { SHU_TYPE } from "./consts.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
-import { buildMermaidSource, buildClassifier, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type TBuildResult } from "./mermaid-source.js";
-import { siteMetadataFromConcerns } from "./rels-cache.js";
+import { buildGraphModelFromQuads } from "./graph-model.js";
 import { renderMermaidToSvg } from "./mermaid-render.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 
 /**
- * Build the SPA graph's mermaid source server-side from the persisted quads, using the same classifier the SPA
- * derives from the concern catalog. The SPA computes the identical source client-side; this is the one place the
- * server reproduces it (for `get graph layout` and for baking the offline report's graph). `hiddenGraphs` filters
- * clusters: empty shows everything, INSTRUMENTATION_GRAPHS yields the curated view.
+ * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
+ * builds client-side. The one place the server reproduces it: `get graph layout` reads the node/edge sets back, and the
+ * offline report bakes the quad snapshot. `hiddenGraphs` filters which named graphs contribute to the node/edge sets:
+ * empty shows everything, INSTRUMENTATION_GRAPHS yields the curated view.
  */
 export async function buildGraphSource(
 	world: TWorld,
 	hiddenGraphs: Set<string>,
-): Promise<(TBuildResult & { clusters: Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"]; quads: TQuad[] }) | undefined> {
+): Promise<
+	| {
+			quads: TQuad[];
+			clusters: Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"];
+			nodeMap: Map<string, { graph: string; subject: string }>;
+			edges: { source: string; predicate: string; object: string }[];
+	  }
+	| undefined
+> {
 	const store = world.shared.getStore();
 	if (!store.getClusteredQuads) return undefined;
 	// The offline report bakes the run owner's full snapshot, so it renders at full visibility.
 	const { quads, clusters } = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private });
-	const catalog = buildConcernCatalog(world.domains);
-	const meta = siteMetadataFromConcerns(catalog);
-	const edgeRelMap: Record<string, string> = {};
-	for (const concern of Object.values(catalog.persisted)) for (const [name, edge] of Object.entries(concern.edges)) edgeRelMap[name] = edge.rel;
-	const classifier = buildClassifier(
-		(g) => meta.rels[g],
-		(g) => meta.edgeRanges[g],
-		undefined,
-		edgeRelMap,
-	);
-	const labelsByType = new Map(clusters.map((c) => [c.type, c.displayLabels ?? {}]));
-	const opts: TGraphViewOpts = {
-		layout: "TD",
-		hiddenGraphs,
-		expandedGraphs: new Set(),
-		maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH,
-		displayLabel: (g, s) => labelsByType.get(g)?.[s],
-	};
-	return { ...buildMermaidSource(quads as TQuad[], opts, classifier), clusters, quads: quads as TQuad[] };
+	const visible = hiddenGraphs.size ? (quads as TQuad[]).filter((q) => !hiddenGraphs.has(q.namedGraph)) : (quads as TQuad[]);
+	const model = buildGraphModelFromQuads(visible);
+	const nodeMap = new Map(model.nodes.map((n) => [n.id, { graph: n.type, subject: n.id }]));
+	const edges = model.edges.map((e) => ({ source: e.from, predicate: e.predicate, object: e.to }));
+	return { quads: quads as TQuad[], clusters, nodeMap, edges };
 }
 
 export const DOMAIN_SHU_VIEW_ID = "shu-view-id";
@@ -299,10 +292,10 @@ export default class ShuStepper extends AStepper {
 			action: async () => {
 				const built = await buildGraphSource(this.getWorld(), new Set());
 				if (!built) return actionNotOK("QuadStore does not support getClusteredQuads");
-				const { nodeMap, diagnostics, clusters } = built;
+				const { nodeMap, edges: modelEdges, clusters } = built;
 				const labelOf = (g: string, s: string) => clusters.find((c) => c.type === g)?.displayLabels?.[s] ?? s;
 				const nodes = [...nodeMap.values()].map((n) => `${n.graph}|${n.subject}|${labelOf(n.graph, n.subject)}`);
-				const edges = diagnostics.edges.filter((e) => e.drawn).map((e) => `${e.source}|${e.predicate}|${e.object}`);
+				const edges = modelEdges.map((e) => `${e.source}|${e.predicate}|${e.object}`);
 				const layoutClusters = clusters.map((c) => ({ type: c.type, total: c.totalCount, sampled: c.sampledCount }));
 				return actionOKWithProducts({ nodes, edges, clusters: layoutClusters });
 			},
