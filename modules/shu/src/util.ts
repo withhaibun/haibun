@@ -2,6 +2,9 @@ export function esc(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/** Constrain a number to [min, max]. */
+export const clamp = (x: number, min: number, max: number): number => Math.min(max, Math.max(min, x));
+
 /** Must stay byte-identical with the same call in shu-step-caller's idPrefix() —
  * feature-test selectors converge on this slug regardless of which form (gwta or
  * qualified method) the test typed into the step picker. */
