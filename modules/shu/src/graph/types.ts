@@ -95,7 +95,7 @@ export type TGraphRenderOptions = {
 };
 
 /**
- * Renderer interface. Implemented by `MermaidGraphRenderer`.
+ * Renderer interface. Implemented by `SvgGraphRenderer`.
  *
  * Renderers dispatch interaction events on the container:
  *   - `graph-node-click` with `{ detail: { nodeId, node } }` for clicks.

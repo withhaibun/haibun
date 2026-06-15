@@ -11,7 +11,7 @@ import { colorForType } from "../type-colors.js";
 import { STORED_TYPE_PROP } from "../consts.js";
 import { formatDate } from "../util.js";
 import { isReplyEdge } from "@haibun/core/lib/resources.js";
-import { type PropertyClassifier, type TGraphViewOpts, isUri } from "../mermaid-source.js";
+import { type PropertyClassifier, type TGraphViewOpts, isUri } from "../graph-classifier.js";
 import type { TGraph, TGraphNode, TGraphEdge, TGraphGroup, TGraphStyle } from "./types.js";
 
 export type GraphTopology = { graph: TGraph; nodeMap: Map<string, { graph: string; subject: string }> };

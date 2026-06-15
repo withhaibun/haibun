@@ -75,11 +75,8 @@ export function waypointNodeId(outcome: string): string {
 /**
  * Id used for the sentinel "no-preconditions" source node.
  *
- * Mermaid's renderer sanitises any non-alphanumeric character to `_`. Routing
- * every input-less step through a `_`-id node tends to collide with Mermaid's
- * own internal helper identifiers on large graphs and the parser intermittently
- * fails to render. A clearly-namespaced id avoids the collision while the
- * visible label still reads `∅ (no preconditions)`.
+ * A clearly-namespaced sentinel id (not a bare `_`) stays distinct from real
+ * step ids while the visible label still reads `∅ (no preconditions)`.
  */
 export const SOURCE_DOMAIN = "__no_inputs__";
 

@@ -17,7 +17,6 @@ import type { Context } from "@haibun/web-server-hono/defs.js";
 import { SHU_TYPE } from "./consts.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "./graph-model.js";
-import { renderMermaidToSvg } from "./mermaid-render.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 
 /**
@@ -61,7 +60,7 @@ const ShuViewCloseSchema = z.object({ view: z.string() });
 const ShuSelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
 
 // Nodes and edges as pipe-delimited tokens — node `graph|subject|label`, edge `source|predicate|target` —
-// so a feature can match a relationship without parsing mermaid (e.g. `matches g.edges with "*|discloses|*"`).
+// so a feature can match a relationship without parsing the rendered graph (e.g. `matches g.edges with "*|discloses|*"`).
 const GraphLayoutSchema = z.object({
 	nodes: z.array(z.string()),
 	edges: z.array(z.string()),
@@ -298,15 +297,6 @@ export default class ShuStepper extends AStepper {
 				const edges = modelEdges.map((e) => `${e.source}|${e.predicate}|${e.object}`);
 				const layoutClusters = clusters.map((c) => ({ type: c.type, total: c.totalCount, sampled: c.sampledCount }));
 				return actionOKWithProducts({ nodes, edges, clusters: layoutClusters });
-			},
-		},
-		renderMermaid: {
-			gwta: "render mermaid {source: string}",
-			productsSchema: z.object({ svg: z.string() }),
-			// width/height (RPC params from the live view) make the SVG fill that viewport; absent (offline report) it scales responsively.
-			action: async ({ source, width, height }: { source: string; width?: number; height?: number }) => {
-				const fit = typeof width === "number" && width > 0 && typeof height === "number" && height > 0 ? { width, height } : undefined;
-				return actionOKWithProducts({ svg: await renderMermaidToSvg(source, fit) });
 			},
 		},
 	} satisfies TStepperSteps;

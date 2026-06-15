@@ -1,5 +1,5 @@
 /**
- * Shared base for every view that renders the clustered-quad snapshot as a graph (the reactive mermaid
+ * Shared base for every view that renders the clustered-quad snapshot as a graph (the reactive SVG
  * overview and any imperative canvas renderer a consumer mounts). It owns the one data pathway — fetch, live SSE merge, type filter, cluster +
  * neighborhood expansion, selection — so the two views can't drift. A subclass overrides only `onGraphConnected`
  * (mount its renderer), `onGraphData` (repaint), and `onGraphSelection` (highlight). Data lives on `this.state`:
