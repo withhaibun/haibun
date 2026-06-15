@@ -1,8 +1,8 @@
 /**
- * <shu-sequence-diagram> — Renders dispatch traces as a mermaid sequence diagram.
+ * <shu-sequence-diagram> — Renders step dispatch traces as an SVG sequence diagram.
  *
  * Shows step dispatch routing: local vs remote vs subprocess, with capability
- * checks and timing. Reusable in both shu SPA and monitor-browser.
+ * checks and timing, as actor lifelines and ordered call/return messages.
  *
  * Usage: element.setTraces(traces) or set the "traces" attribute as JSON.
  */
@@ -12,77 +12,49 @@ import { ShuElement } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
 import { copyText } from "../copy-util.js";
-import { requireStep } from "../rpc-registry.js";
 import { TIME_SYNC_STYLE } from "../time-sync.js";
+import { sequenceToSvg, sequenceToText, type TSeqModel, type TSeqMessage } from "../graph/sequence-renderer.js";
 
 import { DispatchTraceSchema, type TDispatchTrace } from "../schemas.js";
 const DispatchTrace = DispatchTraceSchema;
+
+const FEATURE = "Feature";
+
+/** Map dispatch traces to the renderer-agnostic sequence model, plus a per-message timestamp parallel array (for time-dimming). */
+export function tracesToModel(traces: TDispatchTrace[]): { model: TSeqModel; timestamps: number[] } {
+	const actors: TSeqModel["actors"] = [{ id: FEATURE, label: FEATURE }];
+	const seen = new Set([FEATURE]);
+	const messages: TSeqMessage[] = [];
+	const timestamps: number[] = [];
+	const push = (m: TSeqMessage, ts: number): void => {
+		messages.push(m);
+		timestamps.push(ts);
+	};
+	for (const t of traces) {
+		const target = t.transport === "remote" && t.remoteHost ? t.remoteHost : t.transport === "subprocess" ? "Subprocess" : "Local";
+		if (!seen.has(target)) {
+			seen.add(target);
+			actors.push({ id: target, label: target });
+		}
+		const ms = t.durationMs !== undefined ? ` (${t.durationMs}ms)` : "";
+		const ts = t.timestamp ?? 0;
+		if (t.capabilityRequired && !t.authorized) {
+			push({ from: FEATURE, to: target, label: `${t.stepName}${ms}`, kind: "denied", note: `denied: ${t.capabilityRequired}` }, ts);
+			continue;
+		}
+		const note = t.capabilityRequired ? `${t.capabilityRequired} ✓ ${(t.capabilityGranted ?? ["none"]).join(", ")}` : undefined;
+		push({ from: FEATURE, to: target, label: `${t.stepName}${ms}`, kind: "call", note }, ts);
+		const products = t.productKeys?.length ? ` {${t.productKeys.join(", ")}}` : "";
+		push({ from: target, to: FEATURE, label: `ok${products}`, kind: "return" }, ts);
+	}
+	return { model: { actors, messages }, timestamps };
+}
 
 const StateSchema = z.object({
 	traces: z.array(DispatchTrace).default([]),
 	zoom: z.number().default(100),
 	currentIndex: z.number().default(-1),
 });
-
-function escapeLabel(label: string): string {
-	return label
-		.replace(/"/g, "")
-		.replace(/'/g, "")
-		.replace(/@/g, " at ")
-		.replace(/:/g, "-")
-		.replace(/\|/g, "")
-		.replace(/\n/g, " ")
-		.replace(/[[\]{}()<>]/g, "")
-		.replace(/[#;&]/g, "")
-		.replace(/\//g, "-")
-		.replace(/\*/g, "");
-}
-
-function sanitizeId(name: string): string {
-	return (
-		name
-			.replace(/[^a-zA-Z0-9]/g, "_")
-			.replace(/^_+|_+$/g, "")
-			.substring(0, 30) || "node"
-	);
-}
-
-function buildMermaidSource(traces: TDispatchTrace[]): string {
-	const participants = new Set<string>();
-	participants.add("Feature");
-
-	for (const t of traces) {
-		if (t.transport === "remote" && t.remoteHost) participants.add(sanitizeId(t.remoteHost));
-		else if (t.transport === "subprocess") participants.add("Subprocess");
-		else participants.add("Local");
-	}
-
-	let src = "sequenceDiagram\n";
-	for (const p of participants) src += `  participant ${p}\n`;
-
-	for (const t of traces) {
-		const label = escapeLabel(t.stepName);
-		const ms = t.durationMs !== undefined ? ` (${t.durationMs}ms)` : "";
-		let target: string;
-		if (t.transport === "remote" && t.remoteHost) target = sanitizeId(t.remoteHost);
-		else if (t.transport === "subprocess") target = "Subprocess";
-		else target = "Local";
-
-		if (t.capabilityRequired && !t.authorized) {
-			src += `  Feature-x${target}: ${label}${ms}\n`;
-			src += `  Note right of ${target}: denied (cap-${escapeLabel(t.capabilityRequired)})\n`;
-		} else {
-			src += `  Feature->>${target}: ${label}${ms}\n`;
-			if (t.capabilityRequired) {
-				const granted = t.capabilityGranted?.map(escapeLabel).join(", ") ?? "none";
-				src += `  Note right of ${target}: cap-${escapeLabel(t.capabilityRequired)} granted-${granted}\n`;
-			}
-			const products = t.productKeys?.length ? ` {${t.productKeys.map(escapeLabel).join(", ")}}` : "";
-			src += `  ${target}-->>Feature: ok${products}\n`;
-		}
-	}
-	return src;
-}
 
 export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 	static styles = [
@@ -108,6 +80,8 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 	];
 
 	private diagramId = `shu-seq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+	/** Timestamp of the trace each painted message came from, indexed by the message's `data-index`. Drives time-dimming. */
+	private lastTimestamps: number[] = [];
 	constructor() {
 		super(StateSchema, { traces: [], zoom: 100, currentIndex: -1 });
 	}
@@ -163,7 +137,7 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 	};
 	private onCopy = async (e: Event): Promise<void> => {
 		// copyText falls back to execCommand when the async Clipboard API is blocked (e.g. a file:// report).
-		const ok = await copyText(buildMermaidSource(this.state.traces));
+		const ok = await copyText(sequenceToText(tracesToModel(this.state.traces).model));
 		const btn = e.currentTarget as HTMLElement | null;
 		if (!btn) return;
 		btn.textContent = ok ? "Copied" : "Copy failed";
@@ -173,7 +147,12 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 	};
 
 	protected updated(): void {
-		void this.renderMermaid(this.state.traces);
+		const host = this.shadowRoot?.getElementById(this.diagramId);
+		if (!host) return; // empty state renders no diagram leaf
+		const { model, timestamps } = tracesToModel(this.state.traces);
+		this.lastTimestamps = timestamps;
+		host.innerHTML = sequenceToSvg(model);
+		this.applyTimeDimming();
 	}
 
 	render(): TemplateResult {
@@ -193,50 +172,25 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 		`;
 	}
 
-	private async renderMermaid(traces: TDispatchTrace[]): Promise<void> {
-		const source = buildMermaidSource(traces);
-		try {
-			const { svg } = await conduit().follow<{ svg: string }>({ method: requireStep("renderMermaid"), params: { source } }, "sequence-diagram: render mermaid");
-			const container = this.shadowRoot?.querySelector(".diagram-container");
-			if (container) container.innerHTML = `<div>${svg}</div>`;
-			this.applyTimeDimming();
-		} catch (err) {
-			const container = this.shadowRoot?.querySelector(".diagram-container");
-			if (container) container.innerHTML = `<pre style="color:var(--shu-error)">${err instanceof Error ? err.message : err}</pre>`;
-		}
-	}
-
 	private applyTimeDimming(): void {
-		const container = this.shadowRoot?.querySelector(".diagram-container");
-		if (!container) return;
+		const host = this.shadowRoot?.getElementById(this.diagramId);
+		if (!host) return;
 		const cursor = this.timeCursor;
-		const messages = container.querySelectorAll(".messageText");
-		const lines = container.querySelectorAll(".messageLine0, .messageLine1");
+		const messages = Array.from(host.querySelectorAll<SVGGElement>(".seq-message"));
 		if (cursor === null) {
-			messages.forEach((el) => {
-				(el as SVGElement).style.opacity = "";
-			});
-			lines.forEach((el) => {
-				(el as SVGElement).style.opacity = "";
-			});
+			for (const el of messages) el.style.opacity = "";
 			return;
 		}
-		const traces = this.state.traces;
-		const futureIdx = traces.findIndex((t) => (t.timestamp ?? Infinity) > cursor);
+		// Each message carries the timestamp of its producing trace; dim the ones still in the future.
 		const dimmed = String(TIME_SYNC_STYLE.DIMMED_OPACITY);
-		let lastVisibleIdx = -1;
-		for (let i = 0; i < messages.length; i++) {
-			const isFuture = futureIdx >= 0 && i >= futureIdx;
-			(messages[i] as SVGElement).style.opacity = isFuture ? dimmed : "";
-			if (!isFuture) lastVisibleIdx = i;
+		let lastVisible: SVGGElement | null = null;
+		for (const el of messages) {
+			const ts = this.lastTimestamps[Number(el.getAttribute("data-index"))] ?? Number.POSITIVE_INFINITY;
+			const future = ts > cursor;
+			el.style.opacity = future ? dimmed : "";
+			if (!future) lastVisible = el;
 		}
-		for (let i = 0; i < lines.length; i++) {
-			(lines[i] as SVGElement).style.opacity = futureIdx >= 0 && i >= futureIdx ? dimmed : "";
-		}
-		// Scroll the current (last visible) trace into view
-		if (lastVisibleIdx >= 0 && messages[lastVisibleIdx]) {
-			(messages[lastVisibleIdx] as SVGElement).scrollIntoView({ block: "center", behavior: "smooth" });
-		}
+		lastVisible?.scrollIntoView({ block: "center", behavior: "smooth" });
 	}
 }
 
