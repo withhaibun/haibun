@@ -19,6 +19,8 @@ export type TGraphNode = {
 	id: string;
 	/** Displayed on the node. */
 	label: string;
+	/** Extended detail shown as the node's hover hint (a paint renders it as the SVG title / tooltip); falls back to label+kind. */
+	hint?: string;
 	/** Semantic marker for styling. Built-in vocabulary: default, satisfied, reachable, unreachable, refused, argument, current. */
 	kind?: string;
 	/** Group this node belongs to. References a key in `groups`. */
