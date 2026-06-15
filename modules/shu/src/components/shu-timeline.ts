@@ -142,7 +142,11 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 	/** Publish the scrubber position to the global cursor signal; the `cursor === this.currentTime` guard in onTimeSync makes the self-echo a no-op. */
 	private dispatchTimeSync(): void {
 		if (this.events.length === 0) return;
-		this.timeCursor = this.currentTime;
+		// At the live edge, publish a null cursor — "now", no upper bound — so a freshly-written record (timestamp
+		// newer than the last event we've processed) is not filtered out as "future" before its own timeline event
+		// lands. Only a scrub into the past publishes a concrete cutoff. This mirrors a reload, which never
+		// time-filters live data. The scrubber still reads its own currentTime, so the playhead stays at the end.
+		this.timeCursor = this.state.atEnd ? null : this.currentTime;
 	}
 
 	protected onTimeSync(cursor: number | null): void {

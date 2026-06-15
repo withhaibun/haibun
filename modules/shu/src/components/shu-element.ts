@@ -117,10 +117,10 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return timeCursorSignal.get();
 	}
 	protected set timeCursor(v: number | null) {
-		if (!this.hasAttribute("data-snapshot-time")) {
-			timeCursorSignal.set(v);
-			notifyTimeCursorSubscribers(v);
-		}
+		if (this.hasAttribute("data-snapshot-time")) return;
+		if (timeCursorSignal.get() === v) return; // unchanged cursor must NOT republish — every notify repaints all views (the live "wiggle" when streamed events kept re-emitting the same at-end cursor)
+		timeCursorSignal.set(v);
+		notifyTimeCursorSubscribers(v);
 	}
 
 	/** Whether this view is the strip's active pane child. Updated via VIEW_ACTIVE events fanned out by shu-column-pane.setActive. */
