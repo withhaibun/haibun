@@ -18,7 +18,7 @@ export interface PropertyDefinition {
 	range: "iri" | "literal" | "container";
 	label?: string;
 	icon?: string;
-	subPropertyOf?: string;
+	subPropertyOf?: string | string[];
 	presentation?: "summary" | "body" | "governance";
 }
 
