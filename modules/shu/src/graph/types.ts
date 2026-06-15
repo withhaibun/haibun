@@ -49,6 +49,8 @@ export type TGraphEdge = {
 	label?: string;
 	/** Semantic marker for styling. Built-in vocabulary: default, ready, blocked, capability-gated. */
 	kind?: string;
+	/** Link relation this edge carries (e.g. "attributedTo", "inReplyTo"); drives relation-filter selection. */
+	rel?: string;
 	/** Path ids this edge participates in. Used by path-aware highlighting; absent for non-path graphs. */
 	paths?: string[];
 	/** Stepper and step that produced this edge (for filtering / click routing on chain-style projections). Absent for synthetic edges (fields, ensures). */
