@@ -23,8 +23,8 @@ const NODE_DEFAULTS: Record<string, { fill: string; stroke: string; strokeWidth?
 };
 
 /** Edge dash by `kind`; blocked/capability-gated dash, ready is bold. */
-const EDGE_DASH: Record<string, string> = { blocked: "4 3", "capability-gated": "4 3" };
-const EDGE_WIDTH: Record<string, number> = { ready: 2.5 };
+const EDGE_DASH: Record<string, string> = { blocked: "4 3", "capability-gated": "4 3", context: "6 4" };
+const EDGE_WIDTH: Record<string, number> = { ready: 2.5, reply: 2.5 };
 
 const xml = (s: string): string => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const MARGIN = 16;
@@ -94,7 +94,7 @@ export function graphToSvg(graph: TGraph, options?: TGraphRenderOptions): string
 			if (!box) return "";
 			const s = shift(box);
 			const st = nodeStyle(n.kind, graph.styles);
-			const hint = `${n.label}${n.kind ? ` · ${n.kind}` : ""}`;
+			const hint = n.hint ?? `${n.label}${n.kind ? ` · ${n.kind}` : ""}`;
 			return `<g class="node" data-node-id="${xml(n.id)}" style="cursor:pointer"><title>${xml(hint)}</title><rect class="node-box" x="${s.x.toFixed(1)}" y="${s.y.toFixed(1)}" width="${s.w.toFixed(1)}" height="${s.h.toFixed(1)}" rx="5" fill="${st.fill}" stroke="${st.stroke}" stroke-width="${st.strokeWidth}"/><text class="node-label" x="${(s.x + s.w / 2).toFixed(1)}" y="${(s.y + s.h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#222">${xml(truncate(n.label))}</text></g>`;
 		})
 		.join("");
