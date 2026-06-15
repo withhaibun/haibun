@@ -19,7 +19,7 @@ import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered
 import { SHU_EVENT } from "../consts.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
-import { getEdgeRanges, getEdgeRelMap, getRels, getRelSync } from "../rels-cache.js";
+import { getEdgeRanges, getEdgeRelMap, getRels, getRelSync, whenSiteMetadataReady } from "../rels-cache.js";
 import { getStepperForType } from "../rpc-registry.js";
 import { type TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "../graph-model.js";
@@ -132,9 +132,12 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 			if (e.defaultPrevented) return;
 			const target = e.target as Element | null;
 			if (!target?.closest(".diagram-container")) return;
-			if (target.closest("g.node, g.cluster")) return;
+			if (target.closest("g.node, g.group")) return;
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [] }, bubbles: true, composed: true }));
 		});
+		// Edges classify via the browser classifier, which needs site metadata; once it is ready, repaint so edges appear
+		// regardless of whether another view primed the cache first (matters both live and in the offline report).
+		void whenSiteMetadataReady().then(() => this.scheduleRender());
 	}
 
 	// A selection (from any view) pins this subject's highlight; the base fetches its neighborhood if missing.
