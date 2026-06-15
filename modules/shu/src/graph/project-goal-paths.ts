@@ -21,11 +21,11 @@
  *     `B`-producing step, and that step's output becomes the slot's value.
  *   - Edges are labelled with the slot or domain they carry — field name on
  *     value-into-slot edges, produced domain on producer-step output edges,
- *     binding domain on binding-to-goal-step edges. Mermaid renders the
+ *     binding domain on binding-to-goal-step edges. The renderer draws the
  *     labels alongside each arrow so the reader sees which argument fills
  *     which slot without inferring it from layout.
  *   - Edges shared across paths are merged via `EdgeBag` and their `paths`
- *     array unions every participating path id; mermaid renders one arrow
+ *     array unions every participating path id; the renderer draws one arrow
  *     and the consumer's `highlightedPath` option dims the others.
  *
  * Primitive argument fields (no `fieldDomain`, or one identical to the field
