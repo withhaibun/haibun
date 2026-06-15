@@ -38,6 +38,9 @@ const LAYOUT_STYLE = `
     overflow: hidden;
     /* positioning context for the actions bar, which overlays the bottom rather than taking layout space */
     position: relative;
+    /* reserve the closed actions bar's footprint (published by shu-actions-bar) so the column strip ends above it,
+       never behind it; the expanded bar still floats over content transiently. 0 when no bar is mounted. */
+    padding-bottom: var(--shu-actions-bar-h, 0px);
   }
   .app-container > shu-column-strip {
     flex: 1;
