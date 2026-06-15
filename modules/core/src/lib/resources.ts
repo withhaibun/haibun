@@ -296,28 +296,34 @@ export function edgeRel(predicate: string): TRel | undefined {
 	return (EdgePredicates as Record<string, { rel: TRel }>)[predicate]?.rel;
 }
 
-/** Lookup a rel's declared parent (rdfs:subPropertyOf), if any. */
-function getSubPropertyOf(rel: string): string | undefined {
+/** A rel's declared parents (rdfs:subPropertyOf). A rel may sit under MORE THAN ONE upper concept, so this is a set:
+ *  `subPropertyOf` accepts a single rel or an array, and both forms normalise to a list here. Empty when none declared. */
+function superPropertiesOf(rel: string): string[] {
 	for (const entry of Object.values(LinkRelations)) {
-		if (entry.rel === rel) return (entry as { subPropertyOf?: string }).subPropertyOf;
+		if (entry.rel === rel) {
+			const sp = (entry as { subPropertyOf?: string | string[] }).subPropertyOf;
+			return sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
+		}
 	}
-	return undefined;
+	return [];
 }
 
 /**
- * RDFS-style ancestry check: returns true if `rel` is `ancestorRel` or
- * transitively reaches it via `subPropertyOf` links. Generic — same
- * machinery serves any rel hierarchy, not just reply semantics.
- * Cycle-guarded: a self-referential or looping `subPropertyOf` chain
- * terminates without recursing forever.
+ * RDFS-style ancestry check: returns true if `rel` is `ancestorRel` or transitively reaches it via `subPropertyOf`
+ * links. `subPropertyOf` is many-valued (a rel can be a sub-property of several upper concepts at once — e.g. a
+ * start-date rel that is both a temporal instant AND a gantt-start), so this walks the parent DAG, not a single chain.
+ * Generic — the same machinery serves any rel hierarchy, not just reply semantics. Cycle-guarded: a self-referential
+ * or looping `subPropertyOf` graph terminates without recursing forever.
  */
 export function isSubPropertyOf(rel: string, ancestorRel: string): boolean {
 	const seen = new Set<string>();
-	let current: string | undefined = rel;
-	while (current && !seen.has(current)) {
+	const stack: string[] = [rel];
+	while (stack.length > 0) {
+		const current = stack.pop();
+		if (current === undefined || seen.has(current)) continue;
 		if (current === ancestorRel) return true;
 		seen.add(current);
-		current = getSubPropertyOf(current);
+		stack.push(...superPropertiesOf(current));
 	}
 	return false;
 }
@@ -671,7 +677,8 @@ export type TPropertyDefinition = {
 	range: TRelRange;
 	label?: string;
 	icon?: string;
-	subPropertyOf?: string;
+	/** One or more parent rels (rdfs:subPropertyOf). A rel may sit under several upper concepts at once. */
+	subPropertyOf?: string | string[];
 	presentation?: TRelPresentation;
 };
 
@@ -684,7 +691,7 @@ export type TPropertyDefinition = {
 export function getPropertyDefinitions(): TPropertyDefinition[] {
 	return Object.values(LinkRelations).map((entry) => {
 		const record: TPropertyDefinition = { id: entry.rel, iri: entry.uri, range: entry.range };
-		const extras = entry as { label?: string; icon?: string; subPropertyOf?: string; presentation?: TRelPresentation };
+		const extras = entry as { label?: string; icon?: string; subPropertyOf?: string | string[]; presentation?: TRelPresentation };
 		if (extras.label !== undefined) record.label = extras.label;
 		if (extras.icon !== undefined) record.icon = extras.icon;
 		if (extras.subPropertyOf !== undefined) record.subPropertyOf = extras.subPropertyOf;
