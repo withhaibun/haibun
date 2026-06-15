@@ -163,6 +163,11 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	protected override onConnected(): void {
 		this.#reflectLayout(); // persisted width/minimized restored just before this — reflect synchronously so the strip's addPane sees the attributes
+		this.addEventListener("pointerdown", this.onPaneActivate, { capture: true });
+	}
+
+	protected override onDisconnected(): void {
+		this.removeEventListener("pointerdown", this.onPaneActivate, { capture: true });
 	}
 
 	protected override onAttributeChanged(name: string): void {
@@ -266,7 +271,10 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_CLOSE, { bubbles: true, composed: true }));
 	};
 
-	private onContentClick = (): void => {
+	// Activate on a press ANYWHERE in the pane, in the CAPTURE phase (bound in onConnected) so it fires before any
+	// slotted content (entity links, graph nodes) can stopPropagation and swallow the activation — clicking the column
+	// body focuses it, not just the empty chrome.
+	private onPaneActivate = (): void => {
 		if (!this.state.active) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_ACTIVATE, { bubbles: true, composed: true }));
 	};
 
@@ -336,7 +344,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				<span class=${CLASS.LABEL} title=${label}>${label}</span>
 				${controlsGroup}
 			</div>
-			<div class=${CLASS.CONTENT} @click=${this.onContentClick}>
+			<div class=${CLASS.CONTENT}>
 				<slot @slotchange=${this.onSlotChange}></slot>
 			</div>
 			<div class=${CLASS.RESIZE} @mousedown=${this.onResizeMouseDown} @touchstart=${this.onResizeTouchStart}></div>

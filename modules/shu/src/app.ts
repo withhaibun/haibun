@@ -70,17 +70,6 @@ const LAYOUT_STYLE = `
   @keyframes sync-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 `;
 
-/** Remove blank/default params from URLSearchParams to keep hash clean. */
-function cleanParams(params: URLSearchParams): void {
-	const defaults = new Set(["0", "", "desc", Access.private]);
-	for (const key of [...params.keys()]) {
-		const val = params.get(key);
-		if (val !== null && defaults.has(val) && key !== "col" && key !== "label") {
-			params.delete(key);
-		}
-	}
-}
-
 /** Seed hash state from URL query string on initial load (e.g. ?label=Researcher → #?label=Researcher). */
 function seedHashFromQueryString(): void {
 	const h = ShuElement.getHash();
@@ -202,18 +191,12 @@ const main = async (): Promise<void> => {
 		reportClientLog(level, message, attributes);
 	};
 
-	const updateHashActiveView = (index: number) => {
-		const currentHash = ShuElement.getHash();
-		const h = currentHash.startsWith("#?") ? currentHash : "#?";
-		const params = new URLSearchParams(h.slice(2));
-		if (index > 0) {
-			params.set("active", String(index));
-		} else {
-			params.delete("active");
-		}
-		cleanParams(params);
-		const newHash = `#?${params.toString()}`;
-		ShuElement.pushHash(newHash);
+	// Activate the pane at `index` through PaneState — the single owner of the active pane + the hash `active` (a
+	// paneId). Writing a numeric index here (the old behaviour) desynced PaneState and corrupted the hash: a later
+	// fromHash could not resolve the numeric and fell back to the leftmost pane, so active "didn't switch".
+	const activatePaneByIndex = (index: number) => {
+		const paneId = getStrip()?.panes[index]?.dataset.columnKey;
+		if (paneId) PaneState.setActivePane(paneId);
 	};
 
 	// Build DOM — strip with query pane, then query component after (so .results-target exists first).
@@ -469,7 +452,7 @@ const main = async (): Promise<void> => {
 			} else if (strip) {
 				strip.activatePane(index);
 			}
-			updateHashActiveView(index);
+			activatePaneByIndex(index);
 		}) as EventListener,
 		{ signal },
 	);
@@ -481,7 +464,7 @@ const main = async (): Promise<void> => {
 			const { index } = e.detail || {};
 			if (index !== undefined) {
 				getActionsBar()?.setActiveView?.(index);
-				updateHashActiveView(index);
+				activatePaneByIndex(index);
 				const strip = getStrip();
 				const pane = strip?.panes[index];
 				const activeView = pane?.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? null;
