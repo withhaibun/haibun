@@ -24,7 +24,7 @@ import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
-import { MermaidGraphRenderer, buildMermaidSource, findSvgNodes, findSvgEdges } from "../graph/mermaid-renderer.js";
+import { SvgGraphRenderer, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
 import { buildNeighbors, connectedNodes } from "../graph/filter-graph.js";
 import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../graph/types.js";
 
@@ -57,19 +57,17 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 		.scroll { overflow: auto; max-height: 100%; }
 		.container { padding: var(--shu-space-4); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); }
 		.error { color: var(--shu-error); padding: var(--shu-space-3); background: var(--shu-bg-error-soft); border-radius: var(--shu-radius); font-size: var(--shu-font-md); }
-		svg.filter-highlight .node, svg.filter-highlight .cluster { opacity: 0.6; transition: opacity 120ms; }
-		svg.filter-highlight path.flowchart-link, svg.filter-highlight .edgeLabel { opacity: 0.35; transition: opacity 120ms; }
+		svg.filter-highlight g.node, svg.filter-highlight g.group { opacity: 0.6; transition: opacity 120ms; }
+		svg.filter-highlight g.edge { opacity: 0.35; transition: opacity 120ms; }
 		svg.filter-highlight .filter-match, svg.filter-highlight .filter-match * { opacity: 1 !important; }
-		svg .selected > rect, svg .selected > polygon, svg .selected > circle, svg .selected > ellipse, svg .selected > path {
-			stroke: var(--shu-warn) !important; stroke-width: 4px !important;
-		}
+		svg g.node.selected .node-box { stroke: var(--shu-warn) !important; stroke-width: 4px !important; }
 	`];
 
-	private renderer: IGraphRenderer = new MermaidGraphRenderer();
+	private renderer: IGraphRenderer = new SvgGraphRenderer();
 	private renderPending = false;
 	private zoomPercent = 100;
 	private selectedNodeIdValue = "";
-	private lastMermaidSource = "";
+	private lastSource = "";
 	private svgNodeElements = new Map<string, SVGGElement>();
 	private svgNodeEdgeElements = new Map<string, Set<Element>>();
 	private svgNeighbors = new Map<string, Set<string>>();
@@ -80,7 +78,7 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 
 	setRenderer(renderer: IGraphRenderer): void {
 		this.renderer = renderer;
-		this.lastMermaidSource = "";
+		this.lastSource = "";
 		void this.repaint();
 	}
 
@@ -138,7 +136,7 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 
 	render(): TemplateResult {
 		return html`
-			<div class="copy-strip"><shu-copy-button data-testid="shu-graph-copy" label="Copy" title="Copy Mermaid source to clipboard"></shu-copy-button></div>
+			<div class="copy-strip"><shu-copy-button data-testid="shu-graph-copy" label="Copy" title="Copy graph as DOT"></shu-copy-button></div>
 			<div class="scroll"><div class="container" data-testid="shu-graph-container" style=${`transform: scale(${this.zoomPercent / 100}); transform-origin: top left;`}
 				@click=${this.onContainerClick}
 				@graph-node-click=${this.onNodeClick}
@@ -154,11 +152,11 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 		const container = this.shadowRoot?.querySelector(".container") as HTMLElement | null;
 		const graph = this.state.graph;
 		if (!container || !graph) return;
-		const source = buildMermaidSource(graph, this.state.options);
+		const source = graphToDot(graph, this.state.options);
 		const copyBtn = this.shadowRoot?.querySelector('shu-copy-button[data-testid="shu-graph-copy"]') as (HTMLElement & { source: string }) | null;
 		if (copyBtn) copyBtn.source = source;
-		if (source === this.lastMermaidSource) return;
-		this.lastMermaidSource = source;
+		if (source === this.lastSource) return;
+		this.lastSource = source;
 		await this.renderer.render(graph, container, this.state.options);
 		this.svgNodeElements = findSvgNodes(graph, container);
 		this.svgNodeEdgeElements = findSvgEdges(graph, container);
