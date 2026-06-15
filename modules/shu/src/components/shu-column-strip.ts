@@ -18,7 +18,10 @@ type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	static styles = [shuBaseStyles, css`
-		:host { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; background: var(--shu-border); }
+		/* scrollbar-gutter: stable reserves the horizontal-scrollbar gutter unconditionally, so opening/pruning a
+		   column never toggles the strip's clientHeight. A height change would rescale the fisheye's aspect-only
+		   camera (worldPerPx ∝ 1/height) — i.e. auto-zoom on click. Reserving the gutter keeps height invariant. */
+		:host { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; scrollbar-gutter: stable; background: var(--shu-border); }
 		::slotted(shu-column-pane) { background: var(--shu-bg); }
 		@media (max-width: 600px), (orientation: portrait) {
 			:host { flex-wrap: wrap; align-content: flex-start; overflow-y: auto; }

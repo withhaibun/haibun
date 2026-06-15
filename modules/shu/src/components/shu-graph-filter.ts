@@ -104,6 +104,14 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.requestUpdate();
 	}
 
+	/** Show ONLY these types (the rest hidden), driving the SAME change path a legend click takes — so the legend,
+	 * the host's data refetch, and persistence all stay in sync. For graph-control steps that scope the view. */
+	setVisibleTypes(types: string[]): void {
+		const keep = new Set(types);
+		this.setState({ hiddenTypes: [...this.knownClusters.keys()].filter((t) => !keep.has(t)) });
+		this.dispatchChange();
+	}
+
 	/**
 	 * Axis-mode source. The chain-graph view supplies pre-computed axes (stepper,
 	 * kind, etc.) instead of quads; the filter renders one row of checkboxes per
