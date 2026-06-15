@@ -85,6 +85,9 @@ export function getViewContext(): TViewContext {
 	return getStore().viewContext;
 }
 
+// activeViewId (which column has keyboard/actions focus) and selectedSubject (which subject every view dims around)
+// are ORTHOGONAL axes on one context: each setter writes only its own axis and never derives or clears the other.
+// A body click legitimately does both (clears selection AND activates the column) precisely because they don't conflict.
 export function setActiveViewId(id: string | null): void {
 	const s = getStore();
 	if (s.viewContext.activeViewId === id) return;
