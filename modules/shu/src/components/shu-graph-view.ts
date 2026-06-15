@@ -1,36 +1,36 @@
 /**
- * <shu-graph-view> — Renders all quads as a mermaid graph with subgraphs by namedGraph.
+ * <shu-graph-view> — the quad-store overview: every visible quad as one SVG graph,
+ * with a cluster box per named graph and cross-graph edges drawn between them.
  *
- * Shows the unified quad/graph view: variables, observations, nodes, annotations
- * all in one diagram. Named graphs become subgraph clusters. Cross-graph edges visible.
+ * Variables, observations, nodes, and annotations share one diagram. Data comes
+ * from the MonitorStepper-getQuads RPC plus live SSE quad-observation events.
  *
- * Data comes from MonitorStepper-getQuads RPC + live SSE quad observation events.
- *
- * This view consumes `mermaid-source.ts` directly rather than the generic
- * `TGraph` + `shu-graph` pipeline. The quad-store visualisation needs
- * Mermaid-specific affordances — position-based edge-label matching, summary
- * and cluster node ids, hover/scroll/click semantics tied to the rendered SVG
- * structure — that aren't part of the renderer-agnostic graph abstraction.
- * The chain-view and combined affordance graphs do go through `TGraph`; the
- * abstraction is intentionally not forced onto views whose needs exceed it.
+ * Projection and drawing are the shared graph engine: `buildGraphTopology` turns the
+ * quads into a renderer-agnostic `TGraph` (a summary node past the per-group cap,
+ * external reference nodes, edges resolved by the property classifier) and
+ * `graphToSvg` paints it. Hover, selection, neighbour highlight, and click routing
+ * are wired over the painted `g.node`/`g.edge` elements.
  */
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
-import { conduit } from "../hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
 import { getEdgeRanges, getEdgeRelMap, getRels, getRelSync } from "../rels-cache.js";
-import { getStepperForType, requireStep } from "../rpc-registry.js";
+import { getStepperForType } from "../rpc-registry.js";
 import { type TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "../graph-model.js";
 import { copyText } from "../copy-util.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { edgeRel as coreEdgeRel, LinkRelations } from "@haibun/core/lib/resources.js";
-import { buildMermaidSource, buildClassifier, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
+import { buildClassifier, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
+import { buildGraphTopology, isSummaryId, summaryGraphOf } from "../graph/graph-topology.js";
+import { graphToSvg, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
+import { buildNeighbors } from "../graph/filter-graph.js";
+import type { TGraph } from "../graph/types.js";
 import { GraphControlProductSchema } from "./shu-graph-view.controls-schema.js";
 
 const browserClassifier = buildClassifier(getRels, getEdgeRanges, getStepperForType, undefined);
@@ -64,42 +64,30 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 		.toolbar button { padding: var(--shu-space-1) var(--shu-space-4); cursor: pointer; }
 		.toolbar label { font-size: var(--shu-font-md); cursor: pointer; display: flex; align-items: center; gap: var(--shu-space-1); }
 		.graph-scroll { flex: 1; overflow: auto; }
-		.diagram-container { padding: var(--shu-space-4); }
-		.diagram-container .node rect, .diagram-container .node polygon { cursor: pointer; }
-		.diagram-container .nodeLabel { text-align: left !important; }
-		.diagram-container .node, .diagram-container .edgeLabel, .diagram-container .cluster, .diagram-container path.flowchart-link { transition: opacity 0.15s; }
-		.diagram-container path.edge-pattern-dotted { stroke-dasharray: 8 4 !important; stroke-width: 1.5px !important; opacity: 0.7; }
+		.diagram-container { padding: var(--shu-space-4); transform-origin: top left; }
+		.diagram-container g.node { cursor: pointer; }
+		.diagram-container g.node, .diagram-container g.edge, .diagram-container g.group { transition: opacity 0.15s; }
 		.zoom-label { color: var(--shu-fg-muted); }
 		.quad-count { color: var(--shu-fg-faded); margin-left: auto; }
 		.empty { padding: var(--shu-space-6); color: var(--shu-fg-faded); text-align: center; }
 		.graph-filters { display: flex; gap: var(--shu-space-3); flex-wrap: wrap; padding: var(--shu-space-2) var(--shu-space-4); }
-		.diagram-container.filter-highlight .node, .diagram-container.filter-highlight .cluster { opacity: 0.1; }
-		.diagram-container.filter-highlight path.flowchart-link, .diagram-container.filter-highlight .edgeLabel { opacity: 0; }
+		.diagram-container.filter-highlight g.node, .diagram-container.filter-highlight g.group { opacity: 0.1; }
+		.diagram-container.filter-highlight g.edge { opacity: 0.1; }
 		.diagram-container.filter-highlight .filter-match, .diagram-container.filter-highlight .filter-match * { opacity: 1 !important; }
 	`,
 	];
 	private diagramId = `shu-graph-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 	private currentNodeMap = new Map<string, { graph: string; subject: string }>();
-	/** Drawn edges in render order from buildMermaidSource — the nth entry is the nth SVG edge path (exact from/to node ids). */
-	private currentDrawnEdges: { from: string; to: string }[] = [];
-	private lastMermaidSource = "";
-	/** Last viewport + zoom the SVG was sized for; a change (resize or zoom) forces a re-render so the server bakes in the current scale. */
-	private lastFitW = 0;
-	private lastFitH = 0;
-	private lastZoom = 0;
-	private resizeObserved = false;
-	private relPredicateMap = new Map<string, Set<string>>();
-	/** SVG node rawId → element, populated by bindNodeClicks. */
+	private lastSource = "";
+	/** SVG node id → its `<g class="node">` element, populated by bindSvg. */
 	private svgNodeElements = new Map<string, Element>();
-	/** SVG node rawId → set of connected edge elements (paths + labels), populated by bindNodeClicks. */
+	/** SVG node id → set of incident edge `<g>` elements, populated by bindSvg. */
 	private svgNodeEdgeElements = new Map<string, Set<Element>>();
-	/** Structured edge list built by bindNodeClicks for filter hover lookups. */
-	private svgEdges: Array<{ pathEl: Element; labelEl: Element | null; fromId: string; toId: string; labelText: string }> = [];
-	/** SVG node rawId → adjacent rawIds. Used by selection highlight to mirror hover behavior. */
+	/** SVG node id → adjacent node ids. Used by selection highlight to mirror hover behavior. */
 	private svgNeighbors = new Map<string, Set<string>>();
 	/** Reverse lookup: subject → rawId. Avoids the O(N) scan over `currentNodeMap.entries()` on every selection change. */
 	private subjectToRawId = new Map<string, string>();
-	/** Currently selected subject pinned via `.filter-match`. Cleared on selection change; reapplied after each mermaid re-render. */
+	/** Currently selected subject pinned via `.filter-match`. Cleared on selection change; reapplied after each SVG repaint. */
 	private selectedHighlightSubject: string | null = null;
 
 	/** Provide quads externally — sets dataSource to external, skipping RPC. */
@@ -176,7 +164,6 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 			if (!relToPredicates.has(rel)) relToPredicates.set(rel, new Set());
 			relToPredicates.get(rel)?.add(e.predicate);
 		}
-		this.relPredicateMap = relToPredicates;
 		const sortedRels = [...relToPredicates.keys()].sort();
 
 		// Cluster digest (one entry per known namedGraph + counts) — the same
@@ -223,19 +210,8 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 			else filterEl.removeAttribute("show-controls");
 			filterEl.setSource(this.knownClusters, this.state.quads);
 		}
-		this.observeViewportResize();
+		this.applyZoom();
 		this.scheduleRender();
-	}
-
-	/** Re-render when the scroll viewport resizes (a column drag, window resize) so the SVG re-fills the new size. Once. */
-	private observeViewportResize(): void {
-		if (this.resizeObserved || typeof ResizeObserver === "undefined") return;
-		const view = this.shadowRoot?.querySelector(".graph-scroll");
-		if (!view) return;
-		this.resizeObserved = true;
-		const observer = new ResizeObserver(() => this.scheduleRender());
-		observer.observe(view);
-		this.autoTeardown(() => observer.disconnect());
 	}
 
 	private async onToolbarClick(e: Event): Promise<void> {
@@ -246,19 +222,26 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 			this.state.zoom = zoom;
 			const label = this.shadowRoot?.querySelector(".zoom-label");
 			if (label) label.textContent = `${zoom}%`;
-			// Zoom IS the server render scale now — re-render the SVG at the new size rather than CSS-scaling a fixed render.
-			this.scheduleRender();
+			// The SVG is painted at its natural layout size; zoom is a CSS scale of the diagram, not a re-layout.
+			this.applyZoom();
 			return;
 		}
 		if (action === "layout") this.setState({ layout: this.state.layout === "TD" ? "LR" : "TD" });
 		// copyText falls back to execCommand when the async Clipboard API is blocked (e.g. a file:// report); show the result rather than fail silently.
 		else if (action === "copy") {
-			const ok = await copyText(buildMermaidSource(this.visibleQuads, this.buildOpts(), this.activeClassifier).source);
+			const { graph } = buildGraphTopology(this.visibleQuads, this.buildOpts(), this.activeClassifier);
+			const ok = await copyText(graphToDot(graph));
 			target.textContent = ok ? "Copied" : "Copy failed";
 			setTimeout(() => {
 				target.textContent = "Copy";
 			}, 1500);
 		}
+	}
+
+	/** Scale the painted diagram to the current zoom (transform-origin is top-left). */
+	private applyZoom(): void {
+		const container = this.shadowRoot?.querySelector(".diagram-container") as HTMLElement | null;
+		if (container) container.style.transform = this.state.zoom === 100 ? "" : `scale(${this.state.zoom / 100})`;
 	}
 
 	private toggleRel(rel: string, checked: boolean): void {
@@ -270,21 +253,18 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 
 	/** Hover-highlight every edge carrying this rel, plus the nodes it connects. */
 	private highlightRel(rel: string): void {
+		const host = this.shadowRoot?.getElementById(this.diagramId);
 		const container = this.shadowRoot?.querySelector(".diagram-container");
-		if (!container) return;
+		if (!host || !container) return;
 		container.classList.add("filter-highlight");
-		const predicates = this.edgeRelToPredicates(rel);
-		for (const edge of this.svgEdges) {
-			if (edge.labelText !== rel && !predicates.has(edge.labelText)) continue;
-			edge.pathEl.classList.add("filter-match");
-			if (edge.labelEl) edge.labelEl.classList.add("filter-match");
-			this.svgNodeElements.get(edge.fromId)?.classList.add("filter-match");
-			this.svgNodeElements.get(edge.toId)?.classList.add("filter-match");
+		for (const edge of Array.from(host.querySelectorAll("g.edge"))) {
+			if (edge.getAttribute("data-rel") !== rel) continue;
+			edge.classList.add("filter-match");
+			const from = edge.getAttribute("data-from");
+			const to = edge.getAttribute("data-to");
+			if (from) this.svgNodeElements.get(from)?.classList.add("filter-match");
+			if (to) this.svgNodeElements.get(to)?.classList.add("filter-match");
 		}
-	}
-
-	private edgeRelToPredicates(rel: string): Set<string> {
-		return this.relPredicateMap.get(rel) ?? new Set();
 	}
 
 	private buildOpts(): TGraphViewOpts {
@@ -325,8 +305,8 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 		if (!subject) return;
 		this.paintHighlight(subject);
 		// `paintHighlight` is also invoked from `clearFilterHighlight` (every
-		// mouseleave) and after each mermaid re-render; scrolling there would
-		// yank the viewport. Scroll only on actual selection change.
+		// mouseleave) and after each SVG repaint; scrolling there would yank the
+		// viewport. Scroll only on actual selection change.
 		this.scrollSubjectIntoView(subject);
 	}
 
@@ -359,152 +339,66 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 	}
 
 	private renderTimer: ReturnType<typeof setTimeout> | undefined;
-	// Coalesce render requests: SSE batches and reactive updates fire often and each render is a server round-trip, so debounce to the last settled state.
+	// Coalesce render requests: SSE batches and reactive updates fire often, so debounce to the last settled state before repainting.
 	private scheduleRender(): void {
 		if (this.renderTimer !== undefined) clearTimeout(this.renderTimer);
 		this.renderTimer = setTimeout(() => {
 			this.renderTimer = undefined;
-			void this.renderMermaid();
+			this.renderSvg();
 		}, 150);
 	}
 
-	private async renderMermaid(): Promise<void> {
-		const { source, nodeMap, drawnEdges } = buildMermaidSource(this.visibleQuads, this.buildOpts(), this.activeClassifier);
-		// The server sizes the SVG to the viewport scaled by the current zoom (so the zoom IS the render scale, not a
-		// separate CSS transform); re-render when the source, the viewport (resize), or the zoom changes.
-		const view = this.shadowRoot?.querySelector(".graph-scroll") as HTMLElement | null;
-		const vw = view?.clientWidth ?? 0;
-		const vh = view?.clientHeight ?? 0;
-		const zoom = this.state.zoom;
-		if (source === this.lastMermaidSource && vw === this.lastFitW && vh === this.lastFitH && zoom === this.lastZoom) return;
-		this.lastMermaidSource = source;
-		this.lastFitW = vw;
-		this.lastFitH = vh;
-		this.lastZoom = zoom;
-		const scale = zoom / 100;
-		const fitW = Math.round(vw * scale);
-		const fitH = Math.round(vh * scale);
+	private renderSvg(): void {
+		const { graph, nodeMap } = buildGraphTopology(this.visibleQuads, this.buildOpts(), this.activeClassifier);
+		const source = graphToDot(graph);
+		if (source === this.lastSource) return;
+		this.lastSource = source;
 		this.currentNodeMap = nodeMap;
-		this.currentDrawnEdges = drawnEdges;
 		this.subjectToRawId = new Map();
 		for (const [rawId, v] of nodeMap) this.subjectToRawId.set(v.subject, rawId);
-		try {
-			// mermaid renders server-side (the client ships no mermaid); the returned SVG keeps mermaid's structure, so bindNodeClicks works unchanged.
-			// Send the scroll viewport size so the server sizes the SVG to fill it (uses the vertical space); re-rendered on resize.
-			const rendered = await conduit().follow<{ svg: string; nodeMap?: [string, { graph: string; subject: string }][]; drawnEdges?: { from: string; to: string }[] }>(
-				{ method: requireStep("renderMermaid"), params: { source, width: fitW, height: fitH } },
-				"graph-view: render mermaid",
-			);
-			// Offline, the report serves an SVG that was server-rendered and embedded at report-write time — possibly from a
-			// different source than the client just built. When the response carries that SVG's own nodeMap + edge list,
-			// adopt them so hover/click map onto the rendered SVG, not the client's locally-built (and possibly divergent) graph.
-			if (rendered.nodeMap) {
-				this.currentNodeMap = new Map(rendered.nodeMap);
-				this.subjectToRawId = new Map();
-				for (const [rawId, v] of this.currentNodeMap) this.subjectToRawId.set(v.subject, rawId);
-			}
-			if (rendered.drawnEdges) this.currentDrawnEdges = rendered.drawnEdges;
-			// Inject into the empty #diagramId leaf, not .diagram-container: that leaf has no template children, so lit
-			// never reconciles it and the SVG survives re-renders. Scroll lives on the .graph-scroll wrapper.
-			const host = this.shadowRoot?.getElementById(this.diagramId);
-			if (host) {
-				const scroller = this.shadowRoot?.querySelector(".graph-scroll");
-				const scrollTop = scroller?.scrollTop ?? 0;
-				const scrollLeft = scroller?.scrollLeft ?? 0;
-				host.innerHTML = rendered.svg;
-				if (scroller) {
-					scroller.scrollTop = scrollTop;
-					scroller.scrollLeft = scrollLeft;
-				}
-				this.bindNodeClicks(host);
-			}
-		} catch (err) {
-			const host = this.shadowRoot?.getElementById(this.diagramId);
-			if (host) host.innerHTML = `<pre style="color:var(--shu-error)">${err instanceof Error ? err.message : err}</pre>`;
+		const host = this.shadowRoot?.getElementById(this.diagramId);
+		if (!host) return;
+		// Inject into the empty #diagramId leaf, not .diagram-container: that leaf has no template children, so lit never
+		// reconciles it and the SVG survives lit re-renders. Preserve the .graph-scroll position across repaints.
+		const scroller = this.shadowRoot?.querySelector(".graph-scroll");
+		const scrollTop = scroller?.scrollTop ?? 0;
+		const scrollLeft = scroller?.scrollLeft ?? 0;
+		host.innerHTML = graphToSvg(graph);
+		if (scroller) {
+			scroller.scrollTop = scrollTop;
+			scroller.scrollLeft = scrollLeft;
 		}
+		this.bindSvg(graph, host);
+		this.applyZoom();
 	}
 
-	/** Make nodes clickable; highlight node + its neighbors + connecting edges on hover. */
-	private bindNodeClicks(container: Element): void {
-		const svg = container.querySelector("svg");
-		if (!svg) return;
-		// The SVG is injected into the inner diagram leaf, but the dim/highlight CSS keys off `.diagram-container.filter-highlight`
-		// (matching highlightRel/paintHighlight) — toggle the class on the container, not the leaf, or hover has no visible effect.
+	/** Make nodes clickable; highlight a node + its neighbours + incident edges on hover; route clicks. */
+	private bindSvg(graph: TGraph, container: Element): void {
+		// The dim/highlight CSS keys off `.diagram-container.filter-highlight` (matching highlightRel/paintHighlight);
+		// toggle the class on that ancestor, not the injected leaf, or hover has no visible effect.
 		const diagram = container.closest(".diagram-container") ?? container;
-
-		// Pass 1: collect node rawIds
-		const nodeElements = new Map<string, Element>();
-		const allNodeIds = new Set<string>();
-		svg.querySelectorAll("g[id]").forEach((g) => {
-			const id = g.getAttribute("id") ?? "";
-			const idx = id.indexOf("flowchart-");
-			if (idx < 0) return;
-			const rawId = id.slice(idx + "flowchart-".length).replace(/-\d+$/, "");
-			if (rawId && (this.currentNodeMap.has(rawId) || rawId.endsWith("__summary"))) {
-				nodeElements.set(rawId, g);
-				allNodeIds.add(rawId);
-			}
-		});
-
-		// Pass 2: build adjacency + collect edge elements per node.
-		// Mermaid v11: edge paths (path.flowchart-link) and edge labels (.edgeLabels > .edgeLabel)
-		// have no IDs linking them — they correspond by position (nth path ↔ nth label).
-		const neighbors = new Map<string, Set<string>>();
-		const nodeEdgeElements = new Map<string, Set<Element>>();
-		const edgePaths = Array.from(svg.querySelectorAll("path.flowchart-link"));
-		const edgeLabelEls = Array.from(svg.querySelectorAll(".edgeLabels > .edgeLabel"));
-		this.svgEdges = [];
-
-		// The nth edge path is the nth drawn edge from the source (same render order), and the nth label too. Use the
-		// source's exact from/to node ids rather than parsing them out of the path id — that id is ambiguous when node
-		// ids contain underscores (e.g. `L_A_B_C` could be A→B_C or A_B→C), which mislinked adjacency for some nodes.
-		edgePaths.forEach((path, i) => {
-			const edge = this.currentDrawnEdges[i];
-			const labelEl = edgeLabelEls[i] ?? null;
-			if (!edge || !allNodeIds.has(edge.from) || !allNodeIds.has(edge.to)) return;
-			const { from, to } = edge;
-			if (!neighbors.has(from)) neighbors.set(from, new Set());
-			if (!neighbors.has(to)) neighbors.set(to, new Set());
-			neighbors.get(from)?.add(to);
-			neighbors.get(to)?.add(from);
-			// Collect edge path + label elements for both endpoints
-			for (const nid of [from, to]) {
-				if (!nodeEdgeElements.has(nid)) nodeEdgeElements.set(nid, new Set());
-				nodeEdgeElements.get(nid)?.add(path);
-				if (labelEl) nodeEdgeElements.get(nid)?.add(labelEl);
-			}
-			const labelText = labelEl?.textContent?.trim() ?? "";
-			this.svgEdges.push({ pathEl: path, labelEl, fromId: from, toId: to, labelText });
-		});
-
-		// Promote maps to instance properties for use by filter hover handlers
+		const nodeElements = findSvgNodes(graph, container);
+		const nodeEdgeElements = findSvgEdges(graph, container);
+		const neighbors = buildNeighbors(graph);
 		this.svgNodeElements = nodeElements;
 		this.svgNodeEdgeElements = nodeEdgeElements;
 		this.svgNeighbors = neighbors;
-		// The rebuilt SVG lost any prior `.filter-match` classes; reapply a sticky selection highlight.
+		// A freshly painted SVG has no `.filter-match` classes; reapply a sticky selection highlight.
 		if (this.selectedHighlightSubject) this.paintHighlight(this.selectedHighlightSubject);
 
 		for (const [rawId, g] of nodeElements) {
-			(g as SVGGElement).style.cursor = "pointer";
-
 			g.addEventListener("mouseenter", () => {
 				diagram.classList.add("filter-highlight");
 				g.classList.add("filter-match");
-				const nb = neighbors.get(rawId);
-				if (nb) nb.forEach((nid) => nodeElements.get(nid)?.classList.add("filter-match"));
+				neighbors.get(rawId)?.forEach((nid) => nodeElements.get(nid)?.classList.add("filter-match"));
 				nodeEdgeElements.get(rawId)?.forEach((el) => el.classList.add("filter-match"));
 			});
 			g.addEventListener("mouseleave", () => this.clearFilterHighlight());
 
 			g.addEventListener("click", (e) => {
 				e.stopPropagation();
-				if (rawId.endsWith("__summary")) {
-					this.setState({ expandedGraphs: [...new Set([...this.state.expandedGraphs, rawId.slice(0, -9)])] });
-					return;
-				}
-				if (rawId.startsWith("cluster:")) {
-					const type = rawId.slice("cluster:".length);
-					this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_CLUSTER_EXPAND, { detail: { type }, bubbles: true, composed: true }));
+				if (isSummaryId(rawId)) {
+					this.setState({ expandedGraphs: [...new Set([...this.state.expandedGraphs, summaryGraphOf(rawId)])] });
 					return;
 				}
 				const entry = this.currentNodeMap.get(rawId);
@@ -519,16 +413,11 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 					);
 					return;
 				}
-				// Non-individual graph (no rels registered for the namedGraph). Two
-				// shapes reach here:
-				//   • seqPath subjects (single-product steps emit the producing
-				//     seqPath as the subject; multi-product steps emit
-				//     `${seqPath}#${field}`) → step-detail pane.
-				//   • Anything else (working-memory variables, goal-affordance
-				//     bindings, …) → not a step-detail; make the subject the
-				//     chat context. Same `CONTEXT_CHANGE` event row clicks dispatch,
-				//     so the actions-bar, status badge, and chat hypermedia all see
-				//     this pick through the same channel.
+				// Non-individual graph (no rels registered for the namedGraph). Two shapes reach here:
+				//   • seqPath subjects (single-product steps emit the producing seqPath as the subject; multi-product
+				//     steps emit `${seqPath}#${field}`) → step-detail pane.
+				//   • working-memory variables / goal-affordance bindings carry a recorded producing seqPath quad
+				//     → step-detail for that seqPath.
 				const head = entry.subject.includes("#") ? entry.subject.slice(0, entry.subject.indexOf("#")) : entry.subject;
 				const directSeqPath = parseSeqPath(head);
 				if (directSeqPath) {

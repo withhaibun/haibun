@@ -84,7 +84,7 @@ export function graphToSvg(graph: TGraph, options?: TGraphRenderOptions): string
 			const label = e.label
 				? `<text class="edge-label" x="${((p1.x + p2.x) / 2).toFixed(1)}" y="${((p1.y + p2.y) / 2 - 3).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--shu-fg-muted)" opacity="${op}">${xml(truncate(e.label))}</text>`
 				: "";
-			return `<g class="edge" data-from="${xml(e.from)}" data-to="${xml(e.to)}"><path class="edge-path" d="M${p1.x.toFixed(1)},${p1.y.toFixed(1)} L${p2.x.toFixed(1)},${p2.y.toFixed(1)}" fill="none" stroke="var(--shu-fg-faded)" stroke-width="${sw}"${dash} opacity="${op}" marker-end="url(#shu-arrow)"/>${label}</g>`;
+			return `<g class="edge" data-from="${xml(e.from)}" data-to="${xml(e.to)}"${e.rel ? ` data-rel="${xml(e.rel)}"` : ""}><path class="edge-path" d="M${p1.x.toFixed(1)},${p1.y.toFixed(1)} L${p2.x.toFixed(1)},${p2.y.toFixed(1)}" fill="none" stroke="var(--shu-fg-faded)" stroke-width="${sw}"${dash} opacity="${op}" marker-end="url(#shu-arrow)"/>${label}</g>`;
 		})
 		.join("");
 

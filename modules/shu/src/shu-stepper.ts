@@ -218,7 +218,7 @@ export default class ShuStepper extends AStepper {
 				// Built-in shu views — registering them as domains makes them discoverable
 				// via `show views` (the picker iterates domains with `ui.component`).
 				// External steppers register their own view domains the same way.
-				{ selectors: ["shu-graph-view"], schema: z.object({}), description: "Quad-store graph (Mermaid)", ui: { component: "shu-graph-view" } },
+				{ selectors: ["shu-graph-view"], schema: z.object({}), description: "Quad-store graph", ui: { component: "shu-graph-view" } },
 				{ selectors: ["shu-monitor-column"], schema: z.object({}), description: "Execution monitor and event log", ui: { component: "shu-monitor-column" } },
 				{ selectors: ["shu-sequence-diagram"], schema: z.object({}), description: "Sequence diagram of step trace", ui: { component: "shu-sequence-diagram" } },
 				{ selectors: ["shu-document-column"], schema: z.object({}), description: "Document/artifact viewer", ui: { component: "shu-document-column" } },

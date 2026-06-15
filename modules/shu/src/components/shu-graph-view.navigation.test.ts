@@ -1,64 +1,43 @@
 // @vitest-environment jsdom
-// Graph hover/click navigation. bindNodeClicks must (1) map every server-rendered SVG node back to currentNodeMap,
-// (2) resolve adjacency from the render-ordered drawnEdges (NOT by parsing the ambiguous edge-path id — node ids embed
-// `_`, so `L_A_B_C` could be A→B_C or A_B→C), and (3) toggle `.filter-highlight` on `.diagram-container`, not the inner
-// leaf the SVG is injected into. Each was a real regression that made hover do nothing / click highlight wrong nodes.
+// Graph hover/click navigation over the SVG paint. bindSvg must (1) map every painted `g.node[data-node-id]` back to
+// currentNodeMap, (2) resolve adjacency from the TGraph edges (carried on `g.edge[data-from/to]`, never parsed out of an
+// id — node ids embed `_` and spaces), and (3) toggle `.filter-highlight` on `.diagram-container`, not the inner leaf the
+// SVG is injected into. Each was a real regression that made hover do nothing / highlight wrong nodes.
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraphView } from "./shu-graph-view.js";
-
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-/** Mirror the live DOM: `.diagram-container > #host > svg`, with `…-flowchart-<rawId>-<n>` nodes and `path.flowchart-link`
- *  edges in render order (their ids are deliberately ambiguous — adjacency must NOT depend on them). Returns the host
- *  (the element renderMermaid passes to bindNodeClicks) and the container. */
-function makeMermaidGraph(nodes: string[], edges: Array<[string, string]>): { container: HTMLElement; host: HTMLElement } {
-	const container = document.createElement("div");
-	container.className = "diagram-container";
-	const host = document.createElement("div");
-	host.id = "diagram-host";
-	container.appendChild(host);
-	const svg = document.createElementNS(SVG_NS, "svg");
-	host.appendChild(svg);
-	nodes.forEach((rawId, i) => {
-		const g = document.createElementNS(SVG_NS, "g");
-		g.setAttribute("id", `mr-5-flowchart-${rawId}-${i}`);
-		g.setAttribute("class", "node");
-		svg.appendChild(g);
-	});
-	const edgeLabels = document.createElementNS(SVG_NS, "g");
-	edgeLabels.setAttribute("class", "edgeLabels");
-	edges.forEach(([from, to], i) => {
-		const path = document.createElementNS(SVG_NS, "path");
-		path.setAttribute("class", "flowchart-link");
-		path.setAttribute("id", `mr-5-L_${from}_${to}_${i}`);
-		svg.appendChild(path);
-		const label = document.createElementNS(SVG_NS, "g");
-		label.setAttribute("class", "edgeLabel");
-		label.textContent = "rel";
-		edgeLabels.appendChild(label);
-	});
-	svg.appendChild(edgeLabels);
-	return { container, host };
-}
+import { graphToSvg, findSvgNodes } from "../graph/svg-renderer.js";
+import { buildGraphTopology } from "../graph/graph-topology.js";
+import { THREAD_CLASSIFIER, type TGraphViewOpts } from "../mermaid-source.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TGraph } from "../graph/types.js";
 
 type Probe = {
 	currentNodeMap: Map<string, { graph: string; subject: string }>;
-	currentDrawnEdges: { from: string; to: string }[];
 	svgNeighbors: Map<string, Set<string>>;
 	svgNodeElements: Map<string, Element>;
-	bindNodeClicks(container: Element): void;
+	bindSvg(graph: TGraph, container: Element): void;
 };
 
-const ISSUER = "Issuer_did_web_tethys_osf";
-const VM = "VerificationMethod_did_web_tethys_osf_key-1";
-const PERSON = "Person_bron_sledge_osf";
+// Real-world ids: embedded `_` and spaces (the topology delimits `${graph} ${subject}`), so id parsing would mislink.
+const ISSUER = "Issuer did_web_tethys_osf";
+const VM = "VerificationMethod did_web_tethys_osf_key-1";
+const PERSON = "Person bron_sledge_osf";
 
-/** Build a view with the given nodes + edges wired through currentNodeMap/currentDrawnEdges (as renderMermaid does). */
-const makeView = (nodes: string[], edges: Array<[string, string]>): { el: Probe; container: HTMLElement; host: HTMLElement } => {
+const graphOf = (nodes: string[], edges: Array<[string, string]>): TGraph => ({
+	nodes: nodes.map((id) => ({ id, label: id, group: id.split(" ")[0] })),
+	edges: edges.map(([from, to]) => ({ from, to, rel: "rel" })),
+	direction: "LR",
+});
+
+/** Mirror the live DOM (`.diagram-container > #host > svg`) painted by `graphToSvg`, and wire currentNodeMap as renderSvg does. */
+const makeView = (graph: TGraph): { el: Probe; container: HTMLElement; host: HTMLElement } => {
 	const el = document.createElement("shu-graph-view") as unknown as Probe;
-	el.currentNodeMap = new Map(nodes.map((n) => [n, { graph: n.split("_")[0], subject: n }]));
-	el.currentDrawnEdges = edges.map(([from, to]) => ({ from, to }));
-	const { container, host } = makeMermaidGraph(nodes, edges);
+	el.currentNodeMap = new Map(graph.nodes.map((n) => [n.id, { graph: n.group ?? n.id, subject: n.id }]));
+	const container = document.createElement("div");
+	container.className = "diagram-container";
+	const host = document.createElement("div");
+	container.appendChild(host);
+	host.innerHTML = graphToSvg(graph);
 	return { el, container, host };
 };
 
@@ -67,36 +46,52 @@ describe("shu-graph-view SVG navigation (hover/click adjacency)", () => {
 		if (!customElements.get("shu-graph-view")) customElements.define("shu-graph-view", ShuGraphView);
 	});
 
-	it("binds every node whose rawId is in currentNodeMap (so clicking never desyncs)", () => {
+	it("binds every painted node back to currentNodeMap (so clicking never desyncs)", () => {
 		const nodes = [ISSUER, VM, PERSON];
-		const { el, host } = makeView(nodes, [[ISSUER, VM]]);
-		el.bindNodeClicks(host);
+		const { el, host } = makeView(graphOf(nodes, [[ISSUER, VM]]));
+		el.bindSvg(graphOf(nodes, [[ISSUER, VM]]), host);
 		expect([...el.svgNodeElements.keys()].sort()).toEqual([...nodes].sort());
 		for (const rawId of el.svgNodeElements.keys()) expect(el.currentNodeMap.has(rawId)).toBe(true);
 	});
 
-	it("resolves adjacency from drawnEdges despite underscores and `-N` suffixes in node ids", () => {
-		const { el, host } = makeView([ISSUER, VM, PERSON], [[ISSUER, VM], [ISSUER, PERSON]]);
-		el.bindNodeClicks(host);
+	it("resolves adjacency from the graph edges despite underscores and spaces in node ids", () => {
+		const graph = graphOf([ISSUER, VM, PERSON], [[ISSUER, VM], [ISSUER, PERSON]]);
+		const { el, host } = makeView(graph);
+		el.bindSvg(graph, host);
 		expect([...(el.svgNeighbors.get(ISSUER) ?? [])].sort()).toEqual([PERSON, VM].sort());
 		expect([...(el.svgNeighbors.get(VM) ?? [])]).toEqual([ISSUER]);
 		expect([...(el.svgNeighbors.get(PERSON) ?? [])]).toEqual([ISSUER]);
 	});
 
-	it("disambiguates edges whose path id is ambiguous (A_B→C, not A→B_C)", () => {
-		// Node ids "A","A_B","B_C","C" make the edge id `L_A_B_C_0` parseable as either A→B_C or A_B→C.
-		// Positional drawnEdges fixes the true endpoints; an id-parser would mislink.
-		const { el, host } = makeView(["A", "A_B", "B_C", "C"], [["A_B", "C"]]);
-		el.bindNodeClicks(host);
-		expect([...(el.svgNeighbors.get("A_B") ?? [])]).toEqual(["C"]);
-		expect([...(el.svgNeighbors.get("C") ?? [])]).toEqual(["A_B"]);
+	it("never mislinks ambiguous-looking ids (adjacency rides data-from/to, not the id)", () => {
+		// Ids "A","A B","B C","C" make a parsed edge id ambiguous (A→B C or A B→C). The data attributes are unambiguous.
+		const graph = graphOf(["A", "A B", "B C", "C"], [["A B", "C"]]);
+		const { el, host } = makeView(graph);
+		el.bindSvg(graph, host);
+		expect([...(el.svgNeighbors.get("A B") ?? [])]).toEqual(["C"]);
+		expect([...(el.svgNeighbors.get("C") ?? [])]).toEqual(["A B"]);
 		expect(el.svgNeighbors.get("A") ?? new Set()).toEqual(new Set()); // not mislinked
-		expect(el.svgNeighbors.get("B_C") ?? new Set()).toEqual(new Set());
+		expect(el.svgNeighbors.get("B C") ?? new Set()).toEqual(new Set());
+	});
+
+	it("topology node ids survive the SVG attribute round-trip (the delimiter is DOM-safe, not a NUL)", () => {
+		// buildGraphTopology delimits ids with a sentinel char; if it were XML-illegal (NUL), the browser would mangle
+		// `data-node-id` and findSvgNodes would never match currentNodeMap — every node click would throw.
+		const quad = (namedGraph: string, subject: string, predicate: string, object: string, objectType?: string): TQuad =>
+			({ namedGraph, subject, predicate, object, objectType }) as TQuad;
+		const opts: TGraphViewOpts = { layout: "TD", hiddenGraphs: new Set(), expandedGraphs: new Set(), maxPerSubgraph: 20, displayLabel: () => undefined };
+		const { graph, nodeMap } = buildGraphTopology([quad("Person", "p1", "name", "Alice"), quad("Email", "e1", "attributedTo", "p1", "Person")], opts, THREAD_CLASSIFIER);
+		const host = document.createElement("div");
+		host.innerHTML = graphToSvg(graph);
+		const found = findSvgNodes(graph, host);
+		for (const id of graph.nodes.map((n) => n.id)) expect(found.has(id)).toBe(true);
+		for (const id of nodeMap.keys()) expect(found.get(id)).toBeTruthy(); // clickable entities resolve back to their map entry
 	});
 
 	it("hover highlights the node + its neighbors, dimming via the .diagram-container (not the inner leaf)", () => {
-		const { el, container, host } = makeView([ISSUER, VM, PERSON], [[ISSUER, VM]]);
-		el.bindNodeClicks(host);
+		const graph = graphOf([ISSUER, VM, PERSON], [[ISSUER, VM]]);
+		const { el, container, host } = makeView(graph);
+		el.bindSvg(graph, host);
 		el.svgNodeElements.get(ISSUER)?.dispatchEvent(new Event("mouseenter"));
 		// The dim/highlight CSS keys off `.diagram-container.filter-highlight`, so the class must land on the container.
 		expect(container.classList.contains("filter-highlight")).toBe(true);
@@ -104,16 +99,5 @@ describe("shu-graph-view SVG navigation (hover/click adjacency)", () => {
 		expect(el.svgNodeElements.get(ISSUER)?.classList.contains("filter-match")).toBe(true);
 		expect(el.svgNodeElements.get(VM)?.classList.contains("filter-match")).toBe(true);
 		expect(el.svgNodeElements.get(PERSON)?.classList.contains("filter-match")).toBe(false);
-	});
-
-	it("skips a stale SVG node absent from currentNodeMap rather than binding a desynced click", () => {
-		const { el, host } = makeView([ISSUER, VM], [[ISSUER, VM]]); // PERSON not in the map
-		// Inject a stale extra node into the SVG.
-		const stale = document.createElementNS(SVG_NS, "g");
-		stale.setAttribute("id", `mr-5-flowchart-${PERSON}-9`);
-		host.querySelector("svg")?.appendChild(stale);
-		el.bindNodeClicks(host);
-		expect(el.svgNodeElements.has(PERSON)).toBe(false);
-		expect(el.svgNodeElements.has(ISSUER)).toBe(true);
 	});
 });
