@@ -15,6 +15,7 @@
  */
 import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
+import { objectId } from "./object-id.js";
 import { SHU_ATTR, SHU_EVENT } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
 import { readElementPrefs } from "./element-prefs.js";
@@ -48,7 +49,7 @@ export function paneIdOf(d: DesiredPane): string {
 		case "component":
 			return d.tag;
 		case "entity":
-			return `e:${d.persistedAs}:${d.id}`;
+			return `e:${objectId(d.persistedAs, d.id)}`; // the entity pane's id IS the object handle, prefixed by pane kind
 		case "filter-eq":
 			return `f:${d.persistedAs}:${d.predicate}=${d.value}`;
 		case "filter-prop":
@@ -121,6 +122,11 @@ class PaneStateImpl {
 	private strip: ShuColumnStrip | null = null;
 	private hooks: PaneHooks = {};
 	private activePaneId: string | null = null;
+	// The last hash WE pushed. The resulting `hashchange` echoes back into fromHash, which rebuilds `desired` from the
+	// hash — but a self-write's hash already matches `desired`, and re-reading it mid-mutation (e.g. an activation that
+	// fires while a column is opening) clobbers the in-flight pane. So fromHash ignores our own writes and reacts only
+	// to EXTERNAL hash changes (back/forward, a shared link).
+	private lastWrittenHash: string | null = null;
 
 	init(strip: ShuColumnStrip, hooks: PaneHooks = {}): void {
 		this.strip = strip;
@@ -165,6 +171,7 @@ class PaneStateImpl {
 
 	/** Parse the URL hash into desired panes and reconcile. */
 	fromHash(): void {
+		if (ViewHash.getHash() === this.lastWrittenHash) return; // our own echo — desired already matches; don't rebuild (would clobber an in-flight open)
 		const hash = ViewHash.getHash().replace(/^#\??/, "");
 		const params = new URLSearchParams(hash);
 		const active = params.get("active");
@@ -201,6 +208,16 @@ class PaneStateImpl {
 		this.desired.set(id, d);
 		this.activePaneId = id;
 		this.scheduleReconcile();
+	}
+
+	/** Record an externally-chosen active pane (e.g. a column-strip click or breadcrumb) so the MODEL agrees with the
+	 * strip. Without this the model's activePaneId stays stale and the next reconcile re-asserts it, snapping the active
+	 * column back off the one just clicked. Writes the hash in the paneId form `fromHash` reads — callers must NOT
+	 * write a numeric `active` (which fromHash can't resolve, so it falls back to the leftmost pane). */
+	setActivePane(paneId: string): void {
+		if (this.activePaneId === paneId) return;
+		this.activePaneId = paneId;
+		this.writeHash();
 	}
 
 	/** Miller-column open. `source` is the originating element or the in-flight event; the source pane is identified via element.closest or event.composedPath. When `addToSelection` is true the prune is skipped. Every view that opens a column MUST route through this method instead of calling `request` directly. */
@@ -347,6 +364,7 @@ class PaneStateImpl {
 		if (this.activePaneId) params.set("active", this.activePaneId);
 		else params.delete("active");
 		const next = `#?${params.toString()}`;
+		this.lastWrittenHash = next; // mark as ours so the echoed hashchange doesn't re-enter fromHash and clobber desired
 		if (next !== base) ViewHash.pushHash(next);
 	}
 
