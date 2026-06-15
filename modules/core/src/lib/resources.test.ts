@@ -110,6 +110,25 @@ describe("LinkRelations extensions", () => {
 		expect(isReplyEdge(LinkRelations.ACCESS_LEVEL.rel)).toBe(false);
 	});
 
+	it("isSubPropertyOf reaches EVERY upper concept of a many-parent rel (the DAG walk, not a single chain)", () => {
+		// startedAtTime is declared under BOTH ganttStart AND temporalInstant — the walk must reach both.
+		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.GANTT_START.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.TEMPORAL_INSTANT.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.ENDED_AT_TIME.rel, LinkRelations.GANTT_END.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.ENDED_AT_TIME.rel, LinkRelations.TEMPORAL_INSTANT.rel)).toBe(true);
+	});
+
+	it("isSubPropertyOf does not reach an unrelated concept (a sibling parent is not a path to everything)", () => {
+		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.GANTT_END.rel)).toBe(false);
+		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.IN_REPLY_TO.rel)).toBe(false);
+	});
+
+	it("single-parent gantt rels reach their declared upper concept", () => {
+		expect(isSubPropertyOf(LinkRelations.DURATION.rel, LinkRelations.GANTT_DURATION.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.EFFORT.rel, LinkRelations.GANTT_EFFORT.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.DEPENDS_ON.rel, LinkRelations.GANTT_DEPENDS.rel)).toBe(true);
+	});
+
 	it("range is declared on every entry", () => {
 		for (const entry of Object.values(LinkRelations)) {
 			expect(["iri", "literal", "container"]).toContain(entry.range);
