@@ -26,8 +26,7 @@ import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { parseSeqPath } from "./quad-detail-pane.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
-import { renderMermaidToSvg } from "./mermaid-render.js";
-import { GET_EVENTS_METHOD, RENDER_MERMAID_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
+import { GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
 import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 import { INSTRUMENTATION_GRAPHS } from "@haibun/core/lib/instrumentation-graphs.js";
@@ -268,20 +267,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}
 		}
-		// Pre-render the curated default graph SVG (instrumentation hidden) server-side and store it under the bare
-		// renderMermaid key — the client ships no mermaid, so offline the graph is this embedded SVG. Drop the live run's per-source copies first.
-		for (const key of Object.keys(rpcCache)) if (key.startsWith(`${RENDER_MERMAID_METHOD}:`)) delete rpcCache[key];
+		// Bake the curated default graph (instrumentation hidden) as ONE canonical getClusteredQuads response. The offline
+		// overview and sequence views paint client-side from this quad set, so there is no server-rendered image to embed.
 		const built = await buildGraphSource(this.getWorld(), new Set(INSTRUMENTATION_GRAPHS));
-		// Drop the live run's many per-params getClusteredQuads copies; offline serves ONE canonical response — the quad
-		// set this SVG was rendered from (built.quads), so any view that reads the snapshot sees the same graph.
+		// Drop the live run's many per-params getClusteredQuads copies; offline serves only this canonical snapshot, so every
+		// view that reads the snapshot sees the same graph.
 		for (const key of Object.keys(rpcCache)) if (key === CLUSTERED_QUADS_METHOD || key.startsWith(`${CLUSTERED_QUADS_METHOD}:`)) delete rpcCache[key];
-		if (built) {
-			// Store the SVG together with the nodeMap + drawnEdges of the SAME render. Offline the client's own
-			// buildMermaidSource can differ (different hidden-graph/limit opts), so it adopts these to make hover/click
-			// line up with the embedded SVG exactly rather than its locally-rebuilt graph.
-			rpcCache[RENDER_MERMAID_METHOD] = { svg: await renderMermaidToSvg(built.source), nodeMap: [...built.nodeMap.entries()], drawnEdges: built.drawnEdges };
-			rpcCache[CLUSTERED_QUADS_METHOD] = { quads: built.quads, clusters: built.clusters };
-		} else logger.warn("[shu writeStandaloneReport] graph SVG not pre-rendered: QuadStore has no getClusteredQuads; the offline graph will be unavailable");
+		if (built) rpcCache[CLUSTERED_QUADS_METHOD] = { quads: built.quads, clusters: built.clusters };
+		else logger.warn("[shu writeStandaloneReport] graph snapshot not baked: QuadStore has no getClusteredQuads; the offline graph will be unavailable");
 		// Reconstruct view hash from events (view products) and cache (last query label).
 		// `view` is the productsDomain key (e.g. "affordances"); pane-state expects the
 		// component tag (e.g. "shu-affordances-panel"). Resolve via the registered domain's
