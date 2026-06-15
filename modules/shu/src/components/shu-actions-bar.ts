@@ -293,6 +293,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		} catch {
 			// No EventStream installed (early-mount in tests); skip live sync wiring.
 		}
+
+		// The bar is left/right:0, so it resizes with its container (window width); republish the collapsed footprint when
+		// that changes (the summary strip can wrap / rescale with the font), keeping the host's reserved space exact.
+		if (typeof ResizeObserver !== "undefined") {
+			this._footprintObserver = new ResizeObserver(() => this.publishFootprint());
+			this._footprintObserver.observe(this);
+		}
 	}
 
 	protected override onDisconnected(): void {
@@ -302,7 +309,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._unsubscribeEvents = null;
 		this._unsubscribeSync?.();
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
+		this._footprintObserver?.disconnect();
+		this._footprintHost?.style.removeProperty("--shu-actions-bar-h"); // a removed bar leaves no reserved gap behind
 	}
+
+	private _footprintObserver?: ResizeObserver;
 
 	private async loadUiExtensions(): Promise<void> {
 		// Wait for the concern catalog to populate site metadata before reading
@@ -531,6 +542,25 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return (this.offsetParent as HTMLElement | null)?.clientHeight || this.offsetHeight || 1;
 	}
 
+	private _footprintHost: HTMLElement | null = null;
+	private _lastFootprint = -1;
+	/**
+	 * Publish the COLLAPSED footprint — the always-present summary strip plus the bar's top border — as
+	 * `--shu-actions-bar-h` on the positioning host, so the host can reserve that space (`padding-bottom`) and content
+	 * never sits behind the closed bar. The expanded body floats over content above transiently and is NOT reserved.
+	 */
+	private publishFootprint(): void {
+		const host = this.offsetParent as HTMLElement | null;
+		const summary = this.shadowRoot?.querySelector<HTMLElement>(".summary-bar");
+		const bar = this.shadowRoot?.querySelector<HTMLElement>(".actions-bar");
+		if (!host || !summary || !bar) return;
+		const h = Math.ceil(summary.offsetHeight + (Number.parseFloat(getComputedStyle(bar).borderTopWidth) || 0));
+		if (host === this._footprintHost && h === this._lastFootprint) return;
+		this._footprintHost = host;
+		this._lastFootprint = h;
+		host.style.setProperty("--shu-actions-bar-h", `${h}px`);
+	}
+
 	protected updated(_changedProperties: PropertyValues): void {
 		const hasAsk = this._hasAskCapableStep;
 		if (!hasAsk && this.state.mode === "ask") {
@@ -540,6 +570,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.populateComboboxes();
 		this.pushContextToChat();
 		this.updateBreadcrumbDisplay();
+		this.publishFootprint();
 	}
 
 	private template(hasAsk: boolean): TemplateResult {
