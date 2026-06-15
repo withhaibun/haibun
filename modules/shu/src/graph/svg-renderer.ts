@@ -5,6 +5,7 @@
  */
 import { SHU_EVENT } from "../consts.js";
 import { layeredLayout, type NodeBox } from "./layered-layout.js";
+import { xml, truncate, arrowMarker, ARROW_MARKER_ID, SVG_MARGIN as MARGIN } from "./svg-util.js";
 import type { IGraphRenderer, TGraph, TGraphEdge, TGraphRenderOptions } from "./types.js";
 
 /** Built-in node styling by `kind`; consumers override via `graph.styles[kind]`. */
@@ -25,11 +26,6 @@ const NODE_DEFAULTS: Record<string, { fill: string; stroke: string; strokeWidth?
 /** Edge dash by `kind`; blocked/capability-gated dash, ready is bold. */
 const EDGE_DASH: Record<string, string> = { blocked: "4 3", "capability-gated": "4 3", context: "6 4" };
 const EDGE_WIDTH: Record<string, number> = { ready: 2.5, reply: 2.5 };
-
-const xml = (s: string): string => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const MARGIN = 16;
-const MAX_LABEL = 28;
-const truncate = (s: string): string => (s.length > MAX_LABEL ? `${s.slice(0, MAX_LABEL - 1)}…` : s);
 
 function nodeStyle(kind: string | undefined, overrides: TGraph["styles"]): { fill: string; stroke: string; strokeWidth: number } {
 	const k = kind ?? "default";
@@ -84,7 +80,7 @@ export function graphToSvg(graph: TGraph, options?: TGraphRenderOptions): string
 			const label = e.label
 				? `<text class="edge-label" x="${((p1.x + p2.x) / 2).toFixed(1)}" y="${((p1.y + p2.y) / 2 - 3).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--shu-fg-muted)" opacity="${op}">${xml(truncate(e.label))}</text>`
 				: "";
-			return `<g class="edge" data-from="${xml(e.from)}" data-to="${xml(e.to)}"${e.rel ? ` data-rel="${xml(e.rel)}"` : ""}><path class="edge-path" d="M${p1.x.toFixed(1)},${p1.y.toFixed(1)} L${p2.x.toFixed(1)},${p2.y.toFixed(1)}" fill="none" stroke="var(--shu-fg-faded)" stroke-width="${sw}"${dash} opacity="${op}" marker-end="url(#shu-arrow)"/>${label}</g>`;
+			return `<g class="edge" data-from="${xml(e.from)}" data-to="${xml(e.to)}"${e.rel ? ` data-rel="${xml(e.rel)}"` : ""}><path class="edge-path" d="M${p1.x.toFixed(1)},${p1.y.toFixed(1)} L${p2.x.toFixed(1)},${p2.y.toFixed(1)}" fill="none" stroke="var(--shu-fg-faded)" stroke-width="${sw}"${dash} opacity="${op}" marker-end="url(#${ARROW_MARKER_ID})"/>${label}</g>`;
 		})
 		.join("");
 
@@ -100,7 +96,7 @@ export function graphToSvg(graph: TGraph, options?: TGraphRenderOptions): string
 		.join("");
 
 	void nodeById;
-	return `<svg class="shu-graph-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"><defs><marker id="shu-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="var(--shu-fg-faded)"/></marker></defs><g class="groups">${groups}</g><g class="edges">${edges}</g><g class="nodes">${nodes}</g></svg>`;
+	return `<svg class="shu-graph-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"><defs>${arrowMarker()}</defs><g class="groups">${groups}</g><g class="edges">${edges}</g><g class="nodes">${nodes}</g></svg>`;
 }
 
 /** Canonical text for a graph (skip-when-unchanged key + the copy-to-clipboard artifact): Graphviz DOT. */
@@ -171,7 +167,7 @@ export function findSvgEdges(_graph: TGraph, container: Element): Map<string, Se
 }
 
 export class SvgGraphRenderer implements IGraphRenderer {
-	async render(graph: TGraph, container: HTMLElement, options?: TGraphRenderOptions): Promise<void> {
+	render(graph: TGraph, container: HTMLElement, options?: TGraphRenderOptions): Promise<void> {
 		container.innerHTML = graphToSvg(graph, options);
 		const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
 		for (const [rawId, element] of findSvgNodes(graph, container)) {
