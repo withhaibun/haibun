@@ -1,6 +1,6 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 
-export type GraphNode = { id: string; type: string; isCluster?: boolean; omittedCount?: number; displayLabel?: string };
+export type GraphNode = { id: string; type: string; isCluster?: boolean; omittedCount?: number; displayLabel?: string; properties?: Record<string, unknown> };
 export type GraphEdge = { from: string; to: string; predicate: string; graph: string };
 export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 
@@ -34,7 +34,17 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 	const nodeMap = new Map<string, GraphNode>();
 	for (const q of quads) {
 		if (typeof q.subject !== "string" || q.subject.length === 0) continue;
-		if (!nodeMap.has(q.subject)) nodeMap.set(q.subject, { id: q.subject, type: q.namedGraph });
+		let node = nodeMap.get(q.subject);
+		if (!node) {
+			node = { id: q.subject, type: q.namedGraph };
+			nodeMap.set(q.subject, node);
+		}
+		// Carry the node's LITERAL properties (a value, not a typed edge, not an internal/JSON-LD key) so paints can read
+		// per-node data (image, dates, coordinates, …) the renderer-agnostic edge model otherwise drops. Edges (objectType
+		// set) and internal/@ keys are excluded; the last value for a repeated predicate wins.
+		if (q.objectType === undefined && typeof q.object !== "object" && q.object != null && !q.predicate.startsWith("_") && !q.predicate.startsWith("@")) {
+			(node.properties ??= {})[q.predicate] = q.object;
+		}
 	}
 
 	const edges: GraphEdge[] = [];
