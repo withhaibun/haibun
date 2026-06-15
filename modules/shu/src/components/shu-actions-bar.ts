@@ -16,7 +16,7 @@ import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles } from "./styles.js";
-import { errMsg, prettifyGwta } from "../util.js";
+import { clamp, errMsg, prettifyGwta } from "../util.js";
 import { conduit } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
@@ -297,6 +297,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	protected override onDisconnected(): void {
 		document.removeEventListener("click", this._onDocumentClick, true);
+		this._dragMoveCleanup?.(); // a resize drag in flight at disconnect would otherwise leak its document listeners
 		this._unsubscribeEvents?.();
 		this._unsubscribeEvents = null;
 		this._unsubscribeSync?.();
@@ -506,14 +507,23 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const hasAsk = this._hasAskCapableStep;
 		// Expanded: a definite, proportionate height (the dragged fraction, remembered in the cookie, or a default) so the
 		// overlay never balloons to fit its content — the body scrolls inside instead. Collapsed: just the summary bar.
-		this.style.height = this.state.askExpanded ? `${(this.expandedProportion() * 100).toFixed(2)}%` : "";
+		this.applyHeight();
 		return this.template(hasAsk);
 	}
 
-	/** The remembered expanded height as a fraction of the container (drag-set, cookie-persisted), or the default. */
+	/** Set the host height from the current open/proportion state — shared by render() and the end of a resize drag. */
+	private applyHeight(): void {
+		this.style.height = this.state.askExpanded ? `${(this.expandedProportion() * 100).toFixed(2)}%` : "";
+	}
+
+	/** The remembered expanded height as a fraction of the container (drag-set, cookie-persisted), or the default.
+	 * Cached so a render — which runs on every reactive update — does not re-scan document.cookie each time. */
 	private expandedProportion(): number {
-		const saved = Number.parseFloat(getCookie(HEIGHT_COOKIE));
-		return saved >= MIN_PROPORTION && saved <= MAX_PROPORTION ? saved : DEFAULT_PROPORTION;
+		if (this._proportion === null) {
+			const saved = Number.parseFloat(getCookie(HEIGHT_COOKIE));
+			this._proportion = saved >= MIN_PROPORTION && saved <= MAX_PROPORTION ? saved : DEFAULT_PROPORTION;
+		}
+		return this._proportion;
 	}
 
 	/** Height of the overlay's positioning container (the offset parent), the basis for the proportionate sizing. */
@@ -704,8 +714,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private _dragStartY = 0;
 	private _dragStartH = 0; // overlay height when a resize drag began; the bar grows up from the bottom, so drag-up enlarges it
+	private _dragContainerH = 1; // container height captured at drag start (it can't change mid-drag), so each frame avoids a layout read
 	private _dragRafPending = false;
 	private _dragMoveCleanup: (() => void) | null = null;
+	private _proportion: number | null = null; // cached expanded height fraction (see expandedProportion)
 
 	/** Open/close the bar; the pin and the collapsed summary share this. Focuses the input when opening. */
 	private toggleExpanded(): void {
@@ -731,6 +743,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private onResizeDown = (e: MouseEvent | TouchEvent): void => {
 		this._dragStartY = "touches" in e ? e.touches[0].clientY : e.clientY;
 		this._dragStartH = this.offsetHeight;
+		this._dragContainerH = this.containerHeight();
 		this._dragMoveCleanup?.();
 		const ac = new AbortController();
 		const s = { signal: ac.signal };
@@ -748,7 +761,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		requestAnimationFrame(() => {
 			this._dragRafPending = false;
 			// Live feedback in px while dragging (top edge up = taller); on release it becomes a container fraction (onResizeEnd).
-			const h = Math.min(this.containerHeight(), Math.max(MIN_PANEL_PX, this._dragStartH - (y - this._dragStartY)));
+			const h = clamp(this._dragStartH - (y - this._dragStartY), MIN_PANEL_PX, this._dragContainerH);
 			this.style.height = `${h}px`;
 		});
 	}
@@ -757,9 +770,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._dragMoveCleanup?.();
 		this._dragMoveCleanup = null;
 		// Remember the dragged size as a fraction of the container so it stays proportionate across window sizes.
-		const frac = Math.min(MAX_PROPORTION, Math.max(MIN_PROPORTION, this.offsetHeight / this.containerHeight()));
-		setCookie(HEIGHT_COOKIE, frac.toFixed(3));
-		this.style.height = `${(frac * 100).toFixed(2)}%`;
+		this._proportion = clamp(this.offsetHeight / this._dragContainerH, MIN_PROPORTION, MAX_PROPORTION);
+		setCookie(HEIGHT_COOKIE, this._proportion.toFixed(3));
+		this.applyHeight();
 	}
 
 	/** Populate combobox options after each render. The combobox elements themselves persist (lit's diff), so setOptions just refreshes their data without recreating the element — typed-ahead filter text, focus, and open dropdown state survive. */
@@ -886,8 +899,7 @@ const STYLES = `
 	   layout space, so the rows behind it never resize. Self-positioning — drop it into any position:relative host
 	   (the app shell or a column view) and it pins to that host's bottom. */
 	:host {
-		/* Above column content and any in-column overlays (e.g. the fisheye's own corner controls at z-index 10-12),
-		   below the fullscreen artifact modal (z-index 100). */
+		/* Sits above column content and in-column overlays, below a fullscreen modal. */
 		position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
 		display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: hidden;
 	}
