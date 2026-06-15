@@ -5,9 +5,8 @@ const cache = new Map<string, unknown>();
 
 /** Fully-qualified methods whose report embeds one canonical response under the bare key (see monitor-stepper.writeStandaloneReport). */
 export const GET_EVENTS_METHOD = "MonitorStepper-getEvents";
-export const RENDER_MERMAID_METHOD = "ShuStepper-renderMermaid";
 export const CLUSTERED_QUADS_METHOD = "MonitorStepper-getClusteredQuads";
-const BARE_KEY_METHODS = new Set<string>([GET_EVENTS_METHOD, RENDER_MERMAID_METHOD, CLUSTERED_QUADS_METHOD]);
+const BARE_KEY_METHODS = new Set<string>([GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD]);
 
 /** Find a cached method by partial name (e.g., "graphQuery" matches "MonitorStepper-graphQuery"). */
 export function findCachedMethod(name: string): string | undefined {

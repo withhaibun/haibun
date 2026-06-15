@@ -2,7 +2,7 @@
  * ShuGraph — generic graph visualization web component.
  *
  * Takes a renderer-agnostic `TGraph` via its `products` setter and paints it
- * using an injected `IGraphRenderer`. The default renderer is `MermaidGraphRenderer`;
+ * using an injected `IGraphRenderer`. The default renderer is `SvgGraphRenderer`;
  * a future server-layout renderer can replace it without callers changing.
  *
  * Consumers listen for `SHU_EVENT.GRAPH_NODE_CLICK` to react to node selection.
@@ -12,8 +12,8 @@
  *
  * Stability invariants:
  *  - Zoom is a CSS-only transform on the diagram container. Updating zoom never
- *    triggers a mermaid re-layout — the rendered SVG stays put.
- *  - `repaint()` skips `renderer.render()` when the projected mermaid source is
+ *    triggers a re-layout — the rendered SVG stays put.
+ *  - `repaint()` skips `renderer.render()` when the projected graph source is
  *    byte-identical to the previous one, so live updates that don't change the
  *    graph shape don't re-lay it out.
  *  - Selection lives outside the Zod state and applies via CSS classes; toggling

@@ -2,7 +2,7 @@
 /**
  * Runtime contract for the domain-chain view.
  *
- * Must reach a terminal display state — either the Mermaid graph when products
+ * Must reach a terminal display state — either the SVG graph when products
  * are supplied, or an actionable empty-state message. A spinner that never
  * disappears is a bug.
  */
@@ -274,7 +274,7 @@ describe("shu-domain-chain-view", () => {
 
 		it("syncs selectedNodeId from ?aff-goal=<domain> on popstate without going through setState", () => {
 			// Selection is a UI-only field outside StateSchema — toggling it must not
-			// trigger a full re-render (mermaid relayout shifts the graph).
+			// trigger a full re-render (relayout shifts the graph).
 			const view = mount();
 			view.applySseSnapshot(mkSnap(2));
 			const url = new URL(window.location.href);

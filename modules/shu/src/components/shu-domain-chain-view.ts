@@ -12,7 +12,7 @@
  * The chain view owns: toolbar (layout / zoom / copy via shu-graph),
  * shu-graph-filter integration (kind + stepper axes, cookie-persisted),
  * SSE live updates, URL deep-link selection sync, and click routing through
- * PaneState. Rendering, hover-highlight, selection-highlight, and the mermaid
+ * PaneState. Rendering, hover-highlight, selection-highlight, and the render
  * lifecycle live in shu-graph.
  */
 import { html, css, type TemplateResult } from "lit";
@@ -95,7 +95,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 
 	/** UI-only zoom percentage. Lives outside Zod state so changing it never triggers
 	 * a chain-view re-render — the shu-graph element receives setZoom() directly and
-	 * applies a CSS transform to its container without re-running mermaid. */
+	 * applies a CSS transform to its container without re-running the layout. */
 	private zoomPercent = 100;
 
 	static observedHtmlAttributes = ["data-show-controls"];
@@ -110,7 +110,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		// Subscribe to the goal-resolver's `affordances.<seqPath>` events so the chain
 		// repaints as the graph state changes. Each step's afterStep emits an event
 		// regardless of whether it changed anything, so dedup against a fingerprint of
-		// the rendered fields — otherwise every step kicks a full mermaid re-render
+		// the rendered fields — otherwise every step kicks a full re-render
 		// even when the snapshot is byte-identical.
 		try {
 			this.autoTeardown(
@@ -128,7 +128,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		}
 		// React to URL changes so the highlight (`?aff-goal=` / `?aff-waypoint=`) follows
 		// the address bar. Selection lives outside the state schema, so update the
-		// shu-graph's selectedNodeId directly — no mermaid re-layout, no graph movement.
+		// shu-graph's selectedNodeId directly — no re-layout, no graph movement.
 		this.autoListen(window, "popstate", () => {
 			this.syncSelectionFromUrl();
 			this.applySelectionToGraph();

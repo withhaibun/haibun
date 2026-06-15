@@ -96,7 +96,7 @@ describe("shu-graph", () => {
 	});
 
 	it("setZoom mutates the diagram-container CSS transform without re-rendering through the injected renderer", async () => {
-		// Regression: zoom changes must not retrigger mermaid layout. The container's
+		// Regression: zoom changes must not retrigger layout. The container's
 		// transform updates directly; the renderer's call count stays put.
 		const el = document.createElement("shu-graph") as ShuGraph;
 		const renderer = new RecordingRenderer();
@@ -113,9 +113,9 @@ describe("shu-graph", () => {
 		expect(container.style.transform).toBe("scale(0.75)");
 	});
 
-	it("repaint skips renderer.render when the projected mermaid source is byte-identical to the previous paint", async () => {
+	it("repaint skips renderer.render when the projected graph source is byte-identical to the previous paint", async () => {
 		// Regression: live affordance pings that don't change the graph shape must not
-		// retrigger mermaid layout — preserves scroll position and stops the diagram jumping.
+		// retrigger layout — preserves scroll position and stops the diagram jumping.
 		const el = document.createElement("shu-graph") as ShuGraph;
 		const renderer = new RecordingRenderer();
 		el.setRenderer(renderer);

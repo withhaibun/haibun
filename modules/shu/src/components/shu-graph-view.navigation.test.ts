@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraphView } from "./shu-graph-view.js";
 import { graphToSvg, findSvgNodes } from "../graph/svg-renderer.js";
 import { buildGraphTopology } from "../graph/graph-topology.js";
-import { THREAD_CLASSIFIER, type TGraphViewOpts } from "../mermaid-source.js";
+import { THREAD_CLASSIFIER, type TGraphViewOpts } from "../graph-classifier.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TGraph } from "../graph/types.js";
 

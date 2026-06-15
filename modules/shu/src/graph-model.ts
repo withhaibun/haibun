@@ -43,7 +43,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		if (q.subject === q.object) continue;
 		// An edge is a TYPED reference: the quad carries `objectType` — the JSON-LD range of its target. A plain-string
 		// property (no objectType) is never an edge, even if its value coincidentally matches a node id. This is the
-		// same rule the overview's mermaid classifier applies ("declared by the range, never guessed from the id");
+		// same rule the overview's property classifier applies ("declared by the range, never guessed from the id");
 		// guessing is what mis-linked string properties like `account` onto whatever node shared their value.
 		if (opts.requireObjectType && (typeof q.objectType !== "string" || q.objectType.length === 0)) continue;
 		if (opts.ignoreInternalPredicates && q.predicate.startsWith("_")) continue;
