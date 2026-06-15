@@ -1,6 +1,6 @@
 /**
- * Single source of truth for node-type colors. Both shu-graph-view (mermaid
- * subgraph fills) and an external 3D viewer (plate colors) call
+ * Single source of truth for node-type colors. Both shu-graph-view (SVG group
+ * fills) and an external 3D viewer (plate colors) call
  * `colorForType(typeName)` so the same node type gets the same colour
  * across views — important for cross-view pattern-matching (an Email is the
  * same colour everywhere).

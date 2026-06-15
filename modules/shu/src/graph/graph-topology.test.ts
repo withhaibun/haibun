@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildGraphTopology, isSummaryId } from "./graph-topology.js";
-import { THREAD_CLASSIFIER, type TGraphViewOpts } from "../mermaid-source.js";
+import { THREAD_CLASSIFIER, type TGraphViewOpts } from "../graph-classifier.js";
 import { colorForType } from "../type-colors.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 

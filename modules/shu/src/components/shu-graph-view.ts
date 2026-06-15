@@ -26,7 +26,7 @@ import { buildGraphModelFromQuads } from "../graph-model.js";
 import { copyText } from "../copy-util.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { edgeRel as coreEdgeRel, LinkRelations } from "@haibun/core/lib/resources.js";
-import { buildClassifier, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
+import { buildClassifier, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../graph-classifier.js";
 import { buildGraphTopology, isSummaryId, summaryGraphOf } from "../graph/graph-topology.js";
 import { graphToSvg, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
 import { buildNeighbors } from "../graph/filter-graph.js";
