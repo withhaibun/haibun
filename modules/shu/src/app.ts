@@ -36,13 +36,8 @@ const LAYOUT_STYLE = `
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
-  }
-  .app-container > shu-actions-bar {
-    flex: 0 0 auto;
-    border-bottom: 1px solid #ddd;
-    overflow: hidden;
-    max-height: 50vh;
-    max-height: 50dvh;
+    /* positioning context for the actions bar, which overlays the bottom rather than taking layout space */
+    position: relative;
   }
   .app-container > shu-column-strip {
     flex: 1;
@@ -121,7 +116,6 @@ const main = async (): Promise<void> => {
 	}
 
 	const apiBase = appRoot.getAttribute("data-api-base") || "/shu";
-	const SPLITTER_COOKIE = "shu-actions-height";
 
 	if (!document.getElementById("graph-style")) {
 		const style = document.createElement("style");
@@ -348,42 +342,7 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Summary bar drag resize
-	let resizeStartH = 0;
-	let resizeStartY = 0;
-	appRoot.addEventListener(
-		SHU_EVENT.RESIZE_DRAG,
-		((e: CustomEvent) => {
-			const ab = appRoot.querySelector(".app-container > shu-actions-bar") as HTMLElement | null;
-			if (!ab) return;
-			if (resizeStartH === 0) {
-				resizeStartH = ab.offsetHeight;
-				resizeStartY = e.detail.clientY;
-			}
-			const h = Math.max(28, resizeStartH + (e.detail.clientY - resizeStartY));
-			ab.style.maxHeight = `${h}px`;
-			ab.style.height = "";
-		}) as EventListener,
-		{ signal },
-	);
-
-	appRoot.addEventListener(
-		SHU_EVENT.RESIZE_END,
-		(() => {
-			const ab = appRoot.querySelector(".app-container > shu-actions-bar") as HTMLElement | null;
-			if (ab && resizeStartH > 0) {
-				const maxH = parseInt(ab.style.maxHeight) || ab.offsetHeight;
-				if (maxH < 50) {
-					ab.style.maxHeight = "";
-					document.cookie = `${SPLITTER_COOKIE}=; path=/; max-age=0`;
-				} else {
-					document.cookie = `${SPLITTER_COOKIE}=${maxH}; path=/; max-age=${60 * 60 * 24 * 365}`;
-				}
-			}
-			resizeStartH = 0;
-		}) as EventListener,
-		{ signal },
-	);
+	// The actions bar owns its own resize now (it overlays the bottom and grows upward); see shu-actions-bar.ts.
 
 	// Sync notifications — buffer rapid events into one consolidated message
 	let syncDebounce: ReturnType<typeof setTimeout> | null = null;

@@ -199,5 +199,7 @@ export type TDispatchTrace = z.infer<typeof DispatchTraceSchema>;
 
 export const ActionsBarSchema = z.object({
 	askExpanded: z.boolean().default(false),
+	// Pinned keeps the bar open: an unpinned open bar dismisses on click-away, a pinned one stays put.
+	pinned: z.boolean().default(false),
 	mode: z.enum(["ask", "step"]).default("step"),
 });

@@ -35,8 +35,6 @@ export const SHU_EVENT = {
 	PAGE_CHANGE: "page-change",
 	STATE_CHANGE: "state-change",
 	SYNC_AVAILABLE: "sync-available",
-	RESIZE_DRAG: "resize-drag",
-	RESIZE_END: "resize-end",
 	VIEW_ACTIVE: "view-active",
 } as const;
 
