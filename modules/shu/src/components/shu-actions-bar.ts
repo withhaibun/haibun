@@ -21,12 +21,16 @@ import { conduit } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags, getProperties, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
-import { getCookie } from "../cookies.js";
+import { getCookie, setCookie } from "../cookies.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 
-const HEIGHT_COOKIE = "shu-actions-height";
+const HEIGHT_COOKIE = "shu-actions-height"; // the expanded overlay's height as a FRACTION of its container (0..1), so it stays proportionate across window sizes
+const MIN_PANEL_PX = 50; // a resize drag below this snaps the overlay back to the default proportion
+const DEFAULT_PROPORTION = 0.38; // expanded overlay height when the user hasn't dragged one
+const MIN_PROPORTION = 0.12;
+const MAX_PROPORTION = 0.9;
 
 /**
  * Build the secondary line shown under a step's gwta in the step picker.
@@ -98,6 +102,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.requestUpdate();
 		}
 		if (!this.state.askExpanded) return;
+		if (this.state.pinned) return; // a pinned bar stays open — that is what the pin is for
 		if (inside) return;
 		const target = e.target instanceof Element ? e.target : null;
 		// Combobox popups are rendered into document.body, so suggestion picks are
@@ -120,11 +125,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return `data-testid="${this.testIdPrefix}${id}"`;
 	}
 
-	/** The ask/step mode toggle is remembered across reloads (ShuElement.persistFields; singleton key). */
-	static persistFields = ["mode"] as const;
+	/** The mode toggle and the pinned-open latch are remembered across reloads (ShuElement.persistFields; singleton key). */
+	static persistFields = ["mode", "pinned"] as const;
 
 	constructor() {
-		super(ActionsBarSchema, { askExpanded: false, mode: "step" });
+		super(ActionsBarSchema, { askExpanded: false, pinned: false, mode: "step" });
 	}
 
 	setContext(
@@ -271,6 +276,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	protected override onConnected(): void {
 		document.addEventListener("click", this._onDocumentClick, true);
 		this.loadProperties();
+		if (this.state.pinned && !this.state.askExpanded) this.setState({ askExpanded: true }); // a pinned bar restored from persistence opens
+
 		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			this.failFast(`ShuActionsBar initialization failed: ${errMsg(err)}`);
 		});
@@ -497,14 +504,21 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** Lit handles the render via the standard `render() \u2192 TemplateResult \u2192 reconcile against the shadow root` path. `updated()` is where side-effects that depend on the freshly-reconciled DOM run \u2014 wiring drag handlers to nodes Lit just mounted, pushing combobox option lists, etc. */
 	render(): TemplateResult {
 		const hasAsk = this._hasAskCapableStep;
-		this.style.height = "";
-		if (this.state.askExpanded) {
-			const saved = getCookie(HEIGHT_COOKIE);
-			this.style.maxHeight = saved ? `${saved}px` : "";
-		} else {
-			this.style.maxHeight = "";
-		}
+		// Expanded: a definite, proportionate height (the dragged fraction, remembered in the cookie, or a default) so the
+		// overlay never balloons to fit its content — the body scrolls inside instead. Collapsed: just the summary bar.
+		this.style.height = this.state.askExpanded ? `${(this.expandedProportion() * 100).toFixed(2)}%` : "";
 		return this.template(hasAsk);
+	}
+
+	/** The remembered expanded height as a fraction of the container (drag-set, cookie-persisted), or the default. */
+	private expandedProportion(): number {
+		const saved = Number.parseFloat(getCookie(HEIGHT_COOKIE));
+		return saved >= MIN_PROPORTION && saved <= MAX_PROPORTION ? saved : DEFAULT_PROPORTION;
+	}
+
+	/** Height of the overlay's positioning container (the offset parent), the basis for the proportionate sizing. */
+	private containerHeight(): number {
+		return (this.offsetParent as HTMLElement | null)?.clientHeight || this.offsetHeight || 1;
 	}
 
 	protected updated(_changedProperties: PropertyValues): void {
@@ -523,7 +537,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const expanded = this.state.askExpanded;
 		const body = expanded ? (this.state.mode === "ask" ? this.askModeTemplate(hasAsk) : this.stepModeTemplate(hasAsk)) : nothing;
 		const filterBar = expanded ? this.filterBarTemplate() : nothing;
+		// The resize grip sits at the TOP edge of the open overlay (the bar grows up from the bottom, so the top edge is
+		// where it meets the content) — drag it to resize. Only present when expanded; there is nothing to resize collapsed.
+		const resizeHandle = expanded
+			? html`<div class="resize-handle" data-testid=${`${this.testIdPrefix}resize-handle`} title="Drag to resize" @mousedown=${this.onResizeDown} @touchstart=${this.onResizeDown}></div>`
+			: nothing;
 		return html`<div class=${classMap({ "actions-bar": true, collapsed: !expanded })}>
+				${resizeHandle}
 				${this.settingsPopoverTemplate()}
 				${filterBar}
 				${body}
@@ -540,22 +560,18 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private summaryTemplate(): TemplateResult {
-		const twisty = this.state.askExpanded ? "\u25B6" : "\u25BC";
-		return html`<div class="summary-bar" @mousedown=${this.onSummaryMouseDown} @touchstart=${this.onSummaryTouchStart}>
+		const pinned = this.state.pinned;
+		return html`<div class="summary-bar" @click=${this.onSummaryClick}>
 			<span class="status-area" style=${this._statusMessage ? "" : "display:none"}>${this._statusMessage}</span>
 			<shu-breadcrumb></shu-breadcrumb>
 			<span class="time-offset" data-testid=${`${this.testIdPrefix}time-offset`}>${this._timeOffsetLabel}</span>
 			<span class="access-indicator" data-testid=${`${this.testIdPrefix}access-indicator`}>${this._contextAccessLevel}</span>
 			<button class="settings-button" aria-label="Settings" aria-expanded=${this._settingsOpen} data-testid=${`${this.testIdPrefix}settings-button`}
-				@mousedown=${this.stopSummaryPropagation} @touchstart=${this.stopSummaryPropagation} @click=${this.onSettingsToggle}>\u2699</button>
-			<button class="twisty" data-testid=${`${this.testIdPrefix}ask-button`}>${twisty}</button>
+				@click=${this.onSettingsToggle}>\u2699</button>
+			<button class=${classMap({ pin: true, pinned })} aria-label=${pinned ? "Unpin actions bar" : "Pin actions bar open"} aria-pressed=${pinned}
+				data-testid=${`${this.testIdPrefix}ask-button`} @click=${this.onPinToggle}>\u{1F4CC}</button>
 		</div>`;
 	}
-
-	/** Keep a gear press from starting the summary bar's drag/expand gesture. */
-	private stopSummaryPropagation = (e: Event): void => {
-		e.stopPropagation();
-	};
 
 	private onSettingsToggle = (e: Event): void => {
 		e.stopPropagation();
@@ -687,60 +703,63 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private _dragStartY = 0;
-	private _dragMoved = false;
-	private _dragStartedOnTwisty = false;
+	private _dragStartH = 0; // overlay height when a resize drag began; the bar grows up from the bottom, so drag-up enlarges it
 	private _dragRafPending = false;
 	private _dragMoveCleanup: (() => void) | null = null;
 
-	private onSummaryMouseDown = (e: MouseEvent): void => {
-		this.beginSummaryDrag(e.clientY, e.target);
-		e.preventDefault();
+	/** Open/close the bar; the pin and the collapsed summary share this. Focuses the input when opening. */
+	private toggleExpanded(): void {
+		const next = !this.state.askExpanded;
+		this.setState({ askExpanded: next });
+		if (next) requestAnimationFrame(() => (this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus());
+	}
+
+	/** The pin pins the bar open (a latch against click-away dismissal) — it does NOT open/close it. Pinning also opens it
+	 * if needed; unpinning leaves it open but now dismissible by clicking away. */
+	private onPinToggle = (e: Event): void => {
+		e.stopPropagation();
+		const pinned = !this.state.pinned;
+		this.setState({ pinned, askExpanded: pinned || this.state.askExpanded });
 	};
 
-	private onSummaryTouchStart = (e: TouchEvent): void => {
-		this.beginSummaryDrag(e.touches[0].clientY, e.target);
-		e.preventDefault();
+	/** Clicking the collapsed summary strip opens the bar (transient — it dismisses on click-away unless pinned). */
+	private onSummaryClick = (): void => {
+		if (!this.state.askExpanded) this.toggleExpanded();
 	};
 
-	/** Click-or-drag on the summary bar: a small movement collapses/expands the bar (or expands if started on the twisty); a larger one is treated as a resize. The drag state lives in instance fields so lit can re-render freely without losing in-flight drag context. */
-	private beginSummaryDrag(startY: number, target: EventTarget | null): void {
-		this._dragStartY = startY;
-		this._dragMoved = false;
-		this._dragStartedOnTwisty = !!(target instanceof HTMLElement && target.closest(".twisty"));
+	/** Start a resize drag from the top grip. The bar is bottom-anchored, so dragging the top edge UP enlarges it. */
+	private onResizeDown = (e: MouseEvent | TouchEvent): void => {
+		this._dragStartY = "touches" in e ? e.touches[0].clientY : e.clientY;
+		this._dragStartH = this.offsetHeight;
 		this._dragMoveCleanup?.();
 		const ac = new AbortController();
 		const s = { signal: ac.signal };
-		document.addEventListener("mousemove", (ev) => this.onSummaryDragMove((ev as MouseEvent).clientY), s);
-		document.addEventListener("mouseup", () => this.onSummaryDragEnd(), s);
-		document.addEventListener("touchmove", (ev) => this.onSummaryDragMove((ev as TouchEvent).touches[0].clientY), s);
-		document.addEventListener("touchend", () => this.onSummaryDragEnd(), s);
+		document.addEventListener("mousemove", (ev) => this.onResizeMove((ev as MouseEvent).clientY), s);
+		document.addEventListener("mouseup", () => this.onResizeEnd(), s);
+		document.addEventListener("touchmove", (ev) => this.onResizeMove((ev as TouchEvent).touches[0].clientY), s);
+		document.addEventListener("touchend", () => this.onResizeEnd(), s);
 		this._dragMoveCleanup = () => ac.abort();
-	}
+		e.preventDefault();
+	};
 
-	private onSummaryDragMove(y: number): void {
-		if (!this.state.askExpanded) return;
-		if (Math.abs(y - this._dragStartY) <= 5) return;
-		this._dragMoved = true;
+	private onResizeMove(y: number): void {
 		if (this._dragRafPending) return;
 		this._dragRafPending = true;
 		requestAnimationFrame(() => {
 			this._dragRafPending = false;
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.RESIZE_DRAG, { bubbles: true, composed: true, detail: { clientY: y } }));
+			// Live feedback in px while dragging (top edge up = taller); on release it becomes a container fraction (onResizeEnd).
+			const h = Math.min(this.containerHeight(), Math.max(MIN_PANEL_PX, this._dragStartH - (y - this._dragStartY)));
+			this.style.height = `${h}px`;
 		});
 	}
 
-	private onSummaryDragEnd(): void {
+	private onResizeEnd(): void {
 		this._dragMoveCleanup?.();
 		this._dragMoveCleanup = null;
-		if (this._dragMoved) {
-			this._dragStartedOnTwisty = false;
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.RESIZE_END, { bubbles: true, composed: true }));
-			return;
-		}
-		const nextExpanded = this._dragStartedOnTwisty ? true : !this.state.askExpanded;
-		this._dragStartedOnTwisty = false;
-		this.setState({ askExpanded: nextExpanded });
-		if (nextExpanded) requestAnimationFrame(() => (this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus());
+		// Remember the dragged size as a fraction of the container so it stays proportionate across window sizes.
+		const frac = Math.min(MAX_PROPORTION, Math.max(MIN_PROPORTION, this.offsetHeight / this.containerHeight()));
+		setCookie(HEIGHT_COOKIE, frac.toFixed(3));
+		this.style.height = `${(frac * 100).toFixed(2)}%`;
 	}
 
 	/** Populate combobox options after each render. The combobox elements themselves persist (lit's diff), so setOptions just refreshes their data without recreating the element — typed-ahead filter text, focus, and open dropdown state survive. */
@@ -863,28 +882,51 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 }
 
 const STYLES = `
-	:host { display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--shu-bg-soft); border-top: var(--shu-border-w) solid var(--shu-border); }
-	.actions-bar { padding: 0; background: var(--shu-bg-soft); display: flex; flex-direction: column; min-width: 0; overflow: hidden; flex: 1; min-height: 0; position: relative; }
+	/* A bottom-anchored, translucent overlay: it floats up over the content from the bottom edge instead of taking
+	   layout space, so the rows behind it never resize. Self-positioning — drop it into any position:relative host
+	   (the app shell or a column view) and it pins to that host's bottom. */
+	:host {
+		/* Above column content and any in-column overlays (e.g. the fisheye's own corner controls at z-index 10-12),
+		   below the fullscreen artifact modal (z-index 100). */
+		position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+		display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: hidden;
+	}
+	.actions-bar {
+		padding: 0; display: flex; flex-direction: column; min-width: 0; overflow: hidden; flex: 1; min-height: 0; position: relative;
+		background: color-mix(in srgb, var(--shu-bg-soft) 68%, transparent);
+		-webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+		border-top: var(--shu-border-w) solid var(--shu-border);
+		box-shadow: 0 -2px 10px var(--shu-shadow);
+	}
+	/* The resize grip — a thin bar with a centred grab pill at the TOP edge of the open overlay. */
+	.resize-handle {
+		flex-shrink: 0; height: 10px; cursor: ns-resize; user-select: none; touch-action: none;
+		display: flex; align-items: center; justify-content: center;
+	}
+	.resize-handle::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--shu-border); }
+	.resize-handle:hover::before { background: var(--shu-fg-faded); }
 	.summary-bar {
 		display: flex; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-2) var(--shu-space-4);
 		min-height: var(--shu-row-h); flex-shrink: 0;
-		cursor: ns-resize; user-select: none; touch-action: none;
-		margin-top: auto; background: var(--shu-bg-elevated);
+		user-select: none; margin-top: auto; background: transparent;
 		border-top: var(--shu-border-w) solid var(--shu-border);
 	}
-	.actions-bar.collapsed .summary-bar { cursor: pointer; margin-top: 0; background: var(--shu-bg-soft); border-top: none; }
+	.actions-bar.collapsed { box-shadow: none; }
+	.actions-bar.collapsed .summary-bar { cursor: pointer; margin-top: 0; border-top: none; }
+	/* Pin control (lower right): upright + accented when open, tilted + faded when closed. */
+	.pin {
+		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
+		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
+		display: inline-flex; align-items: center; justify-content: center;
+		font-size: var(--shu-font-sm); color: var(--shu-fg-faded); border-radius: var(--shu-radius);
+		transform: rotate(45deg); opacity: 0.6;
+	}
+	.pin:hover { color: var(--shu-fg); background: var(--shu-bg-hover); }
+	.pin.pinned { transform: rotate(0deg); opacity: 1; color: var(--shu-accent); }
 	.status-area {
 		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
 		max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
-	.twisty {
-		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
-		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
-		display: inline-flex; align-items: center; justify-content: center;
-		font-size: var(--shu-font-xs); color: var(--shu-fg-faded);
-		border-radius: var(--shu-radius);
-	}
-	.twisty:hover { color: var(--shu-fg); background: var(--shu-bg-hover); }
 	.settings-button {
 		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
 		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
