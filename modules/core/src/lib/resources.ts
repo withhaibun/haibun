@@ -184,8 +184,8 @@ export const LinkRelations = {
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
 	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri" },
 	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", subPropertyOf: "inReplyTo" },
-	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal" },
-	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal" },
+	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", subPropertyOf: ["ganttStart", "temporalInstant"] },
+	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", subPropertyOf: ["ganttEnd", "temporalInstant"] },
 	// When the system generated this entity's representation — the required "when" field on every persisted object (distinct from as:published, which is the content's own time).
 	GENERATED_AT_TIME: { rel: "generatedAtTime", uri: "prov:generatedAtTime", range: "literal" },
 	// SOSA / W3C SSN — observation and sensing
@@ -202,6 +202,18 @@ export const LinkRelations = {
 	ACTION_STATUS: { rel: "actionStatus", uri: "schema:actionStatus", range: "literal" },
 	PART_OF: { rel: "isPartOf", uri: "schema:isPartOf", range: "iri" },
 	PRECEDED_BY: { rel: "precededBy", uri: "hbn:precededBy", range: "iri" },
+	// Scheduling / Gantt — task timing, effort, and dependencies. Concrete rels declare themselves under the gantt-*
+	// upper concepts (and the time rels also under temporalInstant), so a paint recognises schedulable data via
+	// isSubPropertyOf regardless of which concrete vocabulary (PROV, schema, hbn) supplied each field.
+	TEMPORAL_INSTANT: { rel: "temporalInstant", uri: "time:Instant", range: "literal" },
+	GANTT_START: { rel: "ganttStart", uri: "hbn:ganttStart", range: "literal" },
+	GANTT_END: { rel: "ganttEnd", uri: "hbn:ganttEnd", range: "literal" },
+	GANTT_DURATION: { rel: "ganttDuration", uri: "hbn:ganttDuration", range: "literal" },
+	GANTT_EFFORT: { rel: "ganttEffort", uri: "hbn:ganttEffort", range: "literal" },
+	GANTT_DEPENDS: { rel: "ganttDepends", uri: "hbn:ganttDependsOn", range: "iri" },
+	DURATION: { rel: "duration", uri: "schema:duration", range: "literal", subPropertyOf: "ganttDuration" },
+	EFFORT: { rel: "effort", uri: "hbn:effort", range: "literal", subPropertyOf: "ganttEffort" },
+	DEPENDS_ON: { rel: "dependsOn", uri: "hbn:dependsOn", range: "iri", subPropertyOf: "ganttDepends" },
 	// Haibun native — discourse speech acts, each a sub-property of inReplyTo
 	MEASURE: { rel: "measure", uri: "hbn:measure", range: "iri", subPropertyOf: "inReplyTo", label: "Measure", icon: "📊" },
 	NARRATE: { rel: "narrate", uri: "hbn:narrate", range: "iri", subPropertyOf: "inReplyTo", label: "Narrate", icon: "💬" },
