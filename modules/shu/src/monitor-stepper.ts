@@ -403,6 +403,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			productsDomain: "shu-graph-view",
 			action: () => actionOKWithProducts({}),
 		},
+		showGanttView: {
+			gwta: "show gantt view",
+			productsDomain: "shu-gantt-view",
+			action: () => actionOKWithProducts({}),
+		},
 		getClusteredQuads: {
 			gwta: "get clustered quads",
 			productsSchema: ClusteredQuadsSchema,
