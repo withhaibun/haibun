@@ -421,31 +421,33 @@ export class StepCaller extends HTMLElement {
 			// is populated from a live snapshot of that persisted type, and its
 			// picked value flows into the hidden `${param}.id` input that the
 			// form's submit handler reads.
-			form.querySelectorAll<HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void; updateComplete?: Promise<unknown> }>("shu-combobox[data-persisted-ref]").forEach((cb) => {
-				const targetLabel = cb.dataset.persistedRef;
-				const paramName = cb.dataset.param;
-				if (!targetLabel || !paramName) return;
-				const hidden = form.querySelector<HTMLInputElement>(`input[name="${CSS.escape(paramName)}\\.id"]`);
-				cb.addEventListener("combo-change", (e) => {
-					if (hidden) hidden.value = (e as CustomEvent).detail?.value ?? "";
-				});
-				// An id can be typed directly without picking an option. Mirror the
-				// typed text into the hidden input so the submit handler always
-				// carries something — `combo-change` overwrites it on a dropdown pick.
-				// `await updateComplete` waits for lit's first render of the
-				// combobox's inner `<input>`; without this the `querySelector`
-				// returns null because lit's render is scheduled in the next
-				// microtask, leaving Playwright's `fill()` unwired.
-				const wireInputMirror = () => {
-					const inputEl = cb.shadowRoot?.querySelector("input") as HTMLInputElement | null;
-					inputEl?.addEventListener("input", () => {
-						if (hidden) hidden.value = inputEl.value;
+			form
+				.querySelectorAll<HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void; updateComplete?: Promise<unknown> }>("shu-combobox[data-persisted-ref]")
+				.forEach((cb) => {
+					const targetLabel = cb.dataset.persistedRef;
+					const paramName = cb.dataset.param;
+					if (!targetLabel || !paramName) return;
+					const hidden = form.querySelector<HTMLInputElement>(`input[name="${CSS.escape(paramName)}\\.id"]`);
+					cb.addEventListener("combo-change", (e) => {
+						if (hidden) hidden.value = (e as CustomEvent).detail?.value ?? "";
 					});
-				};
-				if (cb.updateComplete) void cb.updateComplete.then(wireInputMirror);
-				else wireInputMirror();
-				void this.populatePersistedRef(cb, targetLabel);
-			});
+					// An id can be typed directly without picking an option. Mirror the
+					// typed text into the hidden input so the submit handler always
+					// carries something — `combo-change` overwrites it on a dropdown pick.
+					// `await updateComplete` waits for lit's first render of the
+					// combobox's inner `<input>`; without this the `querySelector`
+					// returns null because lit's render is scheduled in the next
+					// microtask, leaving Playwright's `fill()` unwired.
+					const wireInputMirror = () => {
+						const inputEl = cb.shadowRoot?.querySelector("input") as HTMLInputElement | null;
+						inputEl?.addEventListener("input", () => {
+							if (hidden) hidden.value = inputEl.value;
+						});
+					};
+					if (cb.updateComplete) void cb.updateComplete.then(wireInputMirror);
+					else wireInputMirror();
+					void this.populatePersistedRef(cb, targetLabel);
+				});
 		}
 	}
 

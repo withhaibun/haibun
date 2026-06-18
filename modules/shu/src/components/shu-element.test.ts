@@ -24,8 +24,12 @@ const S = z.object({ x: z.string().default("") });
 class FinalizeProbe extends ShuElement<typeof S> {
 	static observedHtmlAttributes = ["foo", "bar"];
 	static styles = [shuBaseStyles, css`:host { color: var(--shu-fg); }`];
-	constructor() { super(S, { x: "" }); }
-	render(): TemplateResult { return html`<div></div>`; }
+	constructor() {
+		super(S, { x: "" });
+	}
+	render(): TemplateResult {
+		return html`<div></div>`;
+	}
 }
 customElements.define("shu-finalize-probe", FinalizeProbe);
 

@@ -163,11 +163,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			this.timeCursor = ts;
 		};
 
-	private onRowClick = (seqPath: number[] | undefined) => (e: Event): void => {
-		if (!seqPath) return;
-		const addToSelection = Boolean((e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey);
-		PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, addToSelection);
-	};
+	private onRowClick =
+		(seqPath: number[] | undefined) =>
+		(e: Event): void => {
+			if (!seqPath) return;
+			const addToSelection = Boolean((e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey);
+			PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, addToSelection);
+		};
 
 	protected updated(): void {
 		if (this.timeCursor !== null) return;

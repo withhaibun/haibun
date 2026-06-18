@@ -20,14 +20,27 @@ import { readShowControlsCookie, writeShowControlsCookie } from "../show-control
 export { readShowControlsCookie };
 
 const ICON = { MIN: "―", MAX: "⤢", CONTROLS: "⚙", PIN: "📌", CLOSE: "×" } as const;
-const CLASS = { MIN: "pane-minimize", MAX: "pane-maximize", CONTROLS: "pane-controls", PIN: "pane-pin", CLOSE: "pane-close", GROUP: "pane-controls-group", HEADER: "pane-header", LABEL: "pane-label", CONTENT: "pane-content", RESIZE: "resize-handle" } as const;
+const CLASS = {
+	MIN: "pane-minimize",
+	MAX: "pane-maximize",
+	CONTROLS: "pane-controls",
+	PIN: "pane-pin",
+	CLOSE: "pane-close",
+	GROUP: "pane-controls-group",
+	HEADER: "pane-header",
+	LABEL: "pane-label",
+	CONTENT: "pane-content",
+	RESIZE: "resize-handle",
+} as const;
 const TEST_ID = { MAX: "pane-maximize", CONTROLS: "pane-controls-toggle", BROWSER_COLUMN: "browser-column" } as const;
 const MIN_RESIZED_WIDTH = 120;
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	static override observedHtmlAttributes = [SHU_ATTR.IS_LAST, SHU_ATTR.DATA_MAXIMIZED];
 
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host {
 			display: flex; flex-direction: column;
 			min-width: calc(var(--shu-space-6) * 4);
@@ -138,7 +151,8 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			:host([column-type="query"]) { position: static; min-width: 0; }
 			.resize-handle { display: none; }
 		}
-	`];
+	`,
+	];
 
 	constructor() {
 		super(ColumnPaneSchema, { label: "", active: false, closable: true, pinned: false, columnType: "query" });

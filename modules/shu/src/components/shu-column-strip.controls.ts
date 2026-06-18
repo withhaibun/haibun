@@ -14,7 +14,7 @@ type EvalPage = { evaluate<T, A = undefined>(fn: (arg: A) => T, arg?: A): Promis
 export default class ShuColumnStripControls extends AStepper {
 	description = "Column-browser (Miller columns) controls: click a column to activate it, assert which is active.";
 
-	private async page(): Promise<EvalPage> {
+	private page(): Promise<EvalPage> {
 		const wp = this.getWorld().runtime.steppers?.find((s) => typeof (s as { getPage?: unknown }).getPage === "function") as { getPage(): Promise<EvalPage> } | undefined;
 		if (!wp) throw new Error("ShuColumnStripControls: no page-providing stepper (web-playwright) in the world");
 		return wp.getPage();

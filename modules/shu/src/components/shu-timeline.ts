@@ -35,7 +35,9 @@ const StateSchema = z.object({
 });
 
 export class ShuTimeline extends ShuElement<typeof StateSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: flex; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-1) var(--shu-space-3); font: var(--shu-font-sm) var(--shu-font-family); }
 		:host([hidden]) { display: none; }
 		button { background: none; border: none; cursor: pointer; font-size: var(--shu-font-lg); padding: 0 3px; color: var(--shu-fg-muted); }
@@ -57,7 +59,8 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 			font-size: var(--shu-font-xs); line-height: 12px;
 			white-space: nowrap; pointer-events: none; z-index: 3;
 		}
-	`];
+	`,
+	];
 
 	@property({ attribute: false }) accessor events: TTrackedEvent[] = [];
 

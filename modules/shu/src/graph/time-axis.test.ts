@@ -7,7 +7,7 @@ const NOW = 1_780_000_000_000;
 const AGES = { s30: 30_000, h1: 3_600_000, d1: 86_400_000, d30: 2_592_000_000, y1: 31_536_000_000 };
 const times = Object.values(AGES).map((a) => NOW - a);
 
-describe("fisheye time→z (headless layout math, no browser)", () => {
+describe("3D time→z (headless layout math, no browser)", () => {
 	it("is monotonic: older records sit deeper (larger z)", () => {
 		const scale = timeZScale(times, NOW, LOG_Z_MAX);
 		const z = times.map((t) => timeZ(t, NOW, scale));

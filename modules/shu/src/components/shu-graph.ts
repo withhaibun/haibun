@@ -51,7 +51,9 @@ const GraphRenderOptionsSchema = z.object({ highlightedPath: z.string().optional
 const ShuGraphSchema = z.object({ graph: GraphSchema.nullable(), options: GraphRenderOptionsSchema.optional() });
 
 export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: block; }
 		.copy-strip { display: flex; justify-content: flex-end; padding: var(--shu-space-1) 0 var(--shu-space-2); }
 		.scroll { overflow: auto; max-height: 100%; }
@@ -61,7 +63,8 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 		svg.filter-highlight g.edge { opacity: 0.35; transition: opacity 120ms; }
 		svg.filter-highlight .filter-match, svg.filter-highlight .filter-match * { opacity: 1 !important; }
 		svg g.node.selected .node-box { stroke: var(--shu-warn) !important; stroke-width: 4px !important; }
-	`];
+	`,
+	];
 
 	private renderer: IGraphRenderer = new SvgGraphRenderer();
 	private renderPending = false;
