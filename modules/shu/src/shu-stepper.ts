@@ -22,12 +22,12 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 /**
  * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
  * builds client-side. The one place the server reproduces it: `get graph layout` reads the node/edge sets back, and the
- * offline report bakes the quad snapshot. `hiddenGraphs` filters which named graphs contribute to the node/edge sets:
- * empty shows everything, INSTRUMENTATION_GRAPHS yields the curated view.
+ * offline report bakes the quad snapshot. The FULL snapshot is baked — instrumentation included — exactly like the live
+ * getClusteredQuads RPC; the view hides instrumentation by default (toggleable) via effectiveHiddenTypes, so the offline
+ * report behaves identically to live.
  */
 export async function buildGraphSource(
 	world: TWorld,
-	hiddenGraphs: Set<string>,
 ): Promise<
 	| {
 			quads: TQuad[];
@@ -39,10 +39,8 @@ export async function buildGraphSource(
 > {
 	const store = world.shared.getStore();
 	if (!store.getClusteredQuads) return undefined;
-	// The offline report bakes the run owner's full snapshot, so it renders at full visibility.
 	const { quads, clusters } = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private });
-	const visible = hiddenGraphs.size ? (quads as TQuad[]).filter((q) => !hiddenGraphs.has(q.namedGraph)) : (quads as TQuad[]);
-	const model = buildGraphModelFromQuads(visible);
+	const model = buildGraphModelFromQuads(quads as TQuad[]);
 	const nodeMap = new Map(model.nodes.map((n) => [n.id, { graph: n.type, subject: n.id }]));
 	const edges = model.edges.map((e) => ({ source: e.from, predicate: e.predicate, object: e.to }));
 	return { quads: quads as TQuad[], clusters, nodeMap, edges };
@@ -211,7 +209,6 @@ export default class ShuStepper extends AStepper {
 				// via `show views` (the picker iterates domains with `ui.component`).
 				// External steppers register their own view domains the same way.
 				{ selectors: ["shu-graph-view"], schema: z.object({}), description: "Quad-store graph", ui: { component: "shu-graph-view" } },
-				{ selectors: ["shu-gantt-view"], schema: z.object({}), description: "Gantt chart of task-like nodes (start/end/effort/dependsOn)", ui: { component: "shu-gantt-view" } },
 				{ selectors: ["shu-monitor-column"], schema: z.object({}), description: "Execution monitor and event log", ui: { component: "shu-monitor-column" } },
 				{ selectors: ["shu-sequence-diagram"], schema: z.object({}), description: "Sequence diagram of step trace", ui: { component: "shu-sequence-diagram" } },
 				{ selectors: ["shu-document-column"], schema: z.object({}), description: "Document/artifact viewer", ui: { component: "shu-document-column" } },
@@ -290,7 +287,7 @@ export default class ShuStepper extends AStepper {
 			gwta: "get graph layout",
 			productsSchema: GraphLayoutSchema,
 			action: async () => {
-				const built = await buildGraphSource(this.getWorld(), new Set());
+				const built = await buildGraphSource(this.getWorld());
 				if (!built) return actionNotOK("QuadStore does not support getClusteredQuads");
 				const { nodeMap, edges: modelEdges, clusters } = built;
 				const labelOf = (g: string, s: string) => clusters.find((c) => c.type === g)?.displayLabels?.[s] ?? s;

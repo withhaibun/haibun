@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { projectFilterClusters } from "./graph-filter-projection.js";
+import { projectFilterClusters, effectiveHiddenTypes } from "./graph-filter-projection.js";
 
 function quad(namedGraph: string, subject: string, timestamp = 1): TQuad {
 	return { namedGraph, subject, predicate: "p", object: "o", timestamp };
@@ -75,5 +75,35 @@ describe("projectFilterClusters", () => {
 			timeCursor: 100,
 		});
 		expect(result[0].totalCount).toBe(2);
+	});
+
+});
+
+describe("effectiveHiddenTypes (instrumentation default + user overrides)", () => {
+	// SeqPath/facts/observation/* = the engine's own instrumentation (default-hidden); Person = domain (default-visible).
+	const types = ["Person", "SeqPath", "facts"];
+
+	it("hides instrumentation by default with NO user overrides, and the default is not a stored choice", () => {
+		expect(effectiveHiddenTypes(types, {}).sort()).toEqual(["SeqPath", "facts"]);
+	});
+
+	it("an explicit show override reveals a default-hidden instrumentation type", () => {
+		expect(effectiveHiddenTypes(types, { SeqPath: true })).toEqual(["facts"]);
+	});
+
+	it("an explicit hide override hides a default-visible domain type", () => {
+		expect(effectiveHiddenTypes(types, { Person: false }).sort()).toEqual(["Person", "SeqPath", "facts"]);
+	});
+
+	it("classifies a streamed observation/* type as instrumentation even with no cluster record", () => {
+		expect(effectiveHiddenTypes([...types, "observation/http-request"], { SeqPath: true }).sort()).toEqual(["facts", "observation/http-request"]);
+	});
+
+	it("treats a non-instrumentation (domain) type as visible", () => {
+		expect(effectiveHiddenTypes(["Person"], {})).toEqual([]);
+	});
+
+	it("honours an explicit hide of a type not yet present in the set", () => {
+		expect(effectiveHiddenTypes(["Person"], { Email: false })).toEqual(["Email"]);
 	});
 });

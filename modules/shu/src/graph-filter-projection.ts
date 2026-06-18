@@ -25,6 +25,7 @@
  * hand the result straight to `filterEl.setClusters(...)`.
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
 
 export function projectFilterClusters(opts: { knownClusters: Map<string, TCluster>; allQuads: TQuad[]; visibleQuads: TQuad[]; timeCursor: number | null }): TCluster[] {
 	if (opts.timeCursor === null) {
@@ -60,4 +61,25 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 		clusters.push({ type, totalCount: sampledSubjects.length, sampledCount: sampledSubjects.length, omittedCount: 0, sampledSubjects, displayLabels });
 	}
 	return clusters;
+}
+
+/**
+ * The effective hidden-type set: the user's explicit override wins; absent an override, the engine's own instrumentation
+ * graphs (SeqPath, observation/*, facts, variables — `isInstrumentationGraph`) default hidden and everything else visible.
+ * `overrides[type]`: true = shown, false = hidden, absent = the predicate decides. The ONE place the default and the
+ * overrides combine — shared by the filter (chip state), the host views (which graphs render), and the offline-report
+ * bake — so the rule is identical everywhere AND robust to types that arrive only via the live stream: there is no
+ * per-cluster flag to lose, just the stable predicate over the type name. The persisted overrides hold only the user's
+ * deliberate choices, never a baked-in default, so a change to what counts as instrumentation re-applies on the next load.
+ */
+export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<string, boolean>): string[] {
+	const hidden = new Set<string>();
+	for (const type of types) {
+		const choice = overrides[type];
+		if (choice === undefined ? isInstrumentationGraph(type) : !choice) hidden.add(type);
+	}
+	// An explicit hide applies even before its type appears in the set (e.g. a control-product hide of a type with no
+	// data yet); an explicit show of an unknown type is a no-op until it arrives (it then follows the show).
+	for (const [type, choice] of Object.entries(overrides)) if (choice === false) hidden.add(type);
+	return [...hidden];
 }
