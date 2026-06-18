@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { graphToSvg, graphToDot } from "./svg-renderer.js";
+import { colorForType } from "../type-colors.js";
 import type { TGraph } from "./types.js";
 
 const g: TGraph = {
@@ -27,6 +28,18 @@ describe("graphToSvg", () => {
 		expect((svg.match(/class="edge"/g) ?? []).length).toBe(2);
 	});
 
+	it("colours a data-@type node from the per-@type presenter (same source as the 3D paint), keeping workflow kinds built-in", () => {
+		const svg = graphToSvg({
+			nodes: [
+				{ id: "t", label: "Design", kind: "Task" },
+				{ id: "s", label: "Step", kind: "satisfied" },
+			],
+			edges: [],
+		});
+		expect(svg).toContain(`fill="${colorForType("Task")}"`); // data @type → presenter colour (matches the 3D paint)
+		expect(svg).toContain('fill="#d8edd8"'); // workflow kind "satisfied" keeps its built-in styling
+	});
+
 	it("applies the kind colour vocabulary and a hover-hint title", () => {
 		const svg = graphToSvg(g);
 		expect(svg).toContain("#d8edd8"); // satisfied fill
@@ -34,7 +47,14 @@ describe("graphToSvg", () => {
 	});
 
 	it("dims edges outside a highlighted path", () => {
-		const paths: TGraph = { nodes: g.nodes, edges: [{ from: "a", to: "b", paths: ["p1"] }, { from: "b", to: "c", paths: ["p2"] }], direction: "LR" };
+		const paths: TGraph = {
+			nodes: g.nodes,
+			edges: [
+				{ from: "a", to: "b", paths: ["p1"] },
+				{ from: "b", to: "c", paths: ["p2"] },
+			],
+			direction: "LR",
+		};
 		const svg = graphToSvg(paths, { highlightedPath: "p1" });
 		// the b→c edge (path p2, not p1) is dimmed
 		const bc = svg.slice(svg.indexOf('data-from="b" data-to="c"'));

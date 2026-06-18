@@ -130,15 +130,6 @@ const main = async (): Promise<void> => {
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
 
-	/** Dismiss every non-query, non-pinned pane. Used on RESULTS_CHANGED — the query pane is what fires that event, so it stays. Per-click pruning lives in `PaneState.requestFrom` so the source pane index is computed at the origin, not by the listener tree. */
-	const removeTransientPanes = (strip: ShuColumnStrip): void => {
-		for (const pane of strip.panes) {
-			if (pane.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query" || pane.hasAttribute(SHU_ATTR.PINNED)) continue;
-			const paneId = pane.dataset.columnKey;
-			if (paneId) PaneState.dismiss(paneId);
-		}
-	};
-
 	// Boot-time smoke test for the diagnostic channel.
 	const reportBootDiagnostic = (level: "debug" | "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
 		if (isOffline()) return;
@@ -300,18 +291,9 @@ const main = async (): Promise<void> => {
 		// query/entity column flow.
 	});
 
-	// Results changed → remove all non-query panes
-	appRoot.addEventListener(
-		SHU_EVENT.RESULTS_CHANGED,
-		(() => {
-			const h = ShuElement.getHash();
-			if (h.startsWith("#?") && new URLSearchParams(h.slice(2)).has("col")) return;
-			const strip = getStrip();
-			if (!strip) return;
-			removeTransientPanes(strip);
-		}) as EventListener,
-		{ signal },
-	);
+	// Panes are removed only by an explicit close (PaneState.dismiss) or a Miller-column prune at the click origin
+	// (PaneState.requestFrom). Results changing — a query re-run, or the initial query on a reload — must NOT remove
+	// panes: that would drop component-pane views restored from the URL the moment those first results arrive.
 
 	// Column widths persist via the pane's own ShuElement.persistFields (keyed by data-column-key) — no listener here.
 

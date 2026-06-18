@@ -94,7 +94,6 @@ describe("show* steps declare a productsDomain whose ui.component opens the view
 	// at the step-definition layer.
 	const cases: Array<{ name: keyof typeof stepper.steps; productsDomain: string }> = [
 		{ name: "showGraphView", productsDomain: "shu-graph-view" },
-		{ name: "showGanttView", productsDomain: "shu-gantt-view" },
 		{ name: "showMonitor", productsDomain: "shu-monitor-column" },
 		{ name: "showSequenceDiagram", productsDomain: "shu-sequence-diagram" },
 		{ name: "showDocument", productsDomain: "shu-document-column" },

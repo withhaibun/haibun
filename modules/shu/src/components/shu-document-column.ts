@@ -31,7 +31,9 @@ const SANITIZE_OPTS = {
 };
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: "Source Serif 4", Georgia, serif; font-size: 15px; line-height: 1.7; color: var(--shu-fg); }
 		.document-body { width: 80%; margin: 0 auto; padding: 2rem 1.5rem; min-width: 0; }
 		@media (max-width: 600px) { .document-body { width: 100%; } }
@@ -57,7 +59,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		.doc-controls { padding: var(--shu-space-2) var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		/* The level selector is a settings surface: visible only when the column's controls toggle (the pane's ⚙, which sets data-show-controls) is on. */
 		:host(:not([data-show-controls])) .doc-controls { display: none; }
-	`];
+	`,
+	];
 	private events: THaibunEvent[] = [];
 	private seenEventIds = new Set<string>();
 	private startTime = 0;
@@ -149,7 +152,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const rawHtml = mdRenderer.render(rawMd);
 		return DOMPurify.sanitize(rawHtml, SANITIZE_OPTS);
 	}
-
 
 	private applyTimeCursor(): void {
 		const body = this.shadowRoot?.querySelector(".document-body");

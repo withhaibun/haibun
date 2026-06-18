@@ -5,7 +5,9 @@ import { ComboboxSchema, type TComboboxOption } from "../schemas.js";
 import { shuBaseStyles } from "./styles.js";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: inline-block; font: inherit; }
 		.combo-input {
 			border: var(--shu-border-w) solid transparent;
@@ -25,7 +27,8 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			border-color: var(--shu-border-strong);
 		}
 		.combo-input::placeholder { color: var(--shu-fg-faded); }
-	`];
+	`,
+	];
 
 	private _focusIndex = -1;
 	private _input: HTMLInputElement | null = null;

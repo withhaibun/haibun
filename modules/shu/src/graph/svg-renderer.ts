@@ -5,6 +5,7 @@
  */
 import { SHU_EVENT } from "../consts.js";
 import { layeredLayout, type NodeBox } from "./layered-layout.js";
+import { presentationForType } from "./type-presentation.js";
 import { xml, truncate, arrowMarker, ARROW_MARKER_ID, SVG_MARGIN as MARGIN } from "./svg-util.js";
 import type { IGraphRenderer, TGraph, TGraphEdge, TGraphRenderOptions } from "./types.js";
 
@@ -29,9 +30,13 @@ const EDGE_WIDTH: Record<string, number> = { ready: 2.5, reply: 2.5 };
 
 function nodeStyle(kind: string | undefined, overrides: TGraph["styles"]): { fill: string; stroke: string; strokeWidth: number } {
 	const k = kind ?? "default";
-	const base = NODE_DEFAULTS[k] ?? NODE_DEFAULTS.default;
 	const o = overrides?.[k];
-	return { fill: o?.fill ?? base.fill, stroke: o?.stroke ?? base.stroke, strokeWidth: o?.strokeWidth ?? base.strokeWidth ?? 1.5 };
+	const base = NODE_DEFAULTS[k];
+	// A built-in workflow kind (satisfied/reachable/…) or an explicit override keeps its styling. Otherwise `kind` is a
+	// data @type (buildGraphTopology sets node.kind = the namedGraph): take its fill from the per-@type presenter — the
+	// SAME source the 3D paint uses — so SVG and 3D data nodes share colours (one presenter feeds both paints).
+	const fill = o?.fill ?? base?.fill ?? presentationForType(k).mark({ id: k, name: k, type: k }, {}).color;
+	return { fill, stroke: o?.stroke ?? base?.stroke ?? NODE_DEFAULTS.default.stroke, strokeWidth: o?.strokeWidth ?? base?.strokeWidth ?? 1.5 };
 }
 
 /** The point on a box's border on the ray from its centre toward `toward` — so an edge meets the node edge, not its centre. */
