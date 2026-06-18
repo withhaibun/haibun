@@ -55,7 +55,13 @@ describe("shu-graph-view SVG navigation (hover/click adjacency)", () => {
 	});
 
 	it("resolves adjacency from the graph edges despite underscores and spaces in node ids", () => {
-		const graph = graphOf([ISSUER, VM, PERSON], [[ISSUER, VM], [ISSUER, PERSON]]);
+		const graph = graphOf(
+			[ISSUER, VM, PERSON],
+			[
+				[ISSUER, VM],
+				[ISSUER, PERSON],
+			],
+		);
 		const { el, host } = makeView(graph);
 		el.bindSvg(graph, host);
 		expect([...(el.svgNeighbors.get(ISSUER) ?? [])].sort()).toEqual([PERSON, VM].sort());

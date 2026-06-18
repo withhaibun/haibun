@@ -17,17 +17,29 @@ const S = z.object({ n: z.number().default(0) });
 
 class LiveTimeProbe extends ShuElement<typeof S> {
 	calls: (number | null)[] = [];
-	constructor() { super(S, { n: 0 }); }
-	render(): TemplateResult { return html`<span>${this.timeCursor ?? "none"}</span>`; }
-	protected onTimeSync(cursor: number | null): void { this.calls.push(cursor); }
+	constructor() {
+		super(S, { n: 0 });
+	}
+	render(): TemplateResult {
+		return html`<span>${this.timeCursor ?? "none"}</span>`;
+	}
+	protected onTimeSync(cursor: number | null): void {
+		this.calls.push(cursor);
+	}
 }
 customElements.define("live-time-probe", LiveTimeProbe);
 
 class PinnedTimeProbe extends ShuElement<typeof S> {
 	calls: (number | null)[] = [];
-	constructor() { super(S, { n: 0 }); }
-	render(): TemplateResult { return html`<span></span>`; }
-	protected onTimeSync(cursor: number | null): void { this.calls.push(cursor); }
+	constructor() {
+		super(S, { n: 0 });
+	}
+	render(): TemplateResult {
+		return html`<span></span>`;
+	}
+	protected onTimeSync(cursor: number | null): void {
+		this.calls.push(cursor);
+	}
 }
 customElements.define("pinned-time-probe", PinnedTimeProbe);
 

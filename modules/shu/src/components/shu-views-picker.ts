@@ -14,7 +14,9 @@ const ViewsPickerSchema = z.object({});
 type TView = { id: string; description: string; component: string };
 
 export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: block; padding: var(--shu-space-3) var(--shu-space-4); }
 		.views-list { list-style: none; margin: 0; padding: 0; }
 		.view-row {
@@ -24,7 +26,8 @@ export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
 		.view-row:hover { background: var(--shu-bg-hover); }
 		.view-id { font-weight: 600; color: var(--shu-accent); min-width: 12em; }
 		.view-desc { color: var(--shu-fg-muted); font-size: 0.9em; }
-	`];
+	`,
+	];
 
 	@property({ attribute: false }) accessor views: TView[] = [];
 

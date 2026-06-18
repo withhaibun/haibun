@@ -43,7 +43,9 @@ describe("entity body content renders for every type and view that should show i
 	});
 
 	it("credential with a json body shows its content", async () => {
-		const html = await render("VerifiableCredential", { id: "vc1", issuer: "did:web:i", subject: "did:web:s" }, [{ id: "vb", content: '{"age_over_18":true}', mediaType: "application/json" }]);
+		const html = await render("VerifiableCredential", { id: "vc1", issuer: "did:web:i", subject: "did:web:s" }, [
+			{ id: "vb", content: '{"age_over_18":true}', mediaType: "application/json" },
+		]);
 		expect(html).toContain('data-testid="email-body-iframe"');
 	});
 

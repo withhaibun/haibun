@@ -5,7 +5,11 @@
  */
 import { LinkRelations, isSubPropertyOf } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import type { TGanttModel, TGanttTask } from "./gantt-renderer.js";
+
+/** A schedulable node: an id + label, a start/end on the calendar (epoch ms), optional effort (work, in the same unit
+ *  as the elapsed span), and the ids it waits on. Consumed by the 3D gantt layout (positions + duration widths). */
+export type TGanttTask = { id: string; label: string; start: number; end: number; effort?: number; dependsOn?: string[] };
+export type TGanttModel = { tasks: TGanttTask[] };
 
 const G_START = LinkRelations.GANTT_START.rel;
 const G_END = LinkRelations.GANTT_END.rel;
@@ -65,4 +69,30 @@ export function quadsToGanttModel(quads: TQuad[], opts: GanttModelOpts = {}): TG
 /** True when any subject carries a `ganttStart`-kind property — the cue an ontology paint-picker uses to choose the Gantt view. */
 export function isGanttable(quads: TQuad[], relOf: RelOf = identityRel): boolean {
 	return quads.some((q) => isSubPropertyOf(relOf(q.predicate, q.namedGraph), G_START));
+}
+
+/** Rigid dependency shift for a dragged task: moving `draggedId` by `deltaMs` moves it and every task that transitively
+ *  depends on it by the same delta — a dependent can't precede the task it waits on, so the whole downstream chain slides
+ *  with it. Returns each affected task's new {start, end}; tasks not downstream of the drag are absent (unchanged). */
+export function cascadeReschedule(draggedId: string, deltaMs: number, tasks: TGanttTask[]): Map<string, { start: number; end: number }> {
+	const byId = new Map(tasks.map((t) => [t.id, t]));
+	const dependents = new Map<string, string[]>(); // id → tasks that declare dependsOn it
+	for (const t of tasks) {
+		for (const dep of t.dependsOn ?? []) {
+			const list = dependents.get(dep);
+			if (list) list.push(t.id);
+			else dependents.set(dep, [t.id]);
+		}
+	}
+	const shifted = new Map<string, { start: number; end: number }>();
+	const queue = [draggedId];
+	while (queue.length > 0) {
+		const id = queue.shift() as string;
+		if (shifted.has(id)) continue;
+		const t = byId.get(id);
+		if (!t) continue;
+		shifted.set(id, { start: t.start + deltaMs, end: t.end + deltaMs });
+		for (const d of dependents.get(id) ?? []) queue.push(d);
+	}
+	return shifted;
 }

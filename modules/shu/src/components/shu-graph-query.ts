@@ -287,10 +287,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			}
 			this.pushHash();
 			this.renderResults();
-			if (resultsChanged) {
-				this.selectedIds.clear();
-				this.dispatchEvent(new CustomEvent(SHU_EVENT.RESULTS_CHANGED, { bubbles: true, composed: true }));
-			}
+			if (resultsChanged) this.selectedIds.clear(); // a fresh result set invalidates the row selection
 			this.dispatchContextChange();
 		})();
 		this.inflightPromise = work.finally(() => {

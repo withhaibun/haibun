@@ -83,7 +83,14 @@ export function createStepUI(wp: WebPlaywright) {
 	/** Type a prompt into the Ask area's chat-input and submit. */
 	// The turn must FULLY complete (cookie written + server-side recordChatComments persisted) before later steps re-mount the chat, or the turn is lost. The session combo (app-session-select) only renders after handleChat's post-stream block runs refreshSessionList, so waiting for it blocks until completion — far more reliable than network-idle on a long-lived stream.
 	function askExchange(prompt: string): TKirejiStep[] {
-		return [click({ target: IDS.APP.CHAT_INPUT }), typeText({ text: `"${prompt}"` }), click({ target: IDS.APP.CHAT_SUBMIT }), waitFor({ target: IDS.APP.CHAT_OUTPUT }), waitFor({ target: IDS.APP.CHAT_TEXT }), waitFor({ target: IDS.APP.SESSION_SELECT })];
+		return [
+			click({ target: IDS.APP.CHAT_INPUT }),
+			typeText({ text: `"${prompt}"` }),
+			click({ target: IDS.APP.CHAT_SUBMIT }),
+			waitFor({ target: IDS.APP.CHAT_OUTPUT }),
+			waitFor({ target: IDS.APP.CHAT_TEXT }),
+			waitFor({ target: IDS.APP.SESSION_SELECT }),
+		];
 	}
 
 	/** Click the first row of the current shu-query result table; waits for the column-browser pane to appear. */
