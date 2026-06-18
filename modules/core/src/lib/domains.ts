@@ -211,15 +211,16 @@ export function getPersistedDomains(domains: Record<string, TRegisteredDomain>):
 	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: THypermediaTopology } => isPersisted(d.topology));
 }
 
-/** (Re)register the `persisted-type` enum over all currently-declared persisted domains. Overwrites the
- * existing key (registerDomains skips existing keys), so a type declared at runtime becomes a valid
- * `{label: persisted-type}` argument for the generic graph steps. */
+/** (Re)register the `persisted-type` domain used by the generic graph steps' `{label: persisted-type}` argument.
+ * Validation is OPEN — any non-empty type name is accepted — because the store, not a compiled enum, is the source of
+ * truth for what exists: persisted data of a type declared in an earlier session (the `set of …` declaration is
+ * session-only, its data is not) must stay explorable, and a truly absent type resolves to "not found" at the store
+ * rather than a validation error. Known types reach autocomplete through the concern catalog / site metadata, so the
+ * generalized graph/column views never need every type enumerated here. */
 export const refreshHypermediaTypeDomain = (world: TWorld) => {
-	const persistedTypes = getPersistedDomains(world.domains).map((d) => d.topology.persistedAs);
-	if (!persistedTypes.length) return;
 	world.domains[asDomainKey([DOMAIN_PERSISTED_TYPE])] = toRegisteredDomain({
 		selectors: [DOMAIN_PERSISTED_TYPE],
-		schema: z.enum(persistedTypes as [string, ...string[]]),
+		schema: z.string().min(1),
 		description: "Persisted type",
 	});
 };

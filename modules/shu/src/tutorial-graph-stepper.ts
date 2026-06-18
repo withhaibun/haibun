@@ -26,7 +26,13 @@ const DOMAIN_INGREDIENT = "tutorial-ingredient";
 
 export const RecipeLabels = { Recipe: "Recipe", Ingredient: "Ingredient" } as const;
 
-const RecipeSchema = z.object({ id: z.string(), name: z.string(), description: z.string().default(""), published: z.string().default(""), generatedAtTime: z.string().default("") });
+const RecipeSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	description: z.string().default(""),
+	published: z.string().default(""),
+	generatedAtTime: z.string().default(""),
+});
 const IngredientSchema = z.object({ id: z.string(), name: z.string(), published: z.string().default(""), generatedAtTime: z.string().default("") });
 
 // Query and entity products are strict JSON-LD nodes — a Recipe or an Ingredient, never anything else.
@@ -122,7 +128,13 @@ class TutorialGraphStore {
 
 	/** The whole graph as a JSON-LD document: a shared `@context` mapping terms to IRIs, and a `@graph` of nodes. */
 	exportAsJsonLd(): { "@context": Record<string, unknown>; "@graph": Record<string, unknown>[] } {
-		const context = { "@vocab": "http://schema.org/", name: LinkRelations.NAME.uri, description: LinkRelations.CONTENT.uri, published: LinkRelations.PUBLISHED.uri, generatedAtTime: LinkRelations.GENERATED_AT_TIME.uri };
+		const context = {
+			"@vocab": "http://schema.org/",
+			name: LinkRelations.NAME.uri,
+			description: LinkRelations.CONTENT.uri,
+			published: LinkRelations.PUBLISHED.uri,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.uri,
+		};
 		return { "@context": context, "@graph": this.vertices.map((v) => this.toJsonLd(v)) };
 	}
 }
@@ -133,7 +145,12 @@ export default class TutorialGraphStepper extends AStepper {
 	cycles: IStepperCycles = {
 		getConcerns: (): IStepperConcerns => ({
 			domains: [
-				{ selectors: [DOMAIN_QUERY], schema: GraphQuerySchema, coerce: objectCoercer(GraphQuerySchema), description: "A graph query: optional type, text filter, sort, and paging" },
+				{
+					selectors: [DOMAIN_QUERY],
+					schema: GraphQuerySchema,
+					coerce: objectCoercer(GraphQuerySchema),
+					description: "A graph query: optional type, text filter, sort, and paging",
+				},
 				{ selectors: [DOMAIN_VERTEX_DATA], schema: VertexDataSchema, coerce: objectCoercer(VertexDataSchema), description: "Vertex properties as JSON" },
 				{
 					selectors: [DOMAIN_RECIPE],
@@ -142,7 +159,13 @@ export default class TutorialGraphStepper extends AStepper {
 					topology: {
 						persistedAs: RecipeLabels.Recipe,
 						id: "id",
-						properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, description: LinkRelations.CONTENT.rel, published: LinkRelations.PUBLISHED.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+						properties: {
+							id: LinkRelations.IDENTIFIER.rel,
+							name: LinkRelations.NAME.rel,
+							description: LinkRelations.CONTENT.rel,
+							published: LinkRelations.PUBLISHED.rel,
+							generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+						},
 						edges: { variationOf: { rel: LinkRelations.IN_REPLY_TO.rel, range: RecipeLabels.Recipe } },
 					},
 				},
@@ -153,7 +176,12 @@ export default class TutorialGraphStepper extends AStepper {
 					topology: {
 						persistedAs: RecipeLabels.Ingredient,
 						id: "id",
-						properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, published: LinkRelations.PUBLISHED.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+						properties: {
+							id: LinkRelations.IDENTIFIER.rel,
+							name: LinkRelations.NAME.rel,
+							published: LinkRelations.PUBLISHED.rel,
+							generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+						},
 						edges: { usedIn: { rel: LinkRelations.PART_OF.rel, range: RecipeLabels.Recipe } },
 					},
 				},
