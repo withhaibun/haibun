@@ -29,11 +29,15 @@ import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepp
 import { GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
 import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
-import { INSTRUMENTATION_GRAPHS } from "@haibun/core/lib/instrumentation-graphs.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 
 const MAX_EVENTS_DEFAULT = 9e9;
+// The live getEvents response is a recent window, never the whole buffer: a long instrumentation run accumulates events
+// until JSON.stringify hits V8's ~512MB ceiling and the RPC 413s. Bound by BYTES (a few large events can't blow it) and a
+// hard count, both well under the ceiling. The SSE stream delivers the live tail; a consumer pages older history via `since`.
+const EVENTS_BYTE_BUDGET = 16 * 1024 * 1024; // 16MB of slimmed-event JSON
+const EVENTS_COUNT_CAP = 20000; // hard ceiling on returned count regardless of size
 
 type TReportEvent = Record<string, unknown>;
 
@@ -55,6 +59,36 @@ function slimReportEvent(e: TReportEvent): TReportEvent | null {
 	delete out.stepValuesMap;
 	if (out.products) out.products = slimReportProducts(out.products as Record<string, unknown>);
 	return out;
+}
+
+/** Strip the live-only fields (source/emitter), drop inline artifact content (the SPA fetches artifacts by /artifacts/ path), and attach the parsed seqPath — the shape getEvents returns. */
+export function slimLiveEvent(e: THaibunEvent): Record<string, unknown> {
+	const { source: _s, emitter: _e, ...rest } = e;
+	const event = { ...rest, seqPath: parseSeqPath(e.id) } as Record<string, unknown>;
+	if (e.kind === "artifact") delete event.content;
+	return event;
+}
+
+/** The most recent slimmed events that fit a byte budget and a count cap, in chronological order — so the response can never approach the serialize ceiling. The newest event is always included even if it alone exceeds the budget; `truncated` reports any drop. */
+export function recentEventsWithinBudget(events: THaibunEvent[], countCap: number, byteBudget: number): { events: Record<string, unknown>[]; truncated: boolean } {
+	const out: Record<string, unknown>[] = [];
+	let bytes = 0;
+	let truncated = false;
+	for (let i = events.length - 1; i >= 0; i--) {
+		if (out.length >= countCap) {
+			truncated = true;
+			break;
+		}
+		const slim = slimLiveEvent(events[i]);
+		const size = JSON.stringify(slim).length;
+		if (out.length > 0 && bytes + size > byteBudget) {
+			truncated = true;
+			break;
+		}
+		bytes += size;
+		out.push(slim);
+	}
+	return { events: out.reverse(), truncated };
 }
 
 /**
@@ -85,15 +119,17 @@ export type TLogEvent = z.infer<typeof LogEventSchema>;
 
 export const DOMAIN_EVENTS_FILTER = "shu-events-filter";
 
-/** Optional filter for getEvents — by level, kind, and minimum timestamp. */
+/** Optional filter for getEvents — by level, kind, minimum timestamp, and a max count (clamped to a server cap). */
 export const EventsFilterSchema = z.object({
 	level: z.string().optional(),
 	kind: z.string().optional(),
 	since: z.number().optional(),
+	limit: z.number().optional(),
 });
 export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
 
-const MonitorEventsSchema = z.object({ events: z.array(z.unknown()) });
+// `total` is the count matching the filter; `events` may be a recent window of it (see EVENTS_BYTE_BUDGET) with `truncated` set.
+const MonitorEventsSchema = z.object({ events: z.array(z.unknown()), total: z.number().optional(), truncated: z.boolean().optional() });
 
 const DispatchTracesSchema = z.object({ traces: z.array(z.unknown()) });
 
@@ -231,8 +267,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		//    cached (getCachedResponse serves the bare copy for any filter; the views filter themselves).
 		for (const key of Object.keys(rpcCache)) if (key.startsWith(`${GET_EVENTS_METHOD}:`)) delete rpcCache[key];
 		rpcCache[GET_EVENTS_METHOD] = { events: this.events };
-		// 2. Parameterless steps with view products (deterministic view toggles)
-		const candidates = Object.entries(this.steps).filter(([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{"));
+		// 2. Parameterless steps with view products (deterministic view toggles). Exclude getClusteredQuads: it's the graph
+		//    DATA RPC, not a view toggle (no `.view` product), it requires an accessLevel by design (no default — it honors
+		//    the caller's access exactly), and it's baked canonically below via buildGraphSource. Running it here arg-less
+		//    only threw on the missing accessLevel; its bare-key bake lands after this loop, so the early-cache guard misses it.
+		const candidates = Object.entries(this.steps).filter(
+			([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{") && `MonitorStepper-${name}` !== CLUSTERED_QUADS_METHOD,
+		);
 		const logger = this.getWorld().eventLogger;
 		await Promise.all(
 			candidates.map(async ([name, step]) => {
@@ -267,9 +308,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}
 		}
-		// Bake the curated default graph (instrumentation hidden) as ONE canonical getClusteredQuads response. The offline
-		// overview and sequence views paint client-side from this quad set, so there is no server-rendered image to embed.
-		const built = await buildGraphSource(this.getWorld(), new Set(INSTRUMENTATION_GRAPHS));
+		// Bake the FULL graph as ONE canonical getClusteredQuads response, exactly like the live RPC — the offline overview
+		// and sequence views paint client-side from this quad set and hide instrumentation by default themselves (toggleable),
+		// so there is no server-rendered image to embed and the offline filter behaves identically to live.
+		const built = await buildGraphSource(this.getWorld());
 		// Drop the live run's many per-params getClusteredQuads copies; offline serves only this canonical snapshot, so every
 		// view that reads the snapshot sees the same graph.
 		for (const key of Object.keys(rpcCache)) if (key === CLUSTERED_QUADS_METHOD || key.startsWith(`${CLUSTERED_QUADS_METHOD}:`)) delete rpcCache[key];
@@ -357,19 +399,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: `get monitor events {filter: ${DOMAIN_EVENTS_FILTER}}`,
 			productsSchema: MonitorEventsSchema,
 			action: ({ filter }: { filter: TEventsFilter }) => {
-				const { level, kind, since } = filter;
+				const { level, kind, since, limit } = filter;
 				let filtered: THaibunEvent[] = this.events;
 				if (level) filtered = filtered.filter((e) => e.level === level);
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
 				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
-				return actionOKWithProducts({
-					events: filtered.map(({ source: _s, emitter: _e, ...e }) => {
-						const event = { ...e, seqPath: parseSeqPath(e.id) } as Record<string, unknown>;
-						// Strip inline file content — SPA fetches via /artifacts/ path reference
-						if (e.kind === "artifact") delete event.content;
-						return event;
-					}),
-				});
+				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
+				const { events, truncated } = recentEventsWithinBudget(filtered, cap, EVENTS_BYTE_BUDGET);
+				return actionOKWithProducts({ events, total: filtered.length, truncated });
 			},
 		},
 		logClient: {
@@ -401,11 +438,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		showGraphView: {
 			gwta: "show graph view",
 			productsDomain: "shu-graph-view",
-			action: () => actionOKWithProducts({}),
-		},
-		showGanttView: {
-			gwta: "show gantt view",
-			productsDomain: "shu-gantt-view",
 			action: () => actionOKWithProducts({}),
 		},
 		getClusteredQuads: {
