@@ -8,7 +8,20 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { PaneState, parseColEntry, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "./pane-state.js";
 import { ShuElement } from "./components/shu-element.js";
+import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
+
+const emptyMeta = (ui: SiteMetadata["ui"] = {}): SiteMetadata => ({
+	types: [],
+	idFields: {},
+	rels: {},
+	edgeRanges: {},
+	properties: {},
+	queryable: {},
+	summary: {},
+	ui,
+	propertyDefinitions: {},
+});
 
 describe("derived helpers", () => {
 	it("paneIdOf is unique per variant data", () => {
@@ -24,6 +37,13 @@ describe("derived helpers", () => {
 		expect(tagOf({ paneType: "entity", id: "x", persistedAs: "Email" })).toBe("shu-entity-column");
 		expect(tagOf({ paneType: "filter-eq", persistedAs: "Email", predicate: "p", value: "v" })).toBe("shu-filter-column");
 		expect(tagOf({ paneType: "thread", persistedAs: "Email", subject: "s" })).toBe("shu-thread-column");
+	});
+
+	it("an entity opens its @type's declared column component, defaulting to the generic entity column", () => {
+		setSiteMetadata(emptyMeta({ Task: { component: "shu-task-column" } }));
+		expect(tagOf({ paneType: "entity", id: "t1", persistedAs: "Task" })).toBe("shu-task-column"); // @type declares its own column
+		expect(tagOf({ paneType: "entity", id: "e1", persistedAs: "Email" })).toBe("shu-entity-column"); // none declared → generic
+		setSiteMetadata(emptyMeta()); // reset so other tests see no per-type ui
 	});
 
 	it("labelOf derives a display label per variant", () => {
@@ -143,6 +163,24 @@ describe("PaneState", () => {
 		await flush();
 		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort();
 		expect(cols).toEqual(["shu-graph-view", "shu-monitor-column"]);
+	});
+
+	it("a boot column activation BEFORE fromHash must not strip the restored col= views (regression)", async () => {
+		// A reloaded URL carries two restored views and a remembered active pane.
+		ShuElement.pushHash("#?col=shu-graph-view&col=shu-affordances-panel&active=shu-affordances-panel");
+		// The app activates the query column on start (app.ts), which fires setActivePane BEFORE the first fromHash.
+		// That write must be suppressed — writing a still-empty `desired` would delete every col= entry.
+		PaneState.setActivePane("query");
+		expect(new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort()).toEqual(["shu-affordances-panel", "shu-graph-view"]);
+		// fromHash then restores both panes (and the remembered active pane), col= intact.
+		PaneState.fromHash();
+		await flush();
+		const ids = Array.from(document.querySelectorAll("shu-column-pane"))
+			.map((p) => (p as HTMLElement).dataset.columnKey)
+			.sort();
+		expect(ids).toEqual(["shu-affordances-panel", "shu-graph-view"]);
+		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort();
+		expect(cols).toEqual(["shu-affordances-panel", "shu-graph-view"]);
 	});
 
 	it("re-request with data updates the live child's products", async () => {

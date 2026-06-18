@@ -19,6 +19,7 @@ import { objectId } from "./object-id.js";
 import { SHU_ATTR, SHU_EVENT } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
 import { readElementPrefs } from "./element-prefs.js";
+import { presentationForType } from "./graph/type-presentation.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 
@@ -70,7 +71,9 @@ export function tagOf(d: DesiredPane): string {
 		case "component":
 			return d.tag;
 		case "entity":
-			return "shu-entity-column";
+			// A node's @type can declare its own column component (via the per-@type presentation facade — domain.ui.component);
+			// otherwise the generic entity column. So a typed node opens its type-specific column on a graph/row click.
+			return presentationForType(d.persistedAs).columnComponent() ?? "shu-entity-column";
 		case "filter-eq":
 		case "filter-prop":
 		case "filter-incoming":
@@ -127,6 +130,11 @@ class PaneStateImpl {
 	// fires while a column is opening) clobbers the in-flight pane. So fromHash ignores our own writes and reacts only
 	// to EXTERNAL hash changes (back/forward, a shared link).
 	private lastWrittenHash: string | null = null;
+	// PaneState must READ the hash (fromHash) before it WRITES it. At boot the app activates the query column
+	// (app.ts) before the first fromHash; the resulting setActivePane would writeHash a still-empty `desired` and
+	// delete the col= entries the reloaded URL carries — dropping every restored component-pane view. This flag, set
+	// once fromHash has parsed the hash, gates writes until that read has happened.
+	private hydrated = false;
 
 	init(strip: ShuColumnStrip, hooks: PaneHooks = {}): void {
 		this.strip = strip;
@@ -172,6 +180,7 @@ class PaneStateImpl {
 	/** Parse the URL hash into desired panes and reconcile. */
 	fromHash(): void {
 		if (ViewHash.getHash() === this.lastWrittenHash) return; // our own echo — desired already matches; don't rebuild (would clobber an in-flight open)
+		this.hydrated = true; // we have now read the hash at least once — writes are safe (see `hydrated`)
 		const hash = ViewHash.getHash().replace(/^#\??/, "");
 		const params = new URLSearchParams(hash);
 		const active = params.get("active");
@@ -217,6 +226,7 @@ class PaneStateImpl {
 	setActivePane(paneId: string): void {
 		if (this.activePaneId === paneId) return;
 		this.activePaneId = paneId;
+		if (!this.hydrated) return; // a boot activation fires before the first fromHash; writing now would strip the restored col= entries (see `hydrated`). fromHash sets the active pane from the hash.
 		this.writeHash();
 	}
 
@@ -282,6 +292,8 @@ class PaneStateImpl {
 		this.hooks = {};
 		this.reconcileInFlight = false;
 		this.reconcileRequested = false;
+		this.lastWrittenHash = null;
+		this.hydrated = false;
 	}
 
 	private reconcileInFlight = false;

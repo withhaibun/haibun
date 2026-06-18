@@ -48,6 +48,9 @@ export const SHU_TOKENS = `
 		--shu-fg: #111111;
 		--shu-fg-muted: #555555;
 		--shu-fg-faded: #999999;
+		/* Text sitting ON a type-colour swatch/chip (graph node chips, filter type labels). The palette is always light
+		   pastels, so this stays dark in BOTH themes — declared only here; the dark blocks intentionally don't override it. */
+		--shu-fg-on-swatch: #1a1a1a;
 		--shu-border: #d0d0d0;
 		--shu-border-strong: #888888;
 		--shu-accent: #1a6b3c;

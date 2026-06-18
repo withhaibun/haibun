@@ -22,7 +22,8 @@ describe("sequenceToSvg", () => {
 		expect((svg.match(/class="seq-message"/g) ?? []).length).toBe(3);
 		for (const i of [0, 1, 2]) expect(svg).toContain(`data-index="${i}"`);
 		// row y increases with index
-		const y = (i: number) => Number(svg.match(new RegExp(`data-index="${i}"[^]*?y1="([0-9.]+)"`))?.[1] ?? svg.match(new RegExp(`data-index="${i}"[^]*?d="M[0-9.]+,([0-9.]+)`))?.[1]);
+		const y = (i: number) =>
+			Number(svg.match(new RegExp(`data-index="${i}"[^]*?y1="([0-9.]+)"`))?.[1] ?? svg.match(new RegExp(`data-index="${i}"[^]*?d="M[0-9.]+,([0-9.]+)`))?.[1]);
 		expect(y(1)).toBeGreaterThan(y(0));
 		expect(y(2)).toBeGreaterThan(y(1));
 	});

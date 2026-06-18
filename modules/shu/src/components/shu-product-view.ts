@@ -33,10 +33,13 @@ function normalizeItem(item: Record<string, unknown>): ThreadVertex {
 }
 
 export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: block; min-height: 0; height: 100%; }
 		.product-container { height: 100%; }
-	`];
+	`,
+	];
 
 	constructor() {
 		super(ProductViewSchema, {});

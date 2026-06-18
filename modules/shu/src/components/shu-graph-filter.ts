@@ -2,7 +2,9 @@
  * <shu-graph-filter> — type checkbox legend + per-type sample-limit slider
  * shared by every graph view. Hosts publish their raw data via `setSource`;
  * on change, the component dispatches `graph-filter-change` with
- * `{ types, perTypeLimit }`. Bubbles + composed so any ancestor can listen.
+ * `{ overrides, perTypeLimit }` (the user's explicit per-type show/hide choices;
+ * hosts combine them with the instrumentation-default predicate). Bubbles +
+ * composed so any ancestor can listen.
  *
  * Time-aware. The filter is itself a `ShuElement`, so it receives TIME_SYNC
  * directly and derives the visible cluster list from the host's snapshot
@@ -23,10 +25,14 @@ import { DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { readElementPrefs } from "../element-prefs.js";
-import { projectFilterClusters } from "../graph-filter-projection.js";
+import { projectFilterClusters, effectiveHiddenTypes } from "../graph-filter-projection.js";
 
 const StateSchema = z.object({
-	hiddenTypes: z.array(z.string()).default([]),
+	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the
+	// instrumentation-default predicate. Persisted, and combined with that default via effectiveHiddenTypes.
+	// Storing only deliberate choices — never a seeded default — is what lets a default change re-apply and prevents
+	// baking the default irreversibly into the user's cookie.
+	overrides: z.record(z.string(), z.boolean()).default({}),
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 });
 
@@ -56,11 +62,11 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			:host { border-bottom: var(--shu-border-w) solid var(--shu-border); }
 			:host(:not([show-controls])) { display: none; }
 			.row { display: flex; gap: var(--shu-space-3); align-items: center; flex-wrap: wrap; }
-			label.type { display: inline-flex; align-items: center; gap: var(--shu-space-2); cursor: pointer; color: var(--shu-fg); }
+			label.type { display: inline-flex; align-items: center; gap: var(--shu-space-2); cursor: pointer; color: var(--shu-fg-on-swatch); }
 			label.type { padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
 			label.type input[type=checkbox] { margin: 0; vertical-align: middle; flex-shrink: 0; }
 			label.type:hover { filter: brightness(0.95); }
-			label.type .meta { color: var(--shu-fg-muted); font-size: var(--shu-font-sm); opacity: 0.85; }
+			label.type .meta { color: var(--shu-fg-on-swatch); font-size: var(--shu-font-sm); opacity: 0.7; }
 			.limit { display: inline-flex; gap: var(--shu-space-2); align-items: center; }
 			.limit input[type=range] { width: 120px; }
 			.label { color: var(--shu-fg-muted); }
@@ -69,13 +75,15 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	];
 
 	/** The hidden/limit choice is remembered across reloads (ShuElement.persistFields; singleton key shared by every embedded filter). */
-	static persistFields = ["hiddenTypes", "perTypeLimit"] as const;
+	static persistFields = ["overrides", "perTypeLimit"] as const;
 
-	/** Hosts read this before their first fetch so the persisted filter applies on initial load (no double round-trip). Reads the same persistFields store the instance restores from, validated to the schema's defaults. */
-	static getPersistedFilter(): { hiddenTypes: string[]; perTypeLimit: number } {
+	/** Hosts read this before their first fetch so the persisted overrides apply on initial load (no double round-trip).
+	 * Reads the same persistFields store the instance restores from. Hosts combine these overrides with the
+	 * instrumentation-default predicate via `effectiveHiddenTypes` — the default is never persisted here. */
+	static getPersistedFilter(): { overrides: Record<string, boolean>; perTypeLimit: number } {
 		const saved = readElementPrefs("shu-graph-filter", "");
 		const parsed = StateSchema.safeParse(saved ?? {});
-		return parsed.success ? { hiddenTypes: parsed.data.hiddenTypes, perTypeLimit: parsed.data.perTypeLimit } : { hiddenTypes: [], perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
+		return parsed.success ? { overrides: parsed.data.overrides, perTypeLimit: parsed.data.perTypeLimit } : { overrides: {}, perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
 	}
 
 	private knownClusters = new Map<string, TCluster>();
@@ -88,7 +96,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	private axisCookieKey: string | null = null;
 
 	constructor() {
-		// persistFields restores hiddenTypes/perTypeLimit on connect; defaults until then.
+		// persistFields restores overrides/perTypeLimit on connect; defaults until then.
 		super(StateSchema, {});
 	}
 
@@ -108,7 +116,9 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	 * the host's data refetch, and persistence all stay in sync. For graph-control steps that scope the view. */
 	setVisibleTypes(types: string[]): void {
 		const keep = new Set(types);
-		this.setState({ hiddenTypes: [...this.knownClusters.keys()].filter((t) => !keep.has(t)) });
+		const overrides = { ...this.state.overrides };
+		for (const t of this.knownClusters.keys()) overrides[t] = keep.has(t);
+		this.setState({ overrides });
 		this.dispatchChange();
 	}
 
@@ -148,12 +158,11 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			);
 			return;
 		}
-		// hiddenTypes/perTypeLimit persist automatically via setState (persistFields); the dispatch just notifies hosts.
-		const visibleClusters = this.deriveClusters();
-		const visibleTypes = visibleClusters.map((c) => c.type).filter((t) => !this.state.hiddenTypes.includes(t));
+		// overrides/perTypeLimit persist automatically via setState (persistFields); the dispatch just notifies hosts, which
+		// combine the overrides with the instrumentation-default predicate (effectiveHiddenTypes) to decide what renders.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.GRAPH_FILTER_CHANGE, {
-				detail: { types: visibleTypes, perTypeLimit: this.state.perTypeLimit },
+				detail: { overrides: this.state.overrides, perTypeLimit: this.state.perTypeLimit },
 				bubbles: true,
 				composed: true,
 			}),
@@ -173,10 +182,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	private onTypeChange =
 		(type: string) =>
 		(e: Event): void => {
-			const hidden = new Set(this.state.hiddenTypes);
-			if ((e.target as HTMLInputElement).checked) hidden.delete(type);
-			else hidden.add(type);
-			this.setState({ hiddenTypes: [...hidden] });
+			// Record the user's EXPLICIT choice for this type (true = shown, false = hidden); it overrides the declared default.
+			this.setState({ overrides: { ...this.state.overrides, [type]: (e.target as HTMLInputElement).checked } });
 			this.dispatchChange();
 		};
 
@@ -212,11 +219,12 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 					)}${values.length === 0 ? html`<span class="meta">none</span>` : ""}</div>`;
 			})}`;
 		}
-		const { hiddenTypes, perTypeLimit } = this.state;
-		const hiddenSet = new Set(hiddenTypes);
+		const { perTypeLimit } = this.state;
 		const clusters = this.deriveClusters()
 			.slice()
 			.sort((a, b) => a.type.localeCompare(b.type));
+		// Chip checked = effectively visible: the user's explicit override, else the instrumentation-default predicate. One source.
+		const hiddenSet = new Set(effectiveHiddenTypes(clusters.map((c) => c.type), this.state.overrides));
 		const quadCount = this.filterByTime(this.quads).length;
 		return html`<div class="row">
 			<span class="label">show:</span>

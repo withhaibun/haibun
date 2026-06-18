@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { buildGraphModelFromQuads } from "./graph-model.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
-const q = (subject: string, predicate: string, object: unknown, namedGraph: string, objectType?: string): TQuad => ({ subject, predicate, object, namedGraph, objectType, timestamp: 1 }) as TQuad;
+const q = (subject: string, predicate: string, object: unknown, namedGraph: string, objectType?: string): TQuad =>
+	({ subject, predicate, object, namedGraph, objectType, timestamp: 1 }) as TQuad;
 
 describe("buildGraphModelFromQuads", () => {
 	it("emits one node per subject (typed by namedGraph) and a typed-reference edge", () => {

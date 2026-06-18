@@ -42,7 +42,9 @@ const StateSchema = z.object({
 });
 
 export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: flex; flex-direction: column; height: 100%; font-family: inherit; }
 		.header { display: flex; justify-content: space-between; align-items: baseline; padding: var(--shu-space-4) var(--shu-space-5) var(--shu-space-2); flex-shrink: 0; }
 		.header h3 { margin: 0; font-size: var(--shu-font-md); color: var(--shu-fg-muted); }
@@ -67,7 +69,8 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		:host(:not([data-show-controls])) .view-controls { display: none; }
 		.zoom-label { color: var(--shu-fg-muted); font-size: var(--shu-font-md); min-width: 38px; text-align: center; }
 		shu-graph { flex: 1; min-height: 0; overflow: hidden; }
-	`];
+	`,
+	];
 	static domainSelector = "shu-domain-chain-view";
 
 	private affordances: TAffordancesSnapshot | null = null;

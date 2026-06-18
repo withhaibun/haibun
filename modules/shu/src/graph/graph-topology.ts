@@ -80,7 +80,8 @@ export function buildGraphTopology(quads: TQuad[], opts: TGraphViewOpts, classif
 
 	const externalIds = new Set<string>();
 	for (const q of visible) {
-		if (typeof q.object === "string" && classifier.classify(q.namedGraph, q.predicate) === "edge" && !entityIds.has(q.object) && q.object !== q.subject && isUri(q.object)) externalIds.add(q.object);
+		if (typeof q.object === "string" && classifier.classify(q.namedGraph, q.predicate) === "edge" && !entityIds.has(q.object) && q.object !== q.subject && isUri(q.object))
+			externalIds.add(q.object);
 	}
 
 	const byGraph = new Map<string, Map<string, TQuad[]>>();
@@ -130,10 +131,11 @@ export function buildGraphTopology(quads: TQuad[], opts: TGraphViewOpts, classif
 			const id = `${graph}${SUMMARY_SUFFIX}`;
 			nodeIds.add(id);
 			nodes.push({ id, label: graph, hint: `${total} items — click to expand`, kind: graph, group: graph });
-			for (const [subject, sq] of subjects) for (const q of sq) {
-				const to = resolveTarget(q, subject);
-				if (to) addEdge(id, graph, q, to);
-			}
+			for (const [subject, sq] of subjects)
+				for (const q of sq) {
+					const to = resolveTarget(q, subject);
+					if (to) addEdge(id, graph, q, to);
+				}
 			continue;
 		}
 		for (const [subject, sq] of subjects) {

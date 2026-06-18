@@ -22,7 +22,9 @@ import { TIME_SYNC_CLASS } from "./shu-element.js";
 type VertexRow = Record<string, unknown>;
 
 export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
 		.results-wrapper { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 		.results-area { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; }
@@ -54,7 +56,8 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			background: var(--shu-bg-input); color: var(--shu-fg-muted); font-size: 0.75em; font-weight: 600;
 			letter-spacing: 0.5px; padding: var(--shu-space-2) var(--shu-space-3); position: sticky; top: 22px; z-index: 1;
 		}
-	`];
+	`,
+	];
 
 	private results: VertexRow[] = [];
 	private allProperties: string[] = [];

@@ -1,40 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { ganttToSvg, ganttToText, type TGanttModel } from "./gantt-renderer.js";
-import { quadsToGanttModel, isGanttable } from "./gantt-model.js";
+import { quadsToGanttModel, isGanttable, cascadeReschedule } from "./gantt-model.js";
+import type { TGanttTask } from "./gantt-model.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
-const day = (d: string): number => Date.parse(d);
 const DAY_MS = 86400000;
+const day = (d: string): number => Date.parse(d);
 const q = (subject: string, predicate: string, object: unknown, namedGraph = "Task"): TQuad => ({ subject, predicate, object, namedGraph, timestamp: 1 }) as TQuad;
-
-describe("ganttToSvg", () => {
-	const model: TGanttModel = {
-		tasks: [
-			{ id: "a", label: "Design", start: day("2026-01-01"), end: day("2026-01-05"), effort: 2 * DAY_MS },
-			{ id: "b", label: "Build", start: day("2026-01-05"), end: day("2026-01-10"), dependsOn: ["a"] },
-		],
-	};
-
-	it("emits one g.gantt-task[data-task-id] per task, an effort inner bar, a dependency arrow, and calendar ticks", () => {
-		const svg = ganttToSvg(model);
-		for (const id of ["a", "b"]) expect(svg).toContain(`data-task-id="${id}"`);
-		expect((svg.match(/class="gantt-task"/g) ?? []).length).toBe(2);
-		expect(svg).toContain('class="gantt-effort"'); // task a carries effort
-		expect(svg).toContain('data-from="a" data-to="b"'); // b depends on a
-		expect(svg).toContain("2026-01-01"); // calendar axis tick
-	});
-
-	it("renders the empty model and is deterministic", () => {
-		expect(ganttToSvg({ tasks: [] })).toContain("No scheduled tasks");
-		expect(ganttToSvg(model)).toBe(ganttToSvg(model));
-	});
-
-	it("serialises to text deterministically", () => {
-		expect(ganttToText(model)).toContain("a: Design [2026-01-01..2026-01-05] effort=" + 2 * DAY_MS);
-		expect(ganttToText(model)).toContain("b: Build [2026-01-05..2026-01-10] after a");
-	});
-});
 
 describe("quadsToGanttModel / isGanttable (fields recognised via the gantt upper concepts)", () => {
 	const quads = [
@@ -58,8 +30,34 @@ describe("quadsToGanttModel / isGanttable (fields recognised via the gantt upper
 		expect(m.tasks.find((t) => t.id === "x")).toBeUndefined(); // no ganttStart → not a task
 	});
 
+	it("sorts tasks by start then id", () => {
+		const m = quadsToGanttModel(quads);
+		expect(m.tasks.map((t) => t.id)).toEqual(["t1", "t2"]);
+	});
+
 	it("isGanttable is true iff some subject carries a ganttStart-kind property", () => {
 		expect(isGanttable(quads)).toBe(true);
 		expect(isGanttable([q("x", "name", "y")])).toBe(false);
+	});
+});
+
+describe("cascadeReschedule (dragging a task shifts its transitive dependents)", () => {
+	const DAY = 86400000;
+	const t = (id: string, start: number, end: number, dependsOn?: string[]): TGanttTask => ({ id, label: id, start, end, dependsOn });
+	// a → b → c chain, plus d depending on a directly, plus an unrelated e
+	const tasks: TGanttTask[] = [t("a", 0, DAY), t("b", DAY, 2 * DAY, ["a"]), t("c", 2 * DAY, 3 * DAY, ["b"]), t("d", DAY, 2 * DAY, ["a"]), t("e", 0, DAY)];
+
+	it("shifts the dragged task and everything transitively downstream by the same delta", () => {
+		const shifted = cascadeReschedule("a", 5 * DAY, tasks);
+		expect([...shifted.keys()].sort()).toEqual(["a", "b", "c", "d"]); // e is unrelated → untouched
+		expect(shifted.get("a")).toEqual({ start: 5 * DAY, end: 6 * DAY });
+		expect(shifted.get("c")).toEqual({ start: 7 * DAY, end: 8 * DAY }); // two hops downstream, same delta
+		expect(shifted.has("e")).toBe(false);
+	});
+
+	it("shifts only the subtree below the dragged task", () => {
+		const shifted = cascadeReschedule("b", -DAY, tasks);
+		expect([...shifted.keys()].sort()).toEqual(["b", "c"]); // a (upstream) + d/e unaffected
+		expect(shifted.get("b")).toEqual({ start: 0, end: DAY });
 	});
 });

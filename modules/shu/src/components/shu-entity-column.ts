@@ -27,6 +27,8 @@ import { SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { hasEventStream } from "../event-stream.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { callStep } from "../pane-fetch.js";
 import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription } from "../rels-cache.js";
@@ -43,7 +45,9 @@ export function buildBodyIframeDoc(content: string, mediaType: string): string {
 }
 
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
-	static styles = [shuBaseStyles, css`
+	static styles = [
+		shuBaseStyles,
+		css`
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 		.entity-header { padding: var(--shu-space-2) 0; }
@@ -74,7 +78,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.body-iframe.invertible { filter: invert(var(--shu-invert, 0)) hue-rotate(calc(var(--shu-invert, 0) * 180deg)); }
 		.error-banner { padding: var(--shu-space-3) var(--shu-space-4); margin: var(--shu-space-2); background: var(--shu-bg-error-soft); color: var(--shu-error); border-radius: var(--shu-radius); }
 		.loading, .empty { color: var(--shu-fg-faded); padding: var(--shu-space-4); }
-	`];
+	`,
+	];
 	private vertex: VertexData | null = null;
 	private edges: EdgeData[] = [];
 	private incomingCount = 0;
@@ -111,6 +116,20 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.incomingCount = 0;
 		this.products = products;
 		this.setState({ individualId: String(_summary || ""), persistedAs: label, loading: false });
+	}
+
+	/** Live-refresh: when the open individual's data changes underneath us (e.g. a gantt bar dragged to a new time
+	 *  emits an observation for its startedAtTime), re-fetch so the column never shows a stale value. */
+	protected override onConnected(): void {
+		if (!hasEventStream()) return; // static context (offline report, unit test without live events) — nothing to subscribe to
+		this.autoTeardown(
+			this.subscribeBatched({
+				onBatch: (events) => {
+					const subject = this.state.individualId;
+					if (subject && extractQuadsFromEvents(events).some((q) => q.subject === subject)) void this.open(subject, this.state.persistedAs);
+				},
+			}),
+		);
 	}
 
 	/** Open an individual by ID. Fetches data and renders. */
@@ -174,7 +193,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		let contentHtml: string;
 		if (isStub) {
 			const id = idOf(this.vertex);
-			const stubDetails = typeLine ? `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${typeLine}</details>` : "";
+			const stubDetails = typeLine
+				? `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${typeLine}</details>`
+				: "";
 			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${stubDetails}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);

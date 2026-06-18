@@ -10,11 +10,11 @@ import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
-import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
 import { getRels } from "../rels-cache.js";
 import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, subscribeViewContext, DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
+import { effectiveHiddenTypes } from "../graph-filter-projection.js";
 
 const QuadFieldSchema = z.object({
 	subject: z.string(),
@@ -52,6 +52,10 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	protected knownClusters = new Map<string, TCluster>();
 	protected fetchedSubjects = new Set<string>();
 	private graphInitialized = false;
+	// The user's explicit per-type visibility choices (from <shu-graph-filter>, persisted there). hiddenGraphs is DERIVED
+	// from these + the instrumentation-default predicate via effectiveHiddenTypes — never stored as the truth, so
+	// instrumentation's default-hidden is re-applied every load and a toggle is the only thing that sticks.
+	private filterOverrides: Record<string, boolean> = {};
 
 	// The shared fields, typed: every subclass schema includes clusteredGraphStateShape, so the cast is sound.
 	protected get cgState(): TClusteredGraphState {
@@ -108,11 +112,12 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		if (this.graphInitialized) return;
 		this.graphInitialized = true;
 
-		this.autoListen(this, SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ types: string[]; perTypeLimit: number }>) => {
-			// The filter reports the VISIBLE types; hidden is the complement over all known types.
-			const visible = new Set(e.detail.types);
-			const hiddenGraphs = [...this.allKnownGraphs()].filter((t) => !visible.has(t));
-			this.commitHidden(hiddenGraphs, e.detail.types, e.detail.perTypeLimit);
+		this.autoListen(this, SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ overrides: Record<string, boolean>; perTypeLimit: number }>) => {
+			// The filter reports the user's explicit overrides; hidden = those combined with each cluster's declared default.
+			this.filterOverrides = e.detail.overrides ?? {};
+			const hiddenGraphs = this.computeHiddenGraphs();
+			const visibleTypes = [...this.allKnownGraphs()].filter((t) => !hiddenGraphs.includes(t));
+			this.commitHidden(hiddenGraphs, visibleTypes.length > 0 ? visibleTypes : undefined, e.detail.perTypeLimit);
 		}) as EventListener);
 		this.autoListen(this, SHU_EVENT.GRAPH_CLUSTER_EXPAND, (() => {
 			const nextLimit = Math.max(this.cgState.perTypeLimit * 2, this.cgState.perTypeLimit + 100);
@@ -125,9 +130,10 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			return;
 		}
 
-		// One persistence source for the hidden set + budget across every clustered view: the embedded <shu-graph-filter>.
+		// One persistence source for the overrides + budget across every clustered view: the embedded <shu-graph-filter>.
+		// hiddenGraphs is computed (defaults + overrides) once the snapshot's clusters arrive, in refetchSnapshot.
 		const initial = ShuGraphFilter.getPersistedFilter();
-		this.setGraphState({ hiddenGraphs: initial.hiddenTypes });
+		this.filterOverrides = initial.overrides;
 		await this.onGraphConnected();
 		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
 
@@ -139,8 +145,11 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 					const quads = extractQuadsFromEvents(events);
 					if (quads.length === 0) return;
 					mergeQuadsIntoSnapshot(quads);
-					// An instrumentation-only batch is this view's own observed RPCs; re-rendering on it loops render→RPC→observe→render.
-					if (quads.some((q) => !isInstrumentationGraph(q.namedGraph))) this.syncFromSnapshot();
+					// Repaint on EVERY batch. Instrumentation graphs (SeqPath, observation/*, variables, facts) are ordinary
+					// toggleable graph elements, not a special case — they must stream in and render like any other type. The
+					// render→RPC→observe→render loop this once guarded against is gone: the overview now paints client-side
+					// (graphToSvg), so a repaint issues no RPC to re-observe. Frequent batches are coalesced by the paint debounce.
+					this.syncFromSnapshot();
 				},
 			}),
 		);
@@ -161,6 +170,24 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		return all;
 	}
 
+	/** hiddenGraphs is DERIVED, never the stored truth: the instrumentation-default predicate combined with the user's
+	 *  explicit overrides, applied to every known type (snapshot clusters AND types seen only in live quads — so a graph
+	 *  that streams in mid-run, with no server cluster yet, is classified the moment it appears). */
+	private hiddenGraphsFor(types: Iterable<string>): string[] {
+		return effectiveHiddenTypes(types, this.filterOverrides);
+	}
+	private computeHiddenGraphs(): string[] {
+		return this.hiddenGraphsFor(this.allKnownGraphs());
+	}
+	/** The hidden set for a freshly-arrived snapshot — its clusters AND the named graphs of its quads (the latter catch a
+	 *  type that exists only as streamed quads, with no cluster record yet). */
+	private hiddenForSnapshot(snap: { clusters: ReadonlyArray<TCluster>; quads: ReadonlyArray<TQuad> }): string[] {
+		const types = new Set<string>();
+		for (const c of snap.clusters) types.add(c.type);
+		for (const q of snap.quads) types.add(q.namedGraph);
+		return this.hiddenGraphsFor(types);
+	}
+
 	protected commitHidden(hiddenGraphs: string[], visibleTypes: string[] | undefined, perTypeLimit: number): void {
 		this.setGraphState({ hiddenGraphs });
 		void this.refetchSnapshot({ types: visibleTypes, perTypeLimit });
@@ -168,11 +195,11 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 
 	/** Hide/show delta — the control-products setter calls this; the on-screen filter sets the visible set directly via commitHidden. */
 	applyHiddenChange(change: { hide?: string[]; show?: string[] }): void {
-		const hidden = new Set(this.cgState.hiddenGraphs);
-		for (const t of change.hide ?? []) hidden.add(t);
-		for (const t of change.show ?? []) hidden.delete(t);
-		const visibleTypes = [...this.allKnownGraphs()].filter((t) => !hidden.has(t));
-		this.commitHidden([...hidden], visibleTypes.length > 0 ? visibleTypes : undefined, this.cgState.perTypeLimit);
+		for (const t of change.hide ?? []) this.filterOverrides[t] = false;
+		for (const t of change.show ?? []) this.filterOverrides[t] = true;
+		const hidden = this.computeHiddenGraphs();
+		const visibleTypes = [...this.allKnownGraphs()].filter((t) => !hidden.includes(t));
+		this.commitHidden(hidden, visibleTypes.length > 0 ? visibleTypes : undefined, this.cgState.perTypeLimit);
 	}
 
 	protected async refetchSnapshot(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
@@ -181,7 +208,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
 			// On-demand subjects are in the fresh snapshot now; clearing lets one re-load if a new budget sampled it out.
 			this.fetchedSubjects.clear();
-			this.setGraphState({ quads: snap.quads, clusters: snap.clusters, perTypeLimit: opts.perTypeLimit });
+			this.setGraphState({ quads: snap.quads, clusters: snap.clusters, perTypeLimit: opts.perTypeLimit, hiddenGraphs: this.hiddenForSnapshot(snap) });
 			this.onGraphData();
 		} catch {
 			/* stepper may not be loaded */
@@ -191,7 +218,12 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	protected syncFromSnapshot(extra: Partial<TClusteredGraphState> = {}): void {
 		const snap = currentSnapshot();
 		for (const c of snap.clusters) this.knownClusters.set(c.type, c);
-		this.setGraphState({ quads: snap.quads, clusters: snap.clusters, ...extra });
+		// Recompute hiddenGraphs on every live SSE batch so a graph that FIRST appears mid-run (e.g. a new observation/*
+		// type from a web interaction) is classified the moment it streams in, not left visible until the next refetch.
+		// Safe to do every batch because an imperative renderer keys its repaint off the VISIBLE model, not this set — a
+		// hidden-only change leaves the visible model untouched, so it never triggers a re-layout (it once did, which both
+		// showed mid-run instrumentation and re-spread the graph off-frame).
+		this.setGraphState({ quads: snap.quads, clusters: snap.clusters, hiddenGraphs: this.hiddenForSnapshot(snap), ...extra });
 		this.onGraphData();
 	}
 
