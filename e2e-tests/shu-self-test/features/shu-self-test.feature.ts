@@ -3,17 +3,17 @@ import WebPlaywright from "@haibun/web-playwright";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { ShuStepper, SHU_TEST_IDS, flattenTestIds } from "@haibun/shu";
-import { createStepUI, stepTestIds } from "@haibun/shu/test/step-ui.js";
+import { ShuStepper, SHU_TEST_IDS } from "@haibun/shu";
+import { createStepUI, stepTestIds, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 
 const wp = new WebPlaywright();
-const { waitFor, click, selectionOption, gotoPage, reloadPage } = withAction(wp);
+const { waitFor, click, gotoPage, reloadPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { enterStepMode, passesStepExecution } = createStepUI(wp);
+const { enterStepMode, passesStepExecution, chooseGraphLabel } = createStepUI(wp);
 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
@@ -94,6 +94,13 @@ export const features: TKirejiExport = {
 		"show graph view",
 		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
 
+		scenario({ scenario: "Browse the seeded comments in the column browser" }),
+
+		"The column browser lists stored records of a chosen type. Picking the Comment type queries the store and shows the comments seeded earlier as a table, one row per comment. Every store answers this query the same way, so the browser needs no type-specific code.",
+		...chooseGraphLabel(COMMENT_LABEL),
+		waitFor({ target: IDS.QUERY.TABLE }),
+		waitFor({ target: IDS.QUERY.FIRST_ROW }),
+
 		scenario({ scenario: "Invoke `show affordances` from Step mode and inspect the goals section" }),
 
 		"The affordances panel renders the goal resolver's per-goal verdicts (satisfied / michi / unreachable / refused). Forward-reachable steps are not duplicated in the panel; they live in the actions-bar's step picker. The goals section must mount with its test-id-wrapped container visible.",
@@ -147,15 +154,6 @@ export const features: TKirejiExport = {
 		setFromStatement({ what: "domainsSnapshot", statement: "show domains" }),
 		exists({ what: "domainsSnapshot" }),
 
-		scenario({ scenario: "Browse the comment data via the column browser" }),
-
-		"The column browser lets users navigate the quad store by type and entity. Selecting the Comment type populates the query table, exercising the type-select dropdown, the query-results RPC path, and the result-table component. This scenario is intentionally last because the col-browser's query-table sometimes races against the RPC cache and a failure here shouldn't mask earlier regressions.",
-		waitFor({ target: IDS.APP.TWISTY }),
-		click({ target: IDS.APP.TWISTY }),
-		waitFor({ target: IDS.APP.TYPE_SELECT }),
-		selectionOption({ option: `"${COMMENT_LABEL}"`, field: IDS.APP.TYPE_SELECT }),
-		waitFor({ target: IDS.QUERY.TABLE }),
-
 		scenario({ scenario: "View settings reveals every chain-view control as one group" }),
 
 		"View settings (the gear in the column-pane header) is the single switch for every per-view control: zoom, layout, axis filter. Toggling it on the chain pane reveals the whole controls block at once — this scenario pins the unified-gate invariant so that zoom doesn't drift back into its own toolbar.",
@@ -172,5 +170,7 @@ export const features: TKirejiExport = {
 
 		"`saves shu to` writes a self-contained HTML report — the SPA bundle plus a snapshot of every RPC response and SSE event captured during the run. Running it mid-feature verifies the writer doesn't depend on endFeature timing.",
 		'saves shu to "/tmp/shu.html"',
+		"An uncompressed copy carries the same content as plain text, so a reader can confirm secrets are redacted in the output without unpacking it.",
+		'saves shu uncompressed to "/tmp/shu-audit.html"',
 	],
 };
