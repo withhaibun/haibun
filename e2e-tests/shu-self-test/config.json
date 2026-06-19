@@ -5,7 +5,6 @@
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/shu/shu-stepper",
 		"@haibun/shu/monitor-stepper",
-		"@haibun/shu/tutorial-graph-stepper",
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/monitor-tui",
 		"variables-stepper",
