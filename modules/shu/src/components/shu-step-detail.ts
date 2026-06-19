@@ -8,6 +8,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
+import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
@@ -34,9 +35,11 @@ const StateSchema = z.object({
 		)
 		.default([]),
 	loading: z.boolean().default(true),
+	error: z.string().optional(),
 });
 
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
+	#events = new EventsController(this, () => this.onEventsChanged());
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -61,23 +64,23 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	}
 
 	async open(seqPath: number[]): Promise<void> {
-		this.setState({ seqPath, loading: true });
+		this.setState({ seqPath, loading: true, error: undefined });
 		const seqKey = seqPath.join(".");
 		try {
-			const { eventsData, tracesData, quadsData } = await conduit().group("step-detail: load events + traces + quads for one step", async (g) => {
-				const eventsData = await g.follow<{ events: Array<Record<string, unknown>> }>(
-					{ method: "MonitorStepper-getEvents", params: { filter: { kind: "lifecycle" } } },
-					"step-detail: events",
-				);
-				const tracesData = await g.follow<{ traces: Array<Record<string, unknown>> }>({ method: "MonitorStepper-getDispatchTraces" }, "step-detail: dispatch traces");
-				const quadsData = await g.follow<{
-					quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
-				}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } }, "step-detail: clustered quads");
-				return { eventsData, tracesData, quadsData };
-			});
-			const stepEvent =
-				eventsData.events?.find((e) => e.stage === "end" && e.status === "completed" && Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey) ??
-				eventsData.events?.find((e) => e.stage === "end" && Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey);
+			// Traces + this step's provenance quads, alongside the shared event backfill. The quad query is intentionally a
+			// fuller per-step provenance fetch (perTypeLimit 1000) — NOT the budgeted display snapshot the graph views share
+			// via quads-snapshot, which would drop the very quads whose provenance names this step. Events come from the
+			// shared log (ShuEventConsumer), so there is no second getEvents backfill here.
+			const [{ tracesData, quadsData }] = await Promise.all([
+				conduit().group("step-detail: load traces + quads for one step", async (g) => {
+					const tracesData = await g.follow<{ traces: Array<Record<string, unknown>> }>({ method: "MonitorStepper-getDispatchTraces" }, "step-detail: dispatch traces");
+					const quadsData = await g.follow<{
+						quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
+					}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } }, "step-detail: clustered quads");
+					return { tracesData, quadsData };
+				}),
+				this.#events.ensureLoaded(),
+			]);
 			const trace = tracesData.traces?.find((t) => Array.isArray(t.seqPath) && (t.seqPath as number[]).join(".") === seqKey);
 			const variablesSet = (quadsData.quads ?? [])
 				.filter((q) => {
@@ -86,10 +89,29 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 					return prov.some((p: unknown) => Array.isArray(p) && (p as number[]).join(".") === seqKey);
 				})
 				.map((q) => ({ name: q.subject, value: q.object, graph: q.namedGraph }));
-			this.setState({ stepEvent: stepEvent ?? undefined, trace: trace ?? undefined, variablesSet, allQuads: quadsData.quads ?? [], loading: false });
-		} catch {
-			this.setState({ loading: false });
+			this.setState({ trace: trace ?? undefined, variablesSet, allQuads: quadsData.quads ?? [], loading: false, error: undefined });
+			this.refreshStepEvent();
+		} catch (e) {
+			// Surface the failure — a swallowed error rendered the same generic "no data" as a genuinely empty step.
+			this.setState({ loading: false, error: e instanceof Error ? e.message : String(e) });
 		}
+	}
+
+	/** The step's lifecycle event lives in the shared log; a still-running step's `end` arrives after open(). Re-find it
+	 *  cheaply on each live batch (no RPC) so the pane stops going stale. */
+	private onEventsChanged(): void {
+		if (this.state.seqPath.length > 0 && !this.state.loading) this.refreshStepEvent();
+	}
+
+	private refreshStepEvent(): void {
+		const seqKey = this.state.seqPath.join(".");
+		const matches = (e: Record<string, unknown>) => Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey;
+		const events = this.#events.all;
+		const stepEvent =
+			events.find((e) => e.kind === "lifecycle" && e.stage === "end" && e.status === "completed" && matches(e)) ??
+			events.find((e) => e.kind === "lifecycle" && e.stage === "end" && matches(e)) ??
+			events.find((e) => e.kind === "lifecycle" && e.stage === "start" && matches(e));
+		if (stepEvent) this.setState({ stepEvent });
 	}
 
 	private onLink = (subject: string, label: string, isVertex: boolean) => (): void => {
@@ -104,9 +126,10 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	};
 
 	render(): TemplateResult {
-		const { seqPath, stepEvent, trace, variablesSet, loading } = this.state;
+		const { seqPath, stepEvent, trace, variablesSet, loading, error } = this.state;
 		const key = seqPath.join(".");
 		if (loading) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`;
+		if (error) return html`<div class="empty" style="color:var(--shu-error)">Failed to load step [${key}]: ${error}</div>`;
 
 		const status = stepEvent?.status === "completed" ? "✅" : stepEvent?.status === "failed" ? "❌" : "";
 		const stepIn = String(stepEvent?.in ?? "");

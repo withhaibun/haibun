@@ -47,7 +47,7 @@ import { timeCursorSignal } from "../signals.js";
 import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
-import { eventStream, type TEvent, type TEventFilter } from "../event-stream.js";
+import { subscribeBatchedEvents, type TEvent, type TEventFilter } from "../event-stream.js";
 import { readElementPrefs, schedulePersistWrite } from "../element-prefs.js";
 import { notifyTimeCursorSubscribers } from "../signals.js";
 
@@ -361,31 +361,9 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return `<script type="application/ld+json">${JSON.stringify(products).replaceAll("</", "<\\/")}</script>`;
 	}
 
-	/** Subscribe to inbound events via the installed `EventStream`, batching all events received between paints into one `onBatch(events)` call inside an animation frame. */
+	/** Subscribe to inbound events via the installed `EventStream`, batching all events received between paints into one `onBatch(events)` call inside an animation frame. Delegates to the shared `subscribeBatchedEvents` (the data controllers use the same path). */
 	protected subscribeBatched(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter }): () => void {
-		let pending: TEvent[] = [];
-		let scheduled = false;
-		let active = true;
-		const drain = () => {
-			scheduled = false;
-			if (!active || pending.length === 0) return;
-			const batch = pending;
-			pending = [];
-			opts.onBatch(batch);
-		};
-		const innerUnsub = eventStream().subscribe((event) => {
-			if (!active) return;
-			pending.push(event);
-			if (!scheduled) {
-				scheduled = true;
-				requestAnimationFrame(drain);
-			}
-		}, opts.filter);
-		return () => {
-			active = false;
-			pending = [];
-			innerUnsub();
-		};
+		return subscribeBatchedEvents(opts);
 	}
 }
 

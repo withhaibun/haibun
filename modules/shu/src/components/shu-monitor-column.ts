@@ -1,18 +1,16 @@
 /**
  * <shu-monitor-column> — Live execution log stream in a miller column.
- * Fetches initial events from MonitorStepper via RPC on connect, then
- * subscribes to the EventStream for live updates (via subscribeBatched).
- * Clickable time values dispatch TIME_SYNC for cross-view synchronization.
+ * A ShuEventConsumer: the base owns the shared event log (one backfill + live merge + dedup); this view only derives
+ * its rows from it. Clickable time values dispatch TIME_SYNC for cross-view synchronization.
  */
 import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { EventsController } from "../controllers/index.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "../quad-detail-pane.js";
-import { conduit } from "../hypermedia.js";
 import type { TDispatchTrace } from "../schemas.js";
 
 const MonitorColumnSchema = z.object({
@@ -38,6 +36,7 @@ const LEVEL_ICONS: Record<string, string> = { error: "❌", warn: "⚠️", info
 const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
+	#events = new EventsController(this, () => this.onEventsChanged());
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -75,32 +74,26 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	private startTime = 0;
 	private endTime = 0;
 	private startRowIndex = new Map<string, number>();
-	private seenEventIds = new Set<string>();
+	private renderedCount = 0;
 
 	constructor() {
 		super(MonitorColumnSchema, { level: "info", tail: true, hideStart: true });
 	}
 
-	protected override async onConnected(): Promise<void> {
-		try {
-			const data = await conduit().follow<{ events: Array<Record<string, unknown>> }>(
-				{ method: "MonitorStepper-getEvents", params: { filter: {} } },
-				"monitor-column: initial events backfill",
-			);
-			if (data.events) for (const e of data.events) this.addEvent(e);
-		} catch {
-			/* not fatal */
+	/** Re-derive rows from the shared event log (ShuEventConsumer owns backfill + live merge + dedup). The log is
+	 *  append-only, so append rows only for events past the last render; a cache reset (forceRefresh) shrinks it, so rebuild. */
+	private onEventsChanged(): void {
+		const all = this.#events.all;
+		if (all.length < this.renderedCount) {
+			this.rows = [];
+			this.startRowIndex.clear();
+			this.startTime = 0;
+			this.endTime = 0;
+			this.renderedCount = 0;
 		}
+		for (let i = this.renderedCount; i < all.length; i++) this.addEvent(all[i]);
+		this.renderedCount = all.length;
 		this.rows = [...this.rows];
-		if (this.hasAttribute("data-snapshot-time")) return;
-		this.autoTeardown(
-			this.subscribeBatched({
-				onBatch: (events) => {
-					for (const event of events) this.addEvent(event);
-					this.rows = [...this.rows];
-				},
-			}),
-		);
 	}
 
 	protected override onTimeSync(): void {
@@ -108,9 +101,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	}
 
 	private addEvent(e: Record<string, unknown>): void {
-		const eventKey = `${e.id}:${e.stage || e.kind}`;
-		if (this.seenEventIds.has(eventKey)) return;
-		this.seenEventIds.add(eventKey);
 		if (e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace") {
 			const trace = (e as Record<string, unknown>).trace as TDispatchTrace | undefined;
 			if (trace?.seqPath) {

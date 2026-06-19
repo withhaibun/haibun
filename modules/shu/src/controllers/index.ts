@@ -17,4 +17,5 @@
  * is the map.
  */
 export { QueryController, type TQueryResult } from "./query-controller.js";
-// EventsController, ClustersController land here as their migrations complete.
+export { EventsController } from "./events-controller.js";
+// ClustersController lands here as its migration completes.
