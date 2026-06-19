@@ -9,8 +9,8 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
+import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
-import { conduit } from "../hypermedia.js";
 import { copyText } from "../copy-util.js";
 import { TIME_SYNC_STYLE } from "../time-sync.js";
 import { sequenceToSvg, sequenceToText, type TSeqModel, type TSeqMessage } from "../graph/sequence-renderer.js";
@@ -57,6 +57,7 @@ const StateSchema = z.object({
 });
 
 export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
+	#events = new EventsController(this, () => this.onEventsChanged());
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -86,47 +87,22 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 		super(StateSchema, { traces: [], zoom: 100, currentIndex: -1 });
 	}
 
-	protected override async onConnected(): Promise<void> {
-		try {
-			const data = await conduit().follow<{ traces: TDispatchTrace[] }>({ method: "MonitorStepper-getDispatchTraces" }, "sequence-diagram: backfill dispatch traces");
-			if (data.traces?.length) {
-				const parsed = data.traces
-					.map((t) => DispatchTrace.safeParse(t))
-					.filter((r) => r.success)
-					.map((r) => r.data);
-				if (parsed.length) this.setState({ traces: parsed });
-			}
-		} catch {
-			/* stepper may not be loaded */
+	/** Dispatch traces are derived from the shared event log (ShuEventConsumer backfills, lives, and DEDUPS it): the
+	 *  dispatch-trace artifact events, parsed. Deriving from the deduped log fixes the double-count that a backfill plus an
+	 *  SSE replay-window overlap used to produce — the old concat had no dedup key. */
+	private onEventsChanged(): void {
+		const traces: TDispatchTrace[] = [];
+		for (const event of this.#events.all) {
+			const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace; timestamp?: number };
+			if (e.kind !== "artifact" || e.artifactType !== "dispatch-trace" || !e.trace) continue;
+			const parsed = DispatchTrace.safeParse({ ...e.trace, timestamp: e.timestamp ?? 0 });
+			if (parsed.success) traces.push(parsed.data);
 		}
-
-		if (this.hasAttribute("data-snapshot-time")) return;
-
-		// Live updates via SSE — capture each batch's dispatch-trace artifacts and
-		// run a single setState. Per-event setState would re-render the diagram
-		// once per trace; a replay-window burst would re-render N times.
-		this.autoTeardown(
-			this.subscribeBatched({
-				onBatch: (events) => {
-					const additions: TDispatchTrace[] = [];
-					for (const event of events) {
-						const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace; timestamp?: number };
-						if (e.kind !== "artifact" || e.artifactType !== "dispatch-trace" || !e.trace) continue;
-						const parsed = DispatchTrace.safeParse({ ...e.trace, timestamp: e.timestamp ?? Date.now() });
-						if (parsed.success) additions.push(parsed.data);
-					}
-					if (additions.length > 0) this.setState({ traces: [...this.state.traces, ...additions] });
-				},
-			}),
-		);
+		this.setState({ traces });
 	}
 
 	protected override onTimeSync(): void {
 		this.applyTimeDimming();
-	}
-
-	setTraces(traces: TDispatchTrace[]): void {
-		this.setState({ traces });
 	}
 
 	private onZoomIn = (): void => {
