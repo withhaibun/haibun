@@ -130,3 +130,32 @@ export function eventStream(): EventStream {
 export function resetEventStream(): void {
 	eventStreamGlobal[EVENT_STREAM_SLOT] = null;
 }
+
+/** Subscribe to the stream, coalescing every event arriving between paints into one `onBatch` call inside an animation
+ *  frame. Returns an unsubscribe. The `this`-free form shared by `ShuElement.subscribeBatched` and the data controllers;
+ *  no caller constructs `EventSource`/`SseSubscriber` directly. */
+export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter }): () => void {
+	let pending: TEvent[] = [];
+	let scheduled = false;
+	let active = true;
+	const drain = () => {
+		scheduled = false;
+		if (!active || pending.length === 0) return;
+		const batch = pending;
+		pending = [];
+		opts.onBatch(batch);
+	};
+	const innerUnsub = eventStream().subscribe((event) => {
+		if (!active) return;
+		pending.push(event);
+		if (!scheduled) {
+			scheduled = true;
+			requestAnimationFrame(drain);
+		}
+	}, opts.filter);
+	return () => {
+		active = false;
+		pending = [];
+		innerUnsub();
+	};
+}

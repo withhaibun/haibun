@@ -9,8 +9,9 @@ import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
+import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
-import { conduit } from "../hypermedia.js";
+import { groupThumbnailRows } from "../thumbnail-rows.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
 import "./shu-artifact-frame.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
@@ -31,6 +32,7 @@ const SANITIZE_OPTS = {
 };
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
+	#events = new EventsController(this, () => this.onEventsChanged());
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -45,8 +47,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		a:hover { text-decoration: underline; }
 		.doc-row { padding: var(--shu-space-2) var(--shu-space-4); border-radius: var(--shu-radius); cursor: pointer; transition: background 0.15s; }
 		.doc-row:hover { background: var(--shu-bg-hover); }
-		.log-row { font-family: "Source Code Pro", ui-monospace, monospace; font-size: var(--shu-font-sm); color: var(--shu-fg-muted); line-height: 1.5; border-left: 2px solid transparent; padding: var(--shu-space-2) 0; margin-left: 32px; }
-		.log-row.nested { border-left-color: var(--shu-border); margin-left: 48px; }
+		.log-row { font-family: "Source Code Pro", ui-monospace, monospace; font-size: 0.9rem; font-weight: 500; color: var(--shu-fg); line-height: 1.5; border-left: 2px solid transparent; padding: var(--shu-space-2) 0; margin-left: 32px; }
+		/* Nesting is shown by the left rule, not extra indent, so a step and its screenshot keep a shared left edge. */
+		.log-row.nested { border-left-color: var(--shu-border); margin-left: 32px; padding-left: var(--shu-space-3); }
 		.log-row.show-connector { position: relative; }
 		.log-row.show-connector::before { content: ""; position: absolute; left: -1px; top: 0; width: 8px; height: 1px; background: var(--shu-border); }
 		.h-1 { height: 12px; }
@@ -55,14 +58,21 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		.artifact { margin: var(--shu-space-4) 0 var(--shu-space-4) 32px; }
 		.json-block { font-family: "Source Code Pro", monospace; font-size: var(--shu-font-sm); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-4) var(--shu-space-5); overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
 		img { display: block; }
-		shu-artifact-frame { margin: var(--shu-space-5) 0; }
+		/* Artifacts sit under their step at the same left edge (the step's 32px), reading as evidence for it. */
+		.feature-artifacts, .standalone-artifact { margin-left: 32px; }
+		/* Consecutive screenshots are grouped (in postProcess) into a horizontal, wrapping row; the run ends at the next non-thumbnail element. */
+		.thumb-row { display: flex; flex-flow: row wrap; align-items: flex-start; gap: var(--shu-space-2); margin-left: 32px; }
+		.thumb-row > * { margin: 0; }
+		shu-artifact-frame { margin: var(--shu-space-3) 0; }
 		.doc-controls { padding: var(--shu-space-2) var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		/* The level selector is a settings surface: visible only when the column's controls toggle (the pane's ⚙, which sets data-show-controls) is on. */
 		:host(:not([data-show-controls])) .doc-controls { display: none; }
 	`,
 	];
-	private events: THaibunEvent[] = [];
-	private seenEventIds = new Set<string>();
+	/** The shared event log (ShuEventConsumer owns backfill + live merge + dedup). Read-only here; the document renders from it. */
+	private get events(): THaibunEvent[] {
+		return this.#events.all as unknown as THaibunEvent[];
+	}
 	private startTime = 0;
 	private endTime = 0;
 	private renderedEventCount = 0;
@@ -71,47 +81,37 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		super(DocumentColumnSchema, { level: "log" });
 	}
 
-	protected override async onConnected(): Promise<void> {
-		try {
-			const data = await conduit().follow<{ events: Array<Record<string, unknown>> }>(
-				{ method: "MonitorStepper-getEvents", params: { filter: {} } },
-				"document-column: initial events backfill",
-			);
-			if (data.events) {
-				for (const e of data.events) this.addEvent(e);
-				this.renderFull();
-			}
-		} catch {
-			// load failure isn't fatal — column keeps current rows; next refresh retries.
+	/** Re-derive the document from the shared log: render once when it first lands, then append only the live tail. The
+	 *  static `.document-body` is preserved by lit across re-renders, so we never re-run renderFull on an update — that
+	 *  blew away every embedded shu-product-view/shu-artifact-frame (the destroy-on-update bug). */
+	private onEventsChanged(): void {
+		const all = this.events;
+		if (all.length < this.renderedEventCount) {
+			this.renderedEventCount = 0;
+			this.startTime = 0;
+			this.endTime = 0;
 		}
+		for (let i = this.renderedEventCount; i < all.length; i++) {
+			const ts = all[i].timestamp;
+			if (ts) {
+				if (!this.startTime || ts < this.startTime) this.startTime = ts;
+				if (ts > this.endTime) this.endTime = ts;
+			}
+		}
+		void this.renderDocument();
+	}
 
-		if (this.hasAttribute("data-snapshot-time")) return;
-
-		this.autoTeardown(
-			this.subscribeBatched({
-				onBatch: (events) => {
-					for (const event of events) this.addEvent(event);
-					this.appendNew();
-				},
-			}),
-		);
+	/** Render once the `.document-body` exists (await the first lit render): full when the log first lands, then append
+	 *  only the live tail. Driven solely by an event change — never by a lit update — so embedded views are never destroyed. */
+	private async renderDocument(): Promise<void> {
+		await this.updateComplete;
+		if (!this.shadowRoot?.querySelector(".document-body")) return;
+		if (this.renderedEventCount === 0) this.renderFull();
+		else this.appendNew();
 	}
 
 	protected override onTimeSync(): void {
 		this.applyTimeCursor();
-	}
-
-	private addEvent(e: Record<string, unknown>): void {
-		const eventKey = `${e.id}:${e.stage || e.kind}`;
-		if (this.seenEventIds.has(eventKey)) return;
-		this.seenEventIds.add(eventKey);
-		const ev = e as THaibunEvent;
-		this.events.push(ev);
-		const ts = ev.timestamp;
-		if (ts) {
-			if (!this.startTime || ts < this.startTime) this.startTime = ts;
-			if (ts > this.endTime) this.endTime = ts;
-		}
 	}
 
 	/** Full render from all events — called once on initial backfill. */
@@ -122,6 +122,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const html = this.generateHtml(this.events);
 		body.innerHTML = html;
 		this.postProcessElements(body);
+		groupThumbnailRows(body);
 		this.renderedEventCount = this.events.length;
 	}
 
@@ -141,6 +142,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		fragment.innerHTML = html;
 		this.postProcessElements(fragment);
 		while (fragment.firstChild) body.appendChild(fragment.firstChild);
+		groupThumbnailRows(body);
 		this.renderedEventCount = this.events.length;
 		if (this.timeCursor === null) this.scrollTop = this.scrollHeight;
 	}
@@ -247,9 +249,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			addRowClick(el);
 		});
 		els(".log-row").forEach((el) => {
-			const depth = parseInt(el.getAttribute("data-depth") || "0");
 			el.classList.add("doc-row");
-			if (depth > 3) el.style.paddingLeft = `${(depth - 3) * 12}px`;
 			if (el.getAttribute("data-nested") === "true") el.classList.add("nested");
 			if (el.getAttribute("data-show-symbol") === "true") el.classList.add("show-connector");
 			addRowClick(el);
@@ -288,13 +288,14 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const artifactPath = isStandaloneMode()
 			? ((a.featureRelativePath as string | undefined) ?? url ?? featureRelativeFallback)
 			: (url ?? (base ? `/artifacts/${base}` : undefined));
-		if (type === "image" && artifactPath) {
-			return `<shu-artifact-frame caption="${esc(String(a.path ?? a.url ?? "Screenshot"))}"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
+		if (type === "image") {
+			// Thumbnail: per-step screenshots are auxiliary, so keep them small and let the step text lead; click or ⤢ to view full.
+			return `<shu-artifact-frame class="thumb"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
 		}
-		if (type === "html" && artifactPath)
-			return `<shu-artifact-frame caption="${esc(String(a.path ?? "HTML"))}"><iframe src="${esc(String(artifactPath))}" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
-		if (type === "json" && a.json) return `<shu-artifact-frame caption="JSON"><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
-		if (type === "file" && a.path) return `<shu-artifact-frame caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
+		if (type === "html")
+			return `<shu-artifact-frame><iframe src="${esc(String(artifactPath))}" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
+		if (type === "json") return `<shu-artifact-frame><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
+		if (type === "file") return `<shu-artifact-frame caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
 		return "";
 	}
 
@@ -322,9 +323,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	private onLevelChange(e: Event): void {
 		this.setState({ level: (e.target as HTMLSelectElement).value as THaibunLogLevel });
-	}
-
-	protected updated(): void {
-		if (this.events.length > 0) this.renderFull();
+		this.renderFull(); // the visible event set changes with the level, so re-render the whole document at the new level
 	}
 }
