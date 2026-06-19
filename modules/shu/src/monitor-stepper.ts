@@ -7,7 +7,6 @@
 import { resolve } from "path";
 import { z } from "zod";
 import { writeFileSync } from "fs";
-import { gzipSync } from "node:zlib";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
@@ -30,7 +29,10 @@ import { GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
 import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
-import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
+import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
+
+/** Result of the inherent `graphQuery` step: matched rows + their count. */
+const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(), z.unknown())), total: z.number().int().nonnegative() });
 
 const MAX_EVENTS_DEFAULT = 9e9;
 // The live getEvents response is a recent window, never the whole buffer: a long instrumentation run accumulates events
@@ -119,11 +121,12 @@ export type TLogEvent = z.infer<typeof LogEventSchema>;
 
 export const DOMAIN_EVENTS_FILTER = "shu-events-filter";
 
-/** Optional filter for getEvents — by level, kind, minimum timestamp, and a max count (clamped to a server cap). */
+/** Optional filter for getEvents — by level, kind, timestamp window (`since`..`until`, both inclusive), and a max count (clamped to a server cap). `until` lets a client page backward through the byte-bounded window to retrieve the full history. */
 export const EventsFilterSchema = z.object({
 	level: z.string().optional(),
 	kind: z.string().optional(),
 	since: z.number().optional(),
+	until: z.number().optional(),
 	limit: z.number().optional(),
 });
 export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
@@ -245,7 +248,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			const hasFixedPath = !!this.outputPath;
 			if (!hasFixedPath && !shouldClose) return;
 			if (!hasFixedPath && !this.storage) return;
-			await this.writeStandaloneReport({ fixedPath: this.outputPath });
+			await this.writeStandaloneReport({ fixedPath: this.outputPath, compressed: true });
 			// Each feature's report stands alone: clear the per-feature buffers so the next feature's report (and the live
 			// getEvents backfill) holds only its own events — and serialized artifacts resolve from the report's own dir.
 			// Live SSE streaming is unaffected; events forward as they happen.
@@ -260,7 +263,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 * chosen point — `saves shu to <path>` triggers a write, and `endFeature` writes
 	 * once more so the final state always reflects the full run.
 	 */
-	private async writeStandaloneReport({ fixedPath }: { fixedPath?: string }): Promise<string> {
+	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {
 		const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
 		// Ensure essential data is always available offline:
 		// 1. Events — embed one complete end-of-run copy under the bare key; drop the per-filter copies the live run
@@ -355,7 +358,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
 		const secrets = await this.getWorld().shared.getSecrets();
 		for (const [, value] of Object.entries(secrets)) if (value) payload = payload.replaceAll(value, OBSCURED_VALUE);
-		const html = buildReportHtml(".", gzipSync(payload).toString("base64"));
+		const html = buildReportHtml(".", payload, compressed);
 		if (fixedPath) {
 			writeFileSync(fixedPath, html);
 			logger.info(`shu standalone report: ${actualURI(fixedPath)}`);
@@ -373,7 +376,15 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects the full run.",
 			action: async ({ where }: { where: string }) => {
 				this.outputPath = where;
-				const written = await this.writeStandaloneReport({ fixedPath: where });
+				const written = await this.writeStandaloneReport({ fixedPath: where, compressed: true });
+				return actionOKWithProducts({ path: written });
+			},
+		},
+		savesShuUncompressedTo: {
+			gwta: "saves shu uncompressed to {where: string}",
+			description: "Write the standalone shu report with an uncompressed plain-JSON payload, so the redacted text can be read and audited directly — same content as the compressed report, just larger. A one-off write that does not become the feature's canonical output.",
+			action: async ({ where }: { where: string }) => {
+				const written = await this.writeStandaloneReport({ fixedPath: where, compressed: false });
 				return actionOKWithProducts({ path: written });
 			},
 		},
@@ -399,11 +410,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: `get monitor events {filter: ${DOMAIN_EVENTS_FILTER}}`,
 			productsSchema: MonitorEventsSchema,
 			action: ({ filter }: { filter: TEventsFilter }) => {
-				const { level, kind, since, limit } = filter;
+				const { level, kind, since, until, limit } = filter;
 				let filtered: THaibunEvent[] = this.events;
 				if (level) filtered = filtered.filter((e) => e.level === level);
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
 				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
+				if (until) filtered = filtered.filter((e) => e.timestamp <= until);
 				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
 				const { events, truncated } = recentEventsWithinBudget(filtered, cap, EVENTS_BYTE_BUDGET);
 				return actionOKWithProducts({ events, total: filtered.length, truncated });
@@ -480,6 +492,22 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					properties,
 				}));
 				return actionOKWithProducts({ quads, clusters: result.clusters });
+			},
+		},
+		graphQuery: {
+			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
+			fallback: true,
+			productsSchema: GraphQueryResultSchema,
+			action: async ({ query }: { query: TGraphQuery }) => {
+				const store = this.getWorld().shared.getStore();
+				const { label, limit, offset } = query;
+				if (!label) return actionNotOK("graphQuery requires a label; the inherent quad store reads one type at a time");
+				if (query.textQuery) return actionNotOK("graphQuery (inherent quad store) supports label + equality filters only; textQuery needs a query-capable store");
+				const filters: Record<string, unknown> = {};
+				for (const f of query.filters) filters[f.predicate] = f.value; // equality only: queryIndividuals matches predicate→value; richer operators need a query-capable store
+				const hasFilters = Object.keys(filters).length > 0;
+				const vertices = await store.queryIndividuals(label, hasFilters ? filters : undefined, { limit, offset });
+				return actionOKWithProducts({ vertices, total: vertices.length });
 			},
 		},
 	} satisfies TStepperSteps;
