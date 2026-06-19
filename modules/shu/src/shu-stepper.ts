@@ -5,6 +5,7 @@
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { gzipSync } from "node:zlib";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
@@ -123,21 +124,30 @@ export function buildSpaHtml(basePath: string, bundle: string, hydration: string
 }
 
 /**
- * Offline report: one gzip+base64 payload `{bundle, hydration, scripts}` plus a tiny inflate loader. The loader inflates
- * it (DecompressionStream), recreates the `#shu-hydration` script the bundle reads, injects the in-view component scripts,
- * then the bundle (which boots via app.ts's readyState check). Compressing the whole payload is what keeps the file small;
- * base64 contains no `</` so it needs no escaping.
+ * Offline report: a `{bundle, hydration, scripts}` payload plus a tiny loader that recreates the `#shu-hydration` script
+ * the bundle reads, injects the in-view component scripts, then the bundle (which boots via app.ts's readyState check).
+ * `compressed` embeds the payload as gzip+base64 to keep shared files small (base64 needs no `</` escaping); uncompressed
+ * embeds plain JSON (only `</` escaped) so the redacted text can be read and audited directly in the file — the
+ * secret-obscuring check greps it.
  */
-export function buildReportHtml(basePath: string, payloadBase64: string): string {
-	const loader = `  <script type="application/octet-stream" id="shu-payload">${payloadBase64}</script>
+export function buildReportHtml(basePath: string, payload: string, compressed: boolean): string {
+	const inject = `const h = document.createElement("script"); h.type = "application/json"; h.id = "shu-hydration"; h.textContent = hydration; document.body.appendChild(h);
+    for (const s of scripts) { const el = document.createElement("script"); el.textContent = s; document.body.appendChild(el); }
+    const b = document.createElement("script"); b.textContent = bundle; document.body.appendChild(b);`;
+	const loader = compressed
+		? `  <script type="application/octet-stream" id="shu-payload">${gzipSync(payload).toString("base64")}</script>
   <script>
   (async () => {
     const raw = Uint8Array.from(atob(document.getElementById("shu-payload").textContent), (c) => c.charCodeAt(0));
-    const text = await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
-    const { bundle, hydration, scripts } = JSON.parse(text);
-    const h = document.createElement("script"); h.type = "application/json"; h.id = "shu-hydration"; h.textContent = hydration; document.body.appendChild(h);
-    for (const s of scripts) { const el = document.createElement("script"); el.textContent = s; document.body.appendChild(el); }
-    const b = document.createElement("script"); b.textContent = bundle; document.body.appendChild(b);
+    const { bundle, hydration, scripts } = JSON.parse(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
+    ${inject}
+  })();
+  </script>`
+		: `  <script type="application/json" id="shu-payload">${payload.replaceAll("</", "<\\/")}</script>
+  <script>
+  (() => {
+    const { bundle, hydration, scripts } = JSON.parse(document.getElementById("shu-payload").textContent);
+    ${inject}
   })();
   </script>`;
 	return spaDocument(basePath, loader);
