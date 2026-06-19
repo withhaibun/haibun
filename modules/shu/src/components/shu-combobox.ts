@@ -233,11 +233,16 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (detailsPanel) container.appendChild(detailsPanel);
 
 		const rect = this._input.getBoundingClientRect();
-		container.style.top = `${rect.bottom}px`;
 		container.style.left = `${rect.left}px`;
 		const listWidth = Math.max(rect.width, 200);
 		ul.style.width = `${listWidth}px`;
 		document.body.appendChild(container);
+		// Flip the dropdown above the input when there isn't room below it (e.g. the actions bar pinned to the bottom of
+		// the viewport) so the options never run off the bottom edge; otherwise open downward as usual. Measured after
+		// append, so `offsetHeight` reflects the real list height (capped by LIST_STYLE max-height).
+		const spaceBelow = window.innerHeight - rect.bottom;
+		const listHeight = container.offsetHeight;
+		container.style.top = spaceBelow < listHeight && rect.top > spaceBelow ? `${Math.max(0, rect.top - listHeight)}px` : `${rect.bottom}px`;
 		this._list = container;
 
 		if (this._focusIndex >= 0 && this._focusIndex < items.length) {
