@@ -2,10 +2,15 @@ import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js"
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
 import { INSTRUMENTATION_GRAPHS } from "@haibun/core/lib/instrumentation-graphs.js";
+import { dePolite } from "@haibun/core/lib/util/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import ShuGraphViewControls from "../components/shu-graph-view.controls.js";
 
 const { setGraphVisibility } = withAction(new ShuGraphViewControls());
+const { setAs } = withAction(new VariablesStepper());
+
+/** Declare one id under the `page-test-id` domain so the variable resolver maps the bare name to that test id. */
+const registerTestIdStep = (id: string): TKirejiStep => setAs({ what: id, domain: "page-test-id", value: `"${id}"` });
 
 // Hide the engine's instrumentation graphs so a feature's view shows only its domain data. Args are
 // quoted because an unquoted value would be resolved as a variable name rather than a literal.
@@ -13,13 +18,36 @@ export function hideInstrumentationGraphs(): TKirejiStep {
 	return setGraphVisibility({ operation: '"hide"', types: `"${INSTRUMENTATION_GRAPHS.join(",")}"` });
 }
 
-export function flattenTestIds(obj: Record<string, unknown>): string[] {
-	const result: string[] = [];
-	for (const [, value] of Object.entries(obj)) {
-		if (typeof value === "string") result.push(value);
-		else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
+/** Collect every leaf id string from the given id-set objects (and bare id arrays), de-duplicated. */
+function collectTestIds(idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): string[] {
+	const flat = idSets.flatMap((set) => (Array.isArray(set) ? [...set] : flattenTestIds(set as Record<string, unknown>)));
+	return [...new Set(flat)];
+}
+
+/** Wrap steps as an activity: they run as hidden substeps, surfaced as the single line `as` (a lowercase declarative outcome like "the recipe is created", unique per feature, shown after the steps run). Spread `setup` before the scenarios, `call` at the point of use. */
+export function activity(as: string, ...steps: TKirejiStep[]): { setup: TKirejiStep[]; call: TKirejiStep[] } {
+	// The resolver de-polites an actionable (strips a leading "the"/"a"/…) before matching, so the
+	// outcome is registered de-polited — otherwise a natural label like "the root recipe is created"
+	// never matches its invocation. The displayed lines keep the natural wording.
+	return { setup: [`Activity: ${as}`, ...steps, `waypoint ${dePolite(as).trim()}`], call: [as] };
+}
+
+export function flattenTestIds(obj: Record<string, unknown>): string[];
+/** Activity form: bundle the test-id registrations into one activity. `as` is a lowercase declarative label; spread `setup` before the scenarios and `call` once before any step that uses a test id. */
+export function flattenTestIds(as: string, ...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): { setup: TKirejiStep[]; call: TKirejiStep[] };
+export function flattenTestIds(
+	objOrAs: Record<string, unknown> | string,
+	...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>
+): string[] | { setup: TKirejiStep[]; call: TKirejiStep[] } {
+	if (typeof objOrAs !== "string") {
+		const result: string[] = [];
+		for (const value of Object.values(objOrAs)) {
+			if (typeof value === "string") result.push(value);
+			else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
+		}
+		return result;
 	}
-	return result;
+	return activity(objOrAs, ...collectTestIds(idSets).map(registerTestIdStep));
 }
 
 const IDS = SHU_TEST_IDS;
@@ -64,12 +92,10 @@ function encodeCompositeFieldLiteral(value: unknown): string {
 
 export function createStepUI(wp: WebPlaywright) {
 	const { waitFor, click, setValue, selectionOption, press, shouldSeeTestId, type: typeText } = withAction(wp);
-	const { setAs } = withAction(new VariablesStepper());
 
 	/** Set every leaf string in `idSets` as a `page-test-id` variable. */
 	function registerTestIds(...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): TKirejiStep[] {
-		const flat = idSets.flatMap((set) => (Array.isArray(set) ? [...set] : flattenTestIds(set as Record<string, unknown>)));
-		return [...new Set(flat)].map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+		return collectTestIds(idSets).map(registerTestIdStep);
 	}
 
 	/** Ensure the actions-bar is expanded. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent — the click is skipped when MODE_SELECT is already on the page. */
@@ -105,13 +131,10 @@ export function createStepUI(wp: WebPlaywright) {
 		return next;
 	};
 
-	// Dynamic per-invocation testids (`${method}-${callIndex}-...`) must be
-	// declared under the `page-test-id` domain before any waitFor/setValue
-	// uses them, since the shared variable resolver maps bare names to test
+	// Dynamic per-invocation testids (`${method}-${callIndex}-...`) are declared via registerTestIdStep
+	// before any waitFor/setValue uses them, since the shared variable resolver maps bare names to test
 	// ids by lookup, not by string shape.
-	const registerTestId = (id: string): TKirejiStep => setAs({ what: id, domain: "page-test-id", value: `"${id}"` });
-
-	function runStep(method: string, passes: boolean, params: Record<string, unknown> = {}): TKirejiStep[] {
+	function buildStepBody(method: string, passes: boolean, params: Record<string, unknown> = {}): TKirejiStep[] {
 		const callIndex = nextCallIndex(method);
 		const expandedEntries: Array<[string, string]> = [];
 		for (const [name, rawValue] of Object.entries(params)) {
@@ -142,8 +165,8 @@ export function createStepUI(wp: WebPlaywright) {
 		// error). Waiting for `step-done` returns as soon as the outcome lands;
 		// `has test id <branchTarget>` then asserts which branch actually fired,
 		// failing fast with the on-screen error text when the wrong one shows.
-		return [
-			...[runTarget, doneTarget, resultTarget, errorTarget, ...inputTargets].map(registerTestId),
+		const body: TKirejiStep[] = [
+			...[runTarget, doneTarget, resultTarget, errorTarget, ...inputTargets].map(registerTestIdStep),
 			click({ target: IDS.APP.STEP_SELECT }),
 			setValue({ what: `"${method}"`, field: IDS.APP.STEP_SELECT }),
 			press({ key: '"Enter"' }),
@@ -157,6 +180,12 @@ export function createStepUI(wp: WebPlaywright) {
 			waitFor({ target: doneTarget }),
 			shouldSeeTestId({ testId: branchTarget }),
 		];
+		return body;
+	}
+
+	/** Flat (inline) form: the ~9 mechanics emitted directly. Kept for callers that don't want the activity wrapper. */
+	function runStep(method: string, passes: boolean, params: Record<string, unknown> = {}): TKirejiStep[] {
+		return buildStepBody(method, passes, params);
 	}
 
 	function passesStepExecution(method: string, params: Record<string, unknown> = {}): TKirejiStep[] {
@@ -165,6 +194,19 @@ export function createStepUI(wp: WebPlaywright) {
 
 	function failsStepExecution(method: string, params: Record<string, unknown> = {}): TKirejiStep[] {
 		return runStep(method, false, params);
+	}
+
+	/** Activity form: switching to step mode + the step-caller mechanics run as hidden substeps, so the document shows one declarative line per call (e.g. "the root recipe is created"), shown after the steps run. Entering step mode is idempotent, so callers never add it themselves. */
+	function stepActivity(as: string, method: string, passes: boolean, params: Record<string, unknown> = {}): { setup: TKirejiStep[]; call: TKirejiStep[] } {
+		return activity(as, ...enterStepMode, ...buildStepBody(method, passes, params));
+	}
+
+	function willPassStepExecution(as: string, method: string, params: Record<string, unknown> = {}) {
+		return stepActivity(as, method, true, params);
+	}
+
+	function willFailStepExecution(as: string, method: string, params: Record<string, unknown> = {}) {
+		return stepActivity(as, method, false, params);
 	}
 
 	/** Pick a node type from the type combobox. Assumes the actions-bar is already expanded — compose with `expandActionsBar` when starting from a collapsed state. The type selector is a <shu-combobox>: click to focus+open, type the label to filter, Enter to pick the exact-label match. */
@@ -192,6 +234,8 @@ export function createStepUI(wp: WebPlaywright) {
 		runStep,
 		passesStepExecution,
 		failsStepExecution,
+		willPassStepExecution,
+		willFailStepExecution,
 		chooseGraphLabel,
 		selectGraphLabel,
 	};

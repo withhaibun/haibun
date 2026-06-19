@@ -4,7 +4,7 @@ import ShuStepper from "../../build/shu-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SHU_TEST_IDS } from "../../build/test-ids.js";
-import { createStepUI, flattenTestIds } from "../../build/index.js";
+import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
