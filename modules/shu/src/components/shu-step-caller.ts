@@ -161,23 +161,7 @@ export class StepCaller extends HTMLElement {
 		try {
 			const method = this.descriptor.method;
 			this.result = await conduit().follow({ method, params }, `step-caller: ${method}`);
-			const action = dispatchAffordanceFromResponse(this.result);
-			void conduit()
-				.follow(
-					{
-						method: "MonitorStepper-logClient",
-						params: {
-							event: {
-								level: "info",
-								source: "shu-step-caller",
-								message: `step ${method} returned action.kind=${action.kind}`,
-								attributes: { "haibun.shu.step-caller.method": method, "haibun.shu.step-caller.action": action.kind },
-							},
-						},
-					},
-					`step-caller: log post-step action`,
-				)
-				.catch(() => undefined);
+			dispatchAffordanceFromResponse(this.result);
 			this.dispatchEvent(
 				new CustomEvent("step-success", {
 					bubbles: true,
