@@ -12,13 +12,14 @@ import { SECRETS } from "./shu-self-test.feature.ts";
 // of strictness: a real leak would surface as the value, not as the fragment alone.
 export const features: TKirejiExport = {
 	"Verify No Secrets in Shu Standalone Output": [
-		`Scenario: Check shu.html for obscured passwords
-    storage entry "/tmp/shu.html" exists
-    file "/tmp/shu.html" is recent within 2 minutes
+		`Scenario: Check the standalone output obscures secrets
+    storage entry "/tmp/shu-audit.html" exists
+    file "/tmp/shu-audit.html" is recent within 2 minutes
 
-    Make sure secrets were obscured in the standalone output.
-    text at "/tmp/shu.html" contains "${OBSCURED_VALUE}"
-    not text at "/tmp/shu.html" contains "${SECRETS.TEST_PASSWORD}"
+    The obscured marker must be present first — it proves a secret was found and redacted, so the next check is not passing merely because nothing was there.
+    text at "/tmp/shu-audit.html" contains "${OBSCURED_VALUE}"
+    And the raw secret value must be absent from the output.
+    not text at "/tmp/shu-audit.html" contains "${SECRETS.TEST_PASSWORD}"
     `,
 	],
 };

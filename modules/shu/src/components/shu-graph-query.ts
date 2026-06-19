@@ -12,8 +12,9 @@ import { shuBaseStyles } from "./styles.js";
 import { esc, errMsg, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
-import { conduit, isOffline } from "../hypermedia.js";
-import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "../rpc-registry.js";
+import { isOffline } from "../hypermedia.js";
+import { getAvailableDomains } from "../rpc-registry.js";
+import { QueryController } from "../controllers/index.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 
 type ConditionRow = TSearchCondition;
@@ -32,6 +33,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	static schema = QueryViewSchema;
 	static domainSelector = "shu-graph-query";
 
+	#query = new QueryController(this);
 	private conditions: ConditionRow[] = [];
 	private results: VertexRow[] = [];
 	private sortableFields: string[] = [];
@@ -209,14 +211,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	async loadMetadata(): Promise<void> {
-		await getAvailableSteps();
 		const domains = await getAvailableDomains();
 		const derivedMeta = getConcernDerivedMetadata();
-		const step = findStep("getSiteMetadata");
-		if (step) {
-			const serverMeta = await conduit().follow<import("../rels-cache.js").SiteMetadata>({ method: step.method }, "graph-query: load site metadata");
-			Object.assign(derivedMeta, serverMeta);
-		}
+		const serverMeta = await this.#query.siteMetadata();
+		if (serverMeta) Object.assign(derivedMeta, serverMeta);
 		setSiteMetadata(derivedMeta);
 		const persistedTypes = Object.values(domains)
 			.map((d) => d.persistedAs)
@@ -226,8 +224,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		this.requestUpdate();
 	}
 
-	async executeQuery(): Promise<void> {
-		await getAvailableSteps();
+	executeQuery(): Promise<void> {
 		const { label, textQuery, sortBy, sortOrder } = this.state;
 
 		const validConditions = this.conditions
@@ -266,13 +263,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					limit: this.limit,
 					offset: this.offset,
 				};
-				const method = requireStep("graphQuery");
-				const data = await conduit().follow<{
-					vertices: VertexRow[];
-					total: number;
-					cypher: string;
-					sort?: { fields: string[]; orders: ("asc" | "desc")[]; current: { field?: string; order: "asc" | "desc" } };
-				}>({ method, params: { query: payload } }, `graph-query: ${label || "(any)"}${textQuery ? ` "${textQuery}"` : ""}`);
+				const data = await this.#query.run(payload);
 				this.results = data.vertices ?? [];
 				this.total = data.total ?? this.results.length;
 				this.sortableFields = data.sort?.fields ?? [];
