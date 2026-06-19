@@ -10,7 +10,6 @@
 		"@haibun/web-playwright/web-playwright",
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/shu/shu-stepper",
-		"@haibun/shu/tutorial-graph-stepper",
 		"@haibun/shu/monitor-stepper",
 		"./build/test/voice-ui-test-stepper",
 		"@haibun/monitor-tui"
