@@ -9,6 +9,7 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
+import { emptyOrLoading } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "../quad-detail-pane.js";
 import type { TDispatchTrace } from "../schemas.js";
@@ -189,7 +190,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			</div>
 			<div class="log-rows">${
 				filtered.length === 0
-					? html`<div class="empty">No events at this level.</div>`
+					? emptyOrLoading(this.#events.loaded, "No events at this level.")
 					: filtered.map((r, i) => {
 							let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
 							if (this.timeCursor !== null) {

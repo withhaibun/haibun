@@ -1,5 +1,5 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { getEventSnapshot, currentEvents, mergeEvents, type TEventRecord } from "../events-snapshot.js";
+import { getEventSnapshot, currentEvents, mergeEvents, eventsLoaded, type TEventRecord } from "../events-snapshot.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
 
 /**
@@ -48,6 +48,11 @@ export class EventsController implements ReactiveController {
 	/** The full shared event log (deduped, arrival order). */
 	get all(): TEventRecord[] {
 		return currentEvents();
+	}
+
+	/** Whether the backfill has completed: lets a view show "retrieving" vs "retrieved, and empty" — never a false "no data". */
+	get loaded(): boolean {
+		return eventsLoaded();
 	}
 
 	/** Await the shared backfill — a selector view (e.g. step-detail) awaits this before reading `all` on demand. */

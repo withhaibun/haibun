@@ -10,6 +10,7 @@ import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
+import { emptyOrLoading } from "./empty-state.js";
 import { shuBaseStyles } from "./styles.js";
 import { copyText } from "../copy-util.js";
 import { TIME_SYNC_STYLE } from "../time-sync.js";
@@ -133,7 +134,7 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 
 	render(): TemplateResult {
 		const { traces, zoom } = this.state;
-		if (traces.length === 0) return html`<div class="empty">No dispatch traces yet.</div>`;
+		if (traces.length === 0) return emptyOrLoading(this.#events.loaded, "No dispatch traces yet.");
 		return html`
 			<div class="toolbar" data-testid="monitor-sequence-diagram">
 				<button data-action="zoom-out" @click=${this.onZoomOut}>−</button>
