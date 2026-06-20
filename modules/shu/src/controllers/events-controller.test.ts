@@ -14,6 +14,9 @@ const SCHEMA = z.object({});
 class TestHost extends ShuElement<typeof SCHEMA> {
 	#events = new EventsController(this, () => this.onEventsChanged());
 	changes: string[][] = [];
+	get loaded(): boolean {
+		return this.#events.loaded;
+	}
 	constructor() {
 		super(SCHEMA, {});
 	}
@@ -85,5 +88,12 @@ describe("EventsController", () => {
 		handle.emit(ev(3));
 		await flush();
 		expect(el.changes.length).toBe(afterBackfill); // pinned: no live re-derive
+	});
+
+	it("loaded is false until the backfill resolves, then true — a view shows retrieving, never a false empty", async () => {
+		const el = mount();
+		expect(el.loaded).toBe(false); // mounted, backfill in flight — must not look "empty"
+		await flush();
+		expect(el.loaded).toBe(true); // retrieved
 	});
 });

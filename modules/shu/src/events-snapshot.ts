@@ -60,6 +60,12 @@ export function currentEvents(): TEventRecord[] {
 	return getStore().events;
 }
 
+/** Whether the initial backfill has completed — lets a consumer tell "retrieved, and empty" from "still retrieving",
+ *  so a view never claims "no data" before the data has been fetched. */
+export function eventsLoaded(): boolean {
+	return getStore().loaded;
+}
+
 /** Merge a batch (a live SSE batch or a backfill page) into the shared log, deduped by `eventKey`, preserving arrival
  *  order. Notifies subscribers iff at least one event was new. */
 export function mergeEvents(batch: TEventRecord[]): void {
