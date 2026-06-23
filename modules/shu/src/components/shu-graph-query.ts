@@ -15,6 +15,7 @@ import type { ShuResultTable } from "./shu-result-table.js";
 import { isOffline } from "../hypermedia.js";
 import { getAvailableDomains } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
+import { getWindowSize } from "./shu-theme-switch.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 
 type ConditionRow = TSearchCondition;
@@ -40,7 +41,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private labels: string[] = [];
 	private accessLevel: string = Access.private;
 	private total = 0;
-	private limit = 100;
+	/** Page size is the one global app setting (theme), so the query view windows by the same size as every other view. */
+	private get limit(): number {
+		return getWindowSize();
+	}
 	private offset = 0;
 	private error = "";
 	private lastQueryKey = "";
@@ -71,6 +75,17 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			void this.executeQuery();
 		});
 		void this.loadMetadata().then(() => this.executeQuery());
+
+		// Re-query when the global data window size changes — it sets the server-side limit, so the result set resizes.
+		let firstWindow = true;
+		this.updateEffect(() => {
+			getWindowSize(); // subscribe to the window-size setting
+			if (firstWindow) {
+				firstWindow = false;
+				return;
+			}
+			void this.executeQuery();
+		});
 
 		if (!isOffline()) {
 			this.autoTeardown(

@@ -2,9 +2,8 @@
 /**
  * Contract for signal-driven time sync (replaces the old SHU_EVENT.TIME_SYNC bus).
  *
- * The global `timeCursorSignal` is the single cursor channel: setting it on one live view
- * publishes app-wide; every live view that overrides `onTimeSync` re-runs it via a SignalWatcher
- * `updateEffect`, and any view reading `this.timeCursor` in render auto-rerenders. Snapshot-pinned
+ * Setting `this.timeCursor` on one live view publishes app-wide over the cross-bundle cursor bus; every live view that
+ * overrides `onTimeSync` re-runs it, and any view reading `this.timeCursor` in render auto-rerenders. Snapshot-pinned
  * views (`data-snapshot-time`) replay a fixed point and opt out of the live cursor.
  */
 import { describe, it, expect, beforeEach } from "vitest";
@@ -58,7 +57,7 @@ describe("signal-driven time sync", () => {
 		await el.updateComplete;
 		await flush();
 		el.calls.length = 0;
-		timeCursorSignal.set(123);
+		(el as unknown as { timeCursor: number | null }).timeCursor = 123;
 		await flush();
 		expect(el.calls).toContain(123);
 		expect(cursorOf(el)).toBe(123);
@@ -79,16 +78,18 @@ describe("signal-driven time sync", () => {
 	});
 
 	it("snapshot-pinned views replay their own cursor and ignore the global signal", async () => {
-		const el = document.createElement("pinned-time-probe") as PinnedTimeProbe;
-		el.setAttribute("data-snapshot-time", "999");
-		document.body.appendChild(el);
-		await el.updateComplete;
+		const pinned = document.createElement("pinned-time-probe") as PinnedTimeProbe;
+		pinned.setAttribute("data-snapshot-time", "999");
+		const live = document.createElement("live-time-probe") as LiveTimeProbe;
+		document.body.append(pinned, live);
+		await pinned.updateComplete;
+		await live.updateComplete;
 		await flush();
-		expect(cursorOf(el)).toBe(999);
-		el.calls.length = 0;
-		timeCursorSignal.set(123);
+		expect(cursorOf(pinned)).toBe(999);
+		pinned.calls.length = 0;
+		(live as unknown as { timeCursor: number | null }).timeCursor = 123;
 		await flush();
-		expect(el.calls).toEqual([]);
-		expect(cursorOf(el)).toBe(999);
+		expect(pinned.calls).toEqual([]);
+		expect(cursorOf(pinned)).toBe(999);
 	});
 });

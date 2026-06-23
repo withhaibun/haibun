@@ -9,6 +9,7 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
+import { windowTail } from "./shu-theme-switch.js";
 import { emptyOrLoading } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "../quad-detail-pane.js";
@@ -173,10 +174,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const { level, hideStart } = this.state;
 		const minLevel = LEVEL_ORDER.indexOf(level);
 		const filtered = this.rows.filter((r) => LEVEL_ORDER.indexOf(r.level) >= minLevel && !(hideStart && r.isStart && r.hasEnd));
+		const windowed = windowTail(filtered); // render a generous tail window — the browser handles thousands of rows; only a very long run is capped
 		let currentIdx = -1;
 		if (this.timeCursor !== null) {
-			for (let i = filtered.length - 1; i >= 0; i--) {
-				if (filtered[i].timestamp <= this.timeCursor) {
+			for (let i = windowed.length - 1; i >= 0; i--) {
+				if (windowed[i].timestamp <= this.timeCursor) {
 					currentIdx = i;
 					break;
 				}
@@ -189,9 +191,9 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				<span class="count">${filtered.length} events</span>
 			</div>
 			<div class="log-rows">${
-				filtered.length === 0
+				windowed.length === 0
 					? emptyOrLoading(this.#events.loaded, "No events at this level.")
-					: filtered.map((r, i) => {
+					: windowed.map((r, i) => {
 							let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
 							if (this.timeCursor !== null) {
 								if (this.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
@@ -206,7 +208,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 									dispatchText = `${dispatch.transport}${dur ? ` ${dur}` : ""}`;
 								}
 							}
-							return html`<div class="log-row${cls}">
+							return html`<div class="log-row${cls}" data-testid="monitor-log-row">
 					<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${r.seqPath ? html`<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : ""}<span class="time">${r.time}</span></span>
 					<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.isAsync && !r.hasEnd ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}</span>
 				</div>`;

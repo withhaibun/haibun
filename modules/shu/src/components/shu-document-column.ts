@@ -7,6 +7,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import MarkdownIt from "markdown-it";
+import { windowTail } from "./shu-theme-switch.js";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
@@ -114,12 +115,14 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.applyTimeCursor();
 	}
 
-	/** Full render from all events — called once on initial backfill. */
+	/** Render the recent window of the backfill — called once on initial load. Bounded by the global window size so a long
+	 *  run's reload doesn't render all history at once (the browser handles thousands of blocks; only a very long run is
+	 *  capped); live appends past it grow the doc (appendNew), and renderedEventCount tracks the full log so they continue. */
 	private renderFull(): void {
 		if (!this.shadowRoot) return;
 		const body = this.shadowRoot.querySelector(".document-body");
 		if (!body) return;
-		const html = this.generateHtml(this.events);
+		const html = this.generateHtml(windowTail(this.events));
 		body.innerHTML = html;
 		this.postProcessElements(body);
 		groupThumbnailRows(body);
@@ -236,7 +239,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			el.addEventListener("click", () => {
 				const rawTime = parseFloat(el.getAttribute("data-raw-time") || "0");
 				const absTime = this.startTime + rawTime;
-				this.timeCursor = absTime;
+				// The latest row is the live edge: publish null (no upper bound → show everything), exactly as the timeline
+				// slider does at the end, so the graph recovers. A concrete cutoff hides any record newer than this row.
+				this.timeCursor = absTime >= this.endTime ? null : absTime;
 				this.applyTimeCursor();
 			});
 		};
@@ -293,7 +298,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			return `<shu-artifact-frame class="thumb"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
 		}
 		if (type === "html")
-			return `<shu-artifact-frame><iframe src="${esc(String(artifactPath))}" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
+			return `<shu-artifact-frame><iframe src="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
 		if (type === "json") return `<shu-artifact-frame><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
 		if (type === "file") return `<shu-artifact-frame caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
 		return "";
