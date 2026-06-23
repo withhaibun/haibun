@@ -49,7 +49,7 @@ Easily add Haibun to an existing library using [scaffolding](modules/utils/READM
 ## Command line interface
 
 haibun can be used as a library or via the cli.
-To see a list of cli option for a particular set of features, use `--help` along with the feature folder.
+To see a list of cli option for a particular set of features, use `--help` along with the feature folder (including config.json).
 For example, in [the haibun-e2e-tests repository](https://github.com/withhaibun/haibun-e2e-tests),
 use this command to see available options:
 
@@ -57,7 +57,7 @@ use this command to see available options:
 
 # Further Documentation
 
-* [Architecture overview](docs/architecture.md]
+* [Architecture overview](docs/architecture.md)
 * [Guide for humans and LLMs](AGENTS.md)
 * [Dependency graph](dependency-graph.html)
 * [Feature structure](docs/feature_structure.md)
@@ -67,7 +67,14 @@ use this command to see available options:
 * [Use in Github Actions](docs/e2e-tests.yml)
 * [Run Policy and Permissions](docs/run-policy.md)
 * [Versioning and releases](VERSIONING.md)
-* [VSCode extension (LSP & MCP)(vscode-extension/README.md)
+* [VSCode extension (LSP & MCP)](vscode-extension/README.md)
+
+# Key behaviors, proven by features
+
+Every Haibun feature is the living specification for a behavior: prose describes it, executable steps prove it. The identity and authorization model is documented this way, end to end:
+
+* [Identity and capability authorization](e2e-tests/tests/features/identity-and-capability.feature.ts) — the instance's self-issued site identity, subkey delegation, and the single capability gate that authorizes every protected action identically whether it arrives in-process, over RPC, or over MCP (the bearer path the core owns; the signed path is delegated to a consumer-supplied verifier).
+* [RPC capability dispatch](e2e-tests/tests/features/rpc-capability.feature.ts) — the bearer-token capability gate layered on the shared RPC dispatch path, including a statically configured access token.
 
 # Development & Debugging help
 
