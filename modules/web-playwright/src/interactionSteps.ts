@@ -554,6 +554,8 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		getPageContents: {
 			gwta: "get page contents",
 			productsSchema: PageContentsSchema,
+			// The whole page HTML is the action result; keeping it on the event too can be many MB per call.
+			retainProducts: false,
 			action: async () => {
 				const contents = await wp.withPage<string>(async (page: Page) => await page.content());
 				return actionOKWithProducts({ html: contents || "" });
