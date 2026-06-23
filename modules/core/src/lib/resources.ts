@@ -179,6 +179,9 @@ export const LinkRelations = {
 	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
 	URL: { rel: "url", uri: "as:url", range: "literal" },
 	// PROV-O — provenance and lineage
+	// Entity → the responsible Agent (the party a node is attributed to: issuer/holder/verifier/author/…, or its producing
+	// instance). The canonical role/provenance edge for the fisheye's HypermediaRole grouping axis (see grouping.ts ROLE_RELS).
+	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri" },
 	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
 	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },

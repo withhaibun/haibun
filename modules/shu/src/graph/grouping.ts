@@ -3,6 +3,7 @@
  * transition easing. Each paint maps these to its own rendering constants (opacity, render order, etc.).
  */
 
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
 export type XYZ = { x: number; y: number; z: number };
@@ -13,9 +14,11 @@ export type GroupKeyMode = "type" | "role";
 /** Container bucket for a node with no resolved HypermediaRole, under the role axis. */
 export const UNATTRIBUTED_ROLE = "(unattributed)";
 
-/** Predicates whose target is a node's HypermediaRole, in priority order (first match wins). P1 ties these to
- *  LinkRelations and adds `prov:wasAttributedTo` as the canonical head; centralized here so it is one edit to change. */
-export const ROLE_RELS: readonly string[] = ["wasAttributedTo", "issuer", "holder", "verifier", "performedBy", "author", "attributedTo"];
+/** Predicates whose target is a node's HypermediaRole, in priority order (first match wins): the canonical PROV/AS
+ *  attribution rels (from LinkRelations) first, then the common domain attribution fields whose quad predicate is the
+ *  field name. Centralized here so it is one edit to extend. Assign a role JSON-LD-consistently by writing a
+ *  `wasAttributedTo` edge (e.g. GraphStepper-createEdge with that rel). */
+export const ROLE_RELS: readonly string[] = [LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.ATTRIBUTED_TO.rel, "issuer", "holder", "subject", "verifier", "performedBy", "author"];
 
 /** The group/container key for a node: its `@type` (default), or its `HypermediaRole` under the role axis. One selector,
  *  both axes — the fold in buildGraphModelFromQuads put the role on `properties[HYPERMEDIA_ROLE_KEY]`, so this stays pure. */
