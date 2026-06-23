@@ -27,6 +27,12 @@ describe("events-snapshot shared cache", () => {
 		expect(currentEvents().map((e) => e.id)).toEqual(["0.1", "0.2", "0.3"]);
 	});
 
+	it("drops quad-observations — they are graph data (quads-snapshot), not log events", () => {
+		const quadObs = ev(2, { kind: "artifact", artifactType: "json", json: { quadObservation: { subject: "s", predicate: "p", object: "o", namedGraph: "g" } } });
+		mergeEvents([ev(1), quadObs, ev(3)]);
+		expect(currentEvents().map((e) => e.id)).toEqual(["0.1", "0.3"]); // the quad-observation event is not retained in the log
+	});
+
 	it("subscribeEvents fires only when something new is admitted, and stops after unsubscribe", () => {
 		let fires = 0;
 		const unsub = subscribeEvents(() => {
