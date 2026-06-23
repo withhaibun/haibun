@@ -4,11 +4,16 @@ export type GraphNode = { id: string; type: string; isCluster?: boolean; omitted
 export type GraphEdge = { from: string; to: string; predicate: string; graph: string };
 export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 
+/** Node property carrying the resolved HypermediaRole — the id of the party (a `prov:Agent`/Principal) the node is attributed to. Folded from the node's role edges (see `roleRels`); the fisheye's role grouping axis reads it. */
+export const HYPERMEDIA_ROLE_KEY = "hypermediaRole";
+
 type BuildGraphModelOptions = {
 	ignoreInternalPredicates?: boolean;
 	requireObjectSubject?: boolean;
 	requireObjectType?: boolean;
 	clusters?: TCluster[];
+	/** Predicates (priority order) whose target is the node's HypermediaRole. When set, each node's role is folded onto `properties[HYPERMEDIA_ROLE_KEY]` so a pure group-key selector can read it without re-walking edges. */
+	roleRels?: readonly string[];
 };
 
 const DEFAULT_OPTIONS: Required<Pick<BuildGraphModelOptions, "ignoreInternalPredicates" | "requireObjectSubject" | "requireObjectType">> = {
@@ -77,6 +82,28 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 			for (const sampledSubject of c.sampledSubjects) {
 				if (!nodeMap.has(sampledSubject)) continue;
 				edges.push({ from: cid, to: sampledSubject, predicate: CLUSTER_PREDICATE, graph: c.type });
+			}
+		}
+	}
+
+	if (opts.roleRels?.length) {
+		// Fold each node's HypermediaRole (the party it is attributed to) onto the node, taking the highest-priority role
+		// edge, so the role grouping axis is a pure node read. Single-source: the model carries it, no second store.
+		const outByFrom = new Map<string, GraphEdge[]>();
+		for (const e of edges) {
+			const list = outByFrom.get(e.from);
+			if (list) list.push(e);
+			else outByFrom.set(e.from, [e]);
+		}
+		for (const node of nodeMap.values()) {
+			const out = outByFrom.get(node.id);
+			if (!out) continue;
+			for (const rel of opts.roleRels) {
+				const e = out.find((x) => x.predicate === rel);
+				if (e) {
+					(node.properties ??= {})[HYPERMEDIA_ROLE_KEY] = e.to;
+					break;
+				}
 			}
 		}
 	}

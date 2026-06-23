@@ -3,10 +3,24 @@
  * transition easing. Each paint maps these to its own rendering constants (opacity, render order, etc.).
  */
 
+import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
+
 export type XYZ = { x: number; y: number; z: number };
 
-/** The grouping key for a node: its type. */
-export const groupKeyOf = (n: { type: string }): string => n.type;
+/** Grouping/container axis: by `@type` (today's default) or by `HypermediaRole` (the party a node is attributed to). */
+export type GroupKeyMode = "type" | "role";
+
+/** Container bucket for a node with no resolved HypermediaRole, under the role axis. */
+export const UNATTRIBUTED_ROLE = "(unattributed)";
+
+/** Predicates whose target is a node's HypermediaRole, in priority order (first match wins). P1 ties these to
+ *  LinkRelations and adds `prov:wasAttributedTo` as the canonical head; centralized here so it is one edit to change. */
+export const ROLE_RELS: readonly string[] = ["wasAttributedTo", "issuer", "holder", "verifier", "performedBy", "author", "attributedTo"];
+
+/** The group/container key for a node: its `@type` (default), or its `HypermediaRole` under the role axis. One selector,
+ *  both axes — the fold in buildGraphModelFromQuads put the role on `properties[HYPERMEDIA_ROLE_KEY]`, so this stays pure. */
+export const groupKeyOf = (n: { type: string; properties?: Record<string, unknown> }, mode: GroupKeyMode = "type"): string =>
+	mode === "role" ? String(n.properties?.[HYPERMEDIA_ROLE_KEY] ?? UNATTRIBUTED_ROLE) : n.type;
 
 // Cohesion: how hard a group's members are pulled toward their ring anchor in XY (the "exclusive area" comes from
 // this, not the border alone). Depth is not cohesion's to control — z maps to each object's generatedAtTime.

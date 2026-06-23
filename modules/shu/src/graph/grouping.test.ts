@@ -1,9 +1,22 @@
 import { describe, it, expect } from "vitest";
-import { groupKeyOf, ringAnchors, packLayout, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic } from "./grouping.js";
+import { groupKeyOf, ringAnchors, packLayout, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
+import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
 describe("groupKeyOf", () => {
-	it("keys a node by its type (the swappable grouping seam)", () => {
+	it("keys a node by its type (the default axis)", () => {
 		expect(groupKeyOf({ type: "Email" })).toBe("Email");
+	});
+
+	it("keys by HypermediaRole under the role axis", () => {
+		expect(groupKeyOf({ type: "VerifiableCredential", properties: { [HYPERMEDIA_ROLE_KEY]: "did:web:issuer" } }, "role")).toBe("did:web:issuer");
+	});
+
+	it("buckets an unattributed node under the role axis", () => {
+		expect(groupKeyOf({ type: "Email" }, "role")).toBe(UNATTRIBUTED_ROLE);
+	});
+
+	it("ignores a folded role under the type axis (stays byte-identical)", () => {
+		expect(groupKeyOf({ type: "Email", properties: { [HYPERMEDIA_ROLE_KEY]: "did:web:x" } })).toBe("Email");
 	});
 });
 
