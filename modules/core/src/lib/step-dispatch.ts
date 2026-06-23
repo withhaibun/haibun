@@ -14,6 +14,16 @@ import { doStepperCycle } from "./stepper-cycles.js";
 import { isPersisted, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 
+/** The products kept on a step's lifecycle event: all by default, none for `false`, else the subset the filter returns. */
+export function retainedProducts(
+	products: Record<string, unknown> | undefined,
+	retain: boolean | ((p: Record<string, unknown>) => Record<string, unknown> | undefined) | undefined,
+): Record<string, unknown> | undefined {
+	if (retain === undefined || retain === true) return products;
+	if (retain === false || products === undefined) return undefined;
+	return retain(products);
+}
+
 /**
  * A registered step tool — the unit of dispatch for any transport (MCP, SSE, etc.).
  */
@@ -379,7 +389,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		!ok ? actionResult.errorMessage : undefined,
 		{},
 		featureStep.action.stepValuesMap,
-		actionResult.products as Record<string, unknown> | undefined,
+		retainedProducts(actionResult.products as Record<string, unknown> | undefined, action.step.retainProducts),
 	);
 	lastStepResult.ok = ok;
 

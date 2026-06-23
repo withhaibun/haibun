@@ -11,6 +11,7 @@ import {
 	authorizeToolCapability,
 	capabilityAllows,
 	dispatchStep,
+	retainedProducts,
 	StepRegistry,
 	type StepTool,
 } from "./step-dispatch.js";
@@ -696,5 +697,24 @@ describe("step-dispatch", () => {
 			expect(links).toBeDefined();
 			expect(links?.consume).toEqual({ method: "IdlessStepper-consume" });
 		});
+	});
+});
+
+describe("retainedProducts", () => {
+	const p = { _component: "shu-thread-column", id: "x", rows: [1, 2, 3] };
+	it("keeps all when absent or true", () => {
+		expect(retainedProducts(p, undefined)).toBe(p);
+		expect(retainedProducts(p, true)).toBe(p);
+	});
+	it("keeps none when false", () => {
+		expect(retainedProducts(p, false)).toBeUndefined();
+	});
+	it("keeps the filter's subset — descriptor kept, payload dropped", () => {
+		const keepDescriptor = (x: Record<string, unknown>) => ({ _component: x._component, id: x.id });
+		expect(retainedProducts(p, keepDescriptor)).toEqual({ _component: "shu-thread-column", id: "x" });
+	});
+	it("keeps none when the filter returns undefined or there are no products", () => {
+		expect(retainedProducts(p, () => undefined)).toBeUndefined();
+		expect(retainedProducts(undefined, (x) => x)).toBeUndefined();
 	});
 });
