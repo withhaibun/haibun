@@ -44,6 +44,13 @@ describe("HypermediaRole fold (roleRels)", () => {
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:issuer"); // issuer outranks subject
 	});
 
+	it("makes a party (a role-edge target) its own role, so it gets its own container", () => {
+		const model = buildGraphModelFromQuads([q("vc1", "name", "Permit", "VerifiableCredential"), q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"), ...principals], { roleRels: ["issuer"] });
+		expect(model.nodes.find((n) => n.id === "did:issuer")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:issuer"); // the issuer party groups with itself
+		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:issuer"); // its credential joins it
+		expect(model.nodes.find((n) => n.id === "did:holder")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined(); // not a target here → unattributed
+	});
+
 	it("leaves a node with no matching role edge unattributed (no role key)", () => {
 		const model = buildGraphModelFromQuads([q("e1", "name", "Hi", "Email")], { roleRels: ["issuer"] });
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined();

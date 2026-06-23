@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupKeyOf, ringAnchors, packLayout, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
+import { groupKeyOf, containerLabelOf, ringAnchors, packLayout, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
 import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
 describe("groupKeyOf", () => {
@@ -17,6 +17,18 @@ describe("groupKeyOf", () => {
 
 	it("ignores a folded role under the type axis (stays byte-identical)", () => {
 		expect(groupKeyOf({ type: "Email", properties: { [HYPERMEDIA_ROLE_KEY]: "did:web:x" } })).toBe("Email");
+	});
+});
+
+describe("containerLabelOf", () => {
+	it("uses the type key directly under the type axis", () => {
+		expect(containerLabelOf("Email", "type", new Map([["Email", "ignored"]]))).toBe("Email");
+	});
+	it("resolves the party's display label under the role axis", () => {
+		expect(containerLabelOf("did:web:issuer", "role", new Map([["did:web:issuer", "Coastal Fisheries Authority"]]))).toBe("Coastal Fisheries Authority");
+	});
+	it("falls back to the key when no label is known", () => {
+		expect(containerLabelOf("did:web:x", "role", new Map())).toBe("did:web:x");
 	});
 });
 

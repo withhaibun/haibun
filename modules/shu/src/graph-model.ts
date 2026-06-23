@@ -87,24 +87,31 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 	}
 
 	if (opts.roleRels?.length) {
-		// Fold each node's HypermediaRole (the party it is attributed to) onto the node, taking the highest-priority role
-		// edge, so the role grouping axis is a pure node read. Single-source: the model carries it, no second store.
+		// Fold each node's HypermediaRole onto the node so the role grouping axis is a pure node read (single-source).
+		// A node's role is the target of its highest-priority role edge; a node that IS a party — something is attributed
+		// to it, i.e. it is a role-edge target — is its own role, so it lands in its own container, not "unattributed".
+		const roleRelSet = new Set(opts.roleRels);
 		const outByFrom = new Map<string, GraphEdge[]>();
+		const parties = new Set<string>();
 		for (const e of edges) {
 			const list = outByFrom.get(e.from);
 			if (list) list.push(e);
 			else outByFrom.set(e.from, [e]);
+			if (roleRelSet.has(e.predicate)) parties.add(e.to);
 		}
 		for (const node of nodeMap.values()) {
+			let role: string | undefined;
 			const out = outByFrom.get(node.id);
-			if (!out) continue;
-			for (const rel of opts.roleRels) {
-				const e = out.find((x) => x.predicate === rel);
-				if (e) {
-					(node.properties ??= {})[HYPERMEDIA_ROLE_KEY] = e.to;
-					break;
+			if (out)
+				for (const rel of opts.roleRels) {
+					const e = out.find((x) => x.predicate === rel);
+					if (e) {
+						role = e.to;
+						break;
+					}
 				}
-			}
+			if (role === undefined && parties.has(node.id)) role = node.id;
+			if (role !== undefined) (node.properties ??= {})[HYPERMEDIA_ROLE_KEY] = role;
 		}
 	}
 
