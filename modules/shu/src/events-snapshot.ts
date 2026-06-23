@@ -72,6 +72,9 @@ export function mergeEvents(batch: TEventRecord[]): void {
 	const s = getStore();
 	let added = 0;
 	for (const e of batch) {
+		// Quad-observations are graph data, not log events — they belong to quads-snapshot (the live graph gets them via
+		// its own subscription). Dropping them here keeps the client event log lean.
+		if (e.kind === "artifact" && (e.json as { quadObservation?: unknown } | undefined)?.quadObservation !== undefined) continue;
 		const key = eventKey(e);
 		if (s.seen.has(key)) continue;
 		s.seen.add(key);

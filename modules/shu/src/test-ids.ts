@@ -55,6 +55,9 @@ export const SHU_TEST_IDS = {
 		LOG_ROW: "monitor-log-row",
 		SEQUENCE_DIAGRAM: "monitor-sequence-diagram",
 	},
+	SETTINGS: {
+		WINDOW_SIZE: "settings-window-size",
+	},
 	TIMELINE: {
 		ROOT: "shu-timeline",
 		SLIDER: "timeline-slider",
