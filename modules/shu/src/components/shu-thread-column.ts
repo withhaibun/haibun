@@ -24,6 +24,22 @@ const ThreadColumnSchema = z.object({
 type ThreadEdge = { type: string; targetId: string };
 type ThreadVertex = Record<string, unknown> & { _edges?: ThreadEdge[] };
 
+/** Fold a product item's `_links` affordances into `_edges` so the tree/graph render reply structure. */
+function normalizeItem(item: Record<string, unknown>): ThreadVertex {
+	const existingEdges = (item._edges ?? []) as ThreadEdge[];
+	const links = item._links as Record<string, { params?: Record<string, unknown> }> | undefined;
+	const linkEdges: ThreadEdge[] = [];
+	if (links)
+		for (const [rel, link] of Object.entries(links)) {
+			if (link.params) {
+				const targetId = String(Object.values(link.params)[0] ?? "");
+				if (targetId) linkEdges.push({ type: rel, targetId });
+			}
+		}
+	const _edges = [...existingEdges, ...linkEdges];
+	return { ...item, ...(_edges.length ? { _edges } : {}) };
+}
+
 export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	static styles = [
 		shuBaseStyles,
@@ -76,6 +92,12 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	openItems(items: ThreadVertex[], label = "Result"): void {
 		this.thread = items;
 		this.setState({ label, individualId: "", loading: false });
+	}
+
+	/** Render a collection product: its `items` become thread vertices (links folded into edges), no RPC fetch. */
+	openProducts(products: Record<string, unknown>): void {
+		const items = Array.isArray(products.items) ? (products.items as Record<string, unknown>[]) : [];
+		this.openItems(items.map(normalizeItem), String(products._type || "Result"));
 	}
 
 	async open(label: string, id: string, depth?: number): Promise<void> {
