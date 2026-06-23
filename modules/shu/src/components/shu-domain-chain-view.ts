@@ -118,11 +118,8 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		try {
 			this.autoTeardown(
 				eventStream().subscribe(
-					(event) => {
-						const body = event.json as { affordances?: TAffordancesSnapshot } | undefined;
-						if (!body?.affordances) return;
-						this.applySseSnapshot(body.affordances);
-					},
+					// afterStep now emits a lean change signal (no payload) — quietly re-fetch the current snapshot.
+					() => void this.fetchInitial(true),
 					(event) => typeof event.id === "string" && event.id.startsWith("affordances."),
 				),
 			);
@@ -156,8 +153,9 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		this.setState({ loadState: "loaded", fetchError: "" });
 	}
 
-	private async fetchInitial(): Promise<void> {
-		this.setState({ loadState: "fetching" });
+	private async fetchInitial(quiet = false): Promise<void> {
+		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the chain never flashes.
+		if (!quiet) this.setState({ loadState: "fetching" });
 		const candidates = ["ActivitiesStepper-showWaypoints", "GoalResolutionStepper-showAffordances"];
 		let lastError = "";
 		for (const method of candidates) {
@@ -180,7 +178,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 				lastError = `RPC ${method} failed: ${errorDetail(err)}`;
 			}
 		}
-		this.setState({ loadState: "empty", fetchError: lastError });
+		if (!quiet) this.setState({ loadState: "empty", fetchError: lastError });
 	}
 
 	render(): TemplateResult {
