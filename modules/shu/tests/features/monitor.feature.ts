@@ -1,6 +1,8 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import ShuStepper from "../../build/shu-stepper.js";
+import ShuThemeSwitchControls from "../../build/components/shu-theme-switch.controls.js";
+import ShuMonitorColumnControls from "../../build/components/shu-monitor-column.controls.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SHU_TEST_IDS } from "../../build/test-ids.js";
@@ -11,11 +13,16 @@ const { serveShuApp } = withAction(new ShuStepper());
 const { waitFor, gotoPage } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
+const { setDataWindow } = withAction(new ShuThemeSwitchControls());
+const { monitorShowsMoreThan, monitorShowsExactly } = withAction(new ShuMonitorColumnControls());
 const { enterStepMode, passesStepExecution } = createStepUI(wp);
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
 
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+// Buffer well over the smallest selectable window (50) so a small data window visibly truncates the backfilled log.
+const SMALL_WINDOW = 50;
+const bulkEvents = Array.from({ length: 60 }, (_, i) => setAs({ what: `windowEvent${i}`, domain: "page-test-id", value: `"v${i}"` }));
 
 export const features: TKirejiExport = {
 	"Monitor view collects and displays execution events": [
@@ -30,6 +37,10 @@ export const features: TKirejiExport = {
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "monitor-test"',
 
+		scenario({ scenario: "Buffer many execution events" }),
+		"These buffered events fill the log so a small data window has something to truncate.",
+		...bulkEvents,
+
 		scenario({ scenario: "Open SPA and enter step mode" }),
 		gotoPage({ name: `"${host}/spa"` }),
 		...enterStepMode,
@@ -38,6 +49,12 @@ export const features: TKirejiExport = {
 		"The show monitor step triggers the SPA to open a monitor log stream column.",
 		...passesStepExecution("MonitorStepper-showMonitor", {}),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+
+		scenario({ scenario: "The data window bounds the monitor log" }),
+		"With the default window the backfilled log shows every buffered event; choosing a smaller window in settings re-renders the monitor to that many rows.",
+		monitorShowsMoreThan({ min: `${SMALL_WINDOW}` }),
+		setDataWindow({ size: `${SMALL_WINDOW}` }),
+		monitorShowsExactly({ count: `${SMALL_WINDOW}` }),
 
 		scenario({ scenario: "Open sequence diagram via step" }),
 		"The show sequence diagram step triggers the SPA to open a sequence diagram column.",

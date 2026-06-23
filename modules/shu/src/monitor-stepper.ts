@@ -6,7 +6,7 @@
  */
 import { resolve } from "path";
 import { z } from "zod";
-import { writeFileSync } from "fs";
+import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync } from "fs";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
@@ -40,6 +40,7 @@ const MAX_EVENTS_DEFAULT = 9e9;
 // hard count, both well under the ceiling. The SSE stream delivers the live tail; a consumer pages older history via `since`.
 const EVENTS_BYTE_BUDGET = 16 * 1024 * 1024; // 16MB of slimmed-event JSON
 const EVENTS_COUNT_CAP = 20000; // hard ceiling on returned count regardless of size
+const EVENT_LOG_FLUSH_BATCH = 256; // buffer lean events and append in batches so the disk log never does sync I/O per event
 
 type TReportEvent = Record<string, unknown>;
 
@@ -154,6 +155,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
 	private observationQuads: TQuad[] = [];
+	/** Per-run lean event log (full history, JSONL on disk). The report reads ALL of it (never truncated); the in-memory
+	 *  `events` buffer is only a bounded window for the live backfill. fs, not AStorage — AStorage has no append, and this
+	 *  mirrors the existing writeFileSync report write. */
+	private eventLogPath: string | null = null;
+	private diskBuffer: string[] = [];
 	private storage!: AStorage;
 	private outputPath?: string;
 	private maxEvents: number = MAX_EVENTS_DEFAULT;
@@ -221,25 +227,31 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			const artifactDir = resolve(this.storage.getArtifactBasePath());
 			await this.storage.ensureDirExists(artifactDir);
 			webserver.addKnownStaticFolder(artifactDir, "/artifacts");
+			// Per-run lean event log (the report's full-history source). Start fresh so a re-run never appends to a stale log.
+			this.eventLogPath = resolve(artifactDir, "events.jsonl");
+			if (existsSync(this.eventLogPath)) rmSync(this.eventLogPath);
 		},
 		onEvent: (event: THaibunEvent) => {
-			this.events.push(event);
-			if (this.events.length > this.maxEvents) this.events.shift();
 			const e = event as Record<string, unknown>;
-			if (e.kind === "artifact" && e.artifactType === "json") {
-				const q = (e.json as { quadObservation?: TQuad })?.quadObservation;
-				if (q?.subject && q.predicate && q.namedGraph) {
-					this.observationQuads.push({
-						subject: q.subject,
-						predicate: q.predicate,
-						object: q.object,
-						namedGraph: q.namedGraph,
-						objectType: q.objectType,
-						timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(),
-						properties: q.properties,
-					});
-					if (this.observationQuads.length > this.maxEvents) this.observationQuads.shift();
-				}
+			const quad = e.kind === "artifact" && e.artifactType === "json" ? (e.json as { quadObservation?: TQuad })?.quadObservation : undefined;
+			if (quad?.subject && quad.predicate && quad.namedGraph) {
+				// Graph data — kept only in the bounded observation buffer (feeds getClusteredQuads live + buildGraphSource
+				// for the report). It must NOT also sit on the lean event log: it is the per-quad bulk. The live SPA still
+				// receives it through the transport (SSE) for the live graph.
+				this.observationQuads.push({
+					subject: quad.subject,
+					predicate: quad.predicate,
+					object: quad.object,
+					namedGraph: quad.namedGraph,
+					objectType: quad.objectType,
+					timestamp: quad.timestamp ?? (e.timestamp as number) ?? Date.now(),
+					properties: quad.properties,
+				});
+				if (this.observationQuads.length > this.maxEvents) this.observationQuads.shift();
+			} else {
+				this.events.push(event);
+				if (this.events.length > this.maxEvents) this.events.shift();
+				this.appendToEventLog(event);
 			}
 			this.transport?.send({ type: "event", event });
 		},
@@ -254,6 +266,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// Live SSE streaming is unaffected; events forward as they happen.
 			this.events = [];
 			this.observationQuads = [];
+			this.diskBuffer = [];
+			if (this.eventLogPath && existsSync(this.eventLogPath)) rmSync(this.eventLogPath);
 		},
 	};
 
@@ -263,13 +277,42 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 * chosen point — `saves shu to <path>` triggers a write, and `endFeature` writes
 	 * once more so the final state always reflects the full run.
 	 */
+	/** Buffer a report-lean form of the event for the disk log; flush in batches so the log never does sync I/O per event. */
+	private appendToEventLog(event: THaibunEvent): void {
+		const lean = slimReportEvent(slimLiveEvent(event));
+		if (!lean) return; // debug-level bulk (e.g. screenshots) is not part of the report's event narrative
+		this.diskBuffer.push(JSON.stringify(lean));
+		if (this.diskBuffer.length >= EVENT_LOG_FLUSH_BATCH) this.flushEventLog();
+	}
+
+	/** Append the buffered lean events to the on-disk run log. */
+	private flushEventLog(): void {
+		if (!this.eventLogPath || this.diskBuffer.length === 0) return;
+		appendFileSync(this.eventLogPath, `${this.diskBuffer.join("\n")}\n`);
+		this.diskBuffer = [];
+	}
+
+	/** The FULL run history (every lean event) — the report's event source, never truncated by the window. Flushed disk
+	 *  lines plus any still-buffered lines, so the report holds every event even when the log was never flushed to disk
+	 *  (a write with no per-run log path, or fewer than one batch emitted). */
+	private readEventLog(): TReportEvent[] {
+		this.flushEventLog(); // when a log path is set this drains the buffer to disk; otherwise the buffer is read below
+		const lines: string[] = [];
+		if (this.eventLogPath && existsSync(this.eventLogPath)) lines.push(...readFileSync(this.eventLogPath, "utf8").split("\n").filter(Boolean));
+		lines.push(...this.diskBuffer);
+		return lines.map((line) => JSON.parse(line) as TReportEvent);
+	}
+
 	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {
 		const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
 		// Ensure essential data is always available offline:
 		// 1. Events — embed one complete end-of-run copy under the bare key; drop the per-filter copies the live run
 		//    cached (getCachedResponse serves the bare copy for any filter; the views filter themselves).
 		for (const key of Object.keys(rpcCache)) if (key.startsWith(`${GET_EVENTS_METHOD}:`)) delete rpcCache[key];
-		rpcCache[GET_EVENTS_METHOD] = { events: this.events };
+		// The report embeds the FULL run history from the on-disk log — every event, never truncated by the in-memory
+		// window, already report-lean (slimmed at write). The in-memory `events` buffer is only the live-backfill window.
+		const reportEvents = this.readEventLog();
+		rpcCache[GET_EVENTS_METHOD] = { events: reportEvents };
 		// 2. Parameterless steps with view products (deterministic view toggles). Exclude getClusteredQuads: it's the graph
 		//    DATA RPC, not a view toggle (no `.view` product), it requires an accessLevel by design (no default — it honors
 		//    the caller's access exactly), and it's baked canonically below via buildGraphSource. Running it here arg-less
@@ -327,7 +370,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const domains = this.getWorld().domains;
 		const cols: string[] = [];
 		let label = "";
-		for (const e of this.events) {
+		for (const e of reportEvents) {
 			const ev = e as Record<string, unknown>;
 			if (ev.kind !== "lifecycle" || ev.stage !== "end") continue;
 			const view = (ev.products as Record<string, unknown>)?.view;
@@ -348,10 +391,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		if (label) hashParts.set("label", label);
 		for (const col of cols) hashParts.append("col", col);
 		const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
-		// Slim the embedded events to what the offline document reads (log/lifecycle narrative): drop the bulk per-quad
-		// debug artifacts, stepValuesMap, and reduce products to display subfields. The whole payload is then compressed.
-		const getEvents = rpcCache[GET_EVENTS_METHOD] as { events?: TReportEvent[] } | undefined;
-		if (getEvents?.events) getEvents.events = getEvents.events.map(slimReportEvent).filter((e): e is TReportEvent => e !== null);
+		// No report-time slimming: the disk log is already report-lean by construction (slimmed at write — debug-artifact
+		// bulk excluded, stepValuesMap dropped, products reduced to display subfields). The whole payload is compressed below.
 		// `events` lives only in the rpcCache (getEvents); hydrateFromDom reads rpcCache + viewHash, never a top-level events field.
 		const hydration = JSON.stringify({ rpcCache, viewHash });
 		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
@@ -409,6 +450,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		getEvents: {
 			gwta: `get monitor events {filter: ${DOMAIN_EVENTS_FILTER}}`,
 			productsSchema: MonitorEventsSchema,
+			// The events are the RPC response that fills the client's backfill; keeping them on this event too re-embeds the whole log, recursively.
+			retainProducts: false,
 			action: ({ filter }: { filter: TEventsFilter }) => {
 				const { level, kind, since, until, limit } = filter;
 				let filtered: THaibunEvent[] = this.events;
@@ -498,6 +541,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
 			fallback: true,
 			productsSchema: GraphQueryResultSchema,
+			// The vertex rows are the RPC response; keeping them on the event too is the per-query bloat.
+			retainProducts: false,
 			action: async ({ query }: { query: TGraphQuery }) => {
 				const store = this.getWorld().shared.getStore();
 				const { label, limit, offset } = query;

@@ -1,13 +1,17 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
-import { displayLabelForQuads } from "@haibun/core/lib/hypermedia.js";
-import { BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { appAccessLevel } from "./util.js";
 import { conduit } from "./hypermedia.js";
 import { getRels } from "./rels-cache.js";
 import { getAvailableSteps } from "./rpc-registry.js";
+import { IndexedDbQuadStore } from "./quad-store-idb.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
+
+/** Off-heap persistent backing for the client graph: live merges + each backfill are written here, and a reload seeds
+ *  the model from it (instant graph; an offline context serves it). Degrades to a no-op when IndexedDB is unavailable. */
+const idbGraphStore = new IndexedDbQuadStore();
 
 export type TGraphSnapshot = { quads: TQuad[]; clusters: TCluster[] };
 
@@ -23,24 +27,13 @@ export type TViewContext = { activeViewId: string | null; selectedSubject: strin
 type SnapshotListener = (snapshot: TGraphSnapshot | null, context: TViewContext) => void;
 
 type CacheEntry = {
-	snapshot: TGraphSnapshot;
+	/** The shared graph model owns the quads, dedup index, clusters, and pins; the cache pairs it with its fetch key. */
+	model: QuadGraphModel;
 	perTypeLimit: number;
 	typesKey: string;
 	/** Visibility ceiling the snapshot was fetched under; a change refetches so the view never shows nodes the new ceiling hides. */
 	accessLevel: string;
-	/** Dedup index `(namedGraph|subject|predicate) → snapshot quad index`, maintained incrementally so a merge never rescans `snapshot.quads`. */
-	quadIndex: Map<string, number>;
-	/** Subjects the user explicitly expanded (node-neighborhood fetch). Retained in the working set regardless of the per-type budget; never evicted by streamed data. */
-	pinned: Set<string>;
 };
-
-const quadKey = (q: TQuad): string => `${q.namedGraph}|${q.subject}|${q.predicate}`;
-
-function buildQuadIndex(quads: TQuad[]): Map<string, number> {
-	const index = new Map<string, number>();
-	for (let i = 0; i < quads.length; i++) index.set(quadKey(quads[i]), i);
-	return index;
-}
 
 /**
  * Underlying store. The cache, view context, and listener set live here so a
@@ -157,7 +150,7 @@ export function subscribeViewContext(callbacks: TViewContextCallbacks): () => vo
 }
 
 function notify(s: Store): void {
-	const snap = s.cache?.snapshot ?? null;
+	const snap = s.cache?.model.snapshot ?? null;
 	for (const fn of s.listeners) {
 		try {
 			fn(snap, s.viewContext);
@@ -182,25 +175,40 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 	const perTypeLimit = opts.perTypeLimit ?? DEFAULT_PER_TYPE_LIMIT;
 	const tk = typesKey(opts.types);
 	const accessLevel = appAccessLevel();
-	const priorPinned = s.cache?.pinned;
+	const priorPinned = s.cache?.model.pinnedSubjects;
 	if (opts.forceRefresh || !s.cache || s.cache.perTypeLimit !== perTypeLimit || s.cache.typesKey !== tk || s.cache.accessLevel !== accessLevel) {
 		s.cache = null;
 		s.pending = null;
 	}
-	if (s.cache) return s.cache.snapshot;
+	if (s.cache) return s.cache.model.snapshot;
 	if (s.pending) return s.pending;
 	s.pending = (async () => {
-		const steps = await getAvailableSteps();
-		if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
-		const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[] }>(
-			{ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types, accessLevel } },
-			"quads-snapshot: fetch clustered quads",
-		);
-		if (!Array.isArray(data.quads)) throw new Error("MonitorStepper-getClusteredQuads returned non-array quads");
-		const snapshot = { quads: data.quads, clusters: data.clusters ?? [] };
-		s.cache = { snapshot, perTypeLimit, typesKey: tk, accessLevel, quadIndex: buildQuadIndex(snapshot.quads), pinned: priorPinned ?? new Set() };
-		notify(s);
-		return snapshot;
+		const model = new QuadGraphModel(perTypeLimit, getRels);
+		try {
+			const steps = await getAvailableSteps();
+			if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
+			const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[] }>(
+				{ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types, accessLevel } },
+				"quads-snapshot: fetch clustered quads",
+			);
+			if (!Array.isArray(data.quads)) throw new Error("MonitorStepper-getClusteredQuads returned non-array quads");
+			// The server already clustered (true totals + SQL body labels); the model adopts that snapshot, then live SSE extends it.
+			model.seed({ quads: data.quads, clusters: data.clusters ?? [] });
+			if (priorPinned) model.pin(priorPinned);
+			s.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
+			void idbGraphStore.setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)
+			notify(s);
+			return model.snapshot;
+		} catch (err) {
+			// Offline / RPC unavailable: serve the persisted graph if one survived a prior session (survives reload/disconnect).
+			const persisted = await idbGraphStore.all();
+			if (persisted.length === 0) throw err;
+			model.merge(persisted);
+			if (priorPinned) model.pin(priorPinned);
+			s.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
+			notify(s);
+			return model.snapshot;
+		}
 	})();
 	try {
 		return await s.pending;
@@ -211,7 +219,12 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 
 /** The shared store's current snapshot, read synchronously (no fetch). Empty before anything loads. */
 export function currentSnapshot(): TGraphSnapshot {
-	return getStore().cache?.snapshot ?? { quads: [], clusters: [] };
+	return getStore().cache?.model.snapshot ?? { quads: [], clusters: [] };
+}
+
+function ensureCache(s: Store): CacheEntry {
+	if (!s.cache) s.cache = { model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels), perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*", accessLevel: appAccessLevel() };
+	return s.cache;
 }
 
 /**
@@ -220,119 +233,32 @@ export function currentSnapshot(): TGraphSnapshot {
  * once a type is at its per-type budget. Bounded by how much the user expands.
  */
 export function pinSubjects(subjects: Iterable<string>): void {
-	const s = getStore();
-	if (!s.cache)
-		s.cache = {
-			snapshot: { quads: [], clusters: [] },
-			perTypeLimit: DEFAULT_PER_TYPE_LIMIT,
-			typesKey: "*",
-			accessLevel: appAccessLevel(),
-			quadIndex: new Map(),
-			pinned: new Set(),
-		};
-	for (const id of subjects) s.cache.pinned.add(id);
+	ensureCache(getStore()).model.pin(subjects);
 }
 
 /**
- * Merge newly observed quads into the shared snapshot cache, bounded by the cached
- * `perTypeLimit` budget: a quad for an already-present subject updates in place; a
- * brand-new subject is admitted only while its type is under budget (or it is pinned),
- * otherwise it is counted as omitted and its quad is dropped. So `snapshot.quads`
- * stays bounded by the budget (+ pinned subjects) no matter how much streams in — the
- * working set tracks what the user chose to materialize, not total DB size.
- *
- * The dedup index lives on the cache and is updated per quad (no rescan of
- * `snapshot.quads`), and every retained subject is labelled via the shared
- * `composeDisplayLabel`, so a node's title comes from one rule across all views.
+ * Merge newly observed quads into the shared model — bounded by the cached per-type budget plus pinned
+ * subjects (see QuadGraphModel). SSE may arrive before (or without) a getClusteredQuads RPC, so start a
+ * cache for the merge to land in.
  */
 export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
-	const s = getStore();
 	if (quads.length === 0) return;
-	// SSE may populate the snapshot before (or without) a getClusteredQuads RPC; start a cache so the merge has somewhere to land.
-	if (!s.cache)
-		s.cache = {
-			snapshot: { quads: [], clusters: [] },
-			perTypeLimit: DEFAULT_PER_TYPE_LIMIT,
-			typesKey: "*",
-			accessLevel: appAccessLevel(),
-			quadIndex: new Map(),
-			pinned: new Set(),
-		};
-	const { snapshot: snap, quadIndex, pinned, perTypeLimit: budget } = s.cache;
-	const clusterByType = new Map<string, TCluster>();
-	const sampledByType = new Map<string, Set<string>>();
-	for (const c of snap.clusters) {
-		clusterByType.set(c.type, c);
-		sampledByType.set(c.type, new Set(c.sampledSubjects));
-	}
-	// Count each genuinely-new subject once per call, even when it arrives as many quads — its
-	// later quads (omitted, so unindexed) would otherwise re-inflate totalCount.
-	const countedThisCall = new Set<string>();
-	const touched = new Set<string>();
-	for (const q of quads) {
-		const key = quadKey(q);
-		const existingIdx = quadIndex.get(key);
-		// The live stream can emit the same fact twice (a property quad on upsert and the edge
-		// quad on createEdge); replace in place so the later arrival wins.
-		if (existingIdx !== undefined) {
-			snap.quads[existingIdx] = q;
-			touched.add(q.subject);
-			continue;
-		}
-		let cluster = clusterByType.get(q.namedGraph);
-		if (!cluster) {
-			cluster = { type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [], displayLabels: {} };
-			snap.clusters.push(cluster);
-			clusterByType.set(q.namedGraph, cluster);
-			sampledByType.set(q.namedGraph, new Set());
-		}
-		const sampled = sampledByType.get(q.namedGraph) ?? new Set<string>();
-		const known = sampled.has(q.subject) || pinned.has(q.subject);
-		if (!known) {
-			const subjectKey = `${q.namedGraph}|${q.subject}`;
-			if (!countedThisCall.has(subjectKey)) {
-				countedThisCall.add(subjectKey);
-				cluster.totalCount += 1;
-			}
-			if (sampled.size < budget) {
-				sampled.add(q.subject);
-				cluster.sampledSubjects.push(q.subject);
-				cluster.sampledCount = sampled.size;
-			} else {
-				// Type is at budget and the subject isn't pinned — omit it: count it, drop its quad.
-				cluster.omittedCount = Math.max(0, cluster.totalCount - cluster.sampledCount);
-				continue;
-			}
-		}
-		quadIndex.set(key, snap.quads.length);
-		snap.quads.push(q);
-		cluster.omittedCount = Math.max(0, cluster.totalCount - cluster.sampledCount);
-		touched.add(q.subject);
-	}
-	relabelTouched(snap, clusterByType, touched);
+	const s = getStore();
+	ensureCache(s).model.merge(quads);
+	void idbGraphStore.setMany(quads); // persist live observations off-heap for the next reload
 	notify(s);
 }
 
-/** Recompute `displayLabels` for the subjects a merge touched, via the one shared rule. */
-function relabelTouched(snap: TGraphSnapshot, clusterByType: Map<string, TCluster>, touched: Set<string>): void {
-	if (touched.size === 0) return;
-	// Body content + each touched subject's quads, gathered in one pass over the (bounded) snapshot.
-	const bodyContentBySubject = new Map<string, string>();
-	const quadsBySubject = new Map<string, TQuad[]>();
-	for (const q of snap.quads) {
-		if (q.namedGraph === BODY_LABEL && q.predicate === "content" && typeof q.object === "string") bodyContentBySubject.set(q.subject, q.object);
-		if (!touched.has(q.subject)) continue;
-		let bucket = quadsBySubject.get(q.subject);
-		if (!bucket) {
-			bucket = [];
-			quadsBySubject.set(q.subject, bucket);
-		}
-		bucket.push(q);
-	}
-	for (const [subject, subjectQuads] of quadsBySubject) {
-		const type = subjectQuads[0]?.namedGraph ?? "";
-		const cluster = clusterByType.get(type);
-		if (!cluster) continue;
-		cluster.displayLabels[subject] = displayLabelForQuads(type, subject, subjectQuads, (b) => bodyContentBySubject.get(b), getRels(type));
-	}
+/**
+ * Deref a persisted individual's vertex from the off-heap store — scalar/property quads only (topology edges, marked by
+ * `objectType`, need the live graph). Used as an offline / RPC-down fallback so a previously-seen entity still opens.
+ * Returns undefined when the individual was never persisted. The shape mirrors the entity views' result (vertex + edges
+ * + incomingCount) so a caller applies it the same way as a live fetch.
+ */
+export async function derefStoredEntity(label: string, id: string): Promise<{ vertex: Record<string, unknown>; edges: unknown[]; incomingCount: number } | undefined> {
+	const quads = await idbGraphStore.query({ subject: id, namedGraph: label });
+	if (quads.length === 0) return undefined;
+	const vertex: Record<string, unknown> = { "@id": id, "@type": label };
+	for (const q of quads) if (!q.objectType) vertex[q.predicate] = q.object;
+	return { vertex, edges: [], incomingCount: 0 };
 }
