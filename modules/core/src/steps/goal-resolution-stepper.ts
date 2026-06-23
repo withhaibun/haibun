@@ -113,25 +113,16 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				});
 			}
 		},
-		afterStep: async (_after: TAfterStep): Promise<TAfterStepResult> => {
-			// Emit the current affordances snapshot so monitors and the shu panel can
-			// render "what can I do next?" without polling. Identity is the seqPath.
-			const world = this.getWorld();
-			const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-			const composite = this.compositeOptions();
-			const affordances = buildAffordances({
-				steppers: this.steppers,
-				domains: world.domains,
-				facts,
-				capabilities: this.grantedCapabilities(),
-				compositeDecomposition: composite.compositeDecomposition,
-				compositeMaxDepth: composite.compositeMaxDepth,
-			});
-			const seqPath = world.runtime.currentSeqPath;
+		afterStep: (_after: TAfterStep): Promise<TAfterStepResult> => {
+			// Lean event: emit only a change signal. The affordances snapshot is large (forward + goals + their
+			// resolution trees + composite michi), so the affordances panel and the domain-chain view re-fetch the
+			// current snapshot on demand (show affordances / show waypoints) rather than ride every step's event.
+			// Keeps the event log lean by construction — the bulk never denormalizes onto every step.
+			const seqPath = this.getWorld().runtime.currentSeqPath;
 			if (!seqPath) {
 				throw new Error("GoalResolutionStepper.afterStep: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking afterStep cycles.");
 			}
-			world.eventLogger.emit({
+			this.getWorld().eventLogger.emit({
 				id: `affordances.${seqPath}`,
 				timestamp: Date.now(),
 				source: "haibun",
@@ -139,9 +130,9 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				artifactType: "json",
 				mimetype: "application/json",
 				level: "debug",
-				json: { affordances } as Record<string, unknown>,
+				json: { affordancesChanged: true } as Record<string, unknown>,
 			});
-			return { failed: false };
+			return Promise.resolve({ failed: false });
 		},
 	};
 
