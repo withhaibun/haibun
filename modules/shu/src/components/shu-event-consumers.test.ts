@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
 import { resetEventsSnapshot } from "../events-snapshot.js";
+import { timeCursorSignal } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
@@ -71,5 +72,20 @@ describe("event consumers over the shared log", () => {
 		doc.requestUpdate(); // an update unrelated to events must NOT re-run renderFull
 		await flush();
 		expect(doc.shadowRoot?.querySelector("#survivor")).not.toBeNull(); // a renderFull-on-update would have destroyed it
+	});
+
+	it("clicking the latest document row publishes a null cursor (live edge), an earlier row a concrete cutoff", async () => {
+		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
+		document.body.appendChild(doc);
+		await flush();
+		const rows = (Array.from(doc.shadowRoot?.querySelectorAll(".doc-row[data-raw-time]") ?? []) as HTMLElement[]).sort(
+			(a, b) => parseFloat(a.getAttribute("data-raw-time") ?? "0") - parseFloat(b.getAttribute("data-raw-time") ?? "0"),
+		);
+		expect(rows.length).toBeGreaterThan(1);
+		timeCursorSignal.set(123); // a non-null start so a published null registers as a change
+		rows[rows.length - 1].click(); // latest event row → live edge, so the graph shows everything (matches the slider's at-end null)
+		expect(timeCursorSignal.get(), "latest row → null (live)").toBeNull();
+		rows[0].click(); // earliest row → a concrete as-of cutoff (the first event's timestamp)
+		expect(timeCursorSignal.get(), "earlier row → concrete cutoff").toBe(1);
 	});
 });

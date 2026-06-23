@@ -99,11 +99,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		try {
 			this.autoTeardown(
 				eventStream().subscribe(
-					(event: TEvent) => {
-						const body = (event as { json?: { affordances?: TAffordances } }).json;
-						if (!body?.affordances) return;
-						this.applyAffordances(body.affordances);
-					},
+					// afterStep now emits a lean change signal (no payload) — quietly re-fetch the current snapshot.
+					() => void this.fetchInitial(true),
 					(event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith("affordances."),
 				),
 			);
@@ -175,17 +172,18 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		this.setState({ loadState: "loaded" });
 	}
 
-	private async fetchInitial(): Promise<void> {
+	private async fetchInitial(quiet = false): Promise<void> {
 		// With no Conduit installed (standalone HTML pre-boot) there is no server to fetch
 		// from. Stay on the actionable empty state rather than the spinner — the "invoke show
 		// affordances" prompt shows, and the panel becomes useful once a snapshot arrives.
+		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the panel never flashes.
 		try {
 			conduit();
 		} catch {
-			this.setState({ loadState: "idle" });
+			if (!quiet) this.setState({ loadState: "idle" });
 			return;
 		}
-		this.setState({ loadState: "fetching" });
+		if (!quiet) this.setState({ loadState: "fetching" });
 		const asOf = this.getAttribute("as-of");
 		const params = asOf ? { asOf } : {};
 		// Preferred entry: ActivitiesStepper-showWaypoints returns a superset (waypoints + forward + goals).
@@ -213,10 +211,11 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				// Try the next candidate — typical reason is that the stepper providing the method is not loaded.
 			}
 		}
-		this.setState({
-			loadState: "loaded",
-			fetchError: `${lastError}. The affordances panel cannot proceed without a snapshot — check the server log, confirm at least one of [${candidates.join(", ")}] is loaded, and confirm /rpc/<method> is reachable from this origin.`,
-		});
+		if (!quiet)
+			this.setState({
+				loadState: "loaded",
+				fetchError: `${lastError}. The affordances panel cannot proceed without a snapshot — check the server log, confirm at least one of [${candidates.join(", ")}] is loaded, and confirm /rpc/<method> is reachable from this origin.`,
+			});
 	}
 
 	static observedHtmlAttributes = ["as-of"];

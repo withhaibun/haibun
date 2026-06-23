@@ -27,10 +27,11 @@ import { SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
-import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { hasEventStream } from "../event-stream.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { callStep } from "../pane-fetch.js";
+import { derefStoredEntity } from "../quads-snapshot.js";
+import { getCachedEntity, setCachedEntity, subscribeEntities, type TEntityResult } from "../entity-store.js";
 import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription } from "../rels-cache.js";
 
 type VertexData = Record<string, unknown>;
@@ -118,47 +119,57 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.setState({ individualId: String(_summary || ""), persistedAs: label, loading: false });
 	}
 
-	/** Live-refresh: when the open individual's data changes underneath us (e.g. a gantt bar dragged to a new time
-	 *  emits an observation for its startedAtTime), re-fetch so the column never shows a stale value. */
+	/** Live-refresh: the open individual is held in the shared entity store, which merges live observations (e.g. a gantt
+	 *  bar dragged to a new time emits an observation for its startedAtTime) into the cached copy. We re-render from that
+	 *  copy rather than re-fetching — one client copy, updated in place, no per-change RPC. */
 	protected override onConnected(): void {
 		if (!hasEventStream()) return; // static context (offline report, unit test without live events) — nothing to subscribe to
 		this.autoTeardown(
-			this.subscribeBatched({
-				onBatch: (events) => {
-					const subject = this.state.individualId;
-					if (subject && extractQuadsFromEvents(events).some((q) => q.subject === subject)) void this.open(subject, this.state.persistedAs);
-				},
+			subscribeEntities((subject) => {
+				if (subject !== this.state.individualId) return;
+				const fresh = getCachedEntity(this.state.persistedAs, subject);
+				if (fresh) {
+					this.applyEntity(fresh);
+					this.requestUpdate();
+				}
 			}),
 		);
 	}
 
-	/** Open an individual by ID. Fetches data and renders. */
+	/** Apply one entity result (from the shared store or a fresh fetch) to the render fields. */
+	private applyEntity(result: TEntityResult): void {
+		this.vertex = result.vertex;
+		this.edges = (result.edges as EdgeData[]) ?? [];
+		this.incomingCount = result.incomingCount ?? 0;
+		this.products = result as unknown as Record<string, unknown>;
+	}
+
+	/** Open an individual by ID — cache-first from the shared entity store, fetching only on a miss (the fetch then
+	 *  populates the store, so every view of the same individual shares one copy and one live subscription). */
 	async open(id: string, label: string = defaultLabel()): Promise<void> {
 		// Surface the subject as an attribute so external code (e.g. the COLUMN_CLOSE
 		// listener in app.ts) can detect which entity is in this column without
 		// reaching through the protected `state` field.
 		this.setAttribute("data-subject", id);
-		this.setState({
-			individualId: id,
-			persistedAs: label,
-			loading: true,
-			error: undefined,
-		});
+		this.setState({ individualId: id, persistedAs: label, loading: true, error: undefined });
 		const accessLevel = appAccessLevel();
-		const res = await callStep<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(
-			"getIndividualWithEdges",
-			{ label, id, accessLevel },
-			`entity-column: open ${label}:${id}`,
-		);
-		if (!res.ok) {
-			this.setState({ loading: false, error: res.error });
-			return;
+		const cached = getCachedEntity(label, id);
+		if (cached) {
+			this.applyEntity(cached);
+			this.setState({ loading: false });
+		} else {
+			const res = await callStep<TEntityResult>("getIndividualWithEdges", { label, id, accessLevel }, `entity-column: open ${label}:${id}`);
+			if (!res.ok) {
+				// RPC unavailable (offline / disconnected): serve the persisted vertex from the off-heap store if we have it.
+				const offline = await derefStoredEntity(label, id);
+				if (offline) this.applyEntity(offline as TEntityResult);
+				this.setState({ loading: false, error: offline ? undefined : res.error });
+				return;
+			}
+			setCachedEntity(label, id, res.value);
+			this.applyEntity(res.value);
+			this.setState({ loading: false });
 		}
-		this.vertex = res.value.vertex;
-		this.edges = res.value.edges ?? [];
-		this.incomingCount = res.value.incomingCount ?? 0;
-		this.products = res.value as unknown as Record<string, unknown>;
-		this.setState({ loading: false });
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 				detail: { patterns: [{ s: id }], accessLevel, label },

@@ -49,7 +49,7 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
 import { subscribeBatchedEvents, type TEvent, type TEventFilter } from "../event-stream.js";
 import { readElementPrefs, schedulePersistWrite } from "../element-prefs.js";
-import { notifyTimeCursorSubscribers } from "../signals.js";
+import { notifyTimeCursorSubscribers, subscribeTimeCursor } from "../signals.js";
 
 export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
 	/** Get the current view hash — from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
@@ -228,7 +228,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	connectedCallback(): void {
 		super.connectedCallback();
 		this.#restorePersisted();
-		this.#installTimeSyncEffect();
+		this.#installTimeSync();
 		this.onConnected();
 	}
 
@@ -254,22 +254,15 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		this.setState({ [field]: coerceAttribute(fieldSchema, val) } as Partial<z.infer<T>>);
 	}
 
-	// Views that dim purely in render() auto-subscribe by reading this.timeCursor there. Views that
-	// override onTimeSync for post-render DOM work (row classes, legends) are driven by this effect:
-	// it reads the live cursor signal and re-runs onTimeSync whenever it changes. Auto-disposed on
-	// disconnect by SignalWatcher. Snapshot-pinned views replay a fixed point, so they opt out.
-	#installTimeSyncEffect(): void {
+	// One wiring for every cursor-watching component, in any bundle: the cross-bundle cursor bus runs onTimeSync on each
+	// change. The bus (a globalThis subscriber set), not signal tracking — the polyfill's reactive context is module-level
+	// and does not cross esbuild bundle boundaries, so an external view (the separately-bundled fisheye) reacts through
+	// this same seam instead of hand-rolling its own subscribe. Views that only dim auto-rerender by reading
+	// this.timeCursor in render(); snapshot-pinned views replay a fixed point and opt out.
+	#installTimeSync(): void {
 		const reactsToTime = this.onTimeSync !== ShuElement.prototype.onTimeSync;
 		if (reactsToTime && !this.hasAttribute("data-snapshot-time")) {
-			let first = true;
-			this.updateEffect(() => {
-				const cursor = timeCursorSignal.get();
-				if (first) {
-					first = false;
-					return;
-				}
-				this.onTimeSync(cursor);
-			});
+			this.autoTeardown(subscribeTimeCursor((cursor) => this.onTimeSync(cursor)));
 		}
 	}
 
