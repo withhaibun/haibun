@@ -421,6 +421,14 @@ export type TDomainRanges = Record<string, string>;
 export type THypermediaTopology = {
 	persistedAs: string;
 	type?: string;
+	/**
+	 * rdfs:subClassOf — superclass IRI(s) this type is a kind of, emitted into the served JSON-LD
+	 * `@context` so the type's class entails them. The single-string `@type` carries only the bare
+	 * label (one navigable type), so a second standards class a node must satisfy — e.g. a `sec:Issuer`
+	 * or `sec:Controller` that is the target of `prov:wasAttributedTo` (range `prov:Agent`) — is asserted
+	 * here as the genuine RDFS axiom rather than by multi-valuing `@type`.
+	 */
+	subClassOf?: string | string[];
 	id: string;
 	properties: Record<string, TPropertyDef>;
 	edges?: Record<string, TEdgeDef>;
@@ -623,6 +631,9 @@ export const principalDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: PRINCIPAL_LABEL,
 		type: "sec:Controller",
+		// A Principal IS the responsible agent every persisted node is attributed to (prov:wasAttributedTo, range prov:Agent);
+		// declare sec:Controller a kind of prov:Agent so that attribution is well-formed against the rel's range.
+		subClassOf: "prov:Agent",
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
