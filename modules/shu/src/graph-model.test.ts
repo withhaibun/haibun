@@ -6,8 +6,14 @@ import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
 const q = (subject: string, predicate: string, object: unknown, namedGraph: string, objectType?: string): TQuad =>
 	({ subject, predicate, object, namedGraph, objectType, timestamp: 1 }) as TQuad;
 
-const cluster = (type: string, displayLabels: Record<string, string>): TCluster =>
-	({ type, totalCount: Object.keys(displayLabels).length, sampledCount: Object.keys(displayLabels).length, omittedCount: 0, sampledSubjects: Object.keys(displayLabels), displayLabels });
+const cluster = (type: string, displayLabels: Record<string, string>): TCluster => ({
+	type,
+	totalCount: Object.keys(displayLabels).length,
+	sampledCount: Object.keys(displayLabels).length,
+	omittedCount: 0,
+	sampledSubjects: Object.keys(displayLabels),
+	displayLabels,
+});
 
 describe("buildGraphModelFromQuads", () => {
 	it("emits one node per subject (typed by namedGraph) and a typed-reference edge", () => {
@@ -72,14 +78,22 @@ describe("HypermediaRole fold (roleRels)", () => {
 	const principals = [q("did:issuer", "name", "Authority", "Principal"), q("did:holder", "name", "Importer", "Principal")];
 	it("folds the highest-priority role edge's target onto the node", () => {
 		const model = buildGraphModelFromQuads(
-			[q("vc1", "name", "Permit", "VerifiableCredential"), q("vc1", "subject", "did:holder", "VerifiableCredential", "Principal"), q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"), ...principals],
+			[
+				q("vc1", "name", "Permit", "VerifiableCredential"),
+				q("vc1", "subject", "did:holder", "VerifiableCredential", "Principal"),
+				q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"),
+				...principals,
+			],
 			{ roleRels: ["issuer", "subject"] },
 		);
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:issuer"); // issuer outranks subject
 	});
 
 	it("makes a party (a role-edge target) its own role, so it gets its own container", () => {
-		const model = buildGraphModelFromQuads([q("vc1", "name", "Permit", "VerifiableCredential"), q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"), ...principals], { roleRels: ["issuer"] });
+		const model = buildGraphModelFromQuads(
+			[q("vc1", "name", "Permit", "VerifiableCredential"), q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"), ...principals],
+			{ roleRels: ["issuer"] },
+		);
 		expect(model.nodes.find((n) => n.id === "did:issuer")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:issuer"); // the issuer party groups with itself
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:issuer"); // its credential joins it
 		expect(model.nodes.find((n) => n.id === "did:holder")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined(); // not a target here → unattributed
@@ -91,7 +105,11 @@ describe("HypermediaRole fold (roleRels)", () => {
 	});
 
 	it("does not fold when roleRels is absent (backward-compatible)", () => {
-		const model = buildGraphModelFromQuads([q("vc1", "name", "Permit", "VerifiableCredential"), q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"), ...principals]);
+		const model = buildGraphModelFromQuads([
+			q("vc1", "name", "Permit", "VerifiableCredential"),
+			q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"),
+			...principals,
+		]);
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined();
 	});
 });
@@ -99,7 +117,12 @@ describe("HypermediaRole fold (roleRels)", () => {
 describe("ROLE_RELS trust-triangle placement (genuine W3C VC terms)", () => {
 	it("a VerifiablePresentation groups with its HOLDER (cred:holder — possession lives on the presentation)", () => {
 		const model = buildGraphModelFromQuads(
-			[q("vp1", "name", "Presentation", "VerifiablePresentation"), q("vp1", "holder", "did:holder", "VerifiablePresentation", "Holder"), q("vp1", "verifiableCredential", "vc1", "VerifiablePresentation", "VerifiableCredential"), q("did:holder", "name", "Wren", "Holder")],
+			[
+				q("vp1", "name", "Presentation", "VerifiablePresentation"),
+				q("vp1", "holder", "did:holder", "VerifiablePresentation", "Holder"),
+				q("vp1", "verifiableCredential", "vc1", "VerifiablePresentation", "VerifiableCredential"),
+				q("did:holder", "name", "Wren", "Holder"),
+			],
 			{ roleRels: ROLE_RELS },
 		);
 		expect(model.nodes.find((n) => n.id === "vp1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:holder");
@@ -107,14 +130,37 @@ describe("ROLE_RELS trust-triangle placement (genuine W3C VC terms)", () => {
 
 	it("a bare VerifiableCredential groups with its ISSUER (cred:issuer); credentialSubject is a triangle SIDE, not the container", () => {
 		const model = buildGraphModelFromQuads(
-			[q("vc1", "name", "Permit", "VerifiableCredential"), q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Issuer"), q("vc1", "credentialSubject", "did:holder", "VerifiableCredential", "Holder"), q("did:issuer", "name", "Authority", "Issuer"), q("did:holder", "name", "Wren", "Holder")],
+			[
+				q("vc1", "name", "Permit", "VerifiableCredential"),
+				q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Issuer"),
+				q("vc1", "credentialSubject", "did:holder", "VerifiableCredential", "Holder"),
+				q("did:issuer", "name", "Authority", "Issuer"),
+				q("did:holder", "name", "Wren", "Holder"),
+			],
 			{ roleRels: ROLE_RELS },
 		);
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:issuer"); // issuer outranks credentialSubject
 	});
 
 	it("an ordinary record (no VC edges) still groups by its author", () => {
-		const model = buildGraphModelFromQuads([q("e1", "name", "Hi", "Email"), q("e1", "author", "p1", "Email", "Person"), q("p1", "name", "Alice", "Person")], { roleRels: ROLE_RELS });
+		const model = buildGraphModelFromQuads([q("e1", "name", "Hi", "Email"), q("e1", "author", "p1", "Email", "Person"), q("p1", "name", "Alice", "Person")], {
+			roleRels: ROLE_RELS,
+		});
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("p1");
+	});
+
+	it("a published VerificationMethod groups under its REGISTRY (registeredIn outranks its controller→Issuer)", () => {
+		const model = buildGraphModelFromQuads(
+			[
+				q("vm1", "type", "Multikey", "VerificationMethod"),
+				q("vm1", "registeredIn", "registry:vdr", "VerificationMethod", "VerifiableDataRegistry"),
+				q("vm1", "controller", "did:issuer", "VerificationMethod", "Issuer"),
+				q("registry:vdr", "name", "Verifiable Data Registry", "VerifiableDataRegistry"),
+				q("did:issuer", "name", "Authority", "Issuer"),
+			],
+			{ roleRels: ROLE_RELS },
+		);
+		expect(model.nodes.find((n) => n.id === "vm1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("registry:vdr"); // registry outranks controller
+		expect(model.nodes.find((n) => n.id === "registry:vdr")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("registry:vdr"); // the registry is its own container
 	});
 });

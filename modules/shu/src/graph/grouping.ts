@@ -14,13 +14,25 @@ export type GroupKeyMode = "type" | "role";
 /** Container bucket for a node with no resolved HypermediaRole, under the role axis. */
 export const UNATTRIBUTED_ROLE = "(unattributed)";
 
-/** Predicates (edge labels) whose target is a node's HypermediaRole, in priority order (first match wins). A
+/** Predicates (edge labels) whose target is a node's HypermediaRole, in priority order (first match wins). An
+ *  artifact published to a verifiable data registry groups under that registry (registeredIn) — this outranks its
+ *  controller, so the issuer's published key/status-list sit in the registry container, not the issuer's. A
  *  VerifiablePresentation groups with its holder (cred:holder); a bare VerifiableCredential with its issuer
  *  (cred:issuer); a verification with its verifier (performedBy). The credentialSubject / verifiableCredential /
  *  presentedTo edges draw the trust triangle's SIDES, not the container. Ordinary records carry none of these and fall
  *  through to the canonical PROV/AS attribution rels (wasAttributedTo/attributedTo) — their grouping is unchanged. The
  *  fold matches the quad predicate = the createEdge edge label, so every entry is a genuine term. One edit to extend. */
-export const ROLE_RELS: readonly string[] = [LinkRelations.CREDENTIAL_HOLDER.rel, LinkRelations.CREDENTIAL_ISSUER.rel, LinkRelations.CREDENTIAL_SUBJECT.rel, "performedBy", "verifier", "author", LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.ATTRIBUTED_TO.rel];
+export const ROLE_RELS: readonly string[] = [
+	LinkRelations.REGISTERED_IN.rel,
+	LinkRelations.CREDENTIAL_HOLDER.rel,
+	LinkRelations.CREDENTIAL_ISSUER.rel,
+	LinkRelations.CREDENTIAL_SUBJECT.rel,
+	"performedBy",
+	"verifier",
+	"author",
+	LinkRelations.WAS_ATTRIBUTED_TO.rel,
+	LinkRelations.ATTRIBUTED_TO.rel,
+];
 
 /** The group/container key for a node: its `@type` (default), or its `HypermediaRole` under the role axis. One selector,
  *  both axes — the fold in buildGraphModelFromQuads put the role on `properties[HYPERMEDIA_ROLE_KEY]`, so this stays pure. */
@@ -29,8 +41,7 @@ export const groupKeyOf = (n: { type: string; properties?: Record<string, unknow
 
 /** The display label for a container of `key`: under the role axis, the party's own display label (resolved by id) so a
  *  container reads e.g. "Coastal Fisheries Authority", not its DID; under the type axis, the type key reads as-is. */
-export const containerLabelOf = (key: string, mode: GroupKeyMode, labelById?: ReadonlyMap<string, string>): string =>
-	mode === "role" ? (labelById?.get(key) ?? key) : key;
+export const containerLabelOf = (key: string, mode: GroupKeyMode, labelById?: ReadonlyMap<string, string>): string => (mode === "role" ? (labelById?.get(key) ?? key) : key);
 
 // Cohesion: how hard a group's members are pulled toward their ring anchor in XY (the "exclusive area" comes from
 // this, not the border alone). Depth is not cohesion's to control — z maps to each object's generatedAtTime.
