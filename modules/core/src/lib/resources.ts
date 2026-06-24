@@ -248,8 +248,16 @@ export const LinkRelations = {
 	EXPIRES: { rel: "expires", uri: "sec:expiration", range: "literal" },
 	REVOKED: { rel: "revoked", uri: "sec:revoked", range: "literal", presentation: "governance" as TRelPresentation },
 	PROOF: { rel: "proof", uri: "sec:proof", range: "iri" },
-	// W3C Verifiable Credentials (cred:) — credential validity window (distinct from generatedAtTime, the record's creation).
+	// W3C Verifiable Credentials (cred: = https://www.w3.org/2018/credentials#). Each rel string is the genuine compact
+	// term AND the graph edge label the steppers write (the role fold groups on the edge label); the uri is its JSON-LD
+	// @id. holder is a VerifiablePresentation property — never a credential property (VC DM 2.0 §4.13) — so a credential
+	// is attributed to its issuer (cred:issuer) and is ABOUT its subject (cred:credentialSubject); possession lives on the
+	// presentation the holder controls.
 	VALID_FROM: { rel: "validFrom", uri: "cred:validFrom", range: "literal" },
+	CREDENTIAL_ISSUER: { rel: "issuer", uri: "cred:issuer", range: "iri" },
+	CREDENTIAL_SUBJECT: { rel: "credentialSubject", uri: "cred:credentialSubject", range: "iri" },
+	CREDENTIAL_HOLDER: { rel: "holder", uri: "cred:holder", range: "iri" },
+	VERIFIABLE_CREDENTIAL: { rel: "verifiableCredential", uri: "cred:verifiableCredential", range: "iri" },
 } as const;
 
 /** Lookup a rel's RDF range. Returns undefined for unknown rels. */
@@ -579,6 +587,8 @@ export const PRINCIPAL_DOMAIN = "principal-individual";
 
 export const PrincipalSchema = z.object({
 	id: z.string(),
+	/** rdfs:label — an optional human name for this Principal (a DID has none intrinsically). Lets an instance/party be titled by a readable name instead of its DID; resolved as the top display-label headline (the universal `label`→rdfs:label rel). */
+	label: z.string().optional(),
 	controller: z.string().optional(),
 	allowedAction: z.string().optional(),
 	publicKey: z.string().optional(),

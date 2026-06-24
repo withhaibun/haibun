@@ -10,6 +10,16 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		expect(composeDisplayLabel({ rels, getProperty: props({ subject: "RE: Meeting", seqPath: "0.1" }), bodyContents: ["the body"], id: "e1" })).toBe("RE: Meeting");
 	});
 
+	it("uses rdfs:label over the entity's NAME — an explicit display label wins", () => {
+		const rels = { label: LinkRelations.LABEL.rel, name: LinkRelations.NAME.rel };
+		expect(composeDisplayLabel({ rels, getProperty: props({ label: "Coastal Fisheries Authority", name: "should-not-win" }), bodyContents: [], id: "did:web:x" })).toBe("Coastal Fisheries Authority");
+	});
+
+	it("titles a name-less node (e.g. a Principal/DID) by its rdfs:label instead of falling back to the id", () => {
+		const rels = { label: LinkRelations.LABEL.rel, controller: LinkRelations.CONTROLLER.rel };
+		expect(composeDisplayLabel({ rels, getProperty: props({ label: "Importer Co.", controller: "did:web:x" }), bodyContents: [], id: "did:web:x" })).toBe("Importer Co.");
+	});
+
 	it("uses an inline CONTENT field when there is no name", () => {
 		const rels = { text: LinkRelations.CONTENT.rel };
 		expect(composeDisplayLabel({ rels, getProperty: props({ text: "inline note" }), bodyContents: [], id: "n1" })).toBe("inline note");

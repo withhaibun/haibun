@@ -313,6 +313,10 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		for (const [field, def] of Object.entries(topology.properties ?? {})) {
 			rels[field] = relOf(def);
 		}
+		// Universal rdfs:label: every persisted type may carry a `label` that titles it (the explicit, type-agnostic
+		// display label — the affordance for naming a name-less instance, e.g. a Principal/DID). Injected only when the
+		// type neither declares a `label` field nor already maps another field to rdfs:label; inert until a vertex sets it.
+		if (rels.label === undefined && !Object.values(rels).includes(LinkRelations.LABEL.rel)) rels.label = LinkRelations.LABEL.rel;
 		relMaps.set(type, rels);
 	}
 
@@ -351,14 +355,18 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 
 /**
  * Property rels searched to derive an individual's display label, split by strength.
- * HEADLINE rels (NAME, CONTENT) are the node's own title, returned bare. WEAK rels
- * (seqPath, schemaObject, context) are provenance pointers, returned prefixed
- * (`field: value`) since the value alone isn't self-describing — they only label a
- * node that has nothing better. `composeDisplayLabel` slots the linked-body preview
- * BETWEEN them: a body-backed node (e.g. a Comment with a seqPath) is titled by its
- * body, never by its seqPath. Shared by every cluster producer so priorities can't drift.
+ * HEADLINE rels (LABEL, NAME, CONTENT) are the node's own title, returned bare. LABEL
+ * (rdfs:label) is first: the explicit, type-agnostic display label any resource may carry
+ * — it applies where the AS `name` doesn't (a Principal/DID, a cross-vocab node) and an
+ * explicit label deliberately overrides the entity's name. WEAK rels (seqPath, schemaObject,
+ * context) are provenance pointers, returned prefixed (`field: value`) since the value alone
+ * isn't self-describing — they only label a node that has nothing better. `composeDisplayLabel`
+ * slots the linked-body preview BETWEEN them: a body-backed node (e.g. a Comment with a
+ * seqPath) is titled by its body, never by its seqPath. Shared by every cluster producer so
+ * priorities can't drift.
  */
 const DISPLAY_LABEL_HEADLINE: ReadonlyArray<{ rel: string; bare: boolean }> = [
+	{ rel: LinkRelations.LABEL.rel, bare: true },
 	{ rel: LinkRelations.NAME.rel, bare: true },
 	{ rel: LinkRelations.CONTENT.rel, bare: true },
 ];
@@ -528,24 +536,35 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		hbn: "https://haibun.dev/ns/",
 		haibun: "/ns/",
 	};
+	// JSON-LD 1.1 type-scoped context. Each @type carries a nested @context mapping ITS field/edge terms to the genuine
+	// IRIs its own rels declare, so a field name reused across domains (e.g. "expires", "issuer", "type") resolves to the
+	// CORRECT IRI under each type — honoring the per-domain rel (which also drives column-view presentation: filter via
+	// CONTEXT, id via IDENTIFIER, item/select via linkRelFromSemantic) without a flat global collision. The same terms
+	// are ALSO emitted at the top level as a fallback for a type-less reference (last-wins there, harmless: every
+	// exported node carries its @type, so the scoped mapping is what a 1.1 processor applies).
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
-		// Map the bare-label type term to its vocabulary IRI so `@type: "Person"` resolves to e.g. `foaf:Person`;
-		// a type without a declared vocabulary falls back to the local namespace, so every `@type` is a real IRI.
-		context[topology.persistedAs] = topology.type ?? `haibun:${topology.persistedAs}`;
+		const scoped: Record<string, unknown> = {};
+		const put = (key: string, node: Record<string, string>): void => {
+			context[key] = node;
+			scoped[key] = node;
+		};
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
 			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;
 			const linkRel = linkRelFromSemantic(rel);
 			const node: Record<string, string> = { "@id": uri, "haibun:rel": linkRel };
 			if (linkRel === "item") node["@type"] = "@id";
-			context[prop] = node;
+			put(prop, node);
 		}
 		for (const [edge, edgeDef] of Object.entries(topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
-			context[edge] = { "@id": (rel && REL_CONTEXT[rel]) ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" };
+			put(edge, { "@id": (rel && REL_CONTEXT[rel]) ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" });
 		}
+		// The bare type label maps to its vocabulary IRI PLUS the type-scoped @context above (so `@type: "Person"`
+		// resolves to e.g. `foaf:Person` and activates Person's term scope).
+		context[topology.persistedAs] = { "@id": topology.type ?? `haibun:${topology.persistedAs}`, "@context": scoped };
 	}
 	return { "@context": context };
 }
