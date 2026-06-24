@@ -181,8 +181,13 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 		if (currentRow && cursor !== null) {
 			currentRow.classList.add(TIME_SYNC_CLASS.CURRENT);
-			const rowTop = (currentRow as HTMLElement).offsetTop;
-			this.scrollTo({ top: rowTop - this.clientHeight / 2, behavior: "smooth" });
+			// Centering the current row is a layout-dependent view effect (offsetTop/clientHeight, and scrollTo itself, only
+			// exist where the host lays out the column). Feature-detect rather than assume — a no-layout host (jsdom) has no
+			// scroll position to set, so the row-classification above is the whole contract there.
+			if (typeof this.scrollTo === "function") {
+				const rowTop = (currentRow as HTMLElement).offsetTop;
+				this.scrollTo({ top: rowTop - this.clientHeight / 2, behavior: "smooth" });
+			}
 		}
 	}
 
