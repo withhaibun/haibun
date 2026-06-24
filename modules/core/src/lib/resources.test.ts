@@ -12,8 +12,11 @@ import {
 	commentDomainDefinition,
 	COMMENT_LABEL,
 	getPropertyDefinitions,
+	principalDomainDefinition,
+	PRINCIPAL_LABEL,
 } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
+import { mapDefinitionsToDomains } from "./domains.js";
 
 describe("LinkRelations extensions", () => {
 	const newRels = [
@@ -238,6 +241,35 @@ describe("getJsonLdContext top-level term fallback", () => {
 		const listScope = (ctx.TrustedList as { "@context": Record<string, { "@id": string }> })["@context"];
 		expect(credScope.issuer["@id"]).toBe(LinkRelations.CREDENTIAL_ISSUER.uri);
 		expect(listScope.issuer["@id"]).toBe(LinkRelations.TAG.uri);
+	});
+});
+
+describe("getJsonLdContext rdfs:subClassOf — the prov:Agent attribution range", () => {
+	it("emits rdfs:subClassOf on a type that declares a superclass (so its class entails it)", () => {
+		const domains = {
+			p: {
+				topology: { persistedAs: "P", type: "sec:Controller", subClassOf: "prov:Agent", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+				schema: { parse: (v: unknown) => v },
+			},
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@id": string; "rdfs:subClassOf"?: unknown }> })["@context"];
+		expect(ctx.P["@id"]).toBe("sec:Controller");
+		expect(ctx.P["rdfs:subClassOf"]).toBe("prov:Agent");
+	});
+
+	it("omits rdfs:subClassOf entirely when a type declares no superclass", () => {
+		const domains = {
+			a: { topology: { persistedAs: "A", type: "vc:A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } }, schema: { parse: (v: unknown) => v } },
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, Record<string, unknown>> })["@context"];
+		expect(ctx.A).not.toHaveProperty("rdfs:subClassOf");
+	});
+
+	it("the Principal (sec:Controller) is declared a prov:Agent — the wasAttributedTo target is well-formed", () => {
+		const domains = mapDefinitionsToDomains([principalDomainDefinition]);
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@id": string; "rdfs:subClassOf"?: unknown }> })["@context"];
+		expect(ctx[PRINCIPAL_LABEL]["@id"]).toBe("sec:Controller");
+		expect(ctx[PRINCIPAL_LABEL]["rdfs:subClassOf"]).toBe("prov:Agent");
 	});
 });
 
