@@ -3,7 +3,7 @@
  * transition easing. Each paint maps these to its own rendering constants (opacity, render order, etc.).
  */
 
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations, roleRels } from "@haibun/core/lib/resources.js";
 import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
 export type XYZ = { x: number; y: number; z: number };
@@ -14,25 +14,37 @@ export type GroupKeyMode = "type" | "role";
 /** Container bucket for a node with no resolved HypermediaRole, under the role axis. */
 export const UNATTRIBUTED_ROLE = "(unattributed)";
 
-/** Predicates (edge labels) whose target is a node's HypermediaRole, in priority order (first match wins). An
- *  artifact published to a verifiable data registry groups under that registry (registeredIn) — this outranks its
- *  controller, so the issuer's published key/status-list sit in the registry container, not the issuer's. A
- *  VerifiablePresentation groups with its holder (cred:holder); a bare VerifiableCredential with its issuer
- *  (cred:issuer); a verification with its verifier (performedBy). The credentialSubject / verifiableCredential /
- *  presentedTo edges draw the trust triangle's SIDES, not the container. Ordinary records carry none of these and fall
- *  through to the canonical PROV/AS attribution rels (wasAttributedTo/attributedTo) — their grouping is unchanged. The
- *  fold matches the quad predicate = the createEdge edge label, so every entry is a genuine term. One edit to extend. */
-export const ROLE_RELS: readonly string[] = [
+/** PRIORITY POLICY (a VIEW policy, not an ontology fact): when a node carries SEVERAL role edges, which one names its
+ *  container/lane. An artifact published to a verifiable data registry groups under that registry (registeredIn) — this
+ *  outranks its controller, so the issuer's published key/status-list sit in the registry container, not the issuer's.
+ *  A VerifiablePresentation groups with its holder (cred:holder); a bare VerifiableCredential with its issuer
+ *  (cred:issuer); a verification with its verifier (performedBy). The canonical PROV/AS attribution rels
+ *  (wasAttributedTo/attributedTo) are the lowest-priority fallback for an ordinary record. A role rel NOT listed here
+ *  still counts (it folds, just after every ranked one); the list only orders the ranked few. */
+const ROLE_PRIORITY: readonly string[] = [
 	LinkRelations.REGISTERED_IN.rel,
 	LinkRelations.CREDENTIAL_HOLDER.rel,
 	LinkRelations.CREDENTIAL_ISSUER.rel,
 	LinkRelations.CREDENTIAL_SUBJECT.rel,
-	"performedBy",
-	"verifier",
-	"author",
+	LinkRelations.PERFORMED_BY.rel,
+	LinkRelations.VERIFIER.rel,
+	LinkRelations.AUTHOR.rel,
 	LinkRelations.WAS_ATTRIBUTED_TO.rel,
 	LinkRelations.ATTRIBUTED_TO.rel,
 ];
+
+/** The role-attribution predicates (edge labels) whose target is a node's HypermediaRole, IN PRIORITY ORDER (first
+ *  match wins). ONTOLOGY-DRIVEN: the SET is derived from LinkRelations — every rel declared `subPropertyOf` the broad
+ *  role super-property `inRoleOf` (see resources.roleRels()) — never a hand-maintained array, so declaring a new role
+ *  predicate is one `subPropertyOf: "inRoleOf"` in LinkRelations with nothing to edit here. The ORDER is the
+ *  ROLE_PRIORITY view policy above for the ranked rels, then any remaining derived role rels (stable, by name). The fold
+ *  matches the quad predicate = the createEdge edge label, so every entry is a genuine term. */
+export const ROLE_RELS: readonly string[] = (() => {
+	const derived = roleRels();
+	const ranked = ROLE_PRIORITY.filter((r) => derived.has(r));
+	const rest = [...derived].filter((r) => !ranked.includes(r)).sort();
+	return [...ranked, ...rest];
+})();
 
 /** The group/container key for a node: its `@type` (default), or its `HypermediaRole` under the role axis. One selector,
  *  both axes — the fold in buildGraphModelFromQuads put the role on `properties[HYPERMEDIA_ROLE_KEY]`, so this stays pure. */

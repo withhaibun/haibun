@@ -14,6 +14,7 @@ import {
 	getPropertyDefinitions,
 	principalDomainDefinition,
 	PRINCIPAL_LABEL,
+	roleRels,
 } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
@@ -270,6 +271,54 @@ describe("getJsonLdContext rdfs:subClassOf — the prov:Agent attribution range"
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@id": string; "rdfs:subClassOf"?: unknown }> })["@context"];
 		expect(ctx[PRINCIPAL_LABEL]["@id"]).toBe("sec:Controller");
 		expect(ctx[PRINCIPAL_LABEL]["rdfs:subClassOf"]).toBe("prov:Agent");
+	});
+});
+
+describe("roleRels — the ontology-derived role-attribution predicate set", () => {
+	it("derives every rel declared subPropertyOf inRoleOf (and excludes the super-property itself)", () => {
+		const set = roleRels();
+		for (const rel of [
+			LinkRelations.REGISTERED_IN.rel,
+			LinkRelations.CREDENTIAL_HOLDER.rel,
+			LinkRelations.CREDENTIAL_ISSUER.rel,
+			LinkRelations.CREDENTIAL_SUBJECT.rel,
+			LinkRelations.PERFORMED_BY.rel,
+			LinkRelations.VERIFIER.rel,
+			LinkRelations.AUTHOR.rel,
+			LinkRelations.WAS_ATTRIBUTED_TO.rel,
+			LinkRelations.ATTRIBUTED_TO.rel,
+		]) {
+			expect(set.has(rel)).toBe(true);
+		}
+		expect(set.has(LinkRelations.IN_ROLE_OF.rel)).toBe(false); // the abstract super-property is never a written edge
+		expect(set.has(LinkRelations.IN_REPLY_TO.rel)).toBe(false); // a reply rel is not a role attribution
+	});
+
+	it("treats prov:wasAttributedTo as a SUB-property of inRoleOf, not the reverse (a role target need not be a prov:Agent)", () => {
+		expect(isSubPropertyOf(LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.IN_ROLE_OF.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel)).toBe(false);
+		expect(isSubPropertyOf(LinkRelations.REGISTERED_IN.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel)).toBe(false); // registeredIn is a role attribution but NOT a prov:wasAttributedTo
+	});
+});
+
+describe("getJsonLdContext rdfs:subPropertyOf — the ontology-driven role hierarchy", () => {
+	it("emits rdfs:subPropertyOf on a role edge, mapped to the super-property's IRI", () => {
+		const domains = {
+			c: {
+				topology: { persistedAs: "C", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, edges: { issuer: { rel: LinkRelations.CREDENTIAL_ISSUER.rel, range: "Issuer" } } },
+				schema: { parse: (v: unknown) => v },
+			},
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, { "rdfs:subPropertyOf"?: unknown }> }> })["@context"];
+		expect(ctx.C["@context"]?.issuer["rdfs:subPropertyOf"]).toBe(REL_CONTEXT[LinkRelations.IN_ROLE_OF.rel]);
+	});
+
+	it("omits rdfs:subPropertyOf on a rel that declares no parent", () => {
+		const domains = {
+			a: { topology: { persistedAs: "A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel } }, schema: { parse: (v: unknown) => v } },
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }> })["@context"];
+		expect(ctx.A["@context"]?.name).not.toHaveProperty("rdfs:subPropertyOf");
 	});
 });
 

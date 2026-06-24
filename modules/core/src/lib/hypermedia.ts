@@ -26,6 +26,16 @@ import {
 function relOf(def: TPropertyDef): TRel {
 	return isContentPropertyDef(def) ? (def.rel as TRel) : def;
 }
+
+/** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
+ *  strings; undefined when the rel declares none. Mirrors the `subClassOf` lookup the type node emits — so a served
+ *  JSON-LD context carries the genuine rel hierarchy (e.g. `cred:issuer rdfs:subPropertyOf hbn:inRoleOf`). */
+function subPropertyOfRel(rel: string): string | string[] | undefined {
+	for (const entry of Object.values(LinkRelations)) {
+		if (entry.rel === rel) return (entry as { subPropertyOf?: string | string[] }).subPropertyOf;
+	}
+	return undefined;
+}
 import type { TRegisteredDomain } from "./resources.js";
 
 /** Per-schema JSON-Schema memoization. `step.list` RPC calls buildConcernCatalog repeatedly; each
@@ -567,17 +577,34 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 			scoped[key] = node;
 			offerTopTerm(key, node);
 		};
+		// A rel's declared `subPropertyOf` parent(s), as the parents' genuine IRIs — the rdfs:subPropertyOf axiom emitted on
+		// the rel's term node (the property analog of the type node's rdfs:subClassOf). So e.g. `cred:issuer` carries
+		// `rdfs:subPropertyOf hbn:inRoleOf`, declaring the broad role super-property as a real ontology fact in the context.
+		const subPropertyAxiom = (rel: string): string | string[] | undefined => {
+			const sp = subPropertyOfRel(rel);
+			if (sp === undefined) return undefined;
+			return Array.isArray(sp) ? sp.map((p) => REL_CONTEXT[p as TRel] ?? `haibun:${p}`) : (REL_CONTEXT[sp as TRel] ?? `haibun:${sp}`);
+		};
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
 			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;
 			const linkRel = linkRelFromSemantic(rel);
-			const node: Record<string, string> = { "@id": uri, "haibun:rel": linkRel };
+			const node: Record<string, unknown> = { "@id": uri, "haibun:rel": linkRel };
 			if (linkRel === "item") node["@type"] = "@id";
-			put(prop, node);
+			const axiom = subPropertyAxiom(rel);
+			if (axiom !== undefined) node["rdfs:subPropertyOf"] = axiom;
+			put(prop, node as Record<string, string>);
 		}
 		for (const [edge, edgeDef] of Object.entries(topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
-			put(edge, { "@id": (rel && REL_CONTEXT[rel]) ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" });
+			const node: Record<string, unknown> = { "@id": (rel && REL_CONTEXT[rel]) ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" };
+			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do — subPropertyOf inReplyTo)
+			// OR the rel itself declares it in LinkRelations (the role rels — subPropertyOf inRoleOf). Either is a genuine axiom.
+			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? (rel ? subPropertyOfRel(rel) : undefined);
+			if (declared !== undefined) {
+				node["rdfs:subPropertyOf"] = Array.isArray(declared) ? declared.map((p) => REL_CONTEXT[p as TRel] ?? `haibun:${p}`) : (REL_CONTEXT[declared as TRel] ?? `haibun:${declared}`);
+			}
+			put(edge, node as Record<string, string>);
 		}
 		// The bare type label maps to its vocabulary IRI PLUS the type-scoped @context above (so `@type: "Person"`
 		// resolves to e.g. `foaf:Person` and activates Person's term scope). A `subClassOf` topology declares the

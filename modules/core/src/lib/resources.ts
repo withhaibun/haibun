@@ -165,7 +165,7 @@ export type TRelPresentation = "summary" | "body" | "governance";
 export const LinkRelations = {
 	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal" },
-	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri" },
+	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "inRoleOf" },
 	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri" },
 	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
 	UPDATED: { rel: "updated", uri: "as:updated", range: "literal" },
@@ -179,9 +179,10 @@ export const LinkRelations = {
 	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
 	URL: { rel: "url", uri: "as:url", range: "literal" },
 	// PROV-O — provenance and lineage
-	// Entity → the responsible Agent (the party a node is attributed to: issuer/holder/verifier/author/…, or its producing
-	// instance). The canonical role/provenance edge for the fisheye's HypermediaRole grouping axis (see grouping.ts ROLE_RELS).
-	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri" },
+	// Entity → the responsible Agent (the party a node is attributed to, or its producing instance). The canonical
+	// provenance attribution edge; a role attribution (subPropertyOf inRoleOf — the broad role super-property defined
+	// below), so it is one of the predicates the fisheye's HypermediaRole grouping axis derives (see roleRels).
+	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri", subPropertyOf: "inRoleOf" },
 	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
 	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
@@ -258,10 +259,22 @@ export const LinkRelations = {
 	// An artifact's publication in a verifiable data registry — the issuer publishes its key/status-list there and a
 	// verifier resolves them from it. A haibun-native rel (no genuine W3C term names this); it is the top-priority
 	// role/grouping edge so a published artifact groups under the registry, not its controlling issuer.
-	REGISTERED_IN: { rel: "registeredIn", uri: "hbn:registeredIn", range: "iri" },
-	CREDENTIAL_ISSUER: { rel: "issuer", uri: "cred:issuer", range: "iri" },
-	CREDENTIAL_SUBJECT: { rel: "credentialSubject", uri: "cred:credentialSubject", range: "iri" },
-	CREDENTIAL_HOLDER: { rel: "holder", uri: "cred:holder", range: "iri" },
+	// Role attribution super-property — the BROAD term that gathers every predicate naming the party a node is attributed
+	// to. Broader than prov:wasAttributedTo: a role target need not be a prov:Agent (an artifact published to a verifiable
+	// data registry groups under that REGISTRY, a publication target, not an agent), so prov:wasAttributedTo is itself a
+	// SUB-property of this rather than the other way round. The fisheye's role grouping axis derives its predicate set as
+	// "every rel declared subPropertyOf inRoleOf" (roleRels below), so the set is ontology-driven, never a hand-kept array.
+	IN_ROLE_OF: { rel: "inRoleOf", uri: "hbn:inRoleOf", range: "iri" },
+	// A verification act's performer (graph edge label "performedBy") and an authored record's author — promoted from bare
+	// string literals in the old ROLE_RELS to genuine rels so the role set derives wholly from the ontology. The graph
+	// edge LABEL a stepper writes IS the rel string (the role fold matches the quad predicate = the edge label).
+	PERFORMED_BY: { rel: "performedBy", uri: "prov:wasAssociatedWith", range: "iri", subPropertyOf: "inRoleOf" },
+	VERIFIER: { rel: "verifier", uri: "hbn:verifier", range: "iri", subPropertyOf: "inRoleOf" },
+	AUTHOR: { rel: "author", uri: "schema:author", range: "iri", subPropertyOf: "inRoleOf" },
+	REGISTERED_IN: { rel: "registeredIn", uri: "hbn:registeredIn", range: "iri", subPropertyOf: "inRoleOf" },
+	CREDENTIAL_ISSUER: { rel: "issuer", uri: "cred:issuer", range: "iri", subPropertyOf: "inRoleOf" },
+	CREDENTIAL_SUBJECT: { rel: "credentialSubject", uri: "cred:credentialSubject", range: "iri", subPropertyOf: "inRoleOf" },
+	CREDENTIAL_HOLDER: { rel: "holder", uri: "cred:holder", range: "iri", subPropertyOf: "inRoleOf" },
 	VERIFIABLE_CREDENTIAL: { rel: "verifiableCredential", uri: "cred:verifiableCredential", range: "iri" },
 } as const;
 
@@ -366,6 +379,25 @@ export function isReplyEdge(edgeType: string): boolean {
 	if (isSubPropertyOf(edgeType, target)) return true;
 	const rel = edgeRel(edgeType);
 	return rel ? isSubPropertyOf(rel, target) : false;
+}
+
+/**
+ * The ontology-derived ROLE-ATTRIBUTION predicate set: every rel declared `subPropertyOf` the broad role super-property
+ * `inRoleOf` (registeredIn, holder, issuer, credentialSubject, performedBy, verifier, author, wasAttributedTo,
+ * attributedTo, …). This REPLACES the hand-maintained ROLE_RELS array — declaring a new role predicate is now a single
+ * `subPropertyOf: "inRoleOf"` in LinkRelations, with NOTHING to add here. The fisheye reads it to fold each node's
+ * HypermediaRole (the party it is attributed to) and to form the role containers / swimlanes.
+ *
+ * The set is UNORDERED (a Set); priority for a node carrying several role edges is a separate VIEW POLICY (ROLE_PRIORITY).
+ * `inRoleOf` itself is excluded — it is the abstract super-property, never a written edge label.
+ */
+export function roleRels(): ReadonlySet<string> {
+	const target = LinkRelations.IN_ROLE_OF.rel;
+	const set = new Set<string>();
+	for (const entry of Object.values(LinkRelations)) {
+		if (entry.rel !== target && isSubPropertyOf(entry.rel, target)) set.add(entry.rel);
+	}
+	return set;
 }
 
 // ============================================================================
