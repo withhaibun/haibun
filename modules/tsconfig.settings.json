@@ -24,5 +24,12 @@
 			"@haibun/*": ["./*"]
 		}
 	},
+	"watchOptions": {
+		"watchFile": "priorityPollingInterval",
+		"watchDirectory": "dynamicPriorityPolling",
+		"fallbackPolling": "priorityInterval",
+		"synchronousWatchDirectory": true,
+		"excludeDirectories": ["node_modules", "build"]
+	},
 	"exclude": ["**/*.test.ts", "**/build/*"]
 }

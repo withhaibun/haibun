@@ -7,7 +7,7 @@
 	"types": "build/app.d.ts",
 	"exports": {
 		".": "./build/index.js",
-		"./*": "./build/*",
+		"./*": { "development": "./src/*", "default": "./build/*" },
 		"./bundle": "./build/shu-bundle.js"
 	},
 	"scripts": {

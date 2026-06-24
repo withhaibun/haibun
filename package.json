@@ -39,7 +39,7 @@
 		"build": "npm run build --workspaces --if-present && npm run postbuild",
 		"postbuild": "node scripts/chmod-shebangs.mjs && node scripts/prune-orphaned-build.mjs",
 		"prune:build": "node scripts/prune-orphaned-build.mjs",
-		"build-watch": "concurrently \"npm:build-watch:tsc\" \"npm:build-watch:monitor-browser\" \"npm:build-watch:shu-bundles\"",
+		"build-watch": "concurrently --restart-tries -1 --restart-after 1000 \"npm:build-watch:tsc\" \"npm:build-watch:monitor-browser\" \"npm:build-watch:shu-bundles\"",
 		"format": "biome format --write .",
 		"lint": "biome lint .",
 		"check": "biome check .",
