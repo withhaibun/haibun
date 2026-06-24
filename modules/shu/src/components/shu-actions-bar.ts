@@ -602,7 +602,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private summaryTemplate(): TemplateResult {
 		const pinned = this.state.pinned;
-		return html`<div class="summary-bar" @click=${this.onSummaryClick}>
+		return html`<div class="summary-bar" data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.onSummaryClick}>
 			<span class="status-area" style=${this._statusMessage ? "" : "display:none"}>${this._statusMessage}</span>
 			<shu-breadcrumb></shu-breadcrumb>
 			<span class="time-offset" data-testid=${`${this.testIdPrefix}time-offset`}>${this._timeOffsetLabel}</span>
