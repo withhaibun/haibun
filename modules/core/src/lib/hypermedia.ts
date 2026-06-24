@@ -533,22 +533,39 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		otel: "https://opentelemetry.io/schemas/",
 		rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
 		rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+		// W3C Bitstring Status List vocabulary (the status-list credential terms, distinct from the core credentials vocabulary).
+		vcstatus: "https://www.w3.org/ns/credentials/status#",
+		// haibun-namespace IRIs for the wallet and DGSI (CAN/DGSI TS 115 Digital Credentials) vocabularies used by the
+		// credential/wallet steppers; the rels themselves come from REL_CONTEXT, these only declare the @type prefixes.
+		wallet: "https://haibun.dev/ns/wallet#",
+		dgsi: "https://haibun.dev/ns/dgsi#",
+		oid4vp: "https://haibun.dev/ns/oid4vp#",
 		hbn: "https://haibun.dev/ns/",
 		haibun: "/ns/",
 	};
 	// JSON-LD 1.1 type-scoped context. Each @type carries a nested @context mapping ITS field/edge terms to the genuine
 	// IRIs its own rels declare, so a field name reused across domains (e.g. "expires", "issuer", "type") resolves to the
 	// CORRECT IRI under each type — honoring the per-domain rel (which also drives column-view presentation: filter via
-	// CONTEXT, id via IDENTIFIER, item/select via linkRelFromSemantic) without a flat global collision. The same terms
-	// are ALSO emitted at the top level as a fallback for a type-less reference (last-wins there, harmless: every
-	// exported node carries its @type, so the scoped mapping is what a 1.1 processor applies).
+	// CONTEXT, id via IDENTIFIER, item/select via linkRelFromSemantic) without a flat global collision.
+	//
+	// A term is ALSO emitted at the top level as a fallback for a type-less reference, but ONLY when every domain that
+	// declares it agrees on the same @id. A term that maps to differing IRIs across domains (e.g. `issuer` → cred:issuer
+	// in a credential but as:tag in a trusted-list) is left OUT of the top level: a last-wins emission there would be
+	// non-deterministic (registration order decides the winner) and could give a type-less reference the wrong IRI. Such
+	// a term is still resolved correctly under each type's scoped @context, which is what a 1.1 processor applies.
+	const topTerm = new Map<string, { node: Record<string, string>; consistent: boolean }>();
+	const offerTopTerm = (key: string, node: Record<string, string>): void => {
+		const prior = topTerm.get(key);
+		if (!prior) topTerm.set(key, { node, consistent: true });
+		else if (prior.node["@id"] !== node["@id"]) prior.consistent = false;
+	};
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
 		const scoped: Record<string, unknown> = {};
 		const put = (key: string, node: Record<string, string>): void => {
-			context[key] = node;
 			scoped[key] = node;
+			offerTopTerm(key, node);
 		};
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
@@ -565,6 +582,9 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		// The bare type label maps to its vocabulary IRI PLUS the type-scoped @context above (so `@type: "Person"`
 		// resolves to e.g. `foaf:Person` and activates Person's term scope).
 		context[topology.persistedAs] = { "@id": topology.type ?? `haibun:${topology.persistedAs}`, "@context": scoped };
+	}
+	for (const [key, { node, consistent }] of topTerm) {
+		if (consistent) context[key] = node;
 	}
 	return { "@context": context };
 }
