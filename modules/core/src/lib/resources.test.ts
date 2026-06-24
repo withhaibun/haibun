@@ -189,6 +189,56 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.dcterms).toBe("http://purl.org/dc/terms/");
 		expect(ctx.haibun).toBe("/ns/");
 	});
+
+	it("declares the credential/wallet @type prefixes used by the steppers", () => {
+		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
+		const ctx = out["@context"];
+		// The genuine VC vocabulary namespace (VerifiableCredential/VerifiablePresentation/issuer/credentialSubject/holder/…),
+		// used BY VC DM 2.0 — not a coined .../ns/credentials/v2# namespace, which hosts none of these terms.
+		expect(ctx.cred).toBe("https://www.w3.org/2018/credentials#");
+		// The W3C Bitstring Status List vocabulary, distinct from the core credentials vocabulary.
+		expect(ctx.vcstatus).toBe("https://www.w3.org/ns/credentials/status#");
+		expect(ctx.wallet).toBe("https://haibun.dev/ns/wallet#");
+		expect(ctx.dgsi).toBe("https://haibun.dev/ns/dgsi#");
+		expect(ctx.oid4vp).toBe("https://haibun.dev/ns/oid4vp#");
+	});
+
+	it("maps the credential validity-end rel to cred:validUntil (not as:updated)", () => {
+		expect(LinkRelations.VALID_UNTIL.rel).toBe("validUntil");
+		expect(LinkRelations.VALID_UNTIL.uri).toBe("cred:validUntil");
+		expect(REL_CONTEXT.validUntil).toBe("cred:validUntil");
+		expect(getRelRange(LinkRelations.VALID_UNTIL.rel)).toBe("literal");
+	});
+});
+
+describe("getJsonLdContext top-level term fallback", () => {
+	const persistedDomain = (persistedAs: string, type: string, properties: Record<string, string>) => ({
+		topology: { persistedAs, type, id: "id", concerns: { persisted: true }, properties: { id: LinkRelations.IDENTIFIER.rel, ...properties } },
+		schema: { parse: (v: unknown) => v },
+	});
+
+	it("emits a top-level term when every domain agrees on its @id", () => {
+		const domains = {
+			a: persistedDomain("A", "vc:A", { name: LinkRelations.NAME.rel }),
+			b: persistedDomain("B", "vc:B", { name: LinkRelations.NAME.rel }),
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@id": string }> })["@context"];
+		expect(ctx.name["@id"]).toBe(LinkRelations.NAME.uri);
+	});
+
+	it("omits a top-level term that maps to differing @ids across domains", () => {
+		const domains = {
+			cred: persistedDomain("Credential", "vc:VerifiableCredential", { issuer: LinkRelations.CREDENTIAL_ISSUER.rel }),
+			list: persistedDomain("TrustedList", "dgsi:TrustedList", { issuer: LinkRelations.TAG.rel }),
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
+		expect(ctx.issuer).toBeUndefined();
+		// still resolvable under each type's scoped @context
+		const credScope = (ctx.Credential as { "@context": Record<string, { "@id": string }> })["@context"];
+		const listScope = (ctx.TrustedList as { "@context": Record<string, { "@id": string }> })["@context"];
+		expect(credScope.issuer["@id"]).toBe(LinkRelations.CREDENTIAL_ISSUER.uri);
+		expect(listScope.issuer["@id"]).toBe(LinkRelations.TAG.uri);
+	});
 });
 
 describe("Discourse rels", () => {

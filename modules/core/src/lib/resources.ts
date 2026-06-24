@@ -254,6 +254,11 @@ export const LinkRelations = {
 	// is attributed to its issuer (cred:issuer) and is ABOUT its subject (cred:credentialSubject); possession lives on the
 	// presentation the holder controls.
 	VALID_FROM: { rel: "validFrom", uri: "cred:validFrom", range: "literal" },
+	VALID_UNTIL: { rel: "validUntil", uri: "cred:validUntil", range: "literal" },
+	// An artifact's publication in a verifiable data registry — the issuer publishes its key/status-list there and a
+	// verifier resolves them from it. A haibun-native rel (no genuine W3C term names this); it is the top-priority
+	// role/grouping edge so a published artifact groups under the registry, not its controlling issuer.
+	REGISTERED_IN: { rel: "registeredIn", uri: "hbn:registeredIn", range: "iri" },
 	CREDENTIAL_ISSUER: { rel: "issuer", uri: "cred:issuer", range: "iri" },
 	CREDENTIAL_SUBJECT: { rel: "credentialSubject", uri: "cred:credentialSubject", range: "iri" },
 	CREDENTIAL_HOLDER: { rel: "holder", uri: "cred:holder", range: "iri" },
@@ -536,8 +541,7 @@ export type TComment = z.infer<typeof CommentSchema>;
 export const commentDomainDefinition: TDomainDefinition = {
 	selectors: [COMMENT_DOMAIN],
 	schema: CommentSchema,
-	description:
-		"A note about another record. It links to what it is about and to any replies, so conversations stay attached to their subject.",
+	description: "A note about another record. It links to what it is about and to any replies, so conversations stay attached to their subject.",
 	topology: {
 		persistedAs: COMMENT_LABEL,
 		id: "id",
