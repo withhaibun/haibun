@@ -48,6 +48,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private offset = 0;
 	private error = "";
 	private lastQueryKey = "";
+	/** The `label` of the most recently *started* query. A change means the node type switched, so the previous type's rows are dropped before the new query lands — a stale-row click would otherwise open the wrong entity. */
+	private lastQueriedLabel: string | undefined;
 	/** In-flight promise — coalesces concurrent identical `executeQuery` calls. The key is `lastQueryKey` (set immediately after the dedup check). */
 	private inflightPromise: Promise<void> | null = null;
 	private selectedIds = new Set<string>();
@@ -265,6 +267,16 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const resultsChanged = queryKey !== this.lastQueryKey;
 		this.lastQueryKey = queryKey;
 
+		if (label !== this.lastQueriedLabel) {
+			// The node type changed: drop the previous type's rows now so they are never left
+			// clickable while the new query is in flight — a stale-row click would open the wrong
+			// entity (its id is a different type). The new rows render when `work` resolves.
+			this.lastQueriedLabel = label;
+			this.results = [];
+			this.total = 0;
+			this.renderResults();
+		}
+
 		this.error = "";
 		const work = (async () => {
 			try {
@@ -279,6 +291,11 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					offset: this.offset,
 				};
 				const data = await this.#query.run(payload);
+				// Out-of-order guard: a newer query (e.g. a type switch) replaced our queryKey while this
+				// RPC was in flight, so this response is stale. Ignore it — applying it would overwrite the
+				// current type's rows with the previous type's, leaving the wrong type's rows clickable. The
+				// current query renders its own response when it resolves.
+				if (this.lastQueryKey !== queryKey) return;
 				this.results = data.vertices ?? [];
 				this.total = data.total ?? this.results.length;
 				this.sortableFields = data.sort?.fields ?? [];
