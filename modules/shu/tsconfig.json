@@ -12,5 +12,12 @@
 		"types": ["node"],
 		"lib": ["ES2022", "DOM"]
 	},
+	"watchOptions": {
+		"watchFile": "priorityPollingInterval",
+		"watchDirectory": "dynamicPriorityPolling",
+		"fallbackPolling": "priorityInterval",
+		"synchronousWatchDirectory": true,
+		"excludeDirectories": ["node_modules", "build"]
+	},
 	"include": ["src"]
 }
