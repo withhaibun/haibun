@@ -72,7 +72,10 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		for (const c of options.clusters) {
 			for (const [subject, label] of Object.entries(c.displayLabels)) {
 				const node = nodeMap.get(subject);
-				if (node) node.displayLabel = label;
+				if (!node) continue;
+				// `label === subject` is composeDisplayLabel's id-fallback (the cluster @type has no NAME/CONTENT/body/weak rel — e.g. a name-less Principal sharing a named node's @id). Never let it clobber a real headline already set by another cluster for the same collapsed node. Order-independent: a real name beats the bare id regardless of cluster iteration order.
+				if (label === subject && node.displayLabel !== undefined && node.displayLabel !== subject) continue;
+				node.displayLabel = label;
 			}
 		}
 		for (const c of options.clusters) {

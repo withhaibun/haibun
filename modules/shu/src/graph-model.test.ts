@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { buildGraphModelFromQuads, HYPERMEDIA_ROLE_KEY } from "./graph-model.js";
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { ROLE_RELS } from "./graph/grouping.js";
+import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
 
 const q = (subject: string, predicate: string, object: unknown, namedGraph: string, objectType?: string): TQuad =>
 	({ subject, predicate, object, namedGraph, objectType, timestamp: 1 }) as TQuad;
+
+const cluster = (type: string, displayLabels: Record<string, string>): TCluster =>
+	({ type, totalCount: Object.keys(displayLabels).length, sampledCount: Object.keys(displayLabels).length, omittedCount: 0, sampledSubjects: Object.keys(displayLabels), displayLabels });
 
 describe("buildGraphModelFromQuads", () => {
 	it("emits one node per subject (typed by namedGraph) and a typed-reference edge", () => {
@@ -34,6 +38,36 @@ describe("buildGraphModelFromQuads", () => {
 	});
 });
 
+describe("displayLabel merge (shared-@id collapse)", () => {
+	const did = "did:web:coastal-fisheries.example.authority";
+	// The Issuer cluster carries a real name; the Principal cluster (same @id, name-less topology) carries only the id fallback.
+	const issuerCluster = cluster("Issuer", { [did]: "Coastal Fisheries Authority" });
+	const principalCluster = cluster("Principal", { [did]: did });
+	const quads = [q(did, "name", "Coastal Fisheries Authority", "Issuer"), q(did, "controller", did, "Principal")];
+
+	it("a real name wins over a same-@id id-fallback when the named cluster is iterated FIRST", () => {
+		const model = buildGraphModelFromQuads(quads, { clusters: [issuerCluster, principalCluster] });
+		expect(model.nodes.find((n) => n.id === did)?.displayLabel).toBe("Coastal Fisheries Authority");
+	});
+
+	it("a real name wins when the named cluster is iterated LAST (order-independent)", () => {
+		const model = buildGraphModelFromQuads(quads, { clusters: [principalCluster, issuerCluster] });
+		expect(model.nodes.find((n) => n.id === did)?.displayLabel).toBe("Coastal Fisheries Authority");
+	});
+
+	it("a single named cluster (the verifier case) still titles by its name", () => {
+		const vid = "verifier:1";
+		const model = buildGraphModelFromQuads([q(vid, "name", "Credential Verifier", "Verifier")], { clusters: [cluster("Verifier", { [vid]: "Credential Verifier" })] });
+		expect(model.nodes.find((n) => n.id === vid)?.displayLabel).toBe("Credential Verifier");
+	});
+
+	it("a node with no name anywhere falls back to its id (honest fallback unchanged)", () => {
+		const lone = "did:lone";
+		const model = buildGraphModelFromQuads([q(lone, "controller", lone, "Principal")], { clusters: [cluster("Principal", { [lone]: lone })] });
+		expect(model.nodes.find((n) => n.id === lone)?.displayLabel).toBe(lone);
+	});
+});
+
 describe("HypermediaRole fold (roleRels)", () => {
 	const principals = [q("did:issuer", "name", "Authority", "Principal"), q("did:holder", "name", "Importer", "Principal")];
 	it("folds the highest-priority role edge's target onto the node", () => {
@@ -59,5 +93,28 @@ describe("HypermediaRole fold (roleRels)", () => {
 	it("does not fold when roleRels is absent (backward-compatible)", () => {
 		const model = buildGraphModelFromQuads([q("vc1", "name", "Permit", "VerifiableCredential"), q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"), ...principals]);
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined();
+	});
+});
+
+describe("ROLE_RELS trust-triangle placement (genuine W3C VC terms)", () => {
+	it("a VerifiablePresentation groups with its HOLDER (cred:holder — possession lives on the presentation)", () => {
+		const model = buildGraphModelFromQuads(
+			[q("vp1", "name", "Presentation", "VerifiablePresentation"), q("vp1", "holder", "did:holder", "VerifiablePresentation", "Holder"), q("vp1", "verifiableCredential", "vc1", "VerifiablePresentation", "VerifiableCredential"), q("did:holder", "name", "Wren", "Holder")],
+			{ roleRels: ROLE_RELS },
+		);
+		expect(model.nodes.find((n) => n.id === "vp1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:holder");
+	});
+
+	it("a bare VerifiableCredential groups with its ISSUER (cred:issuer); credentialSubject is a triangle SIDE, not the container", () => {
+		const model = buildGraphModelFromQuads(
+			[q("vc1", "name", "Permit", "VerifiableCredential"), q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Issuer"), q("vc1", "credentialSubject", "did:holder", "VerifiableCredential", "Holder"), q("did:issuer", "name", "Authority", "Issuer"), q("did:holder", "name", "Wren", "Holder")],
+			{ roleRels: ROLE_RELS },
+		);
+		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:issuer"); // issuer outranks credentialSubject
+	});
+
+	it("an ordinary record (no VC edges) still groups by its author", () => {
+		const model = buildGraphModelFromQuads([q("e1", "name", "Hi", "Email"), q("e1", "author", "p1", "Email", "Person"), q("p1", "name", "Alice", "Person")], { roleRels: ROLE_RELS });
+		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("p1");
 	});
 });
