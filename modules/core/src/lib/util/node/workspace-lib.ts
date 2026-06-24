@@ -88,14 +88,18 @@ export function getModuleLocation(name: string) {
 			pkg = JSON.parse(nodeFS.readFileSync(pkgJsonPath, "utf-8"));
 			pkgJsonCache.set(pkgJsonPath, pkg);
 		}
-		const exports = (pkg as Record<string, unknown>).exports as Record<string, string> | undefined;
+		const exports = (pkg as Record<string, unknown>).exports as Record<string, string | Record<string, string>> | undefined;
 		if (!exports) throw new Error(`package ${pkgName} has no exports map; subpath ${subpath} not resolvable`);
+		// A conditional export (e.g. "./*": { development: "./src/*", default: "./build/*" }) is an object, not a string.
+		// The Node-side stepper loader runs compiled output, so resolve to the `default` (build) branch — mirroring plain
+		// Node resolution where the custom `development` condition is inactive unless --conditions=development is passed.
+		const condTarget = (t: string | Record<string, string>): string => (typeof t === "string" ? t : (t.default ?? t.node ?? t.require ?? t.import ?? Object.values(t)[0]));
 		const exact = exports[subpath] || exports[`${subpath}.js`];
-		if (exact) return path.join(pkgDir, exact);
+		if (exact) return path.join(pkgDir, condTarget(exact));
 		for (const [pattern, target] of Object.entries(exports)) {
 			if (pattern.endsWith("/*")) {
 				const prefix = pattern.slice(0, -1);
-				if (subpath.startsWith(prefix)) return path.join(pkgDir, target.replace("*", subpath.slice(prefix.length)));
+				if (subpath.startsWith(prefix)) return path.join(pkgDir, condTarget(target).replace("*", subpath.slice(prefix.length)));
 			}
 		}
 		throw new Error(`package ${pkgName} exports map does not cover subpath ${subpath}`);
