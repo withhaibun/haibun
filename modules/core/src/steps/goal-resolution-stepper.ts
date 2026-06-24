@@ -41,6 +41,11 @@ const COMPOSITE_MAX_DEPTH = "COMPOSITE_MAX_DEPTH";
 const COMPOSITE_DECOMPOSITION_DEFAULT = true;
 const COMPOSITE_MAX_DEPTH_DEFAULT = 4;
 
+// Projection-query domains — steps that only READ current memory (show affordances / waypoints / chain-lint). Completing
+// one changes nothing, so afterStep must NOT emit an `affordances.*` change signal for it: the affordances panel's own
+// re-fetch dispatches one of these steps, and announcing a change re-fires that fetch over SSE — an unbounded RPC↔SSE storm.
+const PROJECTION_DOMAINS = new Set([DOMAIN_AFFORDANCES, DOMAIN_GOAL_RESOLUTION, DOMAIN_CHAIN_LINT]);
+
 export class GoalResolutionStepper extends AStepper implements IHasOptions, IHasCycles {
 	description = "Backward-chaining goal resolver and plan runner";
 
@@ -113,11 +118,14 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				});
 			}
 		},
-		afterStep: (_after: TAfterStep): Promise<TAfterStepResult> => {
+		afterStep: (after: TAfterStep): Promise<TAfterStepResult> => {
 			// Lean event: emit only a change signal. The affordances snapshot is large (forward + goals + their
 			// resolution trees + composite michi), so the affordances panel and the domain-chain view re-fetch the
 			// current snapshot on demand (show affordances / show waypoints) rather than ride every step's event.
 			// Keeps the event log lean by construction — the bulk never denormalizes onto every step.
+			// But a projection-query step itself changed nothing, so it must not announce a change — else the panel's
+			// on-demand re-fetch (which dispatched this very step) re-triggers itself over SSE without bound.
+			if (PROJECTION_DOMAINS.has(after.featureStep.action.step.productsDomain ?? "")) return Promise.resolve({ failed: false });
 			const seqPath = this.getWorld().runtime.currentSeqPath;
 			if (!seqPath) {
 				throw new Error("GoalResolutionStepper.afterStep: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking afterStep cycles.");
