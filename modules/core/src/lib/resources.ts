@@ -165,7 +165,7 @@ export type TRelPresentation = "summary" | "body" | "governance";
 export const LinkRelations = {
 	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal" },
-	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "inRoleOf" },
+	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "fromActor" },
 	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri" },
 	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
 	UPDATED: { rel: "updated", uri: "as:updated", range: "literal" },
@@ -182,7 +182,7 @@ export const LinkRelations = {
 	// Entity → the responsible Agent (the party a node is attributed to, or its producing instance). The canonical
 	// provenance attribution edge; a role attribution (subPropertyOf inRoleOf — the broad role super-property defined
 	// below), so it is one of the predicates the fisheye's HypermediaRole grouping axis derives (see roleRels).
-	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri", subPropertyOf: "inRoleOf" },
+	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri", subPropertyOf: "fromActor" },
 	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
 	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
@@ -264,17 +264,28 @@ export const LinkRelations = {
 	// data registry groups under that REGISTRY, a publication target, not an agent), so prov:wasAttributedTo is itself a
 	// SUB-property of this rather than the other way round. The fisheye's role grouping axis derives its predicate set as
 	// "every rel declared subPropertyOf inRoleOf" (roleRels below), so the set is ontology-driven, never a hand-kept array.
-	IN_ROLE_OF: { rel: "inRoleOf", uri: "hbn:inRoleOf", range: "iri" },
+	IN_ROLE_OF: { rel: "inRoleOf", uri: "hbn:inRoleOf", range: "iri", abstract: true },
+	// Directional actor super-properties under inRoleOf — the ORIENTATION the grouping axis doesn't need but a sequence
+	// does. fromActor = the source/origin actor an entity is FROM (its creator/sender/responsible agent); toActor = the
+	// destination/audience actor it is TO (its subject/recipient/registry). Both subPropertyOf inRoleOf, so every concrete
+	// actor rel that declares under one is STILL a role rel (roleRels derives transitively) — the split only ADDS direction,
+	// it removes nothing. An Actor is a prov:Agent ≡ as:Actor ≡ foaf:Agent. Generic across vocabularies: a sequence reads
+	// any entity carrying a fromActor AND a toActor as a message source→target, with no per-type knowledge (VC, email/AS,
+	// ActivityPub posts, comments). Abstract — never a written edge label, only a classification target (like inRoleOf).
+	FROM_ACTOR: { rel: "fromActor", uri: "hbn:fromActor", range: "iri", subPropertyOf: "inRoleOf", abstract: true },
+	TO_ACTOR: { rel: "toActor", uri: "hbn:toActor", range: "iri", subPropertyOf: "inRoleOf", abstract: true },
 	// A verification act's performer (graph edge label "performedBy") and an authored record's author — promoted from bare
 	// string literals in the old ROLE_RELS to genuine rels so the role set derives wholly from the ontology. The graph
-	// edge LABEL a stepper writes IS the rel string (the role fold matches the quad predicate = the edge label).
-	PERFORMED_BY: { rel: "performedBy", uri: "prov:wasAssociatedWith", range: "iri", subPropertyOf: "inRoleOf" },
-	VERIFIER: { rel: "verifier", uri: "hbn:verifier", range: "iri", subPropertyOf: "inRoleOf" },
-	AUTHOR: { rel: "author", uri: "schema:author", range: "iri", subPropertyOf: "inRoleOf" },
-	REGISTERED_IN: { rel: "registeredIn", uri: "hbn:registeredIn", range: "iri", subPropertyOf: "inRoleOf" },
-	CREDENTIAL_ISSUER: { rel: "issuer", uri: "cred:issuer", range: "iri", subPropertyOf: "inRoleOf" },
-	CREDENTIAL_SUBJECT: { rel: "credentialSubject", uri: "cred:credentialSubject", range: "iri", subPropertyOf: "inRoleOf" },
-	CREDENTIAL_HOLDER: { rel: "holder", uri: "cred:holder", range: "iri", subPropertyOf: "inRoleOf" },
+	// edge LABEL a stepper writes IS the rel string (the role fold matches the quad predicate = the edge label). Each
+	// declares its DIRECTION: the performer/author/issuer/holder is the source (fromActor); the subject/verifier/registry
+	// is the destination (toActor).
+	PERFORMED_BY: { rel: "performedBy", uri: "prov:wasAssociatedWith", range: "iri", subPropertyOf: "fromActor" },
+	VERIFIER: { rel: "verifier", uri: "hbn:verifier", range: "iri", subPropertyOf: "toActor" },
+	AUTHOR: { rel: "author", uri: "schema:author", range: "iri", subPropertyOf: "fromActor" },
+	REGISTERED_IN: { rel: "registeredIn", uri: "hbn:registeredIn", range: "iri", subPropertyOf: "toActor" },
+	CREDENTIAL_ISSUER: { rel: "issuer", uri: "cred:issuer", range: "iri", subPropertyOf: "fromActor" },
+	CREDENTIAL_SUBJECT: { rel: "credentialSubject", uri: "cred:credentialSubject", range: "iri", subPropertyOf: "toActor" },
+	CREDENTIAL_HOLDER: { rel: "holder", uri: "cred:holder", range: "iri", subPropertyOf: "fromActor" },
 	VERIFIABLE_CREDENTIAL: { rel: "verifiableCredential", uri: "cred:verifiableCredential", range: "iri" },
 } as const;
 
@@ -391,13 +402,32 @@ export function isReplyEdge(edgeType: string): boolean {
  * The set is UNORDERED (a Set); priority for a node carrying several role edges is a separate VIEW POLICY (ROLE_PRIORITY).
  * `inRoleOf` itself is excluded — it is the abstract super-property, never a written edge label.
  */
-export function roleRels(): ReadonlySet<string> {
-	const target = LinkRelations.IN_ROLE_OF.rel;
+/** The concrete (non-abstract) rels transitively `subPropertyOf` `target` — the ontology-derived predicate set for an
+ *  upper concept. Abstract concepts (inRoleOf, fromActor, toActor) are excluded: they classify, they are never a written
+ *  edge label. The shared kernel for roleRels / fromActorRels / toActorRels. */
+function concreteSubRelsOf(target: string): ReadonlySet<string> {
 	const set = new Set<string>();
 	for (const entry of Object.values(LinkRelations)) {
-		if (entry.rel !== target && isSubPropertyOf(entry.rel, target)) set.add(entry.rel);
+		if ((entry as { abstract?: boolean }).abstract) continue;
+		if (isSubPropertyOf(entry.rel, target)) set.add(entry.rel);
 	}
 	return set;
+}
+
+export function roleRels(): ReadonlySet<string> {
+	return concreteSubRelsOf(LinkRelations.IN_ROLE_OF.rel);
+}
+
+/** The SOURCE-side actor rels (issuer/holder/author/performedBy/attributedTo/wasAttributedTo) — every concrete rel under
+ *  `fromActor`. A sequence reads an entity's fromActor as the lifeline it originates from. */
+export function fromActorRels(): ReadonlySet<string> {
+	return concreteSubRelsOf(LinkRelations.FROM_ACTOR.rel);
+}
+
+/** The TARGET-side actor rels (credentialSubject/verifier/registeredIn) — every concrete rel under `toActor`. A sequence
+ *  reads an entity's toActor as the lifeline a message is directed to. */
+export function toActorRels(): ReadonlySet<string> {
+	return concreteSubRelsOf(LinkRelations.TO_ACTOR.rel);
 }
 
 // ============================================================================

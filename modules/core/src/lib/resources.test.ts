@@ -15,6 +15,8 @@ import {
 	principalDomainDefinition,
 	PRINCIPAL_LABEL,
 	roleRels,
+	fromActorRels,
+	toActorRels,
 } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
@@ -301,6 +303,47 @@ describe("roleRels — the ontology-derived role-attribution predicate set", () 
 	});
 });
 
+describe("fromActor / toActor — the directional actor split under inRoleOf", () => {
+	it("a concrete actor rel reaches inRoleOf TRANSITIVELY through its direction (issuer → fromActor → inRoleOf)", () => {
+		expect(isSubPropertyOf(LinkRelations.CREDENTIAL_ISSUER.rel, LinkRelations.FROM_ACTOR.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.FROM_ACTOR.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.CREDENTIAL_ISSUER.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true); // so it is still a role rel
+		expect(isSubPropertyOf(LinkRelations.CREDENTIAL_SUBJECT.rel, LinkRelations.TO_ACTOR.rel)).toBe(true);
+	});
+
+	it("the split only ADDS direction — roleRels membership is unchanged (every actor rel is still a role)", () => {
+		const roles = roleRels();
+		for (const r of [...fromActorRels(), ...toActorRels()]) expect(roles.has(r)).toBe(true);
+	});
+
+	it("sorts the source-side actors (issuer/holder/author/performedBy/attributedTo/wasAttributedTo) into fromActor", () => {
+		const from = fromActorRels();
+		for (const r of [
+			LinkRelations.CREDENTIAL_ISSUER.rel,
+			LinkRelations.CREDENTIAL_HOLDER.rel,
+			LinkRelations.AUTHOR.rel,
+			LinkRelations.PERFORMED_BY.rel,
+			LinkRelations.ATTRIBUTED_TO.rel,
+			LinkRelations.WAS_ATTRIBUTED_TO.rel,
+		])
+			expect(from.has(r)).toBe(true);
+		// and not the target-side ones
+		expect(from.has(LinkRelations.CREDENTIAL_SUBJECT.rel)).toBe(false);
+		expect(from.has(LinkRelations.REGISTERED_IN.rel)).toBe(false);
+	});
+
+	it("sorts the target-side actors (credentialSubject/verifier/registeredIn) into toActor", () => {
+		const to = toActorRels();
+		for (const r of [LinkRelations.CREDENTIAL_SUBJECT.rel, LinkRelations.VERIFIER.rel, LinkRelations.REGISTERED_IN.rel]) expect(to.has(r)).toBe(true);
+		expect(to.has(LinkRelations.CREDENTIAL_ISSUER.rel)).toBe(false);
+	});
+
+	it("excludes the abstract concepts themselves from every derived set (they classify, never an edge label)", () => {
+		for (const set of [roleRels(), fromActorRels(), toActorRels()])
+			for (const abstractRel of [LinkRelations.IN_ROLE_OF.rel, LinkRelations.FROM_ACTOR.rel, LinkRelations.TO_ACTOR.rel]) expect(set.has(abstractRel)).toBe(false);
+	});
+});
+
 describe("getJsonLdContext rdfs:subPropertyOf — the ontology-driven role hierarchy", () => {
 	it("emits rdfs:subPropertyOf on a role edge, mapped to the super-property's IRI", () => {
 		const domains = {
@@ -310,7 +353,8 @@ describe("getJsonLdContext rdfs:subPropertyOf — the ontology-driven role hiera
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, { "rdfs:subPropertyOf"?: unknown }> }> })["@context"];
-		expect(ctx.C["@context"]?.issuer["rdfs:subPropertyOf"]).toBe(REL_CONTEXT[LinkRelations.IN_ROLE_OF.rel]);
+		// issuer now declares under the directional fromActor super-property (itself subPropertyOf inRoleOf).
+		expect(ctx.C["@context"]?.issuer["rdfs:subPropertyOf"]).toBe(REL_CONTEXT[LinkRelations.FROM_ACTOR.rel]);
 	});
 
 	it("omits rdfs:subPropertyOf on a rel that declares no parent", () => {
