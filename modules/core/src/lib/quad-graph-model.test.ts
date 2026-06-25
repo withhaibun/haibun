@@ -3,6 +3,15 @@ import { QuadGraphModel } from "./quad-graph-model.js";
 import type { TQuad } from "./quad-types.js";
 
 const q = (subject: string, predicate: string, object: unknown, namedGraph: string, timestamp = 1): TQuad => ({ subject, predicate, object, namedGraph, timestamp });
+/** An EDGE quad — carries objectType (the target's range), the marker that distinguishes a typed reference from a scalar property. */
+const qe = (subject: string, predicate: string, object: string, objectType: string, namedGraph: string, timestamp = 1): TQuad => ({
+	subject,
+	predicate,
+	object,
+	objectType,
+	namedGraph,
+	timestamp,
+});
 const noRels = (): undefined => undefined;
 
 describe("QuadGraphModel", () => {
@@ -37,12 +46,31 @@ describe("QuadGraphModel", () => {
 		expect(typeof c?.displayLabels["b"]).toBe("string"); // and labelled
 	});
 
-	it("dedups by (namedGraph|subject|predicate), replacing in place", () => {
+	it("dedups a scalar property by (namedGraph|subject|predicate), replacing in place", () => {
 		const m = new QuadGraphModel(10, noRels);
 		m.merge([q("a", "name", "A", "Email", 1)]);
 		m.merge([q("a", "name", "A2", "Email", 2)]);
 		expect(m.quads).toHaveLength(1);
 		expect(m.quads[0].object).toBe("A2");
+	});
+
+	it("preserves every distinct edge object for one (subject,predicate) — the multi-valued attribution (§7-2)", () => {
+		// A shared credential attributed to three principals across a federated union — all three edges must survive.
+		const m = new QuadGraphModel(10, noRels);
+		m.merge([
+			qe("cred", "wasAttributedTo", "did:issuer", "Principal", "VerifiableCredential"),
+			qe("cred", "wasAttributedTo", "did:holder", "Principal", "VerifiableCredential"),
+			qe("cred", "wasAttributedTo", "did:verifier", "Principal", "VerifiableCredential"),
+		]);
+		const attributions = m.quads.filter((x) => x.subject === "cred" && x.predicate === "wasAttributedTo").map((x) => x.object);
+		expect(attributions).toEqual(["did:issuer", "did:holder", "did:verifier"]);
+	});
+
+	it("still dedups an edge re-arriving with the SAME object (the property-quad/edge-quad collapse)", () => {
+		const m = new QuadGraphModel(10, noRels);
+		m.merge([qe("cred", "wasAttributedTo", "did:issuer", "Principal", "VerifiableCredential", 1)]);
+		m.merge([qe("cred", "wasAttributedTo", "did:issuer", "Principal", "VerifiableCredential", 2)]);
+		expect(m.quads.filter((x) => x.predicate === "wasAttributedTo")).toHaveLength(1);
 	});
 
 	it("lets the store override totalCount with the authoritative total", () => {

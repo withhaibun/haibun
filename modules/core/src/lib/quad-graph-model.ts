@@ -16,7 +16,14 @@ import type { TCluster, TClusteredQuads, TQuad } from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
 import { BODY_LABEL } from "./resources.js";
 
-const quadKey = (q: TQuad): string => `${q.namedGraph}|${q.subject}|${q.predicate}`;
+// A scalar PROPERTY (no objectType) keys by subject+predicate, so a later value for the same fact REPLACES in place —
+// an updated `subject`, a rescheduled gantt `startedAtTime`, an `accessLevel` change. An EDGE quad (objectType set) keys
+// by object too: one subject can legitimately reference MANY objects under the same predicate — the federation case where
+// a shared node is `wasAttributedTo` several principals (issuer/holder/verifier) across a union — so every distinct edge
+// survives the merge instead of the last one clobbering the rest (§7-2). An edge re-arriving with the same object still
+// keys identically, so the property-quad/edge-quad dedup is unaffected.
+const quadKey = (q: TQuad): string =>
+	q.objectType !== undefined ? `${q.namedGraph}|${q.subject}|${q.predicate}|${String(q.object)}` : `${q.namedGraph}|${q.subject}|${q.predicate}`;
 
 /** Rels for a type, used by the shared display-label rule. Server: the registry's fields; client: getRels. */
 export type RelsProvider = (type: string) => Record<string, string> | undefined;
