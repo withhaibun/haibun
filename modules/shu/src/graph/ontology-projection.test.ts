@@ -40,14 +40,14 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 		expect(clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledCount).toBe(0);
 	});
 
-	it("carries a domainType on a property a type declares — the instances-drill routing (and none for an abstract super-property)", () => {
+	it("carries a domain (rdfs:domain) on a property a type declares — the instances-drill routing (and none for an abstract super-property)", () => {
 		const domains = { p: principalDomainDefinition as unknown as TRegisteredDomain };
 		// delegatedFrom is an edge Principal declares, so its rdfs:domain includes Principal.
 		expect(typesDeclaringRel(domains, LinkRelations.DELEGATED_FROM.rel)).toContain("Principal");
 		const { quads } = ontologyToQuads(domains);
-		const domainOf = (rel: string): unknown => quads.find((q) => q.subject === rel && q.predicate === ONTOLOGY_PRED.domainType)?.object;
+		const domainOf = (rel: string): unknown => quads.find((q) => q.subject === rel && q.predicate === ONTOLOGY_PRED.domain)?.object;
 		expect(domainOf(LinkRelations.DELEGATED_FROM.rel)).toBe("Principal");
-		// an abstract super-property no type declares has no instances to drill to → no domainType.
+		// an abstract super-property no type declares has no instances to drill to → no domain.
 		expect(domainOf(LinkRelations.IN_ROLE_OF.rel)).toBeUndefined();
 		expect(typesDeclaringRel(domains, LinkRelations.IN_ROLE_OF.rel)).toEqual([]);
 	});
