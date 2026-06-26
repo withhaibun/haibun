@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
+import { ShuAffordancesPanel, AFFORDANCES_REFRESH_COALESCE_MS } from "./shu-affordances-panel.js";
 import { setConduit, resetConduit, SerializedConduit } from "../hypermedia.js";
+
+/** A `products` assignment is coalesced over a short trailing window (so a connect-time replay burst collapses to one
+ *  apply); wait it out, then the lit render, before reading the shadow root. */
+const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<void> => {
+	await new Promise((r) => setTimeout(r, AFFORDANCES_REFRESH_COALESCE_MS + 20));
+	await panel.updateComplete;
+};
 
 /**
  * The panel always reaches a terminal display state — rendering the forward/goals lists when
@@ -49,7 +56,7 @@ describe("shu-affordances-panel", () => {
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
 			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-1"] } }],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		const root = panel.shadowRoot;
 		expect(root?.querySelector('[data-testid="affordances-goals"]')).toBeTruthy();
 		expect(root?.querySelector('[data-testid="goal-g-facts"]')?.textContent).toContain("fact-1");
@@ -64,13 +71,13 @@ describe("shu-affordances-panel", () => {
 			forward: [],
 			goals: [{ domain: "session", description: "Session", resolution: { finding: "satisfied", goal: "session", factIds: ["s-1", "s-2", "s-3"] } }],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		const facts = panel.shadowRoot?.querySelector('[data-testid="goal-session-facts"]')?.textContent ?? "";
 		expect(facts).toContain("s-1");
 		expect(facts).toContain("s-2");
 		expect(facts).toContain("s-3");
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-session-toggle"]') as HTMLButtonElement | null)?.click();
-		await panel.updateComplete;
+		await applied(panel);
 		const detail = panel.shadowRoot?.querySelector(".resolution-detail")?.textContent ?? "";
 		expect(detail).toContain("asserted as facts");
 	});
@@ -96,9 +103,9 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
-		await panel.updateComplete;
+		await applied(panel);
 		const heading = panel.shadowRoot?.querySelector(".path-heading")?.textContent ?? "";
 		expect(heading).toContain("2 ways to reach this");
 		const stepLabels = Array.from(panel.shadowRoot?.querySelectorAll(".plan-steps li") ?? []).map((li) => li.textContent ?? "");
@@ -115,14 +122,14 @@ describe("shu-affordances-panel", () => {
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [path] } }],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		type TStepChoose = { method?: string; args?: Record<string, unknown>; auto?: boolean };
 		const received: TStepChoose[] = [];
 		document.addEventListener("step-choose", ((e: CustomEvent) => {
 			received.push(e.detail as TStepChoose);
 		}) as EventListener);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
-		await panel.updateComplete;
+		await applied(panel);
 		const startBtn = panel.shadowRoot?.querySelector(".start-path") as HTMLButtonElement;
 		startBtn.click();
 		const last = received[received.length - 1];
@@ -144,9 +151,9 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
-		await panel.updateComplete;
+		await applied(panel);
 		expect(panel.shadowRoot?.querySelector(".path-heading")?.textContent).toContain("more exist");
 	});
 
@@ -168,9 +175,9 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
-		await panel.updateComplete;
+		await applied(panel);
 		const graphEl = panel.shadowRoot?.querySelector('shu-graph[data-testid="goal-graph-0"]') as
 			| (HTMLElement & { lastProducts?: { graph?: { nodes: unknown[]; edges: unknown[] } } })
 			| null;
@@ -186,7 +193,7 @@ describe("shu-affordances-panel", () => {
 			forward: [],
 			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		const explain = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
 		expect(explain).toBeTruthy();
 		if (!explain) throw new Error("unreachable");
@@ -198,7 +205,7 @@ describe("shu-affordances-panel", () => {
 				{ domain: "h", description: "Goal h", resolution: { finding: "satisfied", goal: "h", factIds: ["fact-y"] } },
 			],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		const explainAfter = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
 		expect(explainAfter?.open).toBe(true);
 		expect(panel.shadowRoot?.innerHTML).toContain("fact-y");
@@ -224,9 +231,9 @@ describe("shu-affordances-panel", () => {
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
-		await panel.updateComplete;
+		await applied(panel);
 		const composite = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:vc"]');
 		expect(composite).toBeTruthy();
 		if (!composite) throw new Error("unreachable");
@@ -235,7 +242,7 @@ describe("shu-affordances-panel", () => {
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		const after = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:vc"]');
 		expect(after?.open).toBe(true);
 	});
@@ -259,10 +266,10 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
-		await panel.updateComplete;
+		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="goal-credential-facts"]')?.textContent).toContain("fact-1");
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-credential-toggle"]') as HTMLButtonElement | null)?.click();
-		await panel.updateComplete;
+		await applied(panel);
 		// Once open: the inline fact summary keeps the existing fact id, and the heading on the run-again section uses the satisfied wording.
 		expect(panel.shadowRoot?.querySelector('[data-testid="goal-credential-facts"]')?.textContent).toContain("fact-1");
 		expect(panel.shadowRoot?.querySelector(".path-heading")?.textContent).toContain("Run again to produce another");
@@ -272,7 +279,7 @@ describe("shu-affordances-panel", () => {
 	it("must NOT show 'Loading affordances…' forever when mounted without products (regression: reload-without-fetch hangs)", async () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel;
 		document.body.appendChild(panel);
-		await panel.updateComplete;
+		await applied(panel);
 		// Either the actionable empty-state appears, or the panel rendered goals/waypoints lists. The forbidden outcome is only a spinner with no path forward.
 		const emptyState = panel.shadowRoot?.querySelector('[data-testid="affordances-empty"]');
 		const goalsList = panel.shadowRoot?.querySelector('[data-testid="affordances-goals"]');
@@ -289,9 +296,9 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		panel.products = { forward: [], goals: [] };
 		document.body.appendChild(panel);
-		await panel.updateComplete;
+		await applied(panel);
 		await new Promise((r) => setTimeout(r, 0)); // let the fetchWaypoints RPC resolve
-		await panel.updateComplete;
+		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
 		expect(panel.shadowRoot?.querySelector('[data-testid="waypoint-deliver-report"]')).toBeTruthy();
 	});
