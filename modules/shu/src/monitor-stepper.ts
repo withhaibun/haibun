@@ -30,7 +30,7 @@ import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
-import { ontologyToQuads, ontologyTermDescription, typesDeclaringRel, ONTOLOGY_CLASS } from "./graph/ontology-projection.js";
+import { ontologyToQuads } from "./graph/ontology-projection.js";
 
 /** Result of the inherent `graphQuery` step: matched rows + their count. */
 const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(), z.unknown())), total: z.number().int().nonnegative() });
@@ -150,11 +150,6 @@ const ClusteredQuadsSchema = z.object({
 			displayLabels: z.record(z.string(), z.string()).optional(),
 		}),
 	),
-});
-
-const OntologyTermSchema = z.object({
-	description: z.string(),
-	triples: z.array(z.object({ s: z.string(), p: z.string(), o: z.string() })),
 });
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions, IHasTunables {
@@ -553,36 +548,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			action: async () => {
 				const { quads, clusters } = ontologyToQuads(this.getWorld().domains);
 				return actionOKWithProducts({ quads, clusters });
-			},
-		},
-		getOntologyTerm: {
-			// The detail behind one ontology node (a Class or a Property): its getConcerns description plus example s,p,o
-			// triples that instantiate it — a Class's own individuals, or, for a Property, real triples sampled from the
-			// types that declare it. Lets the ontology view drill from the schema to the data the schema describes.
-			gwta: "get ontology term",
-			productsSchema: OntologyTermSchema,
-			action: async (args: { term?: string; kind?: string; accessLevel?: string } = {}) => {
-				const term = String(args.term ?? "");
-				if (!term) return actionNotOK("getOntologyTerm requires a term");
-				const kind = String(args.kind ?? ONTOLOGY_CLASS);
-				const world = this.getWorld();
-				const domains = world.domains;
-				const description = ontologyTermDescription(domains, term, kind);
-				const store = world.shared.getStore();
-				const accessLevel = args.accessLevel ? AccessLevelSchema.parse(args.accessLevel) : "public";
-				const triples: Array<{ s: string; p: string; o: string }> = [];
-				if (store.getClusteredQuads) {
-					const sample = async (label: string, limit: number, onlyPredicate?: string): Promise<void> => {
-						const res = await store.getClusteredQuads!({ types: [label], perTypeLimit: limit, accessLevel });
-						for (const q of res.quads) {
-							if (onlyPredicate && q.predicate !== onlyPredicate) continue;
-							triples.push({ s: q.subject, p: q.predicate, o: String(q.object) });
-						}
-					};
-					if (kind === ONTOLOGY_CLASS) await sample(term, 5);
-					else for (const label of typesDeclaringRel(domains, term)) await sample(label, 3, term);
-				}
-				return actionOKWithProducts({ description, triples: triples.slice(0, 40) });
 			},
 		},
 		graphQuery: {
