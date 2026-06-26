@@ -16,6 +16,36 @@ export const ONTOLOGY_PROPERTY = "Property";
 /** The ontology is timeless — a fixed timestamp so the time axis / cursor treat every term as one age. */
 const ONTOLOGY_TS = 0;
 
+/** The human description of an ontology term: a Class's getConcerns domain description; a Property's label + canonical
+ *  IRI (rels carry no prose, so the standard term IS the description). Empty for a superclass that is not a registered
+ *  domain (e.g. prov:Agent). Shared by the projector (the description quad) and the getOntologyTerm RPC (the detail). */
+export function ontologyTermDescription(domains: Record<string, TRegisteredDomain>, term: string, kind: string): string {
+	if (kind === ONTOLOGY_CLASS) {
+		for (const d of Object.values(domains)) if (isPersisted(d.topology) && d.topology.persistedAs === term) return d.description ?? "";
+		return "";
+	}
+	for (const e of Object.values(LinkRelations)) {
+		if (e.rel !== term) continue;
+		const label = (e as { label?: string }).label;
+		return label ? `${label} — ${e.uri}` : e.uri;
+	}
+	return term;
+}
+
+/** The persisted type labels that declare `rel` (as an edge or a property) — where the relation is actually used, so the
+ *  getOntologyTerm RPC knows which types to sample for example triples. */
+export function typesDeclaringRel(domains: Record<string, TRegisteredDomain>, rel: string): string[] {
+	const labels: string[] = [];
+	for (const d of Object.values(domains)) {
+		if (!isPersisted(d.topology)) continue;
+		const t = d.topology;
+		const inEdges = Object.values(t.edges ?? {}).some((e) => (e.rel ?? "") === rel);
+		const inProps = Object.values(t.properties).some((p) => (typeof p === "string" ? p : p.rel) === rel);
+		if (inEdges || inProps) labels.push(t.persistedAs);
+	}
+	return labels;
+}
+
 const cluster = (type: string, subjects: string[], displayLabels: Record<string, string>): TCluster => ({
 	type,
 	totalCount: subjects.length,
@@ -43,6 +73,8 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		classLabels[id] = id;
 		classSubjects.push(id);
 		quads.push({ subject: id, predicate: "name", object: id, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+		const desc = ontologyTermDescription(domains, id, ONTOLOGY_CLASS);
+		if (desc) quads.push({ subject: id, predicate: "description", object: desc, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 	};
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
@@ -61,6 +93,8 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		propLabels[rel] = rel;
 		propSubjects.push(rel);
 		quads.push({ subject: rel, predicate: "name", object: rel, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		const desc = ontologyTermDescription(domains, rel, ONTOLOGY_PROPERTY);
+		if (desc) quads.push({ subject: rel, predicate: "description", object: desc, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
 	};
 	for (const entry of Object.values(LinkRelations)) {
 		const rel = entry.rel;
