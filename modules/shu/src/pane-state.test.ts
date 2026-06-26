@@ -201,6 +201,7 @@ describe("PaneState", () => {
 	});
 
 	it("dismiss after open rewrites the hash so the closed pane's col= entry is gone", async () => {
+		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
 		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		await flush();
@@ -251,6 +252,7 @@ describe("PaneState", () => {
 	});
 
 	it("requestFrom prunes every non-pinned pane to the right of the source (pane tracked + hash updated)", async () => {
+		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
 		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
@@ -281,6 +283,7 @@ describe("PaneState", () => {
 	});
 
 	it("requestFrom honours pinned panes and addToSelection skips the prune (hash kept in sync)", async () => {
+		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
 		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
