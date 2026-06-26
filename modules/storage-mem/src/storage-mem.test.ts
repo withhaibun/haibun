@@ -2,13 +2,14 @@ import { vitest, describe, it, expect, vi } from "vitest";
 import { afterEach } from "node:test";
 
 vitest.useFakeTimers();
-import { Timer, CAPTURE, DEFAULT_DEST, OK, TStepArgs } from "@haibun/core/schema/protocol.js";
+import { CAPTURE, DEFAULT_DEST, OK, TStepArgs } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import StorageMem from "./storage-mem.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
-const { key } = Timer;
+// The capture key is the WORLD's own tag.key (getCaptureLocation reads loc.tag.key); assert against that, never a
+// separately-imported Timer.key — a different value when the module loads twice under vitest (its own static startTime).
 
 vi.spyOn(process, "cwd").mockReturnValue("/");
 
@@ -33,19 +34,19 @@ describe("mem getCaptureLocation", () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
 		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/default/${key}/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/default/${world.tag.key}/featn-0/test`);
 	});
 	it("gets options capture location", async () => {
 		const storageMem = new StorageMem();
 		const world = getTestWorldWithOptions();
 		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
 	});
 	it("gets relative capture location", async () => {
 		const storageMem = new StorageMem();
 		const world = getTestWorldWithOptions();
 		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
 	});
 	it("ensures capture location", async () => {
 		const storageMem = new StorageMem();

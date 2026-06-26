@@ -3,29 +3,30 @@ import { describe, it, expect } from "vitest";
 import { CAPTURE, DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import StorageFS from "./storage-fs.js";
-import { Timer } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 
-const { key } = Timer;
+// The capture key is the WORLD's own tag.key (getCaptureLocation reads loc.tag.key), so assert against that — never a
+// separately-imported Timer.key, which is a different value when the module loads twice under vitest (its own static
+// startTime), the source of the historic flake.
 
 describe("fs getCaptureLocation", () => {
 	it("gets capture location", async () => {
 		const storageFS = new StorageFS();
 		const world = getDefaultWorld();
 		const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/default/${key}/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/default/${world.tag.key}/featn-0/test`);
 	});
 	it("gets options capture location", async () => {
 		const storageFS = new StorageFS();
 		const world = getTestWorldWithOptions();
 		const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
 	});
 	it("gets relative capture location", async () => {
 		const storageFS = new StorageFS();
 		const world = getTestWorldWithOptions();
 		const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
 	});
 });
 
@@ -34,7 +35,7 @@ describe("getArtifactBasePath", () => {
 		const storageFS = new StorageFS();
 		storageFS.world = getDefaultWorld();
 		const basePath = storageFS.getArtifactBasePath();
-		expect(basePath).toEqual(`./${CAPTURE}/default/${key}`);
+		expect(basePath).toEqual(`./${CAPTURE}/default/${storageFS.world.tag.key}`);
 		// Verify no seq/featn in path
 		expect(basePath).not.toContain("seq-");
 		expect(basePath).not.toContain("featn-");
