@@ -46,6 +46,11 @@ const ShuAffordancesPanelSchema = z.object({
 const AFF_GOAL_PARAM = "aff-goal";
 const AFF_WAYPOINT_PARAM = "aff-waypoint";
 const WAYPOINTS_METHOD = "ActivitiesStepper-showWaypoints";
+// A new subscriber to the event stream is replayed the WHOLE `affordances.` history on connect/restore (one event per
+// step the run ever took). Re-fetching the current snapshot once PER replayed event would fire hundreds of identical
+// RPCs and re-renders in a burst — thrashing the panel so a goal toggle never settles long enough to be clicked. Coalesce
+// the burst into ONE trailing re-fetch; the single resulting snapshot already reflects every event seen so far.
+export const AFFORDANCES_REFRESH_COALESCE_MS = 50;
 
 function readParamFromUrl(name: string): string {
 	if (typeof window === "undefined") return "";
@@ -99,11 +104,16 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		try {
 			this.autoTeardown(
 				eventStream().subscribe(
-					// afterStep now emits a lean change signal (no payload) — quietly re-fetch the current snapshot.
-					() => void this.fetchInitial(true),
+					// afterStep emits a lean change signal (no payload) — quietly re-fetch the current snapshot, COALESCED so
+					// the connect-time history replay (one event per past step) collapses to a single re-fetch (see the const).
+					() => this.scheduleRefresh(),
 					(event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith("affordances."),
 				),
 			);
+			this.autoTeardown(() => {
+				if (this.refreshTimer !== undefined) clearTimeout(this.refreshTimer);
+				if (this.applyTimer !== undefined) clearTimeout(this.applyTimer);
+			});
 		} catch {
 			// No EventStream installed (test env without setupShuTest, standalone). Skip live updates.
 		}
@@ -137,18 +147,56 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				`shu-affordances-panel requires products with \`forward\` and \`goals\` arrays. Received keys: [${Object.keys(p).join(", ")}]. The step's productsDomain schema must include both fields; the action must populate them.`,
 			);
 		}
-		const waypoints = Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined;
-		this.applyAffordances({ forward: p.forward as TAffordances["forward"], goals: p.goals as TAffordances["goals"], waypoints });
-		// `show affordances` carries no waypoints, and applyAffordances only preserves the last-known set — so a
-		// waypoint added since the panel loaded would stay hidden (it only appears on reload, which re-runs the
-		// waypoint-preferring fetchInitial). Pull the current waypoints here so the affordances view stays current too.
-		if (waypoints === undefined) void this.fetchWaypoints();
+		// The pane-opener re-hands products on EVERY replayed affordances event (the connect-time history replay), so apply
+		// + waypoint-refresh are coalesced: a burst collapses to ONE re-render (the latest products win) instead of
+		// hundreds, which would thrash the panel so a goal toggle never settles to be clicked.
+		this.pendingProducts = {
+			forward: p.forward as TAffordances["forward"],
+			goals: p.goals as TAffordances["goals"],
+			waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined,
+		};
+		this.scheduleApply();
+	}
+
+	private pendingProducts?: TAffordances;
+	private applyTimer?: ReturnType<typeof setTimeout>;
+	/** Coalesce a burst of products assignments (the connect-time replay re-hands products once per past step) into ONE
+	 *  apply of the LATEST — hundreds of synchronous re-renders would otherwise thrash the panel (a click target never
+	 *  settles; a restoring panel never finishes mounting). Trailing-only so even an isolated trickle never re-renders
+	 *  more than ~20×/s. Unit tests await this window (see `setProductsSettled` in the test). */
+	private scheduleApply(): void {
+		if (this.applyTimer !== undefined) clearTimeout(this.applyTimer);
+		this.applyTimer = setTimeout(() => {
+			this.applyTimer = undefined;
+			this.flushProducts();
+		}, AFFORDANCES_REFRESH_COALESCE_MS);
+	}
+
+	/** Apply the latest handed-in products. `show affordances` carries no waypoints, so when the latest omit them, pull the
+	 *  current set (one coalesced refresh, not one per replayed event). */
+	private flushProducts(): void {
+		const p = this.pendingProducts;
+		this.pendingProducts = undefined;
+		if (!p) return;
+		this.applyAffordances(p);
+		if (p.waypoints === undefined) void this.fetchWaypoints();
 	}
 
 	/**
 	 * Refresh just the waypoint section from the activities stepper. No-op for as-of replay (no waypoint
 	 * history to replay) and for projects without the activities stepper loaded (the RPC rejects → kept as-is).
 	 */
+	private refreshTimer?: ReturnType<typeof setTimeout>;
+	/** Coalesce a burst of `affordances.` events (notably the connect-time history replay) into ONE trailing
+	 *  current-snapshot re-fetch, so the panel doesn't thrash through hundreds of redundant fetches + re-renders. */
+	private scheduleRefresh(): void {
+		if (this.refreshTimer !== undefined) clearTimeout(this.refreshTimer);
+		this.refreshTimer = setTimeout(() => {
+			this.refreshTimer = undefined;
+			void this.fetchInitial(true);
+		}, AFFORDANCES_REFRESH_COALESCE_MS);
+	}
+
 	private async fetchWaypoints(): Promise<void> {
 		if (this.getAttribute("as-of")) return;
 		try {
