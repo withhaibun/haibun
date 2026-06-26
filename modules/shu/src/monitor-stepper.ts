@@ -30,6 +30,7 @@ import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
+import { ontologyToQuads } from "./graph/ontology-projection.js";
 
 /** Result of the inherent `graphQuery` step: matched rows + their count. */
 const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(), z.unknown())), total: z.number().int().nonnegative() });
@@ -535,6 +536,18 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					properties,
 				}));
 				return actionOKWithProducts({ quads, clusters: result.clusters });
+			},
+		},
+		getOntologyQuads: {
+			// The ONTOLOGY (the schema / T-Box) as the same TClusteredQuads shape as the instance data, so the same graph
+			// view renders the model that drives it — the Class hierarchy (subClassOf) from the registered domains and the
+			// Property hierarchy (subPropertyOf: issuer → fromActor → inRoleOf) from LinkRelations. No store read: the
+			// ontology is the registered schema, not persisted rows.
+			gwta: "get ontology quads",
+			productsSchema: ClusteredQuadsSchema,
+			action: async () => {
+				const { quads, clusters } = ontologyToQuads(this.getWorld().domains);
+				return actionOKWithProducts({ quads, clusters });
 			},
 		},
 		graphQuery: {
