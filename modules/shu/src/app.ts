@@ -18,7 +18,7 @@ import { eventStream, setEventStream, LiveEventStream, SerializedEventStream } f
 import { getUiByComponent, getUiByType } from "./rels-cache.js";
 import { parseAffordanceProduct } from "./affordance-products.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
-import { PaneState } from "./pane-state.js";
+import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
@@ -237,6 +237,19 @@ const main = async (): Promise<void> => {
 			if (!subject) return;
 			// PaneState.requestFrom centralizes the Miller-column behaviour (dismiss every non-pinned pane to the right of the source). Every component that opens a column from a row click must reach this same path; direct `request` calls in views would skip the pruning and leak stale panes.
 			PaneState.requestFrom(e, { paneType: "entity", id: subject, persistedAs: label || defaultLabel() }, Boolean(addToSelection));
+		}) as EventListener,
+		{ signal },
+	);
+
+	// Generic pane open: a view hands a fully-formed DesiredPane and it goes through the same PaneState path as
+	// COLUMN_OPEN. The fisheye uses this to open the windowed instances column (filter-prop) for an ontology Class/Property,
+	// which COLUMN_OPEN (entity-only) can't express. Fail fast on a malformed request — no silent default pane.
+	appRoot.addEventListener(
+		SHU_EVENT.PANE_OPEN,
+		((e: CustomEvent) => {
+			const parsed = DesiredPaneSchema.safeParse(e.detail);
+			if (!parsed.success) throw new Error(`[shu] ${SHU_EVENT.PANE_OPEN}: invalid DesiredPane: ${parsed.error.message}`);
+			PaneState.requestFrom(e, parsed.data, false);
 		}) as EventListener,
 		{ signal },
 	);

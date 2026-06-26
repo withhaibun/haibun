@@ -13,27 +13,23 @@ import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-typ
 /** The two ontology clusters (the fisheye shows each as its own container, coloured by type). */
 export const ONTOLOGY_CLASS = "Class";
 export const ONTOLOGY_PROPERTY = "Property";
+/** The predicates the projection emits — ONE source so the projector (writer) and the fisheye (reader of `domainType`)
+ *  never drift on a string. `domainType` is the only one read outside this module (the Property routing). */
+export const ONTOLOGY_PRED = {
+	name: "name",
+	uri: "uri",
+	abstract: "abstract",
+	classIri: "classIri",
+	subClassOf: "subClassOf",
+	subPropertyOf: "subPropertyOf",
+	domainType: "domainType",
+} as const;
 /** The ontology is timeless — a fixed timestamp so the time axis / cursor treat every term as one age. */
 const ONTOLOGY_TS = 0;
 
-/** The human description of an ontology term: a Class's getConcerns domain description; a Property's label + canonical
- *  IRI (rels carry no prose, so the standard term IS the description). Empty for a superclass that is not a registered
- *  domain (e.g. prov:Agent). Shared by the projector (the description quad) and the getOntologyTerm RPC (the detail). */
-export function ontologyTermDescription(domains: Record<string, TRegisteredDomain>, term: string, kind: string): string {
-	if (kind === ONTOLOGY_CLASS) {
-		for (const d of Object.values(domains)) if (isPersisted(d.topology) && d.topology.persistedAs === term) return d.description ?? "";
-		return "";
-	}
-	for (const e of Object.values(LinkRelations)) {
-		if (e.rel !== term) continue;
-		const label = (e as { label?: string }).label;
-		return label ? `${label} — ${e.uri}` : e.uri;
-	}
-	return term;
-}
-
-/** The persisted type labels that declare `rel` (as an edge or a property) — where the relation is actually used, so the
- *  getOntologyTerm RPC knows which types to sample for example triples. */
+/** The rdfs:domain of a rel — the persisted type labels that declare it (as an edge or a property), in registration
+ *  order. Empty for an abstract super-property (inRoleOf/fromActor/toActor) or a rel no registered type uses. Lets a
+ *  click on a Property node open the windowed instances of a type that actually carries it. */
 export function typesDeclaringRel(domains: Record<string, TRegisteredDomain>, rel: string): string[] {
 	const labels: string[] = [];
 	for (const d of Object.values(domains)) {
@@ -72,19 +68,17 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		if (classLabels[id] !== undefined) return;
 		classLabels[id] = id;
 		classSubjects.push(id);
-		quads.push({ subject: id, predicate: "name", object: id, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
-		const desc = ontologyTermDescription(domains, id, ONTOLOGY_CLASS);
-		if (desc) quads.push({ subject: id, predicate: "description", object: desc, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+		quads.push({ subject: id, predicate: ONTOLOGY_PRED.name, object: id, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 	};
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
 		const t = d.topology;
 		addClass(t.persistedAs);
-		if (t.type) quads.push({ subject: t.persistedAs, predicate: "classIri", object: t.type, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+		if (t.type) quads.push({ subject: t.persistedAs, predicate: ONTOLOGY_PRED.classIri, object: t.type, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 		const supers = t.subClassOf === undefined ? [] : Array.isArray(t.subClassOf) ? t.subClassOf : [t.subClassOf];
 		for (const s of supers) {
 			addClass(s);
-			quads.push({ subject: t.persistedAs, predicate: "subClassOf", object: s, namedGraph: ONTOLOGY_CLASS, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+			quads.push({ subject: t.persistedAs, predicate: ONTOLOGY_PRED.subClassOf, object: s, namedGraph: ONTOLOGY_CLASS, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 		}
 	}
 
@@ -92,20 +86,22 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		if (propLabels[rel] !== undefined) return;
 		propLabels[rel] = rel;
 		propSubjects.push(rel);
-		quads.push({ subject: rel, predicate: "name", object: rel, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
-		const desc = ontologyTermDescription(domains, rel, ONTOLOGY_PROPERTY);
-		if (desc) quads.push({ subject: rel, predicate: "description", object: desc, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		quads.push({ subject: rel, predicate: ONTOLOGY_PRED.name, object: rel, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
 	};
 	for (const entry of Object.values(LinkRelations)) {
 		const rel = entry.rel;
 		addProp(rel);
-		quads.push({ subject: rel, predicate: "uri", object: entry.uri, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
-		if ((entry as { abstract?: boolean }).abstract) quads.push({ subject: rel, predicate: "abstract", object: true, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		quads.push({ subject: rel, predicate: ONTOLOGY_PRED.uri, object: entry.uri, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		if ((entry as { abstract?: boolean }).abstract) quads.push({ subject: rel, predicate: ONTOLOGY_PRED.abstract, object: true, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		// rdfs:domain — a declaring type, so a click on this Property opens that type's windowed instances. A scalar quad
+		// (no objectType) so it is node DATA, not a drawn edge: it carries the routing without cluttering the graph.
+		const domain = typesDeclaringRel(domains, rel)[0];
+		if (domain !== undefined) quads.push({ subject: rel, predicate: ONTOLOGY_PRED.domainType, object: domain, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
 		const sp = (entry as { subPropertyOf?: string | string[] }).subPropertyOf;
 		const parents = sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
 		for (const p of parents) {
 			addProp(p);
-			quads.push({ subject: rel, predicate: "subPropertyOf", object: p, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+			quads.push({ subject: rel, predicate: ONTOLOGY_PRED.subPropertyOf, object: p, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
 		}
 	}
 
