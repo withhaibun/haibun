@@ -13,8 +13,9 @@ import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-typ
 /** The two ontology clusters (the fisheye shows each as its own container, coloured by type). */
 export const ONTOLOGY_CLASS = "Class";
 export const ONTOLOGY_PROPERTY = "Property";
-/** The predicates the projection emits — ONE source so the projector (writer) and the fisheye (reader of `domainType`)
- *  never drift on a string. `domainType` is the only one read outside this module (the Property routing). */
+/** The predicates the projection emits — ONE source so the projector (writer) and the fisheye (reader of `domain`)
+ *  never drift on a string. `domain` is the genuine rdfs:domain term and the only one read outside this module (the
+ *  Property routing); it shares the bare-local-name convention of subClassOf / subPropertyOf. */
 export const ONTOLOGY_PRED = {
 	name: "name",
 	uri: "uri",
@@ -22,7 +23,7 @@ export const ONTOLOGY_PRED = {
 	classIri: "classIri",
 	subClassOf: "subClassOf",
 	subPropertyOf: "subPropertyOf",
-	domainType: "domainType",
+	domain: "domain",
 } as const;
 /** The ontology is timeless — a fixed timestamp so the time axis / cursor treat every term as one age. */
 const ONTOLOGY_TS = 0;
@@ -92,11 +93,12 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		const rel = entry.rel;
 		addProp(rel);
 		quads.push({ subject: rel, predicate: ONTOLOGY_PRED.uri, object: entry.uri, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
-		if ((entry as { abstract?: boolean }).abstract) quads.push({ subject: rel, predicate: ONTOLOGY_PRED.abstract, object: true, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		if ((entry as { abstract?: boolean }).abstract)
+			quads.push({ subject: rel, predicate: ONTOLOGY_PRED.abstract, object: true, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
 		// rdfs:domain — a declaring type, so a click on this Property opens that type's windowed instances. A scalar quad
 		// (no objectType) so it is node DATA, not a drawn edge: it carries the routing without cluttering the graph.
 		const domain = typesDeclaringRel(domains, rel)[0];
-		if (domain !== undefined) quads.push({ subject: rel, predicate: ONTOLOGY_PRED.domainType, object: domain, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		if (domain !== undefined) quads.push({ subject: rel, predicate: ONTOLOGY_PRED.domain, object: domain, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
 		const sp = (entry as { subPropertyOf?: string | string[] }).subPropertyOf;
 		const parents = sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
 		for (const p of parents) {
