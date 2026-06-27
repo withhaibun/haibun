@@ -13,7 +13,7 @@ const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { enterStepMode, passesStepExecution, chooseGraphLabel } = createStepUI(wp);
+const { enterStepMode, passesStepExecution, chooseGraphLabel, expandActionsBar } = createStepUI(wp);
 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
@@ -62,8 +62,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Actions-bar timeline mounts and the scrubber moves" }),
 
 		"The timeline scrubber lives in the actions-bar at the page level (not inside any pane) — it consumes the same SSE event stream as the monitor and drives time-travel for every view via TIME_SYNC. The actions-bar's filter row (where the scrubber sits) collapses until the twisty is clicked; expand it first, then assert the timeline is interactive. Exercising play/restart proves the cursor moves through history rather than parking at the latest event.",
-		waitFor({ target: IDS.APP.TWISTY }),
-		click({ target: IDS.APP.TWISTY }),
+		...expandActionsBar,
 		waitFor({ target: IDS.TIMELINE.SLIDER }),
 		waitFor({ target: IDS.TIMELINE.PLAY_PAUSE }),
 		waitFor({ target: IDS.TIMELINE.RESTART }),
@@ -142,7 +141,7 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
 		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
-		click({ target: IDS.APP.TWISTY }),
+		...expandActionsBar,
 		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
 
 		scenario({ scenario: "Variable inspection: `show vars` should produce an entry per seeded variable" }),
