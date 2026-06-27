@@ -24,6 +24,10 @@ import { compareSeqPath, parseSeqPath } from "./seq-path.js";
 /** Primitive domains: their values come from step arguments, not from facts. */
 export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([...BASE_TYPES, DOMAIN_DOMAIN_KEY]);
 
+/** Event-id prefix for the per-step `affordances.<seqPath>` change signal the goal-resolution stepper emits each
+ *  afterStep. SPA views filter the event stream on it to know when to re-fetch the affordances snapshot. */
+export const AFFORDANCE_EVENT_PREFIX = "affordances.";
+
 /**
  * Does this domain's value come from a step argument? True when the domain is a
  * primitive, or when no registered step produces it (no fact source exists, so the

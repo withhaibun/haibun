@@ -593,7 +593,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			action: async (_args: Record<string, unknown>, featureStep) => {
 				const where = getStepTerm(featureStep, "where") ?? "";
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-				await wp.getWorld().shared.set({ term: where, value: uri, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				await wp.getWorld().shared.set({ term: where, value: uri, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return OK;
 			},
 		},
@@ -605,7 +605,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				const where = getStepTerm(featureStep, "where") ?? "";
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 				const found = new URL(uri).searchParams.get(what);
-				await wp.getWorld().shared.set({ term: where, value: found, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				await wp.getWorld().shared.set({ term: where, value: found, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return OK;
 			},
 		},

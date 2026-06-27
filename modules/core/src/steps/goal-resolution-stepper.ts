@@ -29,7 +29,7 @@ import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
 import { StepRegistry, dispatchStep, buildFeatureStepForTransport, stepMethodName } from "../lib/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../lib/host-id.js";
-import { buildAffordances } from "../lib/affordances.js";
+import { buildAffordances, AFFORDANCE_EVENT_PREFIX } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { parseSeqPath } from "../lib/seq-path.js";
 
@@ -131,7 +131,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				throw new Error("GoalResolutionStepper.afterStep: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking afterStep cycles.");
 			}
 			this.getWorld().eventLogger.emit({
-				id: `affordances.${seqPath}`,
+				id: `${AFFORDANCE_EVENT_PREFIX}${seqPath}`,
 				timestamp: Date.now(),
 				source: "haibun",
 				kind: "artifact",
