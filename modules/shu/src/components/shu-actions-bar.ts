@@ -940,12 +940,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 const STYLES = `
 	/* A bottom-anchored, translucent overlay: it floats up over the content from the bottom edge instead of taking
-	   layout space, so the rows behind it never resize. position:fixed pins it to the viewport bottom — the layout
-	   viewport the browser (and click tooling) addresses — NOT to the app shell's box, whose 100dvh height tracks the
-	   dynamic viewport and can exceed the layout viewport, leaving the bar below the clickable area. */
+	   layout space, so the rows behind it never resize. Self-positioning — drop it into any position:relative host
+	   (the app shell or a column view) and it pins to that host's bottom. */
 	:host {
 		/* Sits above column content and in-column overlays, below a fullscreen modal. */
-		position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+		position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
 		display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: hidden;
 	}
 	.actions-bar {
