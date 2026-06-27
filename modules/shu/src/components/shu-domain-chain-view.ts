@@ -19,7 +19,8 @@ import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
 import { conduit } from "../hypermedia.js";
-import { subscribeBatchedEvents, type TEvent } from "../event-stream.js";
+import { type TEvent } from "../event-stream.js";
+import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
 import { filterGraph, graphAxes } from "../graph/filter-graph.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -120,10 +121,10 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		// pins the page for tens of seconds. subscribeBatchedEvents collapses the replay to one re-fetch per frame.
 		try {
 			this.autoTeardown(
-				subscribeBatchedEvents({
+				this.subscribeBatched({
 					// afterStep emits a lean change signal (no payload) — quietly re-fetch the current snapshot, once per batch.
 					onBatch: () => void this.fetchInitial(true),
-					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith("affordances."),
+					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
 				}),
 			);
 		} catch {

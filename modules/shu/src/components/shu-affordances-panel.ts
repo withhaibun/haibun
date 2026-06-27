@@ -10,10 +10,10 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
-import { subscribeBatchedEvents, type TEvent } from "../event-stream.js";
+import { type TEvent } from "../event-stream.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";
-import { isArgumentDomain, type TForwardAffordance, type TGoalAffordance, type TWaypointEntry } from "@haibun/core/lib/affordances.js";
+import { isArgumentDomain, AFFORDANCE_EVENT_PREFIX, type TForwardAffordance, type TGoalAffordance, type TWaypointEntry } from "@haibun/core/lib/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/step-dispatch.js";
 import { SHU_EVENT } from "../consts.js";
 import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
@@ -102,9 +102,9 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			// frame rather than one RPC per replayed event — the spurious-RPC flood. Same batching primitive as the
 			// timeline, the graph, and the app's pane router.
 			this.autoTeardown(
-				subscribeBatchedEvents({
+				this.subscribeBatched({
 					onBatch: () => void this.fetchInitial(true),
-					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith("affordances."),
+					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
 				}),
 			);
 		} catch {
