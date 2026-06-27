@@ -86,6 +86,12 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		return this.state.value;
 	}
 
+	/** True while the dropdown is open — i.e. the user is mid-selection. Callers that re-sync the
+	 *  display each render (e.g. the actions bar) must not stomp an open dropdown with `setValue`. */
+	get isOpen(): boolean {
+		return this.state.open;
+	}
+
 	private get filtered(): TComboboxOption[] {
 		const q = this.state.filterText.toLowerCase();
 		if (!q) return this.state.options;
@@ -403,7 +409,6 @@ const GROUP_HEADER_STYLE: Partial<CSSStyleDeclaration> = {
 	padding: "var(--shu-space-1) var(--shu-space-3)",
 	fontSize: "var(--shu-font-xs)",
 	fontWeight: "600",
-	textTransform: "uppercase",
 	letterSpacing: "0.05em",
 	color: "var(--shu-fg-faded)",
 	background: "var(--shu-bg-soft)",

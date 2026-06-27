@@ -827,7 +827,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			// visible label is the queryLabel. `group` drives the Declared/Built-in
 			// section headers — buildDomainOptions already orders declared-first.
 			labelCombo.setOptions(this._domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group })));
-			if (this._selectedDomainKey && labelCombo.value !== this._selectedDomainKey) labelCombo.setValue(this._selectedDomainKey);
+			// Re-sync the closed display to the selected key, but never while the user has the dropdown open and is
+			// filtering — setValue closes the dropdown, and a render-driven close would fight an in-progress selection
+			// (deterministically so in step mode, where the event stream churns renders on every keystroke).
+			if (this._selectedDomainKey && labelCombo.value !== this._selectedDomainKey && !labelCombo.isOpen) labelCombo.setValue(this._selectedDomainKey);
 		}
 		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
 		if (stepCombo) {
