@@ -602,7 +602,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private summaryTemplate(): TemplateResult {
 		const pinned = this.state.pinned;
-		return html`<div class="summary-bar" data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.onSummaryClick}>
+		const expanded = this.state.askExpanded;
+		// The opener (step-ui expandActionsBar) clicks `summary-bar` to expand: it must be a small, definite click target,
+		// not the full-width strip (a wide div's center lands on empty space / a child and reads as outside the viewport).
+		// So the test-id rides this chevron; the strip still expands on a bare click for the human.
+		return html`<div class="summary-bar" @click=${this.onSummaryClick}>
+			<button class="bar-twisty" aria-label=${expanded ? "Collapse actions bar" : "Expand actions bar"} aria-expanded=${expanded}
+				data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.onTwistyToggle}>${expanded ? "▾" : "▴"}</button>
 			<span class="status-area" style=${this._statusMessage ? "" : "display:none"}>${this._statusMessage}</span>
 			<shu-breadcrumb></shu-breadcrumb>
 			<span class="time-offset" data-testid=${`${this.testIdPrefix}time-offset`}>${this._timeOffsetLabel}</span>
@@ -613,6 +619,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				data-testid=${`${this.testIdPrefix}ask-button`} @click=${this.onPinToggle}>\u{1F4CC}</button>
 		</div>`;
 	}
+
+	/** The summary-bar disclosure control: toggles the bar open/closed. stopPropagation so it doesn't double-fire the
+	 *  strip's own onSummaryClick. */
+	private onTwistyToggle = (e: Event): void => {
+		e.stopPropagation();
+		this.toggleExpanded();
+	};
 
 	private onSettingsToggle = (e: Event): void => {
 		e.stopPropagation();
@@ -956,6 +969,13 @@ const STYLES = `
 	}
 	.actions-bar.collapsed { box-shadow: none; }
 	.actions-bar.collapsed .summary-bar { cursor: pointer; margin-top: 0; border-top: none; }
+	.bar-twisty {
+		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
+		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
+		display: inline-flex; align-items: center; justify-content: center;
+		font-size: var(--shu-font-sm); color: var(--shu-fg-faded); border-radius: var(--shu-radius);
+	}
+	.bar-twisty:hover { color: var(--shu-fg); background: var(--shu-bg-hover); }
 	/* Pin control (lower right): upright + accented when open, tilted + faded when closed. */
 	.pin {
 		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
