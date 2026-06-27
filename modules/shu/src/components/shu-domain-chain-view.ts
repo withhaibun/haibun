@@ -19,7 +19,7 @@ import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
 import { conduit } from "../hypermedia.js";
-import { eventStream } from "../event-stream.js";
+import { subscribeBatchedEvents, type TEvent } from "../event-stream.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
 import { filterGraph, graphAxes } from "../graph/filter-graph.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -115,13 +115,16 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		// regardless of whether it changed anything, so dedup against a fingerprint of
 		// the rendered fields — otherwise every step kicks a full re-render
 		// even when the snapshot is byte-identical.
+		// Batch the subscription: on reload the stream replays the whole `affordances.` history at once (thousands of
+		// events). Per-event this re-fetched + re-rendered the mermaid graph once per replayed step — the reload-jank that
+		// pins the page for tens of seconds. subscribeBatchedEvents collapses the replay to one re-fetch per frame.
 		try {
 			this.autoTeardown(
-				eventStream().subscribe(
-					// afterStep now emits a lean change signal (no payload) — quietly re-fetch the current snapshot.
-					() => void this.fetchInitial(true),
-					(event) => typeof event.id === "string" && event.id.startsWith("affordances."),
-				),
+				subscribeBatchedEvents({
+					// afterStep emits a lean change signal (no payload) — quietly re-fetch the current snapshot, once per batch.
+					onBatch: () => void this.fetchInitial(true),
+					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith("affordances."),
+				}),
 			);
 		} catch {
 			// No EventStream installed (early jsdom test, standalone). Ignore.

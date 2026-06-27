@@ -133,6 +133,9 @@ export const features: TKirejiExport = {
 
 		"After the affordances panel and chain-lint pane have been opened via step invocation, reloading the page must restore them from the URL hash. This is the regression check for the view-open data-threading path: if products aren't preserved through hash-restore, the chain-lint view will mount empty and waitFor on the graph will time out.",
 		reloadPage({}),
+		"The reloaded URL must still carry the affordances pane in its hash, since that hash is what the app restores the panes from.",
+		"save URI to reloadUri",
+		"matches reloadUri with *shu-affordances-panel*",
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		"After hash-restore, monitor / sequence-diagram / graph-view should also have come back. Timeline lives in the actions-bar's collapsible filter row; expand it again after reload to confirm the scrubber survives.",
