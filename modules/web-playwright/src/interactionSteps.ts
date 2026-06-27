@@ -587,6 +587,16 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				return OK;
 			},
 		},
+		saveURI: {
+			gwta: "save URI to {where}",
+			handlesUndefined: ["where"],
+			action: async (_args: Record<string, unknown>, featureStep) => {
+				const where = getStepTerm(featureStep, "where") ?? "";
+				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
+				await wp.getWorld().shared.set({ term: where, value: uri, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				return OK;
+			},
+		},
 		saveURIQueryParameter: {
 			gwta: "save URI query parameter {what} to {where}",
 			handlesUndefined: ["what", "where"],
