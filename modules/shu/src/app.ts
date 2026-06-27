@@ -14,7 +14,7 @@ import { conduit, setConduit, LiveConduit, SerializedConduit, isOffline, type TD
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import * as ViewHash from "./view-hash.js";
-import { eventStream, setEventStream, LiveEventStream, SerializedEventStream } from "./event-stream.js";
+import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { getUiByComponent, getUiByType } from "./rels-cache.js";
 import { parseAffordanceProduct } from "./affordance-products.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
@@ -286,22 +286,34 @@ const main = async (): Promise<void> => {
 		reportExternalComponent("debug", "mounted", childTag, { "haibun.shu.external-component.url": src });
 	};
 
-	// Every step-end emits hypermedia products; if they carry view markers, route to PaneState.
-	eventStream().subscribe((event) => {
-		const e = event as THaibunEvent & { products?: THypermediaProducts };
-		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed" || !e.products) return;
-		const action = parseAffordanceProduct(e.products);
-		if (action.kind === "none") return;
-		if (action.kind === "close") return PaneState.dismiss(action.view);
-		if (action.kind === "open-component") return PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products });
-		if (action.kind === "show-views") return PaneState.request({ paneType: "views-picker", views: action.views, label: action.label });
-		const ui = getUiByType(action.type);
-		if (ui?.component && typeof ui.component === "string") {
-			PaneState.request({ paneType: "component", tag: ui.component, label: action.label, data: action.products });
-		}
-		// No ui.component declared → not a view. SSE-driven products without a
-		// registered component aren't auto-pinned; nodes open via the
-		// query/entity column flow.
+	// Every step-end emits hypermedia products; if they carry view markers, route to PaneState. The connect-time replay
+	// delivers the whole history at once (one product per past step), so BATCH it and keep only the latest op per pane:
+	// re-requesting the same pane once per replayed step is the reload-churn that janks the page. Live products batch the
+	// same way (one frame) — harmless, the latest product per pane wins. Keyed by pane id, so close/open order across
+	// distinct panes is preserved while a pane's own repeats collapse.
+	subscribeBatchedEvents({
+		onBatch: (events) => {
+			const ops = new Map<string, () => void>();
+			for (const event of events) {
+				const e = event as THaibunEvent & { products?: THypermediaProducts };
+				if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed" || !e.products) continue;
+				const action = parseAffordanceProduct(e.products);
+				if (action.kind === "none") continue;
+				if (action.kind === "close") ops.set(action.view, () => PaneState.dismiss(action.view));
+				else if (action.kind === "open-component")
+					ops.set(action.component, () => PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products }));
+				else if (action.kind === "show-views") ops.set("views", () => PaneState.request({ paneType: "views-picker", views: action.views, label: action.label }));
+				else {
+					const ui = getUiByType(action.type);
+					// No ui.component declared → not a view; nodes open via the query/entity column flow.
+					if (ui?.component && typeof ui.component === "string") {
+						const tag = ui.component;
+						ops.set(tag, () => PaneState.request({ paneType: "component", tag, label: action.label, data: action.products }));
+					}
+				}
+			}
+			for (const op of ops.values()) op();
+		},
 	});
 
 	// Panes are removed only by an explicit close (PaneState.dismiss) or a Miller-column prune at the click origin
