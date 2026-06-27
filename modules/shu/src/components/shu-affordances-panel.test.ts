@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { ShuAffordancesPanel, AFFORDANCES_REFRESH_COALESCE_MS } from "./shu-affordances-panel.js";
+import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
 import { setConduit, resetConduit, SerializedConduit } from "../hypermedia.js";
+import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "../event-stream.js";
 
-/** A `products` assignment is coalesced over a short trailing window (so a connect-time replay burst collapses to one
- *  apply); wait it out, then the lit render, before reading the shadow root. */
+/** `products` applies synchronously (app.ts coalesces the replay upstream), so just await the lit render. */
 const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<void> => {
-	await new Promise((r) => setTimeout(r, AFFORDANCES_REFRESH_COALESCE_MS + 20));
 	await panel.updateComplete;
 };
 
@@ -47,7 +46,10 @@ describe("shu-affordances-panel", () => {
 		}
 	});
 
-	afterEach(() => resetConduit());
+	afterEach(() => {
+		resetConduit();
+		resetEventStream();
+	});
 
 	it("renders the goals section when products are assigned", async () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
@@ -301,5 +303,28 @@ describe("shu-affordances-panel", () => {
 		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
 		expect(panel.shadowRoot?.querySelector('[data-testid="waypoint-deliver-report"]')).toBeTruthy();
+	});
+
+	it("the connect-time affordances-event replay coalesces to at most one showWaypoints RPC (no spurious-RPC flood)", async () => {
+		// A new subscriber is replayed the whole `affordances.` history (one event per past step). Subscribing per-event
+		// would re-fetch ActivitiesStepper-showWaypoints once per replayed step — the spurious-RPC flood (422 each).
+		// subscribeBatchedEvents collapses the replay to ONE re-fetch per frame. Pins that as a measurable invariant.
+		let waypointsCalls = 0;
+		setConduit(
+			new SerializedConduit(async (method: string) => {
+				if (method === "ActivitiesStepper-showWaypoints") waypointsCalls++;
+				return { waypoints: [], forward: [], goals: [] };
+			}),
+		);
+		const stream = new SerializedEventStream();
+		setEventStream(stream);
+		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		document.body.appendChild(panel); // subscribes via subscribeBatchedEvents
+		await new Promise((r) => setTimeout(r, 40)); // let the mount-time fetchInitial settle, then measure ONLY the replay
+		waypointsCalls = 0;
+		for (let i = 0; i < 30; i++) stream.emit({ id: `affordances.${i}` } as unknown as TEvent); // the whole history, one per past step
+		await new Promise((r) => requestAnimationFrame(() => r(undefined))); // drain the rAF batch
+		await new Promise((r) => setTimeout(r, 40)); // let the single fetchInitial + its RPC settle
+		expect(waypointsCalls).toBeLessThanOrEqual(1);
 	});
 });
