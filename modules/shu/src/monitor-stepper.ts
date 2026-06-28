@@ -545,7 +545,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// ontology is the registered schema, not persisted rows.
 			gwta: "get ontology quads",
 			productsSchema: ClusteredQuadsSchema,
-			action: async () => {
+			action: () => {
 				const { quads, clusters } = ontologyToQuads(this.getWorld().domains);
 				return actionOKWithProducts({ quads, clusters });
 			},
