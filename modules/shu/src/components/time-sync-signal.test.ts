@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
-import { timeCursorSignal } from "../signals.js";
+import { timeCursor } from "../signals.js";
 
 const S = z.object({ n: z.number().default(0) });
 
@@ -48,7 +48,7 @@ const cursorOf = (el: ShuElement<typeof S>): number | null => (el as unknown as 
 describe("signal-driven time sync", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
-		timeCursorSignal.set(null);
+		timeCursor.set(null);
 	});
 
 	it("a cursor change runs onTimeSync on live views and updates this.timeCursor", async () => {
