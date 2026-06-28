@@ -311,7 +311,7 @@ describe("shu-affordances-panel", () => {
 		// subscribeBatchedEvents collapses the replay to ONE re-fetch per frame. Pins that as a measurable invariant.
 		let waypointsCalls = 0;
 		setConduit(
-			new SerializedConduit(async (method: string) => {
+			new SerializedConduit((method: string) => {
 				if (method === "ActivitiesStepper-showWaypoints") waypointsCalls++;
 				return { waypoints: [], forward: [], goals: [] };
 			}),
