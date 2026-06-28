@@ -63,31 +63,61 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (name === "testid" && this._input) this._input.setAttribute("data-testid", val || "");
 	}
 
-	/** Set the list of options. Safe to call before or after connectedCallback. */
+	/** Set the list of options. The imperative entry point — shu-step-caller builds the element from an HTML
+	 *  string and pushes options post-attach, so this must stay public. The reactive `.options` property
+	 *  funnels here too. Reconciles the closed display in case the held value only became resolvable now its
+	 *  options arrived. */
 	setOptions(options: TComboboxOption[]): void {
 		this.state = { ...this.state, options };
 		if (this.state.open) this.renderList();
+		else this.reconcileClosedDisplay();
 	}
 
-	/** Set the selected value, updating the display. */
+	/** Reactive property: a parent binds `.options=${...}` in its template instead of poking setOptions. */
+	set options(options: TComboboxOption[]) {
+		this.setOptions(options);
+	}
+	get options(): TComboboxOption[] {
+		return this.state.options;
+	}
+
+	/** Set the selected value AND close the dropdown — the imperative entry point. */
 	setValue(value: string): void {
-		const match = this.state.options.find((o) => o.value === value);
-		this.state = {
-			...this.state,
-			value,
-			filterText: match?.label ?? value,
-			open: false,
-		};
-		if (this._input) this._input.value = this.state.filterText;
-		this.renderList();
+		this.applyValue(value, true);
 	}
 
+	/** Reactive property: a parent binds `.value=${...}`. A parent re-binds every render — including while
+	 *  the user has the dropdown open mid-selection — so the controlled path never closes or stomps an open
+	 *  dropdown: while open it updates only state.value (keeping the ✓ correct) and leaves the typed
+	 *  filterText alone. The old parent-side `!isOpen` guard lives here now. */
+	set value(value: string) {
+		if (value === this.state.value) return;
+		this.applyValue(value, false);
+	}
 	get value(): string {
 		return this.state.value;
 	}
 
-	/** True while the dropdown is open — i.e. the user is mid-selection. Callers that re-sync the
-	 *  display each render (e.g. the actions bar) must not stomp an open dropdown with `setValue`. */
+	/** Update the selected value. `close` shuts the dropdown (imperative setValue); the controlled setter
+	 *  passes false. An unknown value is shown as-is (honest display, not a silent default-to-first). */
+	private applyValue(value: string, close: boolean): void {
+		const match = this.state.options.find((o) => o.value === value);
+		const keepOpen = this.state.open && !close;
+		this.state = { ...this.state, value, ...(keepOpen ? {} : { filterText: match?.label ?? value, open: false }) };
+		if (!keepOpen && this._input) this._input.value = this.state.filterText;
+		this.renderList();
+	}
+
+	/** When options change while closed, refresh the display label for the held value (it may have just become resolvable). */
+	private reconcileClosedDisplay(): void {
+		const match = this.state.options.find((o) => o.value === this.state.value);
+		if (!match || this.state.filterText === match.label) return;
+		this.state = { ...this.state, filterText: match.label };
+		if (this._input) this._input.value = match.label;
+	}
+
+	/** True while the dropdown is open — i.e. the user is mid-selection. Retained for imperative callers;
+	 *  the controlled `.value` setter now handles the don't-stomp-open-dropdown reconcile internally. */
 	get isOpen(): boolean {
 		return this.state.open;
 	}
