@@ -293,7 +293,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				// polled predicate only re-tests location.href rather than re-escaping the pattern every tick.
 				const source = `^${pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`;
 				const page = await wp.getPage();
-				await page.waitForFunction((s: string) => new RegExp(s, "s").test(location.href), source);
+				try {
+					await page.waitForFunction((s: string) => new RegExp(s, "s").test(location.href), source);
+				} catch {
+					const actual = await page.evaluate(() => location.href).catch(() => "(unavailable)");
+					return actionNotOK(`URI never matched "${pattern}"; actual URI was: ${actual}`);
+				}
 				return OK;
 			},
 		},

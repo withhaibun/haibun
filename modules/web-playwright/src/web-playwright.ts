@@ -124,6 +124,13 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	downloaded: string[] = [];
 	captureVideo: boolean;
 	closers: Array<() => void> = [];
+	/** Uncaught browser exceptions (page `pageerror`) seen since the current feature started. The afterStep
+	 *  cycle fails the step one occurred during, so a browser-side throw surfaces as a real failure instead of
+	 *  a downstream blind timeout. Reset per feature. */
+	browserErrors: string[] = [];
+	/** Count of browserErrors at the start of the current step (set by the beforeStep cycle). */
+	errorMark = 0;
+	#errorBoundPages = new WeakSet<Page>();
 
 	twin: boolean;
 	twinPage?: TwinPage;
@@ -221,6 +228,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 			this.bf.registerPopup(tag, this.tab, popup);
 		});
+		if (!this.#errorBoundPages.has(page)) {
+			this.#errorBoundPages.add(page); // attach once per page — getPage is called per action
+			page.on("pageerror", (err: Error) => this.browserErrors.push(err?.message ?? String(err)));
+		}
 		return page;
 	}
 
