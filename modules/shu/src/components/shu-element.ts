@@ -43,13 +43,12 @@ import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
 import { SHU_EVENT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "../time-sync.js";
-import { timeCursorSignal } from "../signals.js";
+import { timeCursor, type SharedSignal } from "../signals.js";
 import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
 import { subscribeBatchedEvents, type TEvent, type TEventFilter } from "../event-stream.js";
 import { readElementPrefs, schedulePersistWrite } from "../element-prefs.js";
-import { notifyTimeCursorSubscribers, subscribeTimeCursor } from "../signals.js";
 
 export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
 	/** Get the current view hash — from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
@@ -102,11 +101,12 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	/**
 	 * Current time cursor (absolute epoch ms; null = show all). ONE cursor system, two sources: live
-	 * views read the shared global `timeCursorSignal` (scrubbing one view syncs them all); snapshot-pinned
+	 * views read the shared global `timeCursor` SharedSignal (scrubbing one view syncs them all); snapshot-pinned
 	 * views replay the frozen instant carried by `data-snapshot-time` (set by shu-product-view when a view
 	 * is opened "as of" a point in history). The attribute is the single store for a pinned time — it is
 	 * declarative, serializable, and already the marker other views check — so there is no parallel field.
-	 * Reading this during an update auto-subscribes the component to cursor changes via SignalWatcher.
+	 * Reading this during an update auto-subscribes an in-bundle component via SignalWatcher; cross-bundle views
+	 * react through `watchSignal(timeCursor, …)` (wired here by #installTimeSync for any onTimeSync overrider).
 	 * Setting it publishes app-wide for a live view; a pinned view is frozen, so set is a no-op.
 	 */
 	protected get timeCursor(): number | null {
@@ -114,13 +114,11 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 			const pinned = Number.parseFloat(this.getAttribute("data-snapshot-time") ?? "");
 			return Number.isNaN(pinned) ? null : pinned;
 		}
-		return timeCursorSignal.get();
+		return timeCursor.get();
 	}
 	protected set timeCursor(v: number | null) {
-		if (this.hasAttribute("data-snapshot-time")) return;
-		if (timeCursorSignal.get() === v) return; // unchanged cursor must NOT republish — every notify repaints all views (the live "wiggle" when streamed events kept re-emitting the same at-end cursor)
-		timeCursorSignal.set(v);
-		notifyTimeCursorSubscribers(v);
+		if (this.hasAttribute("data-snapshot-time")) return; // a pinned view replays a fixed point and never moves the global cursor
+		timeCursor.set(v); // SharedSignal.set co-fires the signal + the cross-bundle bus and no-ops an unchanged value
 	}
 
 	/** Whether this view is the strip's active pane child. Updated via VIEW_ACTIVE events fanned out by shu-column-pane.setActive. */
@@ -262,7 +260,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	#installTimeSync(): void {
 		const reactsToTime = this.onTimeSync !== ShuElement.prototype.onTimeSync;
 		if (reactsToTime && !this.hasAttribute("data-snapshot-time")) {
-			this.autoTeardown(subscribeTimeCursor((cursor) => this.onTimeSync(cursor)));
+			this.watchSignal(timeCursor, (cursor) => this.onTimeSync(cursor));
 		}
 	}
 
@@ -304,6 +302,14 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	/** Register an arbitrary cleanup (a subscribe() unsub, ResizeObserver.disconnect, clearTimeout, …) to run on disconnect. */
 	protected autoTeardown(cleanup: () => void): void {
 		this.#teardowns.push(cleanup);
+	}
+
+	/** React to a {@link SharedSignal} for this element's lifetime — THE one way a component tracks shared reactive
+	 * state RELIABLY regardless of which bundle it lives in. A SignalWatcher's auto-tracking does not cross an esbuild
+	 * IIFE boundary, so an external view (a separately-bundled viewer) would silently never re-render on a `get()` read;
+	 * the SharedSignal bus this subscribes does cross it. Auto-torn-down on disconnect. Default handler re-renders. */
+	protected watchSignal<V>(signal: SharedSignal<V>, handler: (value: V) => void = () => this.requestUpdate()): void {
+		this.autoTeardown(signal.subscribe(handler));
 	}
 
 	/** Whether this component should show its toolbar/controls. Set via data-show-controls attribute. */
