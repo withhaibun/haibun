@@ -10,6 +10,7 @@ import MarkdownIt from "markdown-it";
 import { windowTail } from "./shu-theme-switch.js";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
+import { SHU_EVENT } from "../consts.js";
 import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
 import { groupThumbnailRows } from "../thumbnail-rows.js";
@@ -109,6 +110,22 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		if (!this.shadowRoot?.querySelector(".document-body")) return;
 		if (this.renderedEventCount === 0) this.renderFull();
 		else this.appendNew();
+	}
+
+	protected override onConnected(): void {
+		// A framed thumbnail asks us to move the cursor to the step row it belongs to — it can't reach us directly across
+		// our shadow boundary and owns no start-time → absolute-time mapping. Same path as a row click, one handler.
+		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.cursorToRow((e as CustomEvent<{ row: Element }>).detail.row));
+	}
+
+	/** Move the global time cursor to a step row's instant: the column's start + the row's data-raw-time. The latest row is
+	 *  the live edge — publish null (no upper bound → show everything), exactly as the timeline slider does at the end, so the
+	 *  graph recovers; any earlier row is a concrete cutoff that hides records newer than it. */
+	private cursorToRow(row: Element): void {
+		const rawTime = parseFloat(row.getAttribute("data-raw-time") || "0");
+		const absTime = this.startTime + rawTime;
+		this.timeCursor = absTime >= this.endTime ? null : absTime;
+		this.applyTimeCursor();
 	}
 
 	protected override onTimeSync(): void {
@@ -241,14 +258,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const els = (sel: string) => Array.from(container.querySelectorAll(sel)) as HTMLElement[];
 		const productMap = this.getProductsByStepId(this.events);
 		const addRowClick = (el: HTMLElement) => {
-			el.addEventListener("click", () => {
-				const rawTime = parseFloat(el.getAttribute("data-raw-time") || "0");
-				const absTime = this.startTime + rawTime;
-				// The latest row is the live edge: publish null (no upper bound → show everything), exactly as the timeline
-				// slider does at the end, so the graph recovers. A concrete cutoff hides any record newer than this row.
-				this.timeCursor = absTime >= this.endTime ? null : absTime;
-				this.applyTimeCursor();
-			});
+			el.addEventListener("click", () => this.cursorToRow(el));
 		};
 		els(".header-block").forEach((el) => {
 			el.classList.add("doc-row");

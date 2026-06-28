@@ -33,6 +33,9 @@ export const SHU_EVENT = {
 	GRAPH_NODE_HOVER: "graph-node-hover",
 	GRAPH_NODE_LEAVE: "graph-node-leave",
 	ROW_CLICK: "row-click",
+	// A thumbnail asks its document column to move the global time cursor to the step row it belongs to (the column owns
+	// the start-time → absolute-time mapping). Composed so it crosses the column's shadow boundary from the framed artifact.
+	CURSOR_TO_ROW: "cursor-to-row",
 	SORT_CHANGE: "sort-change",
 	PAGE_CHANGE: "page-change",
 	STATE_CHANGE: "state-change",
