@@ -289,8 +289,11 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			handlesUndefined: ["pattern"],
 			action: async (_args: Record<string, unknown>, featureStep) => {
 				const pattern = getStepTerm(featureStep, "pattern") ?? "";
+				// Glob -> anchored regex source once (same `*`-as-wildcard convention as the `matches` step), so the
+				// polled predicate only re-tests location.href rather than re-escaping the pattern every tick.
+				const source = `^${pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`;
 				const page = await wp.getPage();
-				await page.waitForFunction((p: string) => new RegExp(p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")).test(location.href), pattern);
+				await page.waitForFunction((s: string) => new RegExp(s, "s").test(location.href), source);
 				return OK;
 			},
 		},
