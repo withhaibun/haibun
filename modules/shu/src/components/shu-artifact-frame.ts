@@ -3,6 +3,8 @@
  * Uses a slot for content — wrap any artifact (img, iframe, pre, shu-product-view) inside.
  * Attributes: caption (display text).
  */
+import { SHU_EVENT } from "../consts.js";
+
 const STYLES = `
 :host { display: block; margin: var(--shu-space-6) 0 var(--shu-space-6) 32px; border: var(--shu-border-w) solid var(--shu-border); border-radius: 6px; overflow: hidden; }
 /* Expanded view is pinned to the DOCUMENT COLUMN's on-screen box (its rect, captured in pinToColumn) — not the whole
@@ -129,7 +131,9 @@ export class ShuArtifactFrame extends HTMLElement {
 		this.observeColumn(on); // follow the column resizing/maximizing while expanded; stop on exit
 		if (on) {
 			this.pinToColumn(); // expand within the document column's box, not the whole viewport
-			(step as HTMLElement | null)?.click(); // opening/advancing a thumbnail moves the global time cursor to its step (the step row owns startTime + the cursor setter)
+			// Ask the owning document column to move the global time cursor to this thumbnail's step — a proper cursor-set
+			// call through the column (which owns the time mapping), not a synthetic click on the row's own handler.
+			if (step) this.dispatchEvent(new CustomEvent(SHU_EVENT.CURSOR_TO_ROW, { detail: { row: step }, bubbles: true, composed: true }));
 		}
 		const btn = this.shadow.querySelector(".fullscreen-btn");
 		if (btn) {

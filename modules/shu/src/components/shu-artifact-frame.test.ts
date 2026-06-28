@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import "./shu-artifact-frame.js";
+import { SHU_EVENT } from "../consts.js";
 
 const STEP = "the import authority's signing identity is created";
 const stepCaption = (frame: Element) => (frame.shadowRoot as ShadowRoot).querySelector(".step-caption")?.textContent;
@@ -48,15 +49,17 @@ describe("shu-artifact-frame fullscreen step caption", () => {
 		}
 	});
 
-	it("clicks the preceding step on open (the row sets the global time cursor) but not on exit", () => {
+	it("asks the column to move the cursor to the preceding step on open (carrying that row) but not on exit", () => {
 		const frame = frameIn(`
 			<div class="log-row">${STEP}</div>
 			<div class="feature-artifacts"><shu-artifact-frame class="thumb"><img src="x.png" /></shu-artifact-frame></div>`);
-		const onStepClick = vi.fn();
-		document.querySelector(".log-row")?.addEventListener("click", onStepClick);
+		const onCursorToRow = vi.fn();
+		document.addEventListener(SHU_EVENT.CURSOR_TO_ROW, onCursorToRow);
 		toggleFullscreen(frame); // open
-		expect(onStepClick).toHaveBeenCalledTimes(1);
+		expect(onCursorToRow).toHaveBeenCalledTimes(1);
+		expect((onCursorToRow.mock.calls[0][0] as CustomEvent).detail.row).toBe(document.querySelector(".log-row")); // the step it belongs to
 		toggleFullscreen(frame); // exit — must not re-navigate
-		expect(onStepClick).toHaveBeenCalledTimes(1);
+		expect(onCursorToRow).toHaveBeenCalledTimes(1);
+		document.removeEventListener(SHU_EVENT.CURSOR_TO_ROW, onCursorToRow);
 	});
 });
