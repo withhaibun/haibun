@@ -1,7 +1,7 @@
 import { rmSync } from "fs";
 import { relative, resolve } from "path";
 
-import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction } from "@haibun/core/lib/astepper.js";
+import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "@haibun/core/lib/astepper.js";
 import { OBSERVATION_GRAPH, queryFacts } from "@haibun/core/lib/working-memory.js";
 
 import { VideoArtifact } from "@haibun/core/schema/protocol.js";
@@ -58,6 +58,17 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await wp.captureFailureScreenshot("failure", failedStep);
 		}
 	},
+	async beforeStep(_args: TBeforeStep): Promise<void> {
+		wp.errorMark = wp.browserErrors.length;
+	},
+	async afterStep({ featureStep }: TAfterStep): Promise<TAfterStepResult> {
+		const newErrors = wp.browserErrors.slice(wp.errorMark);
+		if (newErrors.length === 0) return { failed: false };
+		// A browser-side uncaught exception during this step is a real failure — surface it loudly instead of
+		// letting a later wait time out with no explanation.
+		wp.getWorld().eventLogger.log(featureStep, "error", `uncaught browser error during step: ${newErrors.join(" | ")}`);
+		return { failed: true };
+	},
 	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
 		if (wp.twin) {
 			await wp.createTwin();
@@ -66,6 +77,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
 		wp.tab = 0;
+		wp.browserErrors = []; // browser-error capture is per-feature
 		wp.resetVideoStartEmitted(); // Reset for new feature's video recording
 		// Reset API state to prevent header leakage between features
 		wp.extraHTTPHeaders = {};
