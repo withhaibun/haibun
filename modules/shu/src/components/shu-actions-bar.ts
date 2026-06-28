@@ -12,6 +12,7 @@ import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
+import { viewQuery } from "../view-query.js";
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -88,7 +89,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectedDomainKey = "";
 	private _selectFilters: Record<string, string> = {};
 	private _selectedLabel = "";
-	private _textSearch = "";
 	private _steps: StepDescriptor[] = [];
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
@@ -150,7 +150,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.loadProperties(this._selectedLabel);
 			this.triggerSelectValuesLoad(this._selectedLabel);
 		}
-		if (extra?.textQuery !== undefined) this._textSearch = extra.textQuery || "";
+		// The search box is store-backed (viewQuery.q) and reads itself; setContext no longer touches it, so an
+		// active-column context change can't wipe an in-progress search.
 		// Populate select filters from conditions
 		if (extra?.conditions) {
 			if (this._selectedLabel && hasSelectValues(this._selectedLabel)) {
@@ -408,7 +409,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.syncSelectedDomainKey();
 		this.loadProperties(this._selectedLabel);
 		this.triggerSelectValuesLoad(this._selectedLabel);
-		void this.loadUiExtensions();
+		// Optional action-bar slot extensions: a missing/un-served one is logged per-extension inside, but the
+		// aggregate throw on this fire-and-forget call would otherwise become an unhandled rejection (a browser
+		// pageerror) — a missing optional extension must not crash the bar.
+		void this.loadUiExtensions().catch((err) => this.reportActionsBar("warn", "optional UI extensions failed to load", { error: errMsg(err) }));
 		this.requestUpdate();
 		this.dispatchFilterChange();
 	}
@@ -472,7 +476,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				detail: {
 					accessLevel: this._contextAccessLevel,
 					label: this._selectedLabel,
-					textQuery: this._textSearch,
 					conditions: allConditions as TSearchCondition[],
 				},
 				bubbles: true,
@@ -568,9 +571,19 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			return;
 		}
 		this.populateComboboxes();
+		this.syncSearchInput();
 		this.pushContextToChat();
 		this.updateBreadcrumbDisplay();
 		this.publishFootprint();
+	}
+
+	/** The search input is uncontrolled (the user types freely); reflect the store's q into it on render — e.g. a
+	 *  reloaded or step-set query — but never while it is focused, so a render can't stomp an in-progress search. */
+	private syncSearchInput(): void {
+		const input = this.shadowRoot?.querySelector(".text-search") as HTMLInputElement | null;
+		if (!input || this.shadowRoot?.activeElement === input) return;
+		const q = viewQuery.signals.q.get() ?? "";
+		if (input.value !== q) input.value = q;
 	}
 
 	private template(hasAsk: boolean): TemplateResult {
@@ -672,7 +685,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<input type="text" class="text-search"
 				data-testid=${`${this.testIdPrefix}text-search`}
 				placeholder="search..."
-				.value=${this._textSearch}
 				@input=${this.onTextSearchInput} />
 			<div class="compound-filters">
 				${this._filterConditions.map((c, i) => this.condTemplate(c, i))}
@@ -751,7 +763,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		} | null;
 		chat?.setContext?.(this._contextPatterns, this._contextAccessLevel, {
 			label: this._selectedLabel,
-			textQuery: this._textSearch,
+			textQuery: viewQuery.signals.q.get() ?? undefined,
 			conditions: this._filterConditions,
 		});
 	}
@@ -888,13 +900,17 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	};
 
 	private onTextSearchInput = (e: Event): void => {
-		this._textSearch = (e.target as HTMLInputElement).value;
+		// Write the search straight to the viewQuery store (debounced). The store is the single source the
+		// query subscribes to, so this can't be undone by a re-render, setContext, or the bar collapsing.
+		const value = (e.target as HTMLInputElement).value;
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
-		this._searchDebounce = setTimeout(() => this.dispatchFilterChange(), 300);
+		this._searchDebounce = setTimeout(() => viewQuery.set({ q: value || null }), 300);
 	};
 
 	private onSearchGo = (): void => {
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
+		const input = this.shadowRoot?.querySelector(".text-search") as HTMLInputElement | null;
+		viewQuery.set({ q: input?.value || null });
 		this.dispatchFilterChange();
 	};
 
