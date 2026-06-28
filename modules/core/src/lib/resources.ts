@@ -286,6 +286,11 @@ export const LinkRelations = {
 	CREDENTIAL_ISSUER: { rel: "issuer", uri: "cred:issuer", range: "iri", subPropertyOf: "fromActor" },
 	CREDENTIAL_SUBJECT: { rel: "credentialSubject", uri: "cred:credentialSubject", range: "iri", subPropertyOf: "toActor" },
 	CREDENTIAL_HOLDER: { rel: "holder", uri: "cred:holder", range: "iri", subPropertyOf: "fromActor" },
+	// A presentation is held by its holder (fromActor) and directed TO the verifier it is presented to; a verification is
+	// performed by the verifier (fromActor) and directed TO the issuer it resolves. Both destinations are toActor, so the
+	// sequence reads holder → verifier (present) and verifier → issuer (resolve) with no per-type knowledge.
+	PRESENTED_TO: { rel: "presentedTo", uri: "hbn:presentedTo", range: "iri", subPropertyOf: "toActor" },
+	RESOLVED_ISSUER: { rel: "resolvedIssuer", uri: "hbn:resolvedIssuer", range: "iri", subPropertyOf: "toActor" },
 	VERIFIABLE_CREDENTIAL: { rel: "verifiableCredential", uri: "cred:verifiableCredential", range: "iri" },
 } as const;
 
