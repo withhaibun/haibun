@@ -92,19 +92,31 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 
 	private lastTimeSync = 0;
 	private timeSyncTimer = 0;
-	/** The cursor moves continuously during timeline play: coalesce repaints to 500ms; the trailing call lands the final position. */
+	/** Coalesce window for cursor moves during a continuous scrub/play. Overridable: an imperative view that re-styles
+	 *  cheaply on a cursor move uses a shorter window for a snappier scrub. */
+	protected get timeSyncCoalesceMs(): number {
+		return 500;
+	}
+	/** Imperative repaint for a cursor move. Default routes through the data path; an imperative view overrides to
+	 *  re-STYLE promptly — a cursor move re-places depth without changing the model, so it need not wait on the
+	 *  streamed-data coalesce (and must not stack a second debounce on top of this one). */
+	protected onTimeCursorPaint(): void {
+		this.onGraphData();
+	}
+	/** The cursor moves continuously during a scrub/play: coalesce to `timeSyncCoalesceMs` (the leading edge paints a
+	 *  single move at once; the trailing call lands the final position). */
 	protected override onTimeSync(): void {
 		const apply = () => {
 			this.lastTimeSync = Date.now();
 			this.refresh(); // the reactive overview re-renders from visibleQuads
-			this.onGraphData(); // an imperative renderer re-derives its model from visibleQuads
+			this.onTimeCursorPaint(); // an imperative renderer re-styles from visibleQuads
 		};
-		if (Date.now() - this.lastTimeSync >= 500) apply();
+		if (Date.now() - this.lastTimeSync >= this.timeSyncCoalesceMs) apply();
 		else if (!this.timeSyncTimer) {
 			this.timeSyncTimer = window.setTimeout(() => {
 				this.timeSyncTimer = 0;
 				apply();
-			}, 500);
+			}, this.timeSyncCoalesceMs);
 		}
 	}
 
