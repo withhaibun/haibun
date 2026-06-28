@@ -6,8 +6,9 @@ import { SHU_EVENT } from "../consts.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement } from "./shu-element.js";
-import { QueryViewSchema, type TSearchCondition, parseFilterParam, serializeFilterParam } from "../schemas.js";
-import { Access } from "@haibun/core/lib/resources.js";
+import { QueryViewSchema, type TSearchCondition } from "../schemas.js";
+import { viewQuery, type TViewQuery } from "../view-query.js";
+import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { shuBaseStyles } from "./styles.js";
 import { esc, errMsg, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
@@ -17,8 +18,6 @@ import { getAvailableDomains } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
 import { getWindowSize } from "./shu-theme-switch.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
-
-type ConditionRow = TSearchCondition;
 
 /** A vertex row: flat property object. */
 type VertexRow = Record<string, unknown>;
@@ -35,18 +34,39 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	static domainSelector = "shu-graph-query";
 
 	#query = new QueryController(this);
-	private conditions: ConditionRow[] = [];
 	private results: VertexRow[] = [];
 	private sortableFields: string[] = [];
 	private labels: string[] = [];
-	private accessLevel: string = Access.private;
 	private total = 0;
 	/** Page size is the one global app setting (theme), so the query view windows by the same size as every other view. */
 	private get limit(): number {
 		return getWindowSize();
 	}
-	private offset = 0;
 	private error = "";
+
+	// The query (type, search, sort, page, access, filters) IS the hash-backed viewQuery store — the single,
+	// schema-validated, reload-safe source of truth. These getters read it; writes go through viewQuery.set().
+	private get qLabel(): string | undefined {
+		return viewQuery.signals.label.get() ?? undefined;
+	}
+	private get qText(): string | undefined {
+		return viewQuery.signals.q.get() ?? undefined;
+	}
+	private get qSort(): string | undefined {
+		return viewQuery.signals.sort.get() ?? undefined;
+	}
+	private get qOrder(): "asc" | "desc" {
+		return viewQuery.signals.order.get();
+	}
+	private get qConditions(): TSearchCondition[] {
+		return viewQuery.signals.f.get();
+	}
+	private get qAccess(): string {
+		return viewQuery.signals.access.get();
+	}
+	private get qOffset(): number {
+		return viewQuery.signals.offset.get();
+	}
 	private lastQueryKey = "";
 	/** The `label` of the most recently *started* query. A change means the node type switched, so the previous type's rows are dropped before the new query lands — a stale-row click would otherwise open the wrong entity. */
 	private lastQueriedLabel: string | undefined;
@@ -60,20 +80,16 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		super(QueryViewSchema, { sortOrder: "desc" as const });
 	}
 
-	protected override onAttributeChanged(name: string, _old: string | null, _val: string | null): void {
-		if (!this.hasHash()) {
-			this.syncFromAttributes();
-		}
+	protected override onAttributeChanged(_name: string, _old: string | null, _val: string | null): void {
+		if (!this.hasHash()) this.seedFromAttributes();
 	}
 
 	protected override onConnected(): void {
-		if (this.hasHash()) {
-			this.syncHashState();
-		} else {
-			this.syncFromAttributes();
-		}
+		viewQuery.hydrate(); // store ← URL hash (fail-fast); defaults when empty
+		if (!this.hasHash()) this.seedFromAttributes(); // alternate input when the URL carries no query
 		this.autoListen(window, "hashchange", () => {
-			this.syncHashState();
+			if (viewQuery.wroteHash(ShuElement.getHash())) return; // our own writes use replaceState (no event); this catches back/forward
+			viewQuery.hydrate();
 			void this.executeQuery();
 		});
 		void this.loadMetadata().then(() => this.executeQuery());
@@ -89,13 +105,27 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			void this.executeQuery();
 		});
 
+		// Re-query when the text search changes in the store. The actions-bar search box writes viewQuery
+		// directly (not through this component's lifecycle), so a store write is the single, lifecycle-proof
+		// trigger — no debounce-cleared-on-disconnect or setContext-reset fragility. Subscribes to `q` only,
+		// so the server-default-sort reflection (which writes `sort`) can't re-trigger it.
+		let firstSearch = true;
+		this.updateEffect(() => {
+			viewQuery.signals.q.get(); // subscribe to the search term
+			if (firstSearch) {
+				firstSearch = false;
+				return;
+			}
+			void this.executeQuery();
+		});
+
 		if (!isOffline()) {
 			this.autoTeardown(
 				this.subscribeBatched({
 					onBatch: (events) => {
 						const quads = extractQuadsFromEvents(events);
 						if (quads.length === 0) return;
-						const label = this.state.label;
+						const label = this.qLabel;
 						const relevant = !label || quads.some((q) => q.namedGraph === label);
 						if (relevant) void this.executeQuery();
 					},
@@ -106,16 +136,25 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 	/** Apply filters from the actions bar and re-execute the query. */
 	setFilters(filters: { accessLevel?: string; label?: string; textQuery?: string; conditions?: TSearchCondition[] }): void {
-		if (filters.accessLevel !== undefined) this.accessLevel = filters.accessLevel;
+		const patch: Partial<TViewQuery> = { offset: 0 }; // any filter change resets pagination
+		if (filters.accessLevel !== undefined) patch.access = filters.accessLevel as TViewQuery["access"];
 		if (filters.label !== undefined) {
-			const nextLabel = filters.label || undefined;
-			// Sort columns are label-specific — the server rejects a sortBy not in the new label's topology.sortColumns
-			// — so switching type drops any sort carried over from the previous type (the new label sorts by its default).
-			this.state = nextLabel !== this.state.label ? { ...this.state, label: nextLabel, sortBy: undefined } : { ...this.state, label: nextLabel };
+			patch.label = filters.label || null;
+			// Sort columns are label-specific — the server rejects a sortBy not in the new label's topology.sortColumns —
+			// so switching type drops any sort carried over from the previous type (the new label sorts by its default).
+			if ((filters.label || null) !== (this.qLabel ?? null)) patch.sort = null;
 		}
-		if (filters.textQuery !== undefined) this.state = { ...this.state, textQuery: filters.textQuery || undefined };
-		if (filters.conditions) this.conditions = filters.conditions;
-		this.offset = 0;
+		if (filters.textQuery !== undefined) patch.q = filters.textQuery || null;
+		if (filters.conditions) patch.f = filters.conditions;
+		viewQuery.set(patch);
+		void this.executeQuery();
+	}
+
+	/** Apply a view-query control product (from a shu-graph-query.controls step) to the store, then re-query.
+	 *  The product is validated against the control schema; hypermedia markers (_component, _type, …) added by
+	 *  dispatch are stripped by the schema. This is the scriptable, hypermedia-driven entry the feature steps reach. */
+	set products(product: Record<string, unknown>) {
+		viewQuery.set(ViewQueryControlSchema.parse(product));
 		void this.executeQuery();
 	}
 
@@ -137,12 +176,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 				detail: {
 					patterns,
-					accessLevel: this.accessLevel,
+					accessLevel: this.qAccess,
 					total: this.total,
-					label: this.state.label,
-					textQuery: this.state.textQuery,
+					label: this.qLabel,
+					textQuery: this.qText,
 					labels: this.labels,
-					conditions: this.conditions.filter((c) => c.predicate && c.value),
+					conditions: this.qConditions.filter((c) => c.predicate && c.value),
 				},
 				bubbles: true,
 				composed: true,
@@ -152,9 +191,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 	private buildQueryContextPatterns(): Array<{ s?: string; p?: string; o?: string }> {
 		const patterns: Array<{ s?: string; p?: string; o?: string }> = [];
-		const { label } = this.state;
+		const label = this.qLabel;
 		if (label) patterns.push({ p: "label", o: label });
-		for (const c of this.conditions) {
+		for (const c of this.qConditions) {
 			if (c.predicate && c.value) {
 				patterns.push({ p: c.predicate, o: c.value });
 			}
@@ -168,63 +207,18 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return h.length > 1 && h.startsWith("#?");
 	}
 
-	private syncHashState(): void {
-		const h = ShuElement.getHash();
-		if (!h || h.length <= 2) return;
-		const params = new URLSearchParams(h.slice(2));
-
-		const label = params.get("label") || undefined;
-		const textQuery = params.get("q") || undefined;
-		const sortBy = params.get("sort") || undefined;
-		const sortOrder = (params.get("order") || "desc") as "asc" | "desc";
-		const offsetStr = params.get("offset");
-		this.accessLevel = params.get("access") || Access.private;
-
-		if (offsetStr) this.offset = parseInt(offsetStr, 10) || 0;
-
-		this.conditions = params.getAll("f").map(parseFilterParam);
-
-		const result = this.safeValidate({ label, textQuery, sortBy, sortOrder });
-		if (result.success && result.data) this.state = result.data;
-	}
-
-	private pushHash(): void {
-		const { label, textQuery, sortBy, sortOrder } = this.state;
-
-		// Preserve existing col params (managed by app.ts via columns-changed events)
-		const currentHash = ShuElement.getHash();
-		const existing = currentHash.startsWith("#?") ? new URLSearchParams(currentHash.slice(2)) : new URLSearchParams();
-		const colValues = existing.getAll("col");
-
-		const params = new URLSearchParams();
-		if (label) params.set("label", label);
-		if (this.accessLevel !== Access.private) params.set("access", this.accessLevel);
-		if (textQuery) params.set("q", textQuery);
-		if (sortBy) params.set("sort", sortBy);
-		if (sortOrder) params.set("order", sortOrder);
-		params.set("offset", String(this.offset));
-
-		for (const c of this.conditions) {
-			if (c.predicate && c.value) params.append("f", serializeFilterParam(c));
-		}
-
-		for (const col of colValues) {
-			params.append("col", col);
-		}
-
-		const newHash = `#?${params.toString()}`;
-		ShuElement.pushHash(newHash);
-	}
-
-	private syncFromAttributes(): void {
-		const label = this.getAttribute("label") || undefined;
-		const textQuery = this.getAttribute("text-query") || undefined;
-		const sortBy = this.getAttribute("sort-by") || undefined;
-		const sortOrder = (this.getAttribute("sort-order") || "desc") as "asc" | "desc";
-		const result = this.safeValidate({ label, textQuery, sortBy, sortOrder });
-		if (result.success && result.data) {
-			this.state = result.data;
-		}
+	/** Alternate input: when the URL carries no query, seed the store from the element's attributes. */
+	private seedFromAttributes(): void {
+		const patch: Partial<TViewQuery> = {};
+		const label = this.getAttribute("label");
+		if (label) patch.label = label;
+		const textQuery = this.getAttribute("text-query");
+		if (textQuery) patch.q = textQuery;
+		const sortBy = this.getAttribute("sort-by");
+		if (sortBy) patch.sort = sortBy;
+		const sortOrder = this.getAttribute("sort-order");
+		if (sortOrder === "asc" || sortOrder === "desc") patch.order = sortOrder;
+		if (Object.keys(patch).length > 0) viewQuery.set(patch);
 	}
 
 	async loadMetadata(): Promise<void> {
@@ -242,9 +236,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	executeQuery(): Promise<void> {
-		const { label, textQuery, sortBy, sortOrder } = this.state;
+		const label = this.qLabel;
+		const textQuery = this.qText;
+		const sortBy = this.qSort;
+		const sortOrder = this.qOrder;
 
-		const validConditions = this.conditions
+		const validConditions = this.qConditions
 			.filter((c) => c.predicate && c.value)
 			.map((c) => ({
 				predicate: c.predicate,
@@ -259,7 +256,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			conditions: validConditions,
 			sortBy: sortBy || "",
 			sortOrder,
-			offset: this.offset,
+			offset: this.qOffset,
 			limit: this.limit,
 		});
 		// Coalesce concurrent identical fires (e.g. hashchange + initial connect).
@@ -281,14 +278,14 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const work = (async () => {
 			try {
 				const payload = {
-					accessLevel: this.accessLevel,
+					accessLevel: this.qAccess,
 					label,
 					filters: validConditions,
 					textQuery: textQuery || undefined,
 					sortBy: sortBy || "",
 					sortOrder,
 					limit: this.limit,
-					offset: this.offset,
+					offset: this.qOffset,
 				};
 				const data = await this.#query.run(payload);
 				// Out-of-order guard: a newer query (e.g. a type switch) replaced our queryKey while this
@@ -300,7 +297,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				this.total = data.total ?? this.results.length;
 				this.sortableFields = data.sort?.fields ?? [];
 				// Reflect the server's resolved sort — including the per-type default the client didn't explicitly pick — so the result-table indicator highlights the active column.
-				if (data.sort?.current?.field && !this.state.sortBy) this.state = { ...this.state, sortBy: data.sort.current.field, sortOrder: data.sort.current.order };
+				if (data.sort?.current?.field && !this.qSort) viewQuery.set({ sort: data.sort.current.field, order: data.sort.current.order });
 				if (data.cypher) {
 					const pane = this.closest("shu-column-pane");
 					if (pane) pane.setAttribute("label", data.cypher);
@@ -308,7 +305,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			} catch (err) {
 				this.error = errMsg(err);
 			}
-			this.pushHash();
 			this.renderResults();
 			if (resultsChanged) this.selectedIds.clear(); // a fresh result set invalidates the row selection
 			this.dispatchContextChange();
@@ -354,13 +350,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			// Listen for result table events
 			table.addEventListener(SHU_EVENT.SORT_CHANGE, ((e: CustomEvent) => {
 				const { field, order } = e.detail;
-				this.state = { ...this.state, sortBy: field, sortOrder: order };
-				this.offset = 0;
+				viewQuery.set({ sort: field || null, order, offset: 0 });
 				void this.executeQuery();
 			}) as EventListener);
 
 			table.addEventListener(SHU_EVENT.PAGE_CHANGE, ((e: CustomEvent) => {
-				this.offset = e.detail.offset;
+				viewQuery.set({ offset: e.detail.offset });
 				void this.executeQuery();
 			}) as EventListener);
 
@@ -398,7 +393,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 						new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
 							detail: {
 								subject: vid,
-								label: this.state.label || defaultLabel(),
+								label: this.qLabel || defaultLabel(),
 								addToSelection: ctrlKey,
 							},
 							bubbles: true,
@@ -422,16 +417,15 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		}
 
 		const table = this.ensureResultTable(target);
-		const { sortBy, sortOrder } = this.state;
 		table.updateState({
-			sortBy,
-			sortOrder,
+			sortBy: this.qSort,
+			sortOrder: this.qOrder,
 			selectable: true,
 			paginated: this.total > this.limit,
 		});
-		if (this.state.label) table.persistedAs = this.state.label;
+		if (this.qLabel) table.persistedAs = this.qLabel;
 		table.setSortableFields(this.sortableFields);
 		table.setResults(this.results);
-		table.setPagination(this.total, this.limit, this.offset);
+		table.setPagination(this.total, this.limit, this.qOffset);
 	}
 }
