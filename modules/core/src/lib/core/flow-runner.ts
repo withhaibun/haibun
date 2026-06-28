@@ -5,7 +5,8 @@ import { AStepper, TFeatureStep } from "../astepper.js";
 import { actionNotOK, errorDetail } from "../util/index.js";
 import { Resolver } from "../../phases/Resolver.js";
 import { incSeqPath, syntheticSeqPathDirection } from "../../phases/Executor.js";
-import { StepRegistry, dispatchStep } from "../step-dispatch.js";
+import { dispatchStep } from "../step-dispatch.js";
+import { StepRegistry } from "../step-registry.js";
 
 export class FlowRunner {
 	private resolver: Resolver;

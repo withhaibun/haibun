@@ -15,7 +15,7 @@
 import type { AStepper } from "./astepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import type { TQuad } from "./quad-types.js";
-import { stepMethodName } from "./step-dispatch.js";
+import { stepMethodName } from "./step-registry.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
 import { BASE_TYPES, DOMAIN_DOMAIN_KEY } from "./domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";

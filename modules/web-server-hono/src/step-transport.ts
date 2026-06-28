@@ -1,5 +1,5 @@
 import type { TSeqPath } from "@haibun/core/schema/protocol.js";
-import type { StepRegistry } from "@haibun/core/lib/step-dispatch.js";
+import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import type { IWebServer } from "./defs.js";
 
 /**

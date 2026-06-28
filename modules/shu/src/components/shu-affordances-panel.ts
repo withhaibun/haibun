@@ -14,7 +14,7 @@ import { type TEvent } from "../event-stream.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";
 import { isArgumentDomain, AFFORDANCE_EVENT_PREFIX, type TForwardAffordance, type TGoalAffordance, type TWaypointEntry } from "@haibun/core/lib/affordances.js";
-import { stepMethodName } from "@haibun/core/lib/step-dispatch.js";
+import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { SHU_EVENT } from "../consts.js";
 import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
 import { factIdRef } from "./shu-ref.js";

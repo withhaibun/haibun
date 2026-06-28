@@ -1,20 +1,19 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 
+import { dispatchStep, retainedProducts } from "./step-dispatch.js";
 import {
 	buildStepRegistry,
-	validateToolInput,
 	stepMethodName,
 	createStepHandler,
 	discoverSteps,
 	buildFeatureStepForTransport,
 	authorizeToolCapability,
 	capabilityAllows,
-	dispatchStep,
-	retainedProducts,
 	StepRegistry,
 	type StepTool,
-} from "./step-dispatch.js";
+} from "./step-registry.js";
+import { validateToolInput } from "./tool-validation.js";
 import { AStepper, type TStepperStep } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";

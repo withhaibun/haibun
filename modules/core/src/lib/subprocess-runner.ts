@@ -12,7 +12,8 @@
 
 import type { TWorld } from "./world.js";
 import type { CStepper } from "./astepper.js";
-import { StepRegistry, validateToolInput, buildFeatureStepForTransport, validateProducts } from "./step-dispatch.js";
+import { StepRegistry, buildFeatureStepForTransport } from "./step-registry.js";
+import { validateToolInput, validateProducts } from "./tool-validation.js";
 import { createSteppers, setStepperWorldsAndDomains, errorDetail } from "./util/index.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";

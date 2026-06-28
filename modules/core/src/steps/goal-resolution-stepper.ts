@@ -27,7 +27,8 @@ import { affordancesSchema, chainLintSchema, goalResolutionSchema } from "../lib
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
-import { StepRegistry, dispatchStep, buildFeatureStepForTransport, stepMethodName } from "../lib/step-dispatch.js";
+import { dispatchStep } from "../lib/step-dispatch.js";
+import { StepRegistry, buildFeatureStepForTransport, stepMethodName } from "../lib/step-registry.js";
 import { allocateSyntheticSeqPath } from "../lib/host-id.js";
 import { buildAffordances, AFFORDANCE_EVENT_PREFIX } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";

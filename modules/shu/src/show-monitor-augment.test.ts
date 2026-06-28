@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
-import { buildFeatureStepForTransport, type StepTool } from "@haibun/core/lib/step-dispatch.js";
+import { buildFeatureStepForTransport, type StepTool } from "@haibun/core/lib/step-registry.js";
 import { parseAffordanceProduct } from "./affordance-products.js";
 
 describe("show monitor markers → parser", () => {

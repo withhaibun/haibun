@@ -6,7 +6,7 @@ import type { IEventLogger } from "./EventLogger.js";
 import type { TStepResult, Timer } from "../schema/protocol.js";
 import { CONTINUE_AFTER_ERROR } from "../schema/protocol.js";
 import type { TRegisteredDomain } from "./resources.js";
-import type { StepRegistry } from "./step-dispatch.js";
+import type { StepRegistry } from "./step-registry.js";
 import type { TFeature } from "./execution.js";
 import type { AStepper } from "./astepper.js";
 

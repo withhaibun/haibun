@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "./astepper.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
-import { buildStepRegistry, type StepRegistry } from "./step-dispatch.js";
+import { buildStepRegistry, type StepRegistry } from "./step-registry.js";
 import { registerDomains } from "./domains.js";
 import { getDefaultWorld } from "./test/lib.js";
 import type { TWorld } from "./world.js";

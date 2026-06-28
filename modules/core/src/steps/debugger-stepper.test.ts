@@ -7,7 +7,8 @@ import { IPrompter, TPrompt, TPromptResponse } from "../lib/prompter.js";
 import { ReadlinePrompter } from "../lib/readline-prompter.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionNotOK } from "../lib/util/index.js";
-import { buildFeatureStepForTransport, dispatchStep, StepRegistry } from "../lib/step-dispatch.js";
+import { dispatchStep } from "../lib/step-dispatch.js";
+import { buildFeatureStepForTransport, StepRegistry } from "../lib/step-registry.js";
 
 class TestPrompter implements IPrompter {
 	prompt = (_p: TPrompt) => Promise.resolve("continue");
