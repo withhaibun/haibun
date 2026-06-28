@@ -284,6 +284,16 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				return actionNotOK(`URI query ${term} contains "${found}", not "${value}"`);
 			},
 		},
+		waitForURIMatch: {
+			gwta: "wait until URI matches {pattern}",
+			handlesUndefined: ["pattern"],
+			action: async (_args: Record<string, unknown>, featureStep) => {
+				const pattern = getStepTerm(featureStep, "pattern") ?? "";
+				const page = await wp.getPage();
+				await page.waitForFunction((p: string) => new RegExp(p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")).test(location.href), pattern);
+				return OK;
+			},
+		},
 
 		//                  CLICK
 		click: {
