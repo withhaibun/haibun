@@ -14,9 +14,10 @@
  * and offer to retry the step or abandon the walk.
  */
 import type { TWorld } from "./world.js";
-import type { StepRegistry } from "./step-dispatch.js";
+import type { StepRegistry } from "./step-registry.js";
 import type { AStepper } from "./astepper.js";
-import { buildFeatureStepForTransport, dispatchStep, stepMethodName } from "./step-dispatch.js";
+import { dispatchStep } from "./step-dispatch.js";
+import { buildFeatureStepForTransport, stepMethodName } from "./step-registry.js";
 import { allocateSyntheticSeqPath } from "./host-id.js";
 import { formatSeqPath } from "./seq-path.js";
 import { CHAIN_INSTANCE_STATUS, getChainInstance, updateChainInstance, type TChainInstance } from "./chain-instance.js";

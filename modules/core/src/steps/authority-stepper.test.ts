@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
-import { discoverSteps } from "../lib/step-dispatch.js";
+import { discoverSteps } from "../lib/step-registry.js";
 
 import { AStepper } from "../lib/astepper.js";
 import { OK } from "../schema/protocol.js";

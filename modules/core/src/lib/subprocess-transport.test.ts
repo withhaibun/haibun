@@ -3,7 +3,7 @@ import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 import { getDefaultWorld } from "./test/lib.js";
 import { SubprocessTransport } from "./subprocess-transport.js";
-import { StepRegistry, buildFeatureStepForTransport } from "./step-dispatch.js";
+import { StepRegistry, buildFeatureStepForTransport } from "./step-registry.js";
 import { AStepper } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 

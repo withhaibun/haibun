@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
-import { StepRegistry } from "./step-dispatch.js";
+import { StepRegistry } from "./step-registry.js";
 import { AStepper } from "./astepper.js";
 import { actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
@@ -56,7 +56,7 @@ describe("RemoteStepperProxy", () => {
 			const tool = localRegistry.get(data.method);
 			if (!tool) return c.json({ error: `not found: ${data.method}` }, 422);
 			try {
-				const { buildFeatureStepForTransport } = await import("./step-dispatch.js");
+				const { buildFeatureStepForTransport } = await import("./step-registry.js");
 				const featureStep = buildFeatureStepForTransport(tool, data.params ?? {}, [0, 1]);
 				const result = await tool.handler(featureStep, world);
 				if (result.ok) return c.json(result.products ?? {});
@@ -96,7 +96,7 @@ describe("RemoteStepperProxy", () => {
 		// Bare name (local form) must NOT be registered — prefixing is total.
 		expect(registry.get("EchoStepper-echo")).toBeUndefined();
 
-		const { buildFeatureStepForTransport } = await import("./step-dispatch.js");
+		const { buildFeatureStepForTransport } = await import("./step-registry.js");
 		const featureStep = buildFeatureStepForTransport(tool, { message: "hello" }, [0, 1]);
 		const result = await tool.handler(featureStep, world);
 		expect(result.ok).toBe(true);

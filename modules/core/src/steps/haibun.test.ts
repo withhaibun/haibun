@@ -8,7 +8,7 @@ import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionOK } from "../lib/util/index.js";
-import type { StepRegistry } from "../lib/step-dispatch.js";
+import type { StepRegistry } from "../lib/step-registry.js";
 import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
 
 describe("until", () => {

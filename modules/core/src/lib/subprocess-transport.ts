@@ -16,7 +16,7 @@ import { fork, type ChildProcess } from "child_process";
 import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
-import { type StepTool, type StepRegistry } from "./step-dispatch.js";
+import { type StepTool, type StepRegistry } from "./step-registry.js";
 import type { StepDescriptor } from "./stepper-registry.js";
 import type { SubprocessMessage, SubprocessResultMessage } from "./subprocess-runner.js";
 

@@ -10,7 +10,7 @@ import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
-import { stepMethodName } from "../lib/step-dispatch.js";
+import { stepMethodName } from "../lib/step-registry.js";
 import { buildAffordances, WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
 import { DOMAIN_AFFORDANCES } from "../lib/domains.js";
 import { namedInterpolation } from "../lib/namedVars.js";

@@ -18,7 +18,8 @@ import {
 import { LifecycleEvent } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
-import { StepRegistry, dispatchStep } from "../lib/step-dispatch.js";
+import { dispatchStep } from "../lib/step-dispatch.js";
+import { StepRegistry } from "../lib/step-registry.js";
 import { SCENARIO_START } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
 import { registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";

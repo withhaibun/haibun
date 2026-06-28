@@ -4,7 +4,7 @@ import { streamSSE } from "hono/streaming";
 import type { IWebServer } from "./defs.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { truncateForLog } from "@haibun/core/lib/util/index.js";
-import type { StepRegistry } from "@haibun/core/lib/step-dispatch.js";
+import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
 
