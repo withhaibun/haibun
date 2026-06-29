@@ -77,55 +77,56 @@ export function ringAnchors(keys: string[], radius: number): Map<string, GroupAn
 	return anchors;
 }
 
+/** Clear space between members inside a container's cell — the in-cell grid pitch's breathing room. */
+export const IN_CELL_GAP = 12;
+
 /**
- * Anchors packed to fill the plane, not a hollow ring: groups (each a disc of the given radius — an estimate
- * seeded from membership, corrected by the group's MEASURED extent once settled) are shelf-packed largest-first
- * into rows targeting a roughly square overall footprint, then centred on the origin. Adjacent discs are kept
- * `gap` apart, which is what keeps the enclosure boxes from sitting on top of each other; the square target is
- * what makes the layout use the viewport's width AND height instead of a thin annulus.
+ * Compact deterministic placement for the grouped view's enclosures: each container is a RECTANGLE {w,h} — the real
+ * chip-sized footprint of its members — shelf-packed (next-fit, decreasing height) into rows that wrap near a square
+ * target width, then centred on the origin with `gap` clear space between adjacent cells. A container holding one wide
+ * node becomes a wide-SHORT cell; its small HEIGHT keeps the row pitch (and so the whole layout) tight, and because the
+ * sort is by height that cell sinks to a late short row instead of dominating. This replaces an isotropic-disc model
+ * (r=√Σradius²) that squared a single wide chip into a giant SQUARE that shoved every container apart in both
+ * axes. Pure + deterministic (a function of the map's CONTENT, independent of insertion order), so the non-overlap +
+ * compactness are unit-proven. Returns each container's CENTRE, in the deterministic sort order.
  */
-export function packLayout(radii: ReadonlyMap<string, number>, gap: number): Map<string, GroupAnchor> {
-	const keys = [...radii.keys()].sort((a, b) => (radii.get(b) ?? 0) - (radii.get(a) ?? 0));
-	const anchors = new Map<string, GroupAnchor>();
-	if (keys.length === 0) return anchors;
-	if (keys.length === 1) {
-		anchors.set(keys[0], { x: 0, y: 0 });
-		return anchors;
-	}
-	const r = (k: string) => Math.max(radii.get(k) ?? 1, 1);
-	const cells = keys.map((k) => 2 * r(k) + gap);
-	const targetW = Math.sqrt(cells.reduce((s, c) => s + c * c, 0));
+export function shelfPack(sizes: ReadonlyMap<string, { w: number; h: number }>, gap: number): Map<string, GroupAnchor> {
+	const keys = [...sizes.keys()];
+	if (keys.length === 0) return new Map();
+	if (keys.length === 1) return new Map([[keys[0], { x: 0, y: 0 }]]);
+	// Padded cell per container: the box plus a right/bottom margin so adjacent boxes stay `gap` apart on the advancing axis.
+	const cells = keys.map((k) => {
+		const s = sizes.get(k);
+		const w = Math.max(s?.w ?? 1, 1);
+		const h = Math.max(s?.h ?? 1, 1);
+		return { k, w, h, cw: w + gap, ch: h + gap };
+	});
+	// Deterministic total order: tallest first (a wide-short cell sinks to a late short row), then widest, then key.
+	cells.sort((a, b) => b.ch - a.ch || b.cw - a.cw || a.k.localeCompare(b.k));
+	const area = cells.reduce((s, c) => s + c.cw * c.ch, 0);
+	const targetW = Math.max(Math.max(...cells.map((c) => c.cw)), Math.sqrt(area)); // the widest cell always fits a row alone (no infinite wrap)
+	const placed: Array<{ k: string; cx: number; cy: number; w: number; h: number }> = [];
 	let x = 0;
 	let y = 0;
 	let rowH = 0;
-	for (const k of keys) {
-		const cell = 2 * r(k) + gap;
-		if (x > 0 && x + cell > targetW) {
+	for (const c of cells) {
+		if (x > 0 && x + c.cw > targetW) {
 			x = 0;
 			y += rowH;
 			rowH = 0;
 		}
-		anchors.set(k, { x: x + cell / 2, y: y + cell / 2 });
-		x += cell;
-		rowH = Math.max(rowH, cell);
+		placed.push({ k: c.k, cx: x + c.w / 2, cy: y + c.h / 2, w: c.w, h: c.h }); // the box centre; the gap is the cell's right/bottom margin
+		x += c.cw;
+		rowH = Math.max(rowH, c.ch);
 	}
-	// Centre the packing on the origin so the graph grows symmetrically around the camera target.
-	let minX = Infinity;
-	let maxX = -Infinity;
-	let minY = Infinity;
-	let maxY = -Infinity;
-	for (const k of keys) {
-		const a = anchors.get(k);
-		if (!a) continue;
-		minX = Math.min(minX, a.x - r(k));
-		maxX = Math.max(maxX, a.x + r(k));
-		minY = Math.min(minY, a.y - r(k));
-		maxY = Math.max(maxY, a.y + r(k));
-	}
-	const cx = (minX + maxX) / 2;
-	const cy = (minY + maxY) / 2;
-	for (const [k, a] of anchors) anchors.set(k, { x: a.x - cx, y: a.y - cy });
-	return anchors;
+	// Centre the whole packing on the origin, over each box's TRUE extent (not the padded cell).
+	const minX = Math.min(...placed.map((p) => p.cx - p.w / 2));
+	const maxX = Math.max(...placed.map((p) => p.cx + p.w / 2));
+	const minY = Math.min(...placed.map((p) => p.cy - p.h / 2));
+	const maxY = Math.max(...placed.map((p) => p.cy + p.h / 2));
+	const dx = (minX + maxX) / 2;
+	const dy = (minY + maxY) / 2;
+	return new Map(placed.map((p) => [p.k, { x: p.cx - dx, y: p.cy - dy }]));
 }
 
 export type GroupBox = { cx: number; cy: number; cz: number; sx: number; sy: number; sz: number };

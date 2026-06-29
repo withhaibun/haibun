@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupKeyOf, containerLabelOf, ringAnchors, packLayout, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
+import { groupKeyOf, containerLabelOf, ringAnchors, shelfPack, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
 import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
 describe("groupKeyOf", () => {
@@ -54,55 +54,66 @@ describe("ringAnchors", () => {
 	});
 });
 
-describe("packLayout", () => {
-	const radii = new Map([
-		["Email", 140],
-		["Person", 77],
-		["Body", 166],
-		["Kihan", 35],
-		["SeqPath", 120],
-		["File", 60],
-		["Endpoint", 45],
+describe("shelfPack — compact rectangle packing on real {w,h} (no isotropic blow-up)", () => {
+	const GAP = 80;
+	// A mix of tall-thin, square, tiny — and C: one VERY WIDE, SHORT container (the long-base64-id case).
+	const sizes = new Map([
+		["A", { w: 40, h: 40 }],
+		["B", { w: 30, h: 90 }],
+		["C", { w: 300, h: 14 }],
+		["D", { w: 50, h: 50 }],
+		["E", { w: 20, h: 20 }],
 	]);
-	const gap = 80;
+	const keys = [...sizes.keys()];
+	const pack = shelfPack(sizes, GAP);
+	const box = (k: string) => {
+		const c = pack.get(k);
+		const s = sizes.get(k);
+		if (!c || !s) throw new Error(`missing ${k}`);
+		return { minX: c.x - s.w / 2, maxX: c.x + s.w / 2, minY: c.y - s.h / 2, maxY: c.y + s.h / 2 };
+	};
+	const boxes = () => keys.map((k) => box(k));
+	const span = (sel: (b: ReturnType<typeof box>) => number, lo: boolean) => (lo ? Math.min(...boxes().map(sel)) : Math.max(...boxes().map(sel)));
 
-	it("single group sits at the origin", () => {
-		expect(packLayout(new Map([["A", 130]]), gap).get("A")).toEqual({ x: 0, y: 0 });
+	it("an empty map packs to nothing; a single container sits at the origin", () => {
+		expect(shelfPack(new Map(), GAP).size).toBe(0);
+		expect(shelfPack(new Map([["only", { w: 100, h: 20 }]]), GAP).get("only")).toEqual({ x: 0, y: 0 });
 	});
 
-	it("every pair of groups is separated by at least their radii plus the gap (no overlapping boxes)", () => {
-		const anchors = packLayout(radii, gap);
-		const keys = [...radii.keys()];
-		for (let i = 0; i < keys.length; i++) {
+	it("every pair of containers is AABB-disjoint with at least GAP clear on the separating axis", () => {
+		for (let i = 0; i < keys.length; i++)
 			for (let j = i + 1; j < keys.length; j++) {
-				const a = anchors.get(keys[i]);
-				const b = anchors.get(keys[j]);
-				if (!a || !b) throw new Error("missing anchor");
-				const d = Math.hypot(a.x - b.x, a.y - b.y);
-				expect(d).toBeGreaterThanOrEqual((radii.get(keys[i]) ?? 0) + (radii.get(keys[j]) ?? 0) + gap - 1e-6);
+				const a = box(keys[i]);
+				const b = box(keys[j]);
+				const gapX = Math.max(b.minX - a.maxX, a.minX - b.maxX);
+				const gapY = Math.max(b.minY - a.maxY, a.minY - b.maxY);
+				expect(Math.max(gapX, gapY), `${keys[i]} vs ${keys[j]} must clear by GAP`).toBeGreaterThanOrEqual(GAP - 1e-6);
 			}
-		}
 	});
 
-	it("packs to a roughly square footprint (fills width AND height, not a thin strip or ring annulus)", () => {
-		const anchors = packLayout(radii, gap);
-		let minX = Infinity;
-		let maxX = -Infinity;
-		let minY = Infinity;
-		let maxY = -Infinity;
-		for (const [k, a] of anchors) {
-			const r = radii.get(k) ?? 0;
-			minX = Math.min(minX, a.x - r);
-			maxX = Math.max(maxX, a.x + r);
-			minY = Math.min(minY, a.y - r);
-			maxY = Math.max(maxY, a.y + r);
-		}
-		const aspect = (maxX - minX) / (maxY - minY);
-		expect(aspect).toBeGreaterThan(0.4);
-		expect(aspect).toBeLessThan(2.5);
-		// centred on the origin so the camera target is the middle of the content
-		expect(Math.abs((minX + maxX) / 2)).toBeLessThan(1);
-		expect(Math.abs((minY + maxY) / 2)).toBeLessThan(1);
+	it("a wide-SHORT container does NOT leak its width into the layout HEIGHT — the disc-model bug", () => {
+		const totalH = span((b) => b.maxY, false) - span((b) => b.minY, true);
+		const sumCellH = [...sizes.values()].reduce((s, v) => s + v.h + GAP, 0);
+		expect(totalH).toBeLessThanOrEqual(sumCellH);
+		expect(totalH, "the 300-wide C must not make the layout ~300 tall").toBeLessThan(300);
+	});
+
+	it("packs compactly — bounding-box area within 4× the summed cell areas", () => {
+		const totalW = span((b) => b.maxX, false) - span((b) => b.minX, true);
+		const totalH = span((b) => b.maxY, false) - span((b) => b.minY, true);
+		const sumArea = [...sizes.values()].reduce((s, v) => s + (v.w + GAP) * (v.h + GAP), 0);
+		expect(totalW * totalH).toBeLessThanOrEqual(4 * sumArea);
+	});
+
+	it("is centred on the origin (the camera target is the middle of the content)", () => {
+		expect(Math.abs((span((b) => b.minX, true) + span((b) => b.maxX, false)) / 2)).toBeLessThan(1e-6);
+		expect(Math.abs((span((b) => b.minY, true) + span((b) => b.maxY, false)) / 2)).toBeLessThan(1e-6);
+	});
+
+	it("is a pure function of the map CONTENT — insertion order does not change the result, and key order is the sort order", () => {
+		const reversed = new Map([...sizes.entries()].reverse());
+		expect(shelfPack(reversed, GAP)).toEqual(pack);
+		expect([...pack.keys()]).toEqual(["B", "D", "A", "E", "C"]); // ch desc, then cw desc, then key asc
 	});
 });
 
