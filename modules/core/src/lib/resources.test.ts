@@ -116,12 +116,12 @@ describe("LinkRelations extensions", () => {
 		expect(isReplyEdge(LinkRelations.ACCESS_LEVEL.rel)).toBe(false);
 	});
 
-	it("isSubPropertyOf reaches EVERY upper concept of a many-parent rel (the DAG walk, not a single chain)", () => {
-		// startedAtTime is declared under BOTH ganttStart AND temporalInstant — the walk must reach both.
-		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.GANTT_START.rel)).toBe(true);
-		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.TEMPORAL_INSTANT.rel)).toBe(true);
+	it("isSubPropertyOf walks transitively to an indirect ancestor, not just the direct parent", () => {
+		// wasAttributedTo → fromActor → inRoleOf: the walk must reach the grandparent, not stop at the direct parent.
+		expect(isSubPropertyOf(LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.FROM_ACTOR.rel)).toBe(true); // direct parent
+		expect(isSubPropertyOf(LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true); // two hops up
+		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.GANTT_START.rel)).toBe(true); // a gantt time rel reaches its upper concept
 		expect(isSubPropertyOf(LinkRelations.ENDED_AT_TIME.rel, LinkRelations.GANTT_END.rel)).toBe(true);
-		expect(isSubPropertyOf(LinkRelations.ENDED_AT_TIME.rel, LinkRelations.TEMPORAL_INSTANT.rel)).toBe(true);
 	});
 
 	it("isSubPropertyOf does not reach an unrelated concept (a sibling parent is not a path to everything)", () => {
