@@ -71,6 +71,9 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			.limit input[type=range] { width: 120px; }
 			.label { color: var(--shu-fg-muted); }
 			.quad-count { color: var(--shu-fg-faded); }
+			.solo { cursor: pointer; background: var(--shu-bg); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-1) var(--shu-space-2); line-height: 1; }
+			.solo.armed { outline: 2px solid var(--shu-link); }
+			.row.armed label.type { cursor: crosshair; }
 		`,
 	];
 
@@ -94,6 +97,9 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	// where the data is `TGraph`-shaped, not quad-shaped.
 	private axisSource: { axes: Record<string, string[]>; hidden: Record<string, Set<string>> } | null = null;
 	private axisCookieKey: string | null = null;
+	// Transient UI for the 1️⃣ tool: while armed, the next type-chip click shows ONLY that type instead of toggling it.
+	// One-shot mode, not a durable choice — kept off persistFields.
+	private soloArmed = false;
 
 	constructor() {
 		// persistFields restores overrides/perTypeLimit on connect; defaults until then.
@@ -194,6 +200,20 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	};
 
+	/** The 1️⃣ "solo a type" tool: arm it, then a type-chip click shows only that type (the rest hidden). */
+	private toggleSolo = (): void => {
+		this.soloArmed = !this.soloArmed;
+		this.requestUpdate();
+	};
+	private onChipClick =
+		(type: string) =>
+		(e: MouseEvent): void => {
+			if (!this.soloArmed) return; // normal path — let the label toggle its checkbox (onTypeChange)
+			e.preventDefault(); // cancel the checkbox toggle; isolate this type instead
+			this.soloArmed = false;
+			this.setVisibleTypes([type]); // show only this type, via the same change path a legend click takes
+		};
+
 	private onAxisChange =
 		(axis: string, value: string) =>
 		(e: Event): void => {
@@ -226,7 +246,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		// Chip checked = effectively visible: the user's explicit override, else the instrumentation-default predicate. One source.
 		const hiddenSet = new Set(effectiveHiddenTypes(clusters.map((c) => c.type), this.state.overrides));
 		const quadCount = this.filterByTime(this.quads).length;
-		return html`<div class="row">
+		return html`<div class="row ${this.soloArmed ? "armed" : ""}">
 			<span class="label">show:</span>
 			${
 				clusters.length === 0
@@ -238,13 +258,14 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 									: c.totalCount > 0
 										? html` <span class="meta">(${c.totalCount})</span>`
 										: "";
-							return html`<label class="type" style=${`background:${colorForType(c.type)}`} @mouseenter=${() => this.previewType(c.type)} @mouseleave=${() => this.previewType(null)}><input type="checkbox" .checked=${!hiddenSet.has(c.type)} @change=${this.onTypeChange(c.type)}>${c.type}${omitted}</label>`;
+							return html`<label class="type" style=${`background:${colorForType(c.type)}`} @mouseenter=${() => this.previewType(c.type)} @mouseleave=${() => this.previewType(null)} @click=${this.onChipClick(c.type)}><input type="checkbox" .checked=${!hiddenSet.has(c.type)} @change=${this.onTypeChange(c.type)}>${c.type}${omitted}</label>`;
 						})
 			}
 			<span class="label">|</span>
 			<label class="limit">per-type limit
 				<input type="range" min="10" max="1000" step="10" .value=${String(perTypeLimit)} @change=${this.onLimitChange}>
 			</label>
+			<button type="button" class="solo ${this.soloArmed ? "armed" : ""}" data-testid="graph-filter-solo" title="solo a type: tap, then tap a type to show only it" @click=${this.toggleSolo}>1️⃣</button>
 			<span class="quad-count">${quadCount} quads</span>
 		</div>`;
 	}
