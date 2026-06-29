@@ -188,8 +188,8 @@ export const LinkRelations = {
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
 	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri" },
 	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", subPropertyOf: "inReplyTo" },
-	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", subPropertyOf: ["ganttStart", "temporalInstant"] },
-	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", subPropertyOf: ["ganttEnd", "temporalInstant"] },
+	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", subPropertyOf: "ganttStart" },
+	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", subPropertyOf: "ganttEnd" },
 	// When the system generated this entity's representation — the required "when" field on every persisted object (distinct from as:published, which is the content's own time).
 	GENERATED_AT_TIME: { rel: "generatedAtTime", uri: "prov:generatedAtTime", range: "literal" },
 	// SOSA / W3C SSN — observation and sensing
@@ -207,9 +207,8 @@ export const LinkRelations = {
 	PART_OF: { rel: "isPartOf", uri: "schema:isPartOf", range: "iri" },
 	PRECEDED_BY: { rel: "precededBy", uri: "hbn:precededBy", range: "iri" },
 	// Scheduling / Gantt — task timing, effort, and dependencies. Concrete rels declare themselves under the gantt-*
-	// upper concepts (and the time rels also under temporalInstant), so a paint recognises schedulable data via
-	// isSubPropertyOf regardless of which concrete vocabulary (PROV, schema, hbn) supplied each field.
-	TEMPORAL_INSTANT: { rel: "temporalInstant", uri: "time:Instant", range: "literal" },
+	// upper concepts, so a paint recognises schedulable data via isSubPropertyOf regardless of which concrete
+	// vocabulary (PROV, schema, hbn) supplied each field.
 	GANTT_START: { rel: "ganttStart", uri: "hbn:ganttStart", range: "literal" },
 	GANTT_END: { rel: "ganttEnd", uri: "hbn:ganttEnd", range: "literal" },
 	GANTT_DURATION: { rel: "ganttDuration", uri: "hbn:ganttDuration", range: "literal" },
