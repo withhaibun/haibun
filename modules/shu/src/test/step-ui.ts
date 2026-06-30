@@ -101,6 +101,9 @@ export function createStepUI(wp: WebPlaywright) {
 	/** Ensure the actions-bar is expanded. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent — the click is skipped when MODE_SELECT is already on the page. */
 	const expandActionsBar: TKirejiStep[] = [`where not has test id ${IDS.APP.MODE_SELECT}, click ${IDS.APP.TWISTY}`, waitFor({ target: IDS.APP.MODE_SELECT })];
 
+	/** Collapse the actions-bar if it is open — the inverse of expandActionsBar (MODE_SELECT present ⇒ click the twisty to close). Idempotent: skipped when already collapsed. The expanded panel floats over lower content (e.g. a graph), so close it before interacting with what sits beneath. */
+	const collapseActionsBar: TKirejiStep[] = [`where has test id ${IDS.APP.MODE_SELECT}, click ${IDS.APP.TWISTY}`];
+
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
 
 	/** Expand the actions-bar and switch to Ask mode. Symmetric to enterStepMode. */
@@ -242,6 +245,7 @@ export function createStepUI(wp: WebPlaywright) {
 		enterStepMode,
 		enterAskMode,
 		expandActionsBar,
+		collapseActionsBar,
 		askExchange,
 		selectQueryFirstRow,
 		registerTestIds,
