@@ -18,6 +18,11 @@ const GROUP_PAD = 12; // breathing room a group box adds around its members per 
 
 export const nodeWidth = (label: string): number => Math.max(56, Math.round(label.length * CHAR_W) + NODE_PAD_X * 2);
 
+/** How the layout sizes nodes and the gaps between them. Default is the pixel estimate (nodeWidth × NODE_H); a consumer in
+ *  another coordinate space passes its own node footprint + gaps so the boxes land in that space directly. */
+export type LayeredMetrics = { node: (id: string, label: string) => { w: number; h: number }; layerGap: number; siblingGap: number };
+const DEFAULT_METRICS: LayeredMetrics = { node: (_id, label) => ({ w: nodeWidth(label), h: NODE_H }), layerGap: LAYER_GAP, siblingGap: SIBLING_GAP };
+
 /** Longest-path layering: layer(n) = max over incoming edges of layer(src)+1, computed in topological order; nodes left
  * in a cycle keep the layer they reached. */
 function assignLayers(ids: string[], out: Map<string, string[]>, indeg: Map<string, number>): Map<string, number> {
@@ -41,13 +46,14 @@ function assignLayers(ids: string[], out: Map<string, string[]>, indeg: Map<stri
 	return layer;
 }
 
-export function layeredLayout(graph: TGraph): LaidOutGraph {
+export function layeredLayout(graph: TGraph, metrics: LayeredMetrics = DEFAULT_METRICS): LaidOutGraph {
 	const dir = graph.direction ?? "LR";
 	const horizontal = dir === "LR" || dir === "RL";
 	const reverse = dir === "RL" || dir === "BT";
 	const ids = graph.nodes.map((n) => n.id);
 	const idSet = new Set(ids);
 	const labelOf = new Map(graph.nodes.map((n) => [n.id, n.label]));
+	const sizeOf = new Map(ids.map((id) => [id, metrics.node(id, labelOf.get(id) ?? id)]));
 
 	const out = new Map<string, string[]>(ids.map((id) => [id, []]));
 	const indeg = new Map<string, number>(ids.map((id) => [id, 0]));
@@ -67,8 +73,9 @@ export function layeredLayout(graph: TGraph): LaidOutGraph {
 		else byLayer.set(l, [id]);
 	}
 
-	const flowSize = (id: string): number => (horizontal ? nodeWidth(labelOf.get(id) ?? id) : NODE_H);
-	const crossSize = (id: string): number => (horizontal ? NODE_H : nodeWidth(labelOf.get(id) ?? id));
+	const sizeWH = (id: string): { w: number; h: number } => sizeOf.get(id) ?? { w: 1, h: 1 };
+	const flowSize = (id: string): number => (horizontal ? sizeWH(id).w : sizeWH(id).h);
+	const crossSize = (id: string): number => (horizontal ? sizeWH(id).h : sizeWH(id).w);
 
 	// Flow-axis band per layer: widest node in the layer + a gap.
 	const layerFlow: number[] = [];
@@ -76,9 +83,9 @@ export function layeredLayout(graph: TGraph): LaidOutGraph {
 	for (let l = 0; l <= maxLayer; l++) {
 		const band = (byLayer.get(l) ?? []).reduce((m, id) => Math.max(m, flowSize(id)), 0);
 		layerFlow[l] = flowAcc + band / 2;
-		flowAcc += band + LAYER_GAP;
+		flowAcc += band + metrics.layerGap;
 	}
-	const totalFlow = Math.max(0, flowAcc - LAYER_GAP);
+	const totalFlow = Math.max(0, flowAcc - metrics.layerGap);
 
 	// Cross-axis stack within each layer; remember each layer's extent so layers can be centred against the widest one.
 	const crossCenterOf = new Map<string, number>();
@@ -87,9 +94,9 @@ export function layeredLayout(graph: TGraph): LaidOutGraph {
 		let c = 0;
 		for (const id of byLayer.get(l) ?? []) {
 			crossCenterOf.set(id, c + crossSize(id) / 2);
-			c += crossSize(id) + SIBLING_GAP;
+			c += crossSize(id) + metrics.siblingGap;
 		}
-		layerCrossExtent[l] = Math.max(0, c - SIBLING_GAP);
+		layerCrossExtent[l] = Math.max(0, c - metrics.siblingGap);
 	}
 	const maxCross = layerCrossExtent.reduce((m, e) => Math.max(m, e), 0);
 
@@ -98,10 +105,10 @@ export function layeredLayout(graph: TGraph): LaidOutGraph {
 		const l = layer.get(n.id) ?? 0;
 		const flowCenter = reverse ? totalFlow - layerFlow[l] : layerFlow[l];
 		const crossCenter = (crossCenterOf.get(n.id) ?? 0) + (maxCross - layerCrossExtent[l]) / 2;
-		const w = nodeWidth(labelOf.get(n.id) ?? n.id);
+		const { w, h } = sizeWH(n.id);
 		const cx = horizontal ? flowCenter : crossCenter;
 		const cy = horizontal ? crossCenter : flowCenter;
-		nodes.set(n.id, { x: cx - w / 2, y: cy - NODE_H / 2, w, h: NODE_H });
+		nodes.set(n.id, { x: cx - w / 2, y: cy - h / 2, w, h });
 	}
 
 	const groups = layoutGroups(graph, nodes);
