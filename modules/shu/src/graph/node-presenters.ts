@@ -7,6 +7,7 @@
  */
 import { colorForType } from "../type-colors.js";
 import { assertNodeMark, type NodeMark } from "./graph-scene.js";
+import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "./ontology-projection.js";
 
 /** The slice of a node a presenter reads — identity + display name + @type. */
 export type SceneNode = { id: string; name: string; type: string; isCluster?: boolean };
@@ -51,3 +52,12 @@ export function registerNodePresenter(type: string, presenter: NodePresenter): v
 export function presenterForType(type: string): NodePresenter {
 	return registry.get(type) ?? DEFAULT_PRESENTER;
 }
+
+// The folded ontology's SCHEMA types render distinct from instance chips (see NodeMark.schema): a Class as a square
+// outlined box, a Property as a rounded outlined pill — so the schema reads apart from the data it describes. One mark
+// drives both graph paints.
+const schemaPresenter = (schema: "class" | "property"): NodePresenter => ({
+	present: (n) => assertNodeMark({ id: n.id, type: n.type, kind: "chip", label: n.name, color: colorForType(n.type), role: { kind: "free" }, schema }),
+});
+registerNodePresenter(ONTOLOGY_CLASS, schemaPresenter("class"));
+registerNodePresenter(ONTOLOGY_PROPERTY, schemaPresenter("property"));
