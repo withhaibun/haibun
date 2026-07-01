@@ -7,7 +7,7 @@
  */
 
 /** The visual marks a node can be drawn as. EVERY paint must handle each kind it's given, or throw — never skip silently. */
-export const MARK_KINDS = ["chip", "box", "image", "mesh", "marker"] as const;
+export const MARK_KINDS = ["chip", "lozenge", "box", "image", "mesh", "marker"] as const;
 export type MarkKind = (typeof MARK_KINDS)[number];
 
 /** Where a node sits, declared by its type's presenter. A backend-neutral layout pass resolves roles to coordinates

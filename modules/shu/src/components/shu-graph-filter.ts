@@ -26,6 +26,7 @@ import { colorForType } from "../type-colors.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { readElementPrefs } from "../element-prefs.js";
 import { projectFilterClusters, effectiveHiddenTypes } from "../graph-filter-projection.js";
+import { isSchemaType } from "../graph/ontology-projection.js";
 
 const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the
@@ -252,7 +253,12 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		const { perTypeLimit } = this.state;
 		const clusters = this.deriveClusters()
 			.slice()
-			.sort((a, b) => a.type.localeCompare(b.type));
+			.sort((a, b) => {
+				// The folded schema types (Class, Property) group together at the end of the legend, apart from the data types.
+				const schemaA = isSchemaType(a.type), schemaB = isSchemaType(b.type);
+				if (schemaA !== schemaB) return schemaA ? 1 : -1;
+				return a.type.localeCompare(b.type);
+			});
 		// Chip checked = effectively visible: the user's explicit override, else the instrumentation-default predicate. One source.
 		const hiddenSet = new Set(effectiveHiddenTypes(clusters.map((c) => c.type), this.state.overrides));
 		const quadCount = this.filterByTime(this.quads).length;
