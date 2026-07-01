@@ -30,7 +30,7 @@ import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
-import { ontologyToQuads } from "./graph/ontology-projection.js";
+import { ontologyToQuads, ONTOLOGY_CLASS } from "./graph/ontology-projection.js";
 
 /** Result of the inherent `graphQuery` step: matched rows + their count. */
 const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(), z.unknown())), total: z.number().int().nonnegative() });
@@ -537,7 +537,19 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}));
 				// fold the ontology (schema/T-Box) into the SAME response: Class + Property at t=0, default-hidden on the client, revealed via their filter chip (the normal type-filter path)
 				const ontology = ontologyToQuads(this.getWorld().domains);
-				return actionOKWithProducts({ quads: [...quads, ...ontology.quads], clusters: [...result.clusters, ...ontology.clusters] });
+				// Join each instance to its Class with an rdf:type (`a`) edge — revealing the schema shows the data linked to
+				// its types. The edge lives in the instance's OWN graph (objectType Class): buildGraphModelFromQuads drops an
+				// edge whose target is hidden, so it renders only when the Class chip is revealed, and it never pollutes the
+				// Class cluster count. One per instance, only for a type that actually has a Class node (no dangling edges).
+				const classNodes = new Set(ontology.clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledSubjects ?? []);
+				const typeEdges: typeof quads = [];
+				const linkedSubjects = new Set<string>();
+				for (const q of quads) {
+					if (!classNodes.has(q.namedGraph) || linkedSubjects.has(q.subject)) continue;
+					linkedSubjects.add(q.subject);
+					typeEdges.push({ subject: q.subject, predicate: "a", object: q.namedGraph, objectType: ONTOLOGY_CLASS, namedGraph: q.namedGraph, timestamp: q.timestamp, properties: undefined });
+				}
+				return actionOKWithProducts({ quads: [...quads, ...typeEdges, ...ontology.quads], clusters: [...result.clusters, ...ontology.clusters] });
 			},
 		},
 		graphQuery: {

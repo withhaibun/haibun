@@ -13,6 +13,9 @@ import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-typ
 /** The two ontology clusters (the fisheye shows each as its own container, coloured by type). */
 export const ONTOLOGY_CLASS = "Class";
 export const ONTOLOGY_PROPERTY = "Property";
+/** Whether a @type is one of the two folded schema clusters — the ONE predicate reused across the fold: the filter
+ *  (default-hide), the paint (distinct shape), and the layout (timeless, so pinned to the front z=0 plane, not the age axis). */
+export const isSchemaType = (type: string): boolean => type === ONTOLOGY_CLASS || type === ONTOLOGY_PROPERTY;
 /** The predicates the projection emits — ONE source so the projector (writer) and the fisheye (reader of `domain`)
  *  never drift on a string. `domain` is the genuine rdfs:domain term and the only one read outside this module (the
  *  Property routing); it shares the bare-local-name convention of subClassOf / subPropertyOf. */
@@ -95,10 +98,11 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		quads.push({ subject: rel, predicate: ONTOLOGY_PRED.uri, object: entry.uri, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
 		if ((entry as { abstract?: boolean }).abstract)
 			quads.push({ subject: rel, predicate: ONTOLOGY_PRED.abstract, object: true, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
-		// rdfs:domain — a declaring type, so a click on this Property opens that type's windowed instances. A scalar quad
-		// (no objectType) so it is node DATA, not a drawn edge: it carries the routing without cluttering the graph.
-		const domain = typesDeclaringRel(domains, rel)[0];
-		if (domain !== undefined) quads.push({ subject: rel, predicate: ONTOLOGY_PRED.domain, object: domain, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		// rdfs:domain — the persisted types that declare this rel, each a drawn Property→Class edge (objectType Class): the
+		// schema's structure, a Property pointing at the classes that carry it. The first also routes a click on the
+		// Property to that type's windowed instances.
+		for (const domain of typesDeclaringRel(domains, rel))
+			quads.push({ subject: rel, predicate: ONTOLOGY_PRED.domain, object: domain, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 		const sp = (entry as { subPropertyOf?: string | string[] }).subPropertyOf;
 		const parents = sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
 		for (const p of parents) {
