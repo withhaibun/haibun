@@ -535,19 +535,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					timestamp,
 					properties,
 				}));
-				return actionOKWithProducts({ quads, clusters: result.clusters });
-			},
-		},
-		getOntologyQuads: {
-			// The ONTOLOGY (the schema / T-Box) as the same TClusteredQuads shape as the instance data, so the same graph
-			// view renders the model that drives it — the Class hierarchy (subClassOf) from the registered domains and the
-			// Property hierarchy (subPropertyOf: issuer → fromActor → inRoleOf) from LinkRelations. No store read: the
-			// ontology is the registered schema, not persisted rows.
-			gwta: "get ontology quads",
-			productsSchema: ClusteredQuadsSchema,
-			action: () => {
-				const { quads, clusters } = ontologyToQuads(this.getWorld().domains);
-				return actionOKWithProducts({ quads, clusters });
+				// fold the ontology (schema/T-Box) into the SAME response: Class + Property at t=0, default-hidden on the client, revealed via their filter chip (the normal type-filter path)
+				const ontology = ontologyToQuads(this.getWorld().domains);
+				return actionOKWithProducts({ quads: [...quads, ...ontology.quads], clusters: [...result.clusters, ...ontology.clusters] });
 			},
 		},
 		graphQuery: {

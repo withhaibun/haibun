@@ -128,6 +128,16 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	}
 
+	/** Reveal or hide SPECIFIC types without touching the others' visibility — the additive counterpart to setVisibleTypes
+	 *  (which is show-only). Ticking a default-hidden type (the folded schema's Class/Property) reveals it ALONGSIDE the
+	 *  live data, exactly as ticking its chip does. */
+	setTypeVisibility(types: string[], visible: boolean): void {
+		const overrides = { ...this.state.overrides };
+		for (const t of types) overrides[t] = visible;
+		this.setState({ overrides });
+		this.dispatchChange();
+	}
+
 	/**
 	 * Axis-mode source. The chain-graph view supplies pre-computed axes (stepper,
 	 * kind, etc.) instead of quads; the filter renders one row of checkboxes per
