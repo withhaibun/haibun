@@ -32,6 +32,9 @@ export type NodeMark = {
 	isCluster?: boolean;
 	zExtent?: number;
 	image?: string;
+	// The folded ontology's SCHEMA nodes render distinct from instance chips: outlined (not filled), a Class a square box,
+	// a Property a rounded pill — so schema reads apart from the data it describes. Absent on an ordinary instance mark.
+	schema?: "class" | "property";
 };
 
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
