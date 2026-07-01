@@ -162,6 +162,25 @@ describe("LinkRelations extensions", () => {
 	});
 });
 
+describe("LinkRelations self-consistency — a class can never render as a super-property (§1b)", () => {
+	const entries = Object.values(LinkRelations);
+	const declaredRels = new Set(entries.map((e) => e.rel));
+
+	it("every subPropertyOf target names a declared property rel (no dangling super-property)", () => {
+		for (const e of entries) {
+			const sp = (e as { subPropertyOf?: string | string[] }).subPropertyOf;
+			for (const parent of sp === undefined ? [] : Array.isArray(sp) ? sp : [sp]) expect(declaredRels, `${e.rel} subPropertyOf ${parent}`).toContain(parent);
+		}
+	});
+
+	it("every rel's URI is a PROPERTY, not a class (lowercase local name) — the temporalInstant category error stays out", () => {
+		for (const e of entries) {
+			const local = e.uri.split(/[:#/]/).pop() ?? "";
+			if (local) expect(local, `${e.rel} → ${e.uri} must be a property (lowercase local name), never a class`).toBe(local[0].toLowerCase() + local.slice(1));
+		}
+	});
+});
+
 describe("EdgePredicates additions", () => {
 	it("resolves new edge rels via edgeRel()", () => {
 		expect(edgeRel("wasInformedBy")).toBe("wasInformedBy");
@@ -348,7 +367,12 @@ describe("getJsonLdContext rdfs:subPropertyOf — the ontology-driven role hiera
 	it("emits rdfs:subPropertyOf on a role edge, mapped to the super-property's IRI", () => {
 		const domains = {
 			c: {
-				topology: { persistedAs: "C", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, edges: { issuer: { rel: LinkRelations.CREDENTIAL_ISSUER.rel, range: "Issuer" } } },
+				topology: {
+					persistedAs: "C",
+					id: "id",
+					properties: { id: LinkRelations.IDENTIFIER.rel },
+					edges: { issuer: { rel: LinkRelations.CREDENTIAL_ISSUER.rel, range: "Issuer" } },
+				},
 				schema: { parse: (v: unknown) => v },
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
