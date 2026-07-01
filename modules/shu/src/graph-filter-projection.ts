@@ -26,11 +26,7 @@
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
-import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "./graph/ontology-projection.js";
-
-/** The ontology's own Class/Property nodes are the SCHEMA folded into the graph — default-hidden like instrumentation
- *  graphs, revealed by ticking their filter chip (the normal type-filter path), never a separate view. */
-const isSchemaType = (type: string): boolean => type === ONTOLOGY_CLASS || type === ONTOLOGY_PROPERTY;
+import { isSchemaType } from "./graph/ontology-projection.js";
 
 export function projectFilterClusters(opts: { knownClusters: Map<string, TCluster>; allQuads: TQuad[]; visibleQuads: TQuad[]; timeCursor: number | null }): TCluster[] {
 	if (opts.timeCursor === null) {
