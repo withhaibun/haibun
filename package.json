@@ -48,7 +48,7 @@
     "publish-all:rc": "node scripts/publish-all.mjs rc",
     "postinstall": "npm approve-scripts esbuild@0.25.12 fsevents@2.3.2 fsevents@2.3.3"
   },
-  "version": "3.9.5",
+  "version": "3.9.6",
   "overrides": {
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

@@ -1,3 +1,10 @@
+## [3.9.6](https://github.com/withhaibun/haibun/compare/v3.9.5...v3.9.6) (2026-07-02)
+
+
+### Bug Fixes
+
+* **web-playwright:** reuse browser across features to prevent pipe FD accumulation EBADF on sequential launches ([08599fa](https://github.com/withhaibun/haibun/commit/08599fa56aae572568866786ee34a2e9b021ad85))
+
 ## [3.9.5](https://github.com/withhaibun/haibun/compare/v3.9.4...v3.9.5) (2026-06-05)
 
 
