@@ -113,3 +113,32 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 
 	return { quads, clusters: [cluster(ONTOLOGY_CLASS, classSubjects, classLabels), cluster(ONTOLOGY_PROPERTY, propSubjects, propLabels)] };
 }
+
+/** Drop the folded schema's UNIMPLEMENTED terms — a Class with no instance, a Property never used — so a revealed schema
+ *  shows only the part of the vocabulary the data actually exercises, not all 100+ terms. An instance graph is named by
+ *  its type, so a Class is used iff some graph carries its name, a Property iff a data quad uses its predicate. Edges to a
+ *  dropped term fall away on their own (buildGraphModelFromQuads needs both endpoints). A no-op when no schema is present. */
+export function dropUnusedSchema(quads: TQuad[]): TQuad[] {
+	const used = new Set<string>(); // instance types + used predicates
+	const supers = new Map<string, string[]>(); // subClassOf / subPropertyOf: a schema term → its immediate parents
+	for (const q of quads) {
+		if (isSchemaType(q.namedGraph)) {
+			if (q.predicate === ONTOLOGY_PRED.subClassOf || q.predicate === ONTOLOGY_PRED.subPropertyOf) supers.set(q.subject, [...(supers.get(q.subject) ?? []), String(q.object)]);
+			continue;
+		}
+		used.add(q.namedGraph); // an instance graph is named by its type
+		used.add(q.predicate);
+	}
+	// Keep the ancestors of every used term too: an abstract super-class / super-property (inRoleOf, prov:Agent) IS the
+	// interesting structure, so a used leaf pulls in its whole hierarchy even though nothing instantiates the parents.
+	const keep = new Set(used);
+	const climb = (term: string): void => {
+		for (const p of supers.get(term) ?? [])
+			if (!keep.has(p)) {
+				keep.add(p);
+				climb(p);
+			}
+	};
+	for (const term of used) climb(term);
+	return quads.filter((q) => (isSchemaType(q.namedGraph) ? keep.has(q.subject) : true));
+}
