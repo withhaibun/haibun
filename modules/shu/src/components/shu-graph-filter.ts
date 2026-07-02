@@ -255,12 +255,18 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			.slice()
 			.sort((a, b) => {
 				// The folded schema types (Class, Property) group together at the end of the legend, apart from the data types.
-				const schemaA = isSchemaType(a.type), schemaB = isSchemaType(b.type);
+				const schemaA = isSchemaType(a.type),
+					schemaB = isSchemaType(b.type);
 				if (schemaA !== schemaB) return schemaA ? 1 : -1;
 				return a.type.localeCompare(b.type);
 			});
 		// Chip checked = effectively visible: the user's explicit override, else the instrumentation-default predicate. One source.
-		const hiddenSet = new Set(effectiveHiddenTypes(clusters.map((c) => c.type), this.state.overrides));
+		const hiddenSet = new Set(
+			effectiveHiddenTypes(
+				clusters.map((c) => c.type),
+				this.state.overrides,
+			),
+		);
 		const quadCount = this.filterByTime(this.quads).length;
 		return html`<div class="row ${this.soloArmed ? "armed" : ""}">
 			<span class="label">show:</span>
@@ -268,13 +274,10 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 				clusters.length === 0
 					? html`<span class="meta">no types loaded</span>`
 					: clusters.map((c) => {
-							const omitted =
-								c.omittedCount > 0
-									? html` <span class="meta">(${c.sampledCount}/${c.totalCount})</span>`
-									: c.totalCount > 0
-										? html` <span class="meta">(${c.totalCount})</span>`
-										: "";
-							return html`<label class="type" style=${`background:${colorForType(c.type)}`} @mouseenter=${() => this.previewType(c.type)} @mouseleave=${() => this.previewType(null)} @click=${this.onChipClick(c.type)}><input type="checkbox" .checked=${!hiddenSet.has(c.type)} @change=${this.onTypeChange(c.type)}>${c.type}${omitted}</label>`;
+							// The total is the store's authoritative COUNT(*) for every type (shown or hidden) — show it directly; the
+							// graph may render only a sampled subset, but the count stays the real total.
+							const count = c.totalCount > 0 ? html` <span class="meta">(${c.totalCount})</span>` : "";
+							return html`<label class="type" style=${`background:${colorForType(c.type)}`} @mouseenter=${() => this.previewType(c.type)} @mouseleave=${() => this.previewType(null)} @click=${this.onChipClick(c.type)}><input type="checkbox" .checked=${!hiddenSet.has(c.type)} @change=${this.onTypeChange(c.type)}>${c.type}${count}</label>`;
 						})
 			}
 			<span class="label">|</span>
