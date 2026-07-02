@@ -36,6 +36,6 @@ describe("graph-scene vocabulary (backend-neutral, fail-fast)", () => {
 	});
 
 	it("exposes the closed mark-kind set", () => {
-		expect([...MARK_KINDS]).toEqual(["chip", "box", "image", "mesh", "marker"]);
+		expect([...MARK_KINDS]).toEqual(["chip", "lozenge", "box", "image", "mesh", "marker"]);
 	});
 });
