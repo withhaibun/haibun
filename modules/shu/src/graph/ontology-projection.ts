@@ -114,23 +114,24 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 	return { quads, clusters: [cluster(ONTOLOGY_CLASS, classSubjects, classLabels), cluster(ONTOLOGY_PROPERTY, propSubjects, propLabels)] };
 }
 
-/** Drop the folded schema's UNIMPLEMENTED terms — a Class with no instance, a Property never used — so a revealed schema
- *  shows only the part of the vocabulary the data actually exercises, not all 100+ terms. An instance graph is named by
- *  its type, so a Class is used iff some graph carries its name, a Property iff a data quad uses its predicate. Edges to a
- *  dropped term fall away on their own (buildGraphModelFromQuads needs both endpoints). A no-op when no schema is present. */
-export function dropUnusedSchema(quads: TQuad[]): TQuad[] {
+/** The schema terms to KEEP when de-cluttering: every term the data uses (a Class whose name graphs some instance, a
+ *  Property some quad's predicate) plus the ancestors of each — an abstract super-class/super-property (inRoleOf,
+ *  prov:Agent) IS the interesting structure, so a used leaf pulls in its whole hierarchy. `sawSchema` is false when the
+ *  quads carry no schema at all (the common case, schema hidden), letting callers skip the work. Shared by the two callers
+ *  below so the drop-filter and the chip counts can't derive different subsets. */
+function keptSchemaTerms(quads: TQuad[]): { keep: Set<string>; sawSchema: boolean } {
 	const used = new Set<string>(); // instance types + used predicates
 	const supers = new Map<string, string[]>(); // subClassOf / subPropertyOf: a schema term → its immediate parents
+	let sawSchema = false;
 	for (const q of quads) {
 		if (isSchemaType(q.namedGraph)) {
+			sawSchema = true;
 			if (q.predicate === ONTOLOGY_PRED.subClassOf || q.predicate === ONTOLOGY_PRED.subPropertyOf) supers.set(q.subject, [...(supers.get(q.subject) ?? []), String(q.object)]);
 			continue;
 		}
 		used.add(q.namedGraph); // an instance graph is named by its type
 		used.add(q.predicate);
 	}
-	// Keep the ancestors of every used term too: an abstract super-class / super-property (inRoleOf, prov:Agent) IS the
-	// interesting structure, so a used leaf pulls in its whole hierarchy even though nothing instantiates the parents.
 	const keep = new Set(used);
 	const climb = (term: string): void => {
 		for (const p of supers.get(term) ?? [])
@@ -140,13 +141,25 @@ export function dropUnusedSchema(quads: TQuad[]): TQuad[] {
 			}
 	};
 	for (const term of used) climb(term);
+	return { keep, sawSchema };
+}
+
+/** Drop the folded schema's UNIMPLEMENTED terms — a Class with no instance, a Property never used — so a revealed schema
+ *  shows only the part of the vocabulary the data actually exercises, not all 100+ terms. Edges to a dropped term fall
+ *  away on their own (buildGraphModelFromQuads needs both endpoints). A true no-op — the input array — when no schema is
+ *  present (the schema is hidden), so a repaint that carries no schema pays nothing. */
+export function dropUnusedSchema(quads: TQuad[]): TQuad[] {
+	const { keep, sawSchema } = keptSchemaTerms(quads);
+	if (!sawSchema) return quads;
 	return quads.filter((q) => (isSchemaType(q.namedGraph) ? keep.has(q.subject) : true));
 }
 
 /** How many schema terms the data USES, per cluster type — the filter chips show this (e.g. `Class (12)`) so the count
- *  matches the revealed, de-cluttered subset (dropUnusedSchema) rather than the whole vocabulary. */
+ *  matches the revealed, de-cluttered subset rather than the whole vocabulary. Counts the KEPT subjects directly, without
+ *  materialising the dropped-quad array. */
 export function usedSchemaCounts(quads: TQuad[]): Record<string, number> {
+	const { keep } = keptSchemaTerms(quads);
 	const subjects: Record<string, Set<string>> = { [ONTOLOGY_CLASS]: new Set(), [ONTOLOGY_PROPERTY]: new Set() };
-	for (const q of dropUnusedSchema(quads)) if (isSchemaType(q.namedGraph)) subjects[q.namedGraph].add(q.subject);
+	for (const q of quads) if (isSchemaType(q.namedGraph) && keep.has(q.subject)) subjects[q.namedGraph].add(q.subject);
 	return { [ONTOLOGY_CLASS]: subjects[ONTOLOGY_CLASS].size, [ONTOLOGY_PROPERTY]: subjects[ONTOLOGY_PROPERTY].size };
 }
