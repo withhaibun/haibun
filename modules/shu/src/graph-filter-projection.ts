@@ -26,7 +26,15 @@
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
-import { isSchemaType } from "./graph/ontology-projection.js";
+import { isSchemaType, usedSchemaCounts } from "./graph/ontology-projection.js";
+
+/** Reflect the hide-unimplemented default in the schema chips: a Class/Property chip counts the terms the data USES
+ *  (dropUnusedSchema), so it reads `Class (12)` for the revealed subset, not `Class (27)` for the whole vocabulary.
+ *  Non-schema clusters pass through unchanged. */
+function withSchemaCounts(clusters: TCluster[], allQuads: TQuad[]): TCluster[] {
+	const used = usedSchemaCounts(allQuads);
+	return clusters.map((c) => (used[c.type] !== undefined ? { ...c, totalCount: used[c.type], sampledCount: used[c.type], omittedCount: 0 } : c));
+}
 
 export function projectFilterClusters(opts: { knownClusters: Map<string, TCluster>; allQuads: TQuad[]; visibleQuads: TQuad[]; timeCursor: number | null }): TCluster[] {
 	if (opts.timeCursor === null) {
@@ -41,7 +49,7 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 			seen.add(q.namedGraph);
 			merged.push({ type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [], displayLabels: {} });
 		}
-		return merged;
+		return withSchemaCounts(merged, opts.allQuads);
 	}
 	const subjectsByType = new Map<string, Set<string>>();
 	for (const q of opts.visibleQuads) {
@@ -61,7 +69,7 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 		for (const s of sampledSubjects) if (sourceLabels[s] !== undefined) displayLabels[s] = sourceLabels[s];
 		clusters.push({ type, totalCount: sampledSubjects.length, sampledCount: sampledSubjects.length, omittedCount: 0, sampledSubjects, displayLabels });
 	}
-	return clusters;
+	return withSchemaCounts(clusters, opts.allQuads);
 }
 
 /**

@@ -142,3 +142,11 @@ export function dropUnusedSchema(quads: TQuad[]): TQuad[] {
 	for (const term of used) climb(term);
 	return quads.filter((q) => (isSchemaType(q.namedGraph) ? keep.has(q.subject) : true));
 }
+
+/** How many schema terms the data USES, per cluster type — the filter chips show this (e.g. `Class (12)`) so the count
+ *  matches the revealed, de-cluttered subset (dropUnusedSchema) rather than the whole vocabulary. */
+export function usedSchemaCounts(quads: TQuad[]): Record<string, number> {
+	const subjects: Record<string, Set<string>> = { [ONTOLOGY_CLASS]: new Set(), [ONTOLOGY_PROPERTY]: new Set() };
+	for (const q of dropUnusedSchema(quads)) if (isSchemaType(q.namedGraph)) subjects[q.namedGraph].add(q.subject);
+	return { [ONTOLOGY_CLASS]: subjects[ONTOLOGY_CLASS].size, [ONTOLOGY_PROPERTY]: subjects[ONTOLOGY_PROPERTY].size };
+}
