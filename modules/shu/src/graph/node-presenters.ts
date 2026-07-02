@@ -53,13 +53,12 @@ export function presenterForType(type: string): NodePresenter {
 	return registry.get(type) ?? DEFAULT_PRESENTER;
 }
 
-// The folded ontology's SCHEMA types render distinct from instance chips (see NodeMark.schema): a Class as a square
-// outlined box, a Property as a rounded outlined pill — so the schema reads apart from the data it describes. One mark
-// drives both graph paints.
-// Class and Property carry their own paint KIND — a Property is a "lozenge" (an elongated diamond holding the name), a
-// Class a square chip — so each renders per-node through the mark registry, no arrows or glyphs in the label text.
+// The folded ontology's SCHEMA types each carry their own paint KIND, symmetrically through the mark registry: a Property
+// is a "lozenge" (an elongated diamond holding the name), a Class a "square" token — set apart from the rounded instance
+// chips. The plain @type name is the label; the shape carries the kind.
 const schemaPresenter = (schema: "class" | "property"): NodePresenter => ({
-	present: (n) => assertNodeMark({ id: n.id, type: n.type, kind: schema === "property" ? "lozenge" : "chip", label: n.name, color: colorForType(n.type), role: { kind: "free" }, schema }),
+	present: (n) =>
+		assertNodeMark({ id: n.id, type: n.type, kind: schema === "property" ? "lozenge" : "square", label: n.name, color: colorForType(n.type), role: { kind: "free" } }),
 });
 registerNodePresenter(ONTOLOGY_CLASS, schemaPresenter("class"));
 registerNodePresenter(ONTOLOGY_PROPERTY, schemaPresenter("property"));
