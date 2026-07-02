@@ -7,6 +7,7 @@ import { THttpRequestObservation } from '@haibun/core/lib/http-observations.js';
 import { VideoArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { WebPlaywright } from './web-playwright.js';
+import { BrowserFactory } from './BrowserFactory.js';
 import { WebPlaywrightDomains } from './domains.js';
 
 // HTTP trace observation sources
@@ -86,7 +87,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		}
 	},
 	async endExecution() {
-		// empty
+		await BrowserFactory.closeBrowsers();
 	},
 });
 
@@ -134,11 +135,10 @@ async function closeAfterFeature(wp: WebPlaywright) {
 			});
 			world.eventLogger.artifact(featureStep, videoEvent);
 		}
-		// close the context, which closes any pages
+		// close the context (pages) but keep the static browser alive for reuse across features
 		if (wp.hasFactory) {
 			await wp.bf?.closeContext(wp.getWorld().tag);
 		}
-		await wp.bf?.close();
 		wp.bf = undefined;
 		wp.hasFactory = false;
 	}
