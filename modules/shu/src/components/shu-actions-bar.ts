@@ -131,7 +131,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	static persistFields = ["mode", "pinned"] as const;
 
 	constructor() {
-		super(ActionsBarSchema, { askExpanded: false, pinned: false, mode: "step" });
+		super(ActionsBarSchema, { askExpanded: false, pinned: false, mode: "search" });
 	}
 
 	setContext(
@@ -594,7 +594,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	protected updated(_changedProperties: PropertyValues): void {
 		const hasAsk = this._hasAskCapableStep;
 		if (!hasAsk && this.state.mode === "ask") {
-			this.setState({ mode: "step" });
+			this.setState({ mode: "search" }); // ask needs an ask-capable step; fall back to the default core mode
 			return;
 		}
 		this.populateComboboxes();
@@ -616,8 +616,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private template(hasAsk: boolean): TemplateResult {
 		// Single outer template so lit preserves the `.actions-bar` host across collapse/expand. The expanded-only children (filter bar, body) are returned conditionally so the `app-mode-select` test id genuinely disappears when collapsed — feature tests use `has test id app-mode-select` as the proxy for "bar is expanded" and that check counts elements regardless of CSS visibility.
 		const expanded = this.state.askExpanded;
-		const body = expanded ? (this.state.mode === "ask" ? this.askModeTemplate(hasAsk) : this.stepModeTemplate(hasAsk)) : nothing;
-		const filterBar = expanded ? this.filterBarTemplate() : nothing;
+		// Each mode owns its body; the filter/search UI is the search-mode body (no longer always-on). Ask is only
+		// reachable when hasAsk, so a persisted "ask" with no ask-capable step falls back to search below.
+		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
+		const body = expanded ? (mode === "ask" ? this.askModeTemplate(hasAsk) : mode === "step" ? this.stepModeTemplate(hasAsk) : this.filterBarTemplate(hasAsk)) : nothing;
 		// The resize grip sits at the TOP edge of the open overlay (the bar grows up from the bottom, so the top edge is
 		// where it meets the content) — drag it to resize. Only present when expanded; there is nothing to resize collapsed.
 		const resizeHandle = expanded
@@ -626,7 +628,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return html`<div class=${classMap({ "actions-bar": true, collapsed: !expanded })}>
 				${resizeHandle}
 				${this.settingsPopoverTemplate()}
-				${filterBar}
 				${body}
 				${this.summaryTemplate()}
 			</div>`;
@@ -685,15 +686,17 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			data-testid=${`${this.testIdPrefix}mode-select`}
 			@change=${this.onModeChange}
 		>
+			<option value="search" ?selected=${this.state.mode === "search"}>Search</option>
 			${hasAsk ? html`<option value="ask" ?selected=${this.state.mode === "ask"}>Ask</option>` : nothing}
 			<option value="step" ?selected=${this.state.mode === "step"}>Step</option>
 		</select>`;
 	}
 
-	private filterBarTemplate(): TemplateResult {
+	private filterBarTemplate(hasAsk: boolean): TemplateResult {
 		const selectFields = this._selectedLabel && hasSelectValues(this._selectedLabel) ? getSelectValues(this._selectedLabel) : {};
 		const selectEntries = Object.entries(selectFields).filter(([, values]) => values.length > 0);
 		return html`<div class="filter-bar">
+			${this.modeToggleTemplate(hasAsk)}
 			<select class="access-select" data-testid=${`${this.testIdPrefix}access-select`} @change=${this.onAccessChange}>
 				${AccessQueryLevelSchema.options.map((a) => html`<option value=${a} ?selected=${a === this._contextAccessLevel}>${a}</option>`)}
 			</select>

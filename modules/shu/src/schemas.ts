@@ -202,5 +202,7 @@ export const ActionsBarSchema = z.object({
 	askExpanded: z.boolean().default(false),
 	// Pinned keeps the bar open: an unpinned open bar dismisses on click-away, a pinned one stays put.
 	pinned: z.boolean().default(false),
-	mode: z.enum(["ask", "step"]).default("step"),
+	// search: browse/filter the graph (the default). step: run a haibun step. ask: LLM chat, present only when an
+	// ask-capable step is registered (the extension system), so the mode-select offers it conditionally.
+	mode: z.enum(["search", "ask", "step"]).default("search"),
 });
