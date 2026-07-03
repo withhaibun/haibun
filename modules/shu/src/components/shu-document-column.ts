@@ -7,7 +7,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import MarkdownIt from "markdown-it";
-import { windowTail } from "./shu-theme-switch.js";
+import { getWindowSize, windowTail } from "./shu-window-size.js";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
@@ -33,6 +33,15 @@ const SANITIZE_OPTS = {
 	ADD_TAGS: ["div"],
 };
 
+/** The window-cut notice for a truncated document: a wavy rule, how many earlier events are not shown, and the
+ * window-size picker embedded right there so the reader can widen the window on the spot. Empty when the whole log
+ * is shown. Exported for the unit test; renderFull prepends it. */
+export function windowCutHtml(total: number, shown: number): string {
+	const hidden = total - shown;
+	if (hidden <= 0) return "";
+	return `<div class="window-cut" data-testid="document-window-cut">${hidden === 1 ? "1 earlier event is" : `${hidden} earlier events are`} not shown. Show <shu-window-size></shu-window-size></div>`;
+}
+
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#events = new EventsController(this, () => this.onEventsChanged());
 	static styles = [
@@ -47,6 +56,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		p { margin: 0.5em 0; }
 		a { color: var(--shu-link); text-decoration: none; }
 		a:hover { text-decoration: underline; }
+		/* The window cut: a wavy rule marking that the document picks up partway through the run, with the window-size
+		   picker embedded so the reader can widen the window right there. */
+		.window-cut { color: var(--shu-fg-muted); font-style: italic; text-align: center; margin: 0 0 1.25rem; }
+		.window-cut::before { content: "〰〰〰〰〰〰"; display: block; color: var(--shu-border-strong); letter-spacing: 0.25em; line-height: 1.4; font-style: normal; }
+		.window-cut shu-window-size { font-style: normal; vertical-align: middle; margin-left: var(--shu-space-1); }
 		.doc-row { padding: var(--shu-space-2) var(--shu-space-4); border-radius: var(--shu-radius); cursor: pointer; transition: background 0.15s; }
 		.doc-row:hover { background: var(--shu-bg-hover); }
 		.log-row { font-family: "Source Code Pro", ui-monospace, monospace; font-size: 0.9rem; font-weight: 500; color: var(--shu-fg); line-height: 1.5; border-left: 2px solid transparent; padding: var(--shu-space-2) 0; margin-left: 32px; }
@@ -116,6 +130,18 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		// A framed thumbnail asks us to move the cursor to the step row it belongs to — it can't reach us directly across
 		// our shadow boundary and owns no start-time → absolute-time mapping. Same path as a row click, one handler.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.cursorToRow((e as CustomEvent<{ row: Element }>).detail.row));
+		// Re-render when the window-size setting changes: the document body is imperative DOM (renderFull), so the
+		// signal read inside windowTail never auto-subscribes the way a lit render() does — without this, a new
+		// window size applies only after a reload.
+		let firstWindow = true;
+		this.updateEffect(() => {
+			getWindowSize(); // subscribe to the window-size setting
+			if (firstWindow) {
+				firstWindow = false;
+				return;
+			}
+			if (this.renderedEventCount > 0) this.renderFull();
+		});
 	}
 
 	/** Move the global time cursor to a step row's instant: the column's start + the row's data-raw-time. The latest row is
@@ -134,13 +160,15 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** Render the recent window of the backfill — called once on initial load. Bounded by the global window size so a long
 	 *  run's reload doesn't render all history at once (the browser handles thousands of blocks; only a very long run is
-	 *  capped); live appends past it grow the doc (appendNew), and renderedEventCount tracks the full log so they continue. */
+	 *  capped); live appends past it grow the doc (appendNew), and renderedEventCount tracks the full log so they continue.
+	 *  When the window cuts the log, the document opens with a wavy rule saying how many earlier events come before it —
+	 *  otherwise a reader takes the first visible event for the start of the run. */
 	private renderFull(): void {
 		if (!this.shadowRoot) return;
 		const body = this.shadowRoot.querySelector(".document-body");
 		if (!body) return;
-		const html = this.generateHtml(windowTail(this.events));
-		body.innerHTML = html;
+		const windowed = windowTail(this.events);
+		body.innerHTML = windowCutHtml(this.events.length, windowed.length) + this.generateHtml(windowed);
 		this.postProcessElements(body);
 		groupThumbnailRows(body);
 		this.renderedEventCount = this.events.length;

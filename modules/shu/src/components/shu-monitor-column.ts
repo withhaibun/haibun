@@ -9,7 +9,7 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
-import { windowTail } from "./shu-theme-switch.js";
+import { windowTail } from "./shu-window-size.js";
 import { emptyOrLoading } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "../quad-detail-pane.js";
