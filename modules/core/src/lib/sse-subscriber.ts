@@ -32,8 +32,14 @@
 import type { THaibunEvent } from "../schema/protocol.js";
 import { failFastOrLog } from "./dev-mode.js";
 
-type EventHandler = (event: THaibunEvent) => void;
-type EventFilter = (event: THaibunEvent) => boolean;
+/** Delivery metadata added at this transport boundary: `replay: true` marks an event that arrived via the server's
+ * connect-time history replay (SSE event name `replay`) rather than as a live occurrence. Consumers that treat events
+ * as commands (e.g. opening a view for a completed step) must ignore replays — a replayed event is a fact about the
+ * past; re-acting on it resurrects state the user has since changed (a closed view popping back open). */
+export type TDeliveredEvent = THaibunEvent & { replay?: true };
+
+type EventHandler = (event: TDeliveredEvent) => void;
+type EventFilter = (event: TDeliveredEvent) => boolean;
 
 // biome-ignore lint/suspicious/noExplicitAny: EventSource is a DOM/Node global that may be polyfilled.
 type EventSourceCtor = new (url: string) => any;
@@ -146,7 +152,7 @@ export class SseSubscriber {
 		if (this.source) return;
 		if (this.connectedAt === null) this.connectedAt = Date.now();
 		this.source = new this.EventSourceCtor(this.url);
-		this.source.onmessage = (sseEvent: { data: string }) => {
+		const decode = (sseEvent: { data: string }, replay: boolean): void => {
 			let msg: Record<string, unknown>;
 			try {
 				msg = JSON.parse(sseEvent.data);
@@ -157,8 +163,12 @@ export class SseSubscriber {
 			// web-server-hono wraps events as { type: "event", event: {...} };
 			// un-wrap when present, pass through otherwise. Server-side already validated against the schema.
 			const payload = msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent);
-			this.dispatch(payload);
+			this.dispatch(replay ? ({ ...payload, replay: true } as TDeliveredEvent) : payload);
 		};
+		this.source.onmessage = (sseEvent: { data: string }) => decode(sseEvent, false);
+		// The server sends its connect-time history under the `replay` SSE event name; tag those deliveries so
+		// consumers can tell a fact-about-the-past from a live occurrence (see TDeliveredEvent).
+		this.source.addEventListener?.("replay", (sseEvent: { data: string }) => decode(sseEvent, true));
 		this.source.onerror = () => {
 			this.source?.close?.();
 			this.source = null;

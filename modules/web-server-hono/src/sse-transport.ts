@@ -39,11 +39,13 @@ export class SSETransport implements ITransport, IStepTransport {
 		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
-				// Replay history
+				// Replay history under its own SSE event name: a replayed event is a fact about the past, not a live
+				// occurrence, and every (re)connecting client receives the whole history — the client must be able to
+				// tell the two apart (e.g. a closed view must not be resurrected by a reconnect's replay).
 				for (const msg of this.history) {
 					await sseStream.writeSSE({
 						data: msg,
-						event: "message",
+						event: "replay",
 					});
 				}
 
