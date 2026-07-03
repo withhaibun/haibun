@@ -22,7 +22,7 @@ import { chatMessageStyles } from "./shu-chat-message.js";
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
-import { shuBaseStyles } from "./styles.js";
+import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { clamp, errMsg, prettifyGwta } from "../util.js";
 import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
@@ -101,8 +101,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  update so the accumulated activity (search summaries, step callers, chat turns) survives mode switches and
 	 *  collapse/expand. Every mode appends here; only the input line beneath it changes with the mode. */
 	private _history = new ShuActivityHistory();
-	/** Canonical hash of the last recorded search — a repeated commit of the same search records nothing. */
-	private _lastRecordedSearch = "";
+	/** Monotonic search-entry sequence for test ids — never reused, so a removal can't leave two entries sharing one id. */
+	private _searchEntrySeq = 0;
 	private _steps: StepDescriptor[] = [];
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
@@ -297,10 +297,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		document.addEventListener("click", this._onDocumentClick, true);
 		// The shared output region carries the one output test id every mode's assertions point at.
 		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
-		// A restored search IS the current search: sync the dedup key so a later commit without change stays silent.
-		this.autoListen(this, SHU_EVENT.SEARCH_RESTORE, (e) => {
-			this._lastRecordedSearch = serializeViewQuery((e as CustomEvent).detail.query);
-		});
 		this.loadProperties();
 		if (this.state.pinned && !this.state.askExpanded) this.setState({ askExpanded: true }); // a pinned bar restored from persistence opens
 
@@ -686,7 +682,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				<button class="settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
 					@click=${this.onCornerToggle("settings")}>\u2699</button>
 			</span>
-			<button class=${classMap({ pin: true, pinned })} aria-label=${pinned ? "Unpin actions bar" : "Pin actions bar open"} aria-pressed=${pinned}
+			<button class="pane-icon" aria-label=${pinned ? "Unpin actions bar" : "Pin actions bar open"} aria-pressed=${pinned}
 				data-testid=${`${this.testIdPrefix}ask-button`} @click=${this.onPinToggle}>\u{1F4CC}</button>
 		</div>`;
 	}
@@ -1017,18 +1013,19 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	};
 
 	/** Record the committed search as a clickable, restorable entry in the shared activity history. Only a search
-	 *  that actually searches (text or field conditions) is history-worthy, and a commit identical to the last
-	 *  recorded one (canonical-hash equality) records nothing — blur without change stays silent. */
+	 *  that actually searches (text or field conditions) is history-worthy, and a commit identical to the newest
+	 *  recorded entry records nothing — blur without change stays silent. Deduping against the live history (not a
+	 *  remembered key) means removing an entry lets the same search be recorded again. */
 	private recordSearch(): void {
 		const query = viewQuery.current;
 		if (!query.q && !query.f.some((c) => c.predicate && c.value)) return;
-		const key = serializeViewQuery(query);
-		if (key === this._lastRecordedSearch) return;
-		this._lastRecordedSearch = key;
+		const entries = this._history.querySelectorAll<ShuSearchSummary>("shu-search-summary");
+		const newest = entries[entries.length - 1];
+		if (newest?.query && serializeViewQuery(newest.query) === serializeViewQuery(query)) return;
 		const entry = new ShuSearchSummary();
 		entry.query = query;
-		// Indexed test id — entries repeat, and a Playwright locator is strict (a duplicate id fails the click), the same reason step callers carry call-index.
-		entry.setAttribute("data-testid", `${this.testIdPrefix}search-summary-${this._history.querySelectorAll("shu-search-summary").length}`);
+		// Sequenced test id — entries repeat and can be removed, and a Playwright locator is strict (a duplicate id fails the click), the same reason step callers carry call-index.
+		entry.setAttribute("data-testid", `${this.testIdPrefix}search-summary-${this._searchEntrySeq++}`);
 		this._history.append(entry);
 	}
 
@@ -1109,16 +1106,6 @@ const STYLES = `
 		font-size: var(--shu-font-sm); color: var(--shu-fg-faded); border-radius: var(--shu-radius);
 	}
 	.bar-twisty:hover { color: var(--shu-fg); background: var(--shu-bg-hover); }
-	/* Pin control (lower right): upright + accented when open, tilted + faded when closed. */
-	.pin {
-		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
-		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
-		display: inline-flex; align-items: center; justify-content: center;
-		font-size: var(--shu-font-sm); color: var(--shu-fg-faded); border-radius: var(--shu-radius);
-		transform: rotate(45deg); opacity: 0.6;
-	}
-	.pin:hover { color: var(--shu-fg); background: var(--shu-bg-hover); }
-	.pin.pinned { transform: rotate(0deg); opacity: 1; color: var(--shu-accent); }
 	.status-area {
 		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
 		max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1198,6 +1185,13 @@ const STYLES = `
 	shu-search-summary { display: block; cursor: pointer; padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
 	shu-search-summary:hover { background: var(--shu-bg-elevated); }
 	shu-search-summary .search-summary-text::before { content: "\\1F50D\\00A0"; }
+	/* The same x affordance a step result carries (shu-step-caller .dismiss-btn) — the entry is light DOM, so its host scope styles it. */
+	shu-search-summary .dismiss-btn {
+		float: right; background: none; border: none; color: var(--shu-fg-faded);
+		cursor: pointer; font-size: var(--shu-font-sm);
+		padding: 0 var(--shu-space-2); line-height: 1; width: auto;
+	}
+	shu-search-summary .dismiss-btn:hover { color: var(--shu-error); }
 	.input-line {
 		display: flex; gap: var(--shu-space-2); align-items: stretch;
 		padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0;
@@ -1208,4 +1202,4 @@ const STYLES = `
 	shu-kihan-chat[external-output] { flex: 0 0 auto; }
 `;
 
-const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, chatMessageStyles, css`${unsafeCSS(STYLES)}`];
+const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, shuIconButtonStyles, chatMessageStyles, css`${unsafeCSS(STYLES)}`];
