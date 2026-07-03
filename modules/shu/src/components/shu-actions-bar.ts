@@ -107,14 +107,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
-	private _settingsOpen = false;
+	/** Which lower-right corner popover is open — the gear's settings, the timeline (over the current-time display), or the access control. At most one. */
+	private _openCorner: "settings" | "timeline" | "access" | null = null;
 	private _onDocumentClick = (e: Event): void => {
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
 		const inside = path.includes(this);
-		if (this._settingsOpen && !inside) {
-			this._settingsOpen = false;
-			this.requestUpdate();
-		}
+		if (this._openCorner && !inside) this.closeCornerPopover();
 		if (!this.state.askExpanded) return;
 		if (this.state.pinned) return; // a pinned bar stays open — that is what the pin is for
 		if (inside) return;
@@ -645,18 +643,27 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			: nothing;
 		return html`<div class=${classMap({ "actions-bar": true, collapsed: !expanded })}>
 				${resizeHandle}
-				${this.settingsPopoverTemplate()}
 				${body}
 				${this.summaryTemplate()}
 			</div>`;
 	}
 
-	/** Theme + scale controls sit in the top-right of the open panel; the gear on the summary bar toggles them. */
-	private settingsPopoverTemplate(): TemplateResult | typeof nothing {
-		if (!this._settingsOpen) return nothing;
-		return html`<div class="settings-popover" data-testid=${`${this.testIdPrefix}settings-popover`}>
-			<shu-theme-switch></shu-theme-switch>
-		</div>`;
+	/** The one corner-popover surface: each corner control (the current time, the access level, the gear) toggles its
+	 *  panel just above itself. A native `popover` renders in the top layer, so it floats over whatever is behind it
+	 *  without opening the actions bar — the element stays in this shadow tree, so the bar's styles still apply. */
+	private cornerPopoverTemplate(): TemplateResult {
+		const content =
+			this._openCorner === "settings"
+				? html`<shu-theme-switch></shu-theme-switch>`
+				: this._openCorner === "timeline"
+					? html`<shu-timeline class="corner-timeline"></shu-timeline>`
+					: this._openCorner === "access"
+						? html`<select class="access-select" data-testid=${`${this.testIdPrefix}access-select`} @change=${this.onAccessChange}>
+							${AccessQueryLevelSchema.options.map((a) => html`<option value=${a} ?selected=${a === this._contextAccessLevel}>${a}</option>`)}
+						</select>`
+						: nothing;
+		const testid = this._openCorner ? `${this.testIdPrefix}${this._openCorner}-popover` : nothing;
+		return html`<div class="corner-popover" popover="manual" data-testid=${testid}>${content}</div>`;
 	}
 
 	private summaryTemplate(): TemplateResult {
@@ -666,14 +673,19 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// not the full-width strip (a wide div's center lands on empty space / a child and reads as outside the viewport).
 		// So the test-id rides this chevron; the strip still expands on a bare click for the human.
 		return html`<div class="summary-bar" @click=${this.onSummaryClick}>
+			${this.cornerPopoverTemplate()}
 			<button class="bar-twisty" aria-label=${expanded ? "Collapse actions bar" : "Expand actions bar"} aria-expanded=${expanded}
 				data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.onTwistyToggle}>${expanded ? "▾" : "▴"}</button>
 			<span class="status-area" style=${this._statusMessage ? "" : "display:none"}>${this._statusMessage}</span>
 			<shu-breadcrumb></shu-breadcrumb>
-			<span class="time-offset" data-testid=${`${this.testIdPrefix}time-offset`}>${this._timeOffsetLabel}</span>
-			<span class="access-indicator" data-testid=${`${this.testIdPrefix}access-indicator`}>${this._contextAccessLevel}</span>
-			<button class="settings-button" aria-label="Settings" aria-expanded=${this._settingsOpen} data-testid=${`${this.testIdPrefix}settings-button`}
-				@click=${this.onSettingsToggle}>\u2699</button>
+			<span class="corner-controls">
+				<button class="corner-toggle time-offset" aria-label="Timeline" aria-expanded=${this._openCorner === "timeline"}
+					data-testid=${`${this.testIdPrefix}time-offset`} @click=${this.onCornerToggle("timeline")}>${this._timeOffsetLabel}</button>
+				<button class="corner-toggle access-indicator" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
+					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}</button>
+				<button class="settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
+					@click=${this.onCornerToggle("settings")}>\u2699</button>
+			</span>
 			<button class=${classMap({ pin: true, pinned })} aria-label=${pinned ? "Unpin actions bar" : "Pin actions bar open"} aria-pressed=${pinned}
 				data-testid=${`${this.testIdPrefix}ask-button`} @click=${this.onPinToggle}>\u{1F4CC}</button>
 		</div>`;
@@ -686,16 +698,52 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.toggleExpanded();
 	};
 
-	private onSettingsToggle = (e: Event): void => {
-		e.stopPropagation();
-		this._settingsOpen = !this._settingsOpen;
-		// The controls render in the top-right of the open panel, so opening them opens the bar.
-		if (this._settingsOpen && !this.state.askExpanded) {
-			this.setState({ askExpanded: true });
-			return;
+	/** Toggle one of the corner popovers; opening one replaces any other (a single surface). Top-layer, so it never
+	 *  needs the actions bar opened — it floats above the collapsed strip and the open panel alike. */
+	private onCornerToggle(kind: "settings" | "timeline" | "access"): (e: Event) => void {
+		return (e: Event) => {
+			e.stopPropagation();
+			if (this._openCorner === kind) {
+				this.closeCornerPopover();
+				return;
+			}
+			this._openCorner = kind;
+			const toggle = e.currentTarget as HTMLElement;
+			this.requestUpdate();
+			void this.updateComplete.then(() => this.showCornerPopover(kind, toggle));
+		};
+	}
+
+	private cornerPopoverEl(): HTMLElement | null {
+		return this.shadowRoot?.querySelector(".corner-popover") ?? null;
+	}
+
+	/** Float the popover just above its toggle: right edge over the control; the timeline spans the bar's full width. */
+	private showCornerPopover(kind: "settings" | "timeline" | "access", toggle: HTMLElement): void {
+		const pop = this.cornerPopoverEl();
+		const bar = this.shadowRoot?.querySelector(".summary-bar") as HTMLElement | null;
+		if (!pop || !bar) throw new Error("actions-bar: corner popover/summary bar missing from the rendered template");
+		const btn = toggle.getBoundingClientRect();
+		const strip = bar.getBoundingClientRect();
+		pop.style.margin = "0";
+		pop.style.inset = "auto";
+		pop.style.bottom = `${window.innerHeight - strip.top + 4}px`;
+		if (kind === "timeline") {
+			pop.style.left = `${strip.left + 8}px`;
+			pop.style.right = `${window.innerWidth - strip.right + 8}px`;
+		} else {
+			pop.style.left = "auto";
+			pop.style.right = `${window.innerWidth - btn.right}px`;
 		}
+		pop.showPopover();
+	}
+
+	private closeCornerPopover(): void {
+		const pop = this.cornerPopoverEl();
+		if (pop?.matches(":popover-open")) pop.hidePopover();
+		this._openCorner = null;
 		this.requestUpdate();
-	};
+	}
 
 	private modeToggleTemplate(hasAsk: boolean, slot?: string): TemplateResult {
 		return html`<select
@@ -715,10 +763,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const selectEntries = Object.entries(selectFields).filter(([, values]) => values.length > 0);
 		return html`<div class="filter-bar">
 			${this.modeToggleTemplate(hasAsk)}
-			<select class="access-select" data-testid=${`${this.testIdPrefix}access-select`} @change=${this.onAccessChange}>
-				${AccessQueryLevelSchema.options.map((a) => html`<option value=${a} ?selected=${a === this._contextAccessLevel}>${a}</option>`)}
-			</select>
-			<shu-timeline class="bar-timeline"></shu-timeline>
+			<input type="text" class="text-search"
+				data-testid=${`${this.testIdPrefix}text-search`}
+				placeholder="search..."
+				@input=${this.onTextSearchInput}
+				@blur=${this.onTextSearchBlur} />
 			<shu-combobox class="label-select"
 				testid=${`${this.testIdPrefix}type-select`}
 				placeholder="type..."
@@ -730,11 +779,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					${values.map((v) => html`<option value=${v} ?selected=${v === current} data-testid=${`${this.testIdPrefix}select-${field}-option-${v}`}>${v}</option>`)}
 				</select>`;
 			})}
-			<input type="text" class="text-search"
-				data-testid=${`${this.testIdPrefix}text-search`}
-				placeholder="search..."
-				@input=${this.onTextSearchInput}
-				@blur=${this.onTextSearchBlur} />
 			<div class="compound-filters">
 				${this._filterConditions.map((c, i) => this.condTemplate(c, i))}
 			</div>
@@ -1087,16 +1131,33 @@ const STYLES = `
 		border-radius: var(--shu-radius);
 	}
 	.settings-button:hover, .settings-button[aria-expanded="true"] { color: var(--shu-fg); background: var(--shu-bg-hover); }
-	.settings-popover {
-		position: absolute; top: var(--shu-space-2); right: var(--shu-space-3);
-		z-index: 10; cursor: default;
-		display: inline-flex; align-items: center;
+	/* The one corner-popover surface (a native top-layer popover): floats just above its corner toggle without
+	   opening the actions bar. Position (bottom/right, or full-bar-width for the timeline) is set at show time. */
+	.corner-popover {
+		width: auto; cursor: default;
+		/* display only in the open state — an unconditional display would override the UA's [popover] hidden rule
+		   (author origin beats UA origin), leaving a closed popover centred over the page intercepting clicks. */
+		display: none;
 		padding: var(--shu-space-2) var(--shu-space-3);
 		background: var(--shu-bg-elevated); color: var(--shu-fg);
 		border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius);
 		box-shadow: 0 1px 4px var(--shu-shadow);
 	}
+	.corner-popover:popover-open { display: inline-flex; align-items: center; }
+	.corner-timeline { display: block; width: 100%; min-width: 0; }
+	.corner-popover .access-select { width: auto; }
 	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
+	/* The corner controls (current time, access level, settings) — one visibly distinct cluster at the lower right. */
+	.corner-controls {
+		display: inline-flex; align-items: center; gap: var(--shu-space-1); flex-shrink: 0;
+		padding: 0 var(--shu-space-1);
+		border: var(--shu-border-w) solid var(--shu-border); border-radius: 999px; background: var(--shu-bg-soft);
+	}
+	.corner-toggle {
+		background: none; border: none; padding: var(--shu-space-1) var(--shu-space-2); cursor: pointer;
+		font: inherit; border-radius: 999px;
+	}
+	.corner-toggle:hover, .corner-toggle[aria-expanded="true"] { color: var(--shu-fg); background: var(--shu-bg-hover); }
 	.access-indicator, .time-offset { font-size: var(--shu-font-xs); color: var(--shu-fg-faded); flex-shrink: 0; }
 	.filter-bar {
 		display: flex; gap: var(--shu-space-2); align-items: center;
@@ -1104,9 +1165,8 @@ const STYLES = `
 		border-bottom: var(--shu-border-w) solid var(--shu-border);
 	}
 	/* Inputs/selects style is centralised in SHU_BASE (above). The actions-bar only adds layout. */
-	.filter-bar .access-select, .filter-bar .label-select, .filter-bar .select-filter { width: auto; flex: 0 0 auto; }
+	.filter-bar .label-select, .filter-bar .select-filter { width: auto; flex: 0 0 auto; }
 	.filter-bar .text-search { flex: 1 1 20ch; min-width: 16ch; }
-	.filter-bar .bar-timeline { flex: 2 1 0; min-width: 0; }
 	.compound-filters { display: flex; gap: var(--shu-space-1); flex-wrap: wrap; margin-left: auto; }
 	.filter-group {
 		display: inline-flex; gap: var(--shu-space-1); align-items: center;
