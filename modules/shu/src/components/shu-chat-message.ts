@@ -6,13 +6,39 @@
  * state, so there is one render path. Lives in light DOM so the parent column's
  * selection/scroll styles cascade through.
  */
-import { html, type TemplateResult } from "lit";
+import { css, html, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import { ShuElement } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
+
+/** Styles for a light-DOM chat message, exported for every shadow scope that hosts one (shu-kihan-chat's own
+ * transcript, and the actions bar's shared activity history) — the message renders in light DOM, so the rules
+ * must live in whichever scope contains it, and this single export keeps the two scopes from drifting. */
+export const chatMessageStyles = css`
+	shu-chat-message { display: block; }
+	shu-chat-message .msg { display: grid; grid-template-columns: var(--shu-space-6) 1fr; }
+	shu-chat-message .msg-label {
+		font-size: var(--shu-font-sm);
+		display: flex; align-items: flex-start; justify-content: center;
+		padding-top: var(--shu-space-2); user-select: text; color: var(--shu-fg-muted);
+	}
+	shu-chat-message[data-role="user"] { background: var(--shu-bg-elevated); }
+	shu-chat-message[data-role="llm"] { background: var(--shu-bg-soft); }
+	shu-chat-message .msg-content { min-width: 0; padding: var(--shu-space-2) var(--shu-space-3); }
+	shu-chat-message .chat-prompt { font-weight: 600; padding: var(--shu-space-1) 0; white-space: pre-wrap; }
+	shu-chat-message .chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
+	shu-chat-message .chat-text p { margin: var(--shu-space-2) 0; }
+	shu-chat-message .chat-text ul, shu-chat-message .chat-text ol { margin: var(--shu-space-2) 0; padding-left: var(--shu-space-6); }
+	shu-chat-message .chat-text code, shu-chat-message .chat-text pre {
+		background: var(--shu-bg-input); padding: var(--shu-space-1) var(--shu-space-2);
+		border-radius: var(--shu-radius); font-size: inherit;
+	}
+	shu-chat-message .chat-text pre { padding: var(--shu-space-2) var(--shu-space-3); overflow-x: auto; }
+	shu-chat-message .chat-error { color: var(--shu-error); font-size: inherit; white-space: pre-wrap; padding: var(--shu-space-2) 0; }
+`;
 
 export const ChatRoleSchema = z.enum(["user", "llm"]);
 export type TChatRole = z.infer<typeof ChatRoleSchema>;

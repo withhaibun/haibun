@@ -10,7 +10,9 @@ import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { repeat } from "lit/directives/repeat.js";
 import { ShuElement } from "./shu-element.js";
-import { ChatMessageSchema, type TChatMessage } from "./shu-chat-message.js";
+import { ChatMessageSchema, chatMessageStyles, type TChatMessage } from "./shu-chat-message.js";
+import type { ShuChatMessage } from "./shu-chat-message.js";
+import type { ShuActivityHistory } from "./shu-activity-history.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
@@ -51,32 +53,15 @@ const ChatSchema = z.object({});
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	static styles = [
 		shuBaseStyles,
+		chatMessageStyles,
 		css`
 		:host { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; overflow: hidden; }
+		/* Transcript projected into a shared external output (the actions bar's activity history): this element is only its input line. */
+		:host([external-output]) { flex: 0 0 auto; }
 		.chat-output {
 			font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4);
 			width: 100%; min-width: 0; flex: 1; overflow-y: auto;
 		}
-		shu-chat-message { display: block; }
-		shu-chat-message .msg { display: grid; grid-template-columns: var(--shu-space-6) 1fr; }
-		shu-chat-message .msg-label {
-			font-size: var(--shu-font-sm);
-			display: flex; align-items: flex-start; justify-content: center;
-			padding-top: var(--shu-space-2); user-select: text; color: var(--shu-fg-muted);
-		}
-		shu-chat-message[data-role="user"] { background: var(--shu-bg-elevated); }
-		shu-chat-message[data-role="llm"] { background: var(--shu-bg-soft); }
-		shu-chat-message .msg-content { min-width: 0; padding: var(--shu-space-2) var(--shu-space-3); }
-		shu-chat-message .chat-prompt { font-weight: 600; padding: var(--shu-space-1) 0; white-space: pre-wrap; }
-		shu-chat-message .chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
-		shu-chat-message .chat-text p { margin: var(--shu-space-2) 0; }
-		shu-chat-message .chat-text ul, shu-chat-message .chat-text ol { margin: var(--shu-space-2) 0; padding-left: var(--shu-space-6); }
-		shu-chat-message .chat-text code, shu-chat-message .chat-text pre {
-			background: var(--shu-bg-input); padding: var(--shu-space-1) var(--shu-space-2);
-			border-radius: var(--shu-radius); font-size: inherit;
-		}
-		shu-chat-message .chat-text pre { padding: var(--shu-space-2) var(--shu-space-3); overflow-x: auto; }
-		shu-chat-message .chat-error { color: var(--shu-error); font-size: inherit; white-space: pre-wrap; padding: var(--shu-space-2) 0; }
 		.input-line {
 			display: flex; gap: var(--shu-space-2); align-items: center;
 			padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0; min-width: 0;
@@ -133,6 +118,48 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private _selectedLabel = "";
 	private _filterConditions: TSearchCondition[] = [];
 	private _textSearch = "";
+
+	/** id → the shu-chat-message this instance projected into the external output. Lets a session switch remove exactly its own transcript, leaving other activity records (step callers, search summaries) in place. */
+	#projected = new Map<string, ShuChatMessage>();
+	#outputTarget: ShuActivityHistory | null = null;
+
+	/** External output: when set (the actions bar's shared activity history), the transcript renders as
+	 *  shu-chat-message children of that target and this element renders only its input line. */
+	set outputTarget(target: ShuActivityHistory | null) {
+		this.#outputTarget = target;
+		this.toggleAttribute("external-output", target !== null);
+		this.requestUpdate();
+	}
+	get outputTarget(): ShuActivityHistory | null {
+		return this.#outputTarget;
+	}
+
+	/** Reconcile _messages onto the external target: patch by id, append new, remove departed — including any
+	 *  chat message a previous chat instance left behind (one conversation surface, so this instance owns them all). */
+	#syncExternalOutput(): void {
+		const target = this.#outputTarget;
+		if (!target) return;
+		const ids = new Set(this._messages.map((m) => m.id));
+		for (const [id, el] of this.#projected) {
+			if (!ids.has(id)) {
+				el.remove();
+				this.#projected.delete(id);
+			}
+		}
+		const mine = new Set(this.#projected.values());
+		for (const el of Array.from(target.querySelectorAll(":scope > shu-chat-message"))) if (!mine.has(el as ShuChatMessage)) el.remove();
+		for (const m of this._messages) {
+			const existing = this.#projected.get(m.id);
+			if (existing) {
+				if (existing.message !== m) existing.message = m;
+				continue;
+			}
+			const el = document.createElement("shu-chat-message") as ShuChatMessage;
+			el.message = m;
+			this.#projected.set(m.id, el);
+			target.append(el);
+		}
+	}
 
 	static observedHtmlAttributes = ["testid-prefix"];
 
@@ -277,14 +304,18 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	render(): TemplateResult {
 		const showModel = this._models.length > 0;
 		const uiExtensionTags = getActionBarChatExtensionTags();
-		return html`
-			<div class="chat-output" data-testid=${`${this.testIdPrefix}chat-output`}>
+		// With an external output target the transcript lives there (see #syncExternalOutput); render only the input line.
+		const transcript = this.#outputTarget
+			? ""
+			: html`<div class="chat-output" data-testid=${`${this.testIdPrefix}chat-output`}>
 				${repeat(
 					this._messages,
 					(m) => m.id,
 					(m) => html`<shu-chat-message .message=${m}></shu-chat-message>`,
 				)}
-			</div>
+			</div>`;
+		return html`
+			${transcript}
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
 				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
@@ -303,8 +334,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	protected updated(): void {
 		this.wireListeners();
+		this.#syncExternalOutput();
 		if (this._scrollPending) {
 			this._scrollPending = false;
+			if (this.#outputTarget) {
+				this.#outputTarget.scrollToBottom();
+				return;
+			}
 			const out = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
 			if (out) out.scrollTop = out.scrollHeight;
 		}
