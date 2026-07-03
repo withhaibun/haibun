@@ -101,6 +101,18 @@ export function extractQuadsFromEvents(events: Record<string, unknown>[]): TQuad
 	return quads;
 }
 
+/**
+ * Whether a batch of events carries a data change relevant to a view scoped to `label` — the single relevance test a
+ * live view applies before re-deriving itself from the graph. True when the batch yields at least one quad and, if a
+ * `label` is given, at least one quad in that named graph; with no `label` any quad is relevant (an unscoped view).
+ * A caller that only refreshes when scoped (e.g. label-specific filter values) guards the no-label case itself.
+ */
+export function eventsAffectLabel(events: Record<string, unknown>[], label?: string): boolean {
+	const quads = extractQuadsFromEvents(events);
+	if (quads.length === 0) return false;
+	return !label || quads.some((q) => q.namedGraph === label);
+}
+
 export interface IQuadStore {
 	/** Set a value (upserts: replaces existing quad with same subject+predicate+namedGraph) */
 	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void>;

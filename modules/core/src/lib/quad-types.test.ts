@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { extractQuadsFromEvents } from "./quad-types.js";
+import { extractQuadsFromEvents, eventsAffectLabel } from "./quad-types.js";
+
+const quadEvent = (namedGraph: string) => ({
+	id: `q-${namedGraph}`,
+	timestamp: 1000,
+	kind: "artifact",
+	artifactType: "json",
+	json: { quadObservation: { subject: "s", predicate: "name", object: "v", namedGraph, timestamp: 1000 } },
+});
 
 describe("extractQuadsFromEvents", () => {
 	it("extracts quadObservation from artifact events", () => {
@@ -52,5 +60,24 @@ describe("extractQuadsFromEvents", () => {
 		];
 		const quads = extractQuadsFromEvents(events);
 		expect(quads[0].timestamp).toBe(5000);
+	});
+});
+
+describe("eventsAffectLabel", () => {
+	it("is true when a quad matches the label", () => {
+		expect(eventsAffectLabel([quadEvent("VerifiableCredential")], "VerifiableCredential")).toBe(true);
+	});
+
+	it("is false when no quad is in the label's named graph", () => {
+		expect(eventsAffectLabel([quadEvent("Email")], "VerifiableCredential")).toBe(false);
+	});
+
+	it("is false when the batch carries no quads (e.g. a plain log event)", () => {
+		expect(eventsAffectLabel([{ id: "log-1", timestamp: 1, kind: "log", level: "info" }], "VerifiableCredential")).toBe(false);
+	});
+
+	it("with no label, any quad is relevant (unscoped view); an empty batch is not", () => {
+		expect(eventsAffectLabel([quadEvent("Email")])).toBe(true);
+		expect(eventsAffectLabel([])).toBe(false);
 	});
 });
