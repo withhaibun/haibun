@@ -99,7 +99,7 @@ export const affordancesSchema = z
 		satisfiedFacts: z.record(z.string(), z.array(z.string())).default({}),
 		// Per-domain composite-field map (haibun's sh:node / rdfs:range equivalent) — the registered topology.ranges, so the SPA's chain view can emit synthetic field nodes between composite domains and their components. Absent when no domain declares ranges.
 		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
-		// Registered waypoints projected as panel entries (populated by `show waypoints`; `show affordances` leaves this empty). Each is a virtual step ActivitiesStepper registers with a gwta the SPA's step-caller renders into a parameter form.
+		// Registered waypoints projected as panel entries — contributed to `show affordances` by every stepper with the ProvidesWaypoints capability (e.g. ActivitiesStepper). Each is a virtual step registered with a gwta the SPA's step-caller renders into a parameter form.
 		waypoints: z
 			.array(
 				z

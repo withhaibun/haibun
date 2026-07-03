@@ -23,7 +23,6 @@ type TActivitiesFixedSteps = {
 	waypointWithProof: TStepperStep;
 	waypointLabel: TStepperStep;
 	ensure: TStepperStep;
-	showWaypoints: TStepperStep;
 };
 
 type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
@@ -350,67 +349,48 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				return actionOK();
 			},
 		},
-		showWaypoints: {
-			gwta: "show waypoints",
-			productsDomain: DOMAIN_AFFORDANCES,
-			action: async (_args, featureStep: TFeatureStep) => {
-				const world = this.getWorld();
-				const steppers = (world.runtime.steppers as AStepper[]) ?? [];
-				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-				// compositeDecomposition retains composite-input goals (e.g. an issuer node inside
-				// issueCredential); without it they are filtered as trivial when no fact exists yet,
-				// leaving the panel with empty goals[].
-				const affordances = buildAffordances({ steppers, domains: world.domains, facts, capabilities: new Set(), compositeDecomposition: true });
-				const satisfiedDomains = new Set(affordances.goals.filter((g) => g.resolution.finding === GOAL_FINDING.SATISFIED).map((g) => g.domain));
-
-				const waypoints: TWaypointEntry[] = [];
-				for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
-					const kind: TWaypointKind = metadata.resolvesDomain ? WAYPOINT_KIND.DECLARATIVE : WAYPOINT_KIND.IMPERATIVE;
-					const paramSlots = Object.keys(namedInterpolation(outcome).stepValuesMap ?? {});
-					const method = stepMethodName("ActivitiesStepper", outcome);
-					let ensured = false;
-					let error: string | undefined;
-
-					if (metadata.resolvesDomain) {
-						ensured = satisfiedDomains.has(metadata.resolvesDomain);
-					} else if (this.ensuredInstances.has(outcome) && metadata.proofStatements.length > 0) {
-						// Only verify imperative proofs that have actually been ensured. A speculative
-						// re-run for waypoints that never executed has no variable bindings in scope and
-						// produces cryptic "<term> is not set" errors.
-						try {
-							const result = await this.runner.runStatements(metadata.proofStatements, { intent: { mode: "speculative" }, parentStep: featureStep });
-							ensured = result.ok;
-							if (!result.ok && result.errorMessage) error = result.errorMessage;
-						} catch (err) {
-							error = errorDetail(err);
-						}
-					}
-
-					waypoints.push({
-						outcome,
-						kind,
-						method,
-						paramSlots,
-						proofStatements: metadata.proofStatements,
-						resolvesDomain: metadata.resolvesDomain,
-						ensured,
-						error,
-						source: { path: metadata.proofPath, lineNumber: metadata.lineNumber },
-						isBackground: metadata.isBackground,
-					});
-				}
-
-				return actionOKWithProducts({
-					forward: affordances.forward,
-					goals: affordances.goals,
-					composites: affordances.composites,
-					satisfiedDomains: affordances.satisfiedDomains,
-					satisfiedFacts: affordances.satisfiedFacts,
-					waypoints,
-				});
-			},
-		},
 	} as const satisfies TActivitiesFixedSteps;
+
+	/** Contribute the registered waypoints to the affordances snapshot (the ProvidesWaypoints capability).
+	 *  A declarative waypoint is ensured when its goal domain is satisfied; an imperative one re-verifies its proof
+	 *  speculatively only after it has actually been ensured — a speculative re-run for waypoints that never executed
+	 *  has no variable bindings in scope and produces cryptic "<term> is not set" errors. */
+	async waypointEntries(featureStep: TFeatureStep, satisfiedDomains: Set<string>): Promise<TWaypointEntry[]> {
+		const waypoints: TWaypointEntry[] = [];
+		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
+			const kind: TWaypointKind = metadata.resolvesDomain ? WAYPOINT_KIND.DECLARATIVE : WAYPOINT_KIND.IMPERATIVE;
+			const paramSlots = Object.keys(namedInterpolation(outcome).stepValuesMap ?? {});
+			const method = stepMethodName("ActivitiesStepper", outcome);
+			let ensured = false;
+			let error: string | undefined;
+
+			if (metadata.resolvesDomain) {
+				ensured = satisfiedDomains.has(metadata.resolvesDomain);
+			} else if (this.ensuredInstances.has(outcome) && metadata.proofStatements.length > 0) {
+				try {
+					const result = await this.runner.runStatements(metadata.proofStatements, { intent: { mode: "speculative" }, parentStep: featureStep });
+					ensured = result.ok;
+					if (!result.ok && result.errorMessage) error = result.errorMessage;
+				} catch (err) {
+					error = errorDetail(err);
+				}
+			}
+
+			waypoints.push({
+				outcome,
+				kind,
+				method,
+				paramSlots,
+				proofStatements: metadata.proofStatements,
+				resolvesDomain: metadata.resolvesDomain,
+				ensured,
+				error,
+				source: { path: metadata.proofPath, lineNumber: metadata.lineNumber },
+				isBackground: metadata.isBackground,
+			});
+		}
+		return waypoints;
+	}
 
 	readonly typedSteps = this.baseSteps;
 

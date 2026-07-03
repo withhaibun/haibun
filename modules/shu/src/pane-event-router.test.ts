@@ -24,7 +24,7 @@ describe("pane-event-router rule 1: trace substeps are not intent", () => {
 		expect([...ops.values()]).toEqual([expect.objectContaining({ op: "component", tag: "shu-affordances-panel" })]);
 	});
 
-	it("a trace-level substep yields NO op — the activity helpers run `show waypoints` constantly and its products carry the panel's markers", () => {
+	it("a trace-level substep yields NO op — infrastructure steps can carry view markers without anyone asking for that view", () => {
 		const ops = paneOpsFor([openEvent("ev-1", "shu-affordances-panel", { level: "trace" })], createPaneRouteState(), noUi);
 		expect(ops.size).toBe(0);
 	});

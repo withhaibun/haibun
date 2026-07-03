@@ -160,7 +160,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	private async fetchInitial(quiet = false): Promise<void> {
 		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the chain never flashes.
 		if (!quiet) this.setState({ loadState: "fetching" });
-		const candidates = ["ActivitiesStepper-showWaypoints", "GoalResolutionStepper-showAffordances"];
+		const candidates = ["GoalResolutionStepper-showAffordances"];
 		let lastError = "";
 		for (const method of candidates) {
 			try {
@@ -192,7 +192,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			if (loadState === "fetching") return html`<shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
 			return html`
 				${fetchError ? html`<div class="error" data-testid="domain-chain-error">${fetchError}</div>` : ""}
-				<div class="empty" data-testid="domain-chain-empty">No chain data yet. Invoke <code>show waypoints</code> or <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>
+				<div class="empty" data-testid="domain-chain-empty">No chain data yet. Invoke <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>
 			`;
 		}
 		return html`
@@ -326,7 +326,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	 *  - A "downgrade" (incoming forward strictly shorter than current) is dropped — some
 	 *    emit contexts publish a partial view (subprocess, scoped resolver). Keeping the
 	 *    richer snapshot prevents most of the graph from disappearing mid-session.
-	 *  - Accepted snapshots merge over the previous so fields that only `showWaypoints`
+	 *  - Accepted snapshots merge over the previous so fields that only some snapshots
 	 *    supplies (waypoints, satisfiedDomains) survive afterStep updates that omit them.
 	 *
 	 * Returns true when the snapshot was applied, false when dropped. The caller stays

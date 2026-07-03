@@ -12,7 +12,7 @@
  * Affordances are the HATEOAS step layer: a client that knows nothing about the registry
  * can ask "what can I do?" and get typed, ready-to-call entries with their RPC names.
  */
-import type { AStepper } from "./astepper.js";
+import type { AStepper, TFeatureStep } from "./astepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import type { TQuad } from "./quad-types.js";
 import { stepMethodName } from "./step-registry.js";
@@ -74,6 +74,14 @@ export type TWaypointEntry = {
 	source: { path: string; lineNumber?: number };
 	isBackground: boolean;
 };
+
+/** A stepper that contributes waypoint entries to the affordances snapshot: `show affordances` asks every
+ * registered stepper with this capability and merges the results. `satisfiedDomains` comes from the snapshot
+ * already built, so a contributor never re-derives it. */
+export interface ProvidesWaypoints {
+	waypointEntries(featureStep: TFeatureStep, satisfiedDomains: Set<string>): Promise<TWaypointEntry[]>;
+}
+export const providesWaypoints = (s: unknown): s is ProvidesWaypoints => typeof (s as { waypointEntries?: unknown })?.waypointEntries === "function";
 
 /**
  * Per-domain composite-field map. Each entry names the registered field-domain

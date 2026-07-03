@@ -342,7 +342,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// to overwrite with end-of-run forward / goals / waypoints.
 		const steppers = (this.getWorld().runtime.steppers as AStepper[] | undefined) ?? [];
 		for (const stepper of steppers) {
-			const refreshable = ["showWaypoints", "showAffordances"];
+			const refreshable = ["showAffordances"];
 			for (const name of refreshable) {
 				const step = stepper.steps?.[name];
 				if (!step || typeof (step as { action?: unknown }).action !== "function") continue;
