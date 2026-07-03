@@ -106,6 +106,9 @@ export function createStepUI(wp: WebPlaywright) {
 
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
 
+	/** Expand the actions-bar and switch to Search mode — the filter/query UI (type, text search, filters) is the search-mode body, so this is the entry to any of those controls. Search is the default mode, so a fresh bar is already here. */
+	const enterSearchMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Search"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.TYPE_SELECT })];
+
 	/** Expand the actions-bar and switch to Ask mode. Symmetric to enterStepMode. */
 	const enterAskMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Ask"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.CHAT_INPUT })];
 
@@ -236,13 +239,14 @@ export function createStepUI(wp: WebPlaywright) {
 		];
 	}
 
-	/** Open the actions bar and pick a node type. Convenience for the collapsed→labelled flow. */
+	/** Open the actions bar, switch to Search mode (where the type selector lives), and pick a node type. */
 	function chooseGraphLabel(label: string): TKirejiStep[] {
-		return [...expandActionsBar, ...selectGraphLabel(label)];
+		return [...enterSearchMode, ...selectGraphLabel(label)];
 	}
 
 	return {
 		enterStepMode,
+		enterSearchMode,
 		enterAskMode,
 		expandActionsBar,
 		collapseActionsBar,
