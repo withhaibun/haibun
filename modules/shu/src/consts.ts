@@ -25,6 +25,8 @@ export const SHU_EVENT = {
 	COLUMNS_CHANGED: "columns-changed",
 	CONTEXT_CHANGE: "context-change",
 	FILTER_CHANGE: "filter-change",
+	// A recorded search summary was clicked: restore its exact viewQuery snapshot (detail: { query: TViewQuery }).
+	SEARCH_RESTORE: "search-restore",
 	GRAPH_FILTER_CHANGE: "graph-filter-change",
 	// Hovering a type in the filter previews it: views dim every other type so the hovered one stands out. null = preview ended.
 	GRAPH_TYPE_PREVIEW: "graph-type-preview",

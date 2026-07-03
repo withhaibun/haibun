@@ -12,7 +12,13 @@ import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
-import { viewQuery } from "../view-query.js";
+import { viewQuery, serializeViewQuery } from "../view-query.js";
+// Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
+// bundle — esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
+// customElements.define side effect and leaving un-upgraded elements at runtime.
+import { ShuActivityHistory } from "./shu-activity-history.js";
+import { ShuSearchSummary } from "./shu-search-summary.js";
+import { chatMessageStyles } from "./shu-chat-message.js";
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -91,6 +97,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectFilters: Record<string, string> = {};
 	private _selectedLabel = "";
 	private _selectValuesRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+	/** THE shared scrolling output region — one instance for the bar's lifetime, rendered as the same node every
+	 *  update so the accumulated activity (search summaries, step callers, chat turns) survives mode switches and
+	 *  collapse/expand. Every mode appends here; only the input line beneath it changes with the mode. */
+	private _history = new ShuActivityHistory();
+	/** Canonical hash of the last recorded search — a repeated commit of the same search records nothing. */
+	private _lastRecordedSearch = "";
 	private _steps: StepDescriptor[] = [];
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
@@ -213,9 +225,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		await this.updateComplete;
 		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
 		stepCombo?.setValue?.(method);
-		const output = this.shadowRoot?.querySelector(".step-output") as HTMLElement | null;
-		if (!output) return;
-		this.openStepCaller(output, method, args, auto);
+		this.openStepCaller(this._history, method, args, auto);
 	}
 
 	/**
@@ -287,6 +297,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	protected override onConnected(): void {
 		document.addEventListener("click", this._onDocumentClick, true);
+		// The shared output region carries the one output test id every mode's assertions point at.
+		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
+		// A restored search IS the current search: sync the dedup key so a later commit without change stays silent.
+		this.autoListen(this, SHU_EVENT.SEARCH_RESTORE, (e) => {
+			this._lastRecordedSearch = serializeViewQuery((e as CustomEvent).detail.query);
+		});
 		this.loadProperties();
 		if (this.state.pinned && !this.state.askExpanded) this.setState({ askExpanded: true }); // a pinned bar restored from persistence opens
 
@@ -616,10 +632,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private template(hasAsk: boolean): TemplateResult {
 		// Single outer template so lit preserves the `.actions-bar` host across collapse/expand. The expanded-only children (filter bar, body) are returned conditionally so the `app-mode-select` test id genuinely disappears when collapsed — feature tests use `has test id app-mode-select` as the proxy for "bar is expanded" and that check counts elements regardless of CSS visibility.
 		const expanded = this.state.askExpanded;
-		// Each mode owns its body; the filter/search UI is the search-mode body (no longer always-on). Ask is only
-		// reachable when hasAsk, so a persisted "ask" with no ask-capable step falls back to search below.
+		// Every mode shares ONE output region (this._history, the same node every render) with the mode's input line
+		// beneath — switching modes changes only the input line. Ask is only reachable when hasAsk, so a persisted
+		// "ask" with no ask-capable step falls back to search below.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
-		const body = expanded ? (mode === "ask" ? this.askModeTemplate(hasAsk) : mode === "step" ? this.stepModeTemplate(hasAsk) : this.filterBarTemplate(hasAsk)) : nothing;
+		const inputLine = mode === "ask" ? this.askModeTemplate(hasAsk) : mode === "step" ? this.stepModeTemplate(hasAsk) : this.filterBarTemplate(hasAsk);
+		const body = expanded ? html`${this._history}${inputLine}` : nothing;
 		// The resize grip sits at the TOP edge of the open overlay (the bar grows up from the bottom, so the top edge is
 		// where it meets the content) — drag it to resize. Only present when expanded; there is nothing to resize collapsed.
 		const resizeHandle = expanded
@@ -715,7 +733,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<input type="text" class="text-search"
 				data-testid=${`${this.testIdPrefix}text-search`}
 				placeholder="search..."
-				@input=${this.onTextSearchInput} />
+				@input=${this.onTextSearchInput}
+				@blur=${this.onTextSearchBlur} />
 			<div class="compound-filters">
 				${this._filterConditions.map((c, i) => this.condTemplate(c, i))}
 			</div>
@@ -756,7 +775,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private askModeTemplate(hasAsk: boolean): TemplateResult {
-		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix}>${this.modeToggleTemplate(hasAsk, "mode-toggle")}</shu-kihan-chat>`;
+		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix} .outputTarget=${this._history}>${this.modeToggleTemplate(hasAsk, "mode-toggle")}</shu-kihan-chat>`;
 	}
 
 	private stepModeTemplate(hasAsk: boolean): TemplateResult {
@@ -768,7 +787,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					@combo-change=${this.onStepComboChange}></shu-combobox>`
 				: nothing;
 		return html`
-			<div class="step-output" data-testid=${`${this.testIdPrefix}chat-output`}></div>
 			<div class="input-line">
 				${this.modeToggleTemplate(hasAsk)}
 				${stepCombobox}
@@ -927,6 +945,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const field = select.dataset.field;
 		if (field) this._selectFilters[field] = select.value;
 		this.dispatchFilterChange();
+		this.recordSearch();
 	};
 
 	private onTextSearchInput = (e: Event): void => {
@@ -937,12 +956,37 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._searchDebounce = setTimeout(() => viewQuery.set({ q: value || null }), 300);
 	};
 
+	/** Focus leaving the search input is the meaningful commit of a typed search: flush the pending debounce so the
+	 *  store holds exactly what was typed, then record the search into the activity history. */
+	private onTextSearchBlur = (e: Event): void => {
+		if (this._searchDebounce) clearTimeout(this._searchDebounce);
+		viewQuery.set({ q: (e.target as HTMLInputElement).value || null });
+		this.recordSearch();
+	};
+
 	private onSearchGo = (): void => {
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
 		const input = this.shadowRoot?.querySelector(".text-search") as HTMLInputElement | null;
 		viewQuery.set({ q: input?.value || null });
 		this.dispatchFilterChange();
+		this.recordSearch();
 	};
+
+	/** Record the committed search as a clickable, restorable entry in the shared activity history. Only a search
+	 *  that actually searches (text or field conditions) is history-worthy, and a commit identical to the last
+	 *  recorded one (canonical-hash equality) records nothing — blur without change stays silent. */
+	private recordSearch(): void {
+		const query = viewQuery.current;
+		if (!query.q && !query.f.some((c) => c.predicate && c.value)) return;
+		const key = serializeViewQuery(query);
+		if (key === this._lastRecordedSearch) return;
+		this._lastRecordedSearch = key;
+		const entry = new ShuSearchSummary();
+		entry.query = query;
+		// Indexed test id — entries repeat, and a Playwright locator is strict (a duplicate id fails the click), the same reason step callers carry call-index.
+		entry.setAttribute("data-testid", `${this.testIdPrefix}search-summary-${this._history.querySelectorAll("shu-search-summary").length}`);
+		this._history.append(entry);
+	}
 
 	private onAddFilter = (): void => {
 		this._filterConditions.push({ predicate: "", operator: "eq", value: "" });
@@ -978,12 +1022,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private onStepComboChange = (e: CustomEvent): void => {
 		const method = e.detail?.value;
 		if (!method) return;
-		const output = this.shadowRoot?.querySelector(".step-output") as HTMLElement | null;
-		if (!output) return;
-		this.openStepCaller(output, method);
-		requestAnimationFrame(() => {
-			output.scrollTop = output.scrollHeight;
-		});
+		this.openStepCaller(this._history, method);
+		this._history.scrollToBottom();
 	};
 }
 
@@ -1093,13 +1133,19 @@ const STYLES = `
 		background: var(--shu-bg-elevated); border-radius: var(--shu-radius); border: var(--shu-border-w) solid var(--shu-border);
 	}
 	.mode-select { flex-shrink: 0; width: auto; min-width: 5em; }
-	.step-output { font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; overflow-y: auto; }
+	/* THE shared output region — every mode's activity records scroll here; the input line beneath is what changes. */
+	shu-activity-history { display: block; font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; min-height: 0; overflow-y: auto; }
+	shu-search-summary { display: block; cursor: pointer; padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
+	shu-search-summary:hover { background: var(--shu-bg-elevated); }
+	shu-search-summary .search-summary-text::before { content: "\\1F50D\\00A0"; }
 	.input-line {
 		display: flex; gap: var(--shu-space-2); align-items: stretch;
 		padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0;
 	}
 	.step-combo { flex: 1 1 280px; min-width: 12ch; width: auto; }
 	shu-kihan-chat { display: flex; flex: 1; min-height: 0; min-width: 0; }
+	/* Its transcript projects into the shared history above, so the chat element is only its input line. */
+	shu-kihan-chat[external-output] { flex: 0 0 auto; }
 `;
 
-const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, css`${unsafeCSS(STYLES)}`];
+const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, chatMessageStyles, css`${unsafeCSS(STYLES)}`];

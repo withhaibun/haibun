@@ -23,7 +23,10 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		/* The strip uses the browser's default scrollbar behaviour: the horizontal scrollbar only appears when the panes
 		   genuinely overflow (rare — the accordion flex-shares them to fit). No reserved gutter, so there is never a
 		   scrollbar track spanning the columns when nothing overflows. */
-		:host { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; background: var(--shu-border); }
+		/* isolation: column content must never paint above app chrome (the actions-bar overlay) no matter its internal
+		   z-indexes — e.g. an embedded 3D scene's injected enter-VR button (z-index 9999) would otherwise intercept
+		   clicks aimed at the expanded bar's bottom controls. */
+		:host { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; background: var(--shu-border); isolation: isolate; }
 		::slotted(shu-column-pane) { background: var(--shu-bg); }
 		@media (max-width: 600px), (orientation: portrait) {
 			:host { flex-wrap: wrap; align-content: flex-start; overflow-y: auto; }

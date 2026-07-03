@@ -407,6 +407,19 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
+	// A recorded search summary was clicked: re-apply its exact viewQuery snapshot through the query's
+	// scriptable `products` entry — the same validated path a control step uses, so the restore is precise
+	// (type, text, filters, sort, access) and the bar's controls re-sync via the resulting context change.
+	appRoot.addEventListener(
+		SHU_EVENT.SEARCH_RESTORE,
+		((e: CustomEvent) => {
+			const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
+			if (!query) throw new Error("search-restore: no shu-graph-query in the app to restore into");
+			query.products = e.detail.query;
+		}) as EventListener,
+		{ signal },
+	);
+
 	// Breadcrumb navigation
 	appRoot.addEventListener(
 		"breadcrumb-nav",
