@@ -149,7 +149,6 @@ export const ColumnStripSchema = z.object({
 export const ThemeSwitchSchema = z.object({
 	theme: z.enum(["auto", "light", "dark"]),
 	scale: z.string(),
-	windowSize: z.string(),
 });
 
 // --- Result table ---

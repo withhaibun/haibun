@@ -16,7 +16,7 @@ import type { ShuResultTable } from "./shu-result-table.js";
 import { isOffline } from "../hypermedia.js";
 import { getAvailableDomains } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
-import { getWindowSize } from "./shu-theme-switch.js";
+import { getWindowSize } from "./shu-window-size.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 
 /** A vertex row: flat property object. */
