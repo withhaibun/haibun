@@ -21,7 +21,7 @@ import { clamp, errMsg, prettifyGwta } from "../util.js";
 import { conduit } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
-import { getActionBarChatExtensionTags, getProperties, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
+import { getActionBarChatExtensionTags, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import { getCookie, setCookie } from "../cookies.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -435,7 +435,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private loadProperties(label?: string): void {
 		const target = label || this._selectedLabel;
-		this._filterProperties = target ? (getProperties(target) ?? []) : [];
+		this._filterProperties = target ? getQueryableFields(target) : [];
 	}
 
 	private async loadSelectValues(label?: string, force = false): Promise<void> {
