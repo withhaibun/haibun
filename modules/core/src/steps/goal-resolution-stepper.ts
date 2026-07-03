@@ -16,6 +16,7 @@ import {
 	type IHasCycles,
 	type IStepperCycles,
 	type TAfterStep,
+	type TFeatureStep,
 	type TAfterStepResult,
 	type TStepperSteps,
 	type IHasOptions,
@@ -30,7 +31,7 @@ import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBin
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { StepRegistry, buildFeatureStepForTransport, stepMethodName } from "../lib/step-registry.js";
 import { allocateSyntheticSeqPath } from "../lib/host-id.js";
-import { buildAffordances, AFFORDANCE_EVENT_PREFIX } from "../lib/affordances.js";
+import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { parseSeqPath } from "../lib/seq-path.js";
 
@@ -122,7 +123,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		afterStep: (after: TAfterStep): Promise<TAfterStepResult> => {
 			// Lean event: emit only a change signal. The affordances snapshot is large (forward + goals + their
 			// resolution trees + composite michi), so the affordances panel and the domain-chain view re-fetch the
-			// current snapshot on demand (show affordances / show waypoints) rather than ride every step's event.
+			// current snapshot on demand (show affordances) rather than ride every step's event.
 			// Keeps the event log lean by construction — the bulk never denormalizes onto every step.
 			// But a projection-query step itself changed nothing, so it must not announce a change — else the panel's
 			// on-demand re-fetch (which dispatched this very step) re-triggers itself over SSE without bound.
@@ -201,8 +202,11 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	 * Shared affordances builder for the live and as-of variants. When `asOf`
 	 * is set, the projection drops facts asserted after that seqPath so the
 	 * panel reconstructs the run state at that point.
+	 *
+	 * Every registered stepper with the ProvidesWaypoints capability contributes waypoint entries to the same
+	 * snapshot. Live only — waypoint ensure-state is current run state, so an as-of projection carries none.
 	 */
-	private async computeAffordances(asOf: number[] | undefined) {
+	private async computeAffordances(asOf: number[] | undefined, featureStep: TFeatureStep) {
 		const world = this.getWorld();
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 		const composite = this.compositeOptions();
@@ -215,7 +219,12 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			compositeMaxDepth: composite.compositeMaxDepth,
 			asOfSeqPath: asOf,
 		});
-		return actionOKWithProducts(affordancesSchema.parse(affordances));
+		const waypoints: TWaypointEntry[] = [];
+		if (!asOf) {
+			const satisfied = new Set(affordances.goals.filter((g) => g.resolution.finding === GOAL_FINDING.SATISFIED).map((g) => g.domain));
+			for (const stepper of this.steppers) if (providesWaypoints(stepper)) waypoints.push(...(await stepper.waypointEntries(featureStep, satisfied)));
+		}
+		return actionOKWithProducts(affordancesSchema.parse({ ...affordances, waypoints }));
 	}
 
 	steps: TStepperSteps = {
@@ -282,16 +291,16 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		showAffordances: {
 			gwta: "show affordances",
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: async () => this.computeAffordances(undefined),
+			action: async (_args, featureStep) => this.computeAffordances(undefined, featureStep),
 		},
 
 		showAffordancesAsOf: {
 			gwta: "show affordances as of {asOf: string}",
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: ({ asOf }: { asOf: string }) => {
+			action: ({ asOf }: { asOf: string }, featureStep) => {
 				const parsed = parseSeqPath(asOf);
 				if (!parsed) return actionNotOK(`show affordances as of: ${asOf} is not a seqPath (expected dot-joined integers, e.g. "0.-1.5.1")`);
-				return this.computeAffordances(parsed);
+				return this.computeAffordances(parsed, featureStep);
 			},
 		},
 

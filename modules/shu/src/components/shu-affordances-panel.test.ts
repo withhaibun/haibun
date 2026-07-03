@@ -289,30 +289,25 @@ describe("shu-affordances-panel", () => {
 		expect(!!emptyState || !!goalsList || !!waypointsList).toBe(true);
 	});
 
-	it("loads waypoints from the activities stepper when products arrive without them (affordances view, not only reload)", async () => {
-		// `show affordances` produces forward+goals but no waypoints. Setting products before connect mirrors the
-		// pane-opener threading products in, which makes onConnected skip the waypoint-preferring fetchInitial — so
-		// the waypoint section can only appear via the set-products refresh. Guards the reload-only regression.
+	it("waypoints carried by `show affordances` products render the waypoint section — the ONE verb brings the whole snapshot", async () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
-		setConduit(new SerializedConduit(async (method: string) => (method === "ActivitiesStepper-showWaypoints" ? { waypoints: [wp], forward: [], goals: [] } : {})));
+		setConduit(new SerializedConduit(async () => ({})));
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
-		panel.products = { forward: [], goals: [] };
+		panel.products = { forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
-		await applied(panel);
-		await new Promise((r) => setTimeout(r, 0)); // let the fetchWaypoints RPC resolve
 		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
 		expect(panel.shadowRoot?.querySelector('[data-testid="waypoint-deliver-report"]')).toBeTruthy();
 	});
 
-	it("the connect-time affordances-event replay coalesces to at most one showWaypoints RPC (no spurious-RPC flood)", async () => {
-		// A new subscriber is replayed the whole `affordances.` history (one event per past step). Subscribing per-event
-		// would re-fetch ActivitiesStepper-showWaypoints once per replayed step — the spurious-RPC flood (422 each).
-		// subscribeBatchedEvents collapses the replay to ONE re-fetch per frame. Pins that as a measurable invariant.
-		let waypointsCalls = 0;
+	it("a burst of change signals coalesces to ONE snapshot refetch (no spurious-RPC flood)", async () => {
+		// A run emits one `affordances.` change signal per step, and a new subscriber is replayed the whole history.
+		// Refetching per signal is the RPC flood (hundreds per run); the panel arms one timer per coalesce window
+		// (REFRESH_COALESCE_MS) and the burst rides it — exactly one GoalResolutionStepper-showAffordances RPC.
+		let snapshotCalls = 0;
 		setConduit(
 			new SerializedConduit((method: string) => {
-				if (method === "ActivitiesStepper-showWaypoints") waypointsCalls++;
+				if (method === "GoalResolutionStepper-showAffordances") snapshotCalls++;
 				return { waypoints: [], forward: [], goals: [] };
 			}),
 		);
@@ -320,11 +315,11 @@ describe("shu-affordances-panel", () => {
 		setEventStream(stream);
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel); // subscribes via subscribeBatchedEvents
-		await new Promise((r) => setTimeout(r, 40)); // let the mount-time fetchInitial settle, then measure ONLY the replay
-		waypointsCalls = 0;
+		await new Promise((r) => setTimeout(r, 40)); // let the mount-time fetchInitial settle, then measure ONLY the burst
+		snapshotCalls = 0;
 		for (let i = 0; i < 30; i++) stream.emit({ id: `affordances.${i}` } as unknown as TEvent); // the whole history, one per past step
 		await new Promise((r) => requestAnimationFrame(() => r(undefined))); // drain the rAF batch
-		await new Promise((r) => setTimeout(r, 40)); // let the single fetchInitial + its RPC settle
-		expect(waypointsCalls).toBeLessThanOrEqual(1);
+		await new Promise((r) => setTimeout(r, 500)); // ride out the coalesce window; the single refetch fires within it
+		expect(snapshotCalls).toBe(1);
 	});
 });

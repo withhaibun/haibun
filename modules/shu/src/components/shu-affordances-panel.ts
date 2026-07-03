@@ -45,7 +45,9 @@ const ShuAffordancesPanelSchema = z.object({
 
 const AFF_GOAL_PARAM = "aff-goal";
 const AFF_WAYPOINT_PARAM = "aff-waypoint";
-const WAYPOINTS_METHOD = "ActivitiesStepper-showWaypoints";
+/** Coalesce the per-step change signals into at most one snapshot refetch per window — a run emits one signal per
+ * step, and refetching per signal is the RPC flood (hundreds per run). */
+const REFRESH_COALESCE_MS = 400;
 
 function readParamFromUrl(name: string): string {
 	if (typeof window === "undefined") return "";
@@ -103,10 +105,13 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			// timeline, the graph, and the app's pane router.
 			this.autoTeardown(
 				this.subscribeBatched({
-					onBatch: () => void this.fetchInitial(true),
+					onBatch: () => this.scheduleRefresh(),
 					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
 				}),
 			);
+			this.autoTeardown(() => {
+				if (this._refreshTimer !== undefined) clearTimeout(this._refreshTimer);
+			});
 		} catch {
 			// No EventStream installed (test env without setupShuTest, standalone). Skip live updates.
 		}
@@ -121,6 +126,16 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			if (goal !== this.state.openGoal || waypoint !== this.state.openWaypoint) this.setState({ openGoal: goal, openWaypoint: waypoint });
 		};
 		this.autoListen(window, "popstate", popstate);
+	}
+
+	private _refreshTimer: ReturnType<typeof setTimeout> | undefined;
+	/** One refetch per coalesce window, no matter how many change signals arrive — first signal arms the timer, the burst rides it. */
+	private scheduleRefresh(): void {
+		if (this._refreshTimer !== undefined) return;
+		this._refreshTimer = setTimeout(() => {
+			this._refreshTimer = undefined;
+			void this.fetchInitial(true);
+		}, REFRESH_COALESCE_MS);
 	}
 
 	private toggleGoal(domain: string): void {
@@ -141,33 +156,12 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			);
 		}
 		// app.ts coalesces the connect-time replay (one PaneState.request per pane per frame), so a burst never reaches
-		// here — apply the latest synchronously. `show affordances` carries no waypoints, so when they are absent pull the
-		// current set (one refresh, not a per-event flood).
-		const products: TAffordances = {
+		// here — apply the latest synchronously. The products carry the whole snapshot, waypoints included.
+		this.applyAffordances({
 			forward: p.forward as TAffordances["forward"],
 			goals: p.goals as TAffordances["goals"],
 			waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined,
-		};
-		this.applyAffordances(products);
-		if (products.waypoints === undefined) void this.fetchWaypoints();
-	}
-
-	/**
-	 * Refresh just the waypoint section from the activities stepper. No-op for as-of replay (no waypoint
-	 * history to replay) and for projects without the activities stepper loaded (the RPC rejects → kept as-is).
-	 */
-
-	private async fetchWaypoints(): Promise<void> {
-		if (this.getAttribute("as-of")) return;
-		try {
-			const response = await conduit().follow<{ waypoints?: unknown }>({ method: WAYPOINTS_METHOD, params: {} }, "affordances-panel: refresh waypoints");
-			if (Array.isArray(response?.waypoints) && this.affordances) {
-				this.affordances = { ...this.affordances, waypoints: response.waypoints as TWaypointEntry[] };
-				this.requestUpdate();
-			}
-		} catch {
-			// No conduit (standalone HTML) or the activities stepper isn't loaded (no waypoints in this project) — leave the panel as-is.
-		}
+		});
 	}
 
 	private applyAffordances(a: TAffordances): void {
@@ -194,11 +188,9 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		if (!quiet) this.setState({ loadState: "fetching" });
 		const asOf = this.getAttribute("as-of");
 		const params = asOf ? { asOf } : {};
-		// Preferred entry: ActivitiesStepper-showWaypoints returns a superset (waypoints + forward + goals).
-		// Fall back to GoalResolutionStepper-showAffordances when ActivitiesStepper is not loaded so the
-		// panel still works in projects that don't use waypoints. The as-of replay path is goal-resolver
-		// only — there is no waypoint history to replay.
-		const candidates = asOf ? ["GoalResolutionStepper-showAffordancesAsOf"] : [WAYPOINTS_METHOD, "GoalResolutionStepper-showAffordances"];
+		// `show affordances` carries the whole snapshot (forward + goals + waypoints). The as-of replay variant
+		// carries no waypoints: waypoint ensure-state is current run state, so there is no waypoint history to replay.
+		const candidates = asOf ? ["GoalResolutionStepper-showAffordancesAsOf"] : ["GoalResolutionStepper-showAffordances"];
 
 		let lastError = "";
 		for (const method of candidates) {
@@ -496,7 +488,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			${this.renderAsOfBannerTpl()}
 			${this.state.fetchError ? html`<div class="banner error">${this.state.fetchError}</div>` : ""}
 			${loading ? html`<shu-spinner visible status="Loading affordances…"></shu-spinner>` : ""}
-			${empty ? html`<div class="empty" data-testid="affordances-empty">No affordances yet. Invoke <code>show affordances</code> or <code>show waypoints</code> from the actions bar (Step mode) to populate this view, or run any step — every step end emits an affordances snapshot.</div>` : ""}
+			${empty ? html`<div class="empty" data-testid="affordances-empty">No affordances yet. Invoke <code>show affordances</code> from the actions bar (Step mode) to populate this view, or run any step — every step end announces a change this panel follows.</div>` : ""}
 			${
 				!loading && !empty && waypoints.length > 0
 					? html`

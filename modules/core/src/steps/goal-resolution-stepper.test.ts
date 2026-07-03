@@ -7,6 +7,7 @@ import { actionOKWithProducts } from "../lib/util/index.js";
 import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
+import { ActivitiesStepper } from "./activities-stepper.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
 const DOMAIN_COMPOSITE_GOAL = "composite-goal-test";
@@ -119,6 +120,21 @@ variable goalResolution.finding is "satisfied"`,
 variable affordances exists`,
 		};
 		const result = await passWithDefaults([feature], steppers);
+		expect(result.ok).toBe(true);
+	});
+
+	it("show affordances carries waypoint entries contributed by steppers with the ProvidesWaypoints capability — one verb, the whole snapshot", async () => {
+		const feature = {
+			path: "/features/show-affordances-waypoints.feature",
+			content: `Activity: Sign in
+sign in as "alice"
+waypoint Logged in resolves ${DOMAIN_AUTH_SESSION}
+
+set affordances from show affordances
+variable affordances.waypoints.length is 1
+variable affordances.waypoints.0.outcome is "Logged in"`,
+		};
+		const result = await passWithDefaults([feature], [...steppers, ActivitiesStepper]);
 		expect(result.ok).toBe(true);
 	});
 

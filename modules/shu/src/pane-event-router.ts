@@ -4,8 +4,8 @@
  * Three rules keep views under the person's control while live runs still drive the UI:
  *
  * 1. TRACE SUBSTEPS ARE NOT INTENT. A hidden trace-level substep (isSubStep → level "trace", the same level the log
- *    view hides) is infrastructure — e.g. the activity helpers run `show waypoints` on nearly every interaction and
- *    its products carry the affordances panel's view markers. Only the steps a person can see in the log (level
+ *    view hides) is infrastructure — a hidden substep or a panel's own data refetch can carry view markers in its
+ *    products without anyone asking for that view. Only the steps a person can see in the log (level
  *    "info") act as view commands.
  *
  * 2. EACH EVENT ACTS ONCE. The SSE server replays its whole history to every (re)connecting client (tagged `replay`

@@ -234,7 +234,7 @@ describe("shu-domain-chain-view", () => {
 
 		it("drops a downgrade — a snapshot with strictly fewer forward entries does not clobber the richer one", () => {
 			// Regression: a partial-context emitter (e.g. subprocess) was sending an affordances
-			// snapshot with ~10 entries, wiping the ~60-entry snapshot from `showWaypoints`.
+			// snapshot with ~10 entries, wiping the richer ~60-entry snapshot.
 			const view = mount();
 			view.applySseSnapshot(mkSnap(60));
 			const applied = view.applySseSnapshot(mkSnap(10));
@@ -243,7 +243,7 @@ describe("shu-domain-chain-view", () => {
 		});
 
 		it("preserves waypoints across an afterStep snapshot that omits them", () => {
-			// `showWaypoints` returns waypoints; the goal-resolver's afterStep snapshot does not.
+			// A snapshot may omit waypoints (e.g. an as-of replay carries none).
 			// Merging must keep the earlier waypoints rather than dropping them.
 			const view = mount();
 			const waypoints = [
