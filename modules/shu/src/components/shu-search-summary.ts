@@ -50,8 +50,15 @@ export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.SEARCH_RESTORE, { detail: { query: this.query }, bubbles: true, composed: true }));
 	}
 
+	/** Take this record out of the history — the same x affordance a step result carries. Removal is purely local:
+	 *  the recorder dedups against the live history, so removing an entry lets the same search be recorded again. */
+	private onDismiss = (e: Event): void => {
+		e.stopPropagation();
+		this.remove();
+	};
+
 	render(): TemplateResult {
-		return html`<span class="search-summary-text">${this.query ? describeSearch(this.query) : ""}</span>`;
+		return html`<button class="dismiss-btn" title="Remove" @click=${this.onDismiss}>x</button><span class="search-summary-text">${this.query ? describeSearch(this.query) : ""}</span>`;
 	}
 }
 

@@ -15,7 +15,7 @@ import { classMap } from "lit/directives/class-map.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnPaneSchema } from "../schemas.js";
-import { shuBaseStyles } from "./styles.js";
+import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { readShowControlsCookie, writeShowControlsCookie } from "../show-controls.js";
 export { readShowControlsCookie };
 
@@ -40,6 +40,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		shuIconButtonStyles,
 		css`
 		:host {
 			display: flex; flex-direction: column;
@@ -94,35 +95,6 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			margin-left: auto;
 			flex-shrink: 0;
 		}
-		.pane-controls-group > button.pane-icon {
-			width: calc(16px * var(--shu-scale));
-			height: calc(16px * var(--shu-scale));
-			padding: 0;
-			margin: 0;
-			display: inline-flex;
-			align-items: center; justify-content: center;
-			font: inherit;
-			font-size: calc(12px * var(--shu-scale));
-			line-height: 1;
-			color: var(--shu-fg-muted);
-			background: var(--shu-bg);
-			border: var(--shu-border-w) solid var(--shu-border);
-			border-radius: var(--shu-radius);
-			cursor: pointer;
-			flex-shrink: 0;
-			vertical-align: middle;
-		}
-		.pane-controls-group > button.pane-icon:hover {
-			color: var(--shu-fg);
-			background: var(--shu-bg-hover);
-			border-color: var(--shu-border-strong);
-		}
-		.pane-controls-group > button.pane-icon[aria-pressed="true"] {
-			color: var(--shu-accent-fg);
-			background: var(--shu-accent);
-			border-color: var(--shu-accent);
-		}
-		.pane-controls-group > button.pane-icon[aria-pressed="true"]:hover { filter: brightness(1.1); }
 		.pane-controls-group > button.pane-close:hover {
 			color: var(--shu-accent-fg);
 			background: var(--shu-error);

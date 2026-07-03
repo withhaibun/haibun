@@ -315,6 +315,42 @@ export const SHU_BASE = `
 /** The shared base sheet as a lit `CSSResult`, for `static styles = [shuBaseStyles, css\`…\`]`. One object across all components → lit builds the constructable `CSSStyleSheet` once and adopts it by reference into every shadow root (one parse, N cheap adoptions). Consumers only — no token declarations — so it never dams the document-level theme cascade. String-injecting shadow roots (manual `innerHTML`, template `<style>`) use the `SHU_BASE` string form instead. */
 export const shuBaseStyles: CSSResult = css`${unsafeCSS(SHU_BASE)}`;
 
+/** The standard small icon button — the column pane's min/max/gear/pin/close controls, and any other control that
+ * should look like them (e.g. the actions bar's pin). A square scaled button, bordered, muted; `aria-pressed="true"`
+ * renders the active accent fill. Shared so a pin toggles identically everywhere. */
+export const SHU_ICON_BUTTON = `
+	button.pane-icon {
+		width: calc(16px * var(--shu-scale));
+		height: calc(16px * var(--shu-scale));
+		padding: 0;
+		margin: 0;
+		display: inline-flex;
+		align-items: center; justify-content: center;
+		font: inherit;
+		font-size: calc(12px * var(--shu-scale));
+		line-height: 1;
+		color: var(--shu-fg-muted);
+		background: var(--shu-bg);
+		border: var(--shu-border-w) solid var(--shu-border);
+		border-radius: var(--shu-radius);
+		cursor: pointer;
+		flex-shrink: 0;
+		vertical-align: middle;
+	}
+	button.pane-icon:hover {
+		color: var(--shu-fg);
+		background: var(--shu-bg-hover);
+		border-color: var(--shu-border-strong);
+	}
+	button.pane-icon[aria-pressed="true"] {
+		color: var(--shu-accent-fg);
+		background: var(--shu-accent);
+		border-color: var(--shu-accent);
+	}
+	button.pane-icon[aria-pressed="true"]:hover { filter: brightness(1.1); }
+`;
+export const shuIconButtonStyles: CSSResult = css`${unsafeCSS(SHU_ICON_BUTTON)}`;
+
 /** Inject the token sheet into `document.head` so detached overlays (combobox dropdowns, tooltips, modals rendered into document.body) and any plain page chrome can read the same `--shu-…` variables that shadow-DOM components inherit via :host. Idempotent — repeat calls are no-ops. The SPA boot calls this once before any component mounts. */
 export function installShuTokens(): void {
 	if (typeof document === "undefined") return;

@@ -49,6 +49,20 @@ describe("shu-search-summary restore", () => {
 		await el.updateComplete;
 		expect(() => el.restore()).toThrow(/no query snapshot/);
 	});
+
+	it("the x removes the entry without restoring it — the same affordance a step result carries", async () => {
+		const el = document.createElement("shu-search-summary") as ShuSearchSummary;
+		el.query = query({ label: "Email", q: "INBOX" });
+		document.body.appendChild(el);
+		await el.updateComplete;
+		let restored = false;
+		document.body.addEventListener(SHU_EVENT.SEARCH_RESTORE, () => {
+			restored = true;
+		});
+		(el.querySelector(".dismiss-btn") as HTMLButtonElement).click();
+		expect(el.isConnected).toBe(false);
+		expect(restored).toBe(false);
+	});
 });
 
 describe("shu-activity-history", () => {
