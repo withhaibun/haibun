@@ -17,7 +17,7 @@ import { isOffline } from "../hypermedia.js";
 import { getAvailableDomains } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
 import { getWindowSize } from "./shu-theme-switch.js";
-import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 
 /** A vertex row: flat property object. */
 type VertexRow = Record<string, unknown>;
@@ -123,11 +123,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			this.autoTeardown(
 				this.subscribeBatched({
 					onBatch: (events) => {
-						const quads = extractQuadsFromEvents(events);
-						if (quads.length === 0) return;
-						const label = this.qLabel;
-						const relevant = !label || quads.some((q) => q.namedGraph === label);
-						if (relevant) void this.executeQuery();
+						if (eventsAffectLabel(events, this.qLabel)) void this.executeQuery();
 					},
 				}),
 			);

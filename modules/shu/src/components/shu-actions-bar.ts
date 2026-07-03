@@ -18,8 +18,9 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles } from "./styles.js";
 import { clamp, errMsg, prettifyGwta } from "../util.js";
-import { conduit } from "../hypermedia.js";
+import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
+import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
 import { getCookie, setCookie } from "../cookies.js";
@@ -89,6 +90,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectedDomainKey = "";
 	private _selectFilters: Record<string, string> = {};
 	private _selectedLabel = "";
+	private _selectValuesRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 	private _steps: StepDescriptor[] = [];
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
@@ -274,6 +276,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		});
 	}
 
+	/** Coalesce a burst of relevant live batches into one forced distinct-value refetch (force: bypass the usable-values cache). */
+	private scheduleSelectValuesRefresh(): void {
+		if (this._selectValuesRefreshTimer) clearTimeout(this._selectValuesRefreshTimer);
+		this._selectValuesRefreshTimer = setTimeout(() => {
+			this._selectValuesRefreshTimer = undefined;
+			this.triggerSelectValuesLoad(this._selectedLabel, true);
+		}, 150);
+	}
+
 	protected override onConnected(): void {
 		document.addEventListener("click", this._onDocumentClick, true);
 		this.loadProperties();
@@ -293,6 +304,22 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			);
 		} catch {
 			// No EventStream installed (early-mount in tests); skip live sync wiring.
+		}
+
+		// Live filter values: when a batch carries a change in the selected type's named graph, the distinct-value
+		// dropdowns may have gained a value (a new folder, status, …). Force-refetch them so the facet menus stay
+		// current without a page reload — the same relevance test the results list uses (eventsAffectLabel).
+		if (!isOffline()) {
+			this.autoTeardown(
+				this.subscribeBatched({
+					onBatch: (events) => {
+						if (this._selectedLabel && eventsAffectLabel(events, this._selectedLabel)) this.scheduleSelectValuesRefresh();
+					},
+				}),
+			);
+			this.autoTeardown(() => {
+				if (this._selectValuesRefreshTimer) clearTimeout(this._selectValuesRefreshTimer);
+			});
 		}
 
 		// The bar is left/right:0, so it resizes with its container (window width); republish the collapsed footprint when
@@ -679,7 +706,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				const current = this._selectFilters[field] ?? "";
 				return html`<select class="select-filter" data-field=${field} data-testid=${`${this.testIdPrefix}select-${field}`} @change=${this.onSelectFilterChange}>
 					<option value="">all ${field}s</option>
-					${values.map((v) => html`<option value=${v} ?selected=${v === current}>${v}</option>`)}
+					${values.map((v) => html`<option value=${v} ?selected=${v === current} data-testid=${`${this.testIdPrefix}select-${field}-option-${v}`}>${v}</option>`)}
 				</select>`;
 			})}
 			<input type="text" class="text-search"
