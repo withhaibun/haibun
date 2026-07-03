@@ -16,7 +16,7 @@ import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import * as ViewHash from "./view-hash.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { getUiByComponent, getUiByType } from "./rels-cache.js";
-import { parseAffordanceProduct } from "./affordance-products.js";
+import { paneOpsFor, createPaneRouteState, recordPaneDismissal } from "./pane-event-router.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
@@ -25,7 +25,6 @@ import type { ShuEntityColumn } from "./components/shu-entity-column.js";
 import type { ShuFilterColumn } from "./components/shu-filter-column.js";
 import type { ShuActionsBar } from "./components/shu-actions-bar.js";
 import type { ShuGraphQuery } from "./components/shu-graph-query.js";
-import { type THypermediaProducts, type THaibunEvent } from "@haibun/core/schema/protocol.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 
@@ -209,11 +208,27 @@ const main = async (): Promise<void> => {
 	// (the subsequent panes are stale relative to the new selection). ctrl/shift
 	// click in `detail.addToSelection` opts out and appends instead. Programmatic
 	// dispatches that pass no modifier default to replace.
+	// Closed panes stay closed: the person's dismissal is watermarked at the newest event time seen and persisted, so
+	// no replayed/older event — a reload's history replay, a previous run on a long-lived server — reopens the pane.
+	// A freshly run step (a newer event) reopens it: a new decision. See pane-event-router.
+	const PANE_DISMISSALS_KEY = "shu.paneDismissals";
+	const readDismissals = (): Record<string, number> => {
+		const raw = localStorage.getItem(PANE_DISMISSALS_KEY);
+		if (!raw) return {};
+		const parsed: unknown = JSON.parse(raw);
+		if (!parsed || typeof parsed !== "object") throw new Error(`${PANE_DISMISSALS_KEY} is not an object — clear it`);
+		return parsed as Record<string, number>;
+	};
+	const paneRouteState = createPaneRouteState(readDismissals());
+
 	appRoot.addEventListener(
 		SHU_EVENT.PANE_DISMISS,
 		((e: CustomEvent) => {
 			const paneId = e.detail?.paneId;
-			if (typeof paneId === "string" && paneId !== "query") PaneState.dismiss(paneId);
+			if (typeof paneId === "string" && paneId !== "query") {
+				PaneState.dismiss(paneId);
+				localStorage.setItem(PANE_DISMISSALS_KEY, JSON.stringify(recordPaneDismissal(paneRouteState, paneId)));
+			}
 		}) as EventListener,
 		{ signal },
 	);
@@ -286,33 +301,21 @@ const main = async (): Promise<void> => {
 		reportExternalComponent("debug", "mounted", childTag, { "haibun.shu.external-component.url": src });
 	};
 
-	// Every step-end emits hypermedia products; if they carry view markers, route to PaneState. The connect-time replay
-	// delivers the whole history at once (one product per past step), so BATCH it and keep only the latest op per pane:
-	// re-requesting the same pane once per replayed step is the reload-churn that janks the page. Live products batch the
-	// same way (one frame) — harmless, the latest product per pane wins. Keyed by pane id, so close/open order across
-	// distinct panes is preserved while a pane's own repeats collapse.
+	// Every person-visible step-end emits hypermedia products; if they carry view markers, route to PaneState — trace
+	// substeps are infrastructure and never open views, each event acts once, and a person's close outlasts the past
+	// (see pane-event-router for the three rules). Batching keeps only the latest op per pane so the connect-time
+	// replay costs one op per pane, not one per replayed step.
 	subscribeBatchedEvents({
 		onBatch: (events) => {
-			const ops = new Map<string, () => void>();
-			for (const event of events) {
-				const e = event as THaibunEvent & { products?: THypermediaProducts };
-				if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed" || !e.products) continue;
-				const action = parseAffordanceProduct(e.products);
-				if (action.kind === "none") continue;
-				if (action.kind === "close") ops.set(action.view, () => PaneState.dismiss(action.view));
-				else if (action.kind === "open-component")
-					ops.set(action.component, () => PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products }));
-				else if (action.kind === "show-views") ops.set("views", () => PaneState.request({ paneType: "views-picker", views: action.views, label: action.label }));
-				else {
-					const ui = getUiByType(action.type);
-					// No ui.component declared → not a view; nodes open via the query/entity column flow.
-					if (ui?.component && typeof ui.component === "string") {
-						const tag = ui.component;
-						ops.set(tag, () => PaneState.request({ paneType: "component", tag, label: action.label, data: action.products }));
-					}
-				}
+			const uiComponentByType = (type: string): string | undefined => {
+				const component = getUiByType(type)?.component;
+				return typeof component === "string" ? component : undefined;
+			};
+			for (const op of paneOpsFor(events, paneRouteState, uiComponentByType).values()) {
+				if (op.op === "dismiss") PaneState.dismiss(op.view);
+				else if (op.op === "component") PaneState.request({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
+				else PaneState.request({ paneType: "views-picker", views: op.views, label: op.label });
 			}
-			for (const op of ops.values()) op();
 		},
 	});
 
