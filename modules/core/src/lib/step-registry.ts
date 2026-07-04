@@ -234,6 +234,10 @@ function validateInputDomains(stepperName: string, stepName: string, stepDef: TS
  * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
  * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
  */
+/** Zod types with no JSON Schema representation (dates excepted — they surface as string/date-time). A domain
+ * declaring one of these has no form and no client-side validation surface, so registration throws. */
+const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "void", "never", "function", "map", "set", "promise", "custom", "file"]);
+
 function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
 	const properties: Record<string, { type?: string; description?: string; [key: string]: unknown }> = {};
 	const required: string[] = [];
@@ -253,19 +257,30 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 
 				if (domain?.schema) {
 					paramSchemas.set(v.term, domain.schema);
-					try {
-						const jsonSchema = z.toJSONSchema(domain.schema) as Record<string, unknown>;
-						const prop: Record<string, unknown> = { ...jsonSchema };
-						if (domain.description && !prop.description) {
-							prop.description = domain.description;
-						}
-						properties[v.term] = prop;
-					} catch {
-						properties[v.term] = {
-							type: "string",
-							description: domain.description,
-						};
+					// Input semantics: the schema describes what a caller must SUPPLY, so defaulted fields are optional.
+					// Date fields (z.date / z.coerce.date) surface as string/date-time: their input is an ISO string.
+					// Every other type with no JSON Schema representation throws right here, at registration, naming
+					// the domain and the type.
+					const jsonSchema = z.toJSONSchema(domain.schema, {
+						io: "input",
+						unrepresentable: "any",
+						override: (ctx) => {
+							const nodeType = (ctx.zodSchema as { _zod?: { def?: { type?: string } } })._zod?.def?.type;
+							if (nodeType === "date") {
+								ctx.jsonSchema.type = "string";
+								ctx.jsonSchema.format = "date-time";
+								return;
+							}
+							if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
+								throw new Error(`step.list: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation — declare a representable input type`);
+							}
+						},
+					}) as Record<string, unknown>;
+					const prop: Record<string, unknown> = { ...jsonSchema };
+					if (domain.description && !prop.description) {
+						prop.description = domain.description;
 					}
+					properties[v.term] = prop;
 				} else {
 					properties[v.term] = { type: "string" };
 				}
