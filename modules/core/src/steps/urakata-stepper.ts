@@ -6,10 +6,39 @@
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/util/index.js";
-import { URAKATA, URAKATA_ID_DOMAIN, UrakataRegistry, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/urakata.js";
+import { LinkRelations } from "../lib/resources.js";
+import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataRegistry, UrakataSchema, type IHasUrakata, type IUrakataRegistry, type TUrakata, urakataIdDomainDefinition } from "../lib/urakata.js";
 
 const DOMAIN_URAKATA_LIST = "urakata-list";
-const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema) });
+const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema.extend({ state: z.string() })) });
+
+/**
+ * The persisted Urakata type: a task's lifecycle facts, queryable like any other individual. `execution` is a CONTEXT
+ * facet so "what ran in instance E" is a stored query; the numeric counts derive their own columns. Nothing here stores
+ * a live "running" claim — that word is derived at read time (see showUrakata's `state`).
+ */
+const DOMAIN_URAKATA_TASK = "urakata-task";
+const urakataTaskDomainDefinition = {
+	selectors: [DOMAIN_URAKATA_TASK],
+	schema: UrakataSchema,
+	description: "A background task (ticker) started in a run: what it is, which run instance it ran in, when it started, its tick and error counts, and when it was cleanly stopped.",
+	topology: {
+		persistedAs: URAKATA_LABEL,
+		id: "id",
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			description: LinkRelations.NAME.rel,
+			execution: LinkRelations.CONTEXT.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+		},
+	},
+};
+
+/** Derive the display state a view shows for a task, at read time, from past-tense facts and the current run instance. */
+function taskState(u: TUrakata, currentExecution: string): string {
+	if (u.stoppedAt) return "stopped";
+	return u.execution === currentExecution ? "running" : "ran (instance ended)";
+}
 
 class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 	description = "Out-of-band step execution: tickers and watchers, with introspection and clean shutdown";
@@ -25,6 +54,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		getConcerns: () => ({
 			domains: [
 				urakataIdDomainDefinition,
+				urakataTaskDomainDefinition,
 				{ selectors: [DOMAIN_URAKATA_LIST], schema: UrakataListSchema, description: "List of running urakata", ui: { component: "shu-result-table", summary: "Urakata" } },
 			],
 		}),
@@ -53,7 +83,10 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		showUrakata: {
 			gwta: "show urakata",
 			productsDomain: DOMAIN_URAKATA_LIST,
-			action: () => actionOKWithProducts({ urakata: this.urakata().list() }),
+			action: () => {
+				const currentExecution = this.getWorld().tag.key;
+				return actionOKWithProducts({ urakata: this.urakata().list().map((u) => ({ ...u, state: taskState(u, currentExecution) })) });
+			},
 		},
 
 		stopUrakata: {

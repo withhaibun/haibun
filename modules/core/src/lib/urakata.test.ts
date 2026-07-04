@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { UrakataRegistry, type IUrakataTicker } from "./urakata.js";
+import { UrakataRegistry, URAKATA_LABEL, type IUrakataTicker } from "./urakata.js";
 import { getDefaultWorld } from "./test/lib.js";
 
 const noOpErrorHandler = () => undefined;
@@ -180,5 +180,72 @@ describe("UrakataRegistry", () => {
 		const ticksAtStop = ticks.mock.calls.length;
 		await sleep(20);
 		expect(ticks.mock.calls.length).toBe(ticksAtStop);
+	});
+});
+
+describe("UrakataRegistry persistence of transitions", () => {
+	const readTask = async (world: ReturnType<typeof getDefaultWorld>, id: string) =>
+		world.shared.getStore().getIndividual<Record<string, unknown>>(URAKATA_LABEL, id);
+
+	it("persists the individual on registration, on an error, and on stop — one row per id, reflecting the latest transition", async () => {
+		const world = getDefaultWorld();
+		const registry = new UrakataRegistry(world, () => undefined);
+		let fail = true;
+		const u = registry.register({
+			id: "p1",
+			description: "persisting task",
+			intervalMs: 5,
+			tick: () => {
+				if (fail) throw new Error("boom");
+			},
+		});
+		await sleep(0); // let the registration upsert flush
+		const atStart = await readTask(world, u.id);
+		expect(atStart?.execution).toBe(world.tag.key);
+		expect(atStart?.stoppedAt).toBeUndefined();
+		expect(atStart?.errorCount).toBe(0);
+
+		await sleep(20); // at least one failing tick
+		fail = false;
+		const afterError = await readTask(world, u.id);
+		expect(Number(afterError?.errorCount)).toBeGreaterThan(0);
+
+		await registry.stop(u.id);
+		await sleep(0);
+		const afterStop = await readTask(world, u.id);
+		expect(afterStop?.stoppedAt).toBeDefined();
+	});
+
+	it("leaves a prior instance's row untouched (it already tells the truth); re-registering the id overwrites it with the current instance", async () => {
+		const world = getDefaultWorld();
+		// A row from another run instance, never cleanly stopped — the abrupt-stop reading.
+		await world.shared.getStore().upsertIndividual(URAKATA_LABEL, {
+			id: "imap.idle.acct/INBOX",
+			description: "from a prior instance",
+			execution: "OTHER-INSTANCE",
+			seqPath: [0],
+			startedAt: new Date().toISOString(),
+			tickIndex: 5,
+			errorCount: 0,
+			generatedAtTime: new Date(),
+		});
+		const registry = new UrakataRegistry(world, () => undefined);
+		const fresh = registry.register({ id: "different.task", description: "new", intervalMs: 1000, tick: () => undefined });
+		await sleep(0);
+		const prior = await readTask(world, "imap.idle.acct/INBOX");
+		expect(prior?.execution).toBe("OTHER-INSTANCE"); // untouched
+		expect(prior?.stoppedAt).toBeUndefined();
+		const freshRow = await readTask(world, fresh.id);
+		expect(freshRow?.execution).toBe(world.tag.key);
+		await registry.stopAll();
+
+		// Re-registering the prior id (a restart) overwrites it with the current instance and no stoppedAt.
+		const registry2 = new UrakataRegistry(world, () => undefined);
+		registry2.register({ id: "imap.idle.acct/INBOX", description: "restarted", intervalMs: 1000, tick: () => undefined });
+		await sleep(0);
+		const restarted = await readTask(world, "imap.idle.acct/INBOX");
+		expect(restarted?.execution).toBe(world.tag.key);
+		expect(restarted?.stoppedAt).toBeUndefined();
+		await registry2.stopAll();
 	});
 });

@@ -142,7 +142,8 @@ function deriveActionLinks(
 export function isViewOnlyDomain(world: TWorld, domainKey: string): boolean {
 	const domain = world.domains[normalizeDomainKey(domainKey)];
 	if (!domain?.ui?.component || typeof domain.ui.component !== "string") return false;
-	const jsonSchema = z.toJSONSchema(domain.schema) as { properties?: Record<string, unknown>; type?: string };
+	// unrepresentable:"any" keeps the presence check working for a schema carrying a date (z.coerce.date has no JSON Schema form) — we only need to know whether it has fields, not to represent them.
+	const jsonSchema = z.toJSONSchema(domain.schema, { unrepresentable: "any" }) as { properties?: Record<string, unknown>; type?: string };
 	if (jsonSchema.type !== "object") return false;
 	return !jsonSchema.properties || Object.keys(jsonSchema.properties).length === 0;
 }
