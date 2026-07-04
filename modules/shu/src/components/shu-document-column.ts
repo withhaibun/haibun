@@ -33,9 +33,8 @@ const SANITIZE_OPTS = {
 	ADD_TAGS: ["div"],
 };
 
-/** The window-cut notice for a truncated document: a wavy rule, how many earlier events are not shown, and the
- * window-size picker embedded right there so the reader can widen the window on the spot. Empty when the whole log
- * is shown. Exported for the unit test; renderFull prepends it. */
+/** The window-cut notice for a truncated document: a wavy rule, the count of earlier events not shown, and the
+ * embedded window-size picker. Empty when the whole log fits. */
 export function windowCutHtml(total: number, shown: number): string {
 	const hidden = total - shown;
 	if (hidden <= 0) return "";
@@ -126,10 +125,26 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		else this.appendNew();
 	}
 
+	/** Cleared by a manual scroll; cursor changes stop re-centring after that. */
+	private followCursor = true;
+	private autoScrolling = false; // our own centring scroll, not a manual one
+
 	protected override onConnected(): void {
 		// A framed thumbnail asks us to move the cursor to the step row it belongs to — it can't reach us directly across
 		// our shadow boundary and owns no start-time → absolute-time mapping. Same path as a row click, one handler.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.cursorToRow((e as CustomEvent<{ row: Element }>).detail.row));
+		this.autoListen(
+			this,
+			"scroll",
+			() => {
+				if (!this.autoScrolling) this.followCursor = false;
+			},
+			{ passive: true },
+		);
+		this.autoListen(this, "scrollend", () => {
+			this.autoScrolling = false;
+		});
+
 		// Re-render when the window-size setting changes: the document body is imperative DOM (renderFull), so the
 		// signal read inside windowTail never auto-subscribes the way a lit render() does — without this, a new
 		// window size applies only after a reload.
@@ -226,10 +241,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 		if (currentRow && cursor !== null) {
 			currentRow.classList.add(TIME_SYNC_CLASS.CURRENT);
-			// Centering the current row is a layout-dependent view effect (offsetTop/clientHeight, and scrollTo itself, only
-			// exist where the host lays out the column). Feature-detect rather than assume — a no-layout host (jsdom) has no
-			// scroll position to set, so the row-classification above is the whole contract there.
-			if (typeof this.scrollTo === "function") {
+			// Centering is layout-dependent (a no-layout host has no scroll position); row classification above is the whole contract there.
+			if (this.followCursor && typeof this.scrollTo === "function") {
+				this.autoScrolling = true;
 				const rowTop = (currentRow as HTMLElement).offsetTop;
 				this.scrollTo({ top: rowTop - this.clientHeight / 2, behavior: "smooth" });
 			}
