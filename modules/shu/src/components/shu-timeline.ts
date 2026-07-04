@@ -38,7 +38,9 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
-		:host { display: flex; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-1) var(--shu-space-3); font: var(--shu-font-sm) var(--shu-font-family); }
+		/* border-box: a width-constrained container (the corner popover, overflow:auto per the popover UA default) sizes
+		   this host at 100%; content-box would overflow by the padding and grow a scrollbar. */
+		:host { display: flex; box-sizing: border-box; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-1) var(--shu-space-3); font: var(--shu-font-sm) var(--shu-font-family); }
 		:host([hidden]) { display: none; }
 		button { background: none; border: none; cursor: pointer; font-size: var(--shu-font-lg); padding: 0 3px; color: var(--shu-fg-muted); }
 		button:hover { color: var(--shu-fg); }
