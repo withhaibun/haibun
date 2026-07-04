@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { composeDisplayLabel, MAX_DISPLAY_LABEL_LEN } from "./hypermedia.js";
+import { z } from "zod";
+import { composeDisplayLabel, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
+import type { THypermediaTopology } from "./resources.js";
 import { LinkRelations } from "./resources.js";
 
 const props = (o: Record<string, unknown>) => (f: string) => o[f];
@@ -50,5 +52,37 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		const label = composeDisplayLabel({ rels: undefined, getProperty: () => undefined, bodyContents: ["y".repeat(200)], id: "a" });
 		expect(label.length).toBe(MAX_DISPLAY_LABEL_LEN);
 		expect(label.endsWith("…")).toBe(true);
+	});
+});
+
+describe("queryableFields: the one declaration-side derivation of a type's queryable surface", () => {
+	const schema = z.object({
+		messageId: z.string(),
+		subject: z.string(),
+		folder: z.string(),
+		size: z.number(),
+		flagged: z.boolean().optional(),
+		generatedAtTime: z.coerce.date().default(() => new Date()),
+		attachments: z.array(z.object({ name: z.string() })),
+	});
+	const topology: THypermediaTopology = {
+		persistedAs: "Email",
+		id: "messageId",
+		properties: { subject: LinkRelations.NAME.rel, folder: LinkRelations.CONTEXT.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+		sortColumns: { receivedAt: "TIMESTAMPTZ" },
+	};
+
+	it("offers declared sortColumns, CONTEXT facets, the record-time field, and bounded primitives — never plain strings or the identifier", () => {
+		expect(queryableFields({ schema, topology })).toEqual(["flagged", "folder", "generatedAtTime", "receivedAt", "size"]);
+	});
+
+	it("resolves a content-object property def to its rel — a body field never becomes queryable", () => {
+		const withBody: THypermediaTopology = { ...topology, properties: { ...topology.properties, body: { rel: "content", mediaType: "text/html" } } };
+		expect(queryableFields({ schema, topology: withBody })).not.toContain("body");
+	});
+
+	it("derives from a declaration with no schema shape (a `set of {domain}` prose declaration) via its sortColumns", () => {
+		const proseTopology: THypermediaTopology = { persistedAs: "Recipe", id: "name", properties: {}, sortColumns: { servings: "DOUBLE PRECISION" } };
+		expect(queryableFields({ schema: undefined, topology: proseTopology })).toEqual(["servings"]);
 	});
 });
