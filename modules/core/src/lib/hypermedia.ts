@@ -23,8 +23,36 @@ import {
 } from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or content-object form. */
-function relOf(def: TPropertyDef): TRel {
+export function relOf(def: TPropertyDef): TRel {
 	return isContentPropertyDef(def) ? (def.rel as TRel) : def;
+}
+
+/** Schema field kinds that are queryable by their nature — bounded values a store can index and compare.
+ *  A string is queryable only as a CONTEXT facet, never from its type. */
+const BOUNDED_PRIMITIVE_TYPES = new Set(["number", "int", "boolean", "date", "enum", "literal"]);
+
+function isBoundedPrimitive(field: unknown): boolean {
+	const def = (field as { _zod?: { def?: { type?: string; innerType?: unknown } } })?._zod?.def;
+	if (!def) return false;
+	if (def.type === "optional" || def.type === "default" || def.type === "nullable") return isBoundedPrimitive((def as { innerType?: unknown }).innerType);
+	return BOUNDED_PRIMITIVE_TYPES.has(def.type ?? "");
+}
+
+/** The queryable surface of a persisted type, from its declaration alone: declared sortColumns, CONTEXT facets,
+ *  the GENERATED_AT_TIME field, and bounded primitive schema fields. The identifier is excluded — an id
+ *  dereferences, it is not searched. Every layer that offers or accepts field queries reads this one derivation,
+ *  so what a client is offered is what a store accepts. */
+export function queryableFields(domain: { schema: unknown; topology: THypermediaTopology }): string[] {
+	const topology = domain.topology;
+	const out = new Set<string>(Object.keys(topology.sortColumns ?? {}));
+	for (const [field, def] of Object.entries(topology.properties ?? {})) {
+		const rel = relOf(def as TPropertyDef);
+		if (rel === LinkRelations.CONTEXT.rel || rel === LinkRelations.GENERATED_AT_TIME.rel) out.add(field);
+	}
+	const shape = (domain.schema as { shape?: Record<string, unknown> } | undefined)?.shape ?? {};
+	for (const [field, zodField] of Object.entries(shape)) if (isBoundedPrimitive(zodField)) out.add(field);
+	out.delete(topology.id);
+	return [...out].sort();
 }
 
 /** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
@@ -190,7 +218,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			jsonSchema,
 			properties,
 			edges,
-			queryable: Object.keys(topology.sortColumns ?? {}),
+			queryable: queryableFields({ schema: domain.schema, topology }),
 			declared: !!domain.ui?.declared,
 			...(domain.ui ? { ui: domain.ui } : {}),
 			description: domain.description,
