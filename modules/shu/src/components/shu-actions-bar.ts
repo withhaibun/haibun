@@ -111,7 +111,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _onDocumentClick = (e: Event): void => {
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
 		const inside = path.includes(this);
-		if (this._openCorner && !inside) this.closeCornerPopover();
+		// The settings and access popovers are transient pickers — a click away dismisses them. The timeline is a
+		// panel used alongside the view (scrub the cursor, then click nodes/rows to inspect them at that time), so it
+		// stays until its own toggle turns it off.
+		if (this._openCorner && this._openCorner !== "timeline" && !inside) this.closeCornerPopover();
 		if (!this.state.askExpanded) return;
 		if (this.state.pinned) return; // a pinned bar stays open — that is what the pin is for
 		if (inside) return;
