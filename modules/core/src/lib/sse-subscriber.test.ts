@@ -17,7 +17,9 @@ class MockEventSource {
 		if (name === "message") this.onmessage?.({ data });
 		else this.named.get(name)?.({ data });
 	}
-	close(): void {}
+	close(): void {
+		// the fake source holds no connection to release
+	}
 }
 
 const wire = (event: Record<string, unknown>): string => JSON.stringify({ type: "event", event });
