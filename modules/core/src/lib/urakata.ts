@@ -28,10 +28,14 @@ import type { TDomainDefinition } from "./resources.js";
 
 export const URAKATA = "urakata";
 export const URAKATA_ID_DOMAIN = "urakata-id";
+/** Persisted label for a task's transition record. Individuals are upserted by id, so one row reflects the latest transition; history lives in the event stream. */
+export const URAKATA_LABEL = "Urakata";
 
 export const UrakataSchema = z.object({
 	id: z.string(),
 	description: z.string(),
+	/** The run instance this task ran in (world.tag.key). A view says "running" only when this equals the current instance and there is no stoppedAt; a persisted row from another instance can never claim the present. */
+	execution: z.string(),
 	seqPath: z.array(z.number()),
 	startedAt: z.string(),
 	lastTickAt: z.string().optional(),
@@ -39,6 +43,8 @@ export const UrakataSchema = z.object({
 	errorCount: z.number(),
 	/** Set once, when the task is cleanly stopped. Its absence is what "running" means; a killed process leaves it absent, which reads as "ran, not cleanly stopped" — never as a false "running". */
 	stoppedAt: z.string().optional(),
+	/** The universal record-time field every persisted type carries. */
+	generatedAtTime: z.coerce.date().default(() => new Date()),
 });
 export type TUrakata = z.infer<typeof UrakataSchema>;
 
@@ -91,13 +97,30 @@ export class UrakataRegistry implements IUrakataRegistry {
 		const urakata: TUrakata = {
 			id: spec.id,
 			description: spec.description,
+			execution: this.world.tag.key,
 			seqPath,
 			startedAt: new Date().toISOString(),
 			tickIndex: 0,
 			errorCount: 0,
+			generatedAtTime: new Date(),
 		};
 		this.entries.set(spec.id, this.startTicker(spec, urakata));
+		this.persist(urakata);
 		return urakata;
+	}
+
+	/**
+	 * Materialize a task's current state as a persisted individual (upsert by id). Transitions only — registration, a
+	 * stop, an error-count change — never per tick. Writes through the store behind world.shared, so the built-in
+	 * in-memory store works for tests and a registered backing makes it durable. A persistence failure is surfaced,
+	 * not swallowed, and never breaks the task.
+	 */
+	private persist(urakata: TUrakata): void {
+		const store = this.world.shared?.getStore();
+		if (!store) return;
+		void store.upsertIndividual(URAKATA_LABEL, { ...urakata }).catch((err: unknown) => {
+			this.world.eventLogger.warn(`[urakata] could not persist "${urakata.id}": ${err instanceof Error ? err.message : String(err)}`);
+		});
 	}
 
 	private startTicker(spec: IUrakataTicker, urakata: TUrakata): RuntimeEntry {
@@ -124,6 +147,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 					if (stopped && controller.signal.aborted) return;
 					urakata.errorCount++;
 					this.onTickError(spec.id, tickSeqPath, err instanceof Error ? err : new Error(String(err)));
+					this.persist(urakata);
 				}
 			})();
 			inflight = { controller, settled };
@@ -133,6 +157,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 				if (outcome === "timeout") {
 					urakata.errorCount++;
 					this.onTickError(spec.id, tickSeqPath, new Error(`urakata "${spec.id}" tick exceeded ${spec.tickTimeoutMs}ms`));
+					this.persist(urakata);
 					controller.abort();
 					// Await the tick's actual settlement (its own catch will swallow the abort as a normal end) so the next
 					// tick never overlaps the aborted one. The single error above is the tick's one recorded outcome.
@@ -157,6 +182,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 					await inflight.settled.catch((): void => undefined);
 				}
 				urakata.stoppedAt = new Date().toISOString();
+				this.persist(urakata);
 			},
 		};
 	}
