@@ -76,7 +76,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 			gwta: `urakata is running {id: ${URAKATA_ID_DOMAIN}}`,
 			action: ({ id }: { id: string }) => {
 				const u = this.urakata().get(id);
-				return u.status === "running" ? actionOK() : actionNotOK(`urakata "${id}" status is "${u.status}", not "running"`);
+				return u.stoppedAt === undefined ? actionOK() : actionNotOK(`urakata "${id}" was stopped at ${u.stoppedAt}, not running`);
 			},
 		},
 	};

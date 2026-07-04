@@ -93,7 +93,7 @@ describe("urakata-stepper", () => {
 		const list = products?.urakata as Array<Record<string, unknown>>;
 		expect(list).toHaveLength(1);
 		expect(list[0].id).toBe("test.tick");
-		expect(list[0].kind).toBe("ticker");
+		expect(list[0].stoppedAt).toBeUndefined();
 	});
 
 	it("endFeature(shouldClose) halts every registered urakata", async () => {

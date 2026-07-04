@@ -1,16 +1,23 @@
 /**
  * Urakata — out-of-band step execution that lives outside the feature flow.
  *
- * Tickers (periodic) and watchers (long-lived async) register here instead of
- * each stepper rolling its own setInterval / AbortController. The registry:
+ * Tickers register here instead of each stepper rolling its own setInterval /
+ * AbortController. The registry:
  *   - schedules ticks via setTimeout-recursion (no overlap when a tick is slow),
+ *   - gives each tick an AbortSignal; a timeout or a stop aborts the in-flight
+ *     tick and awaits its settlement, so no-overlap holds on every path,
  *   - wraps every tick in a per-instance try/catch (no unhandled exceptions),
  *   - allocates a synthetic seqPath root per registration (traces scope cleanly),
  *   - emits structured step.failure events when ticks throw (autonomic visibility),
  *   - stops everything on endFeature(shouldClose) and process signals.
  *
- * Implementing steppers expose IUrakataTicker / IUrakataWatcher classes that
- * carry their own state and tick/run methods — the registry composes them.
+ * Implementing steppers expose IUrakataTicker classes that carry their own state
+ * and a tick method — the registry composes them. A long-lived task is a ticker
+ * whose tick blocks (honouring the signal) until there is work or the signal fires.
+ *
+ * State is derived, never stored as a claim about the present: a live entry with
+ * no stoppedAt is running; stop() records stoppedAt. A persisted snapshot carries
+ * only these past-tense facts, so it cannot outlive its truth.
  */
 
 import { z } from "zod";
@@ -24,14 +31,14 @@ export const URAKATA_ID_DOMAIN = "urakata-id";
 
 export const UrakataSchema = z.object({
 	id: z.string(),
-	kind: z.enum(["ticker", "watcher"]),
 	description: z.string(),
 	seqPath: z.array(z.number()),
 	startedAt: z.string(),
 	lastTickAt: z.string().optional(),
 	tickIndex: z.number(),
 	errorCount: z.number(),
-	status: z.enum(["running", "stopped"]),
+	/** Set once, when the task is cleanly stopped. Its absence is what "running" means; a killed process leaves it absent, which reads as "ran, not cleanly stopped" — never as a false "running". */
+	stoppedAt: z.string().optional(),
 });
 export type TUrakata = z.infer<typeof UrakataSchema>;
 
@@ -39,7 +46,7 @@ export type TUrakata = z.infer<typeof UrakataSchema>;
 export const urakataIdDomainDefinition: TDomainDefinition = {
 	selectors: [URAKATA_ID_DOMAIN],
 	schema: z.string().min(1),
-	description: "Active urakata id (registered ticker or watcher)",
+	description: "Active urakata id (registered ticker)",
 };
 
 export interface IUrakataTicker {
@@ -48,17 +55,12 @@ export interface IUrakataTicker {
 	readonly intervalMs: number;
 	readonly tickTimeoutMs?: number;
 	readonly keepAlive?: boolean;
-	tick(ctx: { seqPath: TSeqPath; tickIndex: number }): void | Promise<void>;
-}
-
-export interface IUrakataWatcher {
-	readonly id: string;
-	readonly description: string;
-	run(ctx: { seqPath: TSeqPath; signal: AbortSignal }): Promise<void>;
+	/** The signal fires when the tick exceeds tickTimeoutMs or the task is stopped; a well-behaved tick returns promptly once it fires. */
+	tick(ctx: { seqPath: TSeqPath; tickIndex: number; signal: AbortSignal }): void | Promise<void>;
 }
 
 export interface IUrakataRegistry {
-	register(spec: IUrakataTicker | IUrakataWatcher): TUrakata;
+	register(spec: IUrakataTicker): TUrakata;
 	list(): readonly TUrakata[];
 	get(id: string): TUrakata;
 	stop(id: string): Promise<void>;
@@ -76,10 +78,6 @@ interface RuntimeEntry {
 	stop(): Promise<void>;
 }
 
-function isTicker(spec: IUrakataTicker | IUrakataWatcher): spec is IUrakataTicker {
-	return typeof (spec as IUrakataTicker).intervalMs === "number";
-}
-
 export class UrakataRegistry implements IUrakataRegistry {
 	private entries = new Map<string, RuntimeEntry>();
 	constructor(
@@ -87,79 +85,78 @@ export class UrakataRegistry implements IUrakataRegistry {
 		private onTickError: (urakataId: string, seqPath: TSeqPath, err: Error) => void,
 	) {}
 
-	register(spec: IUrakataTicker | IUrakataWatcher): TUrakata {
+	register(spec: IUrakataTicker): TUrakata {
 		if (this.entries.has(spec.id)) throw new Error(`urakata id "${spec.id}" already registered`);
 		const seqPath = allocateSyntheticSeqPath(this.world);
 		const urakata: TUrakata = {
 			id: spec.id,
-			kind: isTicker(spec) ? "ticker" : "watcher",
 			description: spec.description,
 			seqPath,
 			startedAt: new Date().toISOString(),
 			tickIndex: 0,
 			errorCount: 0,
-			status: "running",
 		};
-		const entry: RuntimeEntry = isTicker(spec) ? this.startTicker(spec, urakata) : this.startWatcher(spec, urakata);
-		this.entries.set(spec.id, entry);
+		this.entries.set(spec.id, this.startTicker(spec, urakata));
 		return urakata;
 	}
 
 	private startTicker(spec: IUrakataTicker, urakata: TUrakata): RuntimeEntry {
 		let timer: NodeJS.Timeout | null = null;
 		let stopped = false;
+		/** The controller of the currently running tick, or null between ticks. stop()/timeout abort through it. */
+		let inflight: { controller: AbortController; settled: Promise<void> } | null = null;
 		const schedule = () => {
 			if (stopped) return;
 			timer = setTimeout(runOnce, spec.intervalMs);
 			if (!spec.keepAlive) timer.unref?.();
 		};
-		const runOnce = async () => {
+		const runOnce = async (): Promise<void> => {
 			const tickSeqPath = [...urakata.seqPath, urakata.tickIndex];
 			urakata.lastTickAt = new Date().toISOString();
 			urakata.tickIndex++;
-			try {
-				const tickPromise = Promise.resolve(spec.tick({ seqPath: tickSeqPath, tickIndex: urakata.tickIndex - 1 }));
-				if (spec.tickTimeoutMs) {
-					await Promise.race([tickPromise, timeoutAfter(spec.tickTimeoutMs, `urakata "${spec.id}" tick exceeded ${spec.tickTimeoutMs}ms`)]);
-				} else {
-					await tickPromise;
+			const controller = new AbortController();
+			// A tick settling and the registry counting its outcome are one flow: settled resolves once the count is
+			// recorded, so stop()/timeout can await a clean state. A tick aborted by stop() is a normal end, not an error.
+			const settled: Promise<void> = (async () => {
+				try {
+					await Promise.resolve(spec.tick({ seqPath: tickSeqPath, tickIndex: urakata.tickIndex - 1, signal: controller.signal }));
+				} catch (err) {
+					if (stopped && controller.signal.aborted) return;
+					urakata.errorCount++;
+					this.onTickError(spec.id, tickSeqPath, err instanceof Error ? err : new Error(String(err)));
 				}
-			} catch (err) {
-				urakata.errorCount++;
-				this.onTickError(spec.id, tickSeqPath, err instanceof Error ? err : new Error(String(err)));
+			})();
+			inflight = { controller, settled };
+			if (spec.tickTimeoutMs !== undefined) {
+				const timeout = timeoutHandle(spec.tickTimeoutMs);
+				const outcome = await Promise.race([settled.then(() => "settled" as const), timeout.fired.then(() => "timeout" as const)]);
+				if (outcome === "timeout") {
+					urakata.errorCount++;
+					this.onTickError(spec.id, tickSeqPath, new Error(`urakata "${spec.id}" tick exceeded ${spec.tickTimeoutMs}ms`));
+					controller.abort();
+					// Await the tick's actual settlement (its own catch will swallow the abort as a normal end) so the next
+					// tick never overlaps the aborted one. The single error above is the tick's one recorded outcome.
+					await settled.catch((): void => undefined);
+				} else {
+					timeout.cancel();
+				}
+			} else {
+				await settled;
 			}
+			inflight = null;
 			schedule();
 		};
 		schedule();
 		return {
 			urakata,
-			stop: () =>
-				new Promise<void>((resolve) => {
-					stopped = true;
-					if (timer) clearTimeout(timer);
-					urakata.status = "stopped";
-					resolve();
-				}),
-		};
-	}
-
-	private startWatcher(spec: IUrakataWatcher, urakata: TUrakata): RuntimeEntry {
-		const controller = new AbortController();
-		const completion = (async () => {
-			try {
-				await spec.run({ seqPath: urakata.seqPath, signal: controller.signal });
-			} catch (err) {
-				if (controller.signal.aborted) return;
-				urakata.errorCount++;
-				this.onTickError(spec.id, urakata.seqPath, err instanceof Error ? err : new Error(String(err)));
-			}
-		})();
-		return {
-			urakata,
-			stop: async () => {
-				controller.abort();
-				urakata.status = "stopped";
-				await completion;
+			stop: async (): Promise<void> => {
+				stopped = true;
+				if (timer) clearTimeout(timer);
+				if (inflight) {
+					inflight.controller.abort();
+					await inflight.settled.catch((): void => undefined);
+				}
+				urakata.stoppedAt = new Date().toISOString();
 			},
 		};
 	}
@@ -193,9 +190,13 @@ export class UrakataRegistry implements IUrakataRegistry {
 	}
 }
 
-function timeoutAfter(ms: number, message: string): Promise<never> {
-	return new Promise((_, reject) => {
-		const t = setTimeout(() => reject(new Error(message)), ms);
+/** A timer whose `fired` promise resolves (never rejects) when the interval elapses, and which can be cancelled if the race is won first. */
+function timeoutHandle(ms: number): { fired: Promise<void>; cancel: () => void } {
+	let cancel = () => undefined as void;
+	const fired = new Promise<void>((resolve) => {
+		const t = setTimeout(resolve, ms);
 		t.unref?.();
+		cancel = () => clearTimeout(t);
 	});
+	return { fired, cancel };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { UrakataRegistry, type IUrakataTicker, type IUrakataWatcher } from "./urakata.js";
+import { UrakataRegistry, type IUrakataTicker } from "./urakata.js";
 import { getDefaultWorld } from "./test/lib.js";
 
 const noOpErrorHandler = () => undefined;
@@ -23,7 +23,7 @@ describe("UrakataRegistry", () => {
 			},
 		};
 		const u = registry.register(ticker);
-		expect(u.kind).toBe("ticker");
+		expect(u.stoppedAt).toBeUndefined();
 		const rootLen = u.seqPath.length;
 		await sleep(40);
 		await registry.stop(u.id);
@@ -79,43 +79,76 @@ describe("UrakataRegistry", () => {
 		expect(reported.every((r) => r.message === "boom")).toBe(true);
 	});
 
-	it("enforces tickTimeoutMs without halting the loop", async () => {
+	it("on tickTimeoutMs: aborts the tick, counts exactly one error, and never overlaps the next tick with the aborted one", async () => {
 		const reported: string[] = [];
 		const registry = makeRegistry((_id, _sp, err) => reported.push(err.message));
 		let calls = 0;
+		let inFlight = 0;
+		let maxInFlight = 0;
+		let sawAbort = false;
 		const ticker: IUrakataTicker = {
 			id: "hang",
-			description: "hangs",
+			description: "hangs past its timeout, then honours the abort",
 			intervalMs: 5,
 			tickTimeoutMs: 10,
-			tick: async () => {
+			tick: async ({ signal }) => {
 				calls++;
-				await sleep(60);
+				inFlight++;
+				maxInFlight = Math.max(maxInFlight, inFlight);
+				await new Promise<void>((resolve) => {
+					const t = setTimeout(resolve, 200);
+					signal.addEventListener(
+						"abort",
+						() => {
+							sawAbort = true;
+							clearTimeout(t);
+							resolve();
+						},
+						{ once: true },
+					);
+				});
+				inFlight--;
 			},
 		};
 		const u = registry.register(ticker);
-		await sleep(50);
+		await sleep(60);
 		await registry.stop(u.id);
 		expect(calls).toBeGreaterThan(1);
-		expect(reported.some((m) => m.includes("exceeded 10ms"))).toBe(true);
+		expect(sawAbort).toBe(true);
+		expect(maxInFlight).toBe(1);
+		// One error per timed-out tick — the abort's own settlement is not a second count.
+		expect(registry.get(u.id).errorCount).toBe(reported.length);
+		expect(reported.every((m) => m.includes("exceeded 10ms"))).toBe(true);
 	});
 
-	it("watcher receives abort signal on stop and the run promise resolves", async () => {
-		const registry = makeRegistry();
-		const watcher: IUrakataWatcher = {
-			id: "w1",
-			description: "watcher",
-			run: async ({ signal }) => {
-				await new Promise<void>((resolve) => {
+	it("stop aborts an in-flight tick, awaits its settlement, sets stoppedAt, and counts no error", async () => {
+		const reported: string[] = [];
+		const registry = makeRegistry((_id, _sp, err) => reported.push(err.message));
+		let settledAfterAbort = false;
+		const ticker: IUrakataTicker = {
+			id: "long",
+			description: "blocks until its signal fires",
+			intervalMs: 1,
+			tick: ({ signal }) =>
+				new Promise<void>((resolve) => {
 					if (signal.aborted) return resolve();
-					signal.addEventListener("abort", () => resolve(), { once: true });
-				});
-			},
+					signal.addEventListener(
+						"abort",
+						() => {
+							settledAfterAbort = true;
+							resolve();
+						},
+						{ once: true },
+					);
+				}),
 		};
-		const u = registry.register(watcher);
-		expect(u.kind).toBe("watcher");
+		const u = registry.register(ticker);
+		await sleep(10);
 		await registry.stop(u.id);
-		expect(registry.get(u.id).status).toBe("stopped");
+		expect(settledAfterAbort).toBe(true);
+		expect(registry.get(u.id).stoppedAt).toBeDefined();
+		expect(registry.get(u.id).errorCount).toBe(0);
+		expect(reported).toHaveLength(0);
 	});
 
 	it("rejects duplicate ids", () => {
