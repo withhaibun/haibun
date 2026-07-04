@@ -58,16 +58,17 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await wp.captureFailureScreenshot("failure", failedStep);
 		}
 	},
-	async beforeStep(_args: TBeforeStep): Promise<void> {
+	beforeStep(_args: TBeforeStep): Promise<void> {
 		wp.errorMark = wp.browserErrors.length;
+		return Promise.resolve();
 	},
-	async afterStep({ featureStep }: TAfterStep): Promise<TAfterStepResult> {
+	afterStep({ featureStep }: TAfterStep): Promise<TAfterStepResult> {
 		const newErrors = wp.browserErrors.slice(wp.errorMark);
-		if (newErrors.length === 0) return { failed: false };
+		if (newErrors.length === 0) return Promise.resolve({ failed: false });
 		// A browser-side uncaught exception during this step is a real failure — surface it loudly instead of
 		// letting a later wait time out with no explanation.
 		wp.getWorld().eventLogger.log(featureStep, "error", `uncaught browser error during step: ${newErrors.join(" | ")}`);
-		return { failed: true };
+		return Promise.resolve({ failed: true });
 	},
 	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
 		if (wp.twin) {
