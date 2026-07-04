@@ -67,3 +67,53 @@ describe("QuadStore Contexts", () => {
 		expect(quads[0].properties?.readonly).toBe(true);
 	});
 });
+
+describe("backing routing is shared along the store chain, and a registration never outlives its owner", () => {
+	/** The minimal backing a routing test needs: answers `query` with one quad, records writes. */
+	const fakeBacking = () => {
+		const quad = { subject: "e1", predicate: "subject", object: "hello", namedGraph: "Email", timestamp: 1 };
+		return {
+			backing: {
+				query: async () => [quad],
+				all: async () => [quad],
+				set: async () => undefined,
+				get: async () => undefined,
+				add: async () => undefined,
+				clear: async () => undefined,
+				remove: async () => undefined,
+				upsertIndividual: async () => "e1",
+				getIndividual: async () => undefined,
+				deleteIndividual: async () => undefined,
+				queryIndividuals: async () => [],
+				distinctPropertyValues: async () => [],
+				getClusteredQuads: async () => ({ quads: [], clusters: [] }),
+			} as unknown as import("./quad-types.js").IQuadStore,
+			quad,
+		};
+	};
+
+	it("a store carried from another sees its registrations without copying, and new registrations flow both ways", async () => {
+		const { backing } = fakeBacking();
+		const first = new QuadStore();
+		await first.registerStore(backing, ["Email"]);
+		const second = new QuadStore(first.backingRouting());
+		first.carryNonVariableQuadsTo(second);
+		expect(await second.query({ namedGraph: "Email" })).toHaveLength(1);
+		// A registration made on the LATER store is visible to the earlier one — one table, not copies.
+		const { backing: other } = fakeBacking();
+		await second.registerStore(other, ["Person"]);
+		expect(await first.query({ namedGraph: "Person" })).toHaveLength(1);
+	});
+
+	it("unregisterStore removes the backing from every store in the chain at once", async () => {
+		const { backing } = fakeBacking();
+		const first = new QuadStore();
+		await first.registerStore(backing, ["Email", "Body"]);
+		const second = new QuadStore(first.backingRouting());
+		const third = new QuadStore(second.backingRouting());
+		second.unregisterStore(backing);
+		expect(await first.all()).toHaveLength(0);
+		expect(await second.query({ namedGraph: "Email" })).toHaveLength(0);
+		expect(await third.query({ namedGraph: "Body" })).toHaveLength(0);
+	});
+});
