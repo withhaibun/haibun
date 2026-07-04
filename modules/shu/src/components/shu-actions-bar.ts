@@ -97,9 +97,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectFilters: Record<string, string> = {};
 	private _selectedLabel = "";
 	private _selectValuesRefreshTimer: ReturnType<typeof setTimeout> | undefined;
-	/** THE shared scrolling output region — one instance for the bar's lifetime, rendered as the same node every
-	 *  update so the accumulated activity (search summaries, step callers, chat turns) survives mode switches and
-	 *  collapse/expand. Every mode appends here; only the input line beneath it changes with the mode. */
+	/** The shared output region: one node for the bar's lifetime, so accumulated activity survives mode switches
+	 *  and collapse/expand. */
 	private _history = new ShuActivityHistory();
 	/** Monotonic search-entry sequence for test ids — never reused, so a removal can't leave two entries sharing one id. */
 	private _searchEntrySeq = 0;
@@ -659,7 +658,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 						</select>`
 						: nothing;
 		const testid = this._openCorner ? `${this.testIdPrefix}${this._openCorner}-popover` : nothing;
-		return html`<div class="corner-popover" popover="manual" data-testid=${testid}>${content}</div>`;
+		// stopPropagation: clicks must not bubble to the summary strip's expand handler.
+		return html`<div class="corner-popover" popover="manual" data-testid=${testid} @click=${(e: Event) => e.stopPropagation()}>${content}</div>`;
 	}
 
 	private summaryTemplate(): TemplateResult {
@@ -1129,6 +1129,9 @@ const STYLES = `
 		background: var(--shu-bg-elevated); color: var(--shu-fg);
 		border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius);
 		box-shadow: 0 1px 4px var(--shu-shadow);
+		/* a floating panel sizes to its content and never scrolls it — without this the UA's [popover]
+		   overflow:auto turns the timeline knob's few px of spill into scrollbars */
+		overflow: hidden;
 	}
 	.corner-popover:popover-open { display: inline-flex; align-items: center; }
 	.corner-timeline { display: block; width: 100%; min-width: 0; }
