@@ -24,6 +24,7 @@ setSiteMetadata({
 	edgeRanges: { Email: { hasBody: "Body", inReplyTo: "Email" } },
 	properties: { Email: ["messageId", "subject", "from", "to", "folder", "account", "body", "bodyHtml", "bodyMarkdown", "accessLevel"] },
 	queryable: { Email: ["subject", "from", "folder"] },
+	validTimeFields: { Email: "dateReceived" },
 	summary: { Email: ["subject"] },
 	ui: {},
 	propertyDefinitions: {

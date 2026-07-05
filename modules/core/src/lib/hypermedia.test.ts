@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { composeDisplayLabel, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
+import { buildConcernCatalog, composeDisplayLabel, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
 import type { THypermediaTopology } from "./resources.js";
 import { LinkRelations } from "./resources.js";
 
@@ -84,5 +84,27 @@ describe("queryableFields: the one declaration-side derivation of a type's query
 	it("derives from a declaration with no schema shape (a `set of {domain}` prose declaration) via its sortColumns", () => {
 		const proseTopology: THypermediaTopology = { persistedAs: "Recipe", id: "name", properties: {}, sortColumns: { servings: "DOUBLE PRECISION" } };
 		expect(queryableFields({ schema: undefined, topology: proseTopology })).toEqual(["servings"]);
+	});
+});
+
+describe("validTimeField: the catalog names the field a type's individuals place in time by", () => {
+	it("is the declared defaultSort (the object's own time) when present, else generatedAtTime (its indexed time)", () => {
+		const schema = z.object({ id: z.string(), receivedAt: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) });
+		const make = (persistedAs: string, defaultSort?: string) =>
+			({
+				selectors: [persistedAs.toLowerCase()],
+				schema,
+				coerce: (v: unknown) => v,
+				description: persistedAs,
+				topology: {
+					persistedAs,
+					id: "id",
+					properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+					...(defaultSort ? { defaultSort } : {}),
+				},
+			}) as unknown as Parameters<typeof buildConcernCatalog>[0][string];
+		const cat = buildConcernCatalog({ message: make("Message", "receivedAt"), note: make("Note") });
+		expect(cat.persisted.Message.validTimeField).toBe("receivedAt");
+		expect(cat.persisted.Note.validTimeField).toBe(LinkRelations.GENERATED_AT_TIME.rel);
 	});
 });

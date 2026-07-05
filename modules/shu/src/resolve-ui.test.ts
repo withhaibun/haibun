@@ -9,6 +9,7 @@ const META: SiteMetadata = {
 	edgeRanges: {},
 	properties: {},
 	queryable: {},
+	validTimeFields: {},
 	summary: {},
 	propertyDefinitions: {},
 	ui: {

@@ -8,6 +8,8 @@ import { getAvailableSteps } from "./rpc-registry.js";
 import { IndexedDbQuadStore } from "./quad-store-idb.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
+/** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand) — so no path can silently inflate the budget past what the slider expresses. */
+export const MAX_PER_TYPE_LIMIT = 1000;
 
 /** Off-heap persistent backing for the client graph: live merges + each backfill are written here, and a reload seeds
  *  the model from it (instant graph; an offline context serves it). Degrades to a no-op when IndexedDB is unavailable. */

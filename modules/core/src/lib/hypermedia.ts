@@ -118,6 +118,10 @@ const HypermediaConcernSchema = z.object({
 	edges: z.record(z.string(), EdgeConcernSchema).default({}),
 	/** Fields the server will accept as query filters (the topology's sortColumns). */
 	queryable: z.array(z.string()).default([]),
+	/** The field carrying the type's VALID time — when the thing happened in the world (an email's received time, a
+	 *  file's own date; the declared defaultSort), as distinct from generatedAtTime, its INDEXED time. Every time-aware
+	 *  consumer reads this one derivation, so an individual places by its own time unless indexed time is asked for. */
+	validTimeField: z.string(),
 	/** True when declared at runtime (`set of {domain} by …`) vs by a compiled stepper. */
 	declared: z.boolean().default(false),
 	/** UI metadata: slot, component, JS source, etc. */
@@ -219,6 +223,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			properties,
 			edges,
 			queryable: queryableFields({ schema: domain.schema, topology }),
+			validTimeField: topology.defaultSort ?? LinkRelations.GENERATED_AT_TIME.rel,
 			declared: !!domain.ui?.declared,
 			...(domain.ui ? { ui: domain.ui } : {}),
 			description: domain.description,

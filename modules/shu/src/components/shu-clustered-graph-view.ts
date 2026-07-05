@@ -11,7 +11,7 @@ import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { getRels } from "../rels-cache.js";
-import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, subscribeViewContext, DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, subscribeViewContext, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { effectiveHiddenTypes } from "../graph-filter-projection.js";
@@ -132,9 +132,13 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			this.commitHidden(hiddenGraphs, visibleTypes.length > 0 ? visibleTypes : undefined, e.detail.perTypeLimit);
 		}) as EventListener);
 		this.autoListen(this, SHU_EVENT.GRAPH_CLUSTER_EXPAND, (() => {
-			const nextLimit = Math.max(this.cgState.perTypeLimit * 2, this.cgState.perTypeLimit + 100);
+			// Raise the sample toward the SAME ceiling the filter slider expresses — never silently past it — and report
+			// the new value to the embedded filter so the slider and the persisted budget always show what is in effect.
+			const nextLimit = Math.min(MAX_PER_TYPE_LIMIT, Math.max(this.cgState.perTypeLimit * 2, this.cgState.perTypeLimit + 100));
+			if (nextLimit === this.cgState.perTypeLimit) return;
 			const visibleTypes = [...this.knownClusters.keys()].filter((t) => !this.cgState.hiddenGraphs.includes(t));
 			void this.refetchSnapshot({ types: visibleTypes.length > 0 ? visibleTypes : undefined, perTypeLimit: nextLimit });
+			this.renderRoot.querySelector<ShuGraphFilter>("shu-graph-filter")?.setPerTypeLimit(nextLimit);
 		}) as EventListener);
 
 		if (this.usesExternalData) {
