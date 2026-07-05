@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { timeZScale, timeZ } from "./time-axis.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { timeZScale, timeZ, subjectValidTimes } from "./time-axis.js";
 
 const LOG_Z_MAX = 320;
 // A fixed age ladder (ms before "now"): 30s, 1h, 1d, 30d, 1y.
@@ -41,5 +42,28 @@ describe("3D time→z (headless layout math, no browser)", () => {
 	it("a single record (zero age span) places it at z=0, no NaN", () => {
 		const one = [NOW - AGES.h1];
 		expect(timeZ(one[0], NOW, timeZScale(one, NOW, LOG_Z_MAX))).toBe(0);
+	});
+});
+
+describe("subject valid times: an object places by when it happened, not when it was indexed", () => {
+	const quad = (subject: string, namedGraph: string, predicate: string, object: string): TQuad => ({ subject, namedGraph, predicate, object, timestamp: 0 });
+	const fieldFor = (type: string) => (type === "Email" ? "dateReceived" : "generatedAtTime");
+
+	it("uses the type's declared valid-time field, and generatedAtTime only as the fallback", () => {
+		const quads = [
+			quad("e1", "Email", "dateReceived", "2025-04-05T10:00:00.000Z"),
+			quad("e1", "Email", "generatedAtTime", "2026-07-04T00:00:00.000Z"),
+			quad("e2", "Email", "generatedAtTime", "2026-07-04T00:00:00.000Z"),
+			quad("c1", "Comment", "generatedAtTime", "2026-01-01T00:00:00.000Z"),
+		];
+		const times = subjectValidTimes(quads, fieldFor, "generatedAtTime");
+		expect(times.get("e1")).toBe(Date.parse("2025-04-05T10:00:00.000Z"));
+		expect(times.get("e2")).toBe(Date.parse("2026-07-04T00:00:00.000Z"));
+		expect(times.get("c1")).toBe(Date.parse("2026-01-01T00:00:00.000Z"));
+	});
+
+	it("ignores unparseable values and unrelated predicates", () => {
+		const quads = [quad("e1", "Email", "dateReceived", "not a date"), quad("e1", "Email", "subject", "hello")];
+		expect(subjectValidTimes(quads, fieldFor, "generatedAtTime").size).toBe(0);
 	});
 });

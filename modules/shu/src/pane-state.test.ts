@@ -18,6 +18,7 @@ const emptyMeta = (ui: SiteMetadata["ui"] = {}): SiteMetadata => ({
 	edgeRanges: {},
 	properties: {},
 	queryable: {},
+	validTimeFields: {},
 	summary: {},
 	ui,
 	propertyDefinitions: {},

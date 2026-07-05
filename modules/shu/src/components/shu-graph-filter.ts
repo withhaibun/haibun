@@ -21,7 +21,7 @@ import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { ShuElement } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
-import { DEFAULT_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { readElementPrefs } from "../element-prefs.js";
@@ -204,12 +204,25 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			this.dispatchChange();
 		};
 
+	private clampLimit(raw: string): number {
+		return Math.max(1, Math.min(MAX_PER_TYPE_LIMIT, Math.round(parseInt(raw, 10))));
+	}
+
+	/** Track the drag so the value label follows the handle; the refetch waits for the release (onLimitChange). */
+	private onLimitInput = (e: Event): void => {
+		this.setState({ perTypeLimit: this.clampLimit((e.target as HTMLInputElement).value) });
+	};
+
 	private onLimitChange = (e: Event): void => {
-		const clamped = Math.max(1, Math.min(10000, Math.round(parseInt((e.target as HTMLInputElement).value, 10))));
-		if (clamped === this.state.perTypeLimit) return;
-		this.setState({ perTypeLimit: clamped });
+		this.setState({ perTypeLimit: this.clampLimit((e.target as HTMLInputElement).value) });
 		this.dispatchChange();
 	};
+
+	/** A host that raised the limit itself (the +N-more cluster expand) reports it here, so the slider and the persisted
+	 *  value always show the budget actually in effect. No dispatch — the host already refetched. */
+	setPerTypeLimit(perTypeLimit: number): void {
+		this.setState({ perTypeLimit });
+	}
 
 	/** The 1️⃣ "solo a type" tool: arm it, then a type-chip click shows only that type (the rest hidden). */
 	private toggleSolo = (): void => {
@@ -282,7 +295,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			}
 			<span class="label">|</span>
 			<label class="limit">per-type limit
-				<input type="range" min="10" max="1000" step="10" .value=${String(perTypeLimit)} @change=${this.onLimitChange}>
+				<input type="range" min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange}>
+				<span class="meta" data-testid="graph-filter-limit-value">${perTypeLimit}</span>
 			</label>
 			<button type="button" class="solo ${this.soloArmed ? "armed" : ""}" data-testid="graph-filter-solo" title="solo a type: tap, then tap a type to show only it" @click=${this.toggleSolo}>1️⃣</button>
 			<span class="quad-count">${quadCount} quads</span>
