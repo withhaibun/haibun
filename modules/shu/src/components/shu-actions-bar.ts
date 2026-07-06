@@ -1002,27 +1002,33 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.recordSearch();
 	};
 
+	/** Commit the search text: write it to the viewQuery store (the source of truth for the hash and restore) and
+	 *  fire the filter-change that re-runs the query. The FILTER_CHANGE → setFilters → executeQuery path is the
+	 *  reliable re-query trigger — executeQuery reads q back from the store, so a live search doesn't depend on a
+	 *  signal-effect firing. All three entry points (typing, blur, Go) commit the same way. */
+	private commitSearch(value: string): void {
+		viewQuery.set({ q: value || null });
+		this.dispatchFilterChange();
+	}
+
 	private onTextSearchInput = (e: Event): void => {
-		// Write the search straight to the viewQuery store (debounced). The store is the single source the
-		// query subscribes to, so this can't be undone by a re-render, setContext, or the bar collapsing.
 		const value = (e.target as HTMLInputElement).value;
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
-		this._searchDebounce = setTimeout(() => viewQuery.set({ q: value || null }), 300);
+		this._searchDebounce = setTimeout(() => this.commitSearch(value), 300);
 	};
 
 	/** Focus leaving the search input is the meaningful commit of a typed search: flush the pending debounce so the
 	 *  store holds exactly what was typed, then record the search into the activity history. */
 	private onTextSearchBlur = (e: Event): void => {
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
-		viewQuery.set({ q: (e.target as HTMLInputElement).value || null });
+		this.commitSearch((e.target as HTMLInputElement).value);
 		this.recordSearch();
 	};
 
 	private onSearchGo = (): void => {
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
 		const input = this.shadowRoot?.querySelector(".text-search") as HTMLInputElement | null;
-		viewQuery.set({ q: input?.value || null });
-		this.dispatchFilterChange();
+		this.commitSearch(input?.value || "");
 		this.recordSearch();
 	};
 
