@@ -6,7 +6,7 @@ import { html } from "lit";
 import { z } from "zod";
 import { ShuElement } from "../components/shu-element.js";
 import { EventsController } from "./events-controller.js";
-import { resetEventsSnapshot, type TEventRecord } from "../events-snapshot.js";
+import { resetEventsSnapshot, registerWindow, eventsInWindow, currentEvents, type TEventRecord } from "../events-snapshot.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 
 const SCHEMA = z.object({});
@@ -95,5 +95,44 @@ describe("EventsController", () => {
 		expect(el.loaded).toBe(false); // mounted, backfill in flight — must not look "empty"
 		await flush();
 		expect(el.loaded).toBe(true); // retrieved
+	});
+});
+
+// The range-windowing core: a consumer registers a bounded span; the cache fetches only that span (bounded getEvents),
+// its slice is filtered to the window, and narrowing the window evicts the events no window still wants.
+describe("events range windowing", () => {
+	let handle: TShuTestHandle;
+	let filters: Array<{ since?: number; until?: number }>;
+	beforeEach(() => {
+		resetEventsSnapshot();
+		filters = [];
+		// A synthetic timeline t=1..5; getEvents honours the since/until filter (the server's real behaviour).
+		const timeline: TEventRecord[] = [1, 2, 3, 4, 5].map((i) => ({ id: `0.${i}`, timestamp: i, kind: "log" }));
+		handle = setupShuTest({
+			dispatch: (method, params) => {
+				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
+				const f = (params as { filter: { since?: number; until?: number } }).filter;
+				filters.push(f);
+				const lo = f.since ?? Number.NEGATIVE_INFINITY;
+				const hi = f.until ?? Number.POSITIVE_INFINITY;
+				return { events: timeline.filter((e) => Number(e.timestamp) >= lo && Number(e.timestamp) <= hi), truncated: false };
+			},
+		});
+	});
+	afterEach(() => handle.teardown());
+
+	it("fetches only the registered span and reads back only that slice", async () => {
+		await registerWindow("w", [{ from: 2, to: 4 }]); // half-open [2,4) → t=2,3
+		expect(filters.at(-1)).toMatchObject({ since: 2, until: 4 }); // bounded getEvents, not the whole history
+		expect(eventsInWindow("w").map((e) => e.timestamp)).toEqual([2, 3]);
+	});
+
+	it("narrowing a window evicts the events no window still wants", async () => {
+		await registerWindow("w", [{ from: 0, to: 10 }]); // holds t=1..5
+		expect(currentEvents().map((e) => e.timestamp)).toEqual([1, 2, 3, 4, 5]);
+		const fetchesAfterFull = filters.length;
+		await registerWindow("w", [{ from: 0, to: 3 }]); // narrow → t=1,2; t=3,4,5 orphaned
+		expect(currentEvents().map((e) => e.timestamp)).toEqual([1, 2]);
+		expect(filters.length).toBe(fetchesAfterFull); // narrowing fetches nothing — the span was already held
 	});
 });
