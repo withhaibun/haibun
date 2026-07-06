@@ -1,11 +1,13 @@
 /**
- * Time→depth (z) math: maps each node's age (now − recorded time) onto [0, zMax] on an adaptive log scale, so the
- * axis fills the same range whether the data spans minutes or years — older = deeper. The consuming paint owns
- * when "now" advances (a coarse global tick); this owns the deterministic mapping.
+ * Time→depth (z) math: maps each node's age (now − recorded time) onto [0, zMax] on an adaptive sqrt scale normalized
+ * to the data's own min..max age, so the axis fills the full range whatever the span (minutes or years) AND a long gap
+ * reads clearly deeper than a short one — sqrt keeps a big elapsed gap visibly bigger than a small one (a plain log
+ * flattens the old end; a plain linear packs dense recent clusters). Older = deeper. The consuming paint owns when
+ * "now" advances (a coarse global tick); this owns the deterministic mapping.
  */
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
-export type TimeZScale = { logMin: number; logRange: number; zMax: number };
+export type TimeZScale = { base: number; range: number; zMax: number };
 
 /** A subject's time and the FIELD it came from — the one record every consumer (depth, hover label) reads, so the
  *  fallback decision can never be re-derived differently elsewhere. */
@@ -37,22 +39,39 @@ export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: stri
 	return times;
 }
 
-/** Compute the log-age scale for one reference `now` over all record times. Pure; same inputs → same scale. */
+/** Compute the sqrt-age scale for one reference `now` over all record times: the raw-value scale over each age
+ *  (now − time). Pure; same inputs → same scale. The sqrt-normalize itself lives once, in spanZScale/spanZ. */
 export function timeZScale(times: Iterable<number>, nowMs: number, zMax: number): TimeZScale {
-	let minAge = Number.POSITIVE_INFINITY;
-	let maxAge = 0;
-	for (const t of times) {
-		const age = Math.max(0, nowMs - t);
-		if (age < minAge) minAge = age;
-		if (age > maxAge) maxAge = age;
-	}
-	if (!Number.isFinite(minAge)) minAge = 0;
-	const logMin = Math.log(minAge + 1);
-	return { logMin, logRange: Math.log(maxAge + 1) - logMin, zMax };
+	return spanZScale(ages(times, nowMs), zMax);
 }
 
-/** Map one record time to its z depth under a scale + reference `now`. Pure. */
+/** Map one record time to its z depth under a scale + reference `now`: the raw-value mapping of its age. Pure. */
 export function timeZ(recordedMs: number, nowMs: number, scale: TimeZScale): number {
-	const age = Math.max(0, nowMs - recordedMs);
-	return scale.logRange > 0 ? Math.max(0, (Math.log(age + 1) - scale.logMin) / scale.logRange) * scale.zMax : 0;
+	return spanZ(Math.max(0, nowMs - recordedMs), scale);
+}
+
+function* ages(times: Iterable<number>, nowMs: number): Iterable<number> {
+	for (const t of times) yield Math.max(0, nowMs - t);
+}
+
+/** A sqrt scale over raw values (an age, a node degree), normalized to their own min..max → [0, zMax]; the ONE place
+ *  the sqrt-normalize shape lives. The time bases feed it ages; the connections basis feeds it degree counts. */
+export function spanZScale(values: Iterable<number>, zMax: number): TimeZScale {
+	let min = Number.POSITIVE_INFINITY;
+	let max = Number.NEGATIVE_INFINITY;
+	for (const v of values) {
+		if (v < min) min = v;
+		if (v > max) max = v;
+	}
+	if (!Number.isFinite(min)) {
+		min = 0;
+		max = 0;
+	}
+	const base = Math.sqrt(Math.max(0, min));
+	return { base, range: Math.sqrt(Math.max(0, max)) - base, zMax };
+}
+
+/** Map one raw value to z under a spanZScale (bigger value = bigger z). Pure. */
+export function spanZ(value: number, scale: TimeZScale): number {
+	return scale.range > 0 ? Math.max(0, (Math.sqrt(Math.max(0, value)) - scale.base) / scale.range) * scale.zMax : 0;
 }
