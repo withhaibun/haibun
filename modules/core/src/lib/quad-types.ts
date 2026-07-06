@@ -65,7 +65,17 @@ export interface TQuadPattern {
 	namedGraph?: string;
 }
 
-/** Emit a quadObservation event via an event logger. Canonical envelope for all quad emissions. */
+/** The most of a string value a quad OBSERVATION carries. Events carry references and previews, never payloads:
+ *  an emitted body would otherwise ride into every event buffer and SSE frame (a first-time index of a large
+ *  mailbox measured in gigabytes). The store keeps the full value; a consumer that needs it dereferences. */
+export const OBSERVATION_VALUE_MAX = 512;
+
+function observationValue(v: unknown): unknown {
+	return typeof v === "string" && v.length > OBSERVATION_VALUE_MAX ? `${v.slice(0, OBSERVATION_VALUE_MAX)}\u2026` : v;
+}
+
+/** Emit a quadObservation event via an event logger. Canonical envelope for all quad emissions; string values are
+ *  bounded to OBSERVATION_VALUE_MAX (a preview — the store holds the payload). */
 export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>) => void }, id: string, quad: TQuad): void {
 	logger.emit({
 		id,
@@ -75,7 +85,7 @@ export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>)
 		kind: "artifact",
 		artifactType: "json",
 		mimetype: "application/json",
-		json: { quadObservation: quad },
+		json: { quadObservation: { ...quad, object: observationValue(quad.object) } },
 	});
 }
 
