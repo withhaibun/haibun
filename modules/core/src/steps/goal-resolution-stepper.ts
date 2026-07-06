@@ -31,7 +31,7 @@ import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBin
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { StepRegistry, buildFeatureStepForTransport, stepMethodName } from "../lib/step-registry.js";
 import { allocateSyntheticSeqPath } from "../lib/host-id.js";
-import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry } from "../lib/affordances.js";
+import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { parseSeqPath } from "../lib/seq-path.js";
 
@@ -221,7 +221,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		});
 		const waypoints: TWaypointEntry[] = [];
 		if (!asOf) {
-			const satisfied = new Set(affordances.goals.filter((g) => g.resolution.finding === GOAL_FINDING.SATISFIED).map((g) => g.domain));
+			const satisfied = satisfiedGoalDomains(affordances.goals, GOAL_FINDING.SATISFIED);
 			for (const stepper of this.steppers) if (providesWaypoints(stepper)) waypoints.push(...(await stepper.waypointEntries(featureStep, satisfied)));
 		}
 		return actionOKWithProducts(affordancesSchema.parse({ ...affordances, waypoints }));

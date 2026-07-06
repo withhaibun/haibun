@@ -47,14 +47,15 @@ export function isPrimitiveZodType(zodType: z.ZodType): boolean {
 	return def.type === "string" || def.type === "number" || def.type === "boolean" || def.type === "literal" || def.type === "enum" || def.type === "bigint" || def.type === "date";
 }
 
-/** Short display label for a Zod type — "string", "number", "date", "array", "object", "enum", etc. Empty when undetectable. */
-export function zodTypeLabel(zodType: z.ZodType): string {
-	const def = (zodType as { _zod?: { def?: { type?: string } } })._zod?.def;
+/** Short display label for a Zod type — "string", "number", "date", "array", "object", "enum", etc. Empty when
+ *  undetectable. Accepts unknown so zod-core values (e.g. a toJSONSchema override's ctx.zodSchema) probe without casts. */
+export function zodTypeLabel(zodType: unknown): string {
+	const def = (zodType as { _zod?: { def?: { type?: string } } })?._zod?.def;
 	return def?.type ?? "";
 }
 
 /** Strip optional / nullable / default wrappers to reveal the underlying Zod type. Tracks whether the field was optional. */
-function unwrap(zodType: z.ZodType): { inner: z.ZodType; optional: boolean } {
+export function unwrap(zodType: z.ZodType): { inner: z.ZodType; optional: boolean } {
 	let current: z.ZodType = zodType;
 	let optional = false;
 	for (;;) {

@@ -95,8 +95,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		defineHypermediaDomain: {
 			gwta: `set of {domain: string} by {spec: string}`,
 			handlesUndefined: ["domain"],
-			action: ({ domain, spec }: { domain: string; spec: string }, featureStep: TFeatureStep) =>
-				this.registerHypermediaDomain(domain, spec, featureStep),
+			action: ({ domain, spec }: { domain: string; spec: string }, featureStep: TFeatureStep) => this.registerHypermediaDomain(domain, spec, featureStep),
 		},
 		statementSetValues: {
 			exposeMCP: false,
@@ -160,7 +159,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated?.value;
-				if (term === undefined) return actionNotOK(`no variable name resolved from "${rawTerm}"`);
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				const presentVal = resolved.value;
 				const effectiveDomain = resolved.domain;
@@ -338,7 +336,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated.value;
-				if (term === undefined) return actionNotOK(`no variable name resolved from "${rawTerm}"`);
 
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, {
 					secure: true,
@@ -558,7 +555,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
 		if (interpolated.error) return actionNotOK(interpolated.error);
 		const term = interpolated.value;
-		if (term === undefined) return actionNotOK(`no variable name resolved from "${rawTerm}"`);
 
 		const stored = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, {
 			secure: true,
@@ -595,8 +591,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		return actionNotOK(`Unsupported operator: ${operator}`);
 	}
 
-	/** Replaces {varName} placeholders with variable values; errors if a variable is not found. */
-	private async interpolateTemplate(template: string, featureStep?: TFeatureStep): Promise<{ value?: string; error?: string; secret?: boolean }> {
+	/** Replaces {varName} placeholders with variable values; errors if a variable is not found. Value XOR error: a
+	 *  missing template (an empty step argument reaches here untyped) is an error naming the situation, never an
+	 *  undefined value a caller could interpolate into a nameless message. */
+	private async interpolateTemplate(template: string | undefined, featureStep?: TFeatureStep): Promise<{ value?: string; error?: string; secret?: boolean }> {
+		if (template === undefined) return { error: "no variable name to resolve — the step received an empty term" };
 		const placeholderRegex = /\{([^}]+)\}/g;
 		let result = template;
 		let match: RegExpExecArray | null;
@@ -721,13 +720,24 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 export default VariablesStepper;
 
-const XSD_FOR: Record<string, string> = { number: "xsd:integer", integer: "xsd:integer", decimal: "xsd:decimal", boolean: "xsd:boolean", date: "xsd:date", datetime: "xsd:dateTime", string: "" };
+const XSD_FOR: Record<string, string> = {
+	number: "xsd:integer",
+	integer: "xsd:integer",
+	decimal: "xsd:decimal",
+	boolean: "xsd:boolean",
+	date: "xsd:date",
+	datetime: "xsd:dateTime",
+	string: "",
+};
 
 /** Prose shorthand → JSON-LD @context: `id, with name [as number], used in Recipe`. The first clause is
  * the id field; `with {field}` maps the field to its same-named relation (queryable); `used in {Range}`
  * is the usedIn (isPartOf) edge. Non-relation field names need the JSON-LD form with an explicit @id. */
 function parseHypermediaDeclProse(domain: string, spec: string): THypermediaContext {
-	const clauses = spec.split(",").map((c) => c.trim()).filter(Boolean);
+	const clauses = spec
+		.split(",")
+		.map((c) => c.trim())
+		.filter(Boolean);
 	if (!clauses.length) throw new Error(`set of ${domain}: declaration needs an id field (e.g. "by id, with name")`);
 	const context: Record<string, unknown> = { [clauses[0]]: "@id" };
 	const queryable: string[] = [];

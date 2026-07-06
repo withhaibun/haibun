@@ -6,6 +6,11 @@ import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../astepper.js";
 import { TArtifactEvent, type TJsonArtifact, Timer } from "../../schema/protocol.js";
 
 // Helper to get term from stepValuesMap with null safety
+/** Truncate to at most `max` characters, ellipsizing — so every producer truncates identically. */
+export function ellipsize(s: string, max: number): string {
+	return s.length > max ? `${s.slice(0, max - 1)}\u2026` : s;
+}
+
 export function getStepTerm(featureStep: TFeatureStep, key: string): string | undefined {
 	return featureStep?.action?.stepValuesMap?.[key]?.term;
 }

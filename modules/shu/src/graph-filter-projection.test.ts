@@ -98,7 +98,6 @@ describe("projectFilterClusters", () => {
 		expect(result.find((c) => c.type === "Class")?.totalCount).toBe(1); // only Email has an instance
 		expect(result.find((c) => c.type === "Property")?.totalCount).toBe(1); // only "name" is used
 	});
-
 });
 
 describe("effectiveHiddenTypes (instrumentation default + user overrides)", () => {

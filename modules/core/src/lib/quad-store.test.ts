@@ -69,27 +69,10 @@ describe("QuadStore Contexts", () => {
 });
 
 describe("backing routing is shared along the store chain, and a registration never outlives its owner", () => {
-	/** The minimal backing a routing test needs: answers `query` with one quad, records writes. */
+	/** The minimal backing a routing test needs: answers `query`/`all` with one quad. */
 	const fakeBacking = () => {
 		const quad = { subject: "e1", predicate: "subject", object: "hello", namedGraph: "Email", timestamp: 1 };
-		return {
-			backing: {
-				query: async () => [quad],
-				all: async () => [quad],
-				set: async () => undefined,
-				get: async () => undefined,
-				add: async () => undefined,
-				clear: async () => undefined,
-				remove: async () => undefined,
-				upsertIndividual: async () => "e1",
-				getIndividual: async () => undefined,
-				deleteIndividual: async () => undefined,
-				queryIndividuals: async () => [],
-				distinctPropertyValues: async () => [],
-				getClusteredQuads: async () => ({ quads: [], clusters: [] }),
-			} as unknown as import("./quad-types.js").IQuadStore,
-			quad,
-		};
+		return { backing: { query: async () => [quad], all: async () => [quad] } as unknown as import("./quad-types.js").IQuadStore, quad };
 	};
 
 	it("a store carried from another sees its registrations without copying, and new registrations flow both ways", async () => {

@@ -57,9 +57,9 @@ describe("subject valid times: an object places by when it happened, not when it
 			quad("c1", "Comment", "generatedAtTime", "2026-01-01T00:00:00.000Z"),
 		];
 		const times = subjectValidTimes(quads, fieldFor, "generatedAtTime");
-		expect(times.get("e1")).toBe(Date.parse("2025-04-05T10:00:00.000Z"));
-		expect(times.get("e2")).toBe(Date.parse("2026-07-04T00:00:00.000Z"));
-		expect(times.get("c1")).toBe(Date.parse("2026-01-01T00:00:00.000Z"));
+		expect(times.get("e1")).toEqual({ ms: Date.parse("2025-04-05T10:00:00.000Z"), field: "dateReceived" });
+		expect(times.get("e2")).toEqual({ ms: Date.parse("2026-07-04T00:00:00.000Z"), field: "generatedAtTime" });
+		expect(times.get("c1")).toEqual({ ms: Date.parse("2026-01-01T00:00:00.000Z"), field: "generatedAtTime" });
 	});
 
 	it("ignores unparseable values and unrelated predicates", () => {

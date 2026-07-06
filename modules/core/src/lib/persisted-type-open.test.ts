@@ -9,7 +9,9 @@ describe("persisted-type domain is open (no enumeration)", () => {
 	it("accepts any non-empty type name", () => {
 		const world = { domains: {} } as unknown as Parameters<typeof refreshHypermediaTypeDomain>[0];
 		refreshHypermediaTypeDomain(world);
-		const entry = Object.values(world.domains).find((d) => (d as { selectors?: string[] }).selectors?.includes(DOMAIN_PERSISTED_TYPE)) as { schema: { safeParse(v: unknown): { success: boolean } } };
+		const entry = Object.values(world.domains).find((d) => (d as { selectors?: string[] }).selectors?.includes(DOMAIN_PERSISTED_TYPE)) as {
+			schema: { safeParse(v: unknown): { success: boolean } };
+		};
 		expect(entry.schema.safeParse("Task").success).toBe(true);
 		expect(entry.schema.safeParse("SomeTypeFromAnEarlierSession").success).toBe(true);
 		expect(entry.schema.safeParse("").success).toBe(false);

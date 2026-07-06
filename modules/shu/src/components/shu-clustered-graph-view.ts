@@ -132,13 +132,18 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			this.commitHidden(hiddenGraphs, visibleTypes.length > 0 ? visibleTypes : undefined, e.detail.perTypeLimit);
 		}) as EventListener);
 		this.autoListen(this, SHU_EVENT.GRAPH_CLUSTER_EXPAND, (() => {
-			// Raise the sample toward the SAME ceiling the filter slider expresses — never silently past it — and report
-			// the new value to the embedded filter so the slider and the persisted budget always show what is in effect.
+			// Raise the sample toward the SAME ceiling the filter slider expresses — never silently past it. The filter
+			// owns the limit: raising it there persists the value and its dispatch drives the one refetch path a slider
+			// change takes. Only a filterless host (external-data views) refetches directly.
 			const nextLimit = Math.min(MAX_PER_TYPE_LIMIT, Math.max(this.cgState.perTypeLimit * 2, this.cgState.perTypeLimit + 100));
 			if (nextLimit === this.cgState.perTypeLimit) return;
+			const filter = this.renderRoot.querySelector<ShuGraphFilter>("shu-graph-filter");
+			if (filter) {
+				filter.raiseLimitTo(nextLimit);
+				return;
+			}
 			const visibleTypes = [...this.knownClusters.keys()].filter((t) => !this.cgState.hiddenGraphs.includes(t));
 			void this.refetchSnapshot({ types: visibleTypes.length > 0 ? visibleTypes : undefined, perTypeLimit: nextLimit });
-			this.renderRoot.querySelector<ShuGraphFilter>("shu-graph-filter")?.setPerTypeLimit(nextLimit);
 		}) as EventListener);
 
 		if (this.usesExternalData) {

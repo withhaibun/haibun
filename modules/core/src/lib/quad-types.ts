@@ -7,6 +7,7 @@
  */
 import { z } from "zod";
 import type { AccessLevel } from "./resources.js";
+import { ellipsize } from "./util/index.js";
 
 /**
  * Named graph holding stepper variables (feature-variables projection of TStepValue).
@@ -70,13 +71,13 @@ export interface TQuadPattern {
  *  mailbox measured in gigabytes). The store keeps the full value; a consumer that needs it dereferences. */
 export const OBSERVATION_VALUE_MAX = 512;
 
-function observationValue(v: unknown): unknown {
-	return typeof v === "string" && v.length > OBSERVATION_VALUE_MAX ? `${v.slice(0, OBSERVATION_VALUE_MAX)}\u2026` : v;
-}
-
 /** Emit a quadObservation event via an event logger. Canonical envelope for all quad emissions; string values are
- *  bounded to OBSERVATION_VALUE_MAX (a preview — the store holds the payload). */
+ *  bounded to OBSERVATION_VALUE_MAX and marked `preview: true` (the store holds the payload — a consumer that needs
+ *  it dereferences deliberately, and a merge can prefer a full value over a preview). Untruncated quads pass by
+ *  reference — no per-emission clone on the write path. */
 export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>) => void }, id: string, quad: TQuad): void {
+	const bounded = typeof quad.object === "string" && quad.object.length > OBSERVATION_VALUE_MAX;
+	const observed = bounded ? { ...quad, object: ellipsize(quad.object as string, OBSERVATION_VALUE_MAX), properties: { ...quad.properties, preview: true } } : quad;
 	logger.emit({
 		id,
 		timestamp: quad.timestamp,
@@ -85,7 +86,7 @@ export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>)
 		kind: "artifact",
 		artifactType: "json",
 		mimetype: "application/json",
-		json: { quadObservation: { ...quad, object: observationValue(quad.object) } },
+		json: { quadObservation: observed },
 	});
 }
 

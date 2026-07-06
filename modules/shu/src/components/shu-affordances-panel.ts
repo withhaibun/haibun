@@ -13,7 +13,14 @@ import { conduit } from "../hypermedia.js";
 import { type TEvent } from "../event-stream.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";
-import { isArgumentDomain, AFFORDANCE_EVENT_PREFIX, type TForwardAffordance, type TGoalAffordance, type TWaypointEntry } from "@haibun/core/lib/affordances.js";
+import {
+	isArgumentDomain,
+	AFFORDANCE_EVENT_PREFIX,
+	type TForwardAffordance,
+	type TGoalAffordance,
+	type TWaypointEntry,
+	satisfiedGoalDomains,
+} from "@haibun/core/lib/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { SHU_EVENT } from "../consts.js";
 import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
@@ -170,7 +177,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// across those updates so the section doesn't flicker out between explicit refreshes.
 		const waypoints = a.waypoints ?? this.affordances?.waypoints;
 		this.affordances = { ...a, waypoints };
-		this.assertedDomains = new Set(a.goals.filter((g) => g.resolution.finding === GOAL_FINDING.SATISFIED).map((g) => g.domain));
+		this.assertedDomains = satisfiedGoalDomains(a.goals, GOAL_FINDING.SATISFIED);
 		this.setState({ loadState: "loaded" });
 	}
 
