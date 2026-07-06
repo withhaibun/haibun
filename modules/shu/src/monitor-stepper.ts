@@ -22,7 +22,8 @@ import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transpor
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { buildConcernCatalog, buildResourceRels } from "@haibun/core/lib/hypermedia.js";
+import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { parseSeqPath } from "./quad-detail-pane.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 import { GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
@@ -35,7 +36,10 @@ import { ontologyToQuads, ONTOLOGY_CLASS } from "./graph/ontology-projection.js"
 /** Result of the inherent `graphQuery` step: matched rows + their count. */
 const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(), z.unknown())), total: z.number().int().nonnegative() });
 
-const MAX_EVENTS_DEFAULT = 9e9;
+// The in-memory buffers hold a recent WINDOW, never the run: over months, an unbounded buffer is the process's heap
+// death (a first-time index of a large mailbox OOMed the daemon at ~4GB). The store is canonical for graph data and
+// the disk log for event history; these buffers only serve live backfill and the live cluster extension.
+const MAX_EVENTS_DEFAULT = 5000;
 // The live getEvents response is a recent window, never the whole buffer: a long instrumentation run accumulates events
 // until JSON.stringify hits V8's ~512MB ceiling and the RPC 413s. Bound by BYTES (a few large events can't blow it) and a
 // hard count, both well under the ceiling. The SSE stream delivers the live tail; a consumer pages older history via `since`.
@@ -520,13 +524,15 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					return actionNotOK("QuadStore does not support getClusteredQuads");
 				}
 				const result = await store.getClusteredQuads({ perTypeLimit, types, accessLevel });
-				// The store is canonical; only surface observation quads whose
-				// (namedGraph,subject,predicate,object) isn't already in the store result,
-				// so each fact appears exactly once.
-				const quadKey = ({ namedGraph, subject, predicate, object }: TQuad) => JSON.stringify([namedGraph, subject, predicate, object]);
-				const seen = new Set(result.quads.map(quadKey));
-				const unique = this.observationQuads.filter((q) => !seen.has(quadKey(q)));
-				const quads = [...result.quads, ...unique].map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({
+				// The store sample is canonical; the live observation buffer only EXTENDS it through the one shared,
+				// budget-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
+				// buffer unbudgeted let every observed subject past the requested limit — the client seeds this
+				// response verbatim, so the response itself must hold the bound.
+				const rels = buildResourceRels(this.getWorld().domains);
+				const model = new QuadGraphModel(perTypeLimit, (type) => rels.fields(type));
+				model.seed({ quads: result.quads as TQuad[], clusters: [...result.clusters] });
+				model.merge(types?.length ? this.observationQuads.filter((q) => types.includes(q.namedGraph)) : this.observationQuads);
+				const quads = model.snapshot.quads.map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({
 					subject,
 					predicate,
 					object,
@@ -549,7 +555,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					linkedSubjects.add(q.subject);
 					typeEdges.push({ subject: q.subject, predicate: "a", object: q.namedGraph, objectType: ONTOLOGY_CLASS, namedGraph: q.namedGraph, timestamp: q.timestamp, properties: undefined });
 				}
-				return actionOKWithProducts({ quads: [...quads, ...typeEdges, ...ontology.quads], clusters: [...result.clusters, ...ontology.clusters] });
+				return actionOKWithProducts({ quads: [...quads, ...typeEdges, ...ontology.quads], clusters: [...model.snapshot.clusters, ...ontology.clusters] });
 			},
 		},
 		graphQuery: {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractQuadsFromEvents, eventsAffectLabel } from "./quad-types.js";
+import { emitQuadObservation, extractQuadsFromEvents, eventsAffectLabel, OBSERVATION_VALUE_MAX } from "./quad-types.js";
 
 const quadEvent = (namedGraph: string) => ({
 	id: `q-${namedGraph}`,
@@ -79,5 +79,19 @@ describe("eventsAffectLabel", () => {
 	it("with no label, any quad is relevant (unscoped view); an empty batch is not", () => {
 		expect(eventsAffectLabel([quadEvent("Email")])).toBe(true);
 		expect(eventsAffectLabel([])).toBe(false);
+	});
+});
+
+describe("emitQuadObservation carries previews, never payloads", () => {
+	it("bounds a long string value to OBSERVATION_VALUE_MAX and leaves short values intact", () => {
+		const emitted: Record<string, unknown>[] = [];
+		const logger = { emit: (e: Record<string, unknown>) => emitted.push(e) };
+		const body = "x".repeat(OBSERVATION_VALUE_MAX * 200);
+		emitQuadObservation(logger, "q1", { subject: "e1", predicate: "content", object: body, namedGraph: "Body", timestamp: 1 });
+		emitQuadObservation(logger, "q2", { subject: "e1", predicate: "subject", object: "short", namedGraph: "Email", timestamp: 2 });
+		const objects = emitted.map((e) => (e.json as { quadObservation: { object: unknown } }).quadObservation.object);
+		expect(String(objects[0]).length).toBe(OBSERVATION_VALUE_MAX + 1);
+		expect(String(objects[0]).endsWith("\u2026")).toBe(true);
+		expect(objects[1]).toBe("short");
 	});
 });
