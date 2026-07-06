@@ -24,6 +24,7 @@ import { SHU_EVENT } from "../consts.js";
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
+import { clamp } from "../util.js";
 import { readElementPrefs } from "../element-prefs.js";
 import { projectFilterClusters, effectiveHiddenTypes } from "../graph-filter-projection.js";
 import { isSchemaType } from "../graph/ontology-projection.js";
@@ -205,7 +206,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		};
 
 	private clampLimit(raw: string): number {
-		return Math.max(1, Math.min(MAX_PER_TYPE_LIMIT, Math.round(parseInt(raw, 10))));
+		return clamp(Math.round(parseInt(raw, 10)), 1, MAX_PER_TYPE_LIMIT);
 	}
 
 	/** Track the drag so the value label follows the handle; the refetch waits for the release (onLimitChange). */
@@ -218,10 +219,11 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	};
 
-	/** A host that raised the limit itself (the +N-more cluster expand) reports it here, so the slider and the persisted
-	 *  value always show the budget actually in effect. No dispatch — the host already refetched. */
-	setPerTypeLimit(perTypeLimit: number): void {
-		this.setState({ perTypeLimit });
+	/** A host-driven raise (the +N-more cluster expand) goes through the SAME change path a slider release takes:
+	 *  the filter owns the limit, persists it, and its dispatch drives the host's one refetch handler. */
+	raiseLimitTo(perTypeLimit: number): void {
+		this.setState({ perTypeLimit: clamp(perTypeLimit, 1, MAX_PER_TYPE_LIMIT) });
+		this.dispatchChange();
 	}
 
 	/** The 1️⃣ "solo a type" tool: arm it, then a type-chip click shows only that type (the rest hidden). */

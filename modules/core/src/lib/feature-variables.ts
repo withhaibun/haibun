@@ -22,8 +22,9 @@ export class FeatureVariables {
 		// The predecessor's backing routing is shared by reference, never copied: a backing registered anywhere in the
 		// chain is visible to every store in it, and its owner's unregisterStore removes it from all of them at once.
 		const prev = world.shared?.getStore();
-		this.store = new QuadStore(prev instanceof QuadStore ? prev.backingRouting() : undefined);
-		if (prev instanceof QuadStore) prev.carryNonVariableQuadsTo(this.store as QuadStore);
+		const prevStore = prev instanceof QuadStore ? prev : undefined;
+		this.store = new QuadStore(prevStore?.backingRouting());
+		prevStore?.carryNonVariableQuadsTo(this.store as QuadStore);
 		if (initial) {
 			for (const [name, sv] of Object.entries(initial)) {
 				void this.writeQuads(name, sv);

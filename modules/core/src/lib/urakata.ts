@@ -22,6 +22,7 @@
 
 import { z } from "zod";
 import { allocateSyntheticSeqPath } from "./host-id.js";
+import { errorDetail } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TSeqPath } from "../schema/protocol.js";
 import type { TDomainDefinition } from "./resources.js";
@@ -30,6 +31,8 @@ export const URAKATA = "urakata";
 export const URAKATA_ID_DOMAIN = "urakata-id";
 /** Persisted label for a task's transition record. Individuals are upserted by id, so one row reflects the latest transition; history lives in the event stream. */
 export const URAKATA_LABEL = "Urakata";
+/** A persistently failing ticker persists its first error, then every Nth — errorCount stays exact in memory and is persisted precisely at stop. */
+export const URAKATA_ERROR_PERSIST_EVERY = 10;
 
 export const UrakataSchema = z.object({
 	id: z.string(),
@@ -119,7 +122,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 		const store = this.world.shared?.getStore();
 		if (!store) return;
 		void store.upsertIndividual(URAKATA_LABEL, { ...urakata }).catch((err: unknown) => {
-			this.world.eventLogger.warn(`[urakata] could not persist "${urakata.id}": ${err instanceof Error ? err.message : String(err)}`);
+			this.world.eventLogger.warn(`[urakata] could not persist "${urakata.id}": ${errorDetail(err)}`);
 		});
 	}
 
@@ -147,7 +150,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 					if (stopped && controller.signal.aborted) return;
 					urakata.errorCount++;
 					this.onTickError(spec.id, tickSeqPath, err instanceof Error ? err : new Error(String(err)));
-					this.persist(urakata);
+					if (urakata.errorCount === 1 || urakata.errorCount % URAKATA_ERROR_PERSIST_EVERY === 0) this.persist(urakata);
 				}
 			})();
 			inflight = { controller, settled };
@@ -157,11 +160,12 @@ export class UrakataRegistry implements IUrakataRegistry {
 				if (outcome === "timeout") {
 					urakata.errorCount++;
 					this.onTickError(spec.id, tickSeqPath, new Error(`urakata "${spec.id}" tick exceeded ${spec.tickTimeoutMs}ms`));
-					this.persist(urakata);
+					if (urakata.errorCount === 1 || urakata.errorCount % URAKATA_ERROR_PERSIST_EVERY === 0) this.persist(urakata);
 					controller.abort();
-					// Await the tick's actual settlement (its own catch will swallow the abort as a normal end) so the next
-					// tick never overlaps the aborted one. The single error above is the tick's one recorded outcome.
-					await settled.catch((): void => undefined);
+					// Await the tick's actual settlement (settled never rejects — its body is fully caught; the abort ends as
+					// a normal settle) so the next tick never overlaps the aborted one. The single error above is the tick's
+					// one recorded outcome.
+					await settled;
 				} else {
 					timeout.cancel();
 				}
@@ -179,7 +183,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 				if (timer) clearTimeout(timer);
 				if (inflight) {
 					inflight.controller.abort();
-					await inflight.settled.catch((): void => undefined);
+					await inflight.settled;
 				}
 				urakata.stoppedAt = new Date().toISOString();
 				this.persist(urakata);

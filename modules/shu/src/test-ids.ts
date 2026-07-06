@@ -23,6 +23,8 @@ export const SHU_TEST_IDS = {
 		TEXT_SEARCH: "app-text-search",
 		ADD_FILTER: "app-add-filter",
 		SEARCH_GO: "app-search-go",
+		TIME_OFFSET: "app-time-offset",
+		TIMELINE_POPOVER: "app-timeline-popover",
 	},
 	FILTER: {
 		PROPERTY_0: "app-cond-property-0",

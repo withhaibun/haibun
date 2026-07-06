@@ -40,6 +40,8 @@ const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(),
 // death (a first-time index of a large mailbox OOMed the daemon at ~4GB). The store is canonical for graph data and
 // the disk log for event history; these buffers only serve live backfill and the live cluster extension.
 const MAX_EVENTS_DEFAULT = 5000;
+/** Buffers trim in amortized bulk (splice once past max+slack), not shift-per-event — a per-event O(max) memmove on the hot observation path. */
+const BUFFER_TRIM_SLACK = 500;
 // The live getEvents response is a recent window, never the whole buffer: a long instrumentation run accumulates events
 // until JSON.stringify hits V8's ~512MB ceiling and the RPC 413s. Bound by BYTES (a few large events can't blow it) and a
 // hard count, both well under the ceiling. The SSE stream delivers the live tail; a consumer pages older history via `since`.
@@ -168,6 +170,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private storage!: AStorage;
 	private outputPath?: string;
 	private maxEvents: number = MAX_EVENTS_DEFAULT;
+	/** buildResourceRels walks every domain; memoized by domain count so per-RPC calls reuse it while a runtime-declared domain still invalidates. */
+	private relsCache?: { rels: ReturnType<typeof buildResourceRels>; size: number };
+	private resourceRels(): ReturnType<typeof buildResourceRels> {
+		const domains = this.getWorld().domains;
+		const size = Object.keys(domains).length;
+		if (!this.relsCache || this.relsCache.size !== size) this.relsCache = { rels: buildResourceRels(domains), size };
+		return this.relsCache.rels;
+	}
 	cyclesWhen = { startFeature: CycleWhen.LAST };
 
 	options = {
@@ -252,10 +262,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					timestamp: quad.timestamp ?? (e.timestamp as number) ?? Date.now(),
 					properties: quad.properties,
 				});
-				if (this.observationQuads.length > this.maxEvents) this.observationQuads.shift();
+				if (this.observationQuads.length > this.maxEvents + BUFFER_TRIM_SLACK) this.observationQuads.splice(0, this.observationQuads.length - this.maxEvents);
 			} else {
 				this.events.push(event);
-				if (this.events.length > this.maxEvents) this.events.shift();
+				if (this.events.length > this.maxEvents + BUFFER_TRIM_SLACK) this.events.splice(0, this.events.length - this.maxEvents);
 				this.appendToEventLog(event);
 			}
 			this.transport?.send({ type: "event", event });
@@ -428,7 +438,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		savesShuUncompressedTo: {
 			gwta: "saves shu uncompressed to {where: string}",
-			description: "Write the standalone shu report with an uncompressed plain-JSON payload, so the redacted text can be read and audited directly — same content as the compressed report, just larger. A one-off write that does not become the feature's canonical output.",
+			description:
+				"Write the standalone shu report with an uncompressed plain-JSON payload, so the redacted text can be read and audited directly — same content as the compressed report, just larger. A one-off write that does not become the feature's canonical output.",
 			action: async ({ where }: { where: string }) => {
 				const written = await this.writeStandaloneReport({ fixedPath: where, compressed: false });
 				return actionOKWithProducts({ path: written });
@@ -528,8 +539,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				// budget-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
 				// buffer unbudgeted let every observed subject past the requested limit — the client seeds this
 				// response verbatim, so the response itself must hold the bound.
-				const rels = buildResourceRels(this.getWorld().domains);
-				const model = new QuadGraphModel(perTypeLimit, (type) => rels.fields(type));
+				const model = new QuadGraphModel(perTypeLimit, (type) => this.resourceRels().fields(type));
 				model.seed({ quads: result.quads as TQuad[], clusters: [...result.clusters] });
 				model.merge(types?.length ? this.observationQuads.filter((q) => types.includes(q.namedGraph)) : this.observationQuads);
 				const quads = model.snapshot.quads.map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({
@@ -553,7 +563,15 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				for (const q of quads) {
 					if (!classNodes.has(q.namedGraph) || linkedSubjects.has(q.subject)) continue;
 					linkedSubjects.add(q.subject);
-					typeEdges.push({ subject: q.subject, predicate: "a", object: q.namedGraph, objectType: ONTOLOGY_CLASS, namedGraph: q.namedGraph, timestamp: q.timestamp, properties: undefined });
+					typeEdges.push({
+						subject: q.subject,
+						predicate: "a",
+						object: q.namedGraph,
+						objectType: ONTOLOGY_CLASS,
+						namedGraph: q.namedGraph,
+						timestamp: q.timestamp,
+						properties: undefined,
+					});
 				}
 				return actionOKWithProducts({ quads: [...quads, ...typeEdges, ...ontology.quads], clusters: [...model.snapshot.clusters, ...ontology.clusters] });
 			},

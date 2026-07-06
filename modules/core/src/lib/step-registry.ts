@@ -7,6 +7,7 @@ import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
+import { zodTypeLabel } from "./composite-domain.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { isPersisted } from "./resources.js";
 import { resolveOutputSchema } from "./tool-validation.js";
@@ -228,16 +229,16 @@ function validateInputDomains(stepperName: string, stepName: string, stepDef: TS
 	}
 }
 
+/** Zod types with no JSON Schema representation (dates excepted — they surface as string/date-time). A domain
+ * declaring one of these has no form and no client-side validation surface, so registration throws. */
+const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "void", "never", "function", "map", "set", "promise", "custom", "file"]);
+
 /**
  * Build a JSON Schema and Zod param schemas for a step's input parameters.
  * Uses z.toJSONSchema() to convert Zod domain schemas into full JSON Schema
  * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
  * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
  */
-/** Zod types with no JSON Schema representation (dates excepted — they surface as string/date-time). A domain
- * declaring one of these has no form and no client-side validation surface, so registration throws. */
-const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "void", "never", "function", "map", "set", "promise", "custom", "file"]);
-
 function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
 	const properties: Record<string, { type?: string; description?: string; [key: string]: unknown }> = {};
 	const required: string[] = [];
@@ -265,7 +266,7 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 						io: "input",
 						unrepresentable: "any",
 						override: (ctx) => {
-							const nodeType = (ctx.zodSchema as { _zod?: { def?: { type?: string } } })._zod?.def?.type;
+							const nodeType = zodTypeLabel(ctx.zodSchema);
 							if (nodeType === "date") {
 								ctx.jsonSchema.type = "string";
 								ctx.jsonSchema.format = "date-time";

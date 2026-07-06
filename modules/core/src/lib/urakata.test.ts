@@ -184,8 +184,7 @@ describe("UrakataRegistry", () => {
 });
 
 describe("UrakataRegistry persistence of transitions", () => {
-	const readTask = async (world: ReturnType<typeof getDefaultWorld>, id: string) =>
-		world.shared.getStore().getIndividual<Record<string, unknown>>(URAKATA_LABEL, id);
+	const readTask = async (world: ReturnType<typeof getDefaultWorld>, id: string) => world.shared.getStore().getIndividual<Record<string, unknown>>(URAKATA_LABEL, id);
 
 	it("persists the individual on registration, on an error, and on stop — one row per id, reflecting the latest transition", async () => {
 		const world = getDefaultWorld();

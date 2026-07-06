@@ -265,3 +265,8 @@ function isArgumentBinding(b: unknown): boolean {
 	}
 	return false;
 }
+
+/** The domains whose goals the snapshot finds satisfied — the one derivation both the server's waypoint pass and the client panel read. */
+export function satisfiedGoalDomains(goals: ReadonlyArray<{ domain: string; resolution: { finding: string } }>, satisfiedFinding: string): Set<string> {
+	return new Set(goals.filter((g) => g.resolution.finding === satisfiedFinding).map((g) => g.domain));
+}

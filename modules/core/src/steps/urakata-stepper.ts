@@ -1,7 +1,7 @@
 /**
  * UrakataStepper — owns the world-singleton Urakata registry and exposes the
  * lifecycle steps. Other steppers retrieve the registry via
- * `world.runtime[URAKATA]` and register their tickers/watchers there.
+ * `world.runtime[URAKATA]` and register their tickers there.
  */
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from "../lib/astepper.js";
@@ -21,7 +21,8 @@ const DOMAIN_URAKATA_TASK = "urakata-task";
 const urakataTaskDomainDefinition = {
 	selectors: [DOMAIN_URAKATA_TASK],
 	schema: UrakataSchema,
-	description: "A background task (ticker) started in a run: what it is, which run instance it ran in, when it started, its tick and error counts, and when it was cleanly stopped.",
+	description:
+		"A background task (ticker) started in a run: what it is, which run instance it ran in, when it started, its tick and error counts, and when it was cleanly stopped.",
 	topology: {
 		persistedAs: URAKATA_LABEL,
 		id: "id",
@@ -35,7 +36,7 @@ const urakataTaskDomainDefinition = {
 };
 
 class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
-	description = "Out-of-band step execution: tickers and watchers, with introspection and clean shutdown";
+	description = "Out-of-band step execution: tickers, with introspection and clean shutdown";
 
 	private registry?: UrakataRegistry;
 

@@ -8,9 +8,12 @@ const showProducts = (res: Awaited<ReturnType<typeof passWithDefaults>>, line: s
 
 describe("set of {domain} by — declare a hypermedia domain", () => {
 	it("prose form registers a domain with vertex topology", async () => {
-		const res = await passWithDefaults(`set of Recipe by id, with name
+		const res = await passWithDefaults(
+			`set of Recipe by id, with name
 set of Ingredient by id, with name, used in Recipe
-show domain ingredient`, [VariablesStepper]);
+show domain ingredient`,
+			[VariablesStepper],
+		);
 		expect(res.ok).toBe(true);
 		const t = showProducts(res, "show domain ingredient").topology;
 		expect(t?.persistedAs).toBe("Ingredient");
@@ -21,16 +24,22 @@ show domain ingredient`, [VariablesStepper]);
 
 	it("JSON-LD form registers the same topology", async () => {
 		const jsonld = JSON.stringify({ "@context": { id: "@id", name: "as:name", usedIn: { "@id": "schema:isPartOf", range: "Recipe" } }, "@queryable": ["name"] });
-		const res = await passWithDefaults(`set of Recipe by id, with name
+		const res = await passWithDefaults(
+			`set of Recipe by id, with name
 set of Ingredient by ${jsonld}
-show domain ingredient`, [VariablesStepper]);
+show domain ingredient`,
+			[VariablesStepper],
+		);
 		expect(res.ok).toBe(true);
 		expect(showProducts(res, "show domain ingredient").topology?.edges?.usedIn?.range).toBe("Recipe");
 	});
 
 	it("rejects a duplicate declaration", async () => {
-		const res = await passWithDefaults(`set of Recipe by id, with name
-set of Recipe by id, with name`, [VariablesStepper]);
+		const res = await passWithDefaults(
+			`set of Recipe by id, with name
+set of Recipe by id, with name`,
+			[VariablesStepper],
+		);
 		expect(res.ok).toBe(false);
 	});
 });

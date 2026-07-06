@@ -30,7 +30,7 @@ export interface SiteMetadata {
 	properties: Record<string, string[]>;
 	/** Fields the server accepts as query filters (the topology's sortColumns), per label. */
 	queryable: Record<string, string[]>;
-	/** Per label, the field carrying the type's valid time (when the thing happened — the declared defaultSort, else generatedAtTime, its indexed time). The one derivation every time-aware view reads. */
+	/** Per label, the field carrying the type's valid time (the catalog's validTimeField — where the term is defined). */
 	validTimeFields: Record<string, string>;
 	summary: Record<string, string[]>;
 	ui: Record<string, Record<string, unknown>>;
@@ -107,8 +107,7 @@ export function getQueryableFields(label: string): string[] {
 	return metadata?.queryable[label] ?? [];
 }
 
-/** The field carrying a label's VALID time — when the thing happened in the world (an email's received time, a file's
- *  own date; the declared defaultSort), else generatedAtTime, its INDEXED time. */
+/** The field carrying a label's valid time, from the catalog's validTimeField; generatedAtTime when the label is unknown. */
 export function getValidTimeField(label: string): string {
 	return metadata?.validTimeFields[label] ?? LinkRelations.GENERATED_AT_TIME.rel;
 }

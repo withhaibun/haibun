@@ -29,28 +29,32 @@ export function relOf(def: TPropertyDef): TRel {
 
 /** Schema field kinds that are queryable by their nature — bounded values a store can index and compare.
  *  A string is queryable only as a CONTEXT facet, never from its type. */
-const BOUNDED_PRIMITIVE_TYPES = new Set(["number", "int", "boolean", "date", "enum", "literal"]);
+const BOUNDED_PRIMITIVE_KINDS = new Set(["number", "int", "boolean", "date", "enum", "literal"] as const);
+export type TBoundedPrimitiveKind = typeof BOUNDED_PRIMITIVE_KINDS extends Set<infer K> ? K : never;
 
-function isBoundedPrimitive(field: unknown): boolean {
-	const def = (field as { _zod?: { def?: { type?: string; innerType?: unknown } } })?._zod?.def;
-	if (!def) return false;
-	if (def.type === "optional" || def.type === "default" || def.type === "nullable") return isBoundedPrimitive((def as { innerType?: unknown }).innerType);
-	return BOUNDED_PRIMITIVE_TYPES.has(def.type ?? "");
+/** THE classification of a schema field's queryable kind (wrapper-unwrapped; a safe-int number reports "int").
+ *  Consumers that must agree — the offered surface here, a store's column mapping — all read this one function. */
+export function boundedPrimitiveKind(field: z.ZodType): TBoundedPrimitiveKind | undefined {
+	const { inner } = unwrap(field);
+	const def = (inner as { _zod?: { def?: { type?: string; format?: string } } })._zod?.def;
+	if (def?.type === "number" && def.format === "safeint") return "int";
+	return def?.type !== undefined && (BOUNDED_PRIMITIVE_KINDS as Set<string>).has(def.type) ? (def.type as TBoundedPrimitiveKind) : undefined;
 }
 
 /** The queryable surface of a persisted type, from its declaration alone: declared sortColumns, CONTEXT facets,
  *  the GENERATED_AT_TIME field, and bounded primitive schema fields. The identifier is excluded — an id
  *  dereferences, it is not searched. Every layer that offers or accepts field queries reads this one derivation,
  *  so what a client is offered is what a store accepts. */
-export function queryableFields(domain: { schema: unknown; topology: THypermediaTopology }): string[] {
+export function queryableFields(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): string[] {
 	const topology = domain.topology;
 	const out = new Set<string>(Object.keys(topology.sortColumns ?? {}));
-	for (const [field, def] of Object.entries(topology.properties ?? {})) {
-		const rel = relOf(def as TPropertyDef);
+	for (const [field, def] of Object.entries(topology.properties)) {
+		const rel = relOf(def);
 		if (rel === LinkRelations.CONTEXT.rel || rel === LinkRelations.GENERATED_AT_TIME.rel) out.add(field);
 	}
-	const shape = (domain.schema as { shape?: Record<string, unknown> } | undefined)?.shape ?? {};
-	for (const [field, zodField] of Object.entries(shape)) if (isBoundedPrimitive(zodField)) out.add(field);
+	if (domain.schema instanceof z.ZodObject) {
+		for (const [field, zodField] of Object.entries(domain.schema.shape as Record<string, z.ZodType>)) if (boundedPrimitiveKind(zodField) !== undefined) out.add(field);
+	}
 	out.delete(topology.id);
 	return [...out].sort();
 }
@@ -65,6 +69,8 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	return undefined;
 }
 import type { TRegisteredDomain } from "./resources.js";
+import { unwrap } from "./composite-domain.js";
+import { ellipsize } from "./util/index.js";
 
 /** Per-schema JSON-Schema memoization. `step.list` RPC calls buildConcernCatalog repeatedly; each
  *  domain's `z.toJSONSchema` traversal is stable per schema instance, so cache by identity. */
@@ -454,10 +460,9 @@ export function resolveDisplayLabel(rels: Record<string, string> | undefined, ge
 	return resolveFromCandidates(rels, getProperty, DISPLAY_LABEL_REL_PRIORITY);
 }
 
-/** Clamp a label to MAX_DISPLAY_LABEL_LEN, ellipsizing if needed — so every producer truncates identically. */
+/** Clamp a label to MAX_DISPLAY_LABEL_LEN — the one `ellipsize` every producer shares, after trimming. */
 export function clampDisplayLabel(s: string): string {
-	const t = s.trim();
-	return t.length > MAX_DISPLAY_LABEL_LEN ? `${t.slice(0, MAX_DISPLAY_LABEL_LEN - 1)}…` : t;
+	return ellipsize(s.trim(), MAX_DISPLAY_LABEL_LEN);
 }
 
 /** Shortest non-empty trimmed string — the concise linked-body summary, not a large signed or encoded blob. */
@@ -635,7 +640,9 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 			// OR the rel itself declares it in LinkRelations (the role rels — subPropertyOf inRoleOf). Either is a genuine axiom.
 			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? (rel ? subPropertyOfRel(rel) : undefined);
 			if (declared !== undefined) {
-				node["rdfs:subPropertyOf"] = Array.isArray(declared) ? declared.map((p) => REL_CONTEXT[p as TRel] ?? `haibun:${p}`) : (REL_CONTEXT[declared as TRel] ?? `haibun:${declared}`);
+				node["rdfs:subPropertyOf"] = Array.isArray(declared)
+					? declared.map((p) => REL_CONTEXT[p as TRel] ?? `haibun:${p}`)
+					: (REL_CONTEXT[declared as TRel] ?? `haibun:${declared}`);
 			}
 			put(edge, node as Record<string, string>);
 		}

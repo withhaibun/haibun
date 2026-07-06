@@ -28,7 +28,15 @@ import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
-import { getActionBarChatExtensionTags, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues, whenSiteMetadataReady } from "../rels-cache.js";
+import {
+	getActionBarChatExtensionTags,
+	getQueryableFields,
+	getSelectValues,
+	hasSelectValues,
+	hasUsableSelectValues,
+	setSelectValues,
+	whenSiteMetadataReady,
+} from "../rels-cache.js";
 import { getCookie, setCookie } from "../cookies.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -76,6 +84,12 @@ function stepDetails(s: StepDescriptor): string {
 
 type TMode = z.infer<typeof ActionsBarSchema>["mode"];
 
+type TCorner = "settings" | "timeline" | "access";
+/** Per-corner dismiss policy. Transient pickers dismiss on a click away; a panel is used alongside the view (scrub the
+ *  timeline cursor, then click nodes/rows to inspect them at that time) so only its own toggle closes it. A new corner
+ *  must declare which it is. */
+const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", timeline: "panel" };
+
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	static schema = ActionsBarSchema;
 	static domainSelector = "shu-actions-bar";
@@ -107,14 +121,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
 	/** Which lower-right corner popover is open — the gear's settings, the timeline (over the current-time display), or the access control. At most one. */
-	private _openCorner: "settings" | "timeline" | "access" | null = null;
+	private _openCorner: TCorner | null = null;
 	private _onDocumentClick = (e: Event): void => {
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
 		const inside = path.includes(this);
-		// The settings and access popovers are transient pickers — a click away dismisses them. The timeline is a
-		// panel used alongside the view (scrub the cursor, then click nodes/rows to inspect them at that time), so it
-		// stays until its own toggle turns it off.
-		if (this._openCorner && this._openCorner !== "timeline" && !inside) this.closeCornerPopover();
+		if (this._openCorner && CORNER_DISMISS[this._openCorner] === "click-away" && !inside) this.closeCornerPopover();
 		if (!this.state.askExpanded) return;
 		if (this.state.pinned) return; // a pinned bar stays open — that is what the pin is for
 		if (inside) return;
@@ -699,7 +710,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	/** Toggle one of the corner popovers; opening one replaces any other (a single surface). Top-layer, so it never
 	 *  needs the actions bar opened — it floats above the collapsed strip and the open panel alike. */
-	private onCornerToggle(kind: "settings" | "timeline" | "access"): (e: Event) => void {
+	private onCornerToggle(kind: TCorner): (e: Event) => void {
 		return (e: Event) => {
 			e.stopPropagation();
 			if (this._openCorner === kind) {
@@ -718,7 +729,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	/** Float the popover just above its toggle: right edge over the control; the timeline spans the bar's full width. */
-	private showCornerPopover(kind: "settings" | "timeline" | "access", toggle: HTMLElement): void {
+	private showCornerPopover(kind: TCorner, toggle: HTMLElement): void {
 		const pop = this.cornerPopoverEl();
 		const bar = this.shadowRoot?.querySelector(".summary-bar") as HTMLElement | null;
 		if (!pop || !bar) throw new Error("actions-bar: corner popover/summary bar missing from the rendered template");

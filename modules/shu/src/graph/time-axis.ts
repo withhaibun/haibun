@@ -7,24 +7,33 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 export type TimeZScale = { logMin: number; logRange: number; zMax: number };
 
+/** A subject's time and the FIELD it came from — the one record every consumer (depth, hover label) reads, so the
+ *  fallback decision can never be re-derived differently elsewhere. */
+export type TSubjectTime = { ms: number; field: string };
+
 /**
- * Each subject's VALID time — when the thing happened in the world — from the field its type declares (an email's
- * received time, a file's own date; the hypermedia catalog's validTimeField). A subject whose declared field is
- * absent from its quads falls back to its generatedAtTime (indexed-time) quad, so an individual always places by
- * its own time and only by indexing time when it carries nothing else.
+ * Each subject's valid time, from the field its type declares (the hypermedia catalog's validTimeField — where the
+ * term is defined). A subject whose declared field is absent from its quads falls back to its generatedAtTime
+ * (indexed-time) quad, so an individual always places by its own time and only by indexing time when it carries
+ * nothing else. The field lookup is memoized per type, so the resolver runs O(types), not O(quads).
  */
-export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: string) => string, indexedTimeField: string): Map<string, number> {
-	const times = new Map<string, number>();
-	const fallback = new Map<string, number>();
+export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: string) => string, indexedTimeField: string): Map<string, TSubjectTime> {
+	const fieldByType = new Map<string, string>();
+	const times = new Map<string, TSubjectTime>();
+	const fallback = new Map<string, TSubjectTime>();
 	for (const q of quads) {
 		if (typeof q.object !== "string") continue;
-		const field = validTimeFieldFor(q.namedGraph);
+		let field = fieldByType.get(q.namedGraph);
+		if (field === undefined) {
+			field = validTimeFieldFor(q.namedGraph);
+			fieldByType.set(q.namedGraph, field);
+		}
 		const target = q.predicate === field ? times : q.predicate === indexedTimeField ? fallback : undefined;
 		if (!target) continue;
 		const t = Date.parse(q.object);
-		if (!Number.isNaN(t)) target.set(q.subject, t);
+		if (!Number.isNaN(t)) target.set(q.subject, { ms: t, field: q.predicate });
 	}
-	for (const [subject, t] of fallback) if (!times.has(subject)) times.set(subject, t);
+	for (const [subject, entry] of fallback) if (!times.has(subject)) times.set(subject, entry);
 	return times;
 }
 
