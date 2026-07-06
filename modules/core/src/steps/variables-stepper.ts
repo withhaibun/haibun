@@ -160,6 +160,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated?.value;
+				if (term === undefined) return actionNotOK(`no variable name resolved from "${rawTerm}"`);
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				const presentVal = resolved.value;
 				const effectiveDomain = resolved.domain;
@@ -337,6 +338,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated.value;
+				if (term === undefined) return actionNotOK(`no variable name resolved from "${rawTerm}"`);
 
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, {
 					secure: true,
@@ -556,6 +558,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
 		if (interpolated.error) return actionNotOK(interpolated.error);
 		const term = interpolated.value;
+		if (term === undefined) return actionNotOK(`no variable name resolved from "${rawTerm}"`);
 
 		const stored = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, {
 			secure: true,
