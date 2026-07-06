@@ -272,13 +272,29 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.requestUpdate();
 	};
 
+	/** The widest this pane can render: the strip minus the minimum footprint the other panes need. Past this the strip
+	 *  would overflow and the stored width would outrun what's actually shown — the drag keeps "growing" a width the
+	 *  layout can't display, then feels dead on the way back until the excess unwinds. Clamping here keeps the handle
+	 *  tracking the cursor. A collapsed/minimized sibling only needs its current sliver; any other needs a usable min. */
+	#maxResizeWidth(): number {
+		const strip = this.parentElement;
+		if (!strip) return Number.POSITIVE_INFINITY;
+		let othersMin = 0;
+		for (const sib of Array.from(strip.children)) {
+			if (sib === this) continue;
+			othersMin += sib.hasAttribute(SHU_ATTR.COLLAPSED) || sib.hasAttribute(SHU_ATTR.DATA_MINIMIZED) ? (sib as HTMLElement).offsetWidth : MIN_RESIZED_WIDTH;
+		}
+		return Math.max(MIN_RESIZED_WIDTH, strip.clientWidth - othersMin);
+	}
+
 	private onResizeMouseDown = (e: MouseEvent): void => {
 		e.preventDefault();
 		e.stopPropagation();
 		(e.currentTarget as HTMLElement).classList.add("dragging");
 		const startX = e.clientX;
 		const startWidth = this.offsetWidth;
-		const move = (ev: MouseEvent) => this.setWidth(Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.clientX - startX)));
+		const maxWidth = this.#maxResizeWidth();
+		const move = (ev: MouseEvent) => this.setWidth(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.clientX - startX))));
 		const up = () => {
 			document.removeEventListener("mousemove", move);
 			document.removeEventListener("mouseup", up);
@@ -295,9 +311,10 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		(e.currentTarget as HTMLElement).classList.add("dragging");
 		const startX = e.touches[0].clientX;
 		const startWidth = this.offsetWidth;
+		const maxWidth = this.#maxResizeWidth();
 		const move = (ev: TouchEvent) => {
 			ev.preventDefault();
-			this.setWidth(Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.touches[0].clientX - startX)));
+			this.setWidth(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.touches[0].clientX - startX))));
 		};
 		const end = () => {
 			document.removeEventListener("touchmove", move);
