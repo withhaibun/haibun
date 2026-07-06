@@ -298,6 +298,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 				<input type="range" min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange}>
 				<span class="meta" data-testid="graph-filter-limit-value">${perTypeLimit}</span>
 			</label>
+			<slot name="view-settings"></slot>
 			<button type="button" class="solo ${this.soloArmed ? "armed" : ""}" data-testid="graph-filter-solo" title="solo a type: tap, then tap a type to show only it" @click=${this.toggleSolo}>1️⃣</button>
 			<span class="quad-count">${quadCount} quads</span>
 		</div>`;
