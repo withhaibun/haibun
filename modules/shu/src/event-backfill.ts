@@ -11,7 +11,8 @@ type TEventPage = { events?: Array<Record<string, unknown>>; truncated?: boolean
 type FetchPage = (window: { since?: number; until?: number }) => Promise<TEventPage>;
 
 const MAX_PAGES = 5000;
-const eventTime = (e: Record<string, unknown>): number => Number(e.timestamp) || 0;
+/** The one timestamp extraction shared by the backfill pager and the windowed cache (events-snapshot). */
+export const eventTime = (e: Record<string, unknown>): number => Number(e.timestamp) || 0;
 const pageKey = (e: Record<string, unknown>): string => `${e.id}:${(e.stage as string | undefined) ?? (e.kind as string | undefined)}`;
 
 /**

@@ -11,7 +11,7 @@
  */
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { conduit } from "./hypermedia.js";
-import { fetchRange } from "./event-backfill.js";
+import { fetchRange, eventTime } from "./event-backfill.js";
 import { mergeRanges, rangeContains, subtractRanges, type Range } from "./ranges.js";
 import { GET_EVENTS_METHOD } from "./rpc-cache.js";
 
@@ -24,12 +24,12 @@ export const FULL_WINDOW: Range = { from: 0, to: Number.POSITIVE_INFINITY };
 /** The one identity per event — the key every consumer (and `fetchRange`) dedups on. A step's start and end share an
  *  `id`, so the lifecycle `stage` disambiguates; other kinds fall back to `kind`. */
 export const eventKey = (e: TEventRecord): string => `${e.id}:${(e.stage as string | undefined) ?? (e.kind as string | undefined) ?? ""}`;
-const eventTime = (e: TEventRecord): number => Number(e.timestamp) || 0;
 
 type Store = {
 	events: TEventRecord[]; // kept sorted by timestamp, deduped — the shared log (the union of held spans)
 	seen: Set<string>; // eventKey set backing the dedup
 	windows: Map<string, Range[]>; // per-consumer registered windows; their union is `wanted`
+	wanted: Range[]; // memo of mergeRanges(windows); recomputed only at each reconcile (the sole window-mutation settle point)
 	held: Range[]; // spans actually fetched into memory (canonical, via mergeRanges)
 	gaps: Map<string, Promise<void>>; // in-flight gap fetches, deduped by range key
 	loaded: boolean; // a reconcile has completed at least once
@@ -43,7 +43,7 @@ function getStore(): Store {
 	const g = globalThis as unknown as Record<string, Store | undefined>;
 	const existing = g[STORE_KEY];
 	if (existing) return existing;
-	const fresh: Store = { events: [], seen: new Set(), windows: new Map(), held: [], gaps: new Map(), loaded: false, listeners: new Set() };
+	const fresh: Store = { events: [], seen: new Set(), windows: new Map(), wanted: [], held: [], gaps: new Map(), loaded: false, listeners: new Set() };
 	g[STORE_KEY] = fresh;
 	return fresh;
 }
@@ -114,6 +114,7 @@ function fetchGap(s: Store, gap: Range): Promise<void> {
 /** Fetch the un-held parts of `wanted`, then evict events no window wants. Notifies once settled. */
 async function reconcile(s: Store): Promise<void> {
 	const wanted = wantedOf(s);
+	s.wanted = wanted; // memo for the live-merge gate; windows only change through register/unregister, both of which reconcile
 	await Promise.all(subtractRanges(wanted, s.held).map((gap) => fetchGap(s, gap)));
 	const orphans = subtractRanges(s.held, wanted);
 	if (orphans.length > 0) {
@@ -171,8 +172,7 @@ export function eventsLoaded(): boolean {
  *  edge is not retained), deduped + time-sorted. Notifies subscribers iff at least one event was new. */
 export function mergeEvents(batch: TEventRecord[]): void {
 	const s = getStore();
-	const wanted = wantedOf(s);
-	const added = admit(s, batch, wanted.length > 0 ? wanted : undefined);
+	const added = admit(s, batch, s.wanted.length > 0 ? s.wanted : undefined); // memoized gate — no per-batch mergeRanges over the windows
 	if (added > 0) notify(s);
 }
 
