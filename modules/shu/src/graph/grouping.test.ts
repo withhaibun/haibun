@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { groupKeyOf, containerLabelOf, ringAnchors, shelfPack, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
-import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
+import { SITE_KEY, HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
 describe("groupKeyOf", () => {
 	it("keys a node by its type (the default axis)", () => {
@@ -17,6 +17,20 @@ describe("groupKeyOf", () => {
 
 	it("ignores a folded role under the type axis (stays byte-identical)", () => {
 		expect(groupKeyOf({ type: "Email", properties: { [HYPERMEDIA_ROLE_KEY]: "did:web:x" } })).toBe("Email");
+	});
+
+	it("keys by the agent at ANY actor predicate — the axis string IS the predicate, nothing enumerates it", () => {
+		const vc = { type: "VerifiableCredential", properties: { issuer: "did:web:issuer", holder: "did:web:holder" } };
+		expect(groupKeyOf(vc, "issuer")).toBe("did:web:issuer"); // "an issuer in a wallet" — group by a SPECIFIC actor, not the winner
+		expect(groupKeyOf(vc, "holder")).toBe("did:web:holder");
+	});
+
+	it("keys by the serving site (the federation stamp) with no code branch for it", () => {
+		expect(groupKeyOf({ type: "Email", properties: { [SITE_KEY]: "did:site:imap.1" } }, SITE_KEY)).toBe("did:site:imap.1");
+	});
+
+	it("buckets a node with no value at the chosen axis as unattributed", () => {
+		expect(groupKeyOf({ type: "Email", properties: {} }, SITE_KEY)).toBe(UNATTRIBUTED_ROLE);
 	});
 });
 

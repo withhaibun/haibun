@@ -7,6 +7,9 @@ export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 /** Node property carrying the resolved HypermediaRole — the id of the party (a `prov:Agent`/Principal) the node is attributed to. Folded from the node's role edges (see `roleRels`); the fisheye's role grouping axis reads it. */
 export const HYPERMEDIA_ROLE_KEY = "hypermediaRole";
 
+/** Node property carrying the site principal of the instance whose store SERVED the node — a read-time store fact stamped at the federation merge, never persisted data (and distinct from HAIBUN_SITE_KEY, the env override for this instance's OWN principal). The fisheye's site grouping axis reads it. */
+export const SITE_KEY = "site";
+
 type BuildGraphModelOptions = {
 	ignoreInternalPredicates?: boolean;
 	requireObjectSubject?: boolean;
@@ -14,6 +17,8 @@ type BuildGraphModelOptions = {
 	clusters?: TCluster[];
 	/** Predicates (priority order) whose target is the node's HypermediaRole. When set, each node's role is folded onto `properties[HYPERMEDIA_ROLE_KEY]` so a pure group-key selector can read it without re-walking edges. */
 	roleRels?: readonly string[];
+	/** The responding instance's site principal — the serving site of every node a cluster's `sites` doesn't override. When set, each node's serving site is folded onto `properties[SITE_KEY]`. */
+	site?: string;
 };
 
 const DEFAULT_OPTIONS: Required<Pick<BuildGraphModelOptions, "ignoreInternalPredicates" | "requireObjectSubject" | "requireObjectType">> = {
@@ -89,6 +94,15 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		}
 	}
 
+	if (opts.site !== undefined) {
+		// Fold each node's SERVING site (read-time store fact): a federated subject keeps the stamp its peer set
+		// (cluster.sites), everything else was served by this response's own site. Overwrites a same-named literal
+		// property, same as the role fold — the stamp is authoritative for the axis.
+		const siteBySubject = new Map<string, string>();
+		for (const c of options.clusters ?? []) if (c.sites) for (const [s, v] of Object.entries(c.sites)) siteBySubject.set(s, v);
+		for (const node of nodeMap.values()) (node.properties ??= {})[SITE_KEY] = siteBySubject.get(node.id) ?? opts.site;
+	}
+
 	if (opts.roleRels?.length) {
 		// Fold each node's HypermediaRole onto the node so the role grouping axis is a pure node read (single-source).
 		// A node's role is the target of its highest-priority role edge; a node that IS a party — something is attributed
@@ -103,8 +117,13 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 			if (roleRelSet.has(e.predicate)) parties.add(e.to);
 		}
 		for (const node of nodeMap.values()) {
-			let role: string | undefined;
 			const out = outByFrom.get(node.id);
+			// Record the agent at EACH actor predicate on the node, so a "group by <predicate>" axis reads a plain property
+			// (properties[predicate]) with nothing enumerating the predicates — a rel declared subPropertyOf inRoleOf is
+			// groupable the moment it appears.
+			if (out) for (const e of out) if (roleRelSet.has(e.predicate)) (node.properties ??= {})[e.predicate] = e.to;
+			// The "role" axis: the single highest-priority actor (ROLE_PRIORITY order, via opts.roleRels).
+			let role: string | undefined;
 			if (out)
 				for (const rel of opts.roleRels) {
 					const e = out.find((x) => x.predicate === rel);
