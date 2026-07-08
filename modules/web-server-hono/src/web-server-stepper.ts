@@ -5,7 +5,8 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { dispatchStep, parseRpcRequest } from "@haibun/core/lib/step-dispatch.js";
-import { discoverSteps, buildFeatureStepForTransport, StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { discoverSteps, buildFeatureStepForTransport, StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
+import { handleStoreCall, isStoreMethod, requiredStoreCapability } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
@@ -254,6 +255,23 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// principal — the federation handshake reads it to stamp and
 						// de-collide merged reads.
 						return { seqPath, hostId: seqPath[0], site: activeSitePrincipal(this.getWorld()) };
+					}
+
+					// The delegated store surface (store.*): a sibling instance keeping its records in THIS instance's
+					// store. Always capability-gated — store.read/store.write by method, no ungated default — because it
+					// is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
+					if (isStoreMethod(method)) {
+						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, this.getWorld().runtime, {
+							accessToken: this.rpcAccessToken,
+							accessCapability: this.rpcAccessCapability,
+						});
+						const required = requiredStoreCapability(method);
+						if (!capabilityAllows(grantedCapability, required)) return { error: `${method}: capability ${required} required` };
+						try {
+							return await handleStoreCall(this.getWorld().shared.getStore(), method, params);
+						} catch (err) {
+							return { error: `${method}: ${errorDetail(err)}` };
+						}
 					}
 
 					// External callers (no feature-step context) get a server-synthesised seqPath, matching MCP.

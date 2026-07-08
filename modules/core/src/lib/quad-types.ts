@@ -125,6 +125,10 @@ export function eventsAffectLabel(events: Record<string, unknown>[], label?: str
 }
 
 export interface IQuadStore {
+	/** True for a store served by ANOTHER instance (RemoteQuadStore). A read scoped `"own"` (what this instance is
+	 *  authoritative for) skips it — its records are the serving instance's own, held in the serving instance's report. */
+	readonly isRemote?: boolean;
+
 	/** Set a value (upserts: replaces existing quad with same subject+predicate+namedGraph) */
 	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void>;
 

@@ -158,6 +158,19 @@ export class RpcClient {
 }
 
 /**
+ * The instance handshake, shared by every remote surface (federated reads, remote stores): `action.begin`
+ * self-reports the peer's hostId and site principal. Fails fast on a peer that predates the site handshake.
+ */
+export async function discoverInstance(rpc: RpcClient, url: string): Promise<{ hostId: number; site: string }> {
+	const result = await rpc.call<{ hostId?: number; site?: string }>("action.begin", {}, []);
+	if (typeof (result as { error?: unknown }).error === "string") throw new Error(`discoverInstance: action.begin failed at ${url}: ${(result as { error: string }).error}`);
+	const { hostId, site } = result as { hostId?: number; site?: string };
+	if (typeof hostId !== "number") throw new Error(`discoverInstance: ${url} did not report a hostId`);
+	if (typeof site !== "string" || site.length === 0) throw new Error(`discoverInstance: ${url} did not report a site principal — the peer predates federation`);
+	return { hostId, site };
+}
+
+/**
  * Parse an NDJSON response body — one JSON object per line. Tolerates
  * partial lines across chunks. Stops on stream end.
  */

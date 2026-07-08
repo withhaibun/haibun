@@ -54,6 +54,16 @@ export class QuadStore implements IQuadStore {
 		this.federated.delete(source);
 	}
 
+	/**
+	 * Drop every connection to another instance — federated read sources and remote backing stores. Their lifetime is
+	 * the connection's, never longer: a peer torn down at feature end must not leave a registration that the next
+	 * feature's reads chase to a dead port. Local backing stores (an owned engine) are untouched.
+	 */
+	dropRemoteConnections(): void {
+		this.federated.clear();
+		for (const [ng, store] of [...this.routing]) if (store.isRemote) this.routing.delete(ng);
+	}
+
 	/** Register a backing store for specific named graphs. Writes route to it, reads merge.
 	 *  Quads previously written to the in-memory layer for these graphs are migrated into
 	 *  the backing as full individual upserts so subsequent set() reads find them there. */
@@ -234,11 +244,13 @@ export class QuadStore implements IQuadStore {
 			if (c.sites) existing.sites = { ...existing.sites, ...c.sites };
 		};
 
-		// Federated peers merge alongside backing stores; each peer stamps its subjects with its own site
-		// principal (TCluster.sites), so a merged cluster still says which site served each subject. Under
-		// scope "own" (a read SERVED TO a peer) they are skipped — see TClusteredQuadsOpts.
-		const peers = opts.scope === "own" ? [] : [...this.federated];
-		const backingResults = await Promise.all([...this.allStores.map((s) => s.getClusteredQuads(opts)), ...peers.map((f) => f.getClusteredQuads(opts))]);
+		// Federated peers and REMOTE backing stores merge alongside local backing stores; each stamps its subjects with
+		// its own site principal (TCluster.sites), so a merged cluster still says which site served each subject. Under
+		// scope "own" (this instance's authoritative record) both are skipped — their records are the serving site's own.
+		const own = opts.scope === "own";
+		const backing = own ? this.allStores.filter((s) => !s.isRemote) : this.allStores;
+		const peers = own ? [] : [...this.federated];
+		const backingResults = await Promise.all([...backing.map((s) => s.getClusteredQuads(opts)), ...peers.map((f) => f.getClusteredQuads(opts))]);
 		for (const r of backingResults) {
 			allQuads.push(...r.quads);
 			for (const c of r.clusters) mergeCluster(c);
