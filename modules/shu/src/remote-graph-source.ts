@@ -5,7 +5,7 @@
  * sampled subject stamped with the site that served it. Deliberately NOT a routed backing store —
  * no raw pattern queries and no writes; those arrive with capability-gated federation.
  */
-import { RpcClient } from "@haibun/core/lib/rpc-client.js";
+import { discoverInstance, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TCluster, TClusteredQuads, TFederatedGraphSource, TQuad } from "@haibun/core/lib/quad-types.js";
 
@@ -21,10 +21,7 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 
 	/** Handshake: the peer self-reports its site principal via action.begin. Must complete before reads. */
 	async connect(): Promise<string> {
-		const result = await this.rpc.call<{ site?: string }>("action.begin", {}, []);
-		if (typeof (result as { error?: unknown }).error === "string") throw new Error(`RemoteGraphSource: action.begin failed at ${this.config.url}: ${(result as { error: string }).error}`);
-		const site = (result as { site?: string }).site;
-		if (typeof site !== "string" || site.length === 0) throw new Error(`RemoteGraphSource: ${this.config.url} did not report a site principal — the peer predates federation`);
+		const { site } = await discoverInstance(this.rpc, this.config.url);
 		this.remoteSite = site;
 		return site;
 	}
