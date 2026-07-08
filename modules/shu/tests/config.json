@@ -4,6 +4,7 @@
 		"haibun",
 		"variables-stepper",
 		"resources-stepper",
+		"authority-stepper",
 		"logic-stepper",
 		"activities-stepper",
 		"@haibun/web-server-hono/web-server-stepper",

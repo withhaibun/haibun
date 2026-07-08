@@ -2,12 +2,14 @@ import { z } from "zod";
 import type { TFeatures } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
 import { OK, STEP_DELAY } from "../schema/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from "../lib/astepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartExecution, TStartFeature, TEndFeature, CycleWhen } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, constructorName, formattedSteppers, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
+import { QuadStore } from "../lib/quad-store.js";
+import { RemoteQuadStore } from "../lib/remote-quad-store.js";
 
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
@@ -26,6 +28,14 @@ class Haibun extends AStepper implements IHasCycles {
 		startFeature({ resolvedFeature, index }: TStartFeature) {
 			this.resolvedFeature = resolvedFeature;
 			this.afterEverySteps = {};
+		},
+		endFeature: (endFeature?: TEndFeature) => {
+			// A federated source or mounted remote store (use store at / federate graph reads) is bound to a
+			// connection that does not outlive the feature; drop it so the next feature's reads never chase a dead peer.
+			if (!endFeature?.shouldClose) return Promise.resolve();
+			const store = this.getWorld().shared?.getStore();
+			if (store instanceof QuadStore) store.dropRemoteConnections();
+			return Promise.resolve();
 		},
 		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
 			if (featureStep.isAfterEveryStep) {
@@ -56,6 +66,24 @@ class Haibun extends AStepper implements IHasCycles {
 	};
 
 	steps = {
+		useStoreAt: {
+			gwta: `use store at {where} for {types} with token {token}`,
+			productsSchema: z.object({ site: z.string(), types: z.array(z.string()) }),
+			// Mount another instance's store for the given types: writes route through and reads come back over the
+			// capability-gated store surface, so this instance keeps those records in the serving site's store instead
+			// of its own — one store, one custodian. The token is the delegated capability the serving site granted.
+			action: async ({ where, types, token }: { where: string; types: string; token: string }) => {
+				const store = this.getWorld().shared.getStore();
+				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");
+				const graphs = types.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+				if (graphs.length === 0) return actionNotOK("use store at: no types given");
+				const remote = new RemoteQuadStore({ url: where, token, graphs });
+				const site = await remote.connect();
+				await store.registerStore(remote, graphs);
+				return actionOKWithProducts({ site, types: graphs });
+			},
+		},
+
 		onHost: {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
 			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {

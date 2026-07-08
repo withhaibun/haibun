@@ -588,17 +588,19 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			},
 		},
 		clusteredGraphHoldsFromSite: {
-			gwta: "clustered graph holds {type} from site {site}",
-			productsSchema: z.object({ count: z.number().int().positive() }),
-			// Federation-health inspection: does this instance's merged view hold {type} individuals SERVED BY {site}?
-			// Reads the same clustered surface the views render from, so it asserts exactly what a user would see.
-			action: async ({ type, site }: { type: string; site: string }) => {
+			gwta: "clustered graph holds {type} {subject} from site {site}",
+			productsSchema: z.object({ subject: z.string(), site: z.string() }),
+			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
+			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a
+			// user would see — including that the subject's stamp names the site that actually serves it.
+			action: async ({ type, subject, site }: { type: string; subject: string; site: string }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!store.getClusteredQuads) return actionNotOK("QuadStore does not support getClusteredQuads");
 				const { clusters } = await store.getClusteredQuads({ perTypeLimit: 1000, accessLevel: Access.private });
 				const cluster = clusters.find((c) => c.type === type);
-				const count = cluster ? cluster.sampledSubjects.filter((s) => cluster.sites?.[s] === site).length : 0;
-				return count > 0 ? actionOKWithProducts({ count }) : actionNotOK(`clustered graph holds no ${type} from site ${site}`);
+				if (!cluster?.sampledSubjects.includes(subject)) return actionNotOK(`clustered graph holds no ${type} ${subject}`);
+				const served = cluster.sites?.[subject];
+				return served === site ? actionOKWithProducts({ subject, site }) : actionNotOK(`${subject} is served by ${served ?? "this site (unstamped)"}, not ${site}`);
 			},
 		},
 		federateGraphReads: {
