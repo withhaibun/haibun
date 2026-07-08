@@ -19,11 +19,11 @@ export class FeatureVariables {
 		private world: TWorld,
 		initial?: { [name: string]: TStepValue },
 	) {
-		// The predecessor's backing routing is shared by reference, never copied: a backing registered anywhere in the
-		// chain is visible to every store in it, and its owner's unregisterStore removes it from all of them at once.
+		// The predecessor's backing routing and federated peers are shared by reference, never copied: a registration
+		// anywhere in the chain is visible to every store in it, and its owner's unregister removes it from all at once.
 		const prev = world.shared?.getStore();
 		const prevStore = prev instanceof QuadStore ? prev : undefined;
-		this.store = new QuadStore(prevStore?.backingRouting());
+		this.store = new QuadStore(prevStore?.backingRouting(), prevStore?.backingFederated());
 		prevStore?.carryNonVariableQuadsTo(this.store as QuadStore);
 		if (initial) {
 			for (const [name, sv] of Object.entries(initial)) {

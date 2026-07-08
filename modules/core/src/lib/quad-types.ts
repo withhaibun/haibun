@@ -194,9 +194,28 @@ export interface TCluster {
 	 * id), so views render straight from it and never compute their own label.
 	 */
 	displayLabels: Record<string, string>;
+	/**
+	 * Site principal (did:site DID) per sampled subject, for subjects served by a FEDERATED peer. A read-time
+	 * store fact, never persisted on the data: which site's store served the subject. Absent for a subject
+	 * served by the responding site itself — the response-level `TClusteredQuads.site` is its principal.
+	 */
+	sites?: Record<string, string>;
 }
 
 export interface TClusteredQuads {
 	quads: TQuad[];
 	clusters: TCluster[];
+	/** Site principal of the responding instance — the serving site of every sampled subject not overridden in `TCluster.sites`. */
+	site?: string;
+}
+
+/**
+ * A federated peer's clustered read surface — the reads-first federation contract. A peer serves its
+ * bounded, accessLevel-gated clustered snapshot; it is NOT a routed backing store (no raw pattern
+ * queries, no writes — those arrive with capability-gated federation). `site` is the peer's unique
+ * site principal, the per-subject stamp for everything it serves.
+ */
+export interface TFederatedGraphSource {
+	site: string;
+	getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads>;
 }

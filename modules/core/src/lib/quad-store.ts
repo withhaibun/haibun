@@ -7,7 +7,7 @@
  * Methods return Promises (via Promise.resolve) to satisfy the async IQuadStore interface.
  */
 
-import { SHARED_GRAPH, type IQuadStore, type TCluster, type TClusteredQuads, type TQuad, type TQuadPattern } from "./quad-types.js";
+import { SHARED_GRAPH, type IQuadStore, type TCluster, type TClusteredQuads, type TFederatedGraphSource, type TQuad, type TQuadPattern } from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
 import { BODY_LABEL, type AccessLevel } from "./resources.js";
 
@@ -20,14 +20,38 @@ export class QuadStore implements IQuadStore {
 	 * a closed engine's store stayed registered in earlier copies and poisoned the next feature's reads.
 	 */
 	private routing: Map<string, IQuadStore>;
+	/**
+	 * Federated peers, consulted ONLY by getClusteredQuads — reads-first federation joins at the one read
+	 * surface a peer serves (bounded, accessLevel-gated), never the routing map (which owns writes and raw
+	 * queries). Shared by reference along the store chain for the same reason as `routing`.
+	 */
+	private federated: Set<TFederatedGraphSource>;
 
-	constructor(routing?: Map<string, IQuadStore>) {
+	constructor(routing?: Map<string, IQuadStore>, federated?: Set<TFederatedGraphSource>) {
 		this.routing = routing ?? new Map();
+		this.federated = federated ?? new Set();
 	}
 
 	/** The routing map, for constructing the next store in a chain so it shares this one's registrations. */
 	backingRouting(): Map<string, IQuadStore> {
 		return this.routing;
+	}
+
+	/** The federated-peer set, carried along the store chain exactly like `backingRouting`. */
+	backingFederated(): Set<TFederatedGraphSource> {
+		return this.federated;
+	}
+
+	/** Merge a federated peer's clustered reads into this store's graph view. `unfederate` reverses it. */
+	federate(source: TFederatedGraphSource): void {
+		for (const f of this.federated) {
+			if (f.site === source.site) throw new Error(`federate: a source for site ${source.site} is already registered`);
+		}
+		this.federated.add(source);
+	}
+
+	unfederate(source: TFederatedGraphSource): void {
+		this.federated.delete(source);
 	}
 
 	/** Register a backing store for specific named graphs. Writes route to it, reads merge.
@@ -197,7 +221,7 @@ export class QuadStore implements IQuadStore {
 		const mergeCluster = (c: TCluster) => {
 			const existing = clustersByType.get(c.type);
 			if (!existing) {
-				clustersByType.set(c.type, { ...c, sampledSubjects: [...c.sampledSubjects], displayLabels: { ...c.displayLabels } });
+				clustersByType.set(c.type, { ...c, sampledSubjects: [...c.sampledSubjects], displayLabels: { ...c.displayLabels }, ...(c.sites ? { sites: { ...c.sites } } : {}) });
 				return;
 			}
 			const merged = new Set(existing.sampledSubjects);
@@ -207,9 +231,12 @@ export class QuadStore implements IQuadStore {
 			existing.totalCount = Math.max(existing.totalCount, c.totalCount, existing.sampledCount);
 			existing.omittedCount = Math.max(0, existing.totalCount - existing.sampledCount);
 			existing.displayLabels = { ...existing.displayLabels, ...c.displayLabels };
+			if (c.sites) existing.sites = { ...existing.sites, ...c.sites };
 		};
 
-		const backingResults = await Promise.all(this.allStores.map((s) => s.getClusteredQuads(opts)));
+		// Federated peers merge alongside backing stores; each peer stamps its subjects with its own site
+		// principal (TCluster.sites), so a merged cluster still says which site served each subject.
+		const backingResults = await Promise.all([...this.allStores.map((s) => s.getClusteredQuads(opts)), ...[...this.federated].map((f) => f.getClusteredQuads(opts))]);
 		for (const r of backingResults) {
 			allQuads.push(...r.quads);
 			for (const c of r.clusters) mergeCluster(c);

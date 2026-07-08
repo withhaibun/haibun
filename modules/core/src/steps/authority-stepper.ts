@@ -9,6 +9,8 @@ import type { IZcapAuthority, TZcapGrant, TZcapInvocation } from "../lib/zcap-ty
 import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { currentPrincipal, withPrincipal } from "../lib/principal.js";
+import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
+import { PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
 
 const ZCAP_TOKEN_DOMAIN = "zcap-token";
 const ZCAP_ACTION_DOMAIN = "zcap-action";
@@ -54,6 +56,8 @@ const zcapGrantRevokedSchema = z.object({
 });
 
 const zcapGrantsListSchema = z.object({ grants: z.array(zcapGrantSchema) });
+
+const siteNamedSchema = z.object({ site: z.string() });
 
 /** The inline signed-capability document presented to `as subkey holding capability …`. Must carry a controller and a Data Integrity proof; verification is delegated to the registered IZcapVerifier. */
 const signedCapabilitySchema = z.looseObject({
@@ -160,6 +164,31 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				await persistPrincipalIndividual(world, { id: sitePrincipal, controller: sitePrincipal, generatedAtTime: now });
 				await persistPrincipalIndividual(world, { id: controller, controller, allowedAction: JSON.stringify([action]), generatedAtTime: now }, sitePrincipal);
 				return actionOKWithProducts({ subkey: grant.token ?? subkey, controller, allowedAction: grant.allowedAction });
+			},
+		},
+		nameConnectingSite: {
+			exact: "name a connecting site",
+			productsSchema: siteNamedSchema,
+			// Site principals must be unique within a federation. A default-identified instance (did:site:0 to itself)
+			// asks the site it connects to what it should be called; this end assigns `did:site:<mine>.<n>` — unique
+			// under this site's own principal — and durably records the assignment as a Principal individual, so `n`
+			// never repeats. Called over RPC by the connecting site (see the federate step's collision handling).
+			action: async () => {
+				const world = this.getWorld();
+				const store = world.shared?.getStore();
+				if (!world.domains[PRINCIPAL_DOMAIN] || !store) {
+					return actionNotOK("naming a connecting site requires the Principal domain and a store — a namer must durably record the principals it assigns");
+				}
+				const myId = activeSitePrincipal(world);
+				const local = myId.startsWith(SITE_DID_PREFIX) ? myId.slice(SITE_DID_PREFIX.length) : myId.replace(/^did:/, "").replace(/:/g, ".");
+				const prefix = `${SITE_DID_PREFIX}${local}.`;
+				const ids = await store.distinctPropertyValues(PRINCIPAL_LABEL, "id");
+				const taken = ids.filter((id) => id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))).map((id) => Number(id.slice(prefix.length)));
+				const assigned = `${prefix}${taken.length === 0 ? 1 : Math.max(...taken) + 1}`;
+				const now = new Date().toISOString();
+				await persistPrincipalIndividual(world, { id: myId, controller: myId, generatedAtTime: now });
+				await persistPrincipalIndividual(world, { id: assigned, controller: assigned, generatedAtTime: now });
+				return actionOKWithProducts({ site: assigned });
 			},
 		},
 		asSubkey: {

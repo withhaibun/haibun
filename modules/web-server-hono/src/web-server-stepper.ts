@@ -7,7 +7,7 @@ import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type ISt
 import { dispatchStep, parseRpcRequest } from "@haibun/core/lib/step-dispatch.js";
 import { discoverSteps, buildFeatureStepForTransport, StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
-import { allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
+import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
@@ -250,8 +250,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						const seqPath = this.allocateSessionSeqPath();
 						// seqPath[0] is the hostId; returning it explicitly saves remote
 						// callers from having to reach into the seqPath to learn which
-						// host they're talking to.
-						return { seqPath, hostId: seqPath[0] };
+						// host they're talking to. `site` is this instance's site
+						// principal — the federation handshake reads it to stamp and
+						// de-collide merged reads.
+						return { seqPath, hostId: seqPath[0], site: activeSitePrincipal(this.getWorld()) };
 					}
 
 					// External callers (no feature-step context) get a server-synthesised seqPath, matching MCP.

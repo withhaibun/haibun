@@ -100,3 +100,50 @@ describe("backing routing is shared along the store chain, and a registration ne
 		expect(await third.query({ namedGraph: "Body" })).toHaveLength(0);
 	});
 });
+
+describe("federated clustered reads (reads-first federation)", () => {
+	const peer = (site: string, type: string, subject: string) => ({
+		site,
+		getClusteredQuads: () =>
+			Promise.resolve({
+				quads: [{ subject, predicate: "name", object: subject, namedGraph: type, timestamp: 1 }],
+				clusters: [{ type, totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: [subject], displayLabels: { [subject]: subject }, sites: { [subject]: site } }],
+				site,
+			}),
+	});
+
+	it("merges a peer's clusters into getClusteredQuads with per-subject site stamps intact; local subjects stay unstamped", async () => {
+		const store = new QuadStore();
+		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Email" });
+		store.federate(peer("did:site:imap.1", "Email", "remote-1"));
+		const result = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
+		const email = result.clusters.find((c) => c.type === "Email");
+		expect([...(email?.sampledSubjects ?? [])].sort()).toEqual(["local-1", "remote-1"]);
+		expect(email?.sites).toEqual({ "remote-1": "did:site:imap.1" });
+	});
+
+	it("touches only getClusteredQuads — a federated peer never appears in raw queries or all()", async () => {
+		const store = new QuadStore();
+		store.federate(peer("did:site:imap.1", "Email", "remote-1"));
+		expect(await store.query({ namedGraph: "Email" })).toHaveLength(0);
+		expect(await store.all()).toHaveLength(0);
+	});
+
+	it("refuses a second source for the same site — site principals must be unique in a federation", () => {
+		const store = new QuadStore();
+		store.federate(peer("did:site:imap.1", "Email", "a"));
+		expect(() => store.federate(peer("did:site:imap.1", "Email", "b"))).toThrow(/already registered/);
+	});
+
+	it("carries federation along the store chain by reference, and unfederate removes it everywhere", async () => {
+		const store = new QuadStore();
+		const source = peer("did:site:imap.1", "Email", "remote-1");
+		store.federate(source);
+		const next = new QuadStore(store.backingRouting(), store.backingFederated());
+		const seen = await next.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
+		expect(seen.clusters.find((c) => c.type === "Email")?.sampledSubjects).toEqual(["remote-1"]);
+		store.unfederate(source);
+		const after = await next.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
+		expect(after.clusters.find((c) => c.type === "Email")).toBeUndefined();
+	});
+});
