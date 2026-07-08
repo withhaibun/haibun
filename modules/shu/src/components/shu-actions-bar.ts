@@ -672,7 +672,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 						</select>`
 						: nothing;
 		const testid = this._openCorner ? `${this.testIdPrefix}${this._openCorner}-popover` : nothing;
-		// stopPropagation: clicks must not bubble to the summary strip's expand handler.
+		// stopPropagation: clicks must not bubble to the summary strip's expand handler. MANUAL popover deliberately:
+		// these panels are used alongside the page (scrub the timeline, then click a node to see it at that time), so
+		// they stay put on outside clicks — only their own control puts them away. Never over the bar's own controls:
+		// showCornerPopover anchors above the whole bar.
 		return html`<div class="corner-popover" popover="manual" data-testid=${testid} @click=${(e: Event) => e.stopPropagation()}>${content}</div>`;
 	}
 
@@ -728,7 +731,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return this.shadowRoot?.querySelector(".corner-popover") ?? null;
 	}
 
-	/** Float the popover just above its toggle: right edge over the control; the timeline spans the bar's full width. */
+	/** Float the popover just above the WHOLE bar (host top, not the summary strip's — the strip sits mid-bar when the
+	 *  bar is expanded, and a panel anchored there covered the step input, swallowing its clicks): right edge over the
+	 *  control; the timeline spans the bar's full width. */
 	private showCornerPopover(kind: TCorner, toggle: HTMLElement): void {
 		const pop = this.cornerPopoverEl();
 		const bar = this.shadowRoot?.querySelector(".summary-bar") as HTMLElement | null;
@@ -737,7 +742,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const strip = bar.getBoundingClientRect();
 		pop.style.margin = "0";
 		pop.style.inset = "auto";
-		pop.style.bottom = `${window.innerHeight - strip.top + 4}px`;
+		pop.style.bottom = `${window.innerHeight - this.getBoundingClientRect().top + 4}px`;
 		if (kind === "timeline") {
 			pop.style.left = `${strip.left + 8}px`;
 			pop.style.right = `${window.innerWidth - strip.right + 8}px`;
