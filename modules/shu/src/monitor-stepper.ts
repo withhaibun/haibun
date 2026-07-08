@@ -522,13 +522,16 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		getClusteredQuads: {
 			gwta: "get clustered quads",
 			productsSchema: ClusteredQuadsSchema,
-			action: async (args: { perTypeLimit?: number | string; types?: string[] | string; accessLevel?: string } = {}) => {
+			action: async (args: { perTypeLimit?: number | string; types?: string[] | string; accessLevel?: string; scope?: string } = {}) => {
 				const store = this.getWorld().shared.getStore();
 				// RPC params arrive stringified through the synthetic-step plumbing; coerce both back to native shapes.
 				const limitNum = typeof args.perTypeLimit === "string" ? Number(args.perTypeLimit) : args.perTypeLimit;
 				const perTypeLimit = Math.max(1, Math.min(10000, Number.isFinite(limitNum) ? (limitNum as number) : 100));
 				// Required, same as the dereference/query paths — no default ceiling, so the cluster view honors the caller's access exactly.
 				const accessLevel = AccessLevelSchema.parse(args.accessLevel);
+				// A federated read asks for "own" — the peer's authoritative data, never its view of the world (see TClusteredQuadsOpts).
+				if (args.scope !== undefined && args.scope !== "own" && args.scope !== "federated") return actionNotOK(`getClusteredQuads: scope must be "own" or "federated", got "${args.scope}"`);
+				const scope = args.scope as "own" | "federated" | undefined;
 				let types: string[] | undefined;
 				if (Array.isArray(args.types)) types = args.types;
 				else if (typeof args.types === "string" && args.types.length > 0) {
@@ -542,7 +545,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (!store.getClusteredQuads) {
 					return actionNotOK("QuadStore does not support getClusteredQuads");
 				}
-				const result = await store.getClusteredQuads({ perTypeLimit, types, accessLevel });
+				const result = await store.getClusteredQuads({ perTypeLimit, types, accessLevel, scope });
 				// The store sample is canonical; the live observation buffer only EXTENDS it through the one shared,
 				// budget-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
 				// buffer unbudgeted let every observed subject past the requested limit — the client seeds this

@@ -40,7 +40,9 @@ export async function buildGraphSource(
 > {
 	const store = world.shared.getStore();
 	if (!store.getClusteredQuads) return undefined;
-	const { quads, clusters } = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private });
+	// Scope "own": the standalone report is this site's own record — a shutdown-time bake must not depend on
+	// federated peers still being reachable, and each peer's record is its own report.
+	const { quads, clusters } = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private, scope: "own" });
 	const model = buildGraphModelFromQuads(quads as TQuad[]);
 	const nodeMap = new Map(model.nodes.map((n) => [n.id, { graph: n.type, subject: n.id }]));
 	const edges = model.edges.map((e) => ({ source: e.from, predicate: e.predicate, object: e.to }));
