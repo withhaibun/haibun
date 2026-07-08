@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildGraphModelFromQuads, HYPERMEDIA_ROLE_KEY } from "./graph-model.js";
+import { buildGraphModelFromQuads, HYPERMEDIA_ROLE_KEY, SITE_KEY } from "./graph-model.js";
 import { ROLE_RELS } from "./graph/grouping.js";
 import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
 
@@ -104,6 +104,21 @@ describe("HypermediaRole fold (roleRels)", () => {
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined();
 	});
 
+	it("records EACH actor edge on properties[predicate], so any predicate is a groupable axis — not just the winner", () => {
+		const model = buildGraphModelFromQuads(
+			[
+				q("vc1", "name", "Permit", "VerifiableCredential"),
+				q("vc1", "issuer", "did:issuer", "VerifiableCredential", "Principal"),
+				q("vc1", "holder", "did:holder", "VerifiableCredential", "Principal"),
+				...principals,
+			],
+			{ roleRels: ["issuer", "holder"] },
+		);
+		const vc = model.nodes.find((n) => n.id === "vc1");
+		expect(vc?.properties?.issuer).toBe("did:issuer"); // group by "issuer" specifically…
+		expect(vc?.properties?.holder).toBe("did:holder"); // …AND by "holder" — both kept, so "an issuer in a wallet" is expressible
+	});
+
 	it("does not fold when roleRels is absent (backward-compatible)", () => {
 		const model = buildGraphModelFromQuads([
 			q("vc1", "name", "Permit", "VerifiableCredential"),
@@ -162,5 +177,21 @@ describe("ROLE_RELS trust-triangle placement (genuine W3C VC terms)", () => {
 		);
 		expect(model.nodes.find((n) => n.id === "vm1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("registry:vdr"); // registry outranks controller
 		expect(model.nodes.find((n) => n.id === "registry:vdr")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("registry:vdr"); // the registry is its own container
+	});
+});
+
+describe("serving-site fold (SITE_KEY)", () => {
+	it("folds the response site onto every node, a federated per-subject stamp winning over it", () => {
+		const clusters: TCluster[] = [
+			{ type: "Email", totalCount: 2, sampledCount: 2, omittedCount: 0, sampledSubjects: ["e1", "r1"], displayLabels: { e1: "E1", r1: "R1" }, sites: { r1: "did:site:imap.1" } },
+		];
+		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Email"), q("r1", "name", "R1", "Email")], { clusters, site: "did:site:main" });
+		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[SITE_KEY]).toBe("did:site:main");
+		expect(model.nodes.find((n) => n.id === "r1")?.properties?.[SITE_KEY]).toBe("did:site:imap.1");
+	});
+
+	it("folds nothing when the response carries no site (offline snapshots, plain quad tests)", () => {
+		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Email")]);
+		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[SITE_KEY]).toBeUndefined();
 	});
 });

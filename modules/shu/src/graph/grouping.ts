@@ -8,10 +8,13 @@ import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
 export type XYZ = { x: number; y: number; z: number };
 
-/** Grouping/container axis: by `@type` (today's default) or by `HypermediaRole` (the party a node is attributed to). */
-export type GroupKeyMode = "type" | "role";
+/** A grouping/container axis. `"type"` groups by `@type`; `"role"` by the highest-priority actor a node is attributed to
+ *  (the ROLE_PRIORITY policy below); ANY other value is a folded node-property key — an actor predicate (issuer, holder, …,
+ *  ontology-derived via roleRels: declaring `subPropertyOf inRoleOf` in LinkRelations makes a rel an axis with nothing to
+ *  change here) or the read-time SITE_KEY stamp (the site whose store served the node, set at the federation merge). */
+export type GroupKeyMode = "type" | "role" | (string & {});
 
-/** Container bucket for a node with no resolved HypermediaRole, under the role axis. */
+/** Container bucket for a node with no agent at the chosen actor axis. */
 export const UNATTRIBUTED_ROLE = "(unattributed)";
 
 /** PRIORITY POLICY (a VIEW policy, not an ontology fact): when a node carries SEVERAL role edges, which one names its
@@ -46,14 +49,20 @@ export const ROLE_RELS: readonly string[] = (() => {
 	return [...ranked, ...rest];
 })();
 
-/** The group/container key for a node: its `@type` (default), or its `HypermediaRole` under the role axis. One selector,
- *  both axes — the fold in buildGraphModelFromQuads put the role on `properties[HYPERMEDIA_ROLE_KEY]`, so this stays pure. */
-export const groupKeyOf = (n: { type: string; properties?: Record<string, unknown> }, mode: GroupKeyMode = "type"): string =>
-	mode === "role" ? String(n.properties?.[HYPERMEDIA_ROLE_KEY] ?? UNATTRIBUTED_ROLE) : n.type;
+/** The group/container key for a node under `axis`: its `@type`, its highest-priority actor (`"role"`), or the agent at a
+ *  specific actor predicate. buildGraphModelFromQuads records each actor edge on `properties[predicate]` and the winner on
+ *  `properties[HYPERMEDIA_ROLE_KEY]`, so this reads a plain property either way — no edge walking, no predicate enumerated
+ *  here (the axis string IS the predicate). */
+export const groupKeyOf = (n: { type: string; properties?: Record<string, unknown> }, axis: GroupKeyMode = "type"): string => {
+	if (axis === "type") return n.type;
+	if (axis === "role") return String(n.properties?.[HYPERMEDIA_ROLE_KEY] ?? UNATTRIBUTED_ROLE);
+	return String(n.properties?.[axis] ?? UNATTRIBUTED_ROLE);
+};
 
-/** The display label for a container of `key`: under the role axis, the party's own display label (resolved by id) so a
- *  container reads e.g. "Coastal Fisheries Authority", not its DID; under the type axis, the type key reads as-is. */
-export const containerLabelOf = (key: string, mode: GroupKeyMode, labelById?: ReadonlyMap<string, string>): string => (mode === "role" ? (labelById?.get(key) ?? key) : key);
+/** The display label for a container of `key`: under any ACTOR axis (role or a specific predicate) the key is an agent id,
+ *  so resolve it to that agent's own display label (e.g. "Coastal Fisheries Authority", not its DID); under the type axis
+ *  the type key reads as-is. */
+export const containerLabelOf = (key: string, axis: GroupKeyMode, labelById?: ReadonlyMap<string, string>): string => (axis === "type" ? key : (labelById?.get(key) ?? key));
 
 // Cohesion: how hard a group's members are pulled toward their ring anchor in XY (the "exclusive area" comes from
 // this, not the border alone). Depth is not cohesion's to control — z maps to each object's generatedAtTime.
