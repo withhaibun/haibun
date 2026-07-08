@@ -692,11 +692,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<span class="status-area" style=${this._statusMessage ? "" : "display:none"}>${this._statusMessage}</span>
 			<shu-breadcrumb></shu-breadcrumb>
 			<span class="corner-controls">
-				<button class="corner-toggle time-offset" aria-label="Timeline" aria-expanded=${this._openCorner === "timeline"}
+				<button class="pane-icon corner-toggle time-offset" aria-label="Timeline" aria-expanded=${this._openCorner === "timeline"}
 					data-testid=${`${this.testIdPrefix}time-offset`} @click=${this.onCornerToggle("timeline")}>${this._timeOffsetLabel}</button>
-				<button class="corner-toggle access-indicator" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
+				<button class="pane-icon corner-toggle access-indicator" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
 					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}</button>
-				<button class="settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
+				<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
 					@click=${this.onCornerToggle("settings")}>\u2699</button>
 			</span>
 			<button class="pane-icon" aria-label=${pinned ? "Unpin actions bar" : "Pin actions bar open"} aria-pressed=${pinned}
@@ -1135,14 +1135,9 @@ const STYLES = `
 		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
 		max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
-	.settings-button {
-		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
-		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
-		display: inline-flex; align-items: center; justify-content: center;
-		font-size: var(--shu-font-sm); color: var(--shu-fg-faded);
-		border-radius: var(--shu-radius);
-	}
-	.settings-button:hover, .settings-button[aria-expanded="true"] { color: var(--shu-fg); background: var(--shu-bg-hover); }
+	/* Corner controls are shared pane-icon buttons (open state = the same accent inverse as an active column view
+	   control); locally they only lose the box (the cluster pill is the border) and, for the text toggles, the square width. */
+	.settings-button { border: none; background: none; flex-shrink: 0; }
 	/* The one corner-popover surface (a native top-layer popover): floats just above its corner toggle without
 	   opening the actions bar. Position (bottom/right, or full-bar-width for the timeline) is set at show time. */
 	.corner-popover {
@@ -1168,12 +1163,8 @@ const STYLES = `
 		padding: 0 var(--shu-space-1);
 		border: var(--shu-border-w) solid var(--shu-border); border-radius: 999px; background: var(--shu-bg-soft);
 	}
-	.corner-toggle {
-		background: none; border: none; padding: var(--shu-space-1) var(--shu-space-2); cursor: pointer;
-		font: inherit; border-radius: 999px;
-	}
-	.corner-toggle:hover, .corner-toggle[aria-expanded="true"] { color: var(--shu-fg); background: var(--shu-bg-hover); }
-	.access-indicator, .time-offset { font-size: var(--shu-font-xs); color: var(--shu-fg-faded); flex-shrink: 0; }
+	.corner-toggle { width: auto; padding: 0 var(--shu-space-2); border: none; background: none; border-radius: 999px; }
+	.access-indicator, .time-offset { font-size: var(--shu-font-xs); flex-shrink: 0; }
 	.filter-bar {
 		display: flex; gap: var(--shu-space-2); align-items: center;
 		padding: var(--shu-space-2) var(--shu-space-3); flex-wrap: wrap;
