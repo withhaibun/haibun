@@ -32,7 +32,7 @@ export function resolveHostId(env: Record<string, string | undefined> = process.
 }
 
 export const HAIBUN_SITE_KEY_ENV = "HAIBUN_SITE_KEY";
-const SITE_DID_PREFIX = "did:site:";
+export const SITE_DID_PREFIX = "did:site:";
 
 /** The default identity this instance acts as. Defaults to `did:site:<hostId>`; HAIBUN_SITE_KEY overrides (bare → `did:site:<key>`, already-`did:` → used as-is). */
 export function resolveSitePrincipal(env: Record<string, string | undefined> = process.env): string {
@@ -40,6 +40,36 @@ export function resolveSitePrincipal(env: Record<string, string | undefined> = p
 	if (raw && raw.startsWith("did:")) return raw;
 	if (raw) return `${SITE_DID_PREFIX}${raw}`;
 	return `${SITE_DID_PREFIX}${resolveHostId(env)}`;
+}
+
+/** Runtime key holding an ADOPTED site principal — assigned by a peer at federation time (see adoptSitePrincipal). */
+const ADOPTED_SITE_PRINCIPAL = "sitePrincipal";
+
+type TSitePrincipalWorld = { runtime: { keys?: Record<string, unknown> } };
+
+/**
+ * This instance's site principal (its identity DID) as seen by a federation: an adopted one when a peer has
+ * named it, else the env-resolved default. Distinct from the acting principal (principal.ts) — `as subkey`
+ * changes who is ACTING; the site a store fact is served by never changes mid-run.
+ */
+export function activeSitePrincipal(world: TSitePrincipalWorld, env: Record<string, string | undefined> = process.env): string {
+	const adopted = world.runtime.keys?.[ADOPTED_SITE_PRINCIPAL];
+	return typeof adopted === "string" && adopted.length > 0 ? adopted : resolveSitePrincipal(env);
+}
+
+/** True when this instance still carries the default derived principal (`did:site:<hostId>`, nothing adopted or operator-set). */
+export function hasDefaultSitePrincipal(world: TSitePrincipalWorld, env: Record<string, string | undefined> = process.env): boolean {
+	return activeSitePrincipal(world, env) === `${SITE_DID_PREFIX}${resolveHostId(env)}` && !env[HAIBUN_SITE_KEY_ENV];
+}
+
+/**
+ * Adopt a peer-assigned site principal: site principals must be unique within a federation, and the default
+ * `did:site:0` is valid only in isolation — a default-identified instance asks the site it connects to what
+ * it should be called, and adopts the answer for this run. An operator-set principal is never overwritten.
+ */
+export function adoptSitePrincipal(world: TSitePrincipalWorld, principal: string): void {
+	if (!principal.startsWith("did:")) throw new Error(`adoptSitePrincipal: expected a DID, got "${principal}"`);
+	(world.runtime.keys ??= {})[ADOPTED_SITE_PRINCIPAL] = principal;
 }
 
 /**

@@ -189,13 +189,13 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 		try {
 			const steps = await getAvailableSteps();
 			if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
-			const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[] }>(
+			const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[]; site?: string }>(
 				{ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types, accessLevel } },
 				"quads-snapshot: fetch clustered quads",
 			);
 			if (!Array.isArray(data.quads)) throw new Error("MonitorStepper-getClusteredQuads returned non-array quads");
 			// The server already clustered (true totals + SQL body labels); the model adopts that snapshot, then live SSE extends it.
-			model.seed({ quads: data.quads, clusters: data.clusters ?? [] });
+			model.seed({ quads: data.quads, clusters: data.clusters ?? [], site: data.site });
 			if (priorPinned) model.pin(priorPinned);
 			s.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
 			void idbGraphStore.setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)

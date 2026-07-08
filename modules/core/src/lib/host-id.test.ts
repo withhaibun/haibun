@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveHostId, syntheticSeqPath, HAIBUN_HOST_ID_ENV, DEFAULT_HOST_ID, SYNTHETIC_FEATURE_NUM } from "./host-id.js";
+import { resolveHostId, syntheticSeqPath, HAIBUN_HOST_ID_ENV, DEFAULT_HOST_ID, SYNTHETIC_FEATURE_NUM, activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal, HAIBUN_SITE_KEY_ENV } from "./host-id.js";
 
 describe("resolveHostId", () => {
 	it("returns default when env var is absent", () => {
@@ -48,5 +48,32 @@ describe("syntheticSeqPath", () => {
 
 	it("two hosts with different hostId produce distinct synthetics for same adHocSeq", () => {
 		expect(syntheticSeqPath(0, 5)).not.toEqual(syntheticSeqPath(1, 5));
+	});
+});
+
+describe("activeSitePrincipal / adoptSitePrincipal", () => {
+	const worldWith = (keys?: Record<string, unknown>) => ({ runtime: { keys } });
+
+	it("defaults to the env-resolved site principal (did:site:<hostId>, 0 to itself)", () => {
+		const world = worldWith();
+		expect(activeSitePrincipal(world, {})).toBe("did:site:0");
+		expect(hasDefaultSitePrincipal(world, {})).toBe(true);
+	});
+
+	it("an operator-set HAIBUN_SITE_KEY is never the default", () => {
+		const world = worldWith();
+		expect(activeSitePrincipal(world, { [HAIBUN_SITE_KEY_ENV]: "bulky" })).toBe("did:site:bulky");
+		expect(hasDefaultSitePrincipal(world, { [HAIBUN_SITE_KEY_ENV]: "bulky" })).toBe(false);
+	});
+
+	it("an adopted principal (peer-assigned at federation) overrides the default for the run", () => {
+		const world = worldWith();
+		adoptSitePrincipal(world, "did:site:main.1");
+		expect(activeSitePrincipal(world, {})).toBe("did:site:main.1");
+		expect(hasDefaultSitePrincipal(world, {})).toBe(false);
+	});
+
+	it("refuses to adopt a non-DID", () => {
+		expect(() => adoptSitePrincipal(worldWith(), "main.1")).toThrow(/expected a DID/);
 	});
 });

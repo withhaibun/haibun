@@ -34,12 +34,16 @@ const ClusterFieldSchema = z.object({
 	omittedCount: z.number(),
 	sampledSubjects: z.array(z.string()),
 	displayLabels: z.record(z.string(), z.string()),
+	// Site principal per sampled subject served by a FEDERATED peer (omitting it makes the parse strip the federation stamp).
+	sites: z.record(z.string(), z.string()).optional(),
 });
 
 /** The state fields every clustered-graph view shares; a subclass spreads this into its own `z.object({...})`. */
 export const clusteredGraphStateShape = {
 	quads: z.array(QuadFieldSchema).default([]),
 	clusters: z.array(ClusterFieldSchema).default([]),
+	/** The responding instance's site principal — the serving site of every subject a cluster's `sites` doesn't override. */
+	site: z.string().optional(),
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 	hiddenGraphs: z.array(z.string()).default([]),
 	expandedGraphs: z.array(z.string()).default([]),
@@ -229,7 +233,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
 			// On-demand subjects are in the fresh snapshot now; clearing lets one re-load if a new budget sampled it out.
 			this.fetchedSubjects.clear();
-			this.setGraphState({ quads: snap.quads, clusters: snap.clusters, perTypeLimit: opts.perTypeLimit, hiddenGraphs: this.hiddenForSnapshot(snap) });
+			this.setGraphState({ quads: snap.quads, clusters: snap.clusters, site: snap.site, perTypeLimit: opts.perTypeLimit, hiddenGraphs: this.hiddenForSnapshot(snap) });
 			this.onGraphData();
 		} catch {
 			/* stepper may not be loaded */
@@ -244,7 +248,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		// Safe to do every batch because an imperative renderer keys its repaint off the VISIBLE model, not this set — a
 		// hidden-only change leaves the visible model untouched, so it never triggers a re-layout (it once did, which both
 		// showed mid-run instrumentation and re-spread the graph off-frame).
-		this.setGraphState({ quads: snap.quads, clusters: snap.clusters, hiddenGraphs: this.hiddenForSnapshot(snap), ...extra });
+		this.setGraphState({ quads: snap.quads, clusters: snap.clusters, site: snap.site, hiddenGraphs: this.hiddenForSnapshot(snap), ...extra });
 		this.onGraphData();
 	}
 

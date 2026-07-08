@@ -32,6 +32,10 @@ import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
 import { ontologyToQuads, ONTOLOGY_CLASS } from "./graph/ontology-projection.js";
+import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
+import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { RemoteGraphSource } from "./remote-graph-source.js";
 
 /** Result of the inherent `graphQuery` step: matched rows + their count. */
 const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(), z.unknown())), total: z.number().int().nonnegative() });
@@ -154,8 +158,12 @@ const ClusteredQuadsSchema = z.object({
 			omittedCount: z.number(),
 			sampledSubjects: z.array(z.string()),
 			displayLabels: z.record(z.string(), z.string()).optional(),
+			// Site principal per sampled subject SERVED BY A FEDERATED PEER; a subject without an entry was served by `site` below.
+			sites: z.record(z.string(), z.string()).optional(),
 		}),
 	),
+	// The responding instance's site principal — the serving site of every subject not overridden per-cluster.
+	site: z.string().optional(),
 });
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions, IHasTunables {
@@ -573,7 +581,31 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 						properties: undefined,
 					});
 				}
-				return actionOKWithProducts({ quads: [...quads, ...typeEdges, ...ontology.quads], clusters: [...model.snapshot.clusters, ...ontology.clusters] });
+				return actionOKWithProducts({ quads: [...quads, ...typeEdges, ...ontology.quads], clusters: [...model.snapshot.clusters, ...ontology.clusters], site: activeSitePrincipal(this.getWorld()) });
+			},
+		},
+		federateGraphReads: {
+			gwta: "federate graph reads from {where}",
+			productsSchema: z.object({ site: z.string() }),
+			// Reads-first federation: merge a peer instance's clustered graph reads into this one's view, each of the
+			// peer's subjects stamped with its site principal so the view can group by site. Site principals must be
+			// unique in a federation — when this instance still carries the default (did:site:0 to itself) and collides
+			// with the peer, it asks the peer what it should be called and adopts the answer; an operator-set principal
+			// that collides is a configuration error, surfaced as one.
+			action: async ({ where }: { where: string }) => {
+				const world = this.getWorld();
+				const source = new RemoteGraphSource({ url: where });
+				const peer = await source.connect();
+				if (peer === activeSitePrincipal(world)) {
+					if (!hasDefaultSitePrincipal(world)) return actionNotOK(`federate: site principals collide (${peer}) and this site is operator-named — set HAIBUN_SITE_KEY uniquely`);
+					const assigned = await source.requestName();
+					adoptSitePrincipal(world, assigned);
+					await persistPrincipalIndividual(world, { id: assigned, controller: assigned, generatedAtTime: new Date().toISOString() });
+				}
+				const store = world.shared.getStore();
+				if (!(store instanceof QuadStore)) return actionNotOK("federate: the world store does not support federation");
+				store.federate(source);
+				return actionOKWithProducts({ site: peer });
 			},
 		},
 		graphQuery: {

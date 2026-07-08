@@ -67,6 +67,8 @@ export class QuadGraphModel {
 		this.quads.length = 0;
 		this.clusters.length = 0;
 		this.quadIndex.clear();
+		// The responding instance's site principal rides the stable wrapper; merges extend quads/clusters, the responder doesn't change.
+		this.stableSnapshot.site = snapshot.site;
 		for (const q of snapshot.quads) {
 			this.quadIndex.set(quadKey(q), this.quads.length);
 			this.quads.push(q);
