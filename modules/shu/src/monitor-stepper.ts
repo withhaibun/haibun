@@ -10,7 +10,7 @@ import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync } from 
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
-import { AccessLevelSchema } from "@haibun/core/lib/resources.js";
+import { Access, AccessLevelSchema } from "@haibun/core/lib/resources.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -585,6 +585,20 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					});
 				}
 				return actionOKWithProducts({ quads: [...quads, ...typeEdges, ...ontology.quads], clusters: [...model.snapshot.clusters, ...ontology.clusters], site: activeSitePrincipal(this.getWorld()) });
+			},
+		},
+		clusteredGraphHoldsFromSite: {
+			gwta: "clustered graph holds {type} from site {site}",
+			productsSchema: z.object({ count: z.number().int().positive() }),
+			// Federation-health inspection: does this instance's merged view hold {type} individuals SERVED BY {site}?
+			// Reads the same clustered surface the views render from, so it asserts exactly what a user would see.
+			action: async ({ type, site }: { type: string; site: string }) => {
+				const store = this.getWorld().shared.getStore();
+				if (!store.getClusteredQuads) return actionNotOK("QuadStore does not support getClusteredQuads");
+				const { clusters } = await store.getClusteredQuads({ perTypeLimit: 1000, accessLevel: Access.private });
+				const cluster = clusters.find((c) => c.type === type);
+				const count = cluster ? cluster.sampledSubjects.filter((s) => cluster.sites?.[s] === site).length : 0;
+				return count > 0 ? actionOKWithProducts({ count }) : actionNotOK(`clustered graph holds no ${type} from site ${site}`);
 			},
 		},
 		federateGraphReads: {

@@ -9,6 +9,7 @@
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/web-playwright/web-playwright",
 		"@haibun/storage-fs/storage-fs",
+		"@haibun/cli/instance-stepper",
 		"@haibun/shu/shu-stepper",
 		"@haibun/shu/monitor-stepper",
 		"./build/components/shu-theme-switch.controls",
