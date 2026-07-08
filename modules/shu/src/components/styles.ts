@@ -316,8 +316,9 @@ export const SHU_BASE = `
 export const shuBaseStyles: CSSResult = css`${unsafeCSS(SHU_BASE)}`;
 
 /** The standard small icon button — the column pane's min/max/gear/pin/close controls, and any other control that
- * should look like them (e.g. the actions bar's pin). A square scaled button, bordered, muted; `aria-pressed="true"`
- * renders the active accent fill. Shared so a pin toggles identically everywhere. */
+ * should look like them (e.g. the actions bar's pin and corner toggles). A square scaled button, bordered, muted;
+ * `aria-pressed="true"` (a toggle) or `aria-expanded="true"` (a disclosure/popover control) renders the active accent
+ * fill. Shared so an active control shows identically everywhere. */
 export const SHU_ICON_BUTTON = `
 	button.pane-icon {
 		width: calc(16px * var(--shu-scale));
@@ -342,12 +343,14 @@ export const SHU_ICON_BUTTON = `
 		background: var(--shu-bg-hover);
 		border-color: var(--shu-border-strong);
 	}
-	button.pane-icon[aria-pressed="true"] {
+	button.pane-icon[aria-pressed="true"],
+	button.pane-icon[aria-expanded="true"] {
 		color: var(--shu-accent-fg);
 		background: var(--shu-accent);
 		border-color: var(--shu-accent);
 	}
-	button.pane-icon[aria-pressed="true"]:hover { filter: brightness(1.1); }
+	button.pane-icon[aria-pressed="true"]:hover,
+	button.pane-icon[aria-expanded="true"]:hover { filter: brightness(1.1); }
 `;
 export const shuIconButtonStyles: CSSResult = css`${unsafeCSS(SHU_ICON_BUTTON)}`;
 
