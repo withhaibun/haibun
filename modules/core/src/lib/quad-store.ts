@@ -7,9 +7,9 @@
  * Methods return Promises (via Promise.resolve) to satisfy the async IQuadStore interface.
  */
 
-import { SHARED_GRAPH, type IQuadStore, type TCluster, type TClusteredQuads, type TFederatedGraphSource, type TQuad, type TQuadPattern } from "./quad-types.js";
+import { SHARED_GRAPH, type IQuadStore, type TCluster, type TClusteredQuads, type TClusteredQuadsOpts, type TFederatedGraphSource, type TQuad, type TQuadPattern } from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
-import { BODY_LABEL, type AccessLevel } from "./resources.js";
+import { BODY_LABEL } from "./resources.js";
 
 export class QuadStore implements IQuadStore {
 	private quads: TQuad[] = [];
@@ -214,7 +214,7 @@ export class QuadStore implements IQuadStore {
 	 * store are sampled per type in memory. No `all()`-then-slice fallback exists:
 	 * a store that can't sample at the source is a bug, not a degraded mode.
 	 */
-	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads> {
+	async getClusteredQuads(opts: TClusteredQuadsOpts): Promise<TClusteredQuads> {
 		const requested = opts.types ? new Set(opts.types) : undefined;
 		const allQuads: TQuad[] = [];
 		const clustersByType = new Map<string, TCluster>();
@@ -235,8 +235,10 @@ export class QuadStore implements IQuadStore {
 		};
 
 		// Federated peers merge alongside backing stores; each peer stamps its subjects with its own site
-		// principal (TCluster.sites), so a merged cluster still says which site served each subject.
-		const backingResults = await Promise.all([...this.allStores.map((s) => s.getClusteredQuads(opts)), ...[...this.federated].map((f) => f.getClusteredQuads(opts))]);
+		// principal (TCluster.sites), so a merged cluster still says which site served each subject. Under
+		// scope "own" (a read SERVED TO a peer) they are skipped — see TClusteredQuadsOpts.
+		const peers = opts.scope === "own" ? [] : [...this.federated];
+		const backingResults = await Promise.all([...this.allStores.map((s) => s.getClusteredQuads(opts)), ...peers.map((f) => f.getClusteredQuads(opts))]);
 		for (const r of backingResults) {
 			allQuads.push(...r.quads);
 			for (const c of r.clusters) mergeCluster(c);

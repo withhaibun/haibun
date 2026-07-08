@@ -164,7 +164,7 @@ export interface IQuadStore {
 	 * the sample, its edges, body-preview labels and the `+N more` totals are all
 	 * computed under it, so the view never surfaces a node the caller can't open.
 	 */
-	getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads>;
+	getClusteredQuads(opts: TClusteredQuadsOpts): Promise<TClusteredQuads>;
 
 	/**
 	 * Create a single navigable edge between two individuals (graph-native stores only).
@@ -175,6 +175,14 @@ export interface IQuadStore {
 	 */
 	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 }
+
+/**
+ * Options for the clustered read. `scope` decides whether federated peers join the merge: `"federated"`
+ * (the default) is an instance's OWN view — local + backing stores + every federated peer; `"own"` is
+ * what it serves TO a peer — local + backing only. A federated read always asks for `"own"`: a peer is
+ * authoritative for what it hosts, and serving views-of-views would recurse on any federation cycle.
+ */
+export type TClusteredQuadsOpts = { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel; scope?: "own" | "federated" };
 
 export interface TCluster {
 	/** Persisted label this cluster represents. */
@@ -217,5 +225,5 @@ export interface TClusteredQuads {
  */
 export interface TFederatedGraphSource {
 	site: string;
-	getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads>;
+	getClusteredQuads(opts: TClusteredQuadsOpts): Promise<TClusteredQuads>;
 }

@@ -129,6 +129,14 @@ describe("federated clustered reads (reads-first federation)", () => {
 		expect(await store.all()).toHaveLength(0);
 	});
 
+	it('serves scope "own" without consulting peers — what a federated read asks for, so a federation cycle cannot recurse', async () => {
+		const store = new QuadStore();
+		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Email" });
+		store.federate(peer("did:site:imap.1", "Email", "remote-1"));
+		const own = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private", scope: "own" });
+		expect(own.clusters.find((c) => c.type === "Email")?.sampledSubjects).toEqual(["local-1"]);
+	});
+
 	it("refuses a second source for the same site — site principals must be unique in a federation", () => {
 		const store = new QuadStore();
 		store.federate(peer("did:site:imap.1", "Email", "a"));

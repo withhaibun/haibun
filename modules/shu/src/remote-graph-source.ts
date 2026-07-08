@@ -43,17 +43,19 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 		return site;
 	}
 
-	/** Clustered reads from the peer, every sampled subject stamped with the site that served it. */
+	/** Clustered reads from the peer, every sampled subject stamped with the site that served it. Asks for scope
+	 *  "own" — the peer's authoritative data, never its view of the world, so a federation cycle cannot recurse;
+	 *  each consumer federates the peers it wants directly. */
 	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads> {
 		const remote = this.site;
-		const params: Record<string, unknown> = { perTypeLimit: opts.perTypeLimit, accessLevel: opts.accessLevel, ...(opts.types ? { types: JSON.stringify(opts.types) } : {}) };
+		const params: Record<string, unknown> = { perTypeLimit: opts.perTypeLimit, accessLevel: opts.accessLevel, scope: "own", ...(opts.types ? { types: JSON.stringify(opts.types) } : {}) };
 		const result = await this.rpc.call<TClusteredQuads>("MonitorStepper-getClusteredQuads", params, []);
 		if (typeof (result as { error?: unknown }).error === "string") throw new Error(`RemoteGraphSource: getClusteredQuads failed at ${this.config.url}: ${(result as { error: string }).error}`);
 		const r = result as TClusteredQuads;
 		const defaultSite = r.site ?? remote;
 		// Stamp EVERY sampled subject explicitly: merged into another instance's response (whose own default
-		// applies to unstamped subjects) these must keep the site that actually served them — including
-		// deeper stamps when the peer itself federates (transitive reads keep their true origin).
+		// applies to unstamped subjects) these must keep the site that actually served them — and a peer that
+		// stamped per-subject sites itself keeps its stamps.
 		const clusters: TCluster[] = r.clusters.map((c) => ({ ...c, sites: Object.fromEntries(c.sampledSubjects.map((s) => [s, c.sites?.[s] ?? defaultSite])) }));
 		return { quads: r.quads as TQuad[], clusters, site: remote };
 	}

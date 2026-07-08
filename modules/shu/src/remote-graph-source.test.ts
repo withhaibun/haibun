@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { RemoteGraphSource } from "./remote-graph-source.js";
 
-/** A canned peer: action.begin self-reports the site; getClusteredQuads serves one Email cluster with one transitive stamp. */
+/** A canned peer: action.begin self-reports the site; getClusteredQuads serves one Email cluster with one pre-stamped subject. */
+const readRequests: Record<string, unknown>[] = [];
 const peerFetch =
 	(beginBody: Record<string, unknown>) =>
-	(input: RequestInfo | URL): Promise<Response> => {
+	(input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		const url = String(input);
 		if (url.endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify(beginBody), { status: 200, headers: { "Content-Type": "application/json" } }));
 		if (url.endsWith("/rpc/MonitorStepper-getClusteredQuads")) {
+			readRequests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
 			const body = {
 				quads: [
 					{ subject: "m-1", predicate: "name", object: "One", namedGraph: "Email", timestamp: 1 },
@@ -36,10 +38,11 @@ describe("RemoteGraphSource", () => {
 		await expect(source.connect()).rejects.toThrow(/did not report a site principal/);
 	});
 
-	it("stamps EVERY sampled subject with its serving site — the peer's default for its own, deeper stamps kept for transitive reads", async () => {
+	it("asks for the peer's OWN data (scope own — a federation cycle cannot recurse) and stamps EVERY sampled subject, keeping stamps the peer set itself", async () => {
 		const source = new RemoteGraphSource({ url: "http://peer:1", fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:imap" }) as typeof fetch });
 		await source.connect();
 		const result = await source.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
+		expect((readRequests.at(-1)?.params as Record<string, unknown>).scope).toBe("own");
 		expect(result.site).toBe("did:site:imap");
 		expect(result.clusters[0].sites).toEqual({ "m-1": "did:site:imap", "m-2": "did:site:deeper" });
 	});

@@ -1,4 +1,4 @@
-import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TCluster, TClusteredQuads, TQuad } from "@haibun/core/lib/quad-types.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { appAccessLevel } from "./util.js";
@@ -15,7 +15,8 @@ export const MAX_PER_TYPE_LIMIT = 1000;
  *  the model from it (instant graph; an offline context serves it). Degrades to a no-op when IndexedDB is unavailable. */
 const idbGraphStore = new IndexedDbQuadStore();
 
-export type TGraphSnapshot = { quads: TQuad[]; clusters: TCluster[] };
+/** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site) — one type, no drift. */
+export type TGraphSnapshot = TClusteredQuads;
 
 /**
  * Shared UI-state that travels alongside the data snapshot. Viewers consult this
