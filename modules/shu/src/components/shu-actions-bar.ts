@@ -249,6 +249,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *     stay unique across repeated invocations
 	 */
 	private openStepCaller(output: HTMLElement, method: string, args?: Record<string, unknown>, auto?: boolean): void {
+		// Whether a caller is added or the last empty one is retargeted, keep the newest in view — the shared history is
+		// the one output every producer pins (ShuActivityHistory.scrollToBottom); an affordance pick lands here too.
+		const pin = () => (output as Partial<ShuActivityHistory>).scrollToBottom?.();
 		const countOthers = () => output.querySelectorAll(`shu-step-caller[method="${method}"]`).length;
 		const descriptor = this._steps.find((s) => s.method === method);
 		const gwta = descriptor ? prettifyGwta(descriptor.pattern) : method;
@@ -259,6 +262,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			lastCaller.setAttribute("gwta", gwta);
 			lastCaller.setAttribute("call-index", String(countOthers() - (wasSame ? 1 : 0)));
 			lastCaller.reset(method);
+			pin();
 			return;
 		}
 		const caller = document.createElement("shu-step-caller");
@@ -269,6 +273,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (args) caller.setAttribute("params", JSON.stringify(args));
 		if (auto) caller.setAttribute("auto", "");
 		output.appendChild(caller);
+		pin();
 	}
 
 	private updateBreadcrumbDisplay(): void {
@@ -306,8 +311,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}, 150);
 	}
 
+	/** A step-caller's result lands after its entry was appended, growing it in place; re-pin so the newest output stays in view. */
+	private _onStepSettled = (): void => this._history.scrollToBottom();
+
 	protected override onConnected(): void {
 		document.addEventListener("click", this._onDocumentClick, true);
+		this.addEventListener("step-success", this._onStepSettled);
+		this.addEventListener("step-error", this._onStepSettled);
 		// The shared output region carries the one output test id every mode's assertions point at.
 		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
 		this.loadProperties();
@@ -355,6 +365,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	protected override onDisconnected(): void {
 		document.removeEventListener("click", this._onDocumentClick, true);
+		this.removeEventListener("step-success", this._onStepSettled);
+		this.removeEventListener("step-error", this._onStepSettled);
 		this._dragMoveCleanup?.(); // a resize drag in flight at disconnect would otherwise leak its document listeners
 		this._unsubscribeEvents?.();
 		this._unsubscribeEvents = null;
@@ -731,9 +743,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return this.shadowRoot?.querySelector(".corner-popover") ?? null;
 	}
 
-	/** Float the popover just above the summary strip — the always-present bar where the corner controls live — so it
-	 *  opens at its control. A click elsewhere dismisses the transient pickers (CORNER_DISMISS); the timeline stays by
-	 *  policy. Right edge over the control; the timeline spans the bar's full width. */
+	/** Float the popover just above the whole bar's top edge, not the summary strip's. The corner controls sit at the
+	 *  bar's BOTTOM, so a popover opening upward from the strip would overlap the expanded input line above it (and
+	 *  intercept clicks on the step input). Above the whole bar it clears the content in every mode. A click elsewhere
+	 *  dismisses the transient pickers (CORNER_DISMISS); the timeline stays by policy. Right edge over the control; the
+	 *  timeline spans the bar's full width. */
 	private showCornerPopover(kind: TCorner, toggle: HTMLElement): void {
 		const pop = this.cornerPopoverEl();
 		const bar = this.shadowRoot?.querySelector(".summary-bar") as HTMLElement | null;
@@ -742,7 +756,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const strip = bar.getBoundingClientRect();
 		pop.style.margin = "0";
 		pop.style.inset = "auto";
-		pop.style.bottom = `${window.innerHeight - strip.top + 4}px`;
+		pop.style.bottom = `${window.innerHeight - this.getBoundingClientRect().top + 4}px`;
 		if (kind === "timeline") {
 			pop.style.left = `${strip.left + 8}px`;
 			pop.style.right = `${window.innerWidth - strip.right + 8}px`;
@@ -979,6 +993,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private onModeChange = (e: Event): void => {
 		const mode = (e.target as HTMLSelectElement).value as TMode;
+		// Switching the input mode dismisses a transient corner picker (settings/access) that was floating over the
+		// input; the timeline is a panel used alongside the view (CORNER_DISMISS) and stays.
+		if (this._openCorner && CORNER_DISMISS[this._openCorner] === "click-away") this.closeCornerPopover();
 		this.setState({ mode });
 	};
 
@@ -1089,7 +1106,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const method = e.detail?.value;
 		if (!method) return;
 		this.openStepCaller(this._history, method);
-		this._history.scrollToBottom();
 	};
 }
 
@@ -1128,9 +1144,9 @@ const STYLES = `
 		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
 		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
 		display: inline-flex; align-items: center; justify-content: center;
-		font-size: var(--shu-font-sm); color: var(--shu-fg-faded); border-radius: var(--shu-radius);
+		font-size: var(--shu-font-md); color: var(--shu-fg); border-radius: var(--shu-radius);
 	}
-	.bar-twisty:hover { color: var(--shu-fg); background: var(--shu-bg-hover); }
+	.bar-twisty:hover { background: var(--shu-bg-hover); }
 	.status-area {
 		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
 		max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1198,7 +1214,12 @@ const STYLES = `
 	}
 	.mode-select { flex-shrink: 0; width: auto; min-width: 5em; }
 	/* THE shared output region — every mode's activity records scroll here; the input line beneath is what changes. */
-	shu-activity-history { display: block; font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; min-height: 0; overflow-y: auto; }
+	/* The output region fills from the BOTTOM: a lone entry sits at the bottom edge, new entries land beneath the last,
+	   older ones scroll up. margin-top:auto on the first entry claims the free space above when the content is short,
+	   and collapses to 0 once it overflows so the scroll (pinned to the newest by scrollToBottom) reaches every entry. */
+	shu-activity-history { display: flex; flex-direction: column; font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; min-height: 0; overflow-y: auto; }
+	shu-activity-history > * { flex-shrink: 0; }
+	shu-activity-history > :first-child { margin-top: auto; }
 	shu-search-summary { display: block; cursor: pointer; padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
 	shu-search-summary:hover { background: var(--shu-bg-elevated); }
 	shu-search-summary .search-summary-text::before { content: "\\1F50D\\00A0"; }
