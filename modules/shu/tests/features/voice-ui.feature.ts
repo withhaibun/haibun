@@ -5,14 +5,15 @@ import VoiceUITestStepper from "../../build/test/voice-ui-test-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SHU_TEST_IDS } from "../../build/test-ids.js";
-import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
 const { serveTestComponent } = withAction(new VoiceUITestStepper());
-const { gotoPage, click, waitFor } = withAction(wp);
+const { gotoPage, waitFor } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
+const { enterStepMode } = createStepUI(wp);
 
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
@@ -33,18 +34,13 @@ export const features: TKirejiExport = {
 		serveTestComponent({}),
 		'webserver is listening for "voice-ui-test"',
 
-		scenario({ scenario: "Open SPA and expand the actions bar" }),
+		scenario({ scenario: "Open the SPA and enter step mode" }),
 		gotoPage({ name: `"${host}/spa"` }),
 		"page has settled",
-		waitFor({ target: IDS.APP.TWISTY }),
-		click({ target: IDS.APP.TWISTY }),
-		"page has settled",
+		...enterStepMode,
 
 		scenario({ scenario: "ui-extension custom element renders inside the actions bar chat row" }),
-		// The voice-ui-test-component, declared by VoiceUITestStepper as a `ui`
-		// extension on the VoiceUITest domain, must propagate through the concern
-		// catalog (haibun-core) and be auto-loaded + rendered by the actions bar.
-		// The slot is "action-bar-chat" — present in both step and ask modes.
+		"The test component, declared as a ui extension on the test domain, travels through the concern catalog to the SPA, which auto-loads it and renders it in the actions bar's chat-row slot. That slot is carried by the step and ask input modes, so the component's mic button appears once step mode is open.",
 		waitFor({ target: "voice-ui-test-mic" }),
 	],
 };
