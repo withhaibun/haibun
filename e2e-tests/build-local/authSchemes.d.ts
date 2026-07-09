@@ -1,9 +1,10 @@
 import type { MiddlewareHandler } from '@haibun/web-server-hono/defs.js';
 import type TestServer from './test-server.js';
-export type TSchemeType = 'basic' | 'bearer';
+export type TSchemeType = 'basic' | 'bearer' | 'apiKeyJwt';
 export declare const createAuthMiddleware: {
     basic: (ts: TestServer) => MiddlewareHandler;
     bearer: (ts: TestServer) => MiddlewareHandler;
+    apiKeyJwt: (ts: TestServer) => MiddlewareHandler;
 };
 export declare const createDynamicAuthMiddleware: (ts: TestServer) => MiddlewareHandler;
 export interface AuthSchemeLogout {
