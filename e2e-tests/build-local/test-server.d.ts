@@ -20,7 +20,7 @@ declare class TestServer extends AStepper {
         password: string;
     };
     apiKeyJwtCreds: undefined | {
-        tenantId: string;
+        issuer: string;
         apiKey: string;
     };
     /** jti values already presented for API key JWT auth - a repeated jti is a replay and is rejected */

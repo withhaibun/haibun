@@ -54,8 +54,8 @@ class TestServer extends AStepper {
 		password: 'bar',
 	};
 
-	apiKeyJwtCreds: undefined | { tenantId: string; apiKey: string } = {
-		tenantId: 'tenant-1',
+	apiKeyJwtCreds: undefined | { issuer: string; apiKey: string } = {
+		issuer: 'tenant-1',
 		apiKey: 'a'.repeat(64),
 	};
 

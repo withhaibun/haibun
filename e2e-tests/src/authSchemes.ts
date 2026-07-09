@@ -20,8 +20,8 @@ const normalizeUrl = (url: string): string => {
 // kid identifies which API key's secret the token was signed with.
 const hasValidKid = (kid: unknown, apiKey: string): boolean => kid === crypto.createHash('sha256').update(apiKey).digest('hex');
 
-const hasValidClaims = (payload: Record<string, unknown>, expected: { tenantId: string; method: string; url: string }): boolean =>
-  payload.iss === expected.tenantId && payload.htm === expected.method && payload.htu === normalizeUrl(expected.url);
+const hasValidClaims = (payload: Record<string, unknown>, expected: { issuer: string; method: string; url: string }): boolean =>
+  payload.iss === expected.issuer && payload.htm === expected.method && payload.htu === normalizeUrl(expected.url);
 
 // v2 API key JWTs are single-use: a repeated jti is a replay and must be rejected.
 const consumeJti = (ts: TestServer, jti: unknown): boolean => {
@@ -34,7 +34,7 @@ const consumeJti = (ts: TestServer, jti: unknown): boolean => {
 // proving the client's token round-trips against a real JWT verifier, not just the client's own signing code.
 const verifyApiKeyJwt = async (token: string, c: Context, ts: TestServer): Promise<boolean> => {
   if (!ts.apiKeyJwtCreds) return false;
-  const { tenantId, apiKey } = ts.apiKeyJwtCreds;
+  const { issuer, apiKey } = ts.apiKeyJwtCreds;
 
   let payload: Record<string, unknown>;
   let kid: unknown;
@@ -47,7 +47,7 @@ const verifyApiKeyJwt = async (token: string, c: Context, ts: TestServer): Promi
     return false;
   }
 
-  return hasValidKid(kid, apiKey) && hasValidClaims(payload, { tenantId, method: c.req.method, url: c.req.url }) && consumeJti(ts, payload.jti);
+  return hasValidKid(kid, apiKey) && hasValidClaims(payload, { issuer, method: c.req.method, url: c.req.url }) && consumeJti(ts, payload.jti);
 };
 
 export const createAuthMiddleware = {

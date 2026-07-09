@@ -23,13 +23,13 @@ export const base64Encode = ({ username, password }: { username: string; passwor
  * verify against, and htm/htu bind the token to a single method + URL (query and fragment dropped).
  */
 export const createApiKeyJwt = async ({
-	tenantId,
+	issuer,
 	apiKey,
 	method,
 	endpoint,
 	ttlSeconds = DEFAULT_API_KEY_JWT_TTL_SECONDS,
 }: {
-	tenantId: string;
+	issuer: string;
 	apiKey: string;
 	method: string;
 	endpoint: string;
@@ -40,7 +40,7 @@ export const createApiKeyJwt = async ({
 	const { protocol, host, pathname } = new URL(endpoint);
 
 	return new SignJWT({
-		iss: tenantId,
+		iss: issuer,
 		jti: randomUUID(),
 		htm: method.toUpperCase(),
 		htu: `${protocol}//${host}${pathname}`,
@@ -106,22 +106,22 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 		},
 	},
 	addApiKeyJwtAuthorizationHeader: {
-		gwta: `use Authorization API Key JWT header with {tenantId}, {apiKey} for {method} to {endpoint}`,
-		action: async ({ tenantId, apiKey, method, endpoint }: { tenantId: string; apiKey: string; method: string; endpoint: string }) => {
-			const token = await createApiKeyJwt({ tenantId, apiKey, method, endpoint });
+		gwta: `use Authorization API Key JWT header with {issuer}, {apiKey} for {method} to {endpoint}`,
+		action: async ({ issuer, apiKey, method, endpoint }: { issuer: string; apiKey: string; method: string; endpoint: string }) => {
+			const token = await createApiKeyJwt({ issuer, apiKey, method, endpoint });
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
 			return OK;
 		},
 	},
 	addApiKeyJwtAuthorizationHeaderWithTtl: {
 		precludes: ["WebPlaywright.addApiKeyJwtAuthorizationHeader"],
-		gwta: `use Authorization API Key JWT header with {tenantId}, {apiKey} for {method} to {endpoint} expiring in {ttl}s`,
-		action: async ({ tenantId, apiKey, method, endpoint, ttl }: { tenantId: string; apiKey: string; method: string; endpoint: string; ttl: string }) => {
+		gwta: `use Authorization API Key JWT header with {issuer}, {apiKey} for {method} to {endpoint} expiring in {ttl}s`,
+		action: async ({ issuer, apiKey, method, endpoint, ttl }: { issuer: string; apiKey: string; method: string; endpoint: string; ttl: string }) => {
 			const ttlSeconds = Number(ttl);
 			if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0) {
 				return actionNotOK(`Expected a positive integer TTL in seconds, got ${ttl}`);
 			}
-			const token = await createApiKeyJwt({ tenantId, apiKey, method, endpoint, ttlSeconds });
+			const token = await createApiKeyJwt({ issuer, apiKey, method, endpoint, ttlSeconds });
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
 			return OK;
 		},
@@ -241,17 +241,17 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	},
 	restFilterPropertyRequestWithApiKeyJwt: {
 		precludes: ["WebPlaywright.restFilterPropertyRequest"],
-		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status} using API key JWT with {tenantId}, {apiKey}`,
+		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status} using API key JWT with {issuer}, {apiKey}`,
 		handlesUndefined: ['method'],
 		action: async (
-			{ property, endpoint, status, tenantId, apiKey }: { property: string; endpoint: string; status: string; tenantId: string; apiKey: string },
+			{ property, endpoint, status, issuer, apiKey }: { property: string; endpoint: string; status: string; issuer: string; apiKey: string },
 			featureStep
 		) => {
 			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
 			// Each request gets its own token, bound to its own URL: a v2 API key JWT is only valid
 			// for the exact method + URL it was minted for, so one token can't cover the whole loop.
 			return filteredPropertyRequests(webPlaywright, { property, endpoint, method, status }, async (requestPath) => {
-				const token = await createApiKeyJwt({ tenantId, apiKey, method, endpoint: requestPath });
+				const token = await createApiKeyJwt({ issuer, apiKey, method, endpoint: requestPath });
 				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
 			});
 		},

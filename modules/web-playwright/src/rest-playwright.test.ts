@@ -12,10 +12,10 @@ const decodeJwt = (token: string) => {
 };
 
 describe('createApiKeyJwt', () => {
-	it('binds tenantId/method/endpoint, derives kid from the hex api key, and verifies with jose', async () => {
+	it('binds issuer/method/endpoint, derives kid from the hex api key, and verifies with jose', async () => {
 		const apiKey = 'a'.repeat(64);
 		const before = Math.floor(Date.now() / 1000);
-		const token = await createApiKeyJwt({ tenantId: 'tenant-1', apiKey, method: 'get', endpoint: 'https://api.example.com/resource' });
+		const token = await createApiKeyJwt({ issuer: 'tenant-1', apiKey, method: 'get', endpoint: 'https://api.example.com/resource' });
 		const { header, payload } = decodeJwt(token);
 
 		expect(header.alg).toBe('HS256');
@@ -33,7 +33,7 @@ describe('createApiKeyJwt', () => {
 
 	it('drops query string and fragment from htu, keeping only protocol + host + path', async () => {
 		const token = await createApiKeyJwt({
-			tenantId: 't',
+			issuer: 't',
 			apiKey: 'b'.repeat(64),
 			method: 'get',
 			endpoint: 'https://api.example.com/credential-design?searchTerm=foo#frag',
@@ -43,14 +43,14 @@ describe('createApiKeyJwt', () => {
 	});
 
 	it('respects a custom ttlSeconds', async () => {
-		const token = await createApiKeyJwt({ tenantId: 't', apiKey: 'c'.repeat(64), method: 'post', endpoint: 'https://x.example.com/y', ttlSeconds: 60 });
+		const token = await createApiKeyJwt({ issuer: 't', apiKey: 'c'.repeat(64), method: 'post', endpoint: 'https://x.example.com/y', ttlSeconds: 60 });
 		const { payload } = decodeJwt(token);
 		expect(payload.exp - payload.iat).toBe(60);
 	});
 
 	it('rejects verification with the wrong key', async () => {
 		const apiKey = 'd'.repeat(64);
-		const token = await createApiKeyJwt({ tenantId: 't', apiKey, method: 'get', endpoint: 'https://x.example.com/y' });
+		const token = await createApiKeyJwt({ issuer: 't', apiKey, method: 'get', endpoint: 'https://x.example.com/y' });
 		await expect(jwtVerify(token, Buffer.from('e'.repeat(64), 'hex'))).rejects.toThrow();
 	});
 });
@@ -75,7 +75,7 @@ describe('restFilterPropertyRequestWithApiKeyJwt', () => {
 		} as unknown as WebPlaywright;
 
 		const result = await restSteps(mockWebPlaywright).restFilterPropertyRequestWithApiKeyJwt.action(
-			{ property: 'id', endpoint: 'https://x.example.com/thing', status: '200', tenantId: 't', apiKey: 'a'.repeat(64) },
+			{ property: 'id', endpoint: 'https://x.example.com/thing', status: '200', issuer: 't', apiKey: 'a'.repeat(64) },
 			fakeMethodFeatureStep
 		);
 
@@ -101,14 +101,14 @@ describe('addApiKeyJwtAuthorizationHeaderWithTtl', () => {
 
 	it.each(['not-a-number', '0', '-5', '1.5'])('rejects an invalid ttl of %s', async (ttl) => {
 		const { headersSet, step } = setup();
-		const result = await step.action({ tenantId: 't', apiKey: 'a'.repeat(64), method: 'get', endpoint: 'https://x.example.com/y', ttl });
+		const result = await step.action({ issuer: 't', apiKey: 'a'.repeat(64), method: 'get', endpoint: 'https://x.example.com/y', ttl });
 		expect(result.ok).toBe(false);
 		expect(headersSet).toHaveLength(0);
 	});
 
 	it('accepts a positive integer ttl', async () => {
 		const { headersSet, step } = setup();
-		const result = await step.action({ tenantId: 't', apiKey: 'a'.repeat(64), method: 'get', endpoint: 'https://x.example.com/y', ttl: '60' });
+		const result = await step.action({ issuer: 't', apiKey: 'a'.repeat(64), method: 'get', endpoint: 'https://x.example.com/y', ttl: '60' });
 		expect(result.ok).toBe(true);
 		expect(headersSet).toHaveLength(1);
 	});

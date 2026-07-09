@@ -44,7 +44,7 @@ class TestServer extends AStepper {
         password: 'bar',
     };
     apiKeyJwtCreds = {
-        tenantId: 'tenant-1',
+        issuer: 'tenant-1',
         apiKey: 'a'.repeat(64),
     };
     /** jti values already presented for API key JWT auth - a repeated jti is a replay and is rejected */

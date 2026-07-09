@@ -12,7 +12,7 @@ const normalizeUrl = (url) => {
 };
 // kid identifies which API key's secret the token was signed with.
 const hasValidKid = (kid, apiKey) => kid === crypto.createHash('sha256').update(apiKey).digest('hex');
-const hasValidClaims = (payload, expected) => payload.iss === expected.tenantId && payload.htm === expected.method && payload.htu === normalizeUrl(expected.url);
+const hasValidClaims = (payload, expected) => payload.iss === expected.issuer && payload.htm === expected.method && payload.htu === normalizeUrl(expected.url);
 // v2 API key JWTs are single-use: a repeated jti is a replay and must be rejected.
 const consumeJti = (ts, jti) => {
     if (typeof jti !== 'string' || ts.usedApiKeyJwtIds.has(jti))
@@ -25,7 +25,7 @@ const consumeJti = (ts, jti) => {
 const verifyApiKeyJwt = async (token, c, ts) => {
     if (!ts.apiKeyJwtCreds)
         return false;
-    const { tenantId, apiKey } = ts.apiKeyJwtCreds;
+    const { issuer, apiKey } = ts.apiKeyJwtCreds;
     let payload;
     let kid;
     try {
@@ -37,7 +37,7 @@ const verifyApiKeyJwt = async (token, c, ts) => {
     catch {
         return false;
     }
-    return hasValidKid(kid, apiKey) && hasValidClaims(payload, { tenantId, method: c.req.method, url: c.req.url }) && consumeJti(ts, payload.jti);
+    return hasValidKid(kid, apiKey) && hasValidClaims(payload, { issuer, method: c.req.method, url: c.req.url }) && consumeJti(ts, payload.jti);
 };
 export const createAuthMiddleware = {
     basic: (ts) => basicAuth({
