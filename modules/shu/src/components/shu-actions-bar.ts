@@ -731,9 +731,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return this.shadowRoot?.querySelector(".corner-popover") ?? null;
 	}
 
-	/** Float the popover just above the WHOLE bar (host top, not the summary strip's — the strip sits mid-bar when the
-	 *  bar is expanded, and a panel anchored there covered the step input, swallowing its clicks): right edge over the
-	 *  control; the timeline spans the bar's full width. */
+	/** Float the popover just above the summary strip — the always-present bar where the corner controls live — so it
+	 *  opens at its control. A click elsewhere dismisses the transient pickers (CORNER_DISMISS); the timeline stays by
+	 *  policy. Right edge over the control; the timeline spans the bar's full width. */
 	private showCornerPopover(kind: TCorner, toggle: HTMLElement): void {
 		const pop = this.cornerPopoverEl();
 		const bar = this.shadowRoot?.querySelector(".summary-bar") as HTMLElement | null;
@@ -742,7 +742,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const strip = bar.getBoundingClientRect();
 		pop.style.margin = "0";
 		pop.style.inset = "auto";
-		pop.style.bottom = `${window.innerHeight - this.getBoundingClientRect().top + 4}px`;
+		pop.style.bottom = `${window.innerHeight - strip.top + 4}px`;
 		if (kind === "timeline") {
 			pop.style.left = `${strip.left + 8}px`;
 			pop.style.right = `${window.innerWidth - strip.right + 8}px`;
@@ -1135,9 +1135,8 @@ const STYLES = `
 		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
 		max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
-	/* Corner controls are shared pane-icon buttons (open state = the same accent inverse as an active column view
-	   control); locally they only lose the box (the cluster pill is the border) and, for the text toggles, the square width. */
-	.settings-button { border: none; background: none; flex-shrink: 0; }
+	/* Corner controls are shared pane-icon chips — same box + accent-inverse-when-open as an active column view control.
+	   The text toggles (now / access) size to their label instead of the icon's square; the gear keeps the square. */
 	/* The one corner-popover surface (a native top-layer popover): floats just above its corner toggle without
 	   opening the actions bar. Position (bottom/right, or full-bar-width for the timeline) is set at show time. */
 	.corner-popover {
@@ -1157,13 +1156,12 @@ const STYLES = `
 	.corner-timeline { display: block; width: 100%; min-width: 0; }
 	.corner-popover .access-select { width: auto; }
 	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
-	/* The corner controls (current time, access level, settings) — one visibly distinct cluster at the lower right. */
-	.corner-controls {
-		display: inline-flex; align-items: center; gap: var(--shu-space-1); flex-shrink: 0;
-		padding: 0 var(--shu-space-1);
-		border: var(--shu-border-w) solid var(--shu-border); border-radius: 999px; background: var(--shu-bg-soft);
-	}
-	.corner-toggle { width: auto; padding: 0 var(--shu-space-2); border: none; background: none; border-radius: 999px; }
+	/* The corner controls (current time, access level, settings) — one cluster at the lower right; each chip carries its
+	   own box, so the cluster is just a gap-spaced row, no wrapping pill. */
+	.corner-controls { display: inline-flex; align-items: center; gap: var(--shu-space-1); flex-shrink: 0; }
+	/* A text toggle sizes to its label; the compound selector outweighs pane-icon's fixed square width. Box, height, and
+	   the accent-inverse-when-open come from pane-icon. */
+	.corner-controls .corner-toggle { width: auto; padding: 0 var(--shu-space-2); }
 	.access-indicator, .time-offset { font-size: var(--shu-font-xs); flex-shrink: 0; }
 	.filter-bar {
 		display: flex; gap: var(--shu-space-2); align-items: center;
