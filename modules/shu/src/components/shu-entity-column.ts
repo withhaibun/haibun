@@ -20,6 +20,7 @@ import {
 	utf8ToBase64,
 } from "../util.js";
 import { html, css, type TemplateResult } from "lit";
+import type { TGraph } from "../graph/types.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
@@ -79,7 +80,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.body-iframe.invertible { filter: invert(var(--shu-invert, 0)) hue-rotate(calc(var(--shu-invert, 0) * 180deg)); }
 		.error-banner { padding: var(--shu-space-3) var(--shu-space-4); margin: var(--shu-space-2); background: var(--shu-bg-error-soft); color: var(--shu-error); border-radius: var(--shu-radius); }
 		.loading, .empty { color: var(--shu-fg-faded); padding: var(--shu-space-4); }
-	`,
+	
+			.entity-graph { display: block; height: 220px; min-height: 0; border-top: var(--shu-border-w) solid var(--shu-border); }
+		`,
 	];
 	private vertex: VertexData | null = null;
 	private edges: EdgeData[] = [];
@@ -237,7 +240,36 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `${detailsHtml}${summaryHtml}${this.renderItemsTable()}${this.renderReferences()}${contentIframe}`;
 		}
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}<div class="entity-content">${unsafeHTML(contentHtml)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}<div class="entity-content">${unsafeHTML(contentHtml)}</div><shu-graph class="entity-graph" data-testid="entity-graph" .products=${{ graph: this.buildEntityGraph() }}></shu-graph>`;
+	}
+
+	/** The individual's property/connection graph: the subject at the centre, an edge to each connected individual and
+	 *  a leaf per literal field — the visual counterpart to the details above, painted by the shared shu-graph. */
+	private buildEntityGraph(): TGraph {
+		const persistedAs = this.state.persistedAs;
+		const subject = idOf(this.vertex ?? {});
+		const nodes: TGraph["nodes"] = [{ id: subject, label: persistedAs || subject, kind: "current" }];
+		const edges: TGraph["edges"] = [];
+		const seen = new Set<string>([subject]);
+		for (const e of this.edges) {
+			const tid = idOf(e.target);
+			if (!tid) continue;
+			if (!seen.has(tid)) {
+				nodes.push({ id: tid, label: String(e.target.name ?? e.target.subject ?? e.target.email ?? tid) });
+				seen.add(tid);
+			}
+			if (e.direction === "in") edges.push({ from: tid, to: subject, label: e.type, rel: e.type });
+			else edges.push({ from: subject, to: tid, label: e.type, rel: e.type });
+		}
+		for (const [k, v] of Object.entries(extractFieldEntries(this.vertex ?? {}, persistedAs))) {
+			if (getEdgeTargetLabel(k, persistedAs)) continue; // a connection, drawn above
+			const val = Array.isArray(v) ? v.join(", ") : String(v);
+			if (!val) continue;
+			const pid = `prop:${k}`;
+			nodes.push({ id: pid, label: k, hint: val, kind: "argument" });
+			edges.push({ from: subject, to: pid, label: k });
+		}
+		return { nodes, edges };
 	}
 
 	protected updated(): void {

@@ -19,18 +19,23 @@ import "./shu-artifact-frame.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
-import { getUiByType } from "../rels-cache.js";
+import { getRels, getUiByType } from "../rels-cache.js";
 import { isStandaloneMode } from "../rpc-registry.js";
+import { refLinksPlugin } from "../markdown-refs.js";
 
 const DocumentColumnSchema = z.object({
 	level: z.enum(HAIBUN_LOG_LEVELS).default("log"),
 });
 
 const mdRenderer = new MarkdownIt({ html: true, linkify: true, typographer: true });
+// A `#Type` / `#Type:id` link in prose opens the type or individual in a column (shu-ref), never navigating the page.
+refLinksPlugin(mdRenderer, (name) => getRels(name) !== undefined);
 
 const SANITIZE_OPTS = {
-	ADD_ATTR: ["style", "data-depth", "data-nested", "data-instigator", "data-show-symbol", "data-id", "data-time", "data-raw-time", "data-action", "data-has-artifacts", "data-ids"],
-	ADD_TAGS: ["div"],
+	// `kind`/`linktarget`/`text` carry the shu-ref reference (a `#Type` link the refLinksPlugin rewrote); DOMPurify
+	// lowercases attribute names, so `linkTarget` is allowlisted as `linktarget`.
+	ADD_ATTR: ["style", "data-depth", "data-nested", "data-instigator", "data-show-symbol", "data-id", "data-time", "data-raw-time", "data-action", "data-has-artifacts", "data-ids", "kind", "linktarget", "text"],
+	ADD_TAGS: ["div", "shu-ref"],
 };
 
 /** The window-cut notice for a truncated document: a wavy rule, the count of earlier events not shown, and the

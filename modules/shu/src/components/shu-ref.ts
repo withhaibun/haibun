@@ -133,7 +133,11 @@ function openRef(kind: TRefKind, linkTarget: Record<string, unknown>): void {
 		PaneState.request({ paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id });
 		return;
 	}
-	// domain / step kinds: no dedicated pane yet — fall through (no-op), so the
-	// component renders as a non-functional link rather than crashing. When a
-	// suitable pane type exists, route it here.
+	if (kind === "domain" && typeof linkTarget.domain === "string") {
+		// A type reference opens the type column: its description, schema graph, and individuals.
+		PaneState.request({ paneType: "type", persistedAs: linkTarget.domain });
+		return;
+	}
+	// step kind: no dedicated pane yet — fall through (no-op), so the component
+	// renders as a non-functional link rather than crashing.
 }

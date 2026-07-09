@@ -29,6 +29,7 @@ const TagSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("component"), tag: TagSchema, label: z.string(), data: z.record(z.string(), z.unknown()).optional(), flag: FlagSchema }),
 	z.object({ paneType: z.literal("entity"), id: z.string(), persistedAs: z.string(), label: z.string().optional(), flag: FlagSchema }),
+	z.object({ paneType: z.literal("type"), persistedAs: z.string(), flag: FlagSchema }),
 	z.object({ paneType: z.literal("filter-eq"), persistedAs: z.string(), predicate: z.string(), value: z.string(), flag: FlagSchema }),
 	z.object({ paneType: z.literal("filter-prop"), persistedAs: z.string(), predicate: z.string(), flag: FlagSchema }),
 	z.object({ paneType: z.literal("filter-incoming"), persistedAs: z.string(), subject: z.string(), flag: FlagSchema }),
@@ -51,6 +52,8 @@ export function paneIdOf(d: DesiredPane): string {
 			return d.tag;
 		case "entity":
 			return `e:${objectId(d.persistedAs, d.id)}`; // the entity pane's id IS the object handle, prefixed by pane kind
+		case "type":
+			return `type:${d.persistedAs}`;
 		case "filter-eq":
 			return `f:${d.persistedAs}:${d.predicate}=${d.value}`;
 		case "filter-prop":
@@ -74,6 +77,8 @@ export function tagOf(d: DesiredPane): string {
 			// A node's @type can declare its own column component (via the per-@type presentation facade — domain.ui.component);
 			// otherwise the generic entity column. So a typed node opens its type-specific column on a graph/row click.
 			return presentationForType(d.persistedAs).columnComponent() ?? "shu-entity-column";
+		case "type":
+			return "shu-type-column";
 		case "filter-eq":
 		case "filter-prop":
 		case "filter-incoming":
@@ -94,6 +99,8 @@ export function labelOf(d: DesiredPane): string {
 			return d.label;
 		case "entity":
 			return d.label ?? d.id;
+		case "type":
+			return d.persistedAs;
 		case "filter-eq":
 			return `${d.predicate}=${d.value}`;
 		case "filter-prop":

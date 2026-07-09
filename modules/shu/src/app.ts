@@ -485,6 +485,10 @@ const main = async (): Promise<void> => {
 					if (d.paneType !== "entity") return;
 					return (child as ShuEntityColumn).open(d.id, d.persistedAs);
 				},
+				type: (d, child) => {
+					if (d.paneType !== "type") return;
+					return (child as import("./components/shu-type-column.js").ShuTypeColumn).open(d.persistedAs);
+				},
 				"filter-eq": (d, child) => {
 					if (d.paneType !== "filter-eq") return;
 					return (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.persistedAs);
