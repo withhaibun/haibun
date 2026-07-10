@@ -1,3 +1,10 @@
+# [3.10.0](https://github.com/withhaibun/haibun/compare/v3.9.6...v3.10.0) (2026-07-10)
+
+
+### Features
+
+* add v2 API key JWT auth scheme ([9d84a23](https://github.com/withhaibun/haibun/commit/9d84a23da62143fe4b0c47110baa414497d66b6c))
+
 ## [3.9.6](https://github.com/withhaibun/haibun/compare/v3.9.5...v3.9.6) (2026-07-02)
 
 

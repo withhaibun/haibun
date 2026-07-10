@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-accessibility-axe",
   "type": "module",
-  "version": "3.9.6",
+  "version": "3.10.0",
   "description": "",
   "main": "./build/a11y-axe-stepper.js",
   "exports": {
