@@ -79,14 +79,21 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		`,
 	];
 
-	/** The hidden/limit choice is remembered across reloads (ShuElement.persistFields; singleton key shared by every embedded filter). */
+	/** The hidden/limit choice is remembered across reloads (ShuElement.persistFields). The default key is shared by every
+	 *  embedded filter of the main graph; a host whose choices must stay independent (a class browser scoped to the schema)
+	 *  sets `data-persist-scope`, giving its filter its own store. */
 	static persistFields = ["overrides", "perTypeLimit"] as const;
 
+	protected override get persistKey(): string {
+		return this.dataset.persistScope ?? "";
+	}
+
 	/** Hosts read this before their first fetch so the persisted overrides apply on initial load (no double round-trip).
-	 * Reads the same persistFields store the instance restores from. Hosts combine these overrides with the
-	 * instrumentation-default predicate via `effectiveHiddenTypes` — the default is never persisted here. */
-	static getPersistedFilter(): { overrides: Record<string, boolean>; perTypeLimit: number } {
-		const saved = readElementPrefs("shu-graph-filter", "");
+	 * Reads the same persistFields store the instance restores from (per `scope`, matching `data-persist-scope`). Hosts
+	 * combine these overrides with the instrumentation-default predicate via `effectiveHiddenTypes` — the default is
+	 * never persisted here. */
+	static getPersistedFilter(scope = ""): { overrides: Record<string, boolean>; perTypeLimit: number } {
+		const saved = readElementPrefs("shu-graph-filter", scope);
 		const parsed = StateSchema.safeParse(saved ?? {});
 		return parsed.success ? { overrides: parsed.data.overrides, perTypeLimit: parsed.data.perTypeLimit } : { overrides: {}, perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
 	}
@@ -266,10 +273,15 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			})}`;
 		}
 		const { perTypeLimit } = this.state;
+		// A schema-scoped host (`data-schema-only`, the class browser) filters the vocabulary itself: the legend carries
+		// only the Class + Property chips plus the host's view-settings slot; the instance-data controls (per-type limit,
+		// solo, quad count) are absent — they have no subject when no instance type is offered.
+		const schemaOnly = this.dataset.schemaOnly !== undefined;
 		const clusters = this.deriveClusters()
+			.filter((c) => !schemaOnly || isSchemaType(c.type))
 			.slice()
 			.sort((a, b) => {
-				// The folded schema types (Class, Property) group together at the end of the legend, apart from the data types.
+				// The included schema types (Class, Property) group together at the end of the legend, apart from the data types.
 				const schemaA = isSchemaType(a.type),
 					schemaB = isSchemaType(b.type);
 				if (schemaA !== schemaB) return schemaA ? 1 : -1;
@@ -295,14 +307,18 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 							return html`<label class="type" style=${`background:${colorForType(c.type)}`} @mouseenter=${() => this.previewType(c.type)} @mouseleave=${() => this.previewType(null)} @click=${this.onChipClick(c.type)}><input type="checkbox" .checked=${!hiddenSet.has(c.type)} @change=${this.onTypeChange(c.type)}>${c.type}${count}</label>`;
 						})
 			}
-			<span class="label">|</span>
-			<label class="limit">per-type limit
-				<input type="range" min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange}>
-				<span class="meta" data-testid="graph-filter-limit-value">${perTypeLimit}</span>
-			</label>
-			<slot name="view-settings"></slot>
-			<button type="button" class="solo ${this.soloArmed ? "armed" : ""}" data-testid="graph-filter-solo" title="solo a type: tap, then tap a type to show only it" @click=${this.toggleSolo}>1️⃣</button>
-			<span class="quad-count">${quadCount} quads</span>
+			${
+				schemaOnly
+					? html`<slot name="view-settings"></slot>`
+					: html`<span class="label">|</span>
+						<label class="limit">per-type limit
+							<input type="range" min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange}>
+							<span class="meta" data-testid="graph-filter-limit-value">${perTypeLimit}</span>
+						</label>
+						<slot name="view-settings"></slot>
+						<button type="button" class="solo ${this.soloArmed ? "armed" : ""}" data-testid="graph-filter-solo" title="solo a type: tap, then tap a type to show only it" @click=${this.toggleSolo}>1️⃣</button>
+						<span class="quad-count">${quadCount} quads</span>`
+			}
 		</div>`;
 	}
 }

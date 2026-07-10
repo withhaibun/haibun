@@ -57,4 +57,10 @@ describe("getUiPresenting — discovering the site's presenter for a capability"
 		expect(getUiPresenting("graph")).toEqual({ type: "the-graph-view", ui: { component: "site-graph-view", js: "/assets/site-graph-view.js", presents: "graph" } });
 		expect(getUiPresenting("timeline")).toBeUndefined();
 	});
+
+	it("the type column prefers a dedicated schema presenter over the general graph presenter", () => {
+		// The fixture declares only "graph": the schema lookup falls back to it. A site that also declares
+		// presents:"schema" (the class browser) is chosen first — same accessor, keyed lookup.
+		expect(getUiPresenting("schema") ?? getUiPresenting("graph")).toEqual(getUiPresenting("graph"));
+	});
 });

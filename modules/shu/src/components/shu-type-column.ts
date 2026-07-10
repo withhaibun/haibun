@@ -1,10 +1,10 @@
 /**
  * <shu-type-column> — the column a `#Type` reference opens. Shows the type's description, a graph of its schema, and
  * the list of its individuals — each a reference that opens that individual's own column. When the site declares a
- * graph presenter (ui.presents === "graph"), the schema graph IS that presenter, embedded through shu-product-view and
- * scoped to the schema with this type's Class fitted; the column publishes the type as the shared selection, so the
- * Class node highlights in every graph view. Without a presenter (standalone), a static SVG shows the type's own
- * schema, with a toggle widening it to the entire vocabulary. Read-only: the schema comes from
+ * schema presenter (ui.presents === "schema", falling back to its general "graph" presenter), that presenter IS the
+ * schema view, embedded through shu-product-view and scoped by focusType; the column publishes the type as the shared
+ * selection, so the type's Class node highlights in every graph view. Without a presenter (standalone), a static SVG
+ * shows the type's own schema, with a toggle widening it to the entire vocabulary. Read-only: the schema comes from
  * getTypeDescription/getRels/getEdgeRanges/getTypes, the instances from a bounded graphQuery.
  */
 import { html, css, type TemplateResult } from "lit";
@@ -17,6 +17,7 @@ import { appAccessLevel, idOf } from "../util.js";
 import { getEdgeRanges, getRels, getTypeDescription, getTypes, getUiPresenting } from "../rels-cache.js";
 import { renderRef } from "./shu-ref.js";
 import { SHU_EVENT } from "../consts.js";
+import { ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
 import type { TGraph } from "../graph/types.js";
 import { ShuProductView } from "./shu-product-view.js";
 
@@ -104,7 +105,9 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// persistedAs, so every graph view (the embedded presenter and any open graph column) highlights this type's Class.
 		this.setAttribute("data-subject", persistedAs);
 		this.setState({ persistedAs, loading: true, error: undefined });
-		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [{ s: persistedAs }], accessLevel: appAccessLevel(), label: persistedAs }, bubbles: true, composed: true }));
+		// label is the SELECTED NODE'S graph — the type's Class node lives in the Class cluster, and a schema label
+		// tells every consumer this subject is a schema term, not an individual to fetch.
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [{ s: persistedAs }], accessLevel: appAccessLevel(), label: ONTOLOGY_CLASS }, bubbles: true, composed: true }));
 		const res = await callStep<{ vertices: VertexData[]; total: number }>("graphQuery", { query: { label: persistedAs, accessLevel: appAccessLevel(), limit: 100 } }, `type-column: ${persistedAs}`);
 		if (!res.ok) {
 			this.setState({ loading: false, error: res.error });
@@ -118,31 +121,45 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		this.setState({ fullSchema: (e.target as HTMLInputElement).checked });
 	};
 
-	/** Mount the embedded graph presenter once per type, as a LIGHT-DOM child projected through the shadow slot: the
+	/** The site's schema presenter (the class browser) if declared, else its general graph presenter. */
+	private static schemaPresenter(): ReturnType<typeof getUiPresenting> {
+		return getUiPresenting("schema") ?? getUiPresenting("graph");
+	}
+
+	/** Mount the embedded schema presenter once per type, as a LIGHT-DOM child projected through the shadow slot: the
 	 *  presenter (an A-Frame scene) resolves its camera via document.querySelector, which a shadow root would hide —
-	 *  mounted in shadow its scene boots but its graph never attaches. updated(): the slot exists only after render. */
+	 *  mounted in shadow its scene boots but its graph never attaches. updated(): the slot exists only after render.
+	 *  The pane's controls toggle (data-show-controls) propagates through the product view to the presenter, so the
+	 *  presenter's own view settings gate on the same pane gear as every view's. */
 	private embeddedGraphFor = "";
 	protected updated(): void {
+		const view = this.querySelector(":scope > shu-product-view") as ShuProductView | null;
+		if (view) {
+			if (this.showControls) view.setAttribute("data-show-controls", "");
+			else view.removeAttribute("data-show-controls");
+			view.refresh();
+		}
 		const type = this.state.persistedAs;
-		const presenter = getUiPresenting("graph");
+		const presenter = ShuTypeColumn.schemaPresenter();
 		if (!presenter || !type || this.embeddedGraphFor === type) return;
 		this.embeddedGraphFor = type;
-		let view = this.querySelector(":scope > shu-product-view") as ShuProductView | null;
-		if (!view) {
-			view = new ShuProductView();
-			view.setAttribute("data-testid", "type-schema-graph");
-			this.appendChild(view);
+		let mounted = view;
+		if (!mounted) {
+			mounted = new ShuProductView();
+			mounted.setAttribute("data-testid", "type-schema-graph");
+			if (this.showControls) mounted.setAttribute("data-show-controls", "");
+			this.appendChild(mounted);
 		}
-		view.openProducts({ _type: presenter.type, focusType: type });
+		mounted.openProducts({ _type: presenter.type, focusType: type });
 	}
 
 	render(): TemplateResult {
 		const type = this.state.persistedAs;
 		const desc = getTypeDescription(type);
-		// The site's declared graph presenter shows the schema (scoped by focusType), projected from light DOM through
-		// the slot; standalone falls back to the static SVG, rebuilt per render — a cheap pure projection of the
-		// metadata cache, so no stored copy to fall stale.
-		const graphView = getUiPresenting("graph")
+		// The site's declared schema presenter (scoped by focusType), projected from light DOM through the slot;
+		// standalone falls back to the static SVG, rebuilt per render — a cheap pure projection of the metadata cache,
+		// so no stored copy to fall stale.
+		const graphView = ShuTypeColumn.schemaPresenter()
 			? html`<slot></slot>`
 			: html`
 				<label class="schema-scope"><input type="checkbox" data-testid="type-schema-scope" .checked=${this.state.fullSchema} @change=${this.onScopeChange} /> entire schema</label>

@@ -18,7 +18,7 @@ import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatche
 import { getUiByType } from "./rels-cache.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor, createPaneRouteState, recordPaneDismissal } from "./pane-event-router.js";
-import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
+import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext } from "./quads-snapshot.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
@@ -306,8 +306,11 @@ const main = async (): Promise<void> => {
 			if (actionsBar?.setContext && detail.patterns) {
 				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
 			}
-			const subject = detail.patterns?.[0]?.s;
-			setSelectedSubject(typeof subject === "string" ? subject : null, typeof detail.label === "string" ? detail.label : null);
+			// The selection axis moves only when the context addresses it (see selectionFromContext) — a query-context
+			// publish never clears a selection another column just made.
+			const sel = selectionFromContext(detail);
+			if (sel.action === "select") setSelectedSubject(sel.subject, sel.label);
+			else if (sel.action === "clear") setSelectedSubject(null, null);
 		}) as EventListener,
 		{ signal },
 	);

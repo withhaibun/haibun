@@ -563,10 +563,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					properties,
 				}));
 				// Include the schema (Class + Property + rdf:type edges) in the SAME response, pruned to the terms the data
-				// uses with the full observation buffer as evidence — the one place that always holds it, so a types-narrowed
-				// (schema-only) request still gets the correctly pruned schema and matching counts. The offline report
-				// assembles it the same way (buildGraphSource), so a report's schema view matches a live one.
-				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, this.observationQuads, this.getWorld().domains);
+				// uses. Evidence is the observation buffer UNION the response's own quads: the buffer covers what a
+				// types-narrowed request omits, and the store-backed response covers types whose observations the bounded
+				// buffer has evicted — either alone under-reports, so a type created early or fetched narrowly would drop
+				// from the schema. The offline report assembles it the same way (buildGraphSource).
+				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, [...this.observationQuads, ...quads], this.getWorld().domains);
 				return actionOKWithProducts({ ...withSchema, site: activeSitePrincipal(this.getWorld()) });
 			},
 		},

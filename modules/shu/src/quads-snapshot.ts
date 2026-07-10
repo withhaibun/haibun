@@ -38,16 +38,20 @@ type CacheEntry = {
 	accessLevel: string;
 };
 
-/**
- * Underlying store. The cache, view context, and listener set live here so a
- * single instance is reachable from every bundle that imports this module via
- * `globalThis.__SHU_QUADS_SNAPSHOT_STORE__` — see `getStore()`.
- */
-type Store = {
+/** One view scope's cached snapshot + in-flight fetch. Scope "" is the shared main-graph scope; a view that needs an
+ *  independent data source (the class browser) declares its own scope, so its fetches and chip choices never replace
+ *  another scope's snapshot. The view context (selection, active view) stays global across scopes. */
+type ScopeState = {
 	cache: CacheEntry | null;
 	pending: Promise<TGraphSnapshot> | null;
+};
+
+/** Underlying store: the per-scope caches, global view context, and listener set live here so a single instance is
+ *  reachable from every bundle that imports this module via `globalThis.__SHU_QUADS_SNAPSHOT_STORE__` — see getStore(). */
+type Store = {
+	scopes: Map<string, ScopeState>;
 	viewContext: TViewContext;
-	listeners: Set<SnapshotListener>;
+	listeners: Set<{ scope: string; fn: SnapshotListener }>;
 };
 
 /**
@@ -68,8 +72,7 @@ function getStore(): Store {
 	const existing = g[STORE_KEY];
 	if (existing) return existing;
 	const fresh: Store = {
-		cache: null,
-		pending: null,
+		scopes: new Map(),
 		viewContext: { activeViewId: null, selectedSubject: null, selectedLabel: null },
 		listeners: new Set(),
 	};
@@ -98,6 +101,17 @@ export function setSelectedSubject(subject: string | null, label: string | null)
 	notify(s);
 }
 
+/** What a CONTEXT_CHANGE means for the selection axis. A context publish addresses selection only when it names a
+ *  subject (select it) or carries an explicitly EMPTY patterns array (the empty-space click — clear it). A query
+ *  context (label/predicate/object patterns, no subject) says nothing about selection and must leave it untouched —
+ *  e.g. the graph view publishing its query at boot must not clear the selection a just-opened column published. */
+export function selectionFromContext(detail: { patterns?: Array<Record<string, unknown>>; label?: unknown }): { action: "select"; subject: string; label: string | null } | { action: "clear" } | { action: "none" } {
+	const subject = detail.patterns?.[0]?.s;
+	if (typeof subject === "string") return { action: "select", subject, label: typeof detail.label === "string" ? detail.label : null };
+	if (Array.isArray(detail.patterns) && detail.patterns.length === 0) return { action: "clear" };
+	return { action: "none" };
+}
+
 /**
  * Subscribe to changes in the shared clustered data and view context. Listeners
  * fire on initial fetch, incremental SSE merges, active-view changes, and
@@ -113,10 +127,11 @@ export function setSelectedSubject(subject: string | null, label: string | null)
  *
  * Returns an unsubscribe function — call from disconnectedCallback.
  */
-export function subscribeSnapshot(listener: SnapshotListener): () => void {
+export function subscribeSnapshot(listener: SnapshotListener, scope = ""): () => void {
 	const s = getStore();
-	s.listeners.add(listener);
-	return () => s.listeners.delete(listener);
+	const entry = { scope, fn: listener };
+	s.listeners.add(entry);
+	return () => s.listeners.delete(entry);
 }
 
 /**
@@ -131,11 +146,14 @@ export type TViewContextCallbacks = {
 	onActiveViewChange?: (activeViewId: string | null) => void;
 };
 
-export function subscribeViewContext(callbacks: TViewContextCallbacks): () => void {
+export function subscribeViewContext(callbacks: TViewContextCallbacks, scope = ""): () => void {
 	const s = getStore();
 	let prevSnap: TGraphSnapshot | null = null;
 	let prevSelected: string | null = s.viewContext.selectedSubject;
 	let prevActive: string | null = s.viewContext.activeViewId;
+	// A selection made BEFORE this subscription (an embedding column publishes its subject, then this view boots)
+	// must still reach the subscriber: deliver the current selection once, so a late-booting view highlights it.
+	if (s.viewContext.selectedSubject !== null) queueMicrotask(() => callbacks.onSelectionChange?.(s.viewContext.selectedSubject, s.viewContext.selectedLabel));
 	return subscribeSnapshot((snap, ctx) => {
 		if (snap && snap !== prevSnap) {
 			prevSnap = snap;
@@ -149,14 +167,25 @@ export function subscribeViewContext(callbacks: TViewContextCallbacks): () => vo
 			prevActive = ctx.activeViewId;
 			callbacks.onActiveViewChange?.(ctx.activeViewId);
 		}
-	});
+	}, scope);
 }
 
-function notify(s: Store): void {
-	const snap = s.cache?.model.snapshot ?? null;
-	for (const fn of s.listeners) {
+function scopeState(s: Store, scope: string): ScopeState {
+	let st = s.scopes.get(scope);
+	if (!st) {
+		st = { cache: null, pending: null };
+		s.scopes.set(scope, st);
+	}
+	return st;
+}
+
+/** Fire listeners with THEIR scope's snapshot: a data change names its scope (only that scope's listeners fire); a
+ *  context change (selection/active view) passes undefined and reaches every listener — context is global. */
+function notify(s: Store, changedScope?: string): void {
+	for (const { scope, fn } of s.listeners) {
+		if (changedScope !== undefined && scope !== changedScope) continue;
 		try {
-			fn(snap, s.viewContext);
+			fn(s.scopes.get(scope)?.cache?.model.snapshot ?? null, s.viewContext);
 		} catch (err) {
 			failFastOrLog("[quads-snapshot] listener failed:", err);
 		}
@@ -173,19 +202,21 @@ function typesKey(types?: string[]): string {
  * node per type. The snapshot is cached per (perTypeLimit, types) tuple;
  * passing different opts triggers a fresh fetch.
  */
-export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: string[]; forceRefresh?: boolean } = {}): Promise<TGraphSnapshot> {
+export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: string[]; forceRefresh?: boolean; scope?: string } = {}): Promise<TGraphSnapshot> {
 	const s = getStore();
+	const st = scopeState(s, opts.scope ?? "");
+	const scope = opts.scope ?? "";
 	const perTypeLimit = opts.perTypeLimit ?? DEFAULT_PER_TYPE_LIMIT;
 	const tk = typesKey(opts.types);
 	const accessLevel = appAccessLevel();
-	const priorPinned = s.cache?.model.pinnedSubjects;
-	if (opts.forceRefresh || !s.cache || s.cache.perTypeLimit !== perTypeLimit || s.cache.typesKey !== tk || s.cache.accessLevel !== accessLevel) {
-		s.cache = null;
-		s.pending = null;
+	const priorPinned = st.cache?.model.pinnedSubjects;
+	if (opts.forceRefresh || !st.cache || st.cache.perTypeLimit !== perTypeLimit || st.cache.typesKey !== tk || st.cache.accessLevel !== accessLevel) {
+		st.cache = null;
+		st.pending = null;
 	}
-	if (s.cache) return s.cache.model.snapshot;
-	if (s.pending) return s.pending;
-	s.pending = (async () => {
+	if (st.cache) return st.cache.model.snapshot;
+	if (st.pending) return st.pending;
+	st.pending = (async () => {
 		const model = new QuadGraphModel(perTypeLimit, getRels);
 		try {
 			const steps = await getAvailableSteps();
@@ -198,9 +229,9 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			// The server already clustered (true totals + SQL body labels); the model adopts that snapshot, then live SSE extends it.
 			model.seed({ quads: data.quads, clusters: data.clusters ?? [], site: data.site });
 			if (priorPinned) model.pin(priorPinned);
-			s.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
+			st.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
 			void idbGraphStore.setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)
-			notify(s);
+			notify(s, scope);
 			return model.snapshot;
 		} catch (err) {
 			// Offline / RPC unavailable: serve the persisted graph if one survived a prior session (survives reload/disconnect).
@@ -208,26 +239,26 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			if (persisted.length === 0) throw err;
 			model.merge(persisted);
 			if (priorPinned) model.pin(priorPinned);
-			s.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
-			notify(s);
+			st.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
+			notify(s, scope);
 			return model.snapshot;
 		}
 	})();
 	try {
-		return await s.pending;
+		return await st.pending;
 	} finally {
-		s.pending = null;
+		st.pending = null;
 	}
 }
 
-/** The shared store's current snapshot, read synchronously (no fetch). Empty before anything loads. */
-export function currentSnapshot(): TGraphSnapshot {
-	return getStore().cache?.model.snapshot ?? { quads: [], clusters: [] };
+/** A scope's current snapshot, read synchronously (no fetch). Empty before anything loads. */
+export function currentSnapshot(scope = ""): TGraphSnapshot {
+	return getStore().scopes.get(scope)?.cache?.model.snapshot ?? { quads: [], clusters: [] };
 }
 
-function ensureCache(s: Store): CacheEntry {
-	if (!s.cache) s.cache = { model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels), perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*", accessLevel: appAccessLevel() };
-	return s.cache;
+function ensureCache(st: ScopeState): CacheEntry {
+	if (!st.cache) st.cache = { model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels), perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*", accessLevel: appAccessLevel() };
+	return st.cache;
 }
 
 /**
@@ -235,8 +266,8 @@ function ensureCache(s: Store): CacheEntry {
  * node-expansion: a neighborhood the user explicitly revealed stays visible even
  * once a type is at its per-type budget. Bounded by how much the user expands.
  */
-export function pinSubjects(subjects: Iterable<string>): void {
-	ensureCache(getStore()).model.pin(subjects);
+export function pinSubjects(subjects: Iterable<string>, scope = ""): void {
+	ensureCache(scopeState(getStore(), scope)).model.pin(subjects);
 }
 
 /**
@@ -247,9 +278,16 @@ export function pinSubjects(subjects: Iterable<string>): void {
 export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	if (quads.length === 0) return;
 	const s = getStore();
-	ensureCache(s).model.merge(quads);
+	// Live observations extend EVERY scope's model, each bounded by its own budget (merge dedups by fact, so a batch
+	// delivered through two views' subscriptions lands once per scope). The default scope always exists — SSE may
+	// arrive before any fetch.
+	ensureCache(scopeState(s, ""));
+	for (const [scope, st] of getStore().scopes) {
+		if (!st.cache) continue;
+		st.cache.model.merge(quads);
+		notify(s, scope);
+	}
 	void idbGraphStore.setMany(quads); // persist live observations off-heap for the next reload
-	notify(s);
 }
 
 /**

@@ -11,6 +11,7 @@ import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { isSchemaType } from "../graph/ontology-projection.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
@@ -169,7 +170,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	): void {
 		this._contextPatterns = patterns;
 		this._contextAccessLevel = accessLevel;
-		if (extra?.label !== undefined && extra.label !== this._selectedLabel) {
+		// A schema label (Class/Property — a type column's selection context) is not a queryable concern: it has no
+		// domain option, properties, or select values, so the query surface keeps its current label.
+		if (extra?.label !== undefined && extra.label !== this._selectedLabel && !isSchemaType(extra.label ?? "")) {
 			this._selectedLabel = extra.label || "";
 			this.syncSelectedDomainKey();
 			this.loadProperties(this._selectedLabel);
