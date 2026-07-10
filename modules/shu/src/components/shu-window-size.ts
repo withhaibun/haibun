@@ -29,7 +29,9 @@ const WINDOW_SIZES = [
 	{ value: "9000000000", label: "∞" },
 ] as const;
 
-const windowSizeSetting = persistedSetting(STORAGE_WINDOW_SIZE, DEFAULT_WINDOW_SIZE, (v) => WINDOW_SIZES.some((w) => w.value === v));
+/** The one global window-size setting. Exported alongside its reader `getWindowSize` so the picker element and tests
+ *  drive the same handle rather than reaching into storage. */
+export const windowSizeSetting = persistedSetting(STORAGE_WINDOW_SIZE, DEFAULT_WINDOW_SIZE, (v) => WINDOW_SIZES.some((w) => w.value === v));
 
 /** The global window size (rows per windowed view), read reactively so a settings change re-renders every windowed view. */
 export function getWindowSize(): number {

@@ -58,7 +58,9 @@ export class ShuRef extends HTMLElement {
 		} catch {
 			return;
 		}
-		openRef(kind, target);
+		// Pass the click event as the source so the open routes through PaneState.requestFrom (Miller-column: replaces
+		// the unpinned column to the source's right) — the one path every column open uses, not a second implementation.
+		openRef(e, kind, target);
 	};
 
 	private render(): void {
@@ -121,21 +123,21 @@ function defaultLabel(kind: string | null, targetJson: string | null): string {
 	return "";
 }
 
-function openRef(kind: TRefKind, linkTarget: Record<string, unknown>): void {
+function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>): void {
 	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) {
 		// Typed-fact subjects ARE seqPaths, so a seqPath ref doubles as the
 		// quad-view link: step-detail loads every quad emitted at that seqPath
 		// (including the fact), drillable into individual quads from there.
-		PaneState.request({ paneType: "step-detail", seqPath: linkTarget.seqPath as number[] });
+		PaneState.requestFrom(source, { paneType: "step-detail", seqPath: linkTarget.seqPath as number[] });
 		return;
 	}
 	if (kind === "entity" && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
-		PaneState.request({ paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id });
+		PaneState.requestFrom(source, { paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id });
 		return;
 	}
 	if (kind === "domain" && typeof linkTarget.domain === "string") {
 		// A type reference opens the type column: its description, schema graph, and individuals.
-		PaneState.request({ paneType: "type", persistedAs: linkTarget.domain });
+		PaneState.requestFrom(source, { paneType: "type", persistedAs: linkTarget.domain });
 		return;
 	}
 	// step kind: no dedicated pane yet — fall through (no-op), so the component

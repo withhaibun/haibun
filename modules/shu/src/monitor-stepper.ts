@@ -31,7 +31,7 @@ import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
-import { ontologyToQuads, ONTOLOGY_CLASS } from "./graph/ontology-projection.js";
+import { withOntologySchema } from "./graph/ontology-projection.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -338,8 +338,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		rpcCache[GET_EVENTS_METHOD] = { events: reportEvents };
 		// 2. Parameterless steps with view products (deterministic view toggles). Exclude getClusteredQuads: it's the graph
 		//    DATA RPC, not a view toggle (no `.view` product), it requires an accessLevel by design (no default — it honors
-		//    the caller's access exactly), and it's baked canonically below via buildGraphSource. Running it here arg-less
-		//    only threw on the missing accessLevel; its bare-key bake lands after this loop, so the early-cache guard misses it.
+		//    the caller's access exactly), and it's serialized canonically below via buildGraphSource. Running it here arg-less
+		//    only threw on the missing accessLevel; its bare-key entry is written after this loop, so the early-cache guard misses it.
 		const candidates = Object.entries(this.steps).filter(
 			([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{") && `MonitorStepper-${name}` !== CLUSTERED_QUADS_METHOD,
 		);
@@ -377,7 +377,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}
 		}
-		// Bake the FULL graph as ONE canonical getClusteredQuads response, exactly like the live RPC — the offline overview
+		// Serialize the FULL graph as ONE canonical getClusteredQuads response, exactly like the live RPC — the offline overview
 		// and sequence views paint client-side from this quad set and hide instrumentation by default themselves (toggleable),
 		// so there is no server-rendered image to embed and the offline filter behaves identically to live.
 		const built = await buildGraphSource(this.getWorld());
@@ -385,7 +385,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// view that reads the snapshot sees the same graph.
 		for (const key of Object.keys(rpcCache)) if (key === CLUSTERED_QUADS_METHOD || key.startsWith(`${CLUSTERED_QUADS_METHOD}:`)) delete rpcCache[key];
 		if (built) rpcCache[CLUSTERED_QUADS_METHOD] = { quads: built.quads, clusters: built.clusters };
-		else logger.warn("[shu writeStandaloneReport] graph snapshot not baked: QuadStore has no getClusteredQuads; the offline graph will be unavailable");
+		else logger.warn("[shu writeStandaloneReport] graph snapshot not captured: QuadStore has no getClusteredQuads; the offline graph will be unavailable");
 		// Reconstruct view hash from events (view products) and cache (last query label).
 		// `view` is the productsDomain key (e.g. "affordances"); pane-state expects the
 		// component tag (e.g. "shu-affordances-panel"). Resolve via the registered domain's
@@ -562,29 +562,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					timestamp,
 					properties,
 				}));
-				// fold the ontology (schema/T-Box) into the SAME response: Class + Property at t=0, default-hidden on the client, revealed via their filter chip (the normal type-filter path)
-				const ontology = ontologyToQuads(this.getWorld().domains);
-				// Join each instance to its Class with an rdf:type (`a`) edge — revealing the schema shows the data linked to
-				// its types. The edge lives in the instance's OWN graph (objectType Class): buildGraphModelFromQuads drops an
-				// edge whose target is hidden, so it renders only when the Class chip is revealed, and it never pollutes the
-				// Class cluster count. One per instance, only for a type that actually has a Class node (no dangling edges).
-				const classNodes = new Set(ontology.clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledSubjects ?? []);
-				const typeEdges: typeof quads = [];
-				const linkedSubjects = new Set<string>();
-				for (const q of quads) {
-					if (!classNodes.has(q.namedGraph) || linkedSubjects.has(q.subject)) continue;
-					linkedSubjects.add(q.subject);
-					typeEdges.push({
-						subject: q.subject,
-						predicate: "a",
-						object: q.namedGraph,
-						objectType: ONTOLOGY_CLASS,
-						namedGraph: q.namedGraph,
-						timestamp: q.timestamp,
-						properties: undefined,
-					});
-				}
-				return actionOKWithProducts({ quads: [...quads, ...typeEdges, ...ontology.quads], clusters: [...model.snapshot.clusters, ...ontology.clusters], site: activeSitePrincipal(this.getWorld()) });
+				// Include the schema (Class + Property + rdf:type edges) in the SAME response, pruned to the terms the data
+				// uses with the full observation buffer as evidence — the one place that always holds it, so a types-narrowed
+				// (schema-only) request still gets the correctly pruned schema and matching counts. The offline report
+				// assembles it the same way (buildGraphSource), so a report's schema view matches a live one.
+				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, this.observationQuads, this.getWorld().domains);
+				return actionOKWithProducts({ ...withSchema, site: activeSitePrincipal(this.getWorld()) });
 			},
 		},
 		clusteredGraphHoldsFromSite: {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, typesDeclaringRel } from "./ontology-projection.js";
+import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, pruneOntologyToUse, withOntologySchema, isSchemaType, typesDeclaringRel } from "./ontology-projection.js";
 import { LinkRelations, principalDomainDefinition, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: string, from: string, to: string): boolean =>
 	quads.some((q) => q.predicate === predicate && q.subject === from && q.object === to && q.objectType !== undefined);
@@ -50,5 +51,65 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 		// an abstract super-property no type declares has no instances to drill to → no domain.
 		expect(domainOf(LinkRelations.IN_ROLE_OF.rel)).toBeUndefined();
 		expect(typesDeclaringRel(domains, LinkRelations.IN_ROLE_OF.rel)).toEqual([]);
+	});
+});
+
+describe("pruneOntologyToUse — the served schema is the part the data exercises", () => {
+	const schemaTerm: TQuad = { subject: "VerifiableCredential", predicate: ONTOLOGY_PRED.name, object: "VerifiableCredential", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
+	const superTerm: TQuad = { subject: "VerifiableCredential", predicate: ONTOLOGY_PRED.subClassOf, object: "prov:Entity", namedGraph: ONTOLOGY_CLASS, objectType: ONTOLOGY_CLASS, timestamp: 0 };
+	const superName: TQuad = { subject: "prov:Entity", predicate: ONTOLOGY_PRED.name, object: "prov:Entity", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
+	const unusedTerm: TQuad = { subject: "NeverInstantiated", predicate: ONTOLOGY_PRED.name, object: "NeverInstantiated", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
+	const usedProp: TQuad = { subject: "issuer", predicate: ONTOLOGY_PRED.name, object: "issuer", namedGraph: ONTOLOGY_PROPERTY, timestamp: 0 };
+	const instance: TQuad = { subject: "vc-1", predicate: "issuer", object: "did:x", namedGraph: "VerifiableCredential", timestamp: 0 };
+	const ontology = {
+		quads: [schemaTerm, superTerm, superName, unusedTerm, usedProp],
+		clusters: [
+			{ type: ONTOLOGY_CLASS, totalCount: 3, sampledCount: 3, omittedCount: 0, sampledSubjects: ["VerifiableCredential", "prov:Entity", "NeverInstantiated"], displayLabels: {} },
+			{ type: ONTOLOGY_PROPERTY, totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["issuer"], displayLabels: {} },
+		],
+	};
+
+	it("keeps a used Class (and its superclass) plus a used Property; drops a never-instantiated term — the evidence is the full data, so a types-narrowed request still receives the pruned schema", () => {
+		const pruned = pruneOntologyToUse(ontology, [instance]);
+		const subjects = pruned.quads.map((q) => q.subject);
+		expect(subjects).toContain("VerifiableCredential"); // its instance exercises it
+		expect(subjects).toContain("prov:Entity"); // a used leaf pulls in its ancestors
+		expect(subjects).toContain("issuer"); // the instance's predicate
+		expect(subjects).not.toContain("NeverInstantiated");
+	});
+
+	it("cluster counts match the pruned subjects so the chips read the exercised subset", () => {
+		const pruned = pruneOntologyToUse(ontology, [instance]);
+		const classes = pruned.clusters.find((c) => c.type === ONTOLOGY_CLASS);
+		expect(classes?.sampledSubjects.sort()).toEqual(["VerifiableCredential", "prov:Entity"]);
+		expect(classes?.totalCount).toBe(2);
+		expect(pruned.clusters.find((c) => c.type === ONTOLOGY_PROPERTY)?.totalCount).toBe(1);
+	});
+});
+
+describe("withOntologySchema — the schema travels with the response (live and offline alike)", () => {
+	const domains = { p: principalDomainDefinition as unknown as TRegisteredDomain };
+	const instance: TQuad = { subject: "did:x", predicate: "delegatedFrom", object: "did:y", namedGraph: "Principal", timestamp: 5 };
+	const response = { quads: [instance], clusters: [{ type: "Principal", totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["did:x"], displayLabels: {} }] };
+
+	it("appends the pruned Class + Property clusters and an rdf:type edge per instance, keeping the instance data intact", () => {
+		const out = withOntologySchema(response, response.quads, domains);
+		expect(out.quads).toContain(instance); // instance data preserved
+		// the Principal Class node is present (an instance exercises it)…
+		expect(out.quads.some((q) => q.namedGraph === ONTOLOGY_CLASS && q.subject === "Principal")).toBe(true);
+		// …and the instance is joined to its Class by an `a` edge living in the instance's own graph.
+		const typeEdge = out.quads.find((q) => q.predicate === "a" && q.subject === "did:x");
+		expect(typeEdge).toMatchObject({ object: "Principal", objectType: ONTOLOGY_CLASS, namedGraph: "Principal" });
+		expect(out.clusters.some((c) => c.type === ONTOLOGY_CLASS)).toBe(true);
+		expect(out.clusters.some((c) => c.type === ONTOLOGY_PROPERTY)).toBe(true);
+	});
+
+	it("adds exactly one rdf:type edge per subject, and none for a type with no Class node", () => {
+		const twoOfAType: TQuad[] = [instance, { subject: "did:x", predicate: "name", object: "X", namedGraph: "Principal", timestamp: 5 }];
+		const out = withOntologySchema({ quads: twoOfAType, clusters: response.clusters }, twoOfAType, domains);
+		expect(out.quads.filter((q) => q.predicate === "a" && q.subject === "did:x")).toHaveLength(1);
+		// every appended non-schema quad that is an `a` edge points at a real Class node
+		const classNodes = new Set(out.quads.filter((q) => isSchemaType(q.namedGraph) && q.namedGraph === ONTOLOGY_CLASS).map((q) => q.subject));
+		for (const e of out.quads.filter((q) => q.predicate === "a")) expect(classNodes.has(String(e.object))).toBe(true);
 	});
 });

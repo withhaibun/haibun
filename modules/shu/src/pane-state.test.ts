@@ -30,6 +30,7 @@ describe("derived helpers", () => {
 		expect(paneIdOf({ paneType: "entity", id: "msg-1", persistedAs: "Email" })).toBe("e:Email:msg-1");
 		expect(paneIdOf({ paneType: "filter-eq", persistedAs: "Email", predicate: "from", value: "a@b" })).toBe("f:Email:from=a@b");
 		expect(paneIdOf({ paneType: "thread", persistedAs: "Email", subject: "msg-42" })).toBe("t:Email:msg-42");
+		expect(paneIdOf({ paneType: "type", persistedAs: "Issuer" })).toBe("type:Issuer");
 		expect(paneIdOf({ paneType: "step-detail", seqPath: [0, 1, 2] })).toBe("step:0.1.2");
 	});
 
@@ -66,6 +67,13 @@ describe("parseColEntry", () => {
 		expect(d?.paneType).toBe("entity");
 		expect(d?.flag).toBe("max");
 		expect(d && paneIdOf(d)).toBe("e:Email:msg-1");
+	});
+
+	it("round-trips a type pane (survives reload; not mistaken for a `t:` thread or a component tag)", () => {
+		const d = parseColEntry("type:Issuer");
+		expect(d?.paneType).toBe("type");
+		if (d?.paneType === "type") expect(d.persistedAs).toBe("Issuer");
+		expect(d && paneIdOf(d)).toBe("type:Issuer");
 	});
 
 	it("returns null for malformed entries", () => {

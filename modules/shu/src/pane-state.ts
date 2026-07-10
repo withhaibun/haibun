@@ -440,8 +440,8 @@ function withPersistedFlag(d: DesiredPane): DesiredPane {
  * Parse one `col=` URL entry into a DesiredPane. Returns null for malformed
  * entries — `fromHash` skips nulls so a stale hash never crashes the boot.
  *
- * Each prefix maps to one paneType: `e:` entity, `f:` filter-eq, `p:` filter-prop,
- * `t:` thread, `step:` step-detail. Anything else is a component tag.
+ * Each prefix maps to one paneType: `e:` entity, `type:` type, `f:` filter-eq, `p:` filter-prop,
+ * `i:` filter-incoming, `t:` thread, `step:` step-detail. Anything else is a component tag.
  */
 export function parseColEntry(raw: string): DesiredPane | null {
 	const flag: DesiredPane["flag"] = raw.endsWith("~max") ? "max" : raw.endsWith("~min") ? "min" : undefined;
@@ -472,6 +472,7 @@ export function parseColEntry(raw: string): DesiredPane | null {
 		if (!split) return null;
 		return safe({ paneType: "filter-incoming", persistedAs: split[0], subject: split[1], flag });
 	}
+	if (body.startsWith("type:")) return safe({ paneType: "type", persistedAs: body.slice(5), flag }); // before `t:` — a type ref has no second colon
 	if (body.startsWith("t:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;

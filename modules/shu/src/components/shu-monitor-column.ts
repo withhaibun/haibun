@@ -9,6 +9,7 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
+import { FollowController } from "../timeline-follow.js";
 import { windowTail } from "./shu-window-size.js";
 import { emptyOrLoading } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
@@ -39,6 +40,8 @@ const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	#events = new EventsController(this, () => this.onEventsChanged());
+	// The `.log-rows` list is the scroll container; the shared kit tails the live edge and pauses when the reader scrolls away.
+	#follow = new FollowController(this, () => this.shadowRoot?.querySelector(".log-rows") ?? null);
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -164,10 +167,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		};
 
 	protected updated(): void {
-		if (this.timeCursor !== null) return;
-		if (!this.state.tail) return;
-		const container = this.shadowRoot?.querySelector(".log-rows") as HTMLElement | null;
-		if (container) container.scrollTop = container.scrollHeight;
+		if (this.state.tail) this.#follow.stick(); // the kit tails only at the live edge and only while the reader hasn't scrolled away
 	}
 
 	render(): TemplateResult {

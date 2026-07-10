@@ -13,7 +13,7 @@ import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-typ
 /** The two ontology clusters (the fisheye shows each as its own container, coloured by type). */
 export const ONTOLOGY_CLASS = "Class";
 export const ONTOLOGY_PROPERTY = "Property";
-/** Whether a @type is one of the two folded schema clusters — the ONE predicate reused across the fold: the filter
+/** Whether a @type is one of the two schema clusters — the ONE predicate every schema-aware surface reuses: the filter
  *  (default-hide), the paint (distinct shape), and the layout (timeless, so pinned to the front z=0 plane, not the age axis). */
 export const isSchemaType = (type: string): boolean => type === ONTOLOGY_CLASS || type === ONTOLOGY_PROPERTY;
 /** The predicates the projection emits — ONE source so the projector (writer) and the fisheye (reader of `domain`)
@@ -114,23 +114,22 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 	return { quads, clusters: [cluster(ONTOLOGY_CLASS, classSubjects, classLabels), cluster(ONTOLOGY_PROPERTY, propSubjects, propLabels)] };
 }
 
-/** The schema terms to KEEP when de-cluttering: every term the data uses (a Class whose name graphs some instance, a
- *  Property some quad's predicate) plus the ancestors of each — an abstract super-class/super-property (inRoleOf,
- *  prov:Agent) IS the interesting structure, so a used leaf pulls in its whole hierarchy. `sawSchema` is false when the
- *  quads carry no schema at all (the common case, schema hidden), letting callers skip the work. Shared by the two callers
- *  below so the drop-filter and the chip counts can't derive different subsets. */
-function keptSchemaTerms(quads: TQuad[]): { keep: Set<string>; sawSchema: boolean } {
+/** Prune a projected ontology to the terms the data exercises — a Class with an instance, a Property in use — plus the
+ *  ancestors of each used term (subClassOf/subPropertyOf: an abstract super like inRoleOf or prov:Agent IS the
+ *  interesting structure, so a used leaf pulls in its whole hierarchy). getClusteredQuads calls this with the FULL
+ *  observation set as evidence when it assembles its response, so the served schema and its cluster counts stay correct
+ *  however the request narrowed its types — a schema-only fetch (Class + Property alone) still reflects what the whole
+ *  data uses. Edges to a pruned term fall away on their own (buildGraphModelFromQuads needs both endpoints). */
+export function pruneOntologyToUse(ontology: TClusteredQuads, evidence: TQuad[]): TClusteredQuads {
 	const used = new Set<string>(); // instance types + used predicates
-	const supers = new Map<string, string[]>(); // subClassOf / subPropertyOf: a schema term → its immediate parents
-	let sawSchema = false;
-	for (const q of quads) {
-		if (isSchemaType(q.namedGraph)) {
-			sawSchema = true;
-			if (q.predicate === ONTOLOGY_PRED.subClassOf || q.predicate === ONTOLOGY_PRED.subPropertyOf) supers.set(q.subject, [...(supers.get(q.subject) ?? []), String(q.object)]);
-			continue;
-		}
+	for (const q of evidence) {
+		if (isSchemaType(q.namedGraph)) continue;
 		used.add(q.namedGraph); // an instance graph is named by its type
 		used.add(q.predicate);
+	}
+	const supers = new Map<string, string[]>(); // subClassOf / subPropertyOf: a schema term → its immediate parents
+	for (const q of ontology.quads) {
+		if (q.predicate === ONTOLOGY_PRED.subClassOf || q.predicate === ONTOLOGY_PRED.subPropertyOf) supers.set(q.subject, [...(supers.get(q.subject) ?? []), String(q.object)]);
 	}
 	const keep = new Set(used);
 	const climb = (term: string): void => {
@@ -141,25 +140,31 @@ function keptSchemaTerms(quads: TQuad[]): { keep: Set<string>; sawSchema: boolea
 			}
 	};
 	for (const term of used) climb(term);
-	return { keep, sawSchema };
+	const quads = ontology.quads.filter((q) => keep.has(q.subject));
+	const clusters = ontology.clusters.map((c) => {
+		const subjects = c.sampledSubjects.filter((s) => keep.has(s));
+		const displayLabels = Object.fromEntries(Object.entries(c.displayLabels).filter(([s]) => keep.has(s)));
+		return { ...c, totalCount: subjects.length, sampledCount: subjects.length, sampledSubjects: subjects, displayLabels };
+	});
+	return { quads, clusters };
 }
 
-/** Drop the folded schema's UNIMPLEMENTED terms — a Class with no instance, a Property never used — so a revealed schema
- *  shows only the part of the vocabulary the data actually exercises, not all 100+ terms. Edges to a dropped term fall
- *  away on their own (buildGraphModelFromQuads needs both endpoints). A true no-op — the input array — when no schema is
- *  present (the schema is hidden), so a repaint that carries no schema pays nothing. */
-export function dropUnusedSchema(quads: TQuad[]): TQuad[] {
-	const { keep, sawSchema } = keptSchemaTerms(quads);
-	if (!sawSchema) return quads;
-	return quads.filter((q) => (isSchemaType(q.namedGraph) ? keep.has(q.subject) : true));
-}
-
-/** How many schema terms the data USES, per cluster type — the filter chips show this (e.g. `Class (12)`) so the count
- *  matches the revealed, de-cluttered subset rather than the whole vocabulary. Counts the KEPT subjects directly, without
- *  materialising the dropped-quad array. */
-export function usedSchemaCounts(quads: TQuad[]): Record<string, number> {
-	const { keep } = keptSchemaTerms(quads);
-	const subjects: Record<string, Set<string>> = { [ONTOLOGY_CLASS]: new Set(), [ONTOLOGY_PROPERTY]: new Set() };
-	for (const q of quads) if (isSchemaType(q.namedGraph) && keep.has(q.subject)) subjects[q.namedGraph].add(q.subject);
-	return { [ONTOLOGY_CLASS]: subjects[ONTOLOGY_CLASS].size, [ONTOLOGY_PROPERTY]: subjects[ONTOLOGY_PROPERTY].size };
+/** Include the pruned ontology (the schema the `evidence` data exercises) in an instance-graph response, so one response
+ *  carries both the data and the model that drives it: the two Class + Property clusters at t=0 (default-hidden on the
+ *  client, revealed via their filter chip) plus one rdf:type (`a`) edge per instance to its Class — the edge lives in the
+ *  instance's own graph so buildGraphModelFromQuads drops it until the Class chip is revealed, and it never inflates the
+ *  Class count. The ONE assembler both the live getClusteredQuads and the offline report use, so a served report's
+ *  schema view matches a live one. `evidence` is the full data (live: the observation buffer; offline: the serialized
+ *  graph), never a type-narrowed subset — that keeps the pruning correct however the request scoped its types. */
+export function withOntologySchema(response: TClusteredQuads, evidence: TQuad[], domains: Record<string, TRegisteredDomain>): TClusteredQuads {
+	const ontology = pruneOntologyToUse(ontologyToQuads(domains), evidence);
+	const classNodes = new Set(ontology.clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledSubjects ?? []);
+	const typeEdges: TQuad[] = [];
+	const linkedSubjects = new Set<string>();
+	for (const q of response.quads) {
+		if (!classNodes.has(q.namedGraph) || linkedSubjects.has(q.subject)) continue;
+		linkedSubjects.add(q.subject);
+		typeEdges.push({ subject: q.subject, predicate: "a", object: q.namedGraph, objectType: ONTOLOGY_CLASS, namedGraph: q.namedGraph, timestamp: q.timestamp, properties: undefined });
+	}
+	return { quads: [...response.quads, ...typeEdges, ...ontology.quads], clusters: [...response.clusters, ...ontology.clusters] };
 }
