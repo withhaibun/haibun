@@ -1,3 +1,5 @@
+import { createHash, randomUUID } from 'crypto';
+import { SignJWT } from 'jose';
 import { actionNotOK, actionOK, getStepTerm } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
 import { OK } from '@haibun/core/schema/protocol.js';
@@ -11,8 +13,75 @@ export const ACCESS_TOKEN = 'access_token';
 
 const HTTP = 'HTTP';
 
+const DEFAULT_API_KEY_JWT_TTL_SECONDS = 300;
+
 export const base64Encode = ({ username, password }: { username: string; password: string }) =>
 	Buffer.from(`${username}:${password}`).toString('base64');
+
+/**
+ * Mints a v2 API key JWT: kid identifies which API key's secret the server should
+ * verify against, and htm/htu bind the token to a single method + URL (query and fragment dropped).
+ */
+export const createApiKeyJwt = async ({
+	issuer,
+	apiKey,
+	method,
+	endpoint,
+	ttlSeconds = DEFAULT_API_KEY_JWT_TTL_SECONDS,
+}: {
+	issuer: string;
+	apiKey: string;
+	method: string;
+	endpoint: string;
+	ttlSeconds?: number;
+}): Promise<string> => {
+	const keyBytes = Buffer.from(apiKey, 'hex');
+	const kid = createHash('sha256').update(apiKey).digest('hex');
+	const { protocol, host, pathname } = new URL(endpoint);
+
+	return new SignJWT({
+		iss: issuer,
+		jti: randomUUID(),
+		htm: method.toUpperCase(),
+		htu: `${protocol}//${host}${pathname}`,
+	})
+		.setProtectedHeader({ alg: 'HS256', kid })
+		.setIssuedAt()
+		.setExpirationTime(`${ttlSeconds}s`)
+		.sign(keyBytes);
+};
+
+/**
+ * Shared by restFilterPropertyRequest and restFilterPropertyRequestWithApiKeyJwt: validates the
+ * filtered response, then makes one request per item. beforeEach runs (if given) right before each
+ * request, so per-item auth (like a request-bound JWT) can be applied without duplicating the loop.
+ */
+const filteredPropertyRequests = async (
+	webPlaywright: WebPlaywright,
+	{ property, endpoint, method, status }: { property: string; endpoint: string; method: string; status: string },
+	beforeEach?: (requestPath: string) => Promise<void>
+) => {
+	if (!NO_PAYLOAD_METHODS.includes(method)) {
+		return actionNotOK(`Method ${method} not supported`);
+	}
+	const lastResponse = webPlaywright.getLastResponse();
+	const { filtered } = lastResponse;
+	if (!filtered) {
+		return actionNotOK(`No filtered response in ${lastResponse}`);
+	}
+	if (!filtered.every((item: TJsonRecord) => item[property] !== undefined)) {
+		return actionNotOK(`Property ${property} not found in all items`);
+	}
+	for (const item of filtered) {
+		const requestPath = `${endpoint}/${item[property]}`;
+		await beforeEach?.(requestPath);
+		const serialized = await webPlaywright.withPageFetch(requestPath, method);
+		if (serialized.status !== parseInt(status, 10)) {
+			return actionNotOK(`Expected status ${status} to ${requestPath}, got ${serialized.status}`);
+		}
+	}
+	return OK;
+};
 
 export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	setApiUserAgent: {
@@ -32,6 +101,27 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	addAuthBearerToken: {
 		gwta: `use Authorization Bearer header with {token}`,
 		action: async ({ token }: { token: string }) => {
+			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
+			return OK;
+		},
+	},
+	addApiKeyJwtAuthorizationHeader: {
+		gwta: `use Authorization API Key JWT header with {issuer}, {apiKey} for {method} to {endpoint}`,
+		action: async ({ issuer, apiKey, method, endpoint }: { issuer: string; apiKey: string; method: string; endpoint: string }) => {
+			const token = await createApiKeyJwt({ issuer, apiKey, method, endpoint });
+			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
+			return OK;
+		},
+	},
+	addApiKeyJwtAuthorizationHeaderWithTtl: {
+		precludes: ["WebPlaywright.addApiKeyJwtAuthorizationHeader"],
+		gwta: `use Authorization API Key JWT header with {issuer}, {apiKey} for {method} to {endpoint} expiring in {ttl}s`,
+		action: async ({ issuer, apiKey, method, endpoint, ttl }: { issuer: string; apiKey: string; method: string; endpoint: string; ttl: string }) => {
+			const ttlSeconds = Number(ttl);
+			if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0) {
+				return actionNotOK(`Expected a positive integer TTL in seconds, got ${ttl}`);
+			}
+			const token = await createApiKeyJwt({ issuer, apiKey, method, endpoint, ttlSeconds });
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
 			return OK;
 		},
@@ -146,25 +236,24 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 		handlesUndefined: ['method'],
 		action: async ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
 			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
-			if (!NO_PAYLOAD_METHODS.includes(method)) {
-				return actionNotOK(`Method ${method} not supported`);
-			}
-			const lastResponse = webPlaywright.getLastResponse();
-			const { filtered } = lastResponse;
-			if (!filtered) {
-				return actionNotOK(`No filtered response in ${lastResponse}`);
-			}
-			if (!filtered.every((item: TJsonRecord) => item[property] !== undefined)) {
-				return actionNotOK(`Property ${property} not found in all items`);
-			}
-			for (const item of filtered) {
-				const requestPath = `${endpoint}/${item[property]}`;
-				const serialized = await webPlaywright.withPageFetch(requestPath, method);
-				if (serialized.status !== parseInt(status, 10)) {
-					return actionNotOK(`Expected status ${status} to ${requestPath}, got ${serialized.status}`);
-				}
-			}
-			return OK;
+			return filteredPropertyRequests(webPlaywright, { property, endpoint, method, status });
+		},
+	},
+	restFilterPropertyRequestWithApiKeyJwt: {
+		precludes: ["WebPlaywright.restFilterPropertyRequest"],
+		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status} using API key JWT with {issuer}, {apiKey}`,
+		handlesUndefined: ['method'],
+		action: async (
+			{ property, endpoint, status, issuer, apiKey }: { property: string; endpoint: string; status: string; issuer: string; apiKey: string },
+			featureStep
+		) => {
+			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
+			// Each request gets its own token, bound to its own URL: a v2 API key JWT is only valid
+			// for the exact method + URL it was minted for, so one token can't cover the whole loop.
+			return filteredPropertyRequests(webPlaywright, { property, endpoint, method, status }, async (requestPath) => {
+				const token = await createApiKeyJwt({ issuer, apiKey, method, endpoint: requestPath });
+				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
+			});
 		},
 	},
 	restEndpointRequestWithPayload: {

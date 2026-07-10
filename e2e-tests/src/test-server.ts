@@ -32,6 +32,7 @@ const cycles = (ts: TestServer): IStepperCycles => ({
 		// Reset auth state for each feature
 		ts.currentAuthScheme = undefined;
 		ts.authSchemeHandler = undefined;
+		ts.usedApiKeyJwtIds.clear();
 	},
 });
 
@@ -52,6 +53,14 @@ class TestServer extends AStepper {
 		username: 'foo',
 		password: 'bar',
 	};
+
+	apiKeyJwtCreds: undefined | { issuer: string; apiKey: string } = {
+		issuer: 'tenant-1',
+		apiKey: 'a'.repeat(64),
+	};
+
+	/** jti values already presented for API key JWT auth - a repeated jti is a replay and is rejected */
+	usedApiKeyJwtIds: Set<string> = new Set();
 
 	resources: { id: number; name: string }[] = [];
 
