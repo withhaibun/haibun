@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, pruneOntologyToUse, withOntologySchema, isSchemaType, typesDeclaringRel } from "./ontology-projection.js";
+import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType, typesDeclaringRel } from "./ontology-projection.js";
 import { LinkRelations, principalDomainDefinition, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
@@ -111,5 +111,31 @@ describe("withOntologySchema — the schema travels with the response (live and 
 		// every appended non-schema quad that is an `a` edge points at a real Class node
 		const classNodes = new Set(out.quads.filter((q) => isSchemaType(q.namedGraph) && q.namedGraph === ONTOLOGY_CLASS).map((q) => q.subject));
 		for (const e of out.quads.filter((q) => q.predicate === "a")) expect(classNodes.has(String(e.object))).toBe(true);
+	});
+});
+
+describe("scopeSchemaToType — one type's own vocabulary", () => {
+	const q = (subject: string, predicate: string, object: string, graph: string, objectType?: string): TQuad => ({ subject, predicate, object, namedGraph: graph, objectType, timestamp: 0 });
+	const quads: TQuad[] = [
+		q("Issuer", ONTOLOGY_PRED.name, "Issuer", ONTOLOGY_CLASS),
+		q("Issuer", ONTOLOGY_PRED.subClassOf, "prov:Agent", ONTOLOGY_CLASS, ONTOLOGY_CLASS),
+		q("prov:Agent", ONTOLOGY_PRED.name, "prov:Agent", ONTOLOGY_CLASS),
+		q("did", ONTOLOGY_PRED.domain, "Issuer", ONTOLOGY_PROPERTY, ONTOLOGY_CLASS),
+		q("did", ONTOLOGY_PRED.name, "did", ONTOLOGY_PROPERTY),
+		q("Email", ONTOLOGY_PRED.name, "Email", ONTOLOGY_CLASS),
+		q("hasBody", ONTOLOGY_PRED.domain, "Email", ONTOLOGY_PROPERTY, ONTOLOGY_CLASS),
+		q("vc-1", "issuer", "did:x", "VerifiableCredential"),
+	];
+
+	it("keeps the type, its superclass, and its properties (their domain edges point at it) with their labels", () => {
+		const scoped = scopeSchemaToType(quads, "Issuer");
+		const subjects = new Set(scoped.filter((x) => isSchemaType(x.namedGraph)).map((x) => x.subject));
+		expect([...subjects].sort()).toEqual(["Issuer", "did", "prov:Agent"]);
+	});
+
+	it("drops unrelated schema terms but passes non-schema quads through untouched", () => {
+		const scoped = scopeSchemaToType(quads, "Issuer");
+		expect(scoped.some((x) => x.subject === "Email" || x.subject === "hasBody")).toBe(false);
+		expect(scoped.some((x) => x.subject === "vc-1")).toBe(true);
 	});
 });

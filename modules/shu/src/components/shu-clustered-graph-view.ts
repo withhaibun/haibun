@@ -15,6 +15,7 @@ import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, subscribeVie
 import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { effectiveHiddenTypes } from "../graph-filter-projection.js";
+import { isSchemaType } from "../graph/ontology-projection.js";
 
 const QuadFieldSchema = z.object({
 	subject: z.string(),
@@ -60,6 +61,19 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	// from these + the instrumentation-default predicate via effectiveHiddenTypes — never stored as the truth, so
 	// instrumentation's default-hidden is re-applied every load and a toggle is the only thing that sticks.
 	private filterOverrides: Record<string, boolean> = {};
+
+	/** The persistence scope of this view's filter choices: "" (the main graph's shared store) by default; a scoped host
+	 *  (a class browser) overrides with its own name and sets the same value as `data-persist-scope` on its filter. */
+	protected get filterPersistScope(): string {
+		return "";
+	}
+
+	/** The view's snapshot scope: "" (the shared main-graph snapshot) by default. A view with its own scope fetches and
+	 *  holds an independent snapshot — its refetches (chip toggles, per-type limit) never replace another scope's data,
+	 *  and another view's never replace its. Live SSE observations extend every scope. */
+	protected get snapshotScope(): string {
+		return "";
+	}
 
 	// The shared fields, typed: every subclass schema includes clusteredGraphStateShape, so the cast is sound.
 	protected get cgState(): TClusteredGraphState {
@@ -155,9 +169,10 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			return;
 		}
 
-		// One persistence source for the overrides + budget across every clustered view: the embedded <shu-graph-filter>.
-		// hiddenGraphs is computed (defaults + overrides) once the snapshot's clusters arrive, in refetchSnapshot.
-		const initial = ShuGraphFilter.getPersistedFilter();
+		// One persistence source for the overrides + budget across every clustered view: the embedded <shu-graph-filter>,
+		// read per the view's declared scope (filterPersistScope) so a scoped host (a class browser) never shares the main
+		// graph's choices. hiddenGraphs is computed (defaults + overrides) once the snapshot's clusters arrive, in refetchSnapshot.
+		const initial = ShuGraphFilter.getPersistedFilter(this.filterPersistScope);
 		this.filterOverrides = initial.overrides;
 		await this.onGraphConnected();
 		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
@@ -179,12 +194,16 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			}),
 		);
 		this.autoTeardown(
-			subscribeViewContext({
-				onSelectionChange: (subject, label) => {
-					this.onGraphSelection(subject, label);
-					if (subject && label) void this.fetchIfMissing(subject, label);
+			subscribeViewContext(
+				{
+					onSelectionChange: (subject, label) => {
+						this.onGraphSelection(subject, label);
+						// A schema term (a Class/Property node — a type selection) is not an individual: there is nothing to fetch.
+						if (subject && label && !isSchemaType(label)) void this.fetchIfMissing(subject, label);
+					},
 				},
-			}),
+				this.snapshotScope,
+			),
 		);
 	}
 
@@ -213,9 +232,16 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		return this.hiddenGraphsFor(types);
 	}
 
+	/** Whether a visibility change narrows the refetch to the visible types (the main graph's budget optimization).
+	 *  A small-scope view (the class browser) overrides to false: it always fetches the full set and applies visibility
+	 *  client-side, so the served schema is always pruned against complete evidence. */
+	protected get narrowsRefetchToVisible(): boolean {
+		return true;
+	}
+
 	protected commitHidden(hiddenGraphs: string[], visibleTypes: string[] | undefined, perTypeLimit: number): void {
 		this.setGraphState({ hiddenGraphs });
-		void this.refetchSnapshot({ types: visibleTypes, perTypeLimit });
+		void this.refetchSnapshot({ types: this.narrowsRefetchToVisible ? visibleTypes : undefined, perTypeLimit });
 	}
 
 	/** Hide/show delta — the control-products setter calls this; the on-screen filter sets the visible set directly via commitHidden. */
@@ -229,7 +255,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 
 	protected async refetchSnapshot(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
 		try {
-			const snap = await getGraphSnapshot({ perTypeLimit: opts.perTypeLimit, types: opts.types, forceRefresh: true });
+			const snap = await getGraphSnapshot({ perTypeLimit: opts.perTypeLimit, types: opts.types, forceRefresh: true, scope: this.snapshotScope });
 			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
 			// On-demand subjects are in the fresh snapshot now; clearing lets one re-load if a new budget sampled it out.
 			this.fetchedSubjects.clear();
@@ -241,7 +267,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	}
 
 	protected syncFromSnapshot(extra: Partial<TClusteredGraphState> = {}): void {
-		const snap = currentSnapshot();
+		const snap = currentSnapshot(this.snapshotScope);
 		for (const c of snap.clusters) this.knownClusters.set(c.type, c);
 		// Recompute hiddenGraphs on every live SSE batch so a graph that FIRST appears mid-run (e.g. a new observation/*
 		// type from a web interaction) is classified the moment it streams in, not left visible until the next refetch.

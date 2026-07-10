@@ -13,7 +13,7 @@
  * deleting the cached module) sees the same singleton store.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { setSelectedSubject, subscribeSnapshot, getViewContext, mergeQuadsIntoSnapshot, pinSubjects, currentSnapshot, DEFAULT_PER_TYPE_LIMIT } from "./quads-snapshot.js";
+import { setSelectedSubject, subscribeSnapshot, getViewContext, mergeQuadsIntoSnapshot, pinSubjects, currentSnapshot, selectionFromContext, DEFAULT_PER_TYPE_LIMIT } from "./quads-snapshot.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL } from "@haibun/core/lib/resources.js";
 
@@ -139,5 +139,50 @@ describe("mergeQuadsIntoSnapshot is bounded by the budget (the OOM fix)", () => 
 
 		expect(currentSnapshot().clusters[0]?.sampledCount).toBe(DEFAULT_PER_TYPE_LIMIT); // bounded regardless of N
 		expect(ms).toBeLessThan(5_000); // O(n²) over ~20k batches would take minutes; linear is well under this
+	});
+});
+
+describe("per-scope snapshots — independent data sources over one store", () => {
+	beforeEach(() => {
+		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+	});
+
+	it("a merge extends every scope that holds a cache, each notified with ITS OWN snapshot", () => {
+		const sharedSeen: number[] = [];
+		const scopedSeen: number[] = [];
+		subscribeSnapshot((snap) => sharedSeen.push(snap?.quads.length ?? -1));
+		subscribeSnapshot((snap) => scopedSeen.push(snap?.quads.length ?? -1), "class-browser");
+		feedSubject("Email", "e-1", 2); // creates the default scope's cache; the scoped cache doesn't exist yet
+		expect(sharedSeen.at(-1)).toBe(2);
+		expect(scopedSeen.length).toBe(0); // no cache in that scope yet → no data notification for it
+	});
+
+	it("pinning and reading are scoped: subjects pinned in one scope never appear in another's snapshot", () => {
+		feedSubject("Email", "e-1", 1);
+		pinSubjects(["e-1"]); // default scope
+		expect(currentSnapshot().quads.length).toBe(1);
+		expect(currentSnapshot("class-browser").quads.length).toBe(0); // the scoped source is untouched
+	});
+
+	it("a selection change is global: listeners of every scope receive it", () => {
+		const scopes: string[] = [];
+		subscribeSnapshot((_s, ctx) => scopes.push(`shared:${ctx.selectedSubject}`));
+		subscribeSnapshot((_s, ctx) => scopes.push(`browser:${ctx.selectedSubject}`), "class-browser");
+		setSelectedSubject("Issuer", "Issuer");
+		expect(scopes).toContain("shared:Issuer");
+		expect(scopes).toContain("browser:Issuer");
+	});
+});
+
+describe("selectionFromContext — only a context that ADDRESSES selection moves it", () => {
+	it("a subject pattern selects", () => {
+		expect(selectionFromContext({ patterns: [{ s: "Issuer" }], label: "Issuer" })).toEqual({ action: "select", subject: "Issuer", label: "Issuer" });
+	});
+	it("an explicitly empty patterns array clears (the empty-space click)", () => {
+		expect(selectionFromContext({ patterns: [] })).toEqual({ action: "clear" });
+	});
+	it("a query context (label/predicate/object, no subject) leaves the selection untouched", () => {
+		expect(selectionFromContext({ patterns: [{ p: "label", o: "Body" }] })).toEqual({ action: "none" });
+		expect(selectionFromContext({})).toEqual({ action: "none" });
 	});
 });

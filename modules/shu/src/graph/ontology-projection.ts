@@ -149,6 +149,20 @@ export function pruneOntologyToUse(ontology: TClusteredQuads, evidence: TQuad[])
 	return { quads, clusters };
 }
 
+/** Scope schema quads to ONE type's own vocabulary: the type's Class, every schema term connected to it in either
+ *  direction (its properties via their rdfs:domain edges, its superclass via subClassOf, any subclass pointing at it),
+ *  and those kept terms' own scalar quads (name, uri, abstract) so they render labelled. Non-schema quads pass through
+ *  untouched — instance visibility stays the type filter's concern. The class browser's single-type scope. */
+export function scopeSchemaToType(quads: TQuad[], type: string): TQuad[] {
+	const keep = new Set<string>([type]);
+	for (const q of quads) {
+		if (!isSchemaType(q.namedGraph)) continue;
+		if (q.subject === type && q.objectType !== undefined) keep.add(String(q.object));
+		if (q.object === type && q.objectType !== undefined) keep.add(q.subject);
+	}
+	return quads.filter((q) => (isSchemaType(q.namedGraph) ? keep.has(q.subject) : true));
+}
+
 /** Include the pruned ontology (the schema the `evidence` data exercises) in an instance-graph response, so one response
  *  carries both the data and the model that drives it: the two Class + Property clusters at t=0 (default-hidden on the
  *  client, revealed via their filter chip) plus one rdf:type (`a`) edge per instance to its Class — the edge lives in the
