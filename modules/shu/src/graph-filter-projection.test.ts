@@ -77,26 +77,18 @@ describe("projectFilterClusters", () => {
 		expect(result[0].totalCount).toBe(2);
 	});
 
-	it("counts schema chips by the terms the data uses, not the whole vocabulary", () => {
-		const schemaQuad = (graph: string, subject: string): TQuad => ({ namedGraph: graph, subject, predicate: "name", object: subject, timestamp: 0 });
+	it("passes schema chip counts through unchanged — getClusteredQuads serves the schema already pruned to the terms the data uses (pruneOntologyToUse), so the counts arrive correct", () => {
 		const result = projectFilterClusters({
 			knownClusters: new Map([
-				["Class", cluster("Class", 3)],
-				["Property", cluster("Property", 2)],
+				["Class", cluster("Class", 2)],
+				["Property", cluster("Property", 1)],
 			]),
-			allQuads: [
-				schemaQuad("Class", "Email"),
-				schemaQuad("Class", "Person"),
-				schemaQuad("Class", "Unused"),
-				schemaQuad("Property", "name"),
-				schemaQuad("Property", "unusedRel"),
-				{ namedGraph: "Email", subject: "e1", predicate: "name", object: "v", timestamp: 1 }, // an Email instance using "name"
-			],
+			allQuads: [{ namedGraph: "Email", subject: "e1", predicate: "name", object: "v", timestamp: 1 }],
 			visibleQuads: [],
 			timeCursor: null,
 		});
-		expect(result.find((c) => c.type === "Class")?.totalCount).toBe(1); // only Email has an instance
-		expect(result.find((c) => c.type === "Property")?.totalCount).toBe(1); // only "name" is used
+		expect(result.find((c) => c.type === "Class")?.totalCount).toBe(2);
+		expect(result.find((c) => c.type === "Property")?.totalCount).toBe(1);
 	});
 });
 

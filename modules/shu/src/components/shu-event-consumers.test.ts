@@ -7,6 +7,7 @@ import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
 import { resetEventsSnapshot } from "../events-snapshot.js";
 import { timeCursor } from "../signals.js";
+import { DEFAULT_WINDOW_SIZE, windowSizeSetting } from "./shu-window-size.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
@@ -87,5 +88,45 @@ describe("event consumers over the shared log", () => {
 		expect(timeCursor.get(), "latest row → null (live)").toBeNull();
 		rows[0].click(); // earliest row → a concrete as-of cutoff (the first event's timestamp)
 		expect(timeCursor.get(), "earlier row → concrete cutoff").toBe(1);
+	});
+});
+
+// A long log is windowed to its last N rows (shu-window-size). The rows still carry a data-raw-time, and clicking one
+// must scrub to that row's real instant — measured from the column's global start, the same origin cursorToRow adds it
+// back to — not from the window's first event, which would shift every click earlier by the cut span.
+describe("a windowed document scrubs to the clicked row's real time, not the cut-off start", () => {
+	let handle: TShuTestHandle;
+	const WINDOW = 50; // shrink the window well below the event count so the log is truncated
+	const CUT = 10; // events 1..CUT are truncated away
+	const EVENTS = WINDOW + CUT; // 60 events → the last 50 render, so the earliest VISIBLE event is CUT+1 (11)
+
+	beforeEach(() => {
+		if (!customElements.get("shu-document-column")) customElements.define("shu-document-column", ShuDocumentColumn);
+		resetEventsSnapshot();
+		windowSizeSetting.set(String(WINDOW));
+		handle = setupShuTest({
+			dispatch: (method, params) => {
+				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
+				if ((params as { filter: { until?: number } }).filter.until !== undefined) return { events: [], truncated: false };
+				return { events: Array.from({ length: EVENTS }, (_, i) => step(i + 1)), truncated: false };
+			},
+		});
+	});
+	afterEach(() => {
+		handle.teardown();
+		windowSizeSetting.set(DEFAULT_WINDOW_SIZE);
+	});
+
+	it("clicking the earliest VISIBLE row scrubs to that row's timestamp (11), not the invisible global start (1)", async () => {
+		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
+		document.body.appendChild(doc);
+		await flush();
+		const rows = (Array.from(doc.shadowRoot?.querySelectorAll(".doc-row[data-raw-time]") ?? []) as HTMLElement[]).sort(
+			(a, b) => parseFloat(a.getAttribute("data-raw-time") ?? "0") - parseFloat(b.getAttribute("data-raw-time") ?? "0"),
+		);
+		expect(rows.length, "the window truncates the 60-event log to its last 50 rows").toBe(WINDOW);
+		timeCursor.set(999); // a non-null start so the published cutoff registers as a change
+		rows[0].click(); // earliest VISIBLE row is event CUT+1 (events 1..CUT were cut) — scrub to ITS instant
+		expect(timeCursor.get(), "earliest visible row → its own timestamp, not the cut-off start").toBe(CUT + 1);
 	});
 });

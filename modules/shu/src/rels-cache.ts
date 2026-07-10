@@ -73,6 +73,18 @@ export function getRels(label: string): Record<string, string> | undefined {
 	return metadata?.rels[label];
 }
 
+/** Every persisted type label the site declares — the whole schema vocabulary. Empty until metadata lands. */
+export function getTypes(): string[] {
+	return metadata?.types ?? [];
+}
+
+/** The concern whose ui declares it PRESENTS a capability (ui.presents, e.g. "graph" for the site's graph view), so a
+ *  view can embed the site's presenter for that capability without naming any concrete component. */
+export function getUiPresenting(kind: string): { type: string; ui: Record<string, unknown> } | undefined {
+	for (const [type, ui] of Object.entries(metadata?.ui ?? {})) if (ui.presents === kind) return { type, ui };
+	return undefined;
+}
+
 /** Sync lookup — returns cached rel for a property. */
 export function getRelSync(label: string, property: string): string | undefined {
 	return metadata?.rels[label]?.[property];

@@ -15,7 +15,8 @@ import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import * as ViewHash from "./view-hash.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
-import { getUiByComponent, getUiByType } from "./rels-cache.js";
+import { getUiByType } from "./rels-cache.js";
+import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor, createPaneRouteState, recordPaneDismissal } from "./pane-event-router.js";
 import { setActiveViewId, setSelectedSubject, getViewContext } from "./quads-snapshot.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
@@ -269,37 +270,8 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	const ensureUiComponentLoaded = async (childTag: string): Promise<void> => {
-		if (customElements.get(childTag)) {
-			reportExternalComponent("debug", "register", childTag, { "haibun.shu.external-component.already-registered": true });
-			return;
-		}
-		reportExternalComponent("debug", "lookup", childTag);
-		const ui = getUiByComponent(childTag);
-		if (!ui) {
-			reportExternalComponent("error", "missing-ui", childTag);
-			throw new Error(`[shu] no concern declares ui.component "${childTag}" — register a domain with ui:{component,js}`);
-		}
-		const js = typeof ui.js === "string" ? ui.js : "";
-		if (!js) {
-			reportExternalComponent("error", "missing-script", childTag);
-			throw new Error(`[shu] concern for ${childTag} has no ui.js script URL`);
-		}
-		const src = js.startsWith("/") ? js : `/${js}`;
-		reportExternalComponent("debug", "fetch", childTag, { "haibun.shu.external-component.url": src });
-		try {
-			await import(src);
-		} catch (err) {
-			const error = errorDetail(err);
-			reportExternalComponent("error", "fetch-failed", childTag, { "haibun.shu.external-component.url": src, error });
-			throw new Error(`[shu] failed to fetch ${src} for ${childTag}: ${error}`);
-		}
-		if (!customElements.get(childTag)) {
-			reportExternalComponent("error", "register-failed", childTag, { "haibun.shu.external-component.url": src });
-			throw new Error(`[shu] ${childTag} loaded from ${src} but customElements.get(${JSON.stringify(childTag)}) is undefined — bundle did not register the element`);
-		}
-		reportExternalComponent("debug", "mounted", childTag, { "haibun.shu.external-component.url": src });
-	};
+	// The shared loader (external-components.ts) with this app's diagnostic reporter bound.
+	const ensureUiComponentLoaded = (childTag: string): Promise<void> => sharedEnsureUiComponentLoaded(childTag, reportExternalComponent);
 
 	// Every person-visible step-end emits hypermedia products; if they carry view markers, route to PaneState — trace
 	// substeps are infrastructure and never open views, each event acts once, and a person's close outlasts the past

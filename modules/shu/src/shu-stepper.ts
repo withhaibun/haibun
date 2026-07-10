@@ -18,14 +18,15 @@ import type { Context } from "@haibun/web-server-hono/defs.js";
 import { SHU_TYPE } from "./consts.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "./graph-model.js";
+import { withOntologySchema } from "./graph/ontology-projection.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 
 /**
  * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
  * builds client-side. The one place the server reproduces it: `get graph layout` reads the node/edge sets back, and the
- * offline report bakes the quad snapshot. The FULL snapshot is baked — instrumentation included — exactly like the live
- * getClusteredQuads RPC; the view hides instrumentation by default (toggleable) via effectiveHiddenTypes, so the offline
- * report behaves identically to live.
+ * offline report serializes the quad snapshot. The FULL snapshot is serialized — instrumentation included — exactly like
+ * the live getClusteredQuads RPC; the view hides instrumentation by default (toggleable) via effectiveHiddenTypes, so the
+ * offline report behaves identically to live.
  */
 export async function buildGraphSource(
 	world: TWorld,
@@ -40,9 +41,12 @@ export async function buildGraphSource(
 > {
 	const store = world.shared.getStore();
 	if (!store.getClusteredQuads) return undefined;
-	// Scope "own": the standalone report is this site's own record — a shutdown-time bake must not depend on
+	// Scope "own": the standalone report is this site's own record — a shutdown-time capture must not depend on
 	// federated peers still being reachable, and each peer's record is its own report.
-	const { quads, clusters } = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private, scope: "own" });
+	const raw = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private, scope: "own" });
+	// Include the schema exactly as the live getClusteredQuads does, so the offline report's ontology/class-browser view
+	// matches live — pruned against the serialized graph itself (the report IS the full data). The one assembler, no drift.
+	const { quads, clusters } = withOntologySchema({ quads: raw.quads as TQuad[], clusters: raw.clusters }, raw.quads as TQuad[], world.domains);
 	const model = buildGraphModelFromQuads(quads as TQuad[]);
 	const nodeMap = new Map(model.nodes.map((n) => [n.id, { graph: n.type, subject: n.id }]));
 	const edges = model.edges.map((e) => ({ source: e.from, predicate: e.predicate, object: e.to }));

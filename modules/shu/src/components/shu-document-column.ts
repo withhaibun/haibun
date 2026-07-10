@@ -12,6 +12,7 @@ import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { EventsController } from "../controllers/index.js";
+import { FollowController } from "../timeline-follow.js";
 import { shuBaseStyles } from "./styles.js";
 import { groupThumbnailRows } from "../thumbnail-rows.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
@@ -48,6 +49,8 @@ export function windowCutHtml(total: number, shown: number): string {
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#events = new EventsController(this, () => this.onEventsChanged());
+	// :host is the scroll container (overflow: auto), so the shared live-edge follow uses the host itself.
+	#follow = new FollowController(this, () => this);
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -130,25 +133,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		else this.appendNew();
 	}
 
-	/** Cleared by a manual scroll; cursor changes stop re-centring after that. */
-	private followCursor = true;
-	private autoScrolling = false; // our own centring scroll, not a manual one
-
 	protected override onConnected(): void {
-		// A framed thumbnail asks us to move the cursor to the step row it belongs to — it can't reach us directly across
-		// our shadow boundary and owns no start-time → absolute-time mapping. Same path as a row click, one handler.
-		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.cursorToRow((e as CustomEvent<{ row: Element }>).detail.row));
-		this.autoListen(
-			this,
-			"scroll",
-			() => {
-				if (!this.autoScrolling) this.followCursor = false;
-			},
-			{ passive: true },
-		);
-		this.autoListen(this, "scrollend", () => {
-			this.autoScrolling = false;
-		});
+		// A framed thumbnail (in another view) asks the document to jump to the step row it belongs to: it can't reach us
+		// across the shadow boundary and owns no start-time → absolute-time mapping. A jump reveals the row here (jumpToRow);
+		// a click on a row already in view does not (cursorToRow).
+		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.jumpToRow((e as CustomEvent<{ row: Element }>).detail.row));
 
 		// Re-render when the window-size setting changes: the document body is imperative DOM (renderFull), so the
 		// signal read inside windowTail never auto-subscribes the way a lit render() does — without this, a new
@@ -164,18 +153,24 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		});
 	}
 
-	/** Move the global time cursor to a step row's instant: the column's start + the row's data-raw-time. The latest row is
-	 *  the live edge — publish null (no upper bound → show everything), exactly as the timeline slider does at the end, so the
-	 *  graph recovers; any earlier row is a concrete cutoff that hides records newer than it. */
+	/** Set the global time cursor to a row's instant so every view scrubs to it, and highlight the row here. Never scrolls:
+	 *  a click lands on a row already in view. The latest row is the live edge — a null cursor shows everything, exactly as
+	 *  the timeline slider does at its end; any earlier row is a concrete cutoff that hides records newer than it. */
 	private cursorToRow(row: Element): void {
 		const rawTime = parseFloat(row.getAttribute("data-raw-time") || "0");
 		const absTime = this.startTime + rawTime;
-		this.timeCursor = absTime >= this.endTime ? null : absTime;
-		this.applyTimeCursor();
+		this.timeCursor = absTime >= this.endTime ? null : absTime; // the setter fires onTimeSync → highlightCurrentRow
+		this.highlightCurrentRow(); // refresh even when the value is unchanged (the setter no-ops an equal value)
+	}
+
+	/** A jump-to from another view (a framed thumbnail): scrub to the row AND scroll it into view — the one deliberate scroll. */
+	private jumpToRow(row: Element): void {
+		this.cursorToRow(row);
+		if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "center", behavior: "smooth" });
 	}
 
 	protected override onTimeSync(): void {
-		this.applyTimeCursor();
+		this.highlightCurrentRow();
 	}
 
 	/** Render the recent window of the backfill — called once on initial load. Bounded by the global window size so a long
@@ -212,18 +207,23 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		while (fragment.firstChild) body.appendChild(fragment.firstChild);
 		groupThumbnailRows(body);
 		this.renderedEventCount = this.events.length;
-		if (this.timeCursor === null) this.scrollTop = this.scrollHeight;
+		this.#follow.stick(); // scroll to the live edge only if the reader is following it (the shared kit's rules)
 	}
 
 	/** Generate sanitized HTML from a set of events. */
 	private generateHtml(events: THaibunEvent[]): string {
 		const { artifactsByStep } = buildArtifactIndex(events);
-		const { md: rawMd } = generateDocumentMarkdown(events, artifactsByStep, this.state.level as THaibunLogLevel);
+		// Measure every row's data-raw-time from the column's stable global start, not this render's first event: windowing
+		// renders only a tail slice, and cursorToRow/highlightCurrentRow add data-raw-time back to this.startTime, so a
+		// per-slice base would place each row at the wrong absolute instant.
+		const { md: rawMd } = generateDocumentMarkdown(events, artifactsByStep, this.state.level as THaibunLogLevel, this.startTime);
 		const rawHtml = mdRenderer.render(rawMd);
 		return DOMPurify.sanitize(rawHtml, SANITIZE_OPTS);
 	}
 
-	private applyTimeCursor(): void {
+	/** Classify each row as past/current/future for the current cursor. Pure — it never scrolls, so the reader's scroll
+	 *  position is theirs alone (scrolling is confined to appendNew's live-edge stick and jumpToRow's deliberate reveal). */
+	private highlightCurrentRow(): void {
 		const body = this.shadowRoot?.querySelector(".document-body");
 		if (!body) return;
 		const rows = Array.from(body.querySelectorAll(".doc-row")) as HTMLElement[];
@@ -244,15 +244,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 				currentRow = row;
 			}
 		}
-		if (currentRow && cursor !== null) {
-			currentRow.classList.add(TIME_SYNC_CLASS.CURRENT);
-			// Centering is layout-dependent (a no-layout host has no scroll position); row classification above is the whole contract there.
-			if (this.followCursor && typeof this.scrollTo === "function") {
-				this.autoScrolling = true;
-				const rowTop = (currentRow as HTMLElement).offsetTop;
-				this.scrollTo({ top: rowTop - this.clientHeight / 2, behavior: "smooth" });
-			}
-		}
+		if (currentRow) currentRow.classList.add(TIME_SYNC_CLASS.CURRENT);
 	}
 
 	/** Build a map of step ID → products from lifecycle end events, only for steps after show document. */

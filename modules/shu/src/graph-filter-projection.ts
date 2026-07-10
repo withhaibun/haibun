@@ -26,15 +26,7 @@
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
-import { isSchemaType, usedSchemaCounts } from "./graph/ontology-projection.js";
-
-/** Reflect the hide-unimplemented default in the schema chips: a Class/Property chip counts the terms the data USES
- *  (dropUnusedSchema), so it reads `Class (12)` for the revealed subset, not `Class (27)` for the whole vocabulary.
- *  Non-schema clusters pass through unchanged. */
-function withSchemaCounts(clusters: TCluster[], allQuads: TQuad[]): TCluster[] {
-	const used = usedSchemaCounts(allQuads);
-	return clusters.map((c) => (used[c.type] !== undefined ? { ...c, totalCount: used[c.type], sampledCount: used[c.type], omittedCount: 0 } : c));
-}
+import { isSchemaType } from "./graph/ontology-projection.js";
 
 export function projectFilterClusters(opts: { knownClusters: Map<string, TCluster>; allQuads: TQuad[]; visibleQuads: TQuad[]; timeCursor: number | null }): TCluster[] {
 	if (opts.timeCursor === null) {
@@ -49,7 +41,7 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 			seen.add(q.namedGraph);
 			merged.push({ type: q.namedGraph, totalCount: 0, sampledCount: 0, omittedCount: 0, sampledSubjects: [], displayLabels: {} });
 		}
-		return withSchemaCounts(merged, opts.allQuads);
+		return merged;
 	}
 	const subjectsByType = new Map<string, Set<string>>();
 	for (const q of opts.visibleQuads) {
@@ -69,7 +61,7 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 		for (const s of sampledSubjects) if (sourceLabels[s] !== undefined) displayLabels[s] = sourceLabels[s];
 		clusters.push({ type, totalCount: sampledSubjects.length, sampledCount: sampledSubjects.length, omittedCount: 0, sampledSubjects, displayLabels });
 	}
-	return withSchemaCounts(clusters, opts.allQuads);
+	return clusters;
 }
 
 /**
@@ -77,9 +69,9 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
  * graphs (SeqPath, observation/*, facts, variables — `isInstrumentationGraph`) default hidden and everything else visible.
  * `overrides[type]`: true = shown, false = hidden, absent = the predicate decides. The ONE place the default and the
  * overrides combine — shared by the filter (chip state), the host views (which graphs render), and the offline-report
- * bake — so the rule is identical everywhere AND robust to types that arrive only via the live stream: there is no
- * per-cluster flag to lose, just the stable predicate over the type name. The persisted overrides hold only the user's
- * deliberate choices, never a baked-in default, so a change to what counts as instrumentation re-applies on the next load.
+ * serialization — so the rule is identical everywhere AND robust to types that arrive only via the live stream: there is
+ * no per-cluster flag to lose, just the stable predicate over the type name. The persisted overrides hold only the user's
+ * deliberate choices, never a fixed default, so a change to what counts as instrumentation re-applies on the next load.
  */
 export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<string, boolean>): string[] {
 	const hidden = new Set<string>();

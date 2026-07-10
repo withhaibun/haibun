@@ -49,11 +49,17 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 	return { artifactsByStep: map, allArtifactIds: allIds };
 }
 
-/** Generate markdown + data-attribute HTML for document view. Returns raw markdown string and set of visible event IDs. */
+/** Generate markdown + data-attribute HTML for document view. Returns raw markdown string and set of visible event IDs.
+ *
+ * `baseTime` is the epoch each row's `data-raw-time` is measured from. It defaults to the first event's timestamp, but a
+ * windowed caller (one that renders only a tail slice of a longer log) MUST pass its stable global start so the offsets
+ * stay comparable across renders: the document's time-cursor arithmetic adds `data-raw-time` back to that same global
+ * start, so a per-slice base would scrub every clicked row to a wrong, earlier instant. */
 export function generateDocumentMarkdown(
 	events: THaibunEvent[],
 	artifactsByStep: Map<string, TArtifactEvent[]>,
 	minLogLevel: THaibunLogLevel = "info",
+	baseTime = events[0]?.timestamp || 0,
 ): { md: string; visibleIds: Set<string> } {
 	let md = "";
 	let lastType: "none" | "prose" | "technical" = "none";
@@ -75,7 +81,6 @@ export function generateDocumentMarkdown(
 
 	const renderedHeaders = new Set<string>();
 	const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLogLevel);
-	const baseTime = events[0]?.timestamp || 0;
 
 	for (let i = 0; i < events.length; i++) {
 		const e = events[i];

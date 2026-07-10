@@ -911,9 +911,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.setState({ pinned, askExpanded: pinned || this.state.askExpanded });
 	};
 
-	/** Clicking the collapsed summary strip opens the bar (transient — it dismisses on click-away unless pinned). */
+	/** Clicking the summary strip toggles the bar open/closed (the bottom bar IS the toggle). Open is transient — it
+	 *  dismisses on click-away unless pinned. The strip's own controls (twisty, corner toggles, pin) stopPropagation,
+	 *  so they act without collapsing the bar. */
 	private onSummaryClick = (): void => {
-		if (!this.state.askExpanded) this.toggleExpanded();
+		this.toggleExpanded();
 	};
 
 	/** Start a resize drag from the top grip. The bar is bottom-anchored, so dragging the top edge UP enlarges it. */
