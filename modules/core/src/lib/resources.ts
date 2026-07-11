@@ -514,6 +514,13 @@ export type THypermediaTopology = {
 	 */
 	namespaces?: Record<string, string>;
 	/**
+	 * The published standard @context(s) this type conforms to (absolute URLs, e.g. the W3C VC v2 context). The served
+	 * type-scoped @context references them as a JSON-LD 1.1 array (URLs first, this type's own field terms last so haibun's
+	 * definitions win on any collision), so the type's full standard vocabulary is expressible; the schema-graph projection
+	 * enumerates their terms to show every property a conforming instance may carry, marking which are absent from the data.
+	 */
+	standardContexts?: string[];
+	/**
 	 * rdfs:subClassOf — superclass IRI(s) this type is a kind of, emitted into the served JSON-LD
 	 * `@context` so the type's class entails them. The single-string `@type` carries only the bare
 	 * label (one navigable type), so a second standards class a node must satisfy — e.g. a `sec:Issuer`

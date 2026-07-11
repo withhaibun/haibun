@@ -9,6 +9,7 @@
  */
 import { LinkRelations, isPersisted, edgeRel, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
+import type { TStandardTerm } from "./standard-vocabulary.js";
 
 /** The two ontology clusters (the fisheye shows each as its own container, coloured by type). */
 export const ONTOLOGY_CLASS = "Class";
@@ -44,7 +45,15 @@ export const ONTOLOGY_PRED = {
 	/** rdfs:range — the class an edge points at. With `domain` (the source classes) it makes the ontology fully
 	 *  navigable: a Property links the classes it connects, so the whole schema reads as "class —property→ class". */
 	range: "range",
+	/** Whether a property is exercised by the type's data. Stamped `false` on a term a declared standard vocabulary defines
+	 *  but the instances never use (declared-not-present), so a view can render it distinctly from a property in the data. */
+	inData: "inData",
 } as const;
+
+/** The local name of an IRI — the segment after the last `#`, `/`, or `:`. Lets a CURIE (cred:issuer) and a full IRI
+ *  (https://www.w3.org/2018/credentials#issuer) for the same term compare equal, so a standard term already present as a
+ *  haibun rel is not re-listed as declared-not-present. */
+export const iriLocalName = (iri: string): string => iri.slice(Math.max(iri.lastIndexOf("#"), iri.lastIndexOf("/"), iri.lastIndexOf(":")) + 1);
 /** The ontology is timeless — a fixed timestamp so the time axis / cursor treat every term as one age. */
 const ONTOLOGY_TS = 0;
 
@@ -200,8 +209,17 @@ export function scopeSchemaToType(quads: TQuad[], type: string): TQuad[] {
  *  Class count. The ONE assembler both the live getClusteredQuads and the offline report use, so a served report's
  *  schema view matches a live one. `evidence` is the full data (live: the observation buffer; offline: the serialized
  *  graph), never a type-narrowed subset — that keeps the pruning correct however the request scoped its types. */
-export function withOntologySchema(response: TClusteredQuads, evidence: TQuad[], domains: Record<string, TRegisteredDomain>): TClusteredQuads {
+export function withOntologySchema(
+	response: TClusteredQuads,
+	evidence: TQuad[],
+	domains: Record<string, TRegisteredDomain>,
+	standardVocab?: Map<string, TStandardTerm[]>,
+): TClusteredQuads {
 	const ontology = pruneOntologyToUse(ontologyToQuads(domains), evidence);
+	// Fold in each type's declared standard vocabulary AFTER pruning — these terms are declared-not-present (no instance
+	// uses them), so the evidence-only prune would drop them; they must survive so a type view shows a standard's whole
+	// vocabulary. Each carries an rdfs:domain edge to its type so scopeSchemaToType keeps it for the viewed type.
+	if (standardVocab) injectStandardVocab(ontology, standardVocab);
 	const classNodes = new Set(ontology.clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledSubjects ?? []);
 	const typeEdges: TQuad[] = [];
 	const linkedSubjects = new Set<string>();
@@ -211,4 +229,45 @@ export function withOntologySchema(response: TClusteredQuads, evidence: TQuad[],
 		typeEdges.push({ subject: q.subject, predicate: "a", object: q.namedGraph, objectType: ONTOLOGY_CLASS, namedGraph: q.namedGraph, timestamp: q.timestamp, properties: undefined });
 	}
 	return { quads: [...response.quads, ...typeEdges, ...ontology.quads], clusters: [...response.clusters, ...ontology.clusters] };
+}
+
+/** Add each type's declared standard-vocabulary terms to the (already-pruned) ontology as Property nodes — but only the
+ *  terms NOT already present as a haibun rel (compared by IRI local name, so cred:issuer and the full VC issuer IRI are
+ *  one term). Each injected term is stamped inData=false and given an rdfs:domain edge to its type's Class (added if the
+ *  type has no instances), so it renders attached to the type and survives scopeSchemaToType. */
+function injectStandardVocab(ontology: TClusteredQuads, standardVocab: Map<string, TStandardTerm[]>): void {
+	const propCluster = ontology.clusters.find((c) => c.type === ONTOLOGY_PROPERTY);
+	const classCluster = ontology.clusters.find((c) => c.type === ONTOLOGY_CLASS);
+	if (!propCluster || !classCluster) return;
+	const presentLocals = new Set<string>();
+	for (const q of ontology.quads) if (q.predicate === ONTOLOGY_PRED.uri && q.namedGraph === ONTOLOGY_PROPERTY) presentLocals.add(iriLocalName(String(q.object)));
+	const propSubjects = new Set(propCluster.sampledSubjects);
+	const classSubjects = new Set(classCluster.sampledSubjects);
+	const ensureClass = (label: string): void => {
+		if (classSubjects.has(label)) return;
+		classSubjects.add(label);
+		classCluster.sampledSubjects.push(label);
+		classCluster.displayLabels[label] = label;
+		ontology.quads.push({ subject: label, predicate: ONTOLOGY_PRED.name, object: label, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+	};
+	for (const [typeLabel, terms] of standardVocab) {
+		for (const { term, iri } of terms) {
+			if (presentLocals.has(iriLocalName(iri))) continue; // already a present property (a haibun rel with this term)
+			ensureClass(typeLabel);
+			if (!propSubjects.has(term)) {
+				propSubjects.add(term);
+				propCluster.sampledSubjects.push(term);
+				propCluster.displayLabels[term] = term;
+				presentLocals.add(iriLocalName(iri));
+				ontology.quads.push(
+					{ subject: term, predicate: ONTOLOGY_PRED.name, object: term, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
+					{ subject: term, predicate: ONTOLOGY_PRED.uri, object: iri, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
+					{ subject: term, predicate: ONTOLOGY_PRED.inData, object: false, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
+				);
+			}
+			ontology.quads.push({ subject: term, predicate: ONTOLOGY_PRED.domain, object: typeLabel, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+		}
+	}
+	propCluster.totalCount = propCluster.sampledCount = propCluster.sampledSubjects.length;
+	classCluster.totalCount = classCluster.sampledCount = classCluster.sampledSubjects.length;
 }

@@ -32,6 +32,7 @@ import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
+import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -567,7 +568,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				// types-narrowed request omits, and the store-backed response covers types whose observations the bounded
 				// buffer has evicted — either alone under-reports, so a type created early or fetched narrowly would drop
 				// from the schema. The offline report assembles it the same way (buildGraphSource).
-				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, [...this.observationQuads, ...quads], this.getWorld().domains);
+				const standardVocab = await enumerateStandardVocab(this.getWorld().domains);
+				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, [...this.observationQuads, ...quads], this.getWorld().domains, standardVocab);
 				return actionOKWithProducts({ ...withSchema, site: activeSitePrincipal(this.getWorld()) });
 			},
 		},

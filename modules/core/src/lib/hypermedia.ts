@@ -650,7 +650,11 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		// resolves to e.g. `foaf:Person` and activates Person's term scope). A `subClassOf` topology declares the
 		// genuine rdfs:subClassOf axiom on the type's class IRI — so e.g. `sec:Issuer rdfs:subClassOf prov:Agent`
 		// makes `prov:wasAttributedTo` (range prov:Agent) into it well-formed, without multi-valuing the @type label.
-		const typeNode: Record<string, unknown> = { "@id": topology.type ?? `haibun:${topology.persistedAs}`, "@context": scoped };
+		// A type conforming to published standard context(s) references them as a JSON-LD 1.1 array — the URLs FIRST so this
+		// type's own enumerated field terms (with their haibun:rel hints) come last and win on any name collision, and so
+		// the type's full standard vocabulary is expressible without inlining it. Absent, the scoped object stands alone.
+		const typeContext = topology.standardContexts?.length ? [...topology.standardContexts, scoped] : scoped;
+		const typeNode: Record<string, unknown> = { "@id": topology.type ?? `haibun:${topology.persistedAs}`, "@context": typeContext };
 		if (topology.subClassOf) typeNode["rdfs:subClassOf"] = topology.subClassOf;
 		context[topology.persistedAs] = typeNode;
 	}
