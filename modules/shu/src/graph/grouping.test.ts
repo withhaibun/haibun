@@ -21,7 +21,7 @@ describe("groupKeyOf", () => {
 
 	it("keys by the agent at ANY actor predicate — the axis string IS the predicate, nothing enumerates it", () => {
 		const vc = { type: "VerifiableCredential", properties: { issuer: "did:web:issuer", holder: "did:web:holder" } };
-		expect(groupKeyOf(vc, "issuer")).toBe("did:web:issuer"); // "an issuer in a wallet" — group by a SPECIFIC actor, not the winner
+		expect(groupKeyOf(vc, "issuer")).toBe("did:web:issuer"); // group by a SPECIFIC actor, not the winner
 		expect(groupKeyOf(vc, "holder")).toBe("did:web:holder");
 	});
 

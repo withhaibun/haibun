@@ -38,6 +38,13 @@ export type TResource = z.infer<typeof ResourceSchema>;
 /** Root node label — any resource. Use as edge range when the target is polymorphic. */
 export const RESOURCE_LABEL = "Resource";
 
+/** haibun's own vocabulary namespace — the IRI stem every haibun-defined term expands under, and the base for any
+ *  sub-vocabulary a consumer publishes beneath it. The single source of truth for the base; never write the literal. */
+export const HAIBUN_NS = "https://withhaibun.github.io/ns/";
+/** The @context prefixes bound to HAIBUN_NS (haibun's own terms). Anything else — cred/prov/sec/as/… — is a separate
+ *  vocabulary, not haibun's, and is identified by its own prefix. Kept small: only haibun names itself here. */
+export const HAIBUN_PREFIXES = ["hbn", "haibun"] as const;
+
 /**
  * A projected JSON-LD individual carries two keywords: `@id` (its IRI) and `@type` (its label).
  * `jsonLdIndividualOf` stamps them onto a domain schema for a single `@type` and rejects unexpected
@@ -487,6 +494,12 @@ export type TDomainRanges = Record<string, string>;
 export type THypermediaTopology = {
 	persistedAs: string;
 	type?: string;
+	/**
+	 * @context prefix→IRI bindings this type's own vocabulary needs, for any prefix beyond the standards and haibun's own
+	 * that core declares. A consumer whose @type or rel IRI uses `foo:Bar` declares `foo` here; getJsonLdContext merges it
+	 * into the served context.
+	 */
+	namespaces?: Record<string, string>;
 	/**
 	 * rdfs:subClassOf — superclass IRI(s) this type is a kind of, emitted into the served JSON-LD
 	 * `@context` so the type's class entails them. The single-string `@type` carries only the bare
