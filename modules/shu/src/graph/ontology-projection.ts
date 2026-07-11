@@ -7,7 +7,7 @@
  * edges. Pure + GPU-free (unit-tested). Reusable: any consumer that has the registered domains + LinkRelations can show
  * its own ontology; nothing here is spopg- or credential-specific.
  */
-import { LinkRelations, isPersisted, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import { LinkRelations, isPersisted, edgeRel, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 
 /** The two ontology clusters (the fisheye shows each as its own container, coloured by type). */
@@ -41,6 +41,9 @@ export const ONTOLOGY_PRED = {
 	subClassOf: "subClassOf",
 	subPropertyOf: "subPropertyOf",
 	domain: "domain",
+	/** rdfs:range — the class an edge points at. With `domain` (the source classes) it makes the ontology fully
+	 *  navigable: a Property links the classes it connects, so the whole schema reads as "class —property→ class". */
+	range: "range",
 } as const;
 /** The ontology is timeless — a fixed timestamp so the time axis / cursor treat every term as one age. */
 const ONTOLOGY_TS = 0;
@@ -122,6 +125,19 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		for (const p of parents) {
 			addProp(p);
 			quads.push({ subject: rel, predicate: ONTOLOGY_PRED.subPropertyOf, object: p, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
+		}
+	}
+
+	// rdfs:range — each edge's declared target class, a drawn Property→Class edge (objectType Class). Together with `domain`
+	// the ontology is fully connected: every relation shows the classes it links, so the whole schema can be viewed.
+	for (const d of Object.values(domains)) {
+		if (!isPersisted(d.topology)) continue;
+		for (const [edge, edgeDef] of Object.entries(d.topology.edges ?? {})) {
+			const rel = edgeDef.rel ?? edgeRel(edge);
+			if (!rel || !edgeDef.range) continue;
+			addProp(rel);
+			addClass(edgeDef.range);
+			quads.push({ subject: rel, predicate: ONTOLOGY_PRED.range, object: edgeDef.range, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 		}
 	}
 

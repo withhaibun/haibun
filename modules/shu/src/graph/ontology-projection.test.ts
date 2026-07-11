@@ -52,6 +52,16 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 		expect(domainOf(LinkRelations.IN_ROLE_OF.rel)).toBeUndefined();
 		expect(typesDeclaringRel(domains, LinkRelations.IN_ROLE_OF.rel)).toEqual([]);
 	});
+
+	it("carries a range (rdfs:range) on each edge — the class it points at, so the ontology reads class→property→class", () => {
+		const domains = {
+			w: { topology: { persistedAs: "Widget", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, edges: { maker: { range: "Person", rel: LinkRelations.ATTRIBUTED_TO.rel } } }, schema: { parse: (v: unknown) => v } } as unknown as TRegisteredDomain,
+		};
+		const { quads, clusters } = ontologyToQuads(domains);
+		// the edge's target class is a drawn Property→Class edge, and the range class is its own node.
+		expect(edge(quads, ONTOLOGY_PRED.range, LinkRelations.ATTRIBUTED_TO.rel, "Person")).toBe(true);
+		expect(clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledSubjects).toContain("Person");
+	});
 });
 
 describe("pruneOntologyToUse — the served schema is the part the data exercises", () => {
