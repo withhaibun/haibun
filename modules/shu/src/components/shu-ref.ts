@@ -20,14 +20,7 @@
  * link-driven navigation in the SPA.
  */
 import { esc, escAttr } from "../util.js";
-import { PaneState } from "../pane-state.js";
-
-const REF_KIND = ["seqPath", "entity", "domain", "step"] as const;
-type TRefKind = (typeof REF_KIND)[number];
-
-function isRefKind(v: string): v is TRefKind {
-	return (REF_KIND as readonly string[]).includes(v);
-}
+import { openRef, isRefKind, type TRefKind } from "./ref-navigation.js";
 
 export class ShuRef extends HTMLElement {
 	connectedCallback(): void {
@@ -123,26 +116,3 @@ function defaultLabel(kind: string | null, targetJson: string | null): string {
 	return "";
 }
 
-/** The one hypermedia navigation router: map a typed reference (seqPath / entity / domain / step) to the pane it opens,
- *  via PaneState.requestFrom. Every node/link navigation — a <shu-ref>, a graph node, an entity's @type link — routes
- *  here, so the link vocabulary stays consistent and there is a single place that knows what each kind opens. */
-export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>): void {
-	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) {
-		// Typed-fact subjects ARE seqPaths, so a seqPath ref doubles as the
-		// quad-view link: step-detail loads every quad emitted at that seqPath
-		// (including the fact), drillable into individual quads from there.
-		PaneState.requestFrom(source, { paneType: "step-detail", seqPath: linkTarget.seqPath as number[] });
-		return;
-	}
-	if (kind === "entity" && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
-		PaneState.requestFrom(source, { paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id });
-		return;
-	}
-	if (kind === "domain" && typeof linkTarget.domain === "string") {
-		// A type reference opens the type column: its description, schema graph, and individuals.
-		PaneState.requestFrom(source, { paneType: "type", persistedAs: linkTarget.domain });
-		return;
-	}
-	// step kind: no dedicated pane yet — fall through (no-op), so the component
-	// renders as a non-functional link rather than crashing.
-}
