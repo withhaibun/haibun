@@ -49,4 +49,17 @@ describe("shu-entity-column type description", () => {
 	it("is empty for an ad-hoc result view with no registered type", async () => {
 		expect(await render("Result")).not.toContain('data-testid="entity-type-description"');
 	});
+
+	it("shows non-summary fields in a visible fields section (not buried in the collapsed disclosure)", async () => {
+		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		document.body.appendChild(el);
+		el.openProducts({ _type: "Widget", id: "x1", name: "Example", note: "what it was invoked for", meta: { a: 1 } });
+		await el.updateComplete;
+		const html = el.shadowRoot?.innerHTML ?? "";
+		expect(html).toContain('data-testid="entity-fields"');
+		expect(html).toContain('data-testid="entity-field-note"');
+		expect(html).toContain("what it was invoked for");
+		// an object-valued field renders as formatted JSON
+		expect(html).toContain('data-testid="field-json-meta"');
+	});
 });
