@@ -10,8 +10,8 @@ import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
-import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
-import { Access, isContentPropertyDef, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
+import { getJsonLdContext, relOf } from "@haibun/core/lib/hypermedia.js";
+import { Access, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
@@ -208,10 +208,6 @@ function selectValuesFromSchema(schema: z.ZodType, properties: Record<string, TP
 		}
 	}
 	return values;
-}
-
-function relOf(def: TPropertyDef): string {
-	return isContentPropertyDef(def) ? def.rel : def;
 }
 
 export default class ShuStepper extends AStepper {
