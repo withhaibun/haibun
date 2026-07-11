@@ -34,6 +34,7 @@ import { derefStoredEntity } from "../quads-snapshot.js";
 import { getCachedEntity, setCachedEntity, subscribeEntities, type TEntityResult } from "../entity-store.js";
 import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
+import { openRef } from "./shu-ref.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -500,8 +501,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						PaneState.request({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: value });
 						break;
 					case "type-ref":
-						// A class from the @type row — open the class's type column (its description, schema graph, individuals).
-						PaneState.request({ paneType: "type", persistedAs: value });
+						// A class from the @type row — open its type view through the shared hypermedia ref router (a domain
+						// reference), the same navigation a #Type link and a graph class-click use.
+						openRef(e, "domain", { domain: value });
 						break;
 					case "filter":
 					default:

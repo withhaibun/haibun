@@ -123,7 +123,10 @@ function defaultLabel(kind: string | null, targetJson: string | null): string {
 	return "";
 }
 
-function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>): void {
+/** The one hypermedia navigation router: map a typed reference (seqPath / entity / domain / step) to the pane it opens,
+ *  via PaneState.requestFrom. Every node/link navigation — a <shu-ref>, a graph node, an entity's @type link — routes
+ *  here, so the link vocabulary stays consistent and there is a single place that knows what each kind opens. */
+export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>): void {
 	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) {
 		// Typed-fact subjects ARE seqPaths, so a seqPath ref doubles as the
 		// quad-view link: step-detail loads every quad emitted at that seqPath
