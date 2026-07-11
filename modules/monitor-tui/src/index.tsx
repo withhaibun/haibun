@@ -4,7 +4,7 @@
 
 import React, { useState } from "react";
 import { render, Text, Box, Static, useInput } from "ink";
-import { AStepper, IHasCycles, StepperKinds } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasCycles, StepperKinds, TStartFeature } from "@haibun/core/lib/astepper.js";
 import { TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import { EventFormatter, THaibunLogLevel } from "@haibun/core/monitor/index.js";
@@ -12,9 +12,9 @@ import { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompter.j
 
 const EventLine = ({ line }: { line: string }) => <Text>{line}</Text>;
 
-const RunningPanel = ({ steps, finished }: { steps: Map<string, string>; finished: boolean }) => (
+const RunningPanel = ({ steps, finished, featurePath }: { steps: Map<string, string>; finished: boolean; featurePath: string }) => (
 	<Box flexDirection="column" marginTop={1}>
-		<Text bold>Haibun Monitor</Text>
+		<Text bold>Haibun Monitor: {featurePath}</Text>
 		<Text underline>Running Steps:</Text>
 		{Array.from(steps.entries()).map(([id, label]) => (
 			<Text key={id} color="yellow">
@@ -64,17 +64,19 @@ const MonitorApp = ({
 	running,
 	finished,
 	prompt,
+	featurePath,
 	onResolve,
 }: {
 	lines: string[];
 	running: Map<string, string>;
 	finished: boolean;
+	featurePath: string;
 	prompt?: TPrompt;
 	onResolve?: (val: string) => void;
 }) => (
 	<Box flexDirection="column">
 		<Static items={lines}>{(line, i) => <EventLine key={i} line={line} />}</Static>
-		<RunningPanel steps={running} finished={finished} />
+		<RunningPanel steps={running} finished={finished} featurePath={featurePath} />
 		{prompt && onResolve && <PromptView prompt={prompt} resolve={onResolve} />}
 	</Box>
 );
@@ -91,6 +93,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 	private rerender: ((lines: string[], running: Map<string, string>, finished: boolean, prompt?: TPrompt) => void) | null = null;
 	private promptResolver: ((value: TPromptResponse) => void) | null = null;
 	private promptRejecter: ((reason?: unknown) => void) | null = null;
+	featurePath: string;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -146,11 +149,14 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 					this.updateRender();
 				}
 			};
+			const { rerender } = render(<MonitorApp featurePath={this.featurePath} lines={[]} running={new Map()} finished={false} />);
 
-			const { rerender } = render(<MonitorApp lines={[]} running={new Map()} finished={false} />);
-
-			this.rerender = (lines, running, finished, prompt) => rerender(<MonitorApp lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />);
+			this.rerender = (lines, running, finished, prompt) => rerender(<MonitorApp featurePath={this.featurePath} lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />);
 		},
+			startFeature: ({resolvedFeature}: TStartFeature) => {
+				this.featurePath = resolvedFeature.path;
+			},
+
 
 		onEvent: (event: THaibunEvent): void => {
 			const minLevel = (process.env.HAIBUN_LOG_LEVEL as unknown as THaibunLogLevel) || "info";
