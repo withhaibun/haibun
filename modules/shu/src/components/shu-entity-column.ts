@@ -71,6 +71,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.hidden { display: none; }
 		.detail-table { width: 100%; border-collapse: collapse; }
 		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; }
+		.fields-table { margin: var(--shu-space-1) 0 var(--shu-space-2); }
+		.field-json { margin: 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); font-size: 0.8em; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.field-name { white-space: nowrap; color: var(--shu-fg-faded); width: 80px; font-size: 0.85em; }
 		.body-container { display: flex; flex-direction: column; flex: 1; min-height: 200px; }
 		.body-iframe { width: 100%; height: 100%; min-height: 200px; border: none; background: #fff; }
@@ -210,19 +212,21 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${stubDetails}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);
+			// Every non-summary, non-edge field, shown in full between the type disclosure and the body — so a SeqPath's
+			// stepText (what it was invoked for) and the like are visible, not buried in a collapsed section. Object values
+			// render as formatted JSON.
 			const detailRows = Object.entries(fields)
 				.filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k))
 				.map(([k, v]) => {
-					const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
+					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
 					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
-			const hasBody = contentIframe.length > 0;
-			const openAttr = hasBody ? "" : " open";
-			const detailsInner = `${typeLine}${detailRows ? `<table class="detail-table">${detailRows}</table>` : ""}`;
-			const detailsHtml = detailsInner
-				? `<details class="entity-detail"${openAttr} data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${detailsInner}</details>`
+			// The disclosure carries only the type name (its summary) and description; the fields themselves sit below it.
+			const detailsHtml = typeLine
+				? `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${typeLine}</details>`
 				: "";
+			const fieldsHtml = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
 			const summaryHtml =
 				summaryFields.size > 0
 					? `<div class="entity-summary" data-testid="entity-summary">${Array.from(summaryFields)
@@ -234,7 +238,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							})
 							.join(" ")}</div>`
 					: "";
-			contentHtml = `${detailsHtml}${summaryHtml}${this.renderItemsTable()}${this.renderReferences()}${contentIframe}`;
+			contentHtml = `${detailsHtml}${summaryHtml}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${contentIframe}`;
 		}
 
 		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}<div class="entity-content">${unsafeHTML(contentHtml)}</div>`;
@@ -372,6 +376,20 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *   - everything else → plain display-only text (no navigation).
 	 * Edge-valued fields are handled inside clickableValue via the "item" rel.
 	 */
+	/** A field's value formatted for the visible field table: an object/array value is pretty-printed as JSON; everything
+	 *  else falls through to fieldValueHtml (its navigation affordance + escaping). */
+	private formatFieldValue(value: string, propertyName: string): string {
+		const trimmed = value.trim();
+		if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+			try {
+				return `<pre class="field-json" data-testid="field-json-${escAttr(propertyName)}">${esc(JSON.stringify(JSON.parse(trimmed), null, 2))}</pre>`;
+			} catch {
+				// not valid JSON — render as an ordinary scalar
+			}
+		}
+		return this.fieldValueHtml(value, propertyName);
+	}
+
 	private fieldValueHtml(value: string, propertyName: string): string {
 		const label = this.state.persistedAs;
 		if (getRelSync(label, propertyName) === "item") return this.clickableValue(value, "filter", propertyName);
