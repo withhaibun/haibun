@@ -20,6 +20,8 @@ import { SHU_EVENT } from "../consts.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
 import { getEdgeRanges, getEdgeRelMap, getRels, getRelSync, whenSiteMetadataReady } from "../rels-cache.js";
+import { isSchemaType, ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
+import { openRef } from "./shu-ref.js";
 import { getStepperForType } from "../rpc-registry.js";
 import { type TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "../graph-model.js";
@@ -406,6 +408,13 @@ export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 				}
 				const entry = this.currentNodeMap.get(rawId);
 				if (!entry) throw new Error(`shu-graph-view: clicked node "${rawId}" has no entry in currentNodeMap — the render and the click handlers are out of sync`);
+				// A schema node: a Class that is a registered type opens its type view through the shared hypermedia ref
+				// router (a domain reference — the same navigation a #Type link uses). A Property node or an external
+				// upper-ontology class (prov:Agent — no registered type) has no type view to open.
+				if (isSchemaType(entry.graph)) {
+					if (entry.graph === ONTOLOGY_CLASS && getRels(entry.subject)) openRef(this, "domain", { domain: entry.subject });
+					return;
+				}
 				if (getRels(entry.graph)) {
 					this.dispatchEvent(
 						new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
