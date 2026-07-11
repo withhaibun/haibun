@@ -17,6 +17,7 @@ import {
 	roleRels,
 	fromActorRels,
 	toActorRels,
+	HAIBUN_NS,
 } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
@@ -203,7 +204,7 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.sosa).toBe("http://www.w3.org/ns/sosa/");
 		expect(ctx.schema).toBe("https://schema.org/");
 		expect(ctx.otel).toBe("https://opentelemetry.io/schemas/");
-		expect(ctx.hbn).toBe("https://haibun.dev/ns/");
+		expect(ctx.hbn).toBe(HAIBUN_NS);
 	});
 
 	it("preserves pre-existing prefixes unchanged", () => {
@@ -215,7 +216,7 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.haibun).toBe("/ns/");
 	});
 
-	it("declares the credential/wallet @type prefixes used by the steppers", () => {
+	it("declares the W3C standard credential vocabularies but names no consumer-coined vocabulary", () => {
 		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
 		const ctx = out["@context"];
 		// The genuine VC vocabulary namespace (VerifiableCredential/VerifiablePresentation/issuer/credentialSubject/holder/…),
@@ -223,9 +224,14 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.cred).toBe("https://www.w3.org/2018/credentials#");
 		// The W3C Bitstring Status List vocabulary, distinct from the core credentials vocabulary.
 		expect(ctx.vcstatus).toBe("https://www.w3.org/ns/credentials/status#");
-		expect(ctx.wallet).toBe("https://haibun.dev/ns/wallet#");
-		expect(ctx.dgsi).toBe("https://haibun.dev/ns/dgsi#");
-		expect(ctx.oid4vp).toBe("https://haibun.dev/ns/oid4vp#");
+	});
+
+	it("merges a persisted domain's own namespace prefixes into the served context", () => {
+		const domains = {
+			x: { topology: { persistedAs: "X", type: "ex:X", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, namespaces: { ex: `${HAIBUN_NS}ex#` } }, schema: { parse: (v: unknown) => v } },
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
+		expect(ctx.ex).toBe(`${HAIBUN_NS}ex#`);
 	});
 
 	it("maps the credential validity-end rel to cred:validUntil (not as:updated)", () => {
@@ -254,7 +260,7 @@ describe("getJsonLdContext top-level term fallback", () => {
 	it("omits a top-level term that maps to differing @ids across domains", () => {
 		const domains = {
 			cred: persistedDomain("Credential", "vc:VerifiableCredential", { issuer: LinkRelations.CREDENTIAL_ISSUER.rel }),
-			list: persistedDomain("TrustedList", "dgsi:TrustedList", { issuer: LinkRelations.TAG.rel }),
+			list: persistedDomain("TrustedList", "ex:TrustedList", { issuer: LinkRelations.TAG.rel }),
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
 		expect(ctx.issuer).toBeUndefined();

@@ -57,6 +57,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 				border: var(--shu-border-w) solid var(--shu-border); }
 			.thread-card:hover { background: var(--shu-bg-hover); border-color: var(--shu-border-strong); }
 			.thread-card.current { background: var(--shu-accent-soft); border-color: var(--shu-accent); }
+			/* The item's @type, so a mixed thread (a Comment replying to a File, etc.) reads its kinds at a glance. */
+			.thread-card .type-badge { display: inline-block; font-size: var(--shu-font-sm); color: var(--shu-fg-on-swatch); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: 0 var(--shu-space-2); margin-bottom: var(--shu-space-1); }
 			.thread-card .meta { display: flex; gap: var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 			.thread-card .sender { color: var(--shu-fg); font-weight: 500; }
 			.thread-card .subject { color: var(--shu-fg-muted); margin-top: var(--shu-space-1); }
@@ -202,6 +204,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		const isComment = label === COMMENT_LABEL;
 		const extraFields = Object.entries(v).filter(([k, val]) => !k.startsWith("_") && !k.startsWith("@") && !knownFields.has(k) && val !== undefined && val !== null && val !== "");
 		return html`<div class=${`thread-card${isCurrent ? " current" : ""}`} data-id=${id} data-label=${label} @click=${this.onCardClick(id, label)}>
+			${label ? html`<span class="type-badge" data-testid="thread-item-type">${label}</span>` : ""}
 			${hasKnownContent ? html`<div class="meta"><span class="sender">${sender || (isComment ? COMMENT_LABEL : "")}</span><span>${date}</span></div>` : ""}
 			${subject ? html`<div class="subject">${subject}</div>` : ""}
 			${preview ? html`<div class="preview">${truncate(preview, 120)}</div>` : ""}

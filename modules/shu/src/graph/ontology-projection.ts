@@ -7,7 +7,7 @@
  * edges. Pure + GPU-free (unit-tested). Reusable: any consumer that has the registered domains + LinkRelations can show
  * its own ontology; nothing here is spopg- or credential-specific.
  */
-import { LinkRelations, isPersisted, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import { LinkRelations, isPersisted, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 
 /** The two ontology clusters (the fisheye shows each as its own container, coloured by type). */
@@ -16,6 +16,20 @@ export const ONTOLOGY_PROPERTY = "Property";
 /** Whether a @type is one of the two schema clusters — the ONE predicate every schema-aware surface reuses: the filter
  *  (default-hide), the paint (distinct shape), and the layout (timeless, so pinned to the front z=0 plane, not the age axis). */
 export const isSchemaType = (type: string): boolean => type === ONTOLOGY_CLASS || type === ONTOLOGY_PROPERTY;
+
+/** A property's provenance, keyed off its IRI. `haibun` when the term is haibun's own vocabulary — a CURIE under one of
+ *  haibun's own prefixes, or an IRI under HAIBUN_NS. Otherwise the term belongs to a separate vocabulary (a standard, or a
+ *  consumer's own) and is identified by that vocabulary's own prefix — no closed assumption about which non-haibun
+ *  vocabularies exist. Lets a view mark haibun-added fields distinctly and group a type's properties by their vocabulary. */
+export function propertyVocabulary(iri: string): { source: "haibun" | "standard"; prefix: string } {
+	const colon = iri.indexOf(":");
+	const curiePrefix = colon > 0 && !iri.startsWith("http") ? iri.slice(0, colon) : "";
+	const isHaibun = curiePrefix ? (HAIBUN_PREFIXES as readonly string[]).includes(curiePrefix) : iri.startsWith(HAIBUN_NS);
+	return { source: isHaibun ? "haibun" : "standard", prefix: isHaibun ? "haibun" : curiePrefix || "?" };
+}
+
+/** True when a property's IRI is haibun's own vocabulary (not a standard term). */
+export const isHaibunTerm = (iri: string): boolean => propertyVocabulary(iri).source === "haibun";
 /** The predicates the projection emits — ONE source so the projector (writer) and the fisheye (reader of `domain`)
  *  never drift on a string. `domain` is the genuine rdfs:domain term and the only one read outside this module (the
  *  Property routing); it shares the bare-local-name convention of subClassOf / subPropertyOf. */

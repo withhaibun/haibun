@@ -14,7 +14,7 @@ import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
 import { callStep } from "../pane-fetch.js";
 import { appAccessLevel, defaultLabel } from "../util.js";
-import { getIdField } from "../rels-cache.js";
+import { getIdField, getQueryableFields } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 
 type VertexData = Record<string, unknown>;
@@ -68,7 +68,11 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	async openProperty(property: string, label: string = defaultLabel()): Promise<void> {
 		this.setState({ property, persistedAs: label, loading: true, error: undefined });
 		this.spinnerStatus = "Fetching...";
-		await this.fetchResults({ label, filters: [], sortBy: property, sortOrder: "asc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
+		// Sort by the clicked property only when the topology declares it sortable; otherwise (the idField, or any field
+		// not in sortColumns — e.g. a SeqPath's id) fall back to the default sort so browsing all of this type still works
+		// instead of the store rejecting an undeclared sortBy.
+		const sortBy = getQueryableFields(label).includes(property) ? property : "";
+		await this.fetchResults({ label, filters: [], sortBy, sortOrder: "asc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
 	}
 
 	async openIncoming(targetId: string, targetLabel: string): Promise<void> {

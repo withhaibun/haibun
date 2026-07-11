@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType, typesDeclaringRel } from "./ontology-projection.js";
-import { LinkRelations, principalDomainDefinition, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType, propertyVocabulary, isHaibunTerm, typesDeclaringRel } from "./ontology-projection.js";
+import { LinkRelations, principalDomainDefinition, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: string, from: string, to: string): boolean =>
@@ -137,5 +137,21 @@ describe("scopeSchemaToType — one type's own vocabulary", () => {
 		const scoped = scopeSchemaToType(quads, "Issuer");
 		expect(scoped.some((x) => x.subject === "Email" || x.subject === "hasBody")).toBe(false);
 		expect(scoped.some((x) => x.subject === "vc-1")).toBe(true);
+	});
+});
+
+describe("propertyVocabulary — a property's provenance from its IRI", () => {
+	it("classifies haibun's own prefixes and namespace as haibun", () => {
+		expect(propertyVocabulary("hbn:accessLevel")).toEqual({ source: "haibun", prefix: "haibun" });
+		expect(propertyVocabulary(`${HAIBUN_NS}seqPath`)).toEqual({ source: "haibun", prefix: "haibun" });
+		expect(isHaibunTerm("hbn:accessLevel")).toBe(true);
+	});
+	it("classifies every other vocabulary by its own prefix — standards and consumer vocabularies alike, no closed set", () => {
+		expect(propertyVocabulary("cred:issuer")).toEqual({ source: "standard", prefix: "cred" });
+		expect(propertyVocabulary("prov:generatedAtTime")).toEqual({ source: "standard", prefix: "prov" });
+		expect(propertyVocabulary("as:name").source).toBe("standard");
+		// a consumer's own sub-vocabulary is NOT haibun's — it is identified by its own prefix, not hardcoded anywhere.
+		expect(propertyVocabulary("ex:SomeType")).toEqual({ source: "standard", prefix: "ex" });
+		expect(isHaibunTerm("sec:proof")).toBe(false);
 	});
 });

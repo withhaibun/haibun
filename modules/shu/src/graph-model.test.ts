@@ -116,7 +116,7 @@ describe("HypermediaRole fold (roleRels)", () => {
 		);
 		const vc = model.nodes.find((n) => n.id === "vc1");
 		expect(vc?.properties?.issuer).toBe("did:issuer"); // group by "issuer" specifically…
-		expect(vc?.properties?.holder).toBe("did:holder"); // …AND by "holder" — both kept, so "an issuer in a wallet" is expressible
+		expect(vc?.properties?.holder).toBe("did:holder"); // …AND by "holder" — both kept, so both actor roles stay expressible
 	});
 
 	it("does not fold when roleRels is absent (backward-compatible)", () => {

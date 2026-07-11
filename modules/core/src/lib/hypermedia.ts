@@ -68,7 +68,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	}
 	return undefined;
 }
-import type { TRegisteredDomain } from "./resources.js";
+import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
 import { unwrap } from "./composite-domain.js";
 import { ellipsize } from "./util/index.js";
 
@@ -583,12 +583,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		rdfs: "http://www.w3.org/2000/01/rdf-schema#",
 		// W3C Bitstring Status List vocabulary (the status-list credential terms, distinct from the core credentials vocabulary).
 		vcstatus: "https://www.w3.org/ns/credentials/status#",
-		// haibun-namespace IRIs for the wallet and DGSI (CAN/DGSI TS 115 Digital Credentials) vocabularies used by the
-		// credential/wallet steppers; the rels themselves come from REL_CONTEXT, these only declare the @type prefixes.
-		wallet: "https://haibun.dev/ns/wallet#",
-		dgsi: "https://haibun.dev/ns/dgsi#",
-		oid4vp: "https://haibun.dev/ns/oid4vp#",
-		hbn: "https://haibun.dev/ns/",
+		hbn: HAIBUN_NS,
 		haibun: "/ns/",
 	};
 	// JSON-LD 1.1 type-scoped context. Each @type carries a nested @context mapping ITS field/edge terms to the genuine
@@ -610,6 +605,9 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
+		// A type's own vocabulary prefixes (CURIEs its @types/rels use beyond the standards + haibun's own), merged into the
+		// served context. First declaration wins; core declares none of these itself.
+		for (const [prefix, iri] of Object.entries(topology.namespaces ?? {})) context[prefix] ??= iri;
 		const scoped: Record<string, unknown> = {};
 		const put = (key: string, node: Record<string, string>): void => {
 			scoped[key] = node;
