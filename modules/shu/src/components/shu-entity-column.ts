@@ -425,10 +425,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<sup class="vocab vocab-${v.source}" data-testid="vocab-${escAttr(propertyName)}" title="${escAttr(v.source === "haibun" ? "haibun vocabulary" : `${v.prefix} vocabulary`)}">${esc(v.prefix)}</sup>`;
 	}
 
-	/** True when the served @context resolves this field to rdf:type — the JSON-LD `@type` keyword, whose values are the
-	 *  entity's classes rather than ordinary data. */
+	/** True when the served @context aliases this field to the JSON-LD `@type` keyword, whose values are the entity's
+	 *  classes rather than ordinary data. */
 	private isTypeField(propertyName: string): boolean {
-		return this.scopedContext()?.[propertyName]?.["@id"] === "rdf:type";
+		return this.scopedContext()?.[propertyName]?.["@id"] === "@type";
 	}
 
 	/** Render the rdf:type field the standard JSON-LD way: named `@type`, its values the entity's classes — each a link

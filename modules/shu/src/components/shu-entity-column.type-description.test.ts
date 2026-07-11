@@ -72,7 +72,7 @@ describe("shu-entity-column type description", () => {
 			type: ["VerifiableCredential", "AquaticAnimalImportPermit"],
 			statusListIndex: "0",
 			accessLevel: "private",
-			"@context": { VerifiableCredential: { "@context": { type: { "@id": "rdf:type" }, statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } } },
+			"@context": { VerifiableCredential: { "@context": { type: { "@id": "@type" }, statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } } },
 		});
 		await el.updateComplete;
 		const html = el.shadowRoot?.innerHTML ?? "";
