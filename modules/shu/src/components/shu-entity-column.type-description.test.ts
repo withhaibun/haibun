@@ -69,9 +69,10 @@ describe("shu-entity-column type description", () => {
 		el.openProducts({
 			_type: "VerifiableCredential",
 			id: "vc1",
+			type: ["VerifiableCredential", "AquaticAnimalImportPermit"],
 			statusListIndex: "0",
 			accessLevel: "private",
-			"@context": { VerifiableCredential: { "@context": { statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } } },
+			"@context": { VerifiableCredential: { "@context": { type: { "@id": "rdf:type" }, statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } } },
 		});
 		await el.updateComplete;
 		const html = el.shadowRoot?.innerHTML ?? "";
@@ -79,5 +80,9 @@ describe("shu-entity-column type description", () => {
 		expect(html).toContain('data-testid="vocab-statusListIndex"');
 		expect(html).toContain("vocab-standard");
 		expect(html).toContain("vocab-haibun");
+		// rdf:type renders as the standard @type keyword, each class an explorable link.
+		expect(html).toContain(">@type</td>");
+		expect(html).toContain('rel="type-ref"');
+		expect(html).toContain("AquaticAnimalImportPermit");
 	});
 });
