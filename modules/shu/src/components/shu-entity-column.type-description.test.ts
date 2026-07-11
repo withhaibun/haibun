@@ -62,4 +62,22 @@ describe("shu-entity-column type description", () => {
 		// an object-valued field renders as formatted JSON
 		expect(html).toContain('data-testid="field-json-meta"');
 	});
+
+	it("marks field provenance from the served @context — the genuine vocabulary, not a rel guess", async () => {
+		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		document.body.appendChild(el);
+		el.openProducts({
+			_type: "VerifiableCredential",
+			id: "vc1",
+			statusListIndex: "0",
+			accessLevel: "private",
+			"@context": { VerifiableCredential: { "@context": { statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } } },
+		});
+		await el.updateComplete;
+		const html = el.shadowRoot?.innerHTML ?? "";
+		// vcstatus is a standard vocabulary → its prefix is shown; hbn is haibun's own → faint. (Not mis-attributed to `as`.)
+		expect(html).toContain('data-testid="vocab-statusListIndex"');
+		expect(html).toContain("vocab-standard");
+		expect(html).toContain("vocab-haibun");
+	});
 });

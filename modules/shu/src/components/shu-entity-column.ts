@@ -33,6 +33,7 @@ import { callStep } from "../pane-fetch.js";
 import { derefStoredEntity } from "../quads-snapshot.js";
 import { getCachedEntity, setCachedEntity, subscribeEntities, type TEntityResult } from "../entity-store.js";
 import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription } from "../rels-cache.js";
+import { propertyVocabulary } from "../graph/ontology-projection.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -74,6 +75,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.fields-table { margin: var(--shu-space-1) 0 var(--shu-space-2); }
 		.field-json { margin: 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); font-size: 0.8em; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.field-name { white-space: nowrap; color: var(--shu-fg-faded); width: 80px; font-size: 0.85em; }
+		/* Provenance mark (from the served @context): a standard/consumer vocabulary shows its prefix; haibun's own reads faint. */
+		.vocab { font-size: 0.7em; margin-left: 2px; padding: 0 2px; border-radius: 2px; vertical-align: super; }
+		.vocab-standard { color: var(--shu-accent); background: var(--shu-accent-soft); }
+		.vocab-haibun { color: var(--shu-fg-faded); }
 		.body-container { display: flex; flex-direction: column; flex: 1; min-height: 200px; }
 		.body-iframe { width: 100%; height: 100%; min-height: 200px; border: none; background: #fff; }
 		/* Locally-rendered (black-on-white) bodies invert in dark themes so they read natively; a text/html body is
@@ -219,7 +224,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				.filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k))
 				.map(([k, v]) => {
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
+					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
 			// The disclosure carries only the type name (its summary) and description; the fields themselves sit below it.
@@ -234,7 +239,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							.map((k) => {
 								const v = fields[k];
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
-								return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")} ${valueHtml}</span>`;
+								return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)} ${valueHtml}</span>`;
 							})
 							.join(" ")}</div>`
 					: "";
@@ -399,6 +404,24 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 		if (getQueryableFields(label).includes(propertyName)) return this.clickableValue(value, "filter", propertyName);
 		return esc(truncate(value, 80));
+	}
+
+	/** The type's scoped @context (field → {@id, @type?}) from the served hypermedia — the server resolves each field to
+	 *  its genuine vocabulary IRI here, so the view reads provenance/representation from it rather than guessing. Undefined
+	 *  for an ad-hoc view with no served context. */
+	private scopedContext(): Record<string, { "@id"?: string; "@type"?: string }> | undefined {
+		const ctx = this.vertex?.["@context"] as Record<string, unknown> | undefined;
+		const scope = ctx?.[this.state.persistedAs] as { "@context"?: Record<string, { "@id"?: string; "@type"?: string }> } | undefined;
+		return scope?.["@context"];
+	}
+
+	/** A provenance mark on a field name, from the served @context's genuine IRI for the field: haibun's own reads faint,
+	 *  a standard/consumer vocabulary shows its prefix (cred/prov/vcstatus/…). Empty when the context omits the field. */
+	private vocabBadge(propertyName: string): string {
+		const iri = this.scopedContext()?.[propertyName]?.["@id"];
+		if (!iri) return "";
+		const v = propertyVocabulary(iri);
+		return `<sup class="vocab vocab-${v.source}" data-testid="vocab-${escAttr(propertyName)}" title="${escAttr(v.source === "haibun" ? "haibun vocabulary" : `${v.prefix} vocabulary`)}">${esc(v.prefix)}</sup>`;
 	}
 
 	private clickableValue(value: string, rel: string, propertyName?: string): string {
