@@ -34,7 +34,7 @@ import { derefStoredEntity } from "../quads-snapshot.js";
 import { getCachedEntity, setCachedEntity, subscribeEntities, type TEntityResult } from "../entity-store.js";
 import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
-import { openRef } from "./shu-ref.js";
+import { openRef } from "./ref-navigation.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };

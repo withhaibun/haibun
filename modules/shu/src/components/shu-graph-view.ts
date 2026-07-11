@@ -21,7 +21,7 @@ import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
 import { getEdgeRanges, getEdgeRelMap, getRels, getRelSync, whenSiteMetadataReady } from "../rels-cache.js";
 import { isSchemaType, ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
-import { openRef } from "./shu-ref.js";
+import { openRef } from "./ref-navigation.js";
 import { getStepperForType } from "../rpc-registry.js";
 import { type TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "../graph-model.js";
