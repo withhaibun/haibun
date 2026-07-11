@@ -226,6 +226,25 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.vcstatus).toBe("https://www.w3.org/ns/credentials/status#");
 	});
 
+	it("maps a property/edge to its declared genuine IRI, overriding the rel's default", () => {
+		const domains = {
+			c: {
+				topology: {
+					persistedAs: "Cred",
+					type: "cred:VerifiableCredential",
+					id: "id",
+					properties: { id: LinkRelations.IDENTIFIER.rel, statusListIndex: { rel: LinkRelations.CONTEXT.rel, iri: "vcstatus:statusListIndex" } },
+					edges: { credentialStatus: { range: "StatusList", rel: LinkRelations.CONTEXT.rel, iri: "cred:credentialStatus" } },
+				},
+				schema: { parse: (v: unknown) => v },
+			},
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@context": Record<string, { "@id": string }> }> })["@context"];
+		const scope = ctx.Cred["@context"];
+		expect(scope.statusListIndex["@id"]).toBe("vcstatus:statusListIndex");
+		expect(scope.credentialStatus["@id"]).toBe("cred:credentialStatus");
+	});
+
 	it("merges a persisted domain's own namespace prefixes into the served context", () => {
 		const domains = {
 			x: { topology: { persistedAs: "X", type: "ex:X", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, namespaces: { ex: `${HAIBUN_NS}ex#` } }, schema: { parse: (v: unknown) => v } },

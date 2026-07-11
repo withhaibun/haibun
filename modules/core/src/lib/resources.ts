@@ -461,14 +461,27 @@ export function toActorRels(): ReadonlySet<string> {
  */
 export type TContentPropertyDef = { rel: "content"; mediaType: string; kind?: string };
 
-export type TPropertyDef = TRel | TContentPropertyDef;
+/**
+ * A property whose genuine vocabulary IRI is not its rel's default. The rel still drives behaviour (sort, facet,
+ * presentation), but the served `@context` maps the field to `iri` — so a standards-conformant field carries its real
+ * term (e.g. a credential's `statusListIndex` → `vcstatus:statusListIndex`, `credentialStatus` → `cred:credentialStatus`)
+ * instead of the placeholder IRI a catch-all rel would give it. `iri` is a CURIE whose prefix the context declares.
+ */
+export type TTermPropertyDef = { rel: TRel; iri: string };
+
+export type TPropertyDef = TRel | TContentPropertyDef | TTermPropertyDef;
 
 export function isContentPropertyDef(def: TPropertyDef | undefined): def is TContentPropertyDef {
 	return typeof def === "object" && def !== null && def.rel === "content";
 }
 
+/** The genuine vocabulary IRI a property declares (TTermPropertyDef), if any — else undefined (its rel's IRI is used). */
+export function propertyIriOf(def: TPropertyDef | undefined): string | undefined {
+	return typeof def === "object" && def !== null && "iri" in def ? def.iri : undefined;
+}
+
 /** Edge definition: target node type. The rel is resolved from EdgePredicates[key]; override with explicit rel for domain-specific edges not in the canonical set. */
-export type TEdgeDef = { range: string; rel?: TRel };
+export type TEdgeDef = { range: string; rel?: TRel; iri?: string };
 
 /**
  * Per-property domain ranges. Maps a schema field name to another registered
