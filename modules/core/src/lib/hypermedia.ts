@@ -15,16 +15,16 @@ import {
 	LinkRelations,
 	BODY_LABEL,
 	getRelRange,
-	isContentPropertyDef,
+	propertyIriOf,
 	isPersisted,
 	type TPropertyDef,
 	type TRel,
 	type THypermediaTopology,
 } from "./resources.js";
 
-/** Resolve a property def to its rel, regardless of plain-string or content-object form. */
+/** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
-	return isContentPropertyDef(def) ? (def.rel as TRel) : def;
+	return typeof def === "string" ? def : (def.rel as TRel);
 }
 
 /** Schema field kinds that are queryable by their nature — bounded values a store can index and compare.
@@ -623,7 +623,9 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		};
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
-			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;
+			// A property's genuine vocabulary IRI wins over its rel's default — so a standards field carries its real term
+			// (statusListIndex → vcstatus:…) rather than the placeholder a catch-all rel (CONTEXT/TAG) would give it.
+			const uri = propertyIriOf(def) ?? REL_CONTEXT[rel] ?? `haibun:${prop}`;
 			const linkRel = linkRelFromSemantic(rel);
 			const node: Record<string, unknown> = { "@id": uri, "haibun:rel": linkRel };
 			if (linkRel === "item") node["@type"] = "@id";
@@ -633,7 +635,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		}
 		for (const [edge, edgeDef] of Object.entries(topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
-			const node: Record<string, unknown> = { "@id": (rel && REL_CONTEXT[rel]) ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" };
+			const node: Record<string, unknown> = { "@id": edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" };
 			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do — subPropertyOf inReplyTo)
 			// OR the rel itself declares it in LinkRelations (the role rels — subPropertyOf inRoleOf). Either is a genuine axiom.
 			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? (rel ? subPropertyOfRel(rel) : undefined);
