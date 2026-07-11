@@ -223,6 +223,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const detailRows = Object.entries(fields)
 				.filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k))
 				.map(([k, v]) => {
+					if (this.isTypeField(k)) return this.typeRow(k, v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
 					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
@@ -424,6 +425,24 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<sup class="vocab vocab-${v.source}" data-testid="vocab-${escAttr(propertyName)}" title="${escAttr(v.source === "haibun" ? "haibun vocabulary" : `${v.prefix} vocabulary`)}">${esc(v.prefix)}</sup>`;
 	}
 
+	/** True when the served @context resolves this field to rdf:type — the JSON-LD `@type` keyword, whose values are the
+	 *  entity's classes rather than ordinary data. */
+	private isTypeField(propertyName: string): boolean {
+		return this.scopedContext()?.[propertyName]?.["@id"] === "rdf:type";
+	}
+
+	/** Render the rdf:type field the standard JSON-LD way: named `@type`, its values the entity's classes — each a link
+	 *  that opens the class's type column, so a credential's [VerifiableCredential, AquaticAnimalImportPermit] are both
+	 *  explorable. */
+	private typeRow(propertyName: string, value: string | string[]): string {
+		const classes = Array.isArray(value) ? value : [value];
+		const links = classes
+			.filter((c) => c)
+			.map((c) => `<a class="col-link" rel="type-ref" href="#" data-value="${escAttr(c)}" data-testid="type-value">${esc(c)}</a>`)
+			.join(", ");
+		return `<tr><td class="field-name">@type</td><td data-testid="entity-field-${escAttr(propertyName)}">${links}</td></tr>`;
+	}
+
 	private clickableValue(value: string, rel: string, propertyName?: string): string {
 		// Use HATEOAS rels + edge ranges to determine navigation semantics
 		let labelAttr = "";
@@ -479,6 +498,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						break;
 					case "describedby":
 						PaneState.request({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: value });
+						break;
+					case "type-ref":
+						// A class from the @type row — open the class's type column (its description, schema graph, individuals).
+						PaneState.request({ paneType: "type", persistedAs: value });
 						break;
 					case "filter":
 					default:
