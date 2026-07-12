@@ -413,8 +413,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  for an ad-hoc view with no served context. */
 	private scopedContext(): Record<string, { "@id"?: string; "@type"?: string }> | undefined {
 		const ctx = this.vertex?.["@context"] as Record<string, unknown> | undefined;
-		const scope = ctx?.[this.state.persistedAs] as { "@context"?: Record<string, { "@id"?: string; "@type"?: string }> } | undefined;
-		return scope?.["@context"];
+		type TScopedField = { "@id"?: string; "@type"?: string };
+		const inner = (ctx?.[this.state.persistedAs] as { "@context"?: unknown } | undefined)?.["@context"];
+		// A type conforming to standard context(s) serves its scoped @context as a JSON-LD 1.1 array [url…, {haibun terms}];
+		// the field definitions this view marks are in the object member (the last element). A plain object stands alone.
+		if (Array.isArray(inner)) return inner.find((p): p is Record<string, TScopedField> => typeof p === "object" && p !== null && !Array.isArray(p));
+		return inner as Record<string, TScopedField> | undefined;
 	}
 
 	/** A provenance mark on a field name, from the served @context's genuine IRI for the field: haibun's own reads faint,
