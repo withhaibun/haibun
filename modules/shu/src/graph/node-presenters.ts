@@ -10,7 +10,7 @@ import { assertNodeMark, type NodeMark } from "./graph-scene.js";
 import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "./ontology-projection.js";
 
 /** The slice of a node a presenter reads — identity + display name + @type. */
-export type SceneNode = { id: string; name: string; type: string; isCluster?: boolean };
+export type SceneNode = { id: string; name: string; type: string; isCluster?: boolean; properties?: Record<string, unknown> };
 /** Capabilities the layout has detected for this node (from its declared rels), passed as context to the presenter.
  *  `time` = a placed calendar task (epoch-ms span + the bar's world length); absent when not time-laid-out. */
 export type PresentContext = { time?: { start: number; end: number; zExtent: number } };
@@ -58,7 +58,16 @@ export function presenterForType(type: string): NodePresenter {
 // chips. The plain @type name is the label; the shape carries the kind.
 const schemaPresenter = (schema: "class" | "property"): NodePresenter => ({
 	present: (n) =>
-		assertNodeMark({ id: n.id, type: n.type, kind: schema === "property" ? "lozenge" : "square", label: n.name, color: colorForType(n.type), role: { kind: "free" } }),
+		assertNodeMark({
+			id: n.id,
+			type: n.type,
+			kind: schema === "property" ? "lozenge" : "square",
+			label: n.name,
+			color: colorForType(n.type),
+			role: { kind: "free" },
+			// a Property a standard vocabulary declares but the type's data never uses (inData=false) is drawn ghosted.
+			faint: schema === "property" && n.properties?.inData === false,
+		}),
 });
 registerNodePresenter(ONTOLOGY_CLASS, schemaPresenter("class"));
 registerNodePresenter(ONTOLOGY_PROPERTY, schemaPresenter("property"));
