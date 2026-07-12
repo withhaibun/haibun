@@ -2,7 +2,7 @@
 // jsdom: the module defines a ShuElement (extends HTMLElement); the builders under test are pure metadata projections.
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildTypeSchemaGraph, buildFullSchemaGraph } from "./shu-type-column.js";
-import { getUiPresenting, setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
+import { getUiPresenting, setSiteMetadata, isSystemSchemaType, type SiteMetadata } from "../rels-cache.js";
 
 /** A two-type vocabulary: Issuer --assertionMethod--> VerificationMethod, both declaring a literal `name`. */
 const META: SiteMetadata = {
@@ -62,5 +62,13 @@ describe("getUiPresenting — discovering the site's presenter for a capability"
 		// The fixture declares only "graph": the schema lookup falls back to it. A site that also declares
 		// presents:"schema" (the class browser) is chosen first — same accessor, keyed lookup.
 		expect(getUiPresenting("schema") ?? getUiPresenting("graph")).toEqual(getUiPresenting("graph"));
+	});
+
+	it("flags a haibun-namespace type as a system schema, a standard-vocabulary type not", () => {
+		setSiteMetadata({ ...META, classIris: { SeqPath: "hbn:SeqPath", VerifiableCredential: "cred:VerifiableCredential" } });
+		expect(isSystemSchemaType("SeqPath")).toBe(true); // hbn: is haibun's own vocabulary
+		expect(isSystemSchemaType("VerifiableCredential")).toBe(false); // cred: is a standard
+		expect(isSystemSchemaType("Issuer")).toBe(false); // no declared class IRI
+		setSiteMetadata(META);
 	});
 });

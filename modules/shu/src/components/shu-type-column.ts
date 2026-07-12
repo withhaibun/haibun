@@ -14,7 +14,7 @@ import { ShuElement } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { callStep } from "../pane-fetch.js";
 import { appAccessLevel, idOf } from "../util.js";
-import { getEdgeRanges, getRels, getTypeDescription, getTypes, getUiPresenting } from "../rels-cache.js";
+import { getEdgeRanges, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
 import { renderRef } from "./shu-ref.js";
 import { SHU_EVENT } from "../consts.js";
 import { ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
@@ -79,6 +79,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 			.type-header { padding: var(--shu-space-3) var(--shu-space-4); border-bottom: var(--shu-border-w) solid var(--shu-border); }
 			.type-name { font-size: var(--shu-font-lg); font-weight: 700; }
 			.type-desc { padding: var(--shu-space-2) var(--shu-space-4); margin: 0; color: var(--shu-fg-muted); }
+			.system-schema-note { padding: 0 var(--shu-space-4) var(--shu-space-2); margin: 0; color: var(--shu-fg-faded); font-size: 0.85em; font-style: italic; }
 			/* The graph fills all column height left by the header, description and instances, scrolling any excess within
 			   its own box so it never paints over the Individuals list below it. */
 			shu-graph, ::slotted(shu-product-view) { display: block; flex: 1 1 auto; min-height: 160px; overflow: auto; border-bottom: var(--shu-border-w) solid var(--shu-border); }
@@ -175,6 +176,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		return html`
 			<div class="type-header"><span class="type-name" data-testid="type-name">${type}</span></div>
 			${desc ? html`<p class="type-desc" data-testid="type-description">${desc}</p>` : ""}
+			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid="type-system-schema">A system schema — defined in haibun's own vocabulary.</p>` : ""}
 			${graphView}
 			<div class="instances">
 				<span class="section-label">Individuals${this.instances.length ? ` (${this.instances.length})` : ""}</span>
