@@ -2,6 +2,7 @@
  * Schema metadata cache — populated once from getSiteMetadata RPC call.
  * Provides rels, edge ranges, and properties for all node types.
  */
+import { propertyVocabulary } from "./graph/ontology-projection.js";
 
 /**
  * Per-rel runtime metadata — the Property node projection.
@@ -36,6 +37,9 @@ export interface SiteMetadata {
 	ui: Record<string, Record<string, unknown>>;
 	/** Per-rel metadata (label, icon, subPropertyOf, presentation, range, iri). */
 	propertyDefinitions: Record<string, PropertyDefinition>;
+	/** Per label, the type's class IRI (topology.type / the concern's asType), when it declares one — lets a view tell a
+	 *  haibun-namespace (system) type from a standard/consumer one. The builder always sets it; optional for partial fixtures. */
+	classIris?: Record<string, string>;
 }
 
 let metadata: SiteMetadata | null = null;
@@ -88,6 +92,14 @@ export function getUiPresenting(kind: string): { type: string; ui: Record<string
 /** Sync lookup — returns cached rel for a property. */
 export function getRelSync(label: string, property: string): string | undefined {
 	return metadata?.rels[label]?.[property];
+}
+
+/** Whether a type is a SYSTEM schema — its class IRI is haibun's own vocabulary (a haibun-namespace prefix), as opposed
+ *  to a standard's (cred:/prov:/…) or a consumer's coined one. A verifiable credential (cred:VerifiableCredential) is not
+ *  a system schema; a haibun-defined type (e.g. hbn:SeqPath) is. False when the type declares no class IRI. */
+export function isSystemSchemaType(label: string): boolean {
+	const iri = metadata?.classIris?.[label];
+	return iri !== undefined && propertyVocabulary(iri).source === "haibun";
 }
 
 /** Get cached edge ranges for a label. */
@@ -255,9 +267,11 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 	const validTimeFields: Record<string, string> = {};
 	const summary: Record<string, string[]> = {};
 	const ui: Record<string, Record<string, unknown>> = {};
+	const classIris: Record<string, string> = {};
 	for (const [label, concern] of Object.entries(catalog.persisted)) {
 		types.push(label);
 		idFields[label] = concern.idField;
+		if (concern.asType) classIris[label] = concern.asType;
 		if (concern.queryable.length > 0) queryable[label] = concern.queryable;
 		validTimeFields[label] = concern.validTimeField;
 		const labelRels: Record<string, string> = {};
@@ -315,5 +329,6 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		summary,
 		ui,
 		propertyDefinitions,
+		classIris,
 	};
 }
