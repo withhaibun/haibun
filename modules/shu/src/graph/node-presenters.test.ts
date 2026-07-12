@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { presenterForType, registerNodePresenter, DEFAULT_PRESENTER, type NodePresenter } from "./node-presenters.js";
 import { assertNodeMark } from "./graph-scene.js";
+import { ONTOLOGY_PROPERTY } from "./ontology-projection.js";
 
 describe("node presenters (per-@type, capability-driven default)", () => {
 	it("default presenter renders a free chip when there's no time placement", () => {
@@ -17,6 +18,12 @@ describe("node presenters (per-@type, capability-driven default)", () => {
 	it("a cluster is never a box, even when a time placement is present", () => {
 		const m = DEFAULT_PRESENTER.present({ id: "c", name: "+3", type: "Task", isCluster: true }, { time: { start: 0, end: 1, zExtent: 5 } });
 		expect(m.kind).toBe("chip");
+	});
+
+	it("a schema Property a standard declares but the data never uses (inData=false) is marked faint; a present one is not", () => {
+		const p = presenterForType(ONTOLOGY_PROPERTY);
+		expect(p.present({ id: "credentialSchema", name: "credentialSchema", type: ONTOLOGY_PROPERTY, properties: { inData: false } }, {}).faint).toBe(true);
+		expect(p.present({ id: "issuer", name: "issuer", type: ONTOLOGY_PROPERTY }, {}).faint).toBeFalsy();
 	});
 
 	it("presenterForType falls back to the default, and a registered @type overrides it", () => {

@@ -32,6 +32,9 @@ export type NodeMark = {
 	isCluster?: boolean;
 	zExtent?: number;
 	image?: string;
+	/** Drawn ghosted (reduced opacity) — a schema Property a standard vocabulary declares but the type's data never uses,
+	 *  so the full vocabulary reads as present-vs-declared at a glance, not only on hover. */
+	faint?: boolean;
 };
 
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
