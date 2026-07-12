@@ -46,14 +46,9 @@ export const ONTOLOGY_PRED = {
 	 *  navigable: a Property links the classes it connects, so the whole schema reads as "class —property→ class". */
 	range: "range",
 	/** Whether a property is exercised by the type's data. Stamped `false` on a term a declared standard vocabulary defines
-	 *  but the instances never use (declared-not-present), so a view can render it distinctly from a property in the data. */
+	 *  but the type does not model (declared-not-present), so a view can render it distinctly from a property in the data. */
 	inData: "inData",
 } as const;
-
-/** The local name of an IRI — the segment after the last `#`, `/`, or `:`. Lets a CURIE (cred:issuer) and a full IRI
- *  (https://www.w3.org/2018/credentials#issuer) for the same term compare equal, so a standard term already present as a
- *  haibun rel is not re-listed as declared-not-present. */
-export const iriLocalName = (iri: string): string => iri.slice(Math.max(iri.lastIndexOf("#"), iri.lastIndexOf("/"), iri.lastIndexOf(":")) + 1);
 /** The ontology is timeless — a fixed timestamp so the time axis / cursor treat every term as one age. */
 const ONTOLOGY_TS = 0;
 
@@ -239,8 +234,6 @@ function injectStandardVocab(ontology: TClusteredQuads, standardVocab: Map<strin
 	const propCluster = ontology.clusters.find((c) => c.type === ONTOLOGY_PROPERTY);
 	const classCluster = ontology.clusters.find((c) => c.type === ONTOLOGY_CLASS);
 	if (!propCluster || !classCluster) return;
-	const presentLocals = new Set<string>();
-	for (const q of ontology.quads) if (q.predicate === ONTOLOGY_PRED.uri && q.namedGraph === ONTOLOGY_PROPERTY) presentLocals.add(iriLocalName(String(q.object)));
 	const propSubjects = new Set(propCluster.sampledSubjects);
 	const classSubjects = new Set(classCluster.sampledSubjects);
 	const ensureClass = (label: string): void => {
@@ -250,22 +243,22 @@ function injectStandardVocab(ontology: TClusteredQuads, standardVocab: Map<strin
 		classCluster.displayLabels[label] = label;
 		ontology.quads.push({ subject: label, predicate: ONTOLOGY_PRED.name, object: label, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 	};
+	// The terms are already the declared-not-present set (enumerateStandardVocab deduped by name against the type's own
+	// fields), so no dedup here — only skip a name that is already an ontology Property node (a global rel), then attach
+	// each to its type via an rdfs:domain edge.
 	for (const [typeLabel, terms] of standardVocab) {
 		for (const { term, iri } of terms) {
-			if (presentLocals.has(iriLocalName(iri))) continue; // already a present property (a haibun rel with this term)
+			if (propSubjects.has(term)) continue;
+			propSubjects.add(term);
+			propCluster.sampledSubjects.push(term);
+			propCluster.displayLabels[term] = term;
 			ensureClass(typeLabel);
-			if (!propSubjects.has(term)) {
-				propSubjects.add(term);
-				propCluster.sampledSubjects.push(term);
-				propCluster.displayLabels[term] = term;
-				presentLocals.add(iriLocalName(iri));
-				ontology.quads.push(
-					{ subject: term, predicate: ONTOLOGY_PRED.name, object: term, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
-					{ subject: term, predicate: ONTOLOGY_PRED.uri, object: iri, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
-					{ subject: term, predicate: ONTOLOGY_PRED.inData, object: false, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
-				);
-			}
-			ontology.quads.push({ subject: term, predicate: ONTOLOGY_PRED.domain, object: typeLabel, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+			ontology.quads.push(
+				{ subject: term, predicate: ONTOLOGY_PRED.name, object: term, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
+				{ subject: term, predicate: ONTOLOGY_PRED.uri, object: iri, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
+				{ subject: term, predicate: ONTOLOGY_PRED.inData, object: false, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS },
+				{ subject: term, predicate: ONTOLOGY_PRED.domain, object: typeLabel, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS },
+			);
 		}
 	}
 	propCluster.totalCount = propCluster.sampledCount = propCluster.sampledSubjects.length;
