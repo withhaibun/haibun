@@ -108,6 +108,14 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// label is the SELECTED NODE'S graph — the type's Class node lives in the Class cluster, and a schema label
 		// tells every consumer this subject is a schema term, not an individual to fetch.
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [{ s: persistedAs }], accessLevel: appAccessLevel(), label: ONTOLOGY_CLASS }, bubbles: true, composed: true }));
+		// A referenced-but-undefined class — an upper-ontology superclass a type is a kind of (e.g. prov:Agent), reachable
+		// via subClassOf but with no registered topology — has no queryable label and no instances. Show only its schema
+		// position (its description, and the schema graph scoped to it), never a graphQuery that would fail "Unknown label".
+		if (!getTypes().includes(persistedAs)) {
+			this.instances = [];
+			this.setState({ loading: false });
+			return;
+		}
 		const res = await callStep<{ vertices: VertexData[]; total: number }>("graphQuery", { query: { label: persistedAs, accessLevel: appAccessLevel(), limit: 100 } }, `type-column: ${persistedAs}`);
 		if (!res.ok) {
 			this.setState({ loading: false, error: res.error });
