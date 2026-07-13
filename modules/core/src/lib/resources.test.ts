@@ -297,32 +297,37 @@ describe("getJsonLdContext top-level term fallback", () => {
 	});
 });
 
-describe("getJsonLdContext rdfs:subClassOf — the prov:Agent attribution range", () => {
-	it("emits rdfs:subClassOf on a type that declares a superclass (so its class entails it)", () => {
+describe("getJsonLdContext ontology @graph — rdfs:subClassOf as a real RDF statement, not a @context keyword", () => {
+	it("states the type's subclass on its class node in @graph; the @context term stays a pure IRI mapping", () => {
 		const domains = {
 			p: {
 				topology: { persistedAs: "P", type: "sec:Controller", subClassOf: "prov:Agent", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
 				schema: { parse: (v: unknown) => v },
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@id": string; "rdfs:subClassOf"?: unknown }> })["@context"];
-		expect(ctx.P["@id"]).toBe("sec:Controller");
-		expect(ctx.P["rdfs:subClassOf"]).toBe("prov:Agent");
+		const out = getJsonLdContext(domains) as { "@context": Record<string, Record<string, unknown>>; "@graph": Array<Record<string, unknown>> };
+		expect(out["@context"].P["@id"]).toBe("sec:Controller");
+		expect(out["@context"].P).not.toHaveProperty("rdfs:subClassOf"); // an ontology keyword would make the term definition invalid
+		const classNode = out["@graph"].find((n) => n["@id"] === "sec:Controller");
+		expect(classNode?.["@type"]).toBe("rdfs:Class");
+		expect(classNode?.["rdfs:subClassOf"]).toEqual({ "@id": "prov:Agent" });
 	});
 
-	it("omits rdfs:subClassOf entirely when a type declares no superclass", () => {
+	it("omits rdfs:subClassOf from the class node when a type declares no superclass", () => {
 		const domains = {
 			a: { topology: { persistedAs: "A", type: "vc:A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } }, schema: { parse: (v: unknown) => v } },
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, Record<string, unknown>> })["@context"];
-		expect(ctx.A).not.toHaveProperty("rdfs:subClassOf");
+		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
+		const classNode = out["@graph"].find((n) => n["@id"] === "vc:A");
+		expect(classNode?.["@type"]).toBe("rdfs:Class");
+		expect(classNode).not.toHaveProperty("rdfs:subClassOf");
 	});
 
-	it("the Principal (sec:Controller) is declared a prov:Agent — the wasAttributedTo target is well-formed", () => {
+	it("the Principal (sec:Controller) class node is declared a prov:Agent — the wasAttributedTo target is well-formed", () => {
 		const domains = mapDefinitionsToDomains([principalDomainDefinition]);
-		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@id": string; "rdfs:subClassOf"?: unknown }> })["@context"];
-		expect(ctx[PRINCIPAL_LABEL]["@id"]).toBe("sec:Controller");
-		expect(ctx[PRINCIPAL_LABEL]["rdfs:subClassOf"]).toBe("prov:Agent");
+		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@id": string }>; "@graph": Array<Record<string, unknown>> };
+		expect(out["@context"][PRINCIPAL_LABEL]["@id"]).toBe("sec:Controller");
+		expect(out["@graph"].find((n) => n["@id"] === "sec:Controller")?.["rdfs:subClassOf"]).toEqual({ "@id": "prov:Agent" });
 	});
 });
 
@@ -394,30 +399,33 @@ describe("fromActor / toActor — the directional actor split under inRoleOf", (
 	});
 });
 
-describe("getJsonLdContext rdfs:subPropertyOf — the ontology-driven role hierarchy", () => {
-	it("emits rdfs:subPropertyOf on a role edge, mapped to the super-property's IRI", () => {
+describe("getJsonLdContext ontology @graph — rdfs:subPropertyOf as a real RDF statement, not a @context keyword", () => {
+	it("states a role edge's super-property on its property node in @graph; the scoped @context term stays a pure IRI mapping", () => {
 		const domains = {
 			c: {
 				topology: {
 					persistedAs: "C",
 					id: "id",
 					properties: { id: LinkRelations.IDENTIFIER.rel },
-					edges: { issuer: { rel: LinkRelations.CREDENTIAL_ISSUER.rel, range: "Issuer" } },
+					edges: { issuer: { rel: LinkRelations.CREDENTIAL_ISSUER.rel, range: "Principal" } },
 				},
 				schema: { parse: (v: unknown) => v },
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, { "rdfs:subPropertyOf"?: unknown }> }> })["@context"];
-		// issuer now declares under the directional fromActor super-property (itself subPropertyOf inRoleOf).
-		expect(ctx.C["@context"]?.issuer["rdfs:subPropertyOf"]).toBe(REL_CONTEXT[LinkRelations.FROM_ACTOR.rel]);
+		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }>; "@graph": Array<Record<string, unknown>> };
+		expect(out["@context"].C["@context"]?.issuer).not.toHaveProperty("rdfs:subPropertyOf"); // an ontology keyword would make the term definition invalid
+		// issuer declares under the directional fromActor super-property (itself subPropertyOf inRoleOf), stated on its property node.
+		const issuerNode = out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.CREDENTIAL_ISSUER.rel]);
+		expect(issuerNode?.["@type"]).toBe("rdf:Property");
+		expect(issuerNode?.["rdfs:subPropertyOf"]).toEqual({ "@id": REL_CONTEXT[LinkRelations.FROM_ACTOR.rel] });
 	});
 
-	it("omits rdfs:subPropertyOf on a rel that declares no parent", () => {
+	it("omits rdfs:subPropertyOf from a property node whose rel declares no parent", () => {
 		const domains = {
 			a: { topology: { persistedAs: "A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel } }, schema: { parse: (v: unknown) => v } },
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }> })["@context"];
-		expect(ctx.A["@context"]?.name).not.toHaveProperty("rdfs:subPropertyOf");
+		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
+		expect(out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.NAME.rel])).not.toHaveProperty("rdfs:subPropertyOf");
 	});
 });
 

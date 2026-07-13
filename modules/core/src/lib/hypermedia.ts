@@ -595,12 +595,31 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 	// in a credential but as:tag in a trusted-list) is left OUT of the top level: a last-wins emission there would be
 	// non-deterministic (registration order decides the winner) and could give a type-less reference the wrong IRI. Such
 	// a term is still resolved correctly under each type's scoped @context, which is what a 1.1 processor applies.
+	// The @context holds ONLY JSON-LD term definitions (a term → its IRI, `@type: @id` for links, a type-scoped @context).
+	// The ontology it describes — the rdfs:subClassOf / rdfs:subPropertyOf axioms and haibun's own `hbn:rel` presentation
+	// hint — are NOT term-definition keywords, so they are emitted as real RDF nodes in a sibling `@graph`, keeping the
+	// context a valid JSON-LD 1.1 context while the same document still carries the vocabulary's ontology.
 	const topTerm = new Map<string, { node: Record<string, string>; consistent: boolean }>();
 	const offerTopTerm = (key: string, node: Record<string, string>): void => {
 		const prior = topTerm.get(key);
 		if (!prior) topTerm.set(key, { node, consistent: true });
 		else if (prior.node["@id"] !== node["@id"]) prior.consistent = false;
 	};
+	const iriRef = (x: string | string[]): unknown => (Array.isArray(x) ? x.map((v) => ({ "@id": v })) : { "@id": x });
+	// One RDF Property node per vocabulary IRI: its rel-derived presentation hint (hbn:rel) and its rdfs:subPropertyOf axiom.
+	const propNodes = new Map<string, Record<string, unknown>>();
+	const declareProp = (iri: string, hbnRel: string, subProperty: string | string[] | undefined): void => {
+		if (propNodes.has(iri)) return;
+		const node: Record<string, unknown> = { "@id": iri, "@type": "rdf:Property", "hbn:rel": hbnRel };
+		if (subProperty !== undefined) node["rdfs:subPropertyOf"] = iriRef(subProperty);
+		propNodes.set(iri, node);
+	};
+	const subPropertyAxiom = (rel: string | undefined): string | string[] | undefined => {
+		const sp = rel ? subPropertyOfRel(rel) : undefined;
+		if (sp === undefined) return undefined;
+		return Array.isArray(sp) ? sp.map((p) => REL_CONTEXT[p as TRel] ?? `hbn:${p}`) : (REL_CONTEXT[sp as TRel] ?? `hbn:${sp}`);
+	};
+	const classNodes: Array<Record<string, unknown>> = [];
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
@@ -612,53 +631,42 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 			scoped[key] = node;
 			offerTopTerm(key, node);
 		};
-		// A rel's declared `subPropertyOf` parent(s), as the parents' genuine IRIs — the rdfs:subPropertyOf axiom emitted on
-		// the rel's term node (the property analog of the type node's rdfs:subClassOf). So e.g. `cred:issuer` carries
-		// `rdfs:subPropertyOf hbn:inRoleOf`, declaring the broad role super-property as a real ontology fact in the context.
-		const subPropertyAxiom = (rel: string): string | string[] | undefined => {
-			const sp = subPropertyOfRel(rel);
-			if (sp === undefined) return undefined;
-			return Array.isArray(sp) ? sp.map((p) => REL_CONTEXT[p as TRel] ?? `hbn:${p}`) : (REL_CONTEXT[sp as TRel] ?? `hbn:${sp}`);
-		};
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
 			// A property's genuine vocabulary IRI wins over its rel's default — so a standards field carries its real term
 			// (statusListIndex → vcstatus:…) rather than the placeholder a catch-all rel (CONTEXT/TAG) would give it.
 			const uri = propertyIriOf(def) ?? REL_CONTEXT[rel] ?? `hbn:${prop}`;
 			const linkRel = linkRelFromSemantic(rel);
-			const node: Record<string, unknown> = { "@id": uri, "hbn:rel": linkRel };
+			const node: Record<string, string> = { "@id": uri };
 			if (linkRel === "item") node["@type"] = "@id";
-			const axiom = subPropertyAxiom(rel);
-			if (axiom !== undefined) node["rdfs:subPropertyOf"] = axiom;
-			put(prop, node as Record<string, string>);
+			put(prop, node);
+			declareProp(uri, linkRel, subPropertyAxiom(rel));
 		}
 		for (const [edge, edgeDef] of Object.entries(topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
-			const node: Record<string, unknown> = { "@id": edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `hbn:${edge}`, "@type": "@id", "hbn:rel": "item" };
+			const uri = edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `hbn:${edge}`;
+			put(edge, { "@id": uri, "@type": "@id" });
 			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do — subPropertyOf inReplyTo)
 			// OR the rel itself declares it in LinkRelations (the role rels — subPropertyOf inRoleOf). Either is a genuine axiom.
-			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? (rel ? subPropertyOfRel(rel) : undefined);
-			if (declared !== undefined) {
-				node["rdfs:subPropertyOf"] = Array.isArray(declared)
-					? declared.map((p) => REL_CONTEXT[p as TRel] ?? `hbn:${p}`)
-					: (REL_CONTEXT[declared as TRel] ?? `hbn:${declared}`);
-			}
-			put(edge, node as Record<string, string>);
+			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? subPropertyAxiom(rel);
+			declareProp(uri, "item", declared);
 		}
-		// The bare type label maps to its vocabulary IRI PLUS the type-scoped @context above (so `@type: "Person"`
-		// resolves to e.g. `foaf:Person` and activates Person's term scope). A `subClassOf` topology declares the
-		// genuine rdfs:subClassOf axiom on the type's class IRI — so e.g. `sec:Issuer rdfs:subClassOf prov:Agent`
-		// makes `prov:wasAttributedTo` (range prov:Agent) into it well-formed, without multi-valuing the @type label.
-		// A type conforming to published standard context(s) references them as a JSON-LD 1.1 array — the URLs FIRST so this
-		// type's own enumerated field terms (with their hbn:rel hints) come last and win on any name collision, and so
-		// the type's full standard vocabulary is expressible without inlining it. Absent, the scoped object stands alone.
-		const typeContext = topology.standardContexts?.length ? [...topology.standardContexts, scoped] : scoped;
-		const typeNode: Record<string, unknown> = { "@id": topology.type ?? `hbn:${topology.persistedAs}`, "@context": typeContext };
-		if (topology.subClassOf) typeNode["rdfs:subClassOf"] = topology.subClassOf;
-		context[topology.persistedAs] = typeNode;
+		// The bare type label maps to its vocabulary IRI PLUS the type-scoped @context above (so `@type: "Person"` resolves to
+		// e.g. `foaf:Person` and activates Person's term scope). A type conforming to published standard context(s) references
+		// them as a JSON-LD 1.1 array with the standard URLs LAST, so the official term mappings stay authoritative (a later
+		// context wins): this type's own ADDITIONAL field terms come first and survive only where the standard defines nothing,
+		// never overriding a standard term (e.g. the VC v2 `issuer`/`credentialSubject`/`holder`). Absent, the scoped object stands alone.
+		const typeContext = topology.standardContexts?.length ? [scoped, ...topology.standardContexts] : scoped;
+		const typeIri = topology.type ?? `hbn:${topology.persistedAs}`;
+		context[topology.persistedAs] = { "@id": typeIri, "@context": typeContext };
+		// The class node in @graph carries the rdfs:subClassOf axiom — a REAL ontology statement, not a context term keyword —
+		// so e.g. `sec:Controller rdfs:subClassOf prov:Agent` makes attribution (prov:wasAttributedTo, range prov:Agent) into it well-formed.
+		const classNode: Record<string, unknown> = { "@id": typeIri, "@type": "rdfs:Class" };
+		if (topology.subClassOf) classNode["rdfs:subClassOf"] = iriRef(topology.subClassOf);
+		classNodes.push(classNode);
 	}
 	for (const [key, { node, consistent }] of topTerm) {
 		if (consistent) context[key] = node;
 	}
-	return { "@context": context };
+	return { "@context": context, "@graph": [...classNodes, ...propNodes.values()] };
 }
