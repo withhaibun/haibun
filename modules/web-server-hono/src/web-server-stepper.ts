@@ -5,6 +5,7 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { dispatchStep, parseRpcRequest } from "@haibun/core/lib/step-dispatch.js";
+import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { discoverSteps, buildFeatureStepForTransport, StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
@@ -295,7 +296,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
 						// log them at trace so they don't bury the run's own steps in the timeline. Still visible at debug.
 						featureStep.isSubStep = true;
-						const hr = await dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep);
+						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
+							dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep),
+						);
 						if (hr.ok) {
 							const result = hr.products ?? { ok: true };
 							this.cacheRpcResponse(method, params, result);
