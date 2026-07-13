@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The details disclosure's summary is the type name; its body is the type's description.
+// The details disclosure's summary is the type name as a link to the type's own view; its body is the type's description.
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import { ShuEntityColumn } from "./shu-entity-column.js";
@@ -39,9 +39,12 @@ describe("shu-entity-column type description", () => {
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 
-	it("shows the type name as the disclosure summary and its description as the body", async () => {
+	it("shows the type name as a type-view link in the disclosure summary and its description as the body", async () => {
 		const html = await render("Widget");
-		expect(html).toContain(">Widget</summary>");
+		// The summary's type name is a link to the type's own view (rel type-ref), not plain text.
+		expect(html).toContain('data-testid="entity-type-link"');
+		expect(html).toContain(">Widget</a></summary>");
+		expect(html).toContain('rel="type-ref"');
 		expect(html).toContain('data-testid="entity-type-description"');
 		expect(html).toContain("A widget.");
 	});
@@ -72,7 +75,9 @@ describe("shu-entity-column type description", () => {
 			type: ["VerifiableCredential", "AquaticAnimalImportPermit"],
 			statusListIndex: "0",
 			accessLevel: "private",
-			"@context": { VerifiableCredential: { "@context": { type: { "@id": "@type" }, statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } } },
+			"@context": {
+				VerifiableCredential: { "@context": { type: { "@id": "@type" }, statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } },
+			},
 		});
 		await el.updateComplete;
 		const html = el.shadowRoot?.innerHTML ?? "";

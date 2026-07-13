@@ -704,8 +704,8 @@ export const PRINCIPAL_DOMAIN = "principal-individual";
 
 export const PrincipalSchema = z.object({
 	id: z.string(),
-	/** rdfs:label — an optional human name for this Principal (a DID has none intrinsically). Lets an instance/party be titled by a readable name instead of its DID; resolved as the top display-label headline (the universal `label`→rdfs:label rel). */
-	label: z.string().optional(),
+	/** as:name — an optional human name for this Principal (a DID has none intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is an AGE-reserved column name. */
+	name: z.string().optional(),
 	controller: z.string().optional(),
 	allowedAction: z.string().optional(),
 	publicKey: z.string().optional(),
@@ -742,6 +742,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
+			name: LinkRelations.NAME.rel,
 			controller: LinkRelations.CONTROLLER.rel,
 			allowedAction: LinkRelations.ALLOWED_ACTION.rel,
 			publicKey: LinkRelations.PUBLIC_KEY.rel,
@@ -752,7 +753,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 		edges: {
 			delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel, range: PRINCIPAL_LABEL },
 		},
-		sortColumns: { controller: "TEXT", generatedAtTime: "TIMESTAMPTZ", revoked: "BOOLEAN" },
+		sortColumns: { name: "TEXT", controller: "TEXT", generatedAtTime: "TIMESTAMPTZ", revoked: "BOOLEAN" },
 	},
 };
 

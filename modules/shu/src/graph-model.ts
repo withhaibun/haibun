@@ -7,6 +7,9 @@ export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 /** Node property carrying the resolved HypermediaRole — the id of the party (a `prov:Agent`/Principal) the node is attributed to. Folded from the node's role edges (see `roleRels`); the fisheye's role grouping axis reads it. */
 export const HYPERMEDIA_ROLE_KEY = "hypermediaRole";
 
+/** Node property carrying a party's own role predicate — the highest-priority role rel (a `fromActor`/`toActor`, see `roleRels`) by which other nodes attribute to it. A party is one node; the role it plays is relational (it is the target of a role edge), so this reads from the incoming role edges, not the node's `@type`. A display site maps this predicate to the party's role designation. */
+export const HYPERMEDIA_ROLE_REL_KEY = "hypermediaRoleRel";
+
 /** Node property carrying the site principal of the instance whose store SERVED the node — a read-time store fact stamped at the federation merge, never persisted data (and distinct from HAIBUN_SITE_KEY, the env override for this instance's OWN principal). The fisheye's site grouping axis reads it. */
 export const SITE_KEY = "site";
 
@@ -108,13 +111,21 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		// A node's role is the target of its highest-priority role edge; a node that IS a party — something is attributed
 		// to it, i.e. it is a role-edge target — is its own role, so it lands in its own container, not "unattributed".
 		const roleRelSet = new Set(opts.roleRels);
+		const roleRank = new Map(opts.roleRels.map((r, i) => [r, i]));
 		const outByFrom = new Map<string, GraphEdge[]>();
 		const parties = new Set<string>();
+		// A party's own role predicate: the highest-priority role rel by which anything attributes to it. Relational, so it
+		// is read from the incoming role edges (a party is a role-edge target), not the party's `@type`.
+		const partyRoleRel = new Map<string, string>();
 		for (const e of edges) {
 			const list = outByFrom.get(e.from);
 			if (list) list.push(e);
 			else outByFrom.set(e.from, [e]);
-			if (roleRelSet.has(e.predicate)) parties.add(e.to);
+			if (roleRelSet.has(e.predicate)) {
+				parties.add(e.to);
+				const cur = partyRoleRel.get(e.to);
+				if (cur === undefined || (roleRank.get(e.predicate) ?? Infinity) < (roleRank.get(cur) ?? Infinity)) partyRoleRel.set(e.to, e.predicate);
+			}
 		}
 		for (const node of nodeMap.values()) {
 			const out = outByFrom.get(node.id);
@@ -134,6 +145,8 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 				}
 			if (role === undefined && parties.has(node.id)) role = node.id;
 			if (role !== undefined) (node.properties ??= {})[HYPERMEDIA_ROLE_KEY] = role;
+			const roleRel = partyRoleRel.get(node.id);
+			if (roleRel !== undefined) (node.properties ??= {})[HYPERMEDIA_ROLE_REL_KEY] = roleRel;
 		}
 	}
 
