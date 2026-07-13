@@ -184,6 +184,22 @@ export function extractFieldEntries(vertex: Record<string, unknown>, label?: str
 }
 
 /**
+ * Literal body-presentation fields: an inline scalar whose rel has presentation `body` (e.g. a SeqPath's `stepText`,
+ * mapped to `content`). extractFieldEntries routes body-presentation fields out of the field table on the assumption
+ * the body path renders them — but that path only handles LINKED `hasBody` sub-resources, so a literal `content`
+ * scalar would otherwise render nowhere. Linked bodies (arrays of Body objects) are excluded here by the string test.
+ */
+export function extractBodyLiterals(vertex: Record<string, unknown>, label?: string): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const [k, v] of Object.entries(vertex)) {
+		if (typeof v !== "string" || v.length === 0 || k.startsWith("_") || k.startsWith("@")) continue;
+		const rel = getRelPresentation(k) ? k : label ? getRelSync(label, k) : undefined;
+		if (rel && getRelPresentation(rel) === "body") out[k] = v;
+	}
+	return out;
+}
+
+/**
  * Pick the preferred Body sub-resource to display. Order of preference is
  * declarative — readers want markdown when present, plain text when not,
  * HTML last (it's bulky and often noisy after extraction).

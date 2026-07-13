@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { extractFieldEntries, isReferenceEdge, isVisibleKey, pickPreferredBody, SPA_PROPS } from "./util.js";
+import { extractBodyLiterals, extractFieldEntries, isReferenceEdge, isVisibleKey, pickPreferredBody, SPA_PROPS } from "./util.js";
 import { STORED_TYPE_PROP } from "./consts.js";
 import { setSiteMetadata } from "./rels-cache.js";
 
 // Seed the rels cache so isVisibleKey can resolve property → rel for known labels.
 setSiteMetadata({
-	types: ["Email"],
-	idFields: { Email: "messageId" },
+	types: ["Email", "SeqPath"],
+	idFields: { Email: "messageId", SeqPath: "id" },
 	rels: {
 		Email: {
 			messageId: "identifier",
@@ -20,9 +20,14 @@ setSiteMetadata({
 			bodyMarkdown: "content",
 			accessLevel: "accessLevel",
 		},
+		// A SeqPath's stepText carries the `content` rel (body presentation) — the literal-body case extractBodyLiterals covers.
+		SeqPath: { id: "identifier", stepText: "content", actionStatus: "actionStatus", generatedAtTime: "generatedAtTime" },
 	},
 	edgeRanges: { Email: { hasBody: "Body", inReplyTo: "Email" } },
-	properties: { Email: ["messageId", "subject", "from", "to", "folder", "account", "body", "bodyHtml", "bodyMarkdown", "accessLevel"] },
+	properties: {
+		Email: ["messageId", "subject", "from", "to", "folder", "account", "body", "bodyHtml", "bodyMarkdown", "accessLevel"],
+		SeqPath: ["id", "stepText", "actionStatus", "generatedAtTime"],
+	},
 	queryable: { Email: ["subject", "from", "folder"] },
 	validTimeFields: { Email: "dateReceived" },
 	summary: { Email: ["subject"] },
@@ -38,6 +43,8 @@ setSiteMetadata({
 		groupedAs: { iri: "as:context", range: "container" },
 		inReplyTo: { iri: "as:inReplyTo", range: "iri" },
 		wasInformedBy: { iri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
+		actionStatus: { iri: "schema:actionStatus", range: "literal" },
+		generatedAtTime: { iri: "prov:generatedAtTime", range: "literal" },
 	},
 });
 
@@ -155,6 +162,26 @@ describe("extractFieldEntries", () => {
 	it("turns a string array into an array of strings", () => {
 		const fields = extractFieldEntries(emailWithInlinedBodies, "Email");
 		expect(fields.to).toEqual(["dev@example.com"]);
+	});
+});
+
+describe("extractBodyLiterals", () => {
+	it("extracts a literal body-presentation field via its label rel (a SeqPath's stepText → content)", () => {
+		const seq = { id: "0.1.2", stepText: "create issuer {issuer}", actionStatus: "passed" };
+		expect(extractBodyLiterals(seq, "SeqPath")).toEqual({ stepText: "create issuer {issuer}" });
+	});
+
+	it("extracts a field whose NAME is itself a body rel (content), even without a label", () => {
+		expect(extractBodyLiterals({ content: "inline text" })).toEqual({ content: "inline text" });
+	});
+
+	it("excludes ordinary fields, summary/governance rels, and linked hasBody arrays", () => {
+		const email = { subject: "hi", accessLevel: "private", hasBody: [{ id: "b", content: "c", mediaType: "text/plain" }] };
+		expect(extractBodyLiterals(email, "Email")).toEqual({});
+	});
+
+	it("excludes projection-internal keys and empty values", () => {
+		expect(extractBodyLiterals({ _x: "a", "@id": "b", stepText: "" }, "SeqPath")).toEqual({});
 	});
 });
 

@@ -15,6 +15,7 @@ import {
 	isVisibleKey,
 	isReferenceEdge,
 	extractFieldEntries,
+	extractBodyLiterals,
 	pickPreferredBody,
 	renderContentHtml,
 	utf8ToBase64,
@@ -79,6 +80,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; }
 		.fields-table { margin: var(--shu-space-1) 0 var(--shu-space-2); }
 		.field-json { margin: 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); font-size: 0.8em; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
+		.literal-body { margin: var(--shu-space-2) 0 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.field-name { white-space: nowrap; color: var(--shu-fg-faded); width: 80px; font-size: 0.85em; }
 		/* Provenance mark (from the served @context): a standard/consumer vocabulary shows its prefix; haibun's own reads faint. */
 		.vocab { font-size: 0.7em; margin-left: 2px; padding: 0 2px; border-radius: 2px; vertical-align: super; }
@@ -210,7 +212,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		// Renderable body sub-resources (email/file/comment/credential content) make this a full view, never a stub: the
 		// body is the substance even when there are few scalar fields, so it must always reach renderContentIframe.
 		const contentIframe = this.renderContentIframe(persistedAs);
-		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1 && contentIframe.length === 0;
+		// Literal body-presentation content (a SeqPath's stepText → content): the field table drops body-presentation
+		// fields, and the iframe path only renders linked bodies — so these inline scalars need their own block or vanish.
+		const bodyLiterals = this.renderBodyLiterals(persistedAs);
+		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1 && contentIframe.length === 0 && bodyLiterals.length === 0;
 		const typeLine = this.typeDescriptionLine(persistedAs);
 
 		let contentHtml: string;
@@ -220,9 +225,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${stubDetails}${this.renderRoles()}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);
-			// Every non-summary, non-edge field, shown in full between the type disclosure and the body — so a SeqPath's
-			// stepText (what it was invoked for) and the like are visible, not buried in a collapsed section. Object values
-			// render as formatted JSON.
+			// Every non-summary, non-edge scalar field, shown in full between the type disclosure and the body. Object
+			// values render as formatted JSON. Body-presentation content (a SeqPath's stepText) renders below via bodyLiterals.
 			const detailRows = Object.entries(fields)
 				.filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k))
 				.map(([k, v]) => {
@@ -245,7 +249,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							})
 							.join(" ")}</div>`
 					: "";
-			contentHtml = `${detailsHtml}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${contentIframe}`;
+			contentHtml = `${detailsHtml}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${bodyLiterals}${contentIframe}`;
 		}
 
 		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}<div class="entity-content">${unsafeHTML(contentHtml)}</div>`;
@@ -416,6 +420,19 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const copyBtn = copyButtonHtml(raw);
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}</div>`;
 		return `<div class="body-container">${toolbar}${iframeHtml}</div>`;
+	}
+
+	/**
+	 * Render literal body-presentation content — an inline scalar whose rel has presentation `body` (a SeqPath's
+	 * `stepText`, mapped to `content`) — as plain text blocks in the body area. isVisibleKey routes body-presentation
+	 * fields out of the field table, but renderContentIframe only handles linked `hasBody` sub-resources, so a literal
+	 * `content` value would otherwise render nowhere.
+	 */
+	private renderBodyLiterals(persistedAs: string): string {
+		if (!this.vertex) return "";
+		return Object.entries(extractBodyLiterals(this.vertex, persistedAs))
+			.map(([k, v]) => `<div class="literal-body" data-testid="entity-body-${escAttr(k)}">${esc(v)}</div>`)
+			.join("");
 	}
 
 	/**

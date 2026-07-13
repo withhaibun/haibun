@@ -59,4 +59,11 @@ describe("entity body content renders for every type and view that should show i
 		const html = await render("File", { id: "f2", name: "x" }, [{ id: "empty", content: "", mediaType: "text/markdown" }]);
 		expect(html).not.toContain('data-testid="email-body-iframe"');
 	});
+
+	it("REGRESSION: a literal body-presentation field (content) renders as an inline block, not dropped and not a stub", async () => {
+		const html = await render("SeqPath", { id: "0.1.2", content: "create issuer {issuer}" }, []);
+		expect(html).toContain('data-testid="entity-body-content"'); // the literal-body block
+		expect(html).toContain("create issuer {issuer}");
+		expect(html).not.toContain('data-testid="entity-stub"'); // literal body content makes it a full view
+	});
 });
