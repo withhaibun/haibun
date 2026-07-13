@@ -26,7 +26,7 @@ import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
-import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
+import { isReplyEdge, RESOURCE_LABEL, roleRels } from "@haibun/core/lib/resources.js";
 import { hasEventStream } from "../event-stream.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { callStep } from "../pane-fetch.js";
@@ -62,6 +62,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.references { padding: var(--shu-space-2) 0; margin: var(--shu-space-1) 0; }
 		.ref-group { padding: 1px 0; display: flex; flex-wrap: wrap; gap: var(--shu-space-2); align-items: baseline; }
 		.ref-type { color: var(--shu-fg-faded); font-size: 0.8em; min-width: 70px; }
+		.roles-explanation { padding: var(--shu-space-2) 0; margin: var(--shu-space-1) 0; border-bottom: var(--shu-border-w) solid var(--shu-border); }
+		.roles-explanation .section-label { display: block; color: var(--shu-fg-muted); font-size: var(--shu-font-sm); margin-bottom: var(--shu-space-1); }
+		.role-row { display: flex; flex-wrap: wrap; gap: var(--shu-space-2); align-items: baseline; padding: 1px 0; }
+		.role-phrase { color: var(--shu-fg-muted); min-width: 90px; }
 		.ref-count { color: var(--shu-fg-faded); }
 		.entity-detail { margin: var(--shu-space-1) 0; font-size: 0.9em; }
 		.detail-toggle { cursor: pointer; color: var(--shu-fg-faded); font-size: 0.8em; padding: var(--shu-space-1) 0; }
@@ -215,7 +219,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const stubDetails = typeLine
 				? `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${typeLine}</details>`
 				: "";
-			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${stubDetails}${this.renderReferences()}`;
+			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${stubDetails}${this.renderRoles()}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);
 			// Every non-summary, non-edge field, shown in full between the type disclosure and the body — so a SeqPath's
@@ -245,7 +249,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							})
 							.join(" ")}</div>`
 					: "";
-			contentHtml = `${detailsHtml}${summaryHtml}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${contentIframe}`;
+			contentHtml = `${detailsHtml}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${contentIframe}`;
 		}
 
 		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}<div class="entity-content">${unsafeHTML(contentHtml)}</div>`;
@@ -302,10 +306,41 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}"${testId}>${esc(truncate(display, 60))}</a>`;
 	}
 
+	/** Plain-language names for the role a linked party plays, so the trust structure reads for an end user. Ontology-
+	 *  driven: the roles come from roleRels (rels subPropertyOf inRoleOf); this only prettifies the known ones, else the rel. */
+	private static readonly ROLE_PHRASE: Record<string, string> = {
+		issuer: "Issued by",
+		credentialSubject: "About",
+		holder: "Held by",
+		verifier: "Checked by",
+		presentedTo: "Presented to",
+		delegatedFrom: "Delegated from",
+		delegator: "Delegated by",
+		resolvedIssuer: "Issuer resolved to",
+		performedBy: "Performed by",
+		controller: "Controlled by",
+		wasAttributedTo: "Attributed to",
+		author: "Written by",
+		registeredIn: "Registered in",
+	};
+
+	/** The node's roles in plain language — who plays what role toward it (issued by, about, held by, delegated from …),
+	 *  so the trust structure is explained rather than left as raw rels. Reads the role edges (roleRels). */
+	private renderRoles(): string {
+		const roles = roleRels();
+		const roleEdges = this.edges.filter((e) => roles.has(e.type) && isReferenceEdge(e.type));
+		if (roleEdges.length === 0) return "";
+		const rows = roleEdges
+			.map((e) => `<div class="role-row"><span class="role-phrase">${esc(ShuEntityColumn.ROLE_PHRASE[e.type] ?? e.type)}</span> ${this.renderEdgeTarget(e.target, e.type)}</div>`)
+			.join("");
+		return `<div class="roles-explanation" data-testid="entity-roles"><span class="section-label">Roles</span>${rows}</div>`;
+	}
+
 	private renderReferences(): string {
 		// Exclude edges already shown in the summary section
 		const summaryFields = getSummaryFields(this.state.persistedAs);
-		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type) && isReferenceEdge(e.type));
+		const roles = roleRels();
+		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type) && isReferenceEdge(e.type) && !roles.has(e.type));
 
 		if (outgoing.length === 0 && this.incomingCount === 0) return "";
 
