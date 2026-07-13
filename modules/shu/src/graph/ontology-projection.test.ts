@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType, propertyVocabulary, isHaibunTerm, typesDeclaringRel } from "./ontology-projection.js";
+import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType, propertyVocabulary, isHaibunTerm, typesDeclaringRel, categoryOf } from "./ontology-projection.js";
 import { LinkRelations, principalDomainDefinition, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
@@ -163,5 +163,25 @@ describe("propertyVocabulary — a property's provenance from its IRI", () => {
 		// a consumer's own sub-vocabulary is NOT haibun's — it is identified by its own prefix, not hardcoded anywhere.
 		expect(propertyVocabulary("ex:SomeType")).toEqual({ source: "standard", prefix: "ex" });
 		expect(isHaibunTerm("sec:proof")).toBe(false);
+	});
+});
+
+const catDomain = (persistedAs: string, subClassOf?: string): TRegisteredDomain =>
+	({ topology: { persistedAs, type: `ex:${persistedAs}`, ...(subClassOf ? { subClassOf } : {}), id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } }, schema: { parse: (v: unknown) => v } }) as unknown as TRegisteredDomain;
+
+describe("category designation — read off the standard subClassOf axioms", () => {
+	it("stamps each class with its PROV/SOSA anchor category, defaulting to artifact, and the meta class carries its own", () => {
+		const { quads } = ontologyToQuads({ a: catDomain("Party", "prov:Agent"), b: catDomain("Verification", "prov:Activity"), c: catDomain("Credential") });
+		const cat = (cls: string): unknown => quads.find((q) => q.subject === cls && q.predicate === ONTOLOGY_PRED.category)?.object;
+		expect(cat("Party")).toBe("agent");
+		expect(cat("Verification")).toBe("activity");
+		expect(cat("Credential")).toBe("artifact");
+		expect(cat("prov:Agent")).toBe("agent");
+		expect(cat("prov:Activity")).toBe("activity");
+	});
+	it("categoryOf reaches the anchor transitively; an unanchored term is an artifact", () => {
+		const supers = new Map([["Sub", ["Mid"]], ["Mid", ["prov:Agent"]]]);
+		expect(categoryOf("Sub", supers)).toBe("agent");
+		expect(categoryOf("Loose", supers)).toBe("artifact");
 	});
 });
