@@ -187,14 +187,36 @@ export function pruneOntologyToUse(ontology: TClusteredQuads, evidence: TQuad[])
  *  direction (its properties via their rdfs:domain edges, its superclass via subClassOf, any subclass pointing at it),
  *  and those kept terms' own scalar quads (name, uri, abstract) so they render labelled. Non-schema quads pass through
  *  untouched — instance visibility stays the type filter's concern. The class browser's single-type scope. */
-export function scopeSchemaToType(quads: TQuad[], type: string): TQuad[] {
+/** The schema terms directly connected to `type` in either edge direction — the shared core of the type-scoped views. */
+function keepConnectedToType(quads: TQuad[], type: string): Set<string> {
 	const keep = new Set<string>([type]);
 	for (const q of quads) {
 		if (!isSchemaType(q.namedGraph)) continue;
 		if (q.subject === type && q.objectType !== undefined) keep.add(String(q.object));
 		if (q.object === type && q.objectType !== undefined) keep.add(q.subject);
 	}
+	return keep;
+}
+
+/** Keep the schema quads whose subject is in `keep`; instance quads pass through untouched. */
+function filterSchemaTo(quads: TQuad[], keep: Set<string>): TQuad[] {
 	return quads.filter((q) => (isSchemaType(q.namedGraph) ? keep.has(q.subject) : true));
+}
+
+export function scopeSchemaToType(quads: TQuad[], type: string): TQuad[] {
+	return filterSchemaTo(quads, keepConnectedToType(quads, type));
+}
+
+/** The focus type plus its immediate connections: its own schema (properties, superclass) AND the types those properties
+ *  range over — one hop out in type space, so a reader sees what the type relates to without the whole vocabulary. The
+ *  connected types show as nodes without their own properties (their domain edges are left out). */
+export function scopeSchemaToConnected(quads: TQuad[], type: string): TQuad[] {
+	const keep = keepConnectedToType(quads, type);
+	// The range types of the kept properties — the type's immediate connections in type space.
+	for (const q of quads) {
+		if (isSchemaType(q.namedGraph) && q.predicate === ONTOLOGY_PRED.range && keep.has(q.subject) && q.objectType !== undefined) keep.add(String(q.object));
+	}
+	return filterSchemaTo(quads, keep);
 }
 
 /** Include the pruned ontology (the schema the `evidence` data exercises) in an instance-graph response, so one response

@@ -12,8 +12,8 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { callStep } from "../pane-fetch.js";
-import { appAccessLevel, idOf } from "../util.js";
+import { fetchIndividuals } from "../pane-fetch.js";
+import { appAccessLevel, idOf, instanceLabel } from "../util.js";
 import { getEdgeRanges, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
 import { renderRef } from "./shu-ref.js";
 import { SHU_EVENT } from "../consts.js";
@@ -65,20 +65,12 @@ export function buildFullSchemaGraph(current: string): TGraph {
 	return { nodes: [...nodes.values()], edges };
 }
 
-/** The label to show for an instance in the list: a human field if present, else its id. */
-function instanceLabel(v: VertexData): string {
-	const id = idOf(v);
-	return String(v.name ?? v.subject ?? v.email ?? v.filename ?? id);
-}
-
 export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
 			:host { display: flex; flex-direction: column; height: 100%; overflow: auto; }
-			.type-header { padding: var(--shu-space-3) var(--shu-space-4); border-bottom: var(--shu-border-w) solid var(--shu-border); }
-			.type-name { font-size: var(--shu-font-lg); font-weight: 700; }
-			.type-desc { padding: var(--shu-space-2) var(--shu-space-4); margin: 0; color: var(--shu-fg-muted); }
+			.type-desc { padding: var(--shu-space-3) var(--shu-space-4); margin: 0; color: var(--shu-fg-muted); }
 			.system-schema-note { padding: 0 var(--shu-space-4) var(--shu-space-2); margin: 0; color: var(--shu-fg-faded); font-size: 0.85em; font-style: italic; }
 			/* The graph fills all column height left by the header, description and instances, scrolling any excess within
 			   its own box so it never paints over the Individuals list below it. */
@@ -109,15 +101,15 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// label is the SELECTED NODE'S graph — the type's Class node lives in the Class cluster, and a schema label
 		// tells every consumer this subject is a schema term, not an individual to fetch.
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [{ s: persistedAs }], accessLevel: appAccessLevel(), label: ONTOLOGY_CLASS }, bubbles: true, composed: true }));
-		// A referenced-but-undefined class — an upper-ontology superclass a type is a kind of (e.g. prov:Agent), reachable
-		// via subClassOf but with no registered topology — has no queryable label and no instances. Show only its schema
-		// position (its description, and the schema graph scoped to it), never a graphQuery that would fail "Unknown label".
-		if (!getTypes().includes(persistedAs)) {
+		// No individuals to list: a referenced-but-undefined class (e.g. prov:Agent, reachable via subClassOf but with no
+		// registered topology) has none and would fail a graphQuery with "Unknown label"; and a registered schema presenter
+		// lists individuals in its own tab, so the column shows only the schema position (description + scoped schema graph).
+		if (!getTypes().includes(persistedAs) || ShuTypeColumn.schemaPresenter() !== undefined) {
 			this.instances = [];
 			this.setState({ loading: false });
 			return;
 		}
-		const res = await callStep<{ vertices: VertexData[]; total: number }>("graphQuery", { query: { label: persistedAs, accessLevel: appAccessLevel(), limit: 100 } }, `type-column: ${persistedAs}`);
+		const res = await fetchIndividuals(persistedAs, `type-column: ${persistedAs}`);
 		if (!res.ok) {
 			this.setState({ loading: false, error: res.error });
 			return;
@@ -168,23 +160,23 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// The site's declared schema presenter (scoped by focusType), projected from light DOM through the slot;
 		// standalone falls back to the static SVG, rebuilt per render — a cheap pure projection of the metadata cache,
 		// so no stored copy to fall stale.
-		const graphView = ShuTypeColumn.schemaPresenter()
+		const hasPresenter = ShuTypeColumn.schemaPresenter() !== undefined;
+		const graphView = hasPresenter
 			? html`<slot></slot>`
 			: html`
 				<label class="schema-scope"><input type="checkbox" data-testid="type-schema-scope" .checked=${this.state.fullSchema} @change=${this.onScopeChange} /> entire schema</label>
 				<shu-graph data-testid="type-schema-graph" .products=${{ graph: this.state.fullSchema ? buildFullSchemaGraph(type) : buildTypeSchemaGraph(type) }}></shu-graph>`;
 		return html`
-			<div class="type-header"><span class="type-name" data-testid="type-name">${type}</span></div>
 			${desc ? html`<p class="type-desc" data-testid="type-description">${desc}</p>` : ""}
 			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid="type-system-schema">A system schema — defined in haibun's own vocabulary.</p>` : ""}
 			${graphView}
-			<div class="instances">
+			${hasPresenter ? "" : html`<div class="instances">
 				<span class="section-label">Individuals${this.instances.length ? ` (${this.instances.length})` : ""}</span>
 				${this.state.loading ? html`<span>Loading…</span>` : ""}
 				${this.state.error ? html`<div class="error" data-testid="type-error">${this.state.error}</div>` : ""}
 				<ul data-testid="type-instances">
 					${this.instances.map((v) => html`<li>${unsafeHTML(renderRef("entity", { persistedAs: type, id: idOf(v) }, instanceLabel(v)))}</li>`)}
 				</ul>
-			</div>`;
+			</div>`}`;
 	}
 }

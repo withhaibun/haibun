@@ -109,6 +109,11 @@ export function idOf(v: Record<string, unknown>): string {
 	return String(v.messageId ?? v.email ?? v.id ?? v.path ?? v.name ?? v.account ?? "");
 }
 
+/** A vertex's display label for a list: a human-readable field if present, else its id. */
+export function instanceLabel(v: Record<string, unknown>): string {
+	return String(v.name ?? v.subject ?? v.email ?? v.filename ?? idOf(v));
+}
+
 /** Get the persisted type label — the JSON-LD `@type`. Records reaching the frontend are projected, so `@type` is always present; a record without it is a projection bug and fails naturally downstream. */
 export function persistedTypeOf(v: Record<string, unknown>): string {
 	return v["@type"] as string;
