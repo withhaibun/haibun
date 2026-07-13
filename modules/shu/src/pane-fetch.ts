@@ -1,6 +1,6 @@
 import { conduit } from "./hypermedia.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
-import { errMsg } from "./util.js";
+import { appAccessLevel, errMsg } from "./util.js";
 
 export type FetchOutcome<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -13,4 +13,10 @@ export async function callStep<T>(step: string, params: Record<string, unknown> 
 	} catch (err) {
 		return { ok: false, error: errMsg(err) };
 	}
+}
+
+/** A bounded slice of a type's individuals, at the caller's app access level — the query a type view and the class
+ *  browser both list from. Callers own their loading/error UI. */
+export function fetchIndividuals(label: string, why: string): Promise<FetchOutcome<{ vertices: Record<string, unknown>[] }>> {
+	return callStep("graphQuery", { query: { label, accessLevel: appAccessLevel(), limit: 100 } }, why);
 }
