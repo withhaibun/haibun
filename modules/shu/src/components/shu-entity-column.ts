@@ -216,9 +216,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		let contentHtml: string;
 		if (isStub) {
 			const id = idOf(this.vertex);
-			const stubDetails = typeLine
-				? `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${typeLine}</details>`
-				: "";
+			const stubDetails = this.typeDisclosure(persistedAs, typeLine);
 			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${stubDetails}${this.renderRoles()}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);
@@ -234,9 +232,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				})
 				.join("");
 			// The disclosure carries only the type name (its summary) and description; the fields themselves sit below it.
-			const detailsHtml = typeLine
-				? `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${esc(persistedAs)}</summary>${typeLine}</details>`
-				: "";
+			const detailsHtml = this.typeDisclosure(persistedAs, typeLine);
 			const fieldsHtml = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
 			const summaryHtml =
 				summaryFields.size > 0
@@ -255,7 +251,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}<div class="entity-content">${unsafeHTML(contentHtml)}</div>`;
 	}
 
-
 	protected updated(): void {
 		if (!this.state.loading && !this.state.error && this.vertex) this.bindEvents();
 	}
@@ -265,6 +260,14 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const desc = getTypeDescription(persistedAs);
 		if (!desc) return "";
 		return `<div class="entity-type-description" data-testid="entity-type-description">${esc(desc)}</div>`;
+	}
+
+	// The type disclosure: its summary is the type name as a link to the type's own view (description, schema, individuals —
+	// the same navigation a @type value and a #Type reference use); its body is the type description.
+	private typeDisclosure(persistedAs: string, typeLine: string): string {
+		if (!typeLine) return "";
+		const link = `<a class="col-link" rel="type-ref" href="#" data-value="${escAttr(persistedAs)}" data-testid="entity-type-link">${esc(persistedAs)}</a>`;
+		return `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${link}</summary>${typeLine}</details>`;
 	}
 
 	/** Render arrays of objects as tables (e.g. show domains items). Skips `hasBody` (rendered as iframes), JSON-LD keywords, and underscore-projected keys. */
@@ -325,14 +328,20 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	};
 
 	/** The node's roles in plain language — who plays what role toward it (issued by, about, held by, delegated from …),
-	 *  so the trust structure is explained rather than left as raw rels. Reads the role edges (roleRels). */
+	 *  so the roles are explained rather than left as raw rels. Reads the role edges (roleRels). A role is one fact per
+	 *  (rel, party), so a rel repeated to the same party renders once — as renderReferences dedups its targets. */
 	private renderRoles(): string {
 		const roles = roleRels();
-		const roleEdges = this.edges.filter((e) => roles.has(e.type) && isReferenceEdge(e.type));
-		if (roleEdges.length === 0) return "";
-		const rows = roleEdges
+		const seen = new Set<string>();
+		const rows = this.edges
+			.filter((e) => roles.has(e.type) && isReferenceEdge(e.type))
+			.filter((e) => {
+				const key = `${e.type}${idOf(e.target)}`;
+				return seen.has(key) ? false : (seen.add(key), true);
+			})
 			.map((e) => `<div class="role-row"><span class="role-phrase">${esc(ShuEntityColumn.ROLE_PHRASE[e.type] ?? e.type)}</span> ${this.renderEdgeTarget(e.target, e.type)}</div>`)
 			.join("");
+		if (!rows) return "";
 		return `<div class="roles-explanation" data-testid="entity-roles"><span class="section-label">Roles</span>${rows}</div>`;
 	}
 
