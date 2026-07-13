@@ -11,7 +11,8 @@ import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
 import { getJsonLdContext, relOf } from "@haibun/core/lib/hypermedia.js";
-import { Access, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
+import { Access, haibunNsForHost, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
+import { requestBaseIri } from "@haibun/core/lib/request-context.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
@@ -251,8 +252,15 @@ export default class ShuStepper extends AStepper {
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
 				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, "{}"));
-				const jsonLdContext = getJsonLdContext(this.getWorld().domains);
-				const jsonLdHandler = (c: Context) => c.json(jsonLdContext);
+				const domains = this.getWorld().domains;
+				// The context varies only by serving host, drawn from a tiny set of origins — build it once per host.
+				const byHost = new Map<string, Record<string, unknown>>();
+				const jsonLdHandler = (c: Context) => {
+					const ns = haibunNsForHost(requestBaseIri(c.req.header()));
+					let ctx = byHost.get(ns);
+					if (!ctx) byHost.set(ns, (ctx = getJsonLdContext(domains, ns)));
+					return c.json(ctx);
+				};
 				webserver.addRoute("get", "/.well-known/haibun-context.jsonld", { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
 				webserver.addRoute("get", "/ns/context.jsonld", { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
 				return actionOK();

@@ -18,6 +18,7 @@ import {
 	fromActorRels,
 	toActorRels,
 	HAIBUN_NS,
+	haibunNsForHost,
 } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
@@ -213,7 +214,12 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.as).toBe("https://www.w3.org/ns/activitystreams#");
 		expect(ctx.foaf).toBe("http://xmlns.com/foaf/0.1/");
 		expect(ctx.dcterms).toBe("http://purl.org/dc/terms/");
-		expect(ctx.haibun).toBe("/ns/");
+		expect(ctx.haibun).toBeUndefined();
+	});
+
+	it("binds hbn under a given host, defaulting to the canonical stem", () => {
+		expect((getJsonLdContext({}, haibunNsForHost("https://192.168.1.9:8223"))["@context"] as Record<string, unknown>).hbn).toBe("https://192.168.1.9:8223/ns/");
+		expect((getJsonLdContext({})["@context"] as Record<string, unknown>).hbn).toBe(HAIBUN_NS);
 	});
 
 	it("declares the W3C standard credential vocabularies but names no consumer-coined vocabulary", () => {

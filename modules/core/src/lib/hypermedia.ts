@@ -566,7 +566,7 @@ function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
 }
 
 /** Build JSON-LD context from domain topology. Derives URI mappings from domain property rels. */
-export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Record<string, unknown> {
+export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, haibunNs: string = HAIBUN_NS): Record<string, unknown> {
 	const context: Record<string, unknown> = {
 		"@version": 1.1,
 		as: "https://www.w3.org/ns/activitystreams#",
@@ -583,8 +583,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		rdfs: "http://www.w3.org/2000/01/rdf-schema#",
 		// W3C Bitstring Status List vocabulary (the status-list credential terms, distinct from the core credentials vocabulary).
 		vcstatus: "https://www.w3.org/ns/credentials/status#",
-		hbn: HAIBUN_NS,
-		haibun: "/ns/",
+		hbn: haibunNs,
 	};
 	// JSON-LD 1.1 type-scoped context. Each @type carries a nested @context mapping ITS field/edge terms to the genuine
 	// IRIs its own rels declare, so a field name reused across domains (e.g. "expires", "issuer", "type") resolves to the
@@ -619,15 +618,15 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		const subPropertyAxiom = (rel: string): string | string[] | undefined => {
 			const sp = subPropertyOfRel(rel);
 			if (sp === undefined) return undefined;
-			return Array.isArray(sp) ? sp.map((p) => REL_CONTEXT[p as TRel] ?? `haibun:${p}`) : (REL_CONTEXT[sp as TRel] ?? `haibun:${sp}`);
+			return Array.isArray(sp) ? sp.map((p) => REL_CONTEXT[p as TRel] ?? `hbn:${p}`) : (REL_CONTEXT[sp as TRel] ?? `hbn:${sp}`);
 		};
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
 			// A property's genuine vocabulary IRI wins over its rel's default — so a standards field carries its real term
 			// (statusListIndex → vcstatus:…) rather than the placeholder a catch-all rel (CONTEXT/TAG) would give it.
-			const uri = propertyIriOf(def) ?? REL_CONTEXT[rel] ?? `haibun:${prop}`;
+			const uri = propertyIriOf(def) ?? REL_CONTEXT[rel] ?? `hbn:${prop}`;
 			const linkRel = linkRelFromSemantic(rel);
-			const node: Record<string, unknown> = { "@id": uri, "haibun:rel": linkRel };
+			const node: Record<string, unknown> = { "@id": uri, "hbn:rel": linkRel };
 			if (linkRel === "item") node["@type"] = "@id";
 			const axiom = subPropertyAxiom(rel);
 			if (axiom !== undefined) node["rdfs:subPropertyOf"] = axiom;
@@ -635,14 +634,14 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		}
 		for (const [edge, edgeDef] of Object.entries(topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
-			const node: Record<string, unknown> = { "@id": edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" };
+			const node: Record<string, unknown> = { "@id": edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `hbn:${edge}`, "@type": "@id", "hbn:rel": "item" };
 			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do — subPropertyOf inReplyTo)
 			// OR the rel itself declares it in LinkRelations (the role rels — subPropertyOf inRoleOf). Either is a genuine axiom.
 			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? (rel ? subPropertyOfRel(rel) : undefined);
 			if (declared !== undefined) {
 				node["rdfs:subPropertyOf"] = Array.isArray(declared)
-					? declared.map((p) => REL_CONTEXT[p as TRel] ?? `haibun:${p}`)
-					: (REL_CONTEXT[declared as TRel] ?? `haibun:${declared}`);
+					? declared.map((p) => REL_CONTEXT[p as TRel] ?? `hbn:${p}`)
+					: (REL_CONTEXT[declared as TRel] ?? `hbn:${declared}`);
 			}
 			put(edge, node as Record<string, string>);
 		}
@@ -651,10 +650,10 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		// genuine rdfs:subClassOf axiom on the type's class IRI — so e.g. `sec:Issuer rdfs:subClassOf prov:Agent`
 		// makes `prov:wasAttributedTo` (range prov:Agent) into it well-formed, without multi-valuing the @type label.
 		// A type conforming to published standard context(s) references them as a JSON-LD 1.1 array — the URLs FIRST so this
-		// type's own enumerated field terms (with their haibun:rel hints) come last and win on any name collision, and so
+		// type's own enumerated field terms (with their hbn:rel hints) come last and win on any name collision, and so
 		// the type's full standard vocabulary is expressible without inlining it. Absent, the scoped object stands alone.
 		const typeContext = topology.standardContexts?.length ? [...topology.standardContexts, scoped] : scoped;
-		const typeNode: Record<string, unknown> = { "@id": topology.type ?? `haibun:${topology.persistedAs}`, "@context": typeContext };
+		const typeNode: Record<string, unknown> = { "@id": topology.type ?? `hbn:${topology.persistedAs}`, "@context": typeContext };
 		if (topology.subClassOf) typeNode["rdfs:subClassOf"] = topology.subClassOf;
 		context[topology.persistedAs] = typeNode;
 	}

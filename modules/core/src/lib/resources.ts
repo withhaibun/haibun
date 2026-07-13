@@ -38,12 +38,18 @@ export type TResource = z.infer<typeof ResourceSchema>;
 /** Root node label — any resource. Use as edge range when the target is polymorphic. */
 export const RESOURCE_LABEL = "Resource";
 
-/** haibun's own vocabulary namespace — the IRI stem every haibun-defined term expands under, and the base for any
- *  sub-vocabulary a consumer publishes beneath it. The single source of truth for the base; never write the literal. */
+/** haibun's canonical vocabulary namespace — the fallback base when no serving host is known, and the stem a consumer
+ *  publishes a sub-vocabulary beneath. A served @context binds `hbn` under the request host instead. */
 export const HAIBUN_NS = "https://withhaibun.github.io/ns/";
-/** The @context prefixes bound to HAIBUN_NS (haibun's own terms). Anything else — cred/prov/sec/as/… — is a separate
- *  vocabulary, not haibun's, and is identified by its own prefix. Kept small: only haibun names itself here. */
-export const HAIBUN_PREFIXES = ["hbn", "haibun"] as const;
+export const HAIBUN_NS_PATH = "/ns/";
+/** The @context prefix bound to the haibun namespace. Any other prefix names a separate vocabulary, not haibun's. */
+export const HAIBUN_PREFIXES = ["hbn"] as const;
+
+/** The haibun namespace under a request origin (`https://192.168.1.9:8223` → `…/ns/`), or the canonical stem when
+ *  host-less. Pass to getJsonLdContext's `haibunNs`. */
+export function haibunNsForHost(baseOrigin?: string): string {
+	return baseOrigin ? `${baseOrigin.replace(/\/+$/, "")}${HAIBUN_NS_PATH}` : HAIBUN_NS;
+}
 
 /**
  * A projected JSON-LD individual carries two keywords: `@id` (its IRI) and `@type` (its label).
