@@ -48,7 +48,43 @@ export const ONTOLOGY_PRED = {
 	/** Whether a property is exercised by the type's data. Stamped `false` on a term a declared standard vocabulary defines
 	 *  but the type does not model (declared-not-present), so a view can render it distinctly from a property in the data. */
 	inData: "inData",
+	/** The class's ontological designation — agent / activity / observation / artifact — derived from its subClassOf chain
+	 *  to a PROV/SOSA anchor. The one value node shape, the filter grouping and the type description all read. */
+	category: "category",
 } as const;
+
+/** All transitive parents of `term` over an immediate-parents map (subClassOf or subPropertyOf), the term itself
+ *  included. The one ancestor-walk shared by the schema pruning and the category derivation. */
+function ancestorsWith(term: string, supers: Map<string, string[]>): Set<string> {
+	const out = new Set<string>([term]);
+	const stack = [term];
+	while (stack.length) {
+		const c = stack.pop();
+		if (c === undefined) break;
+		for (const p of supers.get(c) ?? []) if (!out.has(p)) out.add(p), stack.push(p);
+	}
+	return out;
+}
+
+/** Immediate subClassOf/subPropertyOf parents of every term in a projected ontology — the input to ancestorsWith. */
+function superMap(quads: TQuad[]): Map<string, string[]> {
+	const supers = new Map<string, string[]>();
+	for (const q of quads)
+		if (q.predicate === ONTOLOGY_PRED.subClassOf || q.predicate === ONTOLOGY_PRED.subPropertyOf) supers.set(q.subject, [...(supers.get(q.subject) ?? []), String(q.object)]);
+	return supers;
+}
+
+/** The category label for each PROV/SOSA anchor class — the friendly presentation of the standard upper class the type
+ *  is `rdfs:subClassOf`. `sosa:Observation ⊑ prov:Activity`, so it wins over Activity; Entity is the default (unstated). */
+const CATEGORY_ANCHOR: Record<string, string> = { "prov:Agent": "agent", "sosa:Observation": "observation", "prov:Activity": "activity", "prov:Entity": "artifact" };
+const CATEGORY_PRECEDENCE = ["agent", "observation", "activity", "artifact"] as const;
+
+/** A class's designation, read off the standard subClassOf axioms: the first anchor its ancestry reaches, else artifact. */
+export function categoryOf(cls: string, supers: Map<string, string[]>): string {
+	const reached = new Set<string>();
+	for (const a of ancestorsWith(cls, supers)) if (CATEGORY_ANCHOR[a]) reached.add(CATEGORY_ANCHOR[a]);
+	return CATEGORY_PRECEDENCE.find((cat) => reached.has(cat)) ?? "artifact";
+}
 /** The ontology is timeless — a fixed timestamp so the time axis / cursor treat every term as one age. */
 const ONTOLOGY_TS = 0;
 
@@ -145,6 +181,12 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		}
 	}
 
+	// Each class's designation, read off the standard subClassOf axioms built above — one derived value the node shape,
+	// the filter grouping and the type description all read (the meta classes carry their own: prov:Agent → agent).
+	const supers = superMap(quads);
+	for (const cls of classSubjects)
+		quads.push({ subject: cls, predicate: ONTOLOGY_PRED.category, object: categoryOf(cls, supers), namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+
 	return { quads, clusters: [cluster(ONTOLOGY_CLASS, classSubjects, classLabels), cluster(ONTOLOGY_PROPERTY, propSubjects, propLabels)] };
 }
 
@@ -161,19 +203,9 @@ export function pruneOntologyToUse(ontology: TClusteredQuads, evidence: TQuad[])
 		used.add(q.namedGraph); // an instance graph is named by its type
 		used.add(q.predicate);
 	}
-	const supers = new Map<string, string[]>(); // subClassOf / subPropertyOf: a schema term → its immediate parents
-	for (const q of ontology.quads) {
-		if (q.predicate === ONTOLOGY_PRED.subClassOf || q.predicate === ONTOLOGY_PRED.subPropertyOf) supers.set(q.subject, [...(supers.get(q.subject) ?? []), String(q.object)]);
-	}
+	const supers = superMap(ontology.quads); // subClassOf / subPropertyOf: a schema term → its immediate parents
 	const keep = new Set(used);
-	const climb = (term: string): void => {
-		for (const p of supers.get(term) ?? [])
-			if (!keep.has(p)) {
-				keep.add(p);
-				climb(p);
-			}
-	};
-	for (const term of used) climb(term);
+	for (const term of used) for (const a of ancestorsWith(term, supers)) keep.add(a);
 	const quads = ontology.quads.filter((q) => keep.has(q.subject));
 	const clusters = ontology.clusters.map((c) => {
 		const subjects = c.sampledSubjects.filter((s) => keep.has(s));
@@ -243,7 +275,15 @@ export function withOntologySchema(
 	for (const q of response.quads) {
 		if (!classNodes.has(q.namedGraph) || linkedSubjects.has(q.subject)) continue;
 		linkedSubjects.add(q.subject);
-		typeEdges.push({ subject: q.subject, predicate: "a", object: q.namedGraph, objectType: ONTOLOGY_CLASS, namedGraph: q.namedGraph, timestamp: q.timestamp, properties: undefined });
+		typeEdges.push({
+			subject: q.subject,
+			predicate: "a",
+			object: q.namedGraph,
+			objectType: ONTOLOGY_CLASS,
+			namedGraph: q.namedGraph,
+			timestamp: q.timestamp,
+			properties: undefined,
+		});
 	}
 	return { quads: [...response.quads, ...typeEdges, ...ontology.quads], clusters: [...response.clusters, ...ontology.clusters] };
 }
