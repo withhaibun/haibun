@@ -101,9 +101,12 @@ describe("shu-column-pane buttons", () => {
 
 	it("pin toggles host pinned attribute and reflects aria-pressed", async () => {
 		await click(".pane-pin");
-		expect(pane.getAttribute("pinned")).toBe("true");
+		expect(pane.hasAttribute("pinned")).toBe(true); // presence is what pane-state's prune reads; the value is not significant
 		const btn = pane.shadowRoot?.querySelector(".pane-pin") as HTMLButtonElement;
 		expect(btn.getAttribute("aria-pressed")).toBe("true");
+		await click(".pane-pin");
+		expect(pane.hasAttribute("pinned")).toBe(false); // unpin removes it
+		expect(btn.getAttribute("aria-pressed")).toBe("false");
 	});
 
 	it("close button dispatches column-close (no DOM removal on its own — PaneState owns that)", async () => {
@@ -141,7 +144,8 @@ describe("shu-column-pane buttons", () => {
 		expect(pane.fixedWidth).toBe(320);
 	});
 
-	it("persists width and minimize per column key and restores both on a fresh pane with that key (the reload contract)", async () => {
+	it("persists width, minimize, and pin per column key and restores all on a fresh pane with that key (the reload contract)", async () => {
+		await click(".pane-pin"); // pin the column
 		pane.setWidth(280);
 		pane.setMinimized(true);
 		flushPersistWrites();
@@ -151,6 +155,7 @@ describe("shu-column-pane buttons", () => {
 		expect(again.fixedWidth).toBe(280);
 		expect(again.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(true);
 		expect(again.hasAttribute("collapsed")).toBe(true);
+		expect(again.hasAttribute("pinned")).toBe(true); // pin survives reload and re-asserts the attribute pane-state's prune reads
 	});
 
 	it("an explicit pre-attach state (a URL-hash flag) outranks the remembered value; untouched fields still restore", async () => {
