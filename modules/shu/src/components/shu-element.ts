@@ -98,6 +98,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	#dirtyFields = new Set<string>();
 	#persistRestored = false;
 	#restoring = false;
+	#reflectingToAttr = false; // set while writing a state value back onto its bound attribute, so the resulting attributeChangedCallback doesn't reflect it straight back
 
 	/**
 	 * Current time cursor (absolute epoch ms; null = show all). ONE cursor system, two sources: live
@@ -170,6 +171,9 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 			for (const k of Object.keys(partial)) this.#dirtyFields.add(k);
 			this.#persistChanged(Object.keys(partial));
 		}
+		// Reflect any changed attributeFields back onto their attributes (inverse of #reflectAttribute) — including during
+		// a restore — so a bound attribute a subclass declared (e.g. a pane's `pinned`) stays in sync without per-caller code.
+		this.#reflectFieldsToAttributes(Object.keys(partial));
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.STATE_CHANGE, { detail: this.state, bubbles: true, composed: true }));
 	}
 
@@ -238,7 +242,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
 		super.attributeChangedCallback(name, oldValue, newValue);
-		this.#reflectAttribute(name, newValue);
+		if (!this.#reflectingToAttr) this.#reflectAttribute(name, newValue); // skip the echo of our own state→attribute write
 		this.onAttributeChanged(name, oldValue, newValue);
 	}
 
@@ -250,6 +254,21 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		const fieldSchema = shape[field];
 		if (!fieldSchema) throw new Error(`${this.constructor.name}: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
 		this.setState({ [field]: coerceAttribute(fieldSchema, val) } as Partial<z.infer<T>>);
+	}
+
+	/** Reflect every changed attributeField state value back onto its bound attribute (inverse of #reflectAttribute), guarded
+	 *  so the resulting attributeChangedCallback doesn't echo it back into state. Fields with no bound attribute are ignored. */
+	#reflectFieldsToAttributes(changed: string[]): void {
+		const attributeFields = (this.constructor as typeof ShuElement).attributeFields;
+		const bound = Object.entries(attributeFields).filter(([, field]) => changed.includes(field));
+		if (bound.length === 0) return;
+		const shape = (this._schema as unknown as { shape: Record<string, z.ZodTypeAny> }).shape;
+		this.#reflectingToAttr = true;
+		try {
+			for (const [attr, field] of bound) reflectAttributeValue(this, attr, shape[field], (this.state as Record<string, unknown>)[field]);
+		} finally {
+			this.#reflectingToAttr = false;
+		}
 	}
 
 	// One wiring for every cursor-watching component, in any bundle: the cross-bundle cursor bus runs onTimeSync on each
@@ -395,6 +414,16 @@ function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown
 	if (inner instanceof z.ZodBoolean) return val !== "false";
 	if (inner instanceof z.ZodNumber) return Number(val);
 	return val;
+}
+
+/** Serialize a state value onto its bound attribute — the inverse of coerceAttribute. A boolean is presence-based (true =
+ * present, false = absent), matching coerceAttribute's presence read; an undefined/null/empty value removes the attribute
+ * so it never lingers stale; anything else writes its string form. */
+function reflectAttributeValue(el: HTMLElement, attr: string, fieldSchema: z.ZodTypeAny | undefined, value: unknown): void {
+	const inner = fieldSchema ? peelSchema(fieldSchema) : undefined;
+	if (inner instanceof z.ZodBoolean) el.toggleAttribute(attr, value === true);
+	else if (value === undefined || value === null || value === "") el.removeAttribute(attr);
+	else el.setAttribute(attr, String(value));
 }
 
 /** Re-export so components import the time-sync class names from the same module as ShuElement. */

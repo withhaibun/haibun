@@ -132,8 +132,8 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	static attributeFields = { label: "label", active: "active", closable: "closable", pinned: "pinned", "column-type": "columnType" };
 
-	/** Width and user-minimize are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity. Maximize is deliberately not remembered — it lives in the URL hash only. */
-	static persistFields = ["width", "minimized"] as const;
+	/** Width, user-minimize, and pin are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute pane-state's prune reads. Maximize is deliberately not remembered — it lives in the URL hash only. */
+	static persistFields = ["width", "minimized", "pinned"] as const;
 
 	/** A pane's persistence identity is its column key (assigned before attach by PaneState; "query" for the root pane). A pane without one doesn't persist. */
 	protected override get persistKey(): string | null {
@@ -181,9 +181,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	/** Toggle active state. Reflects to the `[active]` host attribute so the `:host([active])` CSS rules apply without re-rendering, and dispatches `VIEW_ACTIVE` to the slotted child so it can adjust selection/update behavior. */
 	setActive(active: boolean): void {
 		if (this.state.active === active) return;
-		this.setState({ active });
-		if (active) this.setAttribute("active", "");
-		else this.removeAttribute("active");
+		this.setState({ active }); // the `active` attribute reflects automatically (bidirectional attributeFields)
 		const child = this.firstElementChild;
 		if (child) child.dispatchEvent(new CustomEvent(SHU_EVENT.VIEW_ACTIVE, { detail: { active } }));
 	}
@@ -246,10 +244,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	private onPin = (e: Event): void => {
 		e.stopPropagation();
-		const pinned = !this.state.pinned;
-		this.setState({ pinned });
-		if (pinned) this.setAttribute(SHU_ATTR.PINNED, "true");
-		else this.removeAttribute(SHU_ATTR.PINNED);
+		this.setState({ pinned: !this.state.pinned }); // the `pinned` attribute (read by pane-state's prune) reflects automatically
 	};
 
 	private onClose = (e: Event): void => {
