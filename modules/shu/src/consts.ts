@@ -38,6 +38,8 @@ export const SHU_EVENT = {
 	// A thumbnail asks its document column to move the global time cursor to the step row it belongs to (the column owns
 	// the start-time → absolute-time mapping). Composed so it crosses the column's shadow boundary from the framed artifact.
 	CURSOR_TO_ROW: "cursor-to-row",
+	// An annotation was authored from a body view (select text → annotate); the host reloads so it appears anchored.
+	ANNOTATION_CREATED: "annotation-created",
 	SORT_CHANGE: "sort-change",
 	PAGE_CHANGE: "page-change",
 	STATE_CHANGE: "state-change",

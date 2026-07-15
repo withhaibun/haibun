@@ -14,6 +14,12 @@ import {
 	getPropertyDefinitions,
 	principalDomainDefinition,
 	PRINCIPAL_LABEL,
+	specificResourceDomainDefinition,
+	textQuoteSelectorDomainDefinition,
+	SpecificResourceSchema,
+	TextQuoteSelectorSchema,
+	SPECIFIC_RESOURCE_LABEL,
+	TEXT_QUOTE_SELECTOR_LABEL,
 	roleRels,
 	fromActorRels,
 	toActorRels,
@@ -222,33 +228,38 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect((getJsonLdContext({})["@context"] as Record<string, unknown>).hbn).toBe(HAIBUN_NS);
 	});
 
-	it("declares the W3C standard credential vocabularies but names no consumer-coined vocabulary", () => {
+	it("declares NO consumer vocabulary — a consumer's prefixes (e.g. a credentials suite's) arrive via topology.namespaces", () => {
 		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
 		const ctx = out["@context"];
-		// The genuine VC vocabulary namespace (VerifiableCredential/VerifiablePresentation/issuer/credentialSubject/holder/…),
-		// used BY VC DM 2.0 — not a coined .../ns/credentials/v2# namespace, which hosts none of these terms.
-		expect(ctx.cred).toBe("https://www.w3.org/2018/credentials#");
-		// The W3C Bitstring Status List vocabulary, distinct from the core credentials vocabulary.
-		expect(ctx.vcstatus).toBe("https://www.w3.org/ns/credentials/status#");
+		expect(ctx.cred).toBeUndefined();
+		expect(ctx.vcstatus).toBeUndefined();
+		const domains = {
+			c: {
+				topology: { persistedAs: "C", type: "exv:C", id: "id", namespaces: { exv: "https://vocab.example/ns#" }, properties: { id: LinkRelations.IDENTIFIER.rel } },
+				schema: { parse: (v: unknown) => v },
+			},
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const withConsumer = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
+		expect(withConsumer.exv).toBe("https://vocab.example/ns#");
 	});
 
 	it("maps a property/edge to its declared genuine IRI, overriding the rel's default", () => {
 		const domains = {
 			c: {
 				topology: {
-					persistedAs: "Cred",
-					type: "cred:VerifiableCredential",
+					persistedAs: "Shipment",
+					type: "exv:Shipment",
 					id: "id",
-					properties: { id: LinkRelations.IDENTIFIER.rel, statusListIndex: { rel: LinkRelations.CONTEXT.rel, iri: "vcstatus:statusListIndex" } },
-					edges: { credentialStatus: { range: "StatusList", rel: LinkRelations.CONTEXT.rel, iri: "cred:credentialStatus" } },
+					properties: { id: LinkRelations.IDENTIFIER.rel, trackingIndex: { rel: LinkRelations.CONTEXT.rel, iri: "exv:trackingIndex" } },
+					edges: { shipmentStatus: { range: "StatusList", rel: LinkRelations.CONTEXT.rel, iri: "exv:shipmentStatus" } },
 				},
 				schema: { parse: (v: unknown) => v },
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@context": Record<string, { "@id": string }> }> })["@context"];
-		const scope = ctx.Cred["@context"];
-		expect(scope.statusListIndex["@id"]).toBe("vcstatus:statusListIndex");
-		expect(scope.credentialStatus["@id"]).toBe("cred:credentialStatus");
+		const scope = ctx.Shipment["@context"];
+		expect(scope.trackingIndex["@id"]).toBe("exv:trackingIndex");
+		expect(scope.shipmentStatus["@id"]).toBe("exv:shipmentStatus");
 	});
 
 	it("merges a persisted domain's own namespace prefixes into the served context", () => {
@@ -259,10 +270,11 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.ex).toBe(`${HAIBUN_NS}ex#`);
 	});
 
-	it("maps the credential validity-end rel to cred:validUntil (not as:updated)", () => {
+	it("keeps the validity-window rels general (hbn:) — a consumer overrides the served IRI per field", () => {
 		expect(LinkRelations.VALID_UNTIL.rel).toBe("validUntil");
-		expect(LinkRelations.VALID_UNTIL.uri).toBe("cred:validUntil");
-		expect(REL_CONTEXT.validUntil).toBe("cred:validUntil");
+		expect(LinkRelations.VALID_UNTIL.uri).toBe("hbn:validUntil");
+		expect(REL_CONTEXT.validUntil).toBe("hbn:validUntil");
+		expect(getRelRange(LinkRelations.VALID_FROM.rel)).toBe("literal");
 		expect(getRelRange(LinkRelations.VALID_UNTIL.rel)).toBe("literal");
 	});
 });
@@ -275,8 +287,8 @@ describe("getJsonLdContext top-level term fallback", () => {
 
 	it("emits a top-level term when every domain agrees on its @id", () => {
 		const domains = {
-			a: persistedDomain("A", "vc:A", { name: LinkRelations.NAME.rel }),
-			b: persistedDomain("B", "vc:B", { name: LinkRelations.NAME.rel }),
+			a: persistedDomain("A", "ex:A", { name: LinkRelations.NAME.rel }),
+			b: persistedDomain("B", "ex:B", { name: LinkRelations.NAME.rel }),
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@id": string }> })["@context"];
 		expect(ctx.name["@id"]).toBe(LinkRelations.NAME.uri);
@@ -284,16 +296,16 @@ describe("getJsonLdContext top-level term fallback", () => {
 
 	it("omits a top-level term that maps to differing @ids across domains", () => {
 		const domains = {
-			cred: persistedDomain("Credential", "vc:VerifiableCredential", { issuer: LinkRelations.CREDENTIAL_ISSUER.rel }),
-			list: persistedDomain("TrustedList", "ex:TrustedList", { issuer: LinkRelations.TAG.rel }),
+			a: persistedDomain("Article", "ex:Article", { author: LinkRelations.AUTHOR.rel }),
+			list: persistedDomain("TrustedList", "ex:TrustedList", { author: LinkRelations.TAG.rel }),
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
-		expect(ctx.issuer).toBeUndefined();
+		expect(ctx.author).toBeUndefined();
 		// still resolvable under each type's scoped @context
-		const credScope = (ctx.Credential as { "@context": Record<string, { "@id": string }> })["@context"];
+		const articleScope = (ctx.Article as { "@context": Record<string, { "@id": string }> })["@context"];
 		const listScope = (ctx.TrustedList as { "@context": Record<string, { "@id": string }> })["@context"];
-		expect(credScope.issuer["@id"]).toBe(LinkRelations.CREDENTIAL_ISSUER.uri);
-		expect(listScope.issuer["@id"]).toBe(LinkRelations.TAG.uri);
+		expect(articleScope.author["@id"]).toBe(LinkRelations.AUTHOR.uri);
+		expect(listScope.author["@id"]).toBe(LinkRelations.TAG.uri);
 	});
 });
 
@@ -315,10 +327,10 @@ describe("getJsonLdContext ontology @graph — rdfs:subClassOf as a real RDF sta
 
 	it("omits rdfs:subClassOf from the class node when a type declares no superclass", () => {
 		const domains = {
-			a: { topology: { persistedAs: "A", type: "vc:A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } }, schema: { parse: (v: unknown) => v } },
+			a: { topology: { persistedAs: "A", type: "ex:A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } }, schema: { parse: (v: unknown) => v } },
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
-		const classNode = out["@graph"].find((n) => n["@id"] === "vc:A");
+		const classNode = out["@graph"].find((n) => n["@id"] === "ex:A");
 		expect(classNode?.["@type"]).toBe("rdfs:Class");
 		expect(classNode).not.toHaveProperty("rdfs:subClassOf");
 	});
@@ -334,36 +346,31 @@ describe("getJsonLdContext ontology @graph — rdfs:subClassOf as a real RDF sta
 describe("roleRels — the ontology-derived role-attribution predicate set", () => {
 	it("derives every rel declared subPropertyOf inRoleOf (and excludes the super-property itself)", () => {
 		const set = roleRels();
-		for (const rel of [
-			LinkRelations.REGISTERED_IN.rel,
-			LinkRelations.CREDENTIAL_HOLDER.rel,
-			LinkRelations.CREDENTIAL_ISSUER.rel,
-			LinkRelations.CREDENTIAL_SUBJECT.rel,
-			LinkRelations.PERFORMED_BY.rel,
-			LinkRelations.VERIFIER.rel,
-			LinkRelations.AUTHOR.rel,
-			LinkRelations.WAS_ATTRIBUTED_TO.rel,
-			LinkRelations.ATTRIBUTED_TO.rel,
-		]) {
+		for (const rel of [LinkRelations.PERFORMED_BY.rel, LinkRelations.AUTHOR.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.ATTRIBUTED_TO.rel]) {
 			expect(set.has(rel)).toBe(true);
 		}
 		expect(set.has(LinkRelations.IN_ROLE_OF.rel)).toBe(false); // the abstract super-property is never a written edge
 		expect(set.has(LinkRelations.IN_REPLY_TO.rel)).toBe(false); // a reply rel is not a role attribution
 	});
 
+	it("names NO consumer vocabulary — consumer actor edges classify via their declared upper-ontology rel, not entries here", () => {
+		for (const rel of ["issuer", "holder", "credentialSubject", "verifier", "registeredIn", "presentedTo", "resolvedIssuer", "verifiableCredential"]) {
+			expect(getRelRange(rel)).toBeUndefined();
+		}
+	});
+
 	it("treats prov:wasAttributedTo as a SUB-property of inRoleOf, not the reverse (a role target need not be a prov:Agent)", () => {
 		expect(isSubPropertyOf(LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
 		expect(isSubPropertyOf(LinkRelations.IN_ROLE_OF.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel)).toBe(false);
-		expect(isSubPropertyOf(LinkRelations.REGISTERED_IN.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel)).toBe(false); // registeredIn is a role attribution but NOT a prov:wasAttributedTo
 	});
 });
 
 describe("fromActor / toActor — the directional actor split under inRoleOf", () => {
-	it("a concrete actor rel reaches inRoleOf TRANSITIVELY through its direction (issuer → fromActor → inRoleOf)", () => {
-		expect(isSubPropertyOf(LinkRelations.CREDENTIAL_ISSUER.rel, LinkRelations.FROM_ACTOR.rel)).toBe(true);
+	it("a concrete actor rel reaches inRoleOf TRANSITIVELY through its direction (performedBy → fromActor → inRoleOf)", () => {
+		expect(isSubPropertyOf(LinkRelations.PERFORMED_BY.rel, LinkRelations.FROM_ACTOR.rel)).toBe(true);
 		expect(isSubPropertyOf(LinkRelations.FROM_ACTOR.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
-		expect(isSubPropertyOf(LinkRelations.CREDENTIAL_ISSUER.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true); // so it is still a role rel
-		expect(isSubPropertyOf(LinkRelations.CREDENTIAL_SUBJECT.rel, LinkRelations.TO_ACTOR.rel)).toBe(true);
+		expect(isSubPropertyOf(LinkRelations.PERFORMED_BY.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true); // so it is still a role rel
+		expect(isSubPropertyOf(LinkRelations.TO_ACTOR.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
 	});
 
 	it("the split only ADDS direction — roleRels membership is unchanged (every actor rel is still a role)", () => {
@@ -371,26 +378,13 @@ describe("fromActor / toActor — the directional actor split under inRoleOf", (
 		for (const r of [...fromActorRels(), ...toActorRels()]) expect(roles.has(r)).toBe(true);
 	});
 
-	it("sorts the source-side actors (issuer/holder/author/performedBy/attributedTo/wasAttributedTo) into fromActor", () => {
+	it("sorts the source-side actors (author/performedBy/attributedTo/wasAttributedTo) into fromActor, with declared rolePriority ordering", () => {
 		const from = fromActorRels();
-		for (const r of [
-			LinkRelations.CREDENTIAL_ISSUER.rel,
-			LinkRelations.CREDENTIAL_HOLDER.rel,
-			LinkRelations.AUTHOR.rel,
-			LinkRelations.PERFORMED_BY.rel,
-			LinkRelations.ATTRIBUTED_TO.rel,
-			LinkRelations.WAS_ATTRIBUTED_TO.rel,
-		])
-			expect(from.has(r)).toBe(true);
-		// and not the target-side ones
-		expect(from.has(LinkRelations.CREDENTIAL_SUBJECT.rel)).toBe(false);
-		expect(from.has(LinkRelations.REGISTERED_IN.rel)).toBe(false);
-	});
-
-	it("sorts the target-side actors (credentialSubject/verifier/registeredIn) into toActor", () => {
-		const to = toActorRels();
-		for (const r of [LinkRelations.CREDENTIAL_SUBJECT.rel, LinkRelations.VERIFIER.rel, LinkRelations.REGISTERED_IN.rel]) expect(to.has(r)).toBe(true);
-		expect(to.has(LinkRelations.CREDENTIAL_ISSUER.rel)).toBe(false);
+		for (const r of [LinkRelations.AUTHOR.rel, LinkRelations.PERFORMED_BY.rel, LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel]) expect(from.has(r)).toBe(true);
+		// the ranked fallback order rides declared rolePriority, not a hand-kept list
+		expect(LinkRelations.PERFORMED_BY.rolePriority).toBeGreaterThan(LinkRelations.AUTHOR.rolePriority);
+		expect(LinkRelations.AUTHOR.rolePriority).toBeGreaterThan(LinkRelations.WAS_ATTRIBUTED_TO.rolePriority);
+		expect(LinkRelations.WAS_ATTRIBUTED_TO.rolePriority).toBeGreaterThan(LinkRelations.ATTRIBUTED_TO.rolePriority);
 	});
 
 	it("excludes the abstract concepts themselves from every derived set (they classify, never an edge label)", () => {
@@ -407,17 +401,36 @@ describe("getJsonLdContext ontology @graph — rdfs:subPropertyOf as a real RDF 
 					persistedAs: "C",
 					id: "id",
 					properties: { id: LinkRelations.IDENTIFIER.rel },
-					edges: { issuer: { rel: LinkRelations.CREDENTIAL_ISSUER.rel, range: "Principal" } },
+					edges: { performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: "Principal" } },
 				},
 				schema: { parse: (v: unknown) => v },
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }>; "@graph": Array<Record<string, unknown>> };
-		expect(out["@context"].C["@context"]?.issuer).not.toHaveProperty("rdfs:subPropertyOf"); // an ontology keyword would make the term definition invalid
-		// issuer declares under the directional fromActor super-property (itself subPropertyOf inRoleOf), stated on its property node.
-		const issuerNode = out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.CREDENTIAL_ISSUER.rel]);
-		expect(issuerNode?.["@type"]).toBe("rdf:Property");
-		expect(issuerNode?.["rdfs:subPropertyOf"]).toEqual({ "@id": REL_CONTEXT[LinkRelations.FROM_ACTOR.rel] });
+		expect(out["@context"].C["@context"]?.performedBy).not.toHaveProperty("rdfs:subPropertyOf"); // an ontology keyword would make the term definition invalid
+		// performedBy declares under the directional fromActor super-property (itself subPropertyOf inRoleOf), stated on its property node.
+		const performedByNode = out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.PERFORMED_BY.rel]);
+		expect(performedByNode?.["@type"]).toBe("rdf:Property");
+		expect(performedByNode?.["rdfs:subPropertyOf"]).toEqual({ "@id": REL_CONTEXT[LinkRelations.FROM_ACTOR.rel] });
+	});
+
+	it("a consumer edge declared with an upper-ontology rel + its own iri serves the consumer term and classifies under the pointer", () => {
+		const domains = {
+			c: {
+				topology: {
+					persistedAs: "C",
+					id: "id",
+					namespaces: { ex: "https://vocab.example/ns#" },
+					properties: { id: LinkRelations.IDENTIFIER.rel },
+					edges: { issuer: { rel: LinkRelations.FROM_ACTOR.rel, iri: "ex:issuer", range: "Principal", rolePriority: 80 } },
+				},
+				schema: { parse: (v: unknown) => v },
+			},
+		} as unknown as Parameters<typeof getJsonLdContext>[0];
+		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }> };
+		const scoped = out["@context"].C["@context"];
+		expect(scoped?.issuer?.["@id"]).toBe("ex:issuer"); // the consumer's genuine term, not the upper pointer's IRI
+		expect((out["@context"] as Record<string, unknown>).ex).toBe("https://vocab.example/ns#");
 	});
 
 	it("omits rdfs:subPropertyOf from a property node whose rel declares no parent", () => {
@@ -504,6 +517,77 @@ describe("commentDomainDefinition", () => {
 		const registered = { comment: { ...commentDomainDefinition, coerce: (x: unknown) => x as unknown as import("./resources.js").TDomainDefinition["schema"] } };
 		const cat = buildConcernCatalog(registered as Parameters<typeof buildConcernCatalog>[0]);
 		expect(cat.persisted[COMMENT_LABEL]).toBeDefined();
+	});
+
+	it("declares Comment a subclass of oa:Annotation — it carries oa:hasBody and oa:hasTarget", () => {
+		const domains = mapDefinitionsToDomains([commentDomainDefinition]);
+		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
+		const classNode = out["@graph"].find((n) => n["rdfs:subClassOf"] !== undefined && JSON.stringify(n).includes("oa:Annotation"));
+		expect(classNode?.["rdfs:subClassOf"]).toEqual({ "@id": "oa:Annotation" });
+	});
+});
+
+describe("Web Annotation rels (oa:)", () => {
+	it("declares the target-anchoring rels with genuine oa IRIs", () => {
+		expect(LinkRelations.HAS_SOURCE.uri).toBe("oa:hasSource");
+		expect(LinkRelations.HAS_SELECTOR.uri).toBe("oa:hasSelector");
+		expect(LinkRelations.EXACT.uri).toBe("oa:exact");
+		expect(LinkRelations.PREFIX.uri).toBe("oa:prefix");
+		expect(LinkRelations.SUFFIX.uri).toBe("oa:suffix");
+	});
+
+	it("hasSource and hasSelector are navigable links; the quote fields are literals", () => {
+		expect(getRelRange("hasSource")).toBe("iri");
+		expect(getRelRange("hasSelector")).toBe("iri");
+		expect(getRelRange("exact")).toBe("literal");
+		expect(getRelRange("prefix")).toBe("literal");
+		expect(getRelRange("suffix")).toBe("literal");
+	});
+
+	it("resolves the new edge predicates via edgeRel()", () => {
+		expect(edgeRel("hasSource")).toBe("hasSource");
+		expect(edgeRel("hasSelector")).toBe("hasSelector");
+	});
+});
+
+describe("TextQuoteSelectorSchema", () => {
+	it("requires the exact quote; prefix and suffix are optional disambiguation", () => {
+		expect(() => TextQuoteSelectorSchema.parse({ id: "s1", exact: "the quoted passage", generatedAtTime: new Date().toISOString() })).not.toThrow();
+		expect(() => TextQuoteSelectorSchema.parse({ id: "s1", generatedAtTime: new Date().toISOString() })).toThrow();
+	});
+
+	it("accepts prefix and suffix", () => {
+		const parsed = TextQuoteSelectorSchema.parse({ id: "s1", exact: "passage", prefix: "before the ", suffix: " and after", generatedAtTime: new Date().toISOString() });
+		expect(parsed.prefix).toBe("before the ");
+		expect(parsed.suffix).toBe(" and after");
+	});
+});
+
+describe("Web Annotation domain definitions", () => {
+	it("SpecificResource is typed oa:SpecificResource and links hasSource + hasSelector", () => {
+		const t = specificResourceDomainDefinition.topology;
+		if (!t || !("persistedAs" in t)) throw new Error("specificResourceDomainDefinition must declare a persisted topology");
+		expect(t.persistedAs).toBe(SPECIFIC_RESOURCE_LABEL);
+		expect(t.type).toBe("oa:SpecificResource");
+		expect(t.edges?.hasSource).toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: "Resource" });
+		expect(t.edges?.hasSelector).toEqual({ rel: LinkRelations.HAS_SELECTOR.rel, range: TEXT_QUOTE_SELECTOR_LABEL });
+	});
+
+	it("TextQuoteSelector is typed oa:TextQuoteSelector with the quote fields on the selector node, not the target", () => {
+		const t = textQuoteSelectorDomainDefinition.topology;
+		if (!t || !("persistedAs" in t)) throw new Error("textQuoteSelectorDomainDefinition must declare a persisted topology");
+		expect(t.persistedAs).toBe(TEXT_QUOTE_SELECTOR_LABEL);
+		expect(t.type).toBe("oa:TextQuoteSelector");
+		expect(t.properties.exact).toBe(LinkRelations.EXACT.rel);
+		expect((specificResourceDomainDefinition.topology as { properties: Record<string, unknown> }).properties.exact).toBeUndefined();
+	});
+
+	it("both pass buildConcernCatalog validation and SpecificResourceSchema accepts a minimal individual", () => {
+		const domains = mapDefinitionsToDomains([specificResourceDomainDefinition, textQuoteSelectorDomainDefinition]);
+		const cat = buildConcernCatalog(domains as Parameters<typeof buildConcernCatalog>[0]);
+		expect(cat.persisted[SPECIFIC_RESOURCE_LABEL]).toBeDefined();
+		expect(cat.persisted[TEXT_QUOTE_SELECTOR_LABEL]).toBeDefined();
+		expect(() => SpecificResourceSchema.parse({ id: "sr1", generatedAtTime: new Date().toISOString() })).not.toThrow();
 	});
 });
 

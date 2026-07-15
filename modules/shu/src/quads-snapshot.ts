@@ -303,3 +303,10 @@ export async function derefStoredEntity(label: string, id: string): Promise<{ ve
 	for (const q of quads) if (!q.objectType) vertex[q.predicate] = q.object;
 	return { vertex, edges: [], incomingCount: 0 };
 }
+
+/** Query the off-heap snapshot store (the serialized-report / offline backing). The reverse walks a display needs — an
+ *  annotation's SpecificResource points AT its source, so finding a subject's annotations reads incoming edges the IDB
+ *  store indexes only by subject/namedGraph. Callers scan a namedGraph and filter, since object is not an IDB index. */
+export function queryStoredQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<TQuad[]> {
+	return idbGraphStore.query(pattern);
+}
