@@ -166,7 +166,13 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	/** Shallow-merge a partial into state, validate against the schema, and assign it. The `@property accessor state` setter schedules the re-render off the new (Zod-parsed) reference; this also emits `SHU_EVENT.STATE_CHANGE` so external listeners (e.g. test harnesses) observe transitions. Throws if the merged shape fails schema validation — by contract a caller error. Merge is shallow by design (state is treated as a whole-object replacement so `===` change detection fires); pass the full sub-object to update a nested field. */
 	protected setState(partial: Partial<z.infer<T>>): void {
-		this.state = this._schema.parse({ ...(this.state as object), ...partial });
+		try {
+			this.state = this._schema.parse({ ...(this.state as object), ...partial });
+		} catch (error) {
+			// A raw ZodError names the field and nothing else — not which element, which write, or what value. setState is
+			// re-entrant (state → attribute → attributeChangedCallback → setState), so the stack alone does not say either.
+			throw new Error(`<${this.tagName.toLowerCase()}> setState ${describeStateWrite(partial)}: ${error instanceof z.ZodError ? z.prettifyError(error) : String(error)}`, { cause: error });
+		}
 		if (!this.#restoring) {
 			for (const k of Object.keys(partial)) this.#dirtyFields.add(k);
 			this.#persistChanged(Object.keys(partial));
@@ -262,7 +268,12 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		const shape = (this._schema as unknown as { shape: Record<string, z.ZodTypeAny> }).shape;
 		const fieldSchema = shape[field];
 		if (!fieldSchema) throw new Error(`${this.constructor.name}: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
-		this.setState({ [field]: coerceAttribute(fieldSchema, val) } as Partial<z.infer<T>>);
+		try {
+			this.setState({ [field]: coerceAttribute(fieldSchema, val) } as Partial<z.infer<T>>);
+		} catch (error) {
+			// Name the attribute that drove the write: setState reports the state it rejected, not where that state came from.
+			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+		}
 	}
 
 	/** Reflect every changed attributeField state value back onto its bound attribute (inverse of #reflectAttribute), guarded
@@ -283,7 +294,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	// One wiring for every cursor-watching component, in any bundle: the cross-bundle cursor bus runs onTimeSync on each
 	// change. The bus (a globalThis subscriber set), not signal tracking — the polyfill's reactive context is module-level
 	// and does not cross esbuild bundle boundaries, so an external view (the separately-bundled fisheye) reacts through
-	// this same seam instead of hand-rolling its own subscribe. Views that only dim auto-rerender by reading
+	// this same interface instead of hand-rolling its own subscribe. Views that only dim auto-rerender by reading
 	// this.timeCursor in render(); snapshot-pinned views replay a fixed point and opt out.
 	#installTimeSync(): void {
 		const reactsToTime = this.onTimeSync !== ShuElement.prototype.onTimeSync;
@@ -392,6 +403,24 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	protected subscribeBatched(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter }): () => void {
 		return subscribeBatchedEvents(opts);
 	}
+}
+
+/** Longest a single value runs in a state-write description before it is cut — enough to recognize, short of a whole graph. */
+const DESCRIBE_VALUE_MAX = 60;
+
+/** The write a setState was asked to make, as `{field: value, …}` — the field names alone leave "received undefined"
+ *  ambiguous between "the caller passed undefined" and "the caller omitted a field the merge needed". */
+function describeStateWrite(partial: object): string {
+	const fields = Object.entries(partial).map(([field, value]) => {
+		let shown: string;
+		try {
+			shown = value === undefined ? "undefined" : JSON.stringify(value);
+		} catch {
+			shown = String(value); // a value JSON cannot take (a cycle, a DOM node) still has to name itself
+		}
+		return `${field}: ${shown.length > DESCRIBE_VALUE_MAX ? `${shown.slice(0, DESCRIBE_VALUE_MAX - 1)}…` : shown}`;
+	});
+	return `{ ${fields.join(", ")} }`;
 }
 
 function parseTimestamp(val: unknown): number | null {
