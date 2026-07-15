@@ -20,7 +20,7 @@
  * link-driven navigation in the SPA.
  */
 import { esc, escAttr } from "../util.js";
-import { openRef, isRefKind, type TRefKind } from "./ref-navigation.js";
+import { openRef, isRefKind, refHref, type TRefKind } from "./ref-navigation.js";
 
 export class ShuRef extends HTMLElement {
 	connectedCallback(): void {
@@ -58,13 +58,29 @@ export class ShuRef extends HTMLElement {
 
 	private render(): void {
 		if (!this.shadowRoot) return;
-		const text = this.getAttribute("text") ?? defaultLabel(this.getAttribute("kind"), this.getAttribute("linkTarget"));
+		const kind = this.getAttribute("kind") ?? "";
+		const text = this.getAttribute("text") ?? defaultLabel(kind, this.getAttribute("linkTarget"));
+		// A real href — the address of the thing itself. An anchor without one is not a link: it takes role/tabindex to
+		// imitate one, and the browser can neither open it in a tab, copy its address, nor preview it. Clicking still
+		// routes through openRef, which opens the pane beside this one rather than navigating.
+		const href = this.hrefForRef();
 		this.shadowRoot.innerHTML = `<style>
 			:host { display: inline; }
 			a { color: var(--shu-link); text-decoration: none; cursor: pointer; }
 			a:hover { text-decoration: underline; }
 			code { font-family: var(--shu-font-family); font-size: 0.95em; }
-		</style><a role="link" tabindex="0"><code>${esc(text)}</code></a>`;
+		</style><a${href ? ` href="${esc(href)}"` : ' role="link" tabindex="0"'}><code>${esc(text)}</code></a>`;
+	}
+
+	/** The address of this reference's target, or undefined for a kind with no pane (which stays a non-link). */
+	private hrefForRef(): string | undefined {
+		const kind = this.getAttribute("kind") ?? "";
+		if (!isRefKind(kind)) return undefined;
+		try {
+			return refHref(kind, JSON.parse(this.getAttribute("linkTarget") ?? "{}") as Record<string, unknown>);
+		} catch {
+			return undefined; // a malformed linkTarget already renders inert; handleClick refuses it too
+		}
 	}
 }
 
