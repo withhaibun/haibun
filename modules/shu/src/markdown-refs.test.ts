@@ -2,7 +2,7 @@
 // jsdom: refLinksPlugin imports renderRef from shu-ref, which defines a custom element (extends HTMLElement).
 import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
-import { parseRefHref, refLinksPlugin } from "./markdown-refs.js";
+import { parseRefHref, refLinksPlugin, renderRefProse } from "./markdown-refs.js";
 
 const isType = (name: string) => name === "FieldReport" || name === "SiteSurvey";
 
@@ -41,5 +41,31 @@ describe("refLinksPlugin", () => {
 		expect(html).toContain('<shu-ref kind="entity"');
 		expect(html).toContain("&quot;persistedAs&quot;:&quot;FieldReport&quot;");
 		expect(html).toContain("&quot;id&quot;:&quot;did:example:report-1&quot;");
+	});
+});
+
+describe("renderRefProse", () => {
+	const isType = (name: string) => name === "Principal";
+
+	it("turns a type link in a description into a live reference, so a description names a type rather than re-explaining it", () => {
+		const html = renderRefProse("The document a [party](#Principal)’s DID resolves to.", isType);
+		expect(html).toContain("<shu-ref");
+		expect(html).toContain("Principal");
+		expect(html).toContain("party"); // the author's words, not the type name, are what the reader reads
+	});
+
+	it("leaves an ordinary anchor and a link to no known type as plain text", () => {
+		expect(renderRefProse("see [below](#notes)", isType)).not.toContain("shu-ref");
+		expect(renderRefProse("see [that](#Nonesuch)", isType)).not.toContain("shu-ref");
+	});
+
+	it("renders a description as one sentence — no paragraph wrapper to break the line it sits on", () => {
+		expect(renderRefProse("A plain description.", isType)).toBe("A plain description.");
+	});
+
+	it("renders markup a description carries as text — a description is prose, not a document body", () => {
+		const html = renderRefProse('<img src=x onerror="alert(1)"> plain', isType);
+		expect(html).not.toContain("<img"); // escaped, so nothing of it is live
+		expect(html).toContain("&lt;img");
 	});
 });

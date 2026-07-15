@@ -8,7 +8,8 @@
  * link is left as a plain anchor. The id may itself contain colons (a DID), so the type/id split is on the FIRST
  * colon only.
  */
-import type MarkdownIt from "markdown-it";
+import MarkdownIt from "markdown-it";
+import DOMPurify from "dompurify";
 import { renderRef } from "./components/shu-ref.js";
 
 export type TRefHref = { kind: "domain"; target: { domain: string } } | { kind: "entity"; target: { persistedAs: string; id: string } };
@@ -48,4 +49,25 @@ export function refLinksPlugin(md: MarkdownIt, isType: (name: string) => boolean
 			}
 		}
 	});
+}
+
+/** The shu-ref attributes a rewritten reference carries; DOMPurify lowercases attribute names, so `linkTarget` is
+ *  allowlisted as `linktarget`. */
+const REF_SANITIZE_OPTS = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "linktarget", "text"] };
+
+/** One renderer for every prose surface: built once, since a MarkdownIt carries its plugin rules. */
+let proseRenderer: MarkdownIt | undefined;
+
+/**
+ * Render a SHORT piece of prose — a type's description, a step's — with its `#Type` / `#Type:id` links live, so a
+ * description names another type by linking to it rather than re-explaining it wherever it comes up. Inline-only: a
+ * description is a sentence, so it gets no paragraphs, headings or lists, and no raw HTML — unlike a document body,
+ * whose author is the run. Sanitized, because a description travels from the served concern catalog.
+ */
+export function renderRefProse(text: string, isType: (name: string) => boolean): string {
+	if (!proseRenderer) {
+		proseRenderer = new MarkdownIt({ html: false, linkify: false, typographer: true });
+		refLinksPlugin(proseRenderer, isType);
+	}
+	return DOMPurify.sanitize(proseRenderer.renderInline(text), REF_SANITIZE_OPTS);
 }
