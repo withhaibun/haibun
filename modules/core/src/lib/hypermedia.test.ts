@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { buildConcernCatalog, composeDisplayLabel, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
 import type { THypermediaTopology } from "./resources.js";
-import { LinkRelations } from "./resources.js";
+import { LinkRelations, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, commentDomainDefinition, principalDomainDefinition } from "./resources.js";
 
 const props = (o: Record<string, unknown>) => (f: string) => o[f];
 
@@ -44,6 +44,54 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 	it("falls to the subject id when nothing resolves", () => {
 		expect(composeDisplayLabel({ rels: {}, getProperty: () => undefined, bodyContents: [], id: "n1" })).toBe("n1");
 		expect(composeDisplayLabel({ rels: undefined, getProperty: () => undefined, id: "n2" })).toBe("n2");
+	});
+
+	it("titles a type by the labeling property its own vocabulary declares, when it has no shared headline", () => {
+		// oa:exact is literal-ranged, so the selector's title is that property's value — read off the node itself.
+		const rels = { exact: LinkRelations.EXACT.rel, id: LinkRelations.IDENTIFIER.rel };
+		const label = composeDisplayLabel({ rels, getProperty: props({ exact: "a passage inside the document", id: "sel-1" }), displayLabel: { rel: LinkRelations.EXACT.rel }, id: "sel-1" });
+		expect(label).toBe("a passage inside the document");
+	});
+
+	it("titles a proxy THROUGH an iri-ranged labeling property — by the label of what it stands for", () => {
+		// oa:hasSelector is iri-ranged: the SpecificResource has no text of its own, so its title is its selector's.
+		const rels = { id: LinkRelations.IDENTIFIER.rel };
+		const args = { rels, getProperty: props({ id: "sr-1" }), id: "sr-1" };
+		expect(composeDisplayLabel({ ...args, displayLabel: { rel: LinkRelations.HAS_SELECTOR.rel, linkedLabel: "a passage inside the document" } })).toBe("a passage inside the document");
+		// Nothing at the far end (an unresolved or access-filtered target) falls through to the id, never to a blank title.
+		expect(composeDisplayLabel({ ...args, displayLabel: { rel: LinkRelations.HAS_SELECTOR.rel } })).toBe("sr-1");
+		expect(composeDisplayLabel({ ...args, displayLabel: { rel: LinkRelations.HAS_SELECTOR.rel, linkedLabel: "  " } })).toBe("sr-1");
+	});
+
+	it("an explicit rdfs:label outranks the type's declared labeling property — the reader's title wins", () => {
+		const rels = { exact: LinkRelations.EXACT.rel, label: LinkRelations.LABEL.rel };
+		const label = composeDisplayLabel({ rels, getProperty: props({ exact: "the quote", label: "What this marks" }), displayLabel: { rel: LinkRelations.EXACT.rel }, id: "sel-1" });
+		expect(label).toBe("What this marks");
+	});
+
+	it("a declared labeling property outranks the shared headline — the type's own vocabulary is more specific", () => {
+		const rels = { exact: LinkRelations.EXACT.rel, name: LinkRelations.NAME.rel };
+		expect(composeDisplayLabel({ rels, getProperty: props({ exact: "the quote", name: "generic name" }), displayLabel: { rel: LinkRelations.EXACT.rel }, id: "x" })).toBe("the quote");
+	});
+
+	it("the real core types declare a labeling property exactly where the shared headline cannot title them", () => {
+		const topologyOf = (d: { topology: unknown }) => d.topology as THypermediaTopology;
+		expect(topologyOf(textQuoteSelectorDomainDefinition).displayLabel).toBe(LinkRelations.EXACT.rel);
+		expect(topologyOf(specificResourceDomainDefinition).displayLabel).toBe(LinkRelations.HAS_SELECTOR.rel);
+		// A Comment says what it is by its own note text (as:name / content) — no vocabulary-specific title needed.
+		expect(topologyOf(commentDomainDefinition).displayLabel).toBeUndefined();
+		expect(topologyOf(principalDomainDefinition).displayLabel).toBeUndefined();
+	});
+
+	it("rejects a declared labeling property the type does not carry — it would silently title nothing", () => {
+		const topology: THypermediaTopology = {
+			persistedAs: "Thing",
+			id: "id",
+			properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+			displayLabel: LinkRelations.EXACT.rel,
+		};
+		const domains = { thing: { selectors: ["thing"], description: "d", schema: z.object({ id: z.string(), generatedAtTime: z.string() }), topology } };
+		expect(() => buildConcernCatalog(domains)).toThrow(/displayLabel .* no property or edge with that rel/);
 	});
 
 	it("picks the shortest non-empty body — the concise summary, not a blob", () => {

@@ -1,6 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import {
+	COMMENT_LABEL,
+	PRINCIPAL_LABEL,
+	SPECIFIC_RESOURCE_LABEL,
+	TEXT_QUOTE_SELECTOR_LABEL,
+	LinkRelations,
+	commentDomainDefinition,
+	principalDomainDefinition,
+	bodyDomainDefinition,
+	specificResourceDomainDefinition,
+	textQuoteSelectorDomainDefinition,
+} from "@haibun/core/lib/resources.js";
 import { projectFilterClusters, effectiveHiddenTypes } from "./graph-filter-projection.js";
+import { siteMetadataFromConcerns, setSiteMetadata, getDisplayLabelRel } from "./rels-cache.js";
 
 function quad(namedGraph: string, subject: string, timestamp = 1): TQuad {
 	return { namedGraph, subject, predicate: "p", object: "o", timestamp };
@@ -118,5 +133,27 @@ describe("effectiveHiddenTypes (instrumentation default + user overrides)", () =
 
 	it("honours an explicit hide of a type not yet present in the set", () => {
 		expect(effectiveHiddenTypes(["Person"], { Email: false })).toEqual(["Email"]);
+	});
+});
+
+describe("declared labeling property (topology.displayLabel) reaches the browser", () => {
+	const metadata = siteMetadataFromConcerns(
+		buildConcernCatalog(
+			mapDefinitionsToDomains([commentDomainDefinition, principalDomainDefinition, bodyDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition]),
+		),
+	);
+	const types = [COMMENT_LABEL, PRINCIPAL_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL];
+
+	beforeEach(() => setSiteMetadata(metadata));
+
+	it("serves each type's labeling property, and none for a type titled by the shared headline", () => {
+		expect(getDisplayLabelRel(TEXT_QUOTE_SELECTOR_LABEL)).toBe(LinkRelations.EXACT.rel);
+		expect(getDisplayLabelRel(SPECIFIC_RESOURCE_LABEL)).toBe(LinkRelations.HAS_SELECTOR.rel);
+		expect(getDisplayLabelRel(COMMENT_LABEL)).toBeUndefined();
+		expect(getDisplayLabelRel(PRINCIPAL_LABEL)).toBeUndefined();
+	});
+
+	it("hides no domain type for being hard to title — a declared type draws like any other", () => {
+		expect(effectiveHiddenTypes(types, {})).toEqual([]);
 	});
 });
