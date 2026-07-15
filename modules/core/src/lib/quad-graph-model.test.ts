@@ -55,21 +55,21 @@ describe("QuadGraphModel", () => {
 	});
 
 	it("preserves every distinct edge object for one (subject,predicate) — the multi-valued attribution (§7-2)", () => {
-		// A shared credential attributed to three principals across a federated union — all three edges must survive.
+		// A shared record attributed to three principals across a federated union — all three edges must survive.
 		const m = new QuadGraphModel(10, noRels);
 		m.merge([
-			qe("cred", "wasAttributedTo", "did:issuer", "Principal", "VerifiableCredential"),
-			qe("cred", "wasAttributedTo", "did:holder", "Principal", "VerifiableCredential"),
-			qe("cred", "wasAttributedTo", "did:verifier", "Principal", "VerifiableCredential"),
+			qe("rec", "wasAttributedTo", "did:alpha", "Principal", "FieldReport"),
+			qe("rec", "wasAttributedTo", "did:beta", "Principal", "FieldReport"),
+			qe("rec", "wasAttributedTo", "did:gamma", "Principal", "FieldReport"),
 		]);
-		const attributions = m.quads.filter((x) => x.subject === "cred" && x.predicate === "wasAttributedTo").map((x) => x.object);
-		expect(attributions).toEqual(["did:issuer", "did:holder", "did:verifier"]);
+		const attributions = m.quads.filter((x) => x.subject === "rec" && x.predicate === "wasAttributedTo").map((x) => x.object);
+		expect(attributions).toEqual(["did:alpha", "did:beta", "did:gamma"]);
 	});
 
 	it("still dedups an edge re-arriving with the SAME object (the property-quad/edge-quad collapse)", () => {
 		const m = new QuadGraphModel(10, noRels);
-		m.merge([qe("cred", "wasAttributedTo", "did:issuer", "Principal", "VerifiableCredential", 1)]);
-		m.merge([qe("cred", "wasAttributedTo", "did:issuer", "Principal", "VerifiableCredential", 2)]);
+		m.merge([qe("rec", "wasAttributedTo", "did:alpha", "Principal", "FieldReport", 1)]);
+		m.merge([qe("rec", "wasAttributedTo", "did:alpha", "Principal", "FieldReport", 2)]);
 		expect(m.quads.filter((x) => x.predicate === "wasAttributedTo")).toHaveLength(1);
 	});
 

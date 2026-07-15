@@ -191,7 +191,7 @@ export class StepCaller extends HTMLElement {
 		// the same id from either side of the wire — `normalizeStepKey` strips
 		// the stepper prefix and camelCase-splits the action name, producing a
 		// stable kebab-case slug. gwta-derived slugs vary with optional words
-		// between params (e.g. "verify credential X as Y") and diverge from the
+		// between params (e.g. "check record X against Y") and diverge from the
 		// test helper's `stepInput(method, …)`.
 		const key = this.getAttribute("method") || this.getAttribute("step") || this.getAttribute("gwta") || "";
 		const callIndex = this.getAttribute("call-index") ?? "0";

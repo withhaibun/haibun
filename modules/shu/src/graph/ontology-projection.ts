@@ -289,7 +289,7 @@ export function withOntologySchema(
 }
 
 /** Add each type's declared standard-vocabulary terms to the (already-pruned) ontology as Property nodes — but only the
- *  terms NOT already present as a haibun rel (compared by IRI local name, so cred:issuer and the full VC issuer IRI are
+ *  terms NOT already present as a haibun rel (compared by IRI local name, so a compact term and its full IRI form are
  *  one term). Each injected term is stamped inData=false and given an rdfs:domain edge to its type's Class (added if the
  *  type has no instances), so it renders attached to the type and survives scopeSchemaToType. */
 function injectStandardVocab(ontology: TClusteredQuads, standardVocab: Map<string, TStandardTerm[]>): void {

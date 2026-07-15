@@ -167,8 +167,8 @@ describe("extractFieldEntries", () => {
 
 describe("extractBodyLiterals", () => {
 	it("extracts a literal body-presentation field via its label rel (a SeqPath's stepText → content)", () => {
-		const seq = { id: "0.1.2", stepText: "create issuer {issuer}", actionStatus: "passed" };
-		expect(extractBodyLiterals(seq, "SeqPath")).toEqual({ stepText: "create issuer {issuer}" });
+		const seq = { id: "0.1.2", stepText: "create widget {widget}", actionStatus: "passed" };
+		expect(extractBodyLiterals(seq, "SeqPath")).toEqual({ stepText: "create widget {widget}" });
 	});
 
 	it("extracts a field whose NAME is itself a body rel (content), even without a label", () => {

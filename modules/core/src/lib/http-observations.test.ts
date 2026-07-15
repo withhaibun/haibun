@@ -8,7 +8,7 @@ import { QuadStore } from "./quad-store.js";
 const MOUNTED: IRouteRegistry = {
 	mounted: {
 		get: { "/app": "1", "/.well-known/did.json": "1", "/status/:purpose": "1", "/sse": "1" },
-		post: { "/rpc/:_method": "1", "/credentials/verify": "1" },
+		post: { "/rpc/:_method": "1", "/reports/check": "1" },
 	},
 };
 const PATHS = registeredPaths(MOUNTED);

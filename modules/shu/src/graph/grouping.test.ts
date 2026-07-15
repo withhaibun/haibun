@@ -8,7 +8,7 @@ describe("groupKeyOf", () => {
 	});
 
 	it("keys by HypermediaRole under the role axis", () => {
-		expect(groupKeyOf({ type: "VerifiableCredential", properties: { [HYPERMEDIA_ROLE_KEY]: "did:web:issuer" } }, "role")).toBe("did:web:issuer");
+		expect(groupKeyOf({ type: "Record", properties: { [HYPERMEDIA_ROLE_KEY]: "did:web:maker" } }, "role")).toBe("did:web:maker");
 	});
 
 	it("buckets an unattributed node under the role axis", () => {
@@ -20,9 +20,9 @@ describe("groupKeyOf", () => {
 	});
 
 	it("keys by the agent at ANY actor predicate — the axis string IS the predicate, nothing enumerates it", () => {
-		const vc = { type: "VerifiableCredential", properties: { issuer: "did:web:issuer", holder: "did:web:holder" } };
-		expect(groupKeyOf(vc, "issuer")).toBe("did:web:issuer"); // group by a SPECIFIC actor, not the winner
-		expect(groupKeyOf(vc, "holder")).toBe("did:web:holder");
+		const vc = { type: "Record", properties: { maker: "did:web:maker", keeper: "did:web:keeper" } };
+		expect(groupKeyOf(vc, "maker")).toBe("did:web:maker"); // group by a SPECIFIC actor, not the winner
+		expect(groupKeyOf(vc, "keeper")).toBe("did:web:keeper");
 	});
 
 	it("keys by the serving site (the federation stamp) with no code branch for it", () => {
@@ -39,7 +39,7 @@ describe("containerLabelOf", () => {
 		expect(containerLabelOf("Email", "type", new Map([["Email", "ignored"]]))).toBe("Email");
 	});
 	it("resolves the party's display label under the role axis", () => {
-		expect(containerLabelOf("did:web:issuer", "role", new Map([["did:web:issuer", "Coastal Fisheries Authority"]]))).toBe("Coastal Fisheries Authority");
+		expect(containerLabelOf("did:web:maker", "role", new Map([["did:web:maker", "Coastal Fisheries Authority"]]))).toBe("Coastal Fisheries Authority");
 	});
 	it("falls back to the key when no label is known", () => {
 		expect(containerLabelOf("did:web:x", "role", new Map())).toBe("did:web:x");
