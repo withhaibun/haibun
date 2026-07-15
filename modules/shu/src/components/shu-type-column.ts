@@ -15,6 +15,10 @@ import { shuBaseStyles } from "./styles.js";
 import { fetchIndividuals } from "../pane-fetch.js";
 import { appAccessLevel, idOf, instanceLabel } from "../util.js";
 import { getEdgeRanges, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
+import { renderRefProse } from "../markdown-refs.js";
+
+/** A `#Type` link resolves against the site's own declared types — the same test every ref surface uses. */
+const isKnownType = (name: string): boolean => getRels(name) !== undefined;
 import { renderRef } from "./shu-ref.js";
 import { SHU_EVENT } from "../consts.js";
 import { ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
@@ -167,7 +171,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 				<label class="schema-scope"><input type="checkbox" data-testid="type-schema-scope" .checked=${this.state.fullSchema} @change=${this.onScopeChange} /> entire schema</label>
 				<shu-graph data-testid="type-schema-graph" .products=${{ graph: this.state.fullSchema ? buildFullSchemaGraph(type) : buildTypeSchemaGraph(type) }}></shu-graph>`;
 		return html`
-			${desc ? html`<p class="type-desc" data-testid="type-description">${desc}</p>` : ""}
+			${desc ? html`<p class="type-desc" data-testid="type-description">${unsafeHTML(renderRefProse(desc, isKnownType))}</p>` : ""}
 			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid="type-system-schema">A system schema — defined in haibun's own vocabulary.</p>` : ""}
 			${graphView}
 			${hasPresenter ? "" : html`<div class="instances">
