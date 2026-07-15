@@ -7,11 +7,24 @@ import { fileURLToPath } from "node:url";
  * not reassemble the raw RPC/store primitives itself. This test fails the build when one does, so the next feature
  * reuses a controller instead of reinventing the plumbing.
  */
-const FORBIDDEN = /\b(conduit|requireStep|findStep|getStore)\s*\(/;
+// `callStep` counts. It is the RPC gate, so a component calling it composes its own read/write path instead of holding
+// a controller — the thing this guards against — and listing only the primitives let that through unnoticed.
+// The optional `<...>` is load-bearing: a typed call reads `callStep<{ items: T[] }>(…)`, which a bare `name\s*\(`
+// never matches, so every generic call site would slip past the guard.
+const FORBIDDEN = /\b(conduit|requireStep|findStep|getStore|callStep)\s*(<[^()]*>)?\s*\(/;
 
 // Components that predate the controller pattern and still reach the RPC directly. This list may only SHRINK: migrate
 // one onto a controller, then delete it here. A NEW component that reaches the RPC fails the first test below.
-const PENDING_MIGRATION = new Set(["shu-actions-bar.ts", "shu-affordances-panel.ts", "shu-domain-chain-view.ts", "shu-kihan-chat.ts", "shu-step-caller.ts", "shu-step-detail.ts"]);
+const PENDING_MIGRATION = new Set([
+	"shu-actions-bar.ts",
+	"shu-affordances-panel.ts",
+	"shu-domain-chain-view.ts",
+	"shu-kihan-chat.ts",
+	"shu-step-caller.ts",
+	"shu-step-detail.ts",
+	"shu-filter-column.ts",
+	"shu-thread-column.ts",
+]);
 
 const componentsDir = fileURLToPath(new URL("../components/", import.meta.url));
 const componentFiles = readdirSync(componentsDir).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));

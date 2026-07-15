@@ -117,6 +117,14 @@ export const EntityColumnSchema = z.object({
 	persistedAs: z.string(),
 	loading: z.boolean().default(false),
 	error: z.string().optional(),
+	/** How this individual was served: from the in-memory session cache or the persisted browser store (offline), vs a
+	 *  live fetch (undefined). Surfaced as a badge so a reader knows the view may be a stored copy, not freshly fetched. */
+	fromStore: z.enum(["cache", "offline"]).optional(),
+	/** Show annotations anchored in this body inline (on by default). When the body has annotations this renders the
+	 *  inline annotated view; off returns to the plain body iframe. Remembered per column via persistFields. */
+	showAnnotations: z.boolean().default(true),
+	/** Enter the inline annotated view to author the first annotation on a body that has none yet (transient). */
+	annotateMode: z.boolean().default(false),
 });
 
 // --- Filter column ---
