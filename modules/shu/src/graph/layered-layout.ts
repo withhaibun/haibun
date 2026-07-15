@@ -1,7 +1,7 @@
 /**
  * Layered (Sugiyama-lite) layout for a directed graph: assign each node a layer by longest path from a source,
  * stack nodes within a layer along the cross axis, and place layers along the flow axis per `direction`. Deterministic
- * and dependency-free so it lays out the same in a browser paint and in a Node bake, and is asserted without a DOM.
+ * and dependency-free so it lays out the same in a browser paint and in a report generated in Node, and is asserted without a DOM.
  */
 import type { TGraph } from "./types.js";
 

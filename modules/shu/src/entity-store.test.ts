@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The entity store's resolution ladder and freshness, driven through the real seams: the conduit dispatch answers the
+ * The entity store's resolution ladder and freshness, driven through the real interfaces: the conduit dispatch answers the
  * `getIndividualWithEdges` and `annotations` steps, and emitted events drive the live-quad path.
  *
  * The `offline` provenance (a copy served from the persisted browser store when the fetch cannot reach the server) is

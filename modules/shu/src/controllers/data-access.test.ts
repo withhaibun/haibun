@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
  */
 // `callStep` counts. It is the RPC gate, so a component calling it composes its own read/write path instead of holding
 // a controller — the thing this guards against — and listing only the primitives let that through unnoticed.
-// The optional `<...>` is load-bearing: a typed call reads `callStep<{ items: T[] }>(…)`, which a bare `name\s*\(`
+// The optional `<...>` matters: a typed call reads `callStep<{ items: T[] }>(…)`, which a bare `name\s*\(`
 // never matches, so every generic call site would slip past the guard.
 const FORBIDDEN = /\b(conduit|requireStep|findStep|getStore|callStep)\s*(<[^()]*>)?\s*\(/;
 

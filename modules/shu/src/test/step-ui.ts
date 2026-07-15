@@ -220,7 +220,7 @@ export function createStepUI(wp: WebPlaywright) {
 	 * `expandActionsBar` when starting from a collapsed state. The type selector is a <shu-combobox>: focus it,
 	 * type the label to filter, wait for the matching option to actually render, then Enter to pick it.
 	 *
-	 * Waiting for an option to render before Enter is load-bearing: the option list is populated asynchronously
+	 * Waiting for an option to render before Enter is required: the option list is populated asynchronously
 	 * from the domain catalog, and a blind Enter on a not-yet-loaded list silently no-ops — the type never
 	 * changes and the query keeps the previous type (a stale row of the wrong type then gets clicked downstream).
 	 * The wait comes after setValue because typing (not the click) is what reliably opens the dropdown across

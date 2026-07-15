@@ -131,8 +131,8 @@ describe("projectDomainChain", () => {
 		expect(edge).toBeTruthy();
 	});
 
-	it("does NOT bake the selected node into the projection — selection is a UI overlay handled in the view", () => {
-		// Selection is a CSS class applied to the rendered SVG by the view, not baked
+	it("does NOT write the selected node into the projection — selection is a UI overlay handled in the view", () => {
+		// Selection is a CSS class applied to the rendered SVG by the view, not written
 		// into the projection: the projection returns the same kinds regardless of which
 		// node is open, preserving each node's base resolver verdict colour.
 		const snap: TAffordancesSnapshot = {

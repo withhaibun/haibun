@@ -1,7 +1,7 @@
 /**
  * SVG paint for a graph: lays the graph out (layered) and emits self-contained SVG markup with group borders, kind
  * colours, edge arrows, and per-node hover-hint titles. `graphToSvg` is pure markup so the same paint runs in a
- * browser component and in a Node report bake; `SvgGraphRenderer` wires node click/hover/leave on the painted DOM.
+ * browser component and in a report generated in Node; `SvgGraphRenderer` wires node click/hover/leave on the painted DOM.
  */
 import { SHU_EVENT } from "../consts.js";
 import { layeredLayout, type NodeBox } from "./layered-layout.js";

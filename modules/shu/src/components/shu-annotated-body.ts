@@ -7,7 +7,7 @@
  * Recogito text annotator anchors each stored TextQuoteSelector and highlights it; and each note is shown in a
  * MARGIN RAIL beside the text, its card vertically aligned to its highlight. Hovering or clicking a highlight
  * selects its card and vice-versa. A linking annotation's card carries a "go to" that scrolls to the section it
- * cross-references. Selecting a passage arms an "Annotate" affordance that writes a new note through the same RPC
+ * cross-references. Selecting a passage offers an "Annotate" affordance that writes a new note through the same RPC
  * gate as every step-write, showing an optimistic card until the reload brings the stored one.
  *
  * Light DOM (createRenderRoot → this): the annotator's positioned highlight layer and this component's own scoped
@@ -116,7 +116,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	/** The scheduled deferred mount's frame handle: set while one is pending, so a re-render in that window does not
 	 *  schedule a second, and a disconnect can cancel it before it mounts onto detached content. */
 	private pendingMount?: number;
-	/** The passage the reader has selected to annotate, once the "Annotate" affordance is armed; null when idle or drafting. */
+	/** The passage the reader has selected to annotate, once the "Annotate" affordance is offered; null when idle or drafting. */
 	@state() private accessor draft: DraftSelection | null = null;
 	/** True while the note-input popup for the current draft is open. */
 	@state() private accessor drafting = false;
@@ -144,7 +144,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 			this.resizeObserver = new ResizeObserver(() => this.placeCards());
 			this.autoTeardown(() => this.resizeObserver?.disconnect());
 		}
-		// Authoring: a text selection inside the body arms an "Annotate" affordance; mouseup is when the selection settles.
+		// Authoring: a text selection inside the body offers an "Annotate" affordance; mouseup is when the selection settles.
 		this.autoListen(this, "mouseup", () => this.onSelectionSettled());
 	}
 
@@ -322,9 +322,9 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		return typeof window !== "undefined" ? window.getSelection() : null;
 	}
 
-	/** A settled text selection inside the body arms the "Annotate" affordance for that passage. The selection's exact
+	/** A settled text selection inside the body offers the "Annotate" affordance for that passage. The selection's exact
 	 *  text plus surrounding context (prefix/suffix) determine reliably what is being annotated — a short or repeated
-	 *  quote still anchors to the right spot. A collapsed or out-of-content selection clears any armed draft. */
+	 *  quote still anchors to the right spot. A collapsed or out-of-content selection clears any offered draft. */
 	private onSelectionSettled(): void {
 		if (this.drafting) return;
 		const container = this.contentEl();
@@ -457,7 +457,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	}
 
 	/** The authoring affordance, floating over the content at the selection: an "Annotate" button once a selection is
-	 *  armed, then a note input. Positioned at the selection's own x/y (not in the rail), so it appears in the same place
+	 *  offered, then a note input. Positioned at the selection's own x/y (not in the rail), so it appears in the same place
 	 *  whether or not the document already has annotations. Present only when the body knows its individual (sourceLabel). */
 	private renderAuthoring(): TemplateResult {
 		if (!this.draft || !this.sourceLabel) return html``;
