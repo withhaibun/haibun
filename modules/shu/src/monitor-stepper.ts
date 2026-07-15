@@ -523,6 +523,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		getClusteredQuads: {
 			gwta: "get clustered quads",
 			productsSchema: ClusteredQuadsSchema,
+			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
+			retainProducts: false,
 			action: async (args: { perTypeLimit?: number | string; types?: string[] | string; accessLevel?: string; scope?: string } = {}) => {
 				const store = this.getWorld().shared.getStore();
 				// RPC params arrive stringified through the synthetic-step plumbing; coerce both back to native shapes.

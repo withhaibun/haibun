@@ -147,20 +147,25 @@ async function getStepList(): Promise<StepListResponse> {
 	}
 }
 
-/** Hydration data embedded in the HTML by monitor-stepper at endFeature. */
+/** Hydration data embedded in the HTML by monitor-stepper at endFeature. The run's events ride inside `rpcCache`, under
+ *  the `getEvents` response the client would otherwise have fetched. */
 export interface ShuHydration {
-	events?: Array<Record<string, unknown>>;
 	rpcCache?: Record<string, unknown>;
 	viewHash?: string;
 }
 
 let hydrationData: ShuHydration | null = null;
 
+/** Parse the embedded hydration and drop the text it was parsed from: the element holds the whole run — every event —
+ *  as one string, which would sit in the DOM for the life of the page beside the objects parsed out of it. Read once
+ *  (`hydrateFromDom`, at boot), so nothing reads it again. */
 function readHydration(): ShuHydration | null {
 	const el = document.getElementById("shu-hydration");
 	if (!el?.textContent) return null;
+	const text = el.textContent;
+	el.textContent = "";
 	try {
-		return JSON.parse(el.textContent) as ShuHydration;
+		return JSON.parse(text) as ShuHydration;
 	} catch (err) {
 		failFastOrLog("[shu] Failed to parse hydration data:", err);
 		return null;
