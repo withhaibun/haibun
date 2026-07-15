@@ -302,7 +302,7 @@ describe("shu-affordances-panel", () => {
 
 	it("a burst of change signals coalesces to ONE snapshot refetch (no spurious-RPC flood)", async () => {
 		// A run emits one `affordances.` change signal per step, and a new subscriber is replayed the whole history.
-		// Refetching per signal is the RPC flood (hundreds per run); the panel arms one timer per coalesce window
+		// Refetching per signal is the RPC flood (hundreds per run); the panel starts one timer per coalesce window
 		// (REFRESH_COALESCE_MS) and the burst rides it — exactly one GoalResolutionStepper-showAffordances RPC.
 		let snapshotCalls = 0;
 		setConduit(

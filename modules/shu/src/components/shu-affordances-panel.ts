@@ -136,7 +136,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	private _refreshTimer: ReturnType<typeof setTimeout> | undefined;
-	/** One refetch per coalesce window, no matter how many change signals arrive — first signal arms the timer, the burst rides it. */
+	/** One refetch per coalesce window, no matter how many change signals arrive — the first signal starts the timer, and the rest fall inside it. */
 	private scheduleRefresh(): void {
 		if (this._refreshTimer !== undefined) return;
 		this._refreshTimer = setTimeout(() => {

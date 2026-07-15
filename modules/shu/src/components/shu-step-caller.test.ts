@@ -64,7 +64,7 @@ describe("shu-step-caller", () => {
 		expect(html).not.toMatch(/name="issuer"[^.]/);
 	});
 
-	it("setting `call-index` before appendChild yields a testid with the index baked in (regression: live SPA was emitting testids without the index)", () => {
+	it("setting `call-index` before appendChild yields a testid carrying the index (regression: live SPA was emitting testids without the index)", () => {
 		const descriptor = {
 			method: "IssueStepper-createIssuer",
 			pattern: "create issuer {issuer: issuer}",
