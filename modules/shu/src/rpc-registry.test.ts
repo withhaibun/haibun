@@ -3,8 +3,8 @@
  * Live and offline pages both ship a `<script id="shu-hydration">` element —
  * the live SSR template injects `{}` so the page shape is stable. The
  * distinguishing signal is whether `rpcCache` is present:
- *   - live serve: `{}`                                → no rpcCache → live
- *   - standalone save: `{events, rpcCache, viewHash}` → rpcCache    → offline
+ *   - live serve: `{}`                         → no rpcCache → live
+ *   - standalone save: `{rpcCache, viewHash}` → rpcCache    → offline
  *
  * If a future change widens the offline signal (e.g. presence of the script
  * alone), every live page would erroneously enter offline mode and the very
@@ -50,5 +50,14 @@ describe("isStandaloneMode", () => {
 	it("returns false when there is no hydration script", () => {
 		hydrateFromDom();
 		expect(isStandaloneMode()).toBe(false);
+	});
+
+	// The embedded payload carries the whole run — every event — as one string. Parsing it is its only reader, so the
+	// text goes: left in the DOM it would hold a second copy of the run beside the objects parsed out of it.
+	it("does not keep the embedded run in the DOM once it has been parsed", () => {
+		setHydration({ rpcCache: { "MonitorStepper-getEvents": { events: [{ id: "0.1", message: "x" }] } }, viewHash: "" });
+		hydrateFromDom();
+		expect(document.getElementById("shu-hydration")?.textContent).toBe("");
+		expect(isStandaloneMode()).toBe(true); // the mode is decided by the parsed data, not the DOM text
 	});
 });
