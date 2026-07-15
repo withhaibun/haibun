@@ -61,9 +61,9 @@ describe("RemoteQuadStore", () => {
 	});
 
 	it("surfaces a serving-side refusal as an error, never a silent empty result", async () => {
-		const denyingFetch = (async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+		const denyingFetch = ((_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 			const body = JSON.parse(String(init?.body)) as { method: string };
-			const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json" } });
+			const json = (v: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json" } }));
 			if (body.method === "action.begin") return json({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:main" });
 			return json({ error: `${body.method}: capability store.write required` }, 422);
 		}) as typeof fetch;
