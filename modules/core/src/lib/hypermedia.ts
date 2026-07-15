@@ -232,13 +232,19 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			};
 		}
 
+		assertBoundPrefixes(label, domainKey, topology);
+
 		if (topology.displayLabel !== undefined) {
 			const carriers = [...Object.values(properties).map((p) => p.rel), ...Object.values(edges).map((e) => e.rel)];
 			if (!carriers.includes(topology.displayLabel))
 				throw new Error(`persisted domain "${label}" (${domainKey}) declares displayLabel "${topology.displayLabel}" but has no property or edge with that rel`);
 		}
 
-		const jsonSchema = toJsonSchemaCached(domain.schema);
+		// The domain's own description, carried onto its served schema: a type describes itself ONCE, and every surface —
+		// the type's view, a product's `_description`, a step's tool schema — reads that one text. A `.describe()` on the
+		// schema would be a second answer to the same question, free to drift from the one a reader is shown. Spread, never
+		// mutated: toJsonSchemaCached memoizes by schema identity, and schemas are shared.
+		const jsonSchema = { ...toJsonSchemaCached(domain.schema), description: domain.description };
 
 		persisted[label] = HypermediaConcernSchema.parse({
 			domainKey,
@@ -619,23 +625,65 @@ function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
 	return "filter";
 }
 
+/** The CURIE prefix a term names, or "" for a bare local name or an absolute IRI (neither of which binds a vocabulary). */
+function curiePrefix(term: string): string {
+	if (term.startsWith("http://") || term.startsWith("https://")) return "";
+	const colon = term.indexOf(":");
+	return colon > 0 ? term.slice(0, colon) : "";
+}
+
+/**
+ * A type may not claim a term in a vocabulary it has not bound. Every CURIE a topology uses — its class (`type`), the
+ * classes it says it is a kind of (`subClassOf`), and the genuine IRIs its properties/edges declare — must resolve
+ * through a prefix core binds (STANDARD_NAMESPACES + hbn) or one the type declares itself (`topology.namespaces`).
+ *
+ * Unbound, the prefix still serves: `getJsonLdContext` emits the term and the reader's JSON-LD resolves it to nothing —
+ * a claim about a standard that no processor can follow, and nothing says so. The rel checks beside this one already
+ * hold a type to its own vocabulary; this holds it to the standards it names.
+ */
+function assertBoundPrefixes(label: string, domainKey: string, topology: THypermediaTopology): void {
+	const bound = new Set([...Object.keys(STANDARD_NAMESPACES), "hbn", ...Object.keys(topology.namespaces ?? {})]);
+	const claims: Array<[string, string]> = [];
+	if (topology.type) claims.push(["type", topology.type]);
+	for (const superClass of [topology.subClassOf ?? []].flat()) claims.push(["subClassOf", superClass]);
+	for (const [field, def] of Object.entries(topology.properties)) {
+		const iri = propertyIriOf(def);
+		if (iri) claims.push([`property "${field}"`, iri]);
+	}
+	for (const [edgeField, edgeDef] of Object.entries(topology.edges ?? {})) {
+		if (edgeDef.iri) claims.push([`edge "${edgeField}"`, edgeDef.iri]);
+	}
+	for (const [where, term] of claims) {
+		const prefix = curiePrefix(term);
+		if (prefix && !bound.has(prefix))
+			throw new Error(
+				`persisted domain "${label}" (${domainKey}) ${where} names "${term}", but the "${prefix}:" vocabulary is not bound — declare it in topology.namespaces so the served @context resolves it`,
+			);
+	}
+}
+
+/** The vocabularies core itself binds: the standards every domain may name, without declaring them. A consumer's own
+ *  prefixes are NOT here — each domain declares those in `topology.namespaces`. ONE source, so what is served and what
+ *  `assertBoundPrefixes` accepts cannot drift: a prefix that resolves in the context is exactly one a type may use. */
+const STANDARD_NAMESPACES: Record<string, string> = {
+	as: "https://www.w3.org/ns/activitystreams#",
+	foaf: "http://xmlns.com/foaf/0.1/",
+	dcterms: "http://purl.org/dc/terms/",
+	prov: "https://www.w3.org/ns/prov#",
+	sec: "https://w3id.org/security#",
+	sosa: "http://www.w3.org/ns/sosa/",
+	schema: "https://schema.org/",
+	oa: "http://www.w3.org/ns/oa#",
+	otel: "https://opentelemetry.io/schemas/",
+	rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+	rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+};
+
 /** Build JSON-LD context from domain topology. Derives URI mappings from domain property rels. */
 export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, haibunNs: string = HAIBUN_NS): Record<string, unknown> {
 	const context: Record<string, unknown> = {
 		"@version": 1.1,
-		as: "https://www.w3.org/ns/activitystreams#",
-		foaf: "http://xmlns.com/foaf/0.1/",
-		dcterms: "http://purl.org/dc/terms/",
-		prov: "https://www.w3.org/ns/prov#",
-		sec: "https://w3id.org/security#",
-		sosa: "http://www.w3.org/ns/sosa/",
-		schema: "https://schema.org/",
-		oa: "http://www.w3.org/ns/oa#",
-		otel: "https://opentelemetry.io/schemas/",
-		rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-		rdfs: "http://www.w3.org/2000/01/rdf-schema#",
-		// Consumer vocabularies (e.g. a credentials suite's prefixes) are NOT declared here — each consumer domain
-		// declares its own prefixes via topology.namespaces, merged below.
+		...STANDARD_NAMESPACES,
 		hbn: haibunNs,
 	};
 	// JSON-LD 1.1 type-scoped context. Each @type carries a nested @context mapping ITS field/edge terms to the genuine
