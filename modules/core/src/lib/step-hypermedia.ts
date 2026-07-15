@@ -43,9 +43,11 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 		[HYPERMEDIA.TYPE]: component ?? productsDomain,
 		[HYPERMEDIA.SUMMARY]: summary,
 	};
-	// Schemas register their description via Zod `.describe()`. When the producing domain has one, surface it inline on the product so consumers (human, LLM, agent) can interpret the result without a round-trip to `step.list`. The description travels with the data — that's the transparency contract.
-	const description = readSchemaDescription(domain?.schema);
-	if (description) markers[HYPERMEDIA.DESCRIPTION] = description;
+	// The producing domain's own description, surfaced inline so a consumer (human, LLM, agent) can interpret the result
+	// without a round-trip to `step.list` — the description travels with the data. It is the SAME text the type's view
+	// shows (buildConcernCatalog reads this field too): a domain describes itself once, and a second description on its
+	// schema would be a second answer to one question, free to drift from the one a reader is shown.
+	if (domain?.description) markers[HYPERMEDIA.DESCRIPTION] = domain.description;
 	if (component) {
 		markers[HYPERMEDIA.COMPONENT] = component;
 		markers.id = productsDomain;
@@ -55,13 +57,6 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 	const links = deriveActionLinks(productsDomain, products, steppers, world);
 	if (Object.keys(links).length > 0) markers[HYPERMEDIA.LINKS] = links;
 	return { ...actionResult, products: { ...products, ...markers } };
-}
-
-/** Pull the top-level `.describe()` text off a Zod schema if present — only the schema's own description, not field-level descriptions (those travel through `outputSchema` to `step.list`). */
-function readSchemaDescription(schema: unknown): string | undefined {
-	if (!schema || typeof schema !== "object") return undefined;
-	const desc = (schema as { description?: unknown; _def?: { description?: unknown } }).description ?? (schema as { _def?: { description?: unknown } })._def?.description;
-	return typeof desc === "string" && desc.length > 0 ? desc : undefined;
 }
 
 /**
