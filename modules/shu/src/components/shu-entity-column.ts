@@ -27,13 +27,13 @@ import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
-import { isReplyEdge, RESOURCE_LABEL, roleRels } from "@haibun/core/lib/resources.js";
-import { hasEventStream } from "../event-stream.js";
+import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
-import { callStep } from "../pane-fetch.js";
-import { derefStoredEntity } from "../quads-snapshot.js";
-import { getCachedEntity, setCachedEntity, subscribeEntities, type TEntityResult } from "../entity-store.js";
-import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription } from "../rels-cache.js";
+import { EntityController } from "../controllers/index.js";
+import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
+import type { AnnotationView } from "../annotation-resolver.js";
+import "./shu-annotated-body.js";
+import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
 import { openRef } from "./ref-navigation.js";
 
@@ -55,6 +55,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 		.entity-header { padding: var(--shu-space-2) 0; }
+		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); padding: 1px var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-faded); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); }
+		.body-reading { padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; }
 		.entity-type { font-weight: 600; color: var(--shu-accent); font-size: 0.85em; letter-spacing: 0.5px; margin-right: var(--shu-space-4); }
 		.entity-id { color: var(--shu-fg-muted); word-break: break-all; }
 		.entity-type-description { color: var(--shu-fg-muted); font-size: 0.85em; padding: var(--shu-space-1) 0; }
@@ -71,6 +73,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.entity-detail { margin: var(--shu-space-1) 0; font-size: 0.9em; }
 		.detail-toggle { cursor: pointer; color: var(--shu-fg-faded); font-size: 0.8em; padding: var(--shu-space-1) 0; }
 		.detail-toggle:hover { color: var(--shu-fg-muted); }
+		/* The view-settings surface shows only when the pane's ⚙ controls toggle is on (sets data-show-controls), like the document column. */
+		.entity-controls { padding: var(--shu-space-1) 0 var(--shu-space-2); border-bottom: var(--shu-border-w) solid var(--shu-border); margin-bottom: var(--shu-space-2); }
+		:host(:not([data-show-controls])) .entity-controls { display: none; }
+		.annotation-toggle { display: flex; gap: var(--shu-space-2); align-items: center; color: var(--shu-fg-muted); font-size: var(--shu-font-sm); cursor: pointer; }
+		.annotate-enter { align-self: flex-start; margin: var(--shu-space-1) 0; padding: 2px var(--shu-space-3); font-size: var(--shu-font-sm); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); color: var(--shu-accent); cursor: pointer; }
+		.annotate-enter:hover { border-color: var(--shu-accent); }
 		.content-toolbar { display: flex; gap: var(--shu-space-2); padding: var(--shu-space-1) 0; align-items: center; }
 		.content-switcher { display: flex; gap: var(--shu-space-2); }
 		.content-switch-btn { font-size: 0.75em; padding: 1px var(--shu-space-3); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); cursor: pointer; background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
@@ -95,13 +103,24 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.loading, .empty { color: var(--shu-fg-faded); padding: var(--shu-space-4); }
 		`,
 	];
+	/** The showAnnotations toggle is remembered per column across reloads, like every persisted view option. */
+	static persistFields = ["showAnnotations"] as const;
+
 	private vertex: VertexData | null = null;
 	private edges: EdgeData[] = [];
 	private incomingCount = 0;
 	private predicateLinkCount = 0;
 	private edgeTargetCount = 0;
+	/** Annotations anchored in the open individual's body — projected from the entity view; empty until resolved. */
+	private annotationsList: AnnotationView[] = [];
+	/** The text of each body that has been read, by body id — projected from the entity view. A body the reader has not
+	 *  opened is absent, so the body area reads as loading rather than empty. */
+	private bodyText: Record<string, string> = {};
 	/** Full augmented products from getIndividualWithEdges (individual + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so the chat-context harvester sees the same hypermedia an agent following `_links` would. */
 	private products: Record<string, unknown> | null = null;
+	/** The one data path for this individual — its entity, the annotations anchored in it, and how it resolved (live /
+	 *  cache / offline), kept fresh over SSE. The column never fetches / falls back / reloads annotations itself. */
+	private readonly entity = new EntityController(this, (view) => this.applyView(view));
 
 	constructor() {
 		super(EntityColumnSchema, {
@@ -122,32 +141,39 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 	}
 
-	/** Render arbitrary products as an individual view without RPC fetch. */
+	/** Render arbitrary products as an individual view without RPC fetch. Releases the entity handle: these products are
+	 *  the view now, so a live change to the individual last opened here must not replace them. */
 	openProducts(products: Record<string, unknown>): void {
+		this.entity.release();
 		const label = String(products._type || "Result");
 		const { _type, _summary, _component, _links, _undo, _seqPath, ...data } = products;
 		this.vertex = data;
 		this.edges = [];
 		this.incomingCount = 0;
 		this.products = products;
-		this.setState({ individualId: String(_summary || ""), persistedAs: label, loading: false });
+		this.annotationsList = [];
+		this.setState({ individualId: String(_summary || ""), persistedAs: label, loading: false, fromStore: undefined });
 	}
 
-	/** Live-refresh: the open individual is held in the shared entity store, which merges live observations (e.g. a gantt
-	 *  bar dragged to a new time emits an observation for its startedAtTime) into the cached copy. We re-render from that
-	 *  copy rather than re-fetching — one client copy, updated in place, no per-change RPC. */
-	protected override onConnected(): void {
-		if (!hasEventStream()) return; // static context (offline report, unit test without live events) — nothing to subscribe to
-		this.autoTeardown(
-			subscribeEntities((subject) => {
-				if (subject !== this.state.individualId) return;
-				const fresh = getCachedEntity(this.state.persistedAs, subject);
-				if (fresh) {
-					this.applyEntity(fresh);
-					this.requestUpdate();
-				}
-			}),
-		);
+	/** Write a note the reader authored in the body, and re-resolve so it reads back anchored. The body reports what was
+	 *  selected and written; the individual (and the entity handle that reaches it) is the column's, so the write is too. */
+	private readonly annotateDraft = (draft: TAnnotationDraft): Promise<{ ok: true } | { ok: false; error: string }> => this.entity.annotate(draft);
+
+	/** Project the entity handle's view onto the render fields: the entity (applied for the field table/roles/body), the
+	 *  annotations anchored in it, the text of any body already read, and the loading/error/provenance state the render
+	 *  branches read. */
+	private applyView(view: TEntityView): void {
+		if (view.entity) this.applyEntity(view.entity);
+		this.annotationsList = view.annotations;
+		this.bodyText = view.bodies;
+		this.setState({
+			loading: view.status === "loading",
+			error: view.status === "error" ? view.error : undefined,
+			fromStore: view.provenance === "cache" || view.provenance === "offline" ? view.provenance : undefined,
+		});
+		// Read the body the reader is shown — only that one, only once (the handle no-ops for a body already read).
+		const bodyId = this.activeBodyId();
+		if (bodyId && view.bodies[bodyId] === undefined) this.entity.requestBody(bodyId);
 	}
 
 	/** Apply one entity result (from the shared store or a fresh fetch) to the render fields. */
@@ -158,32 +184,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.products = result as unknown as Record<string, unknown>;
 	}
 
-	/** Open an individual by ID — cache-first from the shared entity store, fetching only on a miss (the fetch then
-	 *  populates the store, so every view of the same individual shares one copy and one live subscription). */
+	/** Open an individual by ID through the entity handle: it serves a cached copy at once, else fetches (then falls back
+	 *  to the persisted browser store when offline), and resolves the annotations anchored in it — one path, one shared
+	 *  copy and one live subscription per individual. `applyView` projects each resolved state onto the render fields. */
 	async open(id: string, label: string = defaultLabel()): Promise<void> {
 		// Surface the subject as an attribute so external code (e.g. the COLUMN_CLOSE
 		// listener in app.ts) can detect which entity is in this column without
 		// reaching through the protected `state` field.
 		this.setAttribute("data-subject", id);
-		this.setState({ individualId: id, persistedAs: label, loading: true, error: undefined });
+		this.setState({ individualId: id, persistedAs: label, error: undefined });
 		const accessLevel = appAccessLevel();
-		const cached = getCachedEntity(label, id);
-		if (cached) {
-			this.applyEntity(cached);
-			this.setState({ loading: false });
-		} else {
-			const res = await callStep<TEntityResult>("getIndividualWithEdges", { label, id, accessLevel }, `entity-column: open ${label}:${id}`);
-			if (!res.ok) {
-				// RPC unavailable (offline / disconnected): serve the persisted vertex from the off-heap store if we have it.
-				const offline = await derefStoredEntity(label, id);
-				if (offline) this.applyEntity(offline as TEntityResult);
-				this.setState({ loading: false, error: offline ? undefined : res.error });
-				return;
-			}
-			setCachedEntity(label, id, res.value);
-			this.applyEntity(res.value);
-			this.setState({ loading: false });
-		}
+		await this.entity.open(label, id, accessLevel);
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 				detail: { patterns: [{ s: id }], accessLevel, label },
@@ -209,7 +220,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 
 		const fields = extractFieldEntries(this.vertex, persistedAs);
-		// Renderable body sub-resources (email/file/comment/credential content) make this a full view, never a stub: the
+		// Renderable body sub-resources (email/file/comment content) make this a full view, never a stub: the
 		// body is the substance even when there are few scalar fields, so it must always reach renderContentIframe.
 		const contentIframe = this.renderContentIframe(persistedAs);
 		// Literal body-presentation content (a SeqPath's stepText → content): the field table drops body-presentation
@@ -249,14 +260,25 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							})
 							.join(" ")}</div>`
 					: "";
-			contentHtml = `${detailsHtml}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${bodyLiterals}${contentIframe}`;
+			// The body area (iframe or inline-annotated) is rendered as a lit sub-template after this string, so annotations
+			// reach shu-annotated-body as a real property rather than an attribute — hence contentIframe is NOT embedded here.
+			contentHtml = `${detailsHtml}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${bodyLiterals}`;
 		}
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}<div class="entity-content">${unsafeHTML(contentHtml)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content">${this.renderFromStore()}${unsafeHTML(contentHtml)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
 	protected updated(): void {
 		if (!this.state.loading && !this.state.error && this.vertex) this.bindEvents();
+	}
+
+	/** A badge stating the view is a stored copy, not a live fetch: the in-memory session cache, or the persisted browser
+	 *  store when offline. Absent for a live fetch, so its presence tells a reader why the view appeared without a fetch. */
+	private renderFromStore(): TemplateResult {
+		const { fromStore } = this.state;
+		if (!fromStore) return html``;
+		const label = fromStore === "offline" ? "Shown from browser store (offline)" : "Shown from cache";
+		return html`<div class="entity-from-store" data-testid="entity-from-store">${label}</div>`;
 	}
 
 	// The type's description, shown inside the disclosure (the type name itself is the disclosure summary). Empty for an ad-hoc result view with no registered type.
@@ -313,29 +335,23 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}"${testId}>${esc(truncate(display, 60))}</a>`;
 	}
 
-	/** Plain-language names for the role a linked party plays, so the trust structure reads for an end user. Ontology-
-	 *  driven: the roles come from roleRels (rels subPropertyOf inRoleOf); this only prettifies the known ones, else the rel. */
+	/** Plain-language names for the roles CORE's own general rels name. A consumer edge's phrase comes from its declared
+	 *  edge label in the concern catalog (getDeclaredEdgeLabel) — no consumer vocabulary is named here. */
 	private static readonly ROLE_PHRASE: Record<string, string> = {
-		issuer: "Issued by",
-		credentialSubject: "About",
-		holder: "Held by",
-		verifier: "Checked by",
-		presentedTo: "Presented to",
 		delegatedFrom: "Delegated from",
 		delegator: "Delegated by",
-		resolvedIssuer: "Issuer resolved to",
 		performedBy: "Performed by",
 		controller: "Controlled by",
 		wasAttributedTo: "Attributed to",
+		attributedTo: "Attributed to",
 		author: "Written by",
-		registeredIn: "Registered in",
 	};
 
-	/** The node's roles in plain language — who plays what role toward it (issued by, about, held by, delegated from …),
-	 *  so the roles are explained rather than left as raw rels. Reads the role edges (roleRels). A role is one fact per
-	 *  (rel, party), so a rel repeated to the same party renders once — as renderReferences dedups its targets. */
+	/** The node's roles in plain language — who plays what role toward it, so the roles are explained rather than left
+	 *  as raw rels. Reads the role edges (rels-cache roleEdgeLabelSet). A role is one fact per (rel, party), so a rel
+	 *  repeated to the same party renders once — as renderReferences dedups its targets. */
 	private renderRoles(): string {
-		const roles = roleRels();
+		const roles = roleEdgeLabelSet();
 		const seen = new Set<string>();
 		const rows = this.edges
 			.filter((e) => roles.has(e.type) && isReferenceEdge(e.type))
@@ -343,7 +359,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				const key = `${e.type}${idOf(e.target)}`;
 				return seen.has(key) ? false : (seen.add(key), true);
 			})
-			.map((e) => `<div class="role-row"><span class="role-phrase">${esc(ShuEntityColumn.ROLE_PHRASE[e.type] ?? e.type)}</span> ${this.renderEdgeTarget(e.target, e.type)}</div>`)
+			.map(
+				(e) =>
+					`<div class="role-row"><span class="role-phrase">${esc(ShuEntityColumn.ROLE_PHRASE[e.type] ?? getDeclaredEdgeLabel(e.type) ?? e.type)}</span> ${this.renderEdgeTarget(e.target, e.type)}</div>`,
+			)
 			.join("");
 		if (!rows) return "";
 		return `<div class="roles-explanation" data-testid="entity-roles"><span class="section-label">Roles</span>${rows}</div>`;
@@ -352,7 +371,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private renderReferences(): string {
 		// Exclude edges already shown in the summary section
 		const summaryFields = getSummaryFields(this.state.persistedAs);
-		const roles = roleRels();
+		const roles = roleEdgeLabelSet();
 		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type) && isReferenceEdge(e.type) && !roles.has(e.type));
 
 		if (outgoing.length === 0 && this.incomingCount === 0) return "";
@@ -395,8 +414,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private renderContentIframe(_persistedAs: string): string {
 		const vertex = this.vertex;
 		if (!vertex) return "";
-		const bodies = (vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
-		const available = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
+		// The record NAMES its bodies (id + media type); their text is read on request, so the switcher is drawn from the
+		// listing and the active body's text appears once it has been read.
+		const available = this.linkedBodies().filter((b) => typeof b.mediaType === "string");
 		if (available.length === 0) return "";
 
 		const active = pickPreferredBody(available) ?? available[0];
@@ -411,15 +431,90 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						)
 						.join("")}</div>`
 				: "";
-		const raw = String(active.content ?? "");
+		// Text this view was HANDED (a step's products carry their own body) needs no request; otherwise it is the text
+		// read on request, and until that lands the body area says it is reading rather than showing an empty frame.
+		const raw = active.content ?? this.bodyText[activeId];
+		if (raw === undefined) return `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(String(active.mediaType))}…</div></div>`;
+		if (raw === "") return ""; // a body with nothing in it: show nothing, not an empty frame
 		const content = renderContentHtml(raw, String(active.mediaType));
 		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType)));
 		const invertible = String(active.mediaType) !== "text/html" ? " invertible" : "";
-		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(String(active.id ?? ""))}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
+		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(activeId)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
 		const copyBtn = copyButtonHtml(raw);
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}</div>`;
 		return `<div class="body-container">${toolbar}${iframeHtml}</div>`;
+	}
+
+	/** The bodies this record links, as it names them: id + media type. `content` is absent from a graph read (a body's
+	 *  text is read on request); it is present only when this view was handed products that carry their own. */
+	private linkedBodies(): Array<{ id?: string; mediaType?: string; content?: string }> {
+		const raw = this.vertex?.hasBody;
+		return (Array.isArray(raw) ? raw : raw ? [raw] : []) as Array<{ id?: string; mediaType?: string; content?: string }>;
+	}
+
+	/** The body the reader is shown — the preferred format — and the one whose text is worth reading. */
+	private activeBodyId(): string {
+		const available = this.linkedBodies().filter((b) => typeof b.mediaType === "string");
+		if (available.length === 0) return "";
+		return String((pickPreferredBody(available) ?? available[0]).id ?? "");
+	}
+
+	/** The human-readable text body (markdown / plain) an annotation's quote is anchored against — rendered inline so
+	 *  the annotator can highlight it. Null when the individual has only a non-text body (e.g. an original HTML email),
+	 *  which stays in the sandboxed iframe with a notes list instead. */
+	private annotatableBody(): { content: string; mediaType: string } | null {
+		const b = this.linkedBodies().find((x) => x.mediaType === "text/markdown" || x.mediaType === "text/plain");
+		const content = b ? (b.content ?? this.bodyText[String(b.id ?? "")]) : undefined;
+		return b && content !== undefined ? { content, mediaType: String(b.mediaType) } : null;
+	}
+
+	/** The body area. A text body (markdown / plain) that carries annotations, with the option on, renders inline via
+	 *  shu-annotated-body — the passages highlighted and the notes shown in a margin rail beside them. Any other case
+	 *  (no annotations, option off, or a non-text body such as an original HTML email) keeps the sandboxed body iframe. */
+	private renderBodyArea(iframeHtml: string): TemplateResult {
+		if (!iframeHtml) return html``;
+		const annBody = this.annotatableBody();
+		// A text body that carries annotations reads inline (option on) so they show anchored, with any passage selectable
+		// to add more — the column writes it through its entity handle. A body with none yet reads in its iframe (format
+		// switcher preserved) beside an Annotate affordance that enters the inline view to author the first.
+		// A non-text body (e.g. an original HTML email) keeps the iframe.
+		const showInline = annBody && this.state.showAnnotations && (this.annotationsList.length > 0 || this.state.annotateMode);
+		if (showInline && annBody) {
+			return html`<shu-annotated-body
+				data-testid="annotated-body"
+				.content=${annBody.content}
+				.mediaType=${annBody.mediaType}
+				.sourceId=${this.state.individualId}
+				.sourceLabel=${this.state.persistedAs}
+				.annotations=${this.annotationsList}
+				.annotate=${this.annotateDraft}
+				.show=${true}
+			></shu-annotated-body>`;
+		}
+		const annotateBtn = annBody
+			? html`<button class="annotate-enter" data-testid="annotate-enter" @click=${() => this.setState({ annotateMode: true, showAnnotations: true })}>✎ Annotate</button>`
+			: html``;
+		return html`${annotateBtn}${unsafeHTML(iframeHtml)}`;
+	}
+
+	/** The column's view-settings surface — shown only under the pane's ⚙ (the pane sets `data-show-controls`), like the
+	 *  document column's controls. Offers the Show-annotations option for any annotatable text body: on (the default) is
+	 *  the inline annotated reading + authoring view; off returns to the plain body iframe. */
+	private renderColumnSettings(): TemplateResult {
+		if (this.annotatableBody() === null) return html``;
+		const count = this.annotationsList.length;
+		return html`<div class="entity-controls" data-testid="entity-controls">
+			<label class="annotation-toggle"
+				><input type="checkbox" data-testid="annotation-toggle" .checked=${this.state.showAnnotations} @change=${this.onToggleAnnotations} /> Show annotations${count > 0
+					? html` (${count})`
+					: html``}</label
+			>
+		</div>`;
+	}
+
+	private onToggleAnnotations(e: Event): void {
+		this.setState({ showAnnotations: (e.target as HTMLInputElement).checked });
 	}
 
 	/**
@@ -483,7 +578,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** A provenance mark on a field name, from the served @context's genuine IRI for the field: haibun's own reads faint,
-	 *  a standard/consumer vocabulary shows its prefix (cred/prov/vcstatus/…). Empty when the context omits the field. */
+	 *  a standard/consumer vocabulary shows its prefix (prov/schema/…). Empty when the context omits the field. */
 	private vocabBadge(propertyName: string): string {
 		const iri = this.scopedContext()?.[propertyName]?.["@id"];
 		if (!iri) return "";
@@ -498,8 +593,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** Render the rdf:type field the standard JSON-LD way: named `@type`, its values the entity's classes — each a link
-	 *  that opens the class's type column, so a credential's [VerifiableCredential, AquaticAnimalImportPermit] are both
-	 *  explorable. */
+	 *  that opens the class's type column, so an entity carrying several classes has each one explorable. */
 	private typeRow(propertyName: string, value: string | string[]): string {
 		const classes = Array.isArray(value) ? value : [value];
 		const links = classes

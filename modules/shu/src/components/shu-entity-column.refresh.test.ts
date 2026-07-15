@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-// The open column must never go stale: it holds its individual in the shared entity store, which merges live
-// observations into the cached copy in place; the column re-renders from that copy — no per-change refetch.
+// The open column must never go stale: it holds its individual through the entity handle, whose store merges live
+// observations into the held copy in place; the column re-renders from that copy — no per-change refetch.
 // Observations for other subjects are ignored. The store's merge/notify is covered by entity-store.test.ts;
 // this exercises only the column's subscribe-and-rerender wiring.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { setCachedEntity, resetEntityStore } from "../entity-store.js";
+import { resetEntityStore } from "../entity-store.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
@@ -15,11 +15,27 @@ const observation = (subject: string, predicate: string, object: string): Record
 	json: { quadObservation: { subject, predicate, object, namedGraph: "Task" } },
 });
 
+const STEP_LIST = {
+	steps: [
+		{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}", params: {} },
+		{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}", params: {} },
+	],
+	domains: {},
+	concerns: { persisted: {}, references: {} },
+};
+
 describe("shu-entity-column live refresh", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
-		handle = setupShuTest({ dispatch: () => ({}) });
+		handle = setupShuTest({
+			dispatch: (method) => {
+				if (method === "step.list") return STEP_LIST;
+				if (method === "GraphStepper-getIndividualWithEdges") return { vertex: { "@id": "t1", title: "before", note: "x" }, edges: [], incomingCount: 0 };
+				if (method === "ResourcesStepper-annotations") return { annotations: [] };
+				throw new Error(`unexpected ${method}`);
+			},
+		});
 	});
 	afterEach(() => {
 		resetEntityStore();
@@ -27,10 +43,9 @@ describe("shu-entity-column live refresh", () => {
 	});
 
 	const openSeeded = async (): Promise<ShuEntityColumn> => {
-		setCachedEntity("Task", "t1", { vertex: { "@id": "t1", title: "before", note: "x" }, edges: [], incomingCount: 0 });
 		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
-		document.body.appendChild(el); // onConnected subscribes to the store
-		await el.open("t1", "Task"); // cache hit — renders without a fetch
+		document.body.appendChild(el); // onConnected subscribes through the entity handle
+		await el.open("t1", "Task");
 		await flush();
 		return el;
 	};
