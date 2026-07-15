@@ -169,3 +169,72 @@ describe("ShuElement persistFields", () => {
 		expect(readElementPrefs("shu-persist-probe", "k29")).toEqual({ size: 29 });
 	});
 });
+
+/**
+ * An invalid state write is a caller error, and the console is where it lands. A bare ZodError names the failing field
+ * and nothing else — not the element, not the write, not the attribute that drove it — and setState is re-entrant
+ * (state → attribute → attributeChangedCallback → setState), so the stack does not say either.
+ */
+describe("ShuElement invalid state reporting", () => {
+	const Schema = z.object({ label: z.string(), count: z.number().default(0) });
+
+	class ReportProbe extends ShuElement<typeof Schema> {
+		// A number-bound attribute: a non-numeric attribute value coerces to NaN, which the schema rejects — the one way to
+		// drive a rejected write in through attributeChangedCallback.
+		static attributeFields = { "data-count": "count" };
+		constructor() {
+			super(Schema, { label: "start" });
+		}
+		render(): TemplateResult {
+			return html`<span>${this.state.label}</span>`;
+		}
+		write(partial: Partial<z.infer<typeof Schema>>): void {
+			this.setState(partial);
+		}
+	}
+	if (!customElements.get("shu-report-probe")) customElements.define("shu-report-probe", ReportProbe);
+
+	const probe = (): ReportProbe => document.createElement("shu-report-probe") as ReportProbe;
+
+	it("names the element, the write, and the offending value — and keeps the original error as the cause", () => {
+		let thrown: Error | undefined;
+		try {
+			probe().write({ label: undefined as unknown as string });
+		} catch (e) {
+			thrown = e as Error;
+		}
+		expect(thrown?.message).toContain("<shu-report-probe>");
+		expect(thrown?.message).toContain("label: undefined");
+		expect(thrown?.message).toContain("at label"); // zod's own account of the failure, kept
+		expect((thrown?.cause as z.ZodError)?.issues?.[0]?.path).toEqual(["label"]);
+	});
+
+	it("reports the value that failed, not just the field name", () => {
+		expect(() => probe().write({ count: "seven" as unknown as number })).toThrow(/count: "seven"/);
+	});
+
+	it("cuts a long value rather than flooding the console with it", () => {
+		let thrown: Error | undefined;
+		try {
+			probe().write({ count: "x".repeat(500) as unknown as number });
+		} catch (e) {
+			thrown = e as Error;
+		}
+		expect(thrown?.message).toContain("…");
+		expect(thrown?.message.length).toBeLessThan(300);
+	});
+
+	// Driven through attributeChangedCallback — the reaction the browser invokes on an attribute write. jsdom does not
+	// enqueue custom-element reactions for setAttribute, so calling it is what a real attribute change does here.
+	it("names the attribute that drove a rejected write, since setState only sees the state it was handed", () => {
+		let thrown: Error | undefined;
+		try {
+			probe().attributeChangedCallback("data-count", null, "seven");
+		} catch (e) {
+			thrown = e as Error;
+		}
+		expect(thrown?.message).toContain('attribute data-count="seven"');
+		expect(thrown?.message).toContain("state.count");
+		expect(thrown?.message).toContain("<shu-report-probe>"); // the setState account rides along
+	});
+});
