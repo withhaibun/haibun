@@ -9,15 +9,58 @@ import { AStepper, IHasCycles, TStepperSteps, IStepperCycles } from "../lib/aste
 import { type TIndividualResult } from "../lib/execution.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import { requirePrincipal } from "../lib/principal.js";
-import { BODY_LABEL, COMMENT_LABEL, DOMAIN_PERSISTED_TYPE, LinkRelations, bodyDomainDefinition, commentDomainDefinition, principalDomainDefinition } from "../lib/resources.js";
+import {
+	BODY_LABEL,
+	COMMENT_LABEL,
+	DOMAIN_PERSISTED_TYPE,
+	LinkRelations,
+	TEXT_QUOTE_SELECTOR_LABEL,
+	bodyDomainDefinition,
+	bodyByMediaType,
+	commentDomainDefinition,
+	principalDomainDefinition,
+	specificResourceDomainDefinition,
+	textQuoteSelectorDomainDefinition,
+} from "../lib/resources.js";
 import { seqPathDomainDefinition } from "../lib/seq-path.js";
+
+/** The minimal store surface resolveLinkQuote reads — a quad query and an individual fetch. */
+type TAnnotationStore = {
+	query: (pattern: { subject?: string; predicate?: string; object?: unknown }) => Promise<Array<{ object: unknown }>>;
+	getIndividual: (label: string, id: string) => Promise<Record<string, unknown> | null>;
+};
 
 const CommentCreatedSchema = z.object({ commentId: z.string(), contextRoot: z.string() });
 const RelatedItemsSchema = z.object({ items: z.array(z.unknown()), contextRoot: z.string() });
+const QuoteSchema = z.object({ exact: z.string(), prefix: z.string().optional(), suffix: z.string().optional() });
+const AnnotationListSchema = z.object({
+	annotations: z.array(
+		z.object({
+			commentId: z.string(),
+			author: z.string().optional(),
+			generatedAtTime: z.string().optional(),
+			body: z.string().optional(),
+			exact: z.string(),
+			prefix: z.string().optional(),
+			suffix: z.string().optional(),
+			specificResourceId: z.string(),
+			// A linking annotation's cross-reference: the quote locating the section this note points at, so a reader can jump to it.
+			linksTo: QuoteSchema.optional(),
+		}),
+	),
+	total: z.number(),
+});
 
 const cycles = (): IStepperCycles => ({
 	getConcerns: () => ({
-		domains: [bodyDomainDefinition, commentDomainDefinition, principalDomainDefinition, seqPathDomainDefinition],
+		domains: [
+			bodyDomainDefinition,
+			commentDomainDefinition,
+			principalDomainDefinition,
+			seqPathDomainDefinition,
+			specificResourceDomainDefinition,
+			textQuoteSelectorDomainDefinition,
+		],
 	}),
 });
 
@@ -39,6 +82,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					id: commentId,
 					author,
 					generatedAtTime: now,
+					// Title the node by the note text (truncated), not its id; the body is partitioned into a Body sub-resource.
+					name: text.replace(/\s+/g, " ").trim().slice(0, 60),
 				});
 				const bodyId = `body-${commentId}-text-markdown`;
 				await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: "text/markdown", generatedAtTime: now });
@@ -61,6 +106,44 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					await store.add({ subject: id, predicate: LinkRelations.CONTEXT.rel, object: id, namedGraph: label });
 				}
 				return actionOKWithProducts({ commentId, contextRoot });
+			},
+		},
+		annotations: {
+			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: string}`,
+			productsSchema: AnnotationListSchema,
+			action: async ({ id }: { label: string; id: string }) => {
+				const store = this.getWorld().shared.getStore();
+				// Walk the W3C Web Annotation chain backwards from the annotated individual:
+				// SpecificResource —hasSource→ id, its TextQuoteSelector, and each Comment —hasTarget→ SpecificResource.
+				const sourceQuads = await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id });
+				const annotations: Array<Record<string, unknown>> = [];
+				for (const sq of sourceQuads) {
+					const specificResourceId = String(sq.subject);
+					const selectorQuads = await store.query({ subject: specificResourceId, predicate: LinkRelations.HAS_SELECTOR.rel });
+					if (selectorQuads.length === 0) continue; // a target without a selector anchors nothing
+					const selector = (await store.getIndividual(TEXT_QUOTE_SELECTOR_LABEL, String(selectorQuads[0].object))) as Record<string, unknown> | null;
+					if (!selector) continue;
+					const targetQuads = await store.query({ predicate: LinkRelations.TARGET.rel, object: specificResourceId });
+					for (const tq of targetQuads) {
+						const commentId = String(tq.subject);
+						const comment = (await store.getIndividual(COMMENT_LABEL, commentId)) as Record<string, unknown> | null;
+						if (!comment) continue;
+						const linksTo = await this.resolveLinkQuote(store, commentId);
+						const noteText = await bodyByMediaType(store, comment, "text/markdown");
+						annotations.push({
+							commentId,
+							...(comment.author !== undefined ? { author: String(comment.author) } : {}),
+							...(comment.generatedAtTime !== undefined ? { generatedAtTime: String(comment.generatedAtTime) } : {}),
+							...(noteText !== undefined ? { body: noteText } : {}),
+							exact: String(selector.exact),
+							...(selector.prefix !== undefined ? { prefix: String(selector.prefix) } : {}),
+							...(selector.suffix !== undefined ? { suffix: String(selector.suffix) } : {}),
+							specificResourceId,
+							...(linksTo ? { linksTo } : {}),
+						});
+					}
+				}
+				return actionOKWithProducts({ annotations, total: annotations.length });
 			},
 		},
 		getRelated: {
@@ -92,6 +175,23 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			},
 		},
 	} satisfies TStepperSteps;
+
+	/** The quote of the section a linking annotation points at: Comment —linksTo→ SpecificResource → its TextQuoteSelector.
+	 *  Undefined for an ordinary (non-linking) annotation. Lets a reader jump from the note to the section it references. */
+	private async resolveLinkQuote(store: TAnnotationStore, commentId: string): Promise<{ exact: string; prefix?: string; suffix?: string } | undefined> {
+		const linkQuads = await store.query({ subject: commentId, predicate: LinkRelations.LINKS_TO.rel });
+		if (linkQuads.length === 0) return undefined;
+		const linkSrId = String(linkQuads[0].object);
+		const selQuads = await store.query({ subject: linkSrId, predicate: LinkRelations.HAS_SELECTOR.rel });
+		if (selQuads.length === 0) return undefined;
+		const selector = (await store.getIndividual(TEXT_QUOTE_SELECTOR_LABEL, String(selQuads[0].object))) as Record<string, unknown> | null;
+		if (!selector) return undefined;
+		return {
+			exact: String(selector.exact),
+			...(selector.prefix !== undefined ? { prefix: String(selector.prefix) } : {}),
+			...(selector.suffix !== undefined ? { suffix: String(selector.suffix) } : {}),
+		};
+	}
 
 	constructor() {
 		super();
