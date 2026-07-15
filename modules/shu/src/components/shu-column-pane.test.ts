@@ -158,6 +158,20 @@ describe("shu-column-pane buttons", () => {
 		expect(again.hasAttribute("pinned")).toBe(true); // pin survives reload and re-asserts the attribute pane-state's prune reads
 	});
 
+	it("forgets a closed column's width, minimize and pin — reopening one is a new column, not the dismissed one", async () => {
+		await click(".pane-pin");
+		pane.setWidth(280);
+		pane.setMinimized(true);
+		await click(".pane-close"); // the reader dismisses the column
+		flushPersistWrites(); // a write still owed must not put back what the close forgot
+		const again = makePane(); // same label → same columnKey
+		document.body.appendChild(again);
+		await nextFrame(again);
+		expect(again.hasAttribute("pinned")).toBe(false);
+		expect(again.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(false);
+		expect(again.fixedWidth).toBeUndefined();
+	});
+
 	it("an explicit pre-attach state (a URL-hash flag) outranks the remembered value; untouched fields still restore", async () => {
 		pane.setWidth(280); // persists { width: 280, minimized: false }
 		flushPersistWrites();

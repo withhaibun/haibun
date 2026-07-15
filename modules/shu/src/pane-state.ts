@@ -335,6 +335,10 @@ class PaneStateImpl {
 			if (idx >= 0) this.strip.removePane(idx);
 			else pane.remove();
 		}
+		// The address IS the view state, so it is written from the desired set BEFORE the panes catch up to it. Opening
+		// a pane awaits its component module and then its data; an address written only once that finished would lag
+		// the view it names — a reader copying the address (or reloading) mid-open would miss the column.
+		this.writeHash();
 		for (const d of this.desired.values()) {
 			const id = paneIdOf(d);
 			const existing = live.get(id);
@@ -346,7 +350,6 @@ class PaneStateImpl {
 			await this.openPane(d, id);
 		}
 		this.strip.updateAccordion(); // flag changes on existing panes shift the layout budget
-		this.writeHash();
 		this.activate();
 	}
 

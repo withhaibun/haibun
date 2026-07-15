@@ -247,8 +247,12 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.setState({ pinned: !this.state.pinned }); // the `pinned` attribute (read by pane-state's prune) reflects automatically
 	};
 
+	/** Closing is the reader dismissing this column, so its remembered width, minimize and pin go with it: a column
+	 *  opened again at the same identity is a new one, and would otherwise arrive still pinned (or still minimized) from
+	 *  a column the reader had closed. A pane removed by a prune or a reload keeps its memory — that is what it is for. */
 	private onClose = (e: Event): void => {
 		e.stopPropagation();
+		this.forgetPersisted();
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_CLOSE, { bubbles: true, composed: true }));
 	};
 

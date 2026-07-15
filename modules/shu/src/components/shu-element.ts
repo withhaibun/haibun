@@ -48,7 +48,7 @@ import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
 import { subscribeBatchedEvents, type TEvent, type TEventFilter } from "../event-stream.js";
-import { readElementPrefs, schedulePersistWrite } from "../element-prefs.js";
+import { readElementPrefs, schedulePersistWrite, forgetElementPrefs } from "../element-prefs.js";
 
 export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
 	/** Get the current view hash — from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
@@ -175,6 +175,15 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		// a restore — so a bound attribute a subclass declared (e.g. a pane's `pinned`) stays in sync without per-caller code.
 		this.#reflectFieldsToAttributes(Object.keys(partial));
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.STATE_CHANGE, { detail: this.state, bubbles: true, composed: true }));
+	}
+
+	/** Forget this instance's remembered `persistFields`. For a view being DISMISSED, not merely removed: its options
+	 *  describe the view the reader closed, so the next instance under the same identity opens with the defaults. A view
+	 *  that is removed and expected back (a prune, a reload) must not call this — that is what the memory is for. */
+	protected forgetPersisted(): void {
+		const key = this.persistKey;
+		if (key === null) return;
+		forgetElementPrefs(this.tagName.toLowerCase(), key);
 	}
 
 	/** Write-through for persistFields touched by a setState. Debounced in element-prefs; values are collected at flush time so the latest state wins. */

@@ -44,6 +44,19 @@ export function schedulePersistWrite(tag: string, key: string, compute: () => Re
 	pending.set(id, { timer: setTimeout(write, PERSIST_DEBOUNCE_MS), write });
 }
 
+/** Forget one instance's remembered options, dropping any write still owed for it — a pending write would otherwise
+ *  land afterwards and restore them. For a view the reader has CLOSED: the options describe that view, so a later
+ *  instance under the same identity opens with the defaults instead of inheriting them. */
+export function forgetElementPrefs(tag: string, key: string): void {
+	const id = JSON.stringify([tag, key]);
+	const prior = pending.get(id);
+	if (prior) {
+		clearTimeout(prior.timer);
+		pending.delete(id);
+	}
+	writeElementPrefs(tag, key, {});
+}
+
 /** Flush every pending debounced write immediately. pagehide uses it; tests may too. */
 export function flushPersistWrites(): void {
 	for (const { timer, write } of [...pending.values()]) {
