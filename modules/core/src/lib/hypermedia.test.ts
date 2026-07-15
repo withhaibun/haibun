@@ -158,3 +158,44 @@ describe("validTimeField: the catalog names the field a type's individuals place
 		expect(cat.persisted.Note.validTimeField).toBe(LinkRelations.GENERATED_AT_TIME.rel);
 	});
 });
+
+/**
+ * A type's claim about which standard it belongs to is a declaration, not prose: it must resolve. An unbound prefix
+ * still serves — the reader's JSON-LD then resolves the term to nothing — so it fails at build, where the rel checks do.
+ */
+describe("buildConcernCatalog vocabulary binding", () => {
+	const domain = (topology: Partial<THypermediaTopology>) => ({
+		thing: {
+			selectors: ["thing"],
+			description: "d",
+			schema: z.object({ id: z.string(), generatedAtTime: z.string() }),
+			topology: { persistedAs: "Thing", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, ...topology } as THypermediaTopology,
+		},
+	});
+
+	it("rejects a class named in a vocabulary the type never bound", () => {
+		expect(() => buildConcernCatalog(domain({ type: "did:DIDDocument" }))).toThrow(/"did:" vocabulary is not bound/);
+	});
+
+	it("accepts it once the type declares what the prefix binds to", () => {
+		expect(() => buildConcernCatalog(domain({ type: "did:DIDDocument", namespaces: { did: "https://www.w3.org/ns/did#" } }))).not.toThrow();
+	});
+
+	it("accepts a standard core binds for every domain, undeclared", () => {
+		expect(() => buildConcernCatalog(domain({ type: "oa:SpecificResource" }))).not.toThrow();
+		expect(() => buildConcernCatalog(domain({ subClassOf: "prov:Agent" }))).not.toThrow();
+	});
+
+	it("holds a superclass, a property's iri, and an edge's iri to the same rule", () => {
+		expect(() => buildConcernCatalog(domain({ subClassOf: "cred:Thing" }))).toThrow(/"cred:" vocabulary is not bound/);
+		expect(() => buildConcernCatalog(domain({ properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, x: { rel: LinkRelations.TAG.rel, iri: "vcstatus:x" } } }))).toThrow(
+			/"vcstatus:" vocabulary is not bound/,
+		);
+		expect(() => buildConcernCatalog(domain({ edges: { e: { rel: LinkRelations.HAS_BODY.rel, range: "Thing", iri: "zzz:e" } } }))).toThrow(/"zzz:" vocabulary is not bound/);
+	});
+
+	it("leaves an absolute IRI and a bare local name alone — neither names a vocabulary to bind", () => {
+		expect(() => buildConcernCatalog(domain({ type: "https://www.w3.org/ns/did#DIDDocument" }))).not.toThrow();
+		expect(() => buildConcernCatalog(domain({ subClassOf: "Thing" }))).not.toThrow();
+	});
+});
