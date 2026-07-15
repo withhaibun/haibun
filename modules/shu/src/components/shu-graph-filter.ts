@@ -33,7 +33,7 @@ const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the
 	// instrumentation-default predicate. Persisted, and combined with that default via effectiveHiddenTypes.
 	// Storing only deliberate choices — never a seeded default — is what lets a default change re-apply and prevents
-	// baking the default irreversibly into the user's cookie.
+	// writing the default irreversibly into the user's cookie.
 	overrides: z.record(z.string(), z.boolean()).default({}),
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 });
@@ -64,18 +64,23 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			:host { border-bottom: var(--shu-border-w) solid var(--shu-border); }
 			:host(:not([show-controls])) { display: none; }
 			.row { display: flex; gap: var(--shu-space-3); align-items: center; flex-wrap: wrap; }
-			label.type { display: inline-flex; align-items: center; gap: var(--shu-space-2); cursor: pointer; color: var(--shu-fg-on-swatch); }
-			label.type { padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
+			/* A rule off the chips, so the graph's own options read as their own thing rather than the tail of the legend. */
+			.row.view-settings { margin-top: var(--shu-space-2); padding-top: var(--shu-space-2); border-top: var(--shu-border-w) solid var(--shu-border); }
+			.row[hidden] { display: none; }
+			/* A chip is a legend entry, not body text: it reads at the shared small size so a graph of many types stays a
+			   legend rather than a wall of chips. Sized from the scale — never a bare px, which would not follow --shu-scale. */
+			label.type { display: inline-flex; align-items: center; gap: var(--shu-space-1); cursor: pointer; color: var(--shu-fg-on-swatch); font-size: var(--shu-font-sm); }
+			label.type { padding: var(--shu-space-1) var(--shu-space-2); border-radius: var(--shu-radius); }
 			label.type input[type=checkbox] { margin: 0; vertical-align: middle; flex-shrink: 0; }
 			label.type:hover { filter: brightness(0.95); }
-			label.type .meta { color: var(--shu-fg-on-swatch); font-size: var(--shu-font-sm); opacity: 0.7; }
+			label.type .meta { color: var(--shu-fg-on-swatch); font-size: var(--shu-font-xs); opacity: 0.7; }
 			.limit { display: inline-flex; gap: var(--shu-space-2); align-items: center; }
 			.limit input[type=range] { width: 120px; }
 			.label { color: var(--shu-fg-muted); }
 			.quad-count { color: var(--shu-fg-faded); }
 			.solo { cursor: pointer; background: var(--shu-bg); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-1) var(--shu-space-2); line-height: 1; }
-			.solo.armed { outline: 2px solid var(--shu-link); }
-			.row.armed label.type { cursor: crosshair; }
+			.solo.awaiting-type { outline: 2px solid var(--shu-link); }
+			.row.awaiting-type label.type { cursor: crosshair; }
 		`,
 	];
 
@@ -106,9 +111,9 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	// where the data is `TGraph`-shaped, not quad-shaped.
 	private axisSource: { axes: Record<string, string[]>; hidden: Record<string, Set<string>> } | null = null;
 	private axisCookieKey: string | null = null;
-	// Transient UI for the 1️⃣ tool: while armed, the next type-chip click shows ONLY that type instead of toggling it.
-	// One-shot mode, not a durable choice — kept off persistFields.
-	private soloArmed = false;
+	// Transient UI for the 1️⃣ tool: while it is awaiting a type, the next type-chip click shows ONLY that type instead of
+	// toggling it. One click's worth of state, not a durable choice — kept off persistFields.
+	private awaitingSoloType = false;
 
 	constructor() {
 		// persistFields restores overrides/perTypeLimit on connect; defaults until then.
@@ -216,6 +221,11 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		return clamp(Math.round(parseInt(raw, 10)), 1, MAX_PER_TYPE_LIMIT);
 	}
 
+	/** A host slotting its options after this filter first rendered — re-render, so the settings row appears with them.
+	 *  A CSS-only gate cannot stand in: `:host(:has([slot="view-settings"]))` does not match here, and the row then stays
+	 *  hidden with every option rendered inside it. */
+	private onViewSettingsSlotChange = (): void => this.requestUpdate();
+
 	/** Track the drag so the value label follows the handle; the refetch waits for the release (onLimitChange). */
 	private onLimitInput = (e: Event): void => {
 		this.setState({ perTypeLimit: this.clampLimit((e.target as HTMLInputElement).value) });
@@ -233,17 +243,17 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	}
 
-	/** The 1️⃣ "solo a type" tool: arm it, then a type-chip click shows only that type (the rest hidden). */
+	/** The 1️⃣ "solo a type" tool: select it, then a type-chip click shows only that type (the rest hidden). */
 	private toggleSolo = (): void => {
-		this.soloArmed = !this.soloArmed;
+		this.awaitingSoloType = !this.awaitingSoloType;
 		this.requestUpdate();
 	};
 	private onChipClick =
 		(type: string) =>
 		(e: MouseEvent): void => {
-			if (!this.soloArmed) return; // normal path — let the label toggle its checkbox (onTypeChange)
+			if (!this.awaitingSoloType) return; // normal path — let the label toggle its checkbox (onTypeChange)
 			e.preventDefault(); // cancel the checkbox toggle; isolate this type instead
-			this.soloArmed = false;
+			this.awaitingSoloType = false;
 			this.setVisibleTypes([type]); // show only this type, via the same change path a legend click takes
 		};
 
@@ -295,7 +305,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			),
 		);
 		const quadCount = this.filterByTime(this.quads).length;
-		return html`<div class="row ${this.soloArmed ? "armed" : ""}">
+		return html`<div class="row ${this.awaitingSoloType ? "awaiting-type" : ""}">
 			<span class="label">show:</span>
 			${
 				clusters.length === 0
@@ -309,16 +319,18 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			}
 			${
 				schemaOnly
-					? html`<slot name="view-settings"></slot>`
+					? html``
 					: html`<span class="label">|</span>
 						<label class="limit">per-type limit
 							<input type="range" min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange}>
 							<span class="meta" data-testid="graph-filter-limit-value">${perTypeLimit}</span>
 						</label>
-						<slot name="view-settings"></slot>
-						<button type="button" class="solo ${this.soloArmed ? "armed" : ""}" data-testid="graph-filter-solo" title="solo a type: tap, then tap a type to show only it" @click=${this.toggleSolo}>1️⃣</button>
+						<button type="button" class="solo ${this.awaitingSoloType ? "awaiting-type" : ""}" data-testid="graph-filter-solo" title="solo a type: tap, then tap a type to show only it" @click=${this.toggleSolo}>1️⃣</button>
 						<span class="quad-count">${quadCount} quads</span>`
 			}
+		</div>
+		<div class="row view-settings" ?hidden=${!this.querySelector('[slot="view-settings"]')}>
+			<slot name="view-settings" @slotchange=${this.onViewSettingsSlotChange}></slot>
 		</div>`;
 	}
 }
