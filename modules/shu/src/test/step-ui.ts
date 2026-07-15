@@ -80,7 +80,7 @@ export function stepTestIds(method: string, callIndex: number, inputParams: stri
  * placeholder's `(?:[^"]|"[^"]*")+?` branch and reaches `setValue.fill()`
  * byte-for-byte.
  *
- * Variable references — e.g. `id: "credentialId"` — must be passed at the
+ * Variable references — e.g. `id: "recordId"` — must be passed at the
  * top level of `params`, not nested inside a composite, since composite
  * sub-fields here are always literal.
  */

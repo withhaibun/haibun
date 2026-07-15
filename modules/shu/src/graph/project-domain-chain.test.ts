@@ -34,17 +34,17 @@ describe("projectDomainChain", () => {
 
 	it("emits synthetic field nodes and edges from composites map (topology.ranges)", () => {
 		const snap: TAffordancesSnapshot = {
-			forward: [{ stepperName: "S", stepName: "issue", inputDomains: ["vc"], outputDomains: ["verifiable-credential"], readyToRun: true }],
+			forward: [{ stepperName: "S", stepName: "issue", inputDomains: ["order"], outputDomains: ["fulfilled-order"], readyToRun: true }],
 			goals: [],
-			composites: { vc: { issuer: "issuer-vertex", proof: "proof" } },
+			composites: { order: { maker: "maker-vertex", proof: "proof" } },
 		};
 		const g = projectDomainChain(snap);
-		expect(g.nodes.find((n) => n.id === "vc#issuer")).toBeTruthy();
-		expect(g.nodes.find((n) => n.id === "vc#proof")).toBeTruthy();
-		expect(g.nodes.find((n) => n.id === "issuer-vertex")).toBeTruthy();
-		const issuerToField = g.edges.find((e) => e.from === "issuer-vertex" && e.to === "vc#issuer");
-		const fieldToComposite = g.edges.find((e) => e.from === "vc#issuer" && e.to === "vc");
-		expect(issuerToField).toBeTruthy();
+		expect(g.nodes.find((n) => n.id === "order#maker")).toBeTruthy();
+		expect(g.nodes.find((n) => n.id === "order#proof")).toBeTruthy();
+		expect(g.nodes.find((n) => n.id === "maker-vertex")).toBeTruthy();
+		const makerToField = g.edges.find((e) => e.from === "maker-vertex" && e.to === "order#maker");
+		const fieldToComposite = g.edges.find((e) => e.from === "order#maker" && e.to === "order");
+		expect(makerToField).toBeTruthy();
 		expect(fieldToComposite).toBeTruthy();
 	});
 
@@ -107,27 +107,27 @@ describe("projectDomainChain", () => {
 		// if it relied on `goals[]` alone. `satisfiedDomains` is the unfiltered set from
 		// working memory; the chain view colours by that.
 		const snap: TAffordancesSnapshot = {
-			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["issuer-vertex"], readyToRun: true }],
+			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["maker-vertex"], readyToRun: true }],
 			goals: [],
-			satisfiedDomains: ["issuer-vertex"],
+			satisfiedDomains: ["maker-vertex"],
 		};
 		const g = projectDomainChain(snap);
-		expect(g.nodes.find((n) => n.id === "issuer-vertex")?.kind).toBe("satisfied");
+		expect(g.nodes.find((n) => n.id === "maker-vertex")?.kind).toBe("satisfied");
 	});
 
 	it("renders fact-instance nodes attached to their satisfied domain", () => {
 		// A created issuer surfaces as a specific instance node (its factId) in the
 		// chain, not just the green domain blob.
 		const snap: TAffordancesSnapshot = {
-			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["issuer-vertex"], readyToRun: true }],
+			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["maker-vertex"], readyToRun: true }],
 			goals: [],
-			satisfiedDomains: ["issuer-vertex"],
-			satisfiedFacts: { "issuer-vertex": ["0.1.3.2"] },
+			satisfiedDomains: ["maker-vertex"],
+			satisfiedFacts: { "maker-vertex": ["0.1.3.2"] },
 		};
 		const g = projectDomainChain(snap);
 		const fact = g.nodes.find((n) => n.id === factNodeId("0.1.3.2"));
 		expect(fact?.kind).toBe("fact-instance");
-		const edge = g.edges.find((e) => e.from === "issuer-vertex" && e.to === factNodeId("0.1.3.2"));
+		const edge = g.edges.find((e) => e.from === "maker-vertex" && e.to === factNodeId("0.1.3.2"));
 		expect(edge).toBeTruthy();
 	});
 

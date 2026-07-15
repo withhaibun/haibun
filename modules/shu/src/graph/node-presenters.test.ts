@@ -22,8 +22,8 @@ describe("node presenters (per-@type, capability-driven default)", () => {
 
 	it("a schema Property a standard declares but the data never uses (inData=false) is marked faint; a present one is not", () => {
 		const p = presenterForType(ONTOLOGY_PROPERTY);
-		expect(p.present({ id: "credentialSchema", name: "credentialSchema", type: ONTOLOGY_PROPERTY, properties: { inData: false } }, {}).faint).toBe(true);
-		expect(p.present({ id: "issuer", name: "issuer", type: ONTOLOGY_PROPERTY }, {}).faint).toBeFalsy();
+		expect(p.present({ id: "unusedTerm", name: "unusedTerm", type: ONTOLOGY_PROPERTY, properties: { inData: false } }, {}).faint).toBe(true);
+		expect(p.present({ id: "maker", name: "maker", type: ONTOLOGY_PROPERTY }, {}).faint).toBeFalsy();
 	});
 
 	it("presenterForType falls back to the default, and a registered @type overrides it", () => {

@@ -81,7 +81,7 @@ function readSchemaDescription(schema: unknown): string | undefined {
  *
  * The params skeleton: if the product carries a top-level `id`, populate the
  * matching parameter with `{ id: <product.id> }` (the convention every individual
- * ref domain uses today — `{credential: {id}}`, `{label, id}` for getIndividual,
+ * ref domain uses today — `{record: {id}}`, `{label, id}` for getIndividual,
  * etc.). Otherwise pass an empty object — the consumer fills the rest from the
  * step's own inputSchema (already in step.list).
  *

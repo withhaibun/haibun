@@ -5,26 +5,26 @@ describe("validateStepInput", () => {
 	it("returns no errors when every required field passes its schema", () => {
 		const schema = {
 			type: "object",
-			properties: { issuer: { type: "string", format: "uri" }, name: { type: "string" } },
-			required: ["issuer"],
+			properties: { owner: { type: "string", format: "uri" }, name: { type: "string" } },
+			required: ["owner"],
 		};
-		const errors = validateStepInput({ issuer: "did:web:tethys.osf", name: "Tethys" }, schema);
+		const errors = validateStepInput({ owner: "did:web:tethys.osf", name: "Tethys" }, schema);
 		expect(errors).toEqual([]);
 	});
 
 	it("flags a non-URI value at a `format: uri` field with a helpful message that names the bad value", () => {
-		const schema = { type: "object", properties: { issuer: { type: "string", format: "uri" } }, required: ["issuer"] };
-		const errors = validateStepInput({ issuer: "name1" }, schema);
+		const schema = { type: "object", properties: { owner: { type: "string", format: "uri" } }, required: ["owner"] };
+		const errors = validateStepInput({ owner: "name1" }, schema);
 		expect(errors).toHaveLength(1);
-		expect(errors[0].field).toBe("issuer");
+		expect(errors[0].field).toBe("owner");
 		expect(errors[0].message).toMatch(/must be a uri/);
 		expect(errors[0].message).toContain("name1");
 	});
 
 	it("flags a missing required field per-path so the form can render the message next to the field", () => {
-		const schema = { type: "object", properties: { issuer: { type: "string", format: "uri" } }, required: ["issuer"] };
+		const schema = { type: "object", properties: { owner: { type: "string", format: "uri" } }, required: ["owner"] };
 		const errors = validateStepInput({}, schema);
-		expect(errors).toEqual([{ field: "issuer", message: "required" }]);
+		expect(errors).toEqual([{ field: "owner", message: "required" }]);
 	});
 
 	it("recurses into nested objects and reports the full dot-path of the failing field", () => {

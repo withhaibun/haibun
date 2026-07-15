@@ -3,51 +3,19 @@
  * transition easing. Each paint maps these to its own rendering constants (opacity, render order, etc.).
  */
 
-import { LinkRelations, roleRels } from "@haibun/core/lib/resources.js";
 import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
 export type XYZ = { x: number; y: number; z: number };
 
 /** A grouping/container axis. `"type"` groups by `@type`; `"role"` by the highest-priority actor a node is attributed to
- *  (the ROLE_PRIORITY policy below); ANY other value is a folded node-property key — an actor predicate (issuer, holder, …,
- *  ontology-derived via roleRels: declaring `subPropertyOf inRoleOf` in LinkRelations makes a rel an axis with nothing to
- *  change here) or the read-time SITE_KEY stamp (the site whose store served the node, set at the federation merge). */
+ *  (rels-cache `roleEdgeLabels()`: ontology + concern-catalog derived, ordered by each rel's / consumer edge's DECLARED
+ *  rolePriority — never a hand-kept list, and no consumer vocabulary named here); ANY other value is a folded
+ *  node-property key — an actor predicate, or the read-time SITE_KEY stamp (the site whose store served the node, set at
+ *  the federation merge). */
 export type GroupKeyMode = "type" | "role" | (string & {});
 
 /** Container bucket for a node with no agent at the chosen actor axis. */
 export const UNATTRIBUTED_ROLE = "(unattributed)";
-
-/** PRIORITY POLICY (a VIEW policy, not an ontology fact): when a node carries SEVERAL role edges, which one names its
- *  container/lane. An artifact published to a verifiable data registry groups under that registry (registeredIn) — this
- *  outranks its controller, so the issuer's published key/status-list sit in the registry container, not the issuer's.
- *  A VerifiablePresentation groups with its holder (cred:holder); a bare VerifiableCredential with its issuer
- *  (cred:issuer); a verification with its verifier (performedBy). The canonical PROV/AS attribution rels
- *  (wasAttributedTo/attributedTo) are the lowest-priority fallback for an ordinary record. A role rel NOT listed here
- *  still counts (it folds, just after every ranked one); the list only orders the ranked few. */
-const ROLE_PRIORITY: readonly string[] = [
-	LinkRelations.REGISTERED_IN.rel,
-	LinkRelations.CREDENTIAL_HOLDER.rel,
-	LinkRelations.CREDENTIAL_ISSUER.rel,
-	LinkRelations.CREDENTIAL_SUBJECT.rel,
-	LinkRelations.PERFORMED_BY.rel,
-	LinkRelations.VERIFIER.rel,
-	LinkRelations.AUTHOR.rel,
-	LinkRelations.WAS_ATTRIBUTED_TO.rel,
-	LinkRelations.ATTRIBUTED_TO.rel,
-];
-
-/** The role-attribution predicates (edge labels) whose target is a node's HypermediaRole, IN PRIORITY ORDER (first
- *  match wins). ONTOLOGY-DRIVEN: the SET is derived from LinkRelations — every rel declared `subPropertyOf` the broad
- *  role super-property `inRoleOf` (see resources.roleRels()) — never a hand-maintained array, so declaring a new role
- *  predicate is one `subPropertyOf: "inRoleOf"` in LinkRelations with nothing to edit here. The ORDER is the
- *  ROLE_PRIORITY view policy above for the ranked rels, then any remaining derived role rels (stable, by name). The fold
- *  matches the quad predicate = the createEdge edge label, so every entry is a genuine term. */
-export const ROLE_RELS: readonly string[] = (() => {
-	const derived = roleRels();
-	const ranked = ROLE_PRIORITY.filter((r) => derived.has(r));
-	const rest = [...derived].filter((r) => !ranked.includes(r)).sort();
-	return [...ranked, ...rest];
-})();
 
 /** The group/container key for a node under `axis`: its `@type`, its highest-priority actor (`"role"`), or the agent at a
  *  specific actor predicate. buildGraphModelFromQuads records each actor edge on `properties[predicate]` and the winner on

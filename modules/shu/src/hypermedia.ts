@@ -6,8 +6,8 @@
  * `SerializedConduit`. Nothing else talks to `/rpc/*`, and nothing else owns
  * the active conduit reference.
  *
- * A Resource (linked-data sense — an Email node, a Comment, an issued
- * credential) becomes a `TRepresentation` on the wire: the domain fields plus
+ * A Resource (linked-data sense — an Email node, a Comment, any consumer
+ * record) becomes a `TRepresentation` on the wire: the domain fields plus
  * optional hypermedia markers (`_type`, `_summary`, `_description`, `_links`,
  * `_seqPath`). A `TLink` in `_links` is a named follow-up call; `TAffordance`
  * is the SPA's view of a clickable user action (a follow, a step pick, or a

@@ -7,15 +7,15 @@ const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: str
 	quads.some((q) => q.predicate === predicate && q.subject === from && q.object === to && q.objectType !== undefined);
 
 describe("ontologyToQuads — the schema rendered as a graph", () => {
-	it("emits the directional role hierarchy as subPropertyOf edges (issuer → fromActor → inRoleOf)", () => {
+	it("emits the directional role hierarchy as subPropertyOf edges (performedBy → fromActor → inRoleOf)", () => {
 		const { quads, clusters } = ontologyToQuads();
-		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "issuer", "fromActor")).toBe(true);
+		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "performedBy", "fromActor")).toBe(true);
 		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "fromActor", "inRoleOf")).toBe(true);
-		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "credentialSubject", "toActor")).toBe(true);
+		// toActor has no concrete CORE rel — consumers declare theirs against it; the upper pointer itself is projected
 		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "toActor", "inRoleOf")).toBe(true);
 		// the abstract super-properties are nodes in the Property cluster (the interesting structure)
 		const props = clusters.find((c) => c.type === ONTOLOGY_PROPERTY);
-		for (const rel of ["inRoleOf", "fromActor", "toActor", "issuer", "credentialSubject"]) expect(props?.sampledSubjects).toContain(rel);
+		for (const rel of ["inRoleOf", "fromActor", "toActor", "performedBy", "author"]) expect(props?.sampledSubjects).toContain(rel);
 	});
 
 	it("flags the abstract super-properties so a view can distinguish them from concrete edge labels", () => {
@@ -23,7 +23,7 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 		const abstractOf = (rel: string): boolean => quads.some((q) => q.subject === rel && q.predicate === ONTOLOGY_PRED.abstract && q.object === true);
 		expect(abstractOf("inRoleOf")).toBe(true);
 		expect(abstractOf("fromActor")).toBe(true);
-		expect(abstractOf("issuer")).toBe(false); // concrete — a real written edge label
+		expect(abstractOf("performedBy")).toBe(false); // concrete — a real written edge label
 	});
 
 	it("emits a class node per persisted type with its subClassOf superclass (Principal → prov:Agent)", () => {

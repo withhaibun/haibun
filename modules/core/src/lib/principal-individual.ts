@@ -1,7 +1,7 @@
 /**
  * Persist a Principal individual — the public, durable descriptor a DID resolves to (site principal, subkey,
  * or VC issuer). Crypto-free: writes through the abstract store, public material only (publicKeyMultibase,
- * never a private key). Shared by AuthorityStepper (subkey delegation) and the credentials Issuer
+ * never a private key). Shared by AuthorityStepper (subkey delegation) and any consumer issuing stepper
  * (shared-DID alignment) so one DID is one Principal node — its VC-issuance and capability roles converge.
  */
 import type { TWorld } from "./world.js";

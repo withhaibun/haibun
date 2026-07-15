@@ -65,15 +65,15 @@ describe("extractQuadsFromEvents", () => {
 
 describe("eventsAffectLabel", () => {
 	it("is true when a quad matches the label", () => {
-		expect(eventsAffectLabel([quadEvent("VerifiableCredential")], "VerifiableCredential")).toBe(true);
+		expect(eventsAffectLabel([quadEvent("FieldReport")], "FieldReport")).toBe(true);
 	});
 
 	it("is false when no quad is in the label's named graph", () => {
-		expect(eventsAffectLabel([quadEvent("Email")], "VerifiableCredential")).toBe(false);
+		expect(eventsAffectLabel([quadEvent("Email")], "FieldReport")).toBe(false);
 	});
 
 	it("is false when the batch carries no quads (e.g. a plain log event)", () => {
-		expect(eventsAffectLabel([{ id: "log-1", timestamp: 1, kind: "log", level: "info" }], "VerifiableCredential")).toBe(false);
+		expect(eventsAffectLabel([{ id: "log-1", timestamp: 1, kind: "log", level: "info" }], "FieldReport")).toBe(false);
 	});
 
 	it("with no label, any quad is relevant (unscoped view); an empty batch is not", () => {

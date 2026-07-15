@@ -154,7 +154,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 
 	const edges: TGraphEdge[] = [];
 	// Dedup edges by (from, to, stepperName, stepName): a step with multiple
-	// inputs of the same domain (e.g. `verify credential {id: string} as {verifierId: string}`)
+	// inputs of the same domain (e.g. `check record {id: string} against {baselineId: string}`)
 	// would otherwise contribute N identical from→to edges, one per input position.
 	const edgeKeys = new Set<string>();
 	for (const f of a.forward) {
