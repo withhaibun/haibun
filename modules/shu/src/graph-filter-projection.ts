@@ -72,6 +72,9 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
  * serialization — so the rule is identical everywhere AND robust to types that arrive only via the live stream: there is
  * no per-cluster flag to lose, just the stable predicate over the type name. The persisted overrides hold only the user's
  * deliberate choices, never a fixed default, so a change to what counts as instrumentation re-applies on the next load.
+ *
+ * A domain type is never default-hidden for being hard to title: a type declares the property type that labels it
+ * (`topology.displayLabel`), so it draws with a real title rather than being excluded for showing an id.
  */
 export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<string, boolean>): string[] {
 	const hidden = new Set<string>();

@@ -40,6 +40,8 @@ export interface SiteMetadata {
 	/** Per label, the type's class IRI (topology.type / the concern's asType), when it declares one — lets a view tell a
 	 *  haibun-namespace (system) type from a standard/consumer one. The builder always sets it; optional for partial fixtures. */
 	classIris?: Record<string, string>;
+	/** Per label, the property type (rel) whose value titles it — `topology.displayLabel`, where declared. */
+	displayLabelRels?: Record<string, string>;
 }
 
 let metadata: SiteMetadata | null = null;
@@ -95,11 +97,16 @@ export function getRelSync(label: string, property: string): string | undefined 
 }
 
 /** Whether a type is a SYSTEM schema — its class IRI is haibun's own vocabulary (a haibun-namespace prefix), as opposed
- *  to a standard's (cred:/prov:/…) or a consumer's coined one. A verifiable credential (cred:VerifiableCredential) is not
- *  a system schema; a haibun-defined type (e.g. hbn:SeqPath) is. False when the type declares no class IRI. */
+ *  to a standard's (prov:/sosa:/…) or a consumer's coined one. A consumer-standard type is not a system schema; a
+ *  haibun-defined type (e.g. hbn:SeqPath) is. False when the type declares no class IRI. */
 export function isSystemSchemaType(label: string): boolean {
 	const iri = metadata?.classIris?.[label];
 	return iri !== undefined && propertyVocabulary(iri).source === "haibun";
+}
+
+/** The property type (rel) whose value titles this type, where its vocabulary designates one (`topology.displayLabel`). */
+export function getDisplayLabelRel(label: string): string | undefined {
+	return metadata?.displayLabelRels?.[label];
 }
 
 /** Get cached edge ranges for a label. */
@@ -213,7 +220,7 @@ export function hasUsableSelectValues(label: string): boolean {
 // --- Concern catalog (for haibun domain discovery) ---
 
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { LinkRelations, getPropertyDefinitions } from "@haibun/core/lib/resources.js";
+import { LinkRelations, getPropertyDefinitions, isSubPropertyOf, roleRels, fromActorRels, toActorRels } from "@haibun/core/lib/resources.js";
 
 let concernCatalog: TConcernCatalog | null = null;
 let cachedConcernMeta: SiteMetadata | null = null;
@@ -230,6 +237,10 @@ export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<str
 	setSiteMetadata(cachedConcernMeta);
 	edgeRelMap.clear();
 	cachedEdgeRelRecord = null;
+	cachedRoleEdgeLabels = null;
+	cachedRoleEdgeLabelSet = null;
+	cachedFromActorEdgeLabels = null;
+	cachedToActorEdgeLabels = null;
 	for (const concern of Object.values(catalog.persisted)) {
 		for (const [edgeName, edge] of Object.entries(concern.edges)) {
 			edgeRelMap.set(edgeName, edge.rel);
@@ -268,8 +279,10 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 	const summary: Record<string, string[]> = {};
 	const ui: Record<string, Record<string, unknown>> = {};
 	const classIris: Record<string, string> = {};
+	const displayLabelRels: Record<string, string> = {};
 	for (const [label, concern] of Object.entries(catalog.persisted)) {
 		types.push(label);
+		if (concern.displayLabel) displayLabelRels[label] = concern.displayLabel;
 		idFields[label] = concern.idField;
 		if (concern.asType) classIris[label] = concern.asType;
 		if (concern.queryable.length > 0) queryable[label] = concern.queryable;
@@ -330,5 +343,71 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		ui,
 		propertyDefinitions,
 		classIris,
+		displayLabelRels,
 	};
+}
+
+// --- Actor-edge classification (role fold / sequence orientation) ---
+
+/**
+ * Actor edge labels classified under `upper`, with ordering weights: core's concrete rels declared subPropertyOf
+ * `upper` (each carrying its declared rolePriority), plus every concern edge whose rel classifies under `upper` —
+ * a consumer edge declares an upper-ontology pointer (fromActor/toActor/…) as its rel and carries its own
+ * rolePriority in its domain declaration. Unranked labels weigh 0. No consumer vocabulary is named anywhere here.
+ */
+function actorEdgeWeights(upper: string, coreRels: ReadonlySet<string>): Map<string, number> {
+	const corePriority = new Map(getPropertyDefinitions().map((d) => [d.id, d.rolePriority ?? 0]));
+	const weights = new Map<string, number>();
+	for (const rel of coreRels) weights.set(rel, corePriority.get(rel) ?? 0);
+	for (const concern of Object.values(concernCatalog?.persisted ?? {})) {
+		for (const [edgeName, edge] of Object.entries(concern.edges)) {
+			if (!isSubPropertyOf(edge.rel, upper)) continue;
+			const weight = (edge as { rolePriority?: number }).rolePriority ?? 0;
+			weights.set(edgeName, Math.max(weights.get(edgeName) ?? 0, weight));
+		}
+	}
+	return weights;
+}
+
+let cachedRoleEdgeLabels: readonly string[] | null = null;
+let cachedRoleEdgeLabelSet: ReadonlySet<string> | null = null;
+let cachedFromActorEdgeLabels: ReadonlySet<string> | null = null;
+let cachedToActorEdgeLabels: ReadonlySet<string> | null = null;
+
+/** Role-attribution edge labels, highest declared rolePriority first (ties by name): when a node carries several role
+ *  edges, the first present names its container/lane. Ontology + catalog derived — never a hand-kept list. */
+export function roleEdgeLabels(): readonly string[] {
+	if (!cachedRoleEdgeLabels) {
+		const weights = actorEdgeWeights(LinkRelations.IN_ROLE_OF.rel, roleRels());
+		cachedRoleEdgeLabels = [...weights.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k]) => k);
+	}
+	return cachedRoleEdgeLabels;
+}
+
+/** Membership form of roleEdgeLabels. */
+export function roleEdgeLabelSet(): ReadonlySet<string> {
+	cachedRoleEdgeLabelSet ??= new Set(roleEdgeLabels());
+	return cachedRoleEdgeLabelSet;
+}
+
+/** The SOURCE-side actor edge labels — a sequence reads these as the lifeline an entity originates from. */
+export function fromActorEdgeLabels(): ReadonlySet<string> {
+	cachedFromActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.FROM_ACTOR.rel, fromActorRels()).keys());
+	return cachedFromActorEdgeLabels;
+}
+
+/** The TARGET-side actor edge labels — a sequence reads these as the lifeline a message is directed to. */
+export function toActorEdgeLabels(): ReadonlySet<string> {
+	cachedToActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.TO_ACTOR.rel, toActorRels()).keys());
+	return cachedToActorEdgeLabels;
+}
+
+/** A concern-declared edge's display phrase (its declared label), else undefined — how a consumer's edge names the
+ *  role a linked party plays without that vocabulary appearing in any component. First declaration wins. */
+export function getDeclaredEdgeLabel(edgeName: string): string | undefined {
+	for (const concern of Object.values(concernCatalog?.persisted ?? {})) {
+		const label = (concern.edges[edgeName] as { label?: string } | undefined)?.label;
+		if (label) return label;
+	}
+	return undefined;
 }
