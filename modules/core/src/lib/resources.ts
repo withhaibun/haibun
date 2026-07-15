@@ -764,7 +764,10 @@ export type TPrincipal = z.infer<typeof PrincipalSchema>;
 export const principalDomainDefinition: TDomainDefinition = {
 	selectors: [PRINCIPAL_DOMAIN],
 	schema: PrincipalSchema,
-	description: "A person or service that acts in this system — the author behind records, comments, and decisions — identified by a DID (a public, verifiable address).",
+	// THE definition of a DID for a reader: a Principal's identity IS one, so this is where the term is explained, and
+	// every other description links the word here rather than explaining it again.
+	description:
+		"A person or service that acts in this system — the author behind records, comments, and decisions. Each is identified by a DID: a decentralized identifier, a stable web address of its own (written did:…) that anyone can look up to find the keys it signs with, so no central directory decides who is who.",
 	topology: {
 		persistedAs: PRINCIPAL_LABEL,
 		type: "sec:Controller",
