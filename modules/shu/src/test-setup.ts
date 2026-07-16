@@ -34,6 +34,27 @@ export type TShuTestHandle = {
 	eventStream: SerializedEventStream;
 };
 
+/** The two steps the entity surface calls, as `step.list` answers them — the fixture every entity test installs. */
+export const ENTITY_STEP_LIST = {
+	steps: [
+		{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}", params: {} },
+		{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}", params: {} },
+	],
+	domains: {},
+	concerns: { persisted: {}, references: {} },
+};
+
+/** A dispatch over the entity surface: `step.list` answers with {@link ENTITY_STEP_LIST}, the two entity steps route
+ *  to the given answerers (annotations defaults to none), and anything else throws — the loud-failure signal. */
+export function makeEntityDispatch(over: { entity: () => unknown; annotations?: () => unknown }): TDispatch {
+	return (method) => {
+		if (method === "step.list") return ENTITY_STEP_LIST;
+		if (method === "GraphStepper-getIndividualWithEdges") return over.entity();
+		if (method === "ResourcesStepper-annotations") return over.annotations ? over.annotations() : { annotations: [] };
+		throw new Error(`unexpected ${method}`);
+	};
+}
+
 export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	const dispatch: TDispatch =
 		config.dispatch ??
