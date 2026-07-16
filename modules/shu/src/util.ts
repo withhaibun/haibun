@@ -74,6 +74,10 @@ import MarkdownIt from "markdown-it";
 // html:true renders inline HTML the source carries (e.g. <br> from HTML-derived email markdown) and linkify turns bare URLs into links. Safe because renderContentHtml output is only injected into shu-entity-column's email-body iframe, which is sandboxed without allow-scripts. Do not reuse this renderer for a non-sandboxed sink.
 const md = new MarkdownIt({ html: true, linkify: true });
 
+/** The one reading style for a record's body text. The body iframe's document and the inline annotated view both use
+ *  it, so toggling the annotation gutter never changes how the text reads. */
+export const BODY_READING_STYLE = "font-family: sans-serif; font-size: 14px; line-height: 1.5;";
+
 /** Render a content field value to HTML given its MIME type. */
 export function renderContentHtml(raw: string, mimeType: string): string {
 	if (mimeType === "text/markdown") return md.render(raw);

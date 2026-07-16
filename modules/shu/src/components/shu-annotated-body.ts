@@ -23,7 +23,7 @@ import DOMPurify from "dompurify";
 import { createTextAnnotator, W3CTextFormat, type TextAnnotator } from "../recogito.js";
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
-import { renderContentHtml } from "../util.js";
+import { renderContentHtml, BODY_READING_STYLE } from "../util.js";
 import type { TAnnotationDraft } from "../entity-store.js";
 import { type AnnotationView, type QuoteAnchor, type W3CTextAnnotation, toW3CAnnotations, locateQuoteOffsets } from "../annotation-resolver.js";
 
@@ -53,7 +53,7 @@ const ANNOTATED_BODY_STYLE = `
 	.r6o-span-highlight-layer .r6o-annotation { position: absolute; display: block; border-style: solid; border-width: 0; box-sizing: content-box; background: var(--shu-accent-soft, rgba(0, 128, 255, 0.28)); }
 	shu-annotated-body { display: block; }
 	shu-annotated-body .annotated-layout { display: flex; align-items: flex-start; gap: var(--shu-space-4); position: relative; }
-	shu-annotated-body .annotated-content { flex: 1 1 auto; min-width: 0; line-height: 1.5; word-break: break-word; }
+	shu-annotated-body .annotated-content { flex: 1 1 auto; min-width: 0; ${BODY_READING_STYLE} word-break: break-word; }
 	shu-annotated-body .annotated-content .r6o-annotation { cursor: pointer; }
 	shu-annotated-body .annotation-rail { flex: 0 0 ${RAIL_WIDTH}px; width: ${RAIL_WIDTH}px; position: relative; align-self: stretch; }
 	shu-annotated-body .annotation-card { position: absolute; left: 0; width: 100%; box-sizing: border-box; padding: var(--shu-space-2); border: var(--shu-border-w) solid var(--shu-border); border-left: 3px solid var(--shu-accent, #0080ff); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); font-size: var(--shu-font-sm); cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
@@ -106,6 +106,9 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	 *  that follows. Null leaves the body read-only (nothing to author against), which is what a host that does not offer
 	 *  annotating passes. */
 	@property({ attribute: false }) accessor annotate: ((draft: TAnnotationDraft) => Promise<{ ok: true } | { ok: false; error: string }>) | null = null;
+	/** A passage to scroll to and flash once the body is mounted — set by a Text Fragment reference into this document.
+	 *  Acted on once per distinct quote (tracked by `revealedKey`), so unrelated re-renders do not re-flash it. */
+	@property({ attribute: false }) accessor revealTarget: QuoteAnchor | null = null;
 
 	@state() private accessor placedCards: PlacedCard[] = [];
 	@state() private accessor selectedCommentId = "";
@@ -129,6 +132,8 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	@state() private accessor anchoredCount = 0;
 
 	private annotator?: TextAnnotator<W3CTextAnnotation>;
+	/** The last revealTarget acted on, keyed by its quote fields. */
+	private revealedKey = "";
 	private mountedSignature = "";
 	private resizeObserver?: ResizeObserver;
 	/** Set when cards are (re)placed; cleared by the measured restack. Gates the restack so its re-render doesn't loop. */
@@ -199,6 +204,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 			} else this.mountBody();
 			return;
 		}
+		if (changed.has("revealTarget")) this.applyReveal();
 		if (changed.has("annotations")) {
 			// The reload brought the real annotations; drop the optimistic placeholders they replace.
 			if (this.pending.length > 0) this.pending = [];
@@ -239,6 +245,16 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		this.resizeObserver?.observe(container);
 		this.applyAnnotations();
 		this.ready = true;
+		this.applyReveal();
+	}
+
+	/** Reveal the requested passage if it has not been revealed yet — after mount, and when the target changes. */
+	private applyReveal(): void {
+		if (!this.revealTarget) return;
+		const key = `${this.revealTarget.exact}\u0000${this.revealTarget.prefix ?? ""}\u0000${this.revealTarget.suffix ?? ""}`;
+		if (key === this.revealedKey) return;
+		this.revealedKey = key;
+		this.revealQuote(this.revealTarget);
 	}
 
 	/** Lower each card to below the previous card's measured bottom when its ideal top would overlap, keeping cards ordered
@@ -382,9 +398,9 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		}
 	}
 
-	/** Follow a linking annotation to the section it references: find the target quote in the rendered text and scroll it
-	 *  into view with a brief flash, so the cross-reference lands the reader on the passage it points at. */
-	private goToLink(link: QuoteAnchor): void {
+	/** Land the reader on a quoted passage: find it in the rendered text and scroll it into view with a brief flash.
+	 *  Shared by a linking annotation's "go to" and by a Text Fragment reference into this document. */
+	private revealQuote(link: QuoteAnchor): void {
 		const container = this.contentEl();
 		if (!container) return;
 		const offsets = locateQuoteOffsets(container.textContent ?? "", link.exact, link.prefix, link.suffix);
@@ -410,9 +426,9 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 
 	render(): TemplateResult {
 		const cards = this.show ? this.placedCards : [];
-		// The rail (gutter) is present only when there are note cards to show — an annotatable body with no notes reads
-		// full-width, no empty gutter reserved. The authoring affordance is NOT in the rail: it floats over the content at
-		// the selection (see renderAuthoring), so it appears in the same place whether or not the document has annotations.
+		// The rail (gutter) is reserved whenever the gutter is shown, notes or none — the text column's width, and so its
+		// wrapping, stay put as notes come and go. The authoring affordance is NOT in the rail: it floats over the content
+		// at the selection (see renderAuthoring), so it appears in the same place whether or not the document has annotations.
 		return html`
 			<style>${ANNOTATED_BODY_STYLE}</style>
 			${this.anchoredCount > 0 ? html`<span data-testid="annotation-highlight" hidden></span>` : html``}
@@ -421,7 +437,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 				${this.ready ? html`` : html`<div class="annotation-preparing" data-testid="annotation-preparing">Preparing ${this.sourceLabel || "document"}…</div>`}
 				${this.renderAuthoring()}
 				${
-					cards.length === 0
+					!this.show
 						? html``
 						: html`<div class="annotation-rail" data-testid="annotation-rail">
 					${cards.map(
@@ -442,7 +458,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 										data-testid="annotation-card-link"
 										@click=${(e: Event) => {
 											e.stopPropagation();
-											if (a.linksTo) this.goToLink(a.linksTo);
+											if (a.linksTo) this.revealQuote(a.linksTo);
 										}}
 										>→ go to “${a.linksTo.exact}”</span
 									>`
