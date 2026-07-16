@@ -458,7 +458,7 @@ const main = async (): Promise<void> => {
 			afterAttach: {
 				entity: (d, child) => {
 					if (d.paneType !== "entity") return;
-					return (child as ShuEntityColumn).open(d.id, d.persistedAs);
+					return (child as ShuEntityColumn).open(d.id, d.persistedAs, d.selector);
 				},
 				type: (d, child) => {
 					if (d.paneType !== "type") return;

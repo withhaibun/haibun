@@ -21,6 +21,31 @@ describe("parseRefHref", () => {
 		expect(parseRefHref("https://example.com", isType)).toBeNull();
 		expect(parseRefHref("#", isType)).toBeNull();
 	});
+
+	it("reads a Text Fragment directive on an individual ref as a quote selector", () => {
+		expect(parseRefHref("#FieldReport:r1:~:text=11.1.29%20The%20Verifier", isType)).toEqual({
+			kind: "entity",
+			target: { persistedAs: "FieldReport", id: "r1", selector: { exact: "11.1.29 The Verifier" } },
+		});
+	});
+
+	it("reads prefix- and -suffix parts, classifying marker dashes before percent-decoding", () => {
+		expect(parseRefHref("#FieldReport:r1:~:text=before-,exact%2C%20quote,-after", isType)).toEqual({
+			kind: "entity",
+			target: { persistedAs: "FieldReport", id: "r1", selector: { exact: "exact, quote", prefix: "before", suffix: "after" } },
+		});
+	});
+
+	it("keeps the individual ref but drops the selector for a range directive (no TextQuoteSelector form)", () => {
+		expect(parseRefHref("#FieldReport:r1:~:text=start,end", isType)).toEqual({ kind: "entity", target: { persistedAs: "FieldReport", id: "r1" } });
+	});
+
+	it("splits the id before the directive so a DID id with a selector survives", () => {
+		expect(parseRefHref("#FieldReport:did:example:r1:~:text=quoted", isType)).toEqual({
+			kind: "entity",
+			target: { persistedAs: "FieldReport", id: "did:example:r1", selector: { exact: "quoted" } },
+		});
+	});
 });
 
 describe("refLinksPlugin", () => {

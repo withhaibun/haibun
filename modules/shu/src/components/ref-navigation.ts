@@ -5,7 +5,7 @@
  * node/link navigation routes through one place and the link vocabulary stays consistent. The <shu-ref> element and the
  * graph views both call openRef; none reimplements the routing.
  */
-import { PaneState, paneIdOf, type DesiredPane } from "../pane-state.js";
+import { PaneState, paneIdOf, QuoteAnchorSchema, type DesiredPane } from "../pane-state.js";
 
 export const REF_KIND = ["seqPath", "entity", "domain", "step"] as const;
 export type TRefKind = (typeof REF_KIND)[number];
@@ -20,8 +20,13 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 	// Typed-fact subjects ARE seqPaths, so a seqPath ref doubles as the quad-view link: step-detail loads every quad
 	// emitted at that seqPath (including the fact), drillable into individual quads from there.
 	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) return { paneType: "step-detail", seqPath: linkTarget.seqPath as number[] };
-	if (kind === "entity" && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string")
-		return { paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id };
+	if (kind === "entity" && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
+		// A quote selector addresses a passage INSIDE the individual (a Text Fragment ref); the pane identity stays the
+		// individual — same document, same column — and the selector rides along for the column to reveal.
+		const parsed = QuoteAnchorSchema.safeParse(linkTarget.selector);
+		const selector = parsed.success ? parsed.data : undefined;
+		return { paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id, ...(selector ? { selector } : {}) };
+	}
 	// A type reference opens the type column: its description, schema graph, and individuals.
 	if (kind === "domain" && typeof linkTarget.domain === "string") return { paneType: "type", persistedAs: linkTarget.domain };
 	// step kind: no dedicated pane yet.

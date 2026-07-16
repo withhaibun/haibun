@@ -22,13 +22,26 @@ import { readElementPrefs } from "./element-prefs.js";
 import { presentationForType } from "./graph/type-presentation.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
+import type { QuoteAnchor } from "./annotation-resolver.js";
+
+/** The one selector schema — bound to annotation-resolver's QuoteAnchor so the zod shape and the type cannot drift. */
+export const QuoteAnchorSchema: z.ZodType<QuoteAnchor> = z.object({ exact: z.string(), prefix: z.string().optional(), suffix: z.string().optional() });
 
 const FlagSchema = z.enum(["min", "max"]).optional();
 const TagSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 
 export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("component"), tag: TagSchema, label: z.string(), data: z.record(z.string(), z.unknown()).optional(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("entity"), id: z.string(), persistedAs: z.string(), label: z.string().optional(), flag: FlagSchema }),
+	z.object({
+		paneType: z.literal("entity"),
+		id: z.string(),
+		persistedAs: z.string(),
+		label: z.string().optional(),
+		// A quoted passage to reveal inside the individual (TextQuoteSelector shape). Not part of the pane's identity:
+		// the pane is the individual, and a second reference into the same document reuses its column.
+		selector: QuoteAnchorSchema.optional(),
+		flag: FlagSchema,
+	}),
 	z.object({ paneType: z.literal("type"), persistedAs: z.string(), flag: FlagSchema }),
 	z.object({ paneType: z.literal("filter-eq"), persistedAs: z.string(), predicate: z.string(), value: z.string(), flag: FlagSchema }),
 	z.object({ paneType: z.literal("filter-prop"), persistedAs: z.string(), predicate: z.string(), flag: FlagSchema }),
@@ -220,6 +233,12 @@ class PaneStateImpl {
 		if (existing && d.paneType === "component" && d.data) {
 			const live = this.findLiveChild(id);
 			if (live) (live as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
+		}
+		// Re-request of an open individual with a passage selector: the pane already shows the document, so hand the
+		// selector to the live column to reveal — attach hooks only fire for new panes.
+		if (existing && d.paneType === "entity" && d.selector) {
+			const live = this.findLiveChild(id) as (HTMLElement & { revealPassage?: (s: QuoteAnchor) => void }) | undefined;
+			live?.revealPassage?.(d.selector);
 		}
 		this.desired.set(id, d);
 		this.activePaneId = id;

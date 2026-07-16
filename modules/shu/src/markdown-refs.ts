@@ -7,24 +7,55 @@
  * individual of that type). `Type` MUST be a known persisted type (`isType`), so an ordinary in-page `#anchor`
  * link is left as a plain anchor. The id may itself contain colons (a DID), so the type/id split is on the FIRST
  * colon only.
+ *
+ * An individual reference may address a passage INSIDE the individual with a text directive — the W3C/WICG Text
+ * Fragment syntax, `#Type:id:~:text=[prefix-,]exact[,-suffix]` — which maps one-to-one onto the Web Annotation
+ * TextQuoteSelector the graph already persists. Opening such a reference opens the individual's column and reveals
+ * the quoted passage. The directive is format-agnostic: it quotes content, not a section-numbering convention.
  */
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { renderRef } from "./components/shu-ref.js";
+// Type-only: the quote shape is annotation-resolver's QuoteAnchor (the TextQuoteSelector shape, oa:exact/oa:prefix/oa:suffix).
+import type { QuoteAnchor } from "./annotation-resolver.js";
 
-export type TRefHref = { kind: "domain"; target: { domain: string } } | { kind: "entity"; target: { persistedAs: string; id: string } };
+export type TRefHref = { kind: "domain"; target: { domain: string } } | { kind: "entity"; target: { persistedAs: string; id: string; selector?: QuoteAnchor } };
 
-/** Parse a `#Type` / `#Type:id` href into a shu-ref kind + target, or null when it is not a type reference. */
+const TEXT_DIRECTIVE = ":~:text=";
+
+/**
+ * Parse a Text Fragment directive value (`[prefix-,]exact[,-suffix]`) into a quote selector. The marker dashes are
+ * literal in the raw directive (an encoded %2D is text, not a marker), so parts are classified before decoding.
+ * A range form (`start,end`) has no TextQuoteSelector equivalent, so it yields no selector.
+ */
+export function parseTextDirective(directive: string): QuoteAnchor | undefined {
+	const parts = directive.split(",");
+	let prefix: string | undefined;
+	let suffix: string | undefined;
+	if (parts.length > 1 && parts[0].endsWith("-")) prefix = decodeURIComponent((parts.shift() ?? "").slice(0, -1));
+	if (parts.length > 1 && parts[parts.length - 1].startsWith("-")) suffix = decodeURIComponent((parts.pop() ?? "").slice(1));
+	if (parts.length !== 1 || !parts[0]) return undefined;
+	const exact = decodeURIComponent(parts[0]);
+	return { exact, ...(prefix ? { prefix } : {}), ...(suffix ? { suffix } : {}) };
+}
+
+/** Parse a `#Type` / `#Type:id` / `#Type:id:~:text=…` href into a shu-ref kind + target, or null when it is not a type reference. */
 export function parseRefHref(href: string | null | undefined, isType: (name: string) => boolean): TRefHref | null {
 	if (!href || href[0] !== "#") return null;
-	const key = href.slice(1);
+	let key = href.slice(1);
 	if (!key) return null;
+	let selector: QuoteAnchor | undefined;
+	const directiveAt = key.indexOf(TEXT_DIRECTIVE);
+	if (directiveAt !== -1) {
+		selector = parseTextDirective(key.slice(directiveAt + TEXT_DIRECTIVE.length));
+		key = key.slice(0, directiveAt);
+	}
 	const colon = key.indexOf(":");
 	if (colon === -1) return isType(key) ? { kind: "domain", target: { domain: key } } : null;
 	const persistedAs = key.slice(0, colon);
 	const id = key.slice(colon + 1);
 	if (!persistedAs || !id || !isType(persistedAs)) return null;
-	return { kind: "entity", target: { persistedAs, id } };
+	return { kind: "entity", target: { persistedAs, id, ...(selector ? { selector } : {}) } };
 }
 
 /** Install the reference-link rule: a type-reference link's `link_open … link_close` tokens become one shu-ref. */
