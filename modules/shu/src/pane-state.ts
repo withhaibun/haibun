@@ -188,8 +188,8 @@ class PaneStateImpl {
 	fromHash(): void {
 		if (ViewHash.getHash() === this.lastWrittenHash) return; // our own echo — desired already matches; don't rebuild (would clobber an in-flight open)
 		this.hydrated = true; // we have now read the hash at least once — writes are safe (see `hydrated`)
-		const hash = ViewHash.getHash().replace(/^#\??/, "");
-		const params = new URLSearchParams(hash);
+		// `open=` arrivals never reach here: view-hash canonicalizes them into col= entries at its ingress.
+		const params = ViewHash.hashParams(ViewHash.getHash());
 		const active = params.get("active");
 		const next = new Map<string, DesiredPane>();
 		const idParam = params.get("id");
@@ -382,7 +382,7 @@ class PaneStateImpl {
 		// to be restored. This generalises the setActivePane guard to every writer (the boot-strip regression).
 		if (!this.hydrated) return;
 		const base = ViewHash.getHash();
-		const params = new URLSearchParams(base.startsWith("#?") ? base.slice(2) : "");
+		const params = ViewHash.hashParams(base);
 		params.delete("col");
 		for (const d of this.desired.values()) {
 			const suffix = d.flag === "min" ? "~min" : d.flag === "max" ? "~max" : "";

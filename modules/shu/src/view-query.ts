@@ -37,14 +37,9 @@ export type TViewQuery = z.infer<typeof ViewQuerySchema>;
 
 const QUERY_PARAMS = ["label", "q", "sort", "order", "offset", "access", "f"] as const;
 
-function hashParams(hash: string): URLSearchParams {
-	const body = hash.startsWith("#?") ? hash.slice(2) : hash.startsWith("#") ? hash.slice(1) : hash;
-	return new URLSearchParams(body);
-}
-
 /** Parse + validate the query params out of a hash string. Throws (fail-fast) on a malformed param. */
 export function parseViewQuery(hash: string): TViewQuery {
-	const p = hashParams(hash);
+	const p = ViewHash.hashParams(hash);
 	const offsetRaw = p.get("offset");
 	return ViewQuerySchema.parse({
 		label: p.get("label") || null,
@@ -141,7 +136,8 @@ export const viewQuery = {
 		return store().lastWrittenHash === hash;
 	},
 
-	/** Read the URL hash into the store (boot + back/forward). Fail-fast on a malformed param. */
+	/** Read the URL hash into the store (boot + back/forward). Fail-fast on a malformed param.
+	 * `open=` arrivals never reach here: view-hash canonicalizes them into col= entries at its ingress. */
 	hydrate(hash: string = ViewHash.getHash()): void {
 		assign(parseViewQuery(hash));
 		store().lastWrittenHash = hash;
@@ -151,7 +147,7 @@ export const viewQuery = {
 	set(patch: Partial<TViewQuery>): void {
 		const next = ViewQuerySchema.parse({ ...snapshot(), ...patch });
 		assign(next);
-		const merged = hashParams(ViewHash.getHash());
+		const merged = ViewHash.hashParams(ViewHash.getHash());
 		for (const k of QUERY_PARAMS) merged.delete(k);
 		for (const [k, v] of queryParams(next)) merged.append(k, v);
 		const hash = merged.toString() ? `#?${merged.toString()}` : "";

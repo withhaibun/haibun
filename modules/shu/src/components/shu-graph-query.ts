@@ -234,6 +234,15 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	executeQuery(): Promise<void> {
 		const label = this.qLabel;
 		const textQuery = this.qText;
+		// The server rejects a query naming neither a type nor text; asking anyway fails identically on every
+		// retrigger (each SSE batch fires one), flooding the server and the run log. Say why once instead.
+		if (!label && !textQuery?.trim()) {
+			this.error = "no record type or search text to query";
+			this.results = [];
+			this.total = 0;
+			this.renderResults();
+			return Promise.resolve();
+		}
 		const sortBy = this.qSort;
 		const sortOrder = this.qOrder;
 
