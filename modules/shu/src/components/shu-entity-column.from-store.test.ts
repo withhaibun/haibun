@@ -4,17 +4,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { resetEntityStore } from "../entity-store.js";
-import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../test-setup.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-
-const STEP_LIST = {
-	steps: [
-		{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}", params: {} },
-		{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}", params: {} },
-	],
-	domains: {},
-	concerns: { persisted: {}, references: {} },
-};
 
 const badge = (el: ShuEntityColumn): string | undefined => el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.FROM_STORE}"]`)?.textContent ?? undefined;
 
@@ -24,14 +15,7 @@ describe("shu-entity-column stored-copy indication", () => {
 		resetEntityStore();
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
-		handle = setupShuTest({
-			dispatch: (method) => {
-				if (method === "step.list") return STEP_LIST;
-				if (method === "GraphStepper-getIndividualWithEdges") return { vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: 0 };
-				if (method === "ResourcesStepper-annotations") return { annotations: [] };
-				throw new Error(`unexpected ${method}`);
-			},
-		});
+		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: 0 }) }) });
 	});
 	afterEach(() => handle.teardown());
 

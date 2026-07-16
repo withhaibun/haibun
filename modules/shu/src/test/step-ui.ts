@@ -112,7 +112,8 @@ export function createStepUI(wp: WebPlaywright) {
 	/** Expand the actions-bar and switch to Ask mode. Symmetric to enterStepMode. */
 	const enterAskMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Ask"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.CHAT_INPUT })];
 
-	/** Type a prompt into the Ask area's chat-input and submit. */
+	/** Type a prompt into the Ask area's chat-input and submit. Keep curly braces out of the prompt when the reply
+	 *  feeds `matches` — its `{var}` interpolation breaks on a model echoing braces back. */
 	// The turn must FULLY complete (cookie written + server-side recordChatComments persisted) before later steps re-mount the chat, or the turn is lost. The session combo (app-session-select) only renders after handleChat's post-stream block runs refreshSessionList, so waiting for it blocks until completion — far more reliable than network-idle on a long-lived stream.
 	function askExchange(prompt: string): TKirejiStep[] {
 		return [

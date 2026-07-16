@@ -9,20 +9,11 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { openEntity, refreshAnnotations, getEntityView, subscribeEntities, resetEntityStore } from "./entity-store.js";
-import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
+import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "./test-setup.js";
 import { LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import type { TEvent } from "./event-stream.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
-
-const STEP_LIST = {
-	steps: [
-		{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}", params: {} },
-		{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}", params: {} },
-	],
-	domains: {},
-	concerns: { persisted: {}, references: {} },
-};
 
 const entity = (subject: string) => ({ vertex: { "@id": "e1", "@type": "Email", subject }, edges: [], incomingCount: 0 });
 const note = (commentId: string, body: string) => ({ commentId, specificResourceId: `sr-${commentId}`, exact: "a passage", body });
@@ -40,18 +31,16 @@ const quadEvent = (namedGraph: string, subject: string, predicate: string, objec
 /** A dispatch over the two steps the store calls, counting them and letting a test script per-call answers. */
 function stubDispatch(over: { entity?: () => unknown; annotations?: () => unknown } = {}) {
 	const calls = { entity: 0, annotations: 0 };
-	const dispatch = (method: string) => {
-		if (method === "step.list") return STEP_LIST;
-		if (method === "GraphStepper-getIndividualWithEdges") {
+	const dispatch = makeEntityDispatch({
+		entity: () => {
 			calls.entity++;
 			return over.entity ? over.entity() : entity("Hi");
-		}
-		if (method === "ResourcesStepper-annotations") {
+		},
+		annotations: () => {
 			calls.annotations++;
 			return over.annotations ? over.annotations() : { annotations: [] };
-		}
-		throw new Error(`unexpected ${method}`);
-	};
+		},
+	});
 	return { dispatch, calls };
 }
 

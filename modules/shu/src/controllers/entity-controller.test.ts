@@ -5,19 +5,10 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { LitElement } from "lit";
 import { EntityController } from "./entity-controller.js";
 import { resetEntityStore, type TEntityView } from "../entity-store.js";
-import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../test-setup.js";
 import type { TEvent } from "../event-stream.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
-
-const STEP_LIST = {
-	steps: [
-		{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}", params: {} },
-		{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}", params: {} },
-	],
-	domains: {},
-	concerns: { persisted: {}, references: {} },
-};
 
 const quadEvent = (subject: string, predicate: string, object: unknown): TEvent =>
 	({
@@ -42,15 +33,13 @@ describe("EntityController", () => {
 		resetEntityStore();
 		annotationCalls = 0;
 		handle = setupShuTest({
-			dispatch: (method) => {
-				if (method === "step.list") return STEP_LIST;
-				if (method === "GraphStepper-getIndividualWithEdges") return { vertex: { "@id": "e1", subject: "Hi" }, edges: [], incomingCount: 0 };
-				if (method === "ResourcesStepper-annotations") {
+			dispatch: makeEntityDispatch({
+				entity: () => ({ vertex: { "@id": "e1", subject: "Hi" }, edges: [], incomingCount: 0 }),
+				annotations: () => {
 					annotationCalls++;
 					return { annotations: [] };
-				}
-				throw new Error(`unexpected ${method}`);
-			},
+				},
+			}),
 		});
 	});
 	afterEach(() => handle.teardown());
