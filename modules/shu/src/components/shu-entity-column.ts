@@ -19,6 +19,7 @@ import {
 	pickPreferredBody,
 	renderContentHtml,
 	utf8ToBase64,
+	BODY_READING_STYLE,
 } from "../util.js";
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
@@ -31,21 +32,28 @@ import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
-import type { AnnotationView } from "../annotation-resolver.js";
+import type { AnnotationView, QuoteAnchor } from "../annotation-resolver.js";
 import "./shu-annotated-body.js";
 import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
 import { openRef } from "./ref-navigation.js";
+import { pageAddress } from "../view-hash.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
 
-/** Markdown/plain bodies are rendered locally for a clean, private view — this CSP makes them load NOTHING from the network (no remote images/tracking pixels, fonts, scripts, frames, or fetches); only inline `data:` images and the inline body style are permitted. text/html bodies are the original message and opt out so their remote assets load (scripts stay blocked by the iframe sandbox regardless). */
-const BODY_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
+/** Network-free CSP for markdown/plain bodies (text/html opts out; the iframe sandbox still blocks its scripts).
+ *  base-uri must admit the app origin or the CSP discards the <base> that makes the body's links work. */
+const bodyCsp = (baseOrigin: string): string =>
+	`default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri ${baseOrigin || "'none'"}; form-action 'none'`;
 
-export function buildBodyIframeDoc(content: string, mediaType: string): string {
-	const csp = mediaType === "text/html" ? "" : `<meta http-equiv="Content-Security-Policy" content="${BODY_CSP}">`;
-	return `<!DOCTYPE html><html><head><meta charset="utf-8">${csp}<style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
+export function buildBodyIframeDoc(content: string, mediaType: string, pageUrl = ""): string {
+	const baseOrigin = pageUrl ? new URL(pageUrl).origin : "";
+	const csp = mediaType === "text/html" ? "" : `<meta http-equiv="Content-Security-Policy" content="${bodyCsp(baseOrigin)}">`;
+	// In a data: document a `#` link resolves against the data: URL and goes nowhere; the base re-roots links against
+	// the app and target=_top sends them to the top frame (the iframe sandbox permits user-initiated top navigation).
+	const base = pageUrl ? `<base href="${escAttr(pageUrl)}" target="_top">` : "";
+	return `<!DOCTYPE html><html><head><meta charset="utf-8">${csp}${base}<style>body{${BODY_READING_STYLE}margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
 }
 
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
@@ -77,8 +85,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.entity-controls { padding: var(--shu-space-1) 0 var(--shu-space-2); border-bottom: var(--shu-border-w) solid var(--shu-border); margin-bottom: var(--shu-space-2); }
 		:host(:not([data-show-controls])) .entity-controls { display: none; }
 		.annotation-toggle { display: flex; gap: var(--shu-space-2); align-items: center; color: var(--shu-fg-muted); font-size: var(--shu-font-sm); cursor: pointer; }
-		.annotate-enter { align-self: flex-start; margin: var(--shu-space-1) 0; padding: 2px var(--shu-space-3); font-size: var(--shu-font-sm); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); color: var(--shu-accent); cursor: pointer; }
-		.annotate-enter:hover { border-color: var(--shu-accent); }
+		.annotate-enter { background: none; border: none; padding: 0 var(--shu-space-1); font-size: var(--shu-font-lg); cursor: pointer; opacity: 0.6; color: var(--shu-fg-muted); }
+		.annotate-enter:hover { opacity: 1; }
+		.annotate-enter.active { opacity: 1; color: var(--shu-accent); }
 		.content-toolbar { display: flex; gap: var(--shu-space-2); padding: var(--shu-space-1) 0; align-items: center; }
 		.content-switcher { display: flex; gap: var(--shu-space-2); }
 		.content-switch-btn { font-size: 0.75em; padding: 1px var(--shu-space-3); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); cursor: pointer; background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
@@ -113,6 +122,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private edgeTargetCount = 0;
 	/** Annotations anchored in the open individual's body — projected from the entity view; empty until resolved. */
 	private annotationsList: AnnotationView[] = [];
+	/** A passage to reveal once the body renders — set by a Text Fragment reference into this individual. */
+	private revealTarget: QuoteAnchor | null = null;
 	/** The text of each body that has been read, by body id — projected from the entity view. A body the reader has not
 	 *  opened is absent, so the body area reads as loading rather than empty. */
 	private bodyText: Record<string, string> = {};
@@ -184,14 +195,21 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.products = result as unknown as Record<string, unknown>;
 	}
 
+	/** Reveal a quoted passage in the already-open individual — the re-request path of a Text Fragment reference. */
+	revealPassage(selector: QuoteAnchor): void {
+		this.revealTarget = selector;
+		this.setState({ showAnnotations: true });
+	}
+
 	/** Open an individual by ID through the entity handle: it serves a cached copy at once, else fetches (then falls back
 	 *  to the persisted browser store when offline), and resolves the annotations anchored in it — one path, one shared
 	 *  copy and one live subscription per individual. `applyView` projects each resolved state onto the render fields. */
-	async open(id: string, label: string = defaultLabel()): Promise<void> {
+	async open(id: string, label: string = defaultLabel(), selector?: QuoteAnchor): Promise<void> {
 		// Surface the subject as an attribute so external code (e.g. the COLUMN_CLOSE
 		// listener in app.ts) can detect which entity is in this column without
 		// reaching through the protected `state` field.
 		this.setAttribute("data-subject", id);
+		if (selector) this.revealPassage(selector);
 		this.setState({ individualId: id, persistedAs: label, error: undefined });
 		const accessLevel = appAccessLevel();
 		await this.entity.open(label, id, accessLevel);
@@ -252,13 +270,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const summaryHtml =
 				summaryFields.size > 0
 					? `<div class="entity-summary" data-testid="entity-summary">${Array.from(summaryFields)
-							.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
-							.map((k) => {
-								const v = fields[k];
-								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
-								return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)} ${valueHtml}</span>`;
-							})
-							.join(" ")}</div>`
+						.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
+						.map((k) => {
+							const v = fields[k];
+							const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
+							return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)} ${valueHtml}</span>`;
+						})
+						.join(" ")}</div>`
 					: "";
 			// The body area (iframe or inline-annotated) is rendered as a lit sub-template after this string, so annotations
 			// reach shu-annotated-body as a real property rather than an attribute — hence contentIframe is NOT embedded here.
@@ -425,11 +443,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-						.map(
-							(b) =>
-								`<button class="content-switch-btn${String(b.id ?? "") === activeId ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`,
-						)
-						.join("")}</div>`
+					.map(
+						(b) =>
+							`<button class="content-switch-btn${String(b.id ?? "") === activeId ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`,
+					)
+					.join("")}</div>`
 				: "";
 		// Text this view was HANDED (a step's products carry their own body) needs no request; otherwise it is the text
 		// read on request, and until that lands the body area says it is reading rather than showing an empty frame.
@@ -437,12 +455,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		if (raw === undefined) return `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(String(active.mediaType))}…</div></div>`;
 		if (raw === "") return ""; // a body with nothing in it: show nothing, not an empty frame
 		const content = renderContentHtml(raw, String(active.mediaType));
-		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType)));
+		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType), pageAddress()));
 		const invertible = String(active.mediaType) !== "text/html" ? " invertible" : "";
-		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(activeId)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
+		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(activeId)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
 		const copyBtn = copyButtonHtml(raw);
-		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}</div>`;
+		const annotateBtn = this.annotatableBody() ? `<button class="annotate-enter" data-testid="annotate-enter" title="Show annotations">📝</button>` : "";
+		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}${annotateBtn}</div>`;
 		return `<div class="body-container">${toolbar}${iframeHtml}</div>`;
 	}
 
@@ -469,33 +488,39 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return b && content !== undefined ? { content, mediaType: String(b.mediaType) } : null;
 	}
 
-	/** The body area. A text body (markdown / plain) that carries annotations, with the option on, renders inline via
-	 *  shu-annotated-body — the passages highlighted and the notes shown in a margin rail beside them. Any other case
-	 *  (no annotations, option off, or a non-text body such as an original HTML email) keeps the sandboxed body iframe. */
+	/** Show or hide the annotation gutter. On with no annotations yet enters authoring (the inline view needs a note or
+	 *  a draft to show); off also drops any pending passage reveal, since the reveal renders in the gutter. */
+	private toggleAnnotationGutter(show: boolean): void {
+		if (!show) this.revealTarget = null;
+		this.setState({ showAnnotations: show, annotateMode: show && this.annotationsList.length === 0 });
+	}
+
+	/** The body area. A text body (markdown / plain) that carries annotations, with the gutter on (the default when any
+	 *  exist), renders inline via shu-annotated-body — the passages highlighted and the notes shown in a margin rail
+	 *  beside them, the toolbar's 📝 toggling back to the plain iframe. Any other case (no annotations, gutter off, or a
+	 *  non-text body such as an original HTML email) keeps the sandboxed body iframe, whose 📝 toggles the gutter on. */
 	private renderBodyArea(iframeHtml: string): TemplateResult {
 		if (!iframeHtml) return html``;
 		const annBody = this.annotatableBody();
-		// A text body that carries annotations reads inline (option on) so they show anchored, with any passage selectable
-		// to add more — the column writes it through its entity handle. A body with none yet reads in its iframe (format
-		// switcher preserved) beside an Annotate affordance that enters the inline view to author the first.
-		// A non-text body (e.g. an original HTML email) keeps the iframe.
-		const showInline = annBody && this.state.showAnnotations && (this.annotationsList.length > 0 || this.state.annotateMode);
+		const showInline = annBody && this.state.showAnnotations && (this.annotationsList.length > 0 || this.state.annotateMode || this.revealTarget !== null);
 		if (showInline && annBody) {
-			return html`<shu-annotated-body
-				data-testid="annotated-body"
-				.content=${annBody.content}
-				.mediaType=${annBody.mediaType}
-				.sourceId=${this.state.individualId}
-				.sourceLabel=${this.state.persistedAs}
-				.annotations=${this.annotationsList}
-				.annotate=${this.annotateDraft}
-				.show=${true}
-			></shu-annotated-body>`;
+			return html`<div class="content-toolbar">
+					${unsafeHTML(copyButtonHtml(annBody.content))}
+					<button class="annotate-enter active" data-testid="annotate-enter" title="Hide annotations" @click=${() => this.toggleAnnotationGutter(false)}>📝button>
+				</div>
+				<shu-annotated-body
+					data-testid="annotated-body"
+					.content=${annBody.content}
+					.mediaType=${annBody.mediaType}
+					.sourceId=${this.state.individualId}
+					.sourceLabel=${this.state.persistedAs}
+					.annotations=${this.annotationsList}
+					.annotate=${this.annotateDraft}
+					.show=${true}
+					.revealTarget=${this.revealTarget}
+				></shu-annotated-body>`;
 		}
-		const annotateBtn = annBody
-			? html`<button class="annotate-enter" data-testid="annotate-enter" @click=${() => this.setState({ annotateMode: true, showAnnotations: true })}>✎ Annotate</button>`
-			: html``;
-		return html`${annotateBtn}${unsafeHTML(iframeHtml)}`;
+		return html`${unsafeHTML(iframeHtml)}`;
 	}
 
 	/** The column's view-settings surface — shown only under the pane's ⚙ (the pane sets `data-show-controls`), like the
@@ -507,8 +532,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return html`<div class="entity-controls" data-testid="entity-controls">
 			<label class="annotation-toggle"
 				><input type="checkbox" data-testid="annotation-toggle" .checked=${this.state.showAnnotations} @change=${this.onToggleAnnotations} /> Show annotations${count > 0
-					? html` (${count})`
-					: html``}</label
+				? html` (${count})`
+				: html``}</label
 			>
 		</div>`;
 	}
@@ -690,7 +715,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				if (iframe) {
 					iframe.dataset.bodyId = bodyId;
 					iframe.classList.toggle("invertible", body.mediaType !== "text/html");
-					iframe.src = `data:text/html;base64,${utf8ToBase64(buildBodyIframeDoc(content, body.mediaType))}`;
+					iframe.src = `data:text/html;base64,${utf8ToBase64(buildBodyIframeDoc(content, body.mediaType, pageAddress()))}`;
 				}
 			});
 		});
@@ -706,5 +731,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		});
 
 		bindCopyButtons(this.shadowRoot as ShadowRoot);
+		// The iframe path's 📝 is string-rendered (no lit binding available); the inline path's 📝 binds via @click.
+		this.shadowRoot?.querySelector(".annotate-enter:not(.active)")?.addEventListener("click", () => this.toggleAnnotationGutter(true));
 	}
 }
