@@ -378,4 +378,27 @@ describe("PaneState", () => {
 		expect(afterAdd).toContain("e:Email:msg-2");
 		expect(afterAdd).toContain("e:Email:msg-3");
 	});
+
+	it("an open= link adds its pane to the live state instead of replacing it (a document's view link)", async () => {
+		// Online: the arrival path is a real location change, canonicalized by view-hash's ingress listener
+		// (registered at import, so it runs before PaneState's) before any consumer reads the hash.
+		ViewHash.setOffline(false);
+		ShuElement.pushHash("#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column");
+		PaneState.fromHash();
+		await flush();
+
+		// A document link cannot know the live state, so it names only the pane it opens. replaceState +
+		// a dispatched hashchange is the arrival without jsdom's own async echo.
+		history.replaceState(null, "", "#?open=shu-graph-view");
+		window.dispatchEvent(new HashChangeEvent("hashchange"));
+		await flush();
+
+		const params = ViewHash.hashParams(ShuElement.getHash());
+		expect(params.get("label")).toBe("File"); // the query state survives the link
+		expect(params.get("sort")).toBe("dateModified");
+		expect(params.getAll("col").sort()).toEqual(["shu-graph-view", "shu-monitor-column"]);
+		expect(params.get("active")).toBe("shu-graph-view"); // the linked view is what the reader asked for
+		expect(params.get("open")).toBeNull(); // canonicalized away
+		ViewHash.setOffline(true);
+	});
 });

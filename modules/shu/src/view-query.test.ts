@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { ViewQuerySchema, type TViewQuery, parseViewQuery, serializeViewQuery, viewQuery } from "./view-query.js";
+import { canonicalizeArrival } from "./view-hash.js";
 
 const DEFAULTS: TViewQuery = ViewQuerySchema.parse({});
 
@@ -56,6 +57,19 @@ describe("viewQuery store", () => {
 		expect(viewQuery.current).toEqual({ ...DEFAULTS, label: "Email", q: "INBOX", offset: 20, order: "asc" });
 		viewQuery.hydrate("");
 		expect(viewQuery.current).toEqual(DEFAULTS);
+	});
+
+	it("keeps the live query when an open= fragment arrives (a document's view link names no query state)", () => {
+		const live = "#?label=File&sort=dateModified&col=shu-monitor-column";
+		viewQuery.hydrate(live);
+		expect(viewQuery.current.label).toBe("File");
+		// The link's fragment carries only the pane request; view-hash canonicalizes it against the live
+		// address at its ingress, so what hydrate reads keeps label and sort — assigning from the raw
+		// fragment would drop them, and every SSE retrigger would then re-issue a query the server
+		// rejects (one 422 per event).
+		viewQuery.hydrate(canonicalizeArrival("#?open=shu-fisheye-graph-view", live));
+		expect(viewQuery.current.label).toBe("File");
+		expect(viewQuery.current.sort).toBe("dateModified");
 	});
 
 	it("set() validates, applies, and round-trips through the live hash", () => {
