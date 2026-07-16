@@ -1177,11 +1177,13 @@ const STYLES = `
 	.corner-timeline { display: block; width: 100%; min-width: 0; }
 	.corner-popover .access-select { width: auto; }
 	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
-	/* The corner controls (current time, access level, settings) — one cluster at the lower right; each chip carries its
-	   own box, so the cluster is just a gap-spaced row, no wrapping pill. */
-	.corner-controls { display: inline-flex; align-items: center; gap: var(--shu-space-1); flex-shrink: 0; }
-	/* A text toggle sizes to its label; the compound selector outweighs pane-icon's fixed square width. Box, height, and
-	   the accent-inverse-when-open come from pane-icon. */
+	/* The negative margin cancels the bar's vertical padding so the buttons take the bar's full height. */
+	.corner-controls {
+		display: inline-flex; align-items: stretch; gap: var(--shu-space-1); flex-shrink: 0;
+		align-self: stretch; margin: calc(-1 * var(--shu-space-2)) 0;
+	}
+	.corner-controls .pane-icon { height: auto; }
+	/* A text toggle sizes to its label; the compound selector outweighs pane-icon's fixed square width. */
 	.corner-controls .corner-toggle { width: auto; padding: 0 var(--shu-space-2); }
 	.access-indicator, .time-offset { font-size: var(--shu-font-xs); flex-shrink: 0; }
 	.filter-bar {
