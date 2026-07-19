@@ -23,7 +23,7 @@ import {
 } from "../util.js";
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { shuBaseStyles } from "./styles.js";
+import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
@@ -59,6 +59,7 @@ export function buildBodyIframeDoc(content: string, mediaType: string, pageUrl =
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	static styles = [
 		shuBaseStyles,
+		shuIconButtonStyles,
 		css`
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
@@ -85,9 +86,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.entity-controls { padding: var(--shu-space-1) 0 var(--shu-space-2); border-bottom: var(--shu-border-w) solid var(--shu-border); margin-bottom: var(--shu-space-2); }
 		:host(:not([data-show-controls])) .entity-controls { display: none; }
 		.annotation-toggle { display: flex; gap: var(--shu-space-2); align-items: center; color: var(--shu-fg-muted); font-size: var(--shu-font-sm); cursor: pointer; }
-		.annotate-enter { background: none; border: none; padding: 0 var(--shu-space-1); font-size: var(--shu-font-lg); cursor: pointer; opacity: 0.6; color: var(--shu-fg-muted); }
-		.annotate-enter:hover { opacity: 1; }
-		.annotate-enter.active { opacity: 1; color: var(--shu-accent); }
+		/* The annotate toggle is a pane-icon (min/max/pin/settings look; aria-pressed = the accent-fill highlight the pane
+		 * toggles use). The pencil glyph reads greyscale until the record carries annotations, then colour — so annotation
+		 * presence is visible independently of whether the gutter is currently open. */
+		.annotate-enter .anno-glyph { display: inline-flex; filter: grayscale(1); opacity: 0.75; transition: filter 0.15s, opacity 0.15s; }
+		.annotate-enter.has-annotations .anno-glyph { filter: none; opacity: 1; }
 		.content-toolbar { display: flex; gap: var(--shu-space-2); padding: var(--shu-space-1) 0; align-items: center; }
 		.content-switcher { display: flex; gap: var(--shu-space-2); }
 		.content-switch-btn { font-size: 0.75em; padding: 1px var(--shu-space-3); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); cursor: pointer; background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
@@ -460,7 +463,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(activeId)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
 		const copyBtn = copyButtonHtml(raw);
-		const annotateBtn = this.annotatableBody() ? `<button class="annotate-enter" data-testid="annotate-enter" title="Show annotations">📝</button>` : "";
+		const annotateBtn = this.annotatableBody() ? this.annotateButtonHtml(false) : "";
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}${annotateBtn}</div>`;
 		return `<div class="body-container">${toolbar}${iframeHtml}</div>`;
 	}
@@ -488,6 +491,15 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return b && content !== undefined ? { content, mediaType: String(b.mediaType) } : null;
 	}
 
+	/** The annotation-gutter toggle for the body toolbar — identical markup in the iframe and inline paths so the two
+	 *  never drift. `active` is whether the gutter is currently open (drives the pane-icon aria-pressed highlight); the
+	 *  `has-annotations` class colours the pencil glyph, greyscale otherwise. */
+	private annotateButtonHtml(active: boolean): string {
+		const has = this.annotationsList.length > 0;
+		const title = active ? "Hide annotations" : has ? "Show annotations" : "Add annotations";
+		return `<button class="pane-icon annotate-enter${has ? " has-annotations" : ""}" data-testid="annotate-enter" type="button" aria-pressed="${active}" title="${title}"><span class="anno-glyph">📝</span></button>`;
+	}
+
 	/** Show or hide the annotation gutter. On with no annotations yet enters authoring (the inline view needs a note or
 	 *  a draft to show); off also drops any pending passage reveal, since the reveal renders in the gutter. */
 	private toggleAnnotationGutter(show: boolean): void {
@@ -505,8 +517,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const showInline = annBody && this.state.showAnnotations && (this.annotationsList.length > 0 || this.state.annotateMode || this.revealTarget !== null);
 		if (showInline && annBody) {
 			return html`<div class="content-toolbar">
-					${unsafeHTML(copyButtonHtml(annBody.content))}
-					<button class="annotate-enter active" data-testid="annotate-enter" title="Hide annotations" @click=${() => this.toggleAnnotationGutter(false)}>📝button>
+					${unsafeHTML(copyButtonHtml(annBody.content))}${unsafeHTML(this.annotateButtonHtml(true))}
 				</div>
 				<shu-annotated-body
 					data-testid="annotated-body"
@@ -731,7 +742,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		});
 
 		bindCopyButtons(this.shadowRoot as ShadowRoot);
-		// The iframe path's 📝 is string-rendered (no lit binding available); the inline path's 📝 binds via @click.
-		this.shadowRoot?.querySelector(".annotate-enter:not(.active)")?.addEventListener("click", () => this.toggleAnnotationGutter(true));
+		// Both toolbars render the toggle the same string way (annotateButtonHtml), so one binding covers both: a click
+		// flips the gutter from whatever it is now. unsafeHTML recreates the button each render, so the listener is fresh.
+		this.shadowRoot?.querySelector(".annotate-enter")?.addEventListener("click", () => this.toggleAnnotationGutter(!this.state.showAnnotations));
 	}
 }

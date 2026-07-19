@@ -67,3 +67,38 @@ describe("entity body content renders for every type and view that should show i
 		expect(html).not.toContain('data-testid="entity-stub"'); // literal body content makes it a full view
 	});
 });
+
+// The annotate toggle uses the pane-icon toggle system (aria-pressed = active), and colours its glyph only when
+// annotations exist — so a reader tells at a glance whether a document carries notes, before opening the gutter.
+describe("annotate toggle button", () => {
+	beforeEach(() => {
+		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
+	});
+
+	const openWithAnnotatableBody = async (annotations: unknown[]): Promise<ShuEntityColumn> => {
+		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		document.body.appendChild(el);
+		el.openProducts({ _type: "File", _summary: "notes.md", id: "f1", hasBody: [{ id: "fb", content: "# Notes\n\nbody text", mediaType: "text/markdown" }] });
+		// Seed annotations directly, then force the plain-body (iframe) path so the assertion doesn't depend on the
+		// inline annotator mounting in jsdom. The button's colour reflects annotation COUNT regardless of the path.
+		(el as unknown as { annotationsList: unknown[] }).annotationsList = annotations;
+		(el as unknown as { setState(p: Record<string, unknown>): void }).setState({ showAnnotations: false });
+		await el.updateComplete;
+		return el;
+	};
+
+	const button = (el: ShuEntityColumn): HTMLElement | null => el.shadowRoot?.querySelector('[data-testid="annotate-enter"]') ?? null;
+
+	it("is a pane-icon toggle, greyscale (no has-annotations) and not pressed when the document has no notes", async () => {
+		const btn = button(await openWithAnnotatableBody([]));
+		expect(btn).not.toBeNull();
+		expect(btn?.classList.contains("pane-icon")).toBe(true);
+		expect(btn?.classList.contains("has-annotations")).toBe(false);
+		expect(btn?.getAttribute("aria-pressed")).toBe("false");
+	});
+
+	it("gains has-annotations (colour) when the document carries notes", async () => {
+		const btn = button(await openWithAnnotatableBody([{ commentId: "c1", exact: "body", body: "a note" }]));
+		expect(btn?.classList.contains("has-annotations")).toBe(true);
+	});
+});
