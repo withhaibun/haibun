@@ -3,7 +3,7 @@ import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { appAccessLevel } from "./util.js";
 import { conduit } from "./hypermedia.js";
-import { getRels } from "./rels-cache.js";
+import { getRels, getDisplayLabelRel } from "./rels-cache.js";
 import { getAvailableSteps } from "./rpc-registry.js";
 import { IndexedDbQuadStore } from "./quad-store-idb.js";
 
@@ -217,7 +217,7 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 	if (st.cache) return st.cache.model.snapshot;
 	if (st.pending) return st.pending;
 	st.pending = (async () => {
-		const model = new QuadGraphModel(perTypeLimit, getRels);
+		const model = new QuadGraphModel(perTypeLimit, getRels, getDisplayLabelRel);
 		try {
 			const steps = await getAvailableSteps();
 			if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
@@ -257,7 +257,7 @@ export function currentSnapshot(scope = ""): TGraphSnapshot {
 }
 
 function ensureCache(st: ScopeState): CacheEntry {
-	if (!st.cache) st.cache = { model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels), perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*", accessLevel: appAccessLevel() };
+	if (!st.cache) st.cache = { model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels, getDisplayLabelRel), perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*", accessLevel: appAccessLevel() };
 	return st.cache;
 }
 
