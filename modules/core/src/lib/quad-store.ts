@@ -163,6 +163,19 @@ export class QuadStore implements IQuadStore {
 		return Promise.resolve();
 	}
 
+	/**
+	 * Create a navigable edge. A property-graph backing store materializes it as a real, walkable relationship; without
+	 * such a backing the edge is modelled as a quad in the source's named graph (an edge a property-graph store would
+	 * reject as a stray property is a plain quad here). Routing mirrors `add`/`set`/`query`, so a caller holding this
+	 * store never needs to know whether a graph engine backs the source's named graph.
+	 */
+	createEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
+		const backing = this.storeFor(fromLabel);
+		if (backing?.createEdge) return backing.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
+		// objectType records the target's type, so the quad reads back as an edge rather than a literal property.
+		return this.add({ subject: fromId, predicate: edgeLabel, object: toId, namedGraph: fromLabel, objectType: toLabel });
+	}
+
 	async query(pattern: TQuadPattern): Promise<TQuad[]> {
 		if (pattern.namedGraph) {
 			const backing = this.storeFor(pattern.namedGraph);

@@ -25,6 +25,9 @@ import {
 	toActorRels,
 	HAIBUN_NS,
 	haibunNsForHost,
+	assertCommentGrounded,
+	writeAnnotation,
+	type TDiscourseStore,
 } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
@@ -704,5 +707,58 @@ describe("getPropertyDefinitions", () => {
 		expect(ids.has("range")).toBe(true);
 		expect(ids.has("icon")).toBe(true);
 		expect(ids.has("presentation")).toBe(true);
+	});
+});
+
+/** A minimal in-memory quad store with no createEdge, so the discourse helpers must fall back to plain `add` quads. */
+function memStore() {
+	const quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string }> = [];
+	const nodes = new Map<string, Record<string, unknown>>();
+	const store: TDiscourseStore = {
+		upsertIndividual: (label, data) => {
+			const d = data as Record<string, unknown>;
+			nodes.set(`${label}:${String(d.id)}`, d);
+			return Promise.resolve(String(d.id));
+		},
+		add: (quad) => {
+			quads.push(quad);
+			return Promise.resolve();
+		},
+		query: ({ subject, predicate, object }) =>
+			Promise.resolve(quads.filter((q) => (subject === undefined || q.subject === subject) && (predicate === undefined || q.predicate === predicate) && (object === undefined || q.object === object))),
+	};
+	return { store, quads, nodes };
+}
+
+describe("assertCommentGrounded — no floating comments", () => {
+	const withEdges = (predicates: string[]) => ({ query: () => Promise.resolve(predicates.map((predicate) => ({ subject: "c1", predicate, object: "x" }))) }) as unknown as TDiscourseStore;
+	it("passes for an oa:hasTarget edge (about a subject)", async () => {
+		await expect(assertCommentGrounded(withEdges([LinkRelations.TARGET.rel]), "c1")).resolves.toBeUndefined();
+	});
+	it("passes for a reply-family edge (narrate is a sub-property of inReplyTo)", async () => {
+		await expect(assertCommentGrounded(withEdges([LinkRelations.NARRATE.rel]), "c1")).resolves.toBeUndefined();
+	});
+	it("passes for an attachment edge", async () => {
+		await expect(assertCommentGrounded(withEdges([LinkRelations.ATTACHMENT.rel]), "c1")).resolves.toBeUndefined();
+	});
+	it("throws when only hasBody/seqPath are present — content + position do not make a comment about anything", async () => {
+		await expect(assertCommentGrounded(withEdges([LinkRelations.HAS_BODY.rel, LinkRelations.SEQ_PATH.rel]), "c1")).rejects.toThrow(/not grounded/);
+	});
+});
+
+describe("writeAnnotation — self-contained on a plain quad store (no createEdge)", () => {
+	it("builds Comment —hasTarget→ SpecificResource —hasSource→ doc / —hasSelector→ TextQuoteSelector, grounded, without editing the doc", async () => {
+		const { store, quads, nodes } = memStore();
+		const { commentId, specificResourceId } = await writeAnnotation(store, "did:site:0", { label: "File", id: "doc-1", exact: "a passage", suffix: " of the document", text: "A note." });
+
+		const target = quads.find((q) => q.subject === commentId && q.predicate === LinkRelations.TARGET.rel);
+		expect(target?.object).toBe(specificResourceId);
+		const source = quads.find((q) => q.subject === specificResourceId && q.predicate === LinkRelations.HAS_SOURCE.rel);
+		expect(source?.object).toBe("doc-1"); // the SpecificResource points at the document; the document itself gets no quad
+		expect(quads.some((q) => q.subject === "doc-1")).toBe(false);
+		const selEdge = quads.find((q) => q.subject === specificResourceId && q.predicate === LinkRelations.HAS_SELECTOR.rel);
+		const selector = nodes.get(`${TEXT_QUOTE_SELECTOR_LABEL}:${String(selEdge?.object)}`);
+		expect(selector?.exact).toBe("a passage");
+		expect(selector?.suffix).toBe(" of the document");
 	});
 });
