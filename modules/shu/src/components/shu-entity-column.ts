@@ -743,7 +743,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 		bindCopyButtons(this.shadowRoot as ShadowRoot);
 		// Both toolbars render the toggle the same string way (annotateButtonHtml), so one binding covers both: a click
-		// flips the gutter from whatever it is now. unsafeHTML recreates the button each render, so the listener is fresh.
-		this.shadowRoot?.querySelector(".annotate-enter")?.addEventListener("click", () => this.toggleAnnotationGutter(!this.state.showAnnotations));
+		// flips the gutter from whatever it is now. The `data-bound` guard stops a second listener attaching when a
+		// re-render leaves the button node in place (unsafeHTML only recreates it when its string changes).
+		const annotateBtn = this.shadowRoot?.querySelector<HTMLElement>(".annotate-enter");
+		if (annotateBtn && !annotateBtn.dataset.bound) {
+			annotateBtn.dataset.bound = "1";
+			annotateBtn.addEventListener("click", () => this.toggleAnnotationGutter(!this.state.showAnnotations));
+		}
 	}
 }
