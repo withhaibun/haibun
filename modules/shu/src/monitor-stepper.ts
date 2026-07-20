@@ -553,7 +553,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				// budget-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
 				// buffer unbudgeted let every observed subject past the requested limit — the client seeds this
 				// response verbatim, so the response itself must hold the bound.
-				const model = new QuadGraphModel(perTypeLimit, (type) => this.resourceRels().fields(type));
+				const model = new QuadGraphModel(perTypeLimit, (type) => this.resourceRels().fields(type), (type) => this.resourceRels().displayLabelRel(type));
 				model.seed({ quads: result.quads as TQuad[], clusters: [...result.clusters] });
 				model.merge(types?.length ? this.observationQuads.filter((q) => types.includes(q.namedGraph)) : this.observationQuads);
 				const quads = model.snapshot.quads.map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({

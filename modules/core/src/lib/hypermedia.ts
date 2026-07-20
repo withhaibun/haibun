@@ -467,7 +467,7 @@ export const DISPLAY_LABEL_REL_PRIORITY: ReadonlyArray<{ rel: string; bare: bool
  * reading the property's own value. The rel's declared range decides, so a type states only WHICH property titles it,
  * never how that property resolves.
  */
-export const displayLabelResolvesThrough = (rel: TRel): boolean => getRelRange(rel) === "iri";
+export const displayLabelResolvesThrough = (rel: string): boolean => getRelRange(rel) === "iri";
 
 /** Maximum length for a display label (bytes/chars). Truncated values are suffixed with an ellipsis. */
 export const MAX_DISPLAY_LABEL_LEN = 80;
@@ -536,7 +536,7 @@ export function composeDisplayLabel(args: {
 	rels: Record<string, string> | undefined;
 	getProperty: (field: string) => unknown;
 	bodyContents?: ReadonlyArray<string | null | undefined>;
-	displayLabel?: { rel: TRel; linkedLabel?: string };
+	displayLabel?: { rel: string; linkedLabel?: string };
 	id: string;
 }): string {
 	const explicit = resolveFromCandidates(args.rels, args.getProperty, DISPLAY_LABEL_EXPLICIT);
@@ -549,7 +549,7 @@ export function composeDisplayLabel(args: {
 }
 
 /** The type's declared labeling property resolved to text: through the edge for an iri-ranged rel, else its own value. */
-function resolveDeclaredLabel(args: { rels: Record<string, string> | undefined; getProperty: (field: string) => unknown; displayLabel?: { rel: TRel; linkedLabel?: string } }): string | undefined {
+function resolveDeclaredLabel(args: { rels: Record<string, string> | undefined; getProperty: (field: string) => unknown; displayLabel?: { rel: string; linkedLabel?: string } }): string | undefined {
 	const declared = args.displayLabel;
 	if (!declared) return undefined;
 	if (displayLabelResolvesThrough(declared.rel)) return declared.linkedLabel?.trim() || undefined;
@@ -590,10 +590,11 @@ export function displayLabelForQuads(
 	subjectQuads: ReadonlyArray<LabelQuad>,
 	bodyContentOf: (bodySubject: string) => string | undefined,
 	rels: Record<string, string> | undefined,
+	declared?: { rel: string; linkedLabel?: string },
 ): string {
 	const bodyContents = type === BODY_LABEL ? [] : linkedBodyContents(subjectQuads, bodyContentOf);
 	const getProperty = (field: string) => subjectQuads.find((q) => q.predicate === field && (typeof q.object === "string" || typeof q.object === "number"))?.object;
-	return composeDisplayLabel({ rels, getProperty, bodyContents, id: subject });
+	return composeDisplayLabel({ rels, getProperty, bodyContents, id: subject, ...(declared ? { displayLabel: declared } : {}) });
 }
 
 /** Parse a value as epoch ms (ISO date string or number). */
