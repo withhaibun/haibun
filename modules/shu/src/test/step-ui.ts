@@ -9,6 +9,26 @@ import ShuGraphViewControls from "../components/shu-graph-view.controls.js";
 const { setGraphVisibility } = withAction(new ShuGraphViewControls());
 const { setAs } = withAction(new VariablesStepper());
 
+/**
+ * The origin a browser-driving feature navigates to.
+ *
+ * Default: the feature's own webserver at `http://localhost:<port>` — the port from
+ * `HAIBUN_O_WEBSERVERSTEPPER_PORT`, else `defaultPort`. A self-contained feature serves its own app and seeds its
+ * own store, so the browser must reach that loopback server. On a host that also fronts a deployed instance through
+ * a reverse proxy, localhost stays off the proxy path, so any proxy authentication is not involved.
+ *
+ * Override — `HAIBUN_TEST_HOST`: point a run at a separate, already-running instance instead of the feature's own
+ * server. Accepts a full origin (`https://demo.example.com`, `http://10.0.0.5:8728`) or a bare hostname, taken as
+ * `https://<host>`. For a deliberate read-only run only: a feature that seeds its own store fails against a remote
+ * instance that lacks that data, and a target behind basic auth also needs browser credentials (Playwright
+ * `httpCredentials`), which this does not supply.
+ */
+export function serviceHost(defaultPort: string): string {
+	const target = process.env.HAIBUN_TEST_HOST;
+	if (target) return target.includes("://") ? target : `https://${target}`;
+	return `http://localhost:${process.env.HAIBUN_O_WEBSERVERSTEPPER_PORT ?? defaultPort}`;
+}
+
 /** Declare one id under the `page-test-id` domain so the variable resolver maps the bare name to that test id. */
 const registerTestIdStep = (id: string): TKirejiStep => setAs({ what: id, domain: "page-test-id", value: `"${id}"` });
 
