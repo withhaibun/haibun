@@ -935,6 +935,123 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 	},
 };
 
+/** Which side of an annotated quote its context sits on: "preceded by" makes the context the TextQuoteSelector prefix,
+ *  "followed by" the suffix — so a short or repeated quote resolves to the intended occurrence. */
+export const ANNOTATION_PLACEMENT_DOMAIN = "annotation-placement";
+export const AnnotationPlacementSchema = z.enum(["preceded by", "followed by"]);
+export type TAnnotationPlacement = z.infer<typeof AnnotationPlacementSchema>;
+export const annotationPlacementDomainDefinition: TDomainDefinition = {
+	selectors: [ANNOTATION_PLACEMENT_DOMAIN],
+	schema: AnnotationPlacementSchema,
+	description: "Which side of an annotated quote its context sits on: preceded by (the prefix) or followed by (the suffix).",
+};
+
+// ============================================================================
+// Discourse write helpers — comment and annotation acts over a quad store
+// ============================================================================
+
+/** The store surface the discourse write helpers use: node upsert, quad add/query, and (property-graph stores only) a
+ *  navigable createEdge. Every consumer store implements it; keeping it minimal keeps these helpers store-agnostic. */
+export type TDiscourseStore = {
+	upsertIndividual(label: string, data: unknown): Promise<string>;
+	query(pattern: { subject?: string; predicate?: string; object?: unknown }): Promise<Array<{ subject: string; predicate: string; object: unknown }>>;
+	add(quad: { subject: string; predicate: string; object: unknown; namedGraph: string; objectType?: string }): Promise<void>;
+	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
+};
+
+/** A Comment's display name — its note text on one line, truncated so a graph view titles by what it says, not its id. */
+const COMMENT_NAME_MAX = 60;
+export function commentName(text: string): string {
+	const oneLine = text.replace(/\s+/g, " ").trim();
+	return oneLine.length > COMMENT_NAME_MAX ? `${oneLine.slice(0, COMMENT_NAME_MAX - 1)}…` : oneLine;
+}
+
+/** Write a navigable edge: a property-graph store materializes a real, walkable edge; a quad store models it as a quad. */
+export async function writeEdge(store: TDiscourseStore, fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string): Promise<void> {
+	if (store.createEdge) await store.createEdge(fromLabel, fromId, rel, toLabel, toId);
+	// objectType records the target's type, so the quad reads back as an edge rather than a literal property.
+	else await store.add({ subject: fromId, predicate: rel, object: toId, namedGraph: fromLabel, objectType: toLabel });
+}
+
+/** Create a Comment individual with its markdown body as a Body sub-resource — the shared act behind `comment` and
+ *  `annotate`. `name` titles the node by the note text (truncated) rather than its id. */
+export async function createComment(store: TDiscourseStore, author: string, text: string, now: string): Promise<string> {
+	const commentId = crypto.randomUUID();
+	await store.upsertIndividual(COMMENT_LABEL, { id: commentId, author, generatedAtTime: now, name: commentName(text) });
+	const bodyId = `body-${commentId}-text-markdown`;
+	await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: "text/markdown", generatedAtTime: now });
+	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.HAS_BODY.rel, BODY_LABEL, bodyId);
+	return commentId;
+}
+
+/** Anchor a passage inside (sourceLabel, sourceId): a TextQuoteSelector for the quote (its optional prefix/suffix context
+ *  making a short or repeated quote resolve reliably) plus a SpecificResource naming the source and the selector. Returns
+ *  the SpecificResource id — the target a Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference) points at. */
+export async function anchorPassage(store: TDiscourseStore, sourceLabel: string, sourceId: string, quote: { exact: string; prefix?: string; suffix?: string }, now: string): Promise<string> {
+	const selectorId = crypto.randomUUID();
+	await store.upsertIndividual(TEXT_QUOTE_SELECTOR_LABEL, {
+		id: selectorId,
+		exact: quote.exact,
+		...(quote.prefix !== undefined ? { prefix: quote.prefix } : {}),
+		...(quote.suffix !== undefined ? { suffix: quote.suffix } : {}),
+		generatedAtTime: now,
+	});
+	const specificResourceId = crypto.randomUUID();
+	await store.upsertIndividual(SPECIFIC_RESOURCE_LABEL, { id: specificResourceId, generatedAtTime: now });
+	await writeEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel, sourceLabel, sourceId);
+	await writeEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel, TEXT_QUOTE_SELECTOR_LABEL, selectorId);
+	return specificResourceId;
+}
+
+/** Rels that ground a Comment in what it concerns: an oa:hasTarget subject or an attachment. Reply-family rels
+ *  (inReplyTo and its sub-properties, e.g. narrate) also ground it — checked via isReplyEdge. */
+const GROUNDING_RELS = new Set<string>([LinkRelations.TARGET.rel, LinkRelations.ATTACHMENT.rel]);
+
+/** Enforce that a Comment references what it is about: an oa:hasTarget subject, an attachment, or (in a thread) the
+ *  comment it replies to. No floating comments. A conversation root with no subject is a deliberate general question and
+ *  its own origin — callers skip the check there. */
+export async function assertCommentGrounded(store: TDiscourseStore, commentId: string): Promise<void> {
+	const quads = await store.query({ subject: commentId });
+	const grounded = quads.some((q) => GROUNDING_RELS.has(q.predicate) || isReplyEdge(q.predicate));
+	if (!grounded) throw new Error(`Comment "${commentId}" is not grounded — every comment must reference what it is about (hasTarget, attachment, or a reply edge).`);
+}
+
+/** Walk reply-family edges upward from an individual to its conversation root, so a comment groups under the same root
+ *  as what it concerns. Stops at the first individual with no reply parent (a top-level subject is its own root). */
+export async function conversationRoot(store: TDiscourseStore, id: string): Promise<string> {
+	let root = id;
+	for (let depth = 0; depth < 100; depth++) {
+		const quads = await store.query({ subject: root });
+		const parent = quads.find((q) => isReplyEdge(q.predicate));
+		if (!parent) break;
+		const parentId = String(parent.object);
+		if (!parentId || parentId === root) break;
+		root = parentId;
+	}
+	return root;
+}
+
+/** Write a W3C Web Annotation anchored in (label, id): the anchor passage (oa:hasTarget), the note, and — for a linking
+ *  annotation — a second anchored passage the note cross-references (oa:hasBody linksTo). The quote carries optional
+ *  prefix/suffix context so what is annotated is determined reliably. Shared by every annotate variant. */
+export async function writeAnnotation(
+	store: TDiscourseStore,
+	author: string,
+	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; link?: { exact: string; prefix?: string; suffix?: string } },
+): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceId?: string }> {
+	const now = new Date().toISOString();
+	const specificResourceId = await anchorPassage(store, a.label, a.id, a, now);
+	const commentId = await createComment(store, author, a.text, now);
+	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.TARGET.rel, SPECIFIC_RESOURCE_LABEL, specificResourceId);
+	let linkedSpecificResourceId: string | undefined;
+	if (a.link) {
+		linkedSpecificResourceId = await anchorPassage(store, a.label, a.id, a.link, now);
+		await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.LINKS_TO.rel, SPECIFIC_RESOURCE_LABEL, linkedSpecificResourceId);
+	}
+	await assertCommentGrounded(store, commentId);
+	return { commentId, specificResourceId, ...(linkedSpecificResourceId ? { linkedSpecificResourceId } : {}) };
+}
+
 // ============================================================================
 // Property definitions — runtime projection of LinkRelations
 // ============================================================================
