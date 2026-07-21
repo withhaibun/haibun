@@ -60,6 +60,13 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	];
 
 	private results: VertexRow[] = [];
+
+	/** The rows this table shows, as an `as:Collection`. Usually reached through the query view's summary; standalone tables answer for themselves. */
+	summarizeForKihan(): unknown | null {
+		if (this.results.length === 0) return null;
+		return { "@id": "view:result-table", "@type": "as:Collection", ...(this.persistedAs ? { queryType: this.persistedAs } : {}), totalItems: this.results.length, items: this.results };
+	}
+
 	private allProperties: string[] = [];
 	private sortableFields: ReadonlySet<string> = new Set();
 	persistedAs = "";

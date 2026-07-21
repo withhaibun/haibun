@@ -58,6 +58,11 @@ const StateSchema = z.object({
 });
 
 export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
+	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	#events = new EventsController(this, () => this.onEventsChanged());
 	static styles = [
 		shuBaseStyles,

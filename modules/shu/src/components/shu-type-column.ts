@@ -70,6 +70,11 @@ export function buildFullSchemaGraph(current: string): TGraph {
 }
 
 export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
+	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		css`

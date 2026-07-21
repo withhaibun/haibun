@@ -88,6 +88,18 @@ function normalizeSelection(goalInUrl: string, waypointInUrl: string, priorGoal:
 
 export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSchema> {
 	private affordances: TAffordances | null = null;
+
+	/** The discovery surface as linked data: every forward step (the deployment's callable verbs) and each goal's verdict — the core affordance shapes, uninvented. No served vocabulary term types this composite, so it carries none. */
+	summarizeForKihan(): unknown | null {
+		if (!this.affordances) return null;
+		return {
+			"@id": "view:affordances",
+			name: "the steps this deployment offers from its current state, and the stated goals with their resolutions",
+			forward: this.affordances.forward.map((f) => ({ method: f.method, gwta: f.gwta ?? "", inputDomains: f.inputDomains, outputDomains: f.outputDomains, readyToRun: f.readyToRun })),
+			goals: this.affordances.goals.map((g) => ({ domain: g.domain, description: g.description, resolution: g.resolution })),
+		};
+	}
+
 	private assertedDomains: Set<string> = new Set();
 	private lastScrolledGoal: string = "";
 	private lastScrolledWaypoint: string = "";

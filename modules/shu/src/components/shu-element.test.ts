@@ -22,6 +22,10 @@ import { setJsonCookie } from "../cookies.js";
 const S = z.object({ x: z.string().default("") });
 
 class FinalizeProbe extends ShuElement<typeof S> {
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static observedHtmlAttributes = ["foo", "bar"];
 	static styles = [shuBaseStyles, css`:host { color: var(--shu-fg); }`];
 	constructor() {
@@ -49,6 +53,10 @@ describe("ShuElement observedAttributes → finalize contract", () => {
 });
 
 class SealedOverrideProbe extends ShuElement<typeof S> {
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	constructor() {
 		super(S, { x: "" });
 	}
@@ -68,6 +76,10 @@ describe("ShuElement sealed-lifecycle guard", () => {
 const P = z.object({ size: z.number().default(10), tone: z.string().default("plain"), volatile: z.string().default("") });
 
 class PersistProbe extends ShuElement<typeof P> {
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static persistFields = ["size", "tone"] as const;
 	key: string | null = "";
 	constructor() {
@@ -151,6 +163,10 @@ describe("ShuElement persistFields", () => {
 
 	it("a typo'd persistFields entry fails fast at construction", () => {
 		const Bad = class extends ShuElement<typeof P> {
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 			static persistFields = ["nope"] as const;
 			constructor() {
 				super(P, {});
@@ -179,6 +195,10 @@ describe("ShuElement invalid state reporting", () => {
 	const Schema = z.object({ label: z.string(), count: z.number().default(0) });
 
 	class ReportProbe extends ShuElement<typeof Schema> {
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 		// A number-bound attribute: a non-numeric attribute value coerces to NaN, which the schema rejects — the one way to
 		// drive a rejected write in through attributeChangedCallback.
 		static attributeFields = { "data-count": "count" };

@@ -57,6 +57,11 @@ const StateSchema = z.object({
 const ZOOM_STEP = 25; // percent per zoom click — a visible jump, not a nudge
 
 export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
+	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		css`

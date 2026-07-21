@@ -14,6 +14,11 @@ const ViewsPickerSchema = z.object({});
 type TView = { id: string; description: string; component: string };
 
 export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		css`

@@ -23,6 +23,7 @@ import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import { getCookie, setCookie } from "../cookies.js";
 import type { TContextPattern, TSearchCondition } from "../schemas.js";
+import { harvestChatViewLd } from "../chat-context-harvest.js";
 
 const MODEL_COOKIE = "shu-model";
 const TOOL_LIMIT_COOKIE = "shu-tool-limit";
@@ -51,6 +52,11 @@ function readToolLimitCookie(): number {
 const ChatSchema = z.object({});
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		chatMessageStyles,
@@ -252,37 +258,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private activeChatContext(): { patterns: TContextPattern[]; viewLd: unknown[]; maxToolCalls: number; sessionSeqPath?: string; inReplyTo?: string } {
 		const envelope: { patterns: TContextPattern[]; viewLd: unknown[]; maxToolCalls: number; sessionSeqPath?: string; inReplyTo?: string } = {
 			patterns: this._contextPatterns,
-			viewLd: this.harvestJsonLdFromActivePane(),
+			viewLd: harvestChatViewLd(),
 			maxToolCalls: this._toolLimit,
 		};
 		if (this._sessionSeqPath) envelope.sessionSeqPath = this._sessionSeqPath;
 		if (this._lastReplySeqPath) envelope.inReplyTo = this._lastReplySeqPath;
 		return envelope;
-	}
-
-	private harvestJsonLdFromActivePane(): unknown[] {
-		const strip = document.querySelector("shu-column-strip");
-		if (!strip) return [];
-		const activeIdx = (strip as unknown as { state?: { activeIndex?: number } }).state?.activeIndex ?? -1;
-		if (activeIdx < 0) return [];
-		const panes = Array.from(strip.querySelectorAll("shu-column-pane"));
-		const pane = panes[activeIdx];
-		if (!pane) return [];
-		const blocks: unknown[] = [];
-		const collect = (root: ParentNode) => {
-			for (const el of Array.from(root.querySelectorAll('script[type="application/ld+json"]'))) {
-				const txt = el.textContent ?? "";
-				if (!txt)
-					throw new Error(
-						"shu-llm-chat: encountered an empty <script type=application/ld+json> in the active pane — the view's render must emit valid JSON-LD or omit the script tag",
-					);
-				blocks.push(JSON.parse(txt));
-			}
-		};
-		collect(pane);
-		const child = pane.firstElementChild;
-		if (child?.shadowRoot) collect(child.shadowRoot);
-		return blocks;
 	}
 
 	private async loadModels(): Promise<void> {

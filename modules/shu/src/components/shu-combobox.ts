@@ -5,6 +5,11 @@ import { ComboboxSchema, type TComboboxOption } from "../schemas.js";
 import { shuBaseStyles } from "./styles.js";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -68,9 +73,14 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	 *  funnels here too. Reconciles the closed display in case the held value only became resolvable now its
 	 *  options arrived. */
 	setOptions(options: TComboboxOption[]): void {
+		const wasReady = this.state.options.length > 0;
 		this.state = { ...this.state, options };
 		if (this.state.open) this.renderList();
 		else this.reconcileClosedDisplay();
+		// The readiness marker lives in the lit template; the dropdown is managed imperatively, so a plain options
+		// change never re-renders the template. Ask lit to re-render only when readiness flips (rare — catalog load or
+		// clear), which keeps the marker current without re-rendering the input during typing churn.
+		if (options.length > 0 !== wasReady) this.requestUpdate();
 	}
 
 	/** Reactive property: a parent binds `.options=${...}` in its template instead of poking setOptions. */
@@ -138,7 +148,12 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 
 	render(): TemplateResult {
 		const testId = this.getAttribute("testid") ?? "";
-		return html`<input type="text" class="combo-input" placeholder=${this.state.placeholder} .value=${this.state.filterText} autocomplete="off" data-testid=${testId} />`;
+		// Readiness affordance: the control advertises that it holds options to offer, as a stable shadow-attached
+		// marker (distinct from the transient dropdown list, which only exists while open). A driver waits on this to
+		// know the control is ready before choosing, rather than racing the list render; picking then reads `filtered`
+		// off state, so the choice never depends on the ephemeral dropdown being on screen.
+		const ready = testId && this.state.options.length > 0 ? html`<span data-testid=${`${testId}-ready`} hidden></span>` : "";
+		return html`<input type="text" class="combo-input" placeholder=${this.state.placeholder} .value=${this.state.filterText} autocomplete="off" data-testid=${testId} />${ready}`;
 	}
 
 	protected updated(): void {

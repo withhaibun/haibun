@@ -26,6 +26,11 @@ export function describeSearch(q: TViewQuery): string {
 }
 
 export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static schema = EmptySchema;
 	static domainSelector = "shu-search-summary";
 

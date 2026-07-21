@@ -39,6 +39,11 @@ const LEVEL_ICONS: Record<string, string> = { error: "❌", warn: "⚠️", info
 const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
+	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	#events = new EventsController(this, () => this.onEventsChanged());
 	// The `.log-rows` list is the scroll container; the shared kit tails the live edge and pauses when the reader scrolls away.
 	#follow = new FollowController(this, () => this.shadowRoot?.querySelector(".log-rows") ?? null);

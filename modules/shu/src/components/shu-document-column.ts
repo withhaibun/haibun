@@ -189,6 +189,15 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.renderedEventCount = this.events.length;
 	}
 
+	/** The windowed document as markdown — computed on demand when the person asks, mirroring exactly what the
+	 *  column shows (same windowTail, same level). Typed from the served vocabulary: an `as:Document` with `content`. */
+	summarizeForKihan(): unknown | null {
+		const windowed = windowTail(this.events);
+		if (windowed.length === 0) return null;
+		const { md } = generateDocumentMarkdown(windowed, buildArtifactIndex(windowed).artifactsByStep, this.state.level as THaibunLogLevel, this.startTime);
+		return { "@id": "view:document-log", "@type": "as:Document", name: "the run document shown in this column, as markdown", content: md };
+	}
+
 	/** Append only new events since last render — never touches existing DOM. */
 	private appendNew(): void {
 		if (!this.shadowRoot) return;

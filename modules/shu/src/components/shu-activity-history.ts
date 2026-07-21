@@ -16,6 +16,11 @@ import { ShuElement } from "./shu-element.js";
 const EmptySchema = z.object({});
 
 export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
+	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static schema = EmptySchema;
 	static domainSelector = "shu-activity-history";
 

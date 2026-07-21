@@ -238,24 +238,23 @@ export function createStepUI(wp: WebPlaywright) {
 
 	/**
 	 * Pick a node type from the type combobox. Assumes the actions-bar is already expanded — compose with
-	 * `expandActionsBar` when starting from a collapsed state. The type selector is a <shu-combobox>: focus it,
-	 * type the label to filter, wait for the matching option to actually render, then Enter to pick it.
+	 * `expandActionsBar` when starting from a collapsed state. The type selector is a <shu-combobox>: wait for it to
+	 * advertise that its options have loaded (`-ready`, a stable shadow-attached marker), focus it, type the label to
+	 * filter, then Enter to pick.
 	 *
-	 * Waiting for an option to render before Enter is required: the option list is populated asynchronously
-	 * from the domain catalog, and a blind Enter on a not-yet-loaded list silently no-ops — the type never
-	 * changes and the query keeps the previous type (a stale row of the wrong type then gets clicked downstream).
-	 * The wait comes after setValue because typing (not the click) is what reliably opens the dropdown across
-	 * the shadow boundary; setOptions then refreshes the open list as the catalog lands. Enter matches by label,
-	 * so the option's value/domainKey need not be known here.
+	 * Waiting on the readiness marker rather than a rendered option is what keeps this reliable: the marker is
+	 * attachment-checked and survives every render, whereas the dropdown list is a transient element the control
+	 * tears down and rebuilds on each focus/blur/repaint. Enter picks from the control's filtered options in state, so
+	 * the choice never depends on the ephemeral list being on screen; a blind Enter before the catalog loads would
+	 * silently no-op, which the readiness wait rules out.
 	 */
 	function selectGraphLabel(label: string): TKirejiStep[] {
-		const optionsReady = `${IDS.APP.TYPE_SELECT}-options-ready`;
+		const ready = `${IDS.APP.TYPE_SELECT}-ready`;
 		return [
-			setAs({ what: optionsReady, domain: "page-locator", value: `"[data-testid^='${IDS.APP.TYPE_SELECT}-option-']"` }),
-			waitFor({ target: IDS.APP.TYPE_SELECT }),
+			registerTestIdStep(ready), // the control's derived readiness id, resolved through the shadow-walking test-id wait
+			waitFor({ target: ready }),
 			click({ target: IDS.APP.TYPE_SELECT }),
 			setValue({ what: `"${label}"`, field: IDS.APP.TYPE_SELECT }),
-			waitFor({ target: optionsReady }),
 			press({ key: '"Enter"' }),
 		];
 	}

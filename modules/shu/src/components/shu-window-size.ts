@@ -48,6 +48,11 @@ export function windowTail<T>(items: T[]): T[] {
 const EmptySchema = z.object({});
 
 export class ShuWindowSize extends ShuElement<typeof EmptySchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static schema = EmptySchema;
 	static domainSelector = "shu-window-size";
 

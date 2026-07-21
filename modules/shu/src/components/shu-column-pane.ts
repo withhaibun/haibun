@@ -36,6 +36,11 @@ const TEST_ID = { MAX: "pane-maximize", CONTROLS: "pane-controls-toggle", BROWSE
 const MIN_RESIZED_WIDTH = 120;
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static override observedHtmlAttributes = [SHU_ATTR.IS_LAST, SHU_ATTR.DATA_MAXIMIZED];
 
 	static styles = [

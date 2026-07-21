@@ -17,6 +17,11 @@ type PaneEl = ShuColumnPane & HTMLElement;
 type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		css`
