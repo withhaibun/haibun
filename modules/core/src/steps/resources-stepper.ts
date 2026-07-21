@@ -18,7 +18,10 @@ import {
 	SPECIFIC_RESOURCE_LABEL,
 	TEXT_QUOTE_SELECTOR_LABEL,
 	ANNOTATION_PLACEMENT_DOMAIN,
+	ANNOTATION_NOTE_DOMAIN,
 	type TAnnotationPlacement,
+	type TAnnotationNote,
+	annotationNoteDomainDefinition,
 	bodyDomainDefinition,
 	bodyByMediaType,
 	commentDomainDefinition,
@@ -35,7 +38,7 @@ import {
 import { seqPathDomainDefinition } from "../lib/seq-path.js";
 
 const CommentCreatedSchema = z.object({ commentId: z.string(), contextRoot: z.string() });
-const AnnotationCreatedSchema = z.object({ commentId: z.string(), specificResourceId: z.string(), linkedSpecificResourceId: z.string().optional(), contextRoot: z.string() });
+const AnnotationCreatedSchema = z.object({ commentId: z.string(), specificResourceId: z.string(), linkedSpecificResourceIds: z.array(z.string()).optional(), contextRoot: z.string() });
 const RelatedItemsSchema = z.object({ items: z.array(z.unknown()), contextRoot: z.string() });
 const QuoteSchema = z.object({ exact: z.string(), prefix: z.string().optional(), suffix: z.string().optional() });
 const AnnotationListSchema = z.object({
@@ -44,13 +47,15 @@ const AnnotationListSchema = z.object({
 			commentId: z.string(),
 			author: z.string().optional(),
 			generatedAtTime: z.string().optional(),
+			startedAtTime: z.string().optional(),
+			endedAtTime: z.string().optional(),
 			body: z.string().optional(),
 			exact: z.string(),
 			prefix: z.string().optional(),
 			suffix: z.string().optional(),
 			specificResourceId: z.string(),
-			// A linking annotation's cross-reference: the quote locating the section this note points at, so a reader can jump to it.
-			linksTo: QuoteSchema.optional(),
+			// A linking annotation's cross-references: the quotes locating the sections this note points at, so a reader can jump to each.
+			links: z.array(QuoteSchema).optional(),
 		}),
 	),
 	total: z.number(),
@@ -66,6 +71,7 @@ const cycles = (): IStepperCycles => ({
 			specificResourceDomainDefinition,
 			textQuoteSelectorDomainDefinition,
 			annotationPlacementDomainDefinition,
+			annotationNoteDomainDefinition,
 		],
 	}),
 });
@@ -104,7 +110,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			productsSchema: AnnotationCreatedSchema,
 			// The prose gwta binds label/id/exact/text; UI authoring calls this same action over RPC with the extra
 			// prefix/suffix (the selection's context, for a reliable anchor) and an optional link passage.
-			action: async (p: { label: string; id: string; exact: string; text: string; prefix?: string; suffix?: string; link?: { exact: string; prefix?: string; suffix?: string } }) => this.runAnnotate(p),
+			action: async (p: { label: string; id: string; exact: string; text: string; prefix?: string; suffix?: string; links?: Array<{ exact: string; prefix?: string; suffix?: string }> }) => this.runAnnotate(p),
 		},
 		annotateLinking: {
 			// `linking` sits right after the id (before `quoting`) so the plain `annotate … quoting …` gwta cannot also
@@ -112,7 +118,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} linking {exact: string} to {linkExact: string} with {text: string}`,
 			productsSchema: AnnotationCreatedSchema,
 			action: async ({ label, id, exact, linkExact, text }: { label: string; id: string; exact: string; linkExact: string; text: string }) =>
-				this.runAnnotate({ label, id, exact, text, link: { exact: linkExact } }),
+				this.runAnnotate({ label, id, exact, text, links: [{ exact: linkExact }] }),
 		},
 		annotateAnchored: {
 			// The quote's surrounding text as one TextQuoteSelector context, its side given by {placement}: "preceded by"
@@ -123,6 +129,15 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			productsSchema: AnnotationCreatedSchema,
 			action: async ({ label, id, exact, placement, context, text }: { label: string; id: string; exact: string; placement: TAnnotationPlacement; context: string; text: string }) =>
 				this.runAnnotate({ label, id, exact, ...(placement === "preceded by" ? { prefix: context } : { suffix: context }), text }),
+		},
+		annotateNote: {
+			// The composite form: passage, note, meaningful time, and cross-reference links in one value — for notes the
+			// prose forms cannot express (a dated milestone that also links the other clauses it touches). `at` dates the
+			// note at the time it is ABOUT, so time-placed views (gantt) show it there; each link renders as a followable
+			// cross-reference in the document.
+			gwta: `annotate note {data: ${ANNOTATION_NOTE_DOMAIN}}`,
+			productsSchema: AnnotationCreatedSchema,
+			action: async ({ data }: { data: TAnnotationNote }) => this.runAnnotate(data),
 		},
 		annotations: {
 			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: string}`,
@@ -138,8 +153,12 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				if (srIds.size === 0) return actionOKWithProducts({ annotations: [], total: 0 });
 				const selectorOfSr = new Map<string, string>();
 				for (const q of await store.query({ predicate: LinkRelations.HAS_SELECTOR.rel, namedGraph: SPECIFIC_RESOURCE_LABEL })) selectorOfSr.set(String(q.subject), String(q.object));
-				const linkSrOfComment = new Map<string, string>();
-				for (const q of await store.query({ predicate: LinkRelations.LINKS_TO.rel, namedGraph: COMMENT_LABEL })) linkSrOfComment.set(String(q.subject), String(q.object));
+				const linkSrsOfComment = new Map<string, string[]>();
+				for (const q of await store.query({ predicate: LinkRelations.LINKS_TO.rel, namedGraph: COMMENT_LABEL })) {
+					const list = linkSrsOfComment.get(String(q.subject)) ?? [];
+					list.push(String(q.object));
+					linkSrsOfComment.set(String(q.subject), list);
+				}
 				const selectorById = new Map<string, Record<string, unknown>>();
 				for (const s of (await store.queryIndividuals(TEXT_QUOTE_SELECTOR_LABEL)) as Array<Record<string, unknown>>) selectorById.set(String(s.id), s);
 				const quoteOf = (srId: string | undefined): { exact: string; prefix?: string; suffix?: string } | undefined => {
@@ -157,15 +176,17 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const comment = (await store.getIndividual(COMMENT_LABEL, commentId)) as Record<string, unknown> | null;
 					if (!comment) continue;
 					const noteText = await bodyByMediaType(store, comment, "text/markdown");
-					const linksTo = quoteOf(linkSrOfComment.get(commentId));
+					const links = (linkSrsOfComment.get(commentId) ?? []).map((srId) => quoteOf(srId)).filter((l): l is NonNullable<typeof l> => l !== undefined);
 					annotations.push({
 						commentId,
 						...(comment.author !== undefined ? { author: String(comment.author) } : {}),
 						...(comment.generatedAtTime !== undefined ? { generatedAtTime: String(comment.generatedAtTime) } : {}),
+					...(comment.startedAtTime !== undefined ? { startedAtTime: String(comment.startedAtTime) } : {}),
+					...(comment.endedAtTime !== undefined ? { endedAtTime: String(comment.endedAtTime) } : {}),
 						...(noteText !== undefined ? { body: noteText } : {}),
 						...quote,
 						specificResourceId,
-						...(linksTo ? { linksTo } : {}),
+						...(links.length > 0 ? { links } : {}),
 					});
 				}
 				return actionOKWithProducts({ annotations, total: annotations.length });

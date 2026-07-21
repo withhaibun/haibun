@@ -25,8 +25,8 @@ export type AnnotationView = {
 	body?: string;
 	author?: string;
 	generatedAtTime?: string;
-	/** A linking annotation's cross-reference: the quote of the section this note points at, so the note can jump to it. */
-	linksTo?: QuoteAnchor;
+	/** A linking annotation's cross-references: the quotes of the sections this note points at, so the note can jump to each. */
+	links?: QuoteAnchor[];
 };
 
 /** The W3C Web Annotation the annotator library consumes: a TextualBody plus a target carrying BOTH a TextQuoteSelector
@@ -79,7 +79,7 @@ export async function resolveAnnotationsOffline(id: string): Promise<AnnotationV
 
 		for (const [commentId, cQuads] of commentsBySubject) {
 			if (objectOf(cQuads, LinkRelations.TARGET.rel) !== srId) continue;
-			const linksTo = await linkQuoteOf(cQuads);
+			const links = await linkQuotesOf(cQuads);
 			out.push({
 				commentId,
 				specificResourceId: srId,
@@ -89,7 +89,7 @@ export async function resolveAnnotationsOffline(id: string): Promise<AnnotationV
 				...(literalOf(cQuads, LinkRelations.ATTRIBUTED_TO.rel) !== undefined ? { author: literalOf(cQuads, LinkRelations.ATTRIBUTED_TO.rel) } : {}),
 				...(literalOf(cQuads, LinkRelations.GENERATED_AT_TIME.rel) !== undefined ? { generatedAtTime: literalOf(cQuads, LinkRelations.GENERATED_AT_TIME.rel) } : {}),
 				...(await bodyMarkdownOf(cQuads)),
-				...(linksTo ? { linksTo } : {}),
+				...(links.length > 0 ? { links } : {}),
 			});
 		}
 	}
@@ -105,19 +105,21 @@ async function bodyMarkdownOf(commentQuads: Quad[]): Promise<{ body?: string }> 
 	return content !== undefined ? { body: content } : {};
 }
 
-/** The quote of the section a linking Comment points at: Comment —linksTo→ SpecificResource → its TextQuoteSelector. */
-async function linkQuoteOf(commentQuads: Quad[]): Promise<QuoteAnchor | undefined> {
-	const linkSrId = objectOf(commentQuads, LinkRelations.LINKS_TO.rel);
-	if (!linkSrId) return undefined;
-	const srQuads = await queryStoredQuads({ subject: linkSrId, namedGraph: SPECIFIC_RESOURCE_LABEL });
-	const selectorId = objectOf(srQuads, LinkRelations.HAS_SELECTOR.rel);
-	if (!selectorId) return undefined;
-	const selQuads = await queryStoredQuads({ subject: selectorId, namedGraph: TEXT_QUOTE_SELECTOR_LABEL });
-	const exact = literalOf(selQuads, LinkRelations.EXACT.rel);
-	if (exact === undefined) return undefined;
-	const prefix = literalOf(selQuads, LinkRelations.PREFIX.rel);
-	const suffix = literalOf(selQuads, LinkRelations.SUFFIX.rel);
-	return { exact, ...(prefix !== undefined ? { prefix } : {}), ...(suffix !== undefined ? { suffix } : {}) };
+/** The quotes of the sections a linking Comment points at: Comment —linksTo→ SpecificResource → its TextQuoteSelector, per edge. */
+async function linkQuotesOf(commentQuads: Quad[]): Promise<QuoteAnchor[]> {
+	const out: QuoteAnchor[] = [];
+	for (const q of commentQuads.filter((x) => x.predicate === LinkRelations.LINKS_TO.rel && x.objectType !== undefined)) {
+		const srQuads = await queryStoredQuads({ subject: String(q.object), namedGraph: SPECIFIC_RESOURCE_LABEL });
+		const selectorId = objectOf(srQuads, LinkRelations.HAS_SELECTOR.rel);
+		if (!selectorId) continue;
+		const selQuads = await queryStoredQuads({ subject: selectorId, namedGraph: TEXT_QUOTE_SELECTOR_LABEL });
+		const exact = literalOf(selQuads, LinkRelations.EXACT.rel);
+		if (exact === undefined) continue;
+		const prefix = literalOf(selQuads, LinkRelations.PREFIX.rel);
+		const suffix = literalOf(selQuads, LinkRelations.SUFFIX.rel);
+		out.push({ exact, ...(prefix !== undefined ? { prefix } : {}), ...(suffix !== undefined ? { suffix } : {}) });
+	}
+	return out;
 }
 
 function groupBySubject(quads: Quad[]): Map<string, Quad[]> {

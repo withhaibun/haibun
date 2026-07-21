@@ -182,7 +182,7 @@ export type TRelPresentation = "summary" | "body" | "governance";
 
 export const LinkRelations = {
 	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
-	PUBLISHED: { rel: "published", uri: "as:published", range: "literal" },
+	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", subPropertyOf: "ganttStart" },
 	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 10 },
 	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri" },
 	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
@@ -196,6 +196,9 @@ export const LinkRelations = {
 	TAG: { rel: "tag", uri: "as:tag", range: "literal" },
 	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
 	URL: { rel: "url", uri: "as:url", range: "literal" },
+	// schema.org — a work references an entity it names but is not about (schema:mentions). The edge a body-bearing
+	// individual (an email, a document) draws to each person, place, organization, or other entity extracted from it.
+	MENTIONS: { rel: "mentions", uri: "schema:mentions", range: "iri" },
 	// W3C Web Annotation (oa:) — anchoring an annotation inside its source. An annotating Comment's hasTarget points at
 	// an oa:SpecificResource, which names the whole document (hasSource) and the anchored segment (hasSelector → a
 	// TextQuoteSelector whose exact/prefix/suffix quote the text, so the anchor survives re-import and re-rendering).
@@ -354,6 +357,7 @@ export const EdgePredicates = {
 	controller: { rel: LinkRelations.CONTROLLER.rel },
 	delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel },
 	hasBody: { rel: LinkRelations.HAS_BODY.rel },
+	mentions: { rel: LinkRelations.MENTIONS.rel },
 	hasSource: { rel: LinkRelations.HAS_SOURCE.rel },
 	hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel },
 	linksTo: { rel: LinkRelations.LINKS_TO.rel },
@@ -662,6 +666,12 @@ export const CommentSchema = z.object({
 	id: z.string(),
 	author: z.string(),
 	generatedAtTime: z.string(),
+	/** The start of the period the note is ABOUT (a milestone's week, a summarized span) — subject time, distinct from
+	 *  `generatedAtTime`, which stays the moment the record was written. Time-placed views (gantt) read this. */
+	startedAtTime: z.string().optional(),
+	/** The end of the period the note is about. With `startedAtTime`, time-placed views read the note as an interval;
+	 *  a start without an end reads as an instant milestone. */
+	endedAtTime: z.string().optional(),
 	seqPath: z.string().optional(),
 	body: z.string().optional(),
 	/** A short display name — the note's own text (truncated). The body is partitioned into a Body sub-resource, so
@@ -692,6 +702,8 @@ export const commentDomainDefinition: TDomainDefinition = {
 			name: LinkRelations.NAME.rel,
 			author: LinkRelations.ATTRIBUTED_TO.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			startedAtTime: LinkRelations.STARTED_AT_TIME.rel,
+			endedAtTime: LinkRelations.ENDED_AT_TIME.rel,
 			seqPath: LinkRelations.SEQ_PATH.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
 		},
@@ -946,6 +958,35 @@ export const annotationPlacementDomainDefinition: TDomainDefinition = {
 	description: "Which side of an annotated quote its context sits on: preceded by (the prefix) or followed by (the suffix).",
 };
 
+export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
+const AnnotationQuoteSchema = z.object({
+	exact: z.string().describe("The verbatim passage the note (or one of its links) anchors to."),
+	prefix: z.string().optional().describe("Verbatim text immediately before the passage, disambiguating a repeated quote."),
+	suffix: z.string().optional().describe("Verbatim text immediately after the passage, disambiguating a repeated quote."),
+});
+export const AnnotationNoteSchema = z
+	.object({
+		label: z.string().describe("The persisted type of the annotated individual."),
+		id: z.string().describe("The annotated individual's id."),
+		exact: z.string(),
+		prefix: z.string().optional(),
+		suffix: z.string().optional(),
+		text: z.string().describe("The note's body."),
+		at: z.string().optional().describe("The start (ISO) of the period the note is ABOUT (a milestone's week) — carried as startedAtTime, so time-placed views place the note there. The record's own generatedAtTime stays the write time."),
+		until: z.string().optional().describe("The end (ISO) of the period the note is about — carried as endedAtTime; with `at`, time-placed views read the note as an interval."),
+		links: z.array(AnnotationQuoteSchema).optional().describe("Further passages in the same document this note cross-references; each renders as a followable link."),
+	})
+	.describe(
+		"The full shape of one W3C Web Annotation: the anchored passage, the note, its meaningful time, and any cross-referenced passages. The prose annotate forms each bind a slice of this; this composite carries all of it at once.",
+	);
+export type TAnnotationNote = z.infer<typeof AnnotationNoteSchema>;
+export const annotationNoteDomainDefinition: TDomainDefinition = {
+	selectors: [ANNOTATION_NOTE_DOMAIN],
+	schema: AnnotationNoteSchema,
+	coerce: (proto: { value?: unknown }) => AnnotationNoteSchema.parse(typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value),
+	description: "A complete annotation act as one value: passage, note, time, and cross-reference links.",
+};
+
 // ============================================================================
 // Discourse write helpers — comment and annotation acts over a quad store
 // ============================================================================
@@ -975,9 +1016,16 @@ export async function writeEdge(store: TDiscourseStore, fromLabel: string, fromI
 
 /** Create a Comment individual with its markdown body as a Body sub-resource — the shared act behind `comment` and
  *  `annotate`. `name` titles the node by the note text (truncated) rather than its id. */
-export async function createComment(store: TDiscourseStore, author: string, text: string, now: string): Promise<string> {
+export async function createComment(store: TDiscourseStore, author: string, text: string, now: string, period?: { start?: string; end?: string }): Promise<string> {
 	const commentId = crypto.randomUUID();
-	await store.upsertIndividual(COMMENT_LABEL, { id: commentId, author, generatedAtTime: now, name: commentName(text) });
+	await store.upsertIndividual(COMMENT_LABEL, {
+		id: commentId,
+		author,
+		generatedAtTime: now,
+		...(period?.start ? { startedAtTime: period.start } : {}),
+		...(period?.end ? { endedAtTime: period.end } : {}),
+		name: commentName(text),
+	});
 	const bodyId = `body-${commentId}-text-markdown`;
 	await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: "text/markdown", generatedAtTime: now });
 	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.HAS_BODY.rel, BODY_LABEL, bodyId);
@@ -1037,19 +1085,23 @@ export async function conversationRoot(store: TDiscourseStore, id: string): Prom
 export async function writeAnnotation(
 	store: TDiscourseStore,
 	author: string,
-	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; link?: { exact: string; prefix?: string; suffix?: string } },
-): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceId?: string }> {
+	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; at?: string; until?: string; links?: Array<{ exact: string; prefix?: string; suffix?: string }> },
+): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceIds?: string[] }> {
+	// `at`/`until` bound the period the note is ABOUT (a milestone's week) — subject time, carried as
+	// startedAtTime/endedAtTime so time-placed views (gantt) show the note over its period. `generatedAtTime`
+	// stays the moment the record was written; the two are different facts and never conflated.
 	const now = new Date().toISOString();
 	const specificResourceId = await anchorPassage(store, a.label, a.id, a, now);
-	const commentId = await createComment(store, author, a.text, now);
+	const commentId = await createComment(store, author, a.text, now, { start: a.at, end: a.until });
 	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.TARGET.rel, SPECIFIC_RESOURCE_LABEL, specificResourceId);
-	let linkedSpecificResourceId: string | undefined;
-	if (a.link) {
-		linkedSpecificResourceId = await anchorPassage(store, a.label, a.id, a.link, now);
-		await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.LINKS_TO.rel, SPECIFIC_RESOURCE_LABEL, linkedSpecificResourceId);
+	const linkedSpecificResourceIds: string[] = [];
+	for (const link of a.links ?? []) {
+		const linkedId = await anchorPassage(store, a.label, a.id, link, now);
+		await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.LINKS_TO.rel, SPECIFIC_RESOURCE_LABEL, linkedId);
+		linkedSpecificResourceIds.push(linkedId);
 	}
 	await assertCommentGrounded(store, commentId);
-	return { commentId, specificResourceId, ...(linkedSpecificResourceId ? { linkedSpecificResourceId } : {}) };
+	return { commentId, specificResourceId, ...(linkedSpecificResourceIds.length > 0 ? { linkedSpecificResourceIds } : {}) };
 }
 
 // ============================================================================
