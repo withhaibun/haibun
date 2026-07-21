@@ -306,6 +306,15 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	/** Lit's render contract — return a TemplateResult. */
 	abstract render(): TemplateResult;
 
+	/**
+	 * What this view presents, summarized for a Kihan as linked data: a JSON-LD node (`@id`, `@type`, and the
+	 * view's content or a faithful digest of it). Called ON DEMAND by the chat-context harvester when the person
+	 * asks — never on render — so a large summary costs nothing until it is actually sent. A view on screen the
+	 * model cannot read is a broken ask; return null only for a pure control that presents no data (a picker, a
+	 * button strip) — the decision is required of every view, never implicit.
+	 */
+	abstract summarizeForKihan(): unknown | null;
+
 	/** Called when TIME_SYNC is received. Default re-renders via `requestUpdate`; override for custom behavior. */
 	protected onTimeSync(_cursor: number | null): void {
 		this.requestUpdate();

@@ -19,6 +19,11 @@ import { ensureUiComponentLoaded } from "../external-components.js";
 const ProductViewSchema = z.object({});
 
 export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
+	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		css`

@@ -91,6 +91,11 @@ type PlacedCard = { annotation: AnnotationView; idealTop: number; top: number };
 const AnnotatedBodySchema = z.object({});
 
 export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
+	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	/** Light DOM so the annotator's injected highlight layer and this view's scoped style share one scope. */
 	protected override createRenderRoot(): HTMLElement {
 		return this;
@@ -436,12 +441,11 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 				<div class="annotated-content" data-testid="annotated-content"></div>
 				${this.ready ? html`` : html`<div class="annotation-preparing" data-testid="annotation-preparing">Preparing ${this.sourceLabel || "document"}…</div>`}
 				${this.renderAuthoring()}
-				${
-					!this.show
-						? html``
-						: html`<div class="annotation-rail" data-testid="annotation-rail">
+				${!this.show
+				? html``
+				: html`<div class="annotation-rail" data-testid="annotation-rail">
 					${cards.map(
-						({ annotation: a, top }) => html`<div
+					({ annotation: a, top }) => html`<div
 							class="annotation-card ${this.selectedCommentId === a.commentId ? "selected" : ""}"
 							data-testid="annotation-card"
 							data-comment-id=${a.commentId}
@@ -451,23 +455,21 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 							<div class="annotation-card-quote">“${a.exact}”</div>
 							${a.body ? html`<div class="annotation-card-body">${a.body}</div>` : html``}
 							${a.author ? html`<div class="annotation-card-author">${a.author}</div>` : html``}
-							${
-								a.linksTo
-									? html`<span
+							${(a.links ?? []).map(
+						(link) => html`<span
 										class="annotation-card-link"
 										data-testid="annotation-card-link"
 										@click=${(e: Event) => {
-											e.stopPropagation();
-											if (a.linksTo) this.revealQuote(a.linksTo);
-										}}
-										>→ go to “${a.linksTo.exact}”</span
-									>`
-									: html``
-							}
-						</div>`,
+								e.stopPropagation();
+								this.revealQuote(link);
+							}}
+										>→ “${link.exact}”</span
+									>`,
 					)}
+						</div>`,
+				)}
 					</div>`
-				}
+			}
 				</div>
 			`;
 	}

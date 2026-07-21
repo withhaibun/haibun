@@ -92,6 +92,11 @@ type TCorner = "settings" | "timeline" | "access";
 const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", timeline: "panel" };
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static schema = ActionsBarSchema;
 	static domainSelector = "shu-actions-bar";
 

@@ -130,8 +130,20 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The text of each body that has been read, by body id — projected from the entity view. A body the reader has not
 	 *  opened is absent, so the body area reads as loading rather than empty. */
 	private bodyText: Record<string, string> = {};
-	/** Full augmented products from getIndividualWithEdges (individual + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so the chat-context harvester sees the same hypermedia an agent following `_links` would. */
+	/** Full augmented products from getIndividualWithEdges (individual + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so an agent reading the page sees the same hypermedia, and returned on demand by `summarizeForKihan`. */
 	private products: Record<string, unknown> | null = null;
+
+	/** The open individual's full hypermedia products — the same linked data the page embeds — with any body text the reader has opened folded into the existing `hasBody` entries (the projection lists a body's id and mediaType; `content` is the same field `bodyByMediaType` reads). Null only while the products are still loading. */
+	summarizeForKihan(): unknown | null {
+		if (!this.products) return null;
+		const hasBody = this.products.hasBody;
+		if (!Array.isArray(hasBody)) return this.products;
+		const withText = (b: { id?: unknown; content?: unknown }) => {
+			const content = this.bodyText[String(b.id ?? "")];
+			return content && b.content === undefined ? { ...b, content } : b;
+		};
+		return { ...this.products, hasBody: hasBody.map(withText) };
+	}
 	/** The one data path for this individual — its entity, the annotations anchored in it, and how it resolved (live /
 	 *  cache / offline), kept fresh over SSE. The column never fetches / falls back / reloads annotations itself. */
 	private readonly entity = new EntityController(this, (view) => this.applyView(view));

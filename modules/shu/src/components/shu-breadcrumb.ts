@@ -11,6 +11,11 @@ import { shuBaseStyles } from "./styles.js";
 import { BreadcrumbSchema } from "../schemas.js";
 
 export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
+	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		css`

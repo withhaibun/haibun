@@ -43,6 +43,11 @@ const StateSchema = z.object({
 });
 
 export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
+	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	static styles = [
 		shuBaseStyles,
 		css`

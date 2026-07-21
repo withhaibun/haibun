@@ -12,6 +12,10 @@ import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 const SCHEMA = z.object({});
 
 class TestHost extends ShuElement<typeof SCHEMA> {
+	summarizeForKihan(): unknown | null {
+		return null;
+	}
+
 	#events = new EventsController(this, () => this.onEventsChanged());
 	changes: string[][] = [];
 	get loaded(): boolean {

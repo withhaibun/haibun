@@ -38,6 +38,21 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private sortableFields: string[] = [];
 	private labels: string[] = [];
 	private total = 0;
+
+	/** The current search as linked data: an `as:Collection` of the rows the visible page shows, with the query that produced them; `totalItems` carries the full count. */
+	summarizeForKihan(): unknown | null {
+		if (this.results.length === 0) return null;
+		const { label, textQuery } = this.state as { label?: string; textQuery?: string };
+		return {
+			"@id": "view:query",
+			"@type": "as:Collection",
+			name: "the search results shown in this column",
+			...(label ? { queryType: label } : {}),
+			...(textQuery ? { textQuery } : {}),
+			totalItems: this.total,
+			items: this.results,
+		};
+	}
 	/** Page size is the one global app setting (theme), so the query view windows by the same size as every other view. */
 	private get limit(): number {
 		return getWindowSize();
