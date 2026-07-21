@@ -44,22 +44,27 @@ export function quadsToGanttModel(quads: TQuad[], opts: GanttModelOpts = {}): TG
 	}
 	const tasks: TGanttTask[] = [];
 	for (const [subject, sq] of bySubject) {
-		let start: number | undefined;
-		let end: number | undefined;
+		const starts: number[] = [];
+		const ends: number[] = [];
 		let duration: number | undefined;
 		let effort: number | undefined;
 		const dependsOn: string[] = [];
 		for (const q of sq) {
 			const rel = relOf(q.predicate, q.namedGraph);
-			if (isSubPropertyOf(rel, G_START)) start = parseTime(q.object);
-			else if (isSubPropertyOf(rel, G_END)) end = parseTime(q.object);
+			if (isSubPropertyOf(rel, G_START)) starts.push(parseTime(q.object));
+			else if (isSubPropertyOf(rel, G_END)) ends.push(parseTime(q.object));
 			else if (isSubPropertyOf(rel, G_DURATION)) duration = parseNum(q.object);
 			else if (isSubPropertyOf(rel, G_EFFORT)) effort = parseNum(q.object);
 			else if (isSubPropertyOf(rel, G_DEPENDS) && typeof q.object === "string") dependsOn.push(q.object);
 		}
-		if (start === undefined || Number.isNaN(start)) continue;
-		if (end === undefined && duration !== undefined) end = start + duration;
-		if (end === undefined || Number.isNaN(end)) continue;
+		// A subject can carry several start-kind times (an activity's startedAtTime plus its record's generatedAtTime);
+		// min/max keeps the true interval regardless of quad order.
+		const start = Math.min(...starts.filter((t) => !Number.isNaN(t)));
+		if (!Number.isFinite(start)) continue;
+		const endCandidates = ends.filter((t) => !Number.isNaN(t));
+		// No end-kind time and no duration: the subject is a dated instant (a milestone note, a generated record) —
+		// a zero-length task placed at its moment, so every dated record shows in the calendar, point or bar.
+		const end = endCandidates.length > 0 ? Math.max(...endCandidates) : duration !== undefined ? start + duration : start;
 		tasks.push({ id: subject, label: opts.displayLabel?.(sq[0].namedGraph, subject) ?? subject, start, end, effort, dependsOn: dependsOn.length > 0 ? dependsOn : undefined });
 	}
 	tasks.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));

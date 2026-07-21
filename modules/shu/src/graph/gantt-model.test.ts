@@ -35,6 +35,25 @@ describe("quadsToGanttModel / isGanttable (fields recognised via the gantt upper
 		expect(m.tasks.map((t) => t.id)).toEqual(["t1", "t2"]);
 	});
 
+	it("a start-kind instant with no end is a zero-length milestone task, placed at its moment", () => {
+		const m = quadsToGanttModel([q("note", LinkRelations.STARTED_AT_TIME.rel, "2026-08-03")]);
+		expect(m.tasks).toHaveLength(1);
+		expect(m.tasks[0]).toMatchObject({ id: "note", start: day("2026-08-03"), end: day("2026-08-03") });
+	});
+
+	it("a record's generation time is NOT subject time: generatedAtTime alone yields no task", () => {
+		expect(quadsToGanttModel([q("rec", LinkRelations.GENERATED_AT_TIME.rel, "2026-08-03")]).tasks).toHaveLength(0);
+	});
+
+	it("several start-kind/end-kind times aggregate to the true interval (min start, max end), regardless of quad order", () => {
+		const m = quadsToGanttModel([
+			q("s", LinkRelations.ENDED_AT_TIME.rel, "2026-01-05"),
+			q("s", LinkRelations.GANTT_START.rel, "2026-01-03"),
+			q("s", LinkRelations.STARTED_AT_TIME.rel, "2026-01-01"),
+		]);
+		expect(m.tasks[0]).toMatchObject({ start: day("2026-01-01"), end: day("2026-01-05") });
+	});
+
 	it("isGanttable is true iff some subject carries a ganttStart-kind property", () => {
 		expect(isGanttable(quads)).toBe(true);
 		expect(isGanttable([q("x", "name", "y")])).toBe(false);
