@@ -9,8 +9,10 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
-import { FollowController } from "../timeline-follow.js";
-import { windowTail } from "./shu-window-size.js";
+import "./shu-virtual-column.js";
+import { virtualColumnCss } from "./shu-virtual-column.js";
+import { arrayWindowedSource } from "../windowed-source.js";
+import type { TScrollMarker } from "../scrollbar-model.js";
 import { emptyOrLoading } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "../quad-detail-pane.js";
@@ -52,9 +54,18 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	}
 
 	#events = new EventsController(this, () => this.onEventsChanged());
-	// The `.log-rows` list is the scroll container; the shared kit tails the live edge and pauses when the reader scrolls away.
-	#follow = new FollowController(this, () => this.shadowRoot?.querySelector(".log-rows") ?? null);
+	// The rows are virtualized: shu-virtual-column renders only the visible window over a resident source and owns the
+	// live-edge follow (tail), so this view derives the filtered rows and their rail markers and hands them over.
+	#source = arrayWindowedSource<TLogRow>([]);
+	#currentIdx = -1;
+	// Memoize the filtered list by its inputs so a time-cursor scrub (which changes only the current row) does not
+	// re-filter the whole log and re-notify the virtual column. `this.rows` gets a fresh identity on every event batch.
+	#filtered: TLogRow[] = [];
+	#lastRows: TLogRow[] | null = null;
+	#lastLevel = "";
+	#lastHideStart = false;
 	static styles = [
+		virtualColumnCss,
 		shuBaseStyles,
 		css`
 		:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: var(--shu-font-family); font-size: var(--shu-font-md); }
@@ -178,54 +189,69 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, addToSelection);
 		};
 
-	protected updated(): void {
-		if (this.state.tail) this.#follow.stick(); // the kit tails only at the live edge and only while the reader hasn't scrolled away
+	// Derive the resident window source before each render: the level/hide-start filter, the rail markers (error and warn
+	// rows, so a failure is visible on the rail across the whole log), and the time-cursor row. shu-virtual-column reads
+	// the source and virtualizes; its notify-driven follow tails the live edge.
+	protected willUpdate(): void {
+		const { level, hideStart } = this.state;
+		if (this.rows !== this.#lastRows || level !== this.#lastLevel || hideStart !== this.#lastHideStart) {
+			this.#lastRows = this.rows;
+			this.#lastLevel = level;
+			this.#lastHideStart = hideStart;
+			const minLevel = LEVEL_ORDER.indexOf(level);
+			this.#filtered = this.rows.filter((r) => LEVEL_ORDER.indexOf(r.level) >= minLevel && !(hideStart && r.isStart && r.hasEnd));
+			const markers: TScrollMarker[] = [];
+			for (let i = 0; i < this.#filtered.length; i++) {
+				const lvl = this.#filtered[i].level;
+				if (lvl === "error" || lvl === "warn") markers.push({ index: i, id: `${this.#filtered[i].step}-${i}`, icon: LEVEL_ICONS[lvl], color: lvl === "error" ? "#ef4444" : "#eab308", label: this.#filtered[i].message });
+			}
+			this.#source.set(this.#filtered, markers);
+		}
+		// The current-row highlight depends on the time cursor, so recompute it every update against the cached filter.
+		this.#currentIdx = -1;
+		if (this.timeCursor !== null) for (let i = this.#filtered.length - 1; i >= 0; i--) if (this.#filtered[i].timestamp <= this.timeCursor) { this.#currentIdx = i; break; }
 	}
 
 	render(): TemplateResult {
 		const { level, hideStart } = this.state;
-		const minLevel = LEVEL_ORDER.indexOf(level);
-		const filtered = this.rows.filter((r) => LEVEL_ORDER.indexOf(r.level) >= minLevel && !(hideStart && r.isStart && r.hasEnd));
-		const windowed = windowTail(filtered); // render a generous tail window — the browser handles thousands of rows; only a very long run is capped
-		let currentIdx = -1;
-		if (this.timeCursor !== null) {
-			for (let i = windowed.length - 1; i >= 0; i--) {
-				if (windowed[i].timestamp <= this.timeCursor) {
-					currentIdx = i;
-					break;
-				}
-			}
-		}
+		const total = this.#source.count();
 		return html`
 			<div class="toolbar" data-testid="monitor-log-stream">
 				<select data-action="level" @change=${this.onLevelChange}>${LEVEL_ORDER.map((l) => html`<option value=${l} ?selected=${l === level}>${l}</option>`)}</select>
 				<label class="hide-start"><input type="checkbox" data-action="hide-start" .checked=${hideStart} @change=${this.onHideStartChange}/> hide start</label>
-				<span class="count">${filtered.length} events</span>
+				<span class="count">${total} events</span>
 			</div>
-			<div class="log-rows">${
-				windowed.length === 0
-					? emptyOrLoading(this.#events.loaded, "No events at this level.")
-					: windowed.map((r, i) => {
-							let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
-							if (this.timeCursor !== null) {
-								if (this.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
-								if (i === currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
-							}
-							let dispatchText = "";
-							if (!r.isStart && r.seqPath) {
-								const startIdx = this.startRowIndex.get(r.seqPath.join("."));
-								const dispatch = startIdx !== undefined ? this.rows[startIdx].dispatch : undefined;
-								if (dispatch) {
-									const dur = dispatch.durationMs !== undefined ? `${dispatch.durationMs}ms` : "";
-									dispatchText = `${dispatch.transport}${dur ? ` ${dur}` : ""}`;
-								}
-							}
-							return html`<div class="log-row${cls}" data-testid="monitor-log-row">
-					<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${r.seqPath ? html`<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : ""}<span class="time">${r.time}</span></span>
-					<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.isAsync && !r.hasEnd ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}</span>
-				</div>`;
-						})
-			}</div>
+			${
+				total === 0
+					? html`<div class="log-rows">${emptyOrLoading(this.#events.loaded, "No events at this level.")}</div>`
+					: html`<shu-virtual-column .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
+			}
 		`;
 	}
+
+	/** One log row at its absolute index. The time-cursor and future classes read the derived state; `row` is always
+	 *  resident (the source holds the whole filtered list), so the skeleton is only a defensive fallback. An arrow so its
+	 *  identity is stable across renders, which lit-virtualizer relies on. */
+	private renderLogRow = (index: number, row: unknown): TemplateResult => {
+		const r = row as TLogRow | undefined;
+		if (!r) return html`<div class="log-row" data-testid="monitor-log-row"></div>`;
+		let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
+		if (this.timeCursor !== null) {
+			if (this.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
+			if (index === this.#currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
+		}
+		let dispatchText = "";
+		if (!r.isStart && r.seqPath) {
+			const startIdx = this.startRowIndex.get(r.seqPath.join("."));
+			const dispatch = startIdx !== undefined ? this.rows[startIdx].dispatch : undefined;
+			if (dispatch) {
+				const dur = dispatch.durationMs !== undefined ? `${dispatch.durationMs}ms` : "";
+				dispatchText = `${dispatch.transport}${dur ? ` ${dur}` : ""}`;
+			}
+		}
+		return html`<div class="log-row${cls}" data-testid="monitor-log-row">
+			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${r.seqPath ? html`<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : ""}<span class="time">${r.time}</span></span>
+			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.isAsync && !r.hasEnd ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}</span>
+		</div>`;
+	};
 }

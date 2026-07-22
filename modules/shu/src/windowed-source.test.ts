@@ -79,3 +79,78 @@ describe("lazyWindowedSource", () => {
 		expect(calls()[0][0]).toBeGreaterThan(4_000_000);
 	});
 });
+
+describe("lazyWindowedSource — hardening (adversarial review)", () => {
+	it("recovers from a rejected fetch: pages are re-fetchable, not bricked, and no unhandled rejection (B1)", async () => {
+		let n = 0;
+		const fetch = vi.fn((s: number, e: number) => (++n === 1 ? Promise.reject(new Error("net")) : Promise.resolve(Array.from({ length: e - s }, (_, k) => s + k))));
+		const src = lazyWindowedSource({ count: () => 1000, fetch, pageSize: 5 });
+		await src.ensureRange(0, 10); // first fetch rejects; ensureRange still resolves
+		expect(src.rowAt(0)).toBeUndefined();
+		await src.ensureRange(0, 10); // retries the cleared pages
+		expect(src.rowAt(0)).toBe(0);
+	});
+
+	it("re-fetches a short last page when the count grows (live append) (B2)", async () => {
+		let count = 450;
+		const { fetch } = counted();
+		const src = lazyWindowedSource({ count: () => count, fetch, pageSize: 200 });
+		await src.ensureRange(0, 450);
+		expect(src.rowAt(449)).toBe(449);
+		count = 600; // new rows appended past the old partial last page
+		await src.ensureRange(400, 600);
+		expect(src.rowAt(500)).toBe(500);
+	});
+
+	it("handles an over-estimated count: a capped fetch marks the data end and does not re-fetch forever (B2)", async () => {
+		const fetch = vi.fn(async (s: number, e: number) => Array.from({ length: Math.max(0, Math.min(e, 950) - s) }, (_, k) => s + k));
+		const src = lazyWindowedSource({ count: () => 1000, fetch, pageSize: 200 });
+		await src.ensureRange(800, 1000); // page 4 spans 800..1000 but data ends at 950
+		expect(src.rowAt(949)).toBe(949);
+		expect(src.rowAt(950)).toBeUndefined();
+		const before = fetch.mock.calls.length;
+		await src.ensureRange(800, 1000); // page 4 is now resident-to-data-end, no re-fetch
+		expect(fetch.mock.calls.length).toBe(before);
+	});
+
+	it("never calls fetch with end<=start when the count shrinks below the range (B2)", async () => {
+		let count = 1000;
+		const fetch = vi.fn((s: number, e: number) => (e <= s ? Promise.reject(new Error(`fetch(${s},${e}) has end<=start`)) : Promise.resolve(Array.from({ length: e - s }, (_, k) => s + k))));
+		const src = lazyWindowedSource({ count: () => count, fetch, pageSize: 200 });
+		count = 50;
+		await src.ensureRange(700, 720); // page 3 (600..800) is beyond count 50 → no fetch, no crash
+		expect(src.rowAt(700)).toBeUndefined();
+	});
+
+	it("keeps a whole oversized single request resident despite the cap (B3)", async () => {
+		const { fetch } = counted();
+		const src = lazyWindowedSource({ count: () => 100_000, fetch, pageSize: 5, maxResidentPages: 4 });
+		await src.ensureRange(0, 40); // pages 0..7, more than the cap
+		expect(src.rowAt(0)).toBe(0);
+		expect(src.rowAt(39)).toBe(39);
+	});
+
+	it("a slow fetch completing after the reader scrolled away does not evict the on-screen window (B3)", async () => {
+		const resolvers = new Map<number, () => void>();
+		const fetch = vi.fn((s: number, e: number) => new Promise<number[]>((resolve) => resolvers.set(s, () => resolve(Array.from({ length: e - s }, (_, k) => s + k)))));
+		const src = lazyWindowedSource({ count: () => 100_000, fetch, pageSize: 5, maxResidentPages: 4 });
+		const slow = src.ensureRange(0, 5); // page 0 fetch deferred
+		const window = src.ensureRange(100, 120); // pages 20..23 fetch deferred
+		resolvers.get(100)?.(); // the on-screen window arrives first
+		await window;
+		resolvers.get(0)?.(); // the stale page-0 fetch completes late
+		await slow;
+		expect(src.rowAt(115)).toBe(115); // the live window is intact
+		expect(src.rowAt(119)).toBe(119);
+		expect(src.rowAt(0)).toBeUndefined(); // page 0 was the one evicted
+	});
+
+	it("notifyCountChanged notifies subscribers so a live append re-renders", () => {
+		const { fetch } = counted();
+		const src = lazyWindowedSource({ count: () => 1000, fetch, pageSize: 5 });
+		const cb = vi.fn();
+		src.subscribe(cb);
+		src.notifyCountChanged();
+		expect(cb).toHaveBeenCalledOnce();
+	});
+});

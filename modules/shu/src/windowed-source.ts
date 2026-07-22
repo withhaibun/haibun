@@ -21,7 +21,7 @@ export interface WindowedSource<T> {
 
 /** A source over data already resident in memory (a fetched page of query results, a finite in-memory list): every row
  *  is available and ensureRange is a no-op. `set` swaps the backing list and notifies (a live re-query). */
-export function arrayWindowedSource<T>(initial: readonly T[] = [], markers: TScrollMarker[] = []): WindowedSource<T> & { set(items: readonly T[]): void } {
+export function arrayWindowedSource<T>(initial: readonly T[] = [], markers: TScrollMarker[] = []): WindowedSource<T> & { set(items: readonly T[], markers?: TScrollMarker[]): void } {
 	const subs = new Set<() => void>();
 	let items = initial;
 	let marks = markers;
@@ -38,7 +38,7 @@ export function arrayWindowedSource<T>(initial: readonly T[] = [], markers: TScr
 			if (nextMarks) marks = nextMarks;
 			for (const cb of subs) cb();
 		},
-	} as WindowedSource<T> & { set(items: readonly T[]): void };
+	} as WindowedSource<T> & { set(items: readonly T[], markers?: TScrollMarker[]): void };
 }
 
 /** Fetch the rows for `[start, end)`. May return fewer than requested at the end of the data. */
@@ -47,28 +47,55 @@ export type TPageFetcher<T> = (start: number, end: number) => Promise<readonly T
 /** A paged source for data too large to hold resident (up to millions): rows are fetched a page at a time on
  *  ensureRange, cached in a bounded window (pages far from the last request are evicted so memory stays flat regardless
  *  of total), and concurrent or overlapping requests for the same pages coalesce into a single fetch. */
-export function lazyWindowedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] }): WindowedSource<T> {
+export function lazyWindowedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] }): WindowedSource<T> & {
+	/** Re-probe the tail and notify: call after `count()` grows (a live append) or a previously-capped fetch can now
+	 *  return more, so a partial last page is re-fetched and the view re-renders. */
+	notifyCountChanged(): void;
+} {
 	const pageSize = opts.pageSize ?? 200;
 	const maxResidentPages = Math.max(4, opts.maxResidentPages ?? 24);
 	const pages = new Map<number, readonly T[]>();
 	const inflight = new Map<number, Promise<void>>();
 	const subs = new Set<() => void>();
+	let dataEnd = Number.POSITIVE_INFINITY; // highest index confirmed to hold data; a fetch that returns fewer rows than asked reveals the true end
+	let lastFirst = 0; // the most recent request span, so eviction always centres on the LIVE window, never a completing call's stale closure
+	let lastLast = 0;
 	const pageOf = (i: number) => Math.floor(i / pageSize);
 	const notify = (): void => {
 		for (const cb of subs) cb();
 	};
 
-	/** Keep the `maxResidentPages` pages nearest `centre`; drop the rest so the resident set never grows with the total. */
-	function evict(centre: number): void {
-		if (pages.size <= maxResidentPages) return;
-		const kept = [...pages.keys()].sort((a, b) => Math.abs(a - centre) - Math.abs(b - centre)).slice(0, maxResidentPages);
-		const keep = new Set(kept);
+	/** A page is resident only when it holds every row it should for the current count and confirmed data end; a partial
+	 *  page (a short last page, or a capped fetch) is NOT resident, so a later count growth or a re-probe re-fetches it. */
+	function resident(p: number): boolean {
+		const rows = pages.get(p);
+		if (!rows) return false;
+		const wantEnd = Math.min((p + 1) * pageSize, opts.count(), dataEnd);
+		return p * pageSize + rows.length >= wantEnd;
+	}
+
+	/** Keep the pages in the last-requested [lastFirst, lastLast] span (never evict what the caller is using) plus, up to
+	 *  the cap (raised to cover an oversized request), the pages nearest that span; drop the rest. Centres on the LIVE
+	 *  request so a slow fetch completing after the reader scrolled away cannot evict an on-screen page. */
+	function evict(): void {
+		const budget = Math.max(maxResidentPages, lastLast - lastFirst + 1);
+		if (pages.size <= budget) return;
+		const centre = (lastFirst + lastLast) / 2;
+		const dist = (p: number) => (p >= lastFirst && p <= lastLast ? -1 : Math.abs(p - centre));
+		const keep = new Set([...pages.keys()].sort((a, b) => dist(a) - dist(b)).slice(0, budget));
 		for (const p of [...pages.keys()]) if (!keep.has(p)) pages.delete(p);
 	}
 
 	async function fetchSpan(firstPage: number, lastPage: number): Promise<void> {
-		const rows = await opts.fetch(firstPage * pageSize, Math.min(opts.count(), (lastPage + 1) * pageSize));
-		for (let p = firstPage; p <= lastPage; p++) pages.set(p, rows.slice((p - firstPage) * pageSize, (p - firstPage + 1) * pageSize));
+		const startRow = firstPage * pageSize;
+		const endRow = Math.max(startRow, Math.min(opts.count(), (lastPage + 1) * pageSize));
+		if (endRow <= startRow) return; // the range fell outside the current count (it shrank); never call fetch with end<=start
+		const rows = await opts.fetch(startRow, endRow);
+		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the fetch reached the real end of data
+		for (let p = firstPage; p <= lastPage; p++) {
+			const slice = rows.slice((p - firstPage) * pageSize, (p - firstPage + 1) * pageSize);
+			if (slice.length > 0) pages.set(p, slice);
+		}
 	}
 
 	return {
@@ -79,11 +106,13 @@ export function lazyWindowedSource<T>(opts: { count: () => number; fetch: TPageF
 		async ensureRange(start, end) {
 			const firstPage = pageOf(start);
 			const lastPage = pageOf(Math.max(start, end - 1));
-			// Split the needed pages into contiguous runs of missing, not-in-flight pages; each run is one fetch.
+			lastFirst = firstPage;
+			lastLast = lastPage;
+			// Split the needed pages into contiguous runs of not-resident, not-in-flight pages; each run is one fetch.
 			const runs: Array<[number, number]> = [];
 			let runStart = -1;
 			for (let p = firstPage; p <= lastPage; p++) {
-				const missing = !pages.has(p) && !inflight.has(p);
+				const missing = !resident(p) && !inflight.has(p);
 				if (missing && runStart < 0) runStart = p;
 				else if (!missing && runStart >= 0) {
 					runs.push([runStart, p - 1]);
@@ -93,11 +122,17 @@ export function lazyWindowedSource<T>(opts: { count: () => number; fetch: TPageF
 			if (runStart >= 0) runs.push([runStart, lastPage]);
 			const waits: Promise<void>[] = [];
 			for (const [a, b] of runs) {
-				const promise = fetchSpan(a, b).then(() => {
-					for (let p = a; p <= b; p++) inflight.delete(p);
-					evict(pageOf(start));
-					notify();
-				});
+				// A failed fetch clears its in-flight marks so the next ensureRange retries; the pages stay skeletons, never
+				// bricked, and the rejection is swallowed here (best-effort paging) rather than surfacing unhandled.
+				const promise = fetchSpan(a, b)
+					.then(() => {
+						for (let p = a; p <= b; p++) inflight.delete(p);
+						evict();
+						notify();
+					})
+					.catch(() => {
+						for (let p = a; p <= b; p++) inflight.delete(p);
+					});
 				for (let p = a; p <= b; p++) inflight.set(p, promise);
 				waits.push(promise);
 			}
@@ -112,5 +147,9 @@ export function lazyWindowedSource<T>(opts: { count: () => number; fetch: TPageF
 			return () => subs.delete(cb);
 		},
 		markers: opts.markers ?? (() => []),
+		notifyCountChanged() {
+			dataEnd = Number.POSITIVE_INFINITY;
+			notify();
+		},
 	};
 }

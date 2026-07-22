@@ -23,6 +23,10 @@ const EmptySchema = z.object({});
 export const SCROLL_TO_INDEX = "scroll-to-index";
 
 export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
+	constructor() {
+		super(EmptySchema, {});
+	}
+
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
@@ -52,6 +56,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	#ro: ResizeObserver | null = null;
 
 	protected override onConnected(): void {
+		if (typeof ResizeObserver === "undefined") return; // a non-DOM host (a unit-test env) has no resize; the rail still works, just without resize-driven repaint
 		// Rail height drives every position; re-render when it changes (split pane resize, orientation) instead of reading
 		// layout during render.
 		this.#ro = new ResizeObserver(() => {
@@ -118,6 +123,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	};
 
 	#onThumbDown = (e: PointerEvent): void => {
+		if (this.#dragId !== null) return; // a drag is already in flight; a second finger must not hijack it (mirrors #onRailDown)
 		e.stopPropagation();
 		const thumb = e.currentTarget as HTMLElement;
 		thumb.setPointerCapture(e.pointerId);

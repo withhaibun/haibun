@@ -1,8 +1,9 @@
 /**
  * Inspection steps for shu-monitor-column, kept beside the element (the shu-graph-view.controls pattern). Counts the
- * rendered log rows across shadow boundaries so a feature can assert the global data window bounds what the monitor
- * shows — the observable proof that a window-size change re-renders the view. Polls, since the re-render (and the
- * initial backfill) land asynchronously. The page-providing stepper is duck-typed, so shu keeps no dependency on it.
+ * rendered log rows across shadow boundaries so a feature can assert the monitor VIRTUALIZES: the DOM holds only the
+ * rows in view (plus the virtualizer's small overscan), not every buffered event, no matter how long the run. Polls,
+ * since the backfill and re-render land asynchronously. The page-providing stepper is duck-typed, so shu keeps no
+ * dependency on it.
  *
  * Steps never lead with the article "the" — haibun treats such lines as narrative prose, not matchable steps.
  */
@@ -45,6 +46,19 @@ export default class ShuMonitorColumnControls extends AStepper {
 		return n;
 	}
 
+	/** Poll until the rendered row count settles (two equal, non-zero reads in a row), so a "fewer than" assertion reads
+	 *  the stable virtualized count, never a mid-backfill snapshot that happens to be small. */
+	private async waitForStable(page: EvalPage): Promise<number> {
+		let prev = -1;
+		for (let i = 0; i < 30; i++) {
+			const n = await this.rowCount(page);
+			if (n > 0 && n === prev) return n;
+			prev = n;
+			await page.waitForTimeout(200);
+		}
+		return prev;
+	}
+
 	steps: TStepperSteps = {
 		monitorShowsMoreThan: {
 			gwta: "monitor shows more than {min} rows",
@@ -60,6 +74,14 @@ export default class ShuMonitorColumnControls extends AStepper {
 				const want = Number(count);
 				const n = await this.waitForRows(await this.page(), (c) => c === want);
 				return n === want ? actionOK() : actionNotOK(`monitor shows ${n} rows, expected exactly ${want}`);
+			},
+		},
+		monitorShowsFewerThan: {
+			gwta: "monitor shows fewer than {max} rows",
+			action: async ({ max }: { max: string }) => {
+				const want = Number(max);
+				const n = await this.waitForStable(await this.page());
+				return n > 0 && n < want ? actionOK() : actionNotOK(`monitor renders ${n} rows, expected a virtualized count below ${want}`);
 			},
 		},
 	};
