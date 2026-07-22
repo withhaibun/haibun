@@ -17,7 +17,6 @@ export const SHU_EVENT = {
 	PANE_DISMISS: "pane-dismiss",
 	STEP_CHOOSE: "step-choose",
 	COLUMN_ACTIVATE: "column-activate",
-	COLUMN_ACTIVATED: "column-activated",
 	COLUMN_EXPAND: "column-expand",
 	COLUMN_MAXIMIZE: "column-maximize",
 	COLUMN_RESIZE: "column-resize",
@@ -44,7 +43,6 @@ export const SHU_EVENT = {
 	PAGE_CHANGE: "page-change",
 	STATE_CHANGE: "state-change",
 	SYNC_AVAILABLE: "sync-available",
-	VIEW_ACTIVE: "view-active",
 } as const;
 
 export const SHU_TYPE = {

@@ -12,6 +12,7 @@ import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { flushPersistWrites, writeElementPrefs } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
+import { activePane } from "../signals.js";
 
 beforeAll(() => {
 	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
@@ -43,6 +44,7 @@ describe("shu-column-strip minimize", () => {
 	beforeEach(async () => {
 		flushPersistWrites();
 		setJsonCookie("shu-prefs-shu-column-pane", {});
+		activePane.set(null);
 		document.body.innerHTML = "";
 		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
 		document.body.appendChild(strip);
@@ -54,13 +56,13 @@ describe("shu-column-strip minimize", () => {
 	it("shifts activation to the next column on the right when the active column minimizes", () => {
 		strip.activatePane(1);
 		minimize(panes[1]);
-		expect((strip as unknown as { state: { activeIndex: number } }).state.activeIndex).toBe(2);
+		expect(activePane.get()).toBe("C"); // the columnKey of panes[2]
 	});
 
 	it("falls back to the left when the minimized active column is rightmost", () => {
 		strip.activatePane(2);
 		minimize(panes[2]);
-		expect((strip as unknown as { state: { activeIndex: number } }).state.activeIndex).toBe(1);
+		expect(activePane.get()).toBe("B"); // the columnKey of panes[1]
 	});
 
 	it("expand clears the persisted minimize so the column reopens expanded", () => {

@@ -3,13 +3,17 @@
  * manifest of every open column, so the model sees what the person is looking at and knows what else is on
  * screen. One shared primitive — the chat dispatch and the context-status badge must see the identical envelope.
  *
- * The active pane is found by its reflected `active` attribute, never by the strip's `activeIndex` state: the
- * index is positional and goes stale when a pane earlier in the strip closes, which made the harvest read a
- * neighbouring pane. Views are recognised by the presence of `summarizeForKihan` (duck-typed, not instanceof —
+ * The active pane is found by the shared `activePane` signal (its columnKey), the one source of truth the strip also
+ * paints from — never by a DOM `active` attribute or a positional index, which could lag or go stale when a pane
+ * earlier in the strip closes. Views are recognised by the presence of `summarizeForKihan` (duck-typed, not instanceof —
  * the fisheye view lives in a separately-built bundle whose ShuElement class identity differs).
  */
+import { activePane } from "./signals.js";
 
 type TSummarizes = Element & { summarizeForKihan(): unknown | null };
+
+/** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane (which has none). */
+const paneKeyOf = (pane: Element): string => (pane as HTMLElement).dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
 
 const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSummarizes>).summarizeForKihan === "function";
 
@@ -24,7 +28,8 @@ export function harvestChatViewLd(root: ParentNode = document): unknown[] {
 	if (!strip) return [];
 	const panes = Array.from(strip.querySelectorAll("shu-column-pane"));
 	if (panes.length === 0) return [];
-	const active = panes.find((p) => p.hasAttribute("active"));
+	const activeKey = activePane.get();
+	const active = panes.find((p) => paneKeyOf(p) === activeKey);
 	const blocks: unknown[] = [];
 	for (const el of topSummarizers(active)) {
 		const summary = el.summarizeForKihan();

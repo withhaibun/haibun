@@ -148,9 +148,7 @@ export const BreadcrumbSchema = z.object({
 
 // --- Column strip ---
 
-export const ColumnStripSchema = z.object({
-	activeIndex: z.number().default(-1),
-});
+export const ColumnStripSchema = z.object({});
 
 // --- Theme switch ---
 

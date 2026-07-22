@@ -186,9 +186,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	/** Toggle active state. Reflects to the `[active]` host attribute so the `:host([active])` CSS rules apply without re-rendering, and dispatches `VIEW_ACTIVE` to the slotted child so it can adjust selection/update behavior. */
 	setActive(active: boolean): void {
 		if (this.state.active === active) return;
-		this.setState({ active }); // the `active` attribute reflects automatically (bidirectional attributeFields)
-		const child = this.firstElementChild;
-		if (child) child.dispatchEvent(new CustomEvent(SHU_EVENT.VIEW_ACTIVE, { detail: { active } }));
+		this.setState({ active }); // the `active` attribute reflects automatically (bidirectional attributeFields), driving :host([active]) CSS
 	}
 
 	/** Set user-resized width (persisted). Undefined = auto (flex: 1). */
