@@ -1,7 +1,6 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import ShuStepper from "../../build/shu-stepper.js";
-import ShuThemeSwitchControls from "../../build/components/shu-theme-switch.controls.js";
 import ShuMonitorColumnControls from "../../build/components/shu-monitor-column.controls.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
@@ -13,16 +12,15 @@ const { serveShuApp } = withAction(new ShuStepper());
 const { waitFor, gotoPage } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { setDataWindow } = withAction(new ShuThemeSwitchControls());
-const { monitorShowsMoreThan, monitorShowsExactly } = withAction(new ShuMonitorColumnControls());
+const { monitorShowsFewerThan } = withAction(new ShuMonitorColumnControls());
 const { enterStepMode, passesStepExecution } = createStepUI(wp);
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
 
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
-// Buffer well over the smallest selectable window (50) so a small data window visibly truncates the backfilled log.
-const SMALL_WINDOW = 50;
-const bulkEvents = Array.from({ length: 60 }, (_, i) => setAs({ what: `windowEvent${i}`, domain: "page-test-id", value: `"v${i}"` }));
+// Buffer far more events than any viewport can hold, so a virtualized monitor renders only a small window of them.
+const BULK_EVENTS = 200;
+const bulkEvents = Array.from({ length: BULK_EVENTS }, (_, i) => setAs({ what: `windowEvent${i}`, domain: "page-test-id", value: `"v${i}"` }));
 
 export const features: TKirejiExport = {
 	"Monitor view collects and displays execution events": [
@@ -50,11 +48,9 @@ export const features: TKirejiExport = {
 		...passesStepExecution("MonitorStepper-showMonitor", {}),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
-		scenario({ scenario: "The data window bounds the monitor log" }),
-		"With the default window the backfilled log shows every buffered event; choosing a smaller window in settings re-renders the monitor to that many rows.",
-		monitorShowsMoreThan({ min: `${SMALL_WINDOW}` }),
-		setDataWindow({ size: `${SMALL_WINDOW}` }),
-		monitorShowsExactly({ count: `${SMALL_WINDOW}` }),
+		scenario({ scenario: "The monitor virtualizes the log to the viewport" }),
+		"Every buffered event is in the log, but the monitor renders only the rows in view plus the virtualizer's small overscan, so the DOM stays small no matter how long the run.",
+		monitorShowsFewerThan({ max: "150" }),
 
 		scenario({ scenario: "Open sequence diagram via step" }),
 		"The show sequence diagram step triggers the SPA to open a sequence diagram column.",

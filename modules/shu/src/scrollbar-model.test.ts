@@ -80,4 +80,47 @@ describe("formatCount glyphs", () => {
 		expect(formatCount(1_200_000)).toBe("1.2M");
 		expect(formatCount(15_000_000)).toBe("15M");
 	});
+	it("does not print a '10.0M' band: the >=10 branch sees the rounded value (B4)", () => {
+		expect(formatCount(9_990_000)).toBe("10M");
+		expect(formatCount(9_950_000)).toBe("10M");
+		expect(formatCount(9_940_000)).toBe("9.9M");
+		expect(formatCount(10_000_000)).toBe("10M");
+	});
+});
+
+describe("hardening (adversarial review)", () => {
+	it("firstAtPointer is monotonic and reaches both ends across the whole rail at millions", () => {
+		const total = 5_000_000;
+		const visible = 30;
+		expect(firstAtPointer(total, visible, 0, RAIL)).toBe(0);
+		expect(firstAtPointer(total, visible, RAIL, RAIL)).toBe(total - visible);
+		let prev = -1;
+		for (let px = 0; px <= RAIL; px++) {
+			const f = firstAtPointer(total, visible, px, RAIL);
+			expect(f).toBeGreaterThanOrEqual(0);
+			expect(f).toBeLessThanOrEqual(total - visible);
+			expect(f).toBeGreaterThanOrEqual(prev); // never steps backwards
+			prev = f;
+		}
+	});
+
+	it("a merged cluster keeps the topmost marker's identity and the total count, from unsorted input", () => {
+		const markers: TScrollMarker[] = [
+			{ index: 12, id: "c", icon: "🔴", color: "#f00" },
+			{ index: 10, id: "a", icon: "📝", color: "#00f" },
+			{ index: 11, id: "b", icon: "⚠️", color: "#fa0" },
+		];
+		const clustered = clusterMarkers(markers, 1_000_000, RAIL, 10);
+		expect(clustered).toHaveLength(1);
+		expect(clustered[0].count).toBe(3);
+		expect(clustered[0].id).toBe("a"); // the topmost (lowest index)
+		expect(clustered[0].icon).toBe("📝");
+	});
+
+	it("degenerate guards: empty column, zero-height rail, single-row set", () => {
+		expect(thumbGeometry(0, { first: 0, visible: 0 }, RAIL)).toEqual({ topPx: 0, heightPx: RAIL });
+		expect(thumbGeometry(100, { first: 0, visible: 10 }, 0)).toEqual({ topPx: 0, heightPx: 0 });
+		expect(firstAtPointer(0, 0, 200, RAIL)).toBe(0);
+		expect(markerTopPx(5, 1, RAIL)).toBe(0);
+	});
 });

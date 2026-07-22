@@ -48,7 +48,8 @@ export function markerTopPx(index: number, total: number, railPx: number): numbe
  *  within `mergePx` of each other into one representative mark carrying a `count`, so the rail shows a readable set of
  *  glyphs rather than an unreadable smear. Input markers need not be sorted. */
 export function clusterMarkers(markers: TScrollMarker[], total: number, railPx: number, mergePx = 10): Array<TScrollMarker & { topPx: number; count: number }> {
-	const placed = markers.map((m) => ({ ...m, topPx: markerTopPx(m.index, total, railPx) })).sort((a, b) => a.topPx - b.topPx);
+	// Sort by pixel, breaking ties by index, so a dense cluster is deterministic and its surviving mark is the topmost row.
+	const placed = markers.map((m) => ({ ...m, topPx: markerTopPx(m.index, total, railPx) })).sort((a, b) => a.topPx - b.topPx || a.index - b.index);
 	const out: Array<TScrollMarker & { topPx: number; count: number }> = [];
 	for (const m of placed) {
 		const last = out[out.length - 1];
@@ -63,6 +64,8 @@ export function clusterMarkers(markers: TScrollMarker[], total: number, railPx: 
 export function formatCount(n: number): string {
 	if (n < 1000) return String(n);
 	if (n < 1_000_000) return n.toLocaleString("en-US");
-	const m = n / 1_000_000;
+	// Round to one decimal FIRST, then pick the branch on the rounded value, so 9.96M does not print "10.0M" while 10M
+	// prints "10M" (the >=10 test must see the same rounded number toFixed produces).
+	const m = Math.round(n / 100_000) / 10;
 	return `${m >= 10 ? Math.round(m) : m.toFixed(1)}M`;
 }
