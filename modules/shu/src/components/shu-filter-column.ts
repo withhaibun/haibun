@@ -20,9 +20,9 @@ import type { ShuResultTable } from "./shu-result-table.js";
 type VertexData = Record<string, unknown>;
 
 export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** The query results, summarized by the embedded result table. */
 	summarizeForKihan(): unknown | null {
-		return null;
+		return this.tableRef.value?.summarizeForKihan() ?? null;
 	}
 
 	static styles = [

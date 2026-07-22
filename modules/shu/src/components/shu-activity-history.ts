@@ -16,7 +16,8 @@ import { ShuElement } from "./shu-element.js";
 const EmptySchema = z.object({});
 
 export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** The actions-bar output region, not a column pane: the harvest reads only column panes, so this is never the
+	 *  active pane, and its entries (searches, steps, chat turns) are represented by their own views. Contributes nothing. */
 	summarizeForKihan(): unknown | null {
 		return null;
 	}

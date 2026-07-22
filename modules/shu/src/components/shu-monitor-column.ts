@@ -39,9 +39,11 @@ const LEVEL_ICONS: Record<string, string> = { error: "❌", warn: "⚠️", info
 const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** The live execution log as an ordered collection of rows (time, level, step, message). */
 	summarizeForKihan(): unknown | null {
-		return null;
+		if (this.rows.length === 0) return null;
+		return { "@id": "view:monitor", "@type": "as:OrderedCollection", name: "the live execution log", totalItems: this.rows.length,
+			items: this.rows.map((r) => ({ time: r.time, level: r.level, step: r.step, message: r.message })) };
 	}
 
 	#events = new EventsController(this, () => this.onEventsChanged());

@@ -43,9 +43,10 @@ const StateSchema = z.object({
 });
 
 export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** Delegates to the embedded shu-graph, which summarizes the domain-chain nodes and edges. */
 	summarizeForKihan(): unknown | null {
-		return null;
+		if (!this.affordances) return null;
+		return (this.shadowRoot?.querySelector("shu-graph") as ShuGraph | null)?.summarizeForKihan() ?? null;
 	}
 
 	static styles = [
