@@ -41,9 +41,15 @@ function normalizeItem(item: Record<string, unknown>): ThreadVertex {
 }
 
 export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** A conversation thread as an ordered collection: each item's public fields plus the reply it answers. */
 	summarizeForKihan(): unknown | null {
-		return null;
+		if (this.thread.length === 0) return null;
+		const items = this.thread.map((v) => {
+			const inReplyTo = (v._edges ?? []).find((e) => isReplyEdge(e.type))?.targetId;
+			const fields = Object.fromEntries(Object.entries(v).filter(([k]) => !k.startsWith("_")));
+			return inReplyTo ? { ...fields, inReplyTo } : fields;
+		});
+		return { "@id": "view:thread", "@type": "as:OrderedCollection", name: `a conversation thread of ${items.length} items`, totalItems: items.length, items };
 	}
 
 	static styles = [

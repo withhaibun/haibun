@@ -58,9 +58,12 @@ const StateSchema = z.object({
 });
 
 export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** The step-dispatch sequence as an ordered collection of call/return/denied messages between participants. */
 	summarizeForKihan(): unknown | null {
-		return null;
+		if (this.state.traces.length === 0) return null;
+		const { model } = tracesToModel(this.state.traces);
+		return { "@id": "view:sequence", "@type": "as:OrderedCollection", name: `a step-dispatch sequence across ${model.actors.length} participants`, participants: model.actors.map((a) => a.label), totalItems: model.messages.length,
+			items: model.messages.map((m) => ({ from: m.from, to: m.to, label: m.label, kind: m.kind, ...(m.note ? { note: m.note } : {}) })) };
 	}
 
 	#events = new EventsController(this, () => this.onEventsChanged());

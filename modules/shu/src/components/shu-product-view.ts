@@ -19,9 +19,10 @@ import { ensureUiComponentLoaded } from "../external-components.js";
 const ProductViewSchema = z.object({});
 
 export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** Delegates to the mounted child view: the wrapper summarizes for its whole subtree. */
 	summarizeForKihan(): unknown | null {
-		return null;
+		const child = this.firstElementChild as (Element & Partial<{ summarizeForKihan(): unknown | null }>) | null;
+		return child?.summarizeForKihan?.() ?? null;
 	}
 
 	static styles = [

@@ -51,9 +51,12 @@ const GraphRenderOptionsSchema = z.object({ highlightedPath: z.string().optional
 const ShuGraphSchema = z.object({ graph: GraphSchema.nullable(), options: GraphRenderOptionsSchema.optional() });
 
 export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** The rendered graph as a collection of nodes and edges. */
 	summarizeForKihan(): unknown | null {
-		return null;
+		const graph = this.state.graph;
+		if (!graph || graph.nodes.length === 0) return null;
+		return { "@id": "view:graph-2d", "@type": "as:Collection", name: `a graph of ${graph.nodes.length} nodes and ${graph.edges.length} edges`, nodeCount: graph.nodes.length, edgeCount: graph.edges.length,
+			nodes: graph.nodes.map((n) => ({ id: n.id, label: n.label, ...(n.kind ? { kind: n.kind } : {}) })), edges: graph.edges.map((e) => ({ from: e.from, to: e.to, ...(e.label ? { label: e.label } : {}) })) };
 	}
 
 	static styles = [

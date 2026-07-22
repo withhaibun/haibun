@@ -70,9 +70,12 @@ export function buildFullSchemaGraph(current: string): TGraph {
 }
 
 export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** The type and its individuals: an rdfs:Class with its description and the instances currently listed. */
 	summarizeForKihan(): unknown | null {
-		return null;
+		const type = this.state.persistedAs;
+		if (!type) return null;
+		const description = getTypeDescription(type);
+		return { "@id": type, "@type": "rdfs:Class", name: type, ...(description ? { description } : {}), instanceCount: this.instances.length, instances: this.instances };
 	}
 
 	static styles = [

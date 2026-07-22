@@ -91,9 +91,11 @@ type PlacedCard = { annotation: AnnotationView; idealTop: number; top: number };
 const AnnotatedBodySchema = z.object({});
 
 export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** The document body as an as:Document, with any anchored web annotations (their quote, note, author, and links). */
 	summarizeForKihan(): unknown | null {
-		return null;
+		if (!this.content) return null;
+		const annotations = this.annotations.map((a) => ({ exact: a.exact, ...(a.body ? { note: a.body } : {}), ...(a.author ? { author: a.author } : {}), ...(a.links?.length ? { linksTo: a.links.map((l) => l.exact) } : {}) }));
+		return { "@id": this.sourceId || "view:annotated-body", "@type": "as:Document", name: this.sourceLabel || "an annotated document body", mediaType: this.mediaType, content: this.content, ...(annotations.length ? { annotations } : {}) };
 	}
 
 	/** Light DOM so the annotator's injected highlight layer and this view's scoped style share one scope. */

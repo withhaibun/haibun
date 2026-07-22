@@ -39,9 +39,11 @@ const StateSchema = z.object({
 });
 
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
-	/** Presents data but does not yet summarize it for the Kihan — replace this null with the view's linked data. */
+	/** A single step execution as a prov:Activity: the step event, its dispatch trace, and the variables it set. */
 	summarizeForKihan(): unknown | null {
-		return null;
+		const { seqPath, stepEvent, trace, variablesSet } = this.state;
+		if (!stepEvent) return null;
+		return { "@id": `view:step-${seqPath.join(".")}`, "@type": "prov:Activity", name: "a step execution detail", step: stepEvent, ...(trace ? { dispatch: trace } : {}), ...(variablesSet.length ? { variablesSet } : {}) };
 	}
 
 	#events = new EventsController(this, () => this.onEventsChanged());
