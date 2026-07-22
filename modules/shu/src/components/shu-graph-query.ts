@@ -16,6 +16,7 @@ import type { ShuResultTable } from "./shu-result-table.js";
 import { isOffline } from "../hypermedia.js";
 import { getAvailableDomains } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
+import { arrayWindowedSource, lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
 import { getWindowSize } from "./shu-window-size.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 
@@ -38,6 +39,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private sortableFields: string[] = [];
 	private labels: string[] = [];
 	private total = 0;
+	#source: WindowedSource<VertexRow> = arrayWindowedSource<VertexRow>([]);
+	#installedSource: WindowedSource<VertexRow> | null = null;
 
 	/** The current search as linked data: an `as:Collection` of the rows the visible page shows, with the query that produced them; `totalItems` carries the full count. */
 	summarizeForKihan(): TLinkedData | null {
@@ -255,6 +258,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			this.error = "no record type or search text to query";
 			this.results = [];
 			this.total = 0;
+			this.#source = arrayWindowedSource<VertexRow>([]);
 			this.renderResults();
 			return Promise.resolve();
 		}
@@ -291,6 +295,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			this.lastQueriedLabel = label;
 			this.results = [];
 			this.total = 0;
+			this.#source = arrayWindowedSource<VertexRow>([]);
 			this.renderResults();
 		}
 
@@ -315,6 +320,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				if (this.lastQueryKey !== queryKey) return;
 				this.results = data.vertices ?? [];
 				this.total = data.total ?? this.results.length;
+				this.#buildSource(payload, this.results, this.qOffset);
 				this.sortableFields = data.sort?.fields ?? [];
 				// Reflect the server's resolved sort — including the per-type default the client didn't explicitly pick — so the result-table indicator highlights the active column.
 				if (data.sort?.current?.field && !this.qSort) viewQuery.set({ sort: data.sort.current.field, order: data.sort.current.order });
@@ -339,6 +345,18 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const selector = this.getAttribute("results-target");
 		if (!selector) return null;
 		return document.querySelector(selector);
+	}
+
+	/** Build the lazy row source for the current query: it fetches a page at a time via the same graphQuery the first
+	 *  fetch used, primed with the page already in hand so the first paint needs no second round-trip. */
+	#buildSource(payload: Record<string, unknown>, page0: readonly VertexRow[], startRow: number): void {
+		const src = lazyWindowedSource<VertexRow>({
+			count: () => this.total,
+			fetch: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }).then((d) => d.vertices ?? []),
+			pageSize: this.limit,
+		});
+		src.prime(startRow, page0);
+		this.#source = src;
 	}
 
 	render(): TemplateResult {
@@ -374,10 +392,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				void this.executeQuery();
 			}) as EventListener);
 
-			table.addEventListener(SHU_EVENT.PAGE_CHANGE, ((e: CustomEvent) => {
-				viewQuery.set({ offset: e.detail.offset });
-				void this.executeQuery();
-			}) as EventListener);
 
 			table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
 				const { individualId: vid, deselect, ctrlKey } = e.detail;
@@ -445,7 +459,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		});
 		if (this.qLabel) table.persistedAs = this.qLabel;
 		table.setSortableFields(this.sortableFields);
-		table.setResults(this.results);
-		table.setPagination(this.total, this.limit, this.qOffset);
+		if (this.#source !== this.#installedSource) {
+			table.setSource(this.#source);
+			this.#installedSource = this.#source;
+		}
 	}
 }

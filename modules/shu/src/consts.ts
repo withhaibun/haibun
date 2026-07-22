@@ -40,7 +40,6 @@ export const SHU_EVENT = {
 	// An annotation was authored from a body view (select text → annotate); the host reloads so it appears anchored.
 	ANNOTATION_CREATED: "annotation-created",
 	SORT_CHANGE: "sort-change",
-	PAGE_CHANGE: "page-change",
 	STATE_CHANGE: "state-change",
 	SYNC_AVAILABLE: "sync-available",
 } as const;

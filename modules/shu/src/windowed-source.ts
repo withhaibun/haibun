@@ -51,6 +51,9 @@ export function lazyWindowedSource<T>(opts: { count: () => number; fetch: TPageF
 	/** Re-probe the tail and notify: call after `count()` grows (a live append) or a previously-capped fetch can now
 	 *  return more, so a partial last page is re-fetched and the view re-renders. */
 	notifyCountChanged(): void;
+	/** Seed an already-fetched, page-aligned run of rows (the first page the caller fetched to learn the total) so the
+	 *  first paint needs no second round-trip. `startRow` must be a multiple of `pageSize`. */
+	prime(startRow: number, rows: readonly T[]): void;
 } {
 	const pageSize = opts.pageSize ?? 200;
 	const maxResidentPages = Math.max(4, opts.maxResidentPages ?? 24);
@@ -149,6 +152,17 @@ export function lazyWindowedSource<T>(opts: { count: () => number; fetch: TPageF
 		markers: opts.markers ?? (() => []),
 		notifyCountChanged() {
 			dataEnd = Number.POSITIVE_INFINITY;
+			notify();
+		},
+		prime(startRow, rows) {
+			const firstPage = pageOf(startRow); // startRow is page-aligned: the caller fetched from a page boundary
+			for (let p = firstPage; p * pageSize < startRow + rows.length; p++) {
+				const slice = rows.slice(p * pageSize - startRow, (p + 1) * pageSize - startRow);
+				if (slice.length > 0) pages.set(p, slice);
+			}
+			// If the seed reaches the total, it is the real end of data — record it so the short last page counts as
+			// resident instead of being re-fetched.
+			if (startRow + rows.length >= opts.count()) dataEnd = startRow + rows.length;
 			notify();
 		},
 	};

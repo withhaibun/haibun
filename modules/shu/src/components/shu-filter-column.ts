@@ -16,6 +16,7 @@ import { callStep } from "../pane-fetch.js";
 import { appAccessLevel, defaultLabel } from "../util.js";
 import { getIdField, getQueryableFields } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
+import { arrayWindowedSource, lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
 
 type VertexData = Record<string, unknown>;
 
@@ -42,6 +43,9 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	@property({ attribute: false }) accessor results: VertexData[] = [];
 	@property({ attribute: false }) accessor spinnerStatus = "Waiting...";
+	#total = 0;
+	#source: WindowedSource<VertexData> = arrayWindowedSource<VertexData>([]);
+	#installedSource: WindowedSource<VertexData> | null = null;
 
 	private tableRef = createRef<ShuResultTable>();
 
@@ -96,9 +100,25 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			this.setState({ loading: false, error: res.error });
 			return;
 		}
-		this.results = res.value.edges.map((e) => e.target);
+		const targets = res.value.edges.map((e) => e.target);
+		this.results = targets;
+		this.#total = res.value.total ?? targets.length;
+		const src = lazyWindowedSource<VertexData>({
+			count: () => this.#total,
+			fetch: async (start, end) => {
+				const r = await callStep<{ edges: Array<{ type: string; target: VertexData }>; total: number }>(
+					"getIncomingEdges",
+					{ label, id, limit: end - start, offset: start, accessLevel: appAccessLevel() },
+					`filter-column: incoming page ${label}:${id}`,
+				);
+				if (!r.ok) throw new Error(r.error);
+				return r.value.edges.map((e) => e.target);
+			},
+			pageSize: limit,
+		});
+		src.prime(offset, targets);
+		this.#source = src;
 		this.setState({ loading: false });
-		this.tableRef.value?.setPagination(res.value.total, limit, offset);
 	}
 
 	private async fetchResults(query: Record<string, unknown>): Promise<void> {
@@ -107,7 +127,21 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			this.setState({ loading: false, error: res.error });
 			return;
 		}
-		this.results = res.value.vertices ?? [];
+		const vertices = res.value.vertices ?? [];
+		this.results = vertices;
+		this.#total = res.value.total ?? vertices.length;
+		const pageSize = (query.limit as number) || 50;
+		const src = lazyWindowedSource<VertexData>({
+			count: () => this.#total,
+			fetch: async (start, end) => {
+				const r = await callStep<{ vertices: VertexData[]; total: number }>("graphQuery", { query: { ...query, limit: end - start, offset: start } }, `filter-column: page`);
+				if (!r.ok) throw new Error(r.error);
+				return r.value.vertices ?? [];
+			},
+			pageSize,
+		});
+		src.prime((query.offset as number) || 0, vertices);
+		this.#source = src;
 		this.setState({ loading: false });
 	}
 
@@ -128,20 +162,15 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		this.tableRef.value?.updateState({ sortBy: field, sortOrder: order });
 	};
 
-	private onPageChange = (e: Event): void => {
-		const { offset } = (e as CustomEvent).detail;
-		if (this.state.property === "linksTo" && this.state.value) {
-			void this.fetchIncoming(this.state.persistedAs || defaultLabel(), this.state.value, 50, offset);
-		}
-	};
-
 	protected updated(): void {
 		const table = this.tableRef.value;
 		if (!table || this.state.loading || this.state.error) return;
 		table.updateState({ displayMode: "full", fixedProperty: this.state.property });
 		if (this.state.persistedAs) table.persistedAs = this.state.persistedAs;
-		table.setResults(this.results);
-		table.setPagination(this.results.length, 50, 0);
+		if (this.#source !== this.#installedSource) {
+			table.setSource(this.#source);
+			this.#installedSource = this.#source;
+		}
 	}
 
 	render(): TemplateResult {
@@ -149,7 +178,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		return html`
 			${loading ? html`<shu-spinner .status=${this.spinnerStatus} .visible=${true}></shu-spinner>` : ""}
 			${error ? html`<div class="error-banner">${error}</div>` : ""}
-			<shu-result-table ${ref(this.tableRef)} style=${loading || error ? "display:none" : "flex:1"} @row-click=${this.onRowClick} @sort-change=${this.onSortChange} @page-change=${this.onPageChange}></shu-result-table>
+			<shu-result-table ${ref(this.tableRef)} style=${loading || error ? "display:none" : "flex:1"} @row-click=${this.onRowClick} @sort-change=${this.onSortChange}></shu-result-table>
 		`;
 	}
 }

@@ -153,4 +153,66 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		src.notifyCountChanged();
 		expect(cb).toHaveBeenCalledOnce();
 	});
+
+	describe("prime", () => {
+		it("seeds a full first page so ensureRange over it fetches nothing", async () => {
+			const { fetch } = counted();
+			const src = lazyWindowedSource({ count: () => 10_000, fetch, pageSize: 50 });
+			src.prime(0, Array.from({ length: 50 }, (_, k) => k));
+			await src.ensureRange(0, 50);
+			expect(fetch).not.toHaveBeenCalled();
+			expect(src.rowAt(0)).toBe(0);
+			expect(src.rowAt(49)).toBe(49);
+		});
+
+		it("still fetches windows past the seeded page", async () => {
+			const { fetch } = counted();
+			const src = lazyWindowedSource({ count: () => 10_000, fetch, pageSize: 50 });
+			src.prime(0, Array.from({ length: 50 }, (_, k) => k));
+			await src.ensureRange(50, 100);
+			expect(fetch).toHaveBeenCalledTimes(1);
+			expect(src.rowAt(75)).toBe(75);
+		});
+
+		it("a short seed that reaches the total counts as resident (no re-fetch of the last page)", async () => {
+			const { fetch } = counted();
+			const src = lazyWindowedSource({ count: () => 30, fetch, pageSize: 50 });
+			src.prime(0, Array.from({ length: 30 }, (_, k) => k));
+			await src.ensureRange(0, 30);
+			expect(fetch).not.toHaveBeenCalled();
+			expect(src.rowAt(29)).toBe(29);
+			expect(src.rowAt(30)).toBeUndefined();
+		});
+
+		it("a seed shorter than the count leaves the tail to be fetched", async () => {
+			const { fetch } = counted();
+			const src = lazyWindowedSource({ count: () => 200, fetch, pageSize: 50 });
+			src.prime(0, Array.from({ length: 50 }, (_, k) => k)); // only page 0, total is 200
+			await src.ensureRange(0, 50);
+			expect(fetch).not.toHaveBeenCalled(); // page 0 resident
+			await src.ensureRange(150, 200);
+			expect(fetch).toHaveBeenCalledTimes(1); // the tail was fetched
+			expect(src.rowAt(199)).toBe(199);
+		});
+
+		it("seeds a page-aligned window that is not page 0", async () => {
+			const { fetch } = counted();
+			const src = lazyWindowedSource({ count: () => 10_000, fetch, pageSize: 50 });
+			src.prime(100, Array.from({ length: 50 }, (_, k) => 100 + k));
+			await src.ensureRange(100, 150);
+			expect(fetch).not.toHaveBeenCalled();
+			expect(src.rowAt(125)).toBe(125);
+			await src.ensureRange(0, 50); // page 0 was never seeded
+			expect(fetch).toHaveBeenCalledTimes(1);
+		});
+
+		it("notifies subscribers so the first paint renders the seed", () => {
+			const { fetch } = counted();
+			const src = lazyWindowedSource({ count: () => 100, fetch, pageSize: 50 });
+			const cb = vi.fn();
+			src.subscribe(cb);
+			src.prime(0, [0, 1, 2]);
+			expect(cb).toHaveBeenCalledOnce();
+		});
+	});
 });
