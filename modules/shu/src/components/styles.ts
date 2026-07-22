@@ -37,6 +37,7 @@ export const SHU_TOKENS = `
 		--shu-row-h: calc(24px * var(--shu-scale));
 		--shu-input-h: calc(22px * var(--shu-scale));
 		--shu-resize-w: 10px;
+		--shu-scrollbar-w: 32px;
 
 		/* Light theme defaults */
 		--shu-bg: #ffffff;

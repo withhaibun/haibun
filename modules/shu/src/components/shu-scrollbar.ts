@@ -39,7 +39,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
-			:host { display: flex; flex-direction: column; align-items: center; width: 32px; flex-shrink: 0; user-select: none; touch-action: none; }
+			:host { display: flex; flex-direction: column; align-items: center; width: var(--shu-scrollbar-w); flex-shrink: 0; user-select: none; touch-action: none; }
 			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
 			.pos-bottom { margin-top: auto; }
 			.rail { position: relative; flex: 1; width: 14px; background: var(--shu-bg-input); cursor: pointer; border-radius: var(--shu-radius); }
