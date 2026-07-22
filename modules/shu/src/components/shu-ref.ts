@@ -131,4 +131,3 @@ function defaultLabel(kind: string | null, targetJson: string | null): string {
 	}
 	return "";
 }
-

@@ -12,7 +12,7 @@ import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 const SCHEMA = z.object({});
 
 class TestHost extends ShuElement<typeof SCHEMA> {
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan() {
 		return null;
 	}
 

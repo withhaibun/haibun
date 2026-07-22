@@ -27,7 +27,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHU_EVENT } from "../consts.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import type { ShuGraph } from "./shu-graph.js";
 
@@ -44,7 +44,7 @@ const StateSchema = z.object({
 
 export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	/** Delegates to the embedded shu-graph, which summarizes the domain-chain nodes and edges. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (!this.affordances) return null;
 		return (this.shadowRoot?.querySelector("shu-graph") as ShuGraph | null)?.summarizeForKihan() ?? null;
 	}

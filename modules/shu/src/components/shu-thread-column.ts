@@ -5,7 +5,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { truncate, idOf, persistedTypeOf } from "../util.js";
 import { callStep } from "../pane-fetch.js";
@@ -42,7 +42,7 @@ function normalizeItem(item: Record<string, unknown>): ThreadVertex {
 
 export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	/** A conversation thread as an ordered collection: each item's public fields plus the reply it answers. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (this.thread.length === 0) return null;
 		const items = this.thread.map((v) => {
 			const inReplyTo = (v._edges ?? []).find((e) => isReplyEdge(e.type))?.targetId;

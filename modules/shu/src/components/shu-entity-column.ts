@@ -24,7 +24,7 @@ import {
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
+import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
@@ -134,7 +134,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private products: Record<string, unknown> | null = null;
 
 	/** The open individual's full hypermedia products — the same linked data the page embeds — with any body text the reader has opened folded into the existing `hasBody` entries (the projection lists a body's id and mediaType; `content` is the same field `bodyByMediaType` reads). Null only while the products are still loading. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (!this.products) return null;
 		const hasBody = this.products.hasBody;
 		if (!Array.isArray(hasBody)) return this.products;
@@ -285,13 +285,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const summaryHtml =
 				summaryFields.size > 0
 					? `<div class="entity-summary" data-testid="entity-summary">${Array.from(summaryFields)
-						.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
-						.map((k) => {
-							const v = fields[k];
-							const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
-							return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)} ${valueHtml}</span>`;
-						})
-						.join(" ")}</div>`
+							.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
+							.map((k) => {
+								const v = fields[k];
+								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
+								return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)} ${valueHtml}</span>`;
+							})
+							.join(" ")}</div>`
 					: "";
 			// The body area (iframe or inline-annotated) is rendered as a lit sub-template after this string, so annotations
 			// reach shu-annotated-body as a real property rather than an attribute — hence contentIframe is NOT embedded here.
@@ -458,16 +458,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-					.map(
-						(b) =>
-							`<button class="content-switch-btn${String(b.id ?? "") === activeId ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`,
-					)
-					.join("")}</div>`
+						.map(
+							(b) =>
+								`<button class="content-switch-btn${String(b.id ?? "") === activeId ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`,
+						)
+						.join("")}</div>`
 				: "";
 		// Text this view was HANDED (a step's products carry their own body) needs no request; otherwise it is the text
 		// read on request, and until that lands the body area says it is reading rather than showing an empty frame.
 		const raw = active.content ?? this.bodyText[activeId];
-		if (raw === undefined) return `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(String(active.mediaType))}…</div></div>`;
+		if (raw === undefined)
+			return `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(String(active.mediaType))}…</div></div>`;
 		if (raw === "") return ""; // a body with nothing in it: show nothing, not an empty frame
 		const content = renderContentHtml(raw, String(active.mediaType));
 		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType), pageAddress()));
@@ -554,9 +555,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const count = this.annotationsList.length;
 		return html`<div class="entity-controls" data-testid="entity-controls">
 			<label class="annotation-toggle"
-				><input type="checkbox" data-testid="annotation-toggle" .checked=${this.state.showAnnotations} @change=${this.onToggleAnnotations} /> Show annotations${count > 0
-				? html` (${count})`
-				: html``}</label
+				><input type="checkbox" data-testid="annotation-toggle" .checked=${this.state.showAnnotations} @change=${this.onToggleAnnotations} /> Show annotations${
+					count > 0 ? html` (${count})` : html``
+				}</label
 			>
 		</div>`;
 	}

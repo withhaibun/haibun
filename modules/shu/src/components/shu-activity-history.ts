@@ -11,14 +11,14 @@
 import type { TemplateResult } from "lit";
 import { html } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 
 const EmptySchema = z.object({});
 
 export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	/** The actions-bar output region, not a column pane: the harvest reads only column panes, so this is never the
 	 *  active pane, and its entries (searches, steps, chat turns) are represented by their own views. Contributes nothing. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

@@ -10,7 +10,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { fetchIndividuals } from "../pane-fetch.js";
 import { appAccessLevel, idOf, instanceLabel } from "../util.js";
@@ -71,7 +71,7 @@ export function buildFullSchemaGraph(current: string): TGraph {
 
 export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	/** The type and its individuals: an rdfs:Class with its description and the instances currently listed. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		const type = this.state.persistedAs;
 		if (!type) return null;
 		const description = getTypeDescription(type);
@@ -112,7 +112,13 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		this.setState({ persistedAs, loading: true, error: undefined });
 		// label is the SELECTED NODE'S graph — the type's Class node lives in the Class cluster, and a schema label
 		// tells every consumer this subject is a schema term, not an individual to fetch.
-		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [{ s: persistedAs }], accessLevel: appAccessLevel(), label: ONTOLOGY_CLASS }, bubbles: true, composed: true }));
+		this.dispatchEvent(
+			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
+				detail: { patterns: [{ s: persistedAs }], accessLevel: appAccessLevel(), label: ONTOLOGY_CLASS },
+				bubbles: true,
+				composed: true,
+			}),
+		);
 		// No individuals to list: a referenced-but-undefined class (e.g. prov:Agent, reachable via subClassOf but with no
 		// registered topology) has none and would fail a graphQuery with "Unknown label"; and a registered schema presenter
 		// lists individuals in its own tab, so the column shows only the schema position (description + scoped schema graph).
@@ -182,13 +188,17 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 			${desc ? html`<p class="type-desc" data-testid="type-description">${unsafeHTML(renderRefProse(desc, isKnownType))}</p>` : ""}
 			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid="type-system-schema">A system schema — defined in haibun's own vocabulary.</p>` : ""}
 			${graphView}
-			${hasPresenter ? "" : html`<div class="instances">
+			${
+				hasPresenter
+					? ""
+					: html`<div class="instances">
 				<span class="section-label">Individuals${this.instances.length ? ` (${this.instances.length})` : ""}</span>
 				${this.state.loading ? html`<span>Loading…</span>` : ""}
 				${this.state.error ? html`<div class="error" data-testid="type-error">${this.state.error}</div>` : ""}
 				<ul data-testid="type-instances">
 					${this.instances.map((v) => html`<li>${unsafeHTML(renderRef("entity", { persistedAs: type, id: idOf(v) }, instanceLabel(v)))}</li>`)}
 				</ul>
-			</div>`}`;
+			</div>`
+			}`;
 	}
 }

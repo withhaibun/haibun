@@ -6,13 +6,13 @@
  * Sync indicator shown on the query crumb when new data is available.
  */
 import { html, css, type TemplateResult } from "lit";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { BreadcrumbSchema } from "../schemas.js";
 
 export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

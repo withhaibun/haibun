@@ -5,7 +5,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { PaneState } from "../pane-state.js";
 
@@ -15,7 +15,7 @@ type TView = { id: string; description: string; component: string };
 
 export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

@@ -1,12 +1,12 @@
 import { html, css, type TemplateResult } from "lit";
 import type { ZodType } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ComboboxSchema, type TComboboxOption } from "../schemas.js";
 import { shuBaseStyles } from "./styles.js";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

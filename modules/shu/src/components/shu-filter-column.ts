@@ -8,7 +8,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
@@ -21,7 +21,7 @@ type VertexData = Record<string, unknown>;
 
 export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	/** The query results, summarized by the embedded result table. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return this.tableRef.value?.summarizeForKihan() ?? null;
 	}
 

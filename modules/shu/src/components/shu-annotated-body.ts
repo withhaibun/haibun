@@ -22,7 +22,7 @@ import { property, state } from "lit/decorators.js";
 import DOMPurify from "dompurify";
 import { createTextAnnotator, W3CTextFormat, type TextAnnotator } from "../recogito.js";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { renderContentHtml, BODY_READING_STYLE } from "../util.js";
 import type { TAnnotationDraft } from "../entity-store.js";
 import { type AnnotationView, type QuoteAnchor, type W3CTextAnnotation, toW3CAnnotations, locateQuoteOffsets } from "../annotation-resolver.js";
@@ -92,10 +92,22 @@ const AnnotatedBodySchema = z.object({});
 
 export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	/** The document body as an as:Document, with any anchored web annotations (their quote, note, author, and links). */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (!this.content) return null;
-		const annotations = this.annotations.map((a) => ({ exact: a.exact, ...(a.body ? { note: a.body } : {}), ...(a.author ? { author: a.author } : {}), ...(a.links?.length ? { linksTo: a.links.map((l) => l.exact) } : {}) }));
-		return { "@id": this.sourceId || "view:annotated-body", "@type": "as:Document", name: this.sourceLabel || "an annotated document body", mediaType: this.mediaType, content: this.content, ...(annotations.length ? { annotations } : {}) };
+		const annotations = this.annotations.map((a) => ({
+			exact: a.exact,
+			...(a.body ? { note: a.body } : {}),
+			...(a.author ? { author: a.author } : {}),
+			...(a.links?.length ? { linksTo: a.links.map((l) => l.exact) } : {}),
+		}));
+		return {
+			"@id": this.sourceId || "view:annotated-body",
+			"@type": "as:Document",
+			name: this.sourceLabel || "an annotated document body",
+			mediaType: this.mediaType,
+			content: this.content,
+			...(annotations.length ? { annotations } : {}),
+		};
 	}
 
 	/** Light DOM so the annotator's injected highlight layer and this view's scoped style share one scope. */
@@ -443,11 +455,12 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 				<div class="annotated-content" data-testid="annotated-content"></div>
 				${this.ready ? html`` : html`<div class="annotation-preparing" data-testid="annotation-preparing">Preparing ${this.sourceLabel || "document"}…</div>`}
 				${this.renderAuthoring()}
-				${!this.show
-				? html``
-				: html`<div class="annotation-rail" data-testid="annotation-rail">
+				${
+					!this.show
+						? html``
+						: html`<div class="annotation-rail" data-testid="annotation-rail">
 					${cards.map(
-					({ annotation: a, top }) => html`<div
+						({ annotation: a, top }) => html`<div
 							class="annotation-card ${this.selectedCommentId === a.commentId ? "selected" : ""}"
 							data-testid="annotation-card"
 							data-comment-id=${a.commentId}
@@ -458,20 +471,20 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 							${a.body ? html`<div class="annotation-card-body">${a.body}</div>` : html``}
 							${a.author ? html`<div class="annotation-card-author">${a.author}</div>` : html``}
 							${(a.links ?? []).map(
-						(link) => html`<span
+								(link) => html`<span
 										class="annotation-card-link"
 										data-testid="annotation-card-link"
 										@click=${(e: Event) => {
-								e.stopPropagation();
-								this.revealQuote(link);
-							}}
+											e.stopPropagation();
+											this.revealQuote(link);
+										}}
 										>→ “${link.exact}”</span
 									>`,
-					)}
+							)}
 						</div>`,
-				)}
+					)}
 					</div>`
-			}
+				}
 				</div>
 			`;
 	}

@@ -21,7 +21,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { SvgGraphRenderer, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
@@ -52,11 +52,18 @@ const ShuGraphSchema = z.object({ graph: GraphSchema.nullable(), options: GraphR
 
 export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 	/** The rendered graph as a collection of nodes and edges. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		const graph = this.state.graph;
 		if (!graph || graph.nodes.length === 0) return null;
-		return { "@id": "view:graph-2d", "@type": "as:Collection", name: `a graph of ${graph.nodes.length} nodes and ${graph.edges.length} edges`, nodeCount: graph.nodes.length, edgeCount: graph.edges.length,
-			nodes: graph.nodes.map((n) => ({ id: n.id, label: n.label, ...(n.kind ? { kind: n.kind } : {}) })), edges: graph.edges.map((e) => ({ from: e.from, to: e.to, ...(e.label ? { label: e.label } : {}) })) };
+		return {
+			"@id": "view:graph-2d",
+			"@type": "as:Collection",
+			name: `a graph of ${graph.nodes.length} nodes and ${graph.edges.length} edges`,
+			nodeCount: graph.nodes.length,
+			edgeCount: graph.edges.length,
+			nodes: graph.nodes.map((n) => ({ id: n.id, label: n.label, ...(n.kind ? { kind: n.kind } : {}) })),
+			edges: graph.edges.map((e) => ({ from: e.from, to: e.to, ...(e.label ? { label: e.label } : {}) })),
+		};
 	}
 
 	static styles = [

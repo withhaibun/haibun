@@ -11,7 +11,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { resolveUi } from "../resolve-ui.js";
 import { ensureUiComponentLoaded } from "../external-components.js";
@@ -20,8 +20,8 @@ const ProductViewSchema = z.object({});
 
 export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
 	/** Delegates to the mounted child view: the wrapper summarizes for its whole subtree. */
-	summarizeForKihan(): unknown | null {
-		const child = this.firstElementChild as (Element & Partial<{ summarizeForKihan(): unknown | null }>) | null;
+	summarizeForKihan(): TLinkedData | null {
+		const child = this.firstElementChild as (Element & Partial<{ summarizeForKihan(): TLinkedData | null }>) | null;
 		return child?.summarizeForKihan?.() ?? null;
 	}
 

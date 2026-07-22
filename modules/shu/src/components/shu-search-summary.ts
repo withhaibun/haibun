@@ -9,7 +9,7 @@
 import type { TemplateResult } from "lit";
 import { html } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import type { TViewQuery } from "../view-query.js";
 
@@ -27,7 +27,7 @@ export function describeSearch(q: TViewQuery): string {
 
 export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

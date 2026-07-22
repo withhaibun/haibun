@@ -43,6 +43,10 @@ import { z } from "zod";
 import { SHU_EVENT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "../time-sync.js";
 import { timeCursor, activePane, type SharedSignal } from "../signals.js";
+import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
+// Re-exported so every view can annotate its summarizeForKihan as `TLinkedData | null` from the same import it already
+// takes for ShuElement, instead of each reaching into core for the node-object type.
+export type { TLinkedData };
 import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
@@ -169,7 +173,9 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		} catch (error) {
 			// A raw ZodError names the field and nothing else — not which element, which write, or what value. setState is
 			// re-entrant (state → attribute → attributeChangedCallback → setState), so the stack alone does not say either.
-			throw new Error(`<${this.tagName.toLowerCase()}> setState ${describeStateWrite(partial)}: ${error instanceof z.ZodError ? z.prettifyError(error) : String(error)}`, { cause: error });
+			throw new Error(`<${this.tagName.toLowerCase()}> setState ${describeStateWrite(partial)}: ${error instanceof z.ZodError ? z.prettifyError(error) : String(error)}`, {
+				cause: error,
+			});
 		}
 		if (!this.#restoring) {
 			for (const k of Object.keys(partial)) this.#dirtyFields.add(k);
@@ -271,7 +277,9 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 			this.setState({ [field]: coerceAttribute(fieldSchema, val) } as Partial<z.infer<T>>);
 		} catch (error) {
 			// Name the attribute that drove the write: setState reports the state it rejected, not where that state came from.
-			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${error instanceof Error ? error.message : String(error)}`, {
+				cause: error,
+			});
 		}
 	}
 
@@ -325,7 +333,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * model cannot read is a broken ask; return null only for a pure control that presents no data (a picker, a
 	 * button strip) — the decision is required of every view, never implicit.
 	 */
-	abstract summarizeForKihan(): unknown | null;
+	abstract summarizeForKihan(): TLinkedData | null;
 
 	/** Called when TIME_SYNC is received. Default re-renders via `requestUpdate`; override for custom behavior. */
 	protected onTimeSync(_cursor: number | null): void {
@@ -456,7 +464,7 @@ function parseTimestamp(val: unknown): number | null {
 /** Unwrap ZodDefault/Optional/Nullable wrappers to the inner type. */
 function peelSchema(t: z.ZodTypeAny): z.ZodTypeAny {
 	let s = t;
-	for (; ;) {
+	for (;;) {
 		const inner = (s as unknown as { _def?: { innerType?: z.ZodTypeAny } })._def?.innerType;
 		if (!inner) return s;
 		s = inner;

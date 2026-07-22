@@ -18,7 +18,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
@@ -58,7 +58,7 @@ function writeAxisCookie(key: string, value: Record<string, string[]>): void {
 
 export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

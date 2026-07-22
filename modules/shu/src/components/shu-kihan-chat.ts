@@ -9,7 +9,7 @@ import { z } from "zod";
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { repeat } from "lit/directives/repeat.js";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ChatMessageSchema, chatMessageStyles, type TChatMessage } from "./shu-chat-message.js";
 import type { ShuChatMessage } from "./shu-chat-message.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
@@ -53,7 +53,7 @@ const ChatSchema = z.object({});
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

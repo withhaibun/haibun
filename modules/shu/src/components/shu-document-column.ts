@@ -9,7 +9,7 @@ import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import { getWindowSize, windowTail } from "./shu-window-size.js";
 import DOMPurify from "dompurify";
-import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
+import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { EventsController } from "../controllers/index.js";
 import { FollowController } from "../timeline-follow.js";
@@ -35,7 +35,22 @@ refLinksPlugin(mdRenderer, (name) => getRels(name) !== undefined);
 const SANITIZE_OPTS = {
 	// `kind`/`linktarget`/`text` carry the shu-ref reference (a `#Type` link the refLinksPlugin rewrote); DOMPurify
 	// lowercases attribute names, so `linkTarget` is allowlisted as `linktarget`.
-	ADD_ATTR: ["style", "data-depth", "data-nested", "data-instigator", "data-show-symbol", "data-id", "data-time", "data-raw-time", "data-action", "data-has-artifacts", "data-ids", "kind", "linktarget", "text"],
+	ADD_ATTR: [
+		"style",
+		"data-depth",
+		"data-nested",
+		"data-instigator",
+		"data-show-symbol",
+		"data-id",
+		"data-time",
+		"data-raw-time",
+		"data-action",
+		"data-has-artifacts",
+		"data-ids",
+		"kind",
+		"linktarget",
+		"text",
+	],
 	ADD_TAGS: ["div", "shu-ref"],
 };
 
@@ -191,7 +206,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** The windowed document as markdown — computed on demand when the person asks, mirroring exactly what the
 	 *  column shows (same windowTail, same level). Typed from the served vocabulary: an `as:Document` with `content`. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		const windowed = windowTail(this.events);
 		if (windowed.length === 0) return null;
 		const { md } = generateDocumentMarkdown(windowed, buildArtifactIndex(windowed).artifactsByStep, this.state.level as THaibunLogLevel, this.startTime);
