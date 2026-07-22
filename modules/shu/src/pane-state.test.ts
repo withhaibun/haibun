@@ -120,6 +120,9 @@ describe("PaneState", () => {
 					activatePane(_i: number) {
 						/* no-op: activation side-effects are not under test here */
 					}
+					applyActive() {
+						/* no-op: the active-pane signal painting is not under test here */
+					}
 					removePane(i: number) {
 						const p = this.panes[i];
 						if (!p) throw new Error(`test stub strip: removePane index ${i} out of range (have ${this.panes.length})`);

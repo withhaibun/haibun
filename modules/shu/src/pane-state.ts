@@ -20,6 +20,7 @@ import { SHU_ATTR, SHU_EVENT } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
 import { readElementPrefs } from "./element-prefs.js";
 import { presentationForType } from "./graph/type-presentation.js";
+import { activePane } from "./signals.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { QuoteAnchor } from "./annotation-resolver.js";
@@ -144,7 +145,15 @@ class PaneStateImpl {
 	private desired = new Map<string, DesiredPane>();
 	private strip: ShuColumnStrip | null = null;
 	private hooks: PaneHooks = {};
-	private activePaneId: string | null = null;
+	// The active pane is the global `activePane` signal — the one source of truth every reader (strip styling, harvest,
+	// isActiveView, dimming) derives from. PaneState is its writer on restore/open/dismiss; the strip subscribes and
+	// paints the DOM `active` state, so activation is never a side effect of appending a pane.
+	private get activePaneId(): string | null {
+		return activePane.get();
+	}
+	private set activePaneId(id: string | null) {
+		activePane.set(id);
+	}
 	// The last hash WE pushed. The resulting `hashchange` echoes back into fromHash, which rebuilds `desired` from the
 	// hash — but a self-write's hash already matches `desired`, and re-reading it mid-mutation (e.g. an activation that
 	// fires while a column is opening) clobbers the in-flight pane. So fromHash ignores our own writes and reacts only
@@ -369,7 +378,7 @@ class PaneStateImpl {
 			await this.openPane(d, id);
 		}
 		this.strip.updateAccordion(); // flag changes on existing panes shift the layout budget
-		this.activate();
+		this.strip.applyActive(); // re-assert active styling now the panes match `desired` (the target pane may have just opened)
 	}
 
 	private async openPane(d: DesiredPane, id: string): Promise<void> {
@@ -412,12 +421,6 @@ class PaneStateImpl {
 		const next = `#?${params.toString()}`;
 		this.lastWrittenHash = next; // mark as ours so the echoed hashchange doesn't re-enter fromHash and clobber desired
 		if (next !== base) ViewHash.pushHash(next);
-	}
-
-	private activate(): void {
-		if (!this.strip || !this.activePaneId) return;
-		const idx = this.strip.panes.findIndex((p) => p.dataset.columnKey === this.activePaneId);
-		if (idx >= 0) this.strip.activatePane(idx);
 	}
 
 	private findLiveChild(paneId: string): HTMLElement | undefined {

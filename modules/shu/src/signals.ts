@@ -72,6 +72,12 @@ export class SharedSignal<T> {
 /** Global live time cursor (absolute epoch ms; null = no time filter / "now"). Snapshot-pinned components keep their own cursor and ignore this. */
 export const timeCursor = new SharedSignal<number | null>("timeCursor", null);
 
+/** Global active pane: the `columnKey` of the column with actions/keyboard focus (null = none / the query pane). THE one
+ *  source of truth for "which column you are on" — the chat harvest, every view's `isActiveView`, the strip's active
+ *  styling, and the graph dimming all read it, and the pane router is its only writer. Replaces the old split between a
+ *  DOM `active` attribute, a `VIEW_ACTIVE` event, and a separate `activeViewId`, which could disagree. */
+export const activePane = new SharedSignal<string | null>("activePane", null);
+
 // --- Persisted reactive settings -------------------------------------------------------------------------------------
 // One mechanism for every global UI setting (data window size, …) so they can't drift into bespoke per-setting wiring.
 // localStorage is the durable store; a globalThis-pinned signal is the in-bundle reactive mirror — reading get() in a

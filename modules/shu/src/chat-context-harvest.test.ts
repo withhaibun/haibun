@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
 import { harvestChatViewLd } from "./chat-context-harvest.js";
+import { activePane } from "./signals.js";
 
 type TView = HTMLElement & { summarizeForKihan(): unknown | null };
 
@@ -11,9 +12,14 @@ function view(tag: string, summary: unknown | null): TView {
 	return el;
 }
 
+/** A pane whose `label` doubles as its columnKey (its identity in the `activePane` signal), so a test marks it active
+ *  by `activePane.set(label)` — the one source of truth the harvester reads, mirroring the real strip. */
 function pane(label: string | null, ...children: Element[]): HTMLElement {
 	const p = document.createElement("shu-column-pane");
-	if (label) p.setAttribute("label", label);
+	if (label) {
+		p.setAttribute("label", label);
+		p.dataset.columnKey = label;
+	}
 	for (const c of children) p.appendChild(c);
 	return p;
 }
@@ -21,6 +27,7 @@ function pane(label: string | null, ...children: Element[]): HTMLElement {
 describe("harvestChatViewLd — the active pane's linked data plus the pane manifest", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
+		activePane.set(null);
 	});
 
 	function mount(...panes: HTMLElement[]): void {
@@ -32,7 +39,7 @@ describe("harvestChatViewLd — the active pane's linked data plus the pane mani
 	it("harvests the pane marked [active] — never a positional index — and appends the manifest of every pane", () => {
 		const a = pane("first", view("shu-entity-column", { "@id": "e1" }));
 		const b = pane("second", view("shu-document-column", { "@id": "d1" }));
-		b.setAttribute("active", "");
+		activePane.set("second");
 		mount(a, b);
 		const blocks = harvestChatViewLd();
 		expect(blocks[0]).toEqual({ "@id": "d1" });
@@ -52,7 +59,7 @@ describe("harvestChatViewLd — the active pane's linked data plus the pane mani
 		const wrapper = document.createElement("div");
 		wrapper.appendChild(host);
 		const p = pane("graph", wrapper);
-		p.setAttribute("active", "");
+		activePane.set("graph");
 		mount(p);
 		const blocks = harvestChatViewLd();
 		// The host's summary only — the nested scene is the host's own concern.
@@ -62,7 +69,7 @@ describe("harvestChatViewLd — the active pane's linked data plus the pane mani
 
 	it("a null summary contributes nothing; the manifest still lists the pane", () => {
 		const p = pane("controls", view("shu-views-picker", null));
-		p.setAttribute("active", "");
+		activePane.set("controls");
 		mount(p);
 		const blocks = harvestChatViewLd();
 		expect(blocks).toHaveLength(1); // manifest only

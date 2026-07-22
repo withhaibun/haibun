@@ -9,10 +9,14 @@ import { html, css, type TemplateResult } from "lit";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnStripSchema } from "../schemas.js";
+import { activePane } from "../signals.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
+
+/** A pane's stable identity in the `activePane` signal: its columnKey, or its column-type for the query pane (which has none). */
+const paneKeyOf = (pane: PaneEl): string => pane.dataset.columnKey ?? pane.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? "";
 /** Layout snapshot taken when a pane maximizes; restored on un-maximize. Flex is derived state (the pane recomputes it), so only display and accordion collapse are stashed. */
 type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
@@ -45,7 +49,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	private savedLayout: Map<PaneEl, SavedPaneState> | null = null;
 
 	constructor() {
-		super(ColumnStripSchema, { activeIndex: -1 });
+		super(ColumnStripSchema, {});
 	}
 
 	protected override onConnected(): void {
@@ -54,6 +58,10 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.autoListen(this, SHU_EVENT.COLUMN_EXPAND, this.handlePaneExpand as EventListener);
 		this.autoListen(this, SHU_EVENT.COLUMN_MAXIMIZE, this.handlePaneMaximize as EventListener);
 		this.autoListen(this, SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
+		// The active pane is the `activePane` signal; repaint the DOM active state whenever it changes (a click, a
+		// restore, an open). Pane add/remove also repaints (see addPane/removePane), so a restore naming a not-yet-open
+		// pane lands the moment that pane attaches.
+		this.watchSignal(activePane, () => this.applyActive());
 		this.updateQueryAlone();
 		this.updateIsLast();
 	}
@@ -67,10 +75,9 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	addPane(pane: PaneEl): void {
 		this.appendChild(pane);
 		const minimized = pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
-		if (!minimized) this.activatePane(this.panes.length - 1);
+		this.applyActive(); // paint active from the signal now this pane exists (a restore that named it lands here)
 		this.updateQueryAlone();
 		this.updateIsLast();
-		this.updateAccordion();
 		this.emitColumnsChanged();
 		if (!minimized) requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
 		if (pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) this.applyMaximize(pane, true);
@@ -80,16 +87,14 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	removePane(index: number): void {
 		const panes = this.panes;
 		if (index < 0 || index >= panes.length) return;
+		const removedKey = paneKeyOf(panes[index]);
 		panes[index].remove();
 		const remaining = this.panes;
-		if (remaining.length === 0) {
-			this.state = { ...this.state, activeIndex: -1 };
-		} else if (this.state.activeIndex >= remaining.length) {
-			this.activatePane(remaining.length - 1);
-		}
+		// If the removed pane held focus, move it to the nearest remaining pane (the one now at its slot, else the last).
+		if (activePane.get() === removedKey) activePane.set(remaining.length ? paneKeyOf(remaining[Math.min(index, remaining.length - 1)]) : null);
+		this.applyActive();
 		this.updateQueryAlone();
 		this.updateIsLast();
-		this.updateAccordion();
 		this.emitColumnsChanged();
 	}
 
@@ -99,21 +104,19 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		for (let i = 0; i < panes.length; i++) panes[i].toggleAttribute(SHU_ATTR.IS_LAST, i === panes.length - 1);
 	}
 
-	/** Activate a pane by index. Updates active attributes without re-rendering other panes. */
+	/** Activate the pane at `index` by setting the shared `activePane` signal. The signal subscriber (applyActive) paints
+	 *  the DOM state; every reader (harvest, isActiveView, dimming) derives from the same signal, so they cannot disagree. */
 	activatePane(index: number): void {
-		const panes = this.panes;
-		for (let i = 0; i < panes.length; i++) {
-			panes[i].setActive(i === index);
-		}
-		this.state = { ...this.state, activeIndex: index };
+		const pane = this.panes[index];
+		if (pane) activePane.set(paneKeyOf(pane));
+	}
+
+	/** Paint the DOM active state from the `activePane` signal: exactly the pane whose key matches is active. Idempotent and
+	 *  purely derived, so it is safe on every signal change and after any pane add/remove. */
+	applyActive(): void {
+		const key = activePane.get();
+		for (const pane of this.panes) pane.setActive(paneKeyOf(pane) === key);
 		this.updateAccordion();
-		this.dispatchEvent(
-			new CustomEvent(SHU_EVENT.COLUMN_ACTIVATED, {
-				detail: { index, label: panes[index]?.getAttribute("label") },
-				bubbles: true,
-				composed: true,
-			}),
-		);
 	}
 
 	/** Get column labels for breadcrumb. */
@@ -144,7 +147,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		if (stripWidth <= 0 || panes.length <= 1 || window.matchMedia("(max-width: 600px), (orientation: portrait)").matches) return;
 
 		const queryPane = panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query");
-		const activeIdx = this.state.activeIndex;
+		const activeIdx = panes.findIndex((p) => paneKeyOf(p) === activePane.get());
 
 		// Start from everything-open: un-collapse every auto-collapsed pane (a user-minimized one stays minimized).
 		for (const p of panes) if (!p.hasAttribute(SHU_ATTR.DATA_MINIMIZED)) p.setCollapsed(false);
@@ -239,7 +242,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const panes = this.panes;
 		const index = panes.indexOf(event.target as PaneEl);
 		// A minimized column can't stay active: shift to the nearest expanded column to its right, else to its left.
-		if (event.detail?.minimized && index === this.state.activeIndex) {
+		if (event.detail?.minimized && paneKeyOf(panes[index]) === activePane.get()) {
 			const expanded = (p: PaneEl) => !p.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
 			let target = panes.findIndex((p, i) => i > index && expanded(p));
 			if (target === -1) {

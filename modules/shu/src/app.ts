@@ -19,6 +19,7 @@ import { getUiByType } from "./rels-cache.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor, createPaneRouteState, recordPaneDismissal } from "./pane-event-router.js";
 import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext } from "./quads-snapshot.js";
+import { activePane } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
@@ -398,41 +399,27 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Breadcrumb navigation
+	// Breadcrumb navigation → set the active pane; the `activePane` subscription below drives the rest.
 	appRoot.addEventListener(
 		"breadcrumb-nav",
 		((e: CustomEvent) => {
 			const { index } = e.detail || {};
-			const strip = getStrip();
-			if (index === 0) {
-				const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
-				query?.deselectAll?.();
-				strip?.activatePane(0);
-				getActionsBar()?.setActiveView?.(0);
-			} else if (strip) {
-				strip.activatePane(index);
-			}
+			if (index === 0) (appRoot.querySelector("shu-graph-query") as ShuGraphQuery)?.deselectAll?.();
 			activatePaneByIndex(index);
 		}) as EventListener,
 		{ signal },
 	);
 
-	// Column activated (from strip) → update actions bar + hash, and publish the active view's column type onto the shared view-context store.
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_ACTIVATED,
-		((e: CustomEvent) => {
-			const { index } = e.detail || {};
-			if (index !== undefined) {
-				getActionsBar()?.setActiveView?.(index);
-				activatePaneByIndex(index);
-				const strip = getStrip();
-				const pane = strip?.panes[index];
-				const activeView = pane?.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? null;
-				setActiveViewId(activeView);
-			}
-		}) as EventListener,
-		{ signal },
-	);
+	// The active pane is the `activePane` signal (the strip paints it, the harvest reads it). Its ONE app-level reaction:
+	// highlight the breadcrumb and publish the active view's column type to the dimming store. Replaces the old
+	// COLUMN_ACTIVATED event round-trip and the separate active-view tracking they kept.
+	const onActivePaneChange = (): void => {
+		const panes = getStrip()?.panes ?? [];
+		const index = panes.findIndex((p) => (p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE)) === activePane.get());
+		getActionsBar()?.setActiveView?.(index);
+		setActiveViewId(index >= 0 ? (panes[index]?.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? null) : null);
+	};
+	signal.addEventListener("abort", activePane.subscribe(onActivePaneChange));
 
 	// Columns changed → forward column labels to the actions-bar breadcrumb.
 	// Hash output is owned by PaneState, not by this listener.

@@ -21,10 +21,9 @@
  * into the next microtask. State mutations are whole-object replacements
  * so Lit's change detection (===) fires correctly.
  *
- * Time-sync (`SHU_EVENT.TIME_SYNC`) and active-view (`SHU_EVENT.VIEW_ACTIVE`)
- * are wired in the constructor; subclasses override `onTimeSync(cursor)` /
- * `onViewActive(active)` for custom behavior. Default time-sync calls
- * `requestUpdate` so views refresh as the cursor moves.
+ * Time-sync (the `timeCursor` signal) and active-view (the `activePane` signal) are wired by #installTimeSync /
+ * #installActiveView; subclasses override `onTimeSync(cursor)` / `onViewActive(active)` for custom behavior. Default
+ * time-sync calls `requestUpdate` so views refresh as the cursor moves.
  *
  * Inbound event subscriptions go through `subscribeBatched({onBatch, filter})`
  * which coalesces every event arriving between paints into one handler call
@@ -43,7 +42,7 @@ import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
 import { SHU_EVENT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "../time-sync.js";
-import { timeCursor, type SharedSignal } from "../signals.js";
+import { timeCursor, activePane, type SharedSignal } from "../signals.js";
 import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
@@ -122,8 +121,14 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		timeCursor.set(v); // SharedSignal.set co-fires the signal + the cross-bundle bus and no-ops an unchanged value
 	}
 
-	/** Whether this view is the strip's active pane child. Updated via VIEW_ACTIVE events fanned out by shu-column-pane.setActive. */
-	protected isActiveView = false;
+	/** Whether this view is the strip's active pane: its containing column-pane's key equals the global `activePane`
+	 *  signal. Derived, never stored — the signal is the one source of truth (reading it here auto-subscribes an in-bundle
+	 *  render; a cross-bundle view reacts via #installActiveView). */
+	protected get isActiveView(): boolean {
+		const pane = this.closest("shu-column-pane") as HTMLElement | null;
+		const key = pane?.dataset.columnKey ?? pane?.getAttribute("column-type") ?? null;
+		return key !== null && key === activePane.get();
+	}
 
 	// Input type, not output: fields with a Zod `.default()` may be omitted (parse fills them), so a subclass whose
 	// schema is all-defaulted can pass `{}`.
@@ -137,13 +142,6 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 			const shape = (schema as unknown as { shape?: Record<string, unknown> }).shape;
 			for (const f of persisted) if (!shape?.[f]) throw new Error(`${this.constructor.name}: persistFields names "${f}", which is absent from the schema`);
 		}
-		this.addEventListener(
-			SHU_EVENT.VIEW_ACTIVE as string,
-			((e: CustomEvent) => {
-				this.isActiveView = !!e.detail?.active;
-				this.onViewActive(this.isActiveView);
-			}) as EventListener,
-		);
 		this.#assertSealedLifecycle();
 	}
 
@@ -246,6 +244,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		super.connectedCallback();
 		this.#restorePersisted();
 		this.#installTimeSync();
+		this.#installActiveView();
 		this.onConnected();
 	}
 
@@ -301,6 +300,19 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		if (reactsToTime && !this.hasAttribute("data-snapshot-time")) {
 			this.watchSignal(timeCursor, (cursor) => this.onTimeSync(cursor));
 		}
+	}
+
+	// Sibling of #installTimeSync for the active-pane signal: a view that overrides onViewActive reacts across bundles
+	// through the shared signal bus, and only when its OWN active state flips (the signal fires on every pane switch).
+	#installActiveView(): void {
+		if (this.onViewActive === ShuElement.prototype.onViewActive) return;
+		let prev = this.isActiveView;
+		this.watchSignal(activePane, () => {
+			const now = this.isActiveView;
+			if (now === prev) return;
+			prev = now;
+			this.onViewActive(now);
+		});
 	}
 
 	/** Lit's render contract — return a TemplateResult. */
@@ -444,7 +456,7 @@ function parseTimestamp(val: unknown): number | null {
 /** Unwrap ZodDefault/Optional/Nullable wrappers to the inner type. */
 function peelSchema(t: z.ZodTypeAny): z.ZodTypeAny {
 	let s = t;
-	for (;;) {
+	for (; ;) {
 		const inner = (s as unknown as { _def?: { innerType?: z.ZodTypeAny } })._def?.innerType;
 		if (!inner) return s;
 		s = inner;
