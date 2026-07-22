@@ -1,11 +1,13 @@
 /**
  * <shu-step-detail> — Shows details for a specific step execution identified by seqPath.
  *
- * Displays: step text, stepper/action, duration, dispatch trace, products,
- * and variables set by this step (quads whose provenance includes this seqPath).
- * Entity references are clickable.
+ * Displays: step text, stepper/action, duration, dispatch trace, products, and variables set by this step (quads whose
+ * provenance includes this seqPath). Entity references are clickable. The trace/quads load is a @lit/task keyed on the
+ * seqPath, so switching steps cancels the stale load and renders only the latest — no hand-rolled loading flag, no
+ * out-of-order overwrite. The step's own lifecycle event is separate, tracked live from the shared log.
  */
 import { html, css, type TemplateResult } from "lit";
+import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
@@ -20,36 +22,24 @@ import { PaneState } from "../pane-state.js";
 const StateSchema = z.object({
 	seqPath: z.array(z.number()).default([]),
 	stepEvent: z.record(z.string(), z.unknown()).optional(),
-	trace: z.record(z.string(), z.unknown()).optional(),
-	variablesSet: z.array(z.object({ name: z.string(), value: z.unknown(), graph: z.string() })).default([]),
-	allQuads: z
-		.array(
-			z.object({
-				subject: z.string(),
-				predicate: z.string(),
-				object: z.unknown(),
-				namedGraph: z.string(),
-				timestamp: z.number(),
-				properties: z.record(z.string(), z.unknown()).optional(),
-			}),
-		)
-		.default([]),
-	loading: z.boolean().default(true),
-	error: z.string().optional(),
 });
+
+type TVar = { name: string; value: unknown; graph: string };
+type TStepData = { trace?: Record<string, unknown>; variablesSet: TVar[] };
 
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	/** A single step execution as a prov:Activity: the step event, its dispatch trace, and the variables it set. */
 	summarizeForKihan(): TLinkedData | null {
-		const { seqPath, stepEvent, trace, variablesSet } = this.state;
+		const { seqPath, stepEvent } = this.state;
 		if (!stepEvent) return null;
+		const data = this.#load.value;
 		return {
 			"@id": `view:step-${seqPath.join(".")}`,
 			"@type": "prov:Activity",
 			name: "a step execution detail",
 			step: stepEvent,
-			...(trace ? { dispatch: trace } : {}),
-			...(variablesSet.length ? { variablesSet } : {}),
+			...(data?.trace ? { dispatch: data.trace } : {}),
+			...(data?.variablesSet.length ? { variablesSet: data.variablesSet } : {}),
 		};
 	}
 
@@ -74,17 +64,17 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	];
 
 	constructor() {
-		super(StateSchema, { seqPath: [], loading: true, variablesSet: [], allQuads: [] });
+		super(StateSchema, { seqPath: [] });
 	}
 
-	async open(seqPath: number[]): Promise<void> {
-		this.setState({ seqPath, loading: true, error: undefined });
-		const seqKey = seqPath.join(".");
-		try {
-			// Traces + this step's provenance quads, alongside the shared event backfill. The quad query is intentionally a
-			// fuller per-step provenance fetch (perTypeLimit 1000) — NOT the budgeted display snapshot the graph views share
-			// via quads-snapshot, which would drop the very quads whose provenance names this step. Events come from the
-			// shared log (ShuEventConsumer), so there is no second getEvents backfill here.
+	/** Load this step's dispatch trace and the quads it set, keyed on the seqPath. The quad query is a fuller per-step
+	 *  provenance fetch (perTypeLimit 1000) — NOT the budgeted display snapshot the graph views share via quads-snapshot,
+	 *  which would drop the very quads whose provenance names this step. Events come from the shared log (ShuEventConsumer)
+	 *  loaded alongside, so there is no second getEvents backfill here. */
+	#load = new Task(this, {
+		args: () => [this.state.seqPath.join(".")] as const,
+		task: async ([seqKey]): Promise<TStepData> => {
+			if (!seqKey) return { variablesSet: [] };
 			const [{ tracesData, quadsData }] = await Promise.all([
 				conduit().group("step-detail: load traces + quads for one step", async (g) => {
 					const tracesData = await g.follow<{ traces: Array<Record<string, unknown>> }>({ method: "MonitorStepper-getDispatchTraces" }, "step-detail: dispatch traces");
@@ -96,25 +86,29 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 				this.#events.ensureLoaded(),
 			]);
 			const trace = tracesData.traces?.find((t) => Array.isArray(t.seqPath) && (t.seqPath as number[]).join(".") === seqKey);
-			const variablesSet = (quadsData.quads ?? [])
+			const variablesSet: TVar[] = (quadsData.quads ?? [])
 				.filter((q) => {
 					const prov = q.properties?.provenance;
-					if (!Array.isArray(prov)) return false;
-					return prov.some((p: unknown) => Array.isArray(p) && (p as number[]).join(".") === seqKey);
+					return Array.isArray(prov) && prov.some((p: unknown) => Array.isArray(p) && (p as number[]).join(".") === seqKey);
 				})
 				.map((q) => ({ name: q.subject, value: q.object, graph: q.namedGraph }));
-			this.setState({ trace: trace ?? undefined, variablesSet, allQuads: quadsData.quads ?? [], loading: false, error: undefined });
-			this.refreshStepEvent();
-		} catch (e) {
-			// Surface the failure — a swallowed error rendered the same generic "no data" as a genuinely empty step.
-			this.setState({ loading: false, error: e instanceof Error ? e.message : String(e) });
-		}
+			return { trace: trace ?? undefined, variablesSet };
+		},
+		onComplete: () => this.refreshStepEvent(),
+	});
+
+	/** Called by the pane afterAttach hook with the step's seqPath; setting the state re-keys the load task. Awaits the
+	 *  settle so the caller's attach sequence still completes after the data lands (an error surfaces in render). */
+	async open(seqPath: number[]): Promise<void> {
+		this.setState({ seqPath, stepEvent: undefined });
+		await this.updateComplete;
+		await this.#load.taskComplete.catch(() => undefined);
 	}
 
-	/** The step's lifecycle event lives in the shared log; a still-running step's `end` arrives after open(). Re-find it
+	/** The step's lifecycle event lives in the shared log; a still-running step's `end` arrives after the load. Re-find it
 	 *  cheaply on each live batch (no RPC) so the pane stops going stale. */
 	private onEventsChanged(): void {
-		if (this.state.seqPath.length > 0 && !this.state.loading) this.refreshStepEvent();
+		if (this.state.seqPath.length > 0 && this.#load.status === TaskStatus.COMPLETE) this.refreshStepEvent();
 	}
 
 	private refreshStepEvent(): void {
@@ -140,11 +134,19 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	};
 
 	render(): TemplateResult {
-		const { seqPath, stepEvent, trace, variablesSet, loading, error } = this.state;
-		const key = seqPath.join(".");
-		if (loading) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`;
-		if (error) return html`<div class="empty" style="color:var(--shu-error)">Failed to load step [${key}]: ${error}</div>`;
+		const key = this.state.seqPath.join(".");
+		if (!key) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step…</div>`;
+		return this.#load.render({
+			initial: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,
+			pending: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,
+			error: (e) => html`<div class="empty" style="color:var(--shu-error)">Failed to load step [${key}]: ${e instanceof Error ? e.message : String(e)}</div>`,
+			complete: (data) => this.renderContent(key, data),
+		});
+	}
 
+	private renderContent(key: string, data: TStepData): TemplateResult {
+		const { stepEvent } = this.state;
+		const { trace, variablesSet } = data;
 		const status = stepEvent?.status === "completed" ? "✅" : stepEvent?.status === "failed" ? "❌" : "";
 		const stepIn = String(stepEvent?.in ?? "");
 		const actionName = String(stepEvent?.actionName ?? "");
