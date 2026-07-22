@@ -28,7 +28,7 @@ import { factIdRef } from "./shu-ref.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
 import type { TGraph } from "../graph/types.js";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 
 /** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
 type TAffordances = {
@@ -90,12 +90,18 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private affordances: TAffordances | null = null;
 
 	/** The discovery surface as linked data: every forward step (the deployment's callable verbs) and each goal's verdict — the core affordance shapes, uninvented. No served vocabulary term types this composite, so it carries none. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (!this.affordances) return null;
 		return {
 			"@id": "view:affordances",
 			name: "the steps this deployment offers from its current state, and the stated goals with their resolutions",
-			forward: this.affordances.forward.map((f) => ({ method: f.method, gwta: f.gwta ?? "", inputDomains: f.inputDomains, outputDomains: f.outputDomains, readyToRun: f.readyToRun })),
+			forward: this.affordances.forward.map((f) => ({
+				method: f.method,
+				gwta: f.gwta ?? "",
+				inputDomains: f.inputDomains,
+				outputDomains: f.outputDomains,
+				readyToRun: f.readyToRun,
+			})),
 			goals: this.affordances.goals.map((g) => ({ domain: g.domain, description: g.description, resolution: g.resolution })),
 		};
 	}

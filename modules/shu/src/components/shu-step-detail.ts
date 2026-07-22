@@ -7,7 +7,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
@@ -40,10 +40,17 @@ const StateSchema = z.object({
 
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	/** A single step execution as a prov:Activity: the step event, its dispatch trace, and the variables it set. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		const { seqPath, stepEvent, trace, variablesSet } = this.state;
 		if (!stepEvent) return null;
-		return { "@id": `view:step-${seqPath.join(".")}`, "@type": "prov:Activity", name: "a step execution detail", step: stepEvent, ...(trace ? { dispatch: trace } : {}), ...(variablesSet.length ? { variablesSet } : {}) };
+		return {
+			"@id": `view:step-${seqPath.join(".")}`,
+			"@type": "prov:Activity",
+			name: "a step execution detail",
+			step: stepEvent,
+			...(trace ? { dispatch: trace } : {}),
+			...(variablesSet.length ? { variablesSet } : {}),
+		};
 	}
 
 	#events = new EventsController(this, () => this.onEventsChanged());

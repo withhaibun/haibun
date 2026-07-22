@@ -16,7 +16,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { eventStream, type EventStream } from "../event-stream.js";
@@ -36,7 +36,7 @@ const StateSchema = z.object({
 
 export class ShuTimeline extends ShuElement<typeof StateSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

@@ -6,7 +6,7 @@
  * persistence is owned by the panes themselves (ShuElement.persistFields).
  */
 import { html, css, type TemplateResult } from "lit";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnStripSchema } from "../schemas.js";
 import { activePane } from "../signals.js";
@@ -22,7 +22,7 @@ type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

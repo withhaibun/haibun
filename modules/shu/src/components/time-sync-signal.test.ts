@@ -15,7 +15,7 @@ import { timeCursor } from "../signals.js";
 const S = z.object({ n: z.number().default(0) });
 
 class LiveTimeProbe extends ShuElement<typeof S> {
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan() {
 		return null;
 	}
 
@@ -33,7 +33,7 @@ class LiveTimeProbe extends ShuElement<typeof S> {
 customElements.define("live-time-probe", LiveTimeProbe);
 
 class PinnedTimeProbe extends ShuElement<typeof S> {
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan() {
 		return null;
 	}
 

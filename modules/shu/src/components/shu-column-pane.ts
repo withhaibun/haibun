@@ -12,7 +12,7 @@
  */
 import { html, css, nothing, type TemplateResult } from "lit";
 import { classMap } from "lit/directives/class-map.js";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnPaneSchema } from "../schemas.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
@@ -37,7 +37,7 @@ const MIN_RESIZED_WIDTH = 120;
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

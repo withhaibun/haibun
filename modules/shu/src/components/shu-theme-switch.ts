@@ -6,7 +6,7 @@
  * picks up through `calc(N * var(--shu-scale))` in its tokens. Persists via localStorage.
  */
 import { html, css, type TemplateResult } from "lit";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { ThemeSwitchSchema } from "../schemas.js";
 import { persistedSetting } from "../signals.js";
@@ -58,7 +58,7 @@ export function applyShuPreferences(): void {
 
 export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

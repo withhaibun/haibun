@@ -8,7 +8,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
 import { emptyOrLoading } from "./empty-state.js";
 import { shuBaseStyles } from "./styles.js";
@@ -59,11 +59,17 @@ const StateSchema = z.object({
 
 export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 	/** The step-dispatch sequence as an ordered collection of call/return/denied messages between participants. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (this.state.traces.length === 0) return null;
 		const { model } = tracesToModel(this.state.traces);
-		return { "@id": "view:sequence", "@type": "as:OrderedCollection", name: `a step-dispatch sequence across ${model.actors.length} participants`, participants: model.actors.map((a) => a.label), totalItems: model.messages.length,
-			items: model.messages.map((m) => ({ from: m.from, to: m.to, label: m.label, kind: m.kind, ...(m.note ? { note: m.note } : {}) })) };
+		return {
+			"@id": "view:sequence",
+			"@type": "as:OrderedCollection",
+			name: `a step-dispatch sequence across ${model.actors.length} participants`,
+			participants: model.actors.map((a) => a.label),
+			totalItems: model.messages.length,
+			items: model.messages.map((m) => ({ from: m.from, to: m.to, label: m.label, kind: m.kind, ...(m.note ? { note: m.note } : {}) })),
+		};
 	}
 
 	#events = new EventsController(this, () => this.onEventsChanged());

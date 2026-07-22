@@ -9,8 +9,9 @@
  * the fisheye view lives in a separately-built bundle whose ShuElement class identity differs).
  */
 import { activePane } from "./signals.js";
+import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 
-type TSummarizes = Element & { summarizeForKihan(): unknown | null };
+type TSummarizes = Element & { summarizeForKihan(): TLinkedData | null };
 
 /** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane (which has none). */
 const paneKeyOf = (pane: Element): string => (pane as HTMLElement).dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
@@ -19,18 +20,18 @@ const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSu
 
 export type TPaneManifestEntry = { name: string; component: string; active: boolean };
 
-/** The manifest block appended to every harvest: an `as:Collection` with one item per open column. The model reads
- *  this to know the workspace's shape beyond the active pane, and can pull another pane's subject through the graph steps. */
-export type TPaneManifest = { "@id": "view:panes"; "@type": "as:Collection"; name: string; totalItems: number; items: TPaneManifestEntry[] };
+/** The manifest block appended to every harvest: a {@link TLinkedData} `as:Collection` with one item per open column. The
+ *  model reads this to know the workspace's shape beyond the active pane, and can pull another pane's subject through the graph steps. */
+export type TPaneManifest = TLinkedData & { "@id": "view:panes"; "@type": "as:Collection"; name: string; totalItems: number; items: TPaneManifestEntry[] };
 
-export function harvestChatViewLd(root: ParentNode = document): unknown[] {
+export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	const strip = root.querySelector("shu-column-strip");
 	if (!strip) return [];
 	const panes = Array.from(strip.querySelectorAll("shu-column-pane"));
 	if (panes.length === 0) return [];
 	const activeKey = activePane.get();
 	const active = panes.find((p) => paneKeyOf(p) === activeKey);
-	const blocks: unknown[] = [];
+	const blocks: TLinkedData[] = [];
 	for (const el of topSummarizers(active)) {
 		const summary = el.summarizeForKihan();
 		if (summary != null) blocks.push(summary);

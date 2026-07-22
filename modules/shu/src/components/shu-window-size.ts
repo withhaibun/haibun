@@ -9,7 +9,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { persistedSetting } from "../signals.js";
 
@@ -49,7 +49,7 @@ const EmptySchema = z.object({});
 
 export class ShuWindowSize extends ShuElement<typeof EmptySchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

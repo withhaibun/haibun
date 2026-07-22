@@ -7,7 +7,7 @@ import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
+import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
 import { FollowController } from "../timeline-follow.js";
 import { windowTail } from "./shu-window-size.js";
@@ -40,10 +40,15 @@ const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	/** The live execution log as an ordered collection of rows (time, level, step, message). */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (this.rows.length === 0) return null;
-		return { "@id": "view:monitor", "@type": "as:OrderedCollection", name: "the live execution log", totalItems: this.rows.length,
-			items: this.rows.map((r) => ({ time: r.time, level: r.level, step: r.step, message: r.message })) };
+		return {
+			"@id": "view:monitor",
+			"@type": "as:OrderedCollection",
+			name: "the live execution log",
+			totalItems: this.rows.length,
+			items: this.rows.map((r) => ({ time: r.time, level: r.level, step: r.step, message: r.message })),
+		};
 	}
 
 	#events = new EventsController(this, () => this.onEventsChanged());

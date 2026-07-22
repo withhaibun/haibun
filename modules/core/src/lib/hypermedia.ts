@@ -9,18 +9,7 @@
  */
 
 import { z } from "zod";
-import {
-	edgeRel,
-	REL_CONTEXT,
-	LinkRelations,
-	BODY_LABEL,
-	getRelRange,
-	propertyIriOf,
-	isPersisted,
-	type TPropertyDef,
-	type TRel,
-	type THypermediaTopology,
-} from "./resources.js";
+import { edgeRel, REL_CONTEXT, LinkRelations, BODY_LABEL, getRelRange, propertyIriOf, isPersisted, type TPropertyDef, type TRel, type THypermediaTopology } from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
@@ -292,6 +281,17 @@ const IRI_TO_REL: Record<string, TRel> = Object.fromEntries(Object.entries(REL_C
 type TContextEntry = string | { "@id": string; "@type"?: string; range?: string };
 export type THypermediaContext = { "@context": Record<string, TContextEntry>; "@queryable"?: string[] };
 
+/** A JSON-LD node object: an optional `@context`, an optional `@id`/`@type`, and any number of term→value entries. THE
+ *  one shape every linked-data projection in the system produces — a served vertex, a view's `summarizeForKihan`, the
+ *  chat pane manifest, the graph export — so they share this contract instead of each being `unknown`. The `@context`
+ *  form reuses {@link THypermediaContext}'s, plus the string-URL and array forms a 1.1 processor accepts. */
+export type TLinkedData = {
+	"@context"?: THypermediaContext["@context"] | string | ReadonlyArray<THypermediaContext["@context"] | string>;
+	"@id"?: string;
+	"@type"?: string | string[];
+	[term: string]: unknown;
+};
+
 /** Type hint (xsd / primitive) → {zod, sql}. Defaults to string/TEXT. */
 const TYPE_KINDS: Record<string, { zod: () => z.ZodType; sql: string }> = {
 	"xsd:integer": { zod: () => z.number(), sql: "BIGINT" },
@@ -549,7 +549,11 @@ export function composeDisplayLabel(args: {
 }
 
 /** The type's declared labeling property resolved to text: through the edge for an iri-ranged rel, else its own value. */
-function resolveDeclaredLabel(args: { rels: Record<string, string> | undefined; getProperty: (field: string) => unknown; displayLabel?: { rel: string; linkedLabel?: string } }): string | undefined {
+function resolveDeclaredLabel(args: {
+	rels: Record<string, string> | undefined;
+	getProperty: (field: string) => unknown;
+	displayLabel?: { rel: string; linkedLabel?: string };
+}): string | undefined {
 	const declared = args.displayLabel;
 	if (!declared) return undefined;
 	if (displayLabelResolvesThrough(declared.rel)) return declared.linkedLabel?.trim() || undefined;

@@ -11,7 +11,7 @@ import { property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import MarkdownIt from "markdown-it";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 
 /** Styles for a light-DOM chat message, exported for every shadow scope that hosts one (shu-kihan-chat's own
@@ -65,7 +65,7 @@ const md = new MarkdownIt();
 
 export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 

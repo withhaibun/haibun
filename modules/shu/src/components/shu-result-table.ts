@@ -11,7 +11,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
@@ -62,9 +62,15 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	private results: VertexRow[] = [];
 
 	/** The rows this table shows, as an `as:Collection`. Usually reached through the query view's summary; standalone tables answer for themselves. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (this.results.length === 0) return null;
-		return { "@id": "view:result-table", "@type": "as:Collection", ...(this.persistedAs ? { queryType: this.persistedAs } : {}), totalItems: this.results.length, items: this.results };
+		return {
+			"@id": "view:result-table",
+			"@type": "as:Collection",
+			...(this.persistedAs ? { queryType: this.persistedAs } : {}),
+			totalItems: this.results.length,
+			items: this.results,
+		};
 	}
 
 	private allProperties: string[] = [];

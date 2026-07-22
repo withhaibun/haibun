@@ -5,7 +5,7 @@ import { SHU_EVENT } from "../consts.js";
  * <shu-graph-query> — Query component for the graph store.
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { QueryViewSchema, type TSearchCondition } from "../schemas.js";
 import { viewQuery, type TViewQuery } from "../view-query.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
@@ -40,7 +40,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private total = 0;
 
 	/** The current search as linked data: an `as:Collection` of the rows the visible page shows, with the query that produced them; `totalItems` carries the full count. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		if (this.results.length === 0) return null;
 		const { label, textQuery } = this.state as { label?: string; textQuery?: string };
 		return {

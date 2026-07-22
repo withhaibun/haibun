@@ -12,6 +12,7 @@
  * are wired over the painted `g.node`/`g.edge` elements.
  */
 import { html, css, type TemplateResult } from "lit";
+import type { TLinkedData } from "./shu-element.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
@@ -58,7 +59,7 @@ const ZOOM_STEP = 25; // percent per zoom click — a visible jump, not a nudge
 
 export class ShuGraphView extends ShuClusteredGraphView<typeof StateSchema> {
 	/** Deprecated 2D mermaid overview, superseded by the fisheye graph and no longer updated. Contributes nothing. */
-	summarizeForKihan(): unknown | null {
+	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 
