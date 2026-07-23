@@ -12,7 +12,7 @@ const { serveShuApp } = withAction(new ShuStepper());
 const { waitFor, gotoPage } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { monitorShowsFewerThan } = withAction(new ShuMonitorColumnControls());
+const { monitorShowsFewerThan, seekMonitorRail, monitorFirstVisibleRow, monitorFirstVisibleRowIsNot } = withAction(new ShuMonitorColumnControls());
 const { enterStepMode, passesStepExecution } = createStepUI(wp);
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
@@ -51,6 +51,13 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "The monitor virtualizes the log to the viewport" }),
 		"Every buffered event is in the log, but the monitor renders only the rows in view plus the virtualizer's small overscan, so the DOM stays small no matter how long the run.",
 		monitorShowsFewerThan({ max: "150" }),
+
+		scenario({ scenario: "The custom scroll rail drives the virtualized viewport" }),
+		"The rail is not decoration: seeking it moves the window. Seek to the bottom and the first visible row is no longer row one; seek back to the top and it is row one again — proving a drag or click on the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op).",
+		seekMonitorRail({ where: '"bottom"' }),
+		monitorFirstVisibleRowIsNot({ ordinal: '"1"' }),
+		seekMonitorRail({ where: '"top"' }),
+		monitorFirstVisibleRow({ ordinal: '"1"' }),
 
 		scenario({ scenario: "Open sequence diagram via step" }),
 		"The show sequence diagram step triggers the SPA to open a sequence diagram column.",

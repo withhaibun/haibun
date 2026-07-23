@@ -59,6 +59,52 @@ export default class ShuMonitorColumnControls extends AStepper {
 		return prev;
 	}
 
+	/** Dispatch a pointerdown on the custom rail at its top or bottom, the way a click-to-seek does, so a feature can prove
+	 *  the rail actually scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op). */
+	private seekRail(page: EvalPage, where: string): Promise<boolean> {
+		return page.evaluate((w: string) => {
+			let rail: Element | null = null;
+			const stack: Array<Document | ShadowRoot> = [document];
+			while (stack.length > 0 && !rail) {
+				const root = stack.pop();
+				if (!root) break;
+				const sb = root.querySelector("shu-scrollbar");
+				if (sb?.shadowRoot) rail = sb.shadowRoot.querySelector(".rail"); // .rail lives in shu-scrollbar's shadow root
+				for (const el of Array.from(root.querySelectorAll("*"))) if (el.shadowRoot) stack.push(el.shadowRoot);
+			}
+			if (!rail) return false;
+			const r = rail.getBoundingClientRect();
+			const clientY = w === "top" ? r.top + 3 : r.bottom - 3;
+			rail.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, clientX: r.left + 7, clientY, pointerId: 1 }));
+			return true;
+		}, where);
+	}
+
+	/** The rail's top position glyph: the first visible row's ordinal. */
+	private posTop(page: EvalPage): Promise<string> {
+		return page.evaluate(() => {
+			const stack: Array<Document | ShadowRoot> = [document];
+			while (stack.length > 0) {
+				const root = stack.pop();
+				if (!root) break;
+				const el = root.querySelector('[data-testid="scrollbar-pos-top"]');
+				if (el) return (el.textContent || "").trim();
+				for (const e of Array.from(root.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
+			}
+			return "";
+		});
+	}
+
+	private async waitPosTop(page: EvalPage, ok: (v: string) => boolean): Promise<string> {
+		let v = "";
+		for (let i = 0; i < 25; i++) {
+			v = await this.posTop(page);
+			if (ok(v)) return v;
+			await page.waitForTimeout(100);
+		}
+		return v;
+	}
+
 	steps: TStepperSteps = {
 		monitorShowsMoreThan: {
 			gwta: "monitor shows more than {min} rows",
@@ -82,6 +128,27 @@ export default class ShuMonitorColumnControls extends AStepper {
 				const want = Number(max);
 				const n = await this.waitForStable(await this.page());
 				return n > 0 && n < want ? actionOK() : actionNotOK(`monitor renders ${n} rows, expected a virtualized count below ${want}`);
+			},
+		},
+		seekMonitorRail: {
+			gwta: "seek the monitor rail to the {where}",
+			action: async ({ where }: { where: string }) => {
+				const ok = await this.seekRail(await this.page(), where);
+				return ok ? actionOK() : actionNotOK("no shu-scrollbar rail found to seek");
+			},
+		},
+		monitorFirstVisibleRow: {
+			gwta: "monitor first visible row reads {ordinal}",
+			action: async ({ ordinal }: { ordinal: string }) => {
+				const v = await this.waitPosTop(await this.page(), (x) => x === ordinal);
+				return v === ordinal ? actionOK() : actionNotOK(`monitor rail shows first visible row ${v || "(none)"}, expected ${ordinal}`);
+			},
+		},
+		monitorFirstVisibleRowIsNot: {
+			gwta: "monitor first visible row does not read {ordinal}",
+			action: async ({ ordinal }: { ordinal: string }) => {
+				const v = await this.waitPosTop(await this.page(), (x) => x !== "" && x !== ordinal);
+				return v !== "" && v !== ordinal ? actionOK() : actionNotOK(`monitor rail still shows first visible row ${ordinal}; the seek did not move the window`);
 			},
 		},
 	};
