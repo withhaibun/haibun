@@ -45,22 +45,22 @@ describe("firstAtPointer is the inverse of thumb positioning", () => {
 	});
 });
 
-describe("markerTopPx (aligned with the thumb)", () => {
-	it("sits at the thumb's centre when the marked row is the first visible one, so clicking the mark lands the thumb on it", () => {
-		const total = 1000, visible = 30, index = 400;
-		const { topPx, heightPx } = thumbGeometry(total, { first: index, visible }, RAIL);
-		expect(markerTopPx(index, total, RAIL, visible)).toBe(topPx + Math.round(heightPx / 2));
-	});
-	it("places the first row near the top and the last near the bottom, always within the rail", () => {
+describe("markerTopPx (spread, inset into the thumb's reach)", () => {
+	it("spreads marks across the thumb's reachable range: first near the top inset, last near the bottom inset", () => {
 		const total = 1000, visible = 30;
-		const first = markerTopPx(0, total, RAIL, visible);
-		const last = markerTopPx(total - 1, total, RAIL, visible);
-		expect(first).toBeGreaterThanOrEqual(0);
-		expect(first).toBeLessThan(RAIL / 2);
-		expect(last).toBeGreaterThan(RAIL / 2);
-		expect(last).toBeLessThanOrEqual(RAIL);
+		const heightPx = Math.min(RAIL, Math.max(16, Math.round((visible / total) * RAIL)));
+		expect(markerTopPx(0, total, RAIL, visible)).toBe(Math.round(heightPx / 2));
+		expect(markerTopPx(total - 1, total, RAIL, visible)).toBe(RAIL - Math.round(heightPx / 2));
 	});
-	it("is monotonic non-decreasing across indices, even in a million-row column", () => {
+	it("does not pile the last rows at the bottom: distinct tail indices map to distinct, increasing pixels (the bug the windowed scale caused)", () => {
+		const total = 200, visible = 30; // a small total where a fat thumb makes the windowed scale clamp the tail
+		const a = markerTopPx(190, total, RAIL, visible);
+		const b = markerTopPx(195, total, RAIL, visible);
+		const c = markerTopPx(199, total, RAIL, visible);
+		expect(a).toBeLessThan(b);
+		expect(b).toBeLessThan(c);
+	});
+	it("keeps every mark within the rail, monotonic non-decreasing, even in a million-row column", () => {
 		const total = 5_000_000, visible = 40;
 		let prev = -1;
 		for (let i = 0; i < total; i += 50_000) {

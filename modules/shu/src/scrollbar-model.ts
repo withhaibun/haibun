@@ -37,14 +37,15 @@ export function firstAtPointer(total: number, visible: number, pointerPx: number
 	return Math.round(frac * Math.max(0, total - visible));
 }
 
-/** The centre pixel on a `railPx` rail for a marker at absolute `index`, placed on the SAME geometry as the thumb: it is
- *  the thumb's centre when `index` is the first visible row, so clicking the mark (which scrolls that row to the top) lands
- *  the thumb exactly on it. Using the windowed scale (not the full-rail `index/(total-1)`) is what keeps marks aligned with
- *  the thumb at small totals, where the two scales diverge by the thumb's height. */
+/** The centre pixel on a `railPx` rail for a marker at absolute `index`: the row's position spread across the rail, but
+ *  INSET by the thumb's half-height so every mark sits within the range the thumb's centre can actually reach. This keeps
+ *  marks distinct along the whole set (no pile-up of the last `visible` rows at the bottom, which a windowed `first`-scale
+ *  causes) while guaranteeing the row is inside the window when the thumb reaches its mark, so clicking it jumps there. */
 export function markerTopPx(index: number, total: number, railPx: number, visible: number, minThumbPx = 16): number {
-	if (total <= 0 || railPx <= 0) return 0;
-	const { topPx, heightPx } = thumbGeometry(total, { first: index, visible }, railPx, minThumbPx);
-	return topPx + Math.round(heightPx / 2);
+	if (total <= 1 || railPx <= 0) return 0;
+	const heightPx = Math.min(railPx, Math.max(minThumbPx, Math.round(Math.min(1, visible / total) * railPx)));
+	const frac = Math.min(index, total - 1) / (total - 1);
+	return Math.round(heightPx / 2 + frac * (railPx - heightPx));
 }
 
 /** When many markers fall on nearly the same pixel (a dense cluster of annotations in a huge column), collapse those
