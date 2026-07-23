@@ -109,7 +109,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	 *  virtualizer reads only the visible indices, so a sparse array of that length is cheap. */
 	#itemsFor(count: number): unknown[] {
 		if (count !== this.#itemCount) {
-			this.#items = count > 0 ? new Array(count) : [];
+			// Fill with a defined sentinel, not holes: lit-virtualizer's element(i)/scrollToIndex treats an `undefined` item
+			// as a non-existent index and refuses to scroll there, so a rail drag or marker jump to an off-screen row would
+			// silently no-op. The row data itself always comes from the source (rowAt), never this array; this is only the
+			// length-carrying placeholder. Rebuilt only on a count change (the same cost profile as the source's own update).
+			this.#items = count > 0 ? new Array(count).fill(0) : [];
 			this.#itemCount = count;
 		}
 		return this.#items;

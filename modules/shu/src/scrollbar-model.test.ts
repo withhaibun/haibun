@@ -45,13 +45,30 @@ describe("firstAtPointer is the inverse of thumb positioning", () => {
 	});
 });
 
-describe("markerTopPx", () => {
-	it("places the first row at the top and the last at the bottom of the rail", () => {
-		expect(markerTopPx(0, 1000, RAIL)).toBe(0);
-		expect(markerTopPx(999, 1000, RAIL)).toBe(RAIL);
+describe("markerTopPx (aligned with the thumb)", () => {
+	it("sits at the thumb's centre when the marked row is the first visible one, so clicking the mark lands the thumb on it", () => {
+		const total = 1000, visible = 30, index = 400;
+		const { topPx, heightPx } = thumbGeometry(total, { first: index, visible }, RAIL);
+		expect(markerTopPx(index, total, RAIL, visible)).toBe(topPx + Math.round(heightPx / 2));
 	});
-	it("places a mid-set annotation proportionally, even in a million-row column", () => {
-		expect(markerTopPx(500_000, 1_000_001, RAIL)).toBe(RAIL / 2);
+	it("places the first row near the top and the last near the bottom, always within the rail", () => {
+		const total = 1000, visible = 30;
+		const first = markerTopPx(0, total, RAIL, visible);
+		const last = markerTopPx(total - 1, total, RAIL, visible);
+		expect(first).toBeGreaterThanOrEqual(0);
+		expect(first).toBeLessThan(RAIL / 2);
+		expect(last).toBeGreaterThan(RAIL / 2);
+		expect(last).toBeLessThanOrEqual(RAIL);
+	});
+	it("is monotonic non-decreasing across indices, even in a million-row column", () => {
+		const total = 5_000_000, visible = 40;
+		let prev = -1;
+		for (let i = 0; i < total; i += 50_000) {
+			const px = markerTopPx(i, total, RAIL, visible);
+			expect(px).toBeGreaterThanOrEqual(prev);
+			expect(px).toBeLessThanOrEqual(RAIL);
+			prev = px;
+		}
 	});
 });
 
@@ -61,14 +78,14 @@ describe("clusterMarkers", () => {
 	it("merges annotations that fall within a few pixels into one mark carrying a count", () => {
 		// three rows adjacent in a huge column collapse to one pixel slot
 		const markers = [mk(10, "a"), mk(11, "b"), mk(12, "c"), mk(900_000, "d")];
-		const clustered = clusterMarkers(markers, 1_000_000, RAIL, 10);
+		const clustered = clusterMarkers(markers, 1_000_000, RAIL, 30);
 		expect(clustered).toHaveLength(2);
 		expect(clustered[0].count).toBe(3);
 		expect(clustered[1].count).toBe(1);
 	});
 
 	it("keeps well-separated annotations distinct", () => {
-		const clustered = clusterMarkers([mk(0, "a"), mk(500, "b"), mk(999, "c")], 1000, RAIL, 10);
+		const clustered = clusterMarkers([mk(0, "a"), mk(500, "b"), mk(999, "c")], 1000, RAIL, 30);
 		expect(clustered.map((c) => c.count)).toEqual([1, 1, 1]);
 	});
 });
@@ -110,7 +127,7 @@ describe("hardening (adversarial review)", () => {
 			{ index: 10, id: "a", icon: "📝", color: "#00f" },
 			{ index: 11, id: "b", icon: "⚠️", color: "#fa0" },
 		];
-		const clustered = clusterMarkers(markers, 1_000_000, RAIL, 10);
+		const clustered = clusterMarkers(markers, 1_000_000, RAIL, 30);
 		expect(clustered).toHaveLength(1);
 		expect(clustered[0].count).toBe(3);
 		expect(clustered[0].id).toBe("a"); // the topmost (lowest index)
@@ -121,6 +138,6 @@ describe("hardening (adversarial review)", () => {
 		expect(thumbGeometry(0, { first: 0, visible: 0 }, RAIL)).toEqual({ topPx: 0, heightPx: RAIL });
 		expect(thumbGeometry(100, { first: 0, visible: 10 }, 0)).toEqual({ topPx: 0, heightPx: 0 });
 		expect(firstAtPointer(0, 0, 200, RAIL)).toBe(0);
-		expect(markerTopPx(5, 1, RAIL)).toBe(0);
+		expect(markerTopPx(5, 1, RAIL, 1)).toBeLessThanOrEqual(RAIL); // single-row column: no crash, stays on the rail
 	});
 });

@@ -87,7 +87,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	render(): TemplateResult {
 		const railPx = this.#railPx;
 		const { topPx, heightPx } = thumbGeometry(this.total, this.window, railPx);
-		const marks = clusterMarkers(this.markers, this.total, railPx);
+		const marks = clusterMarkers(this.markers, this.total, railPx, this.window.visible);
 		return html`
 			<span class="pos pos-top" data-testid="scrollbar-pos-top">${this.total ? formatCount(this.window.first + 1) : ""}</span>
 			<div class="rail" @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
