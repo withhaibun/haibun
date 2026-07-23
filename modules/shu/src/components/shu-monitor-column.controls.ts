@@ -35,6 +35,32 @@ export default class ShuMonitorColumnControls extends AStepper {
 		});
 	}
 
+	/** Count rendered document blocks (.doc-row) across shadow boundaries, to assert the run document virtualizes too. */
+	private docRowCount(page: EvalPage): Promise<number> {
+		return page.evaluate(() => {
+			let count = 0;
+			const stack: Array<Document | ShadowRoot> = [document];
+			while (stack.length > 0) {
+				const root = stack.pop();
+				if (!root) break;
+				count += root.querySelectorAll(".doc-row").length;
+				for (const el of Array.from(root.querySelectorAll("*"))) if (el.shadowRoot) stack.push(el.shadowRoot);
+			}
+			return count;
+		});
+	}
+
+	private async waitForStableDoc(page: EvalPage): Promise<number> {
+		let prev = -1;
+		for (let i = 0; i < 30; i++) {
+			const n = await this.docRowCount(page);
+			if (n > 0 && n === prev) return n;
+			prev = n;
+			await page.waitForTimeout(200);
+		}
+		return prev;
+	}
+
 	/** Poll the rendered row count until it satisfies `ok` (the re-render / backfill is async); return the last seen. */
 	private async waitForRows(page: EvalPage, ok: (n: number) => boolean): Promise<number> {
 		let n = 0;
@@ -149,6 +175,14 @@ export default class ShuMonitorColumnControls extends AStepper {
 			action: async ({ ordinal }: { ordinal: string }) => {
 				const v = await this.waitPosTop(await this.page(), (x) => x !== "" && x !== ordinal);
 				return v !== "" && v !== ordinal ? actionOK() : actionNotOK(`monitor rail still shows first visible row ${ordinal}; the seek did not move the window`);
+			},
+		},
+		documentShowsFewerThan: {
+			gwta: "document shows fewer than {max} rows",
+			action: async ({ max }: { max: string }) => {
+				const want = Number(max);
+				const n = await this.waitForStableDoc(await this.page());
+				return n > 0 && n < want ? actionOK() : actionNotOK(`document renders ${n} rows, expected a virtualized count below ${want}`);
 			},
 		},
 	};

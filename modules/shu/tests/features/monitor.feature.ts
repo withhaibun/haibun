@@ -12,7 +12,7 @@ const { serveShuApp } = withAction(new ShuStepper());
 const { waitFor, gotoPage } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { monitorShowsFewerThan, seekMonitorRail, monitorFirstVisibleRow, monitorFirstVisibleRowIsNot } = withAction(new ShuMonitorColumnControls());
+const { monitorShowsFewerThan, seekMonitorRail, monitorFirstVisibleRow, monitorFirstVisibleRowIsNot, documentShowsFewerThan } = withAction(new ShuMonitorColumnControls());
 const { enterStepMode, passesStepExecution } = createStepUI(wp);
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
@@ -63,5 +63,10 @@ export const features: TKirejiExport = {
 		"The show sequence diagram step triggers the SPA to open a sequence diagram column.",
 		...passesStepExecution("MonitorStepper-showSequenceDiagram", {}),
 		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
+
+		scenario({ scenario: "The run document virtualizes the same buffered log" }),
+		"The document reads the same buffered events as prose. It too renders only the blocks in view (the windowTail cut is gone), so a long run stays a small DOM.",
+		...passesStepExecution("MonitorStepper-showDocument", {}),
+		documentShowsFewerThan({ max: "150" }),
 	],
 };

@@ -105,6 +105,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		if (n > 0) this.#virt.value?.scrollToIndex(n - 1, "end");
 	}
 
+	/** Scroll so `index` is at the top of the viewport. For a jump-to from another view (a framed row a reader clicked). */
+	scrollToIndex(index: number, position: "start" | "center" | "end" = "start"): void {
+		this.#virt.value?.scrollToIndex(index, position);
+	}
+
 	/** The placeholder items array of length `count`, memoized so scrolling a million-row column never rebuilds it; the
 	 *  virtualizer reads only the visible indices, so a sparse array of that length is cheap. */
 	#itemsFor(count: number): unknown[] {

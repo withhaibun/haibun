@@ -5,7 +5,7 @@
  * consecutive thumbnails into a strip while leaving lone thumbnails and thumbnail runs broken by other content alone.
  */
 import { describe, it, expect } from "vitest";
-import { splitDocumentBlocks, finalizeBlocks, type TArtifactResolver } from "./document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockTimeClass, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
 
 const thumb = (id: string): string => `<shu-artifact-frame class="thumb"><img src="${id}.png" /></shu-artifact-frame>`;
 const resolver: TArtifactResolver = (id) => (id.startsWith("img") ? thumb(id) : `<shu-artifact-frame><pre>${id}</pre></shu-artifact-frame>`);
@@ -77,5 +77,43 @@ describe("finalizeBlocks", () => {
 		const html = `<div class="standalone-artifact" data-id="doc1"></div><div class="feature-artifacts" data-ids="img1"></div>`;
 		const out = finalizeBlocks(splitDocumentBlocks(html), resolver);
 		expect(out).toHaveLength(2); // the json frame is not a thumb, so it does not group with the image
+	});
+});
+
+const b = (id: string, rawTime: number): TDocBlock => ({ html: `<div class="log-row" data-id="${id}">x</div>`, id, rawTime });
+
+describe("currentBlockIndex", () => {
+	const blocks = [b("a", 0), { html: "<div class='h-1'></div>", id: "", rawTime: 0 }, b("c", 10), b("d", 20)];
+	it("returns -1 when there is no cursor", () => {
+		expect(currentBlockIndex(blocks, 100, null)).toBe(-1);
+	});
+	it("picks the block with the greatest instant at or before the cursor", () => {
+		expect(currentBlockIndex(blocks, 100, 115)).toBe(2); // start 100: a@100, c@110, d@120 -> cursor 115 lands on c
+	});
+	it("lands on the last block when the cursor is at the live edge", () => {
+		expect(currentBlockIndex(blocks, 100, 120)).toBe(3);
+	});
+	it("skips spacers (no id) and out-of-order times", () => {
+		const ooo = [b("a", 0), b("b", 30), b("c", 10)]; // b appended before c in time
+		expect(currentBlockIndex(ooo, 0, 15)).toBe(2); // greatest <= 15 is c@10, not b@30
+	});
+});
+
+describe("blockTimeClass", () => {
+	const past = b("a", 0), cur = b("c", 10), fut = b("d", 20);
+	const startTime = 100, cursor = 110;
+	const currentIdx = currentBlockIndex([past, cur, fut], startTime, cursor);
+	it("dims a block recorded after the cursor as future", () => {
+		expect(blockTimeClass(fut, 2, startTime, cursor, currentIdx)).toBe("future");
+	});
+	it("marks the cursor's block current", () => {
+		expect(blockTimeClass(cur, 1, startTime, cursor, currentIdx)).toBe("current");
+	});
+	it("leaves a past, non-current block unclassed", () => {
+		expect(blockTimeClass(past, 0, startTime, cursor, currentIdx)).toBe("");
+	});
+	it("classes nothing when there is no cursor or the block is a spacer", () => {
+		expect(blockTimeClass(fut, 2, startTime, null, -1)).toBe("");
+		expect(blockTimeClass({ html: "<div class='h-1'></div>", id: "", rawTime: 0 }, 0, startTime, cursor, currentIdx)).toBe("");
 	});
 });
