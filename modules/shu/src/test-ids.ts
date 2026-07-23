@@ -55,6 +55,7 @@ export const SHU_TEST_IDS = {
 		ANNOTATED_BODY: "annotated-body",
 		ANNOTATED_CONTENT: "annotated-content",
 		ANNOTATION_RAIL: "annotation-rail",
+		ANNOTATION_GLYPH_RAIL: "annotation-glyph-rail",
 		ANNOTATION_CARD: "annotation-card",
 		ANNOTATION_CARD_LINK: "annotation-card-link",
 		ANNOTATION_TOGGLE: "annotation-toggle",

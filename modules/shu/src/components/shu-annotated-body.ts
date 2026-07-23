@@ -26,6 +26,10 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { renderContentHtml, BODY_READING_STYLE } from "../util.js";
 import type { TAnnotationDraft } from "../entity-store.js";
 import { type AnnotationView, type QuoteAnchor, type W3CTextAnnotation, toW3CAnnotations, locateQuoteOffsets } from "../annotation-resolver.js";
+import "./shu-scrollbar.js";
+import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
+import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
+import { railMarks, railTotalAndWindow, findScrollAncestor } from "../annotation-rail.js";
 
 /** Characters of surrounding text captured as a selection's prefix/suffix, so a short or repeated quote re-anchors to the right spot. */
 const CONTEXT_CHARS = 32;
@@ -63,6 +67,9 @@ const ANNOTATED_BODY_STYLE = `
 	shu-annotated-body .annotation-card-author { color: var(--shu-fg-faded); margin-top: var(--shu-space-1); }
 	shu-annotated-body .annotation-card-link { display: inline-block; margin-top: var(--shu-space-1); color: var(--shu-link, #0a58ca); cursor: pointer; }
 	shu-annotated-body .annotated-content .quote-flash { background: var(--shu-warn-soft, rgba(255, 196, 0, 0.5)); transition: background 1.2s; }
+	/* The annotation glyph rail: a fixed strip beside the document that marks each note. Sticky so it stays in view as the
+	   document scrolls under it; its height is set inline to the scroll viewport, so it spans exactly the visible area. */
+	shu-annotated-body .annotation-glyph-rail { position: sticky; top: var(--shu-space-2); align-self: flex-start; flex: 0 0 auto; }
 	shu-annotated-body .annotation-preparing { position: absolute; top: 0; left: 0; right: 0; padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; text-align: center; z-index: 2; }
 	/* The authoring affordance floats over the content at the selection (top/left set inline), so it appears at the selection whether or not the document has annotations. */
 	shu-annotated-body .annotation-add { position: absolute; margin-top: 2px; padding: 2px var(--shu-space-2); font-size: var(--shu-font-sm); border: var(--shu-border-w) solid var(--shu-accent, #0080ff); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); color: var(--shu-accent, #0080ff); cursor: pointer; z-index: 3; box-shadow: 0 1px 4px rgba(0,0,0,0.2); white-space: nowrap; }
@@ -158,6 +165,15 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	/** Set when cards are (re)placed; cleared by the measured restack. Gates the restack so its re-render doesn't loop. */
 	private needsRestack = false;
 
+	/** The annotation glyph rail: a fixed strip beside the scrolling document that marks where each annotation is, so a
+	 *  reader jumps between notes in a long file. It rides the scroll ANCESTOR (the annotated body is light DOM inside a
+	 *  host whose overflow scrolls), tracked in that ancestor's pixel space. */
+	#scrollEl: HTMLElement | null = null;
+	#railMarkers: TScrollMarker[] = [];
+	#railTotal = 0;
+	#railWindow: TWindow = { first: 0, visible: 0 };
+	#onScroll = (): void => this.#syncRailWindow();
+
 	constructor() {
 		super(AnnotatedBodySchema, {});
 		installPurifyHook();
@@ -170,6 +186,33 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		}
 		// Authoring: a text selection inside the body offers an "Annotate" affordance; mouseup is when the selection settles.
 		this.autoListen(this, "mouseup", () => this.onSelectionSettled());
+		// The glyph rail seeks the scroll ancestor; it emits scroll-to-index (a pixel here) which bubbles from the child rail.
+		this.autoListen(this, SCROLL_TO_INDEX, (e) => this.#onRailSeek(e as CustomEvent<{ index: number }>));
+		if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => this.#attachScroll());
+	}
+
+	/** Find the scroll ancestor after the DOM exists and track its scroll, so the rail's window follows the reader. */
+	#attachScroll(): void {
+		this.#scrollEl = findScrollAncestor(this);
+		if (!this.#scrollEl) return;
+		this.#scrollEl.addEventListener("scroll", this.#onScroll, { passive: true });
+		this.autoTeardown(() => this.#scrollEl?.removeEventListener("scroll", this.#onScroll));
+		this.#syncRailWindow();
+		this.placeCards(); // recompute marks now the scroll element is known (an earlier placeCards ran with none)
+	}
+
+	/** Update the rail's total + window from the scroll container (cheap read on every scroll). */
+	#syncRailWindow(): void {
+		if (!this.#scrollEl) return;
+		const { total, window } = railTotalAndWindow(this.#scrollEl);
+		this.#railTotal = total;
+		this.#railWindow = window;
+		this.requestUpdate();
+	}
+
+	/** A rail mark or drag emits a pixel down the scroll content; scroll the ancestor there. */
+	#onRailSeek(e: CustomEvent<{ index: number }>): void {
+		if (this.#scrollEl) this.#scrollEl.scrollTop = e.detail.index;
 	}
 
 	protected override onDisconnected(): void {
@@ -317,14 +360,22 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 			const containerText = container.textContent ?? "";
 			const layoutTop = this.renderRoot.querySelector<HTMLElement>(".annotated-layout")?.getBoundingClientRect().top ?? 0;
 			const raw: PlacedCard[] = [];
+			// Rail marks are in the scroll ANCESTOR's pixel space (offset down its content), so a mark sits where the reader
+			// scrolls to reach the note; the card idealTop stays in the layout's own space for the margin stack.
+			const located: { commentId: string; offset: number; label: string }[] = [];
+			const scrollTop = this.#scrollEl?.getBoundingClientRect().top ?? 0;
+			const scrollScroll = this.#scrollEl?.scrollTop ?? 0;
 			for (const a of [...this.annotations, ...this.pending]) {
 				const off = locateQuoteOffsets(containerText, a.exact, a.prefix, a.suffix);
 				if (!off) continue; // quote absent from this rendering → no card (the note stays in the graph)
 				const range = rangeForOffsets(container, off.start, off.end);
 				if (!range) continue;
-				const idealTop = range.getBoundingClientRect().top - layoutTop;
-				raw.push({ annotation: a, idealTop, top: idealTop });
+				const rectTop = range.getBoundingClientRect().top;
+				raw.push({ annotation: a, idealTop: rectTop - layoutTop, top: rectTop - layoutTop });
+				if (this.#scrollEl) located.push({ commentId: a.commentId, offset: rectTop - scrollTop + scrollScroll, label: a.body || a.exact });
 			}
+			this.#railMarkers = railMarks(located, "var(--shu-accent, #0080ff)");
+			if (this.#scrollEl) this.#syncRailWindow();
 			// The count of passages actually located in the text — what is highlighted, distinct from what the graph holds.
 			this.anchoredCount = raw.length;
 			if (!this.show) {
@@ -484,6 +535,19 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 						</div>`,
 					)}
 					</div>`
+				}
+				${
+					this.show && this.annotations.length > 0 && this.#scrollEl
+						? html`<shu-scrollbar
+							class="annotation-glyph-rail"
+							data-testid="annotation-glyph-rail"
+							style="height:${this.#railWindow.visible}px"
+							.total=${this.#railTotal}
+							.window=${this.#railWindow}
+							.markers=${this.#railMarkers}
+							.showPosition=${false}
+						></shu-scrollbar>`
+						: html``
 				}
 				</div>
 			`;
