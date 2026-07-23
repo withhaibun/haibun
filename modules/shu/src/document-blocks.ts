@@ -38,8 +38,9 @@ function isThumb(blockHtml: string): boolean {
 	return !!parse(blockHtml).content.firstElementChild?.querySelector("shu-artifact-frame.thumb");
 }
 
-/** Fill artifact placeholders, add the reader classes, and group consecutive thumbnails — the pure equivalent of the old
- *  `postProcessElements` (artifact filling + classes) plus `groupThumbnailRows`. Product-view embedding stays in the
+/** Fill artifact placeholders, add the reader classes, and group consecutive thumbnails — the pure equivalent of what the
+ *  column's imperative post-process and thumbnail grouping used to do (artifact filling, reader classes, thumbnail strips).
+ *  Product-view embedding stays in the
  *  column (it needs live event products and a mounted element); it is not a block-HTML concern. */
 export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactResolver): TDocBlock[] {
 	const filled = blocks
@@ -82,4 +83,32 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	}
 	flush();
 	return out;
+}
+
+/** The content block that carries the time cursor: the one with the greatest instant at or before it. Not simply the
+ *  last block — events can append out of timestamp order — and spacers/strips (no id) never count. -1 when no cursor. */
+export function currentBlockIndex(blocks: readonly TDocBlock[], startTime: number, cursor: number | null): number {
+	if (cursor === null) return -1;
+	let idx = -1;
+	let best = Number.NEGATIVE_INFINITY;
+	for (let i = 0; i < blocks.length; i++) {
+		const b = blocks[i];
+		if (!b.id) continue;
+		const abs = startTime + b.rawTime;
+		if (abs <= cursor && abs > best) {
+			best = abs;
+			idx = i;
+		}
+	}
+	return idx;
+}
+
+/** A block's time-cursor state: "future" (recorded after the cursor, dimmed), "current" (the cursor's row), or "" (past,
+ *  or no cursor, or a spacer). The column maps these to its time-sync classes. */
+export function blockTimeClass(block: TDocBlock, index: number, startTime: number, cursor: number | null, currentIdx: number): "future" | "current" | "" {
+	if (!block.id || cursor === null) return "";
+	const abs = startTime + block.rawTime;
+	if (abs > cursor) return "future";
+	if (index === currentIdx) return "current";
+	return "";
 }

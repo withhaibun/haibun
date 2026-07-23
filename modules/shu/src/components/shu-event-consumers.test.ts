@@ -61,18 +61,16 @@ describe("event consumers over the shared log", () => {
 		expect(backfillCalls).toBe(1); // shared cache: the document read the same log, no second page-walk
 	});
 
-	it("the document renders the log and a benign re-render does not wipe its DOM (no destroy-on-update)", async () => {
+	it("renders the log as blocks and a benign re-render keeps them (no blank-on-update)", async () => {
 		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
 		document.body.appendChild(doc);
 		await flush();
-		const body = doc.shadowRoot?.querySelector(".document-body") as HTMLElement;
-		expect(body.innerHTML.length).toBeGreaterThan(0);
-		const marker = document.createElement("span");
-		marker.id = "survivor";
-		body.appendChild(marker);
-		doc.requestUpdate(); // an update unrelated to events must NOT re-run renderFull
+		const count = () => doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0;
+		const before = count();
+		expect(before).toBeGreaterThan(0); // the two backfilled steps rendered as rows
+		doc.requestUpdate(); // an update unrelated to events must re-render the same rows, never blank the document
 		await flush();
-		expect(doc.shadowRoot?.querySelector("#survivor")).not.toBeNull(); // a renderFull-on-update would have destroyed it
+		expect(count()).toBe(before);
 	});
 
 	it("clicking the latest document row publishes a null cursor (live edge), an earlier row a concrete cutoff", async () => {
@@ -91,14 +89,13 @@ describe("event consumers over the shared log", () => {
 	});
 });
 
-// A long log is windowed to its last N rows (shu-window-size). The rows still carry a data-raw-time, and clicking one
-// must scrub to that row's real instant — measured from the column's global start, the same origin cursorToRow adds it
-// back to — not from the window's first event, which would shift every click earlier by the cut span.
-describe("a windowed document scrubs to the clicked row's real time, not the cut-off start", () => {
+// P4a removes the windowTail cut: the whole run renders (virtualized to the viewport in a real browser; every row in
+// jsdom, which has no ResizeObserver). Clicking a row still scrubs to that row's real instant — measured from the
+// column's global start, the same origin cursorToRow adds it back to — so a click never shifts by any cut span.
+describe("the document renders the whole run and scrubs a clicked row to its real time (no windowTail cut)", () => {
 	let handle: TShuTestHandle;
-	const WINDOW = 50; // shrink the window well below the event count so the log is truncated
-	const CUT = 10; // events 1..CUT are truncated away
-	const EVENTS = WINDOW + CUT; // 60 events → the last 50 render, so the earliest VISIBLE event is CUT+1 (11)
+	const WINDOW = 50; // a window size well below the event count: the document must ignore it now, showing every event
+	const EVENTS = 60;
 
 	beforeEach(() => {
 		if (!customElements.get("shu-document-column")) customElements.define("shu-document-column", ShuDocumentColumn);
@@ -117,16 +114,17 @@ describe("a windowed document scrubs to the clicked row's real time, not the cut
 		windowSizeSetting.set(DEFAULT_WINDOW_SIZE);
 	});
 
-	it("clicking the earliest VISIBLE row scrubs to that row's timestamp (11), not the invisible global start (1)", async () => {
+	it("renders every event (the 500-cut is gone) and a clicked row scrubs to its own instant", async () => {
 		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
 		document.body.appendChild(doc);
 		await flush();
 		const rows = (Array.from(doc.shadowRoot?.querySelectorAll(".doc-row[data-raw-time]") ?? []) as HTMLElement[]).sort(
 			(a, b) => parseFloat(a.getAttribute("data-raw-time") ?? "0") - parseFloat(b.getAttribute("data-raw-time") ?? "0"),
 		);
-		expect(rows.length, "the window truncates the 60-event log to its last 50 rows").toBe(WINDOW);
+		expect(rows.length, "the whole 60-event run renders, not a 50-row window").toBe(EVENTS);
 		timeCursor.set(999); // a non-null start so the published cutoff registers as a change
-		rows[0].click(); // earliest VISIBLE row is event CUT+1 (events 1..CUT were cut) — scrub to ITS instant
-		expect(timeCursor.get(), "earliest visible row → its own timestamp, not the cut-off start").toBe(CUT + 1);
+		const row11 = rows.find((r) => r.getAttribute("data-raw-time") === "10"); // event 11: rawTime 10 from the global start (1)
+		row11?.click();
+		expect(timeCursor.get(), "clicked row → its own timestamp (start 1 + rawTime 10)").toBe(11);
 	});
 });
