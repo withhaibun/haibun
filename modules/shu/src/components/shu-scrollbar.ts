@@ -35,6 +35,9 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	@property({ attribute: false }) accessor total = 0;
 	@property({ attribute: false }) accessor window: TWindow = { first: 0, visible: 0 };
 	@property({ attribute: false }) accessor markers: TScrollMarker[] = [];
+	/** Show the position glyphs (first-visible ordinal / total). A row-list column wants them; a rail over continuous prose,
+	 *  where the numbers would read as raw pixels, sets this false and keeps only the marks and the thumb. */
+	@property({ type: Boolean }) accessor showPosition = true;
 
 	static styles = [
 		shuBaseStyles,
@@ -89,7 +92,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		const { topPx, heightPx } = thumbGeometry(this.total, this.window, railPx);
 		const marks = clusterMarkers(this.markers, this.total, railPx, this.window.visible);
 		return html`
-			<span class="pos pos-top" data-testid="scrollbar-pos-top">${this.total ? formatCount(this.window.first + 1) : ""}</span>
+			<span class="pos pos-top" data-testid="scrollbar-pos-top">${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
 			<div class="rail" @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
 				<div class="thumb" style=${`top:${topPx}px;height:${heightPx}px`} @pointerdown=${this.#onThumbDown}></div>
 				${marks.map(
@@ -99,7 +102,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 						>`,
 				)}
 			</div>
-			<span class="pos pos-bottom" data-testid="scrollbar-pos-bottom">${this.total ? formatCount(this.total) : ""}</span>
+			<span class="pos pos-bottom" data-testid="scrollbar-pos-bottom">${this.showPosition && this.total ? formatCount(this.total) : ""}</span>
 		`;
 	}
 

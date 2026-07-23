@@ -50,6 +50,19 @@ describe("shu-scrollbar interaction", () => {
 		expect(seeks).toEqual([980]); // clamped to 1000 - 20
 	});
 
+	it("showPosition=false hides the ordinal/total readout but keeps the marks", async () => {
+		const el = document.createElement("shu-scrollbar") as ShuScrollbar;
+		el.total = 1000;
+		el.window = { first: 100, visible: 20 };
+		el.markers = [{ index: 500, id: "m", icon: "📝", color: "#000" }];
+		el.showPosition = false;
+		document.body.appendChild(el);
+		await el.updateComplete;
+		expect((el.shadowRoot?.querySelector("[data-testid=scrollbar-pos-top]")?.textContent ?? "").trim()).toBe("");
+		expect((el.shadowRoot?.querySelector("[data-testid=scrollbar-pos-bottom]")?.textContent ?? "").trim()).toBe("");
+		expect(el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]")).toBeTruthy(); // marks stay
+	});
+
 	it("a wheel notch pages half a window each way", async () => {
 		const { el, seeks } = await mount(1000, { first: 100, visible: 20 }, []);
 		const rail = el.shadowRoot?.querySelector(".rail") as HTMLElement;
