@@ -24,4 +24,16 @@ describe("renderContentHtml", () => {
 		expect(out).toContain("&lt;not a tag&gt;");
 		expect(out).toContain("<pre");
 	});
+
+	it("pretty-prints application/ld+json (credential claims) with indentation", () => {
+		const out = renderContentHtml('{"sector":"unlicensed","commune":"Sledge"}', "application/ld+json");
+		expect(out).toMatch(/\{\n {2}/); // opening brace then a newline + 2-space indent, not the compact single line
+		expect(out).toContain("sector");
+		expect(out).not.toContain('{"sector"');
+	});
+
+	it("shows malformed JSON verbatim rather than throwing", () => {
+		const out = renderContentHtml("{not valid json", "application/json");
+		expect(out).toContain("{not valid json");
+	});
 });
