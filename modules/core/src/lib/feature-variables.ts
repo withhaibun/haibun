@@ -75,7 +75,7 @@ export class FeatureVariables {
 		if (this.world.options.envVariables[sv.term]) throw Error(`Cannot overwrite environment variable "${sv.term}"`);
 		const existing = await this.getStoredEntry(sv.term);
 		if (existing?.readonly) throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
-		return this._set(sv, provenance, namedGraph);
+		return await this._set(sv, provenance, namedGraph);
 	}
 
 	async _set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph: string = SHARED_GRAPH) {
