@@ -1,17 +1,16 @@
 /**
  * <shu-document-column> — the run as an academic-paper document: execution events rendered as headings, step lines,
  * prose, and embedded artifacts. The events are split into self-contained blocks (see document-blocks.ts) and rendered
- * through <shu-virtual-column>, so only the visible window is in the DOM no matter how long the run — the old
- * windowTail(500) cut that hid every earlier event behind "N earlier events are not shown" is gone. Time-cursor dimming,
- * click-to-scrub, jump-to-row from another view, and failed-step glyphs on the rail are all preserved. Product views are
- * embedded inside their block (once per element, so the virtualizer recycling a row does not re-open it).
+ * through <shu-virtual-column>, so only the visible window is in the DOM and every event of an arbitrarily long run
+ * stays reachable. Time-cursor dimming, click-to-scrub, jump-to-row from another view, and failed-step glyphs on the
+ * rail all operate on the block list. Product views are embedded inside their block (once per element, so the
+ * virtualizer recycling a row does not re-open it).
  */
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { ref } from "lit/directives/ref.js";
 import { z } from "zod";
 import MarkdownIt from "markdown-it";
-import { getWindowSize } from "./shu-window-size.js";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
@@ -19,6 +18,8 @@ import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
 import "./shu-artifact-frame.js";
+import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
+import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js";
@@ -84,7 +85,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			.json-block { font-family: "Source Code Pro", monospace; font-size: var(--shu-font-sm); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-4) var(--shu-space-5); overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
 			img { display: block; }
 			.feature-artifacts, .standalone-artifact { margin-left: 32px; }
-			.thumb-row { display: flex; flex-flow: row wrap; align-items: flex-start; gap: var(--shu-space-2); margin-left: 32px; }
+			/* A run of per-step screenshots flows as a grid of TILE-SIZED thumbnails across the column width: fixed ~160px
+			   minimum tracks (auto-fill keeps the unused tracks, so a lone screenshot stays a tile instead of blowing up to
+			   the whole column), each frame stretching only to its track, wrapping to new rows. The strip spans the column;
+			   the tiles stay thumbnails — expanding is what the fullscreen click is for. */
+			.thumb-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: var(--shu-space-2); margin-left: 32px; }
 			.thumb-row > * { margin: 0; }
 			shu-artifact-frame { margin: var(--shu-space-3) 0; }
 			.doc-controls { padding: var(--shu-space-2) var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); flex-shrink: 0; }
@@ -115,16 +120,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	protected override onConnected(): void {
 		// A framed row a reader clicked in another view asks the document to scrub to that instant and reveal the row.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.jumpToRow((e as CustomEvent<{ row: Element }>).detail.row));
-		// Re-render on a window-size change: the shared log re-windows, changing what `events` holds.
-		let first = true;
-		this.updateEffect(() => {
-			getWindowSize();
-			if (first) {
-				first = false;
-				return;
-			}
-			this.#rebuild();
-		});
+		// ←/→ from an expanded thumbnail: only this column can navigate the whole run — the off-screen frames are not in the DOM.
+		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
 	}
 
 	protected override onTimeSync(): void {
@@ -139,7 +136,13 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.#recomputeTimes();
 		this.#productsById = this.getProductsByStepId(this.events);
 		const html = DOMPurify.sanitize(mdRenderer.render(generateDocumentMarkdown(this.events, buildArtifactIndex(this.events).artifactsByStep, this.state.level as THaibunLogLevel, this.startTime).md), SANITIZE_OPTS);
-		this.#blocks = finalizeBlocks(splitDocumentBlocks(html), (id) => this.#resolveArtifact(id));
+		// One by-id map per rebuild: the resolver runs once per artifact placeholder, and a find() over the whole event log
+		// per id would make each rebuild O(artifacts x events) as a screenshot-heavy run streams.
+		const artifactsById = new Map(this.events.filter((e) => e.kind === "artifact").map((e) => [e.id, e as TArtifactEvent]));
+		this.#blocks = finalizeBlocks(splitDocumentBlocks(html), (id) => {
+			const artifact = artifactsById.get(id);
+			return artifact ? this.renderArtifact(artifact) : "";
+		});
 		this.#source.set(this.#blocks, this.#buildMarkers(this.#blocks));
 		this.requestUpdate();
 	}
@@ -155,11 +158,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 		this.startTime = start;
 		this.endTime = end;
-	}
-
-	#resolveArtifact(id: string): string {
-		const artifact = this.events.find((e) => e.id === id) as TArtifactEvent | undefined;
-		return artifact ? this.renderArtifact(artifact) : "";
 	}
 
 	/** A mark on the rail for every failed step, so a reader jumps to a failure in a long run without scrolling for it. */
@@ -182,14 +180,36 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.requestUpdate(); // refresh even when the value is unchanged (the setter no-ops an equal value)
 	}
 
-	/** A jump-to from another view: scrub to the row AND scroll it into view — the one deliberate scroll. */
+	#virtualColumn(): ShuVirtualColumn | null {
+		return this.shadowRoot?.querySelector("shu-virtual-column") ?? null;
+	}
+
+	/** A jump-to from another view: scrub to the row AND scroll it into view — the one deliberate scroll. The row is either
+	 *  a block element carrying `data-id`, or an artifact frame carrying its build-time-stamped `data-step-id`. */
 	private jumpToRow(row: Element): void {
-		const id = row.getAttribute("data-id") ?? "";
+		const id = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
 		const idx = this.#blocks.findIndex((b) => b.id !== "" && b.id === id);
 		if (idx < 0) return;
 		this.cursorToRow(this.#blocks[idx].rawTime);
-		const vc = this.shadowRoot?.querySelector("shu-virtual-column") as (HTMLElement & { scrollToIndex?: (i: number, p?: string) => void }) | null;
-		vc?.scrollToIndex?.(idx, "center");
+		this.#virtualColumn()?.scrollToIndex(idx, "center");
+	}
+
+	/** ←/→ from an expanded thumbnail: move to the previous/next thumbnail in the WHOLE run, not just the rendered window.
+	 *  Each frame carries its run-wide `data-frame-ordinal`, stamped at document build; the target's block is found by that
+	 *  stamp in the block html, scrolled into the virtualizer's window, and its rendered frame expanded once it exists. */
+	async #frameNav({ dir, from }: { dir: number; from: HTMLElement }): Promise<void> {
+		const target = Number(from.getAttribute("data-frame-ordinal")) + dir;
+		const stamp = `data-frame-ordinal="${target}"`;
+		const tBlock = target < 0 ? -1 : this.#blocks.findIndex((b) => b.html.includes(stamp));
+		if (tBlock < 0) return; // at the run's first/last thumbnail — nothing to move to
+		(from as ShuArtifactFrame).setFullscreen(false);
+		this.#virtualColumn()?.scrollToIndex(tBlock, "center");
+		// The virtualizer renders the scrolled-to block asynchronously; wait for the target frame to exist, bounded.
+		for (let tries = 0; tries < 60; tries++) {
+			const frame = this.shadowRoot?.querySelector(`shu-artifact-frame[${stamp}]`) as ShuArtifactFrame | null;
+			if (frame) return frame.setFullscreen(true);
+			await new Promise((r) => requestAnimationFrame(r));
+		}
 	}
 
 	render(): TemplateResult {

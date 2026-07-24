@@ -367,7 +367,10 @@ class PaneStateImpl {
 		// a pane awaits its component module and then its data; an address written only once that finished would lag
 		// the view it names — a reader copying the address (or reloading) mid-open would miss the column.
 		this.writeHash();
-		for (const d of this.desired.values()) {
+		// Iterate a SNAPSHOT, not the live `desired.values()` iterator: opening a pane awaits, and a request landing during
+		// that await can `dismiss`+`request` the same key (a prune-then-reopen), which a live iterator would re-yield —
+		// reopening a pane still being opened. The snapshot is this pass's target; the request scheduled its own reconcile.
+		for (const d of [...this.desired.values()]) {
 			const id = paneIdOf(d);
 			const existing = live.get(id);
 			if (existing) {
@@ -385,6 +388,10 @@ class PaneStateImpl {
 		if (!this.strip) return;
 		const tag = tagOf(d);
 		await this.hooks.ensureLoaded?.(tag);
+		// One pane per columnKey, always. The `ensureLoaded` await is a window in which another reconcile pass or a
+		// re-request can already have opened this key; creating a second here would leave two panes the reconciler can
+		// never tell apart (its live map collapses same-key panes) and `applyActive` would light both. Never duplicate.
+		if (this.strip.panes.some((p) => p.dataset.columnKey === id)) return;
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
 		pane.setAttribute("label", labelOf(d));
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnTypeFor(d));

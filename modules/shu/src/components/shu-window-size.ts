@@ -1,11 +1,10 @@
 /**
- * <shu-window-size> — the window-size picker (rows held/shown per windowed view), bound to the ONE global
- * `windowSizeSetting`. It renders wherever the setting is worth changing: the settings popover, and embedded in a
- * view's window-cut notice so a person who hits the cut can widen the window right there instead of being left
- * hanging. The current value is read reactively from the shared signal, so every mounted picker stays in step.
+ * <shu-window-size> — the window-size picker (rows fetched per windowed query), bound to the ONE global
+ * `windowSizeSetting`. The current value is read reactively from the shared signal, so every mounted picker stays in
+ * step. This module also owns the setting itself and its reader `getWindowSize` — one home for the whole concern.
  *
- * This module also owns the setting itself and the two read helpers every windowed view uses (`getWindowSize`,
- * `windowTail`) — one home for the whole windowing concern.
+ * Since the views virtualize their rendering to the viewport and the event log is bounded by time-range windows
+ * (events-snapshot), this setting's remaining consumer is the graph query's server-side page size.
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -18,7 +17,7 @@ const STORAGE_WINDOW_SIZE = "shu.windowSize";
 /** First-run fallback rows per windowed view — a named const (never a bare literal), and a member of WINDOW_SIZES. */
 export const DEFAULT_WINDOW_SIZE = "500";
 
-/** Rows held/shown per windowed view (query results, the event log). One global setting; each view scrolls its own position within it. `∞` (9e9) is effectively unlimited. */
+/** Rows fetched per windowed query (the graph query's page size). One global setting. `∞` (9e9) is effectively unlimited. */
 const WINDOW_SIZES = [
 	{ value: "50", label: "50" },
 	{ value: DEFAULT_WINDOW_SIZE, label: DEFAULT_WINDOW_SIZE },
@@ -33,16 +32,9 @@ const WINDOW_SIZES = [
  *  drive the same handle rather than reaching into storage. */
 export const windowSizeSetting = persistedSetting(STORAGE_WINDOW_SIZE, DEFAULT_WINDOW_SIZE, (v) => WINDOW_SIZES.some((w) => w.value === v));
 
-/** The global window size (rows per windowed view), read reactively so a settings change re-renders every windowed view. */
+/** The global window size (rows per windowed query), read reactively so a settings change re-runs every consumer. */
 export function getWindowSize(): number {
 	return Number.parseInt(windowSizeSetting.get(), 10);
-}
-
-/** A generous tail window of a list — the last `getWindowSize()` items (the whole list if smaller). The shared bound every
- *  windowed view applies; over-fetched (the browser handles thousands of rows), so it's a safety cap, not virtualization. */
-export function windowTail<T>(items: T[]): T[] {
-	const size = getWindowSize();
-	return items.length > size ? items.slice(items.length - size) : items;
 }
 
 const EmptySchema = z.object({});

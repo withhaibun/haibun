@@ -46,8 +46,9 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
 			.pos-bottom { margin-top: auto; }
 			.rail { position: relative; flex: 1; width: 14px; background: var(--shu-bg-input); cursor: pointer; border-radius: var(--shu-radius); }
-			.thumb { position: absolute; left: 0; right: 0; background: var(--shu-border-strong); min-height: 16px; border-radius: var(--shu-radius); cursor: grab; }
-			.thumb:hover { background: var(--shu-fg-muted); }
+			/* The in-view thumb wants clear contrast against the rail track so the reader sees where they are at a glance. */
+			.thumb { position: absolute; left: 0; right: 0; background: var(--shu-fg-muted); min-height: 16px; border-radius: var(--shu-radius); cursor: grab; }
+			.thumb:hover { background: var(--shu-fg); }
 			.thumb:active { cursor: grabbing; }
 			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1; cursor: pointer; opacity: 0.85; pointer-events: auto; }
 			.marker:hover { opacity: 1; }

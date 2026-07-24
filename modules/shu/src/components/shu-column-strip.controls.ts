@@ -9,7 +9,7 @@
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 
-type EvalPage = { evaluate<T, A = undefined>(fn: (arg: A) => T, arg?: A): Promise<T> };
+import type { EvalPage } from "./controls-util.js";
 
 export default class ShuColumnStripControls extends AStepper {
 	description = "Column-browser (Miller columns) controls: click a column to activate it, assert which is active.";
@@ -21,6 +21,29 @@ export default class ShuColumnStripControls extends AStepper {
 	}
 
 	steps: TStepperSteps = {
+		annotatedBodyOwnsScroll: {
+			// The annotated file must scroll in its OWN region with the native scrollbar hidden, so the glyph rail is the only
+			// bar (the two-scrollbars report). Assert the region exists, is an overflow scroller, and shows no native gutter.
+			gwta: "annotated body scrolls in its own region with no native scrollbar",
+			action: async () => {
+				const r = await (await this.page()).evaluate(() => {
+					let el: HTMLElement | null = null;
+					const stack: Array<Document | ShadowRoot> = [document];
+					while (stack.length > 0 && !el) {
+						const root = stack.pop();
+						if (!root) break;
+						el = root.querySelector(".annotated-scroll");
+						for (const e of Array.from(root.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
+					}
+					if (!el) return { found: false, overflowY: "", gutter: 0, scrolls: false };
+					return { found: true, overflowY: getComputedStyle(el).overflowY, gutter: el.offsetWidth - el.clientWidth, scrolls: el.scrollHeight > el.clientHeight };
+				});
+				if (!r.found) return actionNotOK("no .annotated-scroll region found");
+				if (r.overflowY !== "auto" && r.overflowY !== "scroll") return actionNotOK(`the annotated content region is not a scroller (overflow-y: ${r.overflowY})`);
+				if (r.gutter > 0) return actionNotOK(`a native scrollbar gutter (${r.gutter}px) is still present beside the glyph rail`);
+				return actionOK();
+			},
+		},
 		activateColumn: {
 			// Activate a column the production way: a pointerdown anywhere in the pane (shu-column-pane's capture-phase
 			// handler → COLUMN_ACTIVATE), so it works even where slotted content stops propagation. NOT "click column …" —

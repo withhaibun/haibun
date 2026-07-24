@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { visibleWindow, shouldFollow } from "./virtual-column-model.js";
+import { visibleWindow, convergeTarget, COARSE_GAP, CONVERGE_STEP } from "./virtual-column-model.js";
 
 describe("visibleWindow", () => {
 	it("derives {first, visible} from first/last visible indices", () => {
@@ -11,23 +11,18 @@ describe("visibleWindow", () => {
 	});
 });
 
-describe("shouldFollow", () => {
-	const atEnd = { first: 90, visible: 10 }; // covers up to index 99
-	it("sticks when following, at the end, and at the live time edge", () => {
-		expect(shouldFollow(true, atEnd, 100, null)).toBe(true);
-		expect(shouldFollow(true, { first: 90, visible: 10 }, 100, null)).toBe(true);
+describe("convergeTarget — the two-gait jump-to-live-edge target", () => {
+	it("goes coarse (straight to the last row) while the gap is beyond COARSE_GAP", () => {
+		expect(convergeTarget({ first: 0, visible: 20 }, 20 + COARSE_GAP + 1)).toBe(20 + COARSE_GAP);
 	});
-	it("does not stick when the reader has scrolled up (window short of the pre-append count)", () => {
-		expect(shouldFollow(true, { first: 0, visible: 10 }, 100, null)).toBe(false);
+	it("steps by CONVERGE_STEP once the gap is at or under COARSE_GAP, so each target adjoins measured rows", () => {
+		const window = { first: 700, visible: 20 }; // window end 720
+		expect(convergeTarget(window, 720 + COARSE_GAP)).toBe(720 + CONVERGE_STEP);
 	});
-	it("does not stick when scrubbed into the past (a cursor is set)", () => {
-		expect(shouldFollow(true, atEnd, 100, 12345)).toBe(false);
+	it("clamps the step to the last row on final approach", () => {
+		expect(convergeTarget({ first: 700, visible: 20 }, 725)).toBe(724);
 	});
-	it("does not stick when following is off", () => {
-		expect(shouldFollow(false, atEnd, 100, null)).toBe(false);
-	});
-	it("the boundary is the pre-append count: a window whose end touches it still counts as at-end", () => {
-		expect(shouldFollow(true, { first: 95, visible: 5 }, 100, null)).toBe(true); // 95+5 === 100
-		expect(shouldFollow(true, { first: 95, visible: 4 }, 100, null)).toBe(false); // 95+4 < 100
+	it("targets the last row when the window already holds it (the stick that keeps the pin at the edge)", () => {
+		expect(convergeTarget({ first: 700, visible: 24 }, 724)).toBe(723);
 	});
 });

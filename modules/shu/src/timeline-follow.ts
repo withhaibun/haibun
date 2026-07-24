@@ -6,8 +6,9 @@
  * A view HOLDS a controller as a field, exactly like the data controllers:
  *
  *   class ShuFooColumn extends ShuElement<typeof FooSchema> {
- *     #follow = new FollowController(this, () => this.scrollEl);   // scrollEl is the view's own scroll container
- *     // after appending/rendering content: this.#follow.stick();
+ *     #follow = new FollowController(this, () => this.jumpToLiveEdge());
+ *     // reader reached / left the live edge: this.#follow.setAtBottom(true | false)
+ *     // after appending a row:            this.#follow.stick();
  *   }
  *
  * The rules are identical in every view, so a reader learns them once:
@@ -16,49 +17,24 @@
  *  - Play / scrubbing to the end (timeCursor → null) jumps to the bottom and resumes.
  *  - Clicking a row / scrubbing into the past (timeCursor → a number) is not the live edge, so it never auto-scrolls.
  *
- * FollowModel holds the whole decision with no DOM, so it is exhaustively unit-testable; FollowController is the thin
- * wiring to a scroll element and the signal.
+ * The kit owns the follow DECISION and the timeline-signal wiring; the host owns reading its own scroller, because how a
+ * scroller reports "at the live edge" differs fundamentally and can't be shared: a plain container reads pixel geometry,
+ * but a virtualizer scrolls by ESTIMATED heights of unrendered rows, so it reports via its window reaching the last row
+ * and real reader input. The host translates whichever applies into `setAtBottom`.
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { timeCursor } from "./signals.js";
 
-/** The pure follow decision — no DOM. `following` is the reader's intent to follow the live edge; combined with the
- *  system-wide live state it decides whether the view stays pinned to the bottom. */
-export class FollowModel {
-	private _following: boolean;
-	constructor(following = true) {
-		this._following = following;
-	}
-	get following(): boolean {
-		return this._following;
-	}
-	/** A manual scroll: at the bottom re-engages follow, away from it pauses. */
-	onScrolled(atBottom: boolean): void {
-		this._following = atBottom;
-	}
-	/** Going live — timeline play, or a scrub back to the end (timeCursor → null) — re-engages follow (the view jumps to the edge). */
-	onGoLive(): void {
-		this._following = true;
-	}
-	/** Stick to the bottom only while following AND the system is at the live edge. */
-	shouldStick(live: boolean): boolean {
-		return this._following && live;
-	}
-}
-
-/** How far from the bottom still counts as "at the live edge" — a few pixels, to absorb sub-pixel rounding. */
-const AT_BOTTOM_EPS = 4;
-
-const atBottom = (el: HTMLElement): boolean => el.scrollHeight - el.scrollTop - el.clientHeight < AT_BOTTOM_EPS;
-
 export class FollowController implements ReactiveController {
-	private model = new FollowModel();
+	/** The reader's intent to follow the live edge: true until they scroll away, true again when they return or go live. */
+	private following = true;
 	private unwatch?: () => void;
-	private listening?: HTMLElement;
 
 	constructor(
 		host: ReactiveControllerHost & Element,
-		private scroller: () => HTMLElement | null,
+		/** Jump to the live edge (the bottom) — the host's own scroll to its last row. For a virtualizer this is
+		 *  `scrollToIndex(last, "end")`, re-driven by the host until its window reaches the last row. */
+		private jumpToEdge: () => void,
 	) {
 		host.addController(this);
 	}
@@ -67,43 +43,28 @@ export class FollowController implements ReactiveController {
 		// Reaching the live edge (play / scrub-to-end publishes a null cursor) re-engages follow and jumps to the bottom.
 		this.unwatch = timeCursor.subscribe((c) => {
 			if (c === null) {
-				this.model.onGoLive();
-				this.scrollToBottom();
+				this.following = true;
+				this.jumpToEdge();
 			}
 		});
-		this.attach();
-	}
-
-	// The scroll container may only exist after the first render (a shadow-DOM list), so (re)bind the scroll listener as it appears.
-	hostUpdated(): void {
-		this.attach();
 	}
 
 	hostDisconnected(): void {
 		this.unwatch?.();
-		this.listening?.removeEventListener("scroll", this.onScroll);
-		this.listening = undefined;
 	}
 
-	/** Scroll to the live edge (the bottom) if the rules allow. Call after appending or rendering content. */
+	get isFollowing(): boolean {
+		return this.following;
+	}
+
+	/** The host reports the reader reaching the live edge (`true`, resume) or scrolling away from it (`false`, pause), read
+	 *  however that host's scroller reports it. Only the host's own jump-to-edge and this signal move `following`. */
+	setAtBottom(atBottom: boolean): void {
+		this.following = atBottom;
+	}
+
+	/** Scroll to the live edge if the rules allow (following AND the system is at the live edge). Call after appending a row. */
 	stick(): void {
-		if (this.model.shouldStick(timeCursor.get() === null)) this.scrollToBottom();
-	}
-
-	private attach(): void {
-		const el = this.scroller();
-		if (!el || el === this.listening) return;
-		this.listening?.removeEventListener("scroll", this.onScroll);
-		el.addEventListener("scroll", this.onScroll, { passive: true });
-		this.listening = el;
-	}
-
-	private onScroll = (): void => {
-		if (this.listening) this.model.onScrolled(atBottom(this.listening));
-	};
-
-	private scrollToBottom(): void {
-		const el = this.listening ?? this.scroller();
-		if (el) el.scrollTop = el.scrollHeight;
+		if (this.following && timeCursor.get() === null) this.jumpToEdge();
 	}
 }
