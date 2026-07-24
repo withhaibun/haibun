@@ -42,9 +42,6 @@
 			"path": "monitor-tui"
 		},
 		{
-			"path": "monitor-browser"
-		},
-		{
 			"path": "monitor-otel"
 		},
 		{

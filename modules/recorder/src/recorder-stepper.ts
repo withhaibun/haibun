@@ -97,7 +97,7 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 
 		this.recordedSteps.push(recordedStep);
 
-		// Log to event logger so monitor-browser can display it
+		// Log to the event logger so a monitor view can display it
 		this.getWorld().eventLogger.info(`[RECORDED] ${generatedStep}`);
 
 		// Append to file in real-time if output path is set

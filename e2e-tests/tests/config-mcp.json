@@ -7,7 +7,6 @@
 		"@haibun/web-server-hono/mcp-stepper",
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/web-accessibility-axe/a11y-axe-stepper",
-		"@haibun/monitor-browser",
 		"@haibun/monitor-tui",
 		"variables-stepper",
 		"logic-stepper",

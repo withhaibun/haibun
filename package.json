@@ -24,7 +24,6 @@
 		"semantic-release": "^24.2.9",
 		"typescript": "^5.9.3",
 		"vite": "^6.4.1",
-		"vite-plugin-singlefile": "^2.3.0",
 		"vitest": "^4.1.10"
 	},
 	"scripts": {
@@ -35,12 +34,10 @@
 		"test-watch": "vitest --hideSkippedTests",
 		"clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo",
 		"build-watch:tsc": "tsc -b modules/ --watch --preserveWatchOutput",
-		"build:monitor-browser": "npm run build:client -w @haibun/monitor-browser",
-		"build-watch:monitor-browser": "npm run dev -w @haibun/monitor-browser",
 		"build": "npm run build --workspaces --if-present && npm run postbuild",
 		"postbuild": "node scripts/chmod-shebangs.mjs && node scripts/prune-orphaned-build.mjs",
 		"prune:build": "node scripts/prune-orphaned-build.mjs",
-		"build-watch": "concurrently --restart-tries -1 --restart-after 1000 \"npm:build-watch:tsc\" \"npm:build-watch:monitor-browser\" \"npm:build-watch:shu-bundles\"",
+		"build-watch": "concurrently --restart-tries -1 --restart-after 1000 \"npm:build-watch:tsc\" \"npm:build-watch:shu-bundles\"",
 		"format": "biome format --write .",
 		"lint": "biome lint .",
 		"check": "biome check .",
@@ -66,8 +63,6 @@
 	"version": "4.0.0-alpha.3",
 	"overrides": {
 		"react": "^19.2.3",
-		"react-dom": "^19.2.3",
-		"@types/react": "^19.0.0",
-		"@types/react-dom": "^19.0.0"
+		"@types/react": "^19.0.0"
 	}
 }
