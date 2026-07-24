@@ -524,8 +524,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		matches: {
 			gwta: "matches {value} with {pattern}",
 			action: async ({ value, pattern }: { value: string; pattern: string }, featureStep: TFeatureStep) => {
-				// Interpolate value (e.g. "{request}/url" -> "req-1/url")
-				const interpolatedValue = await this.interpolateTemplate(value, featureStep);
+				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
+				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
+				const interpolatedValue = await this.interpolateTemplate(value, featureStep, { lenient: true });
 				if (interpolatedValue.error) return actionNotOK(interpolatedValue.error);
 				const term = interpolatedValue.value;
 
@@ -534,7 +535,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const actualValue = resolvedValue !== undefined ? String(resolvedValue) : String(term);
 
 				// Interpolate variables in pattern (e.g., "{counter URI}*" -> "http://localhost:8123/*")
-				const interpolated = await this.interpolateTemplate(pattern, featureStep);
+				const interpolated = await this.interpolateTemplate(pattern, featureStep, { lenient: true });
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const actualPattern = interpolated.value;
 
@@ -594,7 +595,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	/** Replaces {varName} placeholders with variable values; errors if a variable is not found. Value XOR error: a
 	 *  missing template (an empty step argument reaches here untyped) is an error naming the situation, never an
 	 *  undefined value a caller could interpolate into a nameless message. */
-	private async interpolateTemplate(template: string | undefined, featureStep?: TFeatureStep): Promise<{ value?: string; error?: string; secret?: boolean }> {
+	private async interpolateTemplate(
+		template: string | undefined,
+		featureStep?: TFeatureStep,
+		options?: { lenient?: boolean },
+	): Promise<{ value?: string; error?: string; secret?: boolean }> {
 		if (template === undefined) return { error: "no variable name to resolve — the step received an empty term" };
 		const placeholderRegex = /\{([^}]+)\}/g;
 		let result = template;
@@ -612,6 +617,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			});
 
 			if (resolved.value === undefined) {
+				// Lenient callers (text-matching) treat an unresolved {X} as literal data and leave it in place.
+				if (options?.lenient) continue;
 				return { error: `Variable ${varName} not found` };
 			}
 			result = result.replace(match[0], String(resolved.value));
