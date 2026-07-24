@@ -13,7 +13,7 @@ const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { enterStepMode, passesStepExecution, chooseGraphLabel, expandActionsBar } = createStepUI(wp);
+const { enterStepMode, passesStepExecution, chooseGraphLabel } = createStepUI(wp);
 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
@@ -61,8 +61,8 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Actions-bar timeline mounts and the scrubber moves" }),
 
-		"The timeline scrubber lives in the actions-bar at the page level (not inside any pane) — it consumes the same SSE event stream as the monitor and drives time-travel for every view via TIME_SYNC. The actions-bar's filter row (where the scrubber sits) collapses until the twisty is clicked; expand it first, then assert the timeline is interactive. Exercising play/restart proves the cursor moves through history rather than parking at the latest event.",
-		...expandActionsBar,
+		"The timeline scrubber lives in the actions-bar at the page level (not inside any pane) — it consumes the same SSE event stream as the monitor and drives time-travel for every view via TIME_SYNC. It opens from the current-time control in the bar's corner; click that to reveal the scrubber, then assert the timeline is interactive. Exercising play/restart proves the cursor moves through history rather than parking at the latest event.",
+		click({ target: IDS.APP.TIME_OFFSET }),
 		waitFor({ target: IDS.TIMELINE.SLIDER }),
 		waitFor({ target: IDS.TIMELINE.PLAY_PAUSE }),
 		waitFor({ target: IDS.TIMELINE.RESTART }),
@@ -74,6 +74,8 @@ export const features: TKirejiExport = {
 		"pause for 2s",
 		click({ target: IDS.TIMELINE.PLAY_PAUSE }),
 		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
+		"Close the timeline popover so it does not float over the controls the later scenarios click.",
+		click({ target: IDS.APP.TIME_OFFSET }),
 
 		scenario({ scenario: "Open the monitor column" }),
 
@@ -137,12 +139,14 @@ export const features: TKirejiExport = {
 		"matches reloadUri with *shu-affordances-panel*",
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
-		"After hash-restore, monitor / sequence-diagram / graph-view should also have come back. Timeline lives in the actions-bar's collapsible filter row; expand it again after reload to confirm the scrubber survives.",
+		"After hash-restore, monitor / sequence-diagram / graph-view should also have come back. The timeline opens from the actions-bar's current-time control; click it again after reload to confirm the scrubber survives.",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
 		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
-		...expandActionsBar,
+		click({ target: IDS.APP.TIME_OFFSET }),
 		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
+		"Close the timeline popover again so it does not float over later scenarios' controls.",
+		click({ target: IDS.APP.TIME_OFFSET }),
 
 		scenario({ scenario: "Variable inspection: `show vars` should produce an entry per seeded variable" }),
 

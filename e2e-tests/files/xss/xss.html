@@ -1,5 +1,8 @@
 <script type="text/javascript">
-    const rem = decodeURIComponent(document.location.href.replace(/.*;/, ''));
+    // The exploit rides after a ';' in the URL; a plain visit has none. Guard on that, or the fallback (a non-matching
+    // replace returns the whole URL) would eval the URL itself and throw, failing the navigation step with a browser error.
+    const href = document.location.href;
+    const rem = href.includes(';') ? decodeURIComponent(href.replace(/.*;/, '')) : '';
     console.log(rem);
     if (rem) {
         eval(rem);
