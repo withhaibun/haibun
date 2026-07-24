@@ -71,6 +71,7 @@ export function createSteppers(steppers: CStepper[]): AStepper[] {
 	for (const S of steppers) {
 		try {
 			const stepper = new S();
+			checkNoPoliteStepPrefixes(stepper);
 			allSteppers.push(stepper);
 		} catch (e) {
 			console.error(`create ${S} failed`, e, S);
@@ -78,6 +79,20 @@ export function createSteppers(steppers: CStepper[]): AStepper[] {
 		}
 	}
 	return allSteppers;
+}
+
+/** A gwta/exact starting with a dePolite stopword can never match: the resolver dePolites the feature line but the step
+ *  pattern keeps its prefix, so the step is silently dead ("no step found" at resolve, with no hint why). Fail at stepper
+ *  creation instead, naming the step and the prefix to drop. */
+export function checkNoPoliteStepPrefixes(stepper: AStepper): void {
+	for (const [name, def] of Object.entries(stepper.steps)) {
+		const pattern = def.gwta ?? def.exact;
+		if (pattern === undefined) continue;
+		const curt = dePolite(pattern);
+		if (curt !== pattern) {
+			throw Error(`${constructorName(stepper)}.${name}: step pattern "${pattern}" starts with the polite prefix "${pattern.slice(0, pattern.length - curt.length).trim()}", which dePolite strips from feature lines, so it could never match. Start the pattern at "${curt}".`);
+		}
+	}
 }
 
 export function getDefaultOptions(): TSpecl {
