@@ -34,7 +34,7 @@ describe("findStepperFromOptions", () => {
 		};
 		steps = {
 			test: {
-				exact: "When I have a stepper option",
+				exact: "have a stepper option",
 				action: async () => await Promise.resolve(OK),
 			},
 		};
@@ -166,7 +166,7 @@ describe("verifyRequiredOptions", () => {
 		};
 		steps = {
 			test: {
-				exact: "When I have a stepper option",
+				exact: "have a stepper option",
 				action: async () => await Promise.resolve(OK),
 			},
 		};
@@ -297,6 +297,31 @@ describe("depolite", () => {
 		test("And I should see", () => {
 			expect(util.dePolite("And I should see")).toBe("see");
 		});
+	});
+});
+
+describe("checkNoPoliteStepPrefixes", () => {
+	// A gwta/exact starting with a dePolite stopword can never match (the resolver dePolites the feature line but not the
+	// step pattern), so stepper creation must fail fast naming the dead step instead of a bare "no step found" at resolve.
+	const stepperWith = (steps: TAnyFixme) => new (class PoliteStepper extends AStepper {
+		steps = steps;
+	})();
+	test("a gwta starting with a stopword throws at creation", () => {
+		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ bad: { gwta: "the document panel is scrolled", action: async () => OK } }))).toThrow(/could never match/);
+	});
+	test("an exact starting with a stopword throws at creation", () => {
+		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ bad: { exact: "a fine mess", action: async () => OK } }))).toThrow(/could never match/);
+	});
+	test("a stopword-free pattern passes, mid-pattern articles included", () => {
+		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ ok: { gwta: "document panel is scrolled to the live edge", action: async () => OK } }))).not.toThrow();
+	});
+	test("createSteppers runs the check on every configured stepper", () => {
+		const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const Bad = class BadStepper extends AStepper {
+			steps = { bad: { gwta: "and then some", action: async () => OK } };
+		};
+		expect(() => util.createSteppers([Bad])).toThrow(/could never match/);
+		spy.mockRestore();
 	});
 });
 
