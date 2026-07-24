@@ -393,3 +393,22 @@ variable x is "1"`;
 		expect(res.ok).toBe(true);
 	});
 });
+
+describe("matches with brace-bearing text", () => {
+	it("a value containing a literal {X} matches a brace-free pattern", async () => {
+		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with the * echoed';
+		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
+	});
+	it("a pattern containing a literal {X} matches the same literal", async () => {
+		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with the {StepperName} echoed';
+		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
+	});
+	it("a resolvable {var} in the pattern still resolves", async () => {
+		const content = 'set who to "Ada"\nset reply to "hello Ada"\nmatches reply with hello {who}';
+		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
+	});
+	it("a genuinely wrong match still fails", async () => {
+		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with totally different';
+		expect((await failWithDefaults(content, steppers)).ok).toBe(false);
+	});
+});
