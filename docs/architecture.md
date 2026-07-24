@@ -313,9 +313,9 @@ Monitors receive `THaibunEvent` via `onEvent` during execution. They track progr
 
 | Monitor | Purpose |
 |---------|---------|
-| MonitorBrowserStepper | Real-time web UI with timeline, artifact viewer, debugger. Generates standalone HTML reports. |
 | MonitorOtelStepper | OpenTelemetry traces to OTLP backends. Features become root spans; steps become child spans. |
 | ConsoleMonitorStepper | Simple console output. |
+| MonitorTuiStepper | Terminal UI showing live progress. |
 
 ## Variable Resolution
 

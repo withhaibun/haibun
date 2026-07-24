@@ -6,7 +6,7 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["**", "!!**/dist", "!**/mcp-session.test.ts", "!**/twin-page.ts", "!**/monitor-browser/src/client/index.css", "!**/*.html"]
+		"includes": ["**", "!!**/dist", "!**/mcp-session.test.ts", "!**/twin-page.ts", "!**/*.html"]
 	},
 	"plugins": ["./lint/no-sealed-lifecycle-override.grit"],
 	"formatter": {

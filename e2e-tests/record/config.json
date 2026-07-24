@@ -4,7 +4,6 @@
 		"@haibun/web-playwright",
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/recorder",
-		"@haibun/monitor-browser",
 		"@haibun/monitor-tui",
 		"haibun",
 		"debugger-stepper",

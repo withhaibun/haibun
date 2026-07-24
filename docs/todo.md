@@ -9,7 +9,6 @@
 [x] artifacts should open in that view intsead of below  (traces already do)
 
 [ ] waypoints + proofs are missing in mermaid graph
-[ ] display stepArgs in monitor-browser log view
 [ ] writeFeaturesArtifact should write json-schema with version from version.ts
 
 [x] (in progress) renaming generic payload to topics (FlowSignalSchema, TOKActionResult, TNotOKActionResult), attributes (LogEvent), args (ControlEvent)
@@ -23,35 +22,13 @@
 [x] defs does not need to import things only to export them. other packges should import directly from protocol
 [x] should be only one source of truth for icons like 🚨
 
-[x] what is modules/monitor-browser/src/client/types.ts for?
 [x] event level should only be debug, trace, log, info, warm, error, not others like this:
 
 [x] clearer zip archive folders - don't create folders for negative steps, prefix folder with context info
 [x] display file and line number in monitor
 [ ] hide secret or don't show env variables in monitor
 
-[ ] haibun should be used to test the monitor-browser
 
-
-## Monitor-browser
-
-
- [x] Show start date in ISO format on top left of monitor-browser under "haibun monitor" and persist it when serialized
- [x] don't show log level / time in document view (only in log view)
- [x] add findStepperFromOptionsOrKind in modules/core/src/lib/util/index.ts that returns any single stepper of kind optionNames[0] if no stepper-level option is defined. apply it to steppers that use storage
- [ ] reset to 0s when page is reloaded
- [x] action introspection
-   [ ] link between actions with seqPath
-   [x] click on action to see its TStepArgs (disclosureJson), stepper details (see legacy monitor)
- [x] artifact support: see legacy monitor for detail
- use a11y-pass.feature for sample
-   [x] time-baed (isTimeLined; playwright video)
-     [x] attribute on artifact type
-     [x] in their own section semi transulucnet, expand when hovered over
-     [x] one displayed by default (playwright video when available) linked to timeline with ability to switch to others
-   [x] file (html, json, image)
-     [x] mermaid diagram: show generated diagram 
-     [x] see artifacts using the live monitor-browser 
 
 ## Monitor-tui
 

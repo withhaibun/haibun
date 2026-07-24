@@ -45,7 +45,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		await Promise.resolve();
 		super.setWorld(world, steppers);
 
-		// Subscribe to events using same pattern as monitor-browser
+		// Subscribe to the event logger and forward each event as an OTel span.
 		world.eventLogger.subscribe((event: THaibunEvent) => {
 			this.onEvent(event);
 		});

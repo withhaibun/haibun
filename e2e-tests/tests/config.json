@@ -6,7 +6,6 @@
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/web-accessibility-axe/a11y-axe-stepper",
-		"@haibun/monitor-browser",
 		"@haibun/monitor-tui",
 		"variables-stepper",
 		"@haibun/core/steps/goal-resolution-stepper",
