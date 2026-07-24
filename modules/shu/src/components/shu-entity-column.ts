@@ -25,7 +25,7 @@ import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, ANNOTATION_GLYPH } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
@@ -89,8 +89,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		/* The annotate toggle is a pane-icon (min/max/pin/settings look; aria-pressed = the accent-fill highlight the pane
 		 * toggles use). The pencil glyph reads greyscale until the record carries annotations, then colour — so annotation
 		 * presence is visible independently of whether the gutter is currently open. */
-		.annotate-enter .anno-glyph { display: inline-flex; filter: grayscale(1); opacity: 0.75; transition: filter 0.15s, opacity 0.15s; }
-		.annotate-enter.has-annotations .anno-glyph { filter: none; opacity: 1; }
+		.annotate-enter .anno-glyph { display: inline-flex; color: var(--shu-fg-muted); opacity: 0.75; transition: color 0.15s, opacity 0.15s; }
+		.annotate-enter.has-annotations .anno-glyph { color: var(--shu-accent); opacity: 1; }
 		.content-toolbar { display: flex; gap: var(--shu-space-2); padding: var(--shu-space-1) 0; align-items: center; }
 		.content-switcher { display: flex; gap: var(--shu-space-2); }
 		.content-switch-btn { font-size: 0.75em; padding: 1px var(--shu-space-3); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); cursor: pointer; background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
@@ -510,7 +510,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private annotateButtonHtml(active: boolean): string {
 		const has = this.annotationsList.length > 0;
 		const title = active ? "Hide annotations" : has ? "Show annotations" : "Add annotations";
-		return `<button class="pane-icon annotate-enter${has ? " has-annotations" : ""}" data-testid="annotate-enter" type="button" aria-pressed="${active}" title="${title}"><span class="anno-glyph">📝</span></button>`;
+		return `<button class="pane-icon annotate-enter${has ? " has-annotations" : ""}" data-testid="annotate-enter" type="button" aria-pressed="${active}" title="${title}"><span class="anno-glyph">${ANNOTATION_GLYPH}</span></button>`;
 	}
 
 	/** Show or hide the annotation gutter. On with no annotations yet enters authoring (the inline view needs a note or
@@ -522,8 +522,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** The body area. A text body (markdown / plain) that carries annotations, with the gutter on (the default when any
 	 *  exist), renders inline via shu-annotated-body — the passages highlighted and the notes shown in a margin rail
-	 *  beside them, the toolbar's 📝 toggling back to the plain iframe. Any other case (no annotations, gutter off, or a
-	 *  non-text body such as an original HTML email) keeps the sandboxed body iframe, whose 📝 toggles the gutter on. */
+	 *  beside them, the toolbar's pencil toggling back to the plain iframe. Any other case (no annotations, gutter off, or a
+	 *  non-text body such as an original HTML email) keeps the sandboxed body iframe, whose pencil toggles the gutter on. */
 	private renderBodyArea(iframeHtml: string): TemplateResult {
 		if (!iframeHtml) return html``;
 		const annBody = this.annotatableBody();
@@ -681,78 +681,82 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<a class="${linkClass}" rel="${rel}" href="#" data-value="${escAttr(resolvedValue)}"${labelAttr}${propAttr}${testId}>${esc(truncate(value, 80))}</a>`;
 	}
 
-	private bindEvents(): void {
-		this.shadowRoot?.querySelectorAll(".col-link, .pred-link").forEach((el) => {
-			el.addEventListener("click", (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				const target = el as HTMLElement;
-				const value = target.dataset.value;
-				const rel = target.getAttribute("rel");
-				const propertyName = target.dataset.property;
-				if (!value) return;
+	// One delegated click listener on the shadow root, attached once. The content is `unsafeHTML` (a raw string lit does
+	// NOT rebuild while unchanged), so a per-node addEventListener in `updated()` (which runs on every render) accumulated
+	// a fresh listener on each surviving link — one click then fired N times, opening N duplicate panes. Delegation binds
+	// one stable listener to the shadow root, which addEventListener dedups by identity, so re-binding every render is a
+	// no-op by spec.
 
-				// Target label comes from data-label (set at render time by HATEOAS rels + edge ranges)
-				const targetLabel = target.dataset.label || this.state.persistedAs;
-
-				switch (rel) {
-					case "item":
-						this.dispatchEvent(
-							new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-								detail: { subject: value, label: targetLabel, addToSelection: (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey },
-								bubbles: true,
-								composed: true,
-							}),
-						);
-						break;
-					case "describedby":
-						PaneState.request({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: value });
-						break;
-					case "type-ref":
-						// A class from the @type row — open its type view through the shared hypermedia ref router (a domain
-						// reference), the same navigation a #Type link and a graph class-click use.
-						openRef(e, "domain", { domain: value });
-						break;
-					case "filter":
-					default:
-						if (propertyName) {
-							PaneState.request({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value });
-						}
-						break;
-				}
-			});
-		});
-
-		// Body switcher buttons — dispatch on the linked Body's mediaType.
-		this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((btn) => {
-			btn.addEventListener("click", () => {
-				const bodyId = (btn as HTMLElement).dataset.bodyId;
-				if (!bodyId || !this.vertex) return;
-				this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
-				btn.classList.add("active");
-				const bodies = (this.vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
-				const body = bodies.find((b) => String(b.id ?? "") === bodyId);
-				if (!body || typeof body.content !== "string" || typeof body.mediaType !== "string") return;
-				const raw = body.content;
-				const content = renderContentHtml(raw, body.mediaType);
-				const iframe = this.shadowRoot?.querySelector(".body-iframe") as HTMLIFrameElement | null;
-				if (iframe) {
-					iframe.dataset.bodyId = bodyId;
-					iframe.classList.toggle("invertible", body.mediaType !== "text/html");
-					iframe.src = `data:text/html;base64,${utf8ToBase64(buildBodyIframeDoc(content, body.mediaType, pageAddress()))}`;
-				}
-			});
-		});
-
-		// "What links here" — clickable to open a filter column
-		this.shadowRoot?.querySelector(".links-here-link")?.addEventListener("click", (e) => {
+	private onShadowClick = (e: Event): void => {
+		const t = e.target as Element | null;
+		if (!t) return;
+		const link = t.closest(".col-link, .pred-link") as HTMLElement | null;
+		if (link) return this.routeLinkClick(link, e);
+		const switchBtn = t.closest(".content-switch-btn") as HTMLElement | null;
+		if (switchBtn) return this.switchBody(switchBtn);
+		if (t.closest(".links-here-link")) {
 			e.preventDefault();
 			PaneState.request({ paneType: "filter-incoming", persistedAs: this.state.persistedAs, subject: this.state.individualId });
-		});
-		this.shadowRoot?.querySelector(".thread-link")?.addEventListener("click", (e) => {
+			return;
+		}
+		if (t.closest(".thread-link")) {
 			e.preventDefault();
 			PaneState.request({ paneType: "thread", persistedAs: this.state.persistedAs, subject: this.state.individualId });
-		});
+		}
+	};
+
+	private routeLinkClick(target: HTMLElement, e: Event): void {
+		e.preventDefault();
+		e.stopPropagation();
+		const value = target.dataset.value;
+		const rel = target.getAttribute("rel");
+		const propertyName = target.dataset.property;
+		if (!value) return;
+		// Target label comes from data-label (set at render time by HATEOAS rels + edge ranges)
+		const targetLabel = target.dataset.label || this.state.persistedAs;
+		switch (rel) {
+			case "item":
+				this.dispatchEvent(
+					new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
+						detail: { subject: value, label: targetLabel, addToSelection: (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey },
+						bubbles: true,
+						composed: true,
+					}),
+				);
+				break;
+			case "describedby":
+				PaneState.request({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: value });
+				break;
+			case "type-ref":
+				// A class from the @type row — open its type view through the shared hypermedia ref router (a domain
+				// reference), the same navigation a #Type link and a graph class-click use.
+				openRef(e, "domain", { domain: value });
+				break;
+			default:
+				if (propertyName) PaneState.request({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value });
+				break;
+		}
+	}
+
+	// Body switcher button — dispatch on the linked Body's mediaType.
+	private switchBody(btn: HTMLElement): void {
+		const bodyId = btn.dataset.bodyId;
+		if (!bodyId || !this.vertex) return;
+		this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
+		btn.classList.add("active");
+		const bodies = (this.vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
+		const body = bodies.find((b) => String(b.id ?? "") === bodyId);
+		if (!body || typeof body.content !== "string" || typeof body.mediaType !== "string") return;
+		const iframe = this.shadowRoot?.querySelector(".body-iframe") as HTMLIFrameElement | null;
+		if (iframe) {
+			iframe.dataset.bodyId = bodyId;
+			iframe.classList.toggle("invertible", body.mediaType !== "text/html");
+			iframe.src = `data:text/html;base64,${utf8ToBase64(buildBodyIframeDoc(renderContentHtml(body.content, body.mediaType), body.mediaType, pageAddress()))}`;
+		}
+	}
+
+	private bindEvents(): void {
+		this.shadowRoot?.addEventListener("click", this.onShadowClick);
 
 		bindCopyButtons(this.shadowRoot as ShadowRoot);
 		// Both toolbars render the toggle the same string way (annotateButtonHtml), so one binding covers both: a click

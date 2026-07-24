@@ -1,7 +1,6 @@
 /**
  * Map a haibun event to a slider marker style: an emoji icon plus a colour.
- * Mirrors the vocabulary used by the monitor-browser slider so the two views
- * stay visually consistent.
+ * The shared vocabulary for marking events on a timeline slider.
  *
  * The event shape is the SSE wire form; this helper only reads fields it
  * understands and returns a safe default for anything else.

@@ -10,7 +10,7 @@
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 
-type EvalPage = { evaluate<T, A = undefined>(fn: (arg: A) => T, arg?: A): Promise<T>; waitForTimeout(ms: number): Promise<void> };
+import type { EvalPage } from "./controls-util.js";
 
 export default class ShuThemeSwitchControls extends AStepper {
 	description = "shu-theme-switch settings controls: drive the global data window size the way a click does.";

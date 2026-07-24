@@ -29,7 +29,7 @@ import { type AnnotationView, type QuoteAnchor, type W3CTextAnnotation, toW3CAnn
 import "./shu-scrollbar.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
-import { railMarks, railTotalAndWindow, findScrollAncestor } from "../annotation-rail.js";
+import { railMarks, railTotalAndWindow } from "../annotation-rail.js";
 
 /** Characters of surrounding text captured as a selection's prefix/suffix, so a short or repeated quote re-anchors to the right spot. */
 const CONTEXT_CHARS = 32;
@@ -55,7 +55,12 @@ const ANNOTATED_BODY_STYLE = `
 	.r6o-span-highlight-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; mix-blend-mode: multiply; pointer-events: none; overflow: hidden; user-select: none; -webkit-user-select: none; z-index: 1; }
 	.r6o-span-highlight-layer.hidden { display: none; }
 	.r6o-span-highlight-layer .r6o-annotation { position: absolute; display: block; border-style: solid; border-width: 0; box-sizing: content-box; background: var(--shu-accent-soft, rgba(0, 128, 255, 0.28)); }
-	shu-annotated-body { display: block; }
+	/* The body is a row: the content in its OWN scroll region, and the glyph rail beside it. The region's native scrollbar
+	   is hidden so the rail is the ONLY scroll control — a reader never sees two bars, and the marks line up with the one
+	   rail. The body fills the height its host gives it (a flex child of the entity column's content column). */
+	shu-annotated-body { display: flex; flex-direction: row; align-items: stretch; flex: 1 1 auto; min-height: 0; gap: var(--shu-space-2); }
+	shu-annotated-body .annotated-scroll { flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
+	shu-annotated-body .annotated-scroll::-webkit-scrollbar { width: 0; height: 0; }
 	shu-annotated-body .annotated-layout { display: flex; align-items: flex-start; gap: var(--shu-space-4); position: relative; }
 	shu-annotated-body .annotated-content { flex: 1 1 auto; min-width: 0; ${BODY_READING_STYLE} word-break: break-word; }
 	shu-annotated-body .annotated-content .r6o-annotation { cursor: pointer; }
@@ -67,9 +72,9 @@ const ANNOTATED_BODY_STYLE = `
 	shu-annotated-body .annotation-card-author { color: var(--shu-fg-faded); margin-top: var(--shu-space-1); }
 	shu-annotated-body .annotation-card-link { display: inline-block; margin-top: var(--shu-space-1); color: var(--shu-link, #0a58ca); cursor: pointer; }
 	shu-annotated-body .annotated-content .quote-flash { background: var(--shu-warn-soft, rgba(255, 196, 0, 0.5)); transition: background 1.2s; }
-	/* The annotation glyph rail: a fixed strip beside the document that marks each note. Sticky so it stays in view as the
-	   document scrolls under it; its height is set inline to the scroll viewport, so it spans exactly the visible area. */
-	shu-annotated-body .annotation-glyph-rail { position: sticky; top: var(--shu-space-2); align-self: flex-start; flex: 0 0 auto; }
+	/* The annotation glyph rail: the body's only scroll control, a full-height strip beside the scroll region marking each
+	   note. Stretches to the body height (it is outside the scroll region, so it stays put as the content scrolls). */
+	shu-annotated-body .annotation-glyph-rail { flex: 0 0 auto; align-self: stretch; }
 	shu-annotated-body .annotation-preparing { position: absolute; top: 0; left: 0; right: 0; padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; text-align: center; z-index: 2; }
 	/* The authoring affordance floats over the content at the selection (top/left set inline), so it appears at the selection whether or not the document has annotations. */
 	shu-annotated-body .annotation-add { position: absolute; margin-top: 2px; padding: 2px var(--shu-space-2); font-size: var(--shu-font-sm); border: var(--shu-border-w) solid var(--shu-accent, #0080ff); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); color: var(--shu-accent, #0080ff); cursor: pointer; z-index: 3; box-shadow: 0 1px 4px rgba(0,0,0,0.2); white-space: nowrap; }
@@ -191,9 +196,11 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => this.#attachScroll());
 	}
 
-	/** Find the scroll ancestor after the DOM exists and track its scroll, so the rail's window follows the reader. */
+	/** The body owns its content scroll (`.annotated-scroll`, native bar hidden); track it so the glyph rail's window and
+	 *  marks follow the reader, and the rail is the only scroll control. */
 	#attachScroll(): void {
-		this.#scrollEl = findScrollAncestor(this);
+		if (!this.isConnected) return; // the rAF can fire after a disconnect; syncing would requestUpdate a detached element
+		this.#scrollEl = this.renderRoot.querySelector<HTMLElement>(".annotated-scroll");
 		if (!this.#scrollEl) return;
 		this.#scrollEl.addEventListener("scroll", this.#onScroll, { passive: true });
 		this.autoTeardown(() => this.#scrollEl?.removeEventListener("scroll", this.#onScroll));
@@ -210,7 +217,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		this.requestUpdate();
 	}
 
-	/** A rail mark or drag emits a pixel down the scroll content; scroll the ancestor there. */
+	/** A rail mark or drag emits a pixel down the scroll content; scroll the body's own region there. */
 	#onRailSeek(e: CustomEvent<{ index: number }>): void {
 		if (this.#scrollEl) this.#scrollEl.scrollTop = e.detail.index;
 	}
@@ -360,7 +367,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 			const containerText = container.textContent ?? "";
 			const layoutTop = this.renderRoot.querySelector<HTMLElement>(".annotated-layout")?.getBoundingClientRect().top ?? 0;
 			const raw: PlacedCard[] = [];
-			// Rail marks are in the scroll ANCESTOR's pixel space (offset down its content), so a mark sits where the reader
+			// Rail marks are in the scroll region's pixel space (offset down its content), so a mark sits where the reader
 			// scrolls to reach the note; the card idealTop stays in the layout's own space for the margin stack.
 			const located: { commentId: string; offset: number; label: string }[] = [];
 			const scrollTop = this.#scrollEl?.getBoundingClientRect().top ?? 0;
@@ -502,7 +509,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		return html`
 			<style>${ANNOTATED_BODY_STYLE}</style>
 			${this.anchoredCount > 0 ? html`<span data-testid="annotation-highlight" hidden></span>` : html``}
-			<div class="annotated-layout">
+			<div class="annotated-scroll"><div class="annotated-layout">
 				<div class="annotated-content" data-testid="annotated-content"></div>
 				${this.ready ? html`` : html`<div class="annotation-preparing" data-testid="annotation-preparing">Preparing ${this.sourceLabel || "document"}…</div>`}
 				${this.renderAuthoring()}
@@ -536,20 +543,19 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 					)}
 					</div>`
 				}
-				${
-					this.show && this.annotations.length > 0 && this.#scrollEl
-						? html`<shu-scrollbar
-							class="annotation-glyph-rail"
-							data-testid="annotation-glyph-rail"
-							style="height:${this.#railWindow.visible}px"
-							.total=${this.#railTotal}
-							.window=${this.#railWindow}
-							.markers=${this.#railMarkers}
-							.showPosition=${false}
-						></shu-scrollbar>`
-						: html``
-				}
-				</div>
+				</div></div>
+			${
+				this.show && this.#scrollEl
+					? html`<shu-scrollbar
+						class="annotation-glyph-rail"
+						data-testid="annotation-glyph-rail"
+						.total=${this.#railTotal}
+						.window=${this.#railWindow}
+						.markers=${this.#railMarkers}
+						.showPosition=${false}
+					></shu-scrollbar>`
+					: html``
+			}
 			`;
 	}
 

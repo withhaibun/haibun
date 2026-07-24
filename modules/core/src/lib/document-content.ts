@@ -1,7 +1,7 @@
 /**
  * Shared document content generation for academic-paper-style rendering.
- * Used by both @haibun/monitor-browser (React) and @haibun/shu (vanilla web components).
- * Pure functions — no React, no DOM imports.
+ * Used by @haibun/shu (vanilla web components) to render the run document.
+ * Pure functions — no DOM imports.
  */
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
@@ -79,6 +79,15 @@ export function generateDocumentMarkdown(
 		return "";
 	};
 
+	// Claiming and emitting the holder are ONE act: whatever an event claims must get a holder the renderer fills, or an
+	// artifact whose event arrives after its claimer is claimed and then rendered nowhere (the standalone branch skips
+	// claimed ids), making artifact visibility depend on event order. Every claiming branch calls this, never claimArtifacts
+	// alone. Returns { ids, holder } so a branch can also stamp the ids on its own row (the technical log-row does).
+	const claimWithHolder = (id: string, nid: string) => {
+		const ids = claimArtifacts(id, ["video"]);
+		return { ids, holder: ids ? `<div class="feature-artifacts" data-ids="${ids}" data-id="${nid}"></div>\n` : "" };
+	};
+
 	const renderedHeaders = new Set<string>();
 	const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLogLevel);
 
@@ -118,8 +127,8 @@ export function generateDocumentMarkdown(
 				const nid = normalizeId(le.id);
 				visibleIds.add(nid);
 				md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${nid}">\n\n${"#".repeat(headingLevel)} ${title}\n\n</div>\n`;
-				const unclaimedIds = claimArtifacts(le.id, ["video"]);
-				if (unclaimedIds) md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}" data-id="${nid}"></div>\n`;
+				const header = claimWithHolder(le.id, nid);
+				if (header.holder) md += `\n${header.holder}`;
 				lastType = "prose";
 				continue;
 			}
@@ -150,10 +159,10 @@ export function generateDocumentMarkdown(
 					const showSymbol = previousRenderedId && previousRenderedDepth < depth;
 					const nid = normalizeId(le.id);
 					visibleIds.add(nid);
-					const unclaimedIds = claimArtifacts(nid, ["video"]);
+					const claimed = claimWithHolder(nid, nid);
 
-					md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" data-depth="${depth}" data-nested="${isNested}" data-instigator="${isInstigator}" data-show-symbol="${showSymbol}" data-id="${nid}" data-ids="${unclaimedIds}" data-time="${time}" data-raw-time="${rawTime}" data-action="${actionName}" data-has-artifacts="${!!unclaimedIds}">${step.in}</div>\n`;
-
+					md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" data-depth="${depth}" data-nested="${isNested}" data-instigator="${isInstigator}" data-show-symbol="${showSymbol}" data-id="${nid}" data-ids="${claimed.ids}" data-time="${time}" data-raw-time="${rawTime}" data-action="${actionName}" data-has-artifacts="${!!claimed.ids}">${step.in}</div>\n`;
+					md += claimed.holder;
 					lastType = "technical";
 					previousRenderedDepth = depth;
 					previousRenderedId = le.id || "";
@@ -163,8 +172,8 @@ export function generateDocumentMarkdown(
 					const nid = normalizeId(step.id);
 					visibleIds.add(nid);
 					md += `\n<div class="prose-block" data-raw-time="${rawTime}" data-id="${nid}">\n\n${step.in}\n\n</div>\n`;
-					const unclaimedIds = claimArtifacts(le.id, ["video"]);
-					if (unclaimedIds) md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}" data-id="${nid}"></div>\n`;
+					const prose = claimWithHolder(le.id, nid);
+					if (prose.holder) md += `\n${prose.holder}`;
 					lastType = "prose";
 				}
 				continue;

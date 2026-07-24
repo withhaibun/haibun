@@ -33,9 +33,16 @@ export function splitDocumentBlocks(html: string): TDocBlock[] {
 	return blocks;
 }
 
-/** True when a finalized block is a single image thumbnail (an artifact frame carrying the `thumb` class). */
-function isThumb(blockHtml: string): boolean {
-	return !!parse(blockHtml).content.firstElementChild?.querySelector("shu-artifact-frame.thumb");
+// The block taxonomy, in one place: the step-like rows a thumbnail belongs to, and the artifact placeholder holders.
+const STEP_ROW_SELECTOR = ".header-block, .prose-block, .log-row";
+const ARTIFACT_HOLDER_SELECTOR = ".feature-artifacts, .standalone-artifact";
+
+/** The thumbnail frames of a filled block, when the block is PURELY thumbnails (every frame in it carries the `thumb`
+ *  class and there is at least one) — those flow as grid tiles. A block mixing a thumbnail with another artifact frame
+ *  (a step that saved an image and a json) keeps its own layout. */
+function thumbFrames(blockEl: Element): Element[] {
+	const frames = Array.from(blockEl.querySelectorAll("shu-artifact-frame"));
+	return frames.length > 0 && frames.every((f) => f.classList.contains("thumb")) ? frames : [];
 }
 
 /** Fill artifact placeholders, add the reader classes, and group consecutive thumbnails — the pure equivalent of what the
@@ -43,42 +50,63 @@ function isThumb(blockHtml: string): boolean {
  *  Product-view embedding stays in the
  *  column (it needs live event products and a mounted element); it is not a block-HTML concern. */
 export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactResolver): TDocBlock[] {
+	type TFilled = { el: Element; id: string; rawTime: number };
 	const filled = blocks
-		.map((b) => {
+		.map((b): TFilled | null => {
 			const tpl = parse(b.html);
 			const el = tpl.content.firstElementChild;
 			if (!el) return null;
 			// Fill artifact placeholders from their ids (feature-artifacts carries data-ids, standalone-artifact data-id).
-			for (const holder of Array.from(el.matches(".feature-artifacts, .standalone-artifact") ? [el] : el.querySelectorAll(".feature-artifacts, .standalone-artifact"))) {
+			for (const holder of Array.from(el.matches(ARTIFACT_HOLDER_SELECTOR) ? [el] : el.querySelectorAll(ARTIFACT_HOLDER_SELECTOR))) {
 				const ids = (holder.getAttribute("data-ids") || holder.getAttribute("data-id") || "").split(",").filter(Boolean);
 				holder.innerHTML = ids.map((id) => resolveArtifact(id)).join("");
 			}
+			// An artifact block whose every artifact renders "" (a dispatch trace, an unresolvable id) is NOTHING: emitting it
+			// would waste a virtualized row and, worse, split a run of screenshots so they stack instead of flowing as tiles.
+			if (el.matches(ARTIFACT_HOLDER_SELECTOR) && el.childElementCount === 0 && !el.textContent?.trim()) return null;
 			// The reader classes the old post-process added: every content block is a clickable doc-row; log rows carry their
 			// nesting/connector state from data attributes.
-			if (el.matches(".header-block, .prose-block, .log-row")) el.classList.add("doc-row");
+			if (el.matches(STEP_ROW_SELECTOR)) el.classList.add("doc-row");
 			if (el.classList.contains("log-row")) {
 				if (el.getAttribute("data-nested") === "true") el.classList.add("nested");
 				if (el.getAttribute("data-show-symbol") === "true") el.classList.add("show-connector");
 			}
-			return { html: el.outerHTML, id: b.id, rawTime: b.rawTime };
+			return { el, id: b.id, rawTime: b.rawTime };
 		})
-		.filter((b): b is TDocBlock => b !== null);
+		.filter((b): b is TFilled => b !== null);
 
-	// Collapse consecutive thumbnails into one `.thumb-row` strip so per-step screenshots wrap into a horizontal row
-	// instead of stacking; a run ends at the next non-thumbnail block.
+	// Collect every run of consecutive thumbnail blocks into one `.thumb-row` grid whose children are the FRAMES themselves
+	// (extracted from their placeholder holders — a holder as the grid child would nest a step's several frames into one
+	// cell), so per-step screenshots flow as equal tiles that take the column width. A lone thumbnail is wrapped too (a
+	// single full-width tile); a run ends at the next non-thumbnail block, so thumbnails split by a step never share a row.
+	// Each frame is stamped with the step it belongs to (the nearest preceding step/prose/header block) and its run-wide
+	// ordinal — the expanded view's caption, cursor scrub, and ←/→ navigation read these, since under virtualization a
+	// frame can neither walk to its step's block nor see its off-window siblings.
 	const out: TDocBlock[] = [];
-	let run: TDocBlock[] = [];
+	let run: { frames: Element[]; id: string; rawTime: number }[] = [];
+	let step: { id: string; el: Element } | null = null;
+	let ordinal = 0;
 	const flush = () => {
 		if (run.length === 0) return;
-		if (run.length === 1) out.push(run[0]);
-		else out.push({ html: `<div class="thumb-row">${run.map((r) => r.html).join("")}</div>`, id: run[0].id, rawTime: run[0].rawTime });
+		const html = run.flatMap((r) => r.frames.map((f) => f.outerHTML)).join("");
+		out.push({ html: `<div class="thumb-row">${html}</div>`, id: run[0].id, rawTime: run[0].rawTime });
 		run = [];
 	};
 	for (const b of filled) {
-		if (isThumb(b.html)) run.push(b);
-		else {
+		const frames = thumbFrames(b.el);
+		if (frames.length > 0) {
+			for (const f of frames) {
+				if (step) {
+					f.setAttribute("data-step-id", step.id);
+					f.setAttribute("data-step-label", step.el.textContent?.trim() ?? "");
+				}
+				f.setAttribute("data-frame-ordinal", String(ordinal++));
+			}
+			run.push({ frames, id: b.id, rawTime: b.rawTime });
+		} else {
 			flush();
-			out.push(b);
+			if (b.el.matches(STEP_ROW_SELECTOR)) step = { id: b.id, el: b.el };
+			out.push({ html: b.el.outerHTML, id: b.id, rawTime: b.rawTime });
 		}
 	}
 	flush();

@@ -37,12 +37,20 @@ export const SHU_EVENT = {
 	// A thumbnail asks its document column to move the global time cursor to the step row it belongs to (the column owns
 	// the start-time → absolute-time mapping). Composed so it crosses the column's shadow boundary from the framed artifact.
 	CURSOR_TO_ROW: "cursor-to-row",
+	// ←/→ from an expanded thumbnail asks its document column for the previous/next thumbnail IN THE WHOLE RUN. The column
+	// owns navigation because under virtualization only the visible window's frames exist in the DOM — a frame cannot find
+	// its off-screen siblings itself.
+	FRAME_NAV: "frame-nav",
 	// An annotation was authored from a body view (select text → annotate); the host reloads so it appears anchored.
 	ANNOTATION_CREATED: "annotation-created",
 	SORT_CHANGE: "sort-change",
 	STATE_CHANGE: "state-change",
 	SYNC_AVAILABLE: "sync-available",
 } as const;
+
+/** The one glyph marking annotation everywhere it appears — the gutter toggle, the rail markers. A text glyph (the
+ *  flipped pencil), not an emoji, so CSS `color` tints it (the has-annotations grey-vs-colour treatment). */
+export const ANNOTATION_GLYPH = "✎";
 
 export const SHU_TYPE = {
 	VIEW_COLLECTION: "shu-view-collection",

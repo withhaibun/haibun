@@ -6,9 +6,10 @@
  * the fisheye canvas as an overlay (the a-frame path); the WindowedSource it reads can equally drive a 3D rail.
  *
  * It owns scrolling but not the data: `visibilityChanged` from the virtualizer sets the window and prefetches it; the
- * scrollbar emits `scroll-to-index` and the virtualizer scrolls. Live-follow is virtualization-aware (stick to the last
- * row as the source appends, only while the reader is at the end and at the live time edge), so it needs no scroll
- * element wired ahead of the first render.
+ * scrollbar emits `scroll-to-index` and the virtualizer scrolls. Live-follow is the shared `FollowController` (the one
+ * tested tailing kit every timeline view uses): the jump-to-edge is scrollToIndex(last, "end") re-issued until the window
+ * reaches the last row, real reader input (wheel/touch, rail seek) pauses the tail, the window reaching the last row
+ * resumes it, and the `timeCursor` signal reaching the live edge (null) re-engages it.
  *
  * It renders in LIGHT DOM, like lit-virtualizer itself, so the whole subtree lives in the HOST column's shadow and the
  * host's row styles reach the virtualized rows (a shadow-DOM wrapper would trap them). The host includes
@@ -25,9 +26,14 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
-import { visibleWindow, shouldFollow } from "../virtual-column-model.js";
+import { visibleWindow, convergeTarget } from "../virtual-column-model.js";
+import { FollowController } from "../timeline-follow.js";
 
 const EmptySchema = z.object({});
+
+/** Cap on re-issuing the jump-to-edge as the virtualizer measures its way down to the last row: a handful of passes closes
+ *  the height-estimate gap; the bound stops an unreachable target (a row that can't fit) from re-jumping forever. */
+const MAX_CONVERGE = 40;
 
 /** Paint one row: the absolute `index` and its data (`undefined` when the source has not fetched it yet — return a
  *  skeleton). */
@@ -55,7 +61,8 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 
 	@property({ attribute: false }) accessor source: WindowedSource<unknown> | null = null;
 	@property({ attribute: false }) accessor renderRow: TVirtualRow = () => html``;
-	/** Stick to the last row as the source appends (a live log), until the reader scrolls away or scrubs into the past. */
+	/** Whether this view tails at all — its live-log capability (a monitor's tail toggle). When on, the follow kit's rules
+	 *  decide moment to moment whether to stick to the live edge; when off, the view never auto-scrolls. */
 	@property({ type: Boolean }) accessor follow = false;
 
 	/** Light DOM: the virtualized rows must be styled by the host column, and lit-virtualizer itself renders in light DOM. */
@@ -64,7 +71,15 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	}
 
 	#virt = createRef<LitVirtualizer>();
+	// Live-follow: the jump-to-edge is the virtualizer's scrollToIndex(last, "end"), re-issued while the reported window is
+	// still short of the last row (each pass measures further down, converging on the true bottom). PAUSE comes only from
+	// real reader input — a wheel/touch scroll or a rail seek — never from scroll events or the virtualizer's pin state:
+	// its estimated scroll-height and rebuild-time corrections make both misreport the follow's own motion as a reader
+	// scrolling away, which false-paused the tail. RESUME is the reported window reaching the last row again.
+	#follow = new FollowController(this, () => this.#scrollToEnd());
 	#window: TWindow = { first: 0, visible: 0 };
+	#convergeFor = -1; // the row count the convergence passes below are chasing
+	#convergeCount = 0; // passes spent chasing it, bounded by MAX_CONVERGE
 	#items: unknown[] = [];
 	#itemCount = -1;
 	#unsub: (() => void) | null = null;
@@ -74,6 +89,10 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// Listen for the rail's scroll request via the exported const, not a hardcoded event name, so a rename can't
 		// silently break marker-jump. The event bubbles (composed) from the child shu-scrollbar.
 		this.autoListen(this, SCROLL_TO_INDEX, this.#onScrollTo as EventListener);
+		// Real reader input pauses the tail. Any wheel/touch scroll counts: one that ends back at the bottom re-engages
+		// instantly via the window-reaches-last resume, so no direction check is needed.
+		this.autoListen(this, "wheel", this.#onUserScroll, { passive: true });
+		this.autoListen(this, "touchmove", this.#onUserScroll, { passive: true });
 	}
 
 	protected override onDisconnected(): void {
@@ -89,25 +108,27 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.#unsub?.();
 		this.#unsub =
 			this.source?.subscribe(() => {
-				// Capture "was at the end" against the PRE-append count before the render updates it.
-				// Decide against the PRE-append count, before the render updates it (see shouldFollow).
-				const follow = shouldFollow(this.follow, this.#window, this.#itemCount, this.timeCursor);
 				this.requestUpdate();
-				// Wait for lit to commit the grown items into the virtualizer before scrolling, so scrollToIndex(n-1) targets
-				// a row that now exists (a bare microtask can run before the commit).
-				if (follow) void this.updateComplete.then(() => this.scrollToEnd());
+				// After the appended row commits, ask the follow kit to stick — it jumps ONLY while the reader is still at the
+				// live edge (following, cursor null), so a scrolled-up reader is left alone.
+				if (this.follow) void this.updateComplete.then(() => this.#follow.stick());
 			}) ?? null;
-	}
-
-	/** Scroll so the last row is visible. Exposed for the live-follow tail and callers that jump to the newest row. */
-	scrollToEnd(): void {
-		const n = this.source?.count() ?? 0;
-		if (n > 0) this.#virt.value?.scrollToIndex(n - 1, "end");
 	}
 
 	/** Scroll so `index` is at the top of the viewport. For a jump-to from another view (a framed row a reader clicked). */
 	scrollToIndex(index: number, position: "start" | "center" | "end" = "start"): void {
 		this.#virt.value?.scrollToIndex(index, position);
+	}
+
+	/** The follow kit's jump-to-live-edge for this virtualized scroller: put the last row at the bottom of the viewport.
+	 *  Always the virtualizer's own scrollToIndex, never a raw scrollTop (which fights its scroll management). The target
+	 *  is convergeTarget's two-gait choice (see virtual-column-model.ts), re-driven by #onVisibility until the window
+	 *  holds the last row. */
+	#scrollToEnd(): void {
+		const el = this.#virt.value;
+		const n = this.source?.count() ?? 0;
+		if (!el || n === 0) return;
+		el.scrollToIndex(convergeTarget(this.#window, n), "end");
 	}
 
 	/** The placeholder items array of length `count`, memoized so scrolling a million-row column never rebuilds it; the
@@ -127,10 +148,36 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	#onVisibility = (e: VisibilityChangedEvent): void => {
 		this.#window = visibleWindow(e.first, e.last);
 		if (this.source && e.last >= e.first) void this.source.ensureRange(e.first, e.last + 1);
+		const count = this.source?.count() ?? 0;
+		if (this.follow && count > 0) {
+			if (this.#window.first + this.#window.visible >= count) {
+				// The last row is inside the reported window — the reader is at (or scrolled back to) the live edge. Resume (the
+				// follow's own scroll also lands here, keeping follow engaged) and end this target's convergence.
+				this.#follow.setAtBottom(true);
+				this.#convergeFor = count;
+				this.#convergeCount = MAX_CONVERGE;
+			} else if (this.#follow.isFollowing) {
+				// Following but short of the last row — including the very first report of a view that opened parked at the top,
+				// whose source filled before this element subscribed. Re-issue the jump: this pass measured further down, so the
+				// next lands closer — bounded per target so an unreachable last row can't re-jump forever.
+				if (this.#convergeFor !== count) (this.#convergeFor = count), (this.#convergeCount = 0);
+				if (this.#convergeCount < MAX_CONVERGE) this.#convergeCount += 1, void this.updateComplete.then(() => this.#follow.stick());
+			}
+		}
 		this.requestUpdate(); // reposition the rail thumb and glyphs
 	};
 
+	// Real reader input is the one reliable pause signal: scroll events and the virtualizer's pin state both misreport the
+	// follow's own motion (estimate corrections) as a reader scrolling away.
+	#onUserScroll = (): void => {
+		if (this.follow) this.#follow.setAtBottom(false);
+	};
+
 	#onScrollTo = (e: Event): void => {
+		// A rail drag or marker jump is the reader navigating to a specific row — an explicit move away from the live edge, so
+		// pause the follow. Otherwise the convergence, seeing the seeked window short of the last row, would re-jump the tail
+		// back to the bottom and fight the seek. Landing on the last row re-engages follow via the window-reaches-last path.
+		if (this.follow) this.#follow.setAtBottom(false);
 		this.#virt.value?.scrollToIndex((e as CustomEvent<{ index: number }>).detail.index, "start");
 	};
 

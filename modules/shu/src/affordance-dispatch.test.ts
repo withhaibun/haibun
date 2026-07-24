@@ -37,6 +37,9 @@ describe("dispatchAffordanceFromResponse", () => {
 					updateAccordion() {
 						/* no-op */
 					}
+					applyActive() {
+						/* no-op */
+					}
 					applyMaximize(_p: HTMLElement, _max: boolean) {
 						/* no-op */
 					}

@@ -89,10 +89,10 @@ describe("event consumers over the shared log", () => {
 	});
 });
 
-// P4a removes the windowTail cut: the whole run renders (virtualized to the viewport in a real browser; every row in
-// jsdom, which has no ResizeObserver). Clicking a row still scrubs to that row's real instant — measured from the
-// column's global start, the same origin cursorToRow adds it back to — so a click never shifts by any cut span.
-describe("the document renders the whole run and scrubs a clicked row to its real time (no windowTail cut)", () => {
+// The whole run renders (virtualized to the viewport in a real browser; every row in jsdom, which has no
+// ResizeObserver) — no cap may hide earlier events. Clicking a row scrubs to that row's real instant — measured from
+// the column's global start, the same origin cursorToRow adds it back to — so a click never shifts by a hidden span.
+describe("the document renders the whole run and scrubs a clicked row to its real time", () => {
 	let handle: TShuTestHandle;
 	const WINDOW = 50; // a window size well below the event count: the document must ignore it now, showing every event
 	const EVENTS = 60;

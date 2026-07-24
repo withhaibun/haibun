@@ -1,8 +1,8 @@
 /**
  * WindowedSource — the data behind a virtualized column, in index space. The renderer asks for the total row count and
- * for the ranges it can see; the source pages windows in and out of a bounded resident cache on demand, instead of the
- * old `windowTail` cap that simply dropped every row past 500. It is renderer-agnostic: the DOM virtualizer and a future
- * 3D chip-mesh rail read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
+ * for the ranges it can see; the source pages windows in and out of a bounded resident cache on demand, so every row of
+ * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
+ * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
 import type { TScrollMarker } from "./scrollbar-model.js";
 

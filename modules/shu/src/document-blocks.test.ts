@@ -54,29 +54,65 @@ describe("finalizeBlocks", () => {
 		expect(b.html).toContain("nested");
 		expect(b.html).toContain("show-connector");
 	});
-	it("collapses consecutive thumbnails into one thumb-row strip", () => {
+	it("collapses consecutive thumbnails into one thumb-row strip whose grid children are the FRAMES, not their holders", () => {
 		const html = `<div class="feature-artifacts" data-ids="img1"></div><div class="feature-artifacts" data-ids="img2"></div><div class="feature-artifacts" data-ids="img3"></div>`;
 		const out = finalizeBlocks(splitDocumentBlocks(html), resolver);
 		expect(out).toHaveLength(1);
-		expect(out[0].html).toContain("thumb-row");
-		expect(out[0].html).toContain("img1.png");
-		expect(out[0].html).toContain("img3.png");
+		const tpl = document.createElement("template");
+		tpl.innerHTML = out[0].html;
+		const row = tpl.content.firstElementChild as Element;
+		expect(row.className).toBe("thumb-row");
+		// A holder as the grid child would nest a step's frames into ONE cell, wrecking the flow — every child must be a frame.
+		expect(Array.from(row.children).map((c) => c.tagName.toLowerCase())).toEqual(["shu-artifact-frame", "shu-artifact-frame", "shu-artifact-frame"]);
 	});
-	it("leaves a lone thumbnail unwrapped", () => {
+	it("spreads a multi-artifact holder (one step, several screenshots) into one tile per frame", () => {
+		const out = finalizeBlocks(splitDocumentBlocks(`<div class="feature-artifacts" data-ids="img1,img2"></div>`), resolver);
+		expect(out).toHaveLength(1);
+		expect((out[0].html.match(/<shu-artifact-frame/g) ?? []).length).toBe(2);
+		expect(out[0].html.startsWith('<div class="thumb-row">')).toBe(true);
+	});
+	it("wraps even a lone thumbnail in a thumb-row so it flows as a grid tile", () => {
 		const out = finalizeBlocks(splitDocumentBlocks(`<div class="feature-artifacts" data-ids="img1"></div>`), resolver);
 		expect(out).toHaveLength(1);
-		expect(out[0].html).not.toContain("thumb-row");
+		expect(out[0].html).toContain("thumb-row");
 	});
-	it("breaks a thumbnail run at a non-thumbnail block", () => {
+	it("stamps each frame with the nearest preceding step's id and label, for the expanded view's caption and cursor", () => {
+		const html = `<div class="log-row" data-id="0.1.2" data-raw-time="5">take a screenshot</div><div class="feature-artifacts" data-ids="img1,img2"></div>`;
+		const out = finalizeBlocks(splitDocumentBlocks(html), resolver);
+		expect(out).toHaveLength(2);
+		const tpl = document.createElement("template");
+		tpl.innerHTML = out[1].html;
+		for (const f of Array.from(tpl.content.querySelectorAll("shu-artifact-frame"))) {
+			expect(f.getAttribute("data-step-id")).toBe("0.1.2");
+			expect(f.getAttribute("data-step-label")).toBe("take a screenshot");
+		}
+	});
+	it("does not merge thumbnails separated by a non-thumbnail block", () => {
 		const html = `<div class="feature-artifacts" data-ids="img1"></div><div class="log-row" data-id="s">step</div><div class="feature-artifacts" data-ids="img2"></div>`;
 		const out = finalizeBlocks(splitDocumentBlocks(html), resolver);
-		expect(out).toHaveLength(3); // thumb, step, thumb — no grouping across the step
-		expect(out.some((b) => b.html.includes("thumb-row"))).toBe(false);
+		expect(out).toHaveLength(3); // thumb-row(img1), step, thumb-row(img2) — separate rows, never merged across the step
+		expect(out.some((b) => b.html.includes("img1.png") && b.html.includes("img2.png"))).toBe(false);
 	});
 	it("keeps a non-image artifact (json/html/file) out of a thumbnail strip", () => {
 		const html = `<div class="standalone-artifact" data-id="doc1"></div><div class="feature-artifacts" data-ids="img1"></div>`;
 		const out = finalizeBlocks(splitDocumentBlocks(html), resolver);
 		expect(out).toHaveLength(2); // the json frame is not a thumb, so it does not group with the image
+	});
+	it("leaves a holder mixing a thumbnail with another artifact intact (its own layout, not a strip)", () => {
+		const out = finalizeBlocks(splitDocumentBlocks(`<div class="feature-artifacts" data-ids="img1,doc1"></div>`), resolver);
+		expect(out).toHaveLength(1);
+		expect(out[0].html).not.toContain("thumb-row");
+		expect(out[0].html).toContain("feature-artifacts");
+	});
+	it("drops an artifact block that renders nothing, so it cannot split a run of screenshots", () => {
+		// A dispatch trace (or any artifact resolving to "") sat between two screenshots as an invisible block — the run
+		// broke there and every tile stacked alone instead of flowing. Empty artifact blocks must not exist at all.
+		const silent: TArtifactResolver = (id) => (id.startsWith("img") ? thumb(id) : "");
+		const html = `<div class="standalone-artifact" data-id="img1"></div><div class="standalone-artifact" data-id="dispatch.1"></div><div class="standalone-artifact" data-id="img2"></div>`;
+		const out = finalizeBlocks(splitDocumentBlocks(html), silent);
+		expect(out).toHaveLength(1); // one strip: img1 + img2, the dispatch block gone
+		expect((out[0].html.match(/<shu-artifact-frame/g) ?? []).length).toBe(2);
+		expect(out[0].html).toContain("thumb-row");
 	});
 });
 
