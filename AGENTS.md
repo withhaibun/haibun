@@ -372,7 +372,7 @@ If the proof fails: run the activity, then re-check the proof.
     ensure System is ready
     ensure Database is initialized
 
-    show waypoints ;; see all verified waypoints
+    show affordances ;; the snapshot includes all verified waypoints
 
 ## Usage patterns
 
