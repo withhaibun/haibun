@@ -78,11 +78,20 @@ const md = new MarkdownIt({ html: true, linkify: true });
  *  it, so toggling the annotation gutter never changes how the text reads. */
 export const BODY_READING_STYLE = "font-family: sans-serif; font-size: 14px; line-height: 1.5;";
 
+const preBlock = (text: string) => `<pre style="font-family:monospace;white-space:pre-wrap;margin:0;">${esc(text)}</pre>`;
+
 /** Render a content field value to HTML given its MIME type. */
 export function renderContentHtml(raw: string, mimeType: string): string {
 	if (mimeType === "text/markdown") return md.render(raw);
 	if (mimeType === "text/html") return raw;
-	return `<pre style="font-family:monospace;white-space:pre-wrap;margin:0;">${esc(raw)}</pre>`;
+	if (mimeType === "application/ld+json" || mimeType === "application/json") {
+		try {
+			return preBlock(JSON.stringify(JSON.parse(raw), null, 2));
+		} catch {
+			return preBlock(raw); // not valid JSON — show it verbatim rather than throw
+		}
+	}
+	return preBlock(raw);
 }
 
 /** Encode a UTF-8 string as base64 without blowing the call stack on large inputs. */
