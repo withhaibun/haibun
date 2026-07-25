@@ -10,7 +10,9 @@ import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
 import "./shu-virtual-column.js";
-import { virtualColumnCss } from "./shu-virtual-column.js";
+import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
+import { eventKey, FULL_WINDOW } from "../events-snapshot.js";
+import type { Range } from "../ranges.js";
 import { arrayWindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import { emptyOrLoading } from "./empty-state.js";
@@ -40,6 +42,21 @@ type TLogRow = {
 const LEVEL_ICONS: Record<string, string> = { error: "❌", warn: "⚠️", info: "ℹ️", debug: "💬", trace: "🔍" };
 const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
+// Tail retention while following the live edge: the shared log keeps only events within this span of the newest one, so a
+// long-running tab stays bounded instead of holding the whole history. It slides with the edge in quarter-span steps so
+// eviction happens in chunks, not per event. Generous enough that following and a little scroll-back stay inside it; a
+// reader who scrolls further (follow pauses) gets the full history back until they return to the edge. Tunable.
+const MONITOR_TAIL_MS = 10 * 60_000;
+const MONITOR_SLIDE_STEP_MS = MONITOR_TAIL_MS / 4;
+
+/** The monitor's window: a bounded tail below the newest event while pinned to the live edge, else the full history so a
+ *  scrolled-back reader can reach anything. `from` clamps at 0, so a run shorter than the tail is just the whole log (no
+ *  eviction). Pure, so the tail-vs-full decision is unit-tested without a virtualizer. */
+export function monitorTailWindow(following: boolean, newest: number, tailMs: number = MONITOR_TAIL_MS): Range[] {
+	if (!following) return [FULL_WINDOW];
+	return [{ from: Math.max(0, newest - tailMs), to: Number.POSITIVE_INFINITY }];
+}
+
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	/** The live execution log as an ordered collection of rows (time, level, step, message). */
 	summarizeForKihan(): TLinkedData | null {
@@ -53,7 +70,16 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		};
 	}
 
-	#events = new EventsController(this, () => this.onEventsChanged());
+	// The window this view registers with the shared log: while pinned to the live edge, a bounded tail (memory stays flat on
+	// a long run); when the reader scrolls back (follow pauses), the full history so nothing is out of reach. Slice-1 windowing.
+	#events = new EventsController(
+		this,
+		() => this.onEventsChanged(),
+		() => this.#windowRanges(),
+	);
+	#following = false; // whether the virtual column is pinned to the live edge (drives tail vs full window)
+	#registeredFrom = 0; // the tail window's lower bound as last registered, so a slide re-registers only in coarse steps
+	#firstKey = ""; // eventKey of the first held event, so a front eviction (not just a shrink) triggers a rebuild
 	// The rows are virtualized: shu-virtual-column renders only the visible window over a resident source and owns the
 	// live-edge follow (tail), so this view derives the filtered rows and their rail markers and hands them over.
 	#source = arrayWindowedSource<TLogRow>([]);
@@ -108,11 +134,43 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		super(MonitorColumnSchema, { level: "info", tail: true, hideStart: true });
 	}
 
-	/** Re-derive rows from the shared event log (ShuEventConsumer owns backfill + live merge + dedup). The log is
-	 *  append-only, so append rows only for events past the last render; a cache reset (forceRefresh) shrinks it, so rebuild. */
+	protected override onConnected(): void {
+		// The child virtual column reports when it pins to / leaves the live edge; that flip switches the window tail↔full.
+		this.autoListen(this, FOLLOW_CHANGED, this.#onFollowChanged as EventListener);
+	}
+
+	/** The span this view wants: while following the live edge, a bounded tail below the newest event; otherwise the full
+	 *  history (a scrolled-back reader must reach anything). `from` clamps at 0, so a run shorter than the tail is the whole log. */
+	#windowRanges(): Range[] {
+		return monitorTailWindow(this.#following, this.endTime);
+	}
+
+	#onFollowChanged = (e: Event): void => {
+		const { following } = (e as CustomEvent<FollowChangedDetail>).detail;
+		if (following === this.#following) return;
+		this.#following = following;
+		this.#registeredFrom = following ? Math.max(0, this.endTime - MONITOR_TAIL_MS) : 0;
+		void this.#events.updateWindow(); // narrow to the tail (evicts old) or widen to full (fetches history back)
+	};
+
+	/** While following, advance the tail's lower bound as the live edge moves — but only once it has moved a full step, so
+	 *  eviction runs in coarse chunks (a reconcile per event would thrash). Re-registering evicts the events now below `from`. */
+	#maybeSlide(): void {
+		if (!this.#following) return;
+		const from = Math.max(0, this.endTime - MONITOR_TAIL_MS);
+		if (from - this.#registeredFrom < MONITOR_SLIDE_STEP_MS) return;
+		this.#registeredFrom = from;
+		void this.#events.updateWindow();
+	}
+
+	/** Re-derive rows from this view's window of the shared log (ShuEventConsumer owns backfill + live merge + dedup). The
+	 *  fast path appends the events past the last render (the log grows at the tail). A shrink (forceRefresh) OR a front
+	 *  eviction (the tail window slid its lower bound up, dropping old events) rebuilds instead — the incremental row and
+	 *  cross-reference state is keyed by position, so a changed front must be rebuilt, not appended onto. */
 	private onEventsChanged(): void {
 		const all = this.#events.all;
-		if (all.length < this.renderedCount) {
+		const firstKey = all.length > 0 ? eventKey(all[0]) : "";
+		if (all.length < this.renderedCount || firstKey !== this.#firstKey) {
 			this.rows = [];
 			this.startRowIndex.clear();
 			this.startTime = 0;
@@ -121,7 +179,9 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		}
 		for (let i = this.renderedCount; i < all.length; i++) this.addEvent(all[i]);
 		this.renderedCount = all.length;
+		this.#firstKey = firstKey;
 		this.rows = [...this.rows];
+		this.#maybeSlide();
 	}
 
 	protected override onTimeSync(): void {
@@ -203,13 +263,25 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			const markers: TScrollMarker[] = [];
 			for (let i = 0; i < this.#filtered.length; i++) {
 				const lvl = this.#filtered[i].level;
-				if (lvl === "error" || lvl === "warn") markers.push({ index: i, id: `${this.#filtered[i].step}-${i}`, icon: LEVEL_ICONS[lvl], color: lvl === "error" ? "#ef4444" : "#eab308", label: this.#filtered[i].message });
+				if (lvl === "error" || lvl === "warn")
+					markers.push({
+						index: i,
+						id: `${this.#filtered[i].step}-${i}`,
+						icon: LEVEL_ICONS[lvl],
+						color: lvl === "error" ? "#ef4444" : "#eab308",
+						label: this.#filtered[i].message,
+					});
 			}
 			this.#source.set(this.#filtered, markers);
 		}
 		// The current-row highlight depends on the time cursor, so recompute it every update against the cached filter.
 		this.#currentIdx = -1;
-		if (this.timeCursor !== null) for (let i = this.#filtered.length - 1; i >= 0; i--) if (this.#filtered[i].timestamp <= this.timeCursor) { this.#currentIdx = i; break; }
+		if (this.timeCursor !== null)
+			for (let i = this.#filtered.length - 1; i >= 0; i--)
+				if (this.#filtered[i].timestamp <= this.timeCursor) {
+					this.#currentIdx = i;
+					break;
+				}
 	}
 
 	render(): TemplateResult {

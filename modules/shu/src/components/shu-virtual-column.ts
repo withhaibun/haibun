@@ -49,6 +49,12 @@ export const virtualColumnCss: CSSResultGroup = css`
 	shu-virtual-column lit-virtualizer::-webkit-scrollbar { width: 0; height: 0; }
 `;
 
+/** Fired (bubbling, composed) when this scroller's follow state flips: pinned to the live edge (`following: true`) or the
+ *  reader has scrolled back / follow is off (`following: false`). A host that bounds its data window — the monitor — listens
+ *  to switch between a live-tail window and the full history. Additive: it never changes the follow behaviour itself. */
+export const FOLLOW_CHANGED = "shu-follow-changed";
+export type FollowChangedDetail = { following: boolean };
+
 export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	constructor() {
 		super(EmptySchema, {});
@@ -83,6 +89,16 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	#items: unknown[] = [];
 	#itemCount = -1;
 	#unsub: (() => void) | null = null;
+	#lastFollowing = false; // last-emitted follow state, so FOLLOW_CHANGED fires only on a transition
+
+	/** Emit FOLLOW_CHANGED when the pinned-to-live-edge state flips (follow enabled AND the reader at the edge). A host that
+	 *  windows its data listens for this to switch between a live-tail span and the full history. Only fires on a transition. */
+	#emitFollow(): void {
+		const following = this.follow && this.#follow.isFollowing;
+		if (following === this.#lastFollowing) return;
+		this.#lastFollowing = following;
+		this.dispatchEvent(new CustomEvent<FollowChangedDetail>(FOLLOW_CHANGED, { detail: { following }, bubbles: true, composed: true }));
+	}
 
 	protected override onConnected(): void {
 		this.#subscribe();
@@ -161,9 +177,10 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 				// whose source filled before this element subscribed. Re-issue the jump: this pass measured further down, so the
 				// next lands closer — bounded per target so an unreachable last row can't re-jump forever.
 				if (this.#convergeFor !== count) (this.#convergeFor = count), (this.#convergeCount = 0);
-				if (this.#convergeCount < MAX_CONVERGE) this.#convergeCount += 1, void this.updateComplete.then(() => this.#follow.stick());
+				if (this.#convergeCount < MAX_CONVERGE) (this.#convergeCount += 1), void this.updateComplete.then(() => this.#follow.stick());
 			}
 		}
+		this.#emitFollow(); // tell a windowing host if this pass reached / left the live edge
 		this.requestUpdate(); // reposition the rail thumb and glyphs
 	};
 
@@ -171,6 +188,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	// follow's own motion (estimate corrections) as a reader scrolling away.
 	#onUserScroll = (): void => {
 		if (this.follow) this.#follow.setAtBottom(false);
+		this.#emitFollow();
 	};
 
 	#onScrollTo = (e: Event): void => {
@@ -178,6 +196,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// pause the follow. Otherwise the convergence, seeing the seeked window short of the last row, would re-jump the tail
 		// back to the bottom and fight the seek. Landing on the last row re-engages follow via the window-reaches-last path.
 		if (this.follow) this.#follow.setAtBottom(false);
+		this.#emitFollow();
 		this.#virt.value?.scrollToIndex((e as CustomEvent<{ index: number }>).detail.index, "start");
 	};
 
