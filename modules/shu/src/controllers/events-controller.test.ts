@@ -6,7 +6,8 @@ import { html } from "lit";
 import { z } from "zod";
 import { ShuElement } from "../components/shu-element.js";
 import { EventsController } from "./events-controller.js";
-import { resetEventsSnapshot, registerWindow, eventsInWindow, currentEvents, type TEventRecord } from "../events-snapshot.js";
+import { resetEventsSnapshot, registerWindow, eventsInWindow, currentEvents, FULL_WINDOW, type TEventRecord } from "../events-snapshot.js";
+import type { Range } from "../ranges.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 
 const SCHEMA = z.object({});
@@ -32,6 +33,34 @@ class TestHost extends ShuElement<typeof SCHEMA> {
 	}
 }
 if (!customElements.get("test-events-host")) customElements.define("test-events-host", TestHost);
+
+/** A host that declares a bounded window via the hook and can move it — exercises the monitor's windowing mechanism. */
+class WindowedHost extends ShuElement<typeof SCHEMA> {
+	summarizeForKihan() {
+		return null;
+	}
+	window: Range[] = [FULL_WINDOW];
+	#events = new EventsController(
+		this,
+		() => this.onEventsChanged(),
+		() => this.window,
+	);
+	changes: string[][] = [];
+	constructor() {
+		super(SCHEMA, {});
+	}
+	private onEventsChanged(): void {
+		this.changes.push(this.#events.all.map((e) => String(e.id)));
+	}
+	async setWindow(w: Range[]): Promise<void> {
+		this.window = w;
+		await this.#events.updateWindow();
+	}
+	render() {
+		return html``;
+	}
+}
+if (!customElements.get("test-windowed-host")) customElements.define("test-windowed-host", WindowedHost);
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 const ev = (i: number): TEventRecord => ({ id: `0.${i}`, timestamp: i, kind: "log", message: `e${i}` });
@@ -138,5 +167,36 @@ describe("events range windowing", () => {
 		await registerWindow("w", [{ from: 0, to: 3 }]); // narrow → t=1,2; t=3,4,5 orphaned
 		expect(currentEvents().map((e) => e.timestamp)).toEqual([1, 2]);
 		expect(filters.length).toBe(fetchesAfterFull); // narrowing fetches nothing — the span was already held
+	});
+
+	// A view drives the same windowing through the controller hook: it registers the span the host declares (not the full
+	// history), and updateWindow re-registers when the host's span moves — the monitor's tail-slide / scroll-back path.
+	const mountWindowed = (window: Range[]): WindowedHost => {
+		const el = document.createElement("test-windowed-host") as WindowedHost;
+		el.window = window;
+		document.body.appendChild(el);
+		return el;
+	};
+
+	it("registers the host's declared window on connect, not the full history", async () => {
+		const el = mountWindowed([{ from: 2, to: 4 }]); // half-open [2,4) → t=2,3
+		await flush();
+		expect(filters.at(-1)).toMatchObject({ since: 2, until: 4 }); // bounded getEvents
+		expect(el.changes.at(-1)).toEqual(["0.2", "0.3"]);
+	});
+
+	it("updateWindow re-registers the moved span and re-derives (scroll-back widen)", async () => {
+		const el = mountWindowed([{ from: 4, to: 6 }]); // t=4,5
+		await flush();
+		expect(el.changes.at(-1)).toEqual(["0.4", "0.5"]);
+		await el.setWindow([{ from: 1, to: 3 }]); // widen back to older → t=1,2
+		expect(el.changes.at(-1)).toEqual(["0.1", "0.2"]);
+	});
+
+	it("a host with no window hook still sees the whole history (no regression)", async () => {
+		const el = document.createElement("test-events-host") as TestHost;
+		document.body.appendChild(el);
+		await flush();
+		expect(el.changes.at(-1)).toEqual(["0.1", "0.2", "0.3", "0.4", "0.5"]);
 	});
 });

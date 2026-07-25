@@ -1,6 +1,12 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { registerWindow, unregisterWindow, eventsInWindow, eventsLoaded, mergeEvents, newWindowClientId, FULL_WINDOW, type TEventRecord } from "../events-snapshot.js";
+import type { Range } from "../ranges.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
+
+/** A view's time window over the shared log. Default (no hook, or hook returns none) = the full span, so a view that
+ *  declares nothing sees the whole history exactly as before. A view that wants to bound its memory (e.g. the monitor
+ *  following the live tail) supplies a hook returning its current span and calls `updateWindow()` when that span moves. */
+export type WindowHook = () => Range[];
 
 /**
  * EventsController — the per-view handle to the event/log stream. A view that renders events HOLDS one
@@ -13,21 +19,29 @@ import { subscribeBatchedEvents } from "../event-stream.js";
 export class EventsController implements ReactiveController {
 	#host: ReactiveControllerHost & Element;
 	#onChange: () => void;
+	#getWindow?: WindowHook;
 	#initialized = false;
 	#teardown?: () => void;
 	#clientId = newWindowClientId();
 
-	constructor(host: ReactiveControllerHost & Element, onChange: () => void) {
+	constructor(host: ReactiveControllerHost & Element, onChange: () => void, getWindow?: WindowHook) {
 		this.#host = host;
 		this.#onChange = onChange;
+		this.#getWindow = getWindow;
 		host.addController(this);
+	}
+
+	/** The span(s) this view wants right now — the hook's answer, or the full window when it declares nothing. */
+	#windowRanges(): Range[] {
+		const ranges = this.#getWindow?.();
+		return ranges && ranges.length > 0 ? ranges : [FULL_WINDOW];
 	}
 
 	async hostConnected(): Promise<void> {
 		if (this.#initialized) return;
 		this.#initialized = true;
 		try {
-			await registerWindow(this.#clientId, [FULL_WINDOW]); // shared: the window's gap is fetched once, cached for every consumer
+			await registerWindow(this.#clientId, this.#windowRanges()); // shared: each span is fetched once, cached for every consumer
 		} catch {
 			/* stepper may not be loaded yet */
 		}
@@ -48,6 +62,19 @@ export class EventsController implements ReactiveController {
 		void unregisterWindow(this.#clientId);
 	}
 
+	/** Re-read the host's window and re-register it, then re-derive. The host calls this when its span moves — the monitor
+	 *  as it follows the live edge (slide) or the reader scrolls back to older events (widen). Reconcile fetches any new
+	 *  gap and evicts spans no window still wants, so memory tracks the union of live windows, not the whole history. */
+	async updateWindow(): Promise<void> {
+		if (!this.#initialized) return;
+		try {
+			await registerWindow(this.#clientId, this.#windowRanges());
+		} catch {
+			/* stepper may not be loaded yet */
+		}
+		this.#onChange();
+	}
+
 	/** The events inside this view's window (deduped, time-sorted). The full-window default = the whole shared log. */
 	get all(): TEventRecord[] {
 		return eventsInWindow(this.#clientId);
@@ -60,6 +87,6 @@ export class EventsController implements ReactiveController {
 
 	/** Await this view's window being loaded — a selector view (e.g. step-detail) awaits this before reading `all` on demand. */
 	ensureLoaded(): Promise<void> {
-		return registerWindow(this.#clientId, [FULL_WINDOW]);
+		return registerWindow(this.#clientId, this.#windowRanges());
 	}
 }
