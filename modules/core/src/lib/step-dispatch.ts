@@ -7,6 +7,7 @@ import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
+import { observeDispatchTrace } from "./dispatch-observations.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
@@ -148,25 +149,28 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	const end = Timer.since();
 	await emitSeqPathEnd(world, featureStep, ok);
-	world.eventLogger.emit(
-		DispatchTraceArtifact.parse({
-			id: `dispatch.${featureStep.seqPath.join(".")}`,
-			timestamp: Date.now(),
-			kind: "artifact",
-			artifactType: "dispatch-trace",
-			trace: {
-				stepName: tool.name,
-				transport: tool.transport ?? "local",
-				remoteHost: tool.remoteHost,
-				capabilityRequired: tool.capability,
-				capabilityGranted: Array.isArray(grantedCapability) ? grantedCapability : grantedCapability ? [grantedCapability] : undefined,
-				authorized: ok || !tool.capability,
-				seqPath: featureStep.seqPath,
-				durationMs: end - start,
-				productKeys: ok && actionResult.products ? Object.keys(actionResult.products).filter((k) => !k.startsWith("_")) : undefined,
-			},
-		}),
-	);
+	const dispatchTimestamp = Date.now();
+	const dispatchArtifact = DispatchTraceArtifact.parse({
+		id: `dispatch.${featureStep.seqPath.join(".")}`,
+		timestamp: dispatchTimestamp,
+		kind: "artifact",
+		artifactType: "dispatch-trace",
+		trace: {
+			stepName: tool.name,
+			transport: tool.transport ?? "local",
+			remoteHost: tool.remoteHost,
+			capabilityRequired: tool.capability,
+			capabilityGranted: Array.isArray(grantedCapability) ? grantedCapability : grantedCapability ? [grantedCapability] : undefined,
+			authorized: ok || !tool.capability,
+			seqPath: featureStep.seqPath,
+			durationMs: end - start,
+			productKeys: ok && actionResult.products ? Object.keys(actionResult.products).filter((k) => !k.startsWith("_")) : undefined,
+		},
+	});
+	world.eventLogger.emit(dispatchArtifact);
+	// The same trace, projected onto the bounded graph substrate so the sequence renders in the fisheye (hidden-instrumentation
+	// graph) rather than as an unbounded client event-log window. See dispatch-observations.ts.
+	observeDispatchTrace(world, dispatchArtifact.trace, dispatchTimestamp);
 
 	return lastStepResult;
 }
