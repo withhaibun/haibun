@@ -9,7 +9,22 @@
 import type { TWorld } from "./world.js";
 import { emitQuadObservation } from "./quad-types.js";
 import { LinkRelations } from "./resources.js";
+import { activeSitePrincipal } from "./host-id.js";
 import { OBSERVATION_GRAPH as WORKING_MEMORY_GRAPH, assertFact, getFact } from "./working-memory.js";
+
+/** The @type of an observed HTTP request node — W3C HTTP vocabulary (`http://www.w3.org/2011/http#Request`). Its
+ *  `performedBy` (source site) + `target` (endpoint) actor edges make it a message on the fisheye sequence view. */
+export const HTTP_REQUEST_LABEL = "HttpRequest";
+
+/** The endpoint/service a request reached — the registered route for own routes, else the external host. */
+function requestTarget(url: string, namedGraph: string, endpointPath: string): string {
+	if (namedGraph !== OBSERVATION_GRAPH.EXTERNAL) return endpointPath;
+	try {
+		return new URL(url).hostname || endpointPath;
+	} catch {
+		return endpointPath;
+	}
+}
 
 export const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;
 
@@ -86,4 +101,16 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 	const seqPath = world.runtime.currentSeqPath;
 	if (seqPath)
 		emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-seqPath`, { subject, predicate: LinkRelations.SEQ_PATH.rel, object: seqPath, namedGraph, timestamp });
+
+	// Model every observed request as a message on the network sequence: a `http:Request` FROM the requesting site
+	// (performedBy → prov:Agent) TO the endpoint/service it called (target → as:Service / host). Both rels are core actor
+	// rels, so the fisheye sequence view reads source → destination with no per-type wiring; generatedAtTime is its time-z.
+	// Service calls (/rpc, /sse) are modelled too — they land in the observation/shu-service graph, which is hidden by
+	// default (isInstrumentationGraph), so the transport plumbing stays out of the default view but is reachable when
+	// unticked. SSE ingests events directly and getClusteredQuads is a snapshot fetch, so this never re-observes itself.
+	const target = requestTarget(observation.url, namedGraph, endpointPath);
+	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-type`, { subject, predicate: "type", object: HTTP_REQUEST_LABEL, namedGraph, timestamp });
+	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-from`, { subject, predicate: LinkRelations.PERFORMED_BY.rel, object: activeSitePrincipal(world), namedGraph, timestamp });
+	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-to`, { subject, predicate: LinkRelations.AS_TARGET.rel, object: target, namedGraph, timestamp });
+	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-time`, { subject, predicate: LinkRelations.GENERATED_AT_TIME.rel, object: new Date(timestamp).toISOString(), namedGraph, timestamp });
 }
