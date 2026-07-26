@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { trackHttpRequest, classifyHttpPath, OBSERVATION_GRAPH } from "./http-observations.js";
 import { extractQuadsFromEvents } from "./quad-types.js";
+import { LinkRelations } from "./resources.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";
 import { QuadStore } from "./quad-store.js";
@@ -58,20 +59,25 @@ describe("trackHttpRequest", () => {
 		expect(edgeQuad?.object).toBe("/.well-known/did.json");
 	});
 
-	it("classifies external URLs with no endpoint edge", async () => {
+	it("classifies external URLs with no endpoint edge, but as a network-sequence message to the host", async () => {
 		const { world, emitted } = mockWorld();
 		await trackHttpRequest(world, { url: "http://fonts.google.com/css2", status: 200, time: 100, method: "GET" }, PATHS);
 		const quads = extractQuadsFromEvents(emitted);
-		expect(quads).toHaveLength(1);
-		expect(quads[0].namedGraph).toBe(OBSERVATION_GRAPH.EXTERNAL);
+		expect(quads.every((q) => q.namedGraph === OBSERVATION_GRAPH.EXTERNAL)).toBe(true);
+		expect(quads.find((q) => q.predicate === "endpoint")).toBeUndefined(); // external isn't a registered route
+		// but it IS a message: performedBy the site → target the external host, so the sequence view reads site → host.
+		expect(quads.find((q) => q.predicate === LinkRelations.PERFORMED_BY.rel)).toBeDefined();
+		expect(quads.find((q) => q.predicate === LinkRelations.AS_TARGET.rel)?.object).toBe("fonts.google.com");
 	});
 
-	it("classifies RPC calls as observation/service with parameterized endpoint", async () => {
+	it("models RPC calls as a hidden-by-default service message, still reachable", async () => {
 		const { world, emitted } = mockWorld();
 		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/step.list", status: 200, time: 30, method: "POST" }, PATHS);
 		const quads = extractQuadsFromEvents(emitted);
-		expect(quads[0].namedGraph).toBe(OBSERVATION_GRAPH.SERVICE);
-		const edgeQuad = quads.find((q) => q.predicate === "endpoint");
-		expect(edgeQuad?.object).toBe("/rpc/:_method");
+		expect(quads.every((q) => q.namedGraph === OBSERVATION_GRAPH.SERVICE)).toBe(true); // observation/shu-service is hidden by default
+		expect(quads.find((q) => q.predicate === "endpoint")?.object).toBe("/rpc/:_method");
+		// service calls are modelled as messages too (not skipped): site → the /rpc endpoint, so they read on the sequence when unticked.
+		expect(quads.find((q) => q.predicate === LinkRelations.PERFORMED_BY.rel)).toBeDefined();
+		expect(quads.find((q) => q.predicate === LinkRelations.AS_TARGET.rel)?.object).toBe("/rpc/:_method");
 	});
 });

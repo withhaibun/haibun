@@ -310,6 +310,10 @@ export const LinkRelations = {
 	// ordering shared with consumer-declared edges, which carry their own rolePriority in their domain declarations).
 	PERFORMED_BY: { rel: "performedBy", uri: "prov:wasAssociatedWith", range: "iri", subPropertyOf: "fromActor", rolePriority: 40 },
 	AUTHOR: { rel: "author", uri: "schema:author", range: "iri", subPropertyOf: "fromActor", rolePriority: 30 },
+	// The generic DESTINATION actor: the party/point an activity is directed to (a request → the endpoint it calls). The
+	// only concrete core `toActor` rel — consumers declare their own (cred:credentialSubject, …); a sequence reads it as
+	// the lifeline a message is directed to.
+	AS_TARGET: { rel: "target", uri: "as:target", range: "iri", subPropertyOf: "toActor", rolePriority: 40 },
 } as const;
 
 /** Lookup a rel's RDF range. Returns undefined for unknown rels. */
