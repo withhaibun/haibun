@@ -462,11 +462,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			productsDomain: "shu-monitor-column",
 			action: () => actionOKWithProducts({}),
 		},
-		showSequenceDiagram: {
-			gwta: "show sequence diagram",
-			productsDomain: "shu-sequence-diagram",
-			action: () => actionOKWithProducts({}),
-		},
 		showDocument: {
 			gwta: "show document",
 			productsDomain: "shu-document-column",

@@ -29,7 +29,7 @@ const docStreamEvents = Array.from({ length: 12 }, (_, i) => setAs({ what: `docS
 
 export const features: TKirejiExport = {
 	"Monitor view collects and displays execution events": [
-		feature({ feature: "Monitor stepper with live log stream and sequence diagram" }),
+		feature({ feature: "Monitor stepper with live log stream and run document" }),
 
 		...testIdSetup,
 
@@ -85,11 +85,6 @@ export const features: TKirejiExport = {
 		seekMonitorRail({ where: '"bottom"' }),
 		setAs({ what: "scrollResumedEvent", domain: "page-test-id", value: '"scroll-resumed-marker"' }),
 		monitorShowsRowContaining({ text: '"scrollResumedEvent"' }),
-
-		scenario({ scenario: "Open sequence diagram via step" }),
-		"The show sequence diagram step triggers the SPA to open a sequence diagram column.",
-		...passesStepExecution("MonitorStepper-showSequenceDiagram", {}),
-		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
 
 		scenario({ scenario: "The run document virtualizes the same buffered log" }),
 		"The document reads the same buffered events as prose. It too renders only the blocks in view, so a long run stays a small DOM with every earlier event still reachable.",
