@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { trackHttpRequest, classifyHttpPath, OBSERVATION_GRAPH } from "./http-observations.js";
 import { extractQuadsFromEvents } from "./quad-types.js";
 import { LinkRelations } from "./resources.js";
+import { activeSitePrincipal } from "./host-id.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";
 import { QuadStore } from "./quad-store.js";
@@ -48,36 +49,47 @@ describe("classifyHttpPath", () => {
 });
 
 describe("trackHttpRequest", () => {
-	it("emits name and endpoint quads with correct namedGraph", async () => {
+	const from = (quads: ReturnType<typeof extractQuadsFromEvents>) => quads.find((q) => q.predicate === LinkRelations.PERFORMED_BY.rel);
+	const to = (quads: ReturnType<typeof extractQuadsFromEvents>) => quads.find((q) => q.predicate === LinkRelations.AS_TARGET.rel);
+
+	it("models a received route request as a client → site message with its name + endpoint", async () => {
 		const { world, emitted } = mockWorld();
 		await trackHttpRequest(world, { url: "http://localhost:8223/.well-known/did.json", status: 200, time: 5, method: "GET" }, PATHS);
 		const quads = extractQuadsFromEvents(emitted);
-		const nameQuad = quads.find((q) => q.predicate === "name");
-		const edgeQuad = quads.find((q) => q.predicate === "endpoint");
-		expect(nameQuad?.subject).toBe("GET /.well-known/did.json");
-		expect(nameQuad?.namedGraph).toBe(OBSERVATION_GRAPH.ROUTE);
-		expect(edgeQuad?.object).toBe("/.well-known/did.json");
+		expect(quads.find((q) => q.predicate === "name")?.subject).toBe("GET /.well-known/did.json");
+		expect(quads.find((q) => q.predicate === "name")?.namedGraph).toBe(OBSERVATION_GRAPH.ROUTE);
+		expect(quads.find((q) => q.predicate === "endpoint")?.object).toBe("/.well-known/did.json");
+		expect(from(quads)?.object).toBe("client"); // the browser made the call…
+		expect(to(quads)?.object).toBe(activeSitePrincipal(world)); // …to this site's route
+		expect(to(quads)?.objectType).toBe("as:Service"); // objectType is what makes the actor quad a graph EDGE, not a property
 	});
 
-	it("classifies external URLs with no endpoint edge, but as a network-sequence message to the host", async () => {
+	it("models a browser request to an external host as a client → host message, host emitted as a typed node", async () => {
 		const { world, emitted } = mockWorld();
 		await trackHttpRequest(world, { url: "http://fonts.google.com/css2", status: 200, time: 100, method: "GET" }, PATHS);
 		const quads = extractQuadsFromEvents(emitted);
 		expect(quads.every((q) => q.namedGraph === OBSERVATION_GRAPH.EXTERNAL)).toBe(true);
 		expect(quads.find((q) => q.predicate === "endpoint")).toBeUndefined(); // external isn't a registered route
-		// but it IS a message: performedBy the site → target the external host, so the sequence view reads site → host.
-		expect(quads.find((q) => q.predicate === LinkRelations.PERFORMED_BY.rel)).toBeDefined();
-		expect(quads.find((q) => q.predicate === LinkRelations.AS_TARGET.rel)?.object).toBe("fonts.google.com");
+		expect(from(quads)?.object).toBe("client");
+		expect(to(quads)?.object).toBe("fonts.google.com");
+		expect(quads.find((q) => q.subject === "fonts.google.com" && q.predicate === "type")?.object).toBe("as:Service"); // a destination lifeline
 	});
 
-	it("models RPC calls as a hidden-by-default service message, still reachable", async () => {
+	it("models an RPC/service call as a hidden-by-default client → site message, still reachable", async () => {
 		const { world, emitted } = mockWorld();
 		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/step.list", status: 200, time: 30, method: "POST" }, PATHS);
 		const quads = extractQuadsFromEvents(emitted);
 		expect(quads.every((q) => q.namedGraph === OBSERVATION_GRAPH.SERVICE)).toBe(true); // observation/shu-service is hidden by default
 		expect(quads.find((q) => q.predicate === "endpoint")?.object).toBe("/rpc/:_method");
-		// service calls are modelled as messages too (not skipped): site → the /rpc endpoint, so they read on the sequence when unticked.
-		expect(quads.find((q) => q.predicate === LinkRelations.PERFORMED_BY.rel)).toBeDefined();
-		expect(quads.find((q) => q.predicate === LinkRelations.AS_TARGET.rel)?.object).toBe("/rpc/:_method");
+		expect(from(quads)?.object).toBe("client");
+		expect(to(quads)?.object).toBe(activeSitePrincipal(world));
+	});
+
+	it("models an outbound (site-originated) request as a site → host message", async () => {
+		const { world, emitted } = mockWorld();
+		await trackHttpRequest(world, { url: "http://api.example.com/v1", status: 200, time: 40, method: "GET" }, PATHS, "site");
+		const quads = extractQuadsFromEvents(emitted);
+		expect(from(quads)?.object).toBe(activeSitePrincipal(world)); // the site made this call…
+		expect(to(quads)?.object).toBe("api.example.com"); // …to an external host
 	});
 });
