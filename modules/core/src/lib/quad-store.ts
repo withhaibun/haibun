@@ -288,7 +288,7 @@ export class QuadStore implements IQuadStore {
 		this.idFields[label] = idField;
 	}
 
-	async upsertIndividual(label: string, data: unknown): Promise<string> {
+	upsertIndividual(label: string, data: unknown): Promise<string> {
 		const backing = this.storeFor(label);
 		if (backing) return backing.upsertIndividual(label, data);
 		const schema = this.schemas[label];
@@ -296,13 +296,14 @@ export class QuadStore implements IQuadStore {
 		const idField = this.idFields[label] ?? "id";
 		const id = String(validated[idField]);
 		if (!id) throw new Error(`Missing identity field "${idField}" for ${label}`);
-		await this.remove({ subject: id, namedGraph: label });
+		// Atomic replace: no await between the remove and the adds, so a concurrent upsert (fire-and-forget writers), a
+		// scenario-boundary carry, or a mid-flight backing registration never observes a half-written individual.
+		this.quads = this.quads.filter((q) => !(q.subject === id && q.namedGraph === label));
+		const timestamp = Date.now();
 		for (const [key, value] of Object.entries(validated)) {
-			if (value !== undefined && value !== null) {
-				await this.add({ subject: id, predicate: key, object: value, namedGraph: label });
-			}
+			if (value !== undefined && value !== null) this.quads.push({ subject: id, predicate: key, object: value, namedGraph: label, timestamp });
 		}
-		return id;
+		return Promise.resolve(id);
 	}
 
 	async getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined> {

@@ -6,9 +6,8 @@ import { existsSync, statSync, readdirSync } from "fs";
 import { join } from "path";
 import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
-import { OBSERVATION_GRAPH, SERVICE_PATH_PREFIXES } from "@haibun/core/lib/http-observations.js";
-import { emitQuadObservation } from "@haibun/core/lib/quad-types.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { SERVICE_PATH_PREFIXES } from "@haibun/core/lib/http-observations.js";
+import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import {
 	type IWebServer,
 	type TRouteMap,
@@ -17,7 +16,6 @@ import {
 	type TRequestHandler,
 	type TStaticFolderOptions,
 	ROUTE_TYPES,
-	DOMAIN_ENDPOINT,
 	EndpointLabels,
 } from "./defs.js";
 
@@ -33,6 +31,7 @@ export class ServerHono implements IWebServer {
 	constructor(
 		private readonly eventLogger: IEventLogger,
 		private readonly base: string,
+		private readonly getStore: () => IQuadStore,
 	) {
 		this.createApp();
 	}
@@ -136,7 +135,7 @@ export class ServerHono implements IWebServer {
 		this.eventLogger.debug(`ServerHono: adding ${type} route at ${path} (${purpose.description})`);
 		this.registerRoute(type, path, handlers);
 		this.markMounted(type, path, handlers.toString());
-		this.emitEndpointQuad(type, path, purpose);
+		this.persistEndpoint(type, path, purpose);
 	}
 
 	/** Idempotent mount: no-op if the exact path is already mounted for the method. Use for
@@ -239,27 +238,21 @@ export class ServerHono implements IWebServer {
 		this._mounted[type][path] = what;
 	}
 
-	private emitEndpointQuad(type: TRouteTypes, path: string, purpose: TRoutePurpose): void {
+	/** Persist the mounted route as an Endpoint vertex — the existing object an observed HttpRequest edges to. `id`
+	 *  satisfies the transitory store's default identity field; `url` is the topology's. */
+	private persistEndpoint(type: TRouteTypes, path: string, purpose: TRoutePurpose): void {
 		const isService = SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
-		const namedGraph = isService ? OBSERVATION_GRAPH.SERVICE : OBSERVATION_GRAPH.ENDPOINT;
-		const timestamp = Date.now();
-		const method = type.toUpperCase();
-		// Single quad bundles the full endpoint descriptor in `properties`, aligning with
-		// WebServerStepper's haibun-endpoint topology (url→identifier, method→tag, description→name, generatedAtTime→prov:generatedAtTime).
-		emitQuadObservation(this.eventLogger, `quad-endpoint-${timestamp}-${type}-${path}`, {
-			subject: path,
-			predicate: "type",
-			object: EndpointLabels.Endpoint,
-			namedGraph,
-			timestamp,
-			properties: {
-				domain: DOMAIN_ENDPOINT,
-				[LinkRelations.IDENTIFIER.rel]: path,
-				[LinkRelations.TAG.rel]: method,
-				[LinkRelations.NAME.rel]: purpose.description,
-				[LinkRelations.GENERATED_AT_TIME.rel]: new Date(timestamp).toISOString(),
-			},
-		});
+		// fire-and-forget from this sync mount path; a persist failure is a real error and must surface.
+		this.getStore()
+			.upsertIndividual(EndpointLabels.Endpoint, {
+				id: path,
+				url: path,
+				method: type.toUpperCase(),
+				description: purpose.description,
+				endpointClass: isService ? "service" : "route",
+				generatedAtTime: new Date().toISOString(),
+			})
+			.catch((e) => this.eventLogger.error(`persistEndpoint ${type} ${path}: ${e}`));
 	}
 
 	private generateDirectoryListing(dirPath: string, files: string[], mountAt: string): string {

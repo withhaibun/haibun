@@ -5,7 +5,7 @@ import { TTag } from "@haibun/core/lib/ttag.js";
 import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { trackHttpHost, trackHttpRequest } from "@haibun/core/lib/http-observations.js";
+import { trackHttpRequest } from "@haibun/core/lib/http-observations.js";
 import { VISITED_PAGE_LABEL } from "./domains.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 
@@ -122,9 +122,6 @@ export class PlaywrightEvents {
 			requestingURL,
 			...etc,
 		};
-
-		// fire-and-forget: in-memory QuadStore resolves synchronously
-		void trackHttpHost(this.world, targetURL);
 
 		// Emit HTTP trace artifact
 		const artifact = HttpTraceArtifact.parse({

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { LinkRelations, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
+import { HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
 
 /** A page the browser navigated to, persisted as a record keyed by its URL. Defined here (not cycles.ts) so its topology
  *  and its writer/reader share one source without a domains↔cycles import cycle. */
@@ -31,7 +31,7 @@ const httpRequestSchema = z.object({
 	endpointClass: z.string().optional(),
 	generatedAtTime: z.string(),
 });
-const httpAgentSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
+const httpClientSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 const httpHostSchema = z.object({ id: z.string(), name: z.string().optional(), requestCount: z.number().optional(), generatedAtTime: z.string() });
 const visitedPageSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 
@@ -56,17 +56,17 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 				generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			},
 			edges: {
-				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: HTTP_AGENT_LABEL },
-				target: { rel: LinkRelations.AS_TARGET.rel, range: HTTP_AGENT_LABEL },
+				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: HTTP_CLIENT_LABEL },
+				target: { rel: LinkRelations.AS_TARGET.rel, range: HTTP_HOST_LABEL },
 			},
 			displayLabel: LinkRelations.NAME.rel,
 		},
 	},
 	{
-		selectors: [HTTP_AGENT_LABEL],
-		schema: httpAgentSchema,
-		description: "A party an HTTP request runs between — the calling client or an external host.",
-		topology: { persistedAs: HTTP_AGENT_LABEL, type: "as:Service", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, displayLabel: LinkRelations.NAME.rel },
+		selectors: [HTTP_CLIENT_LABEL],
+		schema: httpClientSchema,
+		description: "The requesting party — the browser (user agent) that calls the site's routes and external resources.",
+		topology: { persistedAs: HTTP_CLIENT_LABEL, type: "as:Application", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, displayLabel: LinkRelations.NAME.rel },
 	},
 	{
 		selectors: [HTTP_HOST_LABEL],

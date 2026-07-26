@@ -24,12 +24,14 @@ export type TRoutePurpose = {
 	description: string;
 };
 
-/** Endpoint graph-vertex type — registered HTTP routes as first-class graph vertices.
- *  WebServerStepper registers this domain so route quads emitted from addRoute land in it. */
+/** Endpoint graph-vertex type — registered HTTP routes as first-class graph vertices, persisted at mount so an
+ *  observed HttpRequest can edge to the endpoint it hit. `endpointClass` distinguishes a page route from service
+ *  plumbing (/rpc, /sse). */
 export const EndpointSchema = z.object({
 	url: z.string(),
 	method: z.string().default("GET"),
 	description: z.string(),
+	endpointClass: z.string().optional(),
 	generatedAtTime: z.coerce.date().default(() => new Date()),
 });
 export type Endpoint = z.infer<typeof EndpointSchema>;

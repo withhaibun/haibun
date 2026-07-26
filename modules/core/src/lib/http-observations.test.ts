@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { trackHttpRequest, trackHttpHost, classifyHttpPath, OBSERVATION_GRAPH, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL, HTTP_HOST_LABEL } from "./http-observations.js";
+import { trackHttpRequest, classifyHttpPath, OBSERVATION_GRAPH, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "./http-observations.js";
 import { activeSitePrincipal } from "./host-id.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";
@@ -46,24 +46,27 @@ describe("classifyHttpPath", () => {
 	});
 });
 
-describe("trackHttpRequest persists one network-interaction record via the store", () => {
+describe("trackHttpRequest: one connected network-interaction record per request", () => {
 	const propOf = (quads: TQuad[], subject: string, predicate: string) => quads.find((q) => q.subject === subject && q.predicate === predicate);
 
-	it("persists a received route request as a client → site record, endpoint class 'route', client its own agent node", async () => {
+	it("a received route request reads client → the registered Endpoint, which isPartOf the site's host", async () => {
 		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://localhost:8223/.well-known/did.json", status: 200, time: 5, method: "GET" }, PATHS);
 		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
 		const id = "GET /.well-known/did.json";
 		expect(propOf(req, id, "method")?.object).toBe("GET");
-		expect(propOf(req, id, "endpointClass")?.object).toBe("route");
 		expect(propOf(req, id, "performedBy")?.object).toBe("client"); // the browser made the call…
-		expect(propOf(req, id, "target")?.object).toBe(activeSitePrincipal(world)); // …to this site
-		expect(propOf(req, id, "target")?.objectType).toBe(HTTP_AGENT_LABEL); // an EDGE (objectType), created by createEdge — not a property
-		const agents = await store.query({ namedGraph: HTTP_AGENT_LABEL });
-		expect(propOf(agents, "client", "name")?.object).toBe("Client"); // the client lifeline is its own node
+		expect(propOf(req, id, "target")?.object).toBe("/.well-known/did.json"); // …to the registered endpoint
+		expect(propOf(req, id, "target")?.objectType).toBe(OBSERVATION_GRAPH.ENDPOINT); // an EDGE to the existing Endpoint vertex
+		const client = await store.query({ namedGraph: HTTP_CLIENT_LABEL });
+		expect(propOf(client, "client", "name")?.object).toBe("Client"); // the client lifeline is its own node
+		// the endpoint links to the site's host, closing the chain client → request → endpoint → site
+		const ep = await store.query({ subject: "/.well-known/did.json", predicate: "isPartOf", namedGraph: OBSERVATION_GRAPH.ENDPOINT });
+		expect(ep[0]?.object).toBe(activeSitePrincipal(world));
+		expect(ep[0]?.objectType).toBe(HTTP_HOST_LABEL);
 	});
 
-	it("persists a browser request to an external host as client → host, the host its own agent node", async () => {
+	it("a browser request to an external host reads client → host, the host its own node", async () => {
 		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://fonts.google.com/css2", status: 200, time: 100, method: "GET" }, PATHS);
 		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
@@ -71,38 +74,39 @@ describe("trackHttpRequest persists one network-interaction record via the store
 		expect(propOf(req, id, "endpointClass")?.object).toBe("external");
 		expect(propOf(req, id, "performedBy")?.object).toBe("client");
 		expect(propOf(req, id, "target")?.object).toBe("fonts.google.com");
-		const agents = await store.query({ namedGraph: HTTP_AGENT_LABEL });
-		expect(propOf(agents, "fonts.google.com", "name")?.object).toBe("fonts.google.com");
+		expect(propOf(req, id, "target")?.objectType).toBe(HTTP_HOST_LABEL);
+		const hosts = await store.query({ namedGraph: HTTP_HOST_LABEL });
+		expect(propOf(hosts, "fonts.google.com", "name")?.object).toBe("fonts.google.com");
 	});
 
-	it("persists an RPC/service call as a client → site record classed 'service'", async () => {
+	it("an RPC/service call reads client → its /rpc Endpoint, classed 'service'", async () => {
 		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/step.list", status: 200, time: 30, method: "POST" }, PATHS);
 		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
 		const id = "POST /rpc/step.list";
 		expect(propOf(req, id, "endpointClass")?.object).toBe("service");
-		expect(propOf(req, id, "performedBy")?.object).toBe("client");
-		expect(propOf(req, id, "target")?.object).toBe(activeSitePrincipal(world));
+		expect(propOf(req, id, "target")?.object).toBe("/rpc/:_method"); // the parameterized registered endpoint
+		expect(propOf(req, id, "target")?.objectType).toBe(OBSERVATION_GRAPH.ENDPOINT);
 	});
 
-	it("persists an outbound (site-originated) request as site → host", async () => {
+	it("an outbound (site-originated) request reads site → host; undici observations omit duration", async () => {
 		const { world, store } = mockWorld();
-		await trackHttpRequest(world, { url: "http://api.example.com/v1", status: 200, time: 40, method: "GET" }, PATHS, "site");
+		await trackHttpRequest(world, { url: "http://api.example.com/v1", status: 200, method: "GET" }, new Set(), "site");
 		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
 		const id = "GET /v1";
 		expect(propOf(req, id, "performedBy")?.object).toBe(activeSitePrincipal(world)); // the site made this call…
+		expect(propOf(req, id, "performedBy")?.objectType).toBe(HTTP_HOST_LABEL); // …as its host node…
 		expect(propOf(req, id, "target")?.object).toBe("api.example.com"); // …to an external host
+		expect(propOf(req, id, "name")?.object).toBe("GET 200"); // no duration segment when unknown
 	});
-});
 
-describe("trackHttpHost persists a per-host aggregate", () => {
-	it("upserts one HttpHost record per host and increments its requestCount", async () => {
+	it("a host's requestCount rolls up from the requests that reached it — no separate host tracking", async () => {
 		const { world, store } = mockWorld();
-		await trackHttpHost(world, "http://fonts.google.com/css2");
-		await trackHttpHost(world, "http://fonts.google.com/other");
-		await trackHttpHost(world, "http://cdn.example.com/x");
+		await trackHttpRequest(world, { url: "http://fonts.google.com/a", status: 200, time: 1, method: "GET" }, PATHS);
+		await trackHttpRequest(world, { url: "http://fonts.google.com/b", status: 200, time: 1, method: "GET" }, PATHS);
+		await trackHttpRequest(world, { url: "http://localhost:8223/app", status: 200, time: 1, method: "GET" }, PATHS);
 		const hosts = await store.query({ namedGraph: HTTP_HOST_LABEL });
-		expect(hosts.find((q) => q.subject === "fonts.google.com" && q.predicate === "requestCount")?.object).toBe(2);
-		expect(hosts.find((q) => q.subject === "cdn.example.com" && q.predicate === "requestCount")?.object).toBe(1);
+		expect(propOf(hosts, "fonts.google.com", "requestCount")?.object).toBe(2);
+		expect(propOf(hosts, activeSitePrincipal(world), "requestCount")?.object).toBe(1); // the site's own host counts requests it served
 	});
 });
