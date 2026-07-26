@@ -13,7 +13,9 @@ import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 
 const MaybeOutcomeSchema = z.object({ outcome: z.unknown() });
 
-const sanitizeKey = (key: string) => key.replace(/\./g, "_");
+/** Make an observation item usable as a variable term: dots become underscores (a dot is the variable-path separator).
+ *  A source whose items can contain dots must expose PRE-sanitized items/metric keys, or `{item}/metric` lookups miss. */
+export const sanitizeKey = (key: string) => key.replace(/\./g, "_");
 
 const builtInSources: IObservationSource[] = [
 	{
