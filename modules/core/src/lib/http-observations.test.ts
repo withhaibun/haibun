@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { trackHttpRequest, classifyHttpPath, OBSERVATION_GRAPH } from "./http-observations.js";
-import { extractQuadsFromEvents } from "./quad-types.js";
-import { LinkRelations } from "./resources.js";
+import { trackHttpRequest, classifyHttpPath, OBSERVATION_GRAPH, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL } from "./http-observations.js";
 import { activeSitePrincipal } from "./host-id.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";
+import type { TQuad } from "./quad-types.js";
 import { QuadStore } from "./quad-store.js";
 
 const MOUNTED: IRouteRegistry = {
@@ -15,15 +14,14 @@ const MOUNTED: IRouteRegistry = {
 };
 const PATHS = registeredPaths(MOUNTED);
 
-function mockWorld(): { world: TWorld; emitted: Record<string, unknown>[] } {
-	const emitted: Record<string, unknown>[] = [];
+function mockWorld(): { world: TWorld; store: QuadStore } {
 	const store = new QuadStore();
 	const world = {
 		runtime: { stepResults: [] },
-		eventLogger: { emit: (e: Record<string, unknown>) => emitted.push(e) },
+		eventLogger: { emit: () => undefined },
 		shared: { getStore: () => store },
 	} as unknown as TWorld;
-	return { world, emitted };
+	return { world, store };
 }
 
 describe("classifyHttpPath", () => {
@@ -48,48 +46,51 @@ describe("classifyHttpPath", () => {
 	});
 });
 
-describe("trackHttpRequest", () => {
-	const from = (quads: ReturnType<typeof extractQuadsFromEvents>) => quads.find((q) => q.predicate === LinkRelations.PERFORMED_BY.rel);
-	const to = (quads: ReturnType<typeof extractQuadsFromEvents>) => quads.find((q) => q.predicate === LinkRelations.AS_TARGET.rel);
+describe("trackHttpRequest persists one network-interaction record via the store", () => {
+	const propOf = (quads: TQuad[], subject: string, predicate: string) => quads.find((q) => q.subject === subject && q.predicate === predicate);
 
-	it("models a received route request as a client → site message with its name + endpoint", async () => {
-		const { world, emitted } = mockWorld();
+	it("persists a received route request as a client → site record, endpoint class 'route', client its own agent node", async () => {
+		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://localhost:8223/.well-known/did.json", status: 200, time: 5, method: "GET" }, PATHS);
-		const quads = extractQuadsFromEvents(emitted);
-		expect(quads.find((q) => q.predicate === "name")?.subject).toBe("GET /.well-known/did.json");
-		expect(quads.find((q) => q.predicate === "name")?.namedGraph).toBe(OBSERVATION_GRAPH.ROUTE);
-		expect(quads.find((q) => q.predicate === "endpoint")?.object).toBe("/.well-known/did.json");
-		expect(from(quads)?.object).toBe("client"); // the browser made the call…
-		expect(to(quads)?.object).toBe(activeSitePrincipal(world)); // …to this site's route
-		expect(to(quads)?.objectType).toBe("as:Service"); // objectType is what makes the actor quad a graph EDGE, not a property
+		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
+		const id = "GET /.well-known/did.json";
+		expect(propOf(req, id, "method")?.object).toBe("GET");
+		expect(propOf(req, id, "endpointClass")?.object).toBe("route");
+		expect(propOf(req, id, "performedBy")?.object).toBe("client"); // the browser made the call…
+		expect(propOf(req, id, "target")?.object).toBe(activeSitePrincipal(world)); // …to this site
+		expect(propOf(req, id, "target")?.objectType).toBe(HTTP_AGENT_LABEL); // an EDGE (objectType), created by createEdge — not a property
+		const agents = await store.query({ namedGraph: HTTP_AGENT_LABEL });
+		expect(propOf(agents, "client", "name")?.object).toBe("Client"); // the client lifeline is its own node
 	});
 
-	it("models a browser request to an external host as a client → host message, host emitted as a typed node", async () => {
-		const { world, emitted } = mockWorld();
+	it("persists a browser request to an external host as client → host, the host its own agent node", async () => {
+		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://fonts.google.com/css2", status: 200, time: 100, method: "GET" }, PATHS);
-		const quads = extractQuadsFromEvents(emitted);
-		expect(quads.every((q) => q.namedGraph === OBSERVATION_GRAPH.EXTERNAL)).toBe(true);
-		expect(quads.find((q) => q.predicate === "endpoint")).toBeUndefined(); // external isn't a registered route
-		expect(from(quads)?.object).toBe("client");
-		expect(to(quads)?.object).toBe("fonts.google.com");
-		expect(quads.find((q) => q.subject === "fonts.google.com" && q.predicate === "type")?.object).toBe("as:Service"); // a destination lifeline
+		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
+		const id = "GET /css2";
+		expect(propOf(req, id, "endpointClass")?.object).toBe("external");
+		expect(propOf(req, id, "performedBy")?.object).toBe("client");
+		expect(propOf(req, id, "target")?.object).toBe("fonts.google.com");
+		const agents = await store.query({ namedGraph: HTTP_AGENT_LABEL });
+		expect(propOf(agents, "fonts.google.com", "name")?.object).toBe("fonts.google.com");
 	});
 
-	it("models an RPC/service call as a hidden-by-default client → site message, still reachable", async () => {
-		const { world, emitted } = mockWorld();
+	it("persists an RPC/service call as a client → site record classed 'service'", async () => {
+		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/step.list", status: 200, time: 30, method: "POST" }, PATHS);
-		const quads = extractQuadsFromEvents(emitted);
-		expect(quads.every((q) => q.namedGraph === OBSERVATION_GRAPH.SERVICE)).toBe(true); // observation/shu-service is hidden by default
-		expect(quads.find((q) => q.predicate === "endpoint")?.object).toBe("/rpc/:_method");
-		expect(from(quads)?.object).toBe("client");
-		expect(to(quads)?.object).toBe(activeSitePrincipal(world));
+		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
+		const id = "POST /rpc/step.list";
+		expect(propOf(req, id, "endpointClass")?.object).toBe("service");
+		expect(propOf(req, id, "performedBy")?.object).toBe("client");
+		expect(propOf(req, id, "target")?.object).toBe(activeSitePrincipal(world));
 	});
 
-	it("models an outbound (site-originated) request as a site → host message", async () => {
-		const { world, emitted } = mockWorld();
+	it("persists an outbound (site-originated) request as site → host", async () => {
+		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://api.example.com/v1", status: 200, time: 40, method: "GET" }, PATHS, "site");
-		const quads = extractQuadsFromEvents(emitted);
-		expect(from(quads)?.object).toBe(activeSitePrincipal(world)); // the site made this call…
-		expect(to(quads)?.object).toBe("api.example.com"); // …to an external host
+		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
+		const id = "GET /v1";
+		expect(propOf(req, id, "performedBy")?.object).toBe(activeSitePrincipal(world)); // the site made this call…
+		expect(propOf(req, id, "target")?.object).toBe("api.example.com"); // …to an external host
 	});
 });

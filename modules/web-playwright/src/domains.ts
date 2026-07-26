@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { LinkRelations, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL } from "@haibun/core/lib/http-observations.js";
 
 export const DOMAIN_PAGE_LOCATOR = "page-locator";
 export const DOMAIN_PAGE_TEST_ID = "page-test-id";
@@ -15,7 +16,52 @@ export const PageContentsSchema = z.object({ html: z.string() });
 export const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
 export const RestFilteredCountSchema = z.object({ summary: z.string(), count: z.number() });
 
+const HTTP_NS = { http: "http://www.w3.org/2011/http#" };
+const httpRequestSchema = z.object({
+	id: z.string(),
+	name: z.string().optional(),
+	method: z.string().optional(),
+	status: z.number().optional(),
+	durationMs: z.number().optional(),
+	url: z.string().optional(),
+	endpointClass: z.string().optional(),
+	generatedAtTime: z.string(),
+});
+const httpAgentSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
+
 export const WebPlaywrightDomains: TDomainDefinition[] = [
+	{
+		selectors: [HTTP_REQUEST_LABEL],
+		schema: httpRequestSchema,
+		description: "An HTTP request observed on the network — one record of a client, the site, or an external host exchanging a message.",
+		topology: {
+			persistedAs: HTTP_REQUEST_LABEL,
+			type: "http:Request",
+			id: "id",
+			namespaces: HTTP_NS,
+			properties: {
+				id: LinkRelations.IDENTIFIER.rel,
+				name: LinkRelations.NAME.rel,
+				method: LinkRelations.TAG.rel,
+				status: LinkRelations.TAG.rel,
+				durationMs: LinkRelations.TAG.rel,
+				url: LinkRelations.TAG.rel,
+				endpointClass: LinkRelations.TAG.rel,
+				generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			},
+			edges: {
+				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: HTTP_AGENT_LABEL },
+				target: { rel: LinkRelations.AS_TARGET.rel, range: HTTP_AGENT_LABEL },
+			},
+			displayLabel: LinkRelations.NAME.rel,
+		},
+	},
+	{
+		selectors: [HTTP_AGENT_LABEL],
+		schema: httpAgentSchema,
+		description: "A party an HTTP request runs between — the calling client or an external host.",
+		topology: { persistedAs: HTTP_AGENT_LABEL, type: "as:Service", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, displayLabel: LinkRelations.NAME.rel },
+	},
 	{
 		selectors: [DOMAIN_PAGE_LOCATOR],
 		schema: locatorSchema,

@@ -9,7 +9,7 @@
 import { SHARED_GRAPH } from "./quad-types.js";
 import { SEQ_PATH_LABEL } from "./resources.js";
 import { FACT_GRAPH, OBSERVATION_GRAPH as RUNTIME_OBSERVATION_GRAPH } from "./working-memory.js";
-import { OBSERVATION_GRAPH as HTTP_OBSERVATION_GRAPH } from "./http-observations.js";
+import { OBSERVATION_GRAPH as HTTP_OBSERVATION_GRAPH, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL } from "./http-observations.js";
 
 const OBSERVATION_PREFIX = "observation/";
 
@@ -35,8 +35,9 @@ export const INSTRUMENTATION_GRAPHS: readonly TInstrumentationGraph[] = [
 	]),
 ];
 
-// The instrumentation labels without the observation/ prefix.
-const NAMED_INSTRUMENTATION = new Set<string>([FACT_GRAPH, SHARED_GRAPH, SEQ_PATH_LABEL, HTTP_OBSERVATION_GRAPH.ENDPOINT]);
+// The instrumentation labels without the observation/ prefix — including persisted instrumentation types (valid graph
+// labels, no slash) that must still read as hidden-by-default: the http-request record and its participant lifelines.
+const NAMED_INSTRUMENTATION = new Set<string>([FACT_GRAPH, SHARED_GRAPH, SEQ_PATH_LABEL, HTTP_OBSERVATION_GRAPH.ENDPOINT, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL]);
 
 export function isInstrumentationGraph(namedGraph: string): boolean {
 	return namedGraph.startsWith(OBSERVATION_PREFIX) || NAMED_INSTRUMENTATION.has(namedGraph);
