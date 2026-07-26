@@ -9,13 +9,14 @@
 import type { TWorld } from "./world.js";
 import { LinkRelations } from "./resources.js";
 import { activeSitePrincipal } from "./host-id.js";
-import { OBSERVATION_GRAPH as WORKING_MEMORY_GRAPH, assertFact, getFact } from "./working-memory.js";
 
 /** The one type every observed HTTP request becomes: the single network-interaction record. Its `performedBy`/`target`
  *  edges make it a message on the fisheye sequence view. */
 export const HTTP_REQUEST_LABEL = "HttpRequest";
 /** The lifelines a request runs between: the calling client and external hosts (the site is the existing Principal node). */
 export const HTTP_AGENT_LABEL = "HttpAgent";
+/** A distinct host seen on the network, carrying how many requests reached it — the 'http-trace hosts' aggregate. */
+export const HTTP_HOST_LABEL = "HttpHost";
 /** The singleton client lifeline: the browser / user agent that calls the site's routes and external resources. */
 const CLIENT_ID = "client";
 /** The endpoint class a request hit, a property on the one record (route = the site's own page, service = its /rpc or
@@ -80,8 +81,9 @@ export async function trackHttpHost(world: TWorld, url: string): Promise<void> {
 	} catch {
 		return;
 	}
-	const priorCount = ((await getFact(world, "count", host, WORKING_MEMORY_GRAPH.HTTP_HOST)) as number | undefined) ?? 0;
-	await assertFact(world, "count", host, priorCount + 1, WORKING_MEMORY_GRAPH.HTTP_HOST);
+	const store = world.shared.getStore();
+	const prior = await store.getIndividual<{ requestCount?: number }>(HTTP_HOST_LABEL, host);
+	await store.upsertIndividual(HTTP_HOST_LABEL, { id: host, name: host, requestCount: (prior?.requestCount ?? 0) + 1, generatedAtTime: new Date().toISOString() });
 }
 
 /**
