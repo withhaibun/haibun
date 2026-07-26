@@ -3,8 +3,3 @@ export const TIME_SYNC_CLASS = {
 	FUTURE: "future-event",
 	CURRENT: "time-current",
 } as const;
-
-/** Dim opacity for the SVG render path (shu-sequence-diagram sets it inline on painted message groups, where the `.future-event` class can't reach). Matches the `.future-event` opacity in SHU_BASE. */
-export const TIME_SYNC_STYLE = {
-	DIMMED_OPACITY: 0.4,
-} as const;

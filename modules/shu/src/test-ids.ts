@@ -66,7 +66,6 @@ export const SHU_TEST_IDS = {
 	MONITOR: {
 		LOG_STREAM: "monitor-log-stream",
 		LOG_ROW: "monitor-log-row",
-		SEQUENCE_DIAGRAM: "monitor-sequence-diagram",
 	},
 	SETTINGS: {
 		WINDOW_SIZE: "settings-window-size",
