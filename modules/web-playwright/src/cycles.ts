@@ -3,6 +3,7 @@ import { relative, resolve } from "path";
 
 import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "@haibun/core/lib/astepper.js";
 import { OBSERVATION_GRAPH, queryFacts } from "@haibun/core/lib/working-memory.js";
+import { HTTP_REQUEST_LABEL } from "@haibun/core/lib/http-observations.js";
 
 import { VideoArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
@@ -29,10 +30,11 @@ const httpTraceSources: IObservationSource[] = [
 	{
 		name: "http-trace",
 		observe: async (world) => {
-			const quads = await queryFacts(world, "observation", OBSERVATION_GRAPH.HTTP_REQUEST);
+			// The one persisted http-request record (its `name` summary), the same nodes the fisheye network sequence reads.
+			const quads = await queryFacts(world, "name", HTTP_REQUEST_LABEL);
 			const items = quads.map((q) => q.subject);
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const q of quads) metrics[q.subject] = q.object as Record<string, unknown>;
+			for (const q of quads) metrics[q.subject] = { name: q.object };
 			return { items, metrics };
 		},
 	},
