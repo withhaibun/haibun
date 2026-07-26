@@ -83,12 +83,6 @@ export const features: TKirejiExport = {
 		"show monitor",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
-		scenario({ scenario: "Open the sequence diagram" }),
-
-		"The sequence-diagram view renders Mermaid from the same event stream the monitor subscribes to. Different projection of the same data — useful for spotting RPC chains.",
-		"show sequence diagram",
-		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
-
 		scenario({ scenario: "Open the graph view (mermaid) and confirm comments render" }),
 
 		"The graph view renders the quad store as a Mermaid flowchart, with each named-graph as a subgraph. Our seeded comments live in the Comment named-graph; the graph view should pick them up via RPC and render the comment nodes.",
@@ -139,9 +133,8 @@ export const features: TKirejiExport = {
 		"matches reloadUri with *shu-affordances-panel*",
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
-		"After hash-restore, monitor / sequence-diagram / graph-view should also have come back. The timeline opens from the actions-bar's current-time control; click it again after reload to confirm the scrubber survives.",
+		"After hash-restore, the monitor and graph-view should also have come back. The timeline opens from the actions-bar's current-time control; click it again after reload to confirm the scrubber survives.",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
 		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
 		click({ target: IDS.APP.TIME_OFFSET }),
 		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
