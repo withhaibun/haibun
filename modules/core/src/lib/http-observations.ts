@@ -13,16 +13,24 @@ import { activeSitePrincipal } from "./host-id.js";
 import { OBSERVATION_GRAPH as WORKING_MEMORY_GRAPH, assertFact, getFact } from "./working-memory.js";
 
 /** The @type of an observed HTTP request node — W3C HTTP vocabulary (`http://www.w3.org/2011/http#Request`). Its
- *  `performedBy` (source site) + `target` (endpoint) actor edges make it a message on the fisheye sequence view. */
+ *  `performedBy` (source) + `target` (destination) actor edges make it a message on the fisheye sequence view. */
 export const HTTP_REQUEST_LABEL = "HttpRequest";
+/** Participant @types: the site and external hosts are services; the client (browser / user agent) is an application. */
+const SERVICE_TYPE = "as:Service";
+const CLIENT_TYPE = "as:Application";
+/** The singleton client lifeline: the browser / user agent that calls the site's routes and external resources. */
+const CLIENT_ID = "client";
 
-/** The endpoint/service a request reached — the registered route for own routes, else the external host. */
-function requestTarget(url: string, namedGraph: string, endpointPath: string): string {
-	if (namedGraph !== OBSERVATION_GRAPH.EXTERNAL) return endpointPath;
+/** Who made an observed request: the `client` (browser / user agent) for requests the site RECEIVES, or the `site`
+ *  itself for requests it MAKES outbound. Fixes the sequence message's source lifeline so it reads with true direction. */
+export type THttpOrigin = "client" | "site";
+
+/** The external host a request went to (an own-route path has no host), for the destination lifeline of an outbound message. */
+function hostOf(url: string): string | undefined {
 	try {
-		return new URL(url).hostname || endpointPath;
+		return new URL(url).hostname || undefined;
 	} catch {
-		return endpointPath;
+		return undefined;
 	}
 }
 
@@ -79,7 +87,7 @@ export async function trackHttpHost(world: TWorld, url: string): Promise<void> {
  * Track an HTTP request in working memory for the 'http-trace' observation source.
  * Pass registeredPaths (from IWebServer.mounted) to classify observations into namedGraphs.
  */
-export async function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>): Promise<void> {
+export async function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>, origin: THttpOrigin = "client"): Promise<void> {
 	const priorCount = ((await getFact(world, "count", "__index__", WORKING_MEMORY_GRAPH.HTTP_REQUEST)) as number | undefined) ?? 0;
 	const id = `req-${priorCount + 1}`;
 	await assertFact(world, "observation", id, observation, WORKING_MEMORY_GRAPH.HTTP_REQUEST);
@@ -89,28 +97,34 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 	const path = observation.url.startsWith("/") ? observation.url : new URL(observation.url).pathname;
 	const { namedGraph, endpointPath } = classifyHttpPath(path, registeredPaths);
 	const subject = `${observation.method} ${path}`;
-	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-name`, {
-		subject,
-		predicate: "name",
-		object: `${observation.method} ${observation.status} ${observation.time}ms`,
-		namedGraph,
-		timestamp,
-	});
-	if (namedGraph !== OBSERVATION_GRAPH.EXTERNAL)
-		emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-endpoint`, { subject, predicate: "endpoint", object: endpointPath, namedGraph, timestamp });
-	const seqPath = world.runtime.currentSeqPath;
-	if (seqPath)
-		emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-seqPath`, { subject, predicate: LinkRelations.SEQ_PATH.rel, object: seqPath, namedGraph, timestamp });
+	const q = (suffix: string, subj: string, predicate: string, object: string, objectType?: string) =>
+		emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-${suffix}`, { subject: subj, predicate, object, namedGraph, timestamp, ...(objectType ? { objectType } : {}) });
 
-	// Model every observed request as a message on the network sequence: a `http:Request` FROM the requesting site
-	// (performedBy → prov:Agent) TO the endpoint/service it called (target → as:Service / host). Both rels are core actor
-	// rels, so the fisheye sequence view reads source → destination with no per-type wiring; generatedAtTime is its time-z.
-	// Service calls (/rpc, /sse) are modelled too — they land in the observation/shu-service graph, which is hidden by
-	// default (isInstrumentationGraph), so the transport plumbing stays out of the default view but is reachable when
-	// unticked. SSE ingests events directly and getClusteredQuads is a snapshot fetch, so this never re-observes itself.
-	const target = requestTarget(observation.url, namedGraph, endpointPath);
-	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-type`, { subject, predicate: "type", object: HTTP_REQUEST_LABEL, namedGraph, timestamp });
-	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-from`, { subject, predicate: LinkRelations.PERFORMED_BY.rel, object: activeSitePrincipal(world), namedGraph, timestamp });
-	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-to`, { subject, predicate: LinkRelations.AS_TARGET.rel, object: target, namedGraph, timestamp });
-	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-time`, { subject, predicate: LinkRelations.GENERATED_AT_TIME.rel, object: new Date(timestamp).toISOString(), namedGraph, timestamp });
+	q("name", subject, "name", `${observation.method} ${observation.status} ${observation.time}ms`);
+	if (namedGraph !== OBSERVATION_GRAPH.EXTERNAL) q("endpoint", subject, "endpoint", endpointPath);
+	if (world.runtime.currentSeqPath) q("seqPath", subject, LinkRelations.SEQ_PATH.rel, world.runtime.currentSeqPath);
+
+	// Model the request as a message on the network sequence, with TRUE direction: a request the site RECEIVES reads
+	// client → site, one it MAKES reads site → host. `@type` HttpRequest, timed by generatedAtTime. Both actor rels are
+	// core (performedBy source / target destination), so the fisheye sequence view reads it with no per-type wiring.
+	// Service calls (/rpc, /sse) are modelled too but land in observation/shu-service — hidden by default
+	// (isInstrumentationGraph), reachable when unticked; SSE ingests directly and getClusteredQuads is a snapshot fetch, so
+	// this never re-observes itself. The client and any external host are emitted as typed nodes so each actor edge has a
+	// lifeline to point at (the site is the existing Principal node); `objectType` is what makes an actor quad a graph edge.
+	const site = activeSitePrincipal(world);
+	const external = namedGraph === OBSERVATION_GRAPH.EXTERNAL;
+	const source = origin === "site" ? { id: site, type: SERVICE_TYPE } : { id: CLIENT_ID, type: CLIENT_TYPE };
+	const dest = external ? { id: hostOf(observation.url) ?? endpointPath, type: SERVICE_TYPE } : { id: site, type: SERVICE_TYPE };
+	q("type", subject, "type", HTTP_REQUEST_LABEL);
+	q("from", subject, LinkRelations.PERFORMED_BY.rel, source.id, source.type);
+	q("to", subject, LinkRelations.AS_TARGET.rel, dest.id, dest.type);
+	q("time", subject, LinkRelations.GENERATED_AT_TIME.rel, new Date(timestamp).toISOString());
+	if (source.id === CLIENT_ID) {
+		q("client-type", CLIENT_ID, "type", CLIENT_TYPE);
+		q("client-name", CLIENT_ID, "name", "Client");
+	}
+	if (external && dest.id !== site) {
+		q("host-type", dest.id, "type", SERVICE_TYPE);
+		q("host-name", dest.id, "name", dest.id);
+	}
 }
