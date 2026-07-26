@@ -40,7 +40,7 @@ export const features: TKirejiExport = {
 		`↑ All network traffic stayed within allowed domains.`,
 
 		`every request observed in http-trace is variable {request}/status is less than 400`,
-		`every request observed in http-trace is variable {request}/time is less than 5000`,
+		`every request observed in http-trace is variable {request}/durationMs is less than 5000`,
 		`some request observed in http-trace is matches {request}/url with "*Haibun*"`,
 	],
 };
