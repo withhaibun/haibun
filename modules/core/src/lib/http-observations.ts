@@ -19,9 +19,11 @@ export const HTTP_CLIENT_LABEL = "HttpClient";
  *  requests reached it, a rollup of its HttpRequests, never tracked separately. */
 export const HTTP_HOST_LABEL = "HttpHost";
 const CLIENT_ID = "client";
-/** The endpoint class a request hit, a property on the one record (route = the site's own page, service = its /rpc or
- *  /sse plumbing, external = another host), so class reads in the detail without a graph per class. */
-const ENDPOINT_CLASS: Record<string, string> = { "observation/route": "route", "observation/shu-service": "service", "observation/external": "external" };
+/** The endpoint classes: an own page route, the app's service plumbing (/rpc, /sse), or another host. A property on the
+ *  one request record (and on the Endpoint vertex), so class reads in the detail without a graph per class. */
+export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;
+/** The site's own host node's display name. */
+const SITE_NAME = "This site";
 
 /** Who made an observed request: the `client` (browser / user agent) for requests the site RECEIVES, or the `site`
  *  itself for requests it MAKES outbound. Fixes the sequence message's source lifeline so it reads with true direction. */
@@ -39,6 +41,8 @@ function hostOf(url: string): string | undefined {
 export const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;
 
 export const OBSERVATION_GRAPH = { ROUTE: "observation/route", SERVICE: "observation/shu-service", EXTERNAL: "observation/external", ENDPOINT: "Endpoint" } as const;
+
+const CLASS_OF_GRAPH: Record<string, string> = { [OBSERVATION_GRAPH.ROUTE]: ENDPOINT_CLASS.route, [OBSERVATION_GRAPH.SERVICE]: ENDPOINT_CLASS.service, [OBSERVATION_GRAPH.EXTERNAL]: ENDPOINT_CLASS.external };
 
 /** Classify an HTTP path against registered route paths. Returns the observation namedGraph and resolved endpoint path. */
 export function classifyHttpPath(path: string, registeredPaths: Set<string>): { namedGraph: string; endpointPath: string } {
@@ -93,12 +97,14 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 	// The serving host (one node per host; the site is a host too) with its rolled-up request count, and the requesting
 	// party's node; the site's own host node is preserved (not re-counted) when it is the SOURCE of an outbound call.
 	const prior = await store.getIndividual<{ requestCount?: number }>(HTTP_HOST_LABEL, hostId);
-	await store.upsertIndividual(HTTP_HOST_LABEL, { id: hostId, name: hostId === site ? "This site" : hostId, requestCount: (prior?.requestCount ?? 0) + 1, generatedAtTime });
+	await store.upsertIndividual(HTTP_HOST_LABEL, { id: hostId, name: hostId === site ? SITE_NAME : hostId, requestCount: (prior?.requestCount ?? 0) + 1, generatedAtTime });
 	if (origin === "client") await store.upsertIndividual(HTTP_CLIENT_LABEL, { id: CLIENT_ID, name: "Client", generatedAtTime });
 	if (origin === "site" && hostId !== site) {
 		const sitePrior = await store.getIndividual<{ requestCount?: number }>(HTTP_HOST_LABEL, site);
-		await store.upsertIndividual(HTTP_HOST_LABEL, { id: site, name: "This site", requestCount: sitePrior?.requestCount ?? 0, generatedAtTime });
+		await store.upsertIndividual(HTTP_HOST_LABEL, { id: site, name: SITE_NAME, requestCount: sitePrior?.requestCount ?? 0, generatedAtTime });
 	}
+	const endpointClass = CLASS_OF_GRAPH[namedGraph];
+	if (!endpointClass) throw new Error(`trackHttpRequest: no endpoint class for graph "${namedGraph}"`);
 	await store.upsertIndividual(HTTP_REQUEST_LABEL, {
 		id: requestId,
 		name: `${observation.method} ${observation.status}${observation.time !== undefined ? ` ${observation.time}ms` : ""}`,
@@ -106,7 +112,7 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 		status: observation.status,
 		durationMs: observation.time,
 		url: observation.url,
-		endpointClass: ENDPOINT_CLASS[namedGraph] ?? "route",
+		endpointClass,
 		generatedAtTime,
 	});
 
