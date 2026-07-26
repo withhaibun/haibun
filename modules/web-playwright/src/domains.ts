@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { LinkRelations, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL } from "@haibun/core/lib/http-observations.js";
+import { HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
+
+/** A page the browser navigated to, persisted as a record keyed by its URL. Defined here (not cycles.ts) so its topology
+ *  and its writer/reader share one source without a domains↔cycles import cycle. */
+export const VISITED_PAGE_LABEL = "VisitedPage";
 
 export const DOMAIN_PAGE_LOCATOR = "page-locator";
 export const DOMAIN_PAGE_TEST_ID = "page-test-id";
@@ -28,6 +32,8 @@ const httpRequestSchema = z.object({
 	generatedAtTime: z.string(),
 });
 const httpAgentSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
+const httpHostSchema = z.object({ id: z.string(), name: z.string().optional(), requestCount: z.number().optional(), generatedAtTime: z.string() });
+const visitedPageSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 
 export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{
@@ -61,6 +67,18 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		schema: httpAgentSchema,
 		description: "A party an HTTP request runs between — the calling client or an external host.",
 		topology: { persistedAs: HTTP_AGENT_LABEL, type: "as:Service", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, displayLabel: LinkRelations.NAME.rel },
+	},
+	{
+		selectors: [HTTP_HOST_LABEL],
+		schema: httpHostSchema,
+		description: "A host seen on the network, with how many requests reached it (the http-trace hosts aggregate).",
+		topology: { persistedAs: HTTP_HOST_LABEL, type: "as:Service", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, requestCount: LinkRelations.TAG.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, displayLabel: LinkRelations.NAME.rel },
+	},
+	{
+		selectors: [VISITED_PAGE_LABEL],
+		schema: visitedPageSchema,
+		description: "A page the browser navigated to during the run.",
+		topology: { persistedAs: VISITED_PAGE_LABEL, type: "schema:WebPage", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, displayLabel: LinkRelations.NAME.rel },
 	},
 	{
 		selectors: [DOMAIN_PAGE_LOCATOR],

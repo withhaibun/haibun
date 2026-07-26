@@ -6,8 +6,7 @@ import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { trackHttpHost, trackHttpRequest } from "@haibun/core/lib/http-observations.js";
-import { assertFact } from "@haibun/core/lib/working-memory.js";
-import { VISITED_PAGES_OBSERVATION_GRAPH } from "./cycles.js";
+import { VISITED_PAGE_LABEL } from "./domains.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 
 type TEtc = {
@@ -100,8 +99,10 @@ export class PlaywrightEvents {
 			void this.world.shared.setForStepper("WebPlaywright", { term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var }, provenance);
 			void this.world.shared.setForStepper("WebPlaywright", { term: "navigateCount", value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, provenance);
 
-			// fire-and-forget: in-memory QuadStore resolves synchronously
-			void assertFact(this.world, "url", `visited:${this.navigateCount}`, url, VISITED_PAGES_OBSERVATION_GRAPH);
+			// fire-and-forget: persist the page as a VisitedPage record, one per navigation (a synthetic id, not the URL,
+			// so the node never collides with shu's URL-keyed column routing). The name is the page's URL WITHOUT its SPA
+			// view-hash — the page's own identity, not the transient in-app view-state (whose labels would carry type names).
+			void this.world.shared.getStore().upsertIndividual(VISITED_PAGE_LABEL, { id: `visit-${this.navigateCount}`, name: url.split("#")[0], generatedAtTime: new Date().toISOString() });
 
 			this.navigateCount++;
 		}

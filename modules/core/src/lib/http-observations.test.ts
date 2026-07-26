@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { trackHttpRequest, classifyHttpPath, OBSERVATION_GRAPH, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL } from "./http-observations.js";
+import { trackHttpRequest, trackHttpHost, classifyHttpPath, OBSERVATION_GRAPH, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL, HTTP_HOST_LABEL } from "./http-observations.js";
 import { activeSitePrincipal } from "./host-id.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";
@@ -92,5 +92,17 @@ describe("trackHttpRequest persists one network-interaction record via the store
 		const id = "GET /v1";
 		expect(propOf(req, id, "performedBy")?.object).toBe(activeSitePrincipal(world)); // the site made this call…
 		expect(propOf(req, id, "target")?.object).toBe("api.example.com"); // …to an external host
+	});
+});
+
+describe("trackHttpHost persists a per-host aggregate", () => {
+	it("upserts one HttpHost record per host and increments its requestCount", async () => {
+		const { world, store } = mockWorld();
+		await trackHttpHost(world, "http://fonts.google.com/css2");
+		await trackHttpHost(world, "http://fonts.google.com/other");
+		await trackHttpHost(world, "http://cdn.example.com/x");
+		const hosts = await store.query({ namedGraph: HTTP_HOST_LABEL });
+		expect(hosts.find((q) => q.subject === "fonts.google.com" && q.predicate === "requestCount")?.object).toBe(2);
+		expect(hosts.find((q) => q.subject === "cdn.example.com" && q.predicate === "requestCount")?.object).toBe(1);
 	});
 });

@@ -2,25 +2,21 @@ import { rmSync } from "fs";
 import { relative, resolve } from "path";
 
 import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "@haibun/core/lib/astepper.js";
-import { OBSERVATION_GRAPH, queryFacts } from "@haibun/core/lib/working-memory.js";
-import { HTTP_REQUEST_LABEL } from "@haibun/core/lib/http-observations.js";
+import { queryFacts } from "@haibun/core/lib/working-memory.js";
+import { HTTP_REQUEST_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
 
 import { VideoArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { WebPlaywright } from "./web-playwright.js";
-import { WebPlaywrightDomains } from "./domains.js";
+import { WebPlaywrightDomains, VISITED_PAGE_LABEL } from "./domains.js";
 
-// Observation source for the visited-pages list. Append-only so we use a synthetic
-// per-page subject ordered by insertion timestamp; identity-as-position lets the
-// quantifier output preserve navigation order.
-const VISITED_PAGES_GRAPH = "observation/visited-page";
-
-// HTTP trace observation sources read from the quad store under the observation/* graphs.
+// HTTP trace observation sources read the persisted records the network sequence also reads.
 const httpTraceSources: IObservationSource[] = [
 	{
 		name: "http-trace hosts",
 		observe: async (world) => {
-			const quads = await queryFacts(world, "count", OBSERVATION_GRAPH.HTTP_HOST);
+			// Each persisted HttpHost record carries how many requests reached it.
+			const quads = await queryFacts(world, "requestCount", HTTP_HOST_LABEL);
 			const items = quads.map((q) => q.subject);
 			const metrics: Record<string, Record<string, unknown>> = {};
 			for (const q of quads) metrics[q.subject] = { count: q.object };
@@ -41,7 +37,8 @@ const httpTraceSources: IObservationSource[] = [
 	{
 		name: "visited pages",
 		observe: async (world) => {
-			const quads = await queryFacts(world, "url", VISITED_PAGES_GRAPH);
+			// Each persisted VisitedPage record, ordered by visit time (generatedAtTime).
+			const quads = await queryFacts(world, "name", VISITED_PAGE_LABEL);
 			const ordered = [...quads].sort((a, b) => a.timestamp - b.timestamp);
 			const items = ordered.map((q) => q.object as string);
 			const metrics: Record<string, Record<string, unknown>> = {};
@@ -51,7 +48,6 @@ const httpTraceSources: IObservationSource[] = [
 	},
 ];
 
-export const VISITED_PAGES_OBSERVATION_GRAPH = VISITED_PAGES_GRAPH;
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	getConcerns: () => ({ domains: WebPlaywrightDomains, sources: httpTraceSources }),

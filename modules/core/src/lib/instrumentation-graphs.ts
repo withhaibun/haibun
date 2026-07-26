@@ -9,18 +9,18 @@
 import { SHARED_GRAPH } from "./quad-types.js";
 import { SEQ_PATH_LABEL } from "./resources.js";
 import { FACT_GRAPH, OBSERVATION_GRAPH as RUNTIME_OBSERVATION_GRAPH } from "./working-memory.js";
-import { OBSERVATION_GRAPH as HTTP_OBSERVATION_GRAPH, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL } from "./http-observations.js";
+import { OBSERVATION_GRAPH as HTTP_OBSERVATION_GRAPH, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL, HTTP_HOST_LABEL } from "./http-observations.js";
 
 const OBSERVATION_PREFIX = "observation/";
 
-// From web-playwright; a literal because core can't import that module (the observation/ prefix covers it anyway).
-const VISITED_PAGE_GRAPH = "observation/visited-page";
+// From web-playwright; a literal because core can't import that module.
+const VISITED_PAGE_LABEL = "VisitedPage";
 
 export type TInstrumentationGraph =
 	| typeof FACT_GRAPH
 	| typeof SHARED_GRAPH
 	| typeof SEQ_PATH_LABEL
-	| typeof VISITED_PAGE_GRAPH
+	| typeof VISITED_PAGE_LABEL
 	| (typeof RUNTIME_OBSERVATION_GRAPH)[keyof typeof RUNTIME_OBSERVATION_GRAPH]
 	| (typeof HTTP_OBSERVATION_GRAPH)[keyof typeof HTTP_OBSERVATION_GRAPH];
 
@@ -29,15 +29,16 @@ export const INSTRUMENTATION_GRAPHS: readonly TInstrumentationGraph[] = [
 		FACT_GRAPH,
 		SHARED_GRAPH,
 		SEQ_PATH_LABEL,
-		VISITED_PAGE_GRAPH,
+		VISITED_PAGE_LABEL,
 		...Object.values(RUNTIME_OBSERVATION_GRAPH),
 		...Object.values(HTTP_OBSERVATION_GRAPH),
 	]),
 ];
 
 // The instrumentation labels without the observation/ prefix — including persisted instrumentation types (valid graph
-// labels, no slash) that must still read as hidden-by-default: the http-request record and its participant lifelines.
-const NAMED_INSTRUMENTATION = new Set<string>([FACT_GRAPH, SHARED_GRAPH, SEQ_PATH_LABEL, HTTP_OBSERVATION_GRAPH.ENDPOINT, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL]);
+// labels, no slash) that must still read as hidden-by-default: the http-request record, its participant lifelines, the
+// per-host aggregate, and visited pages.
+const NAMED_INSTRUMENTATION = new Set<string>([FACT_GRAPH, SHARED_GRAPH, SEQ_PATH_LABEL, HTTP_OBSERVATION_GRAPH.ENDPOINT, HTTP_REQUEST_LABEL, HTTP_AGENT_LABEL, HTTP_HOST_LABEL, VISITED_PAGE_LABEL]);
 
 export function isInstrumentationGraph(namedGraph: string): boolean {
 	return namedGraph.startsWith(OBSERVATION_PREFIX) || NAMED_INSTRUMENTATION.has(namedGraph);
