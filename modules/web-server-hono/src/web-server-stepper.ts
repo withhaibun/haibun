@@ -37,6 +37,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 						url: LinkRelations.IDENTIFIER.rel,
 						method: LinkRelations.TAG.rel,
 						description: LinkRelations.NAME.rel,
+						endpointClass: LinkRelations.TAG.rel,
 						generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 					},
 				},
@@ -48,7 +49,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 			wss.webserver.clearMounted();
 		} else {
 			const filesBase = path.join(process.cwd(), "files");
-			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase);
+			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase, () => wss.getWorld().shared.getStore());
 		}
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.world.eventLogger);

@@ -13,11 +13,11 @@ import { activeSitePrincipal } from "./host-id.js";
 /** The one type every observed HTTP request becomes: the single network-interaction record. Its `performedBy`/`target`
  *  edges make it a message on the fisheye sequence view. */
 export const HTTP_REQUEST_LABEL = "HttpRequest";
-/** The lifelines a request runs between: the calling client and external hosts (the site is the existing Principal node). */
-export const HTTP_AGENT_LABEL = "HttpAgent";
-/** A distinct host seen on the network, carrying how many requests reached it — the 'http-trace hosts' aggregate. */
+/** The requesting party: the browser / user agent. A singleton lifeline with id `client`. */
+export const HTTP_CLIENT_LABEL = "HttpClient";
+/** A serving party: the site itself or an external server. One node per host, carrying `requestCount` — how many
+ *  requests reached it, a rollup of its HttpRequests, never tracked separately. */
 export const HTTP_HOST_LABEL = "HttpHost";
-/** The singleton client lifeline: the browser / user agent that calls the site's routes and external resources. */
 const CLIENT_ID = "client";
 /** The endpoint class a request hit, a property on the one record (route = the site's own page, service = its /rpc or
  *  /sse plumbing, external = another host), so class reads in the detail without a graph per class. */
@@ -62,35 +62,22 @@ function pathMatchesParameterized(route: string, path: string): boolean {
 	return routeParts.every((rp, i) => rp.startsWith(":") || rp === pathParts[i]);
 }
 
-/** Observation data for a single HTTP request */
+/** Observation data for a single HTTP request. `time` (duration in ms) is unknown for some observers (node fetches). */
 export type THttpRequestObservation = {
 	url: string;
 	status: number;
-	time: number;
+	time?: number;
 	method: string;
 };
 
 /**
- * Track an HTTP host in working memory for the 'http-trace hosts' observation source.
- * Both NodeHttpEvents and PlaywrightEvents use this.
- */
-export async function trackHttpHost(world: TWorld, url: string): Promise<void> {
-	let host: string;
-	try {
-		host = new URL(url).hostname;
-	} catch {
-		return;
-	}
-	const store = world.shared.getStore();
-	const prior = await store.getIndividual<{ requestCount?: number }>(HTTP_HOST_LABEL, host);
-	await store.upsertIndividual(HTTP_HOST_LABEL, { id: host, name: host, requestCount: (prior?.requestCount ?? 0) + 1, generatedAtTime: new Date().toISOString() });
-}
-
-/**
  * Track an observed HTTP request as ONE network-interaction record, written through the shared store (the http-trace
- * observation source and the fisheye network sequence both read it). Pass registeredPaths (from IWebServer.mounted) to
- * classify the endpoint. Direction is true to who called: a request the site RECEIVES reads client → site, one it MAKES
- * (origin="site") reads site → host.
+ * observation sources and the fisheye network sequence read the same records). A request runs client → endpoint/host:
+ * the requesting party is the browser (HttpClient), or the site itself for a request it MAKES outbound (origin="site");
+ * the destination is the registered Endpoint the request hit (an own route or service — the SAME Endpoint vertex the
+ * web server persists at mount), or the external HttpHost. Every endpoint links `isPartOf` to the site's host node, and
+ * a host's `requestCount` rolls up here — there is no separate host tracking. The graph connects the whole exchange:
+ * client → request → endpoint → site, or client/site → request → host.
  */
 export async function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>, origin: THttpOrigin = "client"): Promise<void> {
 	const store = world.shared.getStore();
@@ -99,19 +86,22 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 	const { namedGraph, endpointPath } = classifyHttpPath(path, registeredPaths);
 	const external = namedGraph === OBSERVATION_GRAPH.EXTERNAL;
 	const site = activeSitePrincipal(world);
-	const sourceId = origin === "site" ? site : CLIENT_ID;
-	const host = external ? (hostOf(observation.url) ?? endpointPath) : undefined;
-	const destId = host ?? site;
+	const hostId = external ? (hostOf(observation.url) ?? endpointPath) : site;
 	const requestId = `${observation.method} ${path}`;
 	const generatedAtTime = new Date(timestamp).toISOString();
 
-	// Each participant (client, site, external host) is a hidden HttpAgent lifeline; the request is the one record; its
-	// source and destination are actor edges (createEdge). A received request reads client → site, an outbound one site → host.
-	const nameOf = (id: string) => (id === CLIENT_ID ? "Client" : id === site ? "This site" : id);
-	for (const id of new Set([sourceId, destId])) await store.upsertIndividual(HTTP_AGENT_LABEL, { id, name: nameOf(id), generatedAtTime });
+	// The serving host (one node per host; the site is a host too) with its rolled-up request count, and the requesting
+	// party's node; the site's own host node is preserved (not re-counted) when it is the SOURCE of an outbound call.
+	const prior = await store.getIndividual<{ requestCount?: number }>(HTTP_HOST_LABEL, hostId);
+	await store.upsertIndividual(HTTP_HOST_LABEL, { id: hostId, name: hostId === site ? "This site" : hostId, requestCount: (prior?.requestCount ?? 0) + 1, generatedAtTime });
+	if (origin === "client") await store.upsertIndividual(HTTP_CLIENT_LABEL, { id: CLIENT_ID, name: "Client", generatedAtTime });
+	if (origin === "site" && hostId !== site) {
+		const sitePrior = await store.getIndividual<{ requestCount?: number }>(HTTP_HOST_LABEL, site);
+		await store.upsertIndividual(HTTP_HOST_LABEL, { id: site, name: "This site", requestCount: sitePrior?.requestCount ?? 0, generatedAtTime });
+	}
 	await store.upsertIndividual(HTTP_REQUEST_LABEL, {
 		id: requestId,
-		name: `${observation.method} ${observation.status} ${observation.time}ms`,
+		name: `${observation.method} ${observation.status}${observation.time !== undefined ? ` ${observation.time}ms` : ""}`,
 		method: observation.method,
 		status: observation.status,
 		durationMs: observation.time,
@@ -119,6 +109,16 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 		endpointClass: ENDPOINT_CLASS[namedGraph] ?? "route",
 		generatedAtTime,
 	});
-	await store.createEdge?.(HTTP_REQUEST_LABEL, requestId, LinkRelations.PERFORMED_BY.rel, HTTP_AGENT_LABEL, sourceId);
-	await store.createEdge?.(HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, HTTP_AGENT_LABEL, destId);
+
+	// The actor edges: performedBy → the requesting party; target → the registered Endpoint vertex (own routes/services)
+	// or the external host. An own endpoint also links isPartOf → the site's host (once), closing the visual chain.
+	const [sourceLabel, sourceId] = origin === "site" ? [HTTP_HOST_LABEL, site] : [HTTP_CLIENT_LABEL, CLIENT_ID];
+	await store.createEdge?.(HTTP_REQUEST_LABEL, requestId, LinkRelations.PERFORMED_BY.rel, sourceLabel, sourceId);
+	if (external) {
+		await store.createEdge?.(HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, HTTP_HOST_LABEL, hostId);
+	} else {
+		await store.createEdge?.(HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, OBSERVATION_GRAPH.ENDPOINT, endpointPath);
+		const linked = await store.query({ subject: endpointPath, predicate: LinkRelations.PART_OF.rel, namedGraph: OBSERVATION_GRAPH.ENDPOINT });
+		if (linked.length === 0) await store.createEdge?.(OBSERVATION_GRAPH.ENDPOINT, endpointPath, LinkRelations.PART_OF.rel, HTTP_HOST_LABEL, site);
+	}
 }

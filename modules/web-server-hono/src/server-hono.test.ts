@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ServerHono } from "./server-hono.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
-import { OBSERVATION_GRAPH } from "@haibun/core/lib/http-observations.js";
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { EndpointLabels } from "./defs.js";
 
 const mockLogger: IEventLogger = {
 	currentSeqPath: undefined,
@@ -44,9 +45,11 @@ const P = { description: "test route" };
 
 describe("ServerHono", () => {
 	let server: ServerHono;
+	let store: QuadStore;
 
 	beforeEach(() => {
-		server = new ServerHono(mockLogger, "/tmp");
+		store = new QuadStore();
+		server = new ServerHono(mockLogger, "/tmp", () => store);
 	});
 
 	afterEach(async () => {
@@ -106,35 +109,24 @@ describe("ServerHono", () => {
 			expect(() => server.addRoute("get", "/path/file..ext", P, (c) => c.text("ok"))).toThrow("multiple dots");
 		});
 
-		it("emits shu-service quad for internal routes", async () => {
-			const emitted: unknown[] = [];
-			const capturingLogger = { ...mockLogger, emit: (e: unknown) => emitted.push(e) };
-			const s = new ServerHono(capturingLogger, "/tmp");
-			s.addRoute("get", "/sse", P, (c) => c.text("ok"));
-			const event = emitted.find((e) => (e as Record<string, unknown>).id?.toString().startsWith("quad-endpoint-"));
-			const json = (event as Record<string, Record<string, Record<string, unknown>>>).json;
-			expect(json.quadObservation.namedGraph).toBe(OBSERVATION_GRAPH.SERVICE);
-			await s.close();
+		const settled = () => new Promise((r) => setTimeout(r, 0)); // let the mount's fire-and-forget persist complete
+
+		it("persists a service route as an Endpoint record classed 'service'", async () => {
+			server.addRoute("get", "/sse", P, (c) => c.text("ok"));
+			await settled();
+			const ep = await store.getIndividual<Record<string, unknown>>(EndpointLabels.Endpoint, "/sse");
+			expect(ep?.endpointClass).toBe("service");
 		});
 
-		it("emits a single endpoint quad with the descriptor bundled in properties", async () => {
-			const emitted: unknown[] = [];
-			const capturingLogger = { ...mockLogger, emit: (e: unknown) => emitted.push(e) };
-			const s = new ServerHono(capturingLogger, "/tmp");
-			s.addRoute("get", "/.well-known/did.json", { description: "DID document resolution" }, (c) => c.text("ok"));
-			const endpointEvents = emitted.filter((e) => (e as Record<string, unknown>).id?.toString().startsWith("quad-endpoint-"));
-			expect(endpointEvents.length).toBe(1);
-			const quad = (endpointEvents[0] as Record<string, Record<string, Record<string, unknown>>>).json.quadObservation;
-			expect(quad.subject).toBe("/.well-known/did.json");
-			expect(quad.predicate).toBe("type");
-			expect(quad.object).toBe("Endpoint");
-			const props = quad.properties as Record<string, unknown>;
-			expect(props.domain).toBe("haibun-endpoint");
-			expect(props.identifier).toBe("/.well-known/did.json");
-			expect(props.tag).toBe("GET");
-			expect(props.name).toBe("DID document resolution");
-			expect(props.generatedAtTime).toBeDefined();
-			await s.close();
+		it("persists a mounted route as a single Endpoint record with its descriptor", async () => {
+			server.addRoute("get", "/.well-known/did.json", { description: "DID document resolution" }, (c) => c.text("ok"));
+			await settled();
+			const ep = await store.getIndividual<Record<string, unknown>>(EndpointLabels.Endpoint, "/.well-known/did.json");
+			expect(ep?.url).toBe("/.well-known/did.json");
+			expect(ep?.method).toBe("GET");
+			expect(ep?.description).toBe("DID document resolution");
+			expect(ep?.endpointClass).toBe("route");
+			expect(ep?.generatedAtTime).toBeDefined();
 		});
 	});
 
