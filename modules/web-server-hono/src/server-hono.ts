@@ -6,7 +6,7 @@ import { existsSync, statSync, readdirSync } from "fs";
 import { join } from "path";
 import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
-import { SERVICE_PATH_PREFIXES } from "@haibun/core/lib/http-observations.js";
+import { ENDPOINT_CLASS, SERVICE_PATH_PREFIXES } from "@haibun/core/lib/http-observations.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import {
 	type IWebServer,
@@ -249,7 +249,7 @@ export class ServerHono implements IWebServer {
 				url: path,
 				method: type.toUpperCase(),
 				description: purpose.description,
-				endpointClass: isService ? "service" : "route",
+				endpointClass: isService ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
 				generatedAtTime: new Date().toISOString(),
 			})
 			.catch((e) => this.eventLogger.error(`persistEndpoint ${type} ${path}: ${e}`));
