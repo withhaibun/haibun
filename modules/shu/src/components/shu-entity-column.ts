@@ -64,7 +64,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 		.entity-header { padding: var(--shu-space-2) 0; }
-		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); padding: 1px var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-faded); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); }
+		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); padding: 1px var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); }
 		.body-reading { padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; }
 		.entity-type { font-weight: 600; color: var(--shu-accent); font-size: 0.85em; letter-spacing: 0.5px; margin-right: var(--shu-space-4); }
 		.entity-id { color: var(--shu-fg-muted); word-break: break-all; }

@@ -2,6 +2,7 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { subscribeBatchedEvents, hasEventStream } from "./event-stream.js";
+import { isOffline } from "./hypermedia.js";
 import { callStep } from "./pane-fetch.js";
 import { appAccessLevel } from "./util.js";
 import { derefStoredEntity } from "./quads-snapshot.js";
@@ -136,8 +137,9 @@ export async function openEntity(label: string, id: string, accessLevel: string)
 		if (res.ok) {
 			entry.view = { status: "ready", provenance: "live", entity: res.value, annotations: [], bodies: {} };
 		} else {
-			// RPC unavailable (offline / disconnected): serve the persisted vertex from the off-heap store if we have it.
-			const offline = await derefStoredEntity(label, id);
+			// A live server that answered with an error is a real error — surface it (never mask it as "offline"). Only when
+			// there is genuinely no live server (the serialized / file:// report) do we serve the persisted vertex instead.
+			const offline = isOffline() ? await derefStoredEntity(label, id) : undefined;
 			entry.view = offline ? { status: "ready", provenance: "offline", entity: offline, annotations: [], bodies: {} } : { status: "error", annotations: [], error: res.error, bodies: {} };
 			if (!offline) return void notify(s, id);
 		}
