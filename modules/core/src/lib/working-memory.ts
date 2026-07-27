@@ -10,14 +10,8 @@
  *   variables               feature-variables (see SHARED_GRAPH in feature-variables.ts)
  *   <persistedAs>           domain-registered topology graphs (e.g. "Email", "Person")
  *
- * The `observation/` prefix matches the existing convention in http-observations.ts
- * (observation/route, observation/shu-service, observation/external) so all runtime
- * observations live under one namespace and can be queried uniformly.
- *
  * Sub-named-graphs introduced by this module:
  *   observation/step-usage     step-execution counts keyed by stepperName.actionName
- *   observation/http-host      HTTP host tally keyed by hostname
- *   observation/http-request   HTTP request observations keyed by request id
  *   observation/runtime-flag   boolean/scalar runtime flags keyed by flag name
  *   observation/event          eventLogger emissions, predicate = event domain
  */
@@ -26,8 +20,6 @@ import type { IQuadStore, TQuad, TQuadPattern } from "./quad-types.js";
 
 export const OBSERVATION_GRAPH = {
 	STEP_USAGE: "observation/step-usage",
-	HTTP_HOST: "observation/http-host",
-	HTTP_REQUEST: "observation/http-request",
 	RUNTIME_FLAG: "observation/runtime-flag",
 	EVENT: "observation/event",
 } as const;

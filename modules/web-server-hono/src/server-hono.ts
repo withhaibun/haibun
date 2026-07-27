@@ -6,7 +6,7 @@ import { existsSync, statSync, readdirSync } from "fs";
 import { join } from "path";
 import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
-import { ENDPOINT_CLASS, SERVICE_PATH_PREFIXES } from "@haibun/core/lib/http-observations.js";
+import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import {
 	type IWebServer,
@@ -241,7 +241,7 @@ export class ServerHono implements IWebServer {
 	/** Persist the mounted route as an Endpoint vertex — the existing object an observed HttpRequest edges to. `id`
 	 *  satisfies the transitory store's default identity field; `url` is the topology's. */
 	private persistEndpoint(type: TRouteTypes, path: string, purpose: TRoutePurpose): void {
-		const isService = SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
+		const isService = isServicePath(path);
 		// fire-and-forget from this sync mount path; a persist failure is a real error and must surface.
 		this.getStore()
 			.upsertIndividual(EndpointLabels.Endpoint, {

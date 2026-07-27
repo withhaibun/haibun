@@ -82,7 +82,7 @@ export class PlaywrightEvents {
 			{
 				url: response.url(),
 				status: response.status(),
-				time: duration,
+				durationMs: duration,
 				method: request.method(),
 			},
 			this.routes,
