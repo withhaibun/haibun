@@ -255,7 +255,7 @@ describe("observed in (runtime metrics)", () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `passes
-some step observed in step usage is variable {step}/count is more than 0`,
+some step observed in step usage is variable step/count is more than 0`,
 		};
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
@@ -265,7 +265,20 @@ some step observed in step usage is variable {step}/count is more than 0`,
 		const feature = {
 			path: "/features/test.feature",
 			content: `passes
-every stepper observed in stepper usage is variable {stepper}/count is more than 0`,
+every stepper observed in stepper usage is variable stepper/count is more than 0`,
+		};
+		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
+		expect(result.ok).toBe(true);
+	});
+
+	it("keeps a dotted item raw for matching while its metrics stay reachable", async () => {
+		// step-usage items are `Stepper.action`. The item variable must keep its dots (a glob reads the real value) AND
+		// its metrics must resolve — metric terms are keyed by the binder, so a dotted item never breaks the lookup.
+		const feature = {
+			path: "/features/test.feature",
+			content: `passes
+some step observed in step usage is matches {step} with "*.*"
+some step observed in step usage is variable step/count is more than 0`,
 		};
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);

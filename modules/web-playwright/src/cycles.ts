@@ -4,7 +4,6 @@ import { relative, resolve } from "path";
 import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "@haibun/core/lib/astepper.js";
 import { queryFacts } from "@haibun/core/lib/working-memory.js";
 import { HTTP_REQUEST_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
-import { sanitizeKey } from "@haibun/core/steps/logic-stepper.js";
 
 import { VideoArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
@@ -28,11 +27,10 @@ const httpTraceSources: IObservationSource[] = [
 		name: "http-trace",
 		observe: async (world) => {
 			// Each persisted http-request record with its full fields (status, durationMs, url, …) — the same nodes the
-			// fisheye network sequence reads, so a quantifier can assert e.g. `{request}/status is less than 400`. Items are
-			// sanitized because a request id can carry dots (asset paths) and quantifier metric lookups are variable terms.
+			// fisheye network sequence reads, so a quantifier can assert e.g. `request/status is less than 400`.
 			const quads = await world.shared.getStore().query({ namedGraph: HTTP_REQUEST_LABEL });
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const q of quads) (metrics[sanitizeKey(q.subject)] ??= {})[q.predicate] = q.object;
+			for (const q of quads) (metrics[q.subject] ??= {})[q.predicate] = q.object;
 			return { items: Object.keys(metrics), metrics };
 		},
 	},
