@@ -1,11 +1,10 @@
 import { z } from "zod";
 import { LinkRelations, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
+import { ENDPOINT_CLASS, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
+import { VISITED_PAGE_LABEL } from "@haibun/core/lib/instrumentation-graphs.js";
 
-/** A page the browser navigated to, persisted as a record keyed by its URL. Defined here (not cycles.ts) so its topology
- *  and its writer/reader share one source without a domains↔cycles import cycle. */
-export const VISITED_PAGE_LABEL = "VisitedPage";
+export { VISITED_PAGE_LABEL };
 
 export const DOMAIN_PAGE_LOCATOR = "page-locator";
 export const DOMAIN_PAGE_TEST_ID = "page-test-id";
@@ -23,12 +22,11 @@ export const RestFilteredCountSchema = z.object({ summary: z.string(), count: z.
 const HTTP_NS = { http: "http://www.w3.org/2011/http#" };
 const httpRequestSchema = z.object({
 	id: z.string(),
-	name: z.string().optional(),
 	method: z.string().optional(),
 	status: z.number().optional(),
 	durationMs: z.number().optional(),
 	url: z.string().optional(),
-	endpointClass: z.string().optional(),
+	endpointClass: z.enum([ENDPOINT_CLASS.route, ENDPOINT_CLASS.service, ENDPOINT_CLASS.external]).optional(),
 	generatedAtTime: z.string(),
 });
 const httpClientSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
@@ -47,7 +45,6 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			namespaces: HTTP_NS,
 			properties: {
 				id: LinkRelations.IDENTIFIER.rel,
-				name: LinkRelations.NAME.rel,
 				method: LinkRelations.TAG.rel,
 				status: LinkRelations.TAG.rel,
 				durationMs: LinkRelations.TAG.rel,
@@ -59,7 +56,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: HTTP_CLIENT_LABEL },
 				target: { rel: LinkRelations.AS_TARGET.rel, range: HTTP_HOST_LABEL },
 			},
-			displayLabel: LinkRelations.NAME.rel,
+			// No displayLabel: the id ("GET /path") is the title; status and duration are fields, not a stored summary copy.
 		},
 	},
 	{
@@ -77,7 +74,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{
 		selectors: [VISITED_PAGE_LABEL],
 		schema: visitedPageSchema,
-		description: "A page the browser navigated to during the run.",
+		description: "A page the browser navigated to during the run, keyed by a per-navigation synthetic id; its name is the page URL.",
 		topology: { persistedAs: VISITED_PAGE_LABEL, type: "schema:WebPage", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, displayLabel: LinkRelations.NAME.rel },
 	},
 	{

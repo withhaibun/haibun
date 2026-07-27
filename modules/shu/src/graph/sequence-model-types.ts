@@ -4,7 +4,7 @@
  * any consumer that needs the same protocol read. Pure types, no renderer — the sequence is drawn in the fisheye.
  */
 export type TSeqActor = { id: string; label: string };
-/** call: a forward message; return: a reply; denied: the call was refused. */
-export type TSeqMessageKind = "call" | "return" | "denied";
-export type TSeqMessage = { from: string; to: string; label: string; kind?: TSeqMessageKind; note?: string };
+/** call: a forward message; return: a reply. */
+export type TSeqMessageKind = "call" | "return";
+export type TSeqMessage = { from: string; to: string; label: string; kind?: TSeqMessageKind };
 export type TSeqModel = { actors: TSeqActor[]; messages: TSeqMessage[] };
