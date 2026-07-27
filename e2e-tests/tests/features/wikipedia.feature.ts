@@ -39,8 +39,8 @@ export const features: TKirejiExport = {
 		`every host observed in http-trace hosts is some allowed in "Allowed domains" is matches {host} with "*{allowed}"`,
 		`↑ All network traffic stayed within allowed domains.`,
 
-		`every request observed in http-trace is variable {request}/status is less than 400`,
-		`every request observed in http-trace is variable {request}/durationMs is less than 5000`,
-		`some request observed in http-trace is matches {request}/url with "*Haibun*"`,
+		`every request observed in http-trace is variable request/status is less than 400`,
+		`every request observed in http-trace is variable request/durationMs is less than 5000`,
+		`some request observed in http-trace is matches request/url with "*Haibun*"`,
 	],
 };

@@ -13,18 +13,14 @@ import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 
 const MaybeOutcomeSchema = z.object({ outcome: z.unknown() });
 
-/** Make an observation item usable as a variable term: dots become underscores (a dot is the variable-path separator).
- *  A source whose items can contain dots must expose PRE-sanitized items/metric keys, or `{item}/metric` lookups miss. */
-export const sanitizeKey = (key: string) => key.replace(/\./g, "_");
-
 const builtInSources: IObservationSource[] = [
 	{
 		name: "step usage",
 		observe: async (world: TWorld) => {
 			const quads = await queryFacts(world, "count", OBSERVATION_GRAPH.STEP_USAGE);
-			const items = quads.map((q) => sanitizeKey(q.subject));
+			const items = quads.map((q) => q.subject);
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const q of quads) metrics[sanitizeKey(q.subject)] = { count: q.object };
+			for (const q of quads) metrics[q.subject] = { count: q.object };
 			return { items, metrics };
 		},
 	},
@@ -238,12 +234,14 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 						{ in: featureStep.in, seq: featureStep.seqPath, when: "quantifier" },
 					);
 
-					// Set metric variables if from observation source (stored in SHARED_GRAPH so they resolve as variables)
+					// An observation source's metrics for this item, keyed by the BINDER name (`request/status`, not the item
+					// value) — a binder is an identifier, so a metric term never carries an item's dots or slashes. Rebound
+					// each iteration exactly like the item variable.
 					if (metrics?.[val]) {
 						for (const [metricKey, metricValue] of Object.entries(metrics[val])) {
 							const domain = typeof metricValue === "number" ? "number" : "string";
 							await this.getWorld().shared.set(
-								{ term: `${sanitizeKey(val)}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
+								{ term: `${what}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
 								{ in: featureStep.in, seq: featureStep.seqPath, when: "observation" },
 							);
 						}
@@ -284,12 +282,14 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 						{ in: featureStep.in, seq: featureStep.seqPath, when: "quantifier" },
 					);
 
-					// Set metric variables if from observation source (stored in SHARED_GRAPH so they resolve as variables)
+					// An observation source's metrics for this item, keyed by the BINDER name (`request/status`, not the item
+					// value) — a binder is an identifier, so a metric term never carries an item's dots or slashes. Rebound
+					// each iteration exactly like the item variable.
 					if (metrics?.[val]) {
 						for (const [metricKey, metricValue] of Object.entries(metrics[val])) {
 							const domain = typeof metricValue === "number" ? "number" : "string";
 							await this.getWorld().shared.set(
-								{ term: `${sanitizeKey(val)}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
+								{ term: `${what}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
 								{ in: featureStep.in, seq: featureStep.seqPath, when: "observation" },
 							);
 						}
