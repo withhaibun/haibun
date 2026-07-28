@@ -2,6 +2,7 @@ import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.j
 import WebPlaywright from "@haibun/web-playwright";
 import ShuStepper from "../../build/shu-stepper.js";
 import ShuMonitorColumnControls from "../../build/components/shu-monitor-column.controls.js";
+import ShuScrollbarControls from "../../build/components/shu-scrollbar.controls.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SHU_TEST_IDS } from "../../build/test-ids.js";
@@ -13,6 +14,7 @@ const { waitFor, gotoPage, takeScreenshot } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 const { monitorShowsFewerThan, seekMonitorRail, monitorFirstVisibleRow, monitorFirstVisibleRowIsNot, documentShowsFewerThan, clickFirstDocRow, documentFutureRowsAtLeast, scrubMonitorFirstRow, monitorFutureRowsAtLeast, monitorShowsRowContaining, monitorTotalAtLeast, documentThumbnailsFlow, expandFirstThumbnail, expandedThumbnailNavigates, documentAtLiveEdge } = withAction(new ShuMonitorColumnControls());
+const { railThumbHoldsSize } = withAction(new ShuScrollbarControls());
 const { enterStepMode, passesStepExecution } = createStepUI(wp);
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
@@ -86,6 +88,9 @@ export const features: TKirejiExport = {
 		setAs({ what: "scrollResumedEvent", domain: "page-test-id", value: '"scroll-resumed-marker"' }),
 		monitorShowsRowContaining({ text: '"scrollResumedEvent"' }),
 
+		"The rail thumb states how much of the column is on screen, so it holds its size as the reader scrolls and travels with them. Rows here are uniform lines of log.",
+		railThumbHoldsSize({ host: '"shu-monitor-column"' }),
+
 		scenario({ scenario: "The run document virtualizes the same buffered log" }),
 		"The document reads the same buffered events as prose. It too renders only the blocks in view, so a long run stays a small DOM with every earlier event still reachable.",
 		...passesStepExecution("MonitorStepper-showDocument", {}),
@@ -102,6 +107,8 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "The run's screenshots render as tiles that flow in the column" }),
 		"The screenshots this very run just took stream in as artifact events and render as thumbnail tiles in the document: each frame sits in a thumbnail grid row, sized as a tile of the column's grid (never shrink-wrapped small, never blown up to the whole column), with the real image served and filling its frame. Grouping a run of screenshots into one strip is covered by the document-blocks unit tests; this measures the real rendered result.",
 		documentThumbnailsFlow(),
+		"The same holds where the blocks differ in height: a screen of prose and a screen of screenshots put very different numbers of blocks on screen, and the thumb must not resize between them.",
+		railThumbHoldsSize({ host: '"shu-document-column"' }),
 
 		scenario({ scenario: "A thumbnail expands with its step caption and arrows walk the run's screenshots" }),
 		"Clicking a thumbnail expands it over the column and captions it with the step that took it; the caption rides a stamp the document build put on the frame, since under virtualization the step's own row may not be in the reading window at all. Arrow keys then move between the run's screenshots through the document column, which is the only party that can reach frames outside the rendered window; the time cursor follows each expanded screenshot's step, dimming everything recorded after it.",

@@ -13,6 +13,7 @@ import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { property } from "lit/decorators.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, formatCount, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
 
@@ -106,17 +107,17 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		const topPx = thumbTopPx(this.total, this.window, railPx, heightPx);
 		const marks = clusterMarkers(this.markers, this.total, railPx, heightPx);
 		return html`
-			<span class="pos pos-top" data-testid="scrollbar-pos-top">${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
-			<div class="rail" @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
-				<div class="thumb" style=${`top:${topPx}px;height:${heightPx}px`} @pointerdown=${this.#onThumbDown}></div>
+			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP}>${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
+			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
+				<div class="thumb" data-testid=${SHU_TEST_IDS.SCROLLBAR.THUMB} style=${`top:${topPx}px;height:${heightPx}px`} @pointerdown=${this.#onThumbDown}></div>
 				${marks.map(
 					(m) =>
-						html`<span class="marker" style=${`top:${m.topPx}px;color:${m.color}`} title=${m.label ?? m.id} data-testid="scrollbar-marker" @pointerdown=${(e: Event) => this.#onMarker(e, m.index)}
+						html`<span class="marker" style=${`top:${m.topPx}px;color:${m.color}`} title=${m.label ?? m.id} data-testid=${SHU_TEST_IDS.SCROLLBAR.MARKER} @pointerdown=${(e: Event) => this.#onMarker(e, m.index)}
 							>${m.icon}${m.count > 1 ? html`<sub>${m.count}</sub>` : ""}</span
 						>`,
 				)}
 			</div>
-			<span class="pos pos-bottom" data-testid="scrollbar-pos-bottom">${this.showPosition && this.total ? formatCount(this.total) : ""}</span>
+			<span class="pos pos-bottom" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_BOTTOM}>${this.showPosition && this.total ? formatCount(this.total) : ""}</span>
 		`;
 	}
 
