@@ -91,11 +91,15 @@ export function attachTransportsToRegistry(steppers: AStepper[], registry: StepR
 }
 
 export class Executor {
-	private static createExecutionFailure(featureResults: TFeatureResult[]): TExecutorResult["failure"] | undefined {
+	static createExecutionFailure(featureResults: TFeatureResult[]): TExecutorResult["failure"] | undefined {
 		const firstFailedFeature = featureResults.find((fr) => !fr.ok);
 		if (!firstFailedFeature) return undefined;
 
-		const failedStep = firstFailedFeature.stepResults.find((sr) => !sr.ok && sr.intent?.mode !== "speculative");
+		// The verdict names an accountable feature step. A synthetic dispatch (a negative seqPath segment: a model's
+		// tool call, an RPC) can fail and be recovered from inside its parent step; naming it here reported a recovered
+		// tool call as the run's failure while the step that actually failed the feature went unmentioned.
+		const nonSpeculative = firstFailedFeature.stepResults.filter((sr) => !sr.ok && sr.intent?.mode !== "speculative");
+		const failedStep = nonSpeculative.find((sr) => !sr.seqPath?.some((n) => n < 0)) ?? nonSpeculative[0];
 		if (!failedStep) return undefined;
 
 		const errorMessage = failedStep.errorMessage || "Step execution failed";
