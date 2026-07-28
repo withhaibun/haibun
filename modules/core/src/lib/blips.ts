@@ -46,13 +46,36 @@ export type TBlipDeclaration = {
 
 const declarations = new Map<string, TBlipDeclaration>();
 
-/** Declare what may be recorded under a name. Re-declaring the same name with a different shape throws: one name means
- *  one thing across every module that records or reads it. */
+/** Everything a declaration says except its attribute schema, in a fixed order so two declarations compare by content. */
+const shapeOf = (d: TBlipDeclaration) => JSON.stringify([d.instrument, d.description, d.unit, d.dimensions]);
+
+/**
+ * Whether two attribute schemas are the same. The same schema is trivially the same; otherwise they are compared as
+ * JSON Schema. A schema that cannot be represented that way (a transform, a custom type) cannot be shown to be
+ * identical, and an unprovable case is treated as different, so declaring one throws rather than silently replacing a
+ * vocabulary other modules already record against.
+ */
+function sameAttributes(held: z.ZodType | undefined, incoming: z.ZodType | undefined): boolean {
+	if (held === incoming) return true;
+	if (!held || !incoming) return false;
+	try {
+		return JSON.stringify(z.toJSONSchema(held)) === JSON.stringify(z.toJSONSchema(incoming));
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Declare what may be recorded under a name. Re-declaring the same name with anything different, its instrument, its
+ * unit, its dimensions or its attribute schema, throws: one name means one thing across every module that records or
+ * reads it. Replacing a held declaration would strip the attributes an earlier caller declared and sends, or make its
+ * recordings throw at a site that reads as correct, so the collision is refused where it is written.
+ */
 export function declareBlips(...decls: TBlipDeclaration[]): void {
 	for (const d of decls) {
 		const held = declarations.get(d.name);
-		if (held && JSON.stringify({ ...held, attributes: undefined }) !== JSON.stringify({ ...d, attributes: undefined }))
-			throw new Error(`declareBlips: "${d.name}" is already declared with a different shape`);
+		if (held && (shapeOf(held) !== shapeOf(d) || !sameAttributes(held.attributes, d.attributes)))
+			throw new Error(`declareBlips: "${d.name}" is already declared with a different shape — record under a different name, or reconcile the two declarations`);
 		declarations.set(d.name, d);
 	}
 }
