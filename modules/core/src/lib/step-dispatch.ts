@@ -10,6 +10,7 @@ import { doStepperCycle } from "./stepper-cycles.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
+import { getZcapAuthority, ZCAP_TOKEN_KEY } from "./zcap-authority.js";
 import { validateProducts } from "./tool-validation.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
 
@@ -37,8 +38,20 @@ export type DispatchContext = {
  * RPC, MCP, subprocess — enters through here. Applies capability auth, lifecycle
  * cycles (beforeStep/afterStep), event logging, and result tracking uniformly.
  */
+/** What the run's active bearer token grants, if one is set and an authority can resolve it. */
+function bearerCapability(world: TWorld): string[] | undefined {
+	const token = world.runtime.keys?.[ZCAP_TOKEN_KEY] as string | undefined;
+	if (!token) return undefined;
+	const granted = getZcapAuthority(world.runtime)?.resolveBearer(token);
+	return granted && granted.length > 0 ? granted : undefined;
+}
+
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
-	const { registry, world, steppers, grantedCapability } = ctx;
+	const { registry, world, steppers } = ctx;
+	// A caller that supplied a capability decides; otherwise the active bearer token does, which is what makes
+	// `with token, <step>` mean what it says: the step runs under that token's authority. Without this a gated step
+	// was unreachable through a token, so a granted invocation could never carry one out.
+	const grantedCapability = ctx.grantedCapability ?? bearerCapability(world);
 	const { action } = featureStep;
 	const start = Timer.since();
 
@@ -293,6 +306,8 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep): Promi
 	const record: Record<string, unknown> = {
 		[SEQ_PATH_FIELD.id]: id,
 		[SEQ_PATH_FIELD.stepText]: featureStep.in,
+		// What ran, beside what was asked for: a step's own record otherwise says only the words of the line.
+		[SEQ_PATH_FIELD.called]: `${featureStep.action.stepperName}.${featureStep.action.actionName}`,
 		[SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running,
 		[SEQ_PATH_FIELD.generatedAtTime]: new Date().toISOString(),
 	};
