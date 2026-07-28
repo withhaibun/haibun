@@ -11,8 +11,9 @@ import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync } from 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
 import { Access, AccessLevelSchema } from "@haibun/core/lib/resources.js";
-import { declareBlips, recordBlip } from "@haibun/core/lib/blips.js";
-import { VIEW_BLIPS } from "./view-blips.js";
+import { recordBlip } from "@haibun/core/lib/blips.js";
+// The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
+import "./view-blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -133,10 +134,6 @@ export const LogEventSchema = z.object({
 	attributes: z.record(z.string(), z.unknown()).optional(),
 });
 export type TLogEvent = z.infer<typeof LogEventSchema>;
-
-// Declared where the browser's occurrences enter the run, so an undeclared name arriving from a page is refused here
-// exactly as it would be at a server-side recording site.
-declareBlips(...VIEW_BLIPS);
 
 export const DOMAIN_CLIENT_BLIPS = "shu-client-blips";
 

@@ -42,9 +42,28 @@ export type TBlipDeclaration = {
 	/** The attributes that may become metric labels. Every other attribute stays on the span event, where high
 	 *  cardinality is free; a metric label of unbounded cardinality is what overwhelms a backend. */
 	dimensions?: readonly string[];
+	/** Opt in to carrying where this name was declared, so a reader (a person, an agent with a source tool) can go from
+	 *  an occurrence to the code that declares it. Captured once at declaration, never per recording, which is what
+	 *  keeps a hot path free to record unconditionally. */
+	origin?: boolean;
 };
 
-const declarations = new Map<string, TBlipDeclaration>();
+/** A held declaration: what was declared, plus where, when origin was asked for. */
+export type THeldBlipDeclaration = TBlipDeclaration & { declaredAt?: string };
+
+const declarations = new Map<string, THeldBlipDeclaration>();
+
+/** The declaring site as `path:line`, read once from a stack: the first frame outside this module. The path is the
+ *  module that ran, so under a build it names the built file; real code either way. */
+function declaringSite(): string | undefined {
+	const frames = (new Error().stack ?? "").split("\n").slice(1);
+	for (const frame of frames) {
+		if (/\/blips\.[jt]s:/.test(frame)) continue;
+		const held = frame.match(/\(?(file:\/\/)?([^()\s]+):(\d+):\d+\)?$/);
+		if (held) return `${held[2]}:${held[3]}`;
+	}
+	return undefined;
+}
 
 /** Everything a declaration says except its attribute schema, in a fixed order so two declarations compare by content. */
 const shapeOf = (d: TBlipDeclaration) => JSON.stringify([d.instrument, d.description, d.unit, d.dimensions]);
@@ -72,16 +91,20 @@ function sameAttributes(held: z.ZodType | undefined, incoming: z.ZodType | undef
  * recordings throw at a site that reads as correct, so the collision is refused where it is written.
  */
 export function declareBlips(...decls: TBlipDeclaration[]): void {
+	// One capture serves the whole call: declarations arrive together from one module, and once per name is the cost
+	// model that keeps origin free at recording time.
+	const declaredAt = decls.some((d) => d.origin) ? declaringSite() : undefined;
 	for (const d of decls) {
 		const held = declarations.get(d.name);
 		if (held && (shapeOf(held) !== shapeOf(d) || !sameAttributes(held.attributes, d.attributes)))
 			throw new Error(`declareBlips: "${d.name}" is already declared with a different shape — record under a different name, or reconcile the two declarations`);
-		declarations.set(d.name, d);
+		// The same declaration again keeps what is held, including where it was first declared.
+		if (!held) declarations.set(d.name, d.origin ? { ...d, declaredAt } : d);
 	}
 }
 
 /** Every declaration, for an exporter building its instruments and for a reader discovering what a run can record. */
-export function blipDeclarations(): readonly TBlipDeclaration[] {
+export function blipDeclarations(): readonly THeldBlipDeclaration[] {
 	return [...declarations.values()];
 }
 

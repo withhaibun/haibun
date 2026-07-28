@@ -36,6 +36,7 @@ declareBlips({
 	unit: "ms",
 	attributes: z.object({ method: z.string(), status: z.number(), endpointClass: z.string(), url: z.string() }),
 	dimensions: ["method", "status", "endpointClass"],
+	origin: true,
 });
 
 /** The site's own host node's display name. */
