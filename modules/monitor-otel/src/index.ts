@@ -20,6 +20,7 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic
 import { LoggerProvider, BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import { listenForBlips, type TBlip } from "@haibun/core/lib/blips.js";
 
 export default class MonitorOtelStepper extends AStepper implements IHasCycles, IHasOptions {
 	kind = StepperKinds.MONITOR;
@@ -29,6 +30,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	private tracer: Tracer | undefined;
 	private featureSpan: Span | undefined;
 	private stepSpans: Map<string, Span> = new Map();
+	private detachBlips: (() => void) | undefined;
 
 	options = {
 		OTEL_ENDPOINT: {
@@ -95,6 +97,9 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			// Initialize OTel provider at start of execution
 			await Promise.resolve();
 			this.initializeIfNeeded();
+			// A blip is a fine-grained occurrence the run never retains; here it becomes a span event on the step it
+			// happened under, so it is queryable in order and in context rather than flooding the event log.
+			this.detachBlips ??= listenForBlips((blip) => this.recordBlip(blip));
 		},
 		onEvent: async (event: THaibunEvent) => {
 			await Promise.resolve();
@@ -112,6 +117,8 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		},
 		endExecution: async () => {
 			await Promise.resolve();
+			this.detachBlips?.();
+			this.detachBlips = undefined;
 			// Flush and shutdown
 			await this.shutdown();
 		},
@@ -231,6 +238,21 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			// End immediately - artifacts are point-in-time events
 			artifactSpan.end();
 		}
+	}
+
+	/** A blip as a span event on the step it happened under — the run's own seqPath is the trace context, so nothing at
+	 *  the recording site threads a span. Falls back to the feature span, and is dropped when neither is open. */
+	private recordBlip(blip: TBlip): void {
+		const span = (blip.seqPath ? this.getParentSpanForId(`${blip.seqPath}.`) : undefined) ?? this.featureSpan;
+		if (!span) return;
+		span.addEvent(
+			blip.name,
+			{
+				...(blip.value !== undefined ? { "haibun.blip.value": blip.value } : {}),
+				...((blip.attributes ?? {}) as Record<string, string | number | boolean>),
+			},
+			blip.timestamp,
+		);
 	}
 
 	private getParentSpanForId(id: string): Span | undefined {
