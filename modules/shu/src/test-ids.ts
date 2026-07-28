@@ -67,6 +67,14 @@ export const SHU_TEST_IDS = {
 		LOG_STREAM: "monitor-log-stream",
 		LOG_ROW: "monitor-log-row",
 	},
+	/** The scroll rail every virtualized column and the annotated body share. */
+	SCROLLBAR: {
+		RAIL: "scrollbar-rail",
+		THUMB: "scrollbar-thumb",
+		MARKER: "scrollbar-marker",
+		POS_TOP: "scrollbar-pos-top",
+		POS_BOTTOM: "scrollbar-pos-bottom",
+	},
 	SETTINGS: {
 		WINDOW_SIZE: "settings-window-size",
 	},

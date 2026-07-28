@@ -14,6 +14,7 @@
 		"@haibun/shu/shu-stepper",
 		"@haibun/shu/monitor-stepper",
 		"./build/components/shu-theme-switch.controls",
+		"./build/components/shu-scrollbar.controls",
 		"./build/components/shu-monitor-column.controls",
 		"./build/test/voice-ui-test-stepper",
 		"@haibun/monitor-tui"
