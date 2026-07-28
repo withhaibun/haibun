@@ -271,6 +271,28 @@ every stepper observed in stepper usage is variable stepper/count is more than 0
 		expect(result.ok).toBe(true);
 	});
 
+	it("asserts a quoted inner statement rather than passing it through as prose", async () => {
+		// The written form quotes the inner statement. Unstripped quotes match no gwta and resolve as prose, which
+		// always passes, so a false claim written that way asserted nothing.
+		const feature = {
+			path: "/features/test.feature",
+			content: `passes
+some step observed in step usage is "variable step/count is more than 999999"`,
+		};
+		const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
+		expect(result.ok).toBe(false);
+	});
+
+	it("asserts a quoted inner statement under every as well", async () => {
+		const feature = {
+			path: "/features/test.feature",
+			content: `passes
+every step observed in step usage is "variable step/count is more than 999999"`,
+		};
+		const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
+		expect(result.ok).toBe(false);
+	});
+
 	it("keeps a dotted item raw for matching while its metrics stay reachable", async () => {
 		// step-usage items are `Stepper.action`. The item variable must keep its dots (a glob reads the real value) AND
 		// its metrics must resolve — metric terms are keyed by the binder, so a dotted item never breaks the lookup.

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
+import { blipRollup } from "../lib/blips.js";
 
 // Built-in observation sources read step-execution counts from the quad store under
 // the observation/step-usage named graph. Step names are sanitized (dots → underscores)
@@ -39,6 +40,12 @@ const builtInSources: IObservationSource[] = [
 			return { items, metrics };
 		},
 	},
+	{
+		// The blip rollup: per-name counts of the fine-grained occurrences the run never retains, so a feature
+		// asserts on `blip/count` without the raw volume ever reaching a buffer.
+		name: "blips",
+		observe: async () => blipRollup.observe(),
+	},
 ];
 
 export default class LogicStepper extends AStepper implements IHasCycles {
@@ -69,6 +76,19 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		getConcerns: () => ({
 			sources: builtInSources,
 		}),
+		// The blip rollup listens for the whole run and clears between features, like every observation source.
+		startExecution: async () => {
+			await Promise.resolve();
+			blipRollup.attach(this.getWorld().eventLogger);
+		},
+		endFeature: async () => {
+			await Promise.resolve();
+			blipRollup.reset();
+		},
+		endExecution: async () => {
+			await Promise.resolve();
+			blipRollup.detach();
+		},
 	};
 
 	private getSource(name: string): IObservationSource | undefined {
@@ -217,7 +237,10 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const match = featureStep.in.match(/^some (.*?) (in|observed in) (.*?) is (.*)/);
 				if (!match) return actionNotOK("some: invalid syntax");
-				const [, what, connector, sourceOrDomain, statementStr] = match;
+				const [, what, connector, sourceOrDomain, quotedStatement] = match;
+				// A quoted inner statement is the written form; without stripping, the quotes reach the resolver, no gwta
+				// matches, and it resolves as prose that always passes, so the quantifier asserts nothing.
+				const statementStr = this.stripQuotes(quotedStatement.trim());
 
 				const phrase = connector === "observed in" ? `observed in ${sourceOrDomain}` : sourceOrDomain;
 				const { values, metrics, error } = await this.getIterationValues(phrase);
@@ -266,7 +289,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const match = featureStep.in.match(/^every (.*?) (in|observed in) (.*?) is (.*)/);
 				if (!match) return actionNotOK("every: invalid syntax");
-				const [, what, connector, sourceOrDomain, statementStr] = match;
+				const [, what, connector, sourceOrDomain, quotedStatement] = match;
+				const statementStr = this.stripQuotes(quotedStatement.trim());
 
 				const phrase = connector === "observed in" ? `observed in ${sourceOrDomain}` : sourceOrDomain;
 				const { values, metrics, error } = await this.getIterationValues(phrase);

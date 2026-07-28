@@ -20,6 +20,8 @@
  */
 import { z } from "zod";
 import { BlipEvent } from "../schema/protocol.js";
+import type { THaibunEvent } from "../schema/protocol.js";
+import type { IEventLogger } from "./EventLogger.js";
 import type { TWorld } from "./world.js";
 
 /** How a blip maps onto an OpenTelemetry signal. A discrete occurrence within an operation is a span event; a rate or a
@@ -66,6 +68,49 @@ export function resetBlips(): void {
 }
 
 /**
+ * The aggregating listener: rolls occurrences up per name, since neither a feature line, the monitor, nor an agent can
+ * take blips raw. Memory is bounded by the declared vocabulary (one counter per name). LogicStepper attaches it for
+ * the run and serves it as the `blips` observation source, so a feature asserts on counts with the existing
+ * `observed in` quantifiers; it clears between features like every observation source.
+ */
+export class BlipRollup {
+	private counts = new Map<string, number>();
+	private detachFn: (() => void) | undefined;
+
+	/** Binds to the logger passed in, dropping any earlier subscription: an execution that ends without detaching (a
+	 *  throw that escapes the feature loop) must not leave the next one counting against a dead logger. Opens a clean
+	 *  window, like the observation graphs an execution clears at its start. */
+	attach(eventLogger: IEventLogger): void {
+		this.detach();
+		this.counts.clear();
+		const cb = (event: THaibunEvent) => {
+			if (event.kind === "blip") this.counts.set(event.name, (this.counts.get(event.name) ?? 0) + 1);
+		};
+		eventLogger.subscribe(cb, { kinds: ["blip"] });
+		this.detachFn = () => eventLogger.unsubscribe(cb);
+	}
+
+	detach(): void {
+		this.detachFn?.();
+		this.detachFn = undefined;
+	}
+
+	reset(): void {
+		this.counts.clear();
+	}
+
+	/** The rollup in observation-source shape: items are the names seen, each with its occurrence count as a metric. */
+	observe(): { items: string[]; metrics: Record<string, Record<string, unknown>> } {
+		const metrics: Record<string, Record<string, unknown>> = {};
+		for (const [name, count] of this.counts) metrics[name] = { count };
+		return { items: [...this.counts.keys()], metrics };
+	}
+}
+
+/** The one rollup a run reads, attached and cleared by LogicStepper's cycles. */
+export const blipRollup = new BlipRollup();
+
+/**
  * Record an occurrence onto the event bus. With nothing subscribed to this name this is one check and a return —
  * the reason a hot path can record unconditionally. With a matching subscriber, the name must be declared and the
  * attributes must match the declared shape.
@@ -74,11 +119,23 @@ export function recordBlip(world: TWorld, name: string, value?: number, attribut
 	if (!world.eventLogger.hasSubscribers("blip", name)) return;
 	const declared = declarations.get(name);
 	if (!declared) throw new Error(`recordBlip: "${name}" is not declared — declare it with declareBlips before recording it`);
-	if (declared.attributes && attributes !== undefined) declared.attributes.parse(attributes);
+	// What the declaration validated is what is emitted, so a key it does not name cannot ride along to an exporter, and
+	// omitting attributes a declaration requires is caught here rather than downstream.
+	const declaredAttributes = declared.attributes ? (declared.attributes.parse(attributes ?? {}) as Record<string, unknown>) : attributes;
 	const timestamp = Date.now();
 	const seqPath = world.runtime.currentSeqPath;
 	// emitter is set here so emit() never walks a stack for a per-frame recording.
 	world.eventLogger.emit(
-		BlipEvent.parse({ id: seqPath ? `${seqPath}.blip.${timestamp}` : `blip.${timestamp}`, timestamp, kind: "blip", level: "trace", emitter: "blips.recordBlip", name, seqPath, value, attributes }),
+		BlipEvent.parse({
+			id: seqPath ? `${seqPath}.blip.${timestamp}` : `blip.${timestamp}`,
+			timestamp,
+			kind: "blip",
+			level: "trace",
+			emitter: "blips.recordBlip",
+			name,
+			seqPath,
+			value,
+			attributes: declaredAttributes,
+		}),
 	);
 }
