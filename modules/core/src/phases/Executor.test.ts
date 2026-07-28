@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { TSeqPath } from "../schema/protocol.js";
-import { advanceSyntheticSeqPath, featureSyntheticSeqPath, incSeqPath, calculateShouldClose, syntheticBranchSeqPath, syntheticSeqPathDirection } from "./Executor.js";
+import { Executor, advanceSyntheticSeqPath, featureSyntheticSeqPath, incSeqPath, calculateShouldClose, syntheticBranchSeqPath, syntheticSeqPathDirection } from "./Executor.js";
+import type { TFeatureResult, TStepResult } from "../lib/defs.js";
 
 describe("syntheticSeqPathDirection", () => {
 	it("uses positive direction for authoritative branches", () => {
@@ -151,5 +152,23 @@ describe("calculateShouldClose", () => {
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: false, stayAlways: true });
 			expect(result).toBe(true); // close - more features to run
 		});
+	});
+});
+
+describe("createExecutionFailure", () => {
+	const step = (seqPath: number[], ok: boolean, errorMessage?: string) => ({ ok, errorMessage, in: `step ${seqPath.join(".")}`, seqPath }) as unknown as TStepResult;
+	const feature = (stepResults: TStepResult[]) => [{ path: "/features/test.feature", ok: false, stepResults }] as unknown as TFeatureResult[];
+
+	it("names the feature step that failed, not a synthetic dispatch the step recovered from", () => {
+		// A model's tool call and an RPC dispatch carry a negative seqPath segment; either can fail and be handled
+		// inside the step that made it, so neither is what failed the run.
+		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "tool call failed"), step([0, 2, 4], false, "the real failure")]));
+		expect(failure?.error.message).toBe("the real failure");
+		expect(failure?.error.details.seqPath).toEqual([0, 2, 4]);
+	});
+
+	it("falls back to a synthetic dispatch when nothing else failed, rather than reporting no failure at all", () => {
+		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "only this failed")]));
+		expect(failure?.error.message).toBe("only this failed");
 	});
 });
