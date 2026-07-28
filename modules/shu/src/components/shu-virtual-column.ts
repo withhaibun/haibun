@@ -23,6 +23,7 @@ import "@lit-labs/virtualizer";
 import type { LitVirtualizer } from "@lit-labs/virtualizer/LitVirtualizer.js";
 import type { VisibilityChangedEvent } from "@lit-labs/virtualizer/events.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { railTotalAndWindow } from "../annotation-rail.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
@@ -33,6 +34,10 @@ const EmptySchema = z.object({});
 
 /** Cap on re-issuing the jump-to-edge as the virtualizer measures its way down to the last row: a handful of passes closes
  *  the height-estimate gap; the bound stops an unreachable target (a row that can't fit) from re-jumping forever. */
+/** Resolution the viewport share is held at — finer than a pixel on any rail worth drawing, so the thumb only resizes
+ *  when the resize is visible. */
+const FRACTION_STEPS = 512;
+
 const MAX_CONVERGE = 40;
 
 /** Paint one row: the absolute `index` and its data (`undefined` when the source has not fetched it yet — return a
@@ -84,6 +89,8 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	// scrolling away, which false-paused the tail. RESUME is the reported window reaching the last row again.
 	#follow = new FollowController(this, () => this.#scrollToEnd());
 	#window: TWindow = { first: 0, visible: 0 };
+	#viewportFraction: number | undefined;
+	#measureQueued = false;
 	#convergeFor = -1; // the row count the convergence passes below are chasing
 	#convergeCount = 0; // passes spent chasing it, bounded by MAX_CONVERGE
 	#items: unknown[] = [];
@@ -182,7 +189,30 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		}
 		this.#emitFollow(); // tell a windowing host if this pass reached / left the live edge
 		this.requestUpdate(); // reposition the rail thumb and glyphs
+		this.#scheduleMeasure();
 	};
+
+	/** The viewport's share of the column, for the rail's thumb: rows here can differ in height (a run document holds both
+	 *  a line of prose and a screenshot), so the scroller's own pixels are what "how much is on screen" means.
+	 *
+	 *  Measured on a frame of its own, never inside the virtualizer's range event: reading scrollHeight there forces layout
+	 *  in the middle of the virtualizer's own measuring. */
+	#scheduleMeasure(): void {
+		if (this.#measureQueued) return;
+		this.#measureQueued = true;
+		requestAnimationFrame(() => {
+			this.#measureQueued = false;
+			const scroller = this.#virt.value;
+			if (!scroller) return;
+			const { total, window } = railTotalAndWindow(scroller);
+			// Quantised: the virtualizer revises its total-height estimate continuously while a reader scrolls, and a
+			// revision too small to move the thumb a whole pixel must not re-render the rail (the thumb would twitch).
+			const fraction = total > 0 ? Math.round((window.visible / total) * FRACTION_STEPS) / FRACTION_STEPS : undefined;
+			if (fraction === this.#viewportFraction) return;
+			this.#viewportFraction = fraction;
+			this.requestUpdate();
+		});
+	}
 
 	// Real reader input is the one reliable pause signal: scroll events and the virtualizer's pin state both misreport the
 	// follow's own motion (estimate corrections) as a reader scrolling away.
@@ -202,7 +232,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 
 	render(): TemplateResult {
 		const total = this.source?.count() ?? 0;
-		const rail = html`<shu-scrollbar .total=${total} .window=${this.#window} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]}></shu-scrollbar>`;
+		const rail = html`<shu-scrollbar .total=${total} .window=${this.#window} .viewportFraction=${this.#viewportFraction} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]}></shu-scrollbar>`;
 		// lit-virtualizer requires a ResizeObserver to measure and virtualize. A non-DOM host (a jsdom unit test) has none,
 		// so fall back to a plain list there; every real browser has one, so this branch is test-only and the O(viewport)
 		// behavior is proven by the browser e2e.

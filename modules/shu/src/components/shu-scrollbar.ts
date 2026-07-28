@@ -1,5 +1,5 @@
 /**
- * <shu-scrollbar> — the custom vertical scroll rail for a virtualized column: a thumb sized to the visible fraction, a
+ * <shu-scrollbar> — the custom vertical scroll rail for a virtualized column: a thumb sized to the viewport's share of the column, a
  * position glyph at each end (first visible row ordinal, total), and marker glyphs on the rail for significant rows
  * anywhere in the full data set (annotations, failed steps, feature boundaries) so a reader sees them across the whole
  * column and can jump to one even when it is far outside the rendered window. It is the only usable scroll affordance in
@@ -14,7 +14,7 @@ import { z } from "zod";
 import { property } from "lit/decorators.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { thumbGeometry, firstAtPointer, clusterMarkers, formatCount, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
+import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, formatCount, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
 
 const EmptySchema = z.object({});
 
@@ -35,6 +35,8 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	@property({ attribute: false }) accessor total = 0;
 	@property({ attribute: false }) accessor window: TWindow = { first: 0, visible: 0 };
 	@property({ attribute: false }) accessor markers: TScrollMarker[] = [];
+	/** The viewport's share of the column (0..1), measured by the host; unset falls back to the visible row share. */
+	@property({ attribute: false }) accessor viewportFraction: number | undefined;
 	/** Show the position glyphs (first-visible ordinal / total). A row-list column wants them; a rail over continuous prose,
 	 *  where the numbers would read as raw pixels, sets this false and keeps only the marks and the thumb. */
 	@property({ type: Boolean }) accessor showPosition = true;
@@ -88,10 +90,21 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		return this.shadowRoot?.querySelector(".rail") ?? null;
 	}
 
+	/** An empty column has nothing to scroll, so its thumb fills the rail rather than shrinking to the minimum. */
+	#fraction(): number {
+		return this.viewportFraction ?? (this.total > 0 ? this.window.visible / this.total : 1);
+	}
+
+	/** This element's thumb height, from the one model definition — the rail geometry and the pointer mapping share it. */
+	#thumbPx(railPx: number): number {
+		return thumbHeightPx(this.#fraction(), railPx);
+	}
+
 	render(): TemplateResult {
 		const railPx = this.#railPx;
-		const { topPx, heightPx } = thumbGeometry(this.total, this.window, railPx);
-		const marks = clusterMarkers(this.markers, this.total, railPx, this.window.visible);
+		const heightPx = this.#thumbPx(railPx);
+		const topPx = thumbTopPx(this.total, this.window, railPx, heightPx);
+		const marks = clusterMarkers(this.markers, this.total, railPx, heightPx);
 		return html`
 			<span class="pos pos-top" data-testid="scrollbar-pos-top">${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
 			<div class="rail" @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
@@ -116,7 +129,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		const rail = this.#rail();
 		if (!rail) return this.window.first;
 		const rect = rail.getBoundingClientRect();
-		return firstAtPointer(this.total, this.window.visible, clientY - rect.top, rect.height);
+		return firstAtPointer(this.total, this.window.visible, clientY - rect.top, rect.height, this.#thumbPx(rect.height));
 	}
 
 	#dragId: number | null = null;
