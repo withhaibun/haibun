@@ -7,9 +7,10 @@
  *
  * A blip is the opposite: it is NEVER retained. It rides the one event bus as `kind: "blip"`, delivered only to a
  * subscriber that asked for that kind (`eventLogger.subscribe(cb, { kinds: ["blip"] })`) — an exporter mapping it onto
- * an OpenTelemetry span event, an agent watching for a condition. A bare subscriber never receives one, the console
- * never prints one, and with nothing subscribed to the kind, recording costs one boolean test and returns. That is what
- * makes it safe to leave recording in a hot path permanently.
+ * an OpenTelemetry span event, an agent watching for a condition. `{ names }` narrows a subscription to declared names
+ * or dotted namespaces (`haibun.http` matches `haibun.http.request`). A bare subscriber never receives one, the console
+ * never prints one, and with nothing subscribed to the name, recording costs one check and returns. That is what makes
+ * it safe to leave recording in a hot path permanently.
  *
  * Every blip is DECLARED before it can be recorded: a name, what it measures, and the shape of its attributes. An
  * undeclared name throws rather than inventing a vocabulary at the call site, and `dimensions` names the attributes that
@@ -65,12 +66,12 @@ export function resetBlips(): void {
 }
 
 /**
- * Record an occurrence onto the event bus. With nothing subscribed to the kind this is a boolean test and a return —
- * the reason a hot path can record unconditionally. With a subscriber, the name must be declared and the attributes
- * must match the declared shape.
+ * Record an occurrence onto the event bus. With nothing subscribed to this name this is one check and a return —
+ * the reason a hot path can record unconditionally. With a matching subscriber, the name must be declared and the
+ * attributes must match the declared shape.
  */
 export function recordBlip(world: TWorld, name: string, value?: number, attributes?: Record<string, unknown>): void {
-	if (!world.eventLogger.hasSubscribers("blip")) return;
+	if (!world.eventLogger.hasSubscribers("blip", name)) return;
 	const declared = declarations.get(name);
 	if (!declared) throw new Error(`recordBlip: "${name}" is not declared — declare it with declareBlips before recording it`);
 	if (declared.attributes && attributes !== undefined) declared.attributes.parse(attributes);
