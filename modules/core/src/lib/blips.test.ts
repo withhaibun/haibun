@@ -113,6 +113,24 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(() => declareBlips(SCROLL)).not.toThrow(); // the same shape again is the same declaration
 	});
 
+	it("refuses a second attribute schema under one name, which would strip or reject the first caller's recordings", () => {
+		declareBlips(SCROLL);
+		// Everything a reader can see matches; only the schema differs, which is the part that decides what is emitted.
+		expect(() => declareBlips({ ...SCROLL, attributes: z.object({ view: z.string(), extra: z.string() }) })).toThrow(/already declared/);
+	});
+
+	it("accepts an equivalent schema written twice, since the two are provably the same", () => {
+		declareBlips(SCROLL);
+		expect(() => declareBlips({ ...SCROLL, attributes: z.object({ view: z.string() }) })).not.toThrow();
+	});
+
+	it("refuses a schema it cannot compare, rather than assuming two unprovable declarations agree", () => {
+		const opaque = { ...SCROLL, name: "haibun.test.opaque", attributes: z.string().transform((s) => s.length) };
+		declareBlips(opaque);
+		expect(() => declareBlips({ ...opaque, attributes: z.string().transform((s) => s.length) })).toThrow(/already declared/);
+		expect(() => declareBlips(opaque)).not.toThrow(); // the same schema is still the same declaration
+	});
+
 	it("publishes its declarations, so an exporter builds instruments and a reader discovers what a run records", () => {
 		declareBlips(SCROLL);
 		const found = blipDeclarations().find((d) => d.name === SCROLL.name);
