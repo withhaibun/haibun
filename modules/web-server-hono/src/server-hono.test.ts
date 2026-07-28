@@ -12,6 +12,7 @@ const mockLogger: IEventLogger = {
 	unsubscribe: () => {
 		/* noop */
 	},
+	hasSubscribers: () => false,
 	info: () => {
 		/* noop */
 	},

@@ -7,7 +7,7 @@
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK, type TBlipEvent } from "@haibun/core/schema/protocol.js";
 import { THaibunEvent, EventFormatter } from "@haibun/core/monitor/index.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
 
@@ -20,7 +20,6 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic
 import { LoggerProvider, BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
-import { listenForBlips, type TBlip } from "@haibun/core/lib/blips.js";
 
 export default class MonitorOtelStepper extends AStepper implements IHasCycles, IHasOptions {
 	kind = StepperKinds.MONITOR;
@@ -98,8 +97,14 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			await Promise.resolve();
 			this.initializeIfNeeded();
 			// A blip is a fine-grained occurrence the run never retains; here it becomes a span event on the step it
-			// happened under, so it is queryable in order and in context rather than flooding the event log.
-			this.detachBlips ??= listenForBlips((blip) => this.recordBlip(blip));
+			// happened under, so it is queryable in order and in context rather than flooding the event log. Only a
+			// kinds subscription receives blips; the narrated subscription in setWorld never sees one.
+			if (!this.detachBlips) {
+				const { eventLogger } = this.getWorld();
+				const onBlip = (event: THaibunEvent) => event.kind === "blip" && this.recordBlip(event);
+				eventLogger.subscribe(onBlip, { kinds: ["blip"] });
+				this.detachBlips = () => eventLogger.unsubscribe(onBlip);
+			}
 		},
 		onEvent: async (event: THaibunEvent) => {
 			await Promise.resolve();
@@ -242,7 +247,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 
 	/** A blip as a span event on the step it happened under — the run's own seqPath is the trace context, so nothing at
 	 *  the recording site threads a span. Falls back to the feature span, and is dropped when neither is open. */
-	private recordBlip(blip: TBlip): void {
+	private recordBlip(blip: TBlipEvent): void {
 		const span = (blip.seqPath ? this.getParentSpanForId(`${blip.seqPath}.`) : undefined) ?? this.featureSpan;
 		if (!span) return;
 		span.addEvent(
