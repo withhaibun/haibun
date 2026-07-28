@@ -20,7 +20,7 @@
  */
 import { z } from "zod";
 import { BlipEvent } from "../schema/protocol.js";
-import type { THaibunEvent } from "../schema/protocol.js";
+import type { THaibunEvent, TBlipEvent } from "../schema/protocol.js";
 import type { IEventLogger } from "./EventLogger.js";
 import type { TWorld } from "./world.js";
 
@@ -130,8 +130,75 @@ export class BlipRollup {
 	}
 }
 
-/** The one rollup a run reads, attached and cleared by LogicStepper's cycles. */
+/** The one rollup a run reads, attached and cleared by the blips stepper's cycles. */
 export const blipRollup = new BlipRollup();
+
+/** How many occurrences a watch holds. A fixed ring, so the window cannot grow: the same property that lets a hot path
+ *  record forever. What falls out is counted, never silently dropped. */
+export const WATCH_WINDOW = 200;
+
+/**
+ * A focused, ordered window over named blips. The rollup answers how many; this answers in what order, which is the
+ * question a fine-grained occurrence exists to settle and the one a count destroys. Subscribing by name is what keeps
+ * the window worth reading: a single per-frame name would otherwise flood out everything else it holds.
+ *
+ * This is what an agent asked to watch something receives. It is bounded, so handing it to a model or a feature costs
+ * a known amount however long the run goes on.
+ */
+export class BlipWatch {
+	private ring: TBlipEvent[] = [];
+	private at = 0;
+	private named: readonly string[] = [];
+	private recorded = 0;
+	private detachFn: (() => void) | undefined;
+
+	/** Start collecting the named blips, replacing any earlier watch and its window. */
+	start(eventLogger: IEventLogger, names: readonly string[]): void {
+		this.stop();
+		this.ring = [];
+		this.at = 0;
+		this.recorded = 0;
+		this.named = [...names];
+		const cb = (event: THaibunEvent) => {
+			if (event.kind === "blip") this.hold(event);
+		};
+		eventLogger.subscribe(cb, { kinds: ["blip"], names });
+		this.detachFn = () => eventLogger.unsubscribe(cb);
+	}
+
+	stop(): void {
+		this.detachFn?.();
+		this.detachFn = undefined;
+	}
+
+	/** The names being watched, empty when nothing is. */
+	get names(): readonly string[] {
+		return this.named;
+	}
+
+	/** Every occurrence recorded since the watch started, including any the window has since dropped. */
+	get seen(): number {
+		return this.recorded;
+	}
+
+	/** The held occurrences, oldest first. */
+	occurrences(): readonly TBlipEvent[] {
+		return this.ring.length < WATCH_WINDOW ? [...this.ring] : [...this.ring.slice(this.at), ...this.ring.slice(0, this.at)];
+	}
+
+	private hold(blip: TBlipEvent): void {
+		this.recorded++;
+		if (this.ring.length < WATCH_WINDOW) {
+			this.ring.push(blip);
+			return;
+		}
+		this.ring[this.at] = blip;
+		this.at = (this.at + 1) % WATCH_WINDOW;
+	}
+}
+
+/** The one watch a run holds, started and stopped by the blips stepper's steps. */
+export const blipWatch = new BlipWatch();
 
 /**
  * Record an occurrence onto the event bus. With nothing subscribed to this name this is one check and a return —
