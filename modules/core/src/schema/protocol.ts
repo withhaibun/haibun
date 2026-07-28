@@ -652,8 +652,19 @@ export const ControlEvent = BaseEvent.extend({
 	args: z.record(z.string(), z.unknown()).optional(),
 });
 
+// Blip Events: one fine-grained occurrence, recorded where it happens and never retained by the run. A blip shares the
+// event transport but not the audience: it is delivered only to a subscriber that asked for its kind, and it is never
+// narrated (no console line, no bare subscriber). Declarations live in lib/blips.ts.
+export const BlipEvent = BaseEvent.extend({
+	kind: z.literal("blip"),
+	name: z.string().describe("Declared blip name, dotted and namespaced, e.g. haibun.http.request"),
+	seqPath: z.string().optional().describe("The step the run was executing, so an exporter attaches this to that step's span"),
+	value: z.number().optional().describe("The measured value, in the declaration's unit"),
+	attributes: z.record(z.string(), z.unknown()).optional(),
+});
+
 // Union Type
-export const HaibunEvent = z.union([LifecycleEvent, LogEvent, ArtifactEvent, ControlEvent]);
+export const HaibunEvent = z.union([LifecycleEvent, LogEvent, ArtifactEvent, ControlEvent, BlipEvent]);
 
 export type TBaseEvent = z.infer<typeof BaseEvent>;
 export type TLifecycleEvent = z.infer<typeof LifecycleEvent>;
@@ -675,4 +686,6 @@ export type THttpTraceArtifact = z.infer<typeof HttpTraceArtifact>;
 export type TResolvedFeaturesArtifact = z.infer<typeof ResolvedFeaturesArtifact>;
 export type TFileArtifact = z.infer<typeof FileArtifact>;
 export type TControlEvent = z.infer<typeof ControlEvent>;
+export type TBlipEvent = z.infer<typeof BlipEvent>;
 export type THaibunEvent = z.infer<typeof HaibunEvent>;
+export type TEventKind = THaibunEvent["kind"];

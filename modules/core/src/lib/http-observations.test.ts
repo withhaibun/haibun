@@ -18,7 +18,7 @@ function mockWorld(): { world: TWorld; store: QuadStore } {
 	const store = new QuadStore();
 	const world = {
 		runtime: { stepResults: [] },
-		eventLogger: { emit: () => undefined },
+		eventLogger: { emit: () => undefined, hasSubscribers: () => false },
 		shared: { getStore: () => store },
 	} as unknown as TWorld;
 	return { world, store };

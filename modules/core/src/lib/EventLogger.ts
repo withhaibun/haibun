@@ -1,5 +1,5 @@
 import { LogEvent, LifecycleEvent } from "../schema/protocol.js";
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "../schema/protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../schema/protocol.js";
 import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
 import { formatCurrentSeqPath } from "./util/index.js";
@@ -9,11 +9,18 @@ export type TIsSecretFn = (name: string) => boolean;
 
 export type TEventSubscriber = (event: THaibunEvent) => void;
 
+export type TSubscribeOptions = { kinds?: readonly TEventKind[] };
+
+/** The run's own story: what the console prints and what a bare subscribe(cb) receives. A blip is not narration; only a
+ *  subscriber that names its kind receives it, so a per-frame channel cannot reach the monitor's buffer or SSE by accident. */
+const NARRATED_KINDS: ReadonlySet<TEventKind> = new Set<TEventKind>(["lifecycle", "log", "artifact", "control"]);
+
 export interface IEventLogger {
 	suppressConsole?: boolean;
 	currentSeqPath: string | undefined;
-	subscribe(callback: TEventSubscriber): void;
+	subscribe(callback: TEventSubscriber, options?: TSubscribeOptions): void;
 	unsubscribe(callback: TEventSubscriber): void;
+	hasSubscribers(kind: TEventKind): boolean;
 	emit(event: THaibunEvent): void;
 	log(featureStep: TFeatureStep, level: THaibunLogLevel, message: string, attributes?: Record<string, unknown>): void;
 	// Convenience methods for logging without a featureStep
@@ -69,7 +76,8 @@ function getEmitter(): string {
 }
 
 export class EventLogger implements IEventLogger {
-	private subscribers: TEventSubscriber[] = [];
+	private subscribers: { callback: TEventSubscriber; kinds?: ReadonlySet<TEventKind> }[] = [];
+	private kindCounts = new Map<TEventKind, number>();
 	public suppressConsole: boolean = false;
 	private isSecretFn: TIsSecretFn;
 	currentSeqPath: string | undefined;
@@ -81,23 +89,41 @@ export class EventLogger implements IEventLogger {
 		this.suppressConsole = !forceNdjson && isTest;
 	}
 
-	subscribe(callback: TEventSubscriber): void {
-		this.subscribers.push(callback);
+	/** Without options, delivers everything the run narrates and never blips; `{ kinds }` delivers exactly those kinds
+	 *  and is the only way to receive `"blip"`. */
+	subscribe(callback: TEventSubscriber, options?: TSubscribeOptions): void {
+		const kinds = options?.kinds ? new Set(options.kinds) : undefined;
+		this.subscribers.push({ callback, kinds });
+		for (const kind of kinds ?? NARRATED_KINDS) this.kindCounts.set(kind, (this.kindCounts.get(kind) ?? 0) + 1);
 	}
 
 	unsubscribe(callback: TEventSubscriber): void {
-		this.subscribers = this.subscribers.filter((s) => s !== callback);
+		for (const held of this.subscribers.filter((s) => s.callback === callback))
+			for (const kind of held.kinds ?? NARRATED_KINDS) {
+				const count = (this.kindCounts.get(kind) ?? 0) - 1;
+				if (count > 0) this.kindCounts.set(kind, count);
+				else this.kindCounts.delete(kind);
+			}
+		this.subscribers = this.subscribers.filter((s) => s.callback !== callback);
+	}
+
+	/** One check for a hot path: whether anything at all would receive an event of this kind. */
+	hasSubscribers(kind: TEventKind): boolean {
+		return this.kindCounts.has(kind);
 	}
 
 	emit(event: THaibunEvent): void {
+		const narrated = NARRATED_KINDS.has(event.kind);
+		if (!narrated && !this.kindCounts.has(event.kind)) return;
 		const eventWithEmitter = {
 			...event,
 			emitter: event.emitter || getEmitter(),
 		};
 
-		for (const subscriber of this.subscribers) {
+		for (const { callback, kinds } of this.subscribers) {
+			if (kinds ? !kinds.has(event.kind) : !narrated) continue;
 			try {
-				subscriber(eventWithEmitter);
+				callback(eventWithEmitter);
 			} catch (e) {
 				// Same fan-out isolation as SseSubscriber.dispatch: one broken
 				// subscriber must not silence the others. DEV throws so the bug
@@ -105,7 +131,7 @@ export class EventLogger implements IEventLogger {
 				failFastOrLog("EventLogger subscriber error:", e);
 			}
 		}
-		if (!this.suppressConsole) {
+		if (narrated && !this.suppressConsole) {
 			console.log(JSON.stringify(eventWithEmitter));
 		}
 	}

@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { EventLogger } from "./EventLogger.js";
 import { TFeatureStep } from "./astepper.js";
 import { OBSCURED_VALUE } from "./feature-variables.js";
+import { BlipEvent } from "../schema/protocol.js";
 
 const OK = { ok: true as const };
 
@@ -125,6 +126,15 @@ describe("EventLogger", () => {
 			expect(emitted.length).toBe(1);
 		});
 
+		it("should count a repeated subscription once removed, keeping per-kind counts exact", () => {
+			const callback = () => undefined;
+			logger.subscribe(callback);
+			logger.subscribe(callback);
+			expect(logger.hasSubscribers("log")).toBe(true);
+			logger.unsubscribe(callback);
+			expect(logger.hasSubscribers("log")).toBe(false);
+		});
+
 		it("should support multiple subscribers independently", () => {
 			const emittedA: unknown[] = [];
 			const emittedB: unknown[] = [];
@@ -141,6 +151,53 @@ describe("EventLogger", () => {
 			logger.info("only B");
 			expect(emittedA.length).toBe(1);
 			expect(emittedB.length).toBe(2);
+		});
+	});
+
+	describe("kinds delivery", () => {
+		const blip = () => BlipEvent.parse({ id: "0.1.blip", timestamp: Date.now(), kind: "blip", level: "trace", emitter: "test", name: "haibun.test.blip" });
+
+		it("delivers narration to a bare subscriber, and never a blip", () => {
+			const emitted: unknown[] = [];
+			logger.subscribe((event) => emitted.push(event));
+			logger.subscribe(() => undefined, { kinds: ["blip"] }); // so the blip emit is not short-circuited
+			logger.emit(blip());
+			logger.info("narration");
+			expect(emitted.map((e) => (e as { kind: string }).kind)).toEqual(["log"]);
+		});
+
+		it("delivers exactly the named kinds to a kinds subscriber, the only way to receive blips", () => {
+			const emitted: unknown[] = [];
+			logger.subscribe((event) => emitted.push(event), { kinds: ["blip"] });
+			logger.emit(blip());
+			logger.info("narration");
+			expect(emitted.map((e) => (e as { kind: string }).kind)).toEqual(["blip"]);
+		});
+
+		it("counts subscribers per kind, so a hot path can skip recording with one check", () => {
+			expect(logger.hasSubscribers("blip")).toBe(false);
+			logger.subscribe(() => undefined); // a bare subscriber is not a blip audience
+			expect(logger.hasSubscribers("blip")).toBe(false);
+			expect(logger.hasSubscribers("log")).toBe(true);
+			const cb = () => undefined;
+			logger.subscribe(cb, { kinds: ["blip"] });
+			expect(logger.hasSubscribers("blip")).toBe(true);
+			logger.unsubscribe(cb);
+			expect(logger.hasSubscribers("blip")).toBe(false);
+		});
+
+		it("never narrates a blip to the console", () => {
+			const consoleLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
+			try {
+				logger.suppressConsole = false;
+				logger.subscribe(() => undefined, { kinds: ["blip"] });
+				logger.emit(blip());
+				expect(consoleLog).not.toHaveBeenCalled();
+				logger.info("narration");
+				expect(consoleLog).toHaveBeenCalledTimes(1);
+			} finally {
+				consoleLog.mockRestore();
+			}
 		});
 	});
 });
