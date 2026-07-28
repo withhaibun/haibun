@@ -120,12 +120,16 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		},
 		showDeclaredBlips: {
 			gwta: "show declared blips",
-			description: "Every occurrence this run can record, with what one recording means and what detail it carries. Read this to find out what is worth watching.",
+			description:
+				"Every occurrence this run can record, with what one recording means, what detail it carries, and, where declared with origin, the source that declares it. Read this to find out what is worth watching and where to read the code behind a name.",
 			productsSchema: DeclaredSchema,
 			action: async () => {
 				await Promise.resolve();
 				const declared = blipDeclarations();
-				const text = declared.length === 0 ? "This run declares no blips." : declared.map((d) => `${d.name}${d.unit ? ` (${d.unit})` : ""}: ${d.description}`).join("\n");
+				const text =
+					declared.length === 0
+						? "This run declares no blips."
+						: declared.map((d) => `${d.name}${d.unit ? ` (${d.unit})` : ""}: ${d.description}${d.declaredAt ? ` [declared at ${d.declaredAt}]` : ""}`).join("\n");
 				return actionOKWithProducts({ text, names: declared.map((d) => d.name) });
 			},
 		},

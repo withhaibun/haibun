@@ -137,6 +137,17 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(found).toMatchObject({ instrument: "span-event", unit: "px", dimensions: ["view"] });
 	});
 
+	it("carries where a name was declared when it opted in, and keeps that through a same-shape redeclaration", () => {
+		declareBlips({ ...SCROLL, name: "haibun.test.with.origin", origin: true });
+		declareBlips(SCROLL);
+		const traced = blipDeclarations().find((d) => d.name === "haibun.test.with.origin");
+		// The declaring site is this test file: the path a reader hands to a source tool.
+		expect(traced?.declaredAt).toMatch(/blips\.test\.[jt]s:\d+$/);
+		declareBlips({ ...SCROLL, name: "haibun.test.with.origin", origin: true });
+		expect(blipDeclarations().find((d) => d.name === "haibun.test.with.origin")?.declaredAt).toBe(traced?.declaredAt);
+		expect(blipDeclarations().find((d) => d.name === SCROLL.name)?.declaredAt).toBeUndefined();
+	});
+
 	it("stops recording once a subscriber detaches", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();

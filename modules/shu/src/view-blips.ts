@@ -7,7 +7,7 @@
  * nothing recorded what the view did between one frame and the next.
  */
 import { z } from "zod";
-import type { TBlipDeclaration } from "@haibun/core/lib/blips.js";
+import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/blips.js";
 
 /** A view measured its own scroll geometry and the raw answer moved, before any quantisation. `value` is the thumb's
  *  size as a fraction of the rail; `rendered` says whether the change was big enough to redraw the thumb, so the
@@ -41,6 +41,7 @@ export const VIEW_BLIPS: TBlipDeclaration[] = [
 		unit: "1",
 		attributes: viewAttributes.extend({ first: z.number(), visible: z.number(), count: z.number(), following: z.boolean() }),
 		dimensions: ["view"],
+		origin: true,
 	},
 	{
 		name: VIEW_THUMB_BLIP,
@@ -50,6 +51,7 @@ export const VIEW_BLIPS: TBlipDeclaration[] = [
 		unit: "1",
 		attributes: viewAttributes.extend({ visible: z.number(), total: z.number(), rendered: z.boolean() }),
 		dimensions: ["view"],
+		origin: true,
 	},
 	{
 		name: VIEW_SCROLL_BLIP,
@@ -58,5 +60,10 @@ export const VIEW_BLIPS: TBlipDeclaration[] = [
 		unit: "px",
 		attributes: viewAttributes.extend({ reason: z.enum(SCROLL_REASONS) }),
 		dimensions: ["view", "reason"],
+		origin: true,
 	},
 ];
+
+// Declared where the vocabulary lives, so an origin names this module: the run side imports this module and the
+// declarations are in place before any batch arrives.
+declareBlips(...VIEW_BLIPS);
