@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { declareBlips, blipDeclarations, recordBlip, resetBlips } from "./blips.js";
+import { declareBlips, blipDeclarations, recordBlip, resetBlips, BlipRollup } from "./blips.js";
 import { EventLogger } from "./EventLogger.js";
 import type { THaibunEvent } from "../schema/protocol.js";
 import type { TWorld } from "./world.js";
@@ -91,6 +91,22 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(() => recordBlip(world, SCROLL.name, 1, { viewe: "typo" })).toThrow();
 	});
 
+	it("emits only the attributes the declaration names, so a stray key cannot ride along", () => {
+		declareBlips(SCROLL);
+		const { world, eventLogger } = make();
+		const seen: THaibunEvent[] = [];
+		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"] });
+		recordBlip(world, SCROLL.name, 1, { view: "a", stray: "a whole response body" });
+		expect(seen[0].kind === "blip" && seen[0].attributes).toEqual({ view: "a" });
+	});
+
+	it("refuses a recording that omits attributes the declaration requires", () => {
+		declareBlips(SCROLL);
+		const { world, eventLogger } = make();
+		eventLogger.subscribe(() => undefined, { kinds: ["blip"] });
+		expect(() => recordBlip(world, SCROLL.name, 1)).toThrow();
+	});
+
 	it("refuses to redeclare one name as two different things", () => {
 		declareBlips(SCROLL);
 		expect(() => declareBlips({ ...SCROLL, instrument: "counter", unit: "1" })).toThrow(/already declared/);
@@ -113,5 +129,55 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		eventLogger.unsubscribe(cb);
 		recordBlip(world, SCROLL.name, 2, { view: "a" });
 		expect(seen.map((e) => (e.kind === "blip" ? e.value : undefined))).toEqual([1]);
+	});
+});
+
+describe("blip rollup: the aggregating listener", () => {
+	const HTTP = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "An observed request completed." };
+
+	beforeEach(resetBlips);
+
+	it("counts occurrences per name while attached, in observation-source shape", () => {
+		declareBlips(SCROLL, HTTP);
+		const { world, eventLogger } = make("0.1");
+		const rollup = new BlipRollup();
+		rollup.attach(eventLogger);
+		recordBlip(world, SCROLL.name, 1, { view: "a" });
+		recordBlip(world, SCROLL.name, 2, { view: "a" });
+		recordBlip(world, HTTP.name);
+		const { items, metrics } = rollup.observe();
+		expect(items.sort()).toEqual([HTTP.name, SCROLL.name].sort());
+		expect(metrics[SCROLL.name]).toEqual({ count: 2 });
+		expect(metrics[HTTP.name]).toEqual({ count: 1 });
+	});
+
+	it("rebinds to the logger it is given, so an execution that never detached cannot deafen the next one", () => {
+		declareBlips(SCROLL);
+		const first = make("0.1");
+		const rollup = new BlipRollup();
+		rollup.attach(first.eventLogger);
+		recordBlip(first.world, SCROLL.name, 1, { view: "a" });
+		// The execution ends without detaching, as a throw escaping the feature loop would leave it.
+		const second = make("0.1");
+		rollup.attach(second.eventLogger);
+		expect(first.eventLogger.hasSubscribers("blip")).toBe(false);
+		expect(rollup.observe().items).toEqual([]); // a clean window, not the previous execution's counts
+		recordBlip(second.world, SCROLL.name, 1, { view: "a" });
+		expect(rollup.observe().metrics[SCROLL.name]).toEqual({ count: 1 });
+	});
+
+	it("clears on reset and stops counting on detach, restoring the no-subscriber fast path", () => {
+		declareBlips(SCROLL);
+		const { world, eventLogger } = make();
+		const rollup = new BlipRollup();
+		rollup.attach(eventLogger);
+		recordBlip(world, SCROLL.name, 1, { view: "a" });
+		expect(rollup.observe().metrics[SCROLL.name]).toEqual({ count: 1 });
+		rollup.reset();
+		expect(rollup.observe().items).toEqual([]);
+		rollup.detach();
+		expect(eventLogger.hasSubscribers("blip")).toBe(false);
+		recordBlip(world, SCROLL.name, 2, { view: "a" });
+		expect(rollup.observe().items).toEqual([]);
 	});
 });
