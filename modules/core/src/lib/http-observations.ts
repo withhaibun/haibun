@@ -6,9 +6,11 @@
  * - PlaywrightEvents (browser requests via Playwright)
  */
 
+import { z } from "zod";
 import type { TWorld } from "./world.js";
-import { LinkRelations, writeEdge } from "./resources.js";
+import { LinkRelations, writeEdge, writeReferenceEdge } from "./resources.js";
 import { activeSitePrincipal } from "./host-id.js";
+import { declareBlips, recordBlip } from "./blips.js";
 
 /** The one type every observed HTTP request becomes: the single network-interaction record. Its `performedBy`/`target`
  *  edges make it a message on the fisheye sequence view. */
@@ -23,6 +25,19 @@ export const ENDPOINT_LABEL = "Endpoint";
 const CLIENT_ID = "client";
 /** The endpoint classes: an own page route, the app's service plumbing (/rpc, /sse), or another host. */
 export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;
+/** Every observed request, as a fine-grained occurrence: the persisted record is what the graph and the sequence read,
+ *  while this is what a trace shows in order, under the step that caused it. Recorded on every response, so it leaves
+ *  to the blip channel the job of costing nothing when nothing is listening. */
+export const HTTP_REQUEST_BLIP = "haibun.http.request";
+declareBlips({
+	name: HTTP_REQUEST_BLIP,
+	instrument: "span-event",
+	description: "An HTTP request completed, as observed by a client this run drives.",
+	unit: "ms",
+	attributes: z.object({ method: z.string(), status: z.number(), endpointClass: z.string(), url: z.string() }),
+	dimensions: ["method", "status", "endpointClass"],
+});
+
 /** The site's own host node's display name. */
 const SITE_NAME = "This site";
 
@@ -115,12 +130,15 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 			generatedAtTime,
 		}),
 	]);
+	recordBlip(world, HTTP_REQUEST_BLIP, observation.durationMs, { method: observation.method, status: observation.status, endpointClass, url: observation.url });
 	const [sourceLabel, sourceId] = origin === "site" ? [HTTP_HOST_LABEL, site] : [HTTP_CLIENT_LABEL, CLIENT_ID];
 	await Promise.all([
 		writeEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.PERFORMED_BY.rel, sourceLabel, sourceId),
 		external
-			? writeEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, HTTP_HOST_LABEL, hostId)
-			: writeEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, ENDPOINT_LABEL, endpointPath).then(() =>
+			? writeReferenceEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, HTTP_HOST_LABEL, hostId)
+			: // The endpoint's own record is written when its route is mounted, which may not have landed when the first
+				// request to it is observed: a reference holds the observation until it does, rather than losing the request.
+				writeReferenceEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, ENDPOINT_LABEL, endpointPath).then(() =>
 					once(`endpoint:${endpointPath}`, async () => {
 						// The link may already exist from an earlier scenario's carried quads — check the store, once per endpoint.
 						const linked = await store.query({ subject: endpointPath, predicate: LinkRelations.PART_OF.rel, namedGraph: ENDPOINT_LABEL });
