@@ -55,6 +55,29 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(narrated.map((e) => e.kind)).toEqual(["log"]);
 	});
 
+	it("delivers only the names a subscriber filtered to, exact or by dotted namespace", () => {
+		const HTTP = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "An observed request completed." };
+		declareBlips(SCROLL, HTTP);
+		const { world, eventLogger } = make("0.1");
+		const seen: THaibunEvent[] = [];
+		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"], names: ["haibun.test.http"] });
+		recordBlip(world, SCROLL.name, 1, { view: "a" });
+		recordBlip(world, HTTP.name);
+		expect(seen.map((e) => (e.kind === "blip" ? e.name : e.kind))).toEqual([HTTP.name]);
+	});
+
+	it("returns before any lookup when no filter matches the name, so an unwatched hot path still costs one check", () => {
+		const { world, eventLogger } = make();
+		eventLogger.subscribe(() => undefined, { kinds: ["blip"], names: ["haibun.test.http"] });
+		// Undeclared and mismatched: with no subscriber filter matching, recording never reaches the declaration check.
+		expect(() => recordBlip(world, "haibun.test.never.declared", 1)).not.toThrow();
+	});
+
+	it("refuses a names filter without the blip kind, rather than silently never delivering", () => {
+		const { eventLogger } = make();
+		expect(() => eventLogger.subscribe(() => undefined, { names: ["haibun.test.http"] })).toThrow(/kinds/);
+	});
+
 	it("refuses a name nobody declared, rather than letting a vocabulary grow at the call site", () => {
 		const { world, eventLogger } = make();
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"] });

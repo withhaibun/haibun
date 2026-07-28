@@ -155,7 +155,7 @@ describe("EventLogger", () => {
 	});
 
 	describe("kinds delivery", () => {
-		const blip = () => BlipEvent.parse({ id: "0.1.blip", timestamp: Date.now(), kind: "blip", level: "trace", emitter: "test", name: "haibun.test.blip" });
+		const blip = (name = "haibun.test.blip") => BlipEvent.parse({ id: "0.1.blip", timestamp: Date.now(), kind: "blip", level: "trace", emitter: "test", name });
 
 		it("delivers narration to a bare subscriber, and never a blip", () => {
 			const emitted: unknown[] = [];
@@ -172,6 +172,24 @@ describe("EventLogger", () => {
 			logger.emit(blip());
 			logger.info("narration");
 			expect(emitted.map((e) => (e as { kind: string }).kind)).toEqual(["blip"]);
+		});
+
+		it("filters blips by declared name, exact or by dotted namespace", () => {
+			const emitted: unknown[] = [];
+			logger.subscribe((event) => emitted.push(event), { kinds: ["blip"], names: ["haibun.http", "haibun.shu.view.scroll_adjust"] });
+			logger.emit(blip("haibun.http.request")); // namespace match
+			logger.emit(blip("haibun.shu.view.scroll_adjust")); // exact match
+			logger.emit(blip("haibun.httpx.request")); // a sibling name is not in the haibun.http namespace
+			logger.emit(blip("haibun.shu.view.scroll_adjust_other"));
+			expect(emitted.map((e) => (e as { name: string }).name)).toEqual(["haibun.http.request", "haibun.shu.view.scroll_adjust"]);
+		});
+
+		it("answers hasSubscribers per name, so an unwatched blip is skipped at the recording site", () => {
+			logger.subscribe(() => undefined, { kinds: ["blip"], names: ["haibun.http"] });
+			expect(logger.hasSubscribers("blip", "haibun.http.request")).toBe(true);
+			expect(logger.hasSubscribers("blip", "haibun.shu.view.scroll_adjust")).toBe(false);
+			logger.subscribe(() => undefined, { kinds: ["blip"] }); // an unfiltered blip subscriber wants every name
+			expect(logger.hasSubscribers("blip", "haibun.shu.view.scroll_adjust")).toBe(true);
 		});
 
 		it("counts subscribers per kind, so a hot path can skip recording with one check", () => {
