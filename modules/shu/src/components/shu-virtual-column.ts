@@ -24,6 +24,7 @@ import type { LitVirtualizer } from "@lit-labs/virtualizer/LitVirtualizer.js";
 import type { VisibilityChangedEvent } from "@lit-labs/virtualizer/events.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { railTotalAndWindow } from "../annotation-rail.js";
+import { VIEW_THUMB_BLIP, VIEW_SCROLL_BLIP, VIEW_WINDOW_BLIP, READER_INPUT_WINDOW_MS } from "../view-blips.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
@@ -37,6 +38,11 @@ const EmptySchema = z.object({});
 /** Resolution the viewport share is held at — finer than a pixel on any rail worth drawing, so the thumb only resizes
  *  when the resize is visible. */
 const FRACTION_STEPS = 512;
+
+/** How many pixels above its end a followed pane may sit and still count as at the live edge: the height-estimate
+ *  overshoot below the last row is tens of pixels, a stalled follow is hundreds. One contract, shared with the control
+ *  that asserts it. */
+export const FOLLOW_EDGE_SLACK_PX = 200;
 
 const MAX_CONVERGE = 40;
 
@@ -97,6 +103,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	#itemCount = -1;
 	#unsub: (() => void) | null = null;
 	#lastFollowing = false; // last-emitted follow state, so FOLLOW_CHANGED fires only on a transition
+	// Change gates for the occurrences this view records: only a movement records, so a stable reading costs nothing.
+	#lastRawFraction: number | undefined;
+	#lastScrollTop: number | undefined;
+	#lastWindowShort: number | undefined;
+	#readerInputAt = 0; // when the reader last touched the view, so a scroll can say who moved it
 
 	/** Emit FOLLOW_CHANGED when the pinned-to-live-edge state flips (follow enabled AND the reader at the edge). A host that
 	 *  windows its data listens for this to switch between a live-tail span and the full history. Only fires on a transition. */
@@ -116,7 +127,28 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// instantly via the window-reaches-last resume, so no direction check is needed.
 		this.autoListen(this, "wheel", this.#onUserScroll, { passive: true });
 		this.autoListen(this, "touchmove", this.#onUserScroll, { passive: true });
+		// Scroll does not bubble but is capturable, so one listener here sees the virtualizer scroller move.
+		this.autoListen(this, "scroll", this.#onAnyScroll, { passive: true, capture: true });
 	}
+
+	#onAnyScroll = (e: Event): void => {
+		const scroller = this.#virt.value;
+		if (!scroller || e.target !== scroller) return;
+		const top = scroller.scrollTop;
+		const delta = this.#lastScrollTop === undefined ? 0 : top - this.#lastScrollTop;
+		this.#lastScrollTop = top;
+		if (delta !== 0) this.recordBlip(VIEW_SCROLL_BLIP, delta, { reason: Date.now() - this.#readerInputAt < READER_INPUT_WINDOW_MS ? "reader" : "system" });
+		// The live edge moves on appended rows AND on content measured taller after the fact. The second case arrives as
+		// exactly this event: a scroll while the reader is pinned, leaving the pane short of its end in pixels even when
+		// the row window already holds the last index (recorded occurrences showed the document column settling 1396px
+		// short that way, index-converged and pixel-drifted). Re-stick once this move has landed; a stick that moves
+		// nothing emits no scroll, so the chain ends by itself.
+		if (this.follow && this.#follow.isFollowing)
+			requestAnimationFrame(() => {
+				const el = this.#virt.value;
+				if (el && this.#follow.isFollowing && el.scrollHeight - (el.scrollTop + el.clientHeight) > FOLLOW_EDGE_SLACK_PX) this.#follow.stick();
+			});
+	};
 
 	protected override onDisconnected(): void {
 		this.#unsub?.();
@@ -129,12 +161,18 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 
 	#subscribe(): void {
 		this.#unsub?.();
+		let lastCount = -1;
 		this.#unsub =
 			this.source?.subscribe(() => {
 				this.requestUpdate();
-				// After the appended row commits, ask the follow kit to stick — it jumps ONLY while the reader is still at the
-				// live edge (following, cursor null), so a scrolled-up reader is left alone.
-				if (this.follow) void this.updateComplete.then(() => this.#follow.stick());
+				// After an appended row commits, ask the follow kit to stick — it jumps ONLY while the reader is still at the
+				// live edge (following, cursor null), so a scrolled-up reader is left alone. Only a changed row count moves
+				// the live edge; a notify that recomputed the same rows (a filter pass over a buffer that gained only
+				// filtered-out events) must not re-stick, or it overrides a scroll position nothing visible asked to change.
+				const count = this.source?.count() ?? 0;
+				const moved = count !== lastCount;
+				lastCount = count;
+				if (moved && this.follow) void this.updateComplete.then(() => this.#follow.stick());
 			}) ?? null;
 	}
 
@@ -172,6 +210,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.#window = visibleWindow(e.first, e.last);
 		if (this.source && e.last >= e.first) void this.source.ensureRange(e.first, e.last + 1);
 		const count = this.source?.count() ?? 0;
+		const short = Math.max(0, count - (this.#window.first + this.#window.visible));
+		if (short !== this.#lastWindowShort) {
+			this.#lastWindowShort = short;
+			this.recordBlip(VIEW_WINDOW_BLIP, short, { first: this.#window.first, visible: this.#window.visible, count, following: this.follow && this.#follow.isFollowing });
+		}
 		if (this.follow && count > 0) {
 			if (this.#window.first + this.#window.visible >= count) {
 				// The last row is inside the reported window — the reader is at (or scrolled back to) the live edge. Resume (the
@@ -208,6 +251,13 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			// Quantised: the virtualizer revises its total-height estimate continuously while a reader scrolls, and a
 			// revision too small to move the thumb a whole pixel must not re-render the rail (the thumb would twitch).
 			const fraction = total > 0 ? Math.round((window.visible / total) * FRACTION_STEPS) / FRACTION_STEPS : undefined;
+			// Every raw movement records, before quantisation decides whether the thumb redraws: the revisions
+			// quantisation absorbs are where a jitter hides. `rendered` marks the ones that reached the screen.
+			const raw = total > 0 ? window.visible / total : undefined;
+			if (raw !== undefined && raw !== this.#lastRawFraction) {
+				this.#lastRawFraction = raw;
+				this.recordBlip(VIEW_THUMB_BLIP, raw, { visible: window.visible, total, rendered: fraction !== this.#viewportFraction });
+			}
 			if (fraction === this.#viewportFraction) return;
 			this.#viewportFraction = fraction;
 			this.requestUpdate();
@@ -217,11 +267,13 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	// Real reader input is the one reliable pause signal: scroll events and the virtualizer's pin state both misreport the
 	// follow's own motion (estimate corrections) as a reader scrolling away.
 	#onUserScroll = (): void => {
+		this.#readerInputAt = Date.now();
 		if (this.follow) this.#follow.setAtBottom(false);
 		this.#emitFollow();
 	};
 
 	#onScrollTo = (e: Event): void => {
+		this.#readerInputAt = Date.now();
 		// A rail drag or marker jump is the reader navigating to a specific row — an explicit move away from the live edge, so
 		// pause the follow. Otherwise the convergence, seeing the seeked window short of the last row, would re-jump the tail
 		// back to the bottom and fight the seek. Landing on the last row re-engages follow via the window-reaches-last path.

@@ -6,6 +6,7 @@
 		"resources-stepper",
 		"authority-stepper",
 		"logic-stepper",
+		"blips-stepper",
 		"activities-stepper",
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/web-playwright/web-playwright",

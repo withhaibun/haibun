@@ -11,6 +11,7 @@ import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 
 import { type EvalPage, pollUntil, countMatching, firstText, firstAttr, hasText, clickFirst } from "./controls-util.js";
+import { FOLLOW_EDGE_SLACK_PX } from "./shu-virtual-column.js";
 
 // Selectors reused across the assertions, so a markup rename lands in one place.
 const MONITOR_ROW = '[data-testid="monitor-log-row"]';
@@ -18,9 +19,8 @@ const MONITOR_COUNT = '[data-testid="monitor-log-stream"] .count';
 const SCROLLBAR_POS_TOP = '[data-testid="scrollbar-pos-top"]';
 const DOC_ROW = ".doc-row";
 const FUTURE = "future-event"; // the dim class shared by monitor rows and document blocks past the time cursor
-// At the live edge the virtualizer leaves only its height-estimate overshoot below the viewport (tens of px); a stalled
-// follow leaves the newest events hundreds/thousands of px down. This threshold sits well between the two.
-const DOC_LIVE_EDGE_PX = 200;
+// The follow's own contract for "at the live edge": the assertion holds the component to the slack it re-sticks past.
+const DOC_LIVE_EDGE_PX = FOLLOW_EDGE_SLACK_PX;
 
 export default class ShuMonitorColumnControls extends AStepper {
 	description = "shu-monitor-column inspection: count rendered log rows to assert the data window bounds the view.";

@@ -4,6 +4,7 @@ import ShuStepper from "../../build/shu-stepper.js";
 import ShuMonitorColumnControls from "../../build/components/shu-monitor-column.controls.js";
 import ShuScrollbarControls from "../../build/components/shu-scrollbar.controls.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
+import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SHU_TEST_IDS } from "../../build/test-ids.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
@@ -12,6 +13,7 @@ const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
 const { waitFor, gotoPage, takeScreenshot } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
+const { watchBlips } = withAction(new BlipsStepper());
 const { feature, scenario } = withAction(new Haibun());
 const { monitorShowsFewerThan, seekMonitorRail, monitorFirstVisibleRow, monitorFirstVisibleRowIsNot, documentShowsFewerThan, clickFirstDocRow, documentFutureRowsAtLeast, scrubMonitorFirstRow, monitorFutureRowsAtLeast, monitorShowsRowContaining, monitorTotalAtLeast, documentThumbnailsFlow, expandFirstThumbnail, expandedThumbnailNavigates, documentAtLiveEdge } = withAction(new ShuMonitorColumnControls());
 const { railThumbHoldsSize } = withAction(new ShuScrollbarControls());
@@ -74,6 +76,9 @@ export const features: TKirejiExport = {
 		monitorShowsRowContaining({ text: '"burstEvent29"' }),
 
 		scenario({ scenario: "The custom scroll rail drives the virtualized viewport" }),
+		"Ask to be told what the views do, before touching the rail. A view records its own scroll geometry as it changes, at whatever rate it changes, and the run keeps none of it: asking is what makes it readable at all.",
+		watchBlips({ names: '"haibun.shu.view"' }),
+
 		"The rail is not decoration: seeking it moves the window. Seek to the bottom and the first visible row is no longer row one; seek back to the top and it is row one again — proving a drag or click on the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op).",
 		seekMonitorRail({ where: '"bottom"' }),
 		monitorFirstVisibleRowIsNot({ ordinal: '"1"' }),
@@ -90,6 +95,9 @@ export const features: TKirejiExport = {
 
 		"The rail thumb states how much of the column is on screen, so it holds its size as the reader scrolls and travels with them. Rows here are uniform lines of log.",
 		railThumbHoldsSize({ host: '"shu-monitor-column"' }),
+
+		"Everything the views did through all that scrolling reached the run as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be affordable. The run keeps none of them; the watch holds them in order, which is what says whether a size changed while a reader was scrolling rather than only that it changed.",
+		'some occurrence observed in watched blips is "variable occurrence/name is "haibun.shu.view.thumb_resize""',
 
 		scenario({ scenario: "The run document virtualizes the same buffered log" }),
 		"The document reads the same buffered events as prose. It too renders only the blocks in view, so a long run stays a small DOM with every earlier event still reachable.",
@@ -109,6 +117,9 @@ export const features: TKirejiExport = {
 		documentThumbnailsFlow(),
 		"The same holds where the blocks differ in height: a screen of prose and a screen of screenshots put very different numbers of blocks on screen, and the thumb must not resize between them.",
 		railThumbHoldsSize({ host: '"shu-document-column"' }),
+
+		"The document column's own micro-movement reached the run: every raw change of its thumb measurement, including the ones too small to redraw, recorded from the browser and held in order. This is the record a smoothness problem is diagnosed from.",
+		'some occurrence observed in watched blips is "variable occurrence/view is "shu-document-column""',
 
 		scenario({ scenario: "A thumbnail expands with its step caption and arrows walk the run's screenshots" }),
 		"Clicking a thumbnail expands it over the column and captions it with the step that took it; the caption rides a stamp the document build put on the frame, since under virtualization the step's own row may not be in the reading window at all. Arrow keys then move between the run's screenshots through the document column, which is the only party that can reach frames outside the rendered window; the time cursor follows each expanded screenshot's step, dimming everything recorded after it.",

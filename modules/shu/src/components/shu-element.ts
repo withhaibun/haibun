@@ -52,6 +52,7 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../view-hash.js";
 import { subscribeBatchedEvents, type TEvent, type TEventFilter } from "../event-stream.js";
 import { readElementPrefs, schedulePersistWrite, forgetElementPrefs } from "../element-prefs.js";
+import { recordClientBlip } from "../client-blips.js";
 
 export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
 	/** Get the current view hash — from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
@@ -125,6 +126,16 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		timeCursor.set(v); // SharedSignal.set co-fires the signal + the cross-bundle bus and no-ops an unchanged value
 	}
 
+	/** Record one fine-grained occurrence of this view's behaviour, at whatever rate it happens: held in the page's
+	 *  fixed ring and handed to the run in batches, which retains none of it. The view attribution is this element's
+	 *  hosting column (or the element itself when unhosted), so any control emits with one call and no plumbing of its
+	 *  own. The name must be declared in `view-blips.ts`, where the vocabulary lives. */
+	protected recordBlip(name: string, value?: number, attributes?: Record<string, unknown>): void {
+		const root = this.getRootNode();
+		const view = root instanceof ShadowRoot ? root.host.localName : this.localName;
+		recordClientBlip(name, value, { view, ...attributes });
+	}
+
 	/** Whether this view is the strip's active pane: its containing column-pane's key equals the global `activePane`
 	 *  signal. Derived, never stored — the signal is the one source of truth (reading it here auto-subscribes an in-bundle
 	 *  render; a cross-bundle view reacts via #installActiveView). */
@@ -185,6 +196,31 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		// a restore — so a bound attribute a subclass declared (e.g. a pane's `pinned`) stays in sync without per-caller code.
 		this.#reflectFieldsToAttributes(Object.keys(partial));
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.STATE_CHANGE, { detail: this.state, bubbles: true, composed: true }));
+	}
+
+	/**
+	 * The options this element would carry across a reload, as a scene records them: exactly its `persistFields`, read
+	 * off the live state. A saved view is therefore the same set of choices the element already treats as durable: there
+	 * is no second list to keep in step with this one.
+	 */
+	captureSceneState(): Record<string, unknown> {
+		const state = this.state as Record<string, unknown>;
+		const out: Record<string, unknown> = {};
+		for (const field of (this.constructor as typeof ShuElement).persistFields) if (state[field] !== undefined) out[field] = state[field];
+		return out;
+	}
+
+	/**
+	 * Set the options a scene recorded, through the ordinary `setState`, so the element validates them against its own
+	 * schema, re-renders, and remembers them exactly as if a reader had chosen them. A scene naming an option this
+	 * element does not remember is a scene for a different view: it fails rather than half-applying.
+	 */
+	applySceneState(fields: Record<string, unknown>): void {
+		const declared = (this.constructor as typeof ShuElement).persistFields;
+		for (const name of Object.keys(fields)) {
+			if (!declared.includes(name)) throw new Error(`<${this.tagName.toLowerCase()}>: a scene names the option "${name}", which this view does not remember`);
+		}
+		this.setState(fields as Partial<z.infer<T>>);
 	}
 
 	/** Forget this instance's remembered `persistFields`. For a view being DISMISSED, not merely removed: its options
@@ -273,8 +309,13 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		const shape = (this._schema as unknown as { shape: Record<string, z.ZodTypeAny> }).shape;
 		const fieldSchema = shape[field];
 		if (!fieldSchema) throw new Error(`${this.constructor.name}: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
+		const coerced = coerceAttribute(fieldSchema, val);
+		// An attribute that is NOT THERE says nothing about a field that must have a value; it does not blank it. The
+		// inverse write removes an attribute whose value is empty, and reading that removal back as "no value" would
+		// reject state the element legitimately holds. That is the loop a boot-time attribute write once fell into.
+		if (coerced === undefined && !fieldSchema.safeParse(undefined).success) return;
 		try {
-			this.setState({ [field]: coerceAttribute(fieldSchema, val) } as Partial<z.infer<T>>);
+			this.setState({ [field]: coerced } as Partial<z.infer<T>>);
 		} catch (error) {
 			// Name the attribute that drove the write: setState reports the state it rejected, not where that state came from.
 			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${error instanceof Error ? error.message : String(error)}`, {
