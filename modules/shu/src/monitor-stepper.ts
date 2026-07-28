@@ -11,6 +11,8 @@ import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync } from 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
 import { Access, AccessLevelSchema } from "@haibun/core/lib/resources.js";
+import { declareBlips, recordBlip } from "@haibun/core/lib/blips.js";
+import { VIEW_BLIPS } from "./view-blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -132,6 +134,21 @@ export const LogEventSchema = z.object({
 });
 export type TLogEvent = z.infer<typeof LogEventSchema>;
 
+// Declared where the browser's occurrences enter the run, so an undeclared name arriving from a page is refused here
+// exactly as it would be at a server-side recording site.
+declareBlips(...VIEW_BLIPS);
+
+export const DOMAIN_CLIENT_BLIPS = "shu-client-blips";
+
+/** A batch of fine-grained occurrences the SPA recorded and handed over together, since one request each is not
+ *  affordable at the rate they happen. `recorded` is everything the page has recorded, so a batch a full buffer
+ *  truncated says so rather than reading as the whole. */
+export const ClientBlipsSchema = z.object({
+	blips: z.array(z.object({ name: z.string(), value: z.number().optional(), attributes: z.record(z.string(), z.unknown()).optional(), at: z.number() })),
+	recorded: z.number().optional(),
+});
+export type TClientBlips = z.infer<typeof ClientBlipsSchema>;
+
 export const DOMAIN_EVENTS_FILTER = "shu-events-filter";
 
 /** Optional filter for getEvents — by level, kind, timestamp window (`since`..`until`, both inclusive), and a max count (clamped to a server cap). `until` lets a client page backward through the byte-bounded window to retrieve the full history. */
@@ -171,6 +188,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
 	private observationQuads: TQuad[] = [];
+	/** Occurrences accepted from the SPA, so a page whose buffer overflowed between batches can be told apart from a quiet one. */
+	private clientBlipsReceived = 0;
 	/** Per-run lean event log (full history, JSONL on disk). The report reads ALL of it (never truncated); the in-memory
 	 *  `events` buffer is only a bounded window for the live backfill. fs, not AStorage — AStorage has no append, and this
 	 *  mirrors the existing writeFileSync report write. */
@@ -237,6 +256,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					schema: LogEventSchema,
 					coerce: objectCoercer(LogEventSchema),
 					description: "Client-side log event forwarded from the SPA",
+				},
+				{
+					selectors: [DOMAIN_CLIENT_BLIPS],
+					schema: ClientBlipsSchema,
+					coerce: objectCoercer(ClientBlipsSchema),
+					description: "A batch of fine-grained occurrences recorded in the SPA",
 				},
 				{
 					selectors: [DOMAIN_EVENTS_FILTER],
@@ -494,6 +519,19 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				else if (level === "error") this.getWorld().eventLogger.error(line, attributes);
 				else if (level === "debug") this.getWorld().eventLogger.debug(line, attributes);
 				else this.getWorld().eventLogger.info(line, attributes);
+				return actionOKWithProducts({});
+			},
+		},
+		recordClientBlips: {
+			gwta: `record client blips {batch: ${DOMAIN_CLIENT_BLIPS}}`,
+			description: "Receive a batch of fine-grained occurrences the SPA recorded and put each into the run's blip channel, in the order the browser recorded them.",
+			action: ({ batch }: { batch: TClientBlips }) => {
+				const world = this.getWorld();
+				for (const blip of batch.blips) recordBlip(world, blip.name, blip.value, { ...blip.attributes, at: blip.at });
+				// A browser buffer that overflowed between batches would otherwise be invisible: the run holds what it was
+				// given, and the page holds the truth about what it saw.
+				const missed = (batch.recorded ?? 0) - (this.clientBlipsReceived += batch.blips.length);
+				if (missed > 0) world.eventLogger.debug(`[shu] ${missed} client occurrence(s) recorded but not delivered; the page's buffer filled between batches`);
 				return actionOKWithProducts({});
 			},
 		},

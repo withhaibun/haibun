@@ -45,13 +45,15 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		},
 		{
 			// In what order they occurred. Each item carries its position, so an item repeated at two moments stays two items.
+			// The declared attributes ride along as metrics, so a quantifier binds e.g. occurrence/view and occurrence/reason;
+			// the reserved keys win a collision, since they are what every occurrence answers for.
 			name: "watched blips",
 			observe: () => {
 				const held = blipWatch.occurrences();
 				const metrics: Record<string, Record<string, unknown>> = {};
 				const items = held.map((blip, i) => {
 					const item = renderOccurrence(blip, i);
-					metrics[item] = { index: i + 1, name: blip.name, ...(blip.seqPath ? { step: blip.seqPath } : {}), ...(blip.value === undefined ? {} : { value: blip.value }) };
+					metrics[item] = { ...blip.attributes, index: i + 1, name: blip.name, ...(blip.seqPath ? { step: blip.seqPath } : {}), ...(blip.value === undefined ? {} : { value: blip.value }) };
 					return item;
 				});
 				return Promise.resolve({ items, metrics });

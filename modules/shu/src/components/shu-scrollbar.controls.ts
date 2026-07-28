@@ -89,6 +89,9 @@ export default class ShuScrollbarControls extends AStepper {
 				if (!thumb || !scroller || most <= 0) return [];
 				const readings: TThumb[] = [];
 				for (const at of arg.samples) {
+					// A reader's scroll starts with input, and the wheel event is that signal: it pauses the live-edge
+					// follow exactly as it does for a person, so the follow cannot reclaim the pane before the reading.
+					scroller.dispatchEvent(new WheelEvent("wheel", { bubbles: true, composed: true }));
 					(scroller as HTMLElement).scrollTop = most * at;
 					await new Promise((r) => setTimeout(r, arg.settleMs));
 					const box = thumb.getBoundingClientRect();
