@@ -1,12 +1,9 @@
 /**
- * The run-facing surface of the blip channel: what a feature asserts on, and what an agent asked to watch something
- * calls. Recording lives in `lib/blips.ts`; this offers it to a run.
+ * Run-facing steps and observation sources for blips. Recording is in `lib/blips.ts`.
  *
- * Two readings, because they answer different questions. The rollup counts occurrences per name for the whole run and
- * is always on, which is cheap and says how much happened. A watch is asked for by name and holds a bounded ordered
- * window, which is what says in what order it happened, the question a count cannot answer and the reason the channel
- * exists. Both are served as observation sources, so a feature reads them through the `observed in` quantifiers that
- * already exist rather than through a surface of their own.
+ * Two readings: the rollup counts per name for the whole run and is always attached; a watch is started by name and
+ * holds a bounded window in order. Counts say how many, the window says in what order. Both are observation sources,
+ * read with `observed in`.
  */
 import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { blipDeclarations, blipRollup, blipWatch, WATCH_WINDOW } from "../lib/blips.js";
@@ -19,14 +16,14 @@ const WatchSchema = z.object({ watching: z.array(z.string()), window: z.number()
 const ShowSchema = z.object({ text: z.string(), held: z.number(), seen: z.number(), watching: z.array(z.string()) });
 const DeclaredSchema = z.object({ text: z.string(), names: z.array(z.string()) });
 
-/** One occurrence as a line a person or a model reads: what happened, under which step, with what detail. */
+/** One occurrence as a line: ordinal, name, value, step, attributes. */
 export function renderOccurrence(blip: TBlipEvent, index: number): string {
 	const detail = Object.entries(blip.attributes ?? {}).map(([k, v]) => `${k}=${String(v)}`);
 	const parts = [`${index + 1}`, blip.name, ...(blip.value === undefined ? [] : [`value=${blip.value}`]), ...(blip.seqPath ? [`step=${blip.seqPath}`] : []), ...detail];
 	return parts.join(" ");
 }
 
-/** The window as text, oldest first, saying what it holds and what it dropped rather than presenting a truncation as the whole. */
+/** The window as text, oldest first, stating the total recorded and how many are shown. */
 export function renderWatch(occurrences: readonly TBlipEvent[], seen: number): string {
 	if (seen === 0) return "No occurrences were recorded for the watched names.";
 	const dropped = seen - occurrences.length;
@@ -35,16 +32,16 @@ export function renderWatch(occurrences: readonly TBlipEvent[], seen: number): s
 }
 
 export default class BlipsStepper extends AStepper implements IHasCycles {
-	description = "Fine-grained occurrences a run records but never retains: their per-name counts, and an ordered window over the ones being watched";
+	description = "Fine-grained occurrences a run records but does not retain: per-name counts, and an ordered window over watched names";
 
 	private sources: IObservationSource[] = [
 		{
-			// How many of each occurred. Always on, and bounded by the declared vocabulary since a name is the only key.
+			// Counts per name. Always attached; one counter per declared name.
 			name: "blips",
 			observe: () => Promise.resolve(blipRollup.observe()),
 		},
 		{
-			// In what order they occurred. Each item carries its position, so an item repeated at two moments stays two items.
+			// Order. Each item is prefixed with its position, so repeated occurrences stay distinct items.
 			// The declared attributes ride along as metrics, so a quantifier binds e.g. occurrence/view and occurrence/reason;
 			// the reserved keys win a collision, since they are what every occurrence answers for.
 			name: "watched blips",
@@ -82,7 +79,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		watchBlips: {
 			gwta: "watch blips {names: string}",
 			description:
-				"Start collecting the named fine-grained occurrences in order, so what happened after what can be read. Names are comma separated, and a dotted namespace collects everything under it (watching `haibun.http` collects `haibun.http.request`). Every name must already be declared. Replaces any earlier watch. Read the result with `show watched blips`.",
+				"Start collecting occurrences with the given names, in order. Names are comma separated; a dotted namespace matches everything under it (`haibun.http` matches `haibun.http.request`). Each name must be declared. Replaces any earlier watch. Read with `show watched blips`.",
 			productsSchema: WatchSchema,
 			action: async ({ names }: { names: string }) => {
 				await Promise.resolve();
@@ -100,7 +97,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		},
 		stopWatchingBlips: {
 			gwta: "stop watching blips",
-			description: "Stop collecting occurrences. The window already collected stays readable until a new watch replaces it.",
+			description: "Stop collecting. The window already collected stays readable until a new watch replaces it.",
 			action: async () => {
 				await Promise.resolve();
 				blipWatch.stop();
@@ -110,7 +107,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		showWatchedBlips: {
 			gwta: "show watched blips",
 			description:
-				"The watched occurrences in order, oldest first, as text: what happened, under which step, and with what detail. Says how many were recorded and how many the bounded window holds, so a truncation never reads as the whole.",
+				"The watched occurrences as text, oldest first, each with its name, value, step path and attributes. Reports the total recorded and how many the window holds.",
 			productsSchema: ShowSchema,
 			action: async () => {
 				await Promise.resolve();
@@ -121,7 +118,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		showDeclaredBlips: {
 			gwta: "show declared blips",
 			description:
-				"Every occurrence this run can record, with what one recording means, what detail it carries, and, where declared with origin, the source that declares it. Read this to find out what is worth watching and where to read the code behind a name.",
+				"Every name this run can record, with its description and, for declarations using `origin`, the `path:line` that declares it. Use it to find what is worth watching and where its code is.",
 			productsSchema: DeclaredSchema,
 			action: async () => {
 				await Promise.resolve();
