@@ -225,7 +225,11 @@ class PaneStateImpl {
 			const d = parseColEntry(raw);
 			if (d) next.set(paneIdOf(d), withPersistedFlag(d));
 		}
-		this.activePaneId = active && next.has(active) ? active : firstKeyOf(next);
+		// Only name an active pane when the hash describes one. A hash with no col= entries describes no panes, and
+		// writing its empty answer here unset the activation of a pane that is on screen but not in the hash — the boot
+		// query column — leaving panes open with nothing active.
+		const named = active && next.has(active) ? active : firstKeyOf(next);
+		if (named) this.activePaneId = named;
 		this.desired = next;
 		this.scheduleReconcile();
 	}

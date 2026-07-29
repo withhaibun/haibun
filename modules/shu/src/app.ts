@@ -478,6 +478,10 @@ const main = async (): Promise<void> => {
 				},
 			},
 		});
+		// The query column is written into the boot markup, so it never passes through PaneState and nothing names it
+		// active. Name it here, before reading the hash: a hash that describes panes replaces this, and one that does
+		// not leaves the column that is on screen as the active pane rather than none.
+		if (activePane.get() === null) activePane.set("query");
 		PaneState.fromHash();
 	}
 };
