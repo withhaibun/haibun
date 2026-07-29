@@ -80,3 +80,46 @@ describe("harvestChatViewLd — the active pane's linked data plus the pane mani
 		expect(harvestChatViewLd()).toEqual([]);
 	});
 });
+
+/**
+ * Reported: the Ask pane says nothing is selected while a column view is plainly selected on screen.
+ *
+ * The harvester resolves the active pane by matching `activePane` against each pane's key. When the signal holds a key
+ * no open pane has — it was never set for this strip, or it names a pane that has since closed — nothing matches, and
+ * the harvest is a manifest with every pane `active: false` and no content at all. The model is then told, truthfully
+ * from what it received, that nothing is selected.
+ */
+describe("harvestChatViewLd — an active pane the signal cannot resolve", () => {
+	beforeEach(() => {
+		document.body.innerHTML = "";
+		activePane.set(null);
+	});
+
+	function mount(...panes: HTMLElement[]): void {
+		const strip = document.createElement("shu-column-strip");
+		for (const p of panes) strip.appendChild(p);
+		document.body.appendChild(strip);
+	}
+
+	it("reports no active pane and no content when the signal names a pane that is not open", () => {
+		const a = pane("first", view("shu-entity-column", { "@id": "e1" }));
+		const b = pane("second", view("shu-document-column", { "@id": "d1" }));
+		// A pane that was closed, or a key from a previous strip: it matches nothing now.
+		activePane.set("a-pane-that-closed");
+		mount(a, b);
+		const blocks = harvestChatViewLd();
+		const manifest = blocks.at(-1) as { items: Array<{ active: boolean }> };
+		expect(manifest.items.every((i) => !i.active)).toBe(true);
+		// Only the manifest: the model receives nothing about what is on screen.
+		expect(blocks).toHaveLength(1);
+	});
+
+	it("reports no active pane and no content when the signal was never set for this strip", () => {
+		const a = pane("first", view("shu-entity-column", { "@id": "e1" }));
+		mount(a);
+		const blocks = harvestChatViewLd();
+		const manifest = blocks.at(-1) as { items: Array<{ active: boolean }> };
+		expect(manifest.items.every((i) => !i.active)).toBe(true);
+		expect(blocks).toHaveLength(1);
+	});
+});
