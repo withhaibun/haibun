@@ -75,6 +75,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	addPane(pane: PaneEl): void {
 		this.appendChild(pane);
 		const minimized = pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
+		this.ensureActive();
 		this.applyActive(); // paint active from the signal now this pane exists (a restore that named it lands here)
 		this.updateQueryAlone();
 		this.updateIsLast();
@@ -92,6 +93,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const remaining = this.panes;
 		// If the removed pane held focus, move it to the nearest remaining pane (the one now at its slot, else the last).
 		if (activePane.get() === removedKey) activePane.set(remaining.length ? paneKeyOf(remaining[Math.min(index, remaining.length - 1)]) : null);
+		this.ensureActive();
 		this.applyActive();
 		this.updateQueryAlone();
 		this.updateIsLast();
@@ -109,6 +111,21 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	activatePane(index: number): void {
 		const pane = this.panes[index];
 		if (pane) activePane.set(paneKeyOf(pane));
+	}
+
+	/**
+	 * While panes are open, one of them is the pane you are on. The strip owns that invariant because it owns which
+	 * panes exist: a pane can be added by a restore, a reconcile, or a step, and not every path names one.
+	 *
+	 * Only a signal naming NOTHING is repaired. A signal naming a pane that is not open yet is a restore in flight —
+	 * it names the pane it is about to attach, and applyActive lands it the moment it does; claiming the first pane
+	 * there would steal activation from the pane being restored.
+	 */
+	private ensureActive(): void {
+		const panes = this.panes;
+		if (panes.length === 0 || activePane.get() !== null) return;
+		const takeable = panes.find((p) => !p.hasAttribute(SHU_ATTR.DATA_MINIMIZED)) ?? panes[0];
+		activePane.set(paneKeyOf(takeable));
 	}
 
 	/** Paint the DOM active state from the `activePane` signal: exactly the pane whose key matches is active. Idempotent and

@@ -84,3 +84,51 @@ describe("shu-column-strip minimize", () => {
 		expect((strip as unknown as { state: { activeIndex: number } }).state.activeIndex).toBe(before);
 	});
 });
+
+/**
+ * The invariant the harvest depends on: while panes are open, one of them is active.
+ *
+ * removePane already repairs activation when the active pane goes away. Nothing repaired it when a pane arrived while
+ * the signal named nothing, so a strip could hold panes with `activePane` null — which is what made the Ask pane
+ * report that nothing was selected while a column was plainly on screen.
+ */
+describe("shu-column-strip activation invariant", () => {
+	let strip: ShuColumnStrip;
+
+	beforeEach(async () => {
+		flushPersistWrites();
+		setJsonCookie("shu-prefs-shu-column-pane", {});
+		activePane.set(null);
+		document.body.innerHTML = "";
+		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
+		document.body.appendChild(strip);
+		await (strip as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+	});
+
+	it("activates the first pane added when nothing is active", () => {
+		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
+		expect(activePane.get()).toBe("A");
+	});
+
+	it("leaves an existing activation alone when another pane is added", () => {
+		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
+		strip.addPane(makePane("B") as ShuColumnPane & HTMLElement);
+		expect(activePane.get()).toBe("A");
+	});
+
+	it("leaves a signal naming a pane that is not open yet, which is a restore about to attach it", () => {
+		activePane.set("p:Scene:generatedAtTime");
+		strip.addPane(makePane("query") as ShuColumnPane & HTMLElement);
+		// Claiming "query" here would steal activation from the pane the restore is about to add.
+		expect(activePane.get()).toBe("p:Scene:generatedAtTime");
+	});
+
+	it("activates a remaining pane when the only active one is removed, and clears when none remain", () => {
+		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
+		strip.addPane(makePane("B") as ShuColumnPane & HTMLElement);
+		strip.removePane(0);
+		expect(activePane.get()).toBe("B");
+		strip.removePane(0);
+		expect(activePane.get()).toBeNull();
+	});
+});
