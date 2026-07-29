@@ -22,10 +22,13 @@ const STDERR_TAIL_CHARS = 4_000;
 
 const instanceStartedSchema = z.object({ url: z.string(), site: z.string(), hostId: z.number() });
 
+/** What a launched instance was launched from, so the same instance can be launched again after it is stopped. */
+type TLaunch = { dir: string; config: string; port: number; hostId: number };
+
 export default class InstanceStepper extends AStepper implements IHasCycles {
 	description = "Start and supervise sibling haibun instances (forked cli.js, readiness via action.begin, terminated at endFeature)";
 
-	private children: Array<{ child: ChildProcess; label: string }> = [];
+	private children: Array<{ child: ChildProcess; label: string; launch: TLaunch }> = [];
 
 	cycles: IStepperCycles = {
 		endFeature: async (endFeature?: TEndFeature) => {
@@ -43,36 +46,55 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				const dir = path.resolve(String(where));
 				const config = path.join(dir, "config.json");
 				if (!existsSync(config)) return actionNotOK(`start instance: no config.json in ${dir}`);
-				const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
-				const env = { ...process.env, HAIBUN_O_WEBSERVERSTEPPER_PORT: String(port), HAIBUN_HOST_ID: String(hostId) };
-				// execArgv: [] — the child is plain node running the built CLI; it must not inherit a test runner's loader flags.
-				const child = fork(cliEntry, ["-c", config, dir], { env, silent: true, execArgv: [] });
-				let stderrTail = "";
-				child.stderr?.on("data", (data: Buffer) => {
-					process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
-					stderrTail = (stderrTail + data.toString()).slice(-STDERR_TAIL_CHARS);
-				});
-				this.children.push({ child, label: `${dir} host ${hostId}` });
-
-				const url = `http://localhost:${port}`;
-				const rpc = new RpcClient({ baseUrl: url, timeoutMs: 1_500, retry: { maxAttempts: 1 } });
-				const deadline = Date.now() + READY_DEADLINE_MS;
-				while (Date.now() < deadline) {
-					if (child.exitCode !== null) return actionNotOK(`instance at ${dir} exited before ready (code ${child.exitCode})${stderrTail ? `\n${stderrTail}` : ""}`);
-					const result = await rpc.call<{ hostId?: number; site?: string }>("action.begin", {}, []);
-					if (typeof (result as { error?: unknown }).error !== "string") {
-						const begun = result as { hostId?: number; site?: string };
-						// The handshake verifies the child took the assigned identity — a silently-wrong hostId would break seqPath and site uniqueness.
-						if (begun.hostId !== hostId) return actionNotOK(`instance at ${url} reports hostId ${begun.hostId}, expected ${hostId}`);
-						if (typeof begun.site !== "string" || begun.site.length === 0) return actionNotOK(`instance at ${url} did not report a site principal`);
-						return actionOKWithProducts({ url, site: begun.site, hostId });
-					}
-					await new Promise((r) => setTimeout(r, READY_POLL_MS));
-				}
-				return actionNotOK(`instance at ${dir} not ready on ${url} within ${READY_DEADLINE_MS}ms${stderrTail ? `\n${stderrTail}` : ""}`);
+				return await this.launch({ dir, config, port, hostId });
+			},
+		},
+		restartInstance: {
+			gwta: `restart the haibun instance on port {port: number}`,
+			description:
+				"Stop an instance this run launched and launch it again from what it was launched from, waiting for it to answer. What an instance serves comes from its source, so a change to that source takes effect only once it runs again. The run that restarts an instance is never the instance being restarted.",
+			productsSchema: instanceStartedSchema,
+			action: async ({ port }: { port: number }) => {
+				const held = this.children.find((c) => c.launch.port === port);
+				if (!held) return actionNotOK(`restart instance: this run launched no instance on port ${port}`);
+				await terminate(held.child);
+				this.children = this.children.filter((c) => c !== held);
+				return await this.launch(held.launch);
 			},
 		},
 	};
+
+	/** Fork the CLI and wait for the action.begin handshake. One path, so a restarted instance is launched exactly as it
+	 *  was first launched. */
+	private async launch({ dir, config, port, hostId }: TLaunch) {
+		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
+		const env = { ...process.env, HAIBUN_O_WEBSERVERSTEPPER_PORT: String(port), HAIBUN_HOST_ID: String(hostId) };
+		// execArgv: [] — the child is plain node running the built CLI; it must not inherit a test runner's loader flags.
+		const child = fork(cliEntry, ["-c", config, dir], { env, silent: true, execArgv: [] });
+		let stderrTail = "";
+		child.stderr?.on("data", (data: Buffer) => {
+			process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
+			stderrTail = (stderrTail + data.toString()).slice(-STDERR_TAIL_CHARS);
+		});
+		this.children.push({ child, label: `${dir} host ${hostId}`, launch: { dir, config, port, hostId } });
+
+		const url = `http://localhost:${port}`;
+		const rpc = new RpcClient({ baseUrl: url, timeoutMs: 1_500, retry: { maxAttempts: 1 } });
+		const deadline = Date.now() + READY_DEADLINE_MS;
+		while (Date.now() < deadline) {
+			if (child.exitCode !== null) return actionNotOK(`instance at ${dir} exited before ready (code ${child.exitCode})${stderrTail ? `\n${stderrTail}` : ""}`);
+			const result = await rpc.call<{ hostId?: number; site?: string }>("action.begin", {}, []);
+			if (typeof (result as { error?: unknown }).error !== "string") {
+				const begun = result as { hostId?: number; site?: string };
+				// The handshake verifies the child took the assigned identity — a silently-wrong hostId would break seqPath and site uniqueness.
+				if (begun.hostId !== hostId) return actionNotOK(`instance at ${url} reports hostId ${begun.hostId}, expected ${hostId}`);
+				if (typeof begun.site !== "string" || begun.site.length === 0) return actionNotOK(`instance at ${url} did not report a site principal`);
+				return actionOKWithProducts({ url, site: begun.site, hostId });
+			}
+			await new Promise((r) => setTimeout(r, READY_POLL_MS));
+		}
+		return actionNotOK(`instance at ${dir} not ready on ${url} within ${READY_DEADLINE_MS}ms${stderrTail ? `\n${stderrTail}` : ""}`);
+	}
 }
 
 /** SIGTERM, then SIGKILL if the child hasn't exited within 5s — a launched instance never outlives its owner. */
