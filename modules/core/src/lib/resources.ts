@@ -752,6 +752,9 @@ export const commentDomainDefinition: TDomainDefinition = {
 			[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
 			// What the comment is about — any Resource (an entity, or another Comment in a thread).
 			[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
+			// What the comment carries: a petition carries the proposal it asks for, a measure carries its observation.
+			// Declared so the record it carries is reachable from it, rather than a quad no view can follow.
+			[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
 			// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.
 			[LinkRelations.LINKS_TO.rel]: { rel: LinkRelations.LINKS_TO.rel, range: SPECIFIC_RESOURCE_LABEL },
 			...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),

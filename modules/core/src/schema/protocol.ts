@@ -12,8 +12,11 @@ export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 export const CHECK_YES = "✅";
 export const CHECK_NO = "❌";
 export const CHECK_YIELD = "🔀";
-export const MAYBE_CHECK_YES = "✓";
-export const MAYBE_CHECK_NO = "✗";
+// A speculative step is one the run is trying: `some ... is ...` runs until one matches, `maybe` expects either answer.
+// Neither outcome is a fault, so neither uses the marks that say something is right or broken. The modal-logic diamond
+// reads as possibility: filled where the claim held, hollow where it did not.
+export const MAYBE_CHECK_YES = "◆";
+export const MAYBE_CHECK_NO = "◇";
 
 // BDD Structure (Geometric Containers)
 export const ICON_FEATURE = "⧇"; // Root container (High visibility)

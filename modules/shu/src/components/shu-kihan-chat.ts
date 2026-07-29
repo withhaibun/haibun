@@ -300,7 +300,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
 				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
-				${this._sessions.length > 0 ? html`<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." @combo-change=${this.onSessionChange}></shu-combobox>` : ""}
+				<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." @combo-change=${this.onSessionChange}></shu-combobox>
 				${showModel ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." @combo-change=${this.onModelChange}></shu-combobox>` : ""}
 				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
 					<span>tool calls</span>
