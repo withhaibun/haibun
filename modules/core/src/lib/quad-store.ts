@@ -7,7 +7,16 @@
  * Methods return Promises (via Promise.resolve) to satisfy the async IQuadStore interface.
  */
 
-import { SHARED_GRAPH, type IQuadStore, type TCluster, type TClusteredQuads, type TClusteredQuadsOpts, type TFederatedGraphSource, type TQuad, type TQuadPattern } from "./quad-types.js";
+import {
+	SHARED_GRAPH,
+	type IQuadStore,
+	type TCluster,
+	type TClusteredQuads,
+	type TClusteredQuadsOpts,
+	type TFederatedGraphSource,
+	type TQuad,
+	type TQuadPattern,
+} from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
 import { BODY_LABEL } from "./resources.js";
 
@@ -176,6 +185,18 @@ export class QuadStore implements IQuadStore {
 		return this.add({ subject: fromId, predicate: edgeLabel, object: toId, namedGraph: fromLabel, objectType: toLabel });
 	}
 
+	/**
+	 * An edge to something that may not be here yet. A backing store that keeps edges strictly holds an id-only
+	 * placeholder until the target arrives; without such a backing this is an ordinary edge, since a quad needs no
+	 * target to exist. Routed like `createEdge`, so a caller writing a forward reference never needs to know which
+	 * backing holds the source.
+	 */
+	referenceEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
+		const backing = this.storeFor(fromLabel) as (IQuadStore & { referenceEdge?: IQuadStore["createEdge"] }) | undefined;
+		if (backing?.referenceEdge) return backing.referenceEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
+		return this.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
+	}
+
 	async query(pattern: TQuadPattern): Promise<TQuad[]> {
 		if (pattern.namedGraph) {
 			const backing = this.storeFor(pattern.namedGraph);
@@ -288,14 +309,19 @@ export class QuadStore implements IQuadStore {
 		this.idFields[label] = idField;
 	}
 
-	upsertIndividual(label: string, data: unknown): Promise<string> {
+	// async so a rejected identity reaches a caller's .catch like every other failure, rather than throwing
+	// synchronously out of a method that returns a promise.
+	async upsertIndividual(label: string, data: unknown): Promise<string> {
 		const backing = this.storeFor(label);
-		if (backing) return backing.upsertIndividual(label, data);
+		if (backing) return await backing.upsertIndividual(label, data);
 		const schema = this.schemas[label];
 		const validated = (schema ? schema.parse(data) : data) as Record<string, unknown>;
 		const idField = this.idFields[label] ?? "id";
-		const id = String(validated[idField]);
-		if (!id) throw new Error(`Missing identity field "${idField}" for ${label}`);
+		// Read before stringifying: String(undefined) is "undefined", a truthy string, so the guard below it never fired
+		// and the record was written under that literal subject, unreachable and overwritten by the next one.
+		const identity = validated[idField];
+		if (identity === undefined || identity === null || String(identity).trim() === "") throw new Error(`Missing identity field "${idField}" for ${label}`);
+		const id = String(identity);
 		// Atomic replace: no await between the remove and the adds, so a concurrent upsert (fire-and-forget writers), a
 		// scenario-boundary carry, or a mid-flight backing registration never observes a half-written individual.
 		this.quads = this.quads.filter((q) => !(q.subject === id && q.namedGraph === label));
@@ -303,7 +329,7 @@ export class QuadStore implements IQuadStore {
 		for (const [key, value] of Object.entries(validated)) {
 			if (value !== undefined && value !== null) this.quads.push({ subject: id, predicate: key, object: value, namedGraph: label, timestamp });
 		}
-		return Promise.resolve(id);
+		return id;
 	}
 
 	async getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined> {
