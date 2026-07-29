@@ -141,8 +141,9 @@ export function createStepUI(wp: WebPlaywright) {
 			typeText({ text: `"${prompt}"` }),
 			click({ target: IDS.APP.CHAT_SUBMIT }),
 			waitFor({ target: IDS.APP.CHAT_OUTPUT }),
+			// Text arriving is the turn answering. The session selector is always rendered, so its presence says nothing
+			// about a turn; a feature that must know a turn finished asserts on the run's own exchange record.
 			waitFor({ target: IDS.APP.CHAT_TEXT }),
-			waitFor({ target: IDS.APP.SESSION_SELECT }),
 		];
 	}
 

@@ -2,9 +2,9 @@
 /**
  * Reported: the Ask pane sometimes shows no session selector.
  *
- * The selector renders when the component holds sessions, and the session list was refreshed only when a turn's
- * stream announced its seqPath. A turn that completed without that announcement left the list empty, so the selector
- * never appeared even though the turn had been written and the session existed.
+ * The selector used to render only when the pane held sessions, and the list was refreshed only when a turn's stream
+ * announced its seqPath, so a turn that announced none left it missing. A control that appears and disappears is the
+ * fault: the selector is always rendered, and its options fill in as sessions arrive.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
@@ -56,22 +56,31 @@ async function turn(el: HTMLElement): Promise<void> {
 	await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 }
 
-describe("the session selector after a turn", () => {
+const optionCount = (el: HTMLElement) => (el.shadowRoot?.querySelector(".session-select") as unknown as { options?: unknown[] })?.options?.length ?? 0;
+
+describe("the session selector", () => {
 	beforeEach(() => {
 		listed.length = 0;
 		onStartSeqPath = [0, 1, 2];
 	});
 
-	it("appears when the turn's stream announced its seqPath", async () => {
+	it("is there before any turn, with no sessions to offer", async () => {
 		const el = await chat();
-		await turn(el);
 		expect(hasSelector(el)).toBe(true);
 	});
 
-	it("appears when the stream did not announce one, since the session exists either way", async () => {
+	it("is still there after a turn, now offering the session that turn created", async () => {
+		const el = await chat();
+		await turn(el);
+		expect(hasSelector(el)).toBe(true);
+		expect(optionCount(el)).toBe(1);
+	});
+
+	it("offers the session even when the turn's stream announced no seqPath, since the session exists either way", async () => {
 		onStartSeqPath = null;
 		const el = await chat();
 		await turn(el);
 		expect(hasSelector(el)).toBe(true);
+		expect(optionCount(el)).toBe(1);
 	});
 });
