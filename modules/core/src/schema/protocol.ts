@@ -8,29 +8,49 @@ export const HAIBUN_LOG_LEVELS = ["debug", "trace", "log", "info", "warn", "erro
 export const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 
-// Validation Marks
+/**
+ * Marks, as one related set. Two things vary, and each is carried by one visual property.
+ *
+ * WEIGHT says how much a line should interrupt a reader. Emoji-weight marks are for what a reader must not scroll
+ * past: an outcome, a warning, a stop. Thin glyphs are for what is frequent and unremarkable, so a log of ordinary
+ * activity stays quiet and the exceptional line stands out of it. A thin glyph for something exceptional is the fault
+ * this rule exists to prevent.
+ *
+ * SHAPE says what kind of statement the mark makes. A run's verdicts are the check and cross. A claim the run merely
+ * tried carries the modal-logic diamond, which reads as possibility rather than as right or broken: filled where it
+ * held, hollow where it did not. A call the run handed to something else and got an answer from carries the return
+ * arrow: the call did not succeed, but the run is not broken and its caller is expected to act on it. Containers and
+ * flow are geometric, since they state structure rather than outcome.
+ */
+
+// Verdicts: what the run concluded. Emoji weight, because a verdict is what a reader is looking for.
 export const CHECK_YES = "✅";
 export const CHECK_NO = "❌";
 export const CHECK_YIELD = "🔀";
-// A speculative step is one the run is trying: `some ... is ...` runs until one matches, `maybe` expects either answer.
-// Neither outcome is a fault, so neither uses the marks that say something is right or broken. The modal-logic diamond
-// reads as possibility: filled where the claim held, hollow where it did not.
+
+// Tried, not concluded: `some ... is ...` runs until one matches, `maybe` expects either answer. Neither outcome is a
+// fault, so neither uses a verdict mark. Quieter than a verdict on purpose.
 export const MAYBE_CHECK_YES = "◆";
 export const MAYBE_CHECK_NO = "◇";
+
+// Handed out and answered: a tool call a model made, an RPC. A failure here is returned to its caller to act on, and
+// is not the run failing, so it is neither a verdict nor silent.
+export const RETURNED_TO_CALLER = "↩️";
 
 // BDD Structure (Geometric Containers)
 export const ICON_FEATURE = "⧇"; // Root container (High visibility)
 export const ICON_SCENARIO = "⬢"; // Concrete logic node (Solid Hex)
 
-// Step Execution Status
+// Step Execution Status: the verdict marks, plus flow for a step still running.
 export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
-export const ICON_STEP_FAILED = "❌"; // Explicit failure (Standard mark)
-export const ICON_STEP_COMPLETED = "✅"; // Explicit success (Standard mark)
+export const ICON_STEP_FAILED = CHECK_NO;
+export const ICON_STEP_COMPLETED = CHECK_YES;
 
-// Log Levels & Logic
+// Log Levels: info is frequent, so it stays thin; a warning and an error are exceptional, so they carry weight. The
+// error mark is distinct from the failure verdict, so a line does not say failure twice in two different hands.
 export const ICON_LOG_INFO = "⊳"; // Data signal/pointer
-export const ICON_LOG_WARN = "⚠️"; // Standard caution
-export const ICON_LOG_ERROR = "⊦"; // Logical contradiction (Assertion failed)
+export const ICON_LOG_WARN = "⚠️";
+export const ICON_LOG_ERROR = "⛔";
 
 export const ICON_DEFAULT = "•";
 
@@ -225,8 +245,11 @@ export class EventFormatter {
 
 	static getStatusIcon(event: THaibunEvent & { kind: "lifecycle" }): string {
 		const isSpeculative = event.intent?.mode === "speculative";
+		// A negative seqPath segment is a call the run handed out: a model's tool call, an RPC. Its failure is returned
+		// to that caller, which is expected to act on it, so it is not marked as the run failing.
+		const isHandedOut = event.id.split(".").some((n) => Number.parseInt(n, 10) < 0);
 		if (event.status === "completed") return isSpeculative ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
-		if (event.status === "failed") return isSpeculative ? ` ${MAYBE_CHECK_NO}` : ICON_STEP_FAILED;
+		if (event.status === "failed") return isSpeculative ? ` ${MAYBE_CHECK_NO}` : isHandedOut ? RETURNED_TO_CALLER : ICON_STEP_FAILED;
 		if (event.status === "running") return ICON_STEP_RUNNING;
 		return ` ${ICON_DEFAULT}`;
 	}
