@@ -1,22 +1,17 @@
 /**
- * Blips — fine-grained occurrences recorded for observation, never for the run's narrative.
+ * Blips: fine-grained occurrences, recorded for observation and never retained by the run.
  *
- * The event log is RETAINED: the monitor renders it, the document reads it, the report replays it, an agent takes it as
- * context. Anything recorded per frame or per row would grow it without bound, which is why a measurement like "this
- * view moved a pixel after the cascade settled" has had nowhere to go and has been debugged by hand instead.
+ * The event log is retained (the monitor, the document, the report and an agent all read it), so anything recorded per
+ * frame or per row would grow it without bound.
  *
- * A blip is the opposite: it is NEVER retained. It rides the one event bus as `kind: "blip"`, delivered only to a
- * subscriber that asked for that kind (`eventLogger.subscribe(cb, { kinds: ["blip"] })`) — an exporter mapping it onto
- * an OpenTelemetry span event, an agent watching for a condition. `{ names }` narrows a subscription to declared names
- * or dotted namespaces (`haibun.http` matches `haibun.http.request`). A bare subscriber never receives one, the console
- * never prints one, and with nothing subscribed to the name, recording costs one check and returns. That is what makes
- * it safe to leave recording in a hot path permanently.
+ * A blip is emitted on the same event bus as `kind: "blip"` and delivered only to subscribers that name that kind:
+ * `subscribe(cb, { kinds: ["blip"] })`. `{ names }` narrows to declared names or dotted namespaces (`haibun.http`
+ * matches `haibun.http.request`). A subscriber that names no kinds never receives one, and the console never prints
+ * one. With nothing subscribed to the name, `recordBlip` returns after one check, so it is safe to call at any rate.
  *
- * Every blip is DECLARED before it can be recorded: a name, what it measures, and the shape of its attributes. An
- * undeclared name throws rather than inventing a vocabulary at the call site, and `dimensions` names the attributes that
- * may become metric labels, so unbounded label cardinality (the way a metrics backend is overwhelmed) cannot be reached
- * by accident. Causality comes from the run's own spine: a blip carries the seqPath it happened under, so an exporter
- * attaches it to that step's span without any context threading at the call site.
+ * Names are declared before use: an undeclared name throws. `dimensions` lists the attributes that may become metric
+ * labels, bounding label cardinality. A blip carries the seqPath it was recorded under, so an exporter can attach it
+ * to that step without any context passed at the call site.
  */
 import { z } from "zod";
 import { BlipEvent } from "../schema/protocol.js";
@@ -24,13 +19,13 @@ import type { THaibunEvent, TBlipEvent } from "../schema/protocol.js";
 import type { IEventLogger } from "./EventLogger.js";
 import type { TWorld } from "./world.js";
 
-/** How a blip maps onto an OpenTelemetry signal. A discrete occurrence within an operation is a span event; a rate or a
- *  distribution is a metric instrument. Traces answer "which one and in what order", metrics answer "how often". */
+/** How a blip maps onto an OpenTelemetry signal: a discrete occurrence is a span event, a rate or distribution is a
+ *  metric instrument. Traces give order and identity; metrics give frequency. */
 export type TBlipInstrument = "span-event" | "counter" | "histogram" | "gauge";
 
 /** What may be recorded under a name: its instrument, what it measures, and the shape of every attribute it carries. */
 export type TBlipDeclaration = {
-	/** Dotted, namespaced, stable — the name an exporter and a query both use, e.g. `haibun.shu.view.scroll_adjust`. */
+	/** Dotted and namespaced, e.g. `haibun.shu.view.scroll`. Used by both exporters and queries, so it must be stable. */
 	name: string;
 	instrument: TBlipInstrument;
 	/** What one recording means, for a reader of the declaration and of the exported signal. */
@@ -39,22 +34,20 @@ export type TBlipDeclaration = {
 	unit?: string;
 	/** The attributes a recording carries. Validated on every record, so a stray key cannot reach an exporter. */
 	attributes?: z.ZodType;
-	/** The attributes that may become metric labels. Every other attribute stays on the span event, where high
-	 *  cardinality is free; a metric label of unbounded cardinality is what overwhelms a backend. */
+	/** Attributes that may become metric labels. All others stay on the span event, where cardinality does not matter.
+	 *  Unbounded metric label cardinality overwhelms a metrics backend. */
 	dimensions?: readonly string[];
-	/** Opt in to carrying where this name was declared, so a reader (a person, an agent with a source tool) can go from
-	 *  an occurrence to the code that declares it. Captured once at declaration, never per recording, which is what
-	 *  keeps a hot path free to record unconditionally. */
+	/** Store the declaring `path:line`, so an occurrence name can be traced to its code. Read once at declaration,
+	 *  never per recording. */
 	origin?: boolean;
 };
 
-/** A held declaration: what was declared, plus where, when origin was asked for. */
+/** A stored declaration, with `declaredAt` when `origin` was set. */
 export type THeldBlipDeclaration = TBlipDeclaration & { declaredAt?: string };
 
 const declarations = new Map<string, THeldBlipDeclaration>();
 
-/** The declaring site as `path:line`, read once from a stack: the first frame outside this module. The path is the
- *  module that ran, so under a build it names the built file; real code either way. */
+/** `path:line` of the first stack frame outside this module. Under a build this names the built file. */
 function declaringSite(): string | undefined {
 	const frames = (new Error().stack ?? "").split("\n").slice(1);
 	for (const frame of frames) {
@@ -65,14 +58,13 @@ function declaringSite(): string | undefined {
 	return undefined;
 }
 
-/** Everything a declaration says except its attribute schema, in a fixed order so two declarations compare by content. */
+/** A declaration minus its attribute schema, in fixed order, so two declarations compare by content not key order. */
 const shapeOf = (d: TBlipDeclaration) => JSON.stringify([d.instrument, d.description, d.unit, d.dimensions]);
 
 /**
- * Whether two attribute schemas are the same. The same schema is trivially the same; otherwise they are compared as
- * JSON Schema. A schema that cannot be represented that way (a transform, a custom type) cannot be shown to be
- * identical, and an unprovable case is treated as different, so declaring one throws rather than silently replacing a
- * vocabulary other modules already record against.
+ * Whether two attribute schemas are the same. Identical references match; otherwise they are compared as JSON Schema.
+ * A schema JSON Schema cannot represent (a transform, a custom type) counts as different, so redeclaring it throws
+ * rather than replacing a schema other modules record against.
  */
 function sameAttributes(held: z.ZodType | undefined, incoming: z.ZodType | undefined): boolean {
 	if (held === incoming) return true;
@@ -85,14 +77,12 @@ function sameAttributes(held: z.ZodType | undefined, incoming: z.ZodType | undef
 }
 
 /**
- * Declare what may be recorded under a name. Re-declaring the same name with anything different, its instrument, its
- * unit, its dimensions or its attribute schema, throws: one name means one thing across every module that records or
- * reads it. Replacing a held declaration would strip the attributes an earlier caller declared and sends, or make its
- * recordings throw at a site that reads as correct, so the collision is refused where it is written.
+ * Declare what may be recorded under a name. Redeclaring a name with a different instrument, unit, dimensions or
+ * attribute schema throws. Replacing a stored declaration would silently strip attributes an earlier caller sends
+ * (zod drops unknown keys), or make its recordings throw at a call site that is correct.
  */
 export function declareBlips(...decls: TBlipDeclaration[]): void {
-	// One capture serves the whole call: declarations arrive together from one module, and once per name is the cost
-	// model that keeps origin free at recording time.
+	// One stack read per call: declarations in one call come from one module.
 	const declaredAt = decls.some((d) => d.origin) ? declaringSite() : undefined;
 	for (const d of decls) {
 		const held = declarations.get(d.name);
@@ -114,18 +104,16 @@ export function resetBlips(): void {
 }
 
 /**
- * The aggregating listener: rolls occurrences up per name, since neither a feature line, the monitor, nor an agent can
- * take blips raw. Memory is bounded by the declared vocabulary (one counter per name). LogicStepper attaches it for
- * the run and serves it as the `blips` observation source, so a feature asserts on counts with the existing
- * `observed in` quantifiers; it clears between features like every observation source.
+ * Counts occurrences per name, for callers that cannot consume blips at their recorded rate: a feature assertion, the
+ * monitor, an agent. Memory is one counter per declared name. `blips-stepper` attaches it for the run, clears it per
+ * feature, and serves it as the `blips` observation source, read with `observed in`.
  */
 export class BlipRollup {
 	private counts = new Map<string, number>();
 	private detachFn: (() => void) | undefined;
 
-	/** Binds to the logger passed in, dropping any earlier subscription: an execution that ends without detaching (a
-	 *  throw that escapes the feature loop) must not leave the next one counting against a dead logger. Opens a clean
-	 *  window, like the observation graphs an execution clears at its start. */
+	/** Subscribes to the given logger, unsubscribing from any earlier one and clearing counts. An execution that ends
+	 *  without detaching must not leave the next one subscribed to a discarded logger. */
 	attach(eventLogger: IEventLogger): void {
 		this.detach();
 		this.counts.clear();
@@ -145,7 +133,7 @@ export class BlipRollup {
 		this.counts.clear();
 	}
 
-	/** The rollup in observation-source shape: items are the names seen, each with its occurrence count as a metric. */
+	/** Observation-source shape: items are the names recorded, each with a `count` metric. */
 	observe(): { items: string[]; metrics: Record<string, Record<string, unknown>> } {
 		const metrics: Record<string, Record<string, unknown>> = {};
 		for (const [name, count] of this.counts) metrics[name] = { count };
