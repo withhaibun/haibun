@@ -11,11 +11,13 @@
  *   - TRel / TPropertyDef / TEdgeDef / TDomainTopology: the shape of a node-type declaration
  *   - TDomainDefinition / TRegisteredDomain: how steppers register a domain
  *   - Helpers: getRel, getMediaType, edgeRel, isReplyEdge
+ *   - Write helpers over a quad store: comments, annotations, and the facts a text's links state
  *
  * Grounded in JSON-LD / ActivityStreams / RDF — node label is a local handle, `type` is the
  * RDF class URI that JSON-LD emits, `id` is the IRI.
  */
 import { z } from "zod";
+import { typedLinkFacts, type TLinkVocabulary, type TQuoteAnchor } from "./typed-links.js";
 
 // ============================================================================
 // Resource identity
@@ -111,6 +113,18 @@ export const BODY_DOMAIN = "body";
 /** Edge from any resource to a Body sub-resource. */
 export const HAS_BODY_EDGE = "hasBody";
 
+/** Document: a markdown text held as a record, identified by the path it was registered from. Its links are facts (see `deriveTypedLinks`). */
+export const DOCUMENT_LABEL = "Document";
+export const DOCUMENT_DOMAIN = "document";
+
+/**
+ * Reading: one reading of a text, asserting what its links state (`prov:Activity`). One per source. It names the
+ * source it read (`prov:used`), the run step that read it, and the statements it made, so reading a rewritten text
+ * retracts exactly what the previous reading asserted and nothing a person asserted by hand.
+ */
+export const READING_LABEL = "Reading";
+export const READING_DOMAIN = "reading";
+
 /**
  * SeqPath — the hierarchical step identifier reified as a graph node.
  *
@@ -198,7 +212,13 @@ export const LinkRelations = {
 	URL: { rel: "url", uri: "as:url", range: "literal" },
 	// schema.org — a work references an entity it names but is not about (schema:mentions). The edge a body-bearing
 	// individual (an email, a document) draws to each person, place, organization, or other entity extracted from it.
+	// Also the rel an untyped link states: a link whose text names no property type still says the text refers to what it points at.
 	MENTIONS: { rel: "mentions", uri: "schema:mentions", range: "iri" },
+	// CiTO (Citation Typing Ontology): one work citing another, and the refinement that says the citing work offers the
+	// cited passage as evidence for what it claims. A feature citing the requirement it exercises states the latter, so
+	// "which requirements are evidenced" is a query over stored facts rather than a naming convention.
+	CITES: { rel: "cites", uri: "cito:cites", range: "iri" },
+	CITES_AS_EVIDENCE: { rel: "citesAsEvidence", uri: "cito:citesAsEvidence", range: "iri", subPropertyOf: "cites" },
 	// W3C Web Annotation (oa:) — anchoring an annotation inside its source. An annotating Comment's hasTarget points at
 	// an oa:SpecificResource, which names the whole document (hasSource) and the anchored segment (hasSelector → a
 	// TextQuoteSelector whose exact/prefix/suffix quote the text, so the anchor survives re-import and re-rendering).
@@ -217,6 +237,10 @@ export const LinkRelations = {
 	// below), so it is one of the predicates the fisheye's HypermediaRole grouping axis derives (see roleRels).
 	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 20 },
 	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
+	// What an activity read to do its work. A Derivation names the text whose links it turned into statements.
+	USED: { rel: "used", uri: "prov:used", range: "iri" },
+	// The statements a reading asserted, recorded so a later reading of the same source retracts exactly them.
+	STATED: { rel: "stated", uri: "hbn:stated", range: "container" },
 	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
 	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri" },
@@ -262,6 +286,8 @@ export const LinkRelations = {
 	REVOKE: { rel: "revoke", uri: "hbn:revoke", range: "iri", subPropertyOf: "inReplyTo", label: "Revoke", icon: "↩️" },
 	// Haibun native — other
 	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri" },
+	// What ran for a step: the stepper and action, as `Stepper.action`. Its TEXT says what was asked for; this says what was called.
+	CALLED: { rel: "called", uri: "hbn:called", range: "literal" },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
 	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "governance" as TRelPresentation },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
@@ -365,6 +391,8 @@ export const EdgePredicates = {
 	hasSource: { rel: LinkRelations.HAS_SOURCE.rel },
 	hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel },
 	linksTo: { rel: LinkRelations.LINKS_TO.rel },
+	used: { rel: LinkRelations.USED.rel },
+	wasGeneratedBy: { rel: LinkRelations.WAS_GENERATED_BY.rel },
 } as const;
 
 export type TEdgePredicate = keyof typeof EdgePredicates;
@@ -691,6 +719,10 @@ export type TComment = z.infer<typeof CommentSchema>;
  * Topology uses existing LinkRelations for every property; no new rels
  * introduced here.
  */
+export const PRINCIPAL_LABEL = "Principal";
+/** Domain selector — distinct from the runtime "principal" key (see lib/principal.ts) to avoid collision. */
+export const PRINCIPAL_DOMAIN = "principal-individual";
+
 export const commentDomainDefinition: TDomainDefinition = {
 	selectors: [COMMENT_DOMAIN],
 	schema: CommentSchema,
@@ -713,6 +745,11 @@ export const commentDomainDefinition: TDomainDefinition = {
 		},
 		edges: {
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
+			// Who wrote it, as a navigable edge to that agent, so a comment connects to the person, service or model
+			// behind it instead of naming it in a string. Ranges over Principal, which is sec:Controller and a
+			// prov:Agent, so any kind of agent an author can be is well-formed against it. The property of the same rel
+			// stays, because author is a sort and filter column.
+			[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
 			// What the comment is about — any Resource (an entity, or another Comment in a thread).
 			[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
 			// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.
@@ -746,9 +783,6 @@ export const commentDomainDefinition: TDomainDefinition = {
  *
  * Only PUBLIC material persists — there is no private-key field, by design.
  */
-export const PRINCIPAL_LABEL = "Principal";
-/** Domain selector — distinct from the runtime "principal" key (see lib/principal.ts) to avoid collision. */
-export const PRINCIPAL_DOMAIN = "principal-individual";
 
 export const PrincipalSchema = z.object({
 	id: z.string(),
@@ -848,6 +882,21 @@ export async function bodyByMediaType(
 	return body?.content;
 }
 
+/**
+ * The markdown text of an individual, however its store holds it: a store that partitions content into a Body
+ * sub-resource is read through the `hasBody` link; one that keeps it inline is read off the field. Undefined when the
+ * individual holds no markdown.
+ */
+export async function markdownOf(store: Pick<TDiscourseStore, "getIndividual">, label: string, id: string): Promise<string | undefined> {
+	const individual = (await store.getIndividual(label, id)) as
+		| ({ body?: unknown; content?: unknown; hasBody?: Array<{ id?: string; mediaType?: string }> } & Record<string, unknown>)
+		| undefined;
+	if (!individual) return undefined;
+	const inline = individual.body ?? individual.content;
+	if (typeof inline === "string") return inline;
+	return bodyByMediaType(store as TBodyReader, individual, "text/markdown");
+}
+
 export const bodyDomainDefinition: TDomainDefinition = {
 	selectors: [BODY_DOMAIN],
 	schema: BodySchema,
@@ -918,7 +967,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
  * resolves the selector against the document's content when rendering.
  *
  * Carries no property of its own to be titled by, which is what the model says it is: a proxy standing for a passage,
- * serialized inline and dereferenced by no one. Its subject id is a minted storage artifact rather than identity, so it
+ * serialized inline and dereferenced by no one. Its subject id is a storage artifact rather than identity, so it
  * is titled through oa:hasSelector by the passage its selector locates — see `displayLabel` below. It takes no name of
  * its own: the model gives oa:SpecificResource none.
  */
@@ -927,6 +976,10 @@ export const SPECIFIC_RESOURCE_DOMAIN = "specific-resource";
 export const SpecificResourceSchema = z.object({
 	id: z.string(),
 	generatedAtTime: z.string(),
+	/** `rdfs:label`: what a reader called this passage where it was referred to. The W3C model gives a SpecificResource
+	 *  no title of its own, so it otherwise reads as the bare text it quotes (a clause number, a fragment), which says
+	 *  nothing about what it was cited for. RDFS's labelling property is the standard place for the words that do. */
+	label: z.string().optional(),
 });
 export type TSpecificResource = z.infer<typeof SpecificResourceSchema>;
 
@@ -941,6 +994,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			label: LinkRelations.LABEL.rel,
 		},
 		edges: {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
@@ -948,6 +1002,85 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 		},
 		// Titled through its selector: the proxy carries no property of its own a reader could be shown.
 		displayLabel: LinkRelations.HAS_SELECTOR.rel,
+	},
+};
+
+// ============================================================================
+// Reading: the record of one reading of a text
+// ============================================================================
+
+/** One reading: what it read, when, in which step, and the statements it made. */
+export const ReadingSchema = z.object({
+	id: z.string(),
+	generatedAtTime: z.string(),
+	seqPath: z.string().optional(),
+	/** Each statement this reading asserted, so a later reading retracts exactly them. See `TStatedRecord`. */
+	stated: z.array(z.string()),
+});
+export type TReading = z.infer<typeof ReadingSchema>;
+
+export const readingDomainDefinition: TDomainDefinition = {
+	selectors: [READING_DOMAIN],
+	schema: ReadingSchema,
+	description: "One reading of a text that turned its links into facts. It names the text it read and the step that read it, so every stated fact says where it came from.",
+	topology: {
+		persistedAs: READING_LABEL,
+		type: "prov:Activity",
+		id: "id",
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			seqPath: LinkRelations.SEQ_PATH.rel,
+			stated: LinkRelations.STATED.rel,
+		},
+		edges: { used: { rel: LinkRelations.USED.rel, range: RESOURCE_LABEL } },
+		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
+	},
+};
+
+// ============================================================================
+// Scene: a named view, saved and applied
+// ============================================================================
+
+/**
+ * Scene: a named record of how a view was set up, so a way of looking at the graph can be saved, named, linked to,
+ * and restored. What it holds is exactly what the view already remembers across reloads (its durable options), keyed
+ * by the element that owns them; the options themselves are opaque here, since only the view knows its own schema and
+ * validates them when the scene is applied.
+ *
+ * A scene is an ordinary individual, so `#Scene:name` is a reference like any other: a document can link a requirement
+ * to the scene that shows it.
+ */
+export const SCENE_LABEL = "Scene";
+export const SCENE_DOMAIN = "scene";
+
+export const SceneSchema = z.object({
+	id: z.string().describe("The scene's name: what a reader picks it by, and what a link to it names."),
+	author: z.string().optional(),
+	generatedAtTime: z.string(),
+	accessLevel: AccessLevelSchema.optional(),
+	/** The views' options as JSON, keyed by element tag: `{"shu-fisheye-graph-view": {…}}`. Opaque to the graph; each view validates its own on apply. */
+	state: z.string(),
+});
+export type TScene = z.infer<typeof SceneSchema>;
+
+export const sceneDomainDefinition: TDomainDefinition = {
+	selectors: [SCENE_DOMAIN],
+	schema: SceneSchema,
+	// The generated `create scene {data}` step takes its value as JSON text from a feature, as every other composite does.
+	coerce: (proto: { value?: unknown }) => SceneSchema.parse(typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value),
+	description: "A named way of looking at the graph: which kinds are shown, how they are laid out, and when, saved so it can be returned to and linked to.",
+	topology: {
+		persistedAs: SCENE_LABEL,
+		id: "id",
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			author: LinkRelations.ATTRIBUTED_TO.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
+			state: LinkRelations.SCHEMA_OBJECT.rel,
+		},
+		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
 	},
 };
 
@@ -976,7 +1109,12 @@ export const AnnotationNoteSchema = z
 		prefix: z.string().optional(),
 		suffix: z.string().optional(),
 		text: z.string().describe("The note's body."),
-		at: z.string().optional().describe("The start (ISO) of the period the note is ABOUT (a milestone's week) — carried as startedAtTime, so time-placed views place the note there. The record's own generatedAtTime stays the write time."),
+		at: z
+			.string()
+			.optional()
+			.describe(
+				"The start (ISO) of the period the note is ABOUT (a milestone's week) — carried as startedAtTime, so time-placed views place the note there. The record's own generatedAtTime stays the write time.",
+			),
 		until: z.string().optional().describe("The end (ISO) of the period the note is about — carried as endedAtTime; with `at`, time-placed views read the note as an interval."),
 		links: z.array(AnnotationQuoteSchema).optional().describe("Further passages in the same document this note cross-references; each renders as a followable link."),
 	})
@@ -995,13 +1133,21 @@ export const annotationNoteDomainDefinition: TDomainDefinition = {
 // Discourse write helpers — comment and annotation acts over a quad store
 // ============================================================================
 
-/** The store surface the discourse write helpers use: node upsert, quad add/query, and (property-graph stores only) a
- *  navigable createEdge. Every consumer store implements it; keeping it minimal keeps these helpers store-agnostic. */
+/** The store surface the discourse write helpers use: node upsert/read/delete, single-property set, quad add/query/remove,
+ *  and (property-graph stores only) a navigable createEdge. Every member is an `IQuadStore` member, so every consumer store
+ *  already implements it; naming only what these helpers use keeps them store-agnostic. */
 export type TDiscourseStore = {
 	upsertIndividual(label: string, data: unknown): Promise<string>;
+	getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
+	deleteIndividual(label: string, id: string): Promise<void>;
+	set(subject: string, predicate: string, object: unknown, namedGraph: string): Promise<void>;
 	query(pattern: { subject?: string; predicate?: string; object?: unknown }): Promise<Array<{ subject: string; predicate: string; object: unknown }>>;
 	add(quad: { subject: string; predicate: string; object: unknown; namedGraph: string; objectType?: string }): Promise<void>;
+	remove(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<void>;
 	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
+	/** An edge to something that may not be here yet, such as a document not read or a record not made. A store that keeps edges
+	 *  strictly holds an id-only placeholder until the target arrives; a store that models edges as quads needs no distinction. */
+	referenceEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 };
 
 /** A Comment's display name — its note text on one line, truncated so a graph view titles by what it says, not its id. */
@@ -1018,9 +1164,26 @@ export async function writeEdge(store: TDiscourseStore, fromLabel: string, fromI
 	else await store.add({ subject: fromId, predicate: rel, object: toId, namedGraph: fromLabel, objectType: toLabel });
 }
 
+/** Write an edge to something that may not be here yet: what a text referring to an unread document states, or an
+ *  observation of a request naming an endpoint whose record has not landed. Falls back to the ordinary edge write for a
+ *  store that keeps no placeholders, where an edge to an absent target is just a quad. */
+export async function writeReferenceEdge(store: TDiscourseStore, fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string): Promise<void> {
+	if (store.referenceEdge) await store.referenceEdge(fromLabel, fromId, rel, toLabel, toId);
+	else await writeEdge(store, fromLabel, fromId, rel, toLabel, toId);
+}
+
 /** Create a Comment individual with its markdown body as a Body sub-resource — the shared act behind `comment` and
- *  `annotate`. `name` titles the node by the note text (truncated) rather than its id. */
-export async function createComment(store: TDiscourseStore, author: string, text: string, now: string, period?: { start?: string; end?: string }): Promise<string> {
+ *  `annotate`. `name` titles the node by the note text (truncated) rather than its id. The note is markdown, so the
+ *  facts its links state are derived from it with the Comment as their subject. */
+export async function createComment(
+	store: TDiscourseStore,
+	vocab: TLinkVocabulary,
+	author: string,
+	text: string,
+	now: string,
+	period?: { start?: string; end?: string },
+	provenance?: { seqPath?: string },
+): Promise<string> {
 	const commentId = crypto.randomUUID();
 	await store.upsertIndividual(COMMENT_LABEL, {
 		id: commentId,
@@ -1033,13 +1196,24 @@ export async function createComment(store: TDiscourseStore, author: string, text
 	const bodyId = `body-${commentId}-text-markdown`;
 	await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: "text/markdown", generatedAtTime: now });
 	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.HAS_BODY.rel, BODY_LABEL, bodyId);
+	await readTypedLinks(store, vocab, { label: COMMENT_LABEL, id: commentId }, text, provenance);
 	return commentId;
 }
 
 /** Anchor a passage inside (sourceLabel, sourceId): a TextQuoteSelector for the quote (its optional prefix/suffix context
  *  making a short or repeated quote resolve reliably) plus a SpecificResource naming the source and the selector. Returns
- *  the SpecificResource id — the target a Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference) points at. */
-export async function anchorPassage(store: TDiscourseStore, sourceLabel: string, sourceId: string, quote: { exact: string; prefix?: string; suffix?: string }, now: string): Promise<string> {
+ *  both ids it wrote. The SpecificResource is what a Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference)
+ *  points at; the selector id lets a caller that owns the anchor retract the pair. */
+export async function anchorPassage(
+	store: TDiscourseStore,
+	sourceLabel: string,
+	sourceId: string,
+	quote: { exact: string; prefix?: string; suffix?: string },
+	now: string,
+	/** `sourceMayBeAbsent`: a text can quote a document nothing has read (annotating a record in hand does not need it).
+	 *  `label`: what a reader called this passage where it was referred to, so it reads as more than the text it quotes. */
+	opts?: { sourceMayBeAbsent?: boolean; label?: string },
+): Promise<{ specificResourceId: string; selectorId: string }> {
 	const selectorId = crypto.randomUUID();
 	await store.upsertIndividual(TEXT_QUOTE_SELECTOR_LABEL, {
 		id: selectorId,
@@ -1049,10 +1223,13 @@ export async function anchorPassage(store: TDiscourseStore, sourceLabel: string,
 		generatedAtTime: now,
 	});
 	const specificResourceId = crypto.randomUUID();
-	await store.upsertIndividual(SPECIFIC_RESOURCE_LABEL, { id: specificResourceId, generatedAtTime: now });
-	await writeEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel, sourceLabel, sourceId);
+	// An anchor reads as the passage it stands for. Its id is a generated string, and resolving the title through its
+	// selector is a hop through a second proxy, which stops at the id: without a label the node reads as that string.
+	await store.upsertIndividual(SPECIFIC_RESOURCE_LABEL, { id: specificResourceId, generatedAtTime: now, label: opts?.label ?? quote.exact });
+	const writeSourceEdge = opts?.sourceMayBeAbsent ? writeReferenceEdge : writeEdge;
+	await writeSourceEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel, sourceLabel, sourceId);
 	await writeEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel, TEXT_QUOTE_SELECTOR_LABEL, selectorId);
-	return specificResourceId;
+	return { specificResourceId, selectorId };
 }
 
 /** Rels that ground a Comment in what it concerns: an oa:hasTarget subject or an attachment. Reply-family rels
@@ -1088,24 +1265,126 @@ export async function conversationRoot(store: TDiscourseStore, id: string): Prom
  *  prefix/suffix context so what is annotated is determined reliably. Shared by every annotate variant. */
 export async function writeAnnotation(
 	store: TDiscourseStore,
+	vocab: TLinkVocabulary,
 	author: string,
-	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; at?: string; until?: string; links?: Array<{ exact: string; prefix?: string; suffix?: string }> },
+	a: {
+		label: string;
+		id: string;
+		exact: string;
+		prefix?: string;
+		suffix?: string;
+		text: string;
+		at?: string;
+		until?: string;
+		links?: Array<{ exact: string; prefix?: string; suffix?: string }>;
+	},
 ): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceIds?: string[] }> {
 	// `at`/`until` bound the period the note is ABOUT (a milestone's week) — subject time, carried as
 	// startedAtTime/endedAtTime so time-placed views (gantt) show the note over its period. `generatedAtTime`
 	// stays the moment the record was written; the two are different facts and never conflated.
 	const now = new Date().toISOString();
-	const specificResourceId = await anchorPassage(store, a.label, a.id, a, now);
-	const commentId = await createComment(store, author, a.text, now, { start: a.at, end: a.until });
+	// The pinned passage is titled by what the note SAYS about it (the same rule Comment titles itself by), so in any
+	// view the anchor reads as the statement made there, never as the bare quote it happens to pin.
+	const { specificResourceId } = await anchorPassage(store, a.label, a.id, a, now, { label: commentName(a.text) });
+	const commentId = await createComment(store, vocab, author, a.text, now, { start: a.at, end: a.until });
 	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.TARGET.rel, SPECIFIC_RESOURCE_LABEL, specificResourceId);
 	const linkedSpecificResourceIds: string[] = [];
 	for (const link of a.links ?? []) {
-		const linkedId = await anchorPassage(store, a.label, a.id, link, now);
-		await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.LINKS_TO.rel, SPECIFIC_RESOURCE_LABEL, linkedId);
-		linkedSpecificResourceIds.push(linkedId);
+		const linked = await anchorPassage(store, a.label, a.id, link, now);
+		await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.LINKS_TO.rel, SPECIFIC_RESOURCE_LABEL, linked.specificResourceId);
+		linkedSpecificResourceIds.push(linked.specificResourceId);
 	}
 	await assertCommentGrounded(store, commentId);
 	return { commentId, specificResourceId, ...(linkedSpecificResourceIds.length > 0 ? { linkedSpecificResourceIds } : {}) };
+}
+
+// ============================================================================
+// Typed-link derivation: turning a text's links into facts
+// ============================================================================
+
+/** What a reading did, so a later reading of the same source can undo exactly that: a statement, or a record it wrote. */
+type TStatedRecord = { kind: "edge"; s: string; sLabel: string; rel: string; o: string; oLabel: string } | { kind: "individual"; label: string; id: string };
+
+/** One reading per source: a stable id, so reading again replaces the previous reading rather than accumulating one per run. */
+export function readingIdFor(sourceLabel: string, sourceId: string): string {
+	return `reading:${sourceLabel}:${sourceId}`;
+}
+
+/** The statements the previous reading of this source asserted, undone: its statements retracted, the anchors it wrote deleted, and the reading itself removed. */
+async function retractReading(store: TDiscourseStore, readingId: string): Promise<void> {
+	const prior = await store.getIndividual<{ stated?: unknown }>(READING_LABEL, readingId);
+	if (!prior) return;
+	const entries = prior.stated;
+	if (entries !== undefined && !Array.isArray(entries))
+		throw new Error(`${READING_LABEL} "${readingId}" records what it stated as ${typeof entries}, not a list, so the record cannot be undone`);
+	for (const entry of (entries ?? []) as string[]) {
+		const record = JSON.parse(String(entry)) as TStatedRecord;
+		if (record.kind === "edge") await store.remove({ subject: record.s, predicate: record.rel, object: record.o, namedGraph: record.sLabel });
+		else await store.deleteIndividual(record.label, record.id);
+	}
+	await store.deleteIndividual(READING_LABEL, readingId);
+}
+
+/**
+ * Write the facts a text's links state, with `source` as their subject.
+ *
+ * Every statement connects two records of REGISTERED types: the text (already a record, whatever its type) and the
+ * individual its link names by `#Type:id`. The persisted-type registry is the articulation, so no receiving type
+ * exists for anything else; a link to something with no record here is prose, or an error when it stated a term.
+ * A typed link's passage target is anchored on the W3C Web Annotation types (`anchorPassage`), labelled by its link text.
+ *
+ * A `Derivation` records the reading: what it read (`prov:used`), the step that read it, and every statement it made,
+ * so re-reading a rewritten text undoes exactly the previous reading and leaves anything asserted by hand alone.
+ */
+export async function readTypedLinks(
+	store: TDiscourseStore,
+	vocab: TLinkVocabulary,
+	source: { label: string; id: string },
+	markdown: string | undefined,
+	provenance?: { seqPath?: string },
+): Promise<{ readingId: string; statements: number } | undefined> {
+	const readingId = readingIdFor(source.label, source.id);
+	await retractReading(store, readingId);
+	const facts = markdown ? typedLinkFacts(markdown, vocab) : [];
+	if (facts.length === 0) return undefined;
+	const now = new Date().toISOString();
+	const stated: TStatedRecord[] = [];
+	// Written first: everything below points back at it, and a strict store needs the target to exist. Its `stated` list is filled in at the end.
+	await store.upsertIndividual(READING_LABEL, { id: readingId, generatedAtTime: now, ...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}), stated: [] });
+	/** The passage inside a record, as an individual an edge can point at: the anchor pair this reading owns. */
+	const anchored = async (base: { label: string; id: string }, anchor: TQuoteAnchor, linkText?: string): Promise<{ label: string; id: string }> => {
+		const { specificResourceId, selectorId } = await anchorPassage(store, base.label, base.id, anchor, now, linkText ? { label: linkText } : undefined);
+		for (const written of [
+			{ label: TEXT_QUOTE_SELECTOR_LABEL, id: selectorId },
+			{ label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId },
+		]) {
+			await writeEdge(store, written.label, written.id, LinkRelations.WAS_GENERATED_BY.rel, READING_LABEL, readingId);
+			stated.push({ kind: "individual", ...written });
+		}
+		return { label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId };
+	};
+	for (const fact of facts) {
+		const named = { label: fact.target.persistedAs, id: fact.target.id };
+		// The target must exist. Creating an id-only record to point at would add a node with nothing in it.
+		if (!(await store.getIndividual(named.label, named.id))) {
+			if (!fact.typed) continue;
+			throw new Error(`typed link "${fact.linkText ?? fact.rel}" refers to ${named.label} "${named.id}", which is not here; a fact's target is a record that exists`);
+		}
+		// Only a typed link anchors its passage. An untyped link derives the record-level edge alone; its passage stays
+		// in the link, so no anchor records are added for plain cross-references.
+		const target = fact.typed && fact.target.anchor ? await anchored(named, fact.target.anchor, fact.linkText) : named;
+		await writeEdge(store, source.label, source.id, fact.rel, target.label, target.id);
+		stated.push({ kind: "edge", s: source.id, sLabel: source.label, rel: fact.rel, o: target.id, oLabel: target.label });
+	}
+	// The reading's record of what it asserted, completing the individual written before the facts.
+	await store.set(
+		readingId,
+		"stated",
+		stated.map((record) => JSON.stringify(record)),
+		READING_LABEL,
+	);
+	await writeReferenceEdge(store, READING_LABEL, readingId, LinkRelations.USED.rel, source.label, source.id);
+	return { readingId, statements: stated.filter((d) => d.kind === "edge").length };
 }
 
 // ============================================================================
