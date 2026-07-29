@@ -470,8 +470,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 					setCookie(CHAT_SESSION_COOKIE, turnSeqPath);
 				}
 				this._lastReplySeqPath = turnSeqPath;
-				void this.refreshSessionList();
 			}
+			// The turn was written whether or not its stream announced a seqPath, so the session exists either way. This
+			// used to be inside the branch above, and a turn that announced none left the selector missing.
+			void this.refreshSessionList();
 		} catch (err) {
 			if (signal.aborted) this.patchMessage(aiId, { spinnerStatus: "Stopped", spinnerVisible: true, spinnerSpinning: false, status: "aborted" });
 			else {
