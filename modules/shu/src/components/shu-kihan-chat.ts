@@ -474,7 +474,17 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			}
 		} catch (err) {
 			if (signal.aborted) this.patchMessage(aiId, { spinnerStatus: "Stopped", spinnerVisible: true, spinnerSpinning: false, status: "aborted" });
-			else this.patchMessage(aiId, { error: errMsg(err), spinnerVisible: false, status: "failed" });
+			else {
+				this.patchMessage(aiId, { error: errMsg(err), spinnerVisible: false, status: "failed" });
+				// A turn that fails in the browser was invisible to the run: the pane showed the error, the log showed a
+				// missing element. Report it so a failed turn says why wherever the run is read.
+				void conduit()
+					.follow(
+						{ method: "MonitorStepper-logClient", params: { event: { level: "error", source: "shu-kihan-chat", message: `chat turn failed: ${errMsg(err)}` } } },
+						"chat: turn failed",
+					)
+					.catch(() => undefined);
+			}
 		} finally {
 			const aborted = signal.aborted;
 			this._streaming = false;
