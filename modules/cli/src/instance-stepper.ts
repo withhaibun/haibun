@@ -20,6 +20,9 @@ const READY_DEADLINE_MS = 30_000;
 const READY_POLL_MS = 300;
 const STDERR_TAIL_CHARS = 4_000;
 
+/** The run variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
+export const LAUNCHED_FROM = "LAUNCHED_FROM";
+
 const instanceStartedSchema = z.object({ url: z.string(), site: z.string(), hostId: z.number() });
 
 /** What a launched instance was launched from, so the same instance can be launched again after it is stopped. */
@@ -68,7 +71,12 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	 *  was first launched. */
 	private async launch({ dir, config, port, hostId }: TLaunch) {
 		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
-		const env = { ...process.env, HAIBUN_O_WEBSERVERSTEPPER_PORT: String(port), HAIBUN_HOST_ID: String(hostId) };
+		// The child inherits this process's environment with its OWN port, so the launcher's port is not readable from
+		// it. LAUNCHED_FROM is passed as a run variable ($LAUNCHED_FROM$), which is how a launched instance addresses
+		// the run that started it — mounting its store, reporting to it — without naming a port in its own source.
+		const launcherPort = process.env.HAIBUN_O_WEBSERVERSTEPPER_PORT;
+		const passed = [process.env.HAIBUN_ENV, launcherPort ? `${LAUNCHED_FROM}=http://localhost:${launcherPort}` : ""].filter(Boolean).join(",");
+		const env = { ...process.env, HAIBUN_O_WEBSERVERSTEPPER_PORT: String(port), HAIBUN_HOST_ID: String(hostId), ...(passed ? { HAIBUN_ENV: passed } : {}) };
 		// execArgv: [] — the child is plain node running the built CLI; it must not inherit a test runner's loader flags.
 		const child = fork(cliEntry, ["-c", config, dir], { env, silent: true, execArgv: [] });
 		let stderrTail = "";
@@ -83,9 +91,15 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const deadline = Date.now() + READY_DEADLINE_MS;
 		while (Date.now() < deadline) {
 			if (child.exitCode !== null) return actionNotOK(`instance at ${dir} exited before ready (code ${child.exitCode})${stderrTail ? `\n${stderrTail}` : ""}`);
-			const result = await rpc.call<{ hostId?: number; site?: string }>("action.begin", {}, []);
+			const result = await rpc.call<{ hostId?: number; site?: string; serving?: boolean }>("action.begin", {}, []);
 			if (typeof (result as { error?: unknown }).error !== "string") {
-				const begun = result as { hostId?: number; site?: string };
+				const begun = result as { hostId?: number; site?: string; serving?: boolean };
+				// Ready means serving: the instance's feature has run everything it sets up. Its port answers earlier, and a
+				// caller that took that as ready would race whatever the feature does after listening.
+				if (begun.serving !== true) {
+					await new Promise((r) => setTimeout(r, READY_POLL_MS));
+					continue;
+				}
 				// The handshake verifies the child took the assigned identity — a silently-wrong hostId would break seqPath and site uniqueness.
 				if (begun.hostId !== hostId) return actionNotOK(`instance at ${url} reports hostId ${begun.hostId}, expected ${hostId}`);
 				if (typeof begun.site !== "string" || begun.site.length === 0) return actionNotOK(`instance at ${url} did not report a site principal`);
