@@ -101,7 +101,9 @@ export const QueryViewSchema = z.object({
 export const ColumnPaneSchema = z.object({
 	label: z.string(),
 	active: z.boolean().default(false),
-	width: z.number().optional(),
+	// The pane's share of the strip (0..1), not pixels: a width kept from one window restores sensibly into another, and
+	// can never exceed the strip. A stored pixel width fails this and is dropped on restore.
+	width: z.number().gt(0).lte(1).optional(),
 	// User-minimized — a persisted choice, distinct from the strip's transient accordion auto-collapse.
 	minimized: z.boolean().default(false),
 	closable: z.boolean().default(true),

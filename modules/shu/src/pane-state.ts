@@ -384,8 +384,22 @@ class PaneStateImpl {
 			}
 			await this.openPane(d, id);
 		}
+		// A maximize describes the FINISHED set, not the moment one pane attaches: applied per arrival, the next pane of
+		// the same restore counts as a column being opened and ends the maximize the restore just applied.
+		this.applyMaximizeFlag();
 		this.strip.updateAccordion(); // flag changes on existing panes shift the layout budget
 		this.strip.applyActive(); // re-assert active styling now the panes match `desired` (the target pane may have just opened)
+	}
+
+	/** Exactly the pane the desired set flags `max` is maximized, once every pane the set names is attached. */
+	private applyMaximizeFlag(): void {
+		if (!this.strip) return;
+		const maxId = [...this.desired.values()].find((d) => d.flag === "max");
+		const wanted = maxId ? paneIdOf(maxId) : null;
+		for (const pane of this.strip.panes) {
+			const id = pane.dataset.columnKey ?? pane.getAttribute(SHU_ATTR.COLUMN_TYPE);
+			pane.setMaximized(!!wanted && id === wanted);
+		}
 	}
 
 	private async openPane(d: DesiredPane, id: string): Promise<void> {
@@ -452,15 +466,10 @@ function columnTypeFor(d: DesiredPane): string {
 	return d.paneType;
 }
 
-/** Apply a desired flag to a live pane. Minimize goes through the pane's one owning path (state + persistence);
- * maximize toggles the attribute (the pane derives its flex from it) and the strip's layout runs only on a real
- * transition — re-affirming an existing maximize must never re-snapshot the already-hidden layout. */
-function applyFlag(strip: ShuColumnStrip, pane: ShuColumnPane, flag: DesiredPane["flag"]): void {
-	const wasMax = pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
-	const max = flag === "max";
+/** Apply a desired flag to a live pane: minimize through the pane's own owning path (state + persistence). Maximize is
+ * applied once the whole set is attached (see applyMaximizeFlag), because it describes the set rather than one pane. */
+function applyFlag(_strip: ShuColumnStrip, pane: ShuColumnPane, flag: DesiredPane["flag"]): void {
 	pane.setMinimized(flag === "min");
-	pane.toggleAttribute(SHU_ATTR.DATA_MAXIMIZED, max);
-	if (max !== wasMax) strip.applyMaximize(pane, max);
 }
 
 /** A column the user last minimized reopens minimized: its pane persists `minimized` (ShuElement.persistFields),
