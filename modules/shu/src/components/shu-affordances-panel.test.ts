@@ -99,7 +99,7 @@ describe("shu-affordances-panel", () => {
 						truncated: false,
 						michi: [
 							{ steps: [{ stepperName: "Issue", stepName: "issueCredential", gwta: "issue credential" }], bindings: [{ kind: "argument", domain: "issuer" }] },
-							{ steps: [{ stepperName: "Mint", stepName: "mintVc", gwta: "mint a credential" }], bindings: [] },
+							{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue a credential" }], bindings: [] },
 						],
 					},
 				},
@@ -112,7 +112,7 @@ describe("shu-affordances-panel", () => {
 		expect(heading).toContain("2 ways to reach this");
 		const stepLabels = Array.from(panel.shadowRoot?.querySelectorAll(".plan-steps li") ?? []).map((li) => li.textContent ?? "");
 		expect(stepLabels.some((t) => t.includes("issue credential"))).toBe(true);
-		expect(stepLabels.some((t) => t.includes("mint a credential"))).toBe(true);
+		expect(stepLabels.some((t) => t.includes("issue a credential"))).toBe(true);
 		expect(panel.shadowRoot?.querySelectorAll(".start-path").length).toBe(2);
 	});
 
@@ -172,7 +172,7 @@ describe("shu-affordances-panel", () => {
 						finding: "michi",
 						goal: "vc",
 						truncated: false,
-						michi: [{ steps: [{ stepperName: "Mint", stepName: "mintVc", gwta: "mint" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
+						michi: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 					},
 				},
 			],
@@ -262,7 +262,7 @@ describe("shu-affordances-panel", () => {
 						finding: "satisfied",
 						goal: "credential",
 						factIds: ["fact-1"],
-						michi: [{ steps: [{ stepperName: "Mint", stepName: "mintVc", gwta: "mint" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
+						michi: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 						truncated: false,
 					},
 				},

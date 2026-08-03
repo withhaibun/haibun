@@ -109,6 +109,11 @@ export function getDisplayLabelRel(label: string): string | undefined {
 	return metadata?.displayLabelRels?.[label];
 }
 
+/** What the site declares about one property type: its IRI, range, and how to show it (label, icon). Undefined for a name the ontology does not declare. */
+export function getPropertyDefinition(rel: string): PropertyDefinition | undefined {
+	return metadata?.propertyDefinitions?.[rel];
+}
+
 /** Get cached edge ranges for a label. */
 export function getEdgeRanges(label: string): Record<string, string> | undefined {
 	return metadata?.edgeRanges[label];

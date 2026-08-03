@@ -11,8 +11,9 @@ import { COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR
 import { callStep } from "./pane-fetch.js";
 import { queryStoredQuads } from "./quads-snapshot.js";
 
-/** A quote that locates a passage in the rendered text. */
-export type QuoteAnchor = { exact: string; prefix?: string; suffix?: string };
+/** A quote that locates a passage in the rendered text: the TextQuoteSelector shape the typed-link grammar and the graph share. */
+export type { TQuoteAnchor as QuoteAnchor } from "@haibun/core/lib/typed-links.js";
+import type { TQuoteAnchor as QuoteAnchor } from "@haibun/core/lib/typed-links.js";
 
 /** One anchored note: the quote that locates it, the note body, and its provenance. `commentId` is the annotating
  *  Comment (the id the highlight carries, so a click selects the note). */

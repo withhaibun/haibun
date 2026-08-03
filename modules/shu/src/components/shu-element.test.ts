@@ -201,7 +201,7 @@ describe("ShuElement invalid state reporting", () => {
 
 		// A number-bound attribute: a non-numeric attribute value coerces to NaN, which the schema rejects — the one way to
 		// drive a rejected write in through attributeChangedCallback.
-		static attributeFields = { "data-count": "count" };
+		static attributeFields = { "data-count": "count", "data-label": "label" };
 		constructor() {
 			super(Schema, { label: "start" });
 		}
@@ -210,6 +210,9 @@ describe("ShuElement invalid state reporting", () => {
 		}
 		write(partial: Partial<z.infer<typeof Schema>>): void {
 			this.setState(partial);
+		}
+		read(): z.infer<typeof Schema> {
+			return this.state;
 		}
 	}
 	if (!customElements.get("shu-report-probe")) customElements.define("shu-report-probe", ReportProbe);
@@ -256,5 +259,14 @@ describe("ShuElement invalid state reporting", () => {
 		expect(thrown?.message).toContain('attribute data-count="seven"');
 		expect(thrown?.message).toContain("state.count");
 		expect(thrown?.message).toContain("<shu-report-probe>"); // the setState account rides along
+	});
+
+	// A state→attribute write removes the attribute when the value is empty, and the browser reports that removal back.
+	// Reading it as "no value" would reject a field the element must hold, the loop a boot-time attribute write fell into.
+	it("leaves a field that must have a value alone when its attribute is removed, since an absent attribute says nothing", () => {
+		const el = probe();
+		el.write({ label: "a name" });
+		expect(() => el.attributeChangedCallback("data-label", "a name", null)).not.toThrow();
+		expect(el.read().label).toBe("a name");
 	});
 });

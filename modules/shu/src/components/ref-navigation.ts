@@ -5,6 +5,7 @@
  * node/link navigation routes through one place and the link vocabulary stays consistent. The <shu-ref> element and the
  * graph views both call openRef; none reimplements the routing.
  */
+import { esc, escAttr } from "../util.js";
 import { PaneState, paneIdOf, QuoteAnchorSchema, type DesiredPane } from "../pane-state.js";
 
 export const REF_KIND = ["seqPath", "entity", "domain", "step"] as const;
@@ -50,4 +51,32 @@ export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Rec
 	const desired = desiredPaneFor(kind, linkTarget);
 	// A kind with no pane (step) renders non-functional rather than crashing.
 	if (desired) PaneState.requestFrom(source, desired);
+}
+
+/** The text a reference shows when its caller names none: the identifier itself, read out of the target. */
+export function defaultLabel(kind: string | null, targetJson: string | null): string {
+	if (!kind || !targetJson) return "";
+	try {
+		const target = JSON.parse(targetJson) as Record<string, unknown>;
+		if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
+		if (kind === "entity" && typeof target.id === "string") return target.id;
+		if (kind === "domain" && typeof target.domain === "string") return target.domain;
+		if (kind === "step" && typeof target.stepperName === "string" && typeof target.stepName === "string") return `${target.stepperName}.${target.stepName}`;
+	} catch {
+		// fallthrough
+	}
+	return "";
+}
+
+/**
+ * The inline markup for a reference: the string form, kept here with the router rather than with the element that
+ * renders it: a text or a table that names an individual builds this, and putting it behind the custom element drags a
+ * DOM class into the import path of every module that formats one.
+ */
+export function renderRef(kind: TRefKind, linkTarget: Record<string, unknown>, text?: string): string {
+	const targetJson = JSON.stringify(linkTarget);
+	const display = text ?? defaultLabel(kind, targetJson);
+	// The display text is also child text: a surface where the element is not defined (the sandboxed body iframe)
+	// then shows the text instead of nothing. The defined element's shadow root has no slot, so it never doubles.
+	return `<shu-ref kind="${escAttr(kind)}" linkTarget="${escAttr(targetJson)}" text="${escAttr(display)}">${esc(display)}</shu-ref>`;
 }

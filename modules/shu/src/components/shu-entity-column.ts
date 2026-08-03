@@ -16,6 +16,7 @@ import {
 	isReferenceEdge,
 	extractFieldEntries,
 	extractBodyLiterals,
+	governanceFields,
 	pickPreferredBody,
 	renderContentHtml,
 	utf8ToBase64,
@@ -64,7 +65,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 		.entity-header { padding: var(--shu-space-2) 0; }
-		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); padding: 1px var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); }
+		/* A statement about where the view came from, not a control: no border, background or radius, which read as a button. */
+		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		.body-reading { padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; }
 		.entity-type { font-weight: 600; color: var(--shu-accent); font-size: 0.85em; letter-spacing: 0.5px; margin-right: var(--shu-space-4); }
 		.entity-id { color: var(--shu-fg-muted); word-break: break-all; }
@@ -259,6 +261,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		// Literal body-presentation content (a SeqPath's stepText → content): the field table drops body-presentation
 		// fields, and the iframe path only renders linked bodies — so these inline scalars need their own block or vanish.
 		const bodyLiterals = this.renderBodyLiterals(persistedAs);
+		const governance = this.renderGovernance(persistedAs);
 		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1 && contentIframe.length === 0 && bodyLiterals.length === 0;
 		const typeLine = this.typeDescriptionLine(persistedAs);
 
@@ -295,7 +298,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					: "";
 			// The body area (iframe or inline-annotated) is rendered as a lit sub-template after this string, so annotations
 			// reach shu-annotated-body as a real property rather than an attribute — hence contentIframe is NOT embedded here.
-			contentHtml = `${detailsHtml}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${bodyLiterals}`;
+			contentHtml = `${detailsHtml}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
 		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content">${this.renderFromStore()}${unsafeHTML(contentHtml)}${this.renderBodyArea(contentIframe)}</div>`;
@@ -305,12 +308,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		if (!this.state.loading && !this.state.error && this.vertex) this.bindEvents();
 	}
 
-	/** A badge stating the view is a stored copy, not a live fetch: the in-memory session cache, or the persisted browser
-	 *  store when offline. Absent for a live fetch, so its presence tells a reader why the view appeared without a fetch. */
+	/** Where the view came from when it was not fetched: a copy held this session, or the browser store when offline.
+	 *  Absent for a live fetch, so its presence tells a reader why the view appeared without one. */
 	private renderFromStore(): TemplateResult {
 		const { fromStore } = this.state;
 		if (!fromStore) return html``;
-		const label = fromStore === "offline" ? "Shown from browser store (offline)" : "Shown from cache";
+		const label = fromStore === "offline" ? "from the browser store (offline)" : "from a copy held this session";
 		return html`<div class="entity-from-store" data-testid="entity-from-store">${label}</div>`;
 	}
 
@@ -572,6 +575,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 * fields out of the field table, but renderContentIframe only handles linked `hasBody` sub-resources, so a literal
 	 * `content` value would otherwise render nowhere.
 	 */
+	/** The record's governance fields (who may see it, what it allows, whether it is revoked) in their own section.
+	 *  The field table drops them (their rel says they belong here), so without this they render nowhere at all. */
+	private renderGovernance(persistedAs: string): string {
+		if (!this.vertex) return "";
+		const fields = governanceFields(this.vertex, persistedAs);
+		const rows = Object.entries(fields)
+			.map(([k, v]) => `<div class="field-row"><span class="field-name">${esc(k)}</span><span class="field-value">${this.fieldValueHtml(v, k)}</span></div>`)
+			.join("");
+		return rows ? `<details class="governance" data-testid="entity-governance"><summary class="section-label">Governance</summary>${rows}</details>` : "";
+	}
+
 	private renderBodyLiterals(persistedAs: string): string {
 		if (!this.vertex) return "";
 		return Object.entries(extractBodyLiterals(this.vertex, persistedAs))
