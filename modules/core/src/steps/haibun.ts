@@ -10,6 +10,7 @@ import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
 import { RemoteQuadStore } from "../lib/remote-quad-store.js";
+import { SERVING } from "../lib/serving.js";
 
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
@@ -114,6 +115,9 @@ class Haibun extends AStepper implements IHasCycles {
 				// process keeps doing whatever it was doing — receiving SSE events,
 				// holding open server sockets, polling. The action's promise never
 				// resolves; the process exits via signal.
+				// Reaching this step is what makes the instance ready: everything its feature sets up has run. A caller
+				// that waited only for the port would race with the rest of the feature.
+				this.getWorld().runtime[SERVING] = true;
 				return new Promise(() => {
 					// intentionally never resolves
 				});

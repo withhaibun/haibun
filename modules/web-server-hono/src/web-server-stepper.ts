@@ -10,6 +10,7 @@ import { discoverSteps, buildFeatureStepForTransport, StepRegistry, capabilityAl
 import { handleStoreCall, isStoreMethod, requiredStoreCapability } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
+import { SERVING } from "@haibun/core/lib/serving.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
@@ -258,7 +259,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// host they're talking to. `site` is this instance's site
 						// principal — the federation handshake reads it to stamp and
 						// de-collide merged reads.
-						return { seqPath, hostId: seqPath[0], site: activeSitePrincipal(this.getWorld()) };
+						// `serving` reports whether this instance's feature has finished setting up (see the SERVING runtime key), so a
+						// caller can wait for the instance rather than for its port.
+						return { seqPath, hostId: seqPath[0], site: activeSitePrincipal(this.getWorld()), serving: this.getWorld().runtime[SERVING] === true };
 					}
 
 					// The delegated store surface (store.*): a sibling instance keeping its records in THIS instance's
