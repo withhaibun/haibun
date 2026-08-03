@@ -107,19 +107,17 @@ export abstract class AStorage extends AStepper {
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = "") {
 		const dir = await this.getCaptureLocation(loc, app);
-		await this.ensureDirExists(dir);
+		this.ensureDirExists(dir);
 		return fn ? `${dir}/${fn}` : dir;
 	}
-	// biome-ignore lint/suspicious/useAwait: may be async in some implementations
-	async ensureDirExists(dir: string) {
-		if (!this.exists(dir)) {
-			try {
-				this.mkdirp(dir);
-			} catch (e) {
-				throw Error(`creating ${dir}: ${e}`);
-			}
+	/** Synchronous, because `exists` and `mkdirp` are: a promise here was one for callers to await and nothing to wait for. */
+	ensureDirExists(dir: string): void {
+		if (this.exists(dir)) return;
+		try {
+			this.mkdirp(dir);
+		} catch (e) {
+			throw Error(`creating ${dir}: ${e}`);
 		}
-		return Promise.resolve();
 	}
 
 	steps = {

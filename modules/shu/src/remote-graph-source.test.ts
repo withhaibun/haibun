@@ -42,7 +42,9 @@ describe("RemoteGraphSource", () => {
 		const source = new RemoteGraphSource({ url: "http://peer:1", fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:imap" }) as typeof fetch });
 		await source.connect();
 		const result = await source.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
-		expect((readRequests.at(-1)?.params as Record<string, unknown>).scope).toBe("own");
+		const lastParams = readRequests.at(-1)?.params as Record<string, unknown> | undefined;
+		if (!lastParams) throw new Error("the peer was never asked for its clustered quads");
+		expect(lastParams.scope).toBe("own");
 		expect(result.site).toBe("did:site:imap");
 		expect(result.clusters[0].sites).toEqual({ "m-1": "did:site:imap", "m-2": "did:site:deeper" });
 	});
