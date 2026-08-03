@@ -47,6 +47,21 @@ describe("QuadGraphModel", () => {
 		expect(typeof c?.displayLabels["b"]).toBe("string"); // and labelled
 	});
 
+	it("keeps the title a seeded snapshot gave a subject, and titles only what the seed left untitled", () => {
+		// A reader hiding a type refetches narrowed to the visible ones, so the merge holds no body quads for a record
+		// whose text lives in a Body. Titling from what remains gives a comment its seqPath in place of its own words.
+		const m = new QuadGraphModel(10, noRels);
+		m.seed({
+			quads: [q("cmt-1", "seqPath", "0.1.2", "Comment")],
+			clusters: [{ type: "Comment", totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["cmt-1"], displayLabels: { "cmt-1": "what the comment says" } }],
+			site: "did:site:0",
+		});
+		m.merge([q("cmt-1", "seqPath", "0.1.2", "Comment"), q("cmt-2", "seqPath", "0.1.3", "Comment")]);
+		const c = m.clusters.find((c) => c.type === "Comment");
+		expect(c?.displayLabels["cmt-1"]).toBe("what the comment says");
+		expect(typeof c?.displayLabels["cmt-2"]).toBe("string"); // a newcomer the seed never saw is titled here
+	});
+
 	it("dedups a scalar property by (namedGraph|subject|predicate), replacing in place", () => {
 		const m = new QuadGraphModel(10, noRels);
 		m.merge([q("a", "name", "A", "Email", 1)]);
@@ -91,7 +106,7 @@ describe("QuadGraphModel", () => {
 	});
 
 	// A type whose vocabulary designates a literal-ranged labeling property (topology.displayLabel) must be titled by that
-	// property's value in the quad path too — the same rule the server applies — never by the id its store had to mint.
+	// property's value in the quad path too — the same rule the server applies — never by the id its store had to generate.
 	it("titles a declared-label type by its property value, not its id (literal rel)", () => {
 		const rels = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? { exact: LinkRelations.EXACT.rel } : undefined);
 		const declaredRel = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? LinkRelations.EXACT.rel : undefined);

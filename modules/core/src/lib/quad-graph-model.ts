@@ -156,9 +156,14 @@ export class QuadGraphModel {
 		return touched;
 	}
 
-	/** Recompute `displayLabels` for the touched subjects via the one shared rule, sourcing body text from the provider.
-	 *  Every subject is bucketed (not just the touched ones) so a type titled THROUGH an iri-ranged rel can resolve one hop
-	 *  to its target's quads even when that target wasn't itself touched this merge. */
+	/** Label the touched subjects via the one shared rule, sourcing body text from the provider. Every subject is bucketed
+	 *  (not just the touched ones) so a type titled THROUGH an iri-ranged rel can resolve one hop to its target's quads even
+	 *  when that target wasn't itself touched this merge.
+	 *
+	 *  A subject a seeded snapshot already titled keeps that title: the seed reads the record itself, its body included,
+	 *  while a merge sees only the quads in hand — a request narrowed to some types carries no body quads, and titling from
+	 *  what remains would replace a record's own words with a weak pointer like its seqPath. Only an untitled subject, or
+	 *  one carrying the bare-id fallback, is titled here. */
 	private relabel(touched: Set<string>, bodyContentFor?: BodyContentProvider): void {
 		if (touched.size === 0) return;
 		const inMemoryBody = new Map<string, string>();
@@ -179,6 +184,8 @@ export class QuadGraphModel {
 			const type = subjectQuads[0]?.namedGraph ?? "";
 			const cluster = this.clusters.find((c) => c.type === type);
 			if (!cluster) continue;
+			const titled = cluster.displayLabels[subject];
+			if (titled !== undefined && titled !== subject) continue;
 			cluster.displayLabels[subject] = displayLabelForQuads(type, subject, subjectQuads, bodyFor, this.relsFor(type), this.declaredLabelFor(type, subject, quadsBySubject, bodyFor));
 		}
 	}

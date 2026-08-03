@@ -271,7 +271,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		startFeature: async () => {
 			const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer;
 			const artifactDir = resolve(this.storage.getArtifactBasePath());
-			await this.storage.ensureDirExists(artifactDir);
+			this.storage.ensureDirExists(artifactDir);
 			webserver.addKnownStaticFolder(artifactDir, "/artifacts");
 			// Per-run lean event log (the report's full-history source). Start fresh so a re-run never appends to a stale log.
 			this.eventLogPath = resolve(artifactDir, "events.jsonl");
