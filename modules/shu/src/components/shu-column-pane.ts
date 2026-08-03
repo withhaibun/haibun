@@ -180,7 +180,22 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		const w = this.state.width;
 		if (this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) this.style.flex = "1";
 		else if (this.isCollapsed || w === undefined || this.hasAttribute(SHU_ATTR.IS_LAST)) this.style.flex = "";
-		else this.style.flex = `0 0 ${w}px`;
+		// Capped at what the strip can give while the other panes keep a usable minimum, so a share restored into a
+		// narrower strip cannot crush them and push this pane's resize handle off screen.
+		else this.style.flex = `0 0 ${(Math.min(w, this.#maxShare()) * 100).toFixed(3)}%`;
+	}
+
+	/** A dragged pixel width as a share of the strip it was dragged in. */
+	#asShare(px: number): number {
+		const strip = this.#stripWidth();
+		if (!strip) throw new Error("shu-column-pane: resized in a strip with no width");
+		return px / strip;
+	}
+
+	/** The largest share this pane can render at: the strip minus the minimum footprint the other panes need. */
+	#maxShare(): number {
+		const strip = this.#stripWidth();
+		return strip ? this.#maxResizeWidth() / strip : 1;
 	}
 
 	/** Toggle active state. Reflects to the `[active]` host attribute so the `:host([active])` CSS rules apply without re-rendering, and dispatches `VIEW_ACTIVE` to the slotted child so it can adjust selection/update behavior. */
@@ -189,15 +204,24 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.setState({ active }); // the `active` attribute reflects automatically (bidirectional attributeFields), driving :host([active]) CSS
 	}
 
-	/** Set user-resized width (persisted). Undefined = auto (flex: 1). */
-	setWidth(width: number | undefined): void {
-		this.setState({ width });
+	/** Set the user-resized width as this pane's share of the strip (0..1), persisted. Undefined = auto (flex: 1).
+	 *  A share, not pixels: the one unit the pane keeps, so a width outlives the window it was set in. Pixels exist
+	 *  only in the drag, which measures the strip and divides. */
+	setWidth(share: number | undefined): void {
+		this.setState({ width: share === undefined ? undefined : Math.min(1, Math.max(share, 0.01)) });
 		this.#reflectLayout();
 	}
 
-	/** The width to count as fixed in strip layout math: the user's explicit width, except a last or maximized pane, which always renders flexible (the stored width stays put for when it isn't). */
+	#stripWidth(): number {
+		return this.parentElement?.clientWidth ?? 0;
+	}
+
+	/** The width to count as fixed in strip layout math, in pixels: the user's explicit share of the current strip,
+	 *  except a last or maximized pane, which always renders flexible (the stored share stays put for when it isn't). */
 	get fixedWidth(): number | undefined {
-		return this.hasAttribute(SHU_ATTR.IS_LAST) || this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED) ? undefined : this.state.width;
+		if (this.hasAttribute(SHU_ATTR.IS_LAST) || this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return undefined;
+		const share = this.state.width;
+		return share === undefined ? undefined : Math.round(share * this.#stripWidth());
 	}
 
 	/** Accordion auto-collapse (strip layout only). User minimize goes through setMinimized. */
@@ -224,13 +248,19 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { detail: { minimized: minimize }, bubbles: true, composed: true }));
 	};
 
+	/** The one path that owns the maximize state — the button and a resize both land here, so the strip always hears
+	 *  the change and no caller can set the attribute without announcing it. Maximize lives in the URL hash, not the
+	 *  persisted prefs. */
+	setMaximized(maximized: boolean): void {
+		if (maximized === this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return;
+		this.toggleAttribute(SHU_ATTR.DATA_MAXIMIZED, maximized);
+		this.requestUpdate();
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { detail: { maximized }, bubbles: true, composed: true }));
+	}
+
 	private onMaximize = (e: Event): void => {
 		e.stopPropagation();
-		const maximize = !this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
-		if (maximize) this.setAttribute(SHU_ATTR.DATA_MAXIMIZED, "");
-		else this.removeAttribute(SHU_ATTR.DATA_MAXIMIZED);
-		this.requestUpdate();
-		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { detail: { maximized: maximize }, bubbles: true, composed: true }));
+		this.setMaximized(!this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED));
 	};
 
 	private onControlsToggle = (e: Event): void => {
@@ -292,11 +322,12 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	private onResizeMouseDown = (e: MouseEvent): void => {
 		e.preventDefault();
 		e.stopPropagation();
+		this.setMaximized(false); // a drag says what width this pane should have, which is more specific than filling the strip
 		(e.currentTarget as HTMLElement).classList.add("dragging");
 		const startX = e.clientX;
 		const startWidth = this.offsetWidth;
 		const maxWidth = this.#maxResizeWidth();
-		const move = (ev: MouseEvent) => this.setWidth(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.clientX - startX))));
+		const move = (ev: MouseEvent) => this.setWidth(this.#asShare(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.clientX - startX)))));
 		const up = () => {
 			document.removeEventListener("mousemove", move);
 			document.removeEventListener("mouseup", up);
@@ -310,13 +341,14 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	private onResizeTouchStart = (e: TouchEvent): void => {
 		e.preventDefault();
 		e.stopPropagation();
+		this.setMaximized(false);
 		(e.currentTarget as HTMLElement).classList.add("dragging");
 		const startX = e.touches[0].clientX;
 		const startWidth = this.offsetWidth;
 		const maxWidth = this.#maxResizeWidth();
 		const move = (ev: TouchEvent) => {
 			ev.preventDefault();
-			this.setWidth(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.touches[0].clientX - startX))));
+			this.setWidth(this.#asShare(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.touches[0].clientX - startX)))));
 		};
 		const end = () => {
 			document.removeEventListener("touchmove", move);

@@ -105,6 +105,11 @@ describe("PaneState", () => {
 					setMinimized(m: boolean) {
 						this.toggleAttribute("data-minimized", m);
 					}
+					setMaximized(m: boolean) {
+						if (m === this.hasAttribute("data-maximized")) return;
+						this.toggleAttribute("data-maximized", m);
+						this.dispatchEvent(new CustomEvent("column-maximize", { detail: { maximized: m }, bubbles: true, composed: true }));
+					}
 				},
 			);
 		if (!customElements.get("shu-column-strip")) {
