@@ -18,12 +18,14 @@
  * innerHTML this component sets and the layer the annotator injects intact across re-renders (see lit render pitfalls).
  */
 import { html, type TemplateResult, type PropertyValues } from "lit";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { property, state } from "lit/decorators.js";
 import DOMPurify from "dompurify";
 import { createTextAnnotator, W3CTextFormat, type TextAnnotator } from "../recogito.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { renderContentHtml, BODY_READING_STYLE } from "../util.js";
+import { refSanitizeOptions } from "../markdown-refs.js";
 import type { TAnnotationDraft } from "../entity-store.js";
 import { type AnnotationView, type QuoteAnchor, type W3CTextAnnotation, toW3CAnnotations, locateQuoteOffsets } from "../annotation-resolver.js";
 import "./shu-scrollbar.js";
@@ -244,9 +246,11 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		this.mountedSignature = "";
 	}
 
-	/** The sanitized inline HTML for the body: markdown/plain rendered to HTML, then purged of scripts and remote loads. */
+	/** The sanitized inline HTML for the body: markdown/plain rendered to HTML, then purged of scripts and remote loads.
+	 *  Markdown renders with its in-app references live. A text shown inline is read here, so a `#Type:id` link in it
+	 *  opens that individual in a column; as a plain anchor it would navigate the page to a hash the app cannot read. */
 	private sanitizedHtml(): string {
-		return DOMPurify.sanitize(renderContentHtml(this.content, this.mediaType), { ADD_ATTR: ["style"] });
+		return DOMPurify.sanitize(renderContentHtml(this.content, this.mediaType), { ...refSanitizeOptions, ADD_ATTR: ["style", ...refSanitizeOptions.ADD_ATTR] });
 	}
 
 	private contentEl(): HTMLElement | null {
@@ -526,7 +530,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 							@click=${() => this.selectCard(a.commentId)}
 						>
 							<div class="annotation-card-quote">“${a.exact}”</div>
-							${a.body ? html`<div class="annotation-card-body">${a.body}</div>` : html``}
+							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, "text/markdown"), { ...refSanitizeOptions, ADD_ATTR: ["style", ...refSanitizeOptions.ADD_ATTR] }))}</div>` : html``}
 							${a.author ? html`<div class="annotation-card-author">${a.author}</div>` : html``}
 							${(a.links ?? []).map(
 								(link) => html`<span

@@ -19,7 +19,7 @@ import { renderRefProse } from "../markdown-refs.js";
 
 /** A `#Type` link resolves against the site's own declared types — the same test every ref surface uses. */
 const isKnownType = (name: string): boolean => getRels(name) !== undefined;
-import { renderRef } from "./shu-ref.js";
+import { renderRef } from "./ref-navigation.js";
 import { SHU_EVENT } from "../consts.js";
 import { ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
 import type { TGraph } from "../graph/types.js";

@@ -14,7 +14,9 @@
  *   sort-change: { field, order }
  */
 import { html, css, type TemplateResult } from "lit";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
+import { renderRef } from "./ref-navigation.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { z } from "zod";
@@ -26,7 +28,17 @@ import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js";
 
+/** The narrowest a column gets before the table scrolls sideways instead of squeezing further. */
+const MIN_COLUMN = "12ch";
+
 type VertexRow = Record<string, unknown>;
+
+/** A value that names another individual, in JSON-LD's own form (`@id` + `@type`), or undefined when the value is plain data. */
+function referenceOf(value: unknown): { "@id": string; "@type": string } | undefined {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+	const { "@id": id, "@type": type } = value as { "@id"?: unknown; "@type"?: unknown };
+	return typeof id === "string" && id.length > 0 && typeof type === "string" && type.length > 0 ? { "@id": id, "@type": type } : undefined;
+}
 
 export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	static styles = [
@@ -35,7 +47,10 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		css`
 			:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
 			.results-wrapper { display: flex; flex: 1; min-height: 0; }
-			.results-area { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+			/* Columns keep a readable width instead of being squeezed to fit: past the column's width the table scrolls
+			   sideways, header and rows together, since both take the grid's natural width. */
+			.results-area { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; overflow-x: auto; }
+			.grid-header, shu-virtual-column { min-width: max-content; }
 			/* Header and every row share one grid template (one track per visible column) so columns line up; the header
 			   reserves the scrollbar's width on the right so its tracks match the virtualized rows' width. */
 			.grid-header, .clickable-row { display: grid; grid-template-columns: var(--result-cols, 1fr); align-items: center; }
@@ -199,7 +214,8 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		const props = this.getVisibleProperties(displayMode, fixedProperty);
 		this.#props = props;
 		const total = this.#source.count();
-		const cols = props.length > 0 ? `repeat(${props.length}, minmax(0, 1fr))` : "1fr";
+		// A readable floor per column; more columns than fit make the table scroll rather than shrink each to nothing.
+		const cols = props.length > 0 ? `repeat(${props.length}, minmax(${MIN_COLUMN}, 1fr))` : "1fr";
 		return html`
 			<div class="results-wrapper" data-testid="query-results">
 				<div class="results-area" data-testid="query-table" style=${`--result-cols:${cols}`} @click=${this.#onAreaClick}>
@@ -236,9 +252,16 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				@click=${(e: Event) => this.#onRowClick(e, vid, vlabel)}
 			>
 			${this.#props.map((p, j) => {
+				const testId = j === 0 ? (index === 0 ? "query-row-first" : "query-row") : "";
+				// A cell that NAMES another individual is a reference, not text: it opens that individual, as every other
+				// reference in the app does. A row whose cells are references (a statement and where it came from) is
+				// therefore clickable cell by cell, with no table of its own.
+				const reference = referenceOf(v[p]);
+				if (reference)
+					return html`<span class="td" title=${reference["@id"]} data-testid=${testId}>${unsafeHTML(renderRef("entity", { persistedAs: reference["@type"], id: reference["@id"] }))}</span>`;
 				const raw = String(v[p] ?? "");
 				const display = isDateValue(raw) ? formatDate(raw) : truncate(raw);
-				return html`<span class="td" title=${raw} data-testid=${j === 0 ? (index === 0 ? "query-row-first" : "query-row") : ""}>${display}</span>`;
+				return html`<span class="td" title=${raw} data-testid=${testId}>${display}</span>`;
 			})}
 		</div>`;
 	};

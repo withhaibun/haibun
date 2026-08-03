@@ -35,6 +35,6 @@ describe("shu-entity-column stored-copy indication", () => {
 	it("says so when the individual is served from the copy already held, rather than fetched again", async () => {
 		await open(); // resolves and holds it
 		const second = await open(); // a second view of the same individual is served from that copy
-		expect(badge(second)).toContain("cache");
+		expect(badge(second)).toContain("copy held this session");
 	});
 });

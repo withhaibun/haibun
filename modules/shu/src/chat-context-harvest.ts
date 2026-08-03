@@ -31,6 +31,13 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	if (panes.length === 0) return [];
 	const activeKey = activePane.get();
 	const active = panes.find((p) => paneKeyOf(p) === activeKey);
+	// With panes open, one of them is the pane you are on: the router sets activePane and is its only writer. A key that
+	// matches none of them means the signal and the strip have gone out of step, and harvesting anyway would tell a
+	// model that nothing is selected while a view is plainly on screen.
+	if (!active)
+		throw new Error(
+			`harvestChatViewLd: activePane is ${JSON.stringify(activeKey)}, which is none of the ${panes.length} open pane(s): [${panes.map((p) => JSON.stringify(paneKeyOf(p))).join(", ")}]. The pane router is the only writer of activePane.`,
+		);
 	const blocks: TLinkedData[] = [];
 	for (const el of topSummarizers(active)) {
 		const summary = el.summarizeForKihan();

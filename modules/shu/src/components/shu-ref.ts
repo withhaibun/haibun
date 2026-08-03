@@ -19,8 +19,11 @@
  * referenced view appears in the column strip, mirroring every other
  * link-driven navigation in the SPA.
  */
-import { esc, escAttr } from "../util.js";
-import { openRef, isRefKind, refHref, type TRefKind } from "./ref-navigation.js";
+import { esc } from "../util.js";
+import { openRef, isRefKind, refHref, defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
+
+// The string form of a reference lives with the router, free of any DOM class; re-exported here so its long-standing callers are unmoved.
+export { renderRef } from "./ref-navigation.js";
 
 export class ShuRef extends HTMLElement {
 	connectedCallback(): void {
@@ -85,16 +88,6 @@ export class ShuRef extends HTMLElement {
 }
 
 /**
- * Render the inline HTML markup for a reference. Use this from any panel that
- * surfaces a structured identifier instead of formatting a bare `<code>` tag.
- */
-export function renderRef(kind: TRefKind, linkTarget: Record<string, unknown>, text?: string): string {
-	const targetJson = JSON.stringify(linkTarget);
-	const display = text ?? defaultLabel(kind, targetJson);
-	return `<shu-ref kind="${escAttr(kind)}" linkTarget="${escAttr(targetJson)}" text="${escAttr(display)}"></shu-ref>`;
-}
-
-/**
  * Convenience wrappers — each panel typically calls just one or two of these.
  */
 export const refSeqPath = (seqPath: number[], text?: string): string => renderRef("seqPath", { seqPath }, text ?? seqPath.join("."));
@@ -116,18 +109,4 @@ export const factIdRef = (id: string): string => {
 function parseSeqPath(id: string): number[] | null {
 	if (!/^-?\d+(\.-?\d+)*$/.test(id)) return null;
 	return id.split(".").map((p) => Number.parseInt(p, 10));
-}
-
-function defaultLabel(kind: string | null, targetJson: string | null): string {
-	if (!kind || !targetJson) return "";
-	try {
-		const target = JSON.parse(targetJson) as Record<string, unknown>;
-		if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
-		if (kind === "entity" && typeof target.id === "string") return target.id;
-		if (kind === "domain" && typeof target.domain === "string") return target.domain;
-		if (kind === "step" && typeof target.stepperName === "string" && typeof target.stepName === "string") return `${target.stepperName}.${target.stepName}`;
-	} catch {
-		// fallthrough
-	}
-	return "";
 }

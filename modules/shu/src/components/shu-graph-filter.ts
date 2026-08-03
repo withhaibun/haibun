@@ -158,6 +158,16 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	}
 
 	/**
+	 * A scene's remembered choices, announced as every other change to them is. The host derives what the graph shows
+	 * from the filter's report rather than by reading its state, so choices restored silently would leave the legend
+	 * saying one thing and the graph showing another.
+	 */
+	override applySceneState(fields: Record<string, unknown>): void {
+		super.applySceneState(fields);
+		this.dispatchChange();
+	}
+
+	/**
 	 * Axis-mode source. The chain-graph view supplies pre-computed axes (stepper,
 	 * kind, etc.) instead of quads; the filter renders one row of checkboxes per
 	 * axis and emits `graph-filter-change` with `{ hiddenByAxis }`. The host
