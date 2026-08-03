@@ -26,6 +26,10 @@
 	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
 	"dependencies": {
 		"jsonld": "9.0.0",
+		"markdown-it": "^14.0.0",
 		"zod": "4.4.2"
+	},
+	"devDependencies": {
+		"@types/markdown-it": "^14.1.2"
 	}
 }

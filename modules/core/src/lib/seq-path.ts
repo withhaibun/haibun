@@ -51,6 +51,8 @@ export function compareSeqPath(a: number[], b: number[]): number {
 export const SEQ_PATH_FIELD = {
 	id: "id",
 	stepText: "stepText",
+	/** What the step called: the stepper and the action within it, as `Stepper.action`. The step's TEXT says what was asked for; this says what ran. */
+	called: "called",
 	actionStatus: "actionStatus",
 	generatedAtTime: "generatedAtTime",
 	endedAtTime: "endedAtTime",
@@ -73,6 +75,7 @@ const STATUS_VALUES = Object.values(SEQ_PATH_STATUS) as [string, ...string[]];
 export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.id]: z.string(),
 	[SEQ_PATH_FIELD.stepText]: z.string(),
+	[SEQ_PATH_FIELD.called]: z.string().optional(),
 	[SEQ_PATH_FIELD.actionStatus]: z.enum(STATUS_VALUES),
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
@@ -83,13 +86,15 @@ export type TSeqPath = z.infer<typeof SeqPathSchema>;
 export const seqPathDomainDefinition: TDomainDefinition = {
 	selectors: [SEQ_PATH_DOMAIN],
 	schema: SeqPathSchema,
-	description: "A step in an automated run. Records made during that step point back here, so you can see exactly when and where something was produced.",
+	description:
+		"A step in an automated run: what it asked for, what it called, and how it ended. Records made during that step point back here, so you can see exactly when and where something was produced.",
 	topology: {
 		persistedAs: SEQ_PATH_LABEL,
 		id: SEQ_PATH_FIELD.id,
 		properties: {
 			[SEQ_PATH_FIELD.id]: LinkRelations.IDENTIFIER.rel,
 			[SEQ_PATH_FIELD.stepText]: LinkRelations.CONTENT.rel,
+			[SEQ_PATH_FIELD.called]: LinkRelations.CALLED.rel,
 			[SEQ_PATH_FIELD.actionStatus]: LinkRelations.ACTION_STATUS.rel,
 			[SEQ_PATH_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.endedAtTime]: LinkRelations.ENDED_AT_TIME.rel,
