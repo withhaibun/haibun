@@ -4,14 +4,18 @@
  * Owns the discourse acts over any graph resource: `comment on …`, the `annotate …` family (quoting a passage, linking
  * one passage to another, or anchoring with surrounding context), the `get annotations for …` read, and `get related for …`.
  * The write logic lives in resources.ts (createComment / writeAnnotation) so it is reusable and store-agnostic.
+ *
+ * It also owns what a TEXT states: reading a feature's own prose as facts, checking that every cited passage still
+ * resolves, and reading the statements made with a predicate.
  */
 import { z } from "zod";
-import { AStepper, IHasCycles, TStepperSteps, IStepperCycles } from "../lib/astepper.js";
+import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/astepper.js";
 import { type TIndividualResult } from "../lib/execution.js";
-import { actionOKWithProducts } from "../lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { requirePrincipal } from "../lib/principal.js";
 import {
 	COMMENT_LABEL,
+	SEQ_PATH_LABEL,
 	DOMAIN_PERSISTED_TYPE,
 	LinkRelations,
 	isReplyEdge,
@@ -25,7 +29,11 @@ import {
 	bodyDomainDefinition,
 	bodyByMediaType,
 	commentDomainDefinition,
+	readingDomainDefinition,
+	readTypedLinks,
+	markdownOf,
 	principalDomainDefinition,
+	sceneDomainDefinition,
 	specificResourceDomainDefinition,
 	textQuoteSelectorDomainDefinition,
 	annotationPlacementDomainDefinition,
@@ -35,10 +43,57 @@ import {
 	conversationRoot,
 	assertCommentGrounded,
 } from "../lib/resources.js";
-import { seqPathDomainDefinition } from "../lib/seq-path.js";
+import { linkVocabularyFromDomains } from "../lib/domains.js";
+import { formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
+import { statementsWith, type TStatementRow } from "../lib/statements.js";
+import { typedLinkFacts } from "../lib/typed-links.js";
 
+/** The base prose step: a line of a feature that is not a step. Its text is the feature's own words, so it is where a feature states what it refers to. */
+const PROSE_ACTION = "Haibun.prose";
+
+/** An anchored passage as a reader would say it: the quote, and the words it sits between where they were recorded. */
+function describeAnchor(selector: { exact: string; prefix?: string; suffix?: string }): string {
+	const between = [selector.prefix ? `after "${selector.prefix}"` : "", selector.suffix ? `before "${selector.suffix}"` : ""].filter(Boolean).join(" and ");
+	return between ? `"${selector.exact}" ${between}` : `"${selector.exact}"`;
+}
+
+/**
+ * Whether an anchored passage still resolves in a text: the quote occurs, and where the anchor recorded the words
+ * around it, an occurrence exists with those words still around it. Checking the quote alone would pass a citation
+ * whose clause moved out from under it: the number is still there, the clause it opened is not.
+ */
+function anchorResolves(text: string, selector: { exact: string; prefix?: string; suffix?: string }): boolean {
+	for (let at = text.indexOf(selector.exact); at !== -1; at = text.indexOf(selector.exact, at + 1)) {
+		const before = selector.prefix === undefined || text.slice(Math.max(0, at - selector.prefix.length), at) === selector.prefix;
+		const after = selector.suffix === undefined || text.slice(at + selector.exact.length, at + selector.exact.length + selector.suffix.length) === selector.suffix;
+		if (before && after) return true;
+	}
+	return false;
+}
+
+const ReferenceSchema = z.object({ "@id": z.string(), "@type": z.string() });
+const StatementsSchema = z.object({
+	statements: z.array(
+		z.object({
+			"@type": z.literal("rdf:Statement"),
+			subject: ReferenceSchema,
+			predicate: z.string(),
+			object: ReferenceSchema,
+			reading: ReferenceSchema.optional(),
+			assertedBy: ReferenceSchema.optional(),
+			outcome: z.string().optional(),
+		}),
+	),
+	total: z.number(),
+});
+const CitationsCheckedSchema = z.object({ checked: z.number() });
 const CommentCreatedSchema = z.object({ commentId: z.string(), contextRoot: z.string() });
-const AnnotationCreatedSchema = z.object({ commentId: z.string(), specificResourceId: z.string(), linkedSpecificResourceIds: z.array(z.string()).optional(), contextRoot: z.string() });
+const AnnotationCreatedSchema = z.object({
+	commentId: z.string(),
+	specificResourceId: z.string(),
+	linkedSpecificResourceIds: z.array(z.string()).optional(),
+	contextRoot: z.string(),
+});
 const RelatedItemsSchema = z.object({ items: z.array(z.unknown()), contextRoot: z.string() });
 const QuoteSchema = z.object({ exact: z.string(), prefix: z.string().optional(), suffix: z.string().optional() });
 const AnnotationListSchema = z.object({
@@ -61,12 +116,15 @@ const AnnotationListSchema = z.object({
 	total: z.number(),
 });
 
-const cycles = (): IStepperCycles => ({
+const cycles = (stepper: ResourcesStepper): IStepperCycles => ({
+	beforeStep: (beforeStep) => stepper.readFeatureProse(beforeStep),
 	getConcerns: () => ({
 		domains: [
 			bodyDomainDefinition,
 			commentDomainDefinition,
+			readingDomainDefinition,
 			principalDomainDefinition,
+			sceneDomainDefinition,
 			seqPathDomainDefinition,
 			specificResourceDomainDefinition,
 			textQuoteSelectorDomainDefinition,
@@ -79,25 +137,83 @@ const cycles = (): IStepperCycles => ({
 class ResourcesStepper extends AStepper implements IHasCycles {
 	description = "Graph-resource steps: comment on vertices, annotate passages, get related, and get annotations";
 
-	cycles = cycles();
+	cycles = cycles(this);
+
+	/** The declared ontology a note's own links are read against: the registered domains, so a consumer's vocabulary is usable in a note. */
+	private get linkVocabulary() {
+		return linkVocabularyFromDomains(this.getWorld().domains);
+	}
+
+	/**
+	 * A feature's prose is a text like any other: its links are facts about the step that spoke them. That step is already
+	 * a record (its SeqPath, what the document and monitor views show), so no second record is made for the feature. The
+	 * id is the step's position, so re-running restates rather than accumulates, and the step's status says how it ended.
+	 */
+	async readFeatureProse({ featureStep }: TBeforeStep): Promise<void> {
+		if (`${featureStep.action.stepperName}.${featureStep.action.actionName}` !== PROSE_ACTION) return;
+		const text = featureStep.in;
+		// Prose that states nothing changes nothing.
+		if (typedLinkFacts(text, this.linkVocabulary).length === 0) return;
+		const seqPath = formatSeqPath(featureStep.seqPath);
+		await readTypedLinks(this.getWorld().shared.getStore(), this.linkVocabulary, { label: SEQ_PATH_LABEL, id: seqPath }, text, { seqPath });
+	}
 
 	/** The shared tail of every `annotate` variant: write the annotation, resolve its conversation root, return both.
 	 *  Each variant only shapes the passage/link arg; the principal, store, and threading are identical. */
-	private async runAnnotate(a: Parameters<typeof writeAnnotation>[2]) {
+	private async runAnnotate(a: Parameters<typeof writeAnnotation>[3]) {
 		const store = this.getWorld().shared.getStore();
-		const written = await writeAnnotation(store, requirePrincipal(this.getWorld()), a);
+		const written = await writeAnnotation(store, this.linkVocabulary, requirePrincipal(this.getWorld()), a);
 		const contextRoot = await conversationRoot(store, a.id);
 		return actionOKWithProducts({ ...written, contextRoot });
 	}
 
 	steps = {
+		checkCitations: {
+			// Every anchored passage a reading wrote, re-anchored against what its source says NOW. A quote that no longer
+			// matches means the text moved on and the statements about it are stale, which is a failure to say, not to hide.
+			gwta: `check citations resolve`,
+			productsSchema: CitationsCheckedSchema,
+			action: async () => {
+				const store = this.getWorld().shared.getStore();
+				const unresolved: string[] = [];
+				let checked = 0;
+				for (const anchor of await store.queryIndividuals<{ id: string }>(SPECIFIC_RESOURCE_LABEL)) {
+					const quads = await store.query({ subject: anchor.id });
+					const sourceQuad = quads.find((q) => q.predicate === LinkRelations.HAS_SOURCE.rel);
+					const selectorId = quads.find((q) => q.predicate === LinkRelations.HAS_SELECTOR.rel)?.object;
+					if (!sourceQuad || !selectorId) continue;
+					const selector = await store.getIndividual<{ exact: string; prefix?: string; suffix?: string }>(TEXT_QUOTE_SELECTOR_LABEL, String(selectorId));
+					if (!selector) continue;
+					checked++;
+					const sourceLabel = (sourceQuad as { objectType?: string }).objectType;
+					if (!sourceLabel) throw new Error(`anchor ${anchor.id}: its hasSource edge names no type for "${String(sourceQuad.object)}"`);
+					const sourceId = String(sourceQuad.object);
+					const text = await markdownOf(store, sourceLabel, sourceId);
+					const said = describeAnchor(selector);
+					if (text === undefined) unresolved.push(`${sourceLabel} "${sourceId}" holds no text to anchor ${said} in (anchor ${anchor.id})`);
+					else if (!anchorResolves(text, selector)) unresolved.push(`${sourceLabel} "${sourceId}" no longer says ${said} (anchor ${anchor.id})`);
+				}
+				if (unresolved.length > 0) return actionNotOK(`${unresolved.length} of ${checked} citations no longer resolve:\n${unresolved.join("\n")}`);
+				return actionOKWithProducts({ checked });
+			},
+		},
+		statements: {
+			// The general read: every statement made with a predicate, and where each came from. A coverage table (which
+			// requirements a run evidenced, and how it ended) is this read with the citation predicate, not a report of its own.
+			gwta: `statements with {rel: string}`,
+			productsSchema: StatementsSchema,
+			action: async ({ rel }: { rel: string }) => {
+				const statements = (await statementsWith(this.getWorld().shared.getStore(), rel)) as TStatementRow[];
+				return actionOKWithProducts({ statements, total: statements.length });
+			},
+		},
 		comment: {
 			gwta: `comment on {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} with {text: string}`,
 			productsSchema: CommentCreatedSchema,
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
 				const author = requirePrincipal(this.getWorld());
 				const store = this.getWorld().shared.getStore();
-				const commentId = await createComment(store, author, text, new Date().toISOString());
+				const commentId = await createComment(store, this.linkVocabulary, author, text, new Date().toISOString());
 				// The comment narrates what it is about (narrate is a sub-property of inReplyTo, so it both grounds and threads it).
 				await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.NARRATE.rel, label, id);
 				await assertCommentGrounded(store, commentId);
@@ -110,7 +226,15 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			productsSchema: AnnotationCreatedSchema,
 			// The prose gwta binds label/id/exact/text; UI authoring calls this same action over RPC with the extra
 			// prefix/suffix (the selection's context, for a reliable anchor) and an optional link passage.
-			action: async (p: { label: string; id: string; exact: string; text: string; prefix?: string; suffix?: string; links?: Array<{ exact: string; prefix?: string; suffix?: string }> }) => this.runAnnotate(p),
+			action: async (p: {
+				label: string;
+				id: string;
+				exact: string;
+				text: string;
+				prefix?: string;
+				suffix?: string;
+				links?: Array<{ exact: string; prefix?: string; suffix?: string }>;
+			}) => this.runAnnotate(p),
 		},
 		annotateLinking: {
 			// `linking` sits right after the id (before `quoting`) so the plain `annotate … quoting …` gwta cannot also
@@ -127,8 +251,21 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			// the three annotate prose forms unambiguous.
 			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} anchoring {exact: string} {placement: ${ANNOTATION_PLACEMENT_DOMAIN}} {context: string} with {text: string}`,
 			productsSchema: AnnotationCreatedSchema,
-			action: async ({ label, id, exact, placement, context, text }: { label: string; id: string; exact: string; placement: TAnnotationPlacement; context: string; text: string }) =>
-				this.runAnnotate({ label, id, exact, ...(placement === "preceded by" ? { prefix: context } : { suffix: context }), text }),
+			action: async ({
+				label,
+				id,
+				exact,
+				placement,
+				context,
+				text,
+			}: {
+				label: string;
+				id: string;
+				exact: string;
+				placement: TAnnotationPlacement;
+				context: string;
+				text: string;
+			}) => this.runAnnotate({ label, id, exact, ...(placement === "preceded by" ? { prefix: context } : { suffix: context }), text }),
 		},
 		annotateNote: {
 			// The composite form: passage, note, meaningful time, and cross-reference links in one value — for notes the
@@ -152,7 +289,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const srIds = new Set((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map((q) => String(q.subject)));
 				if (srIds.size === 0) return actionOKWithProducts({ annotations: [], total: 0 });
 				const selectorOfSr = new Map<string, string>();
-				for (const q of await store.query({ predicate: LinkRelations.HAS_SELECTOR.rel, namedGraph: SPECIFIC_RESOURCE_LABEL })) selectorOfSr.set(String(q.subject), String(q.object));
+				for (const q of await store.query({ predicate: LinkRelations.HAS_SELECTOR.rel, namedGraph: SPECIFIC_RESOURCE_LABEL }))
+					selectorOfSr.set(String(q.subject), String(q.object));
 				const linkSrsOfComment = new Map<string, string[]>();
 				for (const q of await store.query({ predicate: LinkRelations.LINKS_TO.rel, namedGraph: COMMENT_LABEL })) {
 					const list = linkSrsOfComment.get(String(q.subject)) ?? [];
@@ -164,7 +302,11 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const quoteOf = (srId: string | undefined): { exact: string; prefix?: string; suffix?: string } | undefined => {
 					const sel = srId ? selectorById.get(selectorOfSr.get(srId) ?? "") : undefined;
 					if (!sel) return undefined;
-					return { exact: String(sel.exact), ...(sel.prefix !== undefined ? { prefix: String(sel.prefix) } : {}), ...(sel.suffix !== undefined ? { suffix: String(sel.suffix) } : {}) };
+					return {
+						exact: String(sel.exact),
+						...(sel.prefix !== undefined ? { prefix: String(sel.prefix) } : {}),
+						...(sel.suffix !== undefined ? { suffix: String(sel.suffix) } : {}),
+					};
 				};
 				const annotations: Array<Record<string, unknown>> = [];
 				for (const tq of await store.query({ predicate: LinkRelations.TARGET.rel, namedGraph: COMMENT_LABEL })) {
@@ -181,8 +323,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 						commentId,
 						...(comment.author !== undefined ? { author: String(comment.author) } : {}),
 						...(comment.generatedAtTime !== undefined ? { generatedAtTime: String(comment.generatedAtTime) } : {}),
-					...(comment.startedAtTime !== undefined ? { startedAtTime: String(comment.startedAtTime) } : {}),
-					...(comment.endedAtTime !== undefined ? { endedAtTime: String(comment.endedAtTime) } : {}),
+						...(comment.startedAtTime !== undefined ? { startedAtTime: String(comment.startedAtTime) } : {}),
+						...(comment.endedAtTime !== undefined ? { endedAtTime: String(comment.endedAtTime) } : {}),
 						...(noteText !== undefined ? { body: noteText } : {}),
 						...quote,
 						specificResourceId,

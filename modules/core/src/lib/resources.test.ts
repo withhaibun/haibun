@@ -267,7 +267,10 @@ describe("getJsonLdContext prefix declarations", () => {
 
 	it("merges a persisted domain's own namespace prefixes into the served context", () => {
 		const domains = {
-			x: { topology: { persistedAs: "X", type: "ex:X", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, namespaces: { ex: `${HAIBUN_NS}ex#` } }, schema: { parse: (v: unknown) => v } },
+			x: {
+				topology: { persistedAs: "X", type: "ex:X", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, namespaces: { ex: `${HAIBUN_NS}ex#` } },
+				schema: { parse: (v: unknown) => v },
+			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
 		expect(ctx.ex).toBe(`${HAIBUN_NS}ex#`);
@@ -383,7 +386,8 @@ describe("fromActor / toActor — the directional actor split under inRoleOf", (
 
 	it("sorts the source-side actors (author/performedBy/attributedTo/wasAttributedTo) into fromActor, with declared rolePriority ordering", () => {
 		const from = fromActorRels();
-		for (const r of [LinkRelations.AUTHOR.rel, LinkRelations.PERFORMED_BY.rel, LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel]) expect(from.has(r)).toBe(true);
+		for (const r of [LinkRelations.AUTHOR.rel, LinkRelations.PERFORMED_BY.rel, LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel])
+			expect(from.has(r)).toBe(true);
 		// the ranked fallback order rides declared rolePriority, not a hand-kept list
 		expect(LinkRelations.PERFORMED_BY.rolePriority).toBeGreaterThan(LinkRelations.AUTHOR.rolePriority);
 		expect(LinkRelations.AUTHOR.rolePriority).toBeGreaterThan(LinkRelations.WAS_ATTRIBUTED_TO.rolePriority);
@@ -710,28 +714,52 @@ describe("getPropertyDefinitions", () => {
 	});
 });
 
+/** A note whose text states nothing needs no ontology: this asserts the annotation shape alone, not what a note's own links state. */
+const noLinkVocabulary = { relRange: () => undefined, isType: () => false };
+
 /** A minimal in-memory quad store with no createEdge, so the discourse helpers must fall back to plain `add` quads. */
 function memStore() {
 	const quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string }> = [];
 	const nodes = new Map<string, Record<string, unknown>>();
+	const matches = (
+		q: { subject: string; predicate: string; object: unknown; namedGraph: string },
+		p: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string },
+	) =>
+		(p.subject === undefined || q.subject === p.subject) &&
+		(p.predicate === undefined || q.predicate === p.predicate) &&
+		(p.object === undefined || q.object === p.object) &&
+		(p.namedGraph === undefined || q.namedGraph === p.namedGraph);
 	const store: TDiscourseStore = {
 		upsertIndividual: (label, data) => {
 			const d = data as Record<string, unknown>;
 			nodes.set(`${label}:${String(d.id)}`, d);
 			return Promise.resolve(String(d.id));
 		},
+		getIndividual: <T>(label: string, id: string) => Promise.resolve(nodes.get(`${label}:${id}`) as T | undefined),
+		deleteIndividual: (label, id) => {
+			nodes.delete(`${label}:${id}`);
+			return Promise.resolve();
+		},
+		set: (subject, predicate, object, namedGraph) => {
+			nodes.set(`${namedGraph}:${subject}`, { ...(nodes.get(`${namedGraph}:${subject}`) ?? { id: subject }), [predicate]: object });
+			return Promise.resolve();
+		},
 		add: (quad) => {
 			quads.push(quad);
 			return Promise.resolve();
 		},
-		query: ({ subject, predicate, object }) =>
-			Promise.resolve(quads.filter((q) => (subject === undefined || q.subject === subject) && (predicate === undefined || q.predicate === predicate) && (object === undefined || q.object === object))),
+		remove: (pattern) => {
+			for (let i = quads.length - 1; i >= 0; i--) if (matches(quads[i], pattern)) quads.splice(i, 1);
+			return Promise.resolve();
+		},
+		query: (pattern) => Promise.resolve(quads.filter((q) => matches(q, pattern))),
 	};
 	return { store, quads, nodes };
 }
 
 describe("assertCommentGrounded — no floating comments", () => {
-	const withEdges = (predicates: string[]) => ({ query: () => Promise.resolve(predicates.map((predicate) => ({ subject: "c1", predicate, object: "x" }))) }) as unknown as TDiscourseStore;
+	const withEdges = (predicates: string[]) =>
+		({ query: () => Promise.resolve(predicates.map((predicate) => ({ subject: "c1", predicate, object: "x" }))) }) as unknown as TDiscourseStore;
 	it("passes for an oa:hasTarget edge (about a subject)", async () => {
 		await expect(assertCommentGrounded(withEdges([LinkRelations.TARGET.rel]), "c1")).resolves.toBeUndefined();
 	});
@@ -749,7 +777,13 @@ describe("assertCommentGrounded — no floating comments", () => {
 describe("writeAnnotation — self-contained on a plain quad store (no createEdge)", () => {
 	it("builds Comment —hasTarget→ SpecificResource —hasSource→ doc / —hasSelector→ TextQuoteSelector, grounded, without editing the doc", async () => {
 		const { store, quads, nodes } = memStore();
-		const { commentId, specificResourceId } = await writeAnnotation(store, "did:site:0", { label: "File", id: "doc-1", exact: "a passage", suffix: " of the document", text: "A note." });
+		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", {
+			label: "File",
+			id: "doc-1",
+			exact: "a passage",
+			suffix: " of the document",
+			text: "A note.",
+		});
 
 		const target = quads.find((q) => q.subject === commentId && q.predicate === LinkRelations.TARGET.rel);
 		expect(target?.object).toBe(specificResourceId);

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { DOMAIN_PERSISTED_TYPE, isPersisted, type TDomainDefinition, type TRegisteredDomain, type THypermediaTopology } from "./resources.js";
+import { DOMAIN_PERSISTED_TYPE, isPersisted, LinkRelations, type TDomainDefinition, type TRegisteredDomain, type THypermediaTopology, type TRelRange } from "./resources.js";
+import type { TLinkVocabulary } from "./typed-links.js";
 import type { TWorld } from "./world.js";
 
 export const DOMAIN_STATEMENT = "statement";
@@ -204,6 +205,27 @@ export function hypermediaDomainMap(domains: Record<string, TRegisteredDomain>):
 		if (isPersisted(domain.topology)) map.set(domain.topology.persistedAs, domain as TRegisteredDomain & { topology: THypermediaTopology });
 	}
 	return map;
+}
+
+/**
+ * The declared ontology as a typed link's grammar reads it: which names are property types a link may state, and
+ * which are persisted types a link may address. A predicate is either a core rel or a persisted type's own edge:
+ * the edge KEY is the written predicate, which is how a consumer's vocabulary becomes writable in prose without
+ * this module naming any of it. Abstract rels (the classification-only upper concepts) are excluded: they are never
+ * a written predicate.
+ */
+export function linkVocabularyFromDomains(domains: Record<string, TRegisteredDomain>): TLinkVocabulary {
+	const ranges = new Map<string, TRelRange>();
+	for (const entry of Object.values(LinkRelations)) {
+		if ((entry as { abstract?: boolean }).abstract) continue;
+		ranges.set(entry.rel, entry.range);
+	}
+	const types = new Set<string>();
+	for (const domain of getPersistedDomains(domains)) {
+		types.add(domain.topology.persistedAs);
+		for (const key of Object.keys(domain.topology.edges ?? {})) ranges.set(key, "iri");
+	}
+	return { relRange: (rel) => ranges.get(rel), isType: (name) => types.has(name) };
 }
 
 /** Get all persisted domains (those whose topology marks them as persisted) as an array. */

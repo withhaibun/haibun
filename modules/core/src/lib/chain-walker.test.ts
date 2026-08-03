@@ -27,10 +27,10 @@ class IssueStepper extends AStepper {
 	};
 }
 
-class MintStepper extends AStepper {
+class VcStepper extends AStepper {
 	steps: TStepperSteps = {
-		mintVc: {
-			gwta: "mint a credential",
+		issueVc: {
+			gwta: "issue a credential",
 			productsDomain: VC_DOMAIN,
 			action: () => Promise.resolve(actionOKWithProducts({ vcId: "vc-001" })),
 		},
@@ -60,7 +60,7 @@ function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegi
 const twoStepMichi: TMichi = {
 	steps: [
 		{ stepperName: "IssueStepper", stepName: "issueCredential", gwta: "issue credential" },
-		{ stepperName: "MintStepper", stepName: "mintVc", gwta: "mint a credential" },
+		{ stepperName: "VcStepper", stepName: "issueVc", gwta: "issue a credential" },
 	],
 	bindings: [{ kind: "argument", domain: ISSUER_DOMAIN }],
 };
@@ -72,7 +72,7 @@ describe("chain-walker", () => {
 	});
 
 	it("advances one step at a time, recording the produced fact id per step", async () => {
-		const ctx = buildContext(world, [new IssueStepper(), new MintStepper()]);
+		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
 		const inst = await createChainInstance(world, VC_DOMAIN, twoStepMichi);
 
 		const first = await advanceChainInstance(ctx, inst.id, { issuerId: "alice" });
@@ -112,8 +112,8 @@ describe("chain-walker", () => {
 	});
 
 	it("idempotently reports completion once every step has produced a fact", async () => {
-		const ctx = buildContext(world, [new MintStepper()]);
-		const inst = await createChainInstance(world, VC_DOMAIN, { steps: [{ stepperName: "MintStepper", stepName: "mintVc" }], bindings: [] });
+		const ctx = buildContext(world, [new VcStepper()]);
+		const inst = await createChainInstance(world, VC_DOMAIN, { steps: [{ stepperName: "VcStepper", stepName: "issueVc" }], bindings: [] });
 		await advanceChainInstance(ctx, inst.id, {});
 		const again = await advanceChainInstance(ctx, inst.id, {});
 		expect(again.kind).toBe("completed");
