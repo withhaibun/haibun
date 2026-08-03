@@ -28,6 +28,12 @@ async function settle(el: ShuResultTable): Promise<void> {
 
 const rows = (n: number, type = "Person"): Row[] => Array.from({ length: n }, (_, i) => ({ "@id": `${type}/${i}`, "@type": type, name: `n${i}`, age: i }));
 const q = (el: ShuResultTable, sel: string): Element[] => Array.from(el.shadowRoot?.querySelectorAll(sel) ?? []);
+/** The one element a case acts on. Absent means the render did not produce it, which is what the case should report. */
+const one = (el: ShuResultTable, sel: string): HTMLElement => {
+	const found = el.shadowRoot?.querySelector(sel);
+	if (!found) throw new Error(`shu-result-table rendered no ${sel}`);
+	return found as HTMLElement;
+};
 const clickEvents = (el: ShuResultTable, name: string): CustomEvent[] => {
 	const seen: CustomEvent[] = [];
 	el.addEventListener(name, (e) => seen.push(e as CustomEvent));
@@ -64,20 +70,20 @@ describe("shu-result-table", () => {
 		el.setResults(rows(3));
 		await settle(el);
 		const events = clickEvents(el, SHU_EVENT.ROW_CLICK);
-		const firstRow = el.shadowRoot?.querySelector(".clickable-row") as HTMLElement;
+		const firstRow = one(el, ".clickable-row");
 		firstRow.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await settle(el);
 		expect(events).toHaveLength(1);
 		expect(events[0].detail.individualId).toBe("0");
 		expect(el.getSelectedIds().has("0")).toBe(true);
-		expect((el.shadowRoot?.querySelector(".clickable-row") as HTMLElement).classList.contains("selected")).toBe(true);
+		expect(one(el, ".clickable-row").classList.contains("selected")).toBe(true);
 	});
 
 	it("clicking the only selected row again clears the selection", async () => {
 		const el = await mount();
 		el.setResults(rows(2));
 		await settle(el);
-		const row = () => el.shadowRoot?.querySelector(".clickable-row") as HTMLElement;
+		const row = () => one(el, ".clickable-row");
 		row().dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await settle(el);
 		row().dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -101,10 +107,10 @@ describe("shu-result-table", () => {
 		const el = await mount();
 		el.setResults(rows(2));
 		await settle(el);
-		(el.shadowRoot?.querySelector(".clickable-row") as HTMLElement).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		one(el, ".clickable-row").dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await settle(el);
 		const events = clickEvents(el, SHU_EVENT.ROW_CLICK);
-		(el.shadowRoot?.querySelector(".results-area") as HTMLElement).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		one(el, ".results-area").dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await settle(el);
 		expect(el.getSelectedIds().size).toBe(0);
 		expect(events.at(-1)?.detail.deselect).toBe(true);
@@ -166,5 +172,17 @@ describe("shu-result-table", () => {
 		src.set(rows(6));
 		await settle(el);
 		expect(q(el, ".clickable-row")).toHaveLength(6);
+	});
+
+	it("renders a cell that names another individual as a reference to open, not as text", async () => {
+		const el = await mount();
+		el.setResults([
+			{ "@id": "rdf:Statement/1", "@type": "rdf:Statement", subject: { "@id": "tests/a.feature.ts", "@type": "Document" }, predicate: "citesAsEvidence", outcome: "passed" },
+		]);
+		await settle(el);
+		const refs = q(el, "shu-ref");
+		expect(refs).toHaveLength(1);
+		expect(JSON.parse(refs[0].getAttribute("linkTarget") ?? "{}")).toEqual({ persistedAs: "Document", id: "tests/a.feature.ts" });
+		expect(q(el, ".td").some((cell) => cell.textContent?.includes("passed"))).toBe(true);
 	});
 });

@@ -70,19 +70,21 @@ export function defaultLabel(): string {
 	return getSiteMetadataSync()?.types?.[0] ?? "";
 }
 
-import MarkdownIt from "markdown-it";
-// html:true renders inline HTML the source carries (e.g. <br> from HTML-derived email markdown) and linkify turns bare URLs into links. Safe because renderContentHtml output is only injected into shu-entity-column's email-body iframe, which is sandboxed without allow-scripts. Do not reuse this renderer for a non-sandboxed sink.
-const md = new MarkdownIt({ html: true, linkify: true });
-
+import { renderRefBody } from "./markdown-refs.js";
+import { getRels } from "./rels-cache.js";
 /** The one reading style for a record's body text. The body iframe's document and the inline annotated view both use
  *  it, so toggling the annotation gutter never changes how the text reads. */
 export const BODY_READING_STYLE = "font-family: sans-serif; font-size: 14px; line-height: 1.5;";
 
 const preBlock = (text: string) => `<pre style="font-family:monospace;white-space:pre-wrap;margin:0;">${esc(text)}</pre>`;
 
-/** Render a content field value to HTML given its MIME type. */
+/**
+ * THE content renderer: every surface that shows a `content` value renders it here, so markdown and its `#Type:id`
+ * links work the same everywhere. A reference renders as <shu-ref> with its link text as child text, so a surface
+ * without the element (the sandboxed body iframe) still shows the text. Callers sanitize with `refSanitizeOptions`.
+ */
 export function renderContentHtml(raw: string, mimeType: string): string {
-	if (mimeType === "text/markdown") return md.render(raw);
+	if (mimeType === "text/markdown") return renderRefBody(raw, (name) => getRels(name) !== undefined);
 	if (mimeType === "text/html") return raw;
 	if (mimeType === "application/ld+json" || mimeType === "application/json") {
 		try {
@@ -167,6 +169,18 @@ export function isVisibleKey(k: string, label?: string): boolean {
 	if (!rel) return true;
 	const presentation = getRelPresentation(rel);
 	return presentation !== "body" && presentation !== "governance";
+}
+
+/** The fields of an individual whose rel is marked `governance`: control over the record (who may see it, what it
+ *  allows, whether it is revoked). `isVisibleKey` keeps them out of the field table; this is where they come back. */
+export function governanceFields(vertex: Record<string, unknown>, label?: string): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const [k, v] of Object.entries(vertex)) {
+		if (k.startsWith("_") || k.startsWith("@") || v === undefined || v === null) continue;
+		const rel = (label ? getRelSync(label, k) : undefined) ?? k;
+		if (getRelPresentation(rel) === "governance") out[k] = typeof v === "string" ? v : JSON.stringify(v);
+	}
+	return out;
 }
 
 /**
