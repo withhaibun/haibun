@@ -16,6 +16,11 @@ import {
 	ICON_LOG_ERROR,
 	ICON_DEFAULT,
 	ICON_ARTIFACT,
+	MAYBE_CHECK_NO,
+	MAYBE_CHECK_YES,
+	RETURNED_TO_CALLER,
+	isHandedOutEvent,
+	isSpeculativeEvent,
 } from "@haibun/core/schema/protocol.js";
 
 export type TEventMarkerStyle = { color: string; icon: string };
@@ -26,28 +31,47 @@ type TPartialEvent = {
 	status?: string;
 	level?: string;
 	stage?: string;
+	id?: string;
+	intent?: { mode?: string };
 };
+
+/** The mark palette, named by what a mark says rather than by its hue, so every surface that marks an event reads from
+ *  one place. UNDECIDED is neither fault nor success — a speculative try, or a call the run handed out. */
+export const MARK_COLOUR = {
+	feature: "#c084fc",
+	scenario: "#60a5fa",
+	pending: "#eab308",
+	fault: "#ef4444",
+	ok: "#22c55e",
+	artifact: "#10b981",
+	info: "#3b82f6",
+	undecided: "#94a3b8",
+} as const;
 
 export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 	const e = event as TPartialEvent;
 	if (e.kind === "lifecycle") {
-		if (e.type === "feature") return { color: "#c084fc", icon: ICON_FEATURE };
-		if (e.type === "scenario") return { color: "#60a5fa", icon: ICON_SCENARIO };
+		if (e.type === "feature") return { color: MARK_COLOUR.feature, icon: ICON_FEATURE };
+		if (e.type === "scenario") return { color: MARK_COLOUR.scenario, icon: ICON_SCENARIO };
 		if (e.type === "step") {
-			if (e.status === "running") return { color: "#eab308", icon: ICON_STEP_RUNNING };
-			if (e.status === "failed") return { color: "#ef4444", icon: ICON_STEP_FAILED };
-			if (e.status === "completed") return { color: "#22c55e", icon: ICON_STEP_COMPLETED };
-			return { color: "#94a3b8", icon: ICON_DEFAULT };
+			// A speculative statement's failure is expected and a handed-out call's failure belongs to its caller: the
+			// same rule the log renders by (EventFormatter.getStatusIcon), so a mark never reports the run as failing
+			// where the log does not.
+			if (e.status === "running") return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
+			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === "failed" ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
+			if (e.status === "failed") return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
+			if (e.status === "completed") return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
+			return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 		}
 	}
 	if (e.kind === "log") {
-		if (e.level === "error") return { color: "#ef4444", icon: ICON_LOG_ERROR };
-		if (e.level === "warn") return { color: "#eab308", icon: ICON_LOG_WARN };
-		if (e.level === "info") return { color: "#3b82f6", icon: ICON_LOG_INFO };
-		return { color: "#94a3b8", icon: ICON_DEFAULT };
+		if (e.level === "error") return { color: MARK_COLOUR.fault, icon: ICON_LOG_ERROR };
+		if (e.level === "warn") return { color: MARK_COLOUR.pending, icon: ICON_LOG_WARN };
+		if (e.level === "info") return { color: MARK_COLOUR.info, icon: ICON_LOG_INFO };
+		return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 	}
-	if (e.kind === "artifact") return { color: "#10b981", icon: ICON_ARTIFACT };
-	return { color: "#94a3b8", icon: ICON_DEFAULT };
+	if (e.kind === "artifact") return { color: MARK_COLOUR.artifact, icon: ICON_ARTIFACT };
+	return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 }
 
 /**

@@ -9,6 +9,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
+import { eventMarkerStyle } from "../event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
@@ -147,7 +148,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	private renderContent(key: string, data: TStepData): TemplateResult {
 		const { stepEvent } = this.state;
 		const { trace, variablesSet } = data;
-		const status = stepEvent?.status === "completed" ? "✅" : stepEvent?.status === "failed" ? "❌" : "";
+		// The same glyph the log and the rail use, so a speculative try or a handed-out call is not shown as a fault.
+		const status = stepEvent?.status ? eventMarkerStyle({ ...stepEvent, kind: "lifecycle", type: "step" }).icon : "";
 		const stepIn = String(stepEvent?.in ?? "");
 		const actionName = String(stepEvent?.actionName ?? "");
 		const stepperName = String(stepEvent?.stepperName ?? "");

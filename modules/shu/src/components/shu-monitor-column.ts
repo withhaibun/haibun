@@ -9,6 +9,8 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
+import { eventMarkerStyle } from "../event-marker.js";
+import { ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
 import { eventKey, FULL_WINDOW } from "../events-snapshot.js";
@@ -39,7 +41,7 @@ type TLogRow = {
 	dispatch?: TDispatchTrace;
 };
 
-const LEVEL_ICONS: Record<string, string> = { error: "❌", warn: "⚠️", info: "ℹ️", debug: "💬", trace: "🔍" };
+const LEVEL_ICONS: Record<string, string> = { error: ICON_LOG_ERROR, warn: ICON_LOG_WARN, info: ICON_LOG_INFO, debug: "💬", trace: "🔍" };
 const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 // Tail retention while following the live edge: the shared log keeps only events within this span of the newest one, so a
@@ -209,7 +211,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		let message = "";
 		if (e.kind === "log") message = String((e as { message?: string }).message || "");
 		else if (e.kind === "lifecycle" && e.stage === "end") {
-			const status = e.status === "completed" ? "✅" : e.status === "failed" ? "❌" : "";
+			const status = eventMarkerStyle(e).icon;
 			message = `${status} ${String(e.actionName || "")}`;
 		} else if (isStart) message = "";
 		else if (e.kind === "lifecycle" && e.stage === "start") message = `▸ ${String(e.type || "")}`;
