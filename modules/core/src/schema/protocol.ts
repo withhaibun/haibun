@@ -44,6 +44,19 @@ export const ICON_SCENARIO = "⬢"; // Concrete logic node (Solid Hex)
 // Step Execution Status: the verdict marks, plus flow for a step still running.
 export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
 export const ICON_STEP_FAILED = CHECK_NO;
+
+/** A statement the run tried speculatively (`maybe`): its failure is the run trying something, not a fault. */
+export function isSpeculativeEvent(event: { intent?: { mode?: string } }): boolean {
+	return event.intent?.mode === "speculative";
+}
+
+/** A call the run handed out — a model's tool call, an RPC — carried by a negative seqPath segment. Its failure is
+ *  returned to that caller, which is expected to act on it, so it is not the run failing. */
+export function isHandedOutEvent(event: { id?: string }): boolean {
+	return String(event.id ?? "")
+		.split(".")
+		.some((n) => Number.parseInt(n, 10) < 0);
+}
 export const ICON_STEP_COMPLETED = CHECK_YES;
 
 // Log Levels: info is frequent, so it stays thin; a warning and an error are exceptional, so they carry weight. The
@@ -244,20 +257,15 @@ export class EventFormatter {
 	}
 
 	static getStatusIcon(event: THaibunEvent & { kind: "lifecycle" }): string {
-		const isSpeculative = event.intent?.mode === "speculative";
-		// A negative seqPath segment is a call the run handed out: a model's tool call, an RPC. Its failure is returned
-		// to that caller, which is expected to act on it, so it is not marked as the run failing.
-		const isHandedOut = event.id.split(".").some((n) => Number.parseInt(n, 10) < 0);
-		if (event.status === "completed") return isSpeculative ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
-		if (event.status === "failed") return isSpeculative ? ` ${MAYBE_CHECK_NO}` : isHandedOut ? RETURNED_TO_CALLER : ICON_STEP_FAILED;
+		if (event.status === "completed") return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
+		if (event.status === "failed") return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_NO}` : isHandedOutEvent(event) ? RETURNED_TO_CALLER : ICON_STEP_FAILED;
 		if (event.status === "running") return ICON_STEP_RUNNING;
 		return ` ${ICON_DEFAULT}`;
 	}
 
 	static getIndication(event: THaibunEvent & { kind: "lifecycle" }): TIndication {
-		const isSpeculative = event.intent?.mode === "speculative";
 		if (event.status === "completed") return "success";
-		if (event.status === "failed") return isSpeculative ? "speculative-failure" : "failure";
+		if (event.status === "failed") return isSpeculativeEvent(event) ? "speculative-failure" : "failure";
 		if (event.status === "running") return "pending";
 		return "neutral";
 	}

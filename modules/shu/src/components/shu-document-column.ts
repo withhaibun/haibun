@@ -26,6 +26,8 @@ import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js"
 import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockTimeClass, type TDocBlock } from "../document-blocks.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import { EventFormatter } from "@haibun/core/schema/protocol.js";
+import { eventMarkerStyle } from "../event-marker.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
 import { getRels, getUiByType } from "../rels-cache.js";
@@ -160,14 +162,21 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.endTime = end;
 	}
 
-	/** A mark on the rail for every failed step, so a reader jumps to a failure in a long run without scrolling for it. */
+	/** A mark on the rail for every step that failed, so a reader jumps to it in a long run without scrolling for it.
+	 *  Its glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
+	 *  they are rather than as the run failing. */
 	#buildMarkers(blocks: TDocBlock[]): TScrollMarker[] {
-		const failed = new Set(
-			this.events.filter((e) => e.kind === "lifecycle" && (e as Record<string, unknown>).stage === "end" && (e as Record<string, unknown>).status === "failed").map((e) => stripId(e.id)),
+		const failed = new Map(
+			this.events
+				.filter((e) => e.kind === "lifecycle" && (e as Record<string, unknown>).stage === "end" && (e as Record<string, unknown>).status === "failed")
+				.map((e) => [stripId(e.id), e]),
 		);
 		const markers: TScrollMarker[] = [];
 		blocks.forEach((b, i) => {
-			if (b.id && failed.has(stripId(b.id))) markers.push({ index: i, id: b.id, icon: "❌", color: "#ef4444", label: "failed step" });
+			const event = b.id ? failed.get(stripId(b.id)) : undefined;
+			if (!event || !b.id) return;
+			const { icon, color } = eventMarkerStyle(event);
+			markers.push({ index: i, id: b.id, icon, color, label: `${EventFormatter.getIndication(event as THaibunEvent & { kind: "lifecycle" })} step` });
 		});
 		return markers;
 	}
