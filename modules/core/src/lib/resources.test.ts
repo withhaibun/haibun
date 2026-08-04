@@ -696,11 +696,16 @@ describe("getPropertyDefinitions", () => {
 
 	it("leaves optional fields absent for rels that don't declare them", () => {
 		const defs = getPropertyDefinitions();
-		const audience = defs.find((r) => r.id === LinkRelations.AUDIENCE.rel);
-		expect(audience?.subPropertyOf).toBeUndefined();
-		expect(audience?.presentation).toBeUndefined();
-		expect(audience?.label).toBeUndefined();
-		expect(audience?.icon).toBeUndefined();
+		const tag = defs.find((r) => r.id === LinkRelations.TAG.rel);
+		expect(tag?.subPropertyOf).toBeUndefined();
+		expect(tag?.presentation).toBeUndefined();
+		expect(tag?.label).toBeUndefined();
+		expect(tag?.icon).toBeUndefined();
+	});
+
+	it("declares the addressee a toActor member, so an addressed act reads as a message to its audience", () => {
+		const audience = getPropertyDefinitions().find((r) => r.id === LinkRelations.AUDIENCE.rel);
+		expect(audience?.subPropertyOf).toBe("toActor");
 	});
 
 	it("includes the new RDFS rels themselves (subPropertyOf, label, range, icon, presentation)", () => {

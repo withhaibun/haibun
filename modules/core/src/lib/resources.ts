@@ -198,7 +198,9 @@ export const LinkRelations = {
 	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", subPropertyOf: "ganttStart" },
 	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 10 },
-	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri" },
+	// The addressee of an act — a message's recipients, a question's asked party, a decision's answered party. A
+	// toActor member, so an addressed act reads as a message from its attributed agent to its audience.
+	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri", subPropertyOf: "toActor", rolePriority: 45 },
 	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
 	UPDATED: { rel: "updated", uri: "as:updated", range: "literal" },
 	CONTENT: { rel: "content", uri: "as:content", range: "literal", presentation: "body" as TRelPresentation },
@@ -340,6 +342,9 @@ export const LinkRelations = {
 	// only concrete core `toActor` rel — consumers declare their own (cred:credentialSubject, …); a sequence reads it as
 	// the lifeline a message is directed to.
 	AS_TARGET: { rel: "target", uri: "as:target", range: "iri", subPropertyOf: "toActor", rolePriority: 40 },
+	// The direct object of an act — the thing it acted ON (an edit's file), as distinct from who it is addressed to
+	// (audience) and where it is directed (target).
+	AS_OBJECT: { rel: "object", uri: "as:object", range: "iri", subPropertyOf: "toActor", rolePriority: 50 },
 } as const;
 
 /** Lookup a rel's RDF range. Returns undefined for unknown rels. */
@@ -752,6 +757,10 @@ export const commentDomainDefinition: TDomainDefinition = {
 			[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
 			// What the comment is about — any Resource (an entity, or another Comment in a thread).
 			[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
+			// Who the comment is addressed TO (as:to — the same rel an email's recipients carry): a question at the agent
+			// it asks, an answer at the asker, a decision at the party it answers. With attributedTo this is what reads a
+			// discourse as messages between agents; distinct from oa:hasTarget, which is what the comment is ABOUT.
+			[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL },
 			// What the comment carries: a petition carries the proposal it asks for, a measure carries its observation.
 			// Declared so the record it carries is reachable from it, rather than a quad no view can follow.
 			[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
