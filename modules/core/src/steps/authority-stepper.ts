@@ -115,10 +115,12 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			gwta: `issue zcap bearer grant for token {token: ${ZCAP_TOKEN_DOMAIN}} with action {action: ${ZCAP_ACTION_DOMAIN}}`,
 			productsSchema: zcapGrantIssuedSchema,
 			action: ({ token, action }: { token: string; action: string }, featureStep: TFeatureStep) => {
+				// The controller is the principal issuing the grant — this instance's own — so an act authorized by the
+				// token is attributable to an agent. A step name is how it was issued, which the note carries.
 				const grant = this.getAuthority().issueBearerGrant({
 					token,
 					allowedAction: [action],
-					controller: `${featureStep.action.stepperName}.${featureStep.action.actionName}`,
+					controller: activeSitePrincipal(this.getWorld()),
 					note: featureStep.in,
 				});
 				return actionOKWithProducts({
