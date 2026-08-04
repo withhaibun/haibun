@@ -6,8 +6,8 @@
  * remembers across a reload; this module carries scenes to and from the graph through the ordinary step RPC, the same
  * gate every other write goes through.
  */
-import { AccessLevelSchema } from "@haibun/core/lib/resources.js";
-import { callStep } from "./pane-fetch.js";
+import { AccessLevelSchema, SCENE_LABEL } from "@haibun/core/lib/resources.js";
+import { callStep, fetchIndividuals } from "./pane-fetch.js";
 import { appAccessLevel } from "./util.js";
 import type { ShuElement } from "./components/shu-element.js";
 
@@ -16,8 +16,6 @@ export type TSceneState = Record<string, Record<string, unknown>>;
 
 /** A saved scene as the graph holds it. */
 export type TScene = { id: string; state: TSceneState };
-
-const SCENE_LABEL = "Scene";
 
 /** Read the durable options of the given views, keyed by tag — what a scene saves. */
 export function captureScene(views: Array<ShuElement<never> | (Element & { captureSceneState(): Record<string, unknown> })>): TSceneState {
@@ -53,11 +51,7 @@ export function saveScene(name: string, state: TSceneState, why: string): Promis
 
 /** The scenes saved here, newest first, for a reader to pick from. */
 export async function listScenes(why: string): Promise<TScene[]> {
-	const result = await callStep<{ vertices: Array<{ id?: unknown; state?: unknown }> }>(
-		"graphQuery",
-		{ query: { label: SCENE_LABEL, accessLevel: appAccessLevel(), limit: 100 } },
-		why,
-	);
+	const result = (await fetchIndividuals(SCENE_LABEL, why)) as { ok: boolean; value: { vertices: Array<{ id?: unknown; state?: unknown }> } };
 	if (!result.ok) return [];
 	return result.value.vertices.flatMap((vertex) => {
 		if (typeof vertex.id !== "string" || typeof vertex.state !== "string") return [];

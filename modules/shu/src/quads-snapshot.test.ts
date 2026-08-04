@@ -13,7 +13,16 @@
  * deleting the cached module) sees the same singleton store.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { setSelectedSubject, subscribeSnapshot, getViewContext, mergeQuadsIntoSnapshot, pinSubjects, currentSnapshot, selectionFromContext, DEFAULT_PER_TYPE_LIMIT } from "./quads-snapshot.js";
+import {
+	setSelectedSubject,
+	subscribeSnapshot,
+	getViewContext,
+	mergeQuadsIntoSnapshot,
+	pinSubjects,
+	currentSnapshot,
+	selectionFromContext,
+	DEFAULT_PER_TYPE_LIMIT,
+} from "./quads-snapshot.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL } from "@haibun/core/lib/resources.js";
 

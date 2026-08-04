@@ -25,7 +25,8 @@ describe("shu-step-detail", () => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith("/rpc/action.begin")) return json({ seqPath: [0, -1, 1] }); // conduit().group() opens a batch here
 			if (url.includes("getDispatchTraces")) return json({ traces: [{ seqPath: [0, 1], transport: "rpc", durationMs: 5, productKeys: ["p1"] }] });
-			if (url.includes("getClusteredQuads")) return json({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] });
+			if (url.includes("getClusteredQuads"))
+				return json({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] });
 			return json({});
 		};
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {

@@ -6,7 +6,10 @@
 	"author": "",
 	"exports": {
 		".": "./build/index.js",
-		"./*": { "development": "./src/*", "default": "./build/*" },
+		"./*": {
+			"development": "./src/*",
+			"default": "./build/*"
+		},
 		"./schema/*": "./build/schema/*"
 	},
 	"main": "./build/index.js",

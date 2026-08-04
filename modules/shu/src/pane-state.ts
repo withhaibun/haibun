@@ -171,8 +171,8 @@ class PaneStateImpl {
 		window.addEventListener("hashchange", () => this.fromHash());
 		// Per-pane control toggles (minimize / maximize / expand) update the canonical
 		// `desired.flag` so later reconciles preserve it and the URL hash stays in sync.
-		// Otherwise a later `request()` calls `applyFlag(existing, undefined)` and wipes
-		// the minimized / maximized state.
+		// Otherwise a later `request()` re-applies an undefined flag and wipes the
+		// minimized / maximized state.
 		strip.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, ((e: CustomEvent) => {
 			const pane = e.target as HTMLElement;
 			const id = pane.dataset.columnKey;
@@ -379,7 +379,7 @@ class PaneStateImpl {
 			const existing = live.get(id);
 			if (existing) {
 				existing.setAttribute("label", labelOf(d));
-				applyFlag(this.strip, existing, d.flag);
+				existing.setMinimized(d.flag === "min");
 				continue;
 			}
 			await this.openPane(d, id);
@@ -424,7 +424,7 @@ class PaneStateImpl {
 		if (readShowControlsCookie(tag)) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		if (d.paneType === "component" && d.data) (child as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		pane.appendChild(child);
-		applyFlag(this.strip, pane, d.flag);
+		pane.setMinimized(d.flag === "min");
 		await this.hooks.afterAttach?.[d.paneType]?.(d, child);
 	}
 
@@ -464,12 +464,6 @@ function columnTypeFor(d: DesiredPane): string {
 	if (d.paneType === "filter-eq" || d.paneType === "filter-prop" || d.paneType === "filter-incoming") return "filter";
 	if (d.paneType === "step-detail") return "step";
 	return d.paneType;
-}
-
-/** Apply a desired flag to a live pane: minimize through the pane's own owning path (state + persistence). Maximize is
- * applied once the whole set is attached (see applyMaximizeFlag), because it describes the set rather than one pane. */
-function applyFlag(_strip: ShuColumnStrip, pane: ShuColumnPane, flag: DesiredPane["flag"]): void {
-	pane.setMinimized(flag === "min");
 }
 
 /** A column the user last minimized reopens minimized: its pane persists `minimized` (ShuElement.persistFields),

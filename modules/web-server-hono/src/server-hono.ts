@@ -8,16 +8,7 @@ import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
-import {
-	type IWebServer,
-	type TRouteMap,
-	type TRouteTypes,
-	type TRoutePurpose,
-	type TRequestHandler,
-	type TStaticFolderOptions,
-	ROUTE_TYPES,
-	EndpointLabels,
-} from "./defs.js";
+import { type IWebServer, type TRouteMap, type TRouteTypes, type TRoutePurpose, type TRequestHandler, type TStaticFolderOptions, ROUTE_TYPES, EndpointLabels } from "./defs.js";
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
 

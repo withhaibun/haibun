@@ -145,7 +145,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 
 	async all(): Promise<TQuad[]> {
-		const rows = await withStore("readonly", async (store) => (await done(store.getAll()) as StoredQuad[]).map(strip));
+		const rows = await withStore("readonly", async (store) => ((await done(store.getAll())) as StoredQuad[]).map(strip));
 		return rows ?? [];
 	}
 
@@ -167,7 +167,8 @@ export class IndexedDbQuadStore implements IQuadStore {
 	async upsertIndividual(label: string, data: unknown): Promise<string> {
 		const obj = data as Record<string, unknown>;
 		const id = obj["@id"];
-		if (typeof id !== "string") throw new Error(`IndexedDbQuadStore.upsertIndividual: data has no string @id — the client store caches fetched nodes keyed by @id (got ${JSON.stringify(id)}).`);
+		if (typeof id !== "string")
+			throw new Error(`IndexedDbQuadStore.upsertIndividual: data has no string @id — the client store caches fetched nodes keyed by @id (got ${JSON.stringify(id)}).`);
 		for (const [predicate, value] of Object.entries(obj)) if (predicate !== "@id") await this.set(id, predicate, value, label);
 		return id;
 	}
@@ -187,7 +188,10 @@ export class IndexedDbQuadStore implements IQuadStore {
 	// --- Query surface: server-side (the client is not a query engine) — delegate to the wired remote or fail clearly. ---
 
 	private requireRemote(method: string): RemoteQuery {
-		if (!this.remote) throw new Error(`IndexedDbQuadStore.${method}: the client store is persist + deref-by-@id, not a query engine — heavy queries stay server-side; wire a remote (server RPC) to run them.`);
+		if (!this.remote)
+			throw new Error(
+				`IndexedDbQuadStore.${method}: the client store is persist + deref-by-@id, not a query engine — heavy queries stay server-side; wire a remote (server RPC) to run them.`,
+			);
 		return this.remote;
 	}
 

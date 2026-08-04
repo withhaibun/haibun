@@ -80,22 +80,14 @@ describe("HypermediaRole fold (roleRels)", () => {
 	const principals = [q("did:maker", "name", "Authority", "Principal"), q("did:keeper", "name", "Importer", "Principal")];
 	it("folds the highest-priority role edge's target onto the node", () => {
 		const model = buildGraphModelFromQuads(
-			[
-				q("vc1", "name", "Permit", "Record"),
-				q("vc1", "subject", "did:keeper", "Record", "Principal"),
-				q("vc1", "maker", "did:maker", "Record", "Principal"),
-				...principals,
-			],
+			[q("vc1", "name", "Permit", "Record"), q("vc1", "subject", "did:keeper", "Record", "Principal"), q("vc1", "maker", "did:maker", "Record", "Principal"), ...principals],
 			{ roleRels: ["maker", "subject"] },
 		);
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:maker"); // maker outranks subject
 	});
 
 	it("makes a party (a role-edge target) its own role, so it gets its own container", () => {
-		const model = buildGraphModelFromQuads(
-			[q("vc1", "name", "Permit", "Record"), q("vc1", "maker", "did:maker", "Record", "Principal"), ...principals],
-			{ roleRels: ["maker"] },
-		);
+		const model = buildGraphModelFromQuads([q("vc1", "name", "Permit", "Record"), q("vc1", "maker", "did:maker", "Record", "Principal"), ...principals], { roleRels: ["maker"] });
 		expect(model.nodes.find((n) => n.id === "did:maker")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:maker"); // the maker party groups with itself
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("did:maker"); // its record joins it
 		expect(model.nodes.find((n) => n.id === "did:keeper")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined(); // not a target here → unattributed
@@ -108,12 +100,7 @@ describe("HypermediaRole fold (roleRels)", () => {
 
 	it("records EACH actor edge on properties[predicate], so any predicate is a groupable axis — not just the winner", () => {
 		const model = buildGraphModelFromQuads(
-			[
-				q("vc1", "name", "Permit", "Record"),
-				q("vc1", "maker", "did:maker", "Record", "Principal"),
-				q("vc1", "keeper", "did:keeper", "Record", "Principal"),
-				...principals,
-			],
+			[q("vc1", "name", "Permit", "Record"), q("vc1", "maker", "did:maker", "Record", "Principal"), q("vc1", "keeper", "did:keeper", "Record", "Principal"), ...principals],
 			{ roleRels: ["maker", "keeper"] },
 		);
 		const vc = model.nodes.find((n) => n.id === "vc1");
@@ -122,11 +109,7 @@ describe("HypermediaRole fold (roleRels)", () => {
 	});
 
 	it("does not fold when roleRels is absent (backward-compatible)", () => {
-		const model = buildGraphModelFromQuads([
-			q("vc1", "name", "Permit", "Record"),
-			q("vc1", "maker", "did:maker", "Record", "Principal"),
-			...principals,
-		]);
+		const model = buildGraphModelFromQuads([q("vc1", "name", "Permit", "Record"), q("vc1", "maker", "did:maker", "Record", "Principal"), ...principals]);
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined();
 	});
 });

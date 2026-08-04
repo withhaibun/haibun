@@ -87,6 +87,14 @@ const trackCache = new WeakMap<object, { ensured: Set<string>; counts: Map<strin
  * HttpHost. Every endpoint links `isPartOf` to the site's host node, so the graph connects the whole exchange:
  * client → request → endpoint → site, or client/site → request → host.
  */
+/** An outbound request the instance itself makes — no route table, origin "site". The one call shape for every
+ *  outbound observer (the undici channels, a subprocess transport), so the convention is stated once. */
+export function trackOutboundRequest(world: TWorld, observation: THttpRequestObservation): Promise<void> {
+	return trackHttpRequest(world, observation, NO_ROUTES, "site");
+}
+
+const NO_ROUTES: Set<string> = new Set();
+
 export async function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>, origin: THttpOrigin = "client"): Promise<void> {
 	const store = world.shared.getStore();
 	let cache = trackCache.get(store);

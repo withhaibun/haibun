@@ -68,35 +68,35 @@ capture the federated clustered read
 		for (const s of principals?.sampledSubjects ?? []) expect(principals?.sites?.[s]).toBe("did:site:0.1");
 	});
 
-	it(
-		"federates a genuinely separate instance — started the haibun way — and the merged view carries BOTH sites",
-		{ timeout: 60_000 },
-		async () => {
-			resetCaptures();
-			const port = 8248;
-			const peerPort = 8249;
-			const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) } });
-			const feature = {
-				path: "/features/federate-two-instances.feature",
-				content: `
+	it("federates a genuinely separate instance — started the haibun way — and the merged view carries BOTH sites", { timeout: 60_000 }, async () => {
+		resetCaptures();
+		const port = 8248;
+		const peerPort = 8249;
+		const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) } });
+		const feature = {
+			path: "/features/federate-two-instances.feature",
+			content: `
 enable rpc
 webserver is listening for "federate-two"
 start a haibun instance from "modules/shu/tests/federate-peer" on port ${peerPort} as host 7
 federate graph reads from "http://localhost:${peerPort}"
 capture the federated clustered read
 `,
-			};
-			const result = await testWithWorld(world, [feature], [WebServerStepper, ShuStepper, MonitorStepper, AuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, FederationVerifyStepper]);
-			if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
+		};
+		const result = await testWithWorld(
+			world,
+			[feature],
+			[WebServerStepper, ShuStepper, MonitorStepper, AuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, FederationVerifyStepper],
+		);
+		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
-			// Distinct hostIds → distinct site principals → no collision, nothing adopted: this instance stays did:site:0.
-			expect(adoptedDuringRun).toBe("did:site:0");
-			// The peer's own Principals (its serve feature ran `name a connecting site`, persisting did:site:7 + did:site:7.1)
-			// arrive in the merged view, every subject stamped with the SERVING site — the data group-by-site separates on.
-			const principals = captured?.clusters.find((c) => c.type === PRINCIPAL_LABEL);
-			expect(principals?.sampledSubjects).toContain("did:site:7");
-			expect(principals?.sampledSubjects).toContain("did:site:7.1");
-			for (const s of principals?.sampledSubjects ?? []) expect(principals?.sites?.[s]).toBe("did:site:7");
-		},
-	);
+		// Distinct hostIds → distinct site principals → no collision, nothing adopted: this instance stays did:site:0.
+		expect(adoptedDuringRun).toBe("did:site:0");
+		// The peer's own Principals (its serve feature ran `name a connecting site`, persisting did:site:7 + did:site:7.1)
+		// arrive in the merged view, every subject stamped with the SERVING site — the data group-by-site separates on.
+		const principals = captured?.clusters.find((c) => c.type === PRINCIPAL_LABEL);
+		expect(principals?.sampledSubjects).toContain("did:site:7");
+		expect(principals?.sampledSubjects).toContain("did:site:7.1");
+		for (const s of principals?.sampledSubjects ?? []) expect(principals?.sites?.[s]).toBe("did:site:7");
+	});
 });

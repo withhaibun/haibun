@@ -40,7 +40,10 @@ describe("lazyWindowedSource", () => {
 		await src.ensureRange(0, 10); // pages 0,1
 		expect(calls()).toEqual([[0, 10]]);
 		await src.ensureRange(5, 15); // page 1 resident → only page 2 fetched
-		expect(calls()).toEqual([[0, 10], [10, 15]]);
+		expect(calls()).toEqual([
+			[0, 10],
+			[10, 15],
+		]);
 	});
 
 	it("coalesces concurrent requests for the same pages into a single fetch", async () => {
@@ -115,7 +118,9 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 
 	it("never calls fetch with end<=start when the count shrinks below the range (B2)", async () => {
 		let count = 1000;
-		const fetch = vi.fn((s: number, e: number) => (e <= s ? Promise.reject(new Error(`fetch(${s},${e}) has end<=start`)) : Promise.resolve(Array.from({ length: e - s }, (_, k) => s + k))));
+		const fetch = vi.fn((s: number, e: number) =>
+			e <= s ? Promise.reject(new Error(`fetch(${s},${e}) has end<=start`)) : Promise.resolve(Array.from({ length: e - s }, (_, k) => s + k)),
+		);
 		const src = lazyWindowedSource({ count: () => count, fetch, pageSize: 200 });
 		count = 50;
 		await src.ensureRange(700, 720); // page 3 (600..800) is beyond count 50 → no fetch, no crash
@@ -158,7 +163,10 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		it("seeds a full first page so ensureRange over it fetches nothing", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 10_000, fetch, pageSize: 50 });
-			src.prime(0, Array.from({ length: 50 }, (_, k) => k));
+			src.prime(
+				0,
+				Array.from({ length: 50 }, (_, k) => k),
+			);
 			await src.ensureRange(0, 50);
 			expect(fetch).not.toHaveBeenCalled();
 			expect(src.rowAt(0)).toBe(0);
@@ -168,7 +176,10 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		it("still fetches windows past the seeded page", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 10_000, fetch, pageSize: 50 });
-			src.prime(0, Array.from({ length: 50 }, (_, k) => k));
+			src.prime(
+				0,
+				Array.from({ length: 50 }, (_, k) => k),
+			);
 			await src.ensureRange(50, 100);
 			expect(fetch).toHaveBeenCalledTimes(1);
 			expect(src.rowAt(75)).toBe(75);
@@ -177,7 +188,10 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		it("a short seed that reaches the total counts as resident (no re-fetch of the last page)", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 30, fetch, pageSize: 50 });
-			src.prime(0, Array.from({ length: 30 }, (_, k) => k));
+			src.prime(
+				0,
+				Array.from({ length: 30 }, (_, k) => k),
+			);
 			await src.ensureRange(0, 30);
 			expect(fetch).not.toHaveBeenCalled();
 			expect(src.rowAt(29)).toBe(29);
@@ -187,7 +201,10 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		it("a seed shorter than the count leaves the tail to be fetched", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 200, fetch, pageSize: 50 });
-			src.prime(0, Array.from({ length: 50 }, (_, k) => k)); // only page 0, total is 200
+			src.prime(
+				0,
+				Array.from({ length: 50 }, (_, k) => k),
+			); // only page 0, total is 200
 			await src.ensureRange(0, 50);
 			expect(fetch).not.toHaveBeenCalled(); // page 0 resident
 			await src.ensureRange(150, 200);
@@ -198,7 +215,10 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		it("seeds a page-aligned window that is not page 0", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 10_000, fetch, pageSize: 50 });
-			src.prime(100, Array.from({ length: 50 }, (_, k) => 100 + k));
+			src.prime(
+				100,
+				Array.from({ length: 50 }, (_, k) => 100 + k),
+			);
 			await src.ensureRange(100, 150);
 			expect(fetch).not.toHaveBeenCalled();
 			expect(src.rowAt(125)).toBe(125);

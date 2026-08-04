@@ -563,7 +563,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				// Required, same as the dereference/query paths — no default ceiling, so the cluster view honors the caller's access exactly.
 				const accessLevel = AccessLevelSchema.parse(args.accessLevel);
 				// A federated read asks for "own" — the peer's authoritative data, never its view of the world (see TClusteredQuadsOpts).
-				if (args.scope !== undefined && args.scope !== "own" && args.scope !== "federated") return actionNotOK(`getClusteredQuads: scope must be "own" or "federated", got "${args.scope}"`);
+				if (args.scope !== undefined && args.scope !== "own" && args.scope !== "federated")
+					return actionNotOK(`getClusteredQuads: scope must be "own" or "federated", got "${args.scope}"`);
 				const scope = args.scope as "own" | "federated" | undefined;
 				let types: string[] | undefined;
 				if (Array.isArray(args.types)) types = args.types;
@@ -583,7 +584,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				// budget-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
 				// buffer unbudgeted let every observed subject past the requested limit — the client seeds this
 				// response verbatim, so the response itself must hold the bound.
-				const model = new QuadGraphModel(perTypeLimit, (type) => this.resourceRels().fields(type), (type) => this.resourceRels().displayLabelRel(type));
+				const model = new QuadGraphModel(
+					perTypeLimit,
+					(type) => this.resourceRels().fields(type),
+					(type) => this.resourceRels().displayLabelRel(type),
+				);
 				model.seed({ quads: result.quads as TQuad[], clusters: [...result.clusters] });
 				model.merge(types?.length ? this.observationQuads.filter((q) => types.includes(q.namedGraph)) : this.observationQuads);
 				const quads = model.snapshot.quads.map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({

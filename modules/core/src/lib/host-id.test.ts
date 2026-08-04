@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { resolveHostId, syntheticSeqPath, HAIBUN_HOST_ID_ENV, DEFAULT_HOST_ID, SYNTHETIC_FEATURE_NUM, activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal, HAIBUN_SITE_KEY_ENV } from "./host-id.js";
+import {
+	resolveHostId,
+	syntheticSeqPath,
+	HAIBUN_HOST_ID_ENV,
+	DEFAULT_HOST_ID,
+	SYNTHETIC_FEATURE_NUM,
+	activeSitePrincipal,
+	adoptSitePrincipal,
+	hasDefaultSitePrincipal,
+	HAIBUN_SITE_KEY_ENV,
+} from "./host-id.js";
 
 describe("resolveHostId", () => {
 	it("returns default when env var is absent", () => {

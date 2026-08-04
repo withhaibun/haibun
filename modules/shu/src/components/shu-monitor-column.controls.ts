@@ -74,7 +74,11 @@ export default class ShuMonitorColumnControls extends AStepper {
 			gwta: "monitor shows more than {min} rows",
 			action: async ({ min }: { min: string }) => {
 				const want = Number(min);
-				const n = await pollUntil(await this.page(), (p) => this.rowCount(p), (c) => c > want);
+				const n = await pollUntil(
+					await this.page(),
+					(p) => this.rowCount(p),
+					(c) => c > want,
+				);
 				return n > want ? actionOK() : actionNotOK(`monitor shows ${n} rows, expected more than ${want}`);
 			},
 		},
@@ -82,7 +86,11 @@ export default class ShuMonitorColumnControls extends AStepper {
 			gwta: "monitor shows exactly {count} rows",
 			action: async ({ count }: { count: string }) => {
 				const want = Number(count);
-				const n = await pollUntil(await this.page(), (p) => this.rowCount(p), (c) => c === want);
+				const n = await pollUntil(
+					await this.page(),
+					(p) => this.rowCount(p),
+					(c) => c === want,
+				);
 				return n === want ? actionOK() : actionNotOK(`monitor shows ${n} rows, expected exactly ${want}`);
 			},
 		},
@@ -104,14 +112,26 @@ export default class ShuMonitorColumnControls extends AStepper {
 		monitorFirstVisibleRow: {
 			gwta: "monitor first visible row reads {ordinal}",
 			action: async ({ ordinal }: { ordinal: string }) => {
-				const v = await pollUntil(await this.page(), (p) => firstText(p, SCROLLBAR_POS_TOP), (x) => x === ordinal, 25, 100);
+				const v = await pollUntil(
+					await this.page(),
+					(p) => firstText(p, SCROLLBAR_POS_TOP),
+					(x) => x === ordinal,
+					25,
+					100,
+				);
 				return v === ordinal ? actionOK() : actionNotOK(`monitor rail shows first visible row ${v || "(none)"}, expected ${ordinal}`);
 			},
 		},
 		monitorFirstVisibleRowIsNot: {
 			gwta: "monitor first visible row does not read {ordinal}",
 			action: async ({ ordinal }: { ordinal: string }) => {
-				const v = await pollUntil(await this.page(), (p) => firstText(p, SCROLLBAR_POS_TOP), (x) => x !== "" && x !== ordinal, 25, 100);
+				const v = await pollUntil(
+					await this.page(),
+					(p) => firstText(p, SCROLLBAR_POS_TOP),
+					(x) => x !== "" && x !== ordinal,
+					25,
+					100,
+				);
 				return v !== "" && v !== ordinal ? actionOK() : actionNotOK(`monitor rail still shows first visible row ${ordinal}; the seek did not move the window`);
 			},
 		},
@@ -125,7 +145,12 @@ export default class ShuMonitorColumnControls extends AStepper {
 					p.evaluate(() => {
 						let doc: Element | null = null;
 						const stack: Array<Document | ShadowRoot> = [document];
-						while (stack.length && !doc) { const r = stack.pop(); if (!r) break; doc = r.querySelector("shu-document-column"); for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot); }
+						while (stack.length && !doc) {
+							const r = stack.pop();
+							if (!r) break;
+							doc = r.querySelector("shu-document-column");
+							for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
+						}
 						const root = doc?.shadowRoot;
 						if (!root) return { frames: [] as Array<{ w: number; inRow: boolean; imgLoaded: boolean; imgW: number }> };
 						const frames = (Array.from(root.querySelectorAll("shu-artifact-frame.thumb")) as HTMLElement[]).map((f) => {
@@ -140,7 +165,10 @@ export default class ShuMonitorColumnControls extends AStepper {
 				const offRow = frames.filter((f) => !f.inRow).length;
 				if (offRow > 0) return actionNotOK(`${offRow} thumbnails render outside a .thumb-row grid (holders were not extracted into tiles)`);
 				const badSize = frames.filter((f) => f.w < 140 || f.w > 450);
-				if (badSize.length > 0) return actionNotOK(`thumbnails are not tile-sized: ${JSON.stringify(frames.map((f) => f.w))} (a tiny width is the shrink-wrap regression, a huge one is a tile blown up to the column)`);
+				if (badSize.length > 0)
+					return actionNotOK(
+						`thumbnails are not tile-sized: ${JSON.stringify(frames.map((f) => f.w))} (a tiny width is the shrink-wrap regression, a huge one is a tile blown up to the column)`,
+					);
 				const notLoaded = frames.filter((f) => !f.imgLoaded).length;
 				if (notLoaded > 0) return actionNotOK(`${notLoaded} thumbnail images failed to load from /artifacts`);
 				const notFilling = frames.filter((f) => f.imgW < f.w * 0.9).length;
@@ -159,7 +187,12 @@ export default class ShuMonitorColumnControls extends AStepper {
 					p.evaluate(() => {
 						let doc: Element | null = null;
 						const stack: Array<Document | ShadowRoot> = [document];
-						while (stack.length && !doc) { const rr = stack.pop(); if (!rr) break; doc = rr.querySelector("shu-document-column"); for (const e of Array.from(rr.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot); }
+						while (stack.length && !doc) {
+							const rr = stack.pop();
+							if (!rr) break;
+							doc = rr.querySelector("shu-document-column");
+							for (const e of Array.from(rr.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
+						}
 						const f = doc?.shadowRoot?.querySelector("shu-artifact-frame.fullscreen");
 						const fr = f?.getBoundingClientRect();
 						const cr = doc?.getBoundingClientRect();
@@ -176,7 +209,11 @@ export default class ShuMonitorColumnControls extends AStepper {
 								if (!el.shadowRoot) break;
 								root = el.shadowRoot;
 							}
-							for (let n: Node | null = el; n; n = n instanceof ShadowRoot ? n.host : n.parentNode) if (n === f) { onTop = true; break; }
+							for (let n: Node | null = el; n; n = n instanceof ShadowRoot ? n.host : n.parentNode)
+								if (n === f) {
+									onTop = true;
+									break;
+								}
 						}
 						return {
 							open: !!f,
@@ -191,8 +228,10 @@ export default class ShuMonitorColumnControls extends AStepper {
 				if (!v.caption) return actionNotOK("the expanded thumbnail shows no step caption (the data-step-label stamp is missing)");
 				// The overlay must take the WHOLE column box, from its left edge — inside a virtualizer, fixed-position
 				// coordinates resolve against the transformed row, so uncorrected values leave it askew beside the tiles.
-				if (v.dLeft > 2 || v.widthRatio < 0.98) return actionNotOK(`the expanded thumbnail does not cover the column (left off by ${Math.round(v.dLeft)}px, width ${Math.round(v.widthRatio * 100)}% of the column)`);
-				if (!v.onTop) return actionNotOK("another element paints over the expanded thumbnail (the overlay is trapped in its virtualizer row's stacking context instead of the top layer)");
+				if (v.dLeft > 2 || v.widthRatio < 0.98)
+					return actionNotOK(`the expanded thumbnail does not cover the column (left off by ${Math.round(v.dLeft)}px, width ${Math.round(v.widthRatio * 100)}% of the column)`);
+				if (!v.onTop)
+					return actionNotOK("another element paints over the expanded thumbnail (the overlay is trapped in its virtualizer row's stacking context instead of the top layer)");
 				return actionOK();
 			},
 		},
@@ -224,7 +263,11 @@ export default class ShuMonitorColumnControls extends AStepper {
 		monitorShowsRowContaining: {
 			gwta: "monitor shows a row containing {text}",
 			action: async ({ text }: { text: string }) => {
-				const found = await pollUntil(await this.page(), (p) => hasText(p, MONITOR_ROW, text), (ok) => ok);
+				const found = await pollUntil(
+					await this.page(),
+					(p) => hasText(p, MONITOR_ROW, text),
+					(ok) => ok,
+				);
 				return found ? actionOK() : actionNotOK(`monitor never rendered a row containing "${text}" (it did not follow the live edge)`);
 			},
 		},
@@ -240,12 +283,21 @@ export default class ShuMonitorColumnControls extends AStepper {
 					p.evaluate(() => {
 						let doc: Element | null = null;
 						const stack: Array<Document | ShadowRoot> = [document];
-						while (stack.length && !doc) { const r = stack.pop(); if (!r) break; doc = r.querySelector("shu-document-column"); for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot); }
+						while (stack.length && !doc) {
+							const r = stack.pop();
+							if (!r) break;
+							doc = r.querySelector("shu-document-column");
+							for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
+						}
 						const virt = doc?.shadowRoot?.querySelector("lit-virtualizer") as HTMLElement | null;
 						return virt ? virt.scrollHeight - virt.scrollTop - virt.clientHeight : Number.POSITIVE_INFINITY;
 					});
 				const dist = await pollUntil(await this.page(), read, (d) => d < DOC_LIVE_EDGE_PX, 25, 200);
-				return dist < DOC_LIVE_EDGE_PX ? actionOK() : actionNotOK(`document panel is ${Math.round(dist)}px above its live edge (the newest events are scrolled out of view — the panel followed its rail but not its content)`);
+				return dist < DOC_LIVE_EDGE_PX
+					? actionOK()
+					: actionNotOK(
+							`document panel is ${Math.round(dist)}px above its live edge (the newest events are scrolled out of view — the panel followed its rail but not its content)`,
+						);
 			},
 		},
 		scrubMonitorFirstRow: {

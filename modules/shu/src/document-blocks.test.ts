@@ -45,7 +45,9 @@ describe("finalizeBlocks", () => {
 		expect(b.html).toContain("img2.png");
 	});
 	it("adds the doc-row class to header, prose, and log blocks", () => {
-		const blocks = splitDocumentBlocks(`<div class="header-block" data-id="h"><h1>x</h1></div><div class="prose-block" data-id="p">x</div><div class="log-row" data-id="l">x</div>`);
+		const blocks = splitDocumentBlocks(
+			`<div class="header-block" data-id="h"><h1>x</h1></div><div class="prose-block" data-id="p">x</div><div class="log-row" data-id="l">x</div>`,
+		);
 		for (const b of finalizeBlocks(blocks, resolver)) expect(b.html).toContain("doc-row");
 	});
 	it("carries a log row's nesting and connector state onto its classes", () => {
@@ -136,8 +138,11 @@ describe("currentBlockIndex", () => {
 });
 
 describe("blockTimeClass", () => {
-	const past = b("a", 0), cur = b("c", 10), fut = b("d", 20);
-	const startTime = 100, cursor = 110;
+	const past = b("a", 0),
+		cur = b("c", 10),
+		fut = b("d", 20);
+	const startTime = 100,
+		cursor = 110;
 	const currentIdx = currentBlockIndex([past, cur, fut], startTime, cursor);
 	it("dims a block recorded after the cursor as future", () => {
 		expect(blockTimeClass(fut, 2, startTime, cursor, currentIdx)).toBe("future");

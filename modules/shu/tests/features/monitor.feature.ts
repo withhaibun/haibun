@@ -15,7 +15,23 @@ const { waitFor, gotoPage, takeScreenshot } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { watchBlips } = withAction(new BlipsStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { monitorShowsFewerThan, seekMonitorRail, monitorFirstVisibleRow, monitorFirstVisibleRowIsNot, documentShowsFewerThan, clickFirstDocRow, documentFutureRowsAtLeast, scrubMonitorFirstRow, monitorFutureRowsAtLeast, monitorShowsRowContaining, monitorTotalAtLeast, documentThumbnailsFlow, expandFirstThumbnail, expandedThumbnailNavigates, documentAtLiveEdge } = withAction(new ShuMonitorColumnControls());
+const {
+	monitorShowsFewerThan,
+	seekMonitorRail,
+	monitorFirstVisibleRow,
+	monitorFirstVisibleRowIsNot,
+	documentShowsFewerThan,
+	clickFirstDocRow,
+	documentFutureRowsAtLeast,
+	scrubMonitorFirstRow,
+	monitorFutureRowsAtLeast,
+	monitorShowsRowContaining,
+	monitorTotalAtLeast,
+	documentThumbnailsFlow,
+	expandFirstThumbnail,
+	expandedThumbnailNavigates,
+	documentAtLiveEdge,
+} = withAction(new ShuMonitorColumnControls());
 const { railThumbHoldsSize } = withAction(new ShuScrollbarControls());
 const { enterStepMode, passesStepExecution } = createStepUI(wp);
 const host = "http://localhost:8237";

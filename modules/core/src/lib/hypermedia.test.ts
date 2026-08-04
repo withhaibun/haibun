@@ -49,7 +49,12 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 	it("titles a type by the labeling property its own vocabulary declares, when it has no shared headline", () => {
 		// oa:exact is literal-ranged, so the selector's title is that property's value — read off the node itself.
 		const rels = { exact: LinkRelations.EXACT.rel, id: LinkRelations.IDENTIFIER.rel };
-		const label = composeDisplayLabel({ rels, getProperty: props({ exact: "a passage inside the document", id: "sel-1" }), displayLabel: { rel: LinkRelations.EXACT.rel }, id: "sel-1" });
+		const label = composeDisplayLabel({
+			rels,
+			getProperty: props({ exact: "a passage inside the document", id: "sel-1" }),
+			displayLabel: { rel: LinkRelations.EXACT.rel },
+			id: "sel-1",
+		});
 		expect(label).toBe("a passage inside the document");
 	});
 
@@ -57,7 +62,9 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		// oa:hasSelector is iri-ranged: the SpecificResource has no text of its own, so its title is its selector's.
 		const rels = { id: LinkRelations.IDENTIFIER.rel };
 		const args = { rels, getProperty: props({ id: "sr-1" }), id: "sr-1" };
-		expect(composeDisplayLabel({ ...args, displayLabel: { rel: LinkRelations.HAS_SELECTOR.rel, linkedLabel: "a passage inside the document" } })).toBe("a passage inside the document");
+		expect(composeDisplayLabel({ ...args, displayLabel: { rel: LinkRelations.HAS_SELECTOR.rel, linkedLabel: "a passage inside the document" } })).toBe(
+			"a passage inside the document",
+		);
 		// Nothing at the far end (an unresolved or access-filtered target) falls through to the id, never to a blank title.
 		expect(composeDisplayLabel({ ...args, displayLabel: { rel: LinkRelations.HAS_SELECTOR.rel } })).toBe("sr-1");
 		expect(composeDisplayLabel({ ...args, displayLabel: { rel: LinkRelations.HAS_SELECTOR.rel, linkedLabel: "  " } })).toBe("sr-1");
@@ -71,7 +78,9 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 
 	it("a declared labeling property outranks the shared headline — the type's own vocabulary is more specific", () => {
 		const rels = { exact: LinkRelations.EXACT.rel, name: LinkRelations.NAME.rel };
-		expect(composeDisplayLabel({ rels, getProperty: props({ exact: "the quote", name: "generic name" }), displayLabel: { rel: LinkRelations.EXACT.rel }, id: "x" })).toBe("the quote");
+		expect(composeDisplayLabel({ rels, getProperty: props({ exact: "the quote", name: "generic name" }), displayLabel: { rel: LinkRelations.EXACT.rel }, id: "x" })).toBe(
+			"the quote",
+		);
 	});
 
 	it("the real core types declare a labeling property exactly where the shared headline cannot title them", () => {
@@ -169,7 +178,12 @@ describe("buildConcernCatalog vocabulary binding", () => {
 			selectors: ["thing"],
 			description: "d",
 			schema: z.object({ id: z.string(), generatedAtTime: z.string() }),
-			topology: { persistedAs: "Thing", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, ...topology } as THypermediaTopology,
+			topology: {
+				persistedAs: "Thing",
+				id: "id",
+				properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+				...topology,
+			} as THypermediaTopology,
 		},
 	});
 
@@ -188,9 +202,11 @@ describe("buildConcernCatalog vocabulary binding", () => {
 
 	it("holds a superclass, a property's iri, and an edge's iri to the same rule", () => {
 		expect(() => buildConcernCatalog(domain({ subClassOf: "cred:Thing" }))).toThrow(/"cred:" vocabulary is not bound/);
-		expect(() => buildConcernCatalog(domain({ properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, x: { rel: LinkRelations.TAG.rel, iri: "vcstatus:x" } } }))).toThrow(
-			/"vcstatus:" vocabulary is not bound/,
-		);
+		expect(() =>
+			buildConcernCatalog(
+				domain({ properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, x: { rel: LinkRelations.TAG.rel, iri: "vcstatus:x" } } }),
+			),
+		).toThrow(/"vcstatus:" vocabulary is not bound/);
 		expect(() => buildConcernCatalog(domain({ edges: { e: { rel: LinkRelations.HAS_BODY.rel, range: "Thing", iri: "zzz:e" } } }))).toThrow(/"zzz:" vocabulary is not bound/);
 	});
 

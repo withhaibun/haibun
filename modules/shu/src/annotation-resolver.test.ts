@@ -21,7 +21,11 @@ describe("toW3CAnnotations — anchoring shape for the annotator library", () =>
 	it("uses prefix/suffix to disambiguate a repeated quote to the intended occurrence", () => {
 		const text = "pay the fee. later, pay the fee again.";
 		const [a] = toW3CAnnotations([view({ exact: "pay the fee", prefix: "later, " })], "urn:msg", text);
-		expect(a.target.selector[1]).toEqual({ type: "TextPositionSelector", start: text.indexOf("later, ") + "later, ".length, end: text.indexOf("later, ") + "later, ".length + "pay the fee".length });
+		expect(a.target.selector[1]).toEqual({
+			type: "TextPositionSelector",
+			start: text.indexOf("later, ") + "later, ".length,
+			end: text.indexOf("later, ") + "later, ".length + "pay the fee".length,
+		});
 	});
 
 	it("carries prefix/suffix on the quote selector when present", () => {

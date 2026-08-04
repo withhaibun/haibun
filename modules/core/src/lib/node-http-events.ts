@@ -4,7 +4,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { HttpTraceArtifact } from "../schema/protocol.js";
 import type { TWorld } from "./world.js";
 import type { TTag } from "./ttag.js";
-import { trackHttpRequest } from "./http-observations.js";
+import { trackOutboundRequest } from "./http-observations.js";
 
 export interface TStepTrace {
 	world: TWorld;
@@ -115,8 +115,7 @@ export class NodeHttpEvents {
 
 		// One completed undici request = one network-interaction record, through the same trackHttpRequest every HTTP
 		// client feeds: the site made this call, so it reads site → host. (Only on the response, once per exchange.)
-		if (event === "response" && response?.statusCode !== undefined)
-			void trackHttpRequest(world, { url, status: response.statusCode, method: request.method ?? "GET" }, new Set(), "site");
+		if (event === "response" && response?.statusCode !== undefined) void trackOutboundRequest(world, { url, status: response.statusCode, method: request.method ?? "GET" });
 
 		const artifact = HttpTraceArtifact.parse({
 			id: `http-trace-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,

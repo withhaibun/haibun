@@ -43,7 +43,7 @@ import {
 	conversationRoot,
 	assertCommentGrounded,
 } from "../lib/resources.js";
-import { linkVocabularyFromDomains } from "../lib/domains.js";
+import { linkVocabularyFor } from "../lib/domains.js";
 import { formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { statementsWith, type TStatementRow } from "../lib/statements.js";
 import { typedLinkFacts } from "../lib/typed-links.js";
@@ -141,7 +141,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 
 	/** The declared ontology a note's own links are read against: the registered domains, so a consumer's vocabulary is usable in a note. */
 	private get linkVocabulary() {
-		return linkVocabularyFromDomains(this.getWorld().domains);
+		return linkVocabularyFor(this.getWorld().domains);
 	}
 
 	/**
@@ -152,10 +152,12 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 	async readFeatureProse({ featureStep }: TBeforeStep): Promise<void> {
 		if (`${featureStep.action.stepperName}.${featureStep.action.actionName}` !== PROSE_ACTION) return;
 		const text = featureStep.in;
-		// Prose that states nothing changes nothing.
-		if (typedLinkFacts(text, this.linkVocabulary).length === 0) return;
+		const vocab = this.linkVocabulary;
+		// Prose that states nothing changes nothing; the facts parsed here are the reading's, so the text parses once.
+		const facts = typedLinkFacts(text, vocab);
+		if (facts.length === 0) return;
 		const seqPath = formatSeqPath(featureStep.seqPath);
-		await readTypedLinks(this.getWorld().shared.getStore(), this.linkVocabulary, { label: SEQ_PATH_LABEL, id: seqPath }, text, { seqPath });
+		await readTypedLinks(this.getWorld().shared.getStore(), vocab, { label: SEQ_PATH_LABEL, id: seqPath }, text, { seqPath, facts });
 	}
 
 	/** The shared tail of every `annotate` variant: write the annotation, resolve its conversation root, return both.

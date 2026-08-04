@@ -76,7 +76,10 @@ class Haibun extends AStepper implements IHasCycles {
 			action: async ({ where, types, token }: { where: string; types: string; token: string }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");
-				const graphs = types.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+				const graphs = types
+					.split(",")
+					.map((t) => t.trim())
+					.filter((t) => t.length > 0);
 				if (graphs.length === 0) return actionNotOK("use store at: no types given");
 				const remote = new RemoteQuadStore({ url: where, token, graphs });
 				const site = await remote.connect();
