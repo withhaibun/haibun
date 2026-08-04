@@ -21,7 +21,7 @@ import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { eventStream, type EventStream } from "../event-stream.js";
 import { buildPiecewiseTimeline, displayToTime, timeToDisplay, type TPiecewiseTimeline } from "../piecewise-timeline.js";
-import { eventMarkerStyle, shouldMarkEvent } from "../event-marker.js";
+import { eventMarkerStyle, shouldMarkEvent, MARK_COLOUR } from "../event-marker.js";
 
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 const formatSpeed = (s: number): string => (s === 0.02 ? "-50×" : s === 0.05 ? "-20×" : `${s}×`);
@@ -257,7 +257,7 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 					.map((e) => {
 						const pos = timeToDisplay(this.piecewise, e.timestamp);
 						const pct = (pos / total) * 100;
-						const cls = e.color === "#ef4444" ? "marker error" : "marker";
+						const cls = e.color === MARK_COLOUR.fault ? "marker error" : "marker";
 						const label = `${e.label} @ ${formatRelative(e.timestamp - this.firstEventTime())}`;
 						return html`<span class=${cls} style=${`left:${pct.toFixed(2)}%;color:${e.color}`} title=${label}>${e.icon}</span>`;
 					})}</div>

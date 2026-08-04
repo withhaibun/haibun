@@ -17,7 +17,7 @@
  * RDF class URI that JSON-LD emits, `id` is the IRI.
  */
 import { z } from "zod";
-import { typedLinkFacts, type TLinkVocabulary, type TQuoteAnchor } from "./typed-links.js";
+import { typedLinkFacts, type TLinkVocabulary, type TQuoteAnchor, type TTypedLinkFact } from "./typed-links.js";
 
 // ============================================================================
 // Resource identity
@@ -1353,11 +1353,12 @@ export async function readTypedLinks(
 	vocab: TLinkVocabulary,
 	source: { label: string; id: string },
 	markdown: string | undefined,
-	provenance?: { seqPath?: string },
+	provenance?: { seqPath?: string; facts?: TTypedLinkFact[] },
 ): Promise<{ readingId: string; statements: number } | undefined> {
 	const readingId = readingIdFor(source.label, source.id);
 	await retractReading(store, readingId);
-	const facts = markdown ? typedLinkFacts(markdown, vocab) : [];
+	// A caller that already parsed the text hands its facts over, so a prose line parses once.
+	const facts = provenance?.facts ?? (markdown ? typedLinkFacts(markdown, vocab) : []);
 	if (facts.length === 0) return undefined;
 	const now = new Date().toISOString();
 	const stated: TStatedRecord[] = [];

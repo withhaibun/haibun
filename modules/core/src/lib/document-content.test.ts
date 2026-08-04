@@ -182,7 +182,17 @@ describe("generateDocumentMarkdown", () => {
 		// claimed and then rendered nowhere (the standalone branch skips claimed ids) — visibility must not depend on order.
 		const step = (stage: string, ts: number) =>
 			({ id: "0.1.2", timestamp: ts, source: "h", level: "log", kind: "lifecycle", stage, type: "step", status: "passed", in: "take a screenshot" }) as unknown as THaibunEvent;
-		const image = (ts: number) => ({ id: "0.1.2.artifact.0", timestamp: ts, source: "h", level: "info", kind: "artifact", artifactType: "image", path: "image/x.png", mimetype: "image/png" }) as unknown as THaibunEvent;
+		const image = (ts: number) =>
+			({
+				id: "0.1.2.artifact.0",
+				timestamp: ts,
+				source: "h",
+				level: "info",
+				kind: "artifact",
+				artifactType: "image",
+				path: "image/x.png",
+				mimetype: "image/png",
+			}) as unknown as THaibunEvent;
 		for (const events of [
 			[step("start", 1000), step("end", 1050), image(1060)], // artifact after step end (live stream order)
 			[step("start", 1000), image(1020), step("end", 1050)], // artifact between start and end

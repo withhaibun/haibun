@@ -41,7 +41,11 @@ const STORE_METHODS = {
 	getIndividual: { write: false, params: z.object({ label: z.string(), id: z.string() }) },
 	queryIndividuals: {
 		write: false,
-		params: z.object({ label: z.string(), filters: z.record(z.string(), z.unknown()).optional(), options: z.object({ limit: z.number().optional(), offset: z.number().optional() }).optional() }),
+		params: z.object({
+			label: z.string(),
+			filters: z.record(z.string(), z.unknown()).optional(),
+			options: z.object({ limit: z.number().optional(), offset: z.number().optional() }).optional(),
+		}),
 	},
 	distinctPropertyValues: { write: false, params: z.object({ label: z.string(), property: z.string() }) },
 	getClusteredQuads: {

@@ -30,9 +30,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
  * the live getClusteredQuads RPC; the view hides instrumentation by default (toggleable) via effectiveHiddenTypes, so the
  * offline report behaves identically to live.
  */
-export async function buildGraphSource(
-	world: TWorld,
-): Promise<
+export async function buildGraphSource(world: TWorld): Promise<
 	| {
 			quads: TQuad[];
 			clusters: Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"];

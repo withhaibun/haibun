@@ -186,7 +186,14 @@ export class QuadGraphModel {
 			if (!cluster) continue;
 			const titled = cluster.displayLabels[subject];
 			if (titled !== undefined && titled !== subject) continue;
-			cluster.displayLabels[subject] = displayLabelForQuads(type, subject, subjectQuads, bodyFor, this.relsFor(type), this.declaredLabelFor(type, subject, quadsBySubject, bodyFor));
+			cluster.displayLabels[subject] = displayLabelForQuads(
+				type,
+				subject,
+				subjectQuads,
+				bodyFor,
+				this.relsFor(type),
+				this.declaredLabelFor(type, subject, quadsBySubject, bodyFor),
+			);
 		}
 	}
 

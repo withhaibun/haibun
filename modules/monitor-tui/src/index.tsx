@@ -151,12 +151,12 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 			};
 			const { rerender } = render(<MonitorApp featurePath={this.featurePath} lines={[]} running={new Map()} finished={false} />);
 
-			this.rerender = (lines, running, finished, prompt) => rerender(<MonitorApp featurePath={this.featurePath} lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />);
+			this.rerender = (lines, running, finished, prompt) =>
+				rerender(<MonitorApp featurePath={this.featurePath} lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />);
 		},
-			startFeature: ({resolvedFeature}: TStartFeature) => {
-				this.featurePath = resolvedFeature.path;
-			},
-
+		startFeature: ({ resolvedFeature }: TStartFeature) => {
+			this.featurePath = resolvedFeature.path;
+		},
 
 		onEvent: (event: THaibunEvent): void => {
 			const minLevel = (process.env.HAIBUN_LOG_LEVEL as unknown as THaibunLogLevel) || "info";

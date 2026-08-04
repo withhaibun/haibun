@@ -21,7 +21,10 @@ export interface WindowedSource<T> {
 
 /** A source over data already resident in memory (a fetched page of query results, a finite in-memory list): every row
  *  is available and ensureRange is a no-op. `set` swaps the backing list and notifies (a live re-query). */
-export function arrayWindowedSource<T>(initial: readonly T[] = [], markers: TScrollMarker[] = []): WindowedSource<T> & { set(items: readonly T[], markers?: TScrollMarker[]): void } {
+export function arrayWindowedSource<T>(
+	initial: readonly T[] = [],
+	markers: TScrollMarker[] = [],
+): WindowedSource<T> & { set(items: readonly T[], markers?: TScrollMarker[]): void } {
 	const subs = new Set<() => void>();
 	let items = initial;
 	let marks = markers;
@@ -47,7 +50,13 @@ export type TPageFetcher<T> = (start: number, end: number) => Promise<readonly T
 /** A paged source for data too large to hold resident (up to millions): rows are fetched a page at a time on
  *  ensureRange, cached in a bounded window (pages far from the last request are evicted so memory stays flat regardless
  *  of total), and concurrent or overlapping requests for the same pages coalesce into a single fetch. */
-export function lazyWindowedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] }): WindowedSource<T> & {
+export function lazyWindowedSource<T>(opts: {
+	count: () => number;
+	fetch: TPageFetcher<T>;
+	pageSize?: number;
+	maxResidentPages?: number;
+	markers?: () => TScrollMarker[];
+}): WindowedSource<T> & {
 	/** Re-probe the tail and notify: call after `count()` grows (a live append) or a previously-capped fetch can now
 	 *  return more, so a partial last page is re-fetched and the view re-renders. */
 	notifyCountChanged(): void;

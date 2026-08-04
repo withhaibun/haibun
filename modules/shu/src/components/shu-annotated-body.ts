@@ -34,6 +34,9 @@ import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
 import { railMarks, railTotalAndWindow } from "../annotation-rail.js";
 
 /** Characters of surrounding text captured as a selection's prefix/suffix, so a short or repeated quote re-anchors to the right spot. */
+/** The ref sanitize allowlist plus inline style, which the annotation gutter's highlight spans carry. */
+const STYLED_REF_SANITIZE = { ...refSanitizeOptions, ADD_ATTR: ["style", ...refSanitizeOptions.ADD_ATTR] };
+
 const CONTEXT_CHARS = 32;
 
 /** A pending author action: the passage the user selected, the context that makes it a reliable anchor, and the
@@ -250,7 +253,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	 *  Markdown renders with its in-app references live. A text shown inline is read here, so a `#Type:id` link in it
 	 *  opens that individual in a column; as a plain anchor it would navigate the page to a hash the app cannot read. */
 	private sanitizedHtml(): string {
-		return DOMPurify.sanitize(renderContentHtml(this.content, this.mediaType), { ...refSanitizeOptions, ADD_ATTR: ["style", ...refSanitizeOptions.ADD_ATTR] });
+		return DOMPurify.sanitize(renderContentHtml(this.content, this.mediaType), STYLED_REF_SANITIZE);
 	}
 
 	private contentEl(): HTMLElement | null {
@@ -530,7 +533,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 							@click=${() => this.selectCard(a.commentId)}
 						>
 							<div class="annotation-card-quote">“${a.exact}”</div>
-							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, "text/markdown"), { ...refSanitizeOptions, ADD_ATTR: ["style", ...refSanitizeOptions.ADD_ATTR] }))}</div>` : html``}
+							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, "text/markdown"), STYLED_REF_SANITIZE))}</div>` : html``}
 							${a.author ? html`<div class="annotation-card-author">${a.author}</div>` : html``}
 							${(a.links ?? []).map(
 								(link) => html`<span

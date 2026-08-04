@@ -7,6 +7,7 @@ import { OK, TStepResult, Origin } from "@haibun/core/schema/protocol.js";
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from "./BrowserFactory.js";
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { saveImageArtifact } from "./artifact.js";
 import { ImageArtifact, VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
@@ -295,28 +296,13 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const filename = `event-${details.step?.seqPath.join(".")}.png`;
 		// Take screenshot to buffer first, then save
 		const buffer = (await this.withPage(async (page: Page) => await page.screenshot())) as Buffer;
-		const saved = await this.storage.saveArtifact(filename, buffer, EMediaTypes.image, "image");
-
-		// baseRelativePath drives the live /artifacts route; featureRelativePath ("./image/x.png") drives the serialized
-		// report, whose shu.html sits in the same feature dir as the image.
-		const world = this.getWorld();
-		const artifactEvent = ImageArtifact.parse({
-			id: `${details.step.seqPath.join(".")}.artifact.0`,
-			timestamp: Date.now(),
-			kind: "artifact",
-			artifactType: "image",
-			path: saved.baseRelativePath,
-			featureRelativePath: saved.featureRelativePath,
-			mimetype: "image/png",
-		});
 		const featureStep = {
 			seqPath: details.step.seqPath,
 			source: { path: details.step.path },
 			in: details.step.in,
 			action: {} as TStepAction,
 		};
-		world.eventLogger.artifact(featureStep, artifactEvent);
-
+		const saved = await saveImageArtifact(this.getWorld(), this.storage, featureStep as unknown as Parameters<typeof saveImageArtifact>[2], filename, buffer, "image/png");
 		return { path: saved.absolutePath };
 	}
 

@@ -9,7 +9,7 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
-import { eventMarkerStyle } from "../event-marker.js";
+import { MARK_COLOUR, eventMarkerStyle } from "../event-marker.js";
 import { ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
@@ -270,7 +270,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 						index: i,
 						id: `${this.#filtered[i].step}-${i}`,
 						icon: LEVEL_ICONS[lvl],
-						color: lvl === "error" ? "#ef4444" : "#eab308",
+						color: lvl === "error" ? MARK_COLOUR.fault : MARK_COLOUR.pending,
 						label: this.#filtered[i].message,
 					});
 			}

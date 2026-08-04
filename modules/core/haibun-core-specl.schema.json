@@ -1,61 +1,57 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "properties": {
-    "$schema": {
-      "type": "string"
-    },
-    "steppers": {
-      "type": "array",
-      "items": {
-        "anyOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "remote": {
-                "type": "string"
-              },
-              "token": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "remote"
-            ],
-            "additionalProperties": false
-          }
-        ]
-      }
-    },
-    "runPolicy": {
-      "type": "string"
-    },
-    "appParameters": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": "object",
-        "propertyNames": {
-          "type": "string"
-        },
-        "additionalProperties": {}
-      }
-    },
-    "options": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {}
-    }
-  },
-  "required": [
-    "steppers"
-  ],
-  "additionalProperties": {}
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"properties": {
+		"$schema": {
+			"type": "string"
+		},
+		"steppers": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "string"
+					},
+					{
+						"type": "object",
+						"properties": {
+							"remote": {
+								"type": "string"
+							},
+							"token": {
+								"type": "string"
+							}
+						},
+						"required": ["remote"],
+						"additionalProperties": false
+					}
+				]
+			}
+		},
+		"runPolicy": {
+			"type": "string"
+		},
+		"appParameters": {
+			"type": "object",
+			"propertyNames": {
+				"type": "string"
+			},
+			"additionalProperties": {
+				"type": "object",
+				"propertyNames": {
+					"type": "string"
+				},
+				"additionalProperties": {}
+			}
+		},
+		"options": {
+			"type": "object",
+			"propertyNames": {
+				"type": "string"
+			},
+			"additionalProperties": {}
+		}
+	},
+	"required": ["steppers"],
+	"additionalProperties": {}
 }

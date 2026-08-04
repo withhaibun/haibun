@@ -303,9 +303,10 @@ describe("depolite", () => {
 describe("checkNoPoliteStepPrefixes", () => {
 	// A gwta/exact starting with a dePolite stopword can never match (the resolver dePolites the feature line but not the
 	// step pattern), so stepper creation must fail fast naming the dead step instead of a bare "no step found" at resolve.
-	const stepperWith = (steps: TAnyFixme) => new (class PoliteStepper extends AStepper {
-		steps = steps;
-	})();
+	const stepperWith = (steps: TAnyFixme) =>
+		new (class PoliteStepper extends AStepper {
+			steps = steps;
+		})();
 	test("a gwta starting with a stopword throws at creation", () => {
 		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ bad: { gwta: "the document panel is scrolled", action: async () => OK } }))).toThrow(/could never match/);
 	});

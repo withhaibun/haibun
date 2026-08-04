@@ -45,7 +45,22 @@ refLinksPlugin(mdRenderer, (name) => getRels(name) !== undefined);
 const SANITIZE_OPTS = {
 	// `kind`/`linktarget`/`text` carry the shu-ref reference (a `#Type` link the refLinksPlugin rewrote); DOMPurify
 	// lowercases attribute names, so `linkTarget` is allowlisted as `linktarget`.
-	ADD_ATTR: ["style", "data-depth", "data-nested", "data-instigator", "data-show-symbol", "data-id", "data-time", "data-raw-time", "data-action", "data-has-artifacts", "data-ids", "kind", "linktarget", "text"],
+	ADD_ATTR: [
+		"style",
+		"data-depth",
+		"data-nested",
+		"data-instigator",
+		"data-show-symbol",
+		"data-id",
+		"data-time",
+		"data-raw-time",
+		"data-action",
+		"data-has-artifacts",
+		"data-ids",
+		"kind",
+		"linktarget",
+		"text",
+	],
 	ADD_TAGS: ["div", "shu-ref"],
 };
 
@@ -137,7 +152,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#rebuild(): void {
 		this.#recomputeTimes();
 		this.#productsById = this.getProductsByStepId(this.events);
-		const html = DOMPurify.sanitize(mdRenderer.render(generateDocumentMarkdown(this.events, buildArtifactIndex(this.events).artifactsByStep, this.state.level as THaibunLogLevel, this.startTime).md), SANITIZE_OPTS);
+		const html = DOMPurify.sanitize(
+			mdRenderer.render(generateDocumentMarkdown(this.events, buildArtifactIndex(this.events).artifactsByStep, this.state.level as THaibunLogLevel, this.startTime).md),
+			SANITIZE_OPTS,
+		);
 		// One by-id map per rebuild: the resolver runs once per artifact placeholder, and a find() over the whole event log
 		// per id would make each rebuild O(artifacts x events) as a screenshot-heavy run streams.
 		const artifactsById = new Map(this.events.filter((e) => e.kind === "artifact").map((e) => [e.id, e as TArtifactEvent]));
@@ -308,11 +326,14 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const url = a.url as string | undefined;
 		const base = a.path ? String(a.path).replace(/^\.?\//, "") : undefined;
 		const featureRelativeFallback = base ? `./${base.split("/").slice(1).join("/")}` : undefined;
-		const artifactPath = isStandaloneMode() ? ((a.featureRelativePath as string | undefined) ?? url ?? featureRelativeFallback) : (url ?? (base ? `/artifacts/${base}` : undefined));
+		const artifactPath = isStandaloneMode()
+			? ((a.featureRelativePath as string | undefined) ?? url ?? featureRelativeFallback)
+			: (url ?? (base ? `/artifacts/${base}` : undefined));
 		if (type === "image") {
 			return `<shu-artifact-frame class="thumb"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
 		}
-		if (type === "html") return `<shu-artifact-frame><iframe src="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
+		if (type === "html")
+			return `<shu-artifact-frame><iframe src="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
 		if (type === "json") return `<shu-artifact-frame><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
 		if (type === "file") return `<shu-artifact-frame caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
 		return "";

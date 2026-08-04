@@ -105,7 +105,10 @@ export function setSelectedSubject(subject: string | null, label: string | null)
  *  subject (select it) or carries an explicitly EMPTY patterns array (the empty-space click — clear it). A query
  *  context (label/predicate/object patterns, no subject) says nothing about selection and must leave it untouched —
  *  e.g. the graph view publishing its query at boot must not clear the selection a just-opened column published. */
-export function selectionFromContext(detail: { patterns?: Array<Record<string, unknown>>; label?: unknown }): { action: "select"; subject: string; label: string | null } | { action: "clear" } | { action: "none" } {
+export function selectionFromContext(detail: {
+	patterns?: Array<Record<string, unknown>>;
+	label?: unknown;
+}): { action: "select"; subject: string; label: string | null } | { action: "clear" } | { action: "none" } {
 	const subject = detail.patterns?.[0]?.s;
 	if (typeof subject === "string") return { action: "select", subject, label: typeof detail.label === "string" ? detail.label : null };
 	if (Array.isArray(detail.patterns) && detail.patterns.length === 0) return { action: "clear" };
@@ -257,7 +260,13 @@ export function currentSnapshot(scope = ""): TGraphSnapshot {
 }
 
 function ensureCache(st: ScopeState): CacheEntry {
-	if (!st.cache) st.cache = { model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels, getDisplayLabelRel), perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*", accessLevel: appAccessLevel() };
+	if (!st.cache)
+		st.cache = {
+			model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels, getDisplayLabelRel),
+			perTypeLimit: DEFAULT_PER_TYPE_LIMIT,
+			typesKey: "*",
+			accessLevel: appAccessLevel(),
+		};
 	return st.cache;
 }
 

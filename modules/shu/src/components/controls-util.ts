@@ -50,31 +50,37 @@ export function firstText(page: EvalPage, selector: string): Promise<string> {
 
 /** An attribute of the first element matching `selector` across shadow roots, "" if none or unset. */
 export function firstAttr(page: EvalPage, selector: string, attr: string): Promise<string> {
-	return page.evaluate(([sel, a]: [string, string]) => {
-		const stack: Array<Document | ShadowRoot> = [document];
-		while (stack.length > 0) {
-			const root = stack.pop();
-			if (!root) break;
-			const el = root.querySelector(sel);
-			if (el) return el.getAttribute(a) ?? "";
-			for (const e of Array.from(root.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
-		}
-		return "";
-	}, [selector, attr]);
+	return page.evaluate(
+		([sel, a]: [string, string]) => {
+			const stack: Array<Document | ShadowRoot> = [document];
+			while (stack.length > 0) {
+				const root = stack.pop();
+				if (!root) break;
+				const el = root.querySelector(sel);
+				if (el) return el.getAttribute(a) ?? "";
+				for (const e of Array.from(root.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
+			}
+			return "";
+		},
+		[selector, attr],
+	);
 }
 
 /** Whether any element matching `selector` across shadow roots contains `text`. */
 export function hasText(page: EvalPage, selector: string, text: string): Promise<boolean> {
-	return page.evaluate(([sel, t]: [string, string]) => {
-		const stack: Array<Document | ShadowRoot> = [document];
-		while (stack.length > 0) {
-			const root = stack.pop();
-			if (!root) break;
-			for (const r of Array.from(root.querySelectorAll(sel))) if ((r.textContent ?? "").includes(t)) return true;
-			for (const el of Array.from(root.querySelectorAll("*"))) if (el.shadowRoot) stack.push(el.shadowRoot);
-		}
-		return false;
-	}, [selector, text]);
+	return page.evaluate(
+		([sel, t]: [string, string]) => {
+			const stack: Array<Document | ShadowRoot> = [document];
+			while (stack.length > 0) {
+				const root = stack.pop();
+				if (!root) break;
+				for (const r of Array.from(root.querySelectorAll(sel))) if ((r.textContent ?? "").includes(t)) return true;
+				for (const el of Array.from(root.querySelectorAll("*"))) if (el.shadowRoot) stack.push(el.shadowRoot);
+			}
+			return false;
+		},
+		[selector, text],
+	);
 }
 
 /** Dispatch a composed click on the first element matching `selector` across shadow roots; false if none exists. */

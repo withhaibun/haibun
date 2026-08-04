@@ -140,7 +140,9 @@ export async function openEntity(label: string, id: string, accessLevel: string)
 			// A live server that answered with an error is a real error — surface it (never mask it as "offline"). Only when
 			// there is genuinely no live server (the serialized / file:// report) do we serve the persisted vertex instead.
 			const offline = isOffline() ? await derefStoredEntity(label, id) : undefined;
-			entry.view = offline ? { status: "ready", provenance: "offline", entity: offline, annotations: [], bodies: {} } : { status: "error", annotations: [], error: res.error, bodies: {} };
+			entry.view = offline
+				? { status: "ready", provenance: "offline", entity: offline, annotations: [], bodies: {} }
+				: { status: "error", annotations: [], error: res.error, bodies: {} };
 			if (!offline) return void notify(s, id);
 		}
 		notify(s, id);
@@ -156,7 +158,11 @@ export async function requestBody(label: string, id: string, bodyId: string): Pr
 	const s = getStore();
 	const entry = s.entries.get(keyOf(label, id));
 	if (!entry?.view.entity || entry.view.bodies[bodyId] !== undefined) return;
-	const res = await callStep<{ vertex?: { content?: string } }>("getIndividualWithEdges", { label: BODY_LABEL, id: bodyId, accessLevel: appAccessLevel() }, `entity-store: body ${bodyId}`);
+	const res = await callStep<{ vertex?: { content?: string } }>(
+		"getIndividualWithEdges",
+		{ label: BODY_LABEL, id: bodyId, accessLevel: appAccessLevel() },
+		`entity-store: body ${bodyId}`,
+	);
 	const content = res.ok ? res.value.vertex?.content : undefined;
 	if (typeof content !== "string") return;
 	entry.view = { ...entry.view, bodies: { ...entry.view.bodies, [bodyId]: content } };

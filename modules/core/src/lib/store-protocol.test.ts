@@ -5,7 +5,8 @@ import { handleStoreCall, isStoreMethod, requiredStoreCapability, STORE_READ, ST
 describe("store protocol capability classification", () => {
 	it("requires store.write for anything that changes the store and store.read otherwise", () => {
 		for (const m of ["set", "add", "remove", "clear", "upsertIndividual", "deleteIndividual", "createEdge"]) expect(requiredStoreCapability(`store.${m}`)).toBe(STORE_WRITE);
-		for (const m of ["get", "query", "all", "getIndividual", "queryIndividuals", "distinctPropertyValues", "getClusteredQuads"]) expect(requiredStoreCapability(`store.${m}`)).toBe(STORE_READ);
+		for (const m of ["get", "query", "all", "getIndividual", "queryIndividuals", "distinctPropertyValues", "getClusteredQuads"])
+			expect(requiredStoreCapability(`store.${m}`)).toBe(STORE_READ);
 	});
 
 	it("recognizes exactly the wire methods", () => {

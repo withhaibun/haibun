@@ -17,7 +17,7 @@ import { LinkRelations, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL, type TPrincipal } fro
  * the in-memory quad store models edges as quads, so it falls back to `add`. Either way: exactly one edge.
  */
 export async function persistPrincipalIndividual(world: TWorld, p: TPrincipal, delegatedFrom?: string): Promise<void> {
-	if (!world.domains[PRINCIPAL_DOMAIN]) return;
+	if (!world.domains?.[PRINCIPAL_DOMAIN]) return;
 	const store = world.shared?.getStore();
 	if (!store) return;
 	await store.upsertIndividual(PRINCIPAL_LABEL, p);

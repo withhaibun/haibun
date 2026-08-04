@@ -214,6 +214,16 @@ export function hypermediaDomainMap(domains: Record<string, TRegisteredDomain>):
  * this module naming any of it. Abstract rels (the classification-only upper concepts) are excluded: they are never
  * a written predicate.
  */
+const linkVocabularyCache = new WeakMap<Record<string, TRegisteredDomain>, TLinkVocabulary>();
+
+/** The vocabulary for a domains registry, computed once per registry: derived data over an object that changes only by
+ *  replacement, read on the every-step prose cycle. */
+export function linkVocabularyFor(domains: Record<string, TRegisteredDomain>): TLinkVocabulary {
+	let vocab = linkVocabularyCache.get(domains);
+	if (!vocab) linkVocabularyCache.set(domains, (vocab = linkVocabularyFromDomains(domains)));
+	return vocab;
+}
+
 export function linkVocabularyFromDomains(domains: Record<string, TRegisteredDomain>): TLinkVocabulary {
 	const ranges = new Map<string, TRelRange>();
 	for (const entry of Object.values(LinkRelations)) {

@@ -11,7 +11,13 @@ import { OK } from "../schema/protocol.js";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import type { TWorld } from "../lib/world.js";
 
-const SCROLL = { name: "haibun.test.view.scroll_adjust", instrument: "span-event" as const, description: "A view moved by itself.", unit: "px", attributes: z.object({ view: z.string() }) };
+const SCROLL = {
+	name: "haibun.test.view.scroll_adjust",
+	instrument: "span-event" as const,
+	description: "A view moved by itself.",
+	unit: "px",
+	attributes: z.object({ view: z.string() }),
+};
 const REQUEST = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "A request completed." };
 
 const make = (seqPath?: string) => {

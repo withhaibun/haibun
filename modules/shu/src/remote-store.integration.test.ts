@@ -46,31 +46,31 @@ class StoreDelegationProbeStepper extends AStepper {
 }
 
 describe("a satellite keeps records in the main instance's store over live RPC", () => {
-	it(
-		"mounts the main's store, writes through, reads back, and the surface denies callers without the grant",
-		{ timeout: 60_000 },
-		async () => {
-			const port = 8253;
-			const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) } });
-			const feature = {
-				path: "/features/remote-store.feature",
-				content: `
+	it("mounts the main's store, writes through, reads back, and the surface denies callers without the grant", { timeout: 60_000 }, async () => {
+		const port = 8253;
+		const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) } });
+		const feature = {
+			path: "/features/remote-store.feature",
+			content: `
 start a haibun instance from "modules/shu/tests/federate-peer" on port ${PEER_PORT} as host 7
 use store at "http://localhost:${PEER_PORT}" for "Principal" with token "satellite-store"
 name a connecting site
 probe the delegated store surface
 `,
-			};
-			const result = await testWithWorld(world, [feature], [Haibun, WebServerStepper, ShuStepper, MonitorStepper, AuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, StoreDelegationProbeStepper]);
-			if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
+		};
+		const result = await testWithWorld(
+			world,
+			[feature],
+			[Haibun, WebServerStepper, ShuStepper, MonitorStepper, AuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, StoreDelegationProbeStepper],
+		);
+		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
-			// The satellite's naming persisted THROUGH the mounted store, and reading back through its own world store (routed to the main) finds it.
-			expect(readBack?.controller).toBe("did:site:0.1");
-			// The main itself holds the record — asked directly with the delegated token.
-			expect(heldByMain).toHaveLength(1);
-			// No grant, no access — reads and writes are both refused without the delegated capability.
-			expect(deniedRead).toContain("capability store.read required");
-			expect(deniedWrite).toContain("capability store.write required");
-		},
-	);
+		// The satellite's naming persisted THROUGH the mounted store, and reading back through its own world store (routed to the main) finds it.
+		expect(readBack?.controller).toBe("did:site:0.1");
+		// The main itself holds the record — asked directly with the delegated token.
+		expect(heldByMain).toHaveLength(1);
+		// No grant, no access — reads and writes are both refused without the delegated capability.
+		expect(deniedRead).toContain("capability store.read required");
+		expect(deniedWrite).toContain("capability store.write required");
+	});
 });

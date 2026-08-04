@@ -50,7 +50,13 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				const metrics: Record<string, Record<string, unknown>> = {};
 				const items = held.map((blip, i) => {
 					const item = renderOccurrence(blip, i);
-					metrics[item] = { ...blip.attributes, index: i + 1, name: blip.name, ...(blip.seqPath ? { step: blip.seqPath } : {}), ...(blip.value === undefined ? {} : { value: blip.value }) };
+					metrics[item] = {
+						...blip.attributes,
+						index: i + 1,
+						name: blip.name,
+						...(blip.seqPath ? { step: blip.seqPath } : {}),
+						...(blip.value === undefined ? {} : { value: blip.value }),
+					};
 					return item;
 				});
 				return Promise.resolve({ items, metrics });
@@ -106,8 +112,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		},
 		showWatchedBlips: {
 			gwta: "show watched blips",
-			description:
-				"The watched occurrences as text, oldest first, each with its name, value, step path and attributes. Reports the total recorded and how many the window holds.",
+			description: "The watched occurrences as text, oldest first, each with its name, value, step path and attributes. Reports the total recorded and how many the window holds.",
 			productsSchema: ShowSchema,
 			action: async () => {
 				await Promise.resolve();

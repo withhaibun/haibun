@@ -11,11 +11,20 @@ const CTX_DOC = { "@context": { Widget: { "@context": { id: { "@id": "@id" }, co
 
 // Widget models `id` and `size` as its own fields; it conforms to the context (which also declares `color`).
 const domain = (persistedAs: string, standardContexts?: string[]): TRegisteredDomain =>
-	({ topology: { persistedAs, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, size: LinkRelations.TAG.rel }, ...(standardContexts ? { standardContexts } : {}) }, schema: { parse: (v: unknown) => v } }) as unknown as TRegisteredDomain;
+	({
+		topology: { persistedAs, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, size: LinkRelations.TAG.rel }, ...(standardContexts ? { standardContexts } : {}) },
+		schema: { parse: (v: unknown) => v },
+	}) as unknown as TRegisteredDomain;
 
 const withInstance = (type: string): { response: TClusteredQuads; evidence: TQuad[] } => {
 	const evidence: TQuad[] = [{ subject: `${type}-1`, predicate: "id", object: `${type}-1`, namedGraph: type, timestamp: 1 }];
-	return { response: { quads: evidence, clusters: [{ type, totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: [`${type}-1`], displayLabels: { [`${type}-1`]: `${type}-1` } }] }, evidence };
+	return {
+		response: {
+			quads: evidence,
+			clusters: [{ type, totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: [`${type}-1`], displayLabels: { [`${type}-1`]: `${type}-1` } }],
+		},
+		evidence,
+	};
 };
 
 describe("standard-vocabulary — the type's declared standard context resolved via jsonld, one source", () => {

@@ -60,7 +60,6 @@ export function refLinksPlugin(md: MarkdownIt, isType: (name: string) => boolean
 
 /** The shu-ref attributes a rewritten reference carries; DOMPurify lowercases attribute names, so `linkTarget` is
  *  allowlisted as `linktarget`. */
-const REF_SANITIZE_OPTS = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "linktarget", "text"] };
 
 /** One renderer for every prose surface: built once, since a MarkdownIt carries its plugin rules. */
 let proseRenderer: MarkdownIt | undefined;
@@ -99,5 +98,5 @@ export function renderRefProse(text: string, isType: (name: string) => boolean):
 		proseRenderer = new MarkdownIt({ html: false, linkify: false, typographer: true });
 		refLinksPlugin(proseRenderer, isType);
 	}
-	return DOMPurify.sanitize(proseRenderer.renderInline(text), REF_SANITIZE_OPTS);
+	return DOMPurify.sanitize(proseRenderer.renderInline(text), refSanitizeOptions);
 }

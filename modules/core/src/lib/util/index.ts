@@ -90,7 +90,9 @@ export function checkNoPoliteStepPrefixes(stepper: AStepper): void {
 		if (pattern === undefined) continue;
 		const curt = dePolite(pattern);
 		if (curt !== pattern) {
-			throw Error(`${constructorName(stepper)}.${name}: step pattern "${pattern}" starts with the polite prefix "${pattern.slice(0, pattern.length - curt.length).trim()}", which dePolite strips from feature lines, so it could never match. Start the pattern at "${curt}".`);
+			throw Error(
+				`${constructorName(stepper)}.${name}: step pattern "${pattern}" starts with the polite prefix "${pattern.slice(0, pattern.length - curt.length).trim()}", which dePolite strips from feature lines, so it could never match. Start the pattern at "${curt}".`,
+			);
 		}
 	}
 }

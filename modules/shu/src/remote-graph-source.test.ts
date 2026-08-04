@@ -16,7 +16,15 @@ const peerFetch =
 					{ subject: "m-2", predicate: "name", object: "Two", namedGraph: "Email", timestamp: 2 },
 				],
 				clusters: [
-					{ type: "Email", totalCount: 2, sampledCount: 2, omittedCount: 0, sampledSubjects: ["m-1", "m-2"], displayLabels: { "m-1": "One", "m-2": "Two" }, sites: { "m-2": "did:site:deeper" } },
+					{
+						type: "Email",
+						totalCount: 2,
+						sampledCount: 2,
+						omittedCount: 0,
+						sampledSubjects: ["m-1", "m-2"],
+						displayLabels: { "m-1": "One", "m-2": "Two" },
+						sites: { "m-2": "did:site:deeper" },
+					},
 				],
 				site: "did:site:imap",
 			};

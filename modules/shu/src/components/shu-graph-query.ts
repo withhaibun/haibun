@@ -392,7 +392,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				void this.executeQuery();
 			}) as EventListener);
 
-
 			table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
 				const { individualId: vid, deselect, ctrlKey } = e.detail;
 				if (deselect) {

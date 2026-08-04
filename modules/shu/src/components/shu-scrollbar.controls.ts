@@ -115,7 +115,10 @@ export default class ShuScrollbarControls extends AStepper {
 				const heights = readings.map((r) => r.heightPx);
 				const spread = Math.max(...heights) - Math.min(...heights);
 				const allowed = STEADY_SPREAD(Math.max(...heights));
-				if (spread > allowed) return actionNotOK(`rail thumb in ${host} resizes as the reader scrolls: heights ${JSON.stringify(heights)} spread ${spread}px, over the ${allowed}px an estimate settling explains`);
+				if (spread > allowed)
+					return actionNotOK(
+						`rail thumb in ${host} resizes as the reader scrolls: heights ${JSON.stringify(heights)} spread ${spread}px, over the ${allowed}px an estimate settling explains`,
+					);
 				const tops = readings.map((r) => r.topPx);
 				if (Math.max(...tops) - Math.min(...tops) <= 0) return actionNotOK(`rail thumb in ${host} never moved: tops ${JSON.stringify(tops)} — the rail is not tracking the scroll`);
 				return actionOK();

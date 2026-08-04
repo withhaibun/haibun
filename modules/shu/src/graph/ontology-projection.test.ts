@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { ontologyToQuads, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, ONTOLOGY_PRED, pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType, propertyVocabulary, isHaibunTerm, typesDeclaringRel, categoryOf } from "./ontology-projection.js";
+import {
+	ontologyToQuads,
+	ONTOLOGY_CLASS,
+	ONTOLOGY_PROPERTY,
+	ONTOLOGY_PRED,
+	pruneOntologyToUse,
+	withOntologySchema,
+	scopeSchemaToType,
+	isSchemaType,
+	propertyVocabulary,
+	isHaibunTerm,
+	typesDeclaringRel,
+	categoryOf,
+} from "./ontology-projection.js";
 import { LinkRelations, principalDomainDefinition, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
@@ -55,7 +68,15 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 
 	it("carries a range (rdfs:range) on each edge — the class it points at, so the ontology reads class→property→class", () => {
 		const domains = {
-			w: { topology: { persistedAs: "Widget", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, edges: { maker: { range: "Person", rel: LinkRelations.ATTRIBUTED_TO.rel } } }, schema: { parse: (v: unknown) => v } } as unknown as TRegisteredDomain,
+			w: {
+				topology: {
+					persistedAs: "Widget",
+					id: "id",
+					properties: { id: LinkRelations.IDENTIFIER.rel },
+					edges: { maker: { range: "Person", rel: LinkRelations.ATTRIBUTED_TO.rel } },
+				},
+				schema: { parse: (v: unknown) => v },
+			} as unknown as TRegisteredDomain,
 		};
 		const { quads, clusters } = ontologyToQuads(domains);
 		// the edge's target class is a drawn Property→Class edge, and the range class is its own node.
@@ -66,7 +87,14 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 
 describe("pruneOntologyToUse — the served schema is the part the data exercises", () => {
 	const schemaTerm: TQuad = { subject: "VerifiableCredential", predicate: ONTOLOGY_PRED.name, object: "VerifiableCredential", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
-	const superTerm: TQuad = { subject: "VerifiableCredential", predicate: ONTOLOGY_PRED.subClassOf, object: "prov:Entity", namedGraph: ONTOLOGY_CLASS, objectType: ONTOLOGY_CLASS, timestamp: 0 };
+	const superTerm: TQuad = {
+		subject: "VerifiableCredential",
+		predicate: ONTOLOGY_PRED.subClassOf,
+		object: "prov:Entity",
+		namedGraph: ONTOLOGY_CLASS,
+		objectType: ONTOLOGY_CLASS,
+		timestamp: 0,
+	};
 	const superName: TQuad = { subject: "prov:Entity", predicate: ONTOLOGY_PRED.name, object: "prov:Entity", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
 	const unusedTerm: TQuad = { subject: "NeverInstantiated", predicate: ONTOLOGY_PRED.name, object: "NeverInstantiated", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
 	const usedProp: TQuad = { subject: "issuer", predicate: ONTOLOGY_PRED.name, object: "issuer", namedGraph: ONTOLOGY_PROPERTY, timestamp: 0 };
@@ -125,7 +153,14 @@ describe("withOntologySchema — the schema travels with the response (live and 
 });
 
 describe("scopeSchemaToType — one type's own vocabulary", () => {
-	const q = (subject: string, predicate: string, object: string, graph: string, objectType?: string): TQuad => ({ subject, predicate, object, namedGraph: graph, objectType, timestamp: 0 });
+	const q = (subject: string, predicate: string, object: string, graph: string, objectType?: string): TQuad => ({
+		subject,
+		predicate,
+		object,
+		namedGraph: graph,
+		objectType,
+		timestamp: 0,
+	});
 	const quads: TQuad[] = [
 		q("Issuer", ONTOLOGY_PRED.name, "Issuer", ONTOLOGY_CLASS),
 		q("Issuer", ONTOLOGY_PRED.subClassOf, "prov:Agent", ONTOLOGY_CLASS, ONTOLOGY_CLASS),
@@ -167,7 +202,10 @@ describe("propertyVocabulary — a property's provenance from its IRI", () => {
 });
 
 const catDomain = (persistedAs: string, subClassOf?: string): TRegisteredDomain =>
-	({ topology: { persistedAs, type: `ex:${persistedAs}`, ...(subClassOf ? { subClassOf } : {}), id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } }, schema: { parse: (v: unknown) => v } }) as unknown as TRegisteredDomain;
+	({
+		topology: { persistedAs, type: `ex:${persistedAs}`, ...(subClassOf ? { subClassOf } : {}), id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+		schema: { parse: (v: unknown) => v },
+	}) as unknown as TRegisteredDomain;
 
 describe("category designation — read off the standard subClassOf axioms", () => {
 	it("stamps each class with its PROV/SOSA anchor category, defaulting to artifact, and the meta class carries its own", () => {
@@ -180,7 +218,10 @@ describe("category designation — read off the standard subClassOf axioms", () 
 		expect(cat("prov:Activity")).toBe("activity");
 	});
 	it("categoryOf reaches the anchor transitively; an unanchored term is an artifact", () => {
-		const supers = new Map([["Sub", ["Mid"]], ["Mid", ["prov:Agent"]]]);
+		const supers = new Map([
+			["Sub", ["Mid"]],
+			["Mid", ["prov:Agent"]],
+		]);
 		expect(categoryOf("Sub", supers)).toBe("agent");
 		expect(categoryOf("Loose", supers)).toBe("artifact");
 	});
