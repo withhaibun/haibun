@@ -15,19 +15,22 @@
  * Visible only when the host carries `show-controls` — the column-pane's
  * settings toggle is the single switch for revealing every settings surface.
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, unsafeCSS, type TemplateResult } from "lit";
 import { z } from "zod";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { shuBaseStyles } from "./styles.js";
+import { shuBaseStyles, shuRowSeparated } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
 import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { clamp } from "../util.js";
 import { readElementPrefs } from "../element-prefs.js";
-import { projectFilterClusters, effectiveHiddenTypes } from "../graph-filter-projection.js";
-import { isSchemaType } from "../graph/ontology-projection.js";
+import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../graph-filter-projection.js";
+import { isSchemaType, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "../graph/ontology-projection.js";
+import "./shu-chip-group.js";
+import "./shu-field.js";
+import type { TChip } from "./shu-chip-group.js";
 
 const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the
@@ -35,6 +38,9 @@ const StateSchema = z.object({
 	// Storing only deliberate choices — never a seeded default — is what lets a default change re-apply and prevents
 	// writing the default irreversibly into the user's cookie.
 	overrides: z.record(z.string(), z.boolean()).default({}),
+	// The user's explicit per-PREDICATE visibility choices (false = the edges drawn for that predicate are hidden).
+	// A predicate absent here is shown; only deliberate choices are stored, exactly as with the type overrides.
+	predicateOverrides: z.record(z.string(), z.boolean()).default({}),
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 });
 
@@ -69,30 +75,23 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			:host { border-bottom: var(--shu-border-w) solid var(--shu-border); }
 			:host(:not([show-controls])) { display: none; }
 			.row { display: flex; gap: var(--shu-space-3); align-items: center; flex-wrap: wrap; }
+			${unsafeCSS(shuRowSeparated(".row"))}
 			/* A rule off the chips, so the graph's own options read as their own thing rather than the tail of the legend. */
 			.row.view-settings { margin-top: var(--shu-space-2); padding-top: var(--shu-space-2); border-top: var(--shu-border-w) solid var(--shu-border); }
 			.row[hidden] { display: none; }
-			/* A chip is a legend entry, not body text: it reads at the shared small size so a graph of many types stays a
-			   legend rather than a wall of chips. Sized from the scale — never a bare px, which would not follow --shu-scale. */
-			label.type { display: inline-flex; align-items: center; gap: var(--shu-space-1); cursor: pointer; color: var(--shu-fg-on-swatch); font-size: var(--shu-font-sm); }
-			label.type { padding: var(--shu-space-1) var(--shu-space-2); border-radius: var(--shu-radius); }
-			label.type input[type=checkbox] { margin: 0; vertical-align: middle; flex-shrink: 0; }
-			label.type:hover { filter: brightness(0.95); }
-			label.type .meta { color: var(--shu-fg-on-swatch); font-size: var(--shu-font-xs); opacity: 0.7; }
-			.limit { display: inline-flex; gap: var(--shu-space-2); align-items: center; }
-			.limit input[type=range] { width: 120px; }
-			.label { color: var(--shu-fg-muted); }
+			/* The limit slider needs a width to be draggable; every other control sizes itself. */
+			input[type=range] { width: 120px; }
 			.quad-count { color: var(--shu-fg-faded); }
 			.solo { cursor: pointer; background: var(--shu-bg); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-1) var(--shu-space-2); line-height: 1; }
-			.solo.awaiting-type { outline: 2px solid var(--shu-link); }
-			.row.awaiting-type label.type { cursor: crosshair; }
+			.solo[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); border-color: var(--shu-accent); }
+			:host([data-solo-waiting]) shu-chip-group { cursor: crosshair; }
 		`,
 	];
 
 	/** The hidden/limit choice is remembered across reloads (ShuElement.persistFields). The default key is shared by every
 	 *  embedded filter of the main graph; a host whose choices must stay independent (a class browser scoped to the schema)
 	 *  sets `data-persist-scope`, giving its filter its own store. */
-	static persistFields = ["overrides", "perTypeLimit"] as const;
+	static persistFields = ["overrides", "predicateOverrides", "perTypeLimit"] as const;
 
 	protected override get persistKey(): string {
 		return this.dataset.persistScope ?? "";
@@ -102,10 +101,11 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	 * Reads the same persistFields store the instance restores from (per `scope`, matching `data-persist-scope`). Hosts
 	 * combine these overrides with the instrumentation-default predicate via `effectiveHiddenTypes` — the default is
 	 * never persisted here. */
-	static getPersistedFilter(scope = ""): { overrides: Record<string, boolean>; perTypeLimit: number } {
+	static getPersistedFilter(scope = ""): { overrides: Record<string, boolean>; hiddenPredicates: string[]; perTypeLimit: number } {
 		const saved = readElementPrefs("shu-graph-filter", scope);
 		const parsed = StateSchema.safeParse(saved ?? {});
-		return parsed.success ? { overrides: parsed.data.overrides, perTypeLimit: parsed.data.perTypeLimit } : { overrides: {}, perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
+		if (!parsed.success) return { overrides: {}, hiddenPredicates: [], perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
+		return { overrides: parsed.data.overrides, hiddenPredicates: explicitlyHidden(parsed.data.predicateOverrides), perTypeLimit: parsed.data.perTypeLimit };
 	}
 
 	private knownClusters = new Map<string, TCluster>();
@@ -116,9 +116,9 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	// where the data is `TGraph`-shaped, not quad-shaped.
 	private axisSource: { axes: Record<string, string[]>; hidden: Record<string, Set<string>> } | null = null;
 	private axisCookieKey: string | null = null;
-	// Transient UI for the 1️⃣ tool: while it is awaiting a type, the next type-chip click shows ONLY that type instead of
-	// toggling it. One click's worth of state, not a durable choice — kept off persistFields.
-	private awaitingSoloType = false;
+	// Transient UI for the 1️⃣ tool: while it waits, the next chip press — a type or a property — shows ONLY that one
+	// instead of toggling it. One press's worth of state, not a durable choice, so it is kept off persistFields.
+	private soloWaiting = false;
 
 	constructor() {
 		// persistFields restores overrides/perTypeLimit on connect; defaults until then.
@@ -144,6 +144,14 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		const overrides = { ...this.state.overrides };
 		for (const t of this.knownClusters.keys()) overrides[t] = keep.has(t);
 		this.setState({ overrides });
+		this.dispatchChange();
+	}
+
+	/** Show or hide the edges of the named predicates — the same change path the properties chips take. */
+	setPredicateVisibility(predicates: string[], visible: boolean): void {
+		const predicateOverrides = { ...this.state.predicateOverrides };
+		for (const pr of predicates) predicateOverrides[pr] = visible;
+		this.setState({ predicateOverrides });
 		this.dispatchChange();
 	}
 
@@ -207,7 +215,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		// combine the overrides with the instrumentation-default predicate (effectiveHiddenTypes) to decide what renders.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.GRAPH_FILTER_CHANGE, {
-				detail: { overrides: this.state.overrides, perTypeLimit: this.state.perTypeLimit },
+				detail: { overrides: this.state.overrides, hiddenPredicates: this.hiddenPredicates(), perTypeLimit: this.state.perTypeLimit },
 				bubbles: true,
 				composed: true,
 			}),
@@ -219,18 +227,41 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_TYPE_PREVIEW, { detail: { type }, bubbles: true, composed: true }));
 	}
 
-	private deriveClusters(): TCluster[] {
-		const visibleQuads = this.filterByTime(this.quads);
+	/** The predicates whose edges are hidden — the explicit unticks; everything else shows. */
+	private hiddenPredicates(): string[] {
+		return explicitlyHidden(this.state.predicateOverrides);
+	}
+
+	private onPredicateToggle = (predicate: string, checked: boolean): void => {
+		if (this.soloWaiting) {
+			this.endSoloWait();
+			this.setVisiblePredicates([predicate]); // show only this predicate's edges — the same gesture a type takes
+			return;
+		}
+		this.setPredicateVisibility([predicate], checked);
+	};
+
+	/** The tool acts once: it stops waiting as it answers, so the next chip press is an ordinary tick. */
+	private endSoloWait(): void {
+		this.soloWaiting = false;
+		this.toggleAttribute("data-solo-waiting", false);
+		this.requestUpdate();
+	}
+
+	/** Show ONLY these predicates' edges: every other predicate in the data is hidden. The solo tool's answer for a
+	 *  property chip, and the counterpart of setVisibleTypes. */
+	setVisiblePredicates(predicates: string[]): void {
+		const keep = new Set(predicates);
+		const predicateOverrides = { ...this.state.predicateOverrides };
+		for (const { predicate } of derivePredicates(this.filterByTime(this.quads))) predicateOverrides[predicate] = keep.has(predicate);
+		this.setState({ predicateOverrides });
+		this.dispatchChange();
+	}
+
+	private deriveClusters(visibleQuads: TQuad[]): TCluster[] {
 		return projectFilterClusters({ knownClusters: this.knownClusters, allQuads: this.quads, visibleQuads, timeCursor: this.timeCursor });
 	}
 
-	private onTypeChange =
-		(type: string) =>
-		(e: Event): void => {
-			// Record the user's EXPLICIT choice for this type (true = shown, false = hidden); it overrides the declared default.
-			this.setState({ overrides: { ...this.state.overrides, [type]: (e.target as HTMLInputElement).checked } });
-			this.dispatchChange();
-		};
 
 	private clampLimit(raw: string): number {
 		return clamp(Math.round(parseInt(raw, 10)), 1, MAX_PER_TYPE_LIMIT);
@@ -258,96 +289,115 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	}
 
-	/** The 1️⃣ "solo a type" tool: select it, then a type-chip click shows only that type (the rest hidden). */
+	/** The "solo" tool: press it, then a type or property chip, and only that one shows (the rest hide). */
 	private toggleSolo = (): void => {
-		this.awaitingSoloType = !this.awaitingSoloType;
+		this.soloWaiting = !this.soloWaiting;
+		// The waiting cue covers every chip group in the row, so it rides the host rather than one group's row.
+		this.toggleAttribute("data-solo-waiting", this.soloWaiting);
 		this.requestUpdate();
 	};
-	private onChipClick =
-		(type: string) =>
-		(e: MouseEvent): void => {
-			if (!this.awaitingSoloType) return; // normal path — let the label toggle its checkbox (onTypeChange)
-			e.preventDefault(); // cancel the checkbox toggle; isolate this type instead
-			this.awaitingSoloType = false;
-			this.setVisibleTypes([type]); // show only this type, via the same change path a legend click takes
-		};
 
-	private onAxisChange =
-		(axis: string, value: string) =>
-		(e: Event): void => {
-			if (!this.axisSource) return;
-			const set = this.axisSource.hidden[axis] ?? new Set<string>();
-			if ((e.target as HTMLInputElement).checked) set.delete(value);
-			else set.add(value);
-			this.axisSource.hidden[axis] = set;
-			this.dispatchChange();
-			this.requestUpdate();
-		};
 
 	render(): TemplateResult {
-		if (this.axisSource) {
-			return html`${Object.entries(this.axisSource.axes).map(([axis, values]) => {
-				const hidden = this.axisSource?.hidden[axis] ?? new Set<string>();
-				return html`<div class="row"><span class="label">${axis}:</span>${values
-					.slice()
-					.sort((a, b) => a.localeCompare(b))
-					.map(
-						(v) =>
-							html`<label class="type" style=${`background:${colorForType(v)}`}><input type="checkbox" .checked=${!hidden.has(v)} @change=${this.onAxisChange(axis, v)}>${v}</label>`,
-					)}${values.length === 0 ? html`<span class="meta">none</span>` : ""}</div>`;
-			})}`;
-		}
-		const { perTypeLimit } = this.state;
-		// A schema-scoped host (`data-schema-only`, the class browser) filters the vocabulary itself: the legend carries
-		// only the Class + Property chips plus the host's view-settings slot; the instance-data controls (per-type limit,
-		// solo, quad count) are absent — they have no subject when no instance type is offered.
-		const schemaOnly = this.dataset.schemaOnly !== undefined;
-		const clusters = this.deriveClusters()
-			.filter((c) => !schemaOnly || isSchemaType(c.type))
+		// A filter serves ONE source. An axis host (setAxes) offers the values of each grouping axis; a quad host
+		// (setSource) offers the data's types and properties. The controls that belong to quads — the per-type limit,
+		// the solo tool, the quad count — go with that source, never to a host with no quads to count.
+		if (this.axisSource) return this.rows(Object.entries(this.axisSource.axes).map(([axis, values]) => this.axisRow(axis, values)));
+		const visibleQuads = this.filterByTime(this.quads); // ONE time-filtered pass, shared by the clusters, the predicates and the count
+		const clusters = this.deriveClusters(visibleQuads)
 			.slice()
-			.sort((a, b) => {
-				// The included schema types (Class, Property) group together at the end of the legend, apart from the data types.
-				const schemaA = isSchemaType(a.type),
-					schemaB = isSchemaType(b.type);
-				if (schemaA !== schemaB) return schemaA ? 1 : -1;
-				return a.type.localeCompare(b.type);
-			});
+			.sort((a, b) => a.type.localeCompare(b.type));
 		// Chip checked = effectively visible: the user's explicit override, else the instrumentation-default predicate. One source.
-		const hiddenSet = new Set(
+		const hiddenTypes = new Set(
 			effectiveHiddenTypes(
 				clusters.map((c) => c.type),
 				this.state.overrides,
 			),
 		);
-		const quadCount = this.filterByTime(this.quads).length;
-		return html`<div class="row ${this.awaitingSoloType ? "awaiting-type" : ""}">
-			<span class="label">show:</span>
-			${
-				clusters.length === 0
-					? html`<span class="meta">no types loaded</span>`
-					: clusters.map((c) => {
-							// The total is the store's authoritative COUNT(*) for every type (shown or hidden) — show it directly; the
-							// graph may render only a sampled subset, but the count stays the real total.
-							const count = c.totalCount > 0 ? html` <span class="meta">(${c.totalCount})</span>` : "";
-							return html`<label class="type" style=${`background:${colorForType(c.type)}`} @mouseenter=${() => this.previewType(c.type)} @mouseleave=${() => this.previewType(null)} @click=${this.onChipClick(c.type)}><input type="checkbox" .checked=${!hiddenSet.has(c.type)} @change=${this.onTypeChange(c.type)}>${c.type}${count}</label>`;
-						})
-			}
-			${
-				schemaOnly
-					? html``
-					: html`<span class="label">|</span>
-						<label class="limit">per-type limit
-							<input type="range" min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange}>
-							<span class="meta" data-testid="graph-filter-limit-value">${perTypeLimit}</span>
-						</label>
-						<button type="button" class="solo ${this.awaitingSoloType ? "awaiting-type" : ""}" data-testid="graph-filter-solo" title="solo a type: tap, then tap a type to show only it" @click=${this.toggleSolo}>1️⃣</button>
-						<span class="quad-count">${quadCount} quads</span>`
-			}
-		</div>
-		<div class="row view-settings" ?hidden=${!this.querySelector('[slot="view-settings"]')}>
-			<slot name="view-settings" @slotchange=${this.onViewSettingsSlotChange}></slot>
-		</div>`;
+		const typeChip = (c: TCluster): TChip => ({
+			id: c.type,
+			label: c.type,
+			checked: !hiddenTypes.has(c.type),
+			color: colorForType(c.type),
+			...(c.totalCount > 0 ? { count: c.totalCount } : {}),
+		});
+		// A schema-scoped host (`data-schema-only`, the class browser) filters the vocabulary itself: the legend carries
+		// only the Class + Property chips. The instance-data controls are absent — they have no subject when no instance
+		// type is offered.
+		if (this.dataset.schemaOnly !== undefined)
+			return this.rows([
+				html`<shu-chip-group name="schema" .chips=${clusters.filter((c) => isSchemaType(c.type)).map(typeChip)} .onToggle=${this.onChipToggle} .onPreview=${this.onChipPreview}></shu-chip-group>`,
+			]);
+		// The data types and the schema terms are different kinds of thing: the types get chips; the whole schema
+		// (classes & predicates) reveals through ONE toggle, since its two term kinds show together or not at all.
+		const schemaClusters = clusters.filter((c) => isSchemaType(c.type));
+		const schemaShown = schemaClusters.length > 0 && schemaClusters.every((c) => !hiddenTypes.has(c.type));
+		const hiddenPreds = new Set(this.hiddenPredicates());
+		const predicateChips = derivePredicates(visibleQuads).map((p): TChip => ({ id: p.predicate, label: p.predicate, checked: !hiddenPreds.has(p.predicate), count: p.count }));
+		return this.rows([
+			html`<shu-chip-group name="types" .chips=${clusters.filter((c) => !isSchemaType(c.type)).map(typeChip)} .onToggle=${this.onChipToggle} .onPreview=${this.onChipPreview}></shu-chip-group>
+				<button type="button" class="solo" data-testid="graph-filter-solo" aria-pressed=${this.soloWaiting} title="solo: press this, then a type or property chip, to show only that one" @click=${this.toggleSolo}>1️⃣</button>`,
+			html`<shu-chip-group name="properties" .chips=${predicateChips} .onToggle=${this.onPredicateToggle}></shu-chip-group>`,
+			html`<shu-field label="classes &amp; predicates" trailing>
+					<input type="checkbox" data-testid="graph-filter-schema" .checked=${schemaShown} @change=${this.onSchemaToggle} />
+				</shu-field>
+				<shu-field label="per-type limit">
+					<input type="range" min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(this.state.perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange} />
+					<span class="meta" data-testid="graph-filter-limit-value">${this.state.perTypeLimit}</span>
+				</shu-field>
+				<span class="quad-count">${visibleQuads.length} quads</span>`,
+		]);
 	}
+
+	/** The rows a mode offers, each on its own line, with the host's view-settings slot last — the one page shape every
+	 *  mode renders, so a mode decides only WHAT it offers. */
+	private rows(rows: TemplateResult[]): TemplateResult {
+		return html`${rows.map((row) => html`<div class="row">${row}</div>`)}
+			<div class="row view-settings" ?hidden=${!this.querySelector('[slot="view-settings"]')}>
+				<slot name="view-settings" @slotchange=${this.onViewSettingsSlotChange}></slot>
+			</div>`;
+	}
+
+	/** One grouping axis as its own chip group: its values, each shown or hidden. */
+	private axisRow(axis: string, values: string[]): TemplateResult {
+		const hidden = this.axisSource?.hidden[axis] ?? new Set<string>();
+		const chips = values
+			.slice()
+			.sort((a, b) => a.localeCompare(b))
+			.map((v): TChip => ({ id: v, label: v, checked: !hidden.has(v), color: colorForType(v) }));
+		return html`<shu-chip-group name=${axis} .chips=${chips} .onToggle=${this.onAxisToggle(axis)}></shu-chip-group>`;
+	}
+
+	/** A type chip through the shared group element: the solo tool intercepts the toggle exactly as it intercepted a
+	 *  chip click, so the 1-tool works the same through the reusable chips. */
+	private onChipToggle = (type: string, checked: boolean): void => {
+		if (this.soloWaiting) {
+			this.endSoloWait();
+			this.setVisibleTypes([type]); // show only this type, via the same change path a legend click takes
+			return;
+		}
+		this.setTypeVisibility([type], checked);
+	};
+
+	private onChipPreview = (type: string | null): void => this.previewType(type);
+
+	/** The one classes-&-predicates toggle: the two schema term kinds reveal together or hide together. */
+	private onSchemaToggle = (e: Event): void => {
+		const on = (e.target as HTMLInputElement).checked;
+		this.setTypeVisibility([ONTOLOGY_CLASS, ONTOLOGY_PROPERTY], on);
+	};
+
+	private onAxisToggle =
+		(axis: string) =>
+		(value: string, checked: boolean): void => {
+			if (!this.axisSource) return;
+			const set = this.axisSource.hidden[axis] ?? new Set<string>();
+			if (checked) set.delete(value);
+			else set.add(value);
+			this.axisSource.hidden[axis] = set;
+			this.requestUpdate();
+			this.dispatchChange();
+		};
 }
 
 if (!customElements.get("shu-graph-filter")) {

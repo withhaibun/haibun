@@ -46,11 +46,20 @@ export const SHU_TOKENS = `
 		--shu-bg-input: #f0f0f0;
 		--shu-bg-input-focus: #e8e8e8;
 		--shu-bg-hover: rgba(0, 0, 0, 0.06);
+		/* THE foreground set. Each token is a rank of emphasis, and each rank is legible: every one of these clears
+		   4.5:1 against --shu-bg in BOTH themes, so choosing by MEANING can never choose an unreadable colour. Pick by
+		   what the text IS, never by how light you want it to look:
+		     --shu-fg          the content itself
+		     --shu-fg-muted    supporting text read alongside the content (metadata, counts, captions)
+		     --shu-fg-faded    text that is structure rather than content (field names, separators, placeholders)
+		   Anything below 4.5:1 belongs to a BORDER token (--shu-border, --shu-border-strong), which draws lines, not
+		   text. A divider drawn in a text colour and a label drawn in a border colour are the same mistake. */
 		--shu-fg: #111111;
 		--shu-fg-muted: #555555;
-		--shu-fg-faded: #999999;
+		--shu-fg-faded: #767676;
 		/* Text sitting ON a type-colour swatch/chip (graph node chips, filter type labels). The palette is always light
-		   pastels, so this stays dark in BOTH themes — declared only here; the dark blocks intentionally don't override it. */
+		   pastels, so this stays dark in BOTH themes — declared only here; the dark blocks intentionally don't override it.
+		   ONLY for text whose own background is a swatch: on any themed background it is dark-on-dark in the dark theme. */
 		--shu-fg-on-swatch: #1a1a1a;
 		--shu-border: #d0d0d0;
 		--shu-border-strong: #888888;
@@ -91,7 +100,7 @@ export const SHU_TOKENS = `
 			--shu-bg-hover: rgba(255, 255, 255, 0.08);
 			--shu-fg: #e6e6e6;
 			--shu-fg-muted: #b0b0b0;
-			--shu-fg-faded: #707070;
+			--shu-fg-faded: #8a8a8a;
 			--shu-border: #383838;
 			--shu-border-strong: #5a5a5a;
 			--shu-accent: #3aa367;
@@ -127,7 +136,7 @@ export const SHU_TOKENS = `
 		--shu-bg-hover: rgba(255, 255, 255, 0.08);
 		--shu-fg: #e6e6e6;
 		--shu-fg-muted: #b0b0b0;
-		--shu-fg-faded: #707070;
+		--shu-fg-faded: #8a8a8a;
 		--shu-border: #383838;
 		--shu-border-strong: #5a5a5a;
 		--shu-accent: #3aa367;
@@ -162,7 +171,7 @@ export const SHU_TOKENS = `
 		--shu-bg-hover: rgba(0, 0, 0, 0.06);
 		--shu-fg: #111111;
 		--shu-fg-muted: #555555;
-		--shu-fg-faded: #999999;
+		--shu-fg-faded: #767676;
 		--shu-border: #d0d0d0;
 		--shu-border-strong: #888888;
 		--shu-accent: #1a6b3c;
@@ -354,6 +363,12 @@ export const SHU_ICON_BUTTON = `
 	button.pane-icon[aria-expanded="true"]:hover { filter: brightness(1.1); }
 `;
 export const shuIconButtonStyles: CSSResult = css`${unsafeCSS(SHU_ICON_BUTTON)}`;
+
+/** A row whose children are each a distinct control: a rule between them, so the row reads as separate settings rather
+ *  than a run of words. Takes the row's selector, since a light-DOM host scopes its rules by tag and a shadow-DOM
+ *  component does not — one declaration either way. */
+export const shuRowSeparated = (selector: string): string =>
+	`${selector} > * + * { border-left: var(--shu-border-w) solid var(--shu-border); padding-left: var(--shu-space-3); }`;
 
 /** Inject the token sheet into `document.head` so detached overlays (combobox dropdowns, tooltips, modals rendered into document.body) and any plain page chrome can read the same `--shu-…` variables that shadow-DOM components inherit via :host. Idempotent — repeat calls are no-ops. The SPA boot calls this once before any component mounts. */
 export function installShuTokens(): void {

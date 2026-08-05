@@ -47,6 +47,9 @@ export const clusteredGraphStateShape = {
 	site: z.string().optional(),
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 	hiddenGraphs: z.array(z.string()).default([]),
+	// The predicates whose edges are hidden (the filter's properties group). Node visibility is per type; edge
+	// visibility is per predicate — the two travel together from the one filter.
+	hiddenPredicates: z.array(z.string()).default([]),
 	expandedGraphs: z.array(z.string()).default([]),
 };
 
@@ -142,9 +145,10 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		if (this.graphInitialized) return;
 		this.graphInitialized = true;
 
-		this.autoListen(this, SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ overrides: Record<string, boolean>; perTypeLimit: number }>) => {
+		this.autoListen(this, SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ overrides: Record<string, boolean>; hiddenPredicates?: string[]; perTypeLimit: number }>) => {
 			// The filter reports the user's explicit overrides; hidden = those combined with each cluster's declared default.
 			this.filterOverrides = e.detail.overrides ?? {};
+			this.setGraphState({ hiddenPredicates: e.detail.hiddenPredicates ?? [] });
 			const hiddenGraphs = this.computeHiddenGraphs();
 			const visibleTypes = [...this.allKnownGraphs()].filter((t) => !hiddenGraphs.includes(t));
 			this.commitHidden(hiddenGraphs, visibleTypes.length > 0 ? visibleTypes : undefined, e.detail.perTypeLimit);
@@ -174,6 +178,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		// graph's choices. hiddenGraphs is computed (defaults + overrides) once the snapshot's clusters arrive, in refetchSnapshot.
 		const initial = ShuGraphFilter.getPersistedFilter(this.filterPersistScope);
 		this.filterOverrides = initial.overrides;
+		this.setGraphState({ hiddenPredicates: initial.hiddenPredicates });
 		await this.onGraphConnected();
 		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
 

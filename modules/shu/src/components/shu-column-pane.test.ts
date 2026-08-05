@@ -17,6 +17,7 @@ import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { flushPersistWrites } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
+import { installTestMediaQueries } from "../test-setup.js";
 
 /** Flush any pending debounced persistence and clear the pane prefs cookie so tests are isolated. */
 function resetPanePrefs(): void {
@@ -25,6 +26,7 @@ function resetPanePrefs(): void {
 }
 
 beforeAll(() => {
+	installTestMediaQueries(); // the strip asks the viewport whether it is narrow or portrait; jsdom answers no such question
 	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
 	if (!Element.prototype.scrollIntoView)
 		Element.prototype.scrollIntoView = () => {

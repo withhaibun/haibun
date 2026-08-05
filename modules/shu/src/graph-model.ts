@@ -42,6 +42,19 @@ export function clusterId(type: string): string {
  * `clusterOf` edge from the cluster node to each sampled sibling so the
  * cluster sits inside its type's neighborhood under force layout.
  */
+/** Whether a quad DRAWS as an edge, independent of which nodes are in hand. An edge is a TYPED reference: the quad
+ *  carries `objectType` — the JSON-LD range of its target. A plain-string property (no objectType) is never an edge,
+ *  even if its value coincidentally matches a node id. This is the same rule the overview's property classifier applies
+ *  ("declared by the range, never guessed from the id"); guessing is what mis-linked string properties like `account`
+ *  onto whatever node shared their value. THE rule, so a chip legend offers exactly the predicates the graph draws. */
+export function isEdgeQuad(q: TQuad, opts: { requireObjectType?: boolean; ignoreInternalPredicates?: boolean } = { requireObjectType: true, ignoreInternalPredicates: true }): boolean {
+	if (typeof q.subject !== "string" || typeof q.object !== "string") return false;
+	if (q.subject === q.object) return false;
+	if (opts.requireObjectType && (typeof q.objectType !== "string" || q.objectType.length === 0)) return false;
+	if (opts.ignoreInternalPredicates && q.predicate.startsWith("_")) return false;
+	return true;
+}
+
 export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphModelOptions = {}): GraphModel {
 	const opts = { ...DEFAULT_OPTIONS, ...options };
 	const nodeMap = new Map<string, GraphNode>();
@@ -62,17 +75,10 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 
 	const edges: GraphEdge[] = [];
 	for (const q of quads) {
-		if (typeof q.subject !== "string" || typeof q.object !== "string") continue;
-		if (q.subject === q.object) continue;
-		// An edge is a TYPED reference: the quad carries `objectType` — the JSON-LD range of its target. A plain-string
-		// property (no objectType) is never an edge, even if its value coincidentally matches a node id. This is the
-		// same rule the overview's property classifier applies ("declared by the range, never guessed from the id");
-		// guessing is what mis-linked string properties like `account` onto whatever node shared their value.
-		if (opts.requireObjectType && (typeof q.objectType !== "string" || q.objectType.length === 0)) continue;
-		if (opts.ignoreInternalPredicates && q.predicate.startsWith("_")) continue;
-		if (!nodeMap.has(q.subject)) continue;
-		if (opts.requireObjectSubject && !nodeMap.has(q.object)) continue;
-		edges.push({ from: q.subject, to: q.object, predicate: q.predicate, graph: q.namedGraph });
+		if (!isEdgeQuad(q, opts)) continue;
+		if (!nodeMap.has(q.subject as string)) continue;
+		if (opts.requireObjectSubject && !nodeMap.has(q.object as string)) continue;
+		edges.push({ from: q.subject as string, to: q.object as string, predicate: q.predicate, graph: q.namedGraph });
 	}
 
 	if (options.clusters?.length) {
