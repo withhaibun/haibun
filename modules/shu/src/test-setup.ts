@@ -55,7 +55,27 @@ export function makeEntityDispatch(over: { entity: () => unknown; annotations?: 
 	};
 }
 
+/** jsdom implements no media queries, so a component that asks the viewport a question (the strip asks whether it is
+ *  narrow or portrait before it lays panes out) throws there and nowhere else. Install the query API the browser always
+ *  has, answering "no match" — a jsdom window has no orientation and no width to match on. `setupShuTest` calls this;
+ *  a DOM test that installs no services calls it directly. */
+export function installTestMediaQueries(): void {
+	const w = globalThis as { matchMedia?: (q: string) => unknown };
+	if (w.matchMedia) return;
+	w.matchMedia = (media: string) => ({
+		media,
+		matches: false,
+		onchange: null,
+		addEventListener: () => undefined,
+		removeEventListener: () => undefined,
+		addListener: () => undefined,
+		removeListener: () => undefined,
+		dispatchEvent: () => false,
+	});
+}
+
 export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
+	installTestMediaQueries();
 	const dispatch: TDispatch =
 		config.dispatch ??
 		((method) => {

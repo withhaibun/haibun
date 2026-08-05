@@ -27,6 +27,7 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
 import { isSchemaType } from "./graph/ontology-projection.js";
+import { isEdgeQuad } from "./graph-model.js";
 
 export function projectFilterClusters(opts: { knownClusters: Map<string, TCluster>; allQuads: TQuad[]; visibleQuads: TQuad[]; timeCursor: number | null }): TCluster[] {
 	if (opts.timeCursor === null) {
@@ -84,6 +85,26 @@ export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<
 	}
 	// An explicit hide applies even before its type appears in the set (e.g. a control-product hide of a type with no
 	// data yet); an explicit show of an unknown type is a no-op until it arrives (it then follows the show).
-	for (const [type, choice] of Object.entries(overrides)) if (choice === false) hidden.add(type);
+	for (const type of explicitlyHidden(overrides)) hidden.add(type);
 	return [...hidden];
+}
+
+/** The edge predicates in `quads`, with the number of edges each draws — counted by the graph model's OWN rule
+ *  (`isEdgeQuad`), so the property chips offer exactly the predicates the graph draws and never a predicate whose
+ *  unticking would change nothing. */
+export function derivePredicates(quads: Iterable<TQuad>): Array<{ predicate: string; count: number }> {
+	const counts = new Map<string, number>();
+	for (const q of quads) {
+		if (!isEdgeQuad(q)) continue;
+		counts.set(q.predicate, (counts.get(q.predicate) ?? 0) + 1);
+	}
+	return [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([predicate, count]) => ({ predicate, count }));
+}
+
+/** The facets a reader explicitly turned OFF: the entries whose override says "hidden". The counterpart of
+ *  `effectiveHiddenTypes` for facets with no declared default — a predicate is shown unless it was unticked. */
+export function explicitlyHidden(overrides: Record<string, boolean>): string[] {
+	return Object.entries(overrides)
+		.filter(([, shown]) => !shown)
+		.map(([facet]) => facet);
 }

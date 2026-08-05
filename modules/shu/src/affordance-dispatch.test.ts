@@ -19,6 +19,9 @@ describe("dispatchAffordanceFromResponse", () => {
 					setMinimized(m: boolean) {
 						this.toggleAttribute("data-minimized", m);
 					}
+					setMaximized(m: boolean) {
+						this.toggleAttribute("data-maximized", m);
+					}
 				},
 			);
 		if (!customElements.get("shu-column-strip")) {
