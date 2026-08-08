@@ -2,7 +2,7 @@ import path from "path";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail, optionOrError } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { dispatchStep, parseRpcRequest } from "@haibun/core/lib/step-dispatch.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
@@ -12,7 +12,8 @@ import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { SERVING } from "@haibun/core/lib/serving.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { AccessLevelSchema, LinkRelations, narrowerCeiling, type AccessLevel } from "@haibun/core/lib/resources.js";
+import { runReadingAt } from "@haibun/core/lib/capability-context.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { rpcCacheKey } from "@haibun/core/lib/rpc-cache-key.js";
 
@@ -82,6 +83,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	options = {
 		PORT: {
 			desc: `Change web server port from ${DEFAULT_PORT}`,
+			// A port is one process's: a process that starts another gives the child its own, or lets it take the default.
+			perProcess: true,
 			parse: (port: string) => intOrError(port),
 		},
 		INTERFACE: {
@@ -96,11 +99,17 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			desc: "Capability granted to callers authenticated with RPC_ACCESS_TOKEN",
 			parse: (input: string) => stringOrError(input),
 		},
+		READ_CEILING: {
+			desc: `The most a caller reaching this server may see, whatever any step it calls asks for: one of ${AccessLevelSchema.options.join(", ")}. Unset means the run's own level, which is every record it holds; a deployment reachable by anyone states a narrower one.`,
+			parse: (input: string) => optionOrError(input, [...AccessLevelSchema.options]),
+		},
 	};
 	port: number = DEFAULT_PORT;
 	hostname?: string;
 	rpcAccessToken?: string;
 	rpcAccessCapability?: string;
+	/** What a caller reaching this server may see at most; unset leaves the run's own level in force. */
+	readCeiling?: AccessLevel;
 
 	/** Monotonic counter for session-allocated seqPath roots. Never resets while process runs. */
 	private sessionActionSeq = 0;
@@ -135,6 +144,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		}
 		this.rpcAccessToken = getStepperOption(this, "RPC_ACCESS_TOKEN", world.moduleOptions) as string | undefined;
 		this.rpcAccessCapability = getStepperOption(this, "RPC_ACCESS_CAPABILITY", world.moduleOptions) as string | undefined;
+		// An unreadable ceiling is not a ceiling: unset is the widest setting, so a misspelling that fell back to it
+		// would open the server rather than stop the run.
+		const ceiling = getStepperOption(this, "READ_CEILING", world.moduleOptions);
+		this.readCeiling = ceiling === undefined ? undefined : AccessLevelSchema.parse(ceiling);
 		validateCapabilityAuthConfig("WebServerStepper RPC", {
 			accessToken: this.rpcAccessToken,
 			accessCapability: this.rpcAccessCapability,
@@ -302,8 +315,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
 						// log them at trace so they don't bury the run's own steps in the timeline. Still visible at debug.
 						featureStep.isSubStep = true;
+						// What this caller may see, stated once for the whole dispatch: the server's ceiling met with what the
+						// call asked for, narrower winning. Every read inside is bounded by it without naming it.
+						const ceiling = narrowerCeiling(this.readCeiling, msg.readingAt);
 						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
-							dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep),
+							runReadingAt(ceiling, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep)),
 						);
 						if (hr.ok) {
 							const result = hr.products ?? { ok: true };

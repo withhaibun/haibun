@@ -88,6 +88,28 @@ export const AccessQueryLevelSchema = z.enum(ACCESS_QUERY_LEVELS, {
 export type AccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;
 export const AccessQuery = AccessQueryLevelSchema.enum;
 
+/** How much of the graph each level lets a reader see, so two of them can be compared: private sees every record, and
+ *  the rest see only what is not private. */
+const ACCESS_BREADTH: Record<AccessLevel, number> = { public: 0, opened: 1, private: 2 };
+
+/** The narrower of two levels: what holds once something inside a scope asks for a level of its own. */
+export function narrowerAccess(inForce: AccessLevel, asked: AccessLevel): AccessLevel {
+	return ACCESS_BREADTH[asked] < ACCESS_BREADTH[inForce] ? asked : inForce;
+}
+
+/** The scope a read runs at in a store, from the level it asked for: `all` asks for every level, which a store reads
+ *  at its widest. One reading, so no two surfaces scope the same request differently. */
+export function storeScopeFor(asked: AccessQueryLevel): AccessLevel {
+	return asked === AccessQuery.all ? Access.private : asked;
+}
+
+/** The narrower of two ceilings, either of which may be absent: absent means "bounded by nothing of its own". */
+export function narrowerCeiling(inForce: AccessLevel | undefined, asked: AccessLevel | undefined): AccessLevel | undefined {
+	if (!inForce) return asked;
+	if (!asked) return inForce;
+	return narrowerAccess(inForce, asked);
+}
+
 // ============================================================================
 // Comment vocabulary
 // ============================================================================
@@ -305,6 +327,7 @@ export const LinkRelations = {
 	CONTROLLER: { rel: "controller", uri: "sec:controller", range: "iri" },
 	DELEGATED_FROM: { rel: "delegatedFrom", uri: "sec:delegator", range: "iri" },
 	ALLOWED_ACTION: { rel: "allowedAction", uri: "sec:allowedAction", range: "literal", presentation: "governance" as TRelPresentation },
+	CAPABILITY_ACTION: { rel: "capabilityAction", uri: "sec:capabilityAction", range: "literal", presentation: "governance" as TRelPresentation },
 	PUBLIC_KEY: { rel: "publicKey", uri: "sec:publicKeyMultibase", range: "literal" },
 	EXPIRES: { rel: "expires", uri: "sec:expiration", range: "literal" },
 	REVOKED: { rel: "revoked", uri: "sec:revoked", range: "literal", presentation: "governance" as TRelPresentation },
@@ -597,6 +620,12 @@ export type THypermediaTopology = {
 	propertyIndexes?: string[];
 	/** DB-specific: default sort columns per property. */
 	sortColumns?: Record<string, string>;
+	/**
+	 * The level records of this type are stored at when a record states none. A type declares the LEAST sharing its
+	 * records can be read under and still be useful, so nothing is published by a writer forgetting to say: what is
+	 * shared more widely says so on the record itself. A type declaring none stores private, which shares least.
+	 */
+	accessLevel?: AccessLevel;
 	/** Default sort field when a query specifies none. Must be one of this type's sort columns. Declare it for a type whose meaningful event/content time differs from its record-creation time (e.g. an email's received time vs its import time); otherwise the universal generatedAtTime is used. */
 	defaultSort?: string;
 	/**
@@ -871,6 +900,7 @@ export const BodySchema = z.object({
 	content: z.string(),
 	mediaType: z.string(),
 	generatedAtTime: z.string(),
+	accessLevel: AccessLevelSchema.optional(),
 });
 
 export type TBody = z.infer<typeof BodySchema>;
@@ -921,6 +951,7 @@ export const bodyDomainDefinition: TDomainDefinition = {
 			content: LinkRelations.CONTENT.rel,
 			mediaType: LinkRelations.MEDIA_TYPE.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		// Declared query surface for the one-path graph-store: callers can filter
 		// or sort Body rows by mediaType (e.g. "all PDF bodies") or generatedAtTime.

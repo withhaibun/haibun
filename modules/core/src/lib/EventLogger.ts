@@ -1,4 +1,4 @@
-import { LogEvent, LifecycleEvent } from "../schema/protocol.js";
+import { BASE_PREFIX, LogEvent, LifecycleEvent, NDJSON } from "../schema/protocol.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../schema/protocol.js";
 import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
@@ -24,6 +24,8 @@ const matchesName = (names: readonly string[], name: string) => names.some((n) =
 
 export interface IEventLogger {
 	suppressConsole?: boolean;
+	/** Whether this run was asked for its events as NDJSON, which outranks a monitor's console suppression. */
+	readonly ndjsonForced?: boolean;
 	currentSeqPath: string | undefined;
 	subscribe(callback: TEventSubscriber, options?: TSubscribeOptions): void;
 	unsubscribe(callback: TEventSubscriber): void;
@@ -89,11 +91,16 @@ export class EventLogger implements IEventLogger {
 	private isSecretFn: TIsSecretFn;
 	currentSeqPath: string | undefined;
 
+	/** Set when the run was asked for its events as NDJSON. A caller reading this run's output, rather than a person
+	 *  watching it, needs the events whatever else is formatting the console, so this outranks the monitor's
+	 *  suppression. */
+	public readonly ndjsonForced: boolean;
+
 	constructor(isSecretFn: TIsSecretFn = () => false) {
 		this.isSecretFn = isSecretFn;
-		const forceNdjson = process.env["HAIBUN_NDJSON"] === "true";
+		this.ndjsonForced = process.env[`${BASE_PREFIX}${NDJSON}`] === "true";
 		const isTest = process.env["VITEST"] !== undefined || process.env["NODE_ENV"] === "test";
-		this.suppressConsole = !forceNdjson && isTest;
+		this.suppressConsole = !this.ndjsonForced && isTest;
 	}
 
 	/** Without options, delivers everything the run narrates and never blips; `{ kinds }` delivers exactly those kinds

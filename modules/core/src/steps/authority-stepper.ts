@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { type TDomainDefinition } from "../lib/resources.js";
 import { persistPrincipalIndividual } from "../lib/principal-individual.js";
+import { formatSeqPath } from "../lib/seq-path.js";
 import type { TWorld } from "../lib/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
@@ -44,6 +46,9 @@ const zcapGrantSchema = z.object({
 	controller: z.string().optional(),
 });
 
+/** What holding authority over this run's own authority means: revoking what it granted. */
+export const AUTHORITY_CAPABILITIES = { revoke: "Authority:revoke" } as const;
+
 const zcapGrantIssuedSchema = z.object({
 	token: zcapTokenSchema,
 	allowedAction: z.array(zcapActionSchema),
@@ -55,7 +60,46 @@ const zcapGrantRevokedSchema = z.object({
 	revoked: z.number().int().nonnegative(),
 });
 
-const zcapGrantsListSchema = z.object({ grants: z.array(zcapGrantSchema) });
+/**
+ * A grant as it may be SHOWN: who holds it, what it allows, and whether it still stands. Never the token, and never
+ * the id, which is the token: a bearer token is the credential itself, so a listing carrying one hands it to whoever
+ * reads the listing.
+ */
+export const zcapGrantShownSchema = z.object({
+	handle: z.string().describe("A name for this grant that is not its credential — what a reader revokes it by"),
+	seqPath: z.string().optional().describe("The step it was granted at, which a reader can open"),
+	controller: z.string().optional().describe("The principal the grant is held by, where it names one"),
+	allowedAction: z.array(zcapActionSchema).describe("What the holder may do"),
+	revoked: z.boolean().describe("Whether it has been revoked"),
+	created: z.number().optional().describe("When it was issued, epoch ms"),
+	expires: z.number().optional().describe("When it stops holding, epoch ms; absent means it holds while this run does"),
+	note: z.string().optional().describe("What it was issued for"),
+});
+export type TZcapGrantShown = z.infer<typeof zcapGrantShownSchema>;
+
+export const zcapGrantsListSchema = z.object({ grants: z.array(zcapGrantShownSchema) });
+
+/** A grant's name, derived from its token and standing in for it: enough to say which grant is meant, and nothing that
+ *  could be presented as one. A digest, so it is the same name every time the same grant is read. */
+export function grantHandle(named: string): string {
+	return createHash("sha256").update(named).digest("hex").slice(0, 16);
+}
+
+/** What may be said about a grant: everything but the credential itself. */
+export function shownGrant(grant: { id: string; token?: string; controller?: string; allowedAction: string[]; revoked: boolean; created?: number; expires?: number; note?: string; seqPath?: string }): TZcapGrantShown {
+	return {
+		// Named by its token where it has one, else by its id: a grant that arrives signed carries no bearer token, and
+		// is still a grant a reader can see and revoke.
+		handle: grantHandle(grant.token ?? grant.id),
+		...(grant.seqPath === undefined ? {} : { seqPath: grant.seqPath }),
+		...(grant.controller === undefined ? {} : { controller: grant.controller }),
+		allowedAction: [...grant.allowedAction],
+		revoked: grant.revoked,
+		...(grant.created === undefined ? {} : { created: grant.created }),
+		...(grant.expires === undefined ? {} : { expires: grant.expires }),
+		...(grant.note === undefined ? {} : { note: grant.note }),
+	};
+}
 
 const siteNamedSchema = z.object({ site: z.string() });
 
@@ -122,6 +166,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 					allowedAction: [action],
 					controller: activeSitePrincipal(this.getWorld()),
 					note: featureStep.in,
+					seqPath: formatSeqPath(featureStep.seqPath),
 				});
 				return actionOKWithProducts({
 					token: grant.token ?? token,
@@ -141,11 +186,27 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ token, revoked });
 			},
 		},
+		revokeZcapGrantByHandle: {
+			gwta: "revoke the zcap grant named {handle: string}",
+			capability: AUTHORITY_CAPABILITIES.revoke,
+			description:
+				"Revoke a grant by the name a listing gives it, so it can be revoked by whoever can see it without their ever holding the credential itself. Revoking is immediate: the next call under that grant is refused.",
+			productsSchema: z.object({ handle: z.string(), revoked: z.number().int().nonnegative() }),
+			action: ({ handle }: { handle: string }) => {
+				const authority = this.getAuthority();
+				const named = authority.listBearerGrants().filter((grant) => grantHandle(grant.token ?? grant.id) === handle);
+				if (named.length === 0) return Promise.resolve(actionNotOK(`no grant named ${handle}`));
+				const revoked = named.reduce((count, grant) => count + (grant.token ? authority.revokeBearerGrant(grant.token) : 0), 0);
+				return Promise.resolve(actionOKWithProducts({ handle, revoked }));
+			},
+		},
 		showZcapBearerGrants: {
 			exact: "show zcap bearer grants",
+			description:
+				"Who holds authority here and what it allows them: each grant's controller, its allowed actions, whether it still stands, and what it was issued for. The tokens themselves are never reported — a bearer token is the credential, so anything that reports one hands it over.",
 			productsSchema: zcapGrantsListSchema,
 			action: () => {
-				const grants = this.getAuthority().listBearerGrants();
+				const grants = this.getAuthority().listBearerGrants().map(shownGrant);
 				this.getWorld().eventLogger.info(JSON.stringify(grants, null, 2));
 				return actionOKWithProducts({ grants });
 			},

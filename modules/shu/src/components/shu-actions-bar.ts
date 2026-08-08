@@ -9,8 +9,10 @@ import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
+import { AuthorityController } from "../controllers/index.js";
+import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, ACTION_BAR_CHAT_SLOT } from "../consts.js";
 import { isSchemaType } from "../graph/ontology-projection.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
@@ -24,7 +26,7 @@ import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-import { clamp, errMsg, prettifyGwta } from "../util.js";
+import { clamp, errMsg, prettifyGwta, appAccessLevel } from "../util.js";
 import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
@@ -85,11 +87,11 @@ function stepDetails(s: StepDescriptor): string {
 
 type TMode = z.infer<typeof ActionsBarSchema>["mode"];
 
-type TCorner = "settings" | "timeline" | "access";
+type TCorner = "settings" | "timeline" | "access" | "status";
 /** Per-corner dismiss policy. Transient pickers dismiss on a click away; a panel is used alongside the view (scrub the
  *  timeline cursor, then click nodes/rows to inspect them at that time) so only its own toggle closes it. A new corner
  *  must declare which it is. */
-const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", timeline: "panel" };
+const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", timeline: "panel", status: "click-away" };
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
@@ -101,8 +103,14 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	static domainSelector = "shu-actions-bar";
 
 	private _contextPatterns: TContextPattern[] = [];
-	private _contextAccessLevel: string = Access.private;
+	/** The read access every query here runs at, opening at the level the page opened at: one reader of the view hash,
+	 *  so the bar and the snapshot cannot open at different levels. */
+	private _contextAccessLevel: string = appAccessLevel();
 	private _statusMessage = "";
+	/** What this reader holds and how many grants stand behind them — the indicator says both beside the level, so a
+	 *  reader sees at a glance that there is authority here to look at. */
+	#authority = new AuthorityController(this);
+	private _summary: TPermissionsSummary = { holds: 0, principals: 0, grants: 0 };
 	private _timeOffsetLabel = "now";
 	private _columns: string[] = [];
 	private _queryLabel = "All";
@@ -294,6 +302,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		bc.setTrail(this._queryLabel, this._columns, this._activeViewIndex);
 	}
 
+	private _onPermissionsSummary = (e: Event): void => {
+		this.setSummary((e as CustomEvent<TPermissionsSummary>).detail);
+	};
+
+	private setSummary(summary: TPermissionsSummary): void {
+		this._summary = summary;
+		this.requestUpdate();
+	}
+
 	setStatus(message: string): void {
 		this._statusMessage = message;
 		this.requestUpdate();
@@ -330,6 +347,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
 		this.loadProperties();
 		if (this.state.pinned && !this.state.askExpanded) this.setState({ askExpanded: true }); // a pinned bar restored from persistence opens
+		// What authority stands here, for the indicator: read once so the numbers are there before the panel is opened,
+		// and taken from the panel thereafter, since the panel reads again whenever anything changes what holds.
+		void this.#authority
+			.read()
+			.then((held) => this.setSummary(summaryOf(held)))
+			.catch(() => undefined);
+		this.addEventListener(PERMISSIONS_SUMMARY, this._onPermissionsSummary);
 
 		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			this.failFast(`ShuActionsBar initialization failed: ${errMsg(err)}`);
@@ -394,7 +418,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const errors: string[] = [];
 		const slotted: Array<[string, Record<string, unknown>]> = [];
 		for (const [label, ui] of Object.entries(meta.ui)) {
-			if (ui.slot === "action-bar-chat" && ui.js) slotted.push([label, ui]);
+			if (ui.slot === ACTION_BAR_CHAT_SLOT && ui.js) slotted.push([label, ui]);
 		}
 		this.reportActionsBar("debug", `loadUiExtensions: ${slotted.length} action-bar slot extensions found`, { count: slotted.length });
 		for (const [label, ui] of slotted) {
@@ -664,7 +688,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// "ask" with no ask-capable step falls back to search below.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
 		const inputLine = mode === "ask" ? this.askModeTemplate(hasAsk) : mode === "step" ? this.stepModeTemplate(hasAsk) : this.filterBarTemplate(hasAsk);
-		const body = expanded ? html`${this._history}${inputLine}` : nothing;
+		// The slot's extensions are part of the bar, not of a mode: in ask mode the chat element renders them beside its
+		// input; every other mode renders them here, so an extension (a notification among them) is present whichever
+		// mode the bar opened in — rendered only under step mode, the default search mode never showed them at all.
+		const body = expanded ? html`${this._history}${mode === "ask" ? nothing : this.uiExtensionsTemplate()}${inputLine}` : nothing;
 		// The resize grip sits at the TOP edge of the open overlay (the bar grows up from the bottom, so the top edge is
 		// where it meets the content) — drag it to resize. Only present when expanded; there is nothing to resize collapsed.
 		const resizeHandle = expanded
@@ -686,10 +713,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				? html`<shu-theme-switch></shu-theme-switch>`
 				: this._openCorner === "timeline"
 					? html`<shu-timeline class="corner-timeline"></shu-timeline>`
-					: this._openCorner === "access"
-						? html`<select class="access-select" data-testid=${`${this.testIdPrefix}access-select`} @change=${this.onAccessChange}>
-							${AccessQueryLevelSchema.options.map((a) => html`<option value=${a} ?selected=${a === this._contextAccessLevel}>${a}</option>`)}
-						</select>`
+					: this._openCorner === "status"
+						? html`<p class="status-full">${this._statusMessage}<shu-copy-button label="copy" title="copy this message" .source=${this._statusMessage}></shu-copy-button></p>`
+						: this._openCorner === "access"
+						? html`<shu-permissions
+								data-testid=${`${this.testIdPrefix}permissions`}
+								.level=${this._contextAccessLevel}
+								.levels=${AccessQueryLevelSchema.options}
+								.onLevelChange=${(level: string) => this.setAccessLevel(level)}
+							></shu-permissions>`
 						: nothing;
 		const testid = this._openCorner ? `${this.testIdPrefix}${this._openCorner}-popover` : nothing;
 		// stopPropagation: clicks must not bubble to the summary strip's expand handler. MANUAL popover deliberately:
@@ -709,13 +741,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			${this.cornerPopoverTemplate()}
 			<button class="bar-twisty" aria-label=${expanded ? "Collapse actions bar" : "Expand actions bar"} aria-expanded=${expanded}
 				data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.onTwistyToggle}>${expanded ? "▾" : "▴"}</button>
-			<span class="status-area" style=${this._statusMessage ? "" : "display:none"}>${this._statusMessage}</span>
+			<button class="status-area" style=${this._statusMessage ? "" : "display:none"} aria-expanded=${this._openCorner === "status"}
+				title="what this says, in full" data-testid=${`${this.testIdPrefix}status`} @click=${this.onCornerToggle("status")}>${this._statusMessage}</button>
 			<shu-breadcrumb></shu-breadcrumb>
 			<span class="corner-controls">
 				<button class="pane-icon corner-toggle time-offset" aria-label="Timeline" aria-expanded=${this._openCorner === "timeline"}
 					data-testid=${`${this.testIdPrefix}time-offset`} @click=${this.onCornerToggle("timeline")}>${this._timeOffsetLabel}</button>
 				<button class="pane-icon corner-toggle access-indicator" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
-					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}</button>
+					title=${`read access ${this._contextAccessLevel}; ${this._summary.holds} actions held, ${this._summary.principals} principals, ${this._summary.grants} grants`}
+					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}
+					+${this._summary.holds}+${this._summary.principals}+${this._summary.grants}</button>
 				<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
 					@click=${this.onCornerToggle("settings")}>\u2699</button>
 			</span>
@@ -871,7 +906,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<div class="input-line">
 				${this.modeToggleTemplate(hasAsk)}
 				${stepCombobox}
-				${this.uiExtensionsTemplate()}
 			</div>`;
 	}
 
@@ -1009,10 +1043,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.setState({ mode });
 	};
 
-	private onAccessChange = (e: Event): void => {
-		this._contextAccessLevel = (e.target as HTMLSelectElement).value;
+	/** The read access every query here runs at. Set from the permissions panel, which is where a reader sees what it
+	 *  bounds beside what they may do. */
+	private setAccessLevel(level: string): void {
+		this._contextAccessLevel = level;
 		this.dispatchFilterChange();
-	};
+	}
 
 	private onLabelChange = (e: CustomEvent): void => {
 		const key = e.detail?.value;
@@ -1157,10 +1193,14 @@ const STYLES = `
 		font-size: var(--shu-font-md); color: var(--shu-fg); border-radius: var(--shu-radius);
 	}
 	.bar-twisty:hover { background: var(--shu-bg-hover); }
+	/* One line in the bar, since the bar is one line — and a control, because a message a reader cannot read in full is
+	   a message they cannot act on: it opens the whole of it, which they can select and copy. */
 	.status-area {
 		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
 		max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		background: none; border: 0; font-family: inherit; text-align: left;
 	}
+	.status-full { margin: 0; max-width: 32rem; max-height: 40vh; overflow: auto; user-select: text; white-space: pre-wrap; display: flex; gap: var(--shu-space-2); align-items: flex-start; }
 	/* Corner controls are shared pane-icon chips — same box + accent-inverse-when-open as an active column view control.
 	   The text toggles (now / access) size to their label instead of the icon's square; the gear keeps the square. */
 	/* The one corner-popover surface (a native top-layer popover): floats just above its corner toggle without
@@ -1180,7 +1220,6 @@ const STYLES = `
 	}
 	.corner-popover:popover-open { display: inline-flex; align-items: center; }
 	.corner-timeline { display: block; width: 100%; min-width: 0; }
-	.corner-popover .access-select { width: auto; }
 	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
 	/* The negative margin cancels the bar's vertical padding so the buttons take the bar's full height. */
 	.corner-controls {

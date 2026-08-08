@@ -50,11 +50,17 @@ export type TStepperSteps = {
 	[key: string]: TStepperStep;
 };
 
-/** One stepper option declaration — the small, non-tunable shape every stepper has used. */
+/** One stepper option declaration: the small, non-tunable shape every stepper has used. */
 export type TStepperOption = {
 	required?: boolean;
 	altSource?: string;
 	default?: string;
+	/**
+	 * Set when the option belongs to one process rather than to a run: a port it listens on, an identity it takes.
+	 * A process that starts another does not pass these on, since the child would then take what the parent holds.
+	 * The option declares it, so nothing else has to name the option to know it.
+	 */
+	perProcess?: boolean;
 	desc: string;
 	parse: (input: string, existing?: TOptionValue) => { parseError?: string; env?: TEnvVariables; result?: TAnyFixme };
 };
@@ -125,6 +131,12 @@ type TStepperStepBase = {
 	exposeMCP?: boolean;
 	/** Optional capability label required for external dispatch. */
 	capability?: string;
+	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that no
+	 *  request pays for the whole manifest; a step marked here joins that set, because the question it answers is one
+	 *  an operator can open with. Reserve it for steps that are the only way to do what they do. A predicate says
+	 *  whether there is anything for it to answer right now: a step offered when it can only refuse is among the few a
+	 *  model can see, so it is what the model reaches for, and the turn goes on refusing. */
+	offeredBeforeDiscovery?: boolean | (() => boolean);
 	virtual?: boolean;
 	/** For dynamically generated steps (like waypoints): source location metadata */
 	source?: {

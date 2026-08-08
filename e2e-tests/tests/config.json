@@ -14,7 +14,11 @@
 		"activities-stepper",
 		"@haibun/core/steps/authority-stepper",
 		"haibun",
-		"./build-local/test-server"
+		"./build-local/test-server",
+		"@haibun/web-server-hono/mcp-stepper"
 	],
-	"unused": ["@haibun/monitor-tui/index", "console-monitor-stepper"]
+	"unused": [
+		"@haibun/monitor-tui/index",
+		"console-monitor-stepper"
+	]
 }

@@ -30,8 +30,10 @@ export const registerComponents = async (): Promise<void> => {
 	const { ShuRef } = await import("./components/shu-ref.js");
 	const { ShuTypeColumn } = await import("./components/shu-type-column.js");
 	const { ShuThemeSwitch } = await import("./components/shu-theme-switch.js");
+	const { ShuPermissions } = await import("./components/shu-permissions.js");
 
 	const components: [string, typeof HTMLElement][] = [
+		["shu-permissions", ShuPermissions],
 		["shu-graph-query", ShuGraphQuery],
 		["shu-result-table", ShuResultTable],
 		["shu-column-pane", ShuColumnPane],

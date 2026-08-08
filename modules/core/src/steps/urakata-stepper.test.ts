@@ -44,7 +44,7 @@ describe("urakata-stepper", () => {
 			[
 				{
 					path: "/features/main.feature",
-					content: ["set t from start tick", 'pause for "30 ms"', "stop t.id", 'pause for "30 ms"'].join("\n"),
+					content: ["set t from start tick", 'pause for "30 ms"', "stop urakata t.id", 'pause for "30 ms"'].join("\n"),
 				},
 			],
 			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
@@ -63,7 +63,7 @@ describe("urakata-stepper", () => {
 			[
 				{
 					path: "/features/main.feature",
-					content: ["set t from start tick", "forget t.id"].join("\n"),
+					content: ["set t from start tick", "forget urakata t.id"].join("\n"),
 				},
 			],
 			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],

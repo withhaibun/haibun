@@ -52,6 +52,10 @@ export const SHU_EVENT = {
  *  flipped pencil), not an emoji, so CSS `color` tints it (the has-annotations grey-vs-colour treatment). */
 export const ANNOTATION_GLYPH = "✎";
 
+/** The actions bar's extension slot: a concern whose ui declares this slot (with a js asset) is mounted in the bar's
+ *  input line. The bar owns the slot, so its name is declared here and consumers import it rather than restating it. */
+export const ACTION_BAR_CHAT_SLOT = "action-bar-chat";
+
 export const SHU_TYPE = {
 	VIEW_COLLECTION: "shu-view-collection",
 	CLOSE_VIEW: "shu-close-view",

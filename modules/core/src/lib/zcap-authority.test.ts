@@ -64,4 +64,13 @@ describe("ZcapAuthority", () => {
 			expect(result.ok).toBe(true);
 		});
 	});
+
+	it("allows nothing once a grant has expired, which is how authority is bounded to a session", () => {
+		const authority = new ZcapAuthority();
+		const expires = 1_000;
+		authority.issueBearerGrant({ token: "session", allowedAction: ["Instance:run"], controller: "did:site:0.1", expires });
+		expect(authority.resolveBearer("session", expires - 1)).toEqual(["Instance:run"]);
+		expect(authority.resolveBearer("session", expires)).toEqual([]);
+		expect(authority.resolveBearer("session", expires + 1)).toEqual([]);
+	});
 });

@@ -103,9 +103,28 @@ export class StepRegistry {
 	}
 }
 
-/** Registry key for a step routed at a specific hostId: `${hostId}:${method}`. */
+const HOST_SCOPE = /^host(\d+)_/;
+
+/** The host a registry key belongs to, or undefined for a step of this process's own. */
+export function hostOfMethodName(name: string): number | undefined {
+	const at = name.match(HOST_SCOPE);
+	return at ? Number(at[1]) : undefined;
+}
+
+/** A host-scoped key under the name its own host knows it by, which is what a caller of that host writes. */
+export function bareMethodName(name: string): string {
+	return name.replace(HOST_SCOPE, "");
+}
+
+/**
+ * Registry key for a step routed at a specific hostId: `host{hostId}_{method}`.
+ *
+ * The key is also the name a caller uses, and a model's tool name may hold only letters, digits, underscores and
+ * hyphens, so it is written with none of the punctuation a prefix would otherwise reach for. `host` in front keeps it
+ * a name rather than something beginning with a digit.
+ */
 export function hostScopedMethodName(hostId: number, bareMethod: string): string {
-	return `${hostId}:${bareMethod}`;
+	return `host${hostId}_${bareMethod}`;
 }
 
 /**
@@ -198,7 +217,12 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 	// Proxy tools (RemoteStepperProxy, subprocess) dispatch out-of-process and have no
 	// local stepDef. Construct a carrier with just the description so the handler can run.
 	const step = tool.stepDef ?? ({ gwta: tool.description, action: () => actionNotOK(`no in-process stepDef for ${tool.name}`) } as TStepperStep);
+	// A tool of another host is registered under that host and named for it, while its stepper and step names are the
+	// ones that host knows. Dispatch resolves a step by those names, so without the host here a call by name of a
+	// remote tool finds the local step of the same name and answers from this process.
+	const targetHostId = hostOfMethodName(tool.name);
 	return {
+		...(targetHostId === undefined ? {} : { targetHostId }),
 		in: tool.description,
 		action: {
 			stepperName: tool.stepperName,
@@ -352,6 +376,26 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 			step.inputSchema = tool.inputSchema;
 			step.outputSchema = tool.outputSchema;
 		}
+	}
+	// Steps this process can dispatch but no local stepper declares: another host's, injected by the transport that
+	// reached it. Dispatch resolves against the registry, so a manifest built only from local steppers describes less
+	// than the process can do, and a caller reading it never learns those steps exist. The pattern names the host it
+	// runs at, so a reader is told whose step it is rather than left to parse the method name.
+	const declared = new Set(steps.map((step) => step.method));
+	for (const tool of registry.list()) {
+		if (declared.has(tool.name)) continue;
+		declared.add(tool.name);
+		if (options?.grantedCapability !== undefined && tool.capability && !capabilityAllows(options.grantedCapability, tool.capability)) continue;
+		steps.push({
+			stepperName: tool.stepperName,
+			stepName: tool.stepName,
+			method: tool.name,
+			pattern: tool.remoteHost ? `${tool.description} (at ${tool.remoteHost})` : tool.description,
+			params: {},
+			capability: tool.capability,
+			inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
+			outputSchema: tool.outputSchema as Record<string, unknown> | undefined,
+		});
 	}
 	const domains: Record<string, DomainDiscoveryInfo> = {};
 	for (const [key, domain] of Object.entries(world.domains)) {

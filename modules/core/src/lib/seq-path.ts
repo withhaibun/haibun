@@ -12,7 +12,7 @@
  * domain definition steppers register.
  */
 import { z } from "zod";
-import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
+import { AccessLevelSchema, LinkRelations, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 
 export const SEQ_PATH_DOMAIN = "seq-path";
 
@@ -54,6 +54,11 @@ export const SEQ_PATH_FIELD = {
 	/** What the step called: the stepper and the action within it, as `Stepper.action`. The step's TEXT says what was asked for; this says what ran. */
 	called: "called",
 	actionStatus: "actionStatus",
+	/** The capability this step declares, written only where it declares one: what had to be held to run it. */
+	capabilityAction: "capabilityAction",
+	/** What the caller held that allowed it. The actions of the grant, never the token: a bearer token is the
+	 *  credential itself, and a record of it would be a copy of the credential. */
+	allowedAction: "allowedAction",
 	generatedAtTime: "generatedAtTime",
 	endedAtTime: "endedAtTime",
 	path: "path",
@@ -63,6 +68,9 @@ export const SEQ_PATH_FIELD = {
 export const SEQ_PATH_EDGE = {
 	isPartOf: "isPartOf",
 	precededBy: "precededBy",
+	/** The principal whose capability allowed this step, where one did. An actor edge, so a sequence reads the step on
+	 *  that principal's lifeline rather than as something that merely mentions it. */
+	performedBy: "performedBy",
 } as const;
 
 const STATUS_VALUES = Object.values(SEQ_PATH_STATUS) as [string, ...string[]];
@@ -77,6 +85,9 @@ export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.stepText]: z.string(),
 	[SEQ_PATH_FIELD.called]: z.string().optional(),
 	[SEQ_PATH_FIELD.actionStatus]: z.enum(STATUS_VALUES),
+	[SEQ_PATH_FIELD.capabilityAction]: z.string().optional(),
+	accessLevel: AccessLevelSchema.optional(),
+	[SEQ_PATH_FIELD.allowedAction]: z.string().optional(),
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
 	[SEQ_PATH_FIELD.path]: z.string().optional(),
@@ -96,6 +107,9 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.stepText]: LinkRelations.CONTENT.rel,
 			[SEQ_PATH_FIELD.called]: LinkRelations.CALLED.rel,
 			[SEQ_PATH_FIELD.actionStatus]: LinkRelations.ACTION_STATUS.rel,
+			[SEQ_PATH_FIELD.capabilityAction]: LinkRelations.CAPABILITY_ACTION.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
+			[SEQ_PATH_FIELD.allowedAction]: LinkRelations.ALLOWED_ACTION.rel,
 			[SEQ_PATH_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.endedAtTime]: LinkRelations.ENDED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.path]: LinkRelations.IDENTIFIER.rel,
@@ -103,6 +117,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },
 			[SEQ_PATH_EDGE.precededBy]: { rel: LinkRelations.PRECEDED_BY.rel, range: SEQ_PATH_LABEL },
+			[SEQ_PATH_EDGE.performedBy]: { rel: LinkRelations.PERFORMED_BY.rel, range: PRINCIPAL_LABEL },
 		},
 	},
 };

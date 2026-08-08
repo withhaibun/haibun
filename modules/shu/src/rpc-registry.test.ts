@@ -11,7 +11,7 @@
  * first action would throw `OfflineError`. These tests pin the rule.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { hydrateFromDom, isStandaloneMode } from "./rpc-registry.js";
+import { hydrateFromDom, isStandaloneMode, sessionCredential } from "./rpc-registry.js";
 
 function setHydration(payload: unknown): void {
 	document.head.innerHTML = "";
@@ -59,5 +59,28 @@ describe("isStandaloneMode", () => {
 		hydrateFromDom();
 		expect(document.getElementById("shu-hydration")?.textContent).toBe("");
 		expect(isStandaloneMode()).toBe(true); // the mode is decided by the parsed data, not the DOM text
+	});
+});
+
+describe("the credential a served page acts under", () => {
+	/** The page boots from one payload, so a test states one: the reader is found by id, and a second would be ignored. */
+	const bootWith = (payload: unknown) => {
+		document.getElementById("shu-hydration")?.remove();
+		const el = document.createElement("script");
+		el.id = "shu-hydration";
+		el.textContent = JSON.stringify(payload);
+		document.body.append(el);
+		hydrateFromDom();
+	};
+
+	it("is what the page was given, and is presented on every call it makes", () => {
+		bootWith({ session: { token: "shu-session-abc", allowedAction: ["Instance:read"] } });
+		expect(sessionCredential()?.token, "read from the payload the page boots with").toBe("shu-session-abc");
+		expect(sessionCredential()?.allowedAction, "and it says what it holds, so a view can show a reader what they may do").toEqual(["Instance:read"]);
+	});
+
+	it("is absent where the deployment declared none, and a page then presents nothing", () => {
+		bootWith({});
+		expect(sessionCredential()).toBeUndefined();
 	});
 });

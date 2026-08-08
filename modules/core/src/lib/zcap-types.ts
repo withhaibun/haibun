@@ -35,6 +35,8 @@ export type TZcapGrant = {
 	revoked: boolean;
 	/** Free-form note for audit trails. */
 	note?: string;
+	/** The step this grant was issued at, so a reader of it can open what granted it. */
+	seqPath?: string;
 	/** Data Integrity proof block — present only on signed ZCAP-LD grants. */
 	proof?: object;
 };
@@ -65,7 +67,7 @@ export interface IZcapVerifier {
  * signed verification delegated to a registered IZcapVerifier.
  */
 export interface IZcapAuthority {
-	issueBearerGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string }): TZcapGrant;
+	issueBearerGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string; expires?: number; seqPath?: string }): TZcapGrant;
 	revokeBearerGrant(token: string, action?: string): number;
 	resolveBearer(token: string): string[];
 	resolveController(token: string): string | undefined;

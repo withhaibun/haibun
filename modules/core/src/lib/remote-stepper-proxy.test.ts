@@ -91,7 +91,7 @@ describe("RemoteStepperProxy", () => {
 
 		// Prefixed key reflects the remote's hostId so it can't collide with
 		// local tools or other hosts' tools of the same method name.
-		const tool = registry.get("7:EchoStepper-echo");
+		const tool = registry.get("host7_EchoStepper-echo");
 		if (!tool) throw new Error("Expected prefixed tool to be registered");
 		// Bare name (local form) must NOT be registered — prefixing is total.
 		expect(registry.get("EchoStepper-echo")).toBeUndefined();
@@ -110,7 +110,7 @@ describe("RemoteStepperProxy", () => {
 		const registry = new StepRegistry([], world);
 		proxy.injectInto(registry);
 
-		const tool = registry.get("7:EchoStepper-protectedPing");
+		const tool = registry.get("host7_EchoStepper-protectedPing");
 		if (!tool) throw new Error("Expected prefixed tool to be registered");
 		expect(tool.capability).toBe("EchoStepper:admin");
 	});

@@ -6,7 +6,7 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 		const result = RpcRequestSchema.safeParse({
 			jsonrpc: "2.0",
 			id: "1",
-			method: "GraphStepper-getLabelRels",
+			method: "RemoteSteps-getLabelRels",
 			params: { label: "Email" },
 		});
 		expect(result.success).toBe(true);
@@ -16,7 +16,7 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 		const result = RpcRequestSchema.safeParse({
 			type: "rpc",
 			id: "1",
-			method: "GraphStepper-getLabelRels",
+			method: "RemoteSteps-getLabelRels",
 			params: { label: "Email" },
 		});
 		expect(result.success).toBe(false);

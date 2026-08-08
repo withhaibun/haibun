@@ -83,9 +83,16 @@ export type TDebugSignal = "fail" | "step" | "continue" | "retry" | "next";
 export const SCENARIO_START = "scenario";
 export const FEATURE_START = "feature";
 
+/** How a lifecycle event says a step, feature or execution ended. */
+export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", skipped: "skipped" } as const;
+export const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.skipped]);
+
 export const STAY_ALWAYS = "always";
 export const STAY_FAILURE = "failure";
 export const STAY = "STAY";
+/** Report events as NDJSON on stdout. Declared here so the option, the env name a launcher writes, and the logger
+ *  that reads it all say it once. */
+export const NDJSON = "NDJSON";
 
 export const STEP_DELAY = "STEP_DELAY";
 export const DEFAULT_DEST = "default";
@@ -486,7 +493,7 @@ export const LifecycleEventCommon = BaseEvent.extend({
 	stage: z.enum(["start", "end"]),
 
 	// Execution Context
-	status: z.enum(["running", "completed", "failed", "skipped"]).optional(),
+	status: LIFECYCLE_STATUS_SCHEMA.optional(),
 	error: z.string().optional(),
 
 	// Execution Intent
@@ -613,19 +620,26 @@ export const HttpTraceArtifact = BaseArtifact.extend({
 	mimetype: z.string().default("application/json"),
 });
 
+/** What one dispatch of one step records: where it ran, what it required, who invoked it, and what it produced. */
+export const DispatchTraceSchema = z.object({
+	stepName: z.string(),
+	transport: z.enum(["local", "remote", "subprocess"]),
+	remoteHost: z.string().optional(),
+	capabilityRequired: z.string().optional(),
+	capabilityGranted: z.array(z.string()).optional(),
+	/** The principal the invoking capability is controlled by, when the step ran under a bearer token. */
+	invokedBy: z.string().optional(),
+	authorized: z.boolean(),
+	seqPath: z.array(z.number()),
+	durationMs: z.number().optional(),
+	productKeys: z.array(z.string()).optional(),
+	timestamp: z.number().optional(),
+});
+export type TDispatchTrace = z.infer<typeof DispatchTraceSchema>;
+
 export const DispatchTraceArtifact = BaseArtifact.extend({
 	artifactType: z.literal("dispatch-trace"),
-	trace: z.object({
-		stepName: z.string(),
-		transport: z.enum(["local", "remote", "subprocess"]),
-		remoteHost: z.string().optional(),
-		capabilityRequired: z.string().optional(),
-		capabilityGranted: z.array(z.string()).optional(),
-		authorized: z.boolean(),
-		seqPath: z.array(z.number()),
-		durationMs: z.number().optional(),
-		productKeys: z.array(z.string()).optional(),
-	}),
+	trace: DispatchTraceSchema,
 	mimetype: z.string().default("application/json"),
 });
 export type TDispatchTraceArtifact = z.infer<typeof DispatchTraceArtifact>;

@@ -152,9 +152,19 @@ async function getStepList(): Promise<StepListResponse> {
 export interface ShuHydration {
 	rpcCache?: Record<string, unknown>;
 	viewHash?: string;
+	/** The credential this reader acts under, where the deployment declared one, and the actions it holds. */
+	session?: { token: string; allowedAction: string[] };
 }
 
-let hydrationData: ShuHydration | null = null;
+// The page boots ONCE, but its modules load once PER BUNDLE (the app, the fisheye, an actions-bar extension each carry
+// their own copy of this module). A module-level variable here is then a copy per bundle, and only the app's copy ever
+// read the payload: an extension asking for the session credential saw none and refused what the page may do. The one
+// payload is pinned on globalThis, the same way the quads snapshot is, so every bundle reads the same boot.
+const HYDRATION_KEY = "__SHU_HYDRATION__";
+const heldHydration = (): { data: ShuHydration | null } => {
+	const g = globalThis as unknown as Record<string, { data: ShuHydration | null } | undefined>;
+	return (g[HYDRATION_KEY] ??= { data: null });
+};
 
 /** Parse the embedded hydration and drop the text it was parsed from: the element holds the whole run — every event —
  *  as one string, which would sit in the DOM for the life of the page beside the objects parsed out of it. Read once
@@ -174,8 +184,14 @@ function readHydration(): ShuHydration | null {
 
 /** Apply hydrated data immediately (before any RPC). */
 export function hydrateFromDom(): void {
-	hydrationData = readHydration();
-	if (hydrationData?.rpcCache) setRpcCache(hydrationData.rpcCache);
+	heldHydration().data = readHydration();
+	const booted = heldHydration().data;
+	if (booted?.rpcCache) setRpcCache(booted.rpcCache);
+}
+
+/** The credential every call from this page presents, or none where the deployment declared none. */
+export function sessionCredential(): { token: string; allowedAction: string[] } | undefined {
+	return heldHydration().data?.session;
 }
 
 /**
@@ -186,12 +202,12 @@ export function hydrateFromDom(): void {
  * the live serve never does.
  */
 export function isStandaloneMode(): boolean {
-	return hydrationData !== null && hydrationData.rpcCache !== undefined;
+	return heldHydration().data !== null && heldHydration().data?.rpcCache !== undefined;
 }
 
 /** Get the view hash embedded at export time (offline mode). */
 export function getHydratedViewHash(): string {
-	return hydrationData?.viewHash ?? "";
+	return heldHydration().data?.viewHash ?? "";
 }
 
 async function discover(): Promise<StepListResponse> {

@@ -79,7 +79,7 @@ export class RemoteStepperProxy extends AStepper {
 
 	/**
 	 * Inject proxy StepTools into the parent registry. Remote tools are
-	 * keyed `${hostId}:${method}` so they never collide with local tools
+	 * keyed `host{hostId}_{method}` so they never collide with local tools
 	 * (bare method names) or with other remote hosts.
 	 */
 	injectInto(registry: StepRegistry): void {

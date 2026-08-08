@@ -7,7 +7,8 @@ import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { authorizedWith, runAuthorizedWith } from "./capability-context.js";
+import { AccessLevelSchema, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { getZcapAuthority, ZCAP_TOKEN_KEY } from "./zcap-authority.js";
@@ -46,12 +47,19 @@ function bearerCapability(world: TWorld): string[] | undefined {
 	return granted && granted.length > 0 ? granted : undefined;
 }
 
+/** The principal controlling the active bearer token, which is who a step dispatched under that token acts as. */
+export function invokingPrincipal(world: TWorld): string | undefined {
+	const token = world.runtime.keys?.[ZCAP_TOKEN_KEY] as string | undefined;
+	if (!token) return undefined;
+	return getZcapAuthority(world.runtime)?.resolveController(token);
+}
+
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
 	const { registry, world, steppers } = ctx;
-	// A caller that supplied a capability decides; otherwise the active bearer token does, which is what makes
-	// `with token, <step>` mean what it says: the step runs under that token's authority. Without this a gated step
-	// was unreachable through a token, so a granted invocation could never carry one out.
-	const grantedCapability = ctx.grantedCapability ?? bearerCapability(world);
+	// A caller that states a capability decides; failing that, the capability the calling step was authorized with,
+	// so a step dispatched from inside another is neither refused nor allowed for the route taken to it; failing
+	// that, the active bearer token, which is what makes `with token, <step>` mean what it says.
+	const grantedCapability = ctx.grantedCapability ?? authorizedWith() ?? bearerCapability(world);
 	const { action } = featureStep;
 	const start = Timer.since();
 
@@ -86,13 +94,22 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	}
 
 	authorizeToolCapability(tool, grantedCapability);
+	// What got through the gate, on the step's own record: which capability it required, what the caller held, and the
+	// principal that held it. A refusal throws above, so a record with these fields is a record of an allowed call.
+	const authorization: TStepAuthorization | undefined = tool.capability
+		? {
+				required: tool.capability,
+				held: (Array.isArray(grantedCapability) ? grantedCapability.join(", ") : grantedCapability) || undefined,
+				controller: invokingPrincipal(world),
+			}
+		: undefined;
 
 	const usageKey = `${action.stepperName}.${action.actionName}`;
 	const priorCount = ((await getFact(world, "count", usageKey, OBSERVATION_GRAPH.STEP_USAGE)) as number | undefined) ?? 0;
 	await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
 
 	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
-	await emitSeqPathStart(world, featureStep);
+	await emitSeqPathStart(world, featureStep, authorization);
 	const previousSeqPath = world.runtime.currentSeqPath;
 	const currentSeqPathStr = featureStep.seqPath.join(".");
 	world.runtime.currentSeqPath = currentSeqPathStr;
@@ -101,44 +118,46 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	let ok = true;
 	let lastStepResult: TStepResult;
 	try {
-		let doAction = true;
-		while (doAction) {
-			await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-			const preconditionError = await checkInputPreconditions(world, action.step, featureStep);
-			if (preconditionError) {
-				actionResult = actionNotOK(preconditionError);
-				lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
-				world.runtime.stepResults.push(lastStepResult);
-				ok = false;
-				doAction = false;
-				continue;
-			}
-			actionResult = await tool.handler(featureStep, world);
-			if (actionResult.ok) {
-				const productsError = validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products);
-				if (productsError) {
-					actionResult = actionNotOK(productsError);
-				} else {
-					if (actionResult.products) {
-						actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+		await runAuthorizedWith(grantedCapability, async () => {
+			let doAction = true;
+			while (doAction) {
+				await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+				const preconditionError = await checkInputPreconditions(world, action.step, featureStep);
+				if (preconditionError) {
+					actionResult = actionNotOK(preconditionError);
+					lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
+					world.runtime.stepResults.push(lastStepResult);
+					ok = false;
+					doAction = false;
+					continue;
+				}
+				actionResult = await tool.handler(featureStep, world);
+				if (actionResult.ok) {
+					const productsError = validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products);
+					if (productsError) {
+						actionResult = actionNotOK(productsError);
+					} else {
+						if (actionResult.products) {
+							actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+						}
+						actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
+						await autoAssertProducts(world, action.step, actionResult);
 					}
-					actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-					await autoAssertProducts(world, action.step, actionResult);
+				}
+				if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
+					world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+				}
+				lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
+				world.runtime.stepResults.push(lastStepResult);
+				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
+				doAction = instructions.some((i) => i?.rerunStep);
+				if (instructions.some((i) => i?.failed)) {
+					ok = false;
+				} else if (instructions.some((i) => i?.nextStep)) {
+					actionResult = { ...actionResult, ok: true };
 				}
 			}
-			if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
-				world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
-			}
-			lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
-			world.runtime.stepResults.push(lastStepResult);
-			const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
-			doAction = instructions.some((i) => i?.rerunStep);
-			if (instructions.some((i) => i?.failed)) {
-				ok = false;
-			} else if (instructions.some((i) => i?.nextStep)) {
-				actionResult = { ...actionResult, ok: true };
-			}
-		}
+		});
 	} finally {
 		world.runtime.currentSeqPath = previousSeqPath;
 		world.eventLogger.currentSeqPath = previousSeqPath;
@@ -173,6 +192,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 				remoteHost: tool.remoteHost,
 				capabilityRequired: tool.capability,
 				capabilityGranted: Array.isArray(grantedCapability) ? grantedCapability : grantedCapability ? [grantedCapability] : undefined,
+				invokedBy: invokingPrincipal(world),
 				authorized: ok || !tool.capability,
 				seqPath: featureStep.seqPath,
 				durationMs: end - start,
@@ -262,6 +282,9 @@ export const RpcRequestSchema = z.object({
 	stream: z.boolean().optional(),
 	/** Caller's seqPath for threading hierarchical step identity through RPC. */
 	seqPath: z.array(z.number()).optional(),
+	/** The most this caller may see. A server bounds a call to the narrower of this and its own ceiling, so a caller
+	 *  can ask to see less than it is allowed but never more. */
+	readingAt: AccessLevelSchema.optional(),
 });
 export type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 
@@ -297,7 +320,12 @@ export function parseRpcRequest(raw: unknown): TRpcRequest | null {
  * step can link back to it as a real graph edge. Status and endedAtTime are
  * updated by `emitSeqPathEnd` after the action completes.
  */
-async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep): Promise<void> {
+/** What a step required and what allowed it, for the step's own record. Written only where the step declares a
+ *  capability, so an ordinary step's record gains nothing and a gated one says who got through it. The token itself is
+ *  never written: a bearer token is the credential, so recording it would copy the credential into the graph. */
+type TStepAuthorization = { required: string; held?: string; controller?: string };
+
+async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization?: TStepAuthorization): Promise<void> {
 	const store = world.shared.getStore();
 	const id = formatSeqPath(featureStep.seqPath);
 	// Single upsert with all required fields — partial writes via sequential set() let a concurrent
@@ -311,6 +339,11 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep): Promi
 		[SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running,
 		[SEQ_PATH_FIELD.generatedAtTime]: new Date().toISOString(),
 	};
+	if (authorization) {
+		record[SEQ_PATH_FIELD.capabilityAction] = authorization.required;
+		if (authorization.held) record[SEQ_PATH_FIELD.allowedAction] = authorization.held;
+		if (authorization.controller) record[LinkRelations.PERFORMED_BY.rel] = authorization.controller;
+	}
 	if (featureStep.source?.path) record[SEQ_PATH_FIELD.path] = featureStep.source.path;
 	if (featureStep.seqPath.length > 1) {
 		record[LinkRelations.PART_OF.rel] = formatSeqPath(featureStep.seqPath.slice(0, -1));

@@ -82,7 +82,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		},
 
 		stopUrakata: {
-			gwta: `stop {id: ${URAKATA_ID_DOMAIN}}`,
+			gwta: `stop urakata {id: ${URAKATA_ID_DOMAIN}}`,
 			action: async ({ id }: { id: string }) => {
 				await this.urakata().stop(id);
 				return actionOK();
@@ -90,7 +90,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		},
 
 		forgetUrakata: {
-			gwta: `forget {id: ${URAKATA_ID_DOMAIN}}`,
+			gwta: `forget urakata {id: ${URAKATA_ID_DOMAIN}}`,
 			action: async ({ id }: { id: string }) => {
 				await this.urakata().forget(id);
 				return actionOK();

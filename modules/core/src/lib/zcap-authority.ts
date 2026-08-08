@@ -25,7 +25,7 @@ export class ZcapAuthority implements IZcapAuthority {
 	private grants = new Map<string, TZcapGrant[]>();
 	private verifier?: IZcapVerifier;
 
-	issueBearerGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string }): TZcapGrant {
+	issueBearerGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string; expires?: number; seqPath?: string }): TZcapGrant {
 		const now = Date.now();
 		const current = this.grants.get(grant.token) ?? [];
 		const existing = current.find((entry) => entry.controller === grant.controller);
@@ -33,16 +33,19 @@ export class ZcapAuthority implements IZcapAuthority {
 			existing.allowedAction = [...new Set([...existing.allowedAction, ...grant.allowedAction])];
 			existing.revoked = false;
 			existing.created = now;
-			existing.expires = undefined;
+			existing.expires = grant.expires;
 			existing.note = grant.note;
+			existing.seqPath = grant.seqPath;
 			return existing;
 		}
 		const issued: TZcapGrant = {
 			id: grant.token,
 			token: grant.token,
+			...(grant.seqPath === undefined ? {} : { seqPath: grant.seqPath }),
 			allowedAction: [...grant.allowedAction],
 			controller: grant.controller,
 			created: now,
+			expires: grant.expires,
 			revoked: false,
 			note: grant.note,
 		};
@@ -74,10 +77,13 @@ export class ZcapAuthority implements IZcapAuthority {
 		return revoked;
 	}
 
-	resolveBearer(token: string): string[] {
+	/** What a token allows now. A grant that has expired allows nothing, which is how a grant is bounded to a session
+	 *  or to a period without anyone having to withdraw it. */
+	resolveBearer(token: string, now: number = Date.now()): string[] {
 		const seen = new Set<string>();
 		for (const entry of this.grants.get(token) ?? []) {
 			if (entry.revoked) continue;
+			if (entry.expires !== undefined && entry.expires <= now) continue;
 			for (const action of entry.allowedAction) seen.add(action);
 		}
 		return [...seen];

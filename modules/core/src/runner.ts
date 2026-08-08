@@ -24,9 +24,10 @@ export class Runner {
 			// Collect domain concerns before Expand so domains are available during resolution
 			await phaseRunner.tryPhase("Concerns", () => addStepperConcerns(this.world, this.steppers));
 
-			// Auto-suppress NDJSON output if any monitor stepper is configured
+			// A monitor formats the console for a person, so the raw event stream is suppressed for it. A run asked for
+			// NDJSON is being read by another process, which has nothing else to read, so that request outranks it.
 			await phaseRunner.tryPhase("Options", () => {
-				if (this.steppers.some((s) => s.kind === StepperKinds.MONITOR) && this.world.eventLogger) {
+				if (this.steppers.some((s) => s.kind === StepperKinds.MONITOR) && this.world.eventLogger && !this.world.eventLogger.ndjsonForced) {
 					this.world.eventLogger.suppressConsole = true;
 				}
 				// Make backgrounds available at runtime for inline `Backgrounds:` expansion

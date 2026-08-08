@@ -320,8 +320,10 @@ describe("step-dispatch", () => {
 	});
 
 	describe("createStepHandler", () => {
+		// Named as the registry names it: a tool is what its key says it is, and the step built from it is resolved by
+		// that name when it is dispatched.
 		const synth = (tool: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
-			buildFeatureStepForTransport(tool as StepTool, input, seqPath);
+			buildFeatureStepForTransport({ ...tool, name: stepMethodName(tool.stepperName, tool.stepName) } as StepTool, input, seqPath);
 
 		it("returns ok with products exactly as the action returned them — framework metadata (_seqPath etc.) is injected by dispatchStep, not the handler", async () => {
 			const stepper = new ProductStepper();

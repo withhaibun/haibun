@@ -262,7 +262,6 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		return projectFilterClusters({ knownClusters: this.knownClusters, allQuads: this.quads, visibleQuads, timeCursor: this.timeCursor });
 	}
 
-
 	private clampLimit(raw: string): number {
 		return clamp(Math.round(parseInt(raw, 10)), 1, MAX_PER_TYPE_LIMIT);
 	}
@@ -296,7 +295,6 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.toggleAttribute("data-solo-waiting", this.soloWaiting);
 		this.requestUpdate();
 	};
-
 
 	render(): TemplateResult {
 		// A filter serves ONE source. An axis host (setAxes) offers the values of each grouping axis; a quad host
