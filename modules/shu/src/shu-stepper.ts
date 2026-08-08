@@ -9,7 +9,11 @@ import { gzipSync } from "node:zlib";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
-import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption } from "@haibun/core/lib/util/index.js";
+import { randomUUID } from "node:crypto";
+import { getZcapAuthority } from "@haibun/core/lib/zcap-authority.js";
+import { activeSitePrincipal } from "@haibun/core/lib/host-id.js";
+import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { getJsonLdContext, relOf } from "@haibun/core/lib/hypermedia.js";
 import { Access, haibunNsForHost, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
@@ -22,6 +26,7 @@ import { buildGraphModelFromQuads } from "./graph-model.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
 import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
+import type { IHasOptions, TFeatureStep } from "@haibun/core/lib/astepper.js";
 
 /**
  * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
@@ -175,6 +180,15 @@ function createSpaHandler(basePath: string, hydration: string) {
 	};
 }
 
+/** The actions SESSION_CAPABILITY names, read from what the deployment wrote. One reader, used by the option's own
+ *  check and by the serving, so what is accepted at boot and what is issued at serve cannot differ. */
+export function sessionActions(declared: string | undefined): string[] {
+	return (declared ?? "")
+		.split(",")
+		.map((action) => action.trim())
+		.filter((action) => action.length > 0);
+}
+
 function validateMountPath(path: string): string | undefined {
 	if (!path) return "path is required";
 	if (!path.startsWith("/")) return 'path must start with "/"';
@@ -211,8 +225,25 @@ function selectValuesFromSchema(schema: z.ZodType, properties: Record<string, TP
 	return values;
 }
 
-export default class ShuStepper extends AStepper {
+export default class ShuStepper extends AStepper implements IHasOptions {
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
+
+	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
+		await super.setWorld(world, steppers);
+		this.sessionCapability = getStepperOption(this, "SESSION_CAPABILITY", world.moduleOptions) as string | undefined;
+	}
+
+	/** What the page boots with: the credential a reader acts under, where the deployment declared one. The token is
+	 *  registered with this run's own authority, so it holds exactly the declared actions and dies with the run. */
+	private sessionHydration(seqPath: string): Record<string, unknown> {
+		const allowedAction = sessionActions(this.sessionCapability);
+		if (allowedAction.length === 0) return {};
+		const authority = getZcapAuthority(this.getWorld().runtime);
+		if (!authority) throw new Error("serve shu app: SESSION_CAPABILITY names actions, but this run has no authority to issue them from");
+		const token = `shu-session-${randomUUID()}`;
+		authority.issueBearerGrant({ token, allowedAction, controller: activeSitePrincipal(this.getWorld()), note: "the served app's own session", seqPath });
+		return { session: { token, allowedAction } };
+	}
 
 	cycles = {
 		getConcerns: () => ({
@@ -240,15 +271,35 @@ export default class ShuStepper extends AStepper {
 		}),
 	};
 
+	/**
+	 * What a reader of the served app may do, as actions the deployment declares. A page carries the credential that
+	 * holds them, so whoever can fetch the page holds them: this is for a deployment that answers to its own readers
+	 * (a session behind the site's own sign-in), not for an open port. Unset, the page carries no credential and a
+	 * reader can do only what needs none.
+	 */
+	options = {
+		SESSION_CAPABILITY: {
+			// One process's own: a run this one starts serves its own app, from its own authority, and a session this run
+			// issued means nothing there. Inherited, a child that has no authority to issue from failed at boot.
+			perProcess: true,
+			desc: "Actions a reader of the served app may take, comma-separated (the app's page carries the credential holding them, so anyone who can fetch the page holds them). Unset, the page carries none",
+			parse: (input: string) => (sessionActions(input).length > 0 ? { result: input } : { parseError: "SESSION_CAPABILITY: name at least one action, comma-separated" }),
+		},
+	};
+	/** SESSION_CAPABILITY as the deployment wrote it; `sessionActions` reads the actions out of it. */
+	private sessionCapability?: string;
+
 	steps = {
 		serveShuApp: {
 			gwta: "serve shu app at {path: string}",
-			action: ({ path }: { path: string }) => {
+			action: ({ path }: { path: string }, featureStep: TFeatureStep) => {
 				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 				if (!webserver) return actionNotOK("webserver not available — load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, "{}"));
+				// The page is served with the credential its reader acts under, in the payload the page already boots from.
+				// A fresh token per serving, held by the run's own authority, so it is gone when the run is.
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, JSON.stringify(this.sessionHydration(formatSeqPath(featureStep.seqPath)))));
 				const domains = this.getWorld().domains;
 				// The context varies only by serving host, drawn from a tiny set of origins — build it once per host.
 				const byHost = new Map<string, Record<string, unknown>>();

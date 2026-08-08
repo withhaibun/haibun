@@ -113,6 +113,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		.log-row .time-group:hover .time { color: var(--shu-accent); }
 		.log-row .seqpath { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); }
 		.log-row .dispatch { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
+		.log-row .capability { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
+		.log-row .capability.refused { color: var(--shu-error); }
 		.loader { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--shu-border); border-top-color: var(--shu-accent);
 			border-radius: 50%; animation: spin 1.2s linear infinite; vertical-align: middle; }
 		@keyframes spin { to { transform: rotate(360deg); } }
@@ -315,17 +317,26 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			if (index === this.#currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
 		}
 		let dispatchText = "";
+		// What a gated step required and whether the caller held it. A step that requires nothing says nothing, so the
+		// rows that mention a capability are exactly the acts that were authorized.
+		let capabilityText = "";
+		let capabilityRefused = false;
 		if (!r.isStart && r.seqPath) {
 			const startIdx = this.startRowIndex.get(r.seqPath.join("."));
 			const dispatch = startIdx !== undefined ? this.rows[startIdx].dispatch : undefined;
 			if (dispatch) {
 				const dur = dispatch.durationMs !== undefined ? `${dispatch.durationMs}ms` : "";
 				dispatchText = `${dispatch.transport}${dur ? ` ${dur}` : ""}`;
+				if (dispatch.capabilityRequired) {
+					capabilityRefused = !dispatch.authorized;
+					const by = dispatch.invokedBy ? ` ${dispatch.invokedBy}` : "";
+					capabilityText = `${dispatch.authorized ? "🔓" : "🔒"} ${dispatch.capabilityRequired}${by}`;
+				}
 			}
 		}
 		return html`<div class="log-row${cls}" data-testid="monitor-log-row">
 			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${r.seqPath ? html`<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : ""}<span class="time">${r.time}</span></span>
-			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.isAsync && !r.hasEnd ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}</span>
+			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.isAsync && !r.hasEnd ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}</span>
 		</div>`;
 	};
 }

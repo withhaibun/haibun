@@ -8,7 +8,7 @@ import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionOK } from "../lib/util/index.js";
-import type { StepRegistry } from "../lib/step-registry.js";
+import { hostScopedMethodName, type StepRegistry } from "../lib/step-registry.js";
 import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
 
 describe("until", () => {
@@ -27,7 +27,7 @@ describe("on host", () => {
 				if (!local) return;
 				registry.set({
 					...local,
-					name: "2:TestSteps-passes",
+					name: hostScopedMethodName(2, "TestSteps-passes"),
 					handler: async () => {
 						await assertFact(this.getWorld(), "flag", "remoteCalled", true, OBSERVATION_GRAPH.RUNTIME_FLAG);
 						return actionOK();
@@ -56,7 +56,7 @@ describe("on host", () => {
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
 		const errors = result.featureResults?.[0].stepResults.flatMap((r) => (r.ok ? [] : [r.errorMessage])) || [];
-		expect(errors.some((e) => typeof e === "string" && e.includes("9:TestSteps-passes"))).toBe(true);
+		expect(errors.some((e) => typeof e === "string" && e.includes(hostScopedMethodName(9, "TestSteps-passes")))).toBe(true);
 	});
 });
 

@@ -28,9 +28,8 @@ import { affordancesSchema, chainLintSchema, goalResolutionSchema } from "../lib
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
-import { dispatchStep } from "../lib/step-dispatch.js";
-import { StepRegistry, buildFeatureStepForTransport, stepMethodName } from "../lib/step-registry.js";
-import { allocateSyntheticSeqPath } from "../lib/host-id.js";
+import { StepRegistry, stepMethodName } from "../lib/step-registry.js";
+import { callStepByName } from "../lib/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { parseSeqPath } from "../lib/seq-path.js";
@@ -187,13 +186,10 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		for (let i = 0; i < michi.steps.length; i++) {
 			const step = michi.steps[i];
 			const method = stepMethodName(step.stepperName, step.stepName);
-			const tool = registry.get(method);
-			if (!tool) return actionNotOK(`pursue ${goal}: step ${i} (${method}) not registered`);
-			const seqPath = allocateSyntheticSeqPath(world);
-			const featureStep = buildFeatureStepForTransport(tool, {}, seqPath);
-			const result = await dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: Array.from(this.grantedCapabilities()) }, featureStep);
-			if (!result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${result.errorMessage ?? "(no message)"}`);
-			factIds.push(seqPath.join("."));
+			const call = await callStepByName({ registry, world, steppers: this.steppers, grantedCapability: Array.from(this.grantedCapabilities()) }, method);
+			if (!call.registered) return actionNotOK(`pursue ${goal}: step ${i} (${method}) not registered`);
+			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage ?? "(no message)"}`);
+			factIds.push(call.seqPath.join("."));
 		}
 		return actionOKWithProducts({ finding: "executed", goal, factIds });
 	}

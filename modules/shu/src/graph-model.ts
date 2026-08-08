@@ -47,7 +47,10 @@ export function clusterId(type: string): string {
  *  even if its value coincidentally matches a node id. This is the same rule the overview's property classifier applies
  *  ("declared by the range, never guessed from the id"); guessing is what mis-linked string properties like `account`
  *  onto whatever node shared their value. THE rule, so a chip legend offers exactly the predicates the graph draws. */
-export function isEdgeQuad(q: TQuad, opts: { requireObjectType?: boolean; ignoreInternalPredicates?: boolean } = { requireObjectType: true, ignoreInternalPredicates: true }): boolean {
+export function isEdgeQuad(
+	q: TQuad,
+	opts: { requireObjectType?: boolean; ignoreInternalPredicates?: boolean } = { requireObjectType: true, ignoreInternalPredicates: true },
+): boolean {
 	if (typeof q.subject !== "string" || typeof q.object !== "string") return false;
 	if (q.subject === q.object) return false;
 	if (opts.requireObjectType && (typeof q.objectType !== "string" || q.objectType.length === 0)) return false;

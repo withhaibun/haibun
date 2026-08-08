@@ -43,7 +43,7 @@ export function errMsg(err: unknown): string {
 	return errorDetail(err);
 }
 
-import { Access } from "@haibun/core/lib/resources.js";
+import { AccessQuery } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { STORED_TYPE_PROP } from "./consts.js";
 
@@ -56,11 +56,13 @@ import { STORED_TYPE_PROP } from "./consts.js";
  * state copies.
  */
 export function appAccessLevel(): string {
-	if (typeof window === "undefined") return Access.private;
+	if (typeof window === "undefined") return AccessQuery.all;
 	const hash = window.location.hash;
-	if (!hash.startsWith("#?")) return Access.private;
+	if (!hash.startsWith("#?")) return AccessQuery.all;
 	const params = new URLSearchParams(hash.slice(2));
-	return params.get("access") || Access.private;
+	// A reader of this instance sees what it holds, and narrows deliberately: a level answers from that level alone, so
+	// opening at one of them would hide everything stored at the others until a reader thought to ask.
+	return params.get("access") || AccessQuery.all;
 }
 
 import { getSiteMetadataSync } from "./rels-cache.js";

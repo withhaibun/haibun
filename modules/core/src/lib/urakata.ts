@@ -22,6 +22,7 @@
 
 import { z } from "zod";
 import { allocateSyntheticSeqPath } from "./host-id.js";
+import { runAuthorizedWith } from "./capability-context.js";
 import { errorDetail } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TSeqPath } from "../schema/protocol.js";
@@ -143,7 +144,10 @@ export class UrakataRegistry implements IUrakataRegistry {
 			const controller = new AbortController();
 			// A tick settling and the registry counting its outcome are one flow: settled resolves once the count is
 			// recorded, so stop()/timeout can await a clean state. A tick aborted by stop() is a normal end, not an error.
-			const settled: Promise<void> = (async () => {
+			// A tick runs with no capability of its own. A ticker registered during an authorized step would otherwise
+			// inherit that step's capability through the async context and keep it for as long as it ticks, which is
+			// for the life of the process; authority belongs to the act that asks for it, not to whoever started a timer.
+			const settled: Promise<void> = runAuthorizedWith(undefined, async () => {
 				try {
 					await Promise.resolve(spec.tick({ seqPath: tickSeqPath, tickIndex: urakata.tickIndex - 1, signal: controller.signal }));
 				} catch (err) {
@@ -152,7 +156,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 					this.onTickError(spec.id, tickSeqPath, err instanceof Error ? err : new Error(String(err)));
 					if (urakata.errorCount === 1 || urakata.errorCount % URAKATA_ERROR_PERSIST_EVERY === 0) this.persist(urakata);
 				}
-			})();
+			});
 			inflight = { controller, settled };
 			if (spec.tickTimeoutMs !== undefined) {
 				const timeout = timeoutHandle(spec.tickTimeoutMs);

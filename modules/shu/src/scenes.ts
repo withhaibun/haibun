@@ -7,6 +7,7 @@
  * gate every other write goes through.
  */
 import { AccessLevelSchema, SCENE_LABEL } from "@haibun/core/lib/resources.js";
+import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "./rels-cache.js";
 import { callStep, fetchIndividuals } from "./pane-fetch.js";
 import { appAccessLevel } from "./util.js";
 import type { ShuElement } from "./components/shu-element.js";
@@ -49,8 +50,60 @@ export function saveScene(name: string, state: TSceneState, why: string): Promis
 	return callStep("createScene", { data: { id: name, generatedAtTime: new Date().toISOString(), ...(accessLevel ? { accessLevel } : {}), state: JSON.stringify(state) } }, why);
 }
 
+/** The scene every deployment has: what it exchanged with what, and under what authority. */
+export const NETWORK_SCENE = "network";
+
+/** The vocabulary that marks a type as part of an exchange: who acted, and what they were allowed. `sec:` is the
+ *  capability and key vocabulary; `prov:wasAssociatedWith` is the actor of an activity, which is what a request and a
+ *  step each name. A type is in by what it declares, so one added later for this purpose is in without an edit here. */
+const EXCHANGE_IRIS = (iri: string): boolean => iri.startsWith("sec:") || iri === "prov:wasAssociatedWith";
+
+/**
+ * The types the network scene shows, derived from the site's own declarations.
+ *
+ * The seed is every type declaring a rel of the exchange vocabulary: a request naming who performed it, a step naming
+ * what it required and what allowed it, a principal naming its keys, a capability naming its controller. Then one hop
+ * along those types' ACTOR edges only — who a thing came from and what it was directed at, the same edges the sequence
+ * view reads as lifelines — so where a request went and who held a capability come with it, while what a record merely
+ * carries (its bodies, its selectors) does not. No type is named here: a deployment's own vocabulary decides.
+ */
+export function networkSceneTypes(): string[] {
+	const declares = (label: string): boolean =>
+		Object.values(getRels(label) ?? {}).some((rel) => {
+			const iri = getPropertyDefinition(rel)?.iri;
+			return !!iri && EXCHANGE_IRIS(iri);
+		});
+	const actorEdges = new Set([...fromActorEdgeLabels(), ...toActorEdgeLabels()]);
+	const seed = getTypes().filter(declares);
+	const reached = seed.flatMap((label) =>
+		Object.entries(getEdgeRanges(label) ?? {})
+			.filter(([edge]) => actorEdges.has(edge))
+			.map(([, range]) => range),
+	);
+	return [...new Set([...seed, ...reached])].filter((label) => getTypes().includes(label)).sort();
+}
+
+/** The scenes a deployment always has, whatever anyone saved. Their state is derived, so it is right for this site. */
+export function builtInScenes(): TScene[] {
+	const types = networkSceneTypes();
+	if (types.length === 0) return [];
+	// Every type is named, the exchange shown and the rest hidden. Naming only what to show leaves whatever is visible
+	// by default visible beside it, and the scene reads as the whole graph with the exchange added to it.
+	const shown = new Set(types);
+	const overrides = Object.fromEntries(getTypes().map((type) => [type, shown.has(type)]));
+	return [{ id: NETWORK_SCENE, state: { "shu-fisheye-graph-view": { viewType: "sequence" }, "shu-graph-filter": { overrides } } }];
+}
+
 /** The scenes saved here, newest first, for a reader to pick from. */
 export async function listScenes(why: string): Promise<TScene[]> {
+	const saved = await savedScenes(why);
+	// A saved scene of the same name is the reader's own adjustment of it, so it wins; otherwise the built-in is there
+	// whether or not anything was ever saved.
+	const named = new Set(saved.map((scene) => scene.id));
+	return [...saved, ...builtInScenes().filter((scene) => !named.has(scene.id))];
+}
+
+async function savedScenes(why: string): Promise<TScene[]> {
 	const result = (await fetchIndividuals(SCENE_LABEL, why)) as { ok: boolean; value: { vertices: Array<{ id?: unknown; state?: unknown }> } };
 	if (!result.ok) return [];
 	return result.value.vertices.flatMap((vertex) => {

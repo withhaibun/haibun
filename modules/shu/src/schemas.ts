@@ -154,6 +154,12 @@ export const ColumnStripSchema = z.object({});
 
 // --- Theme switch ---
 
+/** What the permissions view remembers: whether the grants behind this reader's own authority are shown. */
+export const PermissionsSchema = z.object({
+	showGrants: z.boolean().default(false),
+	showPrincipals: z.boolean().default(false),
+});
+
 export const ThemeSwitchSchema = z.object({
 	theme: z.enum(["auto", "light", "dark"]),
 	scale: z.string(),
@@ -189,19 +195,7 @@ export const ContextQuerySchema = z.array(ContextPatternSchema);
 
 // --- Dispatch trace (shared by sequence diagram, monitor column, step detail) ---
 
-export const DispatchTraceSchema = z.object({
-	stepName: z.string(),
-	transport: z.enum(["local", "remote", "subprocess"]),
-	remoteHost: z.string().optional(),
-	capabilityRequired: z.string().optional(),
-	capabilityGranted: z.array(z.string()).optional(),
-	authorized: z.boolean(),
-	seqPath: z.array(z.number()),
-	durationMs: z.number().optional(),
-	productKeys: z.array(z.string()).optional(),
-	timestamp: z.number().optional(),
-});
-export type TDispatchTrace = z.infer<typeof DispatchTraceSchema>;
+export { DispatchTraceSchema, type TDispatchTrace } from "@haibun/core/schema/protocol.js";
 
 // --- Actions bar ---
 

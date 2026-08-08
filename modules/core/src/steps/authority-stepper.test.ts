@@ -1,3 +1,4 @@
+import { grantHandle, shownGrant } from "./authority-stepper.js";
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import { discoverSteps } from "../lib/step-registry.js";
@@ -70,5 +71,23 @@ verify zcap bearer grant for token "alpha" is revoked for action "Ping:protected
 			throw new Error(JSON.stringify(result.featureResults, null, 2));
 		}
 		expect(result.ok).toBe(true);
+	});
+});
+
+describe("what a listing of authority may say", () => {
+	it("says who holds it and what it allows, and never the credential itself", () => {
+		const shown = shownGrant({ id: "s-1", token: "s-1", controller: "did:site:0", allowedAction: ["Instance:read"], revoked: false, created: 1, note: "the served app's own session" });
+		expect(shown, "everything a reader needs to see who may do what, and a name to revoke it by").toEqual({
+			handle: grantHandle("s-1"),
+			controller: "did:site:0",
+			allowedAction: ["Instance:read"],
+			revoked: false,
+			created: 1,
+			note: "the served app's own session",
+		});
+		expect(Object.keys(shown), "and nothing that would hand the credential over").not.toContain("token");
+		expect(Object.keys(shown), "including the id, which is the token").not.toContain("id");
+		expect(shown.handle, "the name is not the credential, and cannot be presented as one").not.toBe("s-1");
+		expect(shownGrant({ id: "s-1", token: "s-1", allowedAction: [], revoked: false }).handle, "and it is the same name every time that grant is read").toBe(shown.handle);
 	});
 });

@@ -1,3 +1,4 @@
+import { AccessLevelSchema } from "@haibun/core/lib/resources.js";
 import { z } from "zod";
 import { ENDPOINT_CLASS, ENDPOINT_LABEL } from "@haibun/core/lib/http-observations.js";
 import type { Context, MiddlewareHandler, Hono } from "hono";
@@ -33,6 +34,7 @@ export const EndpointSchema = z.object({
 	method: z.string().default("GET"),
 	description: z.string(),
 	endpointClass: z.enum([ENDPOINT_CLASS.route, ENDPOINT_CLASS.service]).optional(),
+	accessLevel: AccessLevelSchema.optional(),
 	generatedAtTime: z.coerce.date().default(() => new Date()),
 });
 export type Endpoint = z.infer<typeof EndpointSchema>;

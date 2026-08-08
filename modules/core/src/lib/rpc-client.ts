@@ -1,4 +1,5 @@
 import { errorDetail } from "./util/index.js";
+import { readingAt } from "./capability-context.js";
 
 /**
  * rpc-client — capability-scoped client for a haibun host's RPC
@@ -67,7 +68,9 @@ export class RpcClient {
 			const res = await this.fetchImpl(url, {
 				method: "POST",
 				headers: this.buildHeaders(),
-				body: JSON.stringify({ jsonrpc: "2.0", id: `rpc-${Date.now()}`, method, params, seqPath }),
+				// What this caller may see travels with the call, so a host answers no wider than whoever is reading it:
+				// the far side takes the narrower of this and its own ceiling.
+				body: JSON.stringify({ jsonrpc: "2.0", id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() }),
 				signal,
 			});
 			const body = (await res.json()) as T | RpcError;
@@ -97,7 +100,7 @@ export class RpcClient {
 			const res = await this.fetchImpl(url, {
 				method: "POST",
 				headers: this.buildHeaders(),
-				body: JSON.stringify({ jsonrpc: "2.0", id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true }),
+				body: JSON.stringify({ jsonrpc: "2.0", id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt() }),
 				signal: controller.signal,
 			});
 			if (!res.ok || !res.body) {

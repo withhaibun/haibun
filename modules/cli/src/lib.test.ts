@@ -63,6 +63,35 @@ describe("processEnv", () => {
 	});
 });
 
+const POLICY_BASE = "e2e-tests/policy-test";
+
+describe("collect", () => {
+	it("runs the statements as one feature, in the order given", async () => {
+		const { features } = await lib.collect(["tests"], undefined, ["create graph store", "enable rpc"]);
+		expect(features).toHaveLength(1);
+		expect(features[0].content).toBe("create graph store\nenable rpc");
+		expect(features[0].type).toBe("feature");
+	});
+	it("runs against a base with no features of its own", async () => {
+		const { features, backgrounds } = await lib.collect(["/nonexistent-base"], undefined, ["create graph store"]);
+		expect(features[0].content).toBe("create graph store");
+		expect(backgrounds).toEqual([]);
+	});
+	it("runs filtered features FIRST and the statements after them, so the features are what the statements act on", async () => {
+		const { features } = await lib.collect([POLICY_BASE], ["health"], ["create graph store"]);
+		expect(features.length).toBeGreaterThan(1);
+		expect(features.at(-1)?.content, "the statements run last, on what the features left standing").toBe("create graph store");
+		expect(
+			features.slice(0, -1).every((f) => f.path.includes("health")),
+			"and only the features asked for run before them",
+		).toBe(true);
+	});
+	it("collects features as before when no statement is given", async () => {
+		const { features } = await lib.collect([POLICY_BASE], ["health"], []);
+		expect(features.every((f) => f.path.includes("health"))).toBe(true);
+	});
+});
+
 describe("processArgs", () => {
 	it("finds help", () => {
 		const { showHelp } = lib.processArgs(s("--help"));
@@ -80,6 +109,17 @@ describe("processArgs", () => {
 		const { showHelp, configLoc } = lib.processArgs(s("--config boo --help"));
 		expect(configLoc).toBe("boo");
 		expect(showHelp).toBe(true);
+	});
+	it("takes a statement, and another, in the order given", () => {
+		const { statements } = lib.processArgs(["--statement", "create graph store", "--statement", "enable rpc"]);
+		expect(statements).toEqual(["create graph store", "enable rpc"]);
+	});
+	it("takes a statement given with an equals, so a shell needs no second word", () => {
+		const { statements } = lib.processArgs(["--statement=create graph store"]);
+		expect(statements).toEqual(["create graph store"]);
+	});
+	it("refuses a statement with nothing after it, rather than running an empty feature", () => {
+		expect(() => lib.processArgs(["--statement"])).toThrow(/requires a statement/);
 	});
 	it("gets parameters", () => {
 		const { params } = lib.processArgs(s("foo bar"));

@@ -20,3 +20,4 @@
 export { QueryController, type TQueryResult } from "./query-controller.js";
 export { EventsController } from "./events-controller.js";
 export { EntityController } from "./entity-controller.js";
+export { AuthorityController, type TAuthority, type TPrincipalRow } from "./authority-controller.js";

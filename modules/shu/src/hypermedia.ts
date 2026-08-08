@@ -21,6 +21,7 @@
 
 // Type-only import — erased from the browser bundle (never pulls core's node:async_hooks runtime).
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
+import { sessionCredential } from "./rpc-registry.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
 
@@ -107,6 +108,13 @@ function formatRpcError(method: string, status: number, data: unknown): string {
 }
 
 /** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path — wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */
+/** What every call from this page carries: its content type, and the credential the deployment gave this reader, where
+ *  it gave one. The server resolves that credential to the actions it holds; a page given none simply presents none. */
+function rpcHeaders(): Record<string, string> {
+	const session = sessionCredential();
+	return { "Content-Type": "application/json", ...(session ? { Authorization: `Bearer ${session.token}` } : {}) };
+}
+
 export class LiveConduit implements Conduit {
 	constructor(
 		private readonly basePath: string = "",
@@ -118,7 +126,7 @@ export class LiveConduit implements Conduit {
 		const id = nextRpcId();
 		const res = await fetch(`${this.basePath}/rpc/${link.method}`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: rpcHeaders(),
 			body: JSON.stringify({ jsonrpc: "2.0", id, method: link.method, params: link.params ?? {}, seqPath }),
 		});
 		const data: unknown = await res.json();
@@ -138,7 +146,7 @@ export class LiveConduit implements Conduit {
 		const id = nextRpcId();
 		const res = await fetch(`${this.basePath}/rpc/${link.method}`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: rpcHeaders(),
 			body: JSON.stringify({ jsonrpc: "2.0", id, method: link.method, params: link.params ?? {}, seqPath, stream: true }),
 			signal: opts.signal,
 		});
@@ -185,7 +193,7 @@ export class LiveConduit implements Conduit {
 		const id = nextRpcId();
 		const res = await fetch(`${this.basePath}/rpc/action.begin`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: rpcHeaders(),
 			body: JSON.stringify({ jsonrpc: "2.0", id, method: "action.begin", params: { why } }),
 		});
 		const data: unknown = await res.json();

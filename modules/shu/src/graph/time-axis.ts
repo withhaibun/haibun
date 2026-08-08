@@ -19,7 +19,7 @@ export type TSubjectTime = { ms: number; field: string };
  * (indexed-time) quad, so an individual always places by its own time and only by indexing time when it carries
  * nothing else. The field lookup is memoized per type, so the resolver runs O(types), not O(quads).
  */
-export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: string) => string, indexedTimeField: string): Map<string, TSubjectTime> {
+export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: string) => string, indexedTimeField: string): TSubjectTimes {
 	const fieldByType = new Map<string, string>();
 	const times = new Map<string, TSubjectTime>();
 	const fallback = new Map<string, TSubjectTime>();
@@ -36,8 +36,13 @@ export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: stri
 		if (!Number.isNaN(t)) target.set(q.subject, { ms: t, field: q.predicate });
 	}
 	for (const [subject, entry] of fallback) if (!times.has(subject)) times.set(subject, entry);
-	return times;
+	// Both maps come out of the one pass: what a subject is ABOUT (its declared valid time, falling back to when it was
+	// written down) and when it was written down. A caller wanting the second walked every quad again to build it.
+	return { times, indexed: fallback };
 }
+
+/** What one pass over the quads says about time per subject: the valid times, and when each was written down. */
+export type TSubjectTimes = { times: Map<string, TSubjectTime>; indexed: Map<string, TSubjectTime> };
 
 /** Compute the sqrt-age scale for one reference `now` over all record times: the raw-value scale over each age
  *  (now − time). Pure; same inputs → same scale. The sqrt-normalize itself lives once, in spanZScale/spanZ. */

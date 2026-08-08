@@ -367,8 +367,7 @@ export const shuIconButtonStyles: CSSResult = css`${unsafeCSS(SHU_ICON_BUTTON)}`
 /** A row whose children are each a distinct control: a rule between them, so the row reads as separate settings rather
  *  than a run of words. Takes the row's selector, since a light-DOM host scopes its rules by tag and a shadow-DOM
  *  component does not — one declaration either way. */
-export const shuRowSeparated = (selector: string): string =>
-	`${selector} > * + * { border-left: var(--shu-border-w) solid var(--shu-border); padding-left: var(--shu-space-3); }`;
+export const shuRowSeparated = (selector: string): string => `${selector} > * + * { border-left: var(--shu-border-w) solid var(--shu-border); padding-left: var(--shu-space-3); }`;
 
 /** Inject the token sheet into `document.head` so detached overlays (combobox dropdowns, tooltips, modals rendered into document.body) and any plain page chrome can read the same `--shu-…` variables that shadow-DOM components inherit via :host. Idempotent — repeat calls are no-ops. The SPA boot calls this once before any component mounts. */
 export function installShuTokens(): void {

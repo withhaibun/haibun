@@ -226,6 +226,22 @@ export function getStepperOptionName(stepper: AStepper | CStepper, name: string)
 	return getPre(stepper as AStepper) + name;
 }
 
+/**
+ * The environment names of every option declared as belonging to one process, across the steppers given.
+ *
+ * A process that starts another strips these from the child's environment: the child takes its own port, its own
+ * identity. The declaration is the option's, so this reads it rather than naming options here.
+ */
+export function perProcessOptionNames(steppers: AStepper[]): string[] {
+	const names: string[] = [];
+	for (const stepper of steppers) {
+		const options = (stepper as AStepper & IHasOptions).options;
+		if (!options) continue;
+		for (const [name, option] of Object.entries(options)) if (option.perProcess) names.push(getStepperOptionName(stepper, name));
+	}
+	return names;
+}
+
 export function getStepperOption(stepper: AStepper, name: string, moduleOptions: TModuleOptions) {
 	const key = getStepperOptionName(stepper, name);
 	return moduleOptions[key];

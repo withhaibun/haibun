@@ -52,7 +52,8 @@ describe("a satellite keeps records in the main instance's store over live RPC",
 		const feature = {
 			path: "/features/remote-store.feature",
 			content: `
-start a haibun instance from "modules/shu/tests/federate-peer" on port ${PEER_PORT} as host 7
+issue zcap bearer grant for token "launcher" with action "Instance:launch"
+with token "launcher", start a haibun instance from "modules/shu/tests/federate-peer" on port ${PEER_PORT} as host 7
 use store at "http://localhost:${PEER_PORT}" for "Principal" with token "satellite-store"
 name a connecting site
 probe the delegated store surface

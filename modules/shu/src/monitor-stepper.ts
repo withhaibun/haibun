@@ -10,7 +10,7 @@ import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync } from 
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
-import { Access, AccessLevelSchema } from "@haibun/core/lib/resources.js";
+import { Access, AccessLevelSchema, AccessQueryLevelSchema, storeScopeFor } from "@haibun/core/lib/resources.js";
 import { recordBlip } from "@haibun/core/lib/blips.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
 import "./view-blips.js";
@@ -560,8 +560,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				// RPC params arrive stringified through the synthetic-step plumbing; coerce both back to native shapes.
 				const limitNum = typeof args.perTypeLimit === "string" ? Number(args.perTypeLimit) : args.perTypeLimit;
 				const perTypeLimit = Math.max(1, Math.min(10000, Number.isFinite(limitNum) ? (limitNum as number) : 100));
-				// Required, same as the dereference/query paths — no default ceiling, so the cluster view honors the caller's access exactly.
-				const accessLevel = AccessLevelSchema.parse(args.accessLevel);
+				// Required, same as the dereference/query paths — no default ceiling, so the cluster view honors the caller's
+				// access exactly. A caller states a QUERY level: `all` asks for everything it may see, and refusing it left
+				// the graph view with only the quads that happened to stream live.
+				const accessLevel = storeScopeFor(AccessQueryLevelSchema.parse(args.accessLevel));
 				// A federated read asks for "own" — the peer's authoritative data, never its view of the world (see TClusteredQuadsOpts).
 				if (args.scope !== undefined && args.scope !== "own" && args.scope !== "federated")
 					return actionNotOK(`getClusteredQuads: scope must be "own" or "federated", got "${args.scope}"`);

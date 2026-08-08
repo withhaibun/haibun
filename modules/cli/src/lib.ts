@@ -19,11 +19,15 @@ import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArg
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/phases/collector.js";
+import { withNameType } from "@haibun/core/lib/features.js";
+import type { TFeature } from "@haibun/core/lib/execution.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
 const OPTION_SHOW_STEPPERS = "--show-steppers";
 const OPTION_WITH_STEPPERS = "--with-steppers";
+/** Run statements given on the command line instead of collecting feature files. Repeatable; each is one line. */
+const OPTION_STATEMENT = "--statement";
 
 type TEnv = { [name: string]: string | undefined };
 
@@ -48,7 +52,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, protoOptions, specl);
 		const featureFilter = parsed.params[1] ? parsed.params[1].split(",") : undefined;
 
-		const featuresBackgrounds = await pr.tryPhase("Collector", () => getFeaturesAndBackgrounds(bases, featureFilter, policyConfig));
+		const featuresBackgrounds = await pr.tryPhase("Collector", () => collect(bases, featureFilter, parsed.statements, policyConfig));
 
 		if (parsed.dryRun) return dryRunExit(featuresBackgrounds, policyConfig, featureFilter); // Exits process
 
@@ -214,7 +218,7 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		"",
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_DRY_RUN}] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] <project base[,project base]> <[filter,filter]>`,
 		message || "",
 		"If config.json is not found in project bases, the root directory will be used.\n",
 		"Set these environmental variables to control options:\n",
@@ -269,12 +273,45 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 	return protoOptions;
 }
 
+/**
+ * What a run executes: the collected features, statements given on the command line, or both.
+ *
+ * With a filter AND statements, the filtered features run FIRST and the statements after them, in the same run, so
+ * the features are the precedent the statements act on. That is what a probe usually needs: whatever a feature
+ * already sets up (a store, a served app, seeded data), then the lines being tried, without copying the setup into
+ * the command or writing a throwaway feature file. Statements alone run against the base's backgrounds.
+ */
+/** A filter no feature path can hold, so a collect returns the base's backgrounds and none of its features. */
+const NO_FEATURE_MATCHES = "\u0000no-feature-matches";
+
+/** A base holding no features and no backgrounds is not an error when only statements are being run. */
+const emptyIfNoFeatures = (e: unknown): TFeaturesBackgrounds => {
+	if (!String((e as Error)?.message ?? e).includes("no features or backgrounds found")) throw e;
+	return { features: [], backgrounds: [] };
+};
+
+export async function collect(bases: TBase, featureFilter: string[] | undefined, statements: string[], policyConfig?: TRunPolicyConfig): Promise<TFeaturesBackgrounds> {
+	if (statements.length === 0) return await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
+	const statementFeature = withNameType(bases[0] ?? ".", "statement.feature", statements.join("\n"));
+	if (featureFilter) {
+		const collected = await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
+		return { features: [...collected.features, statementFeature], backgrounds: collected.backgrounds };
+	}
+	// The base's backgrounds, without its features: a filter that matches nothing collects the backgrounds alone. A
+	// base holding neither is a base a statement can still run against, and only that case is passed over; anything
+	// else the collector refuses is the caller's to hear about.
+	const holdsNothing = !nodeFS.existsSync(bases[0] ?? ".");
+	const backgrounds = holdsNothing ? [] : (await getFeaturesAndBackgrounds(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
+	return { features: [statementFeature], backgrounds };
+}
+
 export function processArgs(args: string[]) {
 	let showHelp = false;
 	let showSteppers = false;
 	let withSteppers: string[] = [];
 	let policyConfig: TRunPolicyConfig | undefined;
 	let dryRun = false;
+	const statements: string[] = [];
 	const params = [];
 	let configLoc;
 	while (args.length > 0) {
@@ -304,6 +341,10 @@ export function processArgs(args: string[]) {
 			const dirAccess = args.shift();
 			if (!place || !dirAccess) throw new Error(`${OPTION_RUN_POLICY} requires place and dirAccess`);
 			policyConfig = parseRunPolicyArgs(place, dirAccess);
+		} else if (cur === OPTION_STATEMENT || cur?.startsWith(OPTION_STATEMENT + "=")) {
+			const statement = cur.includes("=") ? cur.slice(OPTION_STATEMENT.length + 1) : args.shift();
+			if (!statement) throw new Error(`${OPTION_STATEMENT} requires a statement`);
+			statements.push(statement);
 		} else if (cur === OPTION_DRY_RUN) {
 			dryRun = true;
 		} else if (cur === "--stdio" || cur === "--node-ipc" || cur?.startsWith("--socket=")) {
@@ -312,7 +353,7 @@ export function processArgs(args: string[]) {
 			params.push(cur);
 		}
 	}
-	return { params, configLoc, showHelp, showSteppers, withSteppers, policyConfig, dryRun };
+	return { params, configLoc, showHelp, showSteppers, withSteppers, policyConfig, dryRun, statements };
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {

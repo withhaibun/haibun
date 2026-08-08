@@ -16,9 +16,9 @@
 import type { TWorld } from "./world.js";
 import type { StepRegistry } from "./step-registry.js";
 import type { AStepper } from "./astepper.js";
-import { dispatchStep } from "./step-dispatch.js";
-import { buildFeatureStepForTransport, stepMethodName } from "./step-registry.js";
-import { allocateSyntheticSeqPath } from "./host-id.js";
+import type { DispatchContext } from "./step-dispatch.js";
+import { stepMethodName } from "./step-registry.js";
+import { callStepByName } from "./call-step.js";
 import { formatSeqPath } from "./seq-path.js";
 import { CHAIN_INSTANCE_STATUS, getChainInstance, updateChainInstance, type TChainInstance } from "./chain-instance.js";
 
@@ -27,12 +27,9 @@ export type TChainAdvanceResult =
 	| { kind: "completed"; instance: TChainInstance }
 	| { kind: "failed"; instance: TChainInstance; error: string };
 
-export type TChainWalkerContext = {
-	registry: StepRegistry;
-	world: TWorld;
-	steppers: AStepper[];
-	grantedCapability?: string | string[];
-};
+/** What walking a chain needs is what dispatching a step needs: the registry, the world, the steppers and the
+ *  authority the walk runs under. */
+export type TChainWalkerContext = DispatchContext;
 
 /**
  * Run the chain instance's next pending step. The caller supplies
@@ -56,8 +53,7 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 
 	const step = inst.michi.steps[inst.stepIndex];
 	const method = stepMethodName(step.stepperName, step.stepName);
-	const tool = registry.get(method);
-	if (!tool) {
+	if (!registry.get(method)) {
 		const error = `chain step ${inst.stepIndex} (${method}) is not registered`;
 		await updateChainInstance(world, inst.id, { status: CHAIN_INSTANCE_STATUS.FAILED });
 		return { kind: "failed", instance: { ...inst, status: CHAIN_INSTANCE_STATUS.FAILED }, error };
@@ -66,9 +62,9 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 	const nextArgs = inst.stepArgs.map((existing, i) => (i === inst.stepIndex ? { ...existing, ...stepArgs } : existing));
 	await updateChainInstance(world, inst.id, { status: CHAIN_INSTANCE_STATUS.RUNNING, stepArgs: nextArgs });
 
-	const seqPath = allocateSyntheticSeqPath(world);
-	const featureStep = buildFeatureStepForTransport(tool, stepArgs, seqPath);
-	const result = await dispatchStep({ registry, world, steppers, grantedCapability }, featureStep);
+	const call = await callStepByName({ registry, world, steppers, grantedCapability }, method, stepArgs);
+	if (!call.registered) throw new Error(`chain step ${inst.stepIndex} (${method}) left the registry mid-advance`);
+	const { seqPath, result } = call;
 
 	if (!result.ok) {
 		const error = result.errorMessage ?? `chain step ${inst.stepIndex} (${method}) failed`;
