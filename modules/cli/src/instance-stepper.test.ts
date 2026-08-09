@@ -111,6 +111,35 @@ describe("watching a run", () => {
 		expect(result.errorMessage).toMatch(/already running/);
 	});
 
+	it("refuses a held port by naming what answers there, before a child is forked to die on it", async () => {
+		// The situation an operator meets after a session ends without its children: something answers on the run's
+		// port, and "address in use" deep in a dead child's output names neither the occupant nor the recourse.
+		const { createServer } = await import("node:http");
+		const { mkdtempSync, writeFileSync } = await import("node:fs");
+		const { tmpdir } = await import("node:os");
+		const path = await import("node:path");
+		const server = createServer((_req, res) => {
+			res.statusCode = 404;
+			res.end("not haibun");
+		});
+		await new Promise<void>((resolve) => server.listen(0, resolve));
+		const port = (server.address() as { port: number }).port;
+		const dir = mkdtempSync(path.join(tmpdir(), "busy-port-"));
+		writeFileSync(path.join(dir, "config.json"), "{}");
+		const s = stepper();
+		const result = (await (s.steps.startRun.action as (a: { where: string; filter: string; from: string; port: number; run: string }) => Promise<TResult>)({
+			where: dir,
+			filter: "",
+			from: "",
+			port,
+			run: "r-busy",
+		})) as TResult;
+		server.close();
+		expect(result.ok).toBe(false);
+		expect(result.errorMessage).toContain(`port ${port} is already answering`);
+		expect(result.errorMessage, "what answers is named, so the refusal is actionable").toContain("not a haibun host");
+	});
+
 	it("refuses to read or stop a run it never started, rather than answering for nothing", async () => {
 		const s = stepper();
 		expect((await read(s, "no-such-run", 0)).errorMessage).toMatch(/started no run "no-such-run"/);
