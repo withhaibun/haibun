@@ -21,6 +21,7 @@
  */
 import { fork, type ChildProcess } from "child_process";
 import { createRequire } from "module";
+import { superviseChild } from "./owned-children.js";
 import { existsSync } from "fs";
 import path from "path";
 import { z } from "zod";
@@ -221,7 +222,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			action: async ({ where, filter, from, port, run, hostId }: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				const standing = hostId > 0;
 				if (standing && port <= 0) return actionNotOK("start run: a run that stays needs a port of its own, since a run nobody can address is a run nobody can ask");
-				const started = this.startRun({ where, filter, from, port, run, standing, hostId: standing ? hostId : undefined });
+				const started = await this.startRun({ where, filter, from, port, run, standing, hostId: standing ? hostId : undefined });
 				if (!started.ok || !standing) return started;
 				// A standing run exists to be asked, so a run whose steps never registered is an error now, not a
 				// surprise later. The child is ended rather than left holding a port nothing can reach.
@@ -270,7 +271,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	};
 
 	/** Fork the CLI against a feature filter. The child is NOT awaited: it is supervised, and read through readRun. */
-	private startRun({
+	private async startRun({
 		where,
 		filter,
 		from,
@@ -291,6 +292,12 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const dir = path.resolve(String(where));
 		const config = path.join(dir, "config.json");
 		if (!existsSync(config)) return actionNotOK(`start run: no config.json in ${dir}`);
+		// A run given a held port would die at boot with EADDRINUSE deep in its own output. Refusing here instead names
+		// what is answering and the recourse, so the operator is told the situation rather than left to excavate it.
+		if (port > 0) {
+			const answering = await this.portAnswers(port);
+			if (answering) return actionNotOK(`start run: port ${port} is already answering — ${answering}; stop what answers there, or start this run on another port`);
+		}
 		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
 		// A pinned port is what makes a run addressable, so it is also what leaves the run standing after its features
 		// finish: STAY holds the endpoint up to be asked about. Port 0 is a run that answers with its exit code and
@@ -302,6 +309,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const cwd = from ? path.resolve(from) : process.cwd();
 		if (!existsSync(cwd)) return actionNotOK(`start run: no directory ${cwd} to run from`);
 		const child = fork(cliEntry, ["-c", config, dir, filter], { cwd, env, silent: true, execArgv: [] });
+		superviseChild(child); // a standing run may outlive its FEATURE, never its owner process
 		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended: null, waiters: [] };
 		const take = (data: Buffer): void => {
 			const text = data.toString();
@@ -339,6 +347,27 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		await proxy.setWorld(world, []);
 		proxy.injectInto(registry);
 		return true;
+	}
+
+	/** What already answers on a port, in words an operator can act on — or nothing, when the port is free to take.
+	 *  Raw fetch rather than the RPC client: a refused connection means the port is free, while ANY answer — the
+	 *  handshake every remote surface begins with, or something that cannot even speak JSON — means it is held, and
+	 *  the client's retry layer reads the second case as the first. */
+	private async portAnswers(port: number): Promise<string | undefined> {
+		let res: Response;
+		try {
+			res = await fetch(`http://localhost:${port}/rpc/${encodeURIComponent("action.begin")}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ jsonrpc: "2.0", id: "port-probe", method: "action.begin", params: {}, seqPath: [] }),
+				signal: AbortSignal.timeout(BEGIN_TIMEOUT_MS),
+			});
+		} catch {
+			return undefined; // nothing connected: the port is free to take
+		}
+		const body = (await res.json().catch((): undefined => undefined)) as { hostId?: number } | undefined;
+		if (res.ok && body) return `a haibun host${body.hostId !== undefined ? ` (id ${body.hostId})` : ""} answers there, likely a run or serve left standing from an earlier session`;
+		return `something that is not a haibun host answers there (HTTP ${res.status})`;
 	}
 
 	/** Wait until a child answers the handshake every remote surface begins with, or until it is over. `giveUp` is asked
@@ -408,6 +437,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const env = { ...runEnvironment(process.env, port, false, hostId, perProcessOptionNames(this.steppers)), ...(passed ? { HAIBUN_ENV: passed } : {}) };
 		// execArgv: [] keeps the child plain node running the built CLI; it must not inherit a test runner's loader flags.
 		const child = fork(cliEntry, ["-c", config, dir], { env, silent: true, execArgv: [] });
+		superviseChild(child); // owned for the life of THIS process: a staying session that ends by signal takes its children with it
 		const stderrTail = new RunTail(STDERR_TAIL_CHARS);
 		child.stderr?.on("data", (data: Buffer) => {
 			process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
