@@ -16,6 +16,7 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { featureExecutionDomainDefinition } from "./feature-execution.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 
 const AGENT_TOKEN = "agent-token";
@@ -26,7 +27,8 @@ function supervisedWorld(authority: ZcapAuthority): TWorld {
 	const world = getDefaultWorld();
 	const store = new QuadStore();
 	world.shared.getStore = () => store;
-	world.domains = mapDefinitionsToDomains([principalDomainDefinition]);
+	// The registry resolves runTest's productsDomain schema through the world, as registerDomains does in a real run.
+	world.domains = mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]);
 	(world.runtime.keys ??= {})[ZCAP_AUTHORITY] = authority;
 	return world;
 }

@@ -28,7 +28,7 @@ import { invokingPrincipal } from "@haibun/core/lib/step-dispatch.js";
 import { askedIn } from "@haibun/core/lib/capability-context.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { RUN_STATUS, FEATURE_EXECUTION_LABEL, statusOfExit, featureExecutionDomainDefinition, type TRunStatus } from "./feature-execution.js";
+import { RUN_STATUS, FEATURE_EXECUTION_LABEL, FEATURE_EXECUTION_DOMAIN, statusOfExit, featureExecutionDomainDefinition, type TFeatureExecution, type TRunStatus } from "./feature-execution.js";
 import { SUPERVISOR_CAPABILITIES, runReadSchema, runStartedSchema } from "./instance-stepper.js";
 import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/step-registry.js";
 import { examineRun } from "./run-outcome.js";
@@ -207,15 +207,17 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `run the tests in {where} matching {filter}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
-				"Start a run of the named features and record it, so what happens next can be said to be about it. One run at a time: asking while a run is live answers with the live run rather than starting a second, and the same features are not re-run unless something was applied since.",
-			productsSchema: z.object({ run: z.string(), status: z.string(), endpoint: z.string(), host: z.string() }),
+				"Start a run of the named features and record it, so what happens next can be said to be about it. The products are that record: its id, and its endpoint and host where it stands. One run at a time: asking while a run is live answers with the live run rather than starting a second, and the same features are not re-run unless something was applied since.",
+			// The record the run starts as is the products, so `feature-execution` is a GOAL: resolve it and this step
+			// is the michi, and running a remote test is something the resolver can offer rather than only prose can.
+			productsDomain: FEATURE_EXECUTION_DOMAIN,
 			action: async ({ where, filter }: { where: string; filter: string }) => await this.askedToRun(where, filter),
 		},
 		runAllTests: {
 			gwta: `run all the tests in {where}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
-			description: "Start a run of every feature in a directory. The same limits as a filtered run: one at a time, and not twice over unchanged features.",
-			productsSchema: z.object({ run: z.string(), status: z.string(), endpoint: z.string(), host: z.string() }),
+			description: "Start a run of every feature in a directory, answering with its record. The same limits as a filtered run: one at a time, and not twice over unchanged features.",
+			productsDomain: FEATURE_EXECUTION_DOMAIN,
 			action: async ({ where }: { where: string }) => await this.askedToRun(where, ""),
 		},
 		readTestRun: {
@@ -403,7 +405,9 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			return actionNotOK(run.why);
 		}
 		this.lastFailure = "";
-		return actionOKWithProducts({ run: run.id, status: run.status, endpoint: run.endpoint, host: run.host > 0 ? String(run.host) : "" });
+		// The record IS the products: the run as its individual stands, which is what the goal resolver asserts as the
+		// satisfied `feature-execution` and what a caller reads the id, endpoint and host from.
+		return actionOKWithProducts(run.record as unknown as Record<string, unknown>);
 	}
 
 	/**
@@ -482,7 +486,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	}
 
 	/** Start a run through the supervisor and record it as an individual, so a finding has something to point at. */
-	private async startRun(where: string, filter: string): Promise<{ ok: boolean; why: string; id: string; status: TRunStatus; endpoint: string; host: number }> {
+	private async startRun(where: string, filter: string): Promise<{ ok: boolean; why: string; id: string; status: TRunStatus; endpoint: string; host: number; record?: TFeatureExecution }> {
 		await this.ensureAgentPrincipal();
 		const port = this.cap("RUN_PORT", RUNNER_DEFAULTS.port, { zeroMeans: "the run's own ports" });
 		const stands = this.runStands();
@@ -514,29 +518,30 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		this.runsThisAsk.push(tracked);
 		if (endpoint) this.standing.set(id, tracked);
 		this.changedSince.delete(changedKey(where, filter)); // this run answers for what stands now; a re-run waits for the next change
-		await this.writeRun(tracked);
-		return { ok: true, why: "", id, status: RUN_STATUS.running, endpoint, host: hostId };
+		const record = await this.writeRun(tracked);
+		return { ok: true, why: "", id, status: RUN_STATUS.running, endpoint, host: hostId, record };
 	}
 
 	/** The run's record as it stands, with whatever this write adds to it. One shape, so a field added to a TestRun is
-	 *  added once. */
-	private async writeRun(run: TTrackedRun, extra: Record<string, unknown> = {}): Promise<void> {
-		await this.getWorld()
-			.shared.getStore()
-			.upsertIndividual(FEATURE_EXECUTION_LABEL, {
-				id: run.id,
-				where: run.where,
-				filter: run.filter,
-				status: run.status,
-				...(run.endpoint ? { endpoint: run.endpoint } : {}),
-				startedAt: run.startedAt,
-				...(run.report ? { report: run.report } : {}),
-				attributedTo: run.attributedTo,
-				...(run.askedIn ? { inReplyTo: run.askedIn } : {}),
-				...(run.host > 0 ? { host: run.host } : {}),
-				generatedAtTime: new Date().toISOString(),
-				...extra,
-			});
+	 *  added once. Returned as written, so the step that started the run can answer with the record itself — which is
+	 *  what lets `feature-execution` stand as a goal the resolver reaches through runTest. */
+	private async writeRun(run: TTrackedRun, extra: Record<string, unknown> = {}): Promise<TFeatureExecution> {
+		const record = {
+			id: run.id,
+			where: run.where,
+			filter: run.filter,
+			status: run.status,
+			...(run.endpoint ? { endpoint: run.endpoint } : {}),
+			startedAt: run.startedAt,
+			...(run.report ? { report: run.report } : {}),
+			attributedTo: run.attributedTo,
+			...(run.askedIn ? { inReplyTo: run.askedIn } : {}),
+			...(run.host > 0 ? { host: run.host } : {}),
+			generatedAtTime: new Date().toISOString(),
+			...extra,
+		} as TFeatureExecution;
+		await this.getWorld().shared.getStore().upsertIndividual(FEATURE_EXECUTION_LABEL, record);
+		return record;
 	}
 
 	/**

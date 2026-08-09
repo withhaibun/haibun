@@ -10,7 +10,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper, { RUNNER_DEFAULTS, TEST_RUNNER_AUTHOR } from "./test-runner-stepper.js";
 import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
 import { examineRun, runEvents } from "./run-outcome.js";
-import { FEATURE_EXECUTION_LABEL, RUN_STATUS } from "./feature-execution.js";
+import { FEATURE_EXECUTION_LABEL, RUN_STATUS, featureExecutionDomainDefinition } from "./feature-execution.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
@@ -100,8 +100,9 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 			[getStepperOptionName(stepper, "RUN_PORT")]: "8331",
 		};
 	world.shared.getStore = () => store;
-	// The Principal write declines a world with no domain registry, so the real path needs one.
-	world.domains = mapDefinitionsToDomains([principalDomainDefinition]);
+	// The Principal write declines a world with no domain registry, and runTest's productsDomain resolves its schema
+	// through the same registry, so the harness registers what the stepper's own getConcerns declares in a real run.
+	world.domains = mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]);
 	const steppers = supervised ? [stepper, supervisor] : [stepper];
 	for (const s of steppers) void s.setWorld(world, steppers);
 	const run = (where: string, filter: string) => (stepper.steps.runTest.action as (a: { where: string; filter: string }) => Promise<TResult>)({ where, filter });
@@ -199,7 +200,7 @@ describe("watching a run", () => {
 		const call = h.supervisor.calls.find((c) => c.step === "startRun");
 		expect(call?.input, "the agent decides what may run; the supervisor forks it").toMatchObject({ where: "tests", filter: "fisheye", from: "tests", port: RUNNER_DEFAULTS.port });
 		expect(RUNNER_DEFAULTS.port, "by default a run keeps the ports its own features declare").toBe(0);
-		expect(started.products?.endpoint, "and a run that was given no port answers nowhere afterwards").toBe("");
+		expect(started.products?.endpoint, "and a run that was given no port answers nowhere afterwards, which its record states by carrying no endpoint").toBeUndefined();
 	});
 
 	it("fails when the run failed, so a suite that never collected a feature is never reported as passing", async () => {
@@ -344,6 +345,24 @@ describe("what a finished run's record says about it", () => {
 		expect(record?.data.features, "a feature reported twice is one feature").toBe(1);
 		expect(record?.data.failed).toBe(1);
 		expect(record?.data.firstFailure, "and the first thing that went wrong, where it went wrong").toBe("0.1.1.2: another (it said no)");
+	});
+
+	describe("running a test as a GOAL", () => {
+		it("resolves feature-execution to the run steps, so the resolver can offer running a test rather than only prose", async () => {
+			// The run's record is the step's declared product, so the goal graph carries a producer edge to it: resolve
+			// `feature-execution` and the michi is runTest (or runAllTests) — an affordance, not a convention.
+			const { buildDomainChain } = await import("@haibun/core/lib/domain-chain.js");
+			const { resolveGoal, GOAL_FINDING } = await import("@haibun/core/lib/goal-resolver.js");
+			const stepper = new TestRunnerStepper();
+			const domains = mapDefinitionsToDomains([featureExecutionDomainDefinition]);
+			const graph = buildDomainChain([stepper as never], domains);
+			const producers = graph.edges.filter((e) => e.to === "feature-execution").map((e) => e.stepName);
+			expect(producers, "both ways of starting a run produce the record").toEqual(expect.arrayContaining(["runTest", "runAllTests"]));
+			const resolved = resolveGoal("feature-execution", { graph, facts: [], capabilities: new Set(["Instance:run"]) });
+			expect(resolved.finding, "a michi is the way there").toBe(GOAL_FINDING.MICHI);
+			const steps = "michi" in resolved ? resolved.michi.flatMap((m) => m.steps.map((s) => s.stepName)) : [];
+			expect(steps).toContain("runTest");
+		});
 	});
 
 	describe("a question put to a standing run", () => {
