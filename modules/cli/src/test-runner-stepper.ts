@@ -396,9 +396,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		if (ranBefore && !this.changedSince.has(changedKey(where, filter)))
 			return actionNotOK(`"${filter || "every feature"}" already ran in this ask and nothing has been applied since; a second run of unchanged features answers nothing`);
 		const run = await this.startRun(where, filter);
-		// The host is how the run is addressed afterwards (`on host {host}, <step>`), so a caller that started it is
-		// told which. A run that ends with its features is nobody's host, and says so with none.
-		if (!run.ok) {
+		if ("why" in run) {
 			// What went wrong is kept, so the steps that follow answer with it: a caller told only "no run is in flight"
 			// has to go looking for a failure it was already told about, and an agent has nothing to report at all.
 			this.lastFailure = run.why;
@@ -406,7 +404,8 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		}
 		this.lastFailure = "";
 		// The record IS the products: the run as its individual stands, which is what the goal resolver asserts as the
-		// satisfied `feature-execution` and what a caller reads the id, endpoint and host from.
+		// satisfied `feature-execution` and what a caller reads the id, endpoint and host from — the host being how a
+		// standing run is addressed afterwards (`on host {host}, <step>`); a run that ends with its features carries none.
 		return actionOKWithProducts(run.record as unknown as Record<string, unknown>);
 	}
 
@@ -486,12 +485,11 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	}
 
 	/** Start a run through the supervisor and record it as an individual, so a finding has something to point at. */
-	private async startRun(where: string, filter: string): Promise<{ ok: boolean; why: string; id: string; status: TRunStatus; endpoint: string; host: number; record?: TFeatureExecution }> {
+	private async startRun(where: string, filter: string): Promise<{ ok: true; record: TFeatureExecution } | { ok: false; why: string }> {
 		await this.ensureAgentPrincipal();
 		const port = this.cap("RUN_PORT", RUNNER_DEFAULTS.port, { zeroMeans: "the run's own ports" });
 		const stands = this.runStands();
-		if (stands && port === 0)
-			return { ok: false, why: "a standing run needs a port: set RUN_PORT, or leave RUN_STANDS off", id: "", status: RUN_STATUS.stopped, endpoint: "", host: 0 };
+		if (stands && port === 0) return { ok: false, why: "a standing run needs a port: set RUN_PORT, or leave RUN_STANDS off" };
 		const startedAt = new Date().toISOString();
 		const id = `run:${filter}:${startedAt}`;
 		// Only a run left standing answers afterwards, so only such a run has an endpoint to record.
@@ -500,7 +498,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		// A run that stays takes a host id, which is how it is addressed afterwards; a run that ends takes none.
 		const hostId = stands ? this.cap("RUN_HOST_ID", RUNNER_DEFAULTS.hostId) : 0;
 		const started = await this.callSupervisor(runStartedSchema, SUPERVISOR.start, { where, filter, from, port, run: id, hostId });
-		if (started.ok === false) return { ok: false, why: started.why, id, status: RUN_STATUS.stopped, endpoint, host: 0 };
+		if (started.ok === false) return { ok: false, why: started.why };
 		const tracked: TTrackedRun = {
 			id,
 			filter,
@@ -519,7 +517,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		if (endpoint) this.standing.set(id, tracked);
 		this.changedSince.delete(changedKey(where, filter)); // this run answers for what stands now; a re-run waits for the next change
 		const record = await this.writeRun(tracked);
-		return { ok: true, why: "", id, status: RUN_STATUS.running, endpoint, host: hostId, record };
+		return { ok: true, record };
 	}
 
 	/** The run's record as it stands, with whatever this write adds to it. One shape, so a field added to a TestRun is

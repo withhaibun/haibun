@@ -21,7 +21,8 @@
  */
 import { fork, type ChildProcess } from "child_process";
 import { createRequire } from "module";
-import { superviseChild } from "./owned-children.js";
+import { superviseChild, terminate } from "@haibun/core/lib/owned-children.js";
+import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
 import { existsSync } from "fs";
 import path from "path";
 import { z } from "zod";
@@ -295,7 +296,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// A run given a held port would die at boot with EADDRINUSE deep in its own output. Refusing here instead names
 		// what is answering and the recourse, so the operator is told the situation rather than left to excavate it.
 		if (port > 0) {
-			const answering = await this.portAnswers(port);
+			const answering = await describePortOccupant(port);
 			if (answering) return actionNotOK(`start run: port ${port} is already answering — ${answering}; stop what answers there, or start this run on another port`);
 		}
 		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
@@ -347,27 +348,6 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		await proxy.setWorld(world, []);
 		proxy.injectInto(registry);
 		return true;
-	}
-
-	/** What already answers on a port, in words an operator can act on — or nothing, when the port is free to take.
-	 *  Raw fetch rather than the RPC client: a refused connection means the port is free, while ANY answer — the
-	 *  handshake every remote surface begins with, or something that cannot even speak JSON — means it is held, and
-	 *  the client's retry layer reads the second case as the first. */
-	private async portAnswers(port: number): Promise<string | undefined> {
-		let res: Response;
-		try {
-			res = await fetch(`http://localhost:${port}/rpc/${encodeURIComponent("action.begin")}`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ jsonrpc: "2.0", id: "port-probe", method: "action.begin", params: {}, seqPath: [] }),
-				signal: AbortSignal.timeout(BEGIN_TIMEOUT_MS),
-			});
-		} catch {
-			return undefined; // nothing connected: the port is free to take
-		}
-		const body = (await res.json().catch((): undefined => undefined)) as { hostId?: number } | undefined;
-		if (res.ok && body) return `a haibun host${body.hostId !== undefined ? ` (id ${body.hostId})` : ""} answers there, likely a run or serve left standing from an earlier session`;
-		return `something that is not a haibun host answers there (HTTP ${res.status})`;
 	}
 
 	/** Wait until a child answers the handshake every remote surface begins with, or until it is over. `giveUp` is asked
@@ -472,17 +452,4 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const lastSaid = stderrTail.since(0).output;
 		return actionNotOK(`instance at ${dir} not ready on ${url} within ${READY_DEADLINE_MS}ms${lastSaid ? `\n${lastSaid}` : ""}`);
 	}
-}
-
-/** SIGTERM, then SIGKILL if the child hasn't exited within 5s, so a launched instance never outlives its owner. */
-function terminate(child: ChildProcess): Promise<void> {
-	if (child.exitCode !== null) return Promise.resolve();
-	return new Promise((resolve) => {
-		const killTimer = setTimeout(() => child.kill("SIGKILL"), 5_000);
-		child.once("exit", () => {
-			clearTimeout(killTimer);
-			resolve();
-		});
-		child.kill("SIGTERM");
-	});
 }

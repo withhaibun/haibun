@@ -44,3 +44,18 @@ export function superviseChild(child: ChildProcess): void {
 export function supervisedCount(): number {
 	return supervised.size;
 }
+
+/** End one child deliberately and wait for it: SIGTERM, then SIGKILL if it has not exited within 5s. The awaited
+ *  counterpart to the hooks' unawaited termination, for an owner ending a child mid-session (endFeature, a restart) —
+ *  one home for how a child is ended, beside the registry that ends them all. */
+export function terminate(child: ChildProcess): Promise<void> {
+	if (child.exitCode !== null) return Promise.resolve();
+	return new Promise((resolve) => {
+		const escalation = setTimeout(() => child.kill("SIGKILL"), 5_000);
+		child.once("exit", () => {
+			clearTimeout(escalation);
+			resolve();
+		});
+		child.kill("SIGTERM");
+	});
+}
