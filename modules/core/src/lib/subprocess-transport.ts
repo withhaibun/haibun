@@ -13,6 +13,7 @@
  */
 
 import { fork, type ChildProcess } from "child_process";
+import { superviseChild } from "./owned-children.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
@@ -38,6 +39,7 @@ export class SubprocessTransport {
 
 	static async spawn(entryPath: string, _world: TWorld): Promise<SubprocessTransport> {
 		const child = fork(entryPath, [], { silent: true });
+		superviseChild(child); // a long-lived transport child ends with its owner, however the owner ends
 
 		child.stderr?.on("data", (data: Buffer) => {
 			process.stderr.write(`[subprocess] ${data.toString()}`);
