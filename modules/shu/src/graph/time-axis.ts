@@ -30,10 +30,14 @@ export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: stri
 			field = validTimeFieldFor(q.namedGraph);
 			fieldByType.set(q.namedGraph, field);
 		}
-		const target = q.predicate === field ? times : q.predicate === indexedTimeField ? fallback : undefined;
-		if (!target) continue;
+		// Two independent questions, not one routing: a quad can be a subject's valid time AND its written-down time —
+		// most types declare no valid field of their own, so generatedAtTime is both. Routed to one map only, every
+		// such type came out of `indexed` empty, and a reading ordered by creation fell back to name order.
+		if (q.predicate !== field && q.predicate !== indexedTimeField) continue;
 		const t = Date.parse(q.object);
-		if (!Number.isNaN(t)) target.set(q.subject, { ms: t, field: q.predicate });
+		if (Number.isNaN(t)) continue;
+		if (q.predicate === field) times.set(q.subject, { ms: t, field: q.predicate });
+		if (q.predicate === indexedTimeField) fallback.set(q.subject, { ms: t, field: q.predicate });
 	}
 	for (const [subject, entry] of fallback) if (!times.has(subject)) times.set(subject, entry);
 	// Both maps come out of the one pass: what a subject is ABOUT (its declared valid time, falling back to when it was
