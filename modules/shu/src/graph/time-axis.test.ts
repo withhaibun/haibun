@@ -80,6 +80,14 @@ describe("subject valid times: an object places by when it happened, not when it
 			ms: Date.parse("2026-07-04T00:00:00.000Z"),
 			field: "generatedAtTime",
 		});
+		// Most types declare no valid field of their own, so generatedAtTime is BOTH their valid time and their
+		// written-down time: one quad, two answers. Routed to one map only, every such subject was missing from
+		// `indexed`, and a reading ordered by creation fell back to name order.
+		expect(indexed.get("c1"), "a type whose valid field IS generatedAtTime still says when it was written down").toEqual({
+			ms: Date.parse("2026-01-01T00:00:00.000Z"),
+			field: "generatedAtTime",
+		});
+		expect(indexed.get("e2")).toEqual({ ms: Date.parse("2026-07-04T00:00:00.000Z"), field: "generatedAtTime" });
 	});
 
 	it("ignores unparseable values and unrelated predicates", () => {
