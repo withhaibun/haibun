@@ -67,6 +67,7 @@ describe("the credential a served page acts under", () => {
 	const bootWith = (payload: unknown) => {
 		document.getElementById("shu-hydration")?.remove();
 		const el = document.createElement("script");
+		el.type = "application/json"; // as the served page ships it — an untyped script is JAVASCRIPT to jsdom, which evaluates the JSON and throws
 		el.id = "shu-hydration";
 		el.textContent = JSON.stringify(payload);
 		document.body.append(el);

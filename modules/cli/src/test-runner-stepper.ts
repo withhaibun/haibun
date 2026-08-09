@@ -338,7 +338,9 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 						`${method} at host ${tracked.host} takes ${takes.join(", ") || "no parameters"}, and was given ${Object.keys(given).join(", ") || "nothing"}: ${missing.join(", ")} missing`,
 					);
 				const asked = await this.callSupervisor(z.object({}).passthrough(), scoped, given);
-				if (asked.ok === false) return actionNotOK(`the test run at host ${tracked.host} was asked ${method}: ${asked.why}`);
+				// A refusal IS an answer: the run is up and said why it would not. Left as a bare failure, a reader took
+				// "was asked X: not a declared type" for an unreachable run and answered from the wrong instance.
+				if (asked.ok === false) return actionNotOK(`the test run at host ${tracked.host} answered ${method} with a refusal, so it is up: ${asked.why}`);
 				return actionOKWithProducts({ run: tracked.id, host: String(tracked.host), method, ...answerOfRun(asked.products) });
 			},
 		},
