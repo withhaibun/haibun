@@ -56,9 +56,11 @@ describe("parseAffordanceProduct", () => {
 		expect(action.views[0]).toEqual({ id: "graph", description: "Graph view", component: "shu-graph-view" });
 	});
 
-	it("recognises a type product (open-type) when `_component` is absent but `_type` + `id` are present", () => {
+	it("is not an affordance just because it is a record: a bare individual states what it is, not what to open", () => {
+		// Every projected record carries a type and an identifier, so reading those as an instruction made every step
+		// that answered with a record open a column — including the reads a view makes to render itself.
 		const product = { [HYPERMEDIA.TYPE]: "Email", id: "email-42", [HYPERMEDIA.SUMMARY]: "Inbox: Subject" };
-		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-type", id: "email-42", type: "Email", label: "Inbox: Subject", products: product });
+		expect(parseAffordanceProduct(product)).toEqual({ kind: "none" });
 	});
 
 	it("rejects a component product that has neither `id` nor `view`", () => {

@@ -15,13 +15,6 @@ export function dispatchAffordanceFromResponse(response: unknown): ReturnType<ty
 		PaneState.dismiss(action.view);
 	} else if (action.kind === "open-component") {
 		PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products });
-	} else if (action.kind === "open-type") {
-		const ui = getUiByType(action.type);
-		const component = ui?.component;
-		if (typeof component === "string") {
-			PaneState.request({ paneType: "component", tag: component, label: action.label, data: action.products });
-		}
-		// No ui.component → not a view; the step-caller's result rendering stands on its own.
 	}
 	return action;
 }

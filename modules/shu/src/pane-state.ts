@@ -425,6 +425,10 @@ class PaneStateImpl {
 		if (d.paneType === "component" && d.data) (child as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		pane.appendChild(child);
 		pane.setMinimized(d.flag === "min");
+		// An afterAttach hook calls the child's own methods, which exist only once its element definition has landed.
+		// `ensureLoaded` starts the module; the definition it registers arrives on a later task, so a hook that ran
+		// straight after the append met a plain element, threw, and left a column attached but never opened.
+		await customElements.whenDefined(tag);
 		await this.hooks.afterAttach?.[d.paneType]?.(d, child);
 	}
 
