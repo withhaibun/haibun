@@ -73,11 +73,6 @@ export function paneOpsFor(events: TEvent[], state: TPaneRouteState, uiComponent
 		if (action.kind === "close") ops.set(action.view, { op: "dismiss", view: action.view });
 		else if (action.kind === "open-component") openUnlessDismissed(action.component, ts, { op: "component", tag: action.component, label: action.label, data: action.products });
 		else if (action.kind === "show-views") openUnlessDismissed("views", ts, { op: "views-picker", views: action.views, label: action.label });
-		else {
-			const component = uiComponentByType(action.type);
-			// No ui.component declared → not a view; nodes open via the query/entity column flow.
-			if (component) openUnlessDismissed(component, ts, { op: "component", tag: component, label: action.label, data: action.products });
-		}
 	}
 	return ops;
 }

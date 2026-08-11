@@ -36,7 +36,6 @@ export type TAffordanceProductAction =
 	| { kind: "none" }
 	| { kind: "close"; view: string }
 	| { kind: "open-component"; view: string; component: string; label: string; products: Record<string, unknown> }
-	| { kind: "open-type"; id: string; type: string; label: string; products: Record<string, unknown> }
 	| { kind: "show-views"; views: TAffordanceView[]; label: string };
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined => (value && typeof value === "object" ? (value as Record<string, unknown>) : undefined);
@@ -46,9 +45,13 @@ const requiredString = (value: unknown, message: string): string => {
 	return value;
 };
 
+/** What makes a product an instruction to open something: it names the view or the component to open, or it is one of
+ *  the declared affordance types. A record's own `@type` is what the record IS, never an instruction about it — read
+ *  as one, every step that answered with a record opened a column, including the reads a view makes to render itself,
+ *  so a reader could not close what their own view kept re-opening. */
 const hasAffordanceMarkers = (value: Record<string, unknown>): boolean => {
 	const typeStr = value[HYPERMEDIA.TYPE];
-	return typeof value[PRODUCT_KEY.VIEW] === "string" || typeof value[PRODUCT_KEY.COMPONENT] === "string" || typeof typeStr === "string";
+	return typeof value[PRODUCT_KEY.VIEW] === "string" || typeof value[PRODUCT_KEY.COMPONENT] === "string" || typeStr === SHU_TYPE.CLOSE_VIEW || typeStr === SHU_TYPE.VIEW_COLLECTION;
 };
 
 const findAffordanceRecord = (value: unknown, depth = 0): Record<string, unknown> | undefined => {
@@ -98,12 +101,6 @@ export function parseAffordanceProduct(product: unknown): TAffordanceProductActi
 		const summary = parsed[HYPERMEDIA.SUMMARY];
 		const label = typeof summary === "string" ? summary : component;
 		return { kind: "open-component", view, component, label, products: candidate as Record<string, unknown> };
-	}
-	if (typeof typeStr === "string" && typeof parsed[PRODUCT_KEY.ID] === "string") {
-		const id = requiredString(parsed[PRODUCT_KEY.ID], "Affordance type product requires string id");
-		const summary = parsed[HYPERMEDIA.SUMMARY];
-		const label = typeof summary === "string" ? summary : typeStr;
-		return { kind: "open-type", id, type: typeStr, label, products: candidate as Record<string, unknown> };
 	}
 	if (typeof parsed[PRODUCT_KEY.VIEW] === "string") throw new Error(`Unexpected view-only product shape: ${parsed[PRODUCT_KEY.VIEW]}`);
 	return { kind: "none" };

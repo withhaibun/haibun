@@ -77,10 +77,17 @@ export default class ShuColumnStripControls extends AStepper {
 				if (pressed) return actionNotOK(`close column "${match}": ${pressed}`);
 				const open = await pollUntil(
 					page,
-					(p) => p.evaluate((m) => Array.from(document.querySelectorAll("shu-column-pane")).filter((el) => ((el as HTMLElement).dataset.columnKey ?? "").includes(m)).length, match),
-					(n) => n === 0,
+					(p) =>
+						p.evaluate(
+							(m) =>
+								Array.from(document.querySelectorAll("shu-column-pane"))
+									.map((el) => (el as HTMLElement).dataset.columnKey ?? "?")
+									.filter((k) => k.includes(m)),
+							match,
+						),
+					(keys) => keys.length === 0,
 				);
-				return open === 0 ? actionOK() : actionNotOK(`the column matching "${match}" was closed but ${open} is still open`);
+				return open.length === 0 ? actionOK() : actionNotOK(`the column matching "${match}" was closed but is still open: ${open.join(", ")}`);
 			},
 		},
 		activeColumnMatches: {
