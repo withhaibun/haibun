@@ -56,6 +56,17 @@ export const ANNOTATION_GLYPH = "✎";
  *  input line. The bar owns the slot, so its name is declared here and consumers import it rather than restating it. */
 export const ACTION_BAR_CHAT_SLOT = "action-bar-chat";
 
+/** The permissions area's extension slot: a concern whose ui declares this slot (with a js asset) is mounted inside
+ *  the access popover, beside what this session may do. For anything a reader decides by authority rather than by
+ *  asking, which belongs with the permissions it decides under rather than beside the conversation. */
+export const PERMISSIONS_SLOT = "permissions";
+
+/** An extension in the permissions area says how many items await the reader's decision, and where to read them, so
+ *  the access indicator can mark that something is waiting without knowing what kind of thing it is. The mark is a
+ *  reference, since a notification that does not lead to its cause leaves the reader to go looking.
+ *  Detail: `{ count, kind, target }` — the reference kind and link target a `shu-ref` takes. */
+export const AWAITING_DECISION = "awaiting-decision";
+
 export const SHU_TYPE = {
 	VIEW_COLLECTION: "shu-view-collection",
 	CLOSE_VIEW: "shu-close-view",

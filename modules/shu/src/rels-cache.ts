@@ -3,6 +3,7 @@
  * Provides rels, edge ranges, and properties for all node types.
  */
 import { propertyVocabulary } from "./graph/ontology-projection.js";
+import { ACTION_BAR_CHAT_SLOT } from "./consts.js";
 
 /**
  * Per-rel runtime metadata — the Property node projection.
@@ -198,12 +199,18 @@ export function getSiteMetadataSync(): SiteMetadata | null {
 	return metadata;
 }
 
-/** Custom-element tags declared by domain `ui` extensions for the actions-bar chat row.
- *  Rendered identically in ask and step modes, so both the actions bar and the kihan chat read it here. */
-export function getActionBarChatExtensionTags(): string[] {
+/** Custom-element tags declared by domain `ui` extensions for one slot. One reader for every slot, so a new place a
+ *  concern can mount is a caller passing its slot rather than another near-identical function. */
+export function getUiExtensionTags(slot: string): string[] {
 	return Object.values(metadata?.ui || {})
-		.filter((ui) => ui.slot === "action-bar-chat" && typeof ui.component === "string")
+		.filter((ui) => ui.slot === slot && typeof ui.component === "string")
 		.map((ui) => String(ui.component));
+}
+
+/** Custom-element tags for the actions-bar chat row. Rendered identically in ask and step modes, so both the actions
+ *  bar and the kihan chat read it here. */
+export function getActionBarChatExtensionTags(): string[] {
+	return getUiExtensionTags(ACTION_BAR_CHAT_SLOT);
 }
 
 /** Get the edge name → rel mapping from concern catalog. Cached; rebuilt on setConcernCatalog. */

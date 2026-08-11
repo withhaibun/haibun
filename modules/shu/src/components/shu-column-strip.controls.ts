@@ -9,7 +9,7 @@
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 
-import type { EvalPage } from "./controls-util.js";
+import { pollUntil, type EvalPage } from "./controls-util.js";
 
 export default class ShuColumnStripControls extends AStepper {
 	description = "Column-browser (Miller columns) controls: click a column to activate it, assert which is active.";
@@ -57,6 +57,30 @@ export default class ShuColumnStripControls extends AStepper {
 					return true;
 				}, match);
 				return ok ? actionOK() : actionNotOK(`no column pane matching "${match}"`);
+			},
+		},
+		closeColumn: {
+			// Close a column the production way: press its own close control, which is what a reader presses. Asserting
+			// the column is gone afterwards is the point — a close that leaves the pane in place is the failure this
+			// drives out, and it cannot be seen by dispatching the event directly.
+			gwta: "close column {match}",
+			action: async ({ match }: { match: string }) => {
+				const page = await this.page();
+				const pressed = await page.evaluate((m) => {
+					const pane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => ((p as HTMLElement).dataset.columnKey ?? "").includes(m));
+					if (!pane) return "no such column";
+					const close = pane.shadowRoot?.querySelector("button.pane-close") as HTMLButtonElement | null;
+					if (!close) return "the column offers no close control";
+					close.click();
+					return "";
+				}, match);
+				if (pressed) return actionNotOK(`close column "${match}": ${pressed}`);
+				const open = await pollUntil(
+					page,
+					(p) => p.evaluate((m) => Array.from(document.querySelectorAll("shu-column-pane")).filter((el) => ((el as HTMLElement).dataset.columnKey ?? "").includes(m)).length, match),
+					(n) => n === 0,
+				);
+				return open === 0 ? actionOK() : actionNotOK(`the column matching "${match}" was closed but ${open} is still open`);
 			},
 		},
 		activeColumnMatches: {
