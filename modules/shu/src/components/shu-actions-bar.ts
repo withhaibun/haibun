@@ -12,7 +12,7 @@ import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
 import { AuthorityController } from "../controllers/index.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT, ACTION_BAR_CHAT_SLOT } from "../consts.js";
+import { SHU_EVENT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION } from "../consts.js";
 import { isSchemaType } from "../graph/ontology-projection.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
@@ -33,6 +33,7 @@ import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,
+	getUiExtensionTags,
 	getQueryableFields,
 	getSelectValues,
 	hasSelectValues,
@@ -111,6 +112,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  reader sees at a glance that there is authority here to look at. */
 	#authority = new AuthorityController(this);
 	private _summary: TPermissionsSummary = { holds: 0, principals: 0, grants: 0 };
+	/** What an extension in the permissions area says awaits the reader's decision: how many, and the reference that
+	 *  leads to them. The bar marks that something is waiting and renders the reference; what kind of thing it is
+	 *  belongs to whichever extension reported it. */
+	private _awaiting = 0;
+	private _awaitingRef: { kind: string; target: Record<string, unknown> } | null = null;
 	private _timeOffsetLabel = "now";
 	private _columns: string[] = [];
 	private _queryLabel = "All";
@@ -306,6 +312,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.setSummary((e as CustomEvent<TPermissionsSummary>).detail);
 	};
 
+	private _onAwaitingDecision = (e: Event): void => {
+		const detail = (e as CustomEvent<{ count?: number; kind?: string; target?: Record<string, unknown> }>).detail;
+		const count = Number(detail?.count ?? 0);
+		if (!Number.isFinite(count)) return;
+		this._awaiting = Math.max(0, count);
+		this._awaitingRef = detail?.kind && detail.target ? { kind: detail.kind, target: detail.target } : null;
+		this.requestUpdate();
+	};
+
 	private setSummary(summary: TPermissionsSummary): void {
 		this._summary = summary;
 		this.requestUpdate();
@@ -354,6 +369,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			.then((held) => this.setSummary(summaryOf(held)))
 			.catch(() => undefined);
 		this.addEventListener(PERMISSIONS_SUMMARY, this._onPermissionsSummary);
+		// An extension in the permissions area reports what awaits from anywhere in the page, so the mark shows before
+		// the popover has ever been opened — a notification a reader has to go looking for is not one.
+		this.autoListen(document, AWAITING_DECISION, this._onAwaitingDecision);
 
 		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			this.failFast(`ShuActionsBar initialization failed: ${errMsg(err)}`);
@@ -418,7 +436,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const errors: string[] = [];
 		const slotted: Array<[string, Record<string, unknown>]> = [];
 		for (const [label, ui] of Object.entries(meta.ui)) {
-			if (ui.slot === ACTION_BAR_CHAT_SLOT && ui.js) slotted.push([label, ui]);
+			if ((ui.slot === ACTION_BAR_CHAT_SLOT || ui.slot === PERMISSIONS_SLOT) && ui.js) slotted.push([label, ui]);
 		}
 		this.reportActionsBar("debug", `loadUiExtensions: ${slotted.length} action-bar slot extensions found`, { count: slotted.length });
 		for (const [label, ui] of slotted) {
@@ -728,7 +746,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// these panels are used alongside the page (scrub the timeline, then click a node to see it at that time), so
 		// they stay put on outside clicks — only their own control puts them away. Never over the bar's own controls:
 		// showCornerPopover anchors above the whole bar.
-		return html`<div class="corner-popover" popover="manual" data-testid=${testid} @click=${(e: Event) => e.stopPropagation()}>${content}</div>`;
+		// The permissions extensions are mounted whether or not the popover is open: an extension that only exists once
+		// a reader opens the panel cannot tell them there is something in it to open it for. They are shown with the
+		// access panel and hidden otherwise, so the reading is in one place and the notification arrives before it.
+		return html`<div class="corner-popover" popover="manual" data-testid=${testid} @click=${(e: Event) => e.stopPropagation()}>${content}
+			<div class="permissions-extensions" ?hidden=${this._openCorner !== "access"}>${this.permissionsExtensionsTemplate()}</div>
+		</div>`;
 	}
 
 	private summaryTemplate(): TemplateResult {
@@ -747,10 +770,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<span class="corner-controls">
 				<button class="pane-icon corner-toggle time-offset" aria-label="Timeline" aria-expanded=${this._openCorner === "timeline"}
 					data-testid=${`${this.testIdPrefix}time-offset`} @click=${this.onCornerToggle("timeline")}>${this._timeOffsetLabel}</button>
-				<button class="pane-icon corner-toggle access-indicator" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
-					title=${`read access ${this._contextAccessLevel}; ${this._summary.holds} actions held, ${this._summary.principals} principals, ${this._summary.grants} grants`}
+				<button class="pane-icon corner-toggle access-indicator ${this._awaiting > 0 ? "awaiting" : ""}" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
+					title=${`read access ${this._contextAccessLevel}; ${this._summary.holds} actions held, ${this._summary.principals} principals, ${this._summary.grants} grants${this._awaiting > 0 ? `; ${this._awaiting} awaiting your decision` : ""}`}
 					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}
 					+${this._summary.holds}+${this._summary.principals}+${this._summary.grants}</button>
+				${
+					this._awaiting > 0
+						? html`<shu-ref class="awaiting-mark" data-testid=${`${this.testIdPrefix}awaiting`} kind=${this._awaitingRef?.kind ?? "domain"}
+								linkTarget=${JSON.stringify(this._awaitingRef?.target ?? {})} text=${`${this._awaiting} awaiting`}></shu-ref>`
+						: nothing
+				}
 				<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
 					@click=${this.onCornerToggle("settings")}>\u2699</button>
 			</span>
@@ -915,6 +944,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private uiExtensionsTemplate(): TemplateResult {
 		return html`${unsafeHTML(
 			getActionBarChatExtensionTags()
+				.map((tag) => `<${tag}></${tag}>`)
+				.join(""),
+		)}`;
+	}
+
+	/** Render the `permissions` slot's custom elements inside the access popover: what a reader decides by authority
+	 *  belongs with the permissions they decide under. The bar knows the slot, never what any extension is about. */
+	private permissionsExtensionsTemplate(): TemplateResult {
+		return html`${unsafeHTML(
+			getUiExtensionTags(PERMISSIONS_SLOT)
 				.map((tag) => `<${tag}></${tag}>`)
 				.join(""),
 		)}`;
@@ -1230,6 +1269,8 @@ const STYLES = `
 	/* A text toggle sizes to its label; the compound selector outweighs pane-icon's fixed square width. */
 	.corner-controls .corner-toggle { width: auto; padding: 0 var(--shu-space-2); }
 	.access-indicator, .time-offset { font-size: var(--shu-font-xs); flex-shrink: 0; }
+	.access-indicator.awaiting { border-color: var(--shu-accent); }
+	.awaiting-mark { margin-left: var(--shu-space-1); padding: 0 var(--shu-space-1); border-radius: var(--shu-radius); background: var(--shu-accent); color: var(--shu-bg); }
 	.filter-bar {
 		display: flex; gap: var(--shu-space-2); align-items: center;
 		padding: var(--shu-space-2) var(--shu-space-3); flex-wrap: wrap;
