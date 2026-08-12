@@ -1,6 +1,7 @@
 /**
  * <shu-type-column> — the column a `#Type` reference opens. Shows the type's description, a graph of its schema, and
- * the list of its individuals — each a reference that opens that individual's own column. When the site declares a
+ * its individuals in the shared result table, so a type's records read with their own fields and sort by the same
+ * columns the query and filter views offer. When the site declares a
  * schema presenter (ui.presents === "schema", falling back to its general "graph" presenter), that presenter IS the
  * schema view, embedded through shu-product-view and scoped by focusType; the column publishes the type as the shared
  * selection, so the type's Class node highlights in every graph view. Without a presenter (standalone), a static SVG
@@ -8,18 +9,19 @@
  * getTypeDescription/getRels/getEdgeRanges/getTypes, the instances from a bounded graphQuery.
  */
 import { html, css, type TemplateResult } from "lit";
+import { createRef, ref } from "lit/directives/ref.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { fetchIndividuals } from "../pane-fetch.js";
-import { appAccessLevel, idOf, instanceLabel } from "../util.js";
-import { getEdgeRanges, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
+import { appAccessLevel } from "../util.js";
+import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
 import { renderRefProse } from "../markdown-refs.js";
 
 /** A `#Type` link resolves against the site's own declared types — the same test every ref surface uses. */
 const isKnownType = (name: string): boolean => getRels(name) !== undefined;
-import { renderRef } from "./ref-navigation.js";
+import type { ShuResultTable } from "./shu-result-table.js";
 import { SHU_EVENT } from "../consts.js";
 import { ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
 import type { TGraph } from "../graph/types.js";
@@ -136,6 +138,21 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		this.setState({ loading: false });
 	}
 
+	private tableRef = createRef<ShuResultTable>();
+
+	/** A row opens the individual it is, exactly as a row in the query or filter view does. */
+	private onRowClick = (e: Event): void => {
+		const { individualId, label, ctrlKey } = (e as CustomEvent).detail;
+		if (!individualId) return;
+		this.dispatchEvent(
+			new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
+				detail: { subject: individualId, label: label || this.state.persistedAs, addToSelection: ctrlKey },
+				bubbles: true,
+				composed: true,
+			}),
+		);
+	};
+
 	private onScopeChange = (e: Event): void => {
 		this.setState({ fullSchema: (e.target as HTMLInputElement).checked });
 	};
@@ -152,6 +169,12 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	 *  presenter's own view settings gate on the same pane gear as every view's. */
 	private embeddedGraphFor = "";
 	protected updated(): void {
+		const table = this.tableRef.value;
+		if (table && !this.state.loading && !this.state.error) {
+			table.persistedAs = this.state.persistedAs;
+			table.setSortableFields(getQueryableFields(this.state.persistedAs));
+			table.setResults(this.instances as Record<string, unknown>[]);
+		}
 		const view = this.querySelector(":scope > shu-product-view") as ShuProductView | null;
 		if (view) {
 			if (this.showControls) view.setAttribute("data-show-controls", "");
@@ -195,9 +218,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 				<span class="section-label">Individuals${this.instances.length ? ` (${this.instances.length})` : ""}</span>
 				${this.state.loading ? html`<span>Loading…</span>` : ""}
 				${this.state.error ? html`<div class="error" data-testid="type-error">${this.state.error}</div>` : ""}
-				<ul data-testid="type-instances">
-					${this.instances.map((v) => html`<li>${unsafeHTML(renderRef("entity", { persistedAs: type, id: idOf(v) }, instanceLabel(v)))}</li>`)}
-				</ul>
+				<shu-result-table ${ref(this.tableRef)} data-testid="type-instances" @row-click=${this.onRowClick}></shu-result-table>
 			</div>`
 			}`;
 	}
