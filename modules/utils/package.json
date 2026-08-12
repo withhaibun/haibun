@@ -18,8 +18,6 @@
 	"scripts": {
 		"test": "vitest run",
 		"test-watch": "vitest",
-		"lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-		"preversion": "npm run lint",
 		"build-watch": "tsc -b tsconfig.json --watch",
 		"build": "tsc -b tsconfig.json"
 	},

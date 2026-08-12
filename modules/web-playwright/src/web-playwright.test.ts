@@ -33,26 +33,3 @@ describe("playwrightWeb", () => {
 	*/
 });
 
-describe.skip("handles cycles", () => {
-	it("closes browser", async () => {
-		const wp = new WebPlaywright();
-		wp.storage = new StorageMem();
-		await wp.setWorld(getDefaultWorld(), [wp]);
-		// await wp.steps.takeScreenshot.action();
-		expect(async () => {
-			if (wp.cycles && wp.cycles.endFeature) {
-				await wp.cycles.endFeature({
-					shouldClose: true,
-					isLast: true,
-					okSoFar: true,
-					continueAfterError: false,
-					stayOnFailure: false,
-					thisFeatureOK: true,
-				});
-				// await wp.steps.takeScreenshot.action();
-			} else {
-				throw new Error("no cycles");
-			}
-		}).not.toThrow();
-	});
-});
