@@ -6,6 +6,7 @@
  *
  * Light DOM (an activity-history entry must be visible to test-id walks and text capture).
  */
+import { AccessQuery } from "@haibun/core/lib/resources.js";
 import type { TemplateResult } from "lit";
 import { html } from "lit";
 import { z } from "zod";
@@ -21,7 +22,7 @@ export function describeSearch(q: TViewQuery): string {
 	if (q.label) parts.push(q.label);
 	if (q.q) parts.push(`"${q.q}"`);
 	for (const c of q.f) if (c.predicate && c.value) parts.push(`${c.predicate} ${c.operator} ${c.value}${c.operator === "between" && c.value2 ? `..${c.value2}` : ""}`);
-	if (q.access !== "private") parts.push(q.access);
+	if (q.access !== AccessQuery.all) parts.push(q.access);
 	return parts.join(" · ");
 }
 
