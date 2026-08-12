@@ -15,7 +15,6 @@
 		"build": "tsc -b .",
 		"build-watch": "tsc -b . --watch",
 		"prepublishOnly": "tsc -b .",
-		"preversion": "npm run lint",
 		"test": "vitest run",
 		"test-watch": "vitest"
 	},

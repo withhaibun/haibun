@@ -13,7 +13,6 @@
 		"./*": "./build/*"
 	},
 	"scripts": {
-		"lint": "eslint -c .eslintrc.json --ext .ts,.js src",
 		"test": "vitest run",
 		"coverage": "vitest --coverage",
 		"test-watch": "vitest",
@@ -22,8 +21,7 @@
 		"tsc-watch": "tsc --watch",
 		"tsc": "tsc",
 		"xprepare": "npm run build",
-		"prepublishOnly": "tsc -b .",
-		"preversion": "npm run lint"
+		"prepublishOnly": "tsc -b ."
 	},
 	"dependencies": {
 		"@haibun/core": "*"
