@@ -27,10 +27,11 @@ export const SHU_TEST_IDS = {
 		TIMELINE_POPOVER: "app-timeline-popover",
 		/** The access indicator, which opens the permissions area. */
 		ACCESS_INDICATOR: "app-access-indicator",
-		/** The mark saying something awaits a decision. A reference, so pressing it opens what it is about. */
-		AWAITING: "app-awaiting",
+
 		/** The permissions panel, inside the access popover. */
 		PERMISSIONS: "app-permissions",
+		/** The row saying how many await a decision. A reference, so pressing it opens what it is about. */
+		AWAITING: "permissions-awaiting",
 	},
 	FILTER: {
 		PROPERTY_0: "app-cond-property-0",
