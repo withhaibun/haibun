@@ -66,8 +66,11 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		/* The level reads on one line with what it bounds, since it is the first thing this panel says. */
 		.level { display: flex; align-items: center; gap: var(--shu-space-2); }
 		.level label { color: var(--shu-fg-muted); }
-		.awaiting-row { display: flex; align-items: center; gap: var(--shu-space-2); margin-top: var(--shu-space-1); }
-		.awaiting-row > span { color: var(--shu-fg-muted); }
+		/* An alert a reader cannot miss: the accent as its ground rather than its text, so it reads as a state of the
+		   panel and not another line in it. */
+		.awaiting-row { display: flex; align-items: center; gap: var(--shu-space-2); margin-top: var(--shu-space-2); padding: var(--shu-space-2) var(--shu-space-3); border-radius: var(--shu-radius); background: var(--shu-accent); color: var(--shu-bg); font-weight: 600; }
+		.awaiting-row .awaiting-count { font-size: 1.2em; }
+		.awaiting-row shu-ref { --shu-accent: var(--shu-bg); }
 		.awaiting-row[hidden] { display: none; }
 		.none { color: var(--shu-fg-muted); }
 		.revoked { text-decoration: line-through; color: var(--shu-fg-muted); }
@@ -135,10 +138,11 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 				</select>
 			</div>
 
-			<div class="awaiting-row" ?hidden=${this.awaiting <= 0}>
-				<span>awaiting a decision</span>
+			<div class="awaiting-row" role="alert" ?hidden=${this.awaiting <= 0}>
+				<span class="awaiting-count">${this.awaiting}</span>
+				<span>${this.awaiting === 1 ? "petition awaits your decision" : "petitions await your decision"}</span>
 				<shu-ref data-testid="permissions-awaiting" kind=${this.awaitingRef?.kind ?? "domain"}
-					linkTarget=${JSON.stringify(this.awaitingRef?.target ?? {})} text=${String(this.awaiting)}></shu-ref>
+					linkTarget=${JSON.stringify(this.awaitingRef?.target ?? {})} text="read them"></shu-ref>
 			</div>
 
 			<h3>what this session may do</h3>

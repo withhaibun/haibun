@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { ViewQuerySchema, type TViewQuery, parseViewQuery, serializeViewQuery, viewQuery } from "./view-query.js";
 import { canonicalizeArrival } from "./view-hash.js";
+import { appAccessLevel } from "./util.js";
 
 const DEFAULTS: TViewQuery = ViewQuerySchema.parse({});
 
@@ -38,7 +39,8 @@ describe("viewQuery serialize/parse", () => {
 	});
 
 	it("omits defaults from the canonical hash", () => {
-		expect(serializeViewQuery({ ...DEFAULTS, order: "desc", offset: 0, access: "private" })).toBe("");
+		expect(serializeViewQuery({ ...DEFAULTS, order: "desc", offset: 0, access: "all" })).toBe("");
+		expect(serializeViewQuery({ ...DEFAULTS, access: "private" }), "a narrowing is not a default, so it is written").toBe("#?access=private");
 		expect(serializeViewQuery({ ...DEFAULTS, label: "Email", order: "desc" })).toBe("#?label=Email");
 	});
 
@@ -48,6 +50,19 @@ describe("viewQuery serialize/parse", () => {
 		expect(() => parseViewQuery("#?offset=-3")).toThrow();
 		expect(() => parseViewQuery("#?access=root")).toThrow();
 		expect(() => parseViewQuery("#?f=folder|bogusop|x")).toThrow();
+	});
+});
+
+describe("the level a reader chose survives a reload", () => {
+	// The hash is where a reload reads the level from, and what it omits it reads back as the level a reader opens on.
+	// Written for one level and read back as another, a deliberate narrowing was replaced by every level on reload.
+	it.each(["private", "public", "opened", "all"])("round-trips %s", (access) => {
+		const parsed = parseViewQuery(serializeViewQuery(ViewQuerySchema.parse({ access })));
+		expect(parsed.access).toBe(access);
+	});
+
+	it("reads an absent level as the one appAccessLevel opens on, so the two agree", () => {
+		expect(parseViewQuery("").access).toBe(appAccessLevel());
 	});
 });
 

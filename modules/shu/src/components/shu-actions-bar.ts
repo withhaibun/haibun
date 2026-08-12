@@ -775,7 +775,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				<button class="pane-icon corner-toggle access-indicator ${this._awaiting > 0 ? "awaiting" : ""}" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
 					title=${`read access ${this._contextAccessLevel}; ${this._summary.holds} actions held, ${this._summary.principals} principals, ${this._summary.grants} grants${this._awaiting > 0 ? `; ${this._awaiting} awaiting your decision` : ""}`}
 					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}
-					+${this._summary.holds}+${this._summary.principals}+${this._summary.grants}</button>
+					+${this._summary.holds}+${this._summary.principals}+${this._summary.grants}${
+						this._awaiting > 0 ? html`<span class="awaiting-count" title=${`${this._awaiting} awaiting your decision`}>${this._awaiting}</span>` : nothing
+					}</button>
 
 				<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
 					@click=${this.onCornerToggle("settings")}>\u2699</button>
@@ -1267,7 +1269,8 @@ const STYLES = `
 	.corner-controls .corner-toggle { width: auto; padding: 0 var(--shu-space-2); }
 	.access-indicator, .time-offset { font-size: var(--shu-font-xs); flex-shrink: 0; }
 	.access-indicator.awaiting { border-color: var(--shu-accent); }
-	.awaiting-mark { margin-left: var(--shu-space-1); padding: 0 var(--shu-space-1); border-radius: var(--shu-radius); background: var(--shu-accent); color: var(--shu-bg); }
+	/* The indicator carries the count so what awaits is seen before the panel is opened; the panel holds the alert. */
+	.access-indicator .awaiting-count { margin-left: var(--shu-space-1); padding: 0 var(--shu-space-1); border-radius: 999px; background: var(--shu-accent); color: var(--shu-bg); font-weight: 700; }
 	.filter-bar {
 		display: flex; gap: var(--shu-space-2); align-items: center;
 		padding: var(--shu-space-2) var(--shu-space-3); flex-wrap: wrap;

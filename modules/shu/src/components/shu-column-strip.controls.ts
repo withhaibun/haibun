@@ -87,7 +87,10 @@ export default class ShuColumnStripControls extends AStepper {
 						),
 					(keys) => keys.length === 0,
 				);
-				return open.length === 0 ? actionOK() : actionNotOK(`the column matching "${match}" was closed but is still open: ${open.join(", ")}`);
+				if (open.length === 0) return actionOK();
+				// The hash is the desired set's own record: still naming the column means the dismissal never reached it.
+				const hash = await page.evaluate(() => location.hash);
+				return actionNotOK(`the column matching "${match}" was closed but is still open: ${open.join(", ")}; hash=${hash}`);
 			},
 		},
 		activeColumnMatches: {

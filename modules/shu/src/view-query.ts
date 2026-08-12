@@ -30,7 +30,7 @@ export const ViewQuerySchema = z.object({
 	sort: z.string().min(1).nullable().default(null),
 	order: z.enum(["asc", "desc"]).default("desc"),
 	offset: z.number().int().nonnegative().default(0),
-	access: AccessQueryLevelSchema.default(AccessQuery.private),
+	access: AccessQueryLevelSchema.default(AccessQuery.all),
 	f: z.array(SearchConditionSchema).default([]),
 });
 export type TViewQuery = z.infer<typeof ViewQuerySchema>;
@@ -60,7 +60,9 @@ function queryParams(q: TViewQuery): URLSearchParams {
 	if (q.sort) p.set("sort", q.sort);
 	if (q.order !== "desc") p.set("order", q.order);
 	if (q.offset > 0) p.set("offset", String(q.offset));
-	if (q.access !== AccessQuery.private) p.set("access", q.access);
+	// Omitted at the level a reader opens on, which util's appAccessLevel states: written for `private` and read back
+	// as `all`, a reader's choice of one level was replaced by every level on the next reload.
+	if (q.access !== AccessQuery.all) p.set("access", q.access);
 	for (const c of q.f) if (c.predicate && c.value) p.append("f", serializeFilterParam(c));
 	return p;
 }
