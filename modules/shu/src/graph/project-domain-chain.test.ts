@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { projectDomainChain, SOURCE_DOMAIN, waypointNodeId, factNodeId, type TAffordancesSnapshot } from "./project-domain-chain.js";
+import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
+import { projectDomainChain, waypointNodeId, factNodeId, type TAffordancesSnapshot } from "./project-domain-chain.js";
 
 describe("projectDomainChain", () => {
 	it("maps the satisfied finding to the satisfied node kind", () => {

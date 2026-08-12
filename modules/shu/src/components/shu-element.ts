@@ -43,7 +43,7 @@ import { z } from "zod";
 import { SHU_EVENT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "../time-sync.js";
 import { timeCursor, activePane, type SharedSignal } from "../signals.js";
-import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
+import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
 // Re-exported so every view can annotate its summarizeForKihan as `TLinkedData | null` from the same import it already
 // takes for ShuElement, instead of each reaching into core for the node-object type.
 export type { TLinkedData };
@@ -449,15 +449,15 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 			const rels = getRels(label);
 			if (rels) {
 				for (const [field, rel] of Object.entries(rels)) {
-					if (rel === LinkRelations.GENERATED_AT_TIME.rel) return parseTimestamp(vertex[field]);
+					if (rel === LinkRelations.GENERATED_AT_TIME.rel) return parseTimestampValue(vertex[field]);
 				}
 				for (const [field, rel] of Object.entries(rels)) {
-					if (rel === LinkRelations.PUBLISHED.rel) return parseTimestamp(vertex[field]);
+					if (rel === LinkRelations.PUBLISHED.rel) return parseTimestampValue(vertex[field]);
 				}
 			}
 		}
 		for (const key of ["generatedAtTime", "validFrom", "dateCreated"]) {
-			const val = parseTimestamp(vertex[key]);
+			const val = parseTimestampValue(vertex[key]);
 			if (val !== null) return val;
 		}
 		return null;
@@ -491,15 +491,6 @@ function describeStateWrite(partial: object): string {
 		return `${field}: ${shown.length > DESCRIBE_VALUE_MAX ? `${shown.slice(0, DESCRIBE_VALUE_MAX - 1)}…` : shown}`;
 	});
 	return `{ ${fields.join(", ")} }`;
-}
-
-function parseTimestamp(val: unknown): number | null {
-	if (typeof val === "number") return val;
-	if (typeof val === "string") {
-		const d = new Date(val);
-		if (!Number.isNaN(d.getTime())) return d.getTime();
-	}
-	return null;
 }
 
 /** Unwrap ZodDefault/Optional/Nullable wrappers to the inner type. */

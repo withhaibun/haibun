@@ -16,6 +16,7 @@
  *   - blocked    →  inputs unsatisfied; dashed arrow
  *   - capability-gated  →  step requires an unmet capability
  */
+import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
 import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
 import type { TGraph, TGraphEdge, TGraphNode } from "./types.js";
@@ -75,10 +76,7 @@ export function waypointNodeId(outcome: string): string {
 /**
  * Id used for the sentinel "no-preconditions" source node.
  *
- * A clearly-namespaced sentinel id (not a bare `_`) stays distinct from real
- * step ids while the visible label still reads `∅ (no preconditions)`.
  */
-export const SOURCE_DOMAIN = "__no_inputs__";
 
 function findingToKind(finding: string | undefined): string {
 	if (finding === GOAL_FINDING.SATISFIED) return "satisfied";
@@ -141,7 +139,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		const isSource = d === SOURCE_DOMAIN;
 		const node: TGraphNode = {
 			id: d,
-			label: isSource ? "∅ no preconditions" : d,
+			label: isSource ? `${SOURCE_DOMAIN} no preconditions` : d,
 			kind: isSource ? "default" : findingToKind(goalFindings.get(d)),
 		};
 		if (!isSource) {
