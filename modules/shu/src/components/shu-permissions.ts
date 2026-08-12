@@ -25,6 +25,11 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	static persistFields = ["showGrants", "showPrincipals"] as const;
 
 	#authority = new AuthorityController(this);
+	/** How many items await the reader's decision, and the reference that leads to them. Set by the host, which hears
+	 *  it from whichever extension reports it: the panel states the count in a row of its own beside the access level. */
+	awaiting = 0;
+	awaitingRef: { kind: string; target: Record<string, unknown> } | null = null;
+
 	/** The read access in force and the ones on offer, owned by the host that reads them from the view hash. */
 	declare level: string;
 	declare levels: readonly string[];
@@ -61,6 +66,9 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		/* The level reads on one line with what it bounds, since it is the first thing this panel says. */
 		.level { display: flex; align-items: center; gap: var(--shu-space-2); }
 		.level label { color: var(--shu-fg-muted); }
+		.awaiting-row { display: flex; align-items: center; gap: var(--shu-space-2); margin-top: var(--shu-space-1); }
+		.awaiting-row > span { color: var(--shu-fg-muted); }
+		.awaiting-row[hidden] { display: none; }
 		.none { color: var(--shu-fg-muted); }
 		.revoked { text-decoration: line-through; color: var(--shu-fg-muted); }
 		.failure { color: var(--shu-danger, crimson); }
@@ -125,6 +133,12 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 				<select id="read-access" data-testid="permissions-read-access" @change=${(e: Event) => this.onLevelChange((e.target as HTMLSelectElement).value)}>
 					${this.levels.map((l) => html`<option value=${l} ?selected=${l === this.level}>${l}</option>`)}
 				</select>
+			</div>
+
+			<div class="awaiting-row" ?hidden=${this.awaiting <= 0}>
+				<span>awaiting a decision</span>
+				<shu-ref data-testid="permissions-awaiting" kind=${this.awaitingRef?.kind ?? "domain"}
+					linkTarget=${JSON.stringify(this.awaitingRef?.target ?? {})} text=${String(this.awaiting)}></shu-ref>
 			</div>
 
 			<h3>what this session may do</h3>

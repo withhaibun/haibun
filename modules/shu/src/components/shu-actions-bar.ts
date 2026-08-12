@@ -738,6 +738,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 								data-testid=${`${this.testIdPrefix}permissions`}
 								.level=${this._contextAccessLevel}
 								.levels=${AccessQueryLevelSchema.options}
+								.awaiting=${this._awaiting}
+								.awaitingRef=${this._awaitingRef}
 								.onLevelChange=${(level: string) => this.setAccessLevel(level)}
 							></shu-permissions>`
 						: nothing;
@@ -774,12 +776,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					title=${`read access ${this._contextAccessLevel}; ${this._summary.holds} actions held, ${this._summary.principals} principals, ${this._summary.grants} grants${this._awaiting > 0 ? `; ${this._awaiting} awaiting your decision` : ""}`}
 					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}
 					+${this._summary.holds}+${this._summary.principals}+${this._summary.grants}</button>
-				${
-					this._awaiting > 0
-						? html`<shu-ref class="awaiting-mark" data-testid=${`${this.testIdPrefix}awaiting`} kind=${this._awaitingRef?.kind ?? "domain"}
-								linkTarget=${JSON.stringify(this._awaitingRef?.target ?? {})} text=${`${this._awaiting} awaiting`}></shu-ref>`
-						: nothing
-				}
+
 				<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
 					@click=${this.onCornerToggle("settings")}>\u2699</button>
 			</span>
