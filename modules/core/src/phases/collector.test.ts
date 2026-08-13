@@ -26,77 +26,62 @@ class MockFS {
 const nfs = (files: object) => <TFileSystem>(new MockFS(files) as unknown);
 
 describe("getFeaturesAndBackgrounds", () => {
-	it("directory does not exist", async () => {
-		await expect(getFeaturesAndBackgrounds(["/"], [], undefined, { existsSync: () => false })).rejects.toThrow();
-	});
-	it("no features or backgrounds", async () => {
-		await expect(getFeaturesAndBackgrounds(["/"], [], undefined, { existsSync: () => true, readdirSync: () => [] })).rejects.toThrow();
-	});
-	it("no features", async () => {
-		await expect(getFeaturesAndBackgrounds(["/0"], [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" } }))).rejects.toThrow();
-	});
-	it("gets features", async () => {
-		expect(await getFeaturesAndBackgrounds(["/0"], [], undefined, nfs({ "/0/features": { "a.feature": "#" } }))).toEqual({
-			features: [{ base: "/0", path: "/features/a.feature", name: "/0/features/a", type: "feature", content: "#" }],
-			backgrounds: [],
-		});
-	});
-	it("gets features and backgrounds", async () => {
-		const res = await getFeaturesAndBackgrounds(["/0"], [], undefined, nfs({ "/0/features": { "a.feature": "#" }, "/0/backgrounds": { "b.feature": "#" } }));
-		expect(res).toEqual({
-			features: [{ base: "/0", path: "/features/a.feature", name: "/0/features/a", type: "feature", content: "#" }],
-			backgrounds: [{ base: "/0", path: "/backgrounds/b.feature", name: "/0/backgrounds/b", type: "feature", content: "#" }],
-		});
+	// A base must offer features. Every refusal below is the same claim: no features under any given base is an error,
+	// whether the directory is missing, empty, or holds backgrounds alone.
+	const feature = (base: string, dir: "features" | "backgrounds", name: string) => ({
+		base,
+		path: `/${dir}/${name}.feature`,
+		name: `${base}/${dir}/${name}`,
+		type: "feature",
+		content: "#",
 	});
 
-	it("multi-base no features or backgrounds", async () => {
-		await expect(getFeaturesAndBackgrounds(["/,x"], [], undefined, { existsSync: () => true, readdirSync: () => [] })).rejects.toThrow();
+	it.each([
+		["the directory does not exist", ["/"], { existsSync: () => false }],
+		["it holds neither features nor backgrounds", ["/"], { existsSync: () => true, readdirSync: () => [] }],
+		["it holds backgrounds and no features", ["/0"], nfs({ "/0/backgrounds": { "a.feature": "#" } })],
+		["no base holds anything", ["/,x"], { existsSync: () => true, readdirSync: () => [] }],
+		["no base holds a feature", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/backgrounds": { "a.feature": "#" } })],
+		["the first base holds nothing", basesFrom("/0,/1"), nfs({ "/1/backgrounds": { "a.feature": "#" } })],
+		["the second base holds nothing", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" } })],
+	])("refuses when %s", async (_, bases, fs) => {
+		await expect(getFeaturesAndBackgrounds(bases as string[], [], undefined, fs as TFileSystem)).rejects.toThrow();
 	});
-	it("multi-base gets features", async () => {
-		expect(await getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/0/features": { "a.feature": "#" }, "/1/features": { "b.feature": "#" } }))).toEqual({
-			features: [
-				{ base: "/0", path: "/features/a.feature", name: "/0/features/a", type: "feature", content: "#" },
-				{ base: "/1", path: "/features/b.feature", name: "/1/features/b", type: "feature", content: "#" },
-			],
-			backgrounds: [],
-		});
-	});
-	it("multi-base no features", async () => {
-		await expect(
-			getFeaturesAndBackgrounds("/0,/1".split(","), [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/backgrounds": { "a.feature": "#" } })),
-		).rejects.toThrow();
-	});
-	it("multi-base no features or backgrounds from first dir", async () => {
-		await expect(getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/1/backgrounds": { "a.feature": "#" } }))).rejects.toThrow();
-	});
-	it("multi-base no features or backgrounds from second dir", async () => {
-		await expect(getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" } }))).rejects.toThrow();
-	});
-	it("multi-base get features and backgrounds", async () => {
-		expect(await getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/features": { "b.feature": "#" } }))).toEqual({
-			features: [{ base: "/1", path: "/features/b.feature", name: "/1/features/b", type: "feature", content: "#" }],
-			backgrounds: [{ base: "/0", path: "/backgrounds/a.feature", name: "/0/backgrounds/a", type: "feature", content: "#" }],
-		});
+
+	it.each([
+		["one base with features", ["/0"], { "/0/features": { "a.feature": "#" } }, { features: [feature("/0", "features", "a")], backgrounds: [] }],
+		[
+			"one base with both",
+			["/0"],
+			{ "/0/features": { "a.feature": "#" }, "/0/backgrounds": { "b.feature": "#" } },
+			{ features: [feature("/0", "features", "a")], backgrounds: [feature("/0", "backgrounds", "b")] },
+		],
+		[
+			"two bases, each with features",
+			basesFrom("/0,/1"),
+			{ "/0/features": { "a.feature": "#" }, "/1/features": { "b.feature": "#" } },
+			{ features: [feature("/0", "features", "a"), feature("/1", "features", "b")], backgrounds: [] },
+		],
+		[
+			"two bases, one holding the features and the other the backgrounds",
+			basesFrom("/0,/1"),
+			{ "/0/backgrounds": { "a.feature": "#" }, "/1/features": { "b.feature": "#" } },
+			{ features: [feature("/1", "features", "b")], backgrounds: [feature("/0", "backgrounds", "a")] },
+		],
+	])("collects %s", async (_, bases, files, expected) => {
+		expect(await getFeaturesAndBackgrounds(bases as string[], [], undefined, nfs(files as object))).toEqual(expected);
 	});
 });
 
 describe("shouldProcess", () => {
-	it("should process no type & filter", () => {
-		expect(shouldProcess("hi.feature", undefined, undefined)).toBe(true);
-	});
-	it("should process matching filter", () => {
-		expect(shouldProcess("hi.feature", undefined, ["hi"])).toBe(true);
-	});
-	it("should not process wrong type", () => {
-		expect(shouldProcess("hi.feature", "wrong", undefined)).toBe(false);
-	});
-	it("should not process wrong filter", () => {
-		expect(shouldProcess("hi.feature", undefined, ["wrong"])).toBe(false);
-	});
-	it("should not process root filter", () => {
-		expect(shouldProcess("/root/hi.feature", undefined, ["root"])).toBe(false);
-	});
-	it("should process upper root filter", () => {
-		expect(shouldProcess("/root/root.feature", undefined, ["root"])).toBe(true);
+	it.each([
+		["no type and no filter takes everything", "hi.feature", undefined, undefined, true],
+		["a filter matching the name takes it", "hi.feature", undefined, ["hi"], true],
+		["a filter matching the file, not a directory above it, takes it", "/root/root.feature", undefined, ["root"], true],
+		["a type the file is not is refused", "hi.feature", "wrong", undefined, false],
+		["a filter the name does not match is refused", "hi.feature", undefined, ["wrong"], false],
+		["a filter matching only a directory above the file is refused", "/root/hi.feature", undefined, ["root"], false],
+	])("%s", (_, path, type, filter, expected) => {
+		expect(shouldProcess(path as string, type as string | undefined, filter as string[] | undefined)).toBe(expected);
 	});
 });

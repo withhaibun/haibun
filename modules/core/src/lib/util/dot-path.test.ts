@@ -3,38 +3,26 @@ import { parseDotPath, navigateValue, validateZodPath } from "./dot-path.js";
 import { z } from "zod";
 
 describe("parseDotPath", () => {
-	it("returns no segments for simple terms", () => {
-		expect(parseDotPath("foo")).toEqual({ baseName: "foo", pathSegments: [] });
-	});
-	it("splits on first dot", () => {
-		expect(parseDotPath("result.total")).toEqual({ baseName: "result", pathSegments: ["total"] });
-	});
-	it("handles nested paths", () => {
-		expect(parseDotPath("result.vertex.subject")).toEqual({ baseName: "result", pathSegments: ["vertex", "subject"] });
-	});
-	it("handles empty string", () => {
-		expect(parseDotPath("")).toEqual({ baseName: "", pathSegments: [] });
+	it.each([
+		["a simple term has no segments", "foo", { baseName: "foo", pathSegments: [] }],
+		["the split is at the first dot", "result.total", { baseName: "result", pathSegments: ["total"] }],
+		["every later dot is a further segment", "result.vertex.subject", { baseName: "result", pathSegments: ["vertex", "subject"] }],
+		["an empty term is an empty base", "", { baseName: "", pathSegments: [] }],
+	])("%s", (_, term, expected) => {
+		expect(parseDotPath(term)).toEqual(expected);
 	});
 });
 
 describe("navigateValue", () => {
-	it("navigates into objects", () => {
-		expect(navigateValue({ a: { b: 42 } }, ["a", "b"])).toEqual({ value: 42, found: true });
-	});
-	it("returns found:false for missing keys", () => {
-		expect(navigateValue({ a: 1 }, ["b"])).toEqual({ value: undefined, found: false });
-	});
-	it("returns found:false for null", () => {
-		expect(navigateValue(null, ["a"])).toEqual({ value: undefined, found: false });
-	});
-	it("returns found:false for primitives", () => {
-		expect(navigateValue("hello", ["a"])).toEqual({ value: undefined, found: false });
-	});
-	it("handles empty segments", () => {
-		expect(navigateValue({ a: 1 }, [])).toEqual({ value: { a: 1 }, found: true });
-	});
-	it("navigates arrays by index-like keys", () => {
-		expect(navigateValue({ items: [10, 20, 30] }, ["items", "1"])).toEqual({ value: 20, found: true });
+	it.each([
+		["reads a nested key", { a: { b: 42 } }, ["a", "b"], { value: 42, found: true }],
+		["an index-like key reads an array element", { items: [10, 20, 30] }, ["items", "1"], { value: 20, found: true }],
+		["no segments is the value itself", { a: 1 }, [], { value: { a: 1 }, found: true }],
+		["a missing key is not found", { a: 1 }, ["b"], { value: undefined, found: false }],
+		["null holds nothing to read", null, ["a"], { value: undefined, found: false }],
+		["neither does a primitive", "hello", ["a"], { value: undefined, found: false }],
+	])("%s", (_, value, segments, expected) => {
+		expect(navigateValue(value, segments as string[])).toEqual(expected);
 	});
 });
 
@@ -48,25 +36,18 @@ describe("validateZodPath", () => {
 		optional: z.string().optional(),
 	});
 
-	it("validates existing top-level field", () => {
-		expect(validateZodPath(schema, ["name"])).not.toBeNull();
-	});
-	it("validates nested field", () => {
-		expect(validateZodPath(schema, ["nested", "count"])).not.toBeNull();
-	});
-	it("validates deeply nested field", () => {
-		expect(validateZodPath(schema, ["nested", "deep", "flag"])).not.toBeNull();
-	});
-	it("validates optional field", () => {
-		expect(validateZodPath(schema, ["optional"])).not.toBeNull();
-	});
-	it("returns null for missing field", () => {
-		expect(validateZodPath(schema, ["doesNotExist"])).toBeNull();
-	});
-	it("returns null for invalid nested path", () => {
-		expect(validateZodPath(schema, ["nested", "missing"])).toBeNull();
-	});
-	it("returns null for path into non-object", () => {
-		expect(validateZodPath(schema, ["name", "sub"])).toBeNull();
+	// A path the schema declares resolves to its field; anything else is null, including a path that walks INTO a
+	// declared leaf, since a string has no fields to reach.
+	it.each([
+		["a top-level field", ["name"], true],
+		["a nested field", ["nested", "count"], true],
+		["a deeply nested field", ["nested", "deep", "flag"], true],
+		["an optional field", ["optional"], true],
+		["a field the schema does not declare", ["doesNotExist"], false],
+		["a missing field under a declared object", ["nested", "missing"], false],
+		["a path into a leaf", ["name", "sub"], false],
+	])("%s", (_, path, resolves) => {
+		const found = validateZodPath(schema, path as string[]);
+		expect(found === null).toBe(!resolves);
 	});
 });

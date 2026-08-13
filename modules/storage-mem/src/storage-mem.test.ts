@@ -66,7 +66,7 @@ describe("mem getCaptureLocation", () => {
 		expect(storageMem.exists(`/${CAPTURE}/wtw`)).toBe(true);
 	});
 
-	it("exists", () => {
+	it("a created directory exists", () => {
 		const storageMem = new StorageMem();
 		storageMem.mkdirp(`/${CAPTURE}/wtw`);
 		expect(storageMem.exists(`/${CAPTURE}/wtw`)).toBe(true);

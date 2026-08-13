@@ -68,7 +68,7 @@ describe("EntityController", () => {
 		expect(el.views.at(-1)?.entity?.vertex.subject).toBe("Updated");
 	});
 
-	it("ignores a live change for an individual it does not hold", async () => {
+	it("does not re-render on a live change to an individual it does not hold", async () => {
 		const el = mount();
 		await el.entity.open("Email", "e1", "private");
 		const before = el.views.length;

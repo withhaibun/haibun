@@ -176,7 +176,7 @@ describe("entity-store freshness", () => {
 		expect(getEntityView("Email", "e1").entity?.vertex.inReplyTo).toBeUndefined();
 	});
 
-	it("ignores a live change for an individual it does not hold", async () => {
+	it("leaves an unheld individual unfetched when a live change names it", async () => {
 		const { dispatch } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await openEntity("Email", "e1", "private");

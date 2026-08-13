@@ -33,79 +33,34 @@ import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.j
 import { mapDefinitionsToDomains } from "./domains.js";
 
 describe("LinkRelations extensions", () => {
-	const newRels = [
-		"wasInformedBy",
-		"invalidated",
-		"wasAssociatedWith",
-		"wasStartedBy",
-		"startedAtTime",
-		"phenomenonTime",
-		"resultTime",
-		"hasResult",
-		"madeBySensor",
-		"observedProperty",
-		"schemaObject",
-		"schemaResult",
-		"replacee",
-		"replacement",
-		"measure",
-		"narrate",
-		"question",
-		"play",
-		"petition",
-		"grant",
-		"deny",
-		"invoke",
-		"revoke",
-		"seqPath",
-		"hostId",
-		"accessLevel",
-		"measurementKind",
-		"shapeDigest",
-		"outcomeReason",
-	] as const;
+	// The vocabulary is not restated here. A copy of it made every addition a two-file edit and said only that the
+	// copy matched, so what is asserted is what must hold of EVERY entry, including ones not written yet.
+	it("every rel parses as a rel", () => {
+		for (const entry of Object.values(LinkRelations)) expect(() => RelSchema.parse(entry.rel)).not.toThrow();
+	});
 
-	it("each new rel is a valid RelSchema value", () => {
-		for (const rel of newRels) {
-			expect(() => RelSchema.parse(rel)).not.toThrow();
+	it("every rel has a uri under a prefix the published context declares", () => {
+		const ctx = (getJsonLdContext({}) as { "@context": Record<string, unknown> })["@context"];
+		for (const entry of Object.values(LinkRelations)) {
+			expect(entry.uri, entry.rel).toMatch(/^[a-z]+:\S+$/);
+			const prefix = entry.uri.slice(0, entry.uri.indexOf(":"));
+			expect(ctx[prefix], `${entry.rel} uses the ${prefix} prefix`).toBeDefined();
 		}
 	});
 
-	it("REL_CONTEXT maps each new rel to its vocabulary URI", () => {
-		const expected: Record<string, string> = {
-			wasInformedBy: "prov:wasInformedBy",
-			invalidated: "prov:invalidated",
-			wasAssociatedWith: "prov:wasAssociatedWith",
-			wasStartedBy: "prov:wasStartedBy",
-			startedAtTime: "prov:startedAtTime",
-			phenomenonTime: "sosa:phenomenonTime",
-			resultTime: "sosa:resultTime",
-			hasResult: "sosa:hasResult",
-			madeBySensor: "sosa:madeBySensor",
-			observedProperty: "sosa:observedProperty",
-			schemaObject: "schema:object",
-			schemaResult: "schema:result",
-			replacee: "schema:replacee",
-			replacement: "schema:replacement",
-			measure: "hbn:measure",
-			narrate: "hbn:narrate",
-			question: "hbn:question",
-			play: "hbn:play",
-			petition: "hbn:petition",
-			grant: "hbn:grant",
-			deny: "hbn:deny",
-			invoke: "hbn:invoke",
-			revoke: "hbn:revoke",
-			seqPath: "hbn:seqPath",
-			hostId: "hbn:hostId",
-			accessLevel: "hbn:accessLevel",
-			measurementKind: "hbn:measurementKind",
-			shapeDigest: "hbn:shapeDigest",
-			outcomeReason: "hbn:outcomeReason",
-		};
-		for (const [rel, uri] of Object.entries(expected)) {
-			expect(REL_CONTEXT[rel as keyof typeof REL_CONTEXT]).toBe(uri);
-		}
+	it("no two rels claim the same name, and none shares a uri except where the standard has one term for both", () => {
+		const rels = Object.values(LinkRelations).map((e) => e.rel);
+		expect(new Set(rels).size).toBe(rels.length);
+		// Web Annotation says `oa:hasBody` both for a note's content and for what a linking annotation refers to, so
+		// `content`/`hasBody` and `linksTo` land on one term. Every other shared uri is two names for one thing.
+		const byUri = new Map<string, string[]>();
+		for (const e of Object.values(LinkRelations)) byUri.set(e.uri, [...(byUri.get(e.uri) ?? []), e.rel]);
+		const shared = [...byUri.entries()].filter(([, names]) => names.length > 1).map(([uri, names]) => `${uri}: ${names.join(", ")}`);
+		expect(shared).toEqual(["oa:hasBody: hasBody, linksTo"]);
+	});
+
+	it("REL_CONTEXT publishes every rel at its declared uri", () => {
+		for (const entry of Object.values(LinkRelations)) expect(REL_CONTEXT[entry.rel as keyof typeof REL_CONTEXT], entry.rel).toBe(entry.uri);
 	});
 
 	it("isReplyEdge returns true for edge-like PROV / SOSA reply rels", () => {

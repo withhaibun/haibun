@@ -4,7 +4,7 @@ import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 
 describe("some", () => {
-	it.skip("some finds a match among failures", async () => {
+	it("some finds a match among failures", async () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `

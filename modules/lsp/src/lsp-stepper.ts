@@ -1,3 +1,4 @@
+import { classifyDocument, TOKEN_TYPES } from "./semantic-tokens.js";
 import * as ts from "typescript";
 import {
 	createConnection,
@@ -29,7 +30,7 @@ import { findHaibunWorkspace, loadBackgroundsFromPath, countFeatures } from "@ha
 import { constructorName, errorDetail } from "@haibun/core/lib/util/index.js";
 
 // Semantic token types - indices matter for the legend
-const tokenTypes = ["keyword", "function", "parameter", "string", "number", "comment"];
+const tokenTypes = [...TOKEN_TYPES];
 const tokenModifiers: string[] = [];
 const legend: SemanticTokensLegend = { tokenTypes, tokenModifiers };
 
@@ -170,37 +171,16 @@ export default class LspStepper extends AStepper {
 		this.connection.languages.semanticTokens.on((params: SemanticTokensParams): SemanticTokens => {
 			const doc = this.documents.get(params.textDocument.uri);
 			if (!doc) return { data: [] };
-
 			const uri = this.normalizePath(params.textDocument.uri);
-
 			const cached = this.documentCache.get(uri);
-			const builder = new SemanticTokensBuilder();
-			const lines = doc.getText().split("\n");
 
-			// Build a map of lineNumber -> list of steps for quick lookup
 			const stepsByLine = new Map<number, LCachedStep[]>();
-			const errorsByLine = new Map<number, string>();
-
-			if (cached) {
-				for (const item of cached.featureSteps) {
-					if (item.step.source.lineNumber) {
-						const list = stepsByLine.get(item.step.source.lineNumber) || [];
-						list.push(item);
-						stepsByLine.set(item.step.source.lineNumber, list);
-					}
-				}
-				for (const error of cached.errors) {
-					if (error.lineNumber) {
-						errorsByLine.set(error.lineNumber, error.message);
-					}
-				}
+			for (const item of cached?.featureSteps ?? []) {
+				const lineNumber = item.step.source.lineNumber;
+				if (lineNumber) stepsByLine.set(lineNumber, [...(stepsByLine.get(lineNumber) ?? []), item]);
 			}
 
 			this.ensureStepperContext(uri);
-
-			// Debug removed: stdout is reserved for LSP JSON-RPC protocol
-
-			// Create resolver for recursive highlighting (only if we have valid backgrounds)
 			let resolver: Resolver | null = null;
 			try {
 				resolver = new Resolver(this.steppers, this.backgrounds);
@@ -208,99 +188,27 @@ export default class LspStepper extends AStepper {
 				console.error(`[LspStepper] semanticTokens: Failed to create resolver: ${e}`);
 			}
 
-			for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-				const line = lines[lineNum];
-				const trimmed = line.trim();
-				if (!trimmed) continue;
-
-				const cachedSteps = stepsByLine.get(lineNum + 1); // lineNumber is 1-indexed
-
-				if (cachedSteps && cachedSteps.length > 0) {
-					// Sort by start position to process in order
-					cachedSteps.sort((a, b) => (a.startOffset || 0) - (b.startOffset || 0));
-
-					for (const cachedStep of cachedSteps) {
-						const startChar = cachedStep.startOffset !== undefined ? cachedStep.startOffset : line.indexOf(trimmed);
-						const len = cachedStep.length !== undefined ? cachedStep.length : trimmed.length;
-
-						this.highlightStep(builder, lineNum, line, startChar, cachedStep.step.action, resolver, len);
+			const tokens = classifyDocument({
+				lines: doc.getText().split("\n"),
+				stepsByLine,
+				prosePaintsAsComment: uri.endsWith(".feature"),
+				resolveStatement: (statement) => {
+					try {
+						return resolver?.findSingleStepAction(statement);
+					} catch {
+						return undefined; // an unresolvable nested statement paints as a plain argument
 					}
-				} else if (uri.endsWith(".feature")) {
-					// Not a resolved step - check if prose (only for .feature files)
-					const isProse = /^[A-Z]/.test(trimmed);
-					if (isProse) {
-						const startChar = line.indexOf(trimmed);
-						builder.push(lineNum, startChar, trimmed.length, tokenTypes.indexOf("comment"), 0);
-					}
-				}
-			}
+				},
+			});
 
+			const builder = new SemanticTokensBuilder();
+			for (const t of tokens) builder.push(t.line, t.char, t.length, TOKEN_TYPES.indexOf(t.type), 0);
 			return builder.build();
 		});
 
 		this.documents.listen(this.connection);
 		this.connection.listen();
 		// this.getWorld().eventLogger.info('LSP Stepper: Listening on stdio');
-	}
-
-	private highlightStep(
-		builder: SemanticTokensBuilder,
-		lineNum: number,
-		lineText: string,
-		startOffset: number,
-		action: TStepAction | undefined,
-		resolver: Resolver,
-		length: number,
-	) {
-		if (!action) return;
-
-		const stepValuesMap = action.stepValuesMap || {};
-		const paramEntries = Object.entries(stepValuesMap);
-
-		// Sort parameters by position
-		const sortedParams: { val: { term: string; domain?: string }; pos: number }[] = [];
-		if (paramEntries.length > 0) {
-			for (const [, val] of paramEntries as [string, TStepValue][]) {
-				if (val && val.term) {
-					const pos = lineText.indexOf(val.term, startOffset);
-					if (pos >= 0 && pos < startOffset + length) {
-						sortedParams.push({ val, pos });
-					}
-				}
-			}
-			sortedParams.sort((a, b) => a.pos - b.pos);
-		}
-
-		let lastEnd = startOffset;
-		const endOffset = startOffset + length;
-
-		if (sortedParams.length > 0) {
-			for (const { val, pos } of sortedParams) {
-				if (pos > lastEnd) {
-					builder.push(lineNum, lastEnd, pos - lastEnd, tokenTypes.indexOf("function"), 0);
-				}
-
-				if (val.domain === "statement") {
-					try {
-						const nestedAction = resolver.findSingleStepAction(val.term);
-						this.highlightStep(builder, lineNum, lineText, pos, nestedAction, resolver, val.term.length);
-					} catch {
-						// Fallback if statement resolution fails
-						builder.push(lineNum, pos, val.term.length, tokenTypes.indexOf("parameter"), 0);
-					}
-				} else {
-					const tokenType = val.domain === "number" ? "number" : "parameter";
-					builder.push(lineNum, pos, val.term.length, tokenTypes.indexOf(tokenType), 0);
-				}
-				lastEnd = pos + val.term.length;
-			}
-
-			if (lastEnd < endOffset) {
-				builder.push(lineNum, lastEnd, endOffset - lastEnd, tokenTypes.indexOf("function"), 0);
-			}
-		} else {
-			builder.push(lineNum, startOffset, length, tokenTypes.indexOf("function"), 0);
-		}
 	}
 
 	// Cache for resolved feature steps per document

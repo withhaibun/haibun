@@ -281,7 +281,6 @@ export const LinkRelations = {
 	STATED: { rel: "stated", uri: "hbn:stated", range: "container" },
 	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
-	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri" },
 	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", subPropertyOf: "ganttStart" },
 	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", subPropertyOf: "ganttEnd" },
