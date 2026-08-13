@@ -30,6 +30,9 @@ Feature: Patient Rights and Hospital Journey
   Additionally, at least one care team member must be present.
   waypoint Care Team is assembled with some member in Care Team is Staff {member} is attending
 
+  A waypoint can guard itself: this one asks nothing at all unless the emergency department is open, and only then that someone is attending.
+  waypoint Emergency response is covered with where variable Emergency status is "Active", some member in Care Team is Staff {member} is attending
+
   Activity: Environmental Hygiene
   
   When an area is not clean, housekeeping is dispatched to restore it.
@@ -81,6 +84,7 @@ Feature: Patient Rights and Hospital Journey
   not variable Dignity status is "Violated"
 
   Final Safety Check.
-  Before discharge, we ensure all rights were upheld and the team was present.
+  Before discharge, we ensure all rights were upheld and the team was present, and that the open emergency department was covered.
   ensure Patient is safe
   ensure Care Team is assembled
+  ensure Emergency response is covered
