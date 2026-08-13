@@ -19,7 +19,7 @@ import { arrayWindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import { emptyOrLoading } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
-import { parseSeqPath } from "../quad-detail-pane.js";
+import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import type { TDispatchTrace } from "../schemas.js";
 
 const MonitorColumnSchema = z.object({
@@ -218,7 +218,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		} else if (isStart) message = "";
 		else if (e.kind === "lifecycle" && e.stage === "start") message = `▸ ${String(e.type || "")}`;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
-		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string);
+		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string) ?? undefined;
 		const isEnd = isStep && e.stage === "end";
 		if (isEnd && seqPath) {
 			const startIdx = this.startRowIndex.get(seqPath.join("."));
