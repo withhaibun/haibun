@@ -29,7 +29,7 @@ describe("vars", () => {
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 	});
-	it("exists", async () => {
+	it("a set variable exists", async () => {
 		const content = 'set x to "y"\nvariable x exists';
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
@@ -326,17 +326,6 @@ variable choice is less than no`;
 });
 
 describe("enum superdomains", () => {
-	it.skip("inherits values from referenced superdomains", async () => {
-		// Skipped: mixing superdomain references with literal values is unsupported.
-		const content = `set of baseIndications is ["red" "green"]
-set of derivedIndications as [baseIndications "blue"]
-set indication as derivedIndications to "red"
-set indication as derivedIndications to "blue"
-variable indication is "blue"`;
-		const res = await passWithDefaults(content, steppers);
-		expect(res.ok).toBe(true);
-	});
-
 	it("fails when a superdomain is missing", async () => {
 		const content = `set of derived as [missingSuperdomain]`;
 		const res = await failWithDefaults(content, steppers);

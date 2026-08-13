@@ -55,25 +55,34 @@ describe("parseRunPolicyEnv", () => {
 });
 
 describe("accessLevelIncludes", () => {
-	it("r includes r", () => expect(accessLevelIncludes("r", "r")).toBe(true));
-	it("a includes r", () => expect(accessLevelIncludes("a", "r")).toBe(true));
-	it("a includes a", () => expect(accessLevelIncludes("a", "a")).toBe(true));
-	it("w includes r", () => expect(accessLevelIncludes("w", "r")).toBe(true));
-	it("w includes a", () => expect(accessLevelIncludes("w", "a")).toBe(true));
-	it("w includes w", () => expect(accessLevelIncludes("w", "w")).toBe(true));
-	it("r does not include a", () => expect(accessLevelIncludes("r", "a")).toBe(false));
-	it("r does not include w", () => expect(accessLevelIncludes("r", "w")).toBe(false));
-	it("a does not include w", () => expect(accessLevelIncludes("a", "w")).toBe(false));
+	// read ⊂ act ⊂ write: a level includes itself and everything below it, and nothing above.
+	it.each([
+		["r", "r", true],
+		["a", "r", true],
+		["a", "a", true],
+		["w", "r", true],
+		["w", "a", true],
+		["w", "w", true],
+		["r", "a", false],
+		["r", "w", false],
+		["a", "w", false],
+	])("%s includes %s: %s", (held, needed, expected) => {
+		expect(accessLevelIncludes(held, needed)).toBe(expected);
+	});
 });
 
 describe("getFeatureAccessPrefix", () => {
-	it("detects r_ prefix", () => expect(getFeatureAccessPrefix("r_health.feature")).toBe("r"));
-	it("detects a_ prefix", () => expect(getFeatureAccessPrefix("a_auth.feature")).toBe("a"));
-	it("detects w_ prefix", () => expect(getFeatureAccessPrefix("w_write.feature")).toBe("w"));
-	it("returns undefined for no prefix", () => expect(getFeatureAccessPrefix("health.feature")).toBeUndefined());
-	it("returns undefined for unrecognized prefix", () => expect(getFeatureAccessPrefix("x_bad.feature")).toBeUndefined());
-	it("returns undefined for kireji without prefix", () => expect(getFeatureAccessPrefix("test.feature.ts")).toBeUndefined());
-	it("detects prefix on kireji files", () => expect(getFeatureAccessPrefix("r_test.feature.ts")).toBe("r"));
+	it.each([
+		["r_health.feature", "r"],
+		["a_auth.feature", "a"],
+		["w_write.feature", "w"],
+		["r_test.feature.ts", "r"],
+		["health.feature", undefined],
+		["x_bad.feature", undefined],
+		["test.feature.ts", undefined],
+	])("%s reads as %s", (filename, expected) => {
+		expect(getFeatureAccessPrefix(filename)).toBe(expected);
+	});
 });
 
 describe("featureMatchesFilter", () => {
@@ -82,29 +91,19 @@ describe("featureMatchesFilter", () => {
 		{ dir: "api", access: "a" as const },
 	];
 
-	it("allows r_ in smoke (r granted)", () => {
-		expect(featureMatchesFilter("/smoke/r_health.feature", filters)).toBe(true);
-	});
-	it("blocks a_ in smoke (only r granted)", () => {
-		expect(featureMatchesFilter("/smoke/a_auth.feature", filters)).toBe(false);
-	});
-	it("allows r_ in api (a granted, includes r)", () => {
-		expect(featureMatchesFilter("/api/r_list.feature", filters)).toBe(true);
-	});
-	it("allows a_ in api (a granted)", () => {
-		expect(featureMatchesFilter("/api/a_profile.feature", filters)).toBe(true);
-	});
-	it("blocks w_ in api (only a granted)", () => {
-		expect(featureMatchesFilter("/api/w_create.feature", filters)).toBe(false);
-	});
-	it("skips unprefixed files silently", () => {
-		expect(featureMatchesFilter("/smoke/health.feature", filters)).toBe(false);
-	});
-	it("skips files in unlisted directories", () => {
-		expect(featureMatchesFilter("/web/r_page.feature", filters)).toBe(false);
-	});
-	it("skips files with no directory", () => {
-		expect(featureMatchesFilter("/r_orphan.feature", filters)).toBe(false);
+	// A file runs when its directory is listed AND the prefix it declares is within the access that directory grants.
+	// Anything else is skipped: an unprefixed file declares nothing, and an unlisted directory grants nothing.
+	it.each([
+		["/smoke/r_health.feature", true],
+		["/api/r_list.feature", true],
+		["/api/a_profile.feature", true],
+		["/smoke/a_auth.feature", false],
+		["/api/w_create.feature", false],
+		["/smoke/health.feature", false],
+		["/web/r_page.feature", false],
+		["/r_orphan.feature", false],
+	])("%s runs: %s", (path, expected) => {
+		expect(featureMatchesFilter(path, filters)).toBe(expected);
 	});
 
 	it("allows wildcard dir filter for any directory", () => {
