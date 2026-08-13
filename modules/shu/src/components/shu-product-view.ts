@@ -9,6 +9,7 @@
  * root — mounted there, its scene boots but its graph component dies on the camera lookup. Light DOM keeps the
  * mounted subtree document-reachable wherever the product view is embedded.
  */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -48,7 +49,7 @@ export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
 			void ensureUiComponentLoaded(tag)
 				.then(() => this.mountProduct(tag, products, snapshotTime))
 				.catch((err) => {
-					this.textContent = `failed to load ${tag}: ${err instanceof Error ? err.message : String(err)}`;
+					this.textContent = `failed to load ${tag}: ${errorDetail(err)}`;
 				});
 			return;
 		}

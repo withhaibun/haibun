@@ -21,7 +21,8 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
-import { truncate, formatDate, isDateValue, idOf, persistedTypeOf, isVisibleKey } from "../util.js";
+import { formatDate, isDateValue, idOf, persistedTypeOf, isVisibleKey } from "../util.js";
+import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { getRelSync, getPropertyOrder } from "../rels-cache.js";
 import { TIME_SYNC_CLASS } from "./shu-element.js";
 import "./shu-virtual-column.js";
@@ -39,6 +40,9 @@ function referenceOf(value: unknown): { "@id": string; "@type": string } | undef
 	const { "@id": id, "@type": type } = value as { "@id"?: unknown; "@type"?: unknown };
 	return typeof id === "string" && id.length > 0 && typeof type === "string" && type.length > 0 ? { "@id": id, "@type": type } : undefined;
 }
+
+/** A cell's text cap: past it the value is ellipsized, and the row stays one line. The full value is in the record the row opens. */
+const CELL_MAX = 50;
 
 export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	static styles = [
@@ -260,7 +264,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				if (reference)
 					return html`<span class="td" title=${reference["@id"]} data-testid=${testId}>${unsafeHTML(renderRef("entity", { persistedAs: reference["@type"], id: reference["@id"] }))}</span>`;
 				const raw = String(v[p] ?? "");
-				const display = isDateValue(raw) ? formatDate(raw) : truncate(raw);
+				const display = isDateValue(raw) ? formatDate(raw) : ellipsize(raw, CELL_MAX);
 				return html`<span class="td" title=${raw} data-testid=${testId}>${display}</span>`;
 			})}
 		</div>`;

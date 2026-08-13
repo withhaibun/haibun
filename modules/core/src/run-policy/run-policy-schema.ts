@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { readFileSync } from "fs";
-import { ACCESS_LEVELS, type TRunPolicyConfig } from "./run-policy-types.js";
+import { RUN_ACCESS_LEVELS, type TRunPolicyConfig } from "./run-policy-types.js";
 
 // ============================================================================
 // Policy File Schema — Hierarchical JSON Schema
@@ -9,7 +9,7 @@ import { ACCESS_LEVELS, type TRunPolicyConfig } from "./run-policy-types.js";
 const DenyRuleSchema = z.object({
 	place: z.string().optional(),
 	dir: z.string().optional(),
-	access: z.enum(ACCESS_LEVELS).optional(),
+	access: z.enum(RUN_ACCESS_LEVELS).optional(),
 });
 
 /**
@@ -209,14 +209,14 @@ export function buildConfigValidator(policy: TRunPolicy) {
 		baseSchema.dirFilters = z.array(
 			z.object({
 				dir: z.union([z.enum(validDirs), z.literal("*")]),
-				access: z.enum(ACCESS_LEVELS),
+				access: z.enum(RUN_ACCESS_LEVELS),
 			}),
 		);
 	} else {
 		baseSchema.dirFilters = z.array(
 			z.object({
 				dir: z.string(),
-				access: z.enum(ACCESS_LEVELS),
+				access: z.enum(RUN_ACCESS_LEVELS),
 			}),
 		);
 	}

@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { TFeatures } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
-import { OK, STEP_DELAY } from "../schema/protocol.js";
+import { OK } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartExecution, TStartFeature, TEndFeature, CycleWhen } from "../lib/astepper.js";
-import { actionNotOK, actionOK, actionOKWithProducts, constructorName, formattedSteppers, sleep } from "../lib/util/index.js";
+import { actionNotOK, actionOK, actionOKWithProducts, constructorName, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
@@ -180,100 +180,9 @@ class Haibun extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		startStepDelay: {
-			gwta: "step delay of {ms:number}ms",
-			action: ({ ms }: { ms: number }) => {
-				this.getWorld().options[STEP_DELAY] = ms;
-				return OK;
-			},
-		},
 		endsWith: {
 			gwta: "ends with {result}",
 			action: ({ result }: { result: string }) => (result.toUpperCase() === "OK" ? actionOK() : actionNotOK("ends with not ok")),
-		},
-		showSteppers: {
-			exact: "show steppers",
-			action: () => {
-				const allSteppers = formattedSteppers(this.steppers);
-				this.getWorld().eventLogger.info(JSON.stringify(allSteppers, null, 2));
-				return actionOK();
-			},
-		},
-		showSteps: {
-			gwta: "show step results",
-			action: () => {
-				const steps = this.getWorld().runtime.stepResults;
-				this.getWorld().eventLogger.info(JSON.stringify(steps));
-				return actionOK();
-			},
-		},
-		showFeatures: {
-			gwta: "show features",
-			action: () => {
-				return actionOK();
-			},
-		},
-		showBackgrounds: {
-			gwta: "show backgrounds",
-			action: () => {
-				return actionOK();
-			},
-		},
-		showQuadStore: {
-			exact: "show quadstore",
-			action: async () => {
-				const quads = await this.getWorld().shared.allQuads();
-				const output = quads.map((q) => `(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.namedGraph || "default"})`).join("\n");
-				this.getWorld().eventLogger.info(`\n=== QuadStore Dump (${quads.length} quads) ===\n${output}\n==========================\n`);
-				return OK;
-			},
-		},
-		showObservations: {
-			gwta: "show observations",
-			action: async () => {
-				// Walk the quad store, collect every quad in an "observation/*" named graph,
-				// then group by named graph for display.
-				const allQuads = await this.getWorld().shared.getStore().all();
-				const observationQuads = allQuads.filter((q) => q.namedGraph.startsWith("observation/"));
-				if (observationQuads.length === 0) {
-					this.getWorld().eventLogger.info(`observations: none`);
-					return actionOK();
-				}
-
-				const sourceProviders: Record<string, string> = {};
-				for (const stepper of this.steppers) {
-					if ("cycles" in stepper) {
-						const concerns = (stepper as unknown as IHasCycles).cycles.getConcerns?.();
-						if (concerns?.sources) {
-							for (const source of concerns.sources) sourceProviders[source.name] = stepper.constructor.name;
-						}
-					}
-				}
-
-				const summary: Record<string, { items: Array<{ subject: string; predicate: string; object: unknown }> }> = {};
-				for (const quad of observationQuads) {
-					if (!summary[quad.namedGraph]) summary[quad.namedGraph] = { items: [] };
-					summary[quad.namedGraph].items.push({ subject: quad.subject, predicate: quad.predicate, object: quad.object });
-				}
-
-				this.getWorld().eventLogger.info(JSON.stringify({ summary, sourceProviders }, null, 2));
-				return actionOK();
-			},
-		},
-		showShows: {
-			gwta: "show shows",
-			action: () => {
-				const shows: string[] = [];
-				for (const stepper of this.steppers) {
-					for (const step of Object.values(stepper.steps)) {
-						if (step.gwta?.startsWith("show ") || step.exact?.startsWith("show ")) {
-							shows.push(step.gwta || step.exact || "");
-						}
-					}
-				}
-				this.getWorld().eventLogger.info(JSON.stringify(shows.sort(), null, 2));
-				return actionOK();
-			},
 		},
 		pause: {
 			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',

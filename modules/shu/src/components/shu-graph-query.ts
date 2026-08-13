@@ -1,3 +1,4 @@
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { defaultLabel } from "../util.js";
 import { SHU_EVENT } from "../consts.js";
@@ -6,11 +7,12 @@ import { SHU_EVENT } from "../consts.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { QueryViewSchema, type TSearchCondition } from "../schemas.js";
+import { QueryViewSchema } from "../schemas.js";
+import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, type TViewQuery } from "../view-query.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { shuBaseStyles } from "./styles.js";
-import { esc, errMsg, setIdFields } from "../util.js";
+import { esc, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { isOffline } from "../hypermedia.js";
@@ -329,7 +331,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					if (pane) pane.setAttribute("label", data.cypher);
 				}
 			} catch (err) {
-				this.error = errMsg(err);
+				this.error = errorDetail(err);
 			}
 			this.renderResults();
 			if (resultsChanged) this.selectedIds.clear(); // a fresh result set invalidates the row selection

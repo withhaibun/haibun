@@ -270,50 +270,6 @@ async function autoAssertProducts(world: TWorld, step: TStepperStep, actionResul
 	}
 }
 
-// --- RPC Message Schemas ---
-
-/** Incoming JSON-RPC 2.0 request from client (POST /rpc/:method). */
-export const RpcRequestSchema = z.object({
-	jsonrpc: z.literal("2.0"),
-	id: z.string(),
-	method: z.string(),
-	params: z.record(z.string(), z.unknown()).optional().default({}),
-	capability: z.string().optional(),
-	stream: z.boolean().optional(),
-	/** Caller's seqPath for threading hierarchical step identity through RPC. */
-	seqPath: z.array(z.number()).optional(),
-	/** The most this caller may see. A server bounds a call to the narrower of this and its own ceiling, so a caller
-	 *  can ask to see less than it is allowed but never more. */
-	readingAt: AccessLevelSchema.optional(),
-});
-export type TRpcRequest = z.infer<typeof RpcRequestSchema>;
-
-/** Outgoing JSON-RPC 2.0 response to client. */
-export const RpcResponseSchema = z.object({
-	jsonrpc: z.literal("2.0"),
-	id: z.string(),
-	result: z.unknown().optional(),
-	error: z.string().optional(),
-});
-export type TRpcResponse = z.infer<typeof RpcResponseSchema>;
-
-/** Outgoing JSON-RPC 2.0 stream chunk to client. */
-export const RpcStreamSchema = z.object({
-	jsonrpc: z.literal("2.0"),
-	id: z.string(),
-	stream: z.literal(true),
-	data: z.unknown(),
-});
-export type TRpcStream = z.infer<typeof RpcStreamSchema>;
-
-/**
- * Parse and validate an incoming RPC request.
- * Returns the parsed request or null if the message is not an RPC request.
- */
-export function parseRpcRequest(raw: unknown): TRpcRequest | null {
-	const result = RpcRequestSchema.safeParse(raw);
-	return result.success ? result.data : null;
-}
 
 /**
  * Emit a SeqPath individual on step entry so child individuals created during the

@@ -2,6 +2,7 @@
  * SPA-side schemas for graph query results and shared UI components.
  */
 import { z } from "zod";
+import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 
 // --- Combobox ---
 
@@ -43,36 +44,18 @@ export const ComboboxSchema = z.object({
 
 // --- Search conditions ---
 
-export const SearchOperatorSchema = z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between"]);
-export type TSearchOperator = z.infer<typeof SearchOperatorSchema>;
-
-export const SEARCH_OPERATORS: ReadonlyArray<{
-	value: TSearchOperator;
-	label: string;
-}> = [
-	{ value: "eq", label: "equals" },
-	{ value: "contains", label: "contains" },
-	{ value: "gt", label: "greater than" },
-	{ value: "lt", label: "less than" },
-	{ value: "gte", label: "at least" },
-	{ value: "lte", label: "at most" },
-	{ value: "between", label: "between" },
-];
-
-export const SearchConditionSchema = z.object({
-	predicate: z.string(),
-	operator: SearchOperatorSchema,
-	value: z.string(),
-	value2: z.string().optional(),
-});
-export type TSearchCondition = z.infer<typeof SearchConditionSchema>;
+/** The operator options a filter UI offers, each with its display label. Values come from the condition schema, so the menu cannot offer an operator the query rejects. */
+export const SEARCH_OPERATORS: ReadonlyArray<{ value: TSearchCondition["operator"]; label: string }> = SearchConditionSchema.shape.operator.options.map((value) => ({
+	value,
+	label: { eq: "equals", contains: "contains", gt: "greater than", lt: "less than", gte: "at least", lte: "at most", between: "between" }[value],
+}));
 
 /** Parse a pipe-delimited filter string (predicate|operator|value[|value2]) into a SearchCondition. */
 export function parseFilterParam(f: string): TSearchCondition {
 	const parts = f.split("|");
 	return {
 		predicate: parts[0] || "",
-		operator: (parts[1] || "eq") as TSearchOperator,
+		operator: (parts[1] || "eq") as TSearchCondition["operator"],
 		value: parts[2] || "",
 		...(parts[3] ? { value2: parts[3] } : {}),
 	};
@@ -192,10 +175,6 @@ export const ContextPatternSchema = z.object({
 });
 export type TContextPattern = z.infer<typeof ContextPatternSchema>;
 export const ContextQuerySchema = z.array(ContextPatternSchema);
-
-// --- Dispatch trace (shared by sequence diagram, monitor column, step detail) ---
-
-export { DispatchTraceSchema, type TDispatchTrace } from "@haibun/core/schema/protocol.js";
 
 // --- Actions bar ---
 

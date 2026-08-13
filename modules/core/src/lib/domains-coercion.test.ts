@@ -5,6 +5,7 @@ import { DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON, DOMAIN_DATE, registerDomains
 import { TDomainDefinition } from "./resources.js";
 import { Origin, TStepValue } from "../schema/protocol.js";
 import { FeatureVariables } from "./feature-variables.js";
+import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "./quad-types.js";
 
 const p = (value: string, domain = DOMAIN_STRING): TStepValue => ({ term: String(value), value, domain, origin: Origin.var });
 
@@ -115,6 +116,22 @@ describe("domain coercion", () => {
 			expect(comparator("in-process", "started")).toBeGreaterThan(0);
 			expect(comparator("started", "finished")).toBeLessThan(0);
 			expect(comparator("proto", "proto")).toBe(0);
+		});
+	});
+
+	describe("graph query", () => {
+		const q = (query: object) => domains[DOMAIN_GRAPH_QUERY].coerce(p(JSON.stringify(query), DOMAIN_GRAPH_QUERY)) as TGraphQuery;
+
+		it("leaves an unstated access level unstated", () => {
+			expect(q({ label: "Email" }).accessLevel).toBeUndefined();
+		});
+
+		it("keeps a stated access level", () => {
+			expect(q({ label: "Email", accessLevel: "public" }).accessLevel).toBe("public");
+		});
+
+		it("refuses a key the query does not declare", () => {
+			expect(() => q({ label: "Email", account: "acl" })).toThrow(/account/);
 		});
 	});
 

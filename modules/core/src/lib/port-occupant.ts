@@ -7,6 +7,8 @@
  * web server explaining a failed bind describe the occupant the same way.
  */
 
+import { rpcEnvelope } from "./rpc-wire.js";
+
 const PROBE_TIMEOUT_MS = 1_500;
 
 export async function describePortOccupant(port: number, timeoutMs = PROBE_TIMEOUT_MS): Promise<string | undefined> {
@@ -15,7 +17,7 @@ export async function describePortOccupant(port: number, timeoutMs = PROBE_TIMEO
 		res = await fetch(`http://localhost:${port}/rpc/${encodeURIComponent("action.begin")}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ jsonrpc: "2.0", id: "port-probe", method: "action.begin", params: {}, seqPath: [] }),
+			body: rpcEnvelope({ id: "port-probe", method: "action.begin", params: {}, seqPath: [] }),
 			signal: AbortSignal.timeout(timeoutMs),
 		});
 	} catch {

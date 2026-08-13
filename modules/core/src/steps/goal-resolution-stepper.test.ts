@@ -10,6 +10,8 @@ import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
+/** A domain this test registers and no step produces, so `resolve` has something registered but unreachable to answer about. */
+const DOMAIN_UNPRODUCED = "unproduced-test";
 const DOMAIN_COMPOSITE_GOAL = "composite-goal-test";
 const DOMAIN_COMPOSITE_INPUT = "composite-input-test";
 
@@ -23,6 +25,11 @@ class AuthStepper extends AStepper implements IHasCycles {
 					selectors: [DOMAIN_AUTH_SESSION],
 					schema: AuthSessionSchema,
 					description: "Authenticated session",
+				},
+				{
+					selectors: [DOMAIN_UNPRODUCED],
+					schema: z.unknown(),
+					description: "Registered by this test alone; no step produces it.",
 				},
 			],
 		}),
@@ -81,11 +88,10 @@ describe("GoalResolutionStepper — integration via passWithDefaults", () => {
 	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper, LogicStepper];
 
 	it("resolve returns unreachable for a goal no producer can derive", async () => {
-		// Use a domain key that's registered (via DOMAIN_TEST_SCRATCH in core-domains)
-		// but has no producer step in the loaded stepper set.
+		// A domain key this test registers (see DOMAIN_UNPRODUCED above) that no loaded step produces.
 		const feature = {
 			path: "/features/howto-unreachable.feature",
-			content: `set goalResolution from resolve "test-scratch"
+			content: `set goalResolution from resolve "unproduced-test"
 variable goalResolution.finding is "unreachable"`,
 		};
 		const result = await passWithDefaults([feature], steppers);

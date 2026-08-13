@@ -3,7 +3,7 @@ import { stream } from "hono/streaming";
 import { streamSSE } from "hono/streaming";
 import type { IWebServer } from "./defs.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
-import { truncateForLog } from "@haibun/core/lib/util/index.js";
+import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
@@ -119,7 +119,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			} catch (serializeErr) {
 				// V8 raises RangeError when JSON.stringify is asked for a string longer than ~512MB. Return a structured error instead of letting the unhandled throw stall the client's fetch.
 				const method = (data as Record<string, unknown>).method ?? "unknown";
-				const reason = serializeErr instanceof Error ? serializeErr.message : String(serializeErr);
+				const reason = errorDetail(serializeErr);
 				this.eventLogger.error(`RPC ${method} response too large to serialize: ${reason}`);
 				return c.json({ ok: false, error: `${method}: response too large to serialize (${reason}). Narrow the query or return a summary.` }, 413);
 			}
@@ -148,7 +148,7 @@ export class SSETransport implements ITransport, IStepTransport {
 				status: data?.status,
 				level: data?.level,
 				dropped: true,
-				droppedReason: err instanceof Error ? err.message : String(err),
+				droppedReason: errorDetail(err),
 			};
 			payload = JSON.stringify(fallback);
 			this.eventLogger.error(`SSE event dropped (payload too large to serialize): ${fallback.droppedReason}`);

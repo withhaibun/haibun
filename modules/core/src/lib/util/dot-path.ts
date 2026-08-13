@@ -1,3 +1,4 @@
+import { unwrapToShape } from "../zod-unwrap.js";
 import { z } from "zod";
 
 /** Split a term like "result.total" into baseName and path segments. */
@@ -34,17 +35,3 @@ export function validateZodPath(schema: z.ZodType, segments: string[]): z.ZodTyp
 	return current;
 }
 
-/** Unwrap optional/nullable/default wrappers and extract object shape if present. */
-function unwrapToShape(schema: z.ZodType): Record<string, z.ZodType> | null {
-	const def = (schema as { _zod?: { def?: { type?: string; innerType?: z.ZodType; shape?: Record<string, z.ZodType> } } })._zod?.def;
-	if (!def) return null;
-	if (def.type === "object" && def.shape) return def.shape as Record<string, z.ZodType>;
-	if ((def.type === "optional" || def.type === "nullable" || def.type === "default") && def.innerType) {
-		return unwrapToShape(def.innerType);
-	}
-	// Zod v4 ZodObject has .shape directly
-	if ("shape" in schema && typeof (schema as { shape: unknown }).shape === "object") {
-		return (schema as { shape: Record<string, z.ZodType> }).shape;
-	}
-	return null;
-}

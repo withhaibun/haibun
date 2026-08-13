@@ -27,6 +27,7 @@ export const SearchConditionSchema = z
 		value2: z.string().optional(),
 	})
 	.strict();
+export type TSearchCondition = z.infer<typeof SearchConditionSchema>;
 
 export const GraphQuerySchema = z
 	.object({
@@ -37,7 +38,9 @@ export const GraphQuerySchema = z
 		sortOrder: z.enum(["asc", "desc"]).default("desc"),
 		limit: z.number().int().positive().default(50),
 		offset: z.number().int().nonnegative().default(0),
-		accessLevel: z.enum(["private", "public", "opened", "all"]).default("private"),
+		// No default: what an unstated level means belongs to the read that answers it — a graph query reads every
+		// level it may see, a shape query samples public. A default here decided it for both, and decided it wrong.
+		accessLevel: z.enum(["private", "public", "opened", "all"]).optional(),
 		fields: z.array(z.string()).optional(),
 		explain: z.boolean().default(false),
 		/** When true, skip the separate total-count query; `total` returns the page length only. */
@@ -45,8 +48,6 @@ export const GraphQuerySchema = z
 	})
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
-
-export { type ResourceRels, buildResourceRels, parseTimestampValue } from "./hypermedia.js";
 
 export interface TQuad {
 	subject: string;

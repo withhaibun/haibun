@@ -10,6 +10,10 @@ import { PaneState, parseColEntry, DesiredPaneSchema, paneIdOf, tagOf, labelOf }
 import { ShuElement } from "./components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
+import { setConduit, resetConduit, SerializedConduit, LiveConduit } from "./hypermedia.js";
+
+/** Offline is which Conduit is installed: a serialized one has no location to mutate, a live one does. */
+const offline = () => setConduit(new SerializedConduit(() => { throw new Error("pane-state test: no dispatch expected"); }));
 
 const emptyMeta = (ui: SiteMetadata["ui"] = {}): SiteMetadata => ({
 	types: [],
@@ -32,6 +36,15 @@ describe("derived helpers", () => {
 		expect(paneIdOf({ paneType: "thread", persistedAs: "Email", subject: "msg-42" })).toBe("t:Email:msg-42");
 		expect(paneIdOf({ paneType: "type", persistedAs: "Issuer" })).toBe("type:Issuer");
 		expect(paneIdOf({ paneType: "step-detail", seqPath: [0, 1, 2] })).toBe("step:0.1.2");
+	});
+
+	it("an entity pane of a type whose panel is slotted opens the generic entity column", () => {
+		// The petitions panel is declared on Proposal with a slot: it mounts in the permissions area and is about the
+		// type. Opening one proposal must not mount that panel as the record's column — it has no `open` to call.
+		setSiteMetadata(emptyMeta({ Proposal: { component: "shu-petitions", slot: "permissions" }, Report: { component: "shu-report-column" } }));
+		expect(tagOf({ paneType: "entity", id: "p-1", persistedAs: "Proposal" })).toBe("shu-entity-column");
+		expect(tagOf({ paneType: "entity", id: "r-1", persistedAs: "Report" })).toBe("shu-report-column");
+		setSiteMetadata(emptyMeta());
 	});
 
 	it("tagOf maps each paneType to its column-component, components reuse their tag", () => {
@@ -96,7 +109,8 @@ describe("PaneState", () => {
 	beforeEach(() => {
 		PaneState.__resetForTests();
 		document.body.innerHTML = "";
-		ViewHash.setOffline(true);
+		resetConduit();
+		offline();
 		ShuElement.pushHash("#?");
 		if (!customElements.get("shu-column-pane"))
 			customElements.define(
@@ -390,7 +404,8 @@ describe("PaneState", () => {
 	it("an open= link adds its pane to the live state instead of replacing it (a document's view link)", async () => {
 		// Online: the arrival path is a real location change, canonicalized by view-hash's ingress listener
 		// (registered at import, so it runs before PaneState's) before any consumer reads the hash.
-		ViewHash.setOffline(false);
+		resetConduit();
+		setConduit(new LiveConduit(""));
 		ShuElement.pushHash("#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column");
 		PaneState.fromHash();
 		await flush();
@@ -407,6 +422,7 @@ describe("PaneState", () => {
 		expect(params.getAll("col").sort()).toEqual(["shu-graph-view", "shu-monitor-column"]);
 		expect(params.get("active")).toBe("shu-graph-view"); // the linked view is what the reader asked for
 		expect(params.get("open")).toBeNull(); // canonicalized away
-		ViewHash.setOffline(true);
+		resetConduit();
+		offline();
 	});
 });

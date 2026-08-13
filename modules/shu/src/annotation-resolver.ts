@@ -7,13 +7,12 @@
  * (`file://` serialized report) via the same reverse walk over the off-heap quad snapshot. `toW3CAnnotations` shapes
  * the result for the annotator library, which anchors each TextQuoteSelector against the rendered body.
  */
-import { COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, LinkRelations, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
 import { callStep } from "./pane-fetch.js";
 import { queryStoredQuads } from "./quads-snapshot.js";
 
 /** A quote that locates a passage in the rendered text: the TextQuoteSelector shape the typed-link grammar and the graph share. */
-export type { TQuoteAnchor as QuoteAnchor } from "@haibun/core/lib/typed-links.js";
-import type { TQuoteAnchor as QuoteAnchor } from "@haibun/core/lib/typed-links.js";
+import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 
 /** One anchored note: the quote that locates it, the note body, and its provenance. `commentId` is the annotating
  *  Comment (the id the highlight carries, so a click selects the note). */
@@ -27,7 +26,7 @@ export type AnnotationView = {
 	author?: string;
 	generatedAtTime?: string;
 	/** A linking annotation's cross-references: the quotes of the sections this note points at, so the note can jump to each. */
-	links?: QuoteAnchor[];
+	links?: TQuoteAnchor[];
 };
 
 /** The W3C Web Annotation the annotator library consumes: a TextualBody plus a target carrying BOTH a TextQuoteSelector
@@ -107,8 +106,8 @@ async function bodyMarkdownOf(commentQuads: Quad[]): Promise<{ body?: string }> 
 }
 
 /** The quotes of the sections a linking Comment points at: Comment —linksTo→ SpecificResource → its TextQuoteSelector, per edge. */
-async function linkQuotesOf(commentQuads: Quad[]): Promise<QuoteAnchor[]> {
-	const out: QuoteAnchor[] = [];
+async function linkQuotesOf(commentQuads: Quad[]): Promise<TQuoteAnchor[]> {
+	const out: TQuoteAnchor[] = [];
 	for (const q of commentQuads.filter((x) => x.predicate === LinkRelations.LINKS_TO.rel && x.objectType !== undefined)) {
 		const srQuads = await queryStoredQuads({ subject: String(q.object), namedGraph: SPECIFIC_RESOURCE_LABEL });
 		const selectorId = objectOf(srQuads, LinkRelations.HAS_SELECTOR.rel);
@@ -172,7 +171,7 @@ export function toW3CAnnotations(annotations: AnnotationView[], source: string, 
 			"@context": "http://www.w3.org/ns/anno.jsonld",
 			id: a.commentId,
 			type: "Annotation",
-			...(a.body ? { body: [{ type: "TextualBody" as const, value: a.body, format: "text/markdown" }] } : {}),
+			...(a.body ? { body: [{ type: "TextualBody" as const, value: a.body, format: MEDIA_TYPE.markdown }] } : {}),
 			target: {
 				source,
 				selector: [

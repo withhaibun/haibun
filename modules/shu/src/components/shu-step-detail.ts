@@ -6,6 +6,7 @@
  * seqPath, so switching steps cancels the stale load and renders only the latest — no hand-rolled loading flag, no
  * out-of-order overwrite. The step's own lifecycle event is separate, tracked live from the shared log.
  */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
@@ -140,7 +141,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		return this.#load.render({
 			initial: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,
 			pending: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,
-			error: (e) => html`<div class="empty" style="color:var(--shu-error)">Failed to load step [${key}]: ${e instanceof Error ? e.message : String(e)}</div>`,
+			error: (e) => html`<div class="empty" style="color:var(--shu-error)">Failed to load step [${key}]: ${errorDetail(e)}</div>`,
 			complete: (data) => this.renderContent(key, data),
 		});
 	}

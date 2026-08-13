@@ -196,35 +196,6 @@ function validateMountPath(path: string): string | undefined {
 	return undefined;
 }
 
-function enumValuesFromJsonSchema(jsonSchema: unknown): string[] {
-	if (!jsonSchema || typeof jsonSchema !== "object") return [];
-	const schema = jsonSchema as { enum?: unknown[]; anyOf?: unknown[]; oneOf?: unknown[] };
-	const direct = schema.enum?.filter((value): value is string => typeof value === "string") ?? [];
-	if (direct.length > 0) return direct;
-	for (const branch of [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]) {
-		const nested = enumValuesFromJsonSchema(branch);
-		if (nested.length > 0) return nested;
-	}
-	return [];
-}
-
-function selectValuesFromSchema(schema: z.ZodType, properties: Record<string, TPropertyDef>, filterProperties: string[] = []): Record<string, string[]> {
-	const values: Record<string, string[]> = {};
-	if (!(schema instanceof z.ZodObject)) return values;
-	const selectableProperties = new Set(filterProperties);
-	for (const [field, fieldSchema] of Object.entries(schema.shape)) {
-		const def = properties[field];
-		if (!def || !selectableProperties.has(field) || relOf(def) === LinkRelations.IDENTIFIER.rel) continue;
-		try {
-			const fieldValues = enumValuesFromJsonSchema(z.toJSONSchema(fieldSchema));
-			if (fieldValues.length > 0) values[field] = fieldValues;
-		} catch {
-			continue;
-		}
-	}
-	return values;
-}
-
 export default class ShuStepper extends AStepper implements IHasOptions {
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
 
@@ -341,7 +312,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				const domain = hypermediaDomainMap(this.getWorld().domains).get(label);
 				if (!domain?.topology?.properties) return actionNotOK(`No filter topology registered for ${label}`);
 				const values: Record<string, string[]> = {};
-				Object.assign(values, selectValuesFromSchema(domain.schema, domain.topology.properties, domain.topology.filterProperties));
 				for (const [property, definition] of Object.entries(domain.topology.properties)) {
 					if (relOf(definition) === LinkRelations.CONTEXT.rel) values[property] = await store.distinctPropertyValues(label, property);
 				}

@@ -34,14 +34,6 @@ export function escAttr(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export function truncate(s: string, max = 50): string {
-	return s.length > max ? s.slice(0, max) + "..." : s;
-}
-
-/** Extract message from unknown error. */
-export function errMsg(err: unknown): string {
-	return errorDetail(err);
-}
 
 import { AccessQuery } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";

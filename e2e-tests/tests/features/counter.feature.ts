@@ -7,7 +7,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 
 const { scenario } = withAction(new Haibun());
 const { setRandom, matches } = withAction(new VariablesStepper());
-const { inputVariable, click, URIQueryParameterIs, saveURIQueryParameter, seeText, cookieIs } = withAction(new WebPlaywright());
+const { setValue, click, URIQueryParameterIs, saveURIQueryParameter, seeText, cookieIs } = withAction(new WebPlaywright());
 
 export const features: TKirejiExport = {
 	"Counts feature": [
@@ -19,7 +19,7 @@ export const features: TKirejiExport = {
 		'webserver is listening for "counter-ts"',
 		"start tally route at /count",
 		"go to the counter webpage",
-		inputVariable({ what: "username", field: "user name" }),
+		setValue({ what: "username", field: "user name" }),
 		click({ target: "Submit" }),
 		URIQueryParameterIs({ what: "username", value: "username" }),
 		saveURIQueryParameter({ what: "username", where: "username parameter" }),

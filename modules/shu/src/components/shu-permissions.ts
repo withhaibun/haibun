@@ -9,6 +9,7 @@
  * Shown from the access indicator, beside the level a read is bounded by — a capability decides whether a question may
  * be put, the level decides how much of the answer comes back, and a reader is looking at both in one place.
  */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
@@ -91,7 +92,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			this.held = await this.#authority.read();
 			this.dispatchEvent(new CustomEvent(PERMISSIONS_SUMMARY, { detail: summaryOf(this.held), bubbles: true, composed: true }));
 		} catch (err) {
-			this.failure = err instanceof Error ? err.message : String(err);
+			this.failure = errorDetail(err);
 		}
 		this.requestUpdate();
 	}
@@ -119,7 +120,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 				.revoke(handle)
 				.then(() => this.read())
 				.catch((err) => {
-					this.failure = err instanceof Error ? err.message : String(err);
+					this.failure = errorDetail(err);
 					this.requestUpdate();
 				});
 		};

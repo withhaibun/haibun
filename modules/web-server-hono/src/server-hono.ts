@@ -1,3 +1,4 @@
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { Hono } from "hono";
 import { LinearRouter } from "hono/router/linear-router";
 import { serve, type ServerType } from "@hono/node-server";
@@ -95,7 +96,7 @@ export class ServerHono implements IWebServer {
 					);
 				});
 			} catch (e) {
-				reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${e instanceof Error ? e.message : e}`));
+				reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${errorDetail(e)}`));
 			}
 		});
 	}

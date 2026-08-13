@@ -19,11 +19,11 @@
  * referenced view appears in the column strip, mirroring every other
  * link-driven navigation in the SPA.
  */
+import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { esc } from "../util.js";
 import { openRef, isRefKind, refHref, defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
 
 // The string form of a reference lives with the router, free of any DOM class; re-exported here so its long-standing callers are unmoved.
-export { renderRef } from "./ref-navigation.js";
 
 export class ShuRef extends HTMLElement {
 	connectedCallback(): void {
@@ -105,8 +105,3 @@ export const factIdRef = (id: string): string => {
 	if (seqPath) return refSeqPath(seqPath, id);
 	return `<code>${esc(id)}</code>`;
 };
-
-function parseSeqPath(id: string): number[] | null {
-	if (!/^-?\d+(\.-?\d+)*$/.test(id)) return null;
-	return id.split(".").map((p) => Number.parseInt(p, 10));
-}

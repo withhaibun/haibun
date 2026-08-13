@@ -13,7 +13,6 @@ import { registerComponents } from "./component-registry.js";
 import { conduit, setConduit, LiveConduit, SerializedConduit, isOffline, type TDispatch } from "./hypermedia.js";
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
-import * as ViewHash from "./view-hash.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { getUiByType } from "./rels-cache.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
@@ -83,13 +82,9 @@ function seedHashFromQueryString(): void {
 const main = async (): Promise<void> => {
 	hydrateFromDom();
 	const standalone = isStandaloneMode();
-	// `ViewHash.setOffline` flips the URL/stored-state routing for view-hash IO so a standalone HTML report doesn't try to mutate `location.hash`.
-	ViewHash.setOffline(standalone);
-	if (standalone) ShuElement.pushHash(getHydratedViewHash());
-	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
-	installShuTokens();
-	applyShuPreferences();
-	// Install the conduit + event-stream pair before anything else; every component reads via the accessor and would otherwise throw on first use. The Conduit identity (Serialized vs Live) is from this point the single source of truth for "is the SPA offline" — callers read `isOffline()` from hypermedia.ts.
+	// Install the conduit + event-stream pair before anything else: every component reads via the accessor and would
+	// otherwise throw on first use, and the Conduit identity (Serialized vs Live) IS "is the SPA offline" — view-hash
+	// asks it before deciding whether there is a `location.hash` to mutate, so nothing may write a hash ahead of this.
 	if (standalone) {
 		const offlineDispatch: TDispatch = (method, params) => {
 			// Serve responses captured during the live run (embedded in the report) — including the server-rendered graph SVG.
@@ -103,6 +98,10 @@ const main = async (): Promise<void> => {
 		setConduit(new LiveConduit(""));
 		setEventStream(new LiveEventStream("/sse"));
 	}
+	if (standalone) ShuElement.pushHash(getHydratedViewHash());
+	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
+	installShuTokens();
+	applyShuPreferences();
 	seedHashFromQueryString();
 	await registerComponents();
 

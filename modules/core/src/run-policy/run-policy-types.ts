@@ -13,8 +13,10 @@ export const OPTION_DRY_RUN = "--dry-run";
 /** Environment variable for run-policy (format: "place dir:access[,dir:access]") */
 export const HAIBUN_RUN_POLICY = "HAIBUN_RUN_POLICY";
 
-/** Valid access levels, forming a strict hierarchy: r ⊂ a ⊂ w */
-export const ACCESS_LEVELS = ["r", "a", "w"] as const;
+/** What a run may do to the place it runs against, forming a strict hierarchy: read ⊂ act ⊂ write. Named apart from
+ *  the storage access levels (`private`/`public`/`opened`), which decide who may see a record: one name meant both,
+ *  and a call site reading the wrong one type-checked. */
+export const RUN_ACCESS_LEVELS = ["r", "a", "w"] as const;
 
 /** Feature filename prefixes corresponding to access levels */
 export const ACCESS_PREFIXES = ["r_", "a_", "w_"] as const;
@@ -25,8 +27,8 @@ export const ACCESS_PREFIXES = ["r_", "a_", "w_"] as const;
 
 // Basic types
 const InputAccessLevelSchema = z.string();
-export const AccessLevelSchema = z.enum(ACCESS_LEVELS);
-export type AccessLevel = z.infer<typeof AccessLevelSchema>;
+export const RunAccessSchema = z.enum(RUN_ACCESS_LEVELS);
+export type TRunAccess = z.infer<typeof RunAccessSchema>;
 
 export type TDirFilter = {
 	dir: string;
@@ -103,7 +105,7 @@ export function parseRunPolicyEnv(envVar: string): TRunPolicyConfig {
 
 /** Numeric rank for hierarchy comparison: r=0, a=1, w=2 */
 export function accessRank(level: string): number {
-	return ACCESS_LEVELS.indexOf(level as AccessLevel);
+	return RUN_ACCESS_LEVELS.indexOf(level as TRunAccess);
 }
 
 /** Check if granted level includes required level (w ⊃ a ⊃ r) */
@@ -112,8 +114,8 @@ export function accessLevelIncludes(granted: string, required: string): boolean 
 }
 
 /** Extract access prefix from feature filename, or undefined if unrecognized */
-export function getFeatureAccessPrefix(filename: string): AccessLevel | undefined {
-	const result = AccessLevelSchema.safeParse(filename.charAt(0));
+export function getFeatureAccessPrefix(filename: string): TRunAccess | undefined {
+	const result = RunAccessSchema.safeParse(filename.charAt(0));
 	return result.success && filename.charAt(1) === "_" ? result.data : undefined;
 }
 

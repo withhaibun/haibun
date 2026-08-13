@@ -2,7 +2,7 @@
  * ResourcesStepper — generic graph-resource steps.
  *
  * Owns the discourse acts over any graph resource: `comment on …`, the `annotate …` family (quoting a passage, linking
- * one passage to another, or anchoring with surrounding context), the `get annotations for …` read, and `get related for …`.
+ * one passage to another, or anchoring with surrounding context) and the `get annotations for …` read.
  * The write logic lives in resources.ts (createComment / writeAnnotation) so it is reusable and store-agnostic.
  *
  * It also owns what a TEXT states: reading a feature's own prose as facts, checking that every cited passage still
@@ -41,8 +41,7 @@ import {
 	writeAnnotation,
 	writeEdge,
 	conversationRoot,
-	assertCommentGrounded,
-} from "../lib/resources.js";
+	assertCommentGrounded, MEDIA_TYPE, QuoteAnchorSchema, type TQuoteAnchor } from "../lib/resources.js";
 import { linkVocabularyFor } from "../lib/domains.js";
 import { formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { statementsWith, type TStatementRow } from "../lib/statements.js";
@@ -52,7 +51,7 @@ import { typedLinkFacts } from "../lib/typed-links.js";
 const PROSE_ACTION = "Haibun.prose";
 
 /** An anchored passage as a reader would say it: the quote, and the words it sits between where they were recorded. */
-function describeAnchor(selector: { exact: string; prefix?: string; suffix?: string }): string {
+function describeAnchor(selector: TQuoteAnchor): string {
 	const between = [selector.prefix ? `after "${selector.prefix}"` : "", selector.suffix ? `before "${selector.suffix}"` : ""].filter(Boolean).join(" and ");
 	return between ? `"${selector.exact}" ${between}` : `"${selector.exact}"`;
 }
@@ -62,7 +61,7 @@ function describeAnchor(selector: { exact: string; prefix?: string; suffix?: str
  * around it, an occurrence exists with those words still around it. Checking the quote alone would pass a citation
  * whose clause moved out from under it: the number is still there, the clause it opened is not.
  */
-function anchorResolves(text: string, selector: { exact: string; prefix?: string; suffix?: string }): boolean {
+function anchorResolves(text: string, selector: TQuoteAnchor): boolean {
 	for (let at = text.indexOf(selector.exact); at !== -1; at = text.indexOf(selector.exact, at + 1)) {
 		const before = selector.prefix === undefined || text.slice(Math.max(0, at - selector.prefix.length), at) === selector.prefix;
 		const after = selector.suffix === undefined || text.slice(at + selector.exact.length, at + selector.exact.length + selector.suffix.length) === selector.suffix;
@@ -95,7 +94,7 @@ const AnnotationCreatedSchema = z.object({
 	contextRoot: z.string(),
 });
 const RelatedItemsSchema = z.object({ items: z.array(z.unknown()), contextRoot: z.string() });
-const QuoteSchema = z.object({ exact: z.string(), prefix: z.string().optional(), suffix: z.string().optional() });
+
 const AnnotationListSchema = z.object({
 	annotations: z.array(
 		z.object({
@@ -110,7 +109,7 @@ const AnnotationListSchema = z.object({
 			suffix: z.string().optional(),
 			specificResourceId: z.string(),
 			// A linking annotation's cross-references: the quotes locating the sections this note points at, so a reader can jump to each.
-			links: z.array(QuoteSchema).optional(),
+			links: z.array(QuoteAnchorSchema).optional(),
 		}),
 	),
 	total: z.number(),
@@ -135,7 +134,7 @@ const cycles = (stepper: ResourcesStepper): IStepperCycles => ({
 });
 
 class ResourcesStepper extends AStepper implements IHasCycles {
-	description = "Graph-resource steps: comment on vertices, annotate passages, get related, and get annotations";
+	description = "Graph-resource steps: comment on vertices, annotate passages, and get annotations";
 
 	cycles = cycles(this);
 
@@ -184,7 +183,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const sourceQuad = quads.find((q) => q.predicate === LinkRelations.HAS_SOURCE.rel);
 					const selectorId = quads.find((q) => q.predicate === LinkRelations.HAS_SELECTOR.rel)?.object;
 					if (!sourceQuad || !selectorId) continue;
-					const selector = await store.getIndividual<{ exact: string; prefix?: string; suffix?: string }>(TEXT_QUOTE_SELECTOR_LABEL, String(selectorId));
+					const selector = await store.getIndividual<TQuoteAnchor>(TEXT_QUOTE_SELECTOR_LABEL, String(selectorId));
 					if (!selector) continue;
 					checked++;
 					const sourceLabel = (sourceQuad as { objectType?: string }).objectType;
@@ -235,7 +234,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				text: string;
 				prefix?: string;
 				suffix?: string;
-				links?: Array<{ exact: string; prefix?: string; suffix?: string }>;
+				links?: Array<TQuoteAnchor>;
 			}) => this.runAnnotate(p),
 		},
 		annotateLinking: {
@@ -301,7 +300,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				}
 				const selectorById = new Map<string, Record<string, unknown>>();
 				for (const s of (await store.queryIndividuals(TEXT_QUOTE_SELECTOR_LABEL)) as Array<Record<string, unknown>>) selectorById.set(String(s.id), s);
-				const quoteOf = (srId: string | undefined): { exact: string; prefix?: string; suffix?: string } | undefined => {
+				const quoteOf = (srId: string | undefined): TQuoteAnchor | undefined => {
 					const sel = srId ? selectorById.get(selectorOfSr.get(srId) ?? "") : undefined;
 					if (!sel) return undefined;
 					return {
@@ -319,7 +318,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const commentId = String(tq.subject);
 					const comment = (await store.getIndividual(COMMENT_LABEL, commentId)) as Record<string, unknown> | null;
 					if (!comment) continue;
-					const noteText = await bodyByMediaType(store, comment, "text/markdown");
+					const noteText = await bodyByMediaType(store, comment, MEDIA_TYPE.markdown);
 					const links = (linkSrsOfComment.get(commentId) ?? []).map((srId) => quoteOf(srId)).filter((l): l is NonNullable<typeof l> => l !== undefined);
 					annotations.push({
 						commentId,
@@ -334,42 +333,6 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					});
 				}
 				return actionOKWithProducts({ annotations, total: annotations.length });
-			},
-		},
-		getRelated: {
-			gwta: `get related for {label: ${DOMAIN_PERSISTED_TYPE}} {id: string}`,
-			productsSchema: RelatedItemsSchema,
-			action: async ({ label, id }: { label: string; id: string }) => {
-				const store = this.getWorld().shared.getStore();
-				// The thread is the conversation root plus every comment that replies (transitively) to a member.
-				const contextRoot = await conversationRoot(store, id);
-				const memberLabel = new Map<string, string>([[contextRoot, label]]);
-				const frontier = [contextRoot];
-				for (let guard = 0; frontier.length > 0 && guard < 10000; guard++) {
-					const cur = frontier.shift() as string;
-					const incoming = (await store.query({ object: cur })).filter((q) => isReplyEdge(q.predicate));
-					for (const q of incoming) {
-						if (!memberLabel.has(q.subject)) {
-							memberLabel.set(q.subject, q.namedGraph);
-							frontier.push(q.subject);
-						}
-					}
-				}
-				const items: TIndividualResult[] = [];
-				for (const [vid, vlabel] of memberLabel) {
-					const individual = (await store.getIndividual(vlabel, vid)) ?? (await store.getIndividual(COMMENT_LABEL, vid)) ?? (await store.getIndividual(label, vid));
-					if (individual) {
-						const outgoing = await store.query({ subject: vid });
-						const edges = outgoing.filter((q) => !isReplyEdge(q.predicate)).map((q) => ({ type: q.predicate, targetId: String(q.object) }));
-						items.push({ ...(individual as Record<string, unknown>), _edges: edges });
-					}
-				}
-				items.sort((a, b) => {
-					const dateA = String(a.generatedAtTime ?? a.dateSent ?? a.published ?? "");
-					const dateB = String(b.generatedAtTime ?? b.dateSent ?? b.published ?? "");
-					return dateA.localeCompare(dateB);
-				});
-				return actionOKWithProducts({ items, contextRoot });
 			},
 		},
 	} satisfies TStepperSteps;

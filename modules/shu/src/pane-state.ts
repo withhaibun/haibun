@@ -13,6 +13,7 @@
  * derives the dedup id, the child tag, and the display label from the variant
  * via `paneIdOf` / `tagOf` / `labelOf`. No redundant fields, no drift.
  */
+import { QuoteAnchorSchema, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { objectId } from "./object-id.js";
@@ -23,10 +24,6 @@ import { presentationForType } from "./graph/type-presentation.js";
 import { activePane } from "./signals.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
-import type { QuoteAnchor } from "./annotation-resolver.js";
-
-/** The one selector schema — bound to annotation-resolver's QuoteAnchor so the zod shape and the type cannot drift. */
-export const QuoteAnchorSchema: z.ZodType<QuoteAnchor> = z.object({ exact: z.string(), prefix: z.string().optional(), suffix: z.string().optional() });
 
 const FlagSchema = z.enum(["min", "max"]).optional();
 const TagSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
@@ -250,7 +247,7 @@ class PaneStateImpl {
 		// Re-request of an open individual with a passage selector: the pane already shows the document, so hand the
 		// selector to the live column to reveal — attach hooks only fire for new panes.
 		if (existing && d.paneType === "entity" && d.selector) {
-			const live = this.findLiveChild(id) as (HTMLElement & { revealPassage?: (s: QuoteAnchor) => void }) | undefined;
+			const live = this.findLiveChild(id) as (HTMLElement & { revealPassage?: (s: TQuoteAnchor) => void }) | undefined;
 			live?.revealPassage?.(d.selector);
 		}
 		this.desired.set(id, d);
@@ -431,6 +428,11 @@ class PaneStateImpl {
 		// since the upgrade of an existing instance is a reaction that has not necessarily run when the wait resolves.
 		await customElements.whenDefined(tag);
 		customElements.upgrade(child);
+		// The hook is about to call the child's own methods. If the upgrade did not take, it fails inside the hook as
+		// "child.open is not a function", which names neither the pane nor the tag. Say it here, where both are known.
+		const definition = customElements.get(tag);
+		if (definition && !(child instanceof definition))
+			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane has none of its own methods`);
 		await this.hooks.afterAttach?.[d.paneType]?.(d, child);
 	}
 

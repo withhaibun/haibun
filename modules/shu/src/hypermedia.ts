@@ -21,6 +21,8 @@
 
 // Type-only import — erased from the browser bundle (never pulls core's node:async_hooks runtime).
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
+// The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
+import { rpcEnvelope, readNdjson } from "@haibun/core/lib/rpc-wire.js";
 import { sessionCredential } from "./rpc-registry.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
@@ -127,7 +129,7 @@ export class LiveConduit implements Conduit {
 		const res = await fetch(`${this.basePath}/rpc/${link.method}`, {
 			method: "POST",
 			headers: rpcHeaders(),
-			body: JSON.stringify({ jsonrpc: "2.0", id, method: link.method, params: link.params ?? {}, seqPath }),
+			body: rpcEnvelope({ id, method: link.method, params: link.params ?? {}, seqPath }),
 		});
 		const data: unknown = await res.json();
 		if (!res.ok || (data && typeof data === "object" && "error" in (data as Record<string, unknown>) && (data as { error?: unknown }).error)) {
@@ -147,29 +149,12 @@ export class LiveConduit implements Conduit {
 		const res = await fetch(`${this.basePath}/rpc/${link.method}`, {
 			method: "POST",
 			headers: rpcHeaders(),
-			body: JSON.stringify({ jsonrpc: "2.0", id, method: link.method, params: link.params ?? {}, seqPath, stream: true }),
+			body: rpcEnvelope({ id, method: link.method, params: link.params ?? {}, seqPath, stream: true }),
 			signal: opts.signal,
 		});
 		if (!res.ok) throw new Error(`${link.method}: stream RPC failed with status ${res.status}`);
 		if (!res.body) throw new Error(`${link.method}: stream RPC returned no body`);
-		const reader = res.body.getReader();
-		const decoder = new TextDecoder();
-		let buffer = "";
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			buffer += decoder.decode(value, { stream: true });
-			const lines = buffer.split("\n");
-			buffer = lines.pop() ?? "";
-			for (const line of lines) {
-				if (!line) continue;
-				const chunk = JSON.parse(line) as TStreamChunk;
-				if (chunk.error) throw new Error(chunk.error);
-				onChunk(chunk);
-			}
-		}
-		if (buffer.trim()) {
-			const chunk = JSON.parse(buffer) as TStreamChunk;
+		for await (const chunk of readNdjson<TStreamChunk>(res.body)) {
 			if (chunk.error) throw new Error(chunk.error);
 			onChunk(chunk);
 		}
@@ -194,7 +179,7 @@ export class LiveConduit implements Conduit {
 		const res = await fetch(`${this.basePath}/rpc/action.begin`, {
 			method: "POST",
 			headers: rpcHeaders(),
-			body: JSON.stringify({ jsonrpc: "2.0", id, method: "action.begin", params: { why } }),
+			body: rpcEnvelope({ id, method: "action.begin", params: { why } }),
 		});
 		const data: unknown = await res.json();
 		if (!res.ok || !data || typeof data !== "object" || !("seqPath" in (data as Record<string, unknown>))) {

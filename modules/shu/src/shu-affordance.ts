@@ -18,6 +18,7 @@
  * carrying the affordance and reason. Parents decide their own UX.
  */
 
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { LitElement, html, css } from "lit";
 import { SHU_EVENT } from "./consts.js";
 import { conduit, type TAffordance, type TRepresentation } from "./hypermedia.js";
@@ -59,7 +60,7 @@ export class ShuAffordance extends LitElement {
 		} catch (err) {
 			this.dispatchEvent(
 				new CustomEvent<{ affordance: TAffordance; error: string }>("affordance-error", {
-					detail: { affordance: a, error: err instanceof Error ? err.message : String(err) },
+					detail: { affordance: a, error: errorDetail(err) },
 					bubbles: true,
 					composed: true,
 				}),

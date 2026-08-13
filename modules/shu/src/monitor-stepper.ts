@@ -18,7 +18,7 @@ import { type TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
-import { actionNotOK, actionOKWithProducts, getStepperOption, intOrError, stringOrError, findStepperFromOptionOrKind } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getStepperOption, intOrError, stringOrError, findStepperFromOptionOrKind, errorDetail } from "@haibun/core/lib/util/index.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
@@ -33,7 +33,7 @@ import { GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
 import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
-import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
+import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
 import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -243,12 +243,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		getConcerns: () => ({
 			domains: [
 				{
-					selectors: [DOMAIN_GRAPH_QUERY],
-					schema: GraphQuerySchema,
-					coerce: objectCoercer(GraphQuerySchema),
-					description: "Graph query parameters",
-				},
-				{
 					selectors: [DOMAIN_LOG_EVENT],
 					schema: LogEventSchema,
 					coerce: objectCoercer(LogEventSchema),
@@ -374,7 +368,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					const products = r?.products;
 					if (products?.view) rpcCache[`MonitorStepper-${name}`] = products;
 				} catch (err) {
-					logger.warn(`[shu writeStandaloneReport] step ${name} failed: ${err instanceof Error ? err.message : err}`);
+					logger.warn(`[shu writeStandaloneReport] step ${name} failed: ${errorDetail(err)}`);
 				}
 			}),
 		);
@@ -396,7 +390,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					const r = (await (step as { action: (a: Record<string, unknown>) => unknown }).action({})) as { products?: Record<string, unknown> } | undefined;
 					if (r?.products) rpcCache[key] = r.products;
 				} catch (err) {
-					logger.warn(`[shu writeStandaloneReport] ${key} refresh failed: ${err instanceof Error ? err.message : err}`);
+					logger.warn(`[shu writeStandaloneReport] ${key} refresh failed: ${errorDetail(err)}`);
 				}
 			}
 		}
@@ -575,7 +569,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 						const parsed: unknown = JSON.parse(args.types);
 						if (Array.isArray(parsed)) types = parsed.map(String);
 					} catch (err) {
-						this.getWorld().eventLogger.warn(`getClusteredQuads: ignoring non-JSON 'types' param: ${err instanceof Error ? err.message : err}`);
+						this.getWorld().eventLogger.warn(`getClusteredQuads: ignoring non-JSON 'types' param: ${errorDetail(err)}`);
 					}
 				}
 				if (!store.getClusteredQuads) {

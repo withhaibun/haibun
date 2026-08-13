@@ -113,9 +113,9 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Goal resolution: `resolve` returns a verdict for a registered domain" }),
 
-		"The resolver reports a verdict for any registered domain key. test-scratch is registered but has no producer step. The resolver returns unreachable. The test stashes the goal-resolution product into a variable.",
-		setFromStatement({ what: "scratchGoal", statement: `resolve "test-scratch"` }),
-		exists({ what: "scratchGoal" }),
+		"The resolver reports a verdict for any registered domain key. page-alt-text is registered, as every locator domain is, and no step produces it. The resolver returns unreachable. The test stashes the goal-resolution product into a variable.",
+		setFromStatement({ what: "unproducedGoal", statement: `resolve "page-alt-text"` }),
+		exists({ what: "unproducedGoal" }),
 
 		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
 

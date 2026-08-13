@@ -19,7 +19,7 @@ Scenario: Generate and clear a QR code
 
   canvas "canvas" is empty
 
-  input "hmm hmm" for label
+  enter "hmm hmm" into label
 
   click "Draw QR Code"
 

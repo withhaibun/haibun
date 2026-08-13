@@ -5,12 +5,12 @@
  *
  * Events: column-open (entity nav), column-open-filter (filter nav)
  */
+import { ellipsize } from "@haibun/core/lib/util/index.js";
 import {
 	appAccessLevel,
 	defaultLabel,
 	esc,
 	escAttr,
-	truncate,
 	idOf,
 	isVisibleKey,
 	isReferenceEdge,
@@ -29,11 +29,12 @@ import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js"
 import { SHU_EVENT, ANNOTATION_GLYPH } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
-import { isReplyEdge, RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
+import { isReplyEdge, RESOURCE_LABEL, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
-import type { AnnotationView, QuoteAnchor } from "../annotation-resolver.js";
+import type { AnnotationView } from "../annotation-resolver.js";
+import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import "./shu-annotated-body.js";
 import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
@@ -50,7 +51,7 @@ const bodyCsp = (baseOrigin: string): string =>
 
 export function buildBodyIframeDoc(content: string, mediaType: string, pageUrl = ""): string {
 	const baseOrigin = pageUrl ? new URL(pageUrl).origin : "";
-	const csp = mediaType === "text/html" ? "" : `<meta http-equiv="Content-Security-Policy" content="${bodyCsp(baseOrigin)}">`;
+	const csp = mediaType === MEDIA_TYPE.html ? "" : `<meta http-equiv="Content-Security-Policy" content="${bodyCsp(baseOrigin)}">`;
 	// In a data: document a `#` link resolves against the data: URL and goes nowhere; the base re-roots links against
 	// the app and target=_top sends them to the top frame (the iframe sandbox permits user-initiated top navigation).
 	const base = pageUrl ? `<base href="${escAttr(pageUrl)}" target="_top">` : "";
@@ -128,7 +129,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Annotations anchored in the open individual's body — projected from the entity view; empty until resolved. */
 	private annotationsList: AnnotationView[] = [];
 	/** A passage to reveal once the body renders — set by a Text Fragment reference into this individual. */
-	private revealTarget: QuoteAnchor | null = null;
+	private revealTarget: TQuoteAnchor | null = null;
 	/** The text of each body that has been read, by body id — projected from the entity view. A body the reader has not
 	 *  opened is absent, so the body area reads as loading rather than empty. */
 	private bodyText: Record<string, string> = {};
@@ -213,7 +214,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** Reveal a quoted passage in the already-open individual — the re-request path of a Text Fragment reference. */
-	revealPassage(selector: QuoteAnchor): void {
+	revealPassage(selector: TQuoteAnchor): void {
 		this.revealTarget = selector;
 		this.setState({ showAnnotations: true });
 	}
@@ -221,7 +222,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Open an individual by ID through the entity handle: it serves a cached copy at once, else fetches (then falls back
 	 *  to the persisted browser store when offline), and resolves the annotations anchored in it — one path, one shared
 	 *  copy and one live subscription per individual. `applyView` projects each resolved state onto the render fields. */
-	async open(id: string, label: string = defaultLabel(), selector?: QuoteAnchor): Promise<void> {
+	async open(id: string, label: string = defaultLabel(), selector?: TQuoteAnchor): Promise<void> {
 		// Surface the subject as an attribute so external code (e.g. the COLUMN_CLOSE
 		// listener in app.ts) can detect which entity is in this column without
 		// reaching through the protected `state` field.
@@ -368,7 +369,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? id);
 		const testId = this.edgeTargetCount === 0 ? ' data-testid="edge-target-first"' : "";
 		this.edgeTargetCount++;
-		return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}"${testId}>${esc(truncate(display, 60))}</a>`;
+		return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}"${testId}>${esc(ellipsize(display, 60))}</a>`;
 	}
 
 	/** Plain-language names for the roles CORE's own general rels name. A consumer edge's phrase comes from its declared
@@ -502,7 +503,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  the annotator can highlight it. Null when the individual has only a non-text body (e.g. an original HTML email),
 	 *  which stays in the sandboxed iframe with a notes list instead. */
 	private annotatableBody(): { content: string; mediaType: string } | null {
-		const b = this.linkedBodies().find((x) => x.mediaType === "text/markdown" || x.mediaType === "text/plain");
+		const b = this.linkedBodies().find((x) => x.mediaType === MEDIA_TYPE.markdown || x.mediaType === MEDIA_TYPE.plain);
 		const content = b ? (b.content ?? this.bodyText[String(b.id ?? "")]) : undefined;
 		return b && content !== undefined ? { content, mediaType: String(b.mediaType) } : null;
 	}
@@ -621,10 +622,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		if (getRelSync(label, propertyName) === "item") return this.clickableValue(value, "filter", propertyName);
 		if (propertyName === getIdField(label)) {
 			const id = idOf(this.vertex ?? {});
-			return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}" data-property="${escAttr(propertyName)}">${esc(truncate(value, 80))}</a>`;
+			return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}" data-property="${escAttr(propertyName)}">${esc(ellipsize(value, 80))}</a>`;
 		}
 		if (getQueryableFields(label).includes(propertyName)) return this.clickableValue(value, "filter", propertyName);
-		return esc(truncate(value, 80));
+		return esc(ellipsize(value, 80));
 	}
 
 	/** The type's scoped @context (field → {@id, @type?}) from the served hypermedia — the server resolves each field to
@@ -692,7 +693,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 		const propAttr = propertyName ? ` data-property="${escAttr(propertyName)}"` : "";
 		const linkClass = isPredicate ? "pred-link" : "col-link";
-		return `<a class="${linkClass}" rel="${rel}" href="#" data-value="${escAttr(resolvedValue)}"${labelAttr}${propAttr}${testId}>${esc(truncate(value, 80))}</a>`;
+		return `<a class="${linkClass}" rel="${rel}" href="#" data-value="${escAttr(resolvedValue)}"${labelAttr}${propAttr}${testId}>${esc(ellipsize(value, 80))}</a>`;
 	}
 
 	// One delegated click listener on the shadow root, attached once. The content is `unsafeHTML` (a raw string lit does

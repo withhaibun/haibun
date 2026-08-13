@@ -3,7 +3,7 @@ import { validateRunPolicyConfig } from "./run-policy-schema.js";
 import type { TRunPolicyConfig } from "./run-policy-types.js";
 import type { TRunPolicy } from "./run-policy-schema.js";
 
-import { ACCESS_LEVELS } from "./run-policy-types.js";
+import { RUN_ACCESS_LEVELS } from "./run-policy-types.js";
 
 /** Helper: build a policy in hierarchical JSON Schema format */
 function makePolicy(envs: string[], dirs: string[], deny: Array<{ place?: string; dir?: string; access?: string }> = []): TRunPolicy {
@@ -17,7 +17,7 @@ function makePolicy(envs: string[], dirs: string[], deny: Array<{ place?: string
 					type: "object",
 					properties: {
 						dir: { type: "string", enum: dirs },
-						access: { type: "string", enum: [...ACCESS_LEVELS] },
+						access: { type: "string", enum: [...RUN_ACCESS_LEVELS] },
 					},
 					required: ["dir", "access"],
 				},

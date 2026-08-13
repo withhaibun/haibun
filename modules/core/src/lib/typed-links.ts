@@ -17,10 +17,7 @@
  * which resolves each target against the store.
  */
 import MarkdownIt from "markdown-it";
-import { LinkRelations, type TRelRange } from "./resources.js";
-
-/** A passage located by quoting it (a Web Annotation TextQuoteSelector's fields), optionally disambiguated by the text around it. */
-export type TQuoteAnchor = { exact: string; prefix?: string; suffix?: string };
+import { LinkRelations, type TQuoteAnchor, type TRelRange } from "./resources.js";
 
 /** An in-app reference: a type, or an individual (optionally a passage inside it). The shape the SPA's renderer takes. */
 export type TRefHref = { kind: "domain"; target: { domain: string } } | { kind: "entity"; target: { persistedAs: string; id: string; selector?: TQuoteAnchor } };

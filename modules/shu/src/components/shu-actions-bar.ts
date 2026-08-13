@@ -14,7 +14,8 @@ import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION } from "../consts.js";
 import { isSchemaType } from "../graph/ontology-projection.js";
-import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
+import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
+import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
 // bundle — esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
@@ -26,7 +27,7 @@ import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-import { clamp, errMsg, prettifyGwta, appAccessLevel } from "../util.js";
+import { clamp, prettifyGwta, appAccessLevel } from "../util.js";
 import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
@@ -338,7 +339,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private triggerSelectValuesLoad(label?: string, force = false): void {
 		void this.loadSelectValues(label, force).catch((err) => {
-			this.failFast(`ShuActionsBar select-values load failed: ${errMsg(err)}`);
+			this.failFast(`ShuActionsBar select-values load failed: ${errorDetail(err)}`);
 		});
 	}
 
@@ -374,7 +375,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.autoListen(document, AWAITING_DECISION, this._onAwaitingDecision);
 
 		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
-			this.failFast(`ShuActionsBar initialization failed: ${errMsg(err)}`);
+			this.failFast(`ShuActionsBar initialization failed: ${errorDetail(err)}`);
 		});
 
 		try {
@@ -449,8 +450,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				this.requestUpdate();
 				this.reportActionsBar("debug", `loaded action-bar slot extension for ${label}`, { label, jsUrl });
 			} catch (e) {
-				const message = `Failed to load UI extension for ${label} from ${jsUrl}: ${errMsg(e)}`;
-				this.reportActionsBar("error", message, { label, jsUrl, error: errMsg(e) });
+				const message = `Failed to load UI extension for ${label} from ${jsUrl}: ${errorDetail(e)}`;
+				this.reportActionsBar("error", message, { label, jsUrl, error: errorDetail(e) });
 				errors.push(message);
 			}
 		}
@@ -524,7 +525,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// Optional action-bar slot extensions: a missing/un-served one is logged per-extension inside, but the
 		// aggregate throw on this fire-and-forget call would otherwise become an unhandled rejection (a browser
 		// pageerror) — a missing optional extension must not crash the bar.
-		void this.loadUiExtensions().catch((err) => this.reportActionsBar("warn", "optional UI extensions failed to load", { error: errMsg(err) }));
+		void this.loadUiExtensions().catch((err) => this.reportActionsBar("warn", "optional UI extensions failed to load", { error: errorDetail(err) }));
 		this.requestUpdate();
 		this.dispatchFilterChange();
 	}
@@ -581,7 +582,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				operator: "eq" as const,
 				value,
 			}));
-		const allConditions = [...selectConditions, ...this._filterConditions];
+		// A filter row with no field chosen names nothing to match, so it is not a condition yet: it stays in the bar
+		// being edited and out of the query. Sent, it would be a condition the reader sees and the query ignores.
+		const allConditions = [...selectConditions, ...this._filterConditions.filter((c) => c.predicate.length > 0)];
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.FILTER_CHANGE, {
@@ -1172,7 +1175,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private onCondOperatorChange(idx: number, e: Event): void {
 		const prev = this._filterConditions[idx].operator;
-		this._filterConditions[idx].operator = (e.target as HTMLSelectElement).value as import("../schemas.js").TSearchOperator;
+		this._filterConditions[idx].operator = (e.target as HTMLSelectElement).value as TSearchCondition["operator"];
 		if ((prev === "between") !== (this._filterConditions[idx].operator === "between")) {
 			this.requestUpdate();
 		}

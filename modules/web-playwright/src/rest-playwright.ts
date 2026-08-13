@@ -2,7 +2,7 @@ import { actionNotOK, actionOKWithProducts, getStepTerm } from "@haibun/core/lib
 import WebPlaywright from "./web-playwright.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { RestFilteredCountSchema, RestJsonCountSchema } from "./domains.js";
+import { RestJsonCountSchema } from "./domains.js";
 
 const PAYLOAD_METHODS = ["post", "put", "patch"];
 const NO_PAYLOAD_METHODS = ["get", "delete", "head"];
@@ -117,22 +117,6 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				return actionOKWithProducts({
 					summary: `JSON response contains ${lastResponse.json.length} items`,
 					details: { count: lastResponse.json.length },
-				});
-			},
-		},
-		showFilteredLength: {
-			gwta: `show filtered response count`,
-			productsSchema: RestFilteredCountSchema,
-			action: async () => {
-				const lastResponse = await webPlaywright.getLastResponse();
-				if (!lastResponse?.filtered || typeof lastResponse.filtered.length !== "number") {
-					console.debug(lastResponse);
-					return actionNotOK(`No filtered response to count`);
-				}
-				webPlaywright.getWorld().eventLogger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`);
-				return actionOKWithProducts({
-					summary: `Filtered response contains ${lastResponse.filtered.length} items`,
-					count: lastResponse.filtered.length,
 				});
 			},
 		},

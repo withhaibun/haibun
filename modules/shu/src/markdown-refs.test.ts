@@ -2,7 +2,8 @@
 // jsdom: refLinksPlugin imports renderRef from shu-ref, which defines a custom element (extends HTMLElement).
 import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
-import { parseRefHref, refLinksPlugin, renderRefProse } from "./markdown-refs.js";
+import { refLinksPlugin, renderRefProse } from "./markdown-refs.js";
+import { parseRefHref } from "@haibun/core/lib/typed-links.js";
 
 const isType = (name: string) => name === "FieldReport" || name === "SiteSurvey";
 

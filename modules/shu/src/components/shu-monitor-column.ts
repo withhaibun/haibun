@@ -20,7 +20,7 @@ import type { TScrollMarker } from "../scrollbar-model.js";
 import { emptyOrLoading } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import type { TDispatchTrace } from "../schemas.js";
+import type { TDispatchTrace } from "@haibun/core/schema/protocol.js";
 
 const MonitorColumnSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
