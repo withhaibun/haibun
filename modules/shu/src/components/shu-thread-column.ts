@@ -7,7 +7,8 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
-import { truncate, idOf, persistedTypeOf } from "../util.js";
+import { idOf, persistedTypeOf } from "../util.js";
+import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../pane-fetch.js";
 import type { ShuGraphView } from "./shu-graph-view.js";
 import { COMMENT_LABEL, LinkRelations, isReplyEdge } from "@haibun/core/lib/resources.js";
@@ -220,11 +221,11 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			${label ? html`<span class="type-badge" data-testid="thread-item-type">${label}</span>` : ""}
 			${hasKnownContent ? html`<div class="meta"><span class="sender">${sender || (isComment ? COMMENT_LABEL : "")}</span><span>${date}</span></div>` : ""}
 			${subject ? html`<div class="subject">${subject}</div>` : ""}
-			${preview ? html`<div class="preview">${truncate(preview, 120)}</div>` : ""}
+			${preview ? html`<div class="preview">${ellipsize(preview, 120)}</div>` : ""}
 			${
 				extraFields.length > 0
 					? html`<div class="extra-fields">${extraFields.map(
-							([k, val]) => html`<span class="extra-field"><span class="field-label">${k}</span> ${truncate(String(val), 80)}</span>`,
+							([k, val]) => html`<span class="extra-field"><span class="field-label">${k}</span> ${ellipsize(String(val), 80)}</span>`,
 						)}</div>`
 					: ""
 			}

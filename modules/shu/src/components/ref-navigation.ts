@@ -6,7 +6,8 @@
  * graph views both call openRef; none reimplements the routing.
  */
 import { esc, escAttr } from "../util.js";
-import { PaneState, paneIdOf, QuoteAnchorSchema, type DesiredPane } from "../pane-state.js";
+import { PaneState, paneIdOf, type DesiredPane } from "../pane-state.js";
+import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
 
 export const REF_KIND = ["seqPath", "entity", "domain", "step"] as const;
 export type TRefKind = (typeof REF_KIND)[number];

@@ -99,7 +99,7 @@ describe("ShuStepper", () => {
 						id: LinkRelations.IDENTIFIER.rel,
 						account: LinkRelations.CONTEXT.rel,
 						folder: LinkRelations.CONTEXT.rel,
-						accessLevel: LinkRelations.TAG.rel,
+						accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 					},
 				},
 			},

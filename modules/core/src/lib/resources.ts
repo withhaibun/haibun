@@ -17,7 +17,7 @@
  * RDF class URI that JSON-LD emits, `id` is the IRI.
  */
 import { z } from "zod";
-import { typedLinkFacts, type TLinkVocabulary, type TQuoteAnchor, type TTypedLinkFact } from "./typed-links.js";
+import { typedLinkFacts, type TLinkVocabulary, type TTypedLinkFact } from "./typed-links.js";
 
 // ============================================================================
 // Resource identity
@@ -131,6 +131,20 @@ export const TEXT_QUOTE_SELECTOR_LABEL = "TextQuoteSelector";
 
 /** Body — opaque content (text, JSON, anything) typed by `mediaType`. */
 export const BODY_LABEL = "Body";
+
+/**
+ * The media types a body is written and matched by. One name each, because a body is FOUND by its media type: a
+ * mistyped literal writes a body no reader asks for, and says nothing when it happens.
+ *
+ * These are for what a record carries. An HTTP `Content-Type` header keeps its literal — that is the wire's
+ * vocabulary rather than ours, and a wrong one there fails at the request.
+ */
+export const MEDIA_TYPE = {
+	markdown: "text/markdown",
+	plain: "text/plain",
+	html: "text/html",
+	json: "application/json",
+} as const;
 export const BODY_DOMAIN = "body";
 /** Edge from any resource to a Body sub-resource. */
 export const HAS_BODY_EDGE = "hasBody";
@@ -310,6 +324,10 @@ export const LinkRelations = {
 	REVOKE: { rel: "revoke", uri: "hbn:revoke", range: "iri", subPropertyOf: "inReplyTo", label: "Revoke", icon: "↩️" },
 	// Haibun native — other
 	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri" },
+	// Where a step was written: the feature document it came from, as the path a reader can open. A literal location,
+	// not the step's identity — the identity is its seqPath id, and a second `identifier` on one record said the
+	// record had two names.
+	SOURCE_PATH: { rel: "sourcePath", uri: "hbn:sourcePath", range: "literal" },
 	// What ran for a step: the stepper and action, as `Stepper.action`. Its TEXT says what was asked for; this says what was called.
 	CALLED: { rel: "called", uri: "hbn:called", range: "literal" },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
@@ -370,20 +388,18 @@ export const LinkRelations = {
 	AS_OBJECT: { rel: "object", uri: "as:object", range: "iri", subPropertyOf: "toActor", rolePriority: 50 },
 } as const;
 
+/** Every declared relation, keyed by its rel. Built once: a rel is looked up on every projected property of every
+ *  record, and each lookup walked the whole vocabulary. */
+const RELATION_BY_REL: ReadonlyMap<string, (typeof LinkRelations)[keyof typeof LinkRelations]> = new Map(Object.values(LinkRelations).map((entry) => [entry.rel, entry]));
+
 /** Lookup a rel's RDF range. Returns undefined for unknown rels. */
 export function getRelRange(rel: string): TRelRange | undefined {
-	for (const entry of Object.values(LinkRelations)) {
-		if (entry.rel === rel) return entry.range;
-	}
-	return undefined;
+	return RELATION_BY_REL.get(rel)?.range;
 }
 
 /** Lookup a rel's presentation hint, if declared. Clients render `body` / `system` rels outside the default field-table path; everything else is a regular field cell. */
 export function getRelPresentation(rel: string): TRelPresentation | undefined {
-	for (const entry of Object.values(LinkRelations)) {
-		if (entry.rel === rel) return (entry as { presentation?: TRelPresentation }).presentation;
-	}
-	return undefined;
+	return (RELATION_BY_REL.get(rel) as { presentation?: TRelPresentation } | undefined)?.presentation;
 }
 
 export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
@@ -438,13 +454,8 @@ export function edgeRel(predicate: string): TRel | undefined {
 /** A rel's declared parents (rdfs:subPropertyOf). A rel may sit under MORE THAN ONE upper concept, so this is a set:
  *  `subPropertyOf` accepts a single rel or an array, and both forms normalise to a list here. Empty when none declared. */
 function superPropertiesOf(rel: string): string[] {
-	for (const entry of Object.values(LinkRelations)) {
-		if (entry.rel === rel) {
-			const sp = (entry as { subPropertyOf?: string | string[] }).subPropertyOf;
-			return sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
-		}
-	}
-	return [];
+	const sp = (RELATION_BY_REL.get(rel) as { subPropertyOf?: string | string[] } | undefined)?.subPropertyOf;
+	return sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
 }
 
 /**
@@ -614,8 +625,6 @@ export type THypermediaTopology = {
 	edges?: Record<string, TEdgeDef>;
 	/** Per-property ranges (sh:node / rdfs:range). See TDomainRanges. */
 	ranges?: TDomainRanges;
-	/** Hypermedia affordance: properties that should be exposed as query filters/selects. */
-	filterProperties?: string[];
 	/** DB-specific: which properties to index for fast lookup. */
 	propertyIndexes?: string[];
 	/** DB-specific: default sort columns per property. */
@@ -775,7 +784,7 @@ export const commentDomainDefinition: TDomainDefinition = {
 			startedAtTime: LinkRelations.STARTED_AT_TIME.rel,
 			endedAtTime: LinkRelations.ENDED_AT_TIME.rel,
 			seqPath: LinkRelations.SEQ_PATH.rel,
-			body: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
+			body: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.markdown },
 		},
 		edges: {
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
@@ -936,7 +945,7 @@ export async function markdownOf(store: Pick<TDiscourseStore, "getIndividual">, 
 	if (!individual) return undefined;
 	const inline = individual.body ?? individual.content;
 	if (typeof inline === "string") return inline;
-	return bodyByMediaType(store as TBodyReader, individual, "text/markdown");
+	return bodyByMediaType(store as TBodyReader, individual, MEDIA_TYPE.markdown);
 }
 
 export const bodyDomainDefinition: TDomainDefinition = {
@@ -971,11 +980,20 @@ export const bodyDomainDefinition: TDomainDefinition = {
  */
 export const TEXT_QUOTE_SELECTOR_DOMAIN = "text-quote-selector";
 
-export const TextQuoteSelectorSchema = z.object({
+/**
+ * A passage located by quoting it (a Web Annotation TextQuoteSelector's fields), optionally disambiguated by the text
+ * around it. Declared once, as the schema, because the same three fields are parsed from a link, validated in a step,
+ * persisted as a selector and read back by the SPA: written out in each place they drift a field at a time.
+ */
+export const QuoteAnchorSchema = z.object({
+	exact: z.string().describe("The verbatim passage this anchors to."),
+	prefix: z.string().optional().describe("Verbatim text immediately before the passage, disambiguating a repeated quote."),
+	suffix: z.string().optional().describe("Verbatim text immediately after the passage, disambiguating a repeated quote."),
+});
+export type TQuoteAnchor = z.infer<typeof QuoteAnchorSchema>;
+
+export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({
 	id: z.string(),
-	exact: z.string(),
-	prefix: z.string().optional(),
-	suffix: z.string().optional(),
 	generatedAtTime: z.string(),
 });
 export type TTextQuoteSelector = z.infer<typeof TextQuoteSelectorSchema>;
@@ -1139,11 +1157,7 @@ export const annotationPlacementDomainDefinition: TDomainDefinition = {
 };
 
 export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
-const AnnotationQuoteSchema = z.object({
-	exact: z.string().describe("The verbatim passage the note (or one of its links) anchors to."),
-	prefix: z.string().optional().describe("Verbatim text immediately before the passage, disambiguating a repeated quote."),
-	suffix: z.string().optional().describe("Verbatim text immediately after the passage, disambiguating a repeated quote."),
-});
+
 export const AnnotationNoteSchema = z
 	.object({
 		label: z.string().describe("The persisted type of the annotated individual."),
@@ -1159,7 +1173,7 @@ export const AnnotationNoteSchema = z
 				"The start (ISO) of the period the note is ABOUT (a milestone's week) — carried as startedAtTime, so time-placed views place the note there. The record's own generatedAtTime stays the write time.",
 			),
 		until: z.string().optional().describe("The end (ISO) of the period the note is about — carried as endedAtTime; with `at`, time-placed views read the note as an interval."),
-		links: z.array(AnnotationQuoteSchema).optional().describe("Further passages in the same document this note cross-references; each renders as a followable link."),
+		links: z.array(QuoteAnchorSchema).optional().describe("Further passages in the same document this note cross-references; each renders as a followable link."),
 	})
 	.describe(
 		"The full shape of one W3C Web Annotation: the anchored passage, the note, its meaningful time, and any cross-referenced passages. The prose annotate forms each bind a slice of this; this composite carries all of it at once.",
@@ -1237,7 +1251,7 @@ export async function createComment(
 		name: commentName(text),
 	});
 	const bodyId = `body-${commentId}-text-markdown`;
-	await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: "text/markdown", generatedAtTime: now });
+	await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: MEDIA_TYPE.markdown, generatedAtTime: now });
 	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.HAS_BODY.rel, BODY_LABEL, bodyId);
 	await readTypedLinks(store, vocab, { label: COMMENT_LABEL, id: commentId }, text, provenance);
 	return commentId;
@@ -1251,7 +1265,7 @@ export async function anchorPassage(
 	store: TDiscourseStore,
 	sourceLabel: string,
 	sourceId: string,
-	quote: { exact: string; prefix?: string; suffix?: string },
+	quote: TQuoteAnchor,
 	now: string,
 	/** `sourceMayBeAbsent`: a text can quote a document nothing has read (annotating a record in hand does not need it).
 	 *  `label`: what a reader called this passage where it was referred to, so it reads as more than the text it quotes. */
@@ -1319,7 +1333,7 @@ export async function writeAnnotation(
 		text: string;
 		at?: string;
 		until?: string;
-		links?: Array<{ exact: string; prefix?: string; suffix?: string }>;
+		links?: TQuoteAnchor[];
 	},
 ): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceIds?: string[] }> {
 	// `at`/`until` bound the period the note is ABOUT (a milestone's week) — subject time, carried as

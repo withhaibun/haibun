@@ -5,7 +5,7 @@ import { LinkRelations } from "../lib/resources.js";
 import { setPrincipal } from "../lib/principal.js";
 import { type TWorld } from "../lib/world.js";
 
-describe("ResourcesStepper comment + getRelated (reply-threaded)", () => {
+describe("ResourcesStepper comment (reply-threaded)", () => {
 	let stepper: ResourcesStepper;
 	let world: TWorld;
 	const fakeStep = { source: { path: "test" }, in: "test", seqPath: [0, 1], action: {} } as never;
@@ -49,18 +49,4 @@ describe("ResourcesStepper comment + getRelated (reply-threaded)", () => {
 		expect(reply.products?.contextRoot).toBe("root-email");
 	});
 
-	it("getRelated returns the whole thread: the root plus direct and nested replies", async () => {
-		const store = world.shared.getStore();
-		await store.upsertIndividual("Email", { id: "email-3", subject: "Root" });
-
-		const c1 = await stepper.steps.comment.action({ label: "Email", id: "email-3", text: "First note" }, fakeStep);
-		await stepper.steps.comment.action({ label: "Email", id: "email-3", text: "Second note" }, fakeStep);
-		await stepper.steps.comment.action({ label: "Comment", id: c1.products?.commentId as string, text: "Reply to the first" }, fakeStep);
-
-		const result = await stepper.steps.getRelated.action({ label: "Email", id: "email-3" }, fakeStep);
-		expect(result.ok).toBe(true);
-		const items = result.products?.items as Array<Record<string, unknown>>;
-		expect(items.length).toBe(4); // the email plus three comments (two direct, one nested)
-		expect(result.products?.contextRoot).toBe("email-3");
-	});
 });

@@ -1,3 +1,4 @@
+import { errorDetail } from "./util/index.js";
 import { BASE_PREFIX, LogEvent, LifecycleEvent, NDJSON } from "../schema/protocol.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../schema/protocol.js";
 import { TFeatureStep } from "./astepper.js";
@@ -237,7 +238,7 @@ export class EventLogger implements IEventLogger {
 		stepValuesMap: Record<string, unknown> | undefined,
 		products: Record<string, unknown> | undefined,
 	): void {
-		const errorMessage = error instanceof Error ? error.message : error;
+		const errorMessage = errorDetail(error);
 		const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;
 		this.emit(
 			LifecycleEvent.parse({

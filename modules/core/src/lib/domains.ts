@@ -11,16 +11,6 @@ export const DOMAIN_JSON = "json";
 export const DOMAIN_DATE = "date";
 export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
-// Event domains (used as quad predicate in the observation/event named graph).
-export const DOMAIN_LIFECYCLE_EVENT = "lifecycle-event";
-export const DOMAIN_INFRASTRUCTURE_ERROR = "infrastructure-error";
-export const DOMAIN_CAPABILITY_DENIAL = "capability-denial";
-
-// Test-only escape hatch. Steps in tests that don't yet have a registered output
-// domain can declare `productsDomain: DOMAIN_TEST_SCRATCH` to satisfy the dispatcher
-// without first registering a typed schema. Production steps must use a real domain.
-export const DOMAIN_TEST_SCRATCH = "test-scratch";
-
 // Goal resolver domains.
 export const DOMAIN_DOMAIN_KEY = "domain-key";
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";

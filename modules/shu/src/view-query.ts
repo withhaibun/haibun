@@ -18,7 +18,8 @@
 import { Signal } from "@lit-labs/signals";
 import { z } from "zod";
 import { AccessQuery, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
-import { SearchConditionSchema, type TSearchCondition, parseFilterParam, serializeFilterParam } from "./schemas.js";
+import { parseFilterParam, serializeFilterParam } from "./schemas.js";
+import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import * as ViewHash from "./view-hash.js";
 
 type TAccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;

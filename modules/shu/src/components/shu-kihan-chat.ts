@@ -5,6 +5,7 @@
  * from the new prompt → the prior reply. Both are forwarded in the envelope
  * so the server writes the edges on receipt.
  */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { z } from "zod";
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
@@ -17,12 +18,13 @@ import type { ShuCombobox } from "./shu-combobox.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { shuBaseStyles } from "./styles.js";
-import { errMsg } from "../util.js";
+
 import { conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import { getCookie, setCookie } from "../cookies.js";
-import type { TContextPattern, TSearchCondition } from "../schemas.js";
+import type { TContextPattern } from "../schemas.js";
+import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 
 const MODEL_COOKIE = "shu-model";
@@ -477,12 +479,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		} catch (err) {
 			if (signal.aborted) this.patchMessage(aiId, { spinnerStatus: "Stopped", spinnerVisible: true, spinnerSpinning: false, status: "aborted" });
 			else {
-				this.patchMessage(aiId, { error: errMsg(err), spinnerVisible: false, status: "failed" });
+				this.patchMessage(aiId, { error: errorDetail(err), spinnerVisible: false, status: "failed" });
 				// A turn that fails in the browser was invisible to the run: the pane showed the error, the log showed a
 				// missing element. Report it so a failed turn says why wherever the run is read.
 				void conduit()
 					.follow(
-						{ method: "MonitorStepper-logClient", params: { event: { level: "error", source: "shu-kihan-chat", message: `chat turn failed: ${errMsg(err)}` } } },
+						{ method: "MonitorStepper-logClient", params: { event: { level: "error", source: "shu-kihan-chat", message: `chat turn failed: ${errorDetail(err)}` } } },
 						"chat: turn failed",
 					)
 					.catch(() => undefined);

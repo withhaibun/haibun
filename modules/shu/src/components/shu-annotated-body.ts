@@ -27,7 +27,8 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { renderContentHtml, BODY_READING_STYLE } from "../util.js";
 import { refSanitizeOptions } from "../markdown-refs.js";
 import type { TAnnotationDraft } from "../entity-store.js";
-import { type AnnotationView, type QuoteAnchor, type W3CTextAnnotation, toW3CAnnotations, locateQuoteOffsets } from "../annotation-resolver.js";
+import { type AnnotationView, type W3CTextAnnotation, toW3CAnnotations, locateQuoteOffsets } from "../annotation-resolver.js";
+import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import "./shu-scrollbar.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
@@ -144,7 +145,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	@property({ attribute: false }) accessor annotate: ((draft: TAnnotationDraft) => Promise<{ ok: true } | { ok: false; error: string }>) | null = null;
 	/** A passage to scroll to and flash once the body is mounted — set by a Text Fragment reference into this document.
 	 *  Acted on once per distinct quote (tracked by `revealedKey`), so unrelated re-renders do not re-flash it. */
-	@property({ attribute: false }) accessor revealTarget: QuoteAnchor | null = null;
+	@property({ attribute: false }) accessor revealTarget: TQuoteAnchor | null = null;
 
 	@state() private accessor placedCards: PlacedCard[] = [];
 	@state() private accessor selectedCommentId = "";
@@ -484,7 +485,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 
 	/** Land the reader on a quoted passage: find it in the rendered text and scroll it into view with a brief flash.
 	 *  Shared by a linking annotation's "go to" and by a Text Fragment reference into this document. */
-	private revealQuote(link: QuoteAnchor): void {
+	private revealQuote(link: TQuoteAnchor): void {
 		const container = this.contentEl();
 		if (!container) return;
 		const offsets = locateQuoteOffsets(container.textContent ?? "", link.exact, link.prefix, link.suffix);

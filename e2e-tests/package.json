@@ -51,7 +51,6 @@
 		"@haibun/storage-mem": "*",
 		"@haibun/utils": "*",
 		"@haibun/web-accessibility-axe": "*",
-		"@haibun/web-http": "*",
 		"@haibun/web-playwright": "*",
 		"@haibun/recorder": "*",
 		"@haibun/web-server-hono": "*",

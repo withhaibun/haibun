@@ -3,29 +3,13 @@
  * via `StepperKinds.TAIWA`. A stepper qualifies when `kind === StepperKinds.TAIWA`
  * and `ask(prompt, opts?)` is defined.
  *
- * Schemas at the boundary: KihanSchema describes a selectable POV (specialist);
- * AskOptionsSchema validates per-call options; AskChunkSchema validates streamed
- * response chunks. Server providers and SPA consumers parse through these so wire
- * shapes stay aligned.
+ * One schema at the boundary: AskOptionsSchema, the per-call options a caller may state. What a selectable target
+ * IS, and what a streamed chunk carries, are declared where they are persisted and streamed — a second copy here
+ * described the same wire in fewer fields and nothing parsed through it.
  */
 
 import { z } from "zod";
 import { AStepper, StepperKinds } from "./astepper.js";
-
-export const KihanSchema = z.object({
-	id: z.string(),
-	provider: z.string(),
-	model: z.string(),
-	isDefault: z.boolean(),
-	contextSize: z.number().optional(),
-});
-export type TKihan = z.infer<typeof KihanSchema>;
-
-export const KihanListSchema = z.object({
-	kihan: z.array(KihanSchema),
-	active: z.object({ provider: z.string(), model: z.string() }),
-});
-export type TKihanList = z.infer<typeof KihanListSchema>;
 
 export const AskOptionsSchema = z.object({
 	kihan: z.string().optional(),
@@ -38,13 +22,6 @@ export const AskOptionsSchema = z.object({
 export type TAskOptions = z.infer<typeof AskOptionsSchema> & {
 	signal?: AbortSignal;
 };
-
-export const AskChunkSchema = z.discriminatedUnion("kind", [
-	z.object({ kind: z.literal("status"), status: z.string() }),
-	z.object({ kind: z.literal("text"), text: z.string() }),
-	z.object({ kind: z.literal("error"), error: z.string() }),
-]);
-export type TAskChunk = z.infer<typeof AskChunkSchema>;
 
 export interface ITaiwa {
 	ask(prompt: string, opts?: TAskOptions): Promise<string>;

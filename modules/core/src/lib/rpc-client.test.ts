@@ -161,11 +161,15 @@ describe("RpcClient.stream", () => {
 		}).rejects.toThrow(/HTTP 500/);
 	});
 
-	it("tolerates a malformed line without aborting the stream", async () => {
+	// Every line on this wire is written by JSON.stringify, so a line that will not parse is something else writing into
+	// the response. Skipping it silently drops a chunk of an answer with nothing said; the stream stops instead.
+	it("throws on a malformed line, naming what it read", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: true, bodyStream: ['{"ok":1}\n', "not-json\n", '{"ok":2}\n'] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		const out: unknown[] = [];
-		for await (const chunk of client.stream("m", {}, [0])) out.push(chunk);
-		expect(out).toEqual([{ ok: 1 }, { ok: 2 }]);
+		await expect(async () => {
+			for await (const chunk of client.stream("m", {}, [0])) out.push(chunk);
+		}).rejects.toThrow(/not JSON: not-json/);
+		expect(out).toEqual([{ ok: 1 }]);
 	});
 });

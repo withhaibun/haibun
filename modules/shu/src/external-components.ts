@@ -5,6 +5,7 @@
  * embedded product view (shu-product-view) load a component identically, so an embed can never depend on some column
  * having loaded the bundle first. Callers pass a reporter to route lifecycle phases to their diagnostic channel.
  */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { getUiByComponent } from "./rels-cache.js";
 
 export type TExternalComponentPhase = "lookup" | "fetch" | "register" | "missing-ui" | "missing-script" | "fetch-failed" | "register-failed" | "mounted";
@@ -33,7 +34,7 @@ export async function ensureUiComponentLoaded(childTag: string, report: TExterna
 	try {
 		await import(src);
 	} catch (err) {
-		const error = err instanceof Error ? err.message : String(err);
+		const error = errorDetail(err);
 		report("error", "fetch-failed", childTag, { "haibun.shu.external-component.url": src, error });
 		throw new Error(`[shu] failed to fetch ${src} for ${childTag}: ${error}`);
 	}

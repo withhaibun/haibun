@@ -35,13 +35,6 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				return OK;
 			},
 		},
-		inputVariable: {
-			gwta: `input {what} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
-			action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
-				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "field")).fill(what));
-				return OK;
-			},
-		},
 		setValue: {
 			gwta: `enter {what} into {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
@@ -437,21 +430,6 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 
-		waitForFileChooser: {
-			gwta: `upload file {file} with {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
-			action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
-				void selector;
-				try {
-					await wp.withPage(async (page: Page) => {
-						const [fileChooser] = await Promise.all([page.waitForEvent("filechooser"), (await wp.locateByDomain(page, featureStep, "selector")).click()]);
-						await fileChooser.setFiles(file);
-					});
-					return OK;
-				} catch (e) {
-					return actionNotOK(e);
-				}
-			},
-		},
 		expectDownload: {
 			gwta: "expect a download",
 			action: () => {

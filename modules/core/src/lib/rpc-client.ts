@@ -1,5 +1,6 @@
 import { errorDetail } from "./util/index.js";
 import { readingAt } from "./capability-context.js";
+import { rpcEnvelope, readNdjson } from "./rpc-wire.js";
 
 /**
  * rpc-client — capability-scoped client for a haibun host's RPC
@@ -70,7 +71,7 @@ export class RpcClient {
 				headers: this.buildHeaders(),
 				// What this caller may see travels with the call, so a host answers no wider than whoever is reading it:
 				// the far side takes the narrower of this and its own ceiling.
-				body: JSON.stringify({ jsonrpc: "2.0", id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() }),
+				body: rpcEnvelope({ id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() }),
 				signal,
 			});
 			const body = (await res.json()) as T | RpcError;
@@ -100,7 +101,7 @@ export class RpcClient {
 			const res = await this.fetchImpl(url, {
 				method: "POST",
 				headers: this.buildHeaders(),
-				body: JSON.stringify({ jsonrpc: "2.0", id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt() }),
+				body: rpcEnvelope({ id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt() }),
 				signal: controller.signal,
 			});
 			if (!res.ok || !res.body) {
@@ -173,47 +174,3 @@ export async function discoverInstance(rpc: RpcClient, url: string): Promise<{ h
 	return { hostId, site };
 }
 
-/**
- * Parse an NDJSON response body — one JSON object per line. Tolerates
- * partial lines across chunks. Stops on stream end.
- */
-async function* readNdjson<T>(body: ReadableStream<Uint8Array>): AsyncGenerator<T, void, unknown> {
-	const reader = body.getReader();
-	const decoder = new TextDecoder();
-	let buffer = "";
-	try {
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			buffer += decoder.decode(value, { stream: true });
-			let idx = buffer.indexOf("\n");
-			while (idx !== -1) {
-				const line = buffer.slice(0, idx).trim();
-				buffer = buffer.slice(idx + 1);
-				if (line.length > 0) {
-					try {
-						yield JSON.parse(line) as T;
-					} catch {
-						// Malformed chunk — skip rather than crash the stream.
-					}
-				}
-				idx = buffer.indexOf("\n");
-			}
-		}
-		// Flush any remaining buffered content (final line without trailing newline).
-		const tail = buffer.trim();
-		if (tail.length > 0) {
-			try {
-				yield JSON.parse(tail) as T;
-			} catch {
-				/* ignore trailing malformed content */
-			}
-		}
-	} finally {
-		try {
-			await reader.cancel();
-		} catch {
-			/* reader already closed */
-		}
-	}
-}

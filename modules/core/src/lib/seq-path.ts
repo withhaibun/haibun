@@ -115,7 +115,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.allowedAction]: LinkRelations.ALLOWED_ACTION.rel,
 			[SEQ_PATH_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.endedAtTime]: LinkRelations.ENDED_AT_TIME.rel,
-			[SEQ_PATH_FIELD.path]: LinkRelations.IDENTIFIER.rel,
+			[SEQ_PATH_FIELD.path]: LinkRelations.SOURCE_PATH.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },

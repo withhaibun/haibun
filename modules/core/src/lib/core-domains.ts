@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "./quad-types.js";
+import { objectCoercer } from "./domains.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
@@ -14,7 +16,6 @@ import {
 	DOMAIN_NUMBER,
 	DOMAIN_STATEMENT,
 	DOMAIN_STRING,
-	DOMAIN_TEST_SCRATCH,
 	mapDefinitionsToDomains,
 } from "./domains.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
@@ -157,6 +158,14 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		comparator: (value, baseline) => (value as Date).getTime() - (baseline as Date).getTime(),
 	},
 	{
+		// Declared here, beside the schema it validates with: two steppers each declared this domain from their own
+		// copy of the schema, so which copy validated a query depended on which stepper registered first.
+		selectors: [DOMAIN_GRAPH_QUERY],
+		schema: GraphQuerySchema,
+		coerce: objectCoercer(GraphQuerySchema),
+		description: "A request for records of one type from the graph, with optional filters, sort order, and a result limit.",
+	},
+	{
 		selectors: [DOMAIN_JSON],
 		schema: jsonStringSchema,
 		description: "JSON string parsed into native JavaScript values.",
@@ -168,11 +177,6 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 				throw new Error(`invalid json '${raw}'`);
 			}
 		},
-	},
-	{
-		selectors: [DOMAIN_TEST_SCRATCH],
-		schema: z.unknown(),
-		description: "Permissive test-only domain for steps that have not yet been migrated to a typed output domain.",
 	},
 	// DOMAIN_DOMAIN_KEY is registered dynamically in Executor.addStepperConcerns
 	// after all other domains are collected, so its enum reflects the live registry.

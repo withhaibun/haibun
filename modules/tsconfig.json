@@ -18,9 +18,6 @@
 			"path": "core"
 		},
 		{
-			"path": "web-http"
-		},
-		{
 			"path": "web-playwright"
 		},
 		{

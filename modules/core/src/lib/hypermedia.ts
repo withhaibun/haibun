@@ -58,7 +58,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	return undefined;
 }
 import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
-import { unwrap } from "./composite-domain.js";
+import { unwrap } from "./zod-unwrap.js";
 import { ellipsize } from "./util/index.js";
 
 /** Per-schema JSON-Schema memoization. `step.list` RPC calls buildConcernCatalog repeatedly; each

@@ -6,6 +6,10 @@
  * Lives here, not on ShuElement, so server-side modules can import it without
  * pulling in HTMLElement.
  *
+ * Offline is not a flag this module keeps: it is which Conduit the app installed, read from hypermedia. A second flag
+ * could disagree with the first, and the one a report was written under is the one that decides whether there is a
+ * location to mutate.
+ *
  * ARRIVALS are canonicalized here, before any consumer reads them: `open=` is the
  * ADDITIVE link form a static document uses — such a link cannot carry the rest of
  * the live state (label, sort, the other columns), so replacing the fragment with
@@ -13,16 +17,7 @@
  * import time, ahead of every runtime listener (they all import this module), so
  * by the time pane-state or viewQuery reads the hash it is already canonical.
  */
-
-let _offline = false;
-
-export function setOffline(offline: boolean): void {
-	_offline = offline;
-}
-
-export function isOffline(): boolean {
-	return _offline;
-}
+import { isOffline } from "./hypermedia.js";
 
 /** The hash body as URLSearchParams, tolerant of a leading `#` or `#?`. */
 export function hashParams(hash: string): URLSearchParams {
@@ -74,12 +69,12 @@ if (typeof location !== "undefined") {
 }
 
 export function getHash(): string {
-	return _offline ? _storedHash : typeof location !== "undefined" ? location.hash : "";
+	return isOffline() ? _storedHash : typeof location !== "undefined" ? location.hash : "";
 }
 
 export function pushHash(newHash: string): void {
 	_storedHash = newHash;
-	if (_offline) return;
+	if (isOffline()) return;
 	if (typeof location === "undefined" || typeof history === "undefined") return;
 	if (location.hash !== newHash) replaceLocationHash(newHash);
 }
@@ -87,6 +82,6 @@ export function pushHash(newHash: string): void {
 /** The page's own address without the hash — what an embedded body's `<base>` re-roots against.
  * An offline snapshot has no servable address, so none is offered. */
 export function pageAddress(): string {
-	if (_offline || typeof location === "undefined") return "";
+	if (isOffline() || typeof location === "undefined") return "";
 	return location.origin + location.pathname + location.search;
 }

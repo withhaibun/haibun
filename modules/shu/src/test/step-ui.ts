@@ -238,10 +238,10 @@ export function createStepUI(wp: WebPlaywright) {
 	}
 
 	/**
-	 * Pick a node type from the type combobox. Assumes the actions-bar is already expanded — compose with
-	 * `expandActionsBar` when starting from a collapsed state. The type selector is a <shu-combobox>: wait for it to
-	 * advertise that its options have loaded (`-ready`, a stable shadow-attached marker), focus it, type the label to
-	 * filter, then Enter to pick.
+	 * Pick a value from a <shu-combobox> by test id. Assumes the control is on screen — compose with
+	 * `expandActionsBar` when starting from a collapsed actions bar. Waits for the control to advertise that its
+	 * options have loaded (`-ready`, a stable shadow-attached marker), focuses it, types the value to filter, then
+	 * Enter to pick.
 	 *
 	 * Waiting on the readiness marker rather than a rendered option is what keeps this reliable: the marker is
 	 * attachment-checked and survives every render, whereas the dropdown list is a transient element the control
@@ -249,15 +249,20 @@ export function createStepUI(wp: WebPlaywright) {
 	 * the choice never depends on the ephemeral list being on screen; a blind Enter before the catalog loads would
 	 * silently no-op, which the readiness wait rules out.
 	 */
-	function selectGraphLabel(label: string): TKirejiStep[] {
-		const ready = `${IDS.APP.TYPE_SELECT}-ready`;
+	function pickFromCombobox(testId: string, value: string): TKirejiStep[] {
+		const ready = `${testId}-ready`;
 		return [
 			registerTestIdStep(ready), // the control's derived readiness id, resolved through the shadow-walking test-id wait
 			waitFor({ target: ready }),
-			click({ target: IDS.APP.TYPE_SELECT }),
-			setValue({ what: `"${label}"`, field: IDS.APP.TYPE_SELECT }),
+			click({ target: testId }),
+			setValue({ what: `"${value}"`, field: testId }),
 			press({ key: '"Enter"' }),
 		];
+	}
+
+	/** Pick a node type from the type combobox — the graph-wide instance of the combobox pick. */
+	function selectGraphLabel(label: string): TKirejiStep[] {
+		return pickFromCombobox(IDS.APP.TYPE_SELECT, label);
 	}
 
 	/** Open the actions bar, switch to Search mode (where the type selector lives), and pick a node type. */
@@ -281,5 +286,6 @@ export function createStepUI(wp: WebPlaywright) {
 		willFailStepExecution,
 		chooseGraphLabel,
 		selectGraphLabel,
+		pickFromCombobox,
 	};
 }

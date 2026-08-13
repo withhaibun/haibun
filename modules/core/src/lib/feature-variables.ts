@@ -9,7 +9,6 @@ import { IQuadStore, SHARED_GRAPH, TQuad, emitQuadObservation } from "./quad-typ
 import { LinkRelations } from "./resources.js";
 
 export { SHARED_GRAPH };
-export const OBSERVATION_GRAPH = "observation";
 export const OBSCURED_VALUE = "[o̴b̵s̵c̷u̶r̸e̵d̵]";
 
 export class FeatureVariables {

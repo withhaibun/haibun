@@ -17,7 +17,6 @@ import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/li
 import { cycles } from "./cycles.js";
 import { interactionSteps } from "./interactionSteps.js";
 import { restSteps, TCapturedResponse } from "./rest-playwright.js";
-import { jsonExtractSteps } from "./jsonExtractSteps.js";
 import { TwinPage } from "./twin-page.js";
 
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
@@ -28,7 +27,6 @@ export const WEB_PAGE = "webpage";
  *
  * @see {@link interactionSteps} for interaction steps
  * @see {@link restSteps} for rest steps
- * @see {@link jsonExtractSteps} for JSON extraction steps
  */
 
 export const LAST_REST_RESPONSE = "LAST_REST_RESPONSE";
@@ -267,7 +265,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	steps: TStepperSteps = {
 		...restSteps(this),
 		...interactionSteps(this),
-		...jsonExtractSteps(this),
 	};
 	setBrowser(browser: string) {
 		this.factoryOptions.type = browser as unknown as TBrowserTypes;

@@ -19,6 +19,7 @@
  * `ranges` is the explicit channel; everything that isn't declared there is
  * treated as a primitive (resolves to a `kind: "argument"` binding).
  */
+import { unwrap } from "./zod-unwrap.js";
 import { z } from "zod";
 import type { TRegisteredDomain } from "./resources.js";
 
@@ -52,28 +53,6 @@ export function isPrimitiveZodType(zodType: z.ZodType): boolean {
 export function zodTypeLabel(zodType: unknown): string {
 	const def = (zodType as { _zod?: { def?: { type?: string } } })?._zod?.def;
 	return def?.type ?? "";
-}
-
-/** Strip optional / nullable / default wrappers to reveal the underlying Zod type. Tracks whether the field was optional. */
-export function unwrap(zodType: z.ZodType): { inner: z.ZodType; optional: boolean } {
-	let current: z.ZodType = zodType;
-	let optional = false;
-	for (;;) {
-		const def = (current as { _zod?: { def?: { type?: string; innerType?: z.ZodType } } })._zod?.def;
-		if (!def) return { inner: current, optional };
-		if (def.type === "optional" || def.type === "nullable") {
-			optional = true;
-			if (def.innerType) {
-				current = def.innerType;
-				continue;
-			}
-		}
-		if (def.type === "default" && def.innerType) {
-			current = def.innerType;
-			continue;
-		}
-		return { inner: current, optional };
-	}
 }
 
 /** Return the object-shape map for a Zod object, after wrapper unwrapping; `null` for non-objects. */

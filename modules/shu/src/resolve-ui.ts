@@ -1,4 +1,4 @@
-import { getUiByType } from "./rels-cache.js";
+import { getUiByType, getRecordComponent } from "./rels-cache.js";
 
 /** The component + placement to render a product with, resolved from its type with shape-based defaults. */
 export type ResolvedUi = {
@@ -24,7 +24,7 @@ export const COLLECTION_COMPONENT = "shu-thread-column";
 export function resolveUi(product: Record<string, unknown>): ResolvedUi {
 	const type = typeof product._type === "string" ? product._type : undefined;
 	const ui = type ? getUiByType(type) : undefined;
-	const uiComponent = ui?.component;
+	const uiComponent = type ? getRecordComponent(type) : undefined;
 	const declared = (typeof product._component === "string" ? product._component : undefined) ?? (typeof uiComponent === "string" ? uiComponent : undefined);
 	const isCollection = Array.isArray(product.items) && product.items.length > 0;
 	const component = declared ?? (isCollection ? COLLECTION_COMPONENT : ENTITY_COMPONENT);

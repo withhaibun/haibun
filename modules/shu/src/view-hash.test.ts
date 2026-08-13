@@ -6,7 +6,8 @@
  * the active id, the boot self-base, non-open passthrough).
  */
 import { describe, expect, it } from "vitest";
-import { canonicalizeArrival, hashParams, pageAddress, setOffline } from "./view-hash.js";
+import { canonicalizeArrival, hashParams, pageAddress } from "./view-hash.js";
+import { setConduit, resetConduit, SerializedConduit, LiveConduit } from "./hypermedia.js";
 
 describe("canonicalizeArrival", () => {
 	const base = "#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column";
@@ -42,10 +43,11 @@ describe("canonicalizeArrival", () => {
 
 describe("pageAddress", () => {
 	it("is the page address without its fragment online, and empty offline (a snapshot has no servable address)", () => {
-		setOffline(false);
+		setConduit(new LiveConduit(""));
 		expect(pageAddress()).toBe(location.origin + location.pathname + location.search);
-		setOffline(true);
+		resetConduit();
+		setConduit(new SerializedConduit(() => { throw new Error("view-hash test: no dispatch expected"); }));
 		expect(pageAddress()).toBe("");
-		setOffline(false);
+		resetConduit();
 	});
 });

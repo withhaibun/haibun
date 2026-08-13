@@ -6,7 +6,8 @@
 import { SHU_EVENT } from "../consts.js";
 import { layeredLayout, type NodeBox } from "./layered-layout.js";
 import { presentationForType } from "./type-presentation.js";
-import { xml, truncate, arrowMarker, ARROW_MARKER_ID, SVG_MARGIN as MARGIN } from "./svg-util.js";
+import { xml, MAX_SVG_LABEL, arrowMarker, ARROW_MARKER_ID, SVG_MARGIN as MARGIN } from "./svg-util.js";
+import { ellipsize } from "@haibun/core/lib/util/index.js";
 import type { IGraphRenderer, TGraph, TGraphEdge, TGraphRenderOptions } from "./types.js";
 
 /** Built-in node styling by `kind`; consumers override via `graph.styles[kind]`. */
@@ -83,7 +84,7 @@ export function graphToSvg(graph: TGraph, options?: TGraphRenderOptions): string
 			const sw = EDGE_WIDTH[e.kind ?? ""] ?? 1.5;
 			const op = dimmed ? "0.3" : "1";
 			const label = e.label
-				? `<text class="edge-label" x="${((p1.x + p2.x) / 2).toFixed(1)}" y="${((p1.y + p2.y) / 2 - 3).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--shu-fg-muted)" opacity="${op}">${xml(truncate(e.label))}</text>`
+				? `<text class="edge-label" x="${((p1.x + p2.x) / 2).toFixed(1)}" y="${((p1.y + p2.y) / 2 - 3).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--shu-fg-muted)" opacity="${op}">${xml(ellipsize(e.label, MAX_SVG_LABEL))}</text>`
 				: "";
 			return `<g class="edge" data-from="${xml(e.from)}" data-to="${xml(e.to)}"${e.rel ? ` data-rel="${xml(e.rel)}"` : ""}><path class="edge-path" d="M${p1.x.toFixed(1)},${p1.y.toFixed(1)} L${p2.x.toFixed(1)},${p2.y.toFixed(1)}" fill="none" stroke="var(--shu-fg-faded)" stroke-width="${sw}"${dash} opacity="${op}" marker-end="url(#${ARROW_MARKER_ID})"/>${label}</g>`;
 		})
@@ -96,7 +97,7 @@ export function graphToSvg(graph: TGraph, options?: TGraphRenderOptions): string
 			const s = shift(box);
 			const st = nodeStyle(n.kind, graph.styles);
 			const hint = n.hint ?? `${n.label}${n.kind ? ` · ${n.kind}` : ""}`;
-			return `<g class="node" data-node-id="${xml(n.id)}" style="cursor:pointer"><title>${xml(hint)}</title><rect class="node-box" x="${s.x.toFixed(1)}" y="${s.y.toFixed(1)}" width="${s.w.toFixed(1)}" height="${s.h.toFixed(1)}" rx="5" fill="${st.fill}" stroke="${st.stroke}" stroke-width="${st.strokeWidth}"/><text class="node-label" x="${(s.x + s.w / 2).toFixed(1)}" y="${(s.y + s.h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#222">${xml(truncate(n.label))}</text></g>`;
+			return `<g class="node" data-node-id="${xml(n.id)}" style="cursor:pointer"><title>${xml(hint)}</title><rect class="node-box" x="${s.x.toFixed(1)}" y="${s.y.toFixed(1)}" width="${s.w.toFixed(1)}" height="${s.h.toFixed(1)}" rx="5" fill="${st.fill}" stroke="${st.stroke}" stroke-width="${st.strokeWidth}"/><text class="node-label" x="${(s.x + s.w / 2).toFixed(1)}" y="${(s.y + s.h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#222">${xml(ellipsize(n.label, MAX_SVG_LABEL))}</text></g>`;
 		})
 		.join("");
 

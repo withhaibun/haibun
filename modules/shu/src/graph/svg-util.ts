@@ -5,8 +5,8 @@ export const xml = (s: string): string => String(s).replace(/&/g, "&amp;").repla
 /** Outer padding around a painted diagram. */
 export const SVG_MARGIN = 16;
 
-const DEFAULT_MAX_LABEL = 28;
-export const truncate = (s: string, max = DEFAULT_MAX_LABEL): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+/** The label cap for an SVG chip: past it a label is ellipsized (core's `ellipsize`), so the chip's width is bounded. */
+export const MAX_SVG_LABEL = 28;
 
 export const ARROW_MARKER_ID = "shu-arrow";
 /** An arrowhead `<marker>` def. `fill` defaults to the faded foreground; pass a colour for an emphasised paint. */

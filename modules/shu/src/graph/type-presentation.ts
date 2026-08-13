@@ -9,7 +9,7 @@
  * column tag from `columnComponent`. One source of truth, so the three renders can't disagree about a type.
  */
 import { presenterForType, type PresentContext, type SceneNode } from "./node-presenters.js";
-import { getUiByType } from "../rels-cache.js";
+import { getRecordComponent } from "../rels-cache.js";
 import type { NodeMark } from "./graph-scene.js";
 
 export type TypePresentation = {
@@ -23,6 +23,6 @@ export type TypePresentation = {
 export function presentationForType(type: string): TypePresentation {
 	return {
 		mark: (node, ctx) => presenterForType(type).present(node, ctx),
-		columnComponent: () => (getUiByType(type)?.component as string | undefined) ?? undefined,
+		columnComponent: () => getRecordComponent(type),
 	};
 }

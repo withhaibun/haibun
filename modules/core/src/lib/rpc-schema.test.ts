@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, parseRpcRequest } from "./step-dispatch.js";
+import { RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, parseRpcRequest } from "./rpc-wire.js";
 
 describe("JSON-RPC 2.0 schema compliance", () => {
 	it("accepts valid jsonrpc 2.0 request", () => {

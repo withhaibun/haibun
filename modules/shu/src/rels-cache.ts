@@ -173,6 +173,20 @@ export function getUiByType(label: string): Record<string, unknown> | undefined 
 	return metadata?.ui[label];
 }
 
+/**
+ * The component a RECORD of this type opens or renders as, or undefined for the generic view.
+ *
+ * A declaration carrying a `slot` mounts a panel into that slot — the petitions panel sits in the permissions area
+ * for every proposal there is, and is about the type rather than about one record of it. Such a panel has none of a
+ * record view's methods, so opening a record with it fails at the first call it receives. Only a slotless
+ * declaration names a type's own view.
+ */
+export function getRecordComponent(label: string): string | undefined {
+	const ui = getUiByType(label);
+	if (!ui || typeof ui.slot === "string") return undefined;
+	return typeof ui.component === "string" ? ui.component : undefined;
+}
+
 /** Resolve a UI extension by component tag name from concern-derived metadata. */
 export function getUiByComponent(component: string): Record<string, unknown> | undefined {
 	if (!metadata) return undefined;

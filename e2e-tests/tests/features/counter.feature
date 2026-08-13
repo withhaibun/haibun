@@ -11,7 +11,7 @@ Scenario: A form and counter
     
     go to the counter webpage
 
-    When I input username for user name
+    When I enter username into user name
     And I click Submit
 
     Then the URI query parameter "username" is username

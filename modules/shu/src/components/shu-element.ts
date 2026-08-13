@@ -36,6 +36,7 @@
  * resolve their children) override `createRenderRoot()` to return `this`.
  */
 
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { LitElement, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";
@@ -44,6 +45,7 @@ import { SHU_EVENT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "../time-sync.js";
 import { timeCursor, activePane, type SharedSignal } from "../signals.js";
 import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
+import { unwrap as unwrapWrappers } from "@haibun/core/lib/zod-unwrap.js";
 // Re-exported so every view can annotate its summarizeForKihan as `TLinkedData | null` from the same import it already
 // takes for ShuElement, instead of each reaching into core for the node-object type.
 export type { TLinkedData };
@@ -318,7 +320,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 			this.setState({ [field]: coerced } as Partial<z.infer<T>>);
 		} catch (error) {
 			// Name the attribute that drove the write: setState reports the state it rejected, not where that state came from.
-			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${error instanceof Error ? error.message : String(error)}`, {
+			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${errorDetail(error)}`, {
 				cause: error,
 			});
 		}
@@ -493,15 +495,6 @@ function describeStateWrite(partial: object): string {
 	return `{ ${fields.join(", ")} }`;
 }
 
-/** Unwrap ZodDefault/Optional/Nullable wrappers to the inner type. */
-function peelSchema(t: z.ZodTypeAny): z.ZodTypeAny {
-	let s = t;
-	for (;;) {
-		const inner = (s as unknown as { _def?: { innerType?: z.ZodTypeAny } })._def?.innerType;
-		if (!inner) return s;
-		s = inner;
-	}
-}
 
 /** Coerce an HTML attribute string into the value its state field's Zod type expects: presence-based boolean,
  * numeric parse, else the raw string. A removed attribute (null) yields undefined so setState applies the schema default. */
@@ -509,7 +502,7 @@ function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown
 	// A removed attribute (null) yields undefined so setState falls back to the field's schema default — this is
 	// what makes a default-true boolean (e.g. `closable`) reset to true when absent, not to presence-semantics false.
 	if (val === null) return undefined;
-	const inner = peelSchema(fieldSchema);
+	const { inner } = unwrapWrappers(fieldSchema);
 	if (inner instanceof z.ZodBoolean) return val !== "false";
 	if (inner instanceof z.ZodNumber) return Number(val);
 	return val;
@@ -519,7 +512,7 @@ function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown
  * present, false = absent), matching coerceAttribute's presence read; an undefined/null/empty value removes the attribute
  * so it never lingers stale; anything else writes its string form. */
 function reflectAttributeValue(el: HTMLElement, attr: string, fieldSchema: z.ZodTypeAny | undefined, value: unknown): void {
-	const inner = fieldSchema ? peelSchema(fieldSchema) : undefined;
+	const inner = fieldSchema ? unwrapWrappers(fieldSchema).inner : undefined;
 	if (inner instanceof z.ZodBoolean) el.toggleAttribute(attr, value === true);
 	else if (value === undefined || value === null || value === "") el.removeAttribute(attr);
 	else el.setAttribute(attr, String(value));

@@ -4,13 +4,14 @@ import { dispatchAffordanceFromResponse } from "./affordance-dispatch.js";
 import { PaneState } from "./pane-state.js";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { ShuElement } from "./components/shu-element.js";
-import * as ViewHash from "./view-hash.js";
+import { setConduit, resetConduit, SerializedConduit } from "./hypermedia.js";
 
 describe("dispatchAffordanceFromResponse", () => {
 	beforeEach(() => {
 		PaneState.__resetForTests();
 		document.body.innerHTML = "";
-		ViewHash.setOffline(true);
+		resetConduit();
+		setConduit(new SerializedConduit(() => { throw new Error("affordance-dispatch test: no dispatch expected"); }));
 		ShuElement.pushHash("#?");
 		if (!customElements.get("shu-column-pane"))
 			customElements.define(
