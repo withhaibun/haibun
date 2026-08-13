@@ -23,8 +23,11 @@ export function formatSeqPath(seqPath: number[]): string {
 
 /** Parse the canonical dot-joined form back to the number tuple. Returns null when the input is not seqPath-shaped. */
 export function parseSeqPath(id: string): number[] | null {
-	if (!/^-?\d+(\.-?\d+)*$/.test(id)) return null;
-	return id.split(".").map((p) => Number.parseInt(p, 10));
+	// A seqPath is written both bare and in the bracketed form a log line shows (`[0.1.2]`), and both name the same
+	// step. Everything after the brackets is strict: an empty segment is not a zero, so `1..2` is not a seqPath.
+	const bare = id.replace(/^\[|\]$/g, "");
+	if (!/^-?\d+(\.-?\d+)*$/.test(bare)) return null;
+	return bare.split(".").map((p) => Number.parseInt(p, 10));
 }
 
 /** Extract the leading dot-joined integer seqPath from an event id, discarding any suffix. Returns null when the id does not start with a seqPath. Examples: "0.1.5.3" → "0.1.5.3"; "0.1.5.3.artifact.0" → "0.1.5.3"; "0.-1.13.1" → "0.-1.13.1"; "foo.bar" → null. */
