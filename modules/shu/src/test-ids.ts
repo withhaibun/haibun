@@ -148,10 +148,6 @@ export const SHU_TEST_IDS = {
 		SCENE_SAVE: "polymorphic-scene-save",
 		SCENE_ERROR: "polymorphic-scene-error",
 	},
-	GRAPH_VIEW: {
-		ROOT: "graph-view-toolbar",
-		CONTROLS: "graph-view-toolbar",
-	},
 	AFFORDANCES: {
 		ROOT: "shu-affordances",
 		GOALS_LIST: "affordances-goals",

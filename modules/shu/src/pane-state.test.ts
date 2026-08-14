@@ -30,7 +30,7 @@ const emptyMeta = (ui: SiteMetadata["ui"] = {}): SiteMetadata => ({
 
 describe("derived helpers", () => {
 	it("paneIdOf is unique per variant data", () => {
-		expect(paneIdOf({ paneType: "component", tag: "shu-graph-view", label: "G" })).toBe("shu-graph-view");
+		expect(paneIdOf({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" })).toBe("shu-polymorphic-graph-view");
 		expect(paneIdOf({ paneType: "entity", id: "msg-1", persistedAs: "Email" })).toBe("e:Email:msg-1");
 		expect(paneIdOf({ paneType: "filter-eq", persistedAs: "Email", predicate: "from", value: "a@b" })).toBe("f:Email:from=a@b");
 		expect(paneIdOf({ paneType: "thread", persistedAs: "Email", subject: "msg-42" })).toBe("t:Email:msg-42");
@@ -48,7 +48,7 @@ describe("derived helpers", () => {
 	});
 
 	it("tagOf maps each paneType to its column-component, components reuse their tag", () => {
-		expect(tagOf({ paneType: "component", tag: "shu-graph-view", label: "G" })).toBe("shu-graph-view");
+		expect(tagOf({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" })).toBe("shu-polymorphic-graph-view");
 		expect(tagOf({ paneType: "entity", id: "x", persistedAs: "Email" })).toBe("shu-entity-column");
 		expect(tagOf({ paneType: "filter-eq", persistedAs: "Email", predicate: "p", value: "v" })).toBe("shu-filter-column");
 		expect(tagOf({ paneType: "thread", persistedAs: "Email", subject: "s" })).toBe("shu-thread-column");
@@ -70,9 +70,9 @@ describe("derived helpers", () => {
 
 describe("parseColEntry", () => {
 	it("round-trips a component pane", () => {
-		const d = parseColEntry("shu-graph-view");
+		const d = parseColEntry("shu-polymorphic-graph-view");
 		expect(d?.paneType).toBe("component");
-		if (d?.paneType === "component") expect(d.tag).toBe("shu-graph-view");
+		if (d?.paneType === "component") expect(d.tag).toBe("shu-polymorphic-graph-view");
 	});
 
 	it("round-trips an entity pane with a flag", () => {
@@ -158,7 +158,7 @@ describe("PaneState", () => {
 		}
 		if (!customElements.get("shu-affordances-panel")) customElements.define("shu-affordances-panel", class extends HTMLElement {});
 		if (!customElements.get("shu-monitor-column")) customElements.define("shu-monitor-column", class extends HTMLElement {});
-		if (!customElements.get("shu-graph-view")) customElements.define("shu-graph-view", class extends HTMLElement {});
+		if (!customElements.get("shu-polymorphic-graph-view")) customElements.define("shu-polymorphic-graph-view", class extends HTMLElement {});
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", class extends HTMLElement {});
 
 		const strip = document.createElement("shu-column-strip");
@@ -189,29 +189,29 @@ describe("PaneState", () => {
 	});
 
 	it("hash round-trip preserves the col= set", async () => {
-		ShuElement.pushHash("#?col=shu-graph-view&col=shu-monitor-column&active=shu-monitor-column");
+		ShuElement.pushHash("#?col=shu-polymorphic-graph-view&col=shu-monitor-column&active=shu-monitor-column");
 		PaneState.fromHash();
 		await flush();
 		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort();
-		expect(cols).toEqual(["shu-graph-view", "shu-monitor-column"]);
+		expect(cols).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);
 	});
 
 	it("a boot column activation BEFORE fromHash must not strip the restored col= views (regression)", async () => {
 		// A reloaded URL carries two restored views and a remembered active pane.
-		ShuElement.pushHash("#?col=shu-graph-view&col=shu-affordances-panel&active=shu-affordances-panel");
+		ShuElement.pushHash("#?col=shu-polymorphic-graph-view&col=shu-affordances-panel&active=shu-affordances-panel");
 		// The app activates the query column on start (app.ts), which fires setActivePane BEFORE the first fromHash.
 		// That write must be suppressed — writing a still-empty `desired` would delete every col= entry.
 		PaneState.setActivePane("query");
-		expect(new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort()).toEqual(["shu-affordances-panel", "shu-graph-view"]);
+		expect(new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort()).toEqual(["shu-affordances-panel", "shu-polymorphic-graph-view"]);
 		// fromHash then restores both panes (and the remembered active pane), col= intact.
 		PaneState.fromHash();
 		await flush();
 		const ids = Array.from(document.querySelectorAll("shu-column-pane"))
 			.map((p) => (p as HTMLElement).dataset.columnKey)
 			.sort();
-		expect(ids).toEqual(["shu-affordances-panel", "shu-graph-view"]);
+		expect(ids).toEqual(["shu-affordances-panel", "shu-polymorphic-graph-view"]);
 		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort();
-		expect(cols).toEqual(["shu-affordances-panel", "shu-graph-view"]);
+		expect(cols).toEqual(["shu-affordances-panel", "shu-polymorphic-graph-view"]);
 	});
 
 	it("re-request with data updates the live child's products", async () => {
@@ -224,20 +224,20 @@ describe("PaneState", () => {
 	});
 
 	it("malformed col= entries are skipped, not crashed-on", async () => {
-		ShuElement.pushHash("#?col=Bad+Tag&col=shu-graph-view");
+		ShuElement.pushHash("#?col=Bad+Tag&col=shu-polymorphic-graph-view");
 		PaneState.fromHash();
 		await flush();
 		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col");
-		expect(cols).toEqual(["shu-graph-view"]);
+		expect(cols).toEqual(["shu-polymorphic-graph-view"]);
 	});
 
 	it("dismiss after open rewrites the hash so the closed pane's col= entry is gone", async () => {
 		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
-		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		await flush();
-		expect(new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort()).toEqual(["shu-graph-view", "shu-monitor-column"]);
-		PaneState.dismiss("shu-graph-view");
+		expect(new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort()).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);
+		PaneState.dismiss("shu-polymorphic-graph-view");
 		await flush();
 		expect(new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col")).toEqual(["shu-monitor-column"]);
 		expect(document.querySelectorAll("shu-column-pane")).toHaveLength(1);
@@ -247,22 +247,22 @@ describe("PaneState", () => {
 		// Reconcile is async (awaits ensureLoaded / afterAttach). Until the in-flight
 		// pass settles, more requests must NOT start a parallel reconcile.
 		for (let i = 0; i < 6; i++) {
-			PaneState.request({ paneType: "component", tag: `shu-graph-view`, label: "G" });
+			PaneState.request({ paneType: "component", tag: `shu-polymorphic-graph-view`, label: "G" });
 			PaneState.request({ paneType: "component", tag: `shu-monitor-column`, label: "M" });
 		}
 		await flush();
 		const panes = Array.from(document.querySelectorAll("shu-column-pane")) as HTMLElement[];
 		expect(panes).toHaveLength(2);
-		expect(panes.map((p) => p.dataset.columnKey).sort()).toEqual(["shu-graph-view", "shu-monitor-column"]);
+		expect(panes.map((p) => p.dataset.columnKey).sort()).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);
 	});
 
 	it("reload-style fromHash with many col= entries never creates duplicates", async () => {
-		ShuElement.pushHash("#?col=shu-graph-view&col=shu-monitor-column&col=shu-affordances-panel&col=shu-graph-view&col=shu-monitor-column");
+		ShuElement.pushHash("#?col=shu-polymorphic-graph-view&col=shu-monitor-column&col=shu-affordances-panel&col=shu-polymorphic-graph-view&col=shu-monitor-column");
 		PaneState.fromHash();
 		await flush();
 		const panes = Array.from(document.querySelectorAll("shu-column-pane")) as HTMLElement[];
 		const ids = panes.map((p) => p.dataset.columnKey).sort();
-		expect(ids).toEqual(["shu-affordances-panel", "shu-graph-view", "shu-monitor-column"]);
+		expect(ids).toEqual(["shu-affordances-panel", "shu-monitor-column", "shu-polymorphic-graph-view"]);
 	});
 
 	// Reload restore (the shu-self-test 13.3 affordances flake): on reload the event-stream replays its history and
@@ -295,18 +295,18 @@ describe("PaneState", () => {
 	});
 
 	it("reload boot order: event-replay re-requests view-panes BEFORE the boot fromHash — all hash panes still mount, no drop", async () => {
-		const reloadedHash = "#?col=shu-monitor-column&col=shu-graph-view&col=shu-affordances-panel&col=shu-domain-chain-view";
+		const reloadedHash = "#?col=shu-monitor-column&col=shu-polymorphic-graph-view&col=shu-affordances-panel&col=shu-domain-chain-view";
 		reloadInto(reloadedHash);
 		// the replay fires first, re-opening the same view-panes (app.ts eventStream handler) while hydrated is still false
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
-		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
 		PaneState.request({ paneType: "component", tag: "shu-domain-chain-view", label: "C" });
 		await flush();
 		PaneState.fromHash(); // then the boot fromHash reads the reloaded URL
 		await flush();
 		const ids = liveIds().sort();
-		expect(ids).toEqual(["shu-affordances-panel", "shu-domain-chain-view", "shu-graph-view", "shu-monitor-column"]);
+		expect(ids).toEqual(["shu-affordances-panel", "shu-domain-chain-view", "shu-monitor-column", "shu-polymorphic-graph-view"]);
 		expect(liveIds().filter((i) => i === "shu-affordances-panel")).toHaveLength(1); // exactly one, no dup
 	});
 
@@ -341,50 +341,50 @@ describe("PaneState", () => {
 
 	it("requestFrom prunes every non-pinned pane to the right of the source (pane tracked + hash updated)", async () => {
 		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
-		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
 		await flush();
 		expect(document.querySelectorAll("shu-column-pane")).toHaveLength(3);
-		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-graph-view") as HTMLElement;
+		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-polymorphic-graph-view") as HTMLElement;
 		// Pass the source pane element directly. This is the path the app uses when it can hand the originating row/button to PaneState — closest("shu-column-pane") resolves synchronously without depending on Event.composedPath validity.
 		PaneState.requestFrom(graphPane, { paneType: "entity", persistedAs: "Email", id: "msg-1" });
 		await flush();
 		const ids = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
-		expect(ids).toEqual(["shu-graph-view", "e:Email:msg-1"]);
+		expect(ids).toEqual(["shu-polymorphic-graph-view", "e:Email:msg-1"]);
 		// And the URL hash (single source of truth for cross-reload column state) reflects the pruned set.
 		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col");
-		expect(cols).toEqual(["shu-graph-view", "e:Email:msg-1"]);
+		expect(cols).toEqual(["shu-polymorphic-graph-view", "e:Email:msg-1"]);
 	});
 
 	it("requestFrom from a child element inside the source pane prunes via element.closest", async () => {
-		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		await flush();
-		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-graph-view") as HTMLElement;
+		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-polymorphic-graph-view") as HTMLElement;
 		const inner = document.createElement("button");
 		graphPane.appendChild(inner);
 		PaneState.requestFrom(inner, { paneType: "entity", persistedAs: "Email", id: "msg-x" });
 		await flush();
 		const ids = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
-		expect(ids).toEqual(["shu-graph-view", "e:Email:msg-x"]);
+		expect(ids).toEqual(["shu-polymorphic-graph-view", "e:Email:msg-x"]);
 	});
 
 	it("requestFrom honours pinned panes and addToSelection skips the prune (hash kept in sync)", async () => {
 		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
-		PaneState.request({ paneType: "component", tag: "shu-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
 		await flush();
 		const monitor = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-monitor-column") as HTMLElement;
 		monitor.setAttribute("pinned", "true");
-		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-graph-view") as HTMLElement;
+		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-polymorphic-graph-view") as HTMLElement;
 
 		PaneState.requestFrom(graphPane, { paneType: "entity", persistedAs: "Email", id: "msg-2" });
 		await flush();
 		const ids = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
 		// Pinned monitor survives; non-pinned affordances-panel that was to the right is dismissed.
-		expect(ids).toContain("shu-graph-view");
+		expect(ids).toContain("shu-polymorphic-graph-view");
 		expect(ids).toContain("shu-monitor-column");
 		expect(ids).toContain("e:Email:msg-2");
 		expect(ids).not.toContain("shu-affordances-panel");
@@ -412,15 +412,15 @@ describe("PaneState", () => {
 
 		// A document link cannot know the live state, so it names only the pane it opens. replaceState +
 		// a dispatched hashchange is the arrival without jsdom's own async echo.
-		history.replaceState(null, "", "#?open=shu-graph-view");
+		history.replaceState(null, "", "#?open=shu-polymorphic-graph-view");
 		window.dispatchEvent(new HashChangeEvent("hashchange"));
 		await flush();
 
 		const params = ViewHash.hashParams(ShuElement.getHash());
 		expect(params.get("label")).toBe("File"); // the query state survives the link
 		expect(params.get("sort")).toBe("dateModified");
-		expect(params.getAll("col").sort()).toEqual(["shu-graph-view", "shu-monitor-column"]);
-		expect(params.get("active")).toBe("shu-graph-view"); // the linked view is what the reader asked for
+		expect(params.getAll("col").sort()).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);
+		expect(params.get("active")).toBe("shu-polymorphic-graph-view"); // the linked view is what the reader asked for
 		expect(params.get("open")).toBeNull(); // canonicalized away
 		resetConduit();
 		offline();

@@ -17,7 +17,6 @@ export const registerComponents = async (): Promise<void> => {
 	const { StepCaller } = await import("./components/shu-step-caller.js");
 	const { ShuMonitorColumn } = await import("./components/shu-monitor-column.js");
 	const { ShuThreadColumn } = await import("./components/shu-thread-column.js");
-	const { ShuGraphView } = await import("./components/shu-graph-view.js");
 	const { ShuStepDetail } = await import("./components/shu-step-detail.js");
 	const { ShuTimeline } = await import("./components/shu-timeline.js");
 	const { ShuDocumentColumn } = await import("./components/shu-document-column.js");
@@ -48,7 +47,6 @@ export const registerComponents = async (): Promise<void> => {
 		["shu-step-caller", StepCaller],
 		["shu-monitor-column", ShuMonitorColumn],
 		["shu-thread-column", ShuThreadColumn],
-		["shu-graph-view", ShuGraphView],
 		["shu-step-detail", ShuStepDetail],
 		["shu-timeline", ShuTimeline],
 		["shu-document-column", ShuDocumentColumn],

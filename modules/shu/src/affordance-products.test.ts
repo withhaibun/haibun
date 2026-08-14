@@ -4,6 +4,7 @@ import { parseAffordanceProduct } from "./affordance-products.js";
 import { SHU_TYPE } from "./consts.js";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import MonitorStepper from "./monitor-stepper.js";
+import ShuStepper from "./shu-stepper.js";
 
 describe("parseAffordanceProduct", () => {
 	it("returns kind:none for empty product", () => {
@@ -12,8 +13,8 @@ describe("parseAffordanceProduct", () => {
 	});
 
 	it("recognises a singleton component product (e.g. `show graph view`) using `view` as the id when `id` is absent", () => {
-		const product = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-graph-view", view: "graph" };
-		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-graph-view", label: "Graph view", products: product });
+		const product = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-polymorphic-graph-view", view: "graph" };
+		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-polymorphic-graph-view", label: "Graph view", products: product });
 	});
 
 	it("uses `id` when both `id` and `view` are present (per-instance components)", () => {
@@ -44,7 +45,7 @@ describe("parseAffordanceProduct", () => {
 			[HYPERMEDIA.SUMMARY]: "Available Views",
 			view: "views",
 			views: [
-				{ id: "graph", description: "Graph view", component: "shu-graph-view" },
+				{ id: "graph", description: "Graph view", component: "shu-polymorphic-graph-view" },
 				{ id: "monitor", description: "Monitor", component: "shu-monitor-column" },
 			],
 		};
@@ -53,7 +54,7 @@ describe("parseAffordanceProduct", () => {
 		if (action.kind !== "show-views") return;
 		expect(action.label).toBe("Available Views");
 		expect(action.views).toHaveLength(2);
-		expect(action.views[0]).toEqual({ id: "graph", description: "Graph view", component: "shu-graph-view" });
+		expect(action.views[0]).toEqual({ id: "graph", description: "Graph view", component: "shu-polymorphic-graph-view" });
 	});
 
 	it("is not an affordance just because it is a record: a bare individual states what it is, not what to open", () => {
@@ -64,14 +65,14 @@ describe("parseAffordanceProduct", () => {
 	});
 
 	it("rejects a component product that has neither `id` nor `view`", () => {
-		const product = { [HYPERMEDIA.TYPE]: "view", _component: "shu-graph-view" };
+		const product = { [HYPERMEDIA.TYPE]: "view", _component: "shu-polymorphic-graph-view" };
 		expect(() => parseAffordanceProduct(product)).toThrow(/requires string id or view/);
 	});
 
 	it("unwraps a `{ products: <affordance> }` envelope", () => {
-		const inner = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-graph-view", view: "graph" };
+		const inner = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-polymorphic-graph-view", view: "graph" };
 		const product = { products: inner };
-		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-graph-view", label: "Graph view", products: inner });
+		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-polymorphic-graph-view", label: "Graph view", products: inner });
 	});
 });
 
@@ -88,21 +89,22 @@ describe("parseAffordanceProduct", () => {
  */
 describe("show* steps declare a productsDomain whose ui.component opens the view consistently", () => {
 	const stepper = new MonitorStepper();
+	const shu = new ShuStepper();
 
 	// Every view-opening step declares a `productsDomain`. The dispatcher injects
 	// the hypermedia markers (`_type`, `_component`, `_summary`, `id`, `view`) from
 	// the domain's `ui.component` at runtime, so every view opens through one path.
 	// The step's action body returns plain `{}` products; this test verifies the contract
 	// at the step-definition layer.
-	const cases: Array<{ name: keyof typeof stepper.steps; productsDomain: string }> = [
-		{ name: "showGraphView", productsDomain: "shu-graph-view" },
-		{ name: "showMonitor", productsDomain: "shu-monitor-column" },
-		{ name: "showDocument", productsDomain: "shu-document-column" },
+	const cases: Array<{ name: string; productsDomain: string; steps: Record<string, unknown> }> = [
+		{ name: "showPolymorphicGraphView", productsDomain: "shu-polymorphic-graph-view", steps: shu.steps },
+		{ name: "showMonitor", productsDomain: "shu-monitor-column", steps: stepper.steps },
+		{ name: "showDocument", productsDomain: "shu-document-column", steps: stepper.steps },
 	];
 
-	for (const { name, productsDomain } of cases) {
+	for (const { name, productsDomain, steps } of cases) {
 		it(`${name} declares productsDomain "${productsDomain}" for dispatcher view-marker injection`, () => {
-			const step = stepper.steps[name] as { productsDomain?: string };
+			const step = steps[name] as { productsDomain?: string };
 			expect(step.productsDomain).toBe(productsDomain);
 		});
 	}

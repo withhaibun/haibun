@@ -1,5 +1,5 @@
 /**
- * Inspection steps for shu-monitor-column, kept beside the element (the shu-graph-view.controls pattern). Counts the
+ * Inspection steps for shu-monitor-column, kept beside the element (the polymorphic view's controls pattern). Counts the
  * rendered log rows across shadow boundaries so a feature can assert the monitor VIRTUALIZES: the DOM holds only the
  * rows in view (plus the virtualizer's small overscan), not every buffered event, no matter how long the run. Polls,
  * since the backfill and re-render land asynchronously. The page-providing stepper is duck-typed, so shu keeps no

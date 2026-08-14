@@ -9,23 +9,23 @@ const domains = {
 	"x-heavy-viewer": { ui: { component: "x-heavy-viewer", js: "/assets/x-heavy-viewer.js", jsContent: VIEWER_JS } },
 	"x-status-badge": { ui: { component: "x-status-badge", js: "/assets/x-status-badge.js", jsContent: "/* badge */" } },
 	"graph-query": { schema: {} }, // no ui
-	"shu-graph-view": { ui: { component: "shu-graph-view" } }, // built into the main bundle: no jsContent
+	"shu-polymorphic-graph-view": { ui: { component: "shu-polymorphic-graph-view" } }, // built into the main bundle: no jsContent
 };
 
 describe("report inlines a component's JS only when its view is in the final report", () => {
 	it("INCLUDES a heavy external component's bundle when its view is a final-view column", () => {
-		const scripts = inlineScriptsForView(domains, new Set(["shu-graph-view", "x-heavy-viewer"]));
+		const scripts = inlineScriptsForView(domains, new Set(["shu-polymorphic-graph-view", "x-heavy-viewer"]));
 		expect(scripts).toContain(VIEWER_JS);
 	});
 
 	it("OMITS the heavy bundle when its view is not shown", () => {
-		const scripts = inlineScriptsForView(domains, new Set(["shu-graph-view", "shu-document-column"]));
+		const scripts = inlineScriptsForView(domains, new Set(["shu-polymorphic-graph-view", "shu-document-column"]));
 		expect(scripts).not.toContain(VIEWER_JS);
 		expect(scripts).toEqual([]); // none of the shown components carry jsContent
 	});
 
 	it("includes only the in-view components that carry jsContent (skips main-bundle and ui-less domains)", () => {
-		const scripts = inlineScriptsForView(domains, new Set(["x-heavy-viewer", "x-status-badge", "shu-graph-view", "graph-query"]));
+		const scripts = inlineScriptsForView(domains, new Set(["x-heavy-viewer", "x-status-badge", "shu-polymorphic-graph-view", "graph-query"]));
 		expect(scripts.sort()).toEqual([VIEWER_JS, "/* badge */"].sort());
 	});
 });

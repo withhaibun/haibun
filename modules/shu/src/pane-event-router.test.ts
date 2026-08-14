@@ -32,7 +32,7 @@ describe("pane-event-router rule 1: trace substeps are not intent", () => {
 
 describe("pane-event-router rule 2: each event acts once", () => {
 	it("a replay-tagged delivery still opens — a page connecting mid-run picks up the views a CLI run opened", () => {
-		const ops = paneOpsFor([openEvent("ev-1", "shu-graph-view", { replay: true })], createPaneRouteState(), noUi);
+		const ops = paneOpsFor([openEvent("ev-1", "shu-polymorphic-graph-view", { replay: true })], createPaneRouteState(), noUi);
 		expect(ops.size).toBe(1);
 	});
 

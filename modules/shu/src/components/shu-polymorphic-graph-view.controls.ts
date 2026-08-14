@@ -383,8 +383,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		untickGraphTypes: {
-			// Un-tick the named type chips, leaving every other type's visibility as it stands. The phrase must not
-			// match shu-graph-view's `{operation} graph types {types}`, whose {operation} slot matches any leading word.
+			// Un-tick the named type chips, leaving every other type's visibility as it stands.
 			gwta: "untick graph chips {types}",
 			action: ({ types }: { types: string }) => this.setFilterChips("setTypeVisibility", types, false),
 		},
