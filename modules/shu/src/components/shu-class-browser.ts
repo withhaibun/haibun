@@ -98,11 +98,6 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		super(BrowserStateSchema, {});
 	}
 
-	/** Light DOM: the A-Frame scene resolves its camera through document, and the scene chrome positions against this host. */
-	createRenderRoot(): HTMLElement {
-		return this;
-	}
-
 	/** The browser's chip choices persist under their own scope — never the main graph's shared filter store. */
 	protected override get filterPersistScope(): string {
 		return FILTER_SCOPE;
@@ -118,14 +113,6 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 	 *  schema pruned against complete evidence. */
 	protected override get narrowsRefetchToVisible(): boolean {
 		return false;
-	}
-
-	private get scene(): ShuGraphScene | null {
-		return this.querySelector<ShuGraphScene>("shu-graph-scene");
-	}
-
-	private get filterEl(): ShuGraphFilter | null {
-		return this.querySelector("shu-graph-filter");
 	}
 
 	/** Embedded mount (shu-product-view hands the product here): fit the schema around the focus type's Class node.
@@ -260,23 +247,16 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		}
 	}
 
-	protected override async onGraphConnected(): Promise<void> {
-		await this.updateComplete; // renders the filter and creates the <shu-graph-scene> child
-		this.setAttribute("data-testid", SHU_TEST_IDS.CLASS_BROWSER.ROOT);
+	/** The browser's own root, which its feature waits on before driving it. */
+	protected override get rootTestId(): string {
+		return SHU_TEST_IDS.CLASS_BROWSER.ROOT;
+	}
 
-		// Relay the scene's neutral outputs to the app's events — node navigation identical to the main graph view.
-		this.autoListen(this, GRAPH_SCENE_EVENT.NODE_CLICK, ((e: CustomEvent<{ label: string; subject: string; addToSelection: boolean }>) => {
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: e.detail, bubbles: true, composed: true }));
-		}) as EventListener);
-		this.autoListen(this, GRAPH_SCENE_EVENT.NODE_OPEN_PANE, ((e: CustomEvent) => {
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_OPEN, { detail: e.detail, bubbles: true, composed: true }));
-		}) as EventListener);
+	protected override async onGraphConnected(): Promise<void> {
+		await super.onGraphConnected();
+		// The scene stages the schema: it reports which types it revealed, and the filter's chips report that set.
 		this.autoListen(this, GRAPH_SCENE_EVENT.SCOPE_REVEALED, ((e: CustomEvent<{ types: string[] }>) => {
 			this.filterEl?.setVisibleTypes(e.detail.types);
-		}) as EventListener);
-		// Hovering a chip previews its cluster: every other type dims, exactly as in the main graph.
-		this.autoListen(this, SHU_EVENT.GRAPH_TYPE_PREVIEW, ((e: CustomEvent<{ type: string | null }>) => {
-			this.scene?.setPreviewType(e.detail?.type ?? null);
 		}) as EventListener);
 	}
 
@@ -287,7 +267,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		return scopeSchemaToType(quads, this.focusType);
 	}
 
-	private buildSceneModel(): GraphSceneModel {
+	protected override buildSceneModel(): GraphSceneModel {
 		return {
 			quads: this.scopedQuads(this.cgState.quads),
 			visibleQuads: this.scopedQuads(this.visibleQuads),
@@ -301,15 +281,6 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		};
 	}
 
-	private pushSceneModel(): void {
-		this.filterEl?.setSource(this.knownClusters, this.cgState.quads);
-		this.scene?.setModel(this.buildSceneModel());
-	}
-
-	protected override onGraphData(): void {
-		this.pushSceneModel();
-	}
-
 	/** Each type view highlights ITS OWN focus type — its Class, with its properties and superclass lit through the focus
 	 *  policy. The app-wide selection is global, so another type view opening (publishing a different type) must NOT switch
 	 *  this one: pin the highlight to the focus type. Only a scope with no focus (unusual) follows the shared selection. */
@@ -317,10 +288,6 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		this.scene?.setSelectedSubject(this.focusType || subject);
 	}
 
-	protected override onTimeCursorPaint(): void {
-		this.pushSceneModel();
-		this.scene?.setTimeCursorValue(this.timeCursor);
-	}
 }
 
 if (!customElements.get("shu-class-browser")) {
