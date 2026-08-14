@@ -82,7 +82,7 @@ describe("viewQuery store", () => {
 		// address at its ingress, so what hydrate reads keeps label and sort — assigning from the raw
 		// fragment would drop them, and every SSE retrigger would then re-issue a query the server
 		// rejects (one 422 per event).
-		viewQuery.hydrate(canonicalizeArrival("#?open=shu-fisheye-graph-view", live));
+		viewQuery.hydrate(canonicalizeArrival("#?open=shu-polymorphic-graph-view", live));
 		expect(viewQuery.current.label).toBe("File");
 		expect(viewQuery.current.sort).toBe("dateModified");
 	});

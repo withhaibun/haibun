@@ -104,6 +104,16 @@ export const SHU_TEST_IDS = {
  * The polymorphic graph view: one graph painted as a force cloud, a layered flow, a gantt or a sequence, with the
  * controls that switch between them. Its ids live here because the view is shu's.
  */
+	CLASS_BROWSER: {
+		ROOT: "class-browser-root",
+		MODE: "class-browser-mode",
+		CONTEXT_VIEW: "class-browser-context",
+		FIT: "class-browser-fit",
+		ROTATE_XY: "class-browser-rotate-xy",
+		ROTATE_Z: "class-browser-rotate-z",
+		COPY_GRAPH: "class-browser-copy-graph",
+		INDIVIDUALS_VIEW: "class-browser-individuals",
+	},
 	POLYMORPHIC_VIEW: {
 		ROOT: "polymorphic-graph-view-root",
 		SCENE: "polymorphic-a-scene",

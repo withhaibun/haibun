@@ -495,7 +495,6 @@ function describeStateWrite(partial: object): string {
 	return `{ ${fields.join(", ")} }`;
 }
 
-
 /** Coerce an HTML attribute string into the value its state field's Zod type expects: presence-based boolean,
  * numeric parse, else the raw string. A removed attribute (null) yields undefined so setState applies the schema default. */
 function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown {

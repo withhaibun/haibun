@@ -69,7 +69,9 @@ describe("what a reader may do here", () => {
 		const el = await mounted();
 		expect(el.shadowRoot?.textContent, "the count, so the panel opens the size of a panel").toContain("principals (2)");
 		expect(refTexts(el, "entity"), "and none of them until they are asked for").toEqual([]);
-		Array.from(el.shadowRoot?.querySelectorAll("button") ?? []).find((b) => b.textContent?.includes("principals"))?.click();
+		Array.from(el.shadowRoot?.querySelectorAll("button") ?? [])
+			.find((b) => b.textContent?.includes("principals"))
+			?.click();
 		await el.updateComplete;
 		expect(refTexts(el, "entity"), "each named, and each a way to its own record").toContain("did:site:0:kihan-session");
 	});
@@ -92,7 +94,9 @@ describe("what a reader may do here", () => {
 		expect(closed, "the count is there to open").toContain("grants (2)");
 		expect(closed, "and the rows are not, until they are asked for").not.toContain("comment.invoke");
 
-		Array.from(el.shadowRoot?.querySelectorAll("button") ?? []).find((b) => b.textContent?.includes("grants"))?.click();
+		Array.from(el.shadowRoot?.querySelectorAll("button") ?? [])
+			.find((b) => b.textContent?.includes("grants"))
+			?.click();
 		await el.updateComplete;
 		const open = el.shadowRoot?.textContent ?? "";
 		expect(refTexts(el, "entity"), "who granted it, as a way to that principal").toContain("did:site:0:agent");
