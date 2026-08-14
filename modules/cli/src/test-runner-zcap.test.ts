@@ -11,7 +11,7 @@ import TestRunnerStepper from "./test-runner-stepper.js";
 import InstanceStepper, { SUPERVISOR_CAPABILITIES } from "./instance-stepper.js";
 import { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { callStepByName } from "@haibun/core/lib/call-step.js";
-import { ZcapAuthority, ZCAP_AUTHORITY, ZCAP_TOKEN_KEY } from "@haibun/core/lib/zcap-authority.js";
+import { SessionAuthority, AUTHORITY_KEY, SESSION_TOKEN_KEY } from "@haibun/core/lib/session-authority.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
@@ -23,29 +23,29 @@ const AGENT_TOKEN = "agent-token";
 const NOWHERE = "/nonexistent-base-for-capability-tests";
 
 /** A world holding an authority and a store, assembled from the defaults rather than asserted into shape. */
-function supervisedWorld(authority: ZcapAuthority): TWorld {
+function supervisedWorld(authority: SessionAuthority): TWorld {
 	const world = getDefaultWorld();
 	const store = new QuadStore();
 	world.shared.getStore = () => store;
 	// The registry resolves runTest's productsDomain schema through the world, as registerDomains does in a real run.
 	world.domains = mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]);
-	(world.runtime.keys ??= {})[ZCAP_AUTHORITY] = authority;
+	(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 	return world;
 }
 
 function harness() {
-	const authority = new ZcapAuthority();
+	const authority = new SessionAuthority();
 	const world = supervisedWorld(authority);
 	const steppers = [new TestRunnerStepper(), new InstanceStepper()];
 	for (const s of steppers) void s.setWorld(world, steppers);
 	const registry = new StepRegistry(steppers, world);
 	/** Call a step the way anything calls a step: under whatever token is active, with no capability asserted by the caller. */
 	const call = async (method: string, input: Record<string, unknown> = {}, token?: string, grantedCapability?: string) => {
-		if (token) (world.runtime.keys ??= {})[ZCAP_TOKEN_KEY] = token;
-		else delete world.runtime.keys?.[ZCAP_TOKEN_KEY];
+		if (token) (world.runtime.keys ??= {})[SESSION_TOKEN_KEY] = token;
+		else delete world.runtime.keys?.[SESSION_TOKEN_KEY];
 		return await callStepByName({ registry, world, steppers, grantedCapability }, method, input);
 	};
-	const grant = (action: string) => authority.issueBearerGrant({ token: AGENT_TOKEN, allowedAction: [action], controller: "did:site:test" });
+	const grant = (action: string) => authority.issueSessionGrant({ token: AGENT_TOKEN, allowedAction: [action], controller: "did:site:test" });
 	return { authority, world, call, grant };
 }
 
@@ -81,7 +81,7 @@ describe("what a caller must hold to run a test", () => {
 		h.grant(SUPERVISOR_CAPABILITIES.run);
 		const before = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, AGENT_TOKEN);
 		expect(before.registered && before.result.errorMessage).toMatch(/no config.json/);
-		h.authority.revokeBearerGrant(AGENT_TOKEN);
+		h.authority.revokeSessionGrant(AGENT_TOKEN);
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "other" }, AGENT_TOKEN)).rejects.toThrow(
 			new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`),
 		);

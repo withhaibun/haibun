@@ -1,7 +1,7 @@
 /**
  * Signed-capability path of AuthorityStepper: `as subkey holding capability {cap} at {target}, {what}`.
  * Mirrors the bearer `as subkey` attribution test, but the principal is proven by a *signed* capability
- * verified through a registered IZcapVerifier (a test double here — haibun-core stays crypto-free; the
+ * verified through a registered IAuthorityVerifier (a test double here — haibun-core stays crypto-free; the
  * ZCAP-LD verifier lives in the consumer). On verified, the capability's controller becomes the
  * principal so authored writes are attributed to it.
  */
@@ -11,8 +11,8 @@ import { getDefaultWorld, testWithWorld } from "../lib/test/lib.js";
 import { resolveSitePrincipal } from "../lib/host-id.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/resources.js";
-import { getZcapAuthority } from "../lib/zcap-authority.js";
-import type { IZcapVerifier, TZcapInvocation } from "../lib/zcap-types.js";
+import { getAuthority } from "../lib/session-authority.js";
+import type { IAuthorityVerifier, TAuthorityEvidence } from "../lib/authority-types.js";
 import AuthorityStepper from "./authority-stepper.js";
 import ResourcesStepper from "./resources-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
@@ -31,19 +31,18 @@ class TestNodeStepper extends AStepper implements IHasCycles {
 }
 
 /** Captures what the registered verifier was asked to verify, and decides ok/fail. Registered after AuthorityStepper installs the authority. */
-const verifierState: { lastInvocation?: TZcapInvocation; lastExpected?: { action: string; target: string; rootCapability?: string }; ok: boolean; error?: string } = { ok: true };
+const verifierState: { lastEvidence?: TAuthorityEvidence; ok: boolean; error?: string } = { ok: true };
 
 class StubVerifierStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		startFeature: () => {
-			const verifier: IZcapVerifier = {
-				verify: (invocation, expected) => {
-					verifierState.lastInvocation = invocation;
-					verifierState.lastExpected = expected;
+			const verifier: IAuthorityVerifier = {
+				verify: (evidence) => {
+					verifierState.lastEvidence = evidence;
 					return Promise.resolve(verifierState.ok ? { ok: true } : { ok: false, error: verifierState.error ?? "bad signature" });
 				},
 			};
-			getZcapAuthority(this.getWorld().runtime)?.registerVerifier(verifier);
+			getAuthority(this.getWorld().runtime)?.registerVerifier(verifier);
 		},
 	};
 	steps: TStepperSteps = {};
@@ -64,8 +63,7 @@ const STEPPERS = [AuthorityStepper, StubVerifierStepper, ResourcesStepper, TestN
 describe("AuthorityStepper signed-capability path", () => {
 	it("attributes authored writes inside `as subkey holding capability` to the verified capability's controller", async () => {
 		verifierState.ok = true;
-		verifierState.lastInvocation = undefined;
-		verifierState.lastExpected = undefined;
+		verifierState.lastEvidence = undefined;
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
 		world.runtime.keys = { ...world.runtime.keys, principal: resolveSitePrincipal({}) };
 
@@ -89,9 +87,9 @@ as subkey holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}"
 		expect(comments.length).toBe(1);
 		expect(comments[0].author).toBe(SUBKEY_DID);
 
-		expect(verifierState.lastExpected).toEqual({ action: "ResourcesStepper:comment", target: "urn:res:1", rootCapability: "urn:zcap:root:res:1" });
-		expect(verifierState.lastInvocation?.invocationTarget).toBe("urn:res:1");
-		expect(verifierState.lastInvocation?.capabilityAction).toBe("ResourcesStepper:comment");
+		expect(verifierState.lastEvidence?.action, "the verifier is told what was asked for").toBe("ResourcesStepper:comment");
+		expect(verifierState.lastEvidence?.target, "and what it was asked of").toBe("urn:res:1");
+		expect(verifierState.lastEvidence?.document.id, "and is handed the document itself to read").toBe("urn:zcap:alice-comment");
 	});
 
 	it("fails the step (and writes nothing) when the registered verifier rejects the signed capability", async () => {

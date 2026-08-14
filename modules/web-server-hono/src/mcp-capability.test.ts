@@ -126,16 +126,16 @@ verify protected mcp tool on port ${port} succeeds
 		expect(result.ok).toBe(true);
 	});
 
-	it("allows and then revokes protected MCP tools through a ZCAP bearer grant", async () => {
+	it("allows and then revokes protected MCP tools through a session grant", async () => {
 		const port = 8136;
 		const feature = {
-			path: "/features/mcp-zcap-capability.feature",
+			path: "/features/mcp-capability.feature",
 			content: `
 serve mcp tools at /mcp
-webserver is listening for "mcp zcap capability"
-issue zcap bearer grant for token "test-token" with action "ProtectedStepper:invoke"
+webserver is listening for "mcp capability"
+issue session grant for token "test-token" with action "ProtectedStepper:invoke"
 verify protected mcp tool on port ${port} succeeds
-revoke zcap bearer grant for token "test-token"
+revoke session grant for token "test-token"
 verify protected mcp tool on port ${port} is denied
 `,
 		};

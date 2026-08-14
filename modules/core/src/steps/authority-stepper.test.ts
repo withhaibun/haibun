@@ -7,21 +7,21 @@ import { AStepper } from "../lib/astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionNotOK } from "../lib/util/index.js";
 import AuthorityStepper from "./authority-stepper.js";
-import { getZcapAuthority } from "../lib/zcap-authority.js";
+import { getAuthority } from "../lib/session-authority.js";
 
-class VerifyZcapStepper extends AStepper {
+class VerifySessionStepper extends AStepper {
 	steps = {
-		verifyIssuedZcapGrant: {
-			gwta: "verify zcap bearer grant for token {token: zcap-token} is active for action {action: zcap-action}",
+		verifyIssuedSessionGrant: {
+			gwta: "verify session grant for token {token: session-token} is active for action {action: authority-action}",
 			action: ({ token, action }: { token: string; action: string }) => {
-				const granted = getZcapAuthority(this.getWorld().runtime)?.resolveBearer(token) ?? [];
+				const granted = getAuthority(this.getWorld().runtime)?.resolveSession(token) ?? [];
 				return granted.includes(action) ? OK : actionNotOK(`Expected ${token} to grant ${action}, got ${JSON.stringify(granted)}`);
 			},
 		},
-		verifyRevokedZcapGrant: {
-			gwta: "verify zcap bearer grant for token {token: zcap-token} is revoked for action {action: zcap-action}",
+		verifyRevokedSessionGrant: {
+			gwta: "verify session grant for token {token: session-token} is revoked for action {action: authority-action}",
 			action: ({ token, action }: { token: string; action: string }) => {
-				const granted = getZcapAuthority(this.getWorld().runtime)?.resolveBearer(token) ?? [];
+				const granted = getAuthority(this.getWorld().runtime)?.resolveSession(token) ?? [];
 				return !granted.includes(action) ? OK : actionNotOK(`Expected ${token} to stop granting ${action}, got ${JSON.stringify(granted)}`);
 			},
 		},
@@ -29,12 +29,12 @@ class VerifyZcapStepper extends AStepper {
 }
 
 describe("AuthorityStepper", () => {
-	it("registers ZCAP domains and exposes schemas through discovery", async () => {
+	it("registers its domains and exposes schemas through discovery", async () => {
 		const world = getDefaultWorld();
 		const stepper = new AuthorityStepper();
 		await stepper.setWorld(world, [stepper]);
 		const concerns = stepper.cycles.getConcerns?.();
-		if (!concerns?.domains) throw new Error("Expected ZCAP domains to be declared");
+		if (!concerns?.domains) throw new Error("Expected the authority domains to be declared");
 		for (const domain of concerns.domains) {
 			world.domains[domain.selectors[0]] = {
 				selectors: [...domain.selectors],
@@ -47,26 +47,26 @@ describe("AuthorityStepper", () => {
 		}
 
 		const discovery = discoverSteps([stepper], world);
-		expect(discovery.domains["zcap-token"]?.description).toContain("Opaque bearer token");
-		expect(discovery.domains["zcap-action"]?.description).toContain("action label");
+		expect(discovery.domains["session-token"]?.description).toContain("token an in-process session presents");
+		expect(discovery.domains["authority-action"]?.description).toContain("action label");
 
-		const issueStep = discovery.steps.find((step) => step.method === "AuthorityStepper-issueZcapBearerGrant");
+		const issueStep = discovery.steps.find((step) => step.method === "AuthorityStepper-issueSessionGrant");
 		expect(issueStep?.inputSchema?.required).toEqual(["token", "action"]);
 		expect(issueStep?.outputSchema).toBeDefined();
 	});
 
-	it("issues and revokes ZCAP bearer grants through normal steps", async () => {
+	it("issues and revokes session grants through normal steps", async () => {
 		const feature = {
 			path: "/features/authority-stepper.feature",
 			content: `
-issue zcap bearer grant for token "alpha" with action "Ping:protected"
-verify zcap bearer grant for token "alpha" is active for action "Ping:protected"
-revoke zcap bearer grant for token "alpha"
-verify zcap bearer grant for token "alpha" is revoked for action "Ping:protected"
+issue session grant for token "alpha" with action "Ping:protected"
+verify session grant for token "alpha" is active for action "Ping:protected"
+revoke session grant for token "alpha"
+verify session grant for token "alpha" is revoked for action "Ping:protected"
 `,
 		};
 
-		const result = await passWithDefaults([feature], [AuthorityStepper, VerifyZcapStepper]);
+		const result = await passWithDefaults([feature], [AuthorityStepper, VerifySessionStepper]);
 		if (!result.ok) {
 			throw new Error(JSON.stringify(result.featureResults, null, 2));
 		}

@@ -11,7 +11,7 @@ import { authorizedWith, runAuthorizedWith } from "./capability-context.js";
 import { AccessLevelSchema, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
-import { getZcapAuthority, ZCAP_TOKEN_KEY } from "./zcap-authority.js";
+import { getAuthority, SESSION_TOKEN_KEY } from "./session-authority.js";
 import { validateProducts } from "./tool-validation.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
 
@@ -41,17 +41,17 @@ export type DispatchContext = {
  */
 /** What the run's active bearer token grants, if one is set and an authority can resolve it. */
 function bearerCapability(world: TWorld): string[] | undefined {
-	const token = world.runtime.keys?.[ZCAP_TOKEN_KEY] as string | undefined;
+	const token = world.runtime.keys?.[SESSION_TOKEN_KEY] as string | undefined;
 	if (!token) return undefined;
-	const granted = getZcapAuthority(world.runtime)?.resolveBearer(token);
+	const granted = getAuthority(world.runtime)?.resolveSession(token);
 	return granted && granted.length > 0 ? granted : undefined;
 }
 
 /** The principal controlling the active bearer token, which is who a step dispatched under that token acts as. */
 export function invokingPrincipal(world: TWorld): string | undefined {
-	const token = world.runtime.keys?.[ZCAP_TOKEN_KEY] as string | undefined;
+	const token = world.runtime.keys?.[SESSION_TOKEN_KEY] as string | undefined;
 	if (!token) return undefined;
-	return getZcapAuthority(world.runtime)?.resolveController(token);
+	return getAuthority(world.runtime)?.resolveController(token);
 }
 
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {

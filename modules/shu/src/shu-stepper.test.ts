@@ -6,7 +6,7 @@ import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import { z } from "zod";
 import ShuStepper, { sessionActions } from "./shu-stepper.js";
-import { ZcapAuthority, ZCAP_AUTHORITY } from "@haibun/core/lib/zcap-authority.js";
+import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 
 function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
@@ -126,13 +126,13 @@ describe("the credential a served app is given", () => {
 
 	it("issues one grant holding exactly those actions, and hands the page the same list", async () => {
 		const world = getDefaultWorld();
-		const authority = new ZcapAuthority();
-		(world.runtime.keys ??= {})[ZCAP_AUTHORITY] = authority;
+		const authority = new SessionAuthority();
+		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 		const stepper = new ShuStepper();
 		await stepper.setWorld({ ...world, moduleOptions: { [getStepperOptionName(stepper, "SESSION_CAPABILITY")]: "Instance:read,comment.grant" } }, [stepper]);
 		const hydration = (stepper as unknown as { sessionHydration(): { session?: { token: string; allowedAction: string[] } } }).sessionHydration();
 		expect(hydration.session?.allowedAction, "what the page is told it holds").toEqual(["Instance:read", "comment.grant"]);
-		const [issued] = authority.listBearerGrants();
+		const [issued] = authority.listSessionGrants();
 		expect(issued.allowedAction, "and what the run's authority actually holds for it").toEqual(["Instance:read", "comment.grant"]);
 		expect(issued.token, "under the token the page carries").toBe(hydration.session?.token);
 	});

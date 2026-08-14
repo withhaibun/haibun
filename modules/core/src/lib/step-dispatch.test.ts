@@ -150,7 +150,7 @@ describe("step-dispatch", () => {
 			expect(capabilityAllows("CapabilityStepper:*", "CapabilityStepper:protected")).toBe(true);
 		});
 
-		it("allows a required capability from a zcap-like grant set", () => {
+		it("allows a required capability from a grant set", () => {
 			expect(capabilityAllows(["Other:*", "CapabilityStepper:protected"], "CapabilityStepper:protected")).toBe(true);
 		});
 

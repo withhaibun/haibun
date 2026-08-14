@@ -11,7 +11,7 @@ import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption } from "@haibun/core/lib/util/index.js";
 import { randomUUID } from "node:crypto";
-import { getZcapAuthority } from "@haibun/core/lib/zcap-authority.js";
+import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import { activeSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { getJsonLdContext, relOf } from "@haibun/core/lib/hypermedia.js";
@@ -223,10 +223,10 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	private sessionHydration(seqPath: string): Record<string, unknown> {
 		const allowedAction = sessionActions(this.sessionCapability);
 		if (allowedAction.length === 0) return {};
-		const authority = getZcapAuthority(this.getWorld().runtime);
+		const authority = getAuthority(this.getWorld().runtime);
 		if (!authority) throw new Error("serve shu app: SESSION_CAPABILITY names actions, but this run has no authority to issue them from");
 		const token = `shu-session-${randomUUID()}`;
-		authority.issueBearerGrant({ token, allowedAction, controller: activeSitePrincipal(this.getWorld()), note: "the served app's own session", seqPath });
+		authority.issueSessionGrant({ token, allowedAction, controller: activeSitePrincipal(this.getWorld()), note: "the served app's own session", seqPath });
 		return { session: { token, allowedAction } };
 	}
 
