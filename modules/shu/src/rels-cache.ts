@@ -267,6 +267,7 @@ export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<str
 	cachedRoleEdgeLabelSet = null;
 	cachedFromActorEdgeLabels = null;
 	cachedToActorEdgeLabels = null;
+	cachedRoleNouns = null;
 	for (const concern of Object.values(catalog.persisted)) {
 		for (const [edgeName, edge] of Object.entries(concern.edges)) {
 			edgeRelMap.set(edgeName, edge.rel);
@@ -399,6 +400,7 @@ let cachedRoleEdgeLabels: readonly string[] | null = null;
 let cachedRoleEdgeLabelSet: ReadonlySet<string> | null = null;
 let cachedFromActorEdgeLabels: ReadonlySet<string> | null = null;
 let cachedToActorEdgeLabels: ReadonlySet<string> | null = null;
+let cachedRoleNouns: ReadonlyMap<string, string> | null = null;
 
 /** Role-attribution edge labels, highest declared rolePriority first (ties by name): when a node carries several role
  *  edges, the first present names its container/lane. Ontology + catalog derived — never a hand-kept list. */
@@ -420,6 +422,22 @@ export function roleEdgeLabelSet(): ReadonlySet<string> {
 export function fromActorEdgeLabels(): ReadonlySet<string> {
 	cachedFromActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.FROM_ACTOR.rel, fromActorRels()).keys());
 	return cachedFromActorEdgeLabels;
+}
+
+/**
+ * The noun a party displays under, given the edge by which others attribute to it: `X issuer→ P` makes P an
+ * "Issuer". Read from the declarations, so a view names no vocabulary of its own — a deployment that declares no
+ * role nouns gets none, and one that declares them gets exactly what it declared.
+ */
+export function roleNounFor(edgeLabel: unknown): string | undefined {
+	if (!cachedRoleNouns) {
+		const nouns = new Map<string, string>();
+		for (const concern of Object.values(getConcernCatalog().persisted)) {
+			for (const [edgeName, edge] of Object.entries(concern.edges)) if (edge.roleNoun) nouns.set(edgeName, edge.roleNoun);
+		}
+		cachedRoleNouns = nouns;
+	}
+	return typeof edgeLabel === "string" ? cachedRoleNouns.get(edgeLabel) : undefined;
 }
 
 /** The TARGET-side actor edge labels — a sequence reads these as the lifeline a message is directed to. */
