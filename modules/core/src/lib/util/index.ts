@@ -35,10 +35,6 @@ export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEven
 	const message = typeof raw === "string" ? raw : raw instanceof Error ? raw.message : String(raw);
 	return { ok: false, errorMessage: message, artifact, controlSignal };
 }
-export function randomString() {
-	return ["rnd", Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join("_");
-}
-
 export function actionOK(w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
 	return { ...OK, artifact, controlSignal };
@@ -110,15 +106,6 @@ export function getActionable(value: string) {
 export function constructorName(stepper: AStepper) {
 	// Strip the trailing "2" that vitest/esbuild keepNames appends to class names.
 	return stepper.constructor.name.replace(/2$/, "");
-}
-
-export function describeSteppers(steppers: AStepper[]) {
-	return steppers
-		?.map((stepper) => {
-			return `${constructorName(stepper)}: ${Object.keys(stepper?.steps).sort().join("|")}`;
-		})
-		.sort()
-		.join("  \n");
 }
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
@@ -406,8 +393,6 @@ export function formattedSteppers(steppers: AStepper[]) {
 	);
 	return a;
 }
-
-export const formatCurrentSection = (runtime: TRuntime) => [runtime.feature, runtime.scenario].filter((s) => !!s).join(">");
 
 export const formatCurrentSeqPath = (seqPath: TSeqPath) => "[" + seqPath.join(".") + "]";
 
