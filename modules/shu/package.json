@@ -2,7 +2,7 @@
 	"name": "@haibun/shu",
 	"version": "4.0.0-alpha.3",
 	"type": "module",
-	"description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
+	"description": "Haibun hypermedia SPA \u2014 renders any domain-driven application from stepper concerns",
 	"main": "build/app.js",
 	"types": "build/app.d.ts",
 	"exports": {
@@ -32,6 +32,7 @@
 		"@lit-labs/virtualizer": "^2.1.1",
 		"@lit/task": "^1.0.3",
 		"@recogito/text-annotator": "^4.2.5",
+		"d3-force-3d": "^3.0.6",
 		"dompurify": "^3.3.3",
 		"lit": "^3.3.3",
 		"markdown-it": "^14.0.0",
