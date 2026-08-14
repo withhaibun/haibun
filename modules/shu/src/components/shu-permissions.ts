@@ -16,6 +16,8 @@ import { shuBaseStyles } from "./styles.js";
 import { PermissionsSchema } from "../schemas.js";
 import { AuthorityController, type TAuthority } from "../controllers/index.js";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
+import { refTpl } from "./shu-ref.js";
+import type { TRefKind } from "./ref-navigation.js";
 
 /** What the access indicator says beside the level, and the event carrying it: one count per thing this panel lists. */
 export const PERMISSIONS_SUMMARY = "permissions-summary";
@@ -29,7 +31,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	/** How many items await the reader's decision, and the reference that leads to them. Set by the host, which hears
 	 *  it from whichever extension reports it: the panel states the count in a row of its own beside the access level. */
 	awaiting = 0;
-	awaitingRef: { kind: string; target: Record<string, unknown> } | null = null;
+	awaitingRef: { kind: TRefKind; target: Record<string, unknown> } | null = null;
 
 	/** The read access in force and the ones on offer, owned by the host that reads them from the view hash. */
 	declare level: string;
@@ -105,7 +107,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	 *  recorded. An action nothing here granted is still named, since a reader holds it either way. */
 	private grantedAt(action: string, seqPath: string | undefined): TemplateResult {
 		if (!seqPath) return html`<span class="action">${action}</span>`;
-		return html`<shu-ref kind="seqPath" linkTarget=${JSON.stringify({ seqPath: seqPath.split(".").map(Number) })} text=${action}></shu-ref>`;
+		return refTpl("seqPath", { seqPath: seqPath.split(".").map(Number) }, action);
 	}
 
 	private onTogglePrincipals = (): void => {
@@ -142,8 +144,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			<div class="awaiting-row" role="alert" ?hidden=${this.awaiting <= 0}>
 				<span class="awaiting-count">${this.awaiting}</span>
 				<span>${this.awaiting === 1 ? "petition awaits your decision" : "petitions await your decision"}</span>
-				<shu-ref data-testid="permissions-awaiting" kind=${this.awaitingRef?.kind ?? "domain"}
-					linkTarget=${JSON.stringify(this.awaitingRef?.target ?? {})} text="read them"></shu-ref>
+				${refTpl(this.awaitingRef?.kind ?? "domain", this.awaitingRef?.target ?? {}, "read them", "permissions-awaiting")}
 			</div>
 
 			<h3>what this session may do</h3>
@@ -163,7 +164,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			${
 				this.state.showPrincipals
 					? html`<ul>
-						${principals.map((p) => html`<li><shu-ref kind="entity" linkTarget=${JSON.stringify({ persistedAs: PRINCIPAL_LABEL, id: p.id })} text=${p.id}></shu-ref></li>`)}
+						${principals.map((p) => html`<li>${refTpl("entity", { persistedAs: PRINCIPAL_LABEL, id: p.id }, p.id)}</li>`)}
 					</ul>`
 					: ""
 			}
@@ -187,8 +188,8 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 						${grants.map(
 							(g) => html`<li class=${g.revoked ? "revoked" : ""}>
 								${g.allowedAction.join(", ")} — granted by
-								${g.controller ? html`<shu-ref kind="entity" linkTarget=${JSON.stringify({ persistedAs: PRINCIPAL_LABEL, id: g.controller })} text=${g.controller}></shu-ref>` : "nobody named"}
-								${g.seqPath ? html` at <shu-ref kind="seqPath" linkTarget=${JSON.stringify({ seqPath: g.seqPath.split(".").map(Number) })} text=${g.seqPath}></shu-ref>` : ""}
+								${g.controller ? refTpl("entity", { persistedAs: PRINCIPAL_LABEL, id: g.controller }, g.controller) : "nobody named"}
+								${g.seqPath ? html` at ${refTpl("seqPath", { seqPath: g.seqPath.split(".").map(Number) }, g.seqPath)}` : ""}
 								${g.note ? html` <span class="none">(${g.note})</span>` : ""}
 								${g.revoked ? "" : html`<button type="button" class="revoke" title="stop this grant holding, from the next call" @click=${this.onRevoke(g.handle)}>revoke</button>`}
 							</li>`,

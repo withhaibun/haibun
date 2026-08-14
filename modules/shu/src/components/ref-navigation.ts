@@ -12,8 +12,8 @@ import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
 export const REF_KIND = ["seqPath", "entity", "domain", "step"] as const;
 export type TRefKind = (typeof REF_KIND)[number];
 
-export function isRefKind(v: string): v is TRefKind {
-	return (REF_KIND as readonly string[]).includes(v);
+export function isRefKind(v: string | undefined): v is TRefKind {
+	return v !== undefined && (REF_KIND as readonly string[]).includes(v);
 }
 
 /** The pane a reference opens. ONE reading of (kind, linkTarget), so what a ref's href addresses is what clicking it

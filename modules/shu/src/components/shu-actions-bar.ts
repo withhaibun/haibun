@@ -12,6 +12,7 @@ import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
 import { AuthorityController } from "../controllers/index.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import { SHU_EVENT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION } from "../consts.js";
 import { isSchemaType } from "../graph/ontology-projection.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
@@ -115,7 +116,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  leads to them. The bar marks that something is waiting and renders the reference; what kind of thing it is
 	 *  belongs to whichever extension reported it. */
 	private _awaiting = 0;
-	private _awaitingRef: { kind: string; target: Record<string, unknown> } | null = null;
+	private _awaitingRef: { kind: TRefKind; target: Record<string, unknown> } | null = null;
 	private _timeOffsetLabel = "now";
 	private _columns: string[] = [];
 	private _queryLabel = "All";
@@ -316,7 +317,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const count = Number(detail?.count ?? 0);
 		if (!Number.isFinite(count)) return;
 		this._awaiting = Math.max(0, count);
-		this._awaitingRef = detail?.kind && detail.target ? { kind: detail.kind, target: detail.target } : null;
+		this._awaitingRef = isRefKind(detail?.kind) && detail.target ? { kind: detail.kind, target: detail.target } : null;
 		this.requestUpdate();
 	};
 

@@ -19,6 +19,7 @@
  * referenced view appears in the column strip, mirroring every other
  * link-driven navigation in the SPA.
  */
+import { html, nothing, type TemplateResult } from "lit";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { esc } from "../util.js";
 import { openRef, isRefKind, refHref, defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
@@ -86,6 +87,18 @@ export class ShuRef extends HTMLElement {
 		}
 	}
 }
+
+/**
+ * The lit form of the same reference, for a view that renders a template rather than a string of markup: one place
+ * decides what a reference is made of, so a panel writing `<shu-ref>` by hand cannot drift from what `renderRef`
+ * writes. The display text is also child text, as in the string form, so a surface where the element is undefined
+ * shows the text rather than nothing.
+ */
+export const refTpl = (kind: TRefKind, linkTarget: Record<string, unknown>, text?: string, testId?: string): TemplateResult => {
+	const targetJson = JSON.stringify(linkTarget);
+	const display = text ?? defaultLabel(kind, targetJson);
+	return html`<shu-ref data-testid=${testId ?? nothing} kind=${kind} linkTarget=${targetJson} text=${display}>${display}</shu-ref>`;
+};
 
 /**
  * Convenience wrappers — each panel typically calls just one or two of these.
