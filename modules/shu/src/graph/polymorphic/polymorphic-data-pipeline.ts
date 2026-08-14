@@ -18,8 +18,8 @@ import { isSchemaType } from "../ontology-projection.js";
 import { computeLayout, type Adornment } from "../graph-layout.js";
 import { hashModel, linkKey } from "./model-hash.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import type { GraphModel } from "../../graph-model.js";
+import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
+import { buildGraphModelFromQuads, type GraphModel } from "../../graph-model.js";
 import { type FGNode, type FGLink, linkEndId } from "./polymorphic-graph-types.js";
 
 const NEWCOMER_SEED_SPREAD = 40; // a streamed node spawns within this radius of its neighbour/type so it eases in instead of flying from the origin
@@ -366,4 +366,43 @@ export class DataPipeline {
 			n.y = base.y + jitter();
 		}
 	}
+}
+
+/** What a person's filter choices and the prune option leave of the graph, as the scene shows it. */
+export type TVisibleModelInput = {
+	/** The time-visible slice of the snapshot: the cursor has already hidden what is not yet current. */
+	quads: TQuad[];
+	clusters: TCluster[];
+	/** Node types the person put away: a whole named graph goes, including instrumentation, which is a chip like any other. */
+	hiddenGraphs: string[];
+	/** Predicates the person put away: a node whose every edge is hidden IS edgeless for the prune below. */
+	hiddenPredicates: string[];
+	/** Drop what nothing links to: a graph of unconnected chips says less than the connections between them. */
+	prune: boolean;
+	site?: string;
+	roleRels: readonly string[];
+};
+
+/**
+ * The one derivation of what is shown, in the order the filters compose: hidden types out, hidden predicates out,
+ * then the prune over what is left. Every consumer reads it (the draw, the sequence mapper, the still image, the
+ * JSON-LD, the accessible document), so one filter shows the same graph in every medium.
+ */
+export function visibleGraphModel({ quads, clusters, hiddenGraphs, hiddenPredicates, prune, site, roleRels }: TVisibleModelInput): GraphModel {
+	const hidden = new Set(hiddenGraphs);
+	const shown = quads.filter((q) => !hidden.has(q.namedGraph));
+	let built = buildGraphModelFromQuads(shown, { clusters: clusters.filter((c) => !hidden.has(c.type)), roleRels, site });
+	if (hiddenPredicates.length) {
+		const hiddenPred = new Set(hiddenPredicates);
+		built = { ...built, edges: built.edges.filter((e) => !hiddenPred.has(e.predicate)) };
+	}
+	if (prune) {
+		const linked = new Set<string>();
+		for (const e of built.edges) {
+			linked.add(e.from);
+			linked.add(e.to);
+		}
+		built = { ...built, nodes: built.nodes.filter((n) => linked.has(n.id)) };
+	}
+	return built;
 }

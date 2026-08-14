@@ -245,3 +245,15 @@ export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: Readon
 	const timeSpan = objects.length > 1 ? (objects.length - 1) * SEQ_ROW_GAP : SEQ_TIME_LEN;
 	return { actors, barOf, laneY, placement, spans, arrows, laneSpan: Math.max(laneCursor, SEQ_LANE_SPACING), timeSpan };
 }
+
+/** Each participant's bar and what sits on it, in the order the layout placed them: what an accessible reading of a
+ *  sequence walks, and what a still image draws as the lanes. Empty bars are kept, since a participant with nothing
+ *  on it is itself worth reading. */
+export function actorBars(layout: SeqLayout): Array<{ id: string; label: string; nodeIds: string[] }> {
+	const onBar = new Map<string, string[]>(layout.actors.map((a): [string, string[]] => [a.id, []]));
+	for (const id of layout.placement.keys()) {
+		const bar = layout.barOf.get(id);
+		if (bar !== undefined) onBar.get(bar)?.push(id);
+	}
+	return layout.actors.map((a) => ({ id: a.id, label: a.label, nodeIds: onBar.get(a.id) ?? [] }));
+}

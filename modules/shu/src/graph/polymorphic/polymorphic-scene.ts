@@ -5,7 +5,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
-import { buildGraphModelFromQuads, SITE_KEY, HYPERMEDIA_ROLE_REL_KEY } from "../../graph-model.js";
+import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../graph-model.js";
 import { setSelectedSubject as publishSelection, DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { formatDate } from "../../util.js";
 import { SHU_TEST_IDS } from "../../test-ids.js";
@@ -27,7 +27,7 @@ import { PolymorphicCamera, clearStripOffset, type GanttExtent } from "./polymor
 import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, NDC_SPAN, type TNdc, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
 import { RenderContext } from "./polymorphic-render-context.js";
-import { DataPipeline } from "../polymorphic/polymorphic-data-pipeline.js";
+import { DataPipeline, visibleGraphModel } from "../polymorphic/polymorphic-data-pipeline.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "../polymorphic/polymorphic-render-type.js";
 import type { ViewType } from "../polymorphic/polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../polymorphic/polymorphic-views.js";
@@ -37,7 +37,7 @@ import { fromActorEdgeLabels, getValidTimeField, roleEdgeLabels, toActorEdgeLabe
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
-import { SEQ_LANE_SPACING, type TSeqModel } from "../polymorphic/sequence-model.js";
+import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../polymorphic/sequence-model.js";
 import { type FGNode, type FGLink, type TSprite, linkEndId, neighboursOf } from "../polymorphic/polymorphic-graph-types.js";
 import { forceLayout, type IGraphLayout } from "../polymorphic/polymorphic-layout.js";
 import { SvgRenderer } from "../polymorphic/polymorphic-svg-renderer.js";
@@ -555,7 +555,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// their layout on the seqNodes() array reference and expect a fresh array only per repaint; seqNodes() built a new
 	// array every call, so those caches never hit and the layout was recomputed ~once per node per feed. Cleared at each
 	// repaint entry (invalidateModelCache), so the reference is stable within a repaint and fresh across repaints.
-	private modelCache?: ReturnType<typeof buildGraphModelFromQuads>;
+	private modelCache?: GraphModel;
 	private seqNodesCache?: SeqNode[];
 	// Active ghost tween: each frame the node pins ease from `from`→`to`. Null when no transition is running.
 	private tween?: { start: number; from: Map<string, XYZ>; to: Map<string, XYZ> };
@@ -2069,38 +2069,17 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.seqNodesCache = undefined;
 	}
 
-	private visibleModel(): ReturnType<typeof buildGraphModelFromQuads> {
+	private visibleModel(): GraphModel {
 		if (this.modelCache) return this.modelCache;
-		const hidden = new Set(this.model.hiddenGraphs);
-		// Every namedGraph is a node type the user can toggle — instrumentation graphs (SeqPath, observation/*, facts,
-		// variables) are no exception: they appear as their own filter chip and render as ordinary nodes (each via its
-		// per-@type presenter, defaulting to a labelled chip) unless the user hides that chip. No type is special-cased
-		// out of the model. visibleQuads is the base's time-filtered slice — the time cursor still hides future objects.
-		const drop = (g: string): boolean => hidden.has(g);
-		// A revealed schema shows only the terms the data exercises (a Class with an instance, a Property in use) — the whole
-		// 100-term vocabulary at once is a hairball. A no-op while the schema stays hidden (its quads are already dropped).
-		// The served schema is already pruned to the terms the data uses (getClusteredQuads prunes with the full
-		// observation set), so the only filtering here is the person's type visibility.
-		const quads = this.model.visibleQuads.filter((q) => !drop(q.namedGraph));
-		const clusters = this.model.clusters.filter((c) => !drop(c.type));
-		let built = buildGraphModelFromQuads(quads, { clusters, roleRels: roleEdgeLabels(), site: this.model.site });
-		// Predicate hiding first, then prune: a node whose every edge is hidden IS edgeless for the prune that follows.
-		if (this.model.hiddenPredicates.length) {
-			const hiddenPred = new Set(this.model.hiddenPredicates);
-			built = { ...built, edges: built.edges.filter((e) => !hiddenPred.has(e.predicate)) };
-		}
-		// The prune adjustment sits here with the others (the time cursor upstream in visibleQuads, the hidden types
-		// above) because this derivation feeds EVERY consumer — the draw pipeline, the sequence mapper, the still, the
-		// JSON-LD, the accessible document — so one filter shows the same pruned graph in every medium.
-		if (this.config.prune) {
-			const linked = new Set<string>();
-			for (const e of built.edges) {
-				linked.add(e.from);
-				linked.add(e.to);
-			}
-			built = { ...built, nodes: built.nodes.filter((n) => linked.has(n.id)) };
-		}
-		this.modelCache = built;
+		this.modelCache = visibleGraphModel({
+			quads: this.model.visibleQuads,
+			clusters: this.model.clusters,
+			hiddenGraphs: this.model.hiddenGraphs,
+			hiddenPredicates: this.model.hiddenPredicates,
+			prune: this.config.prune,
+			site: this.model.site,
+			roleRels: roleEdgeLabels(),
+		});
 		return this.modelCache;
 	}
 
@@ -2154,14 +2133,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  membership is the layout's own (`barOf`), never re-derived from where things landed. */
 	private actorBars(): Array<{ id: string; label: string; nodeIds: string[] }> | null {
 		const layout = this.renderType.seqLayout?.();
-		if (!layout || layout.actors.length === 0) return null;
-		const onBar = new Map<string, string[]>(layout.actors.map((a): [string, string[]] => [a.id, []]));
-		// The placement map is built in row order, so pushing in iteration order keeps each bar's objects in appearance order.
-		for (const id of layout.placement.keys()) {
-			const bar = layout.barOf.get(id);
-			if (bar !== undefined) onBar.get(bar)?.push(id);
-		}
-		return layout.actors.map((a) => ({ id: a.id, label: a.label, nodeIds: onBar.get(a.id) ?? [] }));
+		return layout && layout.actors.length > 0 ? actorBars(layout) : null;
 	}
 
 	/** The sequence-diagram ground truth for inspect()/tests, or null off-sequence: the participant actors, the
