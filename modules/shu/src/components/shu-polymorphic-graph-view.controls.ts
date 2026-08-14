@@ -123,12 +123,12 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		}, testId);
 	}
 
-	/** The view's own inspect() surface (via the shuFisheye global it registers) — the one observable tests read. */
+	/** The view's own inspect() surface (via the shuPolymorphic global it registers) — the one observable tests read. */
 	private snapshot(page: Page): Promise<Snapshot> {
 		return page.evaluate(() => {
-			const fy = (window as unknown as { shuFisheye?: { inspect(): { camera: Camera; viewport: Viewport; sample: Array<{ id: string; x: number; y: number; z: number }> } } })
-				.shuFisheye;
-			if (!fy) throw new Error("shuFisheye not connected");
+			const fy = (window as unknown as { shuPolymorphic?: { inspect(): { camera: Camera; viewport: Viewport; sample: Array<{ id: string; x: number; y: number; z: number }> } } })
+				.shuPolymorphic;
+			if (!fy) throw new Error("shuPolymorphic not connected");
 			const i = fy.inspect();
 			const pos: Record<string, { x: number; y: number; z: number }> = {};
 			for (const s of i.sample) pos[s.id] = { x: s.x, y: s.y, z: s.z };
@@ -607,7 +607,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 						},
 					)
 					.catch((): undefined => undefined);
-				await page.waitForTimeout(400); // let the column render + the fisheye's column-resize settle before any framing check
+				await page.waitForTimeout(400); // let the column render + the polymorphic view's column-resize settle before any framing check
 				return actionOK();
 			},
 		},
@@ -804,10 +804,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		dragGraphNode: {
-			// A real press-drag-release through the fisheye's own pointer handlers (which DO receive synthetic pointer events,
+			// A real press-drag-release through the polymorphic view's own pointer handlers (which DO receive synthetic pointer events,
 			// unlike the lib's click raycaster). Deterministic: it drags whichever node the view reports DRAGGABLE (un-occluded)
 			// rather than a fixed id — the frontmost node is always pickable, so a non-deterministic layout can't leave the
-			// target buried. The drag GEOMETRY (track/pin/release) is unit-tested in fisheye-drag.test.ts; this only smoke-tests
+			// target buried. The drag GEOMETRY (track/pin/release) is unit-tested in polymorphic-drag.test.ts; this only smoke-tests
 			// the DOM→handler wiring: the dragged node tracks the pointer + pins, others hold still. Remembered under {name}.
 			gwta: "drag a node as {name}",
 			action: async ({ name }: { name: string }) => {
@@ -831,7 +831,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		setFlatten: {
-			// Toggle the flat (2D) layout via the production control (the #fisheye-flatten checkbox). One step, both
+			// Toggle the flat (2D) layout via the production control (the #polymorphic-flatten checkbox). One step, both
 			// directions, matching setGrouping's shape. Flat is a saved-view choice like any other, so a scene captures it.
 			// The tail names the layout, not just "the graph": a leading slot matches any word, so a plainer tail would
 			// collide with every prose line ending in "the graph".
@@ -858,7 +858,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		setGrouping: {
-			// Toggle grouped mode via the production control (the #fisheye-grouped checkbox). One step, both directions —
+			// Toggle grouped mode via the production control (the #polymorphic-grouped checkbox). One step, both directions —
 			// "group the graph" / "ungroup the graph". When grouping on, wait for the enclosure boxes (drawn a frame after rest).
 			gwta: `{toggle: ${DOMAIN_GRAPH_GROUPING}} the graph by type`,
 			action: async ({ toggle }: { toggle: string }) => {
@@ -897,7 +897,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		groupGraphBy: {
 			// Group the graph by an axis: turn grouping on AND switch the group-by select via the production controls
-			// (#fisheye-grouped + #fisheye-group-by), then wait for the group containers to draw. One step for every axis;
+			// (#polymorphic-grouped + #polymorphic-group-by), then wait for the group containers to draw. One step for every axis;
 			// "role" is the trust-triangle party axis, "type" the @type axis.
 			gwta: `group the graph by {axis: ${DOMAIN_GRAPH_GROUP_AXIS}}`,
 			action: async ({ axis }: { axis: string }) => {
@@ -1075,7 +1075,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// Every option lives under its settings group and the ACTIONS do not: fit and copy stay directly on the head.
 			// The groups are exclusive: opening one closes the last. Asserted in a real browser — a group's controls render
 			// only while its row is open, which no jsdom test can tell apart from missing.
-			gwta: "fisheye settings hold every option, and fit stays out of them",
+			gwta: "polymorphic settings hold every option, and fit stays out of them",
 			action: async () => {
 				const page = await this.page();
 				const groups = (["layout", "scenes"] as const).map((group) => ({ group, ids: SETTINGS_CONTROLS[group] }));
@@ -1160,7 +1160,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 						const scene = cb?.querySelector("shu-graph-scene") as { nodeMap?: Map<string, { type: string }> } | null | undefined;
 						const chips = Array.from(cb?.querySelector("shu-graph-filter")?.shadowRoot?.querySelectorAll("shu-chip-group") ?? [])
 							.flatMap((g) => Array.from(g.shadowRoot?.querySelectorAll("label.chip") ?? []))
-							.map((c) => c.textContent?.trim().split(" ")[0] ?? ""); // the class browser's OWN filter, not the fisheye's — its own root
+							.map((c) => c.textContent?.trim().split(" ")[0] ?? ""); // the class browser's OWN filter, not the polymorphic view's — its own root
 						const nodes = scene?.nodeMap ? [...scene.nodeMap.values()] : [];
 						if (chips.length && nodes.length) {
 							last = {
@@ -2009,8 +2009,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				);
 				const forceMs = Math.max(0, p.setMs - p.labelsMs);
 				this.getWorld().eventLogger.info(
-					`fisheye render profile @ perTypeLimit ${limit}: ${p.nodes} nodes over ${p.repaints} repaint(s) — compute ${p.computeMs.toFixed(1)}ms, force-warmup ${forceMs.toFixed(1)}ms, label-textures ${p.labelsMs.toFixed(1)}ms (graphData set ${p.setMs.toFixed(1)}ms)`,
-					{ "haibun.fisheye.profile": JSON.stringify({ ...p, forceMs }) },
+					`polymorphic render profile @ perTypeLimit ${limit}: ${p.nodes} nodes over ${p.repaints} repaint(s) — compute ${p.computeMs.toFixed(1)}ms, force-warmup ${forceMs.toFixed(1)}ms, label-textures ${p.labelsMs.toFixed(1)}ms (graphData set ${p.setMs.toFixed(1)}ms)`,
+					{ "haibun.polymorphic.profile": JSON.stringify({ ...p, forceMs }) },
 				);
 				return p.repaints > 0 ? actionOK() : actionNotOK(`limit ${limit} re-rendered nothing (0 repaints) — it did not change the visible set, so there is nothing to profile`);
 			},
@@ -2020,7 +2020,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** The full live inspect() (sample with type/opacity/k/z/t, edges, focus, azimuth, dragPending) — the render state the behaviour asserts read. */
 	private fullInspect(page: Page): Promise<FullInspect> {
 		return page.evaluate(() => {
-			const i = (window as unknown as { shuFisheye: { inspect(): FullInspect & { azimuth: number | null; dragPending: string | null } } }).shuFisheye.inspect();
+			const i = (window as unknown as { shuPolymorphic: { inspect(): FullInspect & { azimuth: number | null; dragPending: string | null } } }).shuPolymorphic.inspect();
 			return { sample: i.sample, edges: i.edges, focus: i.focus, azimuth: i.azimuth, dragPending: i.dragPending };
 		});
 	}
@@ -2146,7 +2146,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	}
 
 	/**
-	 * Ensure the fisheye's settings are open, by clicking the column pane's controls toggle exactly as a reader does.
+	 * Ensure the polymorphic view's settings are open, by clicking the column pane's controls toggle exactly as a reader does.
 	 * The options render only while the settings are open, so any step driving one opens them first — the step can reach
 	 * only what a reader can reach. Idempotent: it probes an option, never the toggle, so an already-open panel is left
 	 * alone (the pane's toggle would close it).
@@ -2194,7 +2194,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 			{ iconId, probeId },
 		);
-		if (state === "no view" || state === "no icon") throw new Error(`cannot open the fisheye ${group} settings: ${state}`);
+		if (state === "no view" || state === "no icon") throw new Error(`cannot open the polymorphic view ${group} settings: ${state}`);
 		if (state === "open") return;
 		if (probeId) await page.waitForFunction((id) => !!document.querySelector(`shu-polymorphic-graph-view [data-testid='${id}']`), probeId, { timeout: 5000 });
 	}

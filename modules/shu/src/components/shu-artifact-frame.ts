@@ -20,7 +20,7 @@ const STYLES = `
 	background: var(--shu-bg-soft); border-bottom: var(--shu-border-w) solid var(--shu-border); }
 /* No caption text (e.g. images): keep the fullscreen control but drop the bar's background/border so it reads as a bare toolbar. */
 .caption.bare { background: none; border-bottom: none; padding: var(--shu-space-1) var(--shu-space-2); justify-content: flex-end; }
-/* The step immediately preceding this thumbnail, shown reverse-video (same treatment as the fisheye #fisheye-step caption)
+/* The step immediately preceding this thumbnail, shown reverse-video (same treatment as the polymorphic view #polymorphic-step caption)
    as a fixed strip at the BOTTOM of the screen, over the expanded image, ONLY while fullscreen — so the step context holds
    in a consistent place as ←/→ moves between frames and the document behind is covered. */
 .step-caption { display: none; }

@@ -1,11 +1,11 @@
-// The fisheye's data-flow subsystem: it turns the (time-filtered, type-gated) quad model into the {nodes, links}
+// The polymorphic's data-flow subsystem: it turns the (time-filtered, type-gated) quad model into the {nodes, links}
 // the force engine renders, and owns the layout-stable bookkeeping that flow needs — the per-id FGNode map (reused
 // across repaints so a node's three.js sprite/scale refs survive), the FGLink map (reused so __lineObj/__labelSprite
 // refs are never orphaned), the parked positions of nodes that left the visible set, and the one-per-lifetime sqrt-age
 // depth scale (re-derived only at the coarse-tick moments, never on a plain streaming merge). The component calls
 // toGraphData from repaint/repaintLayout and delegates capturePositions/hashCurrentModel/extractTimes to it.
 //
-// Wired the same way as FisheyeCamera: constructor-injected accessor deps, read at CALL time, so a late-bound scene
+// Wired the same way as PolymorphicCamera: constructor-injected accessor deps, read at CALL time, so a late-bound scene
 // ref or a per-repaint-refreshed component field is always current. The component still drives the layout-target
 // caches (gantt/swimlane), the group anchors and the magnify pop; the pipeline reads/writes them through these deps
 // rather than owning render-type state the rest of the component also reads.

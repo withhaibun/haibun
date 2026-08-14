@@ -1,4 +1,4 @@
-// The node-drag state machine, lifted out of the fisheye component so its geometry + pin behaviour is unit-tested with
+// The node-drag state machine, lifted out of the polymorphic view component so its geometry + pin behaviour is unit-tested with
 // stubs — no GPU, no raycaster, no rendered scene. The flake it replaces lived ENTIRELY in picking a pixel out of an
 // occluded WebGL scene, never in this logic, which is pure number-shuffling once a node is picked. The component owns the
 // DOM events + the THREE projection; this owns the state transitions: a press that stays put is a click; one that crosses

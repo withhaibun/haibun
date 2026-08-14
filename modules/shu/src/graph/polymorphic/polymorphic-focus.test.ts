@@ -4,7 +4,7 @@
  * active. Driven through updateHighlight, the same per-frame pass the active node's breath rides.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { FisheyeFocus, type FocusDeps } from "../polymorphic/polymorphic-focus.js";
+import { PolymorphicFocus, type FocusDeps } from "../polymorphic/polymorphic-focus.js";
 import { NEWCOMER_GLOW_MS } from "../polymorphic/polymorphic-highlight.js";
 import type { FGNode } from "../polymorphic/polymorphic-graph-types.js";
 import type { NodeVisual } from "./polymorphic-graph-types.js";
@@ -29,7 +29,7 @@ function harness(selected: string | null = null) {
 	const visual = stubVisual();
 	const n: FGNode = { id: "n1", name: "n1", type: "Comment", __visual: visual };
 	const deps = { selectedId: () => selected, nodeMap: () => new Map([[n.id, n]]), glowRamp: () => ["#ffffff", "#ffcc88"] } as unknown as FocusDeps;
-	return { focus: new FisheyeFocus(deps), n, visual };
+	return { focus: new PolymorphicFocus(deps), n, visual };
 }
 
 describe("the glow a newcomer wears", () => {

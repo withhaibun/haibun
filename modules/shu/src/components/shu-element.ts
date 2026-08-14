@@ -343,7 +343,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	// One wiring for every cursor-watching component, in any bundle: the cross-bundle cursor bus runs onTimeSync on each
 	// change. The bus (a globalThis subscriber set), not signal tracking — the polyfill's reactive context is module-level
-	// and does not cross esbuild bundle boundaries, so an external view (the separately-bundled fisheye) reacts through
+	// and does not cross esbuild bundle boundaries, so an external view (the separately-bundled polymorphic) reacts through
 	// this same interface instead of hand-rolling its own subscribe. Views that only dim auto-rerender by reading
 	// this.timeCursor in render(); snapshot-pinned views replay a fixed point and opt out.
 	#installTimeSync(): void {

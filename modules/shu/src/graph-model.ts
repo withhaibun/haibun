@@ -4,13 +4,13 @@ export type GraphNode = { id: string; type: string; isCluster?: boolean; omitted
 export type GraphEdge = { from: string; to: string; predicate: string; graph: string };
 export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 
-/** Node property carrying the resolved HypermediaRole — the id of the party (a `prov:Agent`/Principal) the node is attributed to. Folded from the node's role edges (see `roleRels`); the fisheye's role grouping axis reads it. */
+/** Node property carrying the resolved HypermediaRole — the id of the party (a `prov:Agent`/Principal) the node is attributed to. Folded from the node's role edges (see `roleRels`); the polymorphic view's role grouping axis reads it. */
 export const HYPERMEDIA_ROLE_KEY = "hypermediaRole";
 
 /** Node property carrying a party's own role predicate — the highest-priority role rel (a `fromActor`/`toActor`, see `roleRels`) by which other nodes attribute to it. A party is one node; the role it plays is relational (it is the target of a role edge), so this reads from the incoming role edges, not the node's `@type`. A display site maps this predicate to the party's role designation. */
 export const HYPERMEDIA_ROLE_REL_KEY = "hypermediaRoleRel";
 
-/** Node property carrying the site principal of the instance whose store SERVED the node — a read-time store fact stamped at the federation merge, never persisted data (and distinct from HAIBUN_SITE_KEY, the env override for this instance's OWN principal). The fisheye's site grouping axis reads it. */
+/** Node property carrying the site principal of the instance whose store SERVED the node — a read-time store fact stamped at the federation merge, never persisted data (and distinct from HAIBUN_SITE_KEY, the env override for this instance's OWN principal). The polymorphic's site grouping axis reads it. */
 export const SITE_KEY = "site";
 
 type BuildGraphModelOptions = {

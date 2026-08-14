@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { paintMarkFisheye, chipShape, boxShape, type NodeShapeDeps, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
+import { paintMarkScene, chipShape, boxShape, type NodeShapeDeps, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
 import type { NodeMark } from "../graph-scene.js";
 import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../gantt-layout.js";
 
@@ -16,7 +16,7 @@ const boxMark = (zExtent: number, over: Partial<NodeMark> = {}): NodeMark => ({
 });
 
 // Recording stubs for THREE + the label: a 3D object is just numbers, so the paint's geometry (box dimensions, child
-// offsets, colours) is asserted with no GPU. The fisheye injects the real AFRAME.THREE + a SpriteText factory at runtime.
+// offsets, colours) is asserted with no GPU. The polymorphic injects the real AFRAME.THREE + a SpriteText factory at runtime.
 type RecBox = { geometry: { w: number; h: number; d: number }; material: { color: string }; renderOrder: number; children: RecLabel[]; add(o: unknown): void };
 type RecLabel = ShapeLabel & { text: string; color: string };
 
@@ -96,7 +96,7 @@ const harness = (withThree = true): { deps: NodeShapeDeps; labels: RecLabel[] } 
 	};
 };
 
-describe("fisheye paint (mark → three.js geometry, GPU-free)", () => {
+describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {
 	it("chipShape paints the mark's colour as a centred chip billboard, depth-test off, on-chip text colour", () => {
 		const chip = chipShape(chipMark(), harness().deps) as unknown as RecLabel;
 		expect(chip.backgroundColor).toBe("colour:Person"); // the mark carries the colour (not a deps lookup)
@@ -135,10 +135,10 @@ describe("fisheye paint (mark → three.js geometry, GPU-free)", () => {
 		expect((boxShape(boxMark(40), harness(false).deps) as unknown as RecLabel).backgroundColor).toBe("colour:Task");
 	});
 
-	it("paintMarkFisheye dispatches by mark.kind and fails fast on an unimplemented kind", () => {
+	it("paintMarkScene dispatches by mark.kind and fails fast on an unimplemented kind", () => {
 		const { deps } = harness();
-		expect((paintMarkFisheye(boxMark(40), deps) as unknown as RecBox).geometry.d).toBe(40);
-		expect((paintMarkFisheye(chipMark(), deps) as unknown as RecLabel).backgroundColor).toBe("colour:Person");
-		expect(() => paintMarkFisheye(chipMark({ kind: "mesh" }), deps)).toThrow(/not implemented/);
+		expect((paintMarkScene(boxMark(40), deps) as unknown as RecBox).geometry.d).toBe(40);
+		expect((paintMarkScene(chipMark(), deps) as unknown as RecLabel).backgroundColor).toBe("colour:Person");
+		expect(() => paintMarkScene(chipMark({ kind: "mesh" }), deps)).toThrow(/not implemented/);
 	});
 });

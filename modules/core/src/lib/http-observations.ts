@@ -13,7 +13,7 @@ import { activeSitePrincipal } from "./host-id.js";
 import { declareBlips, recordBlip } from "./blips.js";
 
 /** The one type every observed HTTP request becomes: the single network-interaction record. Its `performedBy`/`target`
- *  edges make it a message on the fisheye sequence view. */
+ *  edges make it a message on the polymorphic view sequence view. */
 export const HTTP_REQUEST_LABEL = "HttpRequest";
 /** The requesting party: the browser / user agent. A singleton lifeline with id `client`. */
 export const HTTP_CLIENT_LABEL = "HttpClient";
@@ -81,7 +81,7 @@ const trackCache = new WeakMap<object, { ensured: Set<string>; counts: Map<strin
 
 /**
  * Track an observed HTTP request as ONE network-interaction record, written through the shared store (the http-trace
- * observation sources and the fisheye network sequence read the same records). A request runs client → endpoint/host:
+ * observation sources and the polymorphic view network sequence read the same records). A request runs client → endpoint/host:
  * the requesting party is the browser (HttpClient), or the site itself for a request it MAKES outbound (origin="site");
  * the destination is the registered Endpoint it hit (the vertex the web server persists at mount), or the external
  * HttpHost. Every endpoint links `isPartOf` to the site's host node, so the graph connects the whole exchange:

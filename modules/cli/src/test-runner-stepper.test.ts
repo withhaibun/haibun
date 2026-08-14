@@ -120,22 +120,22 @@ describe("the test-runner agent's limits", () => {
 	});
 
 	it("runs one test at a time: asking again while one is live names the live run rather than starting a second", async () => {
-		const first = await h.run("tests", "fisheye");
+		const first = await h.run("tests", "polymorphic");
 		expect(first.ok).toBe(true);
 		const second = await h.run("tests", "graph-frontend");
 		expect(second.ok, "a second run would leave two runs and no way to say which failed").toBe(false);
-		expect(second.errorMessage).toMatch(/already in flight: "fisheye"/);
+		expect(second.errorMessage).toMatch(/already in flight: "polymorphic"/);
 		expect(h.stepper.spend().runs).toBe(1);
 	});
 
 	it("refuses to re-run unchanged features, and allows it once something has been applied", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		await h.stepper.finishRun(1);
-		const again = await h.run("tests", "fisheye");
+		const again = await h.run("tests", "polymorphic");
 		expect(again.ok).toBe(false);
 		expect(again.errorMessage).toMatch(/nothing has been applied since/);
-		h.stepper.noteApplied("fisheye", "tests");
-		expect((await h.run("tests", "fisheye")).ok, "after a change, the same features answer something new").toBe(true);
+		h.stepper.noteApplied("polymorphic", "tests");
+		expect((await h.run("tests", "polymorphic")).ok, "after a change, the same features answer something new").toBe(true);
 	});
 
 	it("stops at its run budget with a reason, rather than running on", async () => {
@@ -166,9 +166,9 @@ describe("what a run leaves behind", () => {
 	});
 
 	it("records the run as an individual carrying where it answers, so a finding has something to point at", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		const record = h.written.find((w) => w.label === FEATURE_EXECUTION_LABEL);
-		expect(record?.data.filter).toBe("fisheye");
+		expect(record?.data.filter).toBe("polymorphic");
 		expect(record?.data.status).toBe(RUN_STATUS.running);
 		expect(record?.data.endpoint, "a run given no port has no endpoint, rather than an empty one").toBeUndefined();
 		expect(record?.data.attributedTo, "the run names who started it, so the graph answers who ran what").toBe(TEST_RUNNER_AUTHOR);
@@ -179,7 +179,7 @@ describe("what a run leaves behind", () => {
 	});
 
 	it("closes the run with what its exit code says, so the graph shows the outcome", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		await h.stepper.finishRun(1);
 		const last = h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1);
 		expect(last?.data.status).toBe(RUN_STATUS.failed);
@@ -196,15 +196,15 @@ describe("watching a run", () => {
 	});
 
 	it("starts the run through the supervisor rather than holding a process itself", async () => {
-		const started = await h.run("tests", "fisheye");
+		const started = await h.run("tests", "polymorphic");
 		const call = h.supervisor.calls.find((c) => c.step === "startRun");
-		expect(call?.input, "the agent decides what may run; the supervisor forks it").toMatchObject({ where: "tests", filter: "fisheye", from: "tests", port: RUNNER_DEFAULTS.port });
+		expect(call?.input, "the agent decides what may run; the supervisor forks it").toMatchObject({ where: "tests", filter: "polymorphic", from: "tests", port: RUNNER_DEFAULTS.port });
 		expect(RUNNER_DEFAULTS.port, "by default a run keeps the ports its own features declare").toBe(0);
 		expect(started.products?.endpoint, "and a run that was given no port answers nowhere afterwards, which its record states by carrying no endpoint").toBeUndefined();
 	});
 
 	it("fails when the run failed, so a suite that never collected a feature is never reported as passing", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		h.supervisor.ended = 1;
 		const waited = await h.waitFor(30);
 		expect(waited.ok, "the run's exit code is the answer; waiting for it succeeded is not").toBe(false);
@@ -218,7 +218,7 @@ describe("watching a run", () => {
 	});
 
 	it("follows a run to its end within the time it was given, and answers with how it ended", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		h.supervisor.ended = 0;
 		const waited = await h.waitFor(30);
 		expect(waited.ok).toBe(true);
@@ -227,14 +227,14 @@ describe("watching a run", () => {
 	});
 
 	it("gives up on a run that has not ended in the time it was given, rather than waiting on", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		const waited = await h.waitFor(0);
 		expect(waited.ok).toBe(false);
 		expect(waited.errorMessage).toMatch(/had not ended after 0 seconds/);
 	});
 
 	it("reads from where it last read, so the same output is not read twice", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		expect((await h.read()).products?.output).toBe("a line of output");
 		await h.read();
 		const reads = h.supervisor.calls.filter((c) => c.step === "readRun");
@@ -245,7 +245,7 @@ describe("watching a run", () => {
 	});
 
 	it("closes the run's record when the run has ended, which is what releases the next run", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		h.supervisor.ended = 1;
 		await h.read();
 		expect(h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1)?.data.status).toBe(RUN_STATUS.failed);
@@ -253,7 +253,7 @@ describe("watching a run", () => {
 	});
 
 	it("records a run it stopped as stopped, since no exit code answers for it", async () => {
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		expect((await h.stop()).ok).toBe(true);
 		expect(h.supervisor.calls.some((c) => c.step === "stopRun")).toBe(true);
 		expect(h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1)?.data.status).toBe(RUN_STATUS.stopped);
@@ -262,7 +262,7 @@ describe("watching a run", () => {
 	it("says what is missing when run supervision was never registered, rather than reporting a run that does not exist", async () => {
 		const h = harness({ supervised: false });
 		h.stepper.beginAsk();
-		const started = await h.run("tests", "fisheye");
+		const started = await h.run("tests", "polymorphic");
 		expect(started.ok).toBe(false);
 		expect(started.errorMessage).toMatch(/InstanceStepper-startRun is not registered/);
 		expect(h.stepper.spend().inFlight, "a run that was never forked is not in flight").toBeUndefined();
@@ -321,7 +321,7 @@ describe("where a run is started from", () => {
 	});
 
 	it("runs a base from the base itself, which is where its own command line runs it from", async () => {
-		await h.run("../tests", "fisheye");
+		await h.run("../tests", "polymorphic");
 		expect(h.supervisor.calls.find((c) => c.step === "startRun")?.input.from, "a relative stepper path in its config means what it means there").toBe("../tests");
 	});
 });
@@ -330,7 +330,7 @@ describe("what a finished run's record says about it", () => {
 	it("carries what the run did, so a reader with the run has its outcome without asking again", async () => {
 		const h = harness();
 		h.stepper.beginAsk();
-		await h.run("tests", "fisheye");
+		await h.run("tests", "polymorphic");
 		h.supervisor.ended = 0;
 		h.supervisor.output = [
 			'{"kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"a step","seqPath":[0,1,1,1]}',

@@ -107,7 +107,7 @@ function glowTexture(three: GlowThree): unknown {
 	canvas.width = TEXTURE_PX;
 	canvas.height = TEXTURE_PX;
 	const ctx = canvas.getContext("2d");
-	if (!ctx) throw new Error("fisheye glow: no 2d context to build the highlight texture");
+	if (!ctx) throw new Error("polymorphic glow: no 2d context to build the highlight texture");
 	const r = TEXTURE_PX / 2;
 	const g = ctx.createRadialGradient(r, r, 0, r, r, r);
 	g.addColorStop(0, `rgba(255,255,255,${GLOW_ALPHA})`);

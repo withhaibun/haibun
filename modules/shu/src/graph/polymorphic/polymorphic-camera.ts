@@ -1,7 +1,7 @@
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FRAME, type FrameMove, type ReframeMode } from "../polymorphic/polymorphic-views.js";
 
-/** Sole owner of camera CONTROL for the fisheye view: every framing, viewport, and navigation move that mutates the
+/** Sole owner of camera CONTROL for the polymorphic view: every framing, viewport, and navigation move that mutates the
  * three.js camera + OrbitControls lives here, so "who decides the zoom" has one answer. The component keeps the leaf
  * refs (camera/controls/canvas/renderer/container — set late at scene-load and read by inspect/the drag/the compass)
  * and hands them in as accessors read at call time; this controller only READS them and is the only thing that moves
@@ -91,7 +91,7 @@ const FRONT_AIM: Aim = { dir: { x: 0, y: 0, z: 1 }, up: { x: 0, y: 1, z: 0 } }; 
 const LANE_AIM: Aim = { dir: { x: -1, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 } }; // gantt: look along +x, z (time) reading left to right and y (the task rows) stacked
 const SEQUENCE_AIM: Aim = { dir: { x: -1, y: 0, z: 0 }, up: { x: 0, y: 0, z: -1 } }; // the same plane, quarter-turned: time reads DOWN and the lifelines stand, as a sequence diagram is read
 
-export class FisheyeCamera {
+export class PolymorphicCamera {
 	private lastViewH = 0; // genuine viewport height baseline (onContainerResize only) — adjusts fov on a height change to hold the zoom level. Per-instance (resets on reload) so a transient boot height never seeds a wrong fov.
 	private userControlled = false; // a zoom/pan/orbit gesture OR opening a node latches this — from then on only the user (or the fit button) re-frames; a hover never latches.
 	private framedOnce = false; // the load-time auto-fit fires EXACTLY once (the warmup makes the first stop the final layout); a full clear rearms it.

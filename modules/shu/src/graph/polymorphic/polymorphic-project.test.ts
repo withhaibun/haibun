@@ -25,7 +25,7 @@ const NDC_SAMPLES: TNdc[] = [
 	{ x: -0.5, y: 0.25 },
 ];
 
-describe("fisheye node projection", () => {
+describe("polymorphic node projection", () => {
 	for (const [name, rect] of RECTS) {
 		const centre: TClientPoint = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 

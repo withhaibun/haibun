@@ -156,7 +156,7 @@ export interface ShuHydration {
 	session?: { token: string; allowedAction: string[] };
 }
 
-// The page boots ONCE, but its modules load once PER BUNDLE (the app, the fisheye, an actions-bar extension each carry
+// The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension each carry
 // their own copy of this module). A module-level variable here is then a copy per bundle, and only the app's copy ever
 // read the payload: an extension asking for the session credential saw none and refused what the page may do. The one
 // payload is pinned on globalThis, the same way the quads snapshot is, so every bundle reads the same boot.

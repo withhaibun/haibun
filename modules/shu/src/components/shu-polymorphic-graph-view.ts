@@ -16,7 +16,7 @@ const TIME_CURSOR_KEY = "time-cursor";
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW, VIEW_TYPES } from "../graph/polymorphic/polymorphic-views.js";
-import { type TFisheyeOptionChange } from "./shu-polymorphic-settings.js";
+import { type TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
 import type { TViewForces } from "../graph/polymorphic/polymorphic-render-type.js";
 import "./shu-polymorphic-settings.js";
 import { viewHeadCss, viewActions, rotateControls, SETTINGS_GROUP_NAMES, type TSettingsGroup } from "./view-head.js";
@@ -43,16 +43,16 @@ const FISHEYE_CSS = `
 	shu-polymorphic-graph-view { display: block; width: 100%; height: 100%; overflow: hidden; background: var(--shu-bg); }
 	shu-polymorphic-graph-view shu-graph-filter { flex: 0 0 auto; }
 	${viewHeadCss("shu-polymorphic-graph-view")}
-	shu-polymorphic-graph-view #fisheye-counts { color: var(--shu-fg-muted); }
+	shu-polymorphic-graph-view #polymorphic-counts { color: var(--shu-fg-muted); }
 	/* Latest step: inline in the head after the counts. Hidden when no SeqPath is visible. */
-	shu-polymorphic-graph-view #fisheye-step { max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--shu-fg); color: var(--shu-bg); padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); font-weight: 600; }
-	shu-polymorphic-graph-view #fisheye-step[hidden] { display: none; }
+	shu-polymorphic-graph-view #polymorphic-step { max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--shu-fg); color: var(--shu-bg); padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); font-weight: 600; }
+	shu-polymorphic-graph-view #polymorphic-step[hidden] { display: none; }
 	/* Saved views are about the whole view, so they take their own line under the options rather than trailing them. */
-	shu-polymorphic-graph-view .fisheye-scenes { flex-basis: 100%; display: flex; align-items: center; gap: var(--shu-space-2); margin-top: var(--shu-space-1); }
-	shu-polymorphic-graph-view .fisheye-scenes .error { color: var(--shu-fg-error); }
+	shu-polymorphic-graph-view .polymorphic-scenes { flex-basis: 100%; display: flex; align-items: center; gap: var(--shu-space-2); margin-top: var(--shu-space-1); }
+	shu-polymorphic-graph-view .polymorphic-scenes .error { color: var(--shu-fg-error); }
 `;
 
-const FisheyeStateSchema = z.object({
+const PolymorphicStateSchema = z.object({
 	...clusteredGraphStateShape,
 	viewType: z.enum(VIEW_TYPES).default(VIEW.force),
 	flatten: z.boolean().default(false),
@@ -90,7 +90,7 @@ const FisheyeStateSchema = z.object({
  * Light DOM (createRenderRoot returns this): the scene resolves its A-Frame camera through document.querySelector, and
  * the child scene chrome is positioned against this host; a shadow root would hide both.
  */
-export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof FisheyeStateSchema> {
+export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
 	/** Layout choices are remembered across reloads (ShuElement.persistFields; singleton key). */
 	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument"] as const;
 
@@ -107,7 +107,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 	private sceneError: string | null = null;
 
 	constructor() {
-		super(FisheyeStateSchema, {});
+		super(PolymorphicStateSchema, {});
 		this.buildSceneConfig();
 	}
 
@@ -248,7 +248,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 	 *  A write that does not land is SAID so, beside the control that asked for it: a save that quietly did nothing looks
 	 *  exactly like a save that worked until the reader comes back for the scene. */
 	private async saveSceneAs(name: string): Promise<void> {
-		const written = await saveScene(name, this.captureScene(), "fisheye: save this view as a scene");
+		const written = await saveScene(name, this.captureScene(), "polymorphic: save this view as a scene");
 		this.sceneError = written.ok === false ? `could not save "${name}": ${written.error}` : null;
 		if (written.ok !== false) await this.loadScenes();
 		this.requestUpdate();
@@ -258,7 +258,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 	 *  step) can tell the return has landed rather than guess at a moment. */
 	private async applySavedScene(name: string): Promise<void> {
 		if (!name) return;
-		const scene = await readScene(name, "fisheye: return to a saved scene");
+		const scene = await readScene(name, "polymorphic: return to a saved scene");
 		if (!scene) {
 			this.sceneError = `no scene is saved as "${name}"`;
 			this.requestUpdate();
@@ -272,7 +272,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 	/** The saved scenes a reader can return to. Fetched by the host and handed down to the settings; a control never reaches the RPC. */
 	private async loadScenes(): Promise<void> {
 		if (this.usesExternalData) return; // fed by its caller: this view has no RPC of its own
-		this.sceneNames = (await listScenes("fisheye: offer the saved scenes")).map((scene) => scene.id);
+		this.sceneNames = (await listScenes("polymorphic: offer the saved scenes")).map((scene) => scene.id);
 		this.requestUpdate();
 	}
 
@@ -315,8 +315,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 						],
 						settings: { openGroup: open, idFor: (group) => POLYMORPHIC_IDS.SETTINGS[group], onGroup: (group) => this.openGroup(group) },
 					})}
-					<span id="fisheye-counts">${this.countsText}</span>
-					<span id="fisheye-step" data-testid=${POLYMORPHIC_IDS.LATEST_STEP} ?hidden=${!this.latestStep}>${this.latestStep ?? ""}</span>
+					<span id="polymorphic-counts">${this.countsText}</span>
+					<span id="polymorphic-step" data-testid=${POLYMORPHIC_IDS.LATEST_STEP} ?hidden=${!this.latestStep}>${this.latestStep ?? ""}</span>
 				</div>
 			</div>
 			${this.renderSettingsRow(open)}
@@ -369,12 +369,12 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 
 	protected override async onGraphConnected(): Promise<void> {
 		await this.updateComplete; // renders the control bar and creates the <shu-graph-scene> child
-		// Devtools handle for the layout query: `shuFisheye.inspect()` — the method name alone collides with the console's
+		// Devtools handle for the layout query: `shuPolymorphic.inspect()` — the method name alone collides with the console's
 		// built-in inspect(). Last connected view wins; cleared on disconnect if still this instance.
-		(globalThis as { shuFisheye?: ShuPolymorphicGraphView }).shuFisheye = this;
+		(globalThis as { shuPolymorphic?: ShuPolymorphicGraphView }).shuPolymorphic = this;
 		this.autoTeardown(() => {
-			const g = globalThis as { shuFisheye?: ShuPolymorphicGraphView };
-			if (g.shuFisheye === this) g.shuFisheye = undefined;
+			const g = globalThis as { shuPolymorphic?: ShuPolymorphicGraphView };
+			if (g.shuPolymorphic === this) g.shuPolymorphic = undefined;
 		});
 		// The host is the view's test root; features wait on this id (declared in test-ids.ts) before driving the scene.
 		this.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.ROOT);
@@ -415,7 +415,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 	private onSceneChanged(d: GraphSceneChangedDetail): void {
 		// The scene rebuilds this array on every emit; keep the identity when the axes are the same, or the settings element
 		// dirty-checks a new array each repaint and re-renders its controls for nothing.
-		if (d.groupByAxes.join(" ") !== this.groupByAxes.join(" ")) this.groupByAxes = d.groupByAxes;
+		if (d.groupByAxes.join("\0") !== this.groupByAxes.join("\0")) this.groupByAxes = d.groupByAxes;
 		this.forces = d.forces;
 		const c = d.counts;
 		const edgePart = `${c.edges} edges (${c.relTypes} ${c.relTypes === 1 ? "type" : "types"})`;
@@ -503,7 +503,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 		for (const u of updates) {
 			await conduit().follow(
 				{ method: "GraphStepper-updateVertex", params: { label: u.label, id: u.id, data: u.data } },
-				"fisheye: drag gantt bar → reschedule task and its dependents",
+				"polymorphic: drag gantt bar → reschedule task and its dependents",
 			);
 		}
 		await this.refetchSnapshot({ perTypeLimit: this.cgState.perTypeLimit });
@@ -512,14 +512,14 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Fishey
 
 	/** ONE path for every layout/view option — the settings element's changes and the head toggles alike: the host holds
 	 *  the (persisted) state and pushes the whole config to the scene. */
-	private setOption(change: Partial<z.infer<typeof FisheyeStateSchema>>): void {
+	private setOption(change: Partial<z.infer<typeof PolymorphicStateSchema>>): void {
 		this.setState(change);
 		this.scene?.setConfig(this.buildSceneConfig());
 	}
 
 	/** The settings element reports which option the reader touched. */
-	private onSettingsChange = (change: TFisheyeOptionChange): void => {
-		this.setOption(change as Partial<z.infer<typeof FisheyeStateSchema>>);
+	private onSettingsChange = (change: TPolymorphicOptionChange): void => {
+		this.setOption(change as Partial<z.infer<typeof PolymorphicStateSchema>>);
 	};
 }
 

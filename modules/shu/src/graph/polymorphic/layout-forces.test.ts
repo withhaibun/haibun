@@ -55,7 +55,7 @@ const maxDrift = (nodes: N[], before: Map<string, { x: number; y: number }>, ski
 	return m;
 };
 
-describe("fisheye layout stability (headless d3-force-3d, no browser)", () => {
+describe("polymorphic layout stability (headless d3-force-3d, no browser)", () => {
 	it("REPRODUCES the jump: feeding a new node with a reheat moves the EXISTING (unpinned) nodes", () => {
 		const nodes = baseNodes();
 		const sim = settledSim(nodes, [...baseLinks]);

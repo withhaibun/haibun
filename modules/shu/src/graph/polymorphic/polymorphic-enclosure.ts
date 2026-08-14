@@ -1,9 +1,9 @@
-// The fisheye's group-enclosure subsystem: the translucent type-coloured box + wire border + area title drawn around each
+// The polymorphic's group-enclosure subsystem: the translucent type-coloured box + wire border + area title drawn around each
 // group's members (the 3D read of the SVG group box), plus the per-group ring anchors + footprint radii that drive the
 // cohesion force. The boxes only ever TRACK the settled members — they never trigger a relayout, so the layout the user
 // got is the layout that stays; geometry is drawn once after a data settle, not every frame.
 //
-// Wired like FisheyeCamera/FisheyeFocus: constructor-injected accessor deps read at CALL time, so a per-repaint-refreshed
+// Wired like PolymorphicCamera/PolymorphicFocus: constructor-injected accessor deps read at CALL time, so a per-repaint-refreshed
 // nodeMap, a theme-recoloured label colour, or the late-bound forcegraph parent is always current; the component keeps
 // the leaf state it shares with the gantt/swimlane overlays (the shared unit geometries are owned here and read back via
 // accessors) and delegates the enclosure concern entirely. (lovely-finding-babbage, step 2.)

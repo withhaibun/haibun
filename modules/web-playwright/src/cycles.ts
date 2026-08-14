@@ -39,7 +39,7 @@ const httpTraceSources: IObservationSource[] = [
 		name: "http-trace",
 		observe: async (world) => {
 			// Each persisted http-request record with its full fields (status, durationMs, url, …) — the same nodes the
-			// fisheye network sequence reads, so a quantifier can assert e.g. `request/status is less than 400`.
+			// polymorphic network sequence reads, so a quantifier can assert e.g. `request/status is less than 400`.
 			const quads = await world.shared.getStore().query({ namedGraph: HTTP_REQUEST_LABEL });
 			const metrics: Record<string, Record<string, unknown>> = {};
 			for (const q of quads) (metrics[q.subject] ??= {})[q.predicate] = q.object;

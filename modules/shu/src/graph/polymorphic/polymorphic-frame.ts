@@ -1,5 +1,5 @@
 /**
- * Declarative per-frame scheduler for the fisheye's rAF loop: each job declares its own cadence instead of the
+ * Declarative per-frame scheduler for the polymorphic view's rAF loop: each job declares its own cadence instead of the
  * view hand-rolling countdown fields. `every: 1` runs each frame (camera-coupled work like label orientation);
  * a larger cadence samples (watchdogs, bounds). One place to see — and test — everything the frame does.
  */
@@ -20,7 +20,7 @@ export class FrameScheduler {
 			try {
 				j.run();
 			} catch (err) {
-				console.error(`[fisheye-frame] job "${j.name}" failed and is disabled:`, err);
+				console.error(`[polymorphic-frame] job "${j.name}" failed and is disabled:`, err);
 				j.countdown = Number.POSITIVE_INFINITY;
 			}
 		}

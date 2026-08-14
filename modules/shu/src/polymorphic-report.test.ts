@@ -1,7 +1,7 @@
 // @vitest-environment node
-// End-to-end guard: when a feature USES an external component view (the A-Frame fisheye), the serialized HTML report
+// End-to-end guard: when a feature USES an external component view (the A-Frame polymorphic), the serialized HTML report
 // must actually embed that component's bundle — and must NOT carry it when the view isn't shown. This drives the real
-// chain (graph-stepper's fisheye domain ui.jsContent → final-view cols → inlineScriptsForView → compressed payload →
+// chain (graph-stepper's polymorphic domain ui.jsContent → final-view cols → inlineScriptsForView → compressed payload →
 // HTML), then decompresses the payload to confirm the bundle is present, so the "include external components on use"
 // behaviour can never silently regress again.
 import { describe, it, expect } from "vitest";
@@ -53,14 +53,14 @@ async function generateReport(finalView: string | undefined): Promise<string> {
 }
 
 describe("serialized report bundles an external component's JS iff its view is used", () => {
-	it("EMBEDS the real graph view's bundle when the fisheye view is the final view", async () => {
+	it("EMBEDS the real graph view's bundle when the polymorphic view is the final view", async () => {
 		const scripts = reportScripts(await generateReport(GRAPH_VIEW));
 		const viewScript = scripts.find((s) => s.includes(GRAPH_VIEW));
 		expect(viewScript).toBeDefined();
 		expect((viewScript ?? "").length).toBeGreaterThan(100_000); // the actual bundle, not a stray reference
 	});
 
-	it("OMITS the graph view's bundle when no fisheye view is shown", async () => {
+	it("OMITS the graph view's bundle when no polymorphic view is shown", async () => {
 		const scripts = reportScripts(await generateReport(undefined));
 		expect(scripts.some((s) => s.includes(GRAPH_VIEW))).toBe(false);
 	});

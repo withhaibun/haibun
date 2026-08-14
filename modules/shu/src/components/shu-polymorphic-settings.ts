@@ -1,7 +1,7 @@
 /**
  * shu-polymorphic-settings — the controls of ONE settings group (`group`: layout or scenes), rendered inside the
  * head's open settings row. The head's group icons decide which group is open; this element renders that group's
- * controls. The surface is a property of the fisheye component, not of one embedding: every instance gets the same
+ * controls. The surface is a property of the polymorphic view component, not of one embedding: every instance gets the same
  * options in the same place because they come from the same element.
  *
  * It owns NO state. The host owns the options (a Zod schema + setState + persistFields) and pushes them to the scene;
@@ -25,10 +25,10 @@ import "@haibun/shu/components/shu-field.js";
 const IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 
 /** The options a reader sets — the scene's own config, which is what every one of them ends up setting. */
-export type TFisheyeOptions = GraphSceneConfig;
+export type TPolymorphicOptions = GraphSceneConfig;
 
 /** Reported when a control changes: the one option the reader touched, for the host to fold into its own state. */
-export type TFisheyeOptionChange = Partial<TFisheyeOptions>;
+export type TPolymorphicOptionChange = Partial<TPolymorphicOptions>;
 
 export class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
@@ -56,14 +56,14 @@ export class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 	/** Which settings group this instance renders. */
 	declare group: "layout" | "scenes";
 	/** The host's current options — rendered, never stored. Set by the host that owns them. */
-	declare options: TFisheyeOptions;
+	declare options: TPolymorphicOptions;
 	/** The axes the scene derives from its data, handed down by the host. */
 	declare groupByAxes: string[];
 	/** What the active view FORCES: an option it settles is not offered here, since a control that cannot act is a
 	 *  control that lies. A lane view forces grouping, flatten and label-as-depth, so its rows carry only what applies. */
 	declare forces: TViewForces;
 	/** Reports the reader's intent. The host decides what it means. */
-	declare onChange: (change: TFisheyeOptionChange) => void;
+	declare onChange: (change: TPolymorphicOptionChange) => void;
 	/** The scenes saved here, for a reader to return to one. Handed down; a component never reaches the RPC itself. */
 	declare scenes: string[];
 	/** What went wrong with the last scene asked for, shown beside the controls. Null when nothing did. */
@@ -139,7 +139,7 @@ export class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 					: ""
 			}
 			<shu-field label="depth by">
-				<select data-testid=${IDS.Z_BASIS} .value=${o.zBasis} @change=${(e: Event) => this.onChange({ zBasis: (e.target as HTMLSelectElement).value as TFisheyeOptions["zBasis"] })}>
+				<select data-testid=${IDS.Z_BASIS} .value=${o.zBasis} @change=${(e: Event) => this.onChange({ zBasis: (e.target as HTMLSelectElement).value as TPolymorphicOptions["zBasis"] })}>
 					<option value="valid">valid time</option>
 					<option value="indexed">indexed time</option>
 					<option value="connections"># connections</option>

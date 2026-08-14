@@ -82,7 +82,7 @@ export const activePane = new SharedSignal<string | null>("activePane", null);
 // One mechanism for every global UI setting (data window size, …) so they can't drift into bespoke per-setting wiring.
 // localStorage is the durable store; a globalThis-pinned signal is the in-bundle reactive mirror — reading get() in a
 // lit render() auto-subscribes the view, so changing a setting in the UI re-renders every view that reads it. (A
-// cross-bundle view — a separate IIFE like the fisheye — does not track signals across the boundary; a setting that
+// cross-bundle view — a separate IIFE like the polymorphic view — does not track signals across the boundary; a setting that
 // must reach one would keep an explicit subscribe, as timeCursor does. Settings consumed in-bundle need none.)
 
 const SETTING_SIGNALS_KEY = "__SHU_SETTING_SIGNALS__";

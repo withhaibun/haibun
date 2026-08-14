@@ -20,7 +20,7 @@ export const LINK_DISTANCE_PAD = 24;
 // A pinned view places nodes at fixed targets (gantt calendar slots, sequence lanes, the td/lr layered flow). The
 // positional pull is strong (like cohesion) so a node holds its slot; the ghost-tween glides common nodes there on a
 // view-type change.
-export const PINNED_STRENGTH = 0.35; // the positional-force strength a pinned view holds nodes at (a fisheye tuning; the gantt SIZING consts live in @haibun/shu/graph/gantt-layout)
+export const PINNED_STRENGTH = 0.35; // the positional-force strength a pinned view holds nodes at (a polymorphic tuning; the gantt SIZING consts live in @haibun/shu/graph/gantt-layout)
 // World-unit gaps the layered (td/lr) solver leaves between ranks (flow axis) and between siblings (cross axis).
 export const LAYERED_RANK_GAP = 40;
 export const LAYERED_SIBLING_GAP = 16;
