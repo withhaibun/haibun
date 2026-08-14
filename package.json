@@ -63,6 +63,8 @@
 	"version": "4.0.0-alpha.3",
 	"overrides": {
 		"react": "^19.2.3",
-		"@types/react": "^19.0.0"
+		"@types/react": "^19.0.0",
+		"three": "npm:super-three@0.173.5",
+		"three-bmfont-text": "3.0.1"
 	}
 }

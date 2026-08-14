@@ -100,6 +100,44 @@ export const SHU_TEST_IDS = {
 	DOCUMENT: {
 		ROOT: "document-view",
 	},
+/**
+ * The polymorphic graph view: one graph painted as a force cloud, a layered flow, a gantt or a sequence, with the
+ * controls that switch between them. Its ids live here because the view is shu's.
+ */
+	POLYMORPHIC_VIEW: {
+		ROOT: "polymorphic-graph-view-root",
+		SCENE: "polymorphic-a-scene",
+		GRAPH_CONTAINER: "polymorphic-graph-container",
+		A11Y: "polymorphic-a11y",
+		/** The control that carries the reading on from where it stopped. */
+		A11Y_READ_ON: "polymorphic-a11y-read-on",
+		CAMERA: "polymorphic-main-cam",
+		VIEW_TYPE: "polymorphic-view-type",
+		FLATTEN: "polymorphic-flatten",
+		GROUPED: "polymorphic-grouped",
+		GROUP_BY: "polymorphic-group-by",
+		Z_BASIS: "polymorphic-z-time",
+		LABEL_AS_Z: "polymorphic-label-z",
+		FIT: "polymorphic-fit",
+		FOLLOW: "polymorphic-follow",
+		PRUNE: "polymorphic-prune",
+		READ: "polymorphic-read",
+		/** Each settings group's head icon, keyed by the group it opens (see view-head's SETTINGS_GROUPS) — the component
+		 *  renders from this map and a driver presses from it, so the two cannot name different controls. */
+		SETTINGS: {
+			layout: "polymorphic-settings-layout",
+			filters: "polymorphic-settings-filters",
+			scenes: "polymorphic-settings-scenes",
+		},
+		ROTATE_XY: "polymorphic-rotate-xy",
+		ROTATE_Z: "polymorphic-rotate-z",
+		COPY_GRAPH: "polymorphic-copy-graph",
+		LATEST_STEP: "polymorphic-latest-step",
+		SCENE_PICKER: "polymorphic-scene-picker",
+		SCENE_NAME: "polymorphic-scene-name",
+		SCENE_SAVE: "polymorphic-scene-save",
+		SCENE_ERROR: "polymorphic-scene-error",
+	},
 	GRAPH_VIEW: {
 		ROOT: "graph-view-toolbar",
 		CONTROLS: "graph-view-toolbar",
