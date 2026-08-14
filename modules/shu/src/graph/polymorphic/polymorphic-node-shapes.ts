@@ -1,6 +1,6 @@
 /**
- * The fisheye PAINT: translates a backend-neutral NodeMark (produced by a per-@type presenter) into a three.js object,
- * one builder per mark kind, dispatched by paintMarkFisheye. The SVG paint shares the SAME per-@type presenter, so a
+ * The polymorphic PAINT: translates a backend-neutral NodeMark (produced by a per-@type presenter) into a three.js object,
+ * one builder per mark kind, dispatched by paintMarkScene. The SVG paint shares the SAME per-@type presenter, so a
  * data node's COLOUR can't drift between the two renders; the per-kind shape geometry (chip/box/image) is 3D-only today.
  * The mark carries the semantics (kind, label, colour, box length); the deps carry only the medium config (the THREE
  * namespace, a label factory, the theme text colours, the rendering constants), all injected so the geometry —
@@ -151,9 +151,9 @@ export function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	return sprite;
 }
 
-/** Translate a backend-neutral NodeMark into a fisheye three.js object — one builder per kind. Unimplemented kinds
+/** Translate a backend-neutral NodeMark into a polymorphic three.js object — one builder per kind. Unimplemented kinds
  *  throw (fail-fast) rather than rendering nothing; the SVG paint mirrors this dispatch for the same marks. */
-export function paintMarkFisheye(mark: NodeMark, d: NodeShapeDeps): Obj3D {
+export function paintMarkScene(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	switch (mark.kind) {
 		case "chip":
 			return chipShape(mark, d);
@@ -166,8 +166,8 @@ export function paintMarkFisheye(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 		case "image":
 		case "mesh":
 		case "marker":
-			throw new Error(`fisheye paint: mark kind "${mark.kind}" not implemented yet`);
+			throw new Error(`polymorphic paint: mark kind "${mark.kind}" not implemented yet`);
 		default:
-			throw new Error(`fisheye paint: unknown mark kind "${(mark as { kind: string }).kind}"`);
+			throw new Error(`polymorphic paint: unknown mark kind "${(mark as { kind: string }).kind}"`);
 	}
 }

@@ -1,11 +1,11 @@
-// The fisheye's focus subsystem: the whole purely-visual dim/highlight + the focus-chip MAGNIFY pop. It decides what is
+// The polymorphic's focus subsystem: the whole purely-visual dim/highlight + the focus-chip MAGNIFY pop. It decides what is
 // focused (the open column's node, else the hovered node), dims every node/edge/label except the focus neighbourhood,
 // re-pools the lib's per-link colours so a line's rgba carries its focus-state opacity, and animates the focus node's
 // chip up to a readable on-screen size with the cartoon easeOutBack overshoot. Nothing here moves the layout: at rest
 // it pins still-free nodes first (via the injected pin sink) so the lib's colour re-pool tick can't spring an
 // under-converged force layout — the engine-settle guard. SELECT/hover-only focus, never a viewType branch.
 //
-// Wired like FisheyeCamera/DataPipeline: constructor-injected accessor deps read at CALL time, so a late-bound graph
+// Wired like PolymorphicCamera/DataPipeline: constructor-injected accessor deps read at CALL time, so a late-bound graph
 // instance, a per-repaint-refreshed nodeMap, or a theme-recoloured colour field is always current; the component still
 // OWNS those, this controller only reads them and owns the magnify animation state. (lovely-finding-babbage.)
 
@@ -108,7 +108,7 @@ export type FocusDeps = {
 	enclosureLabelTiers: KindTiers;
 };
 
-export class FisheyeFocus {
+export class PolymorphicFocus {
 	private lastMagnifiedFocus: string | null = null; // the node whose chip last popped — a re-assert with the same focus must not re-fire the attention pop
 	private magnifyAnims = new Map<FGNode, { from: number; to: number; start: number; pulse?: boolean }>();
 	private freshGlows = new Map<FGNode, number>(); // freshly-streamed node → when it arrived; it wears the glow until NEWCOMER_GLOW_MS

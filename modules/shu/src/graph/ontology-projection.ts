@@ -2,16 +2,16 @@
  * Project the ONTOLOGY (the schema / T-Box) as quads, so the same graph view that renders the instance data (the A-Box)
  * renders the model that drives it — no separate visualization engine. The ontology is already RDFS/OWL triples:
  * `sec:Issuer rdfs:subClassOf prov:Agent`, `issuer rdfs:subPropertyOf fromActor rdfs:subPropertyOf inRoleOf`. We emit
- * them as the same TQuad shape the store emits for individuals, so buildGraphModelFromQuads / the fisheye treat the
+ * them as the same TQuad shape the store emits for individuals, so buildGraphModelFromQuads / the polymorphic view treat the
  * ontology as just another graph: two clusters — Class and Property — with the subClassOf / subPropertyOf hierarchies as
  * edges. Pure + GPU-free (unit-tested). Reusable: any consumer that has the registered domains + LinkRelations can show
- * its own ontology; nothing here is spopg- or credential-specific.
+ * its own ontology; nothing here is consumer- or credential-specific.
  */
 import { LinkRelations, isPersisted, edgeRel, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import type { TStandardTerm } from "./standard-vocabulary.js";
 
-/** The two ontology clusters (the fisheye shows each as its own container, coloured by type). */
+/** The two ontology clusters (the polymorphic view shows each as its own container, coloured by type). */
 export const ONTOLOGY_CLASS = "Class";
 export const ONTOLOGY_PROPERTY = "Property";
 /** Whether a @type is one of the two schema clusters — the ONE predicate every schema-aware surface reuses: the filter
@@ -31,7 +31,7 @@ export function propertyVocabulary(iri: string): { source: "haibun" | "standard"
 
 /** True when a property's IRI is haibun's own vocabulary (not a standard term). */
 export const isHaibunTerm = (iri: string): boolean => propertyVocabulary(iri).source === "haibun";
-/** The predicates the projection emits — ONE source so the projector (writer) and the fisheye (reader of `domain`)
+/** The predicates the projection emits — ONE source so the projector (writer) and the polymorphic view (reader of `domain`)
  *  never drift on a string. `domain` is the genuine rdfs:domain term and the only one read outside this module (the
  *  Property routing); it shares the bare-local-name convention of subClassOf / subPropertyOf. */
 export const ONTOLOGY_PRED = {

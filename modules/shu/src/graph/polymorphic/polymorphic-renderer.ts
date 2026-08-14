@@ -1,6 +1,6 @@
 // How a graph is shown, as an interface. The scene computes the placed nodes and links; a renderer displays them.
 // There is no second model: a renderer is handed what the pipeline already produced, and what it displayed is read back
-// through the scene's own snapshot (inspect). See docs/planning/fisheye-renderer.md.
+// through the scene's own snapshot (inspect).
 
 import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
 

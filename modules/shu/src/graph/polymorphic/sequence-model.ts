@@ -131,7 +131,7 @@ export function mapGraphToSeq(nodes: ReadonlyArray<SeqNode>, edges: ReadonlyArra
 	return { actors, messages };
 }
 
-// --- 3D layout (the classic sequence in fisheye space) ---
+// --- 3D layout (the classic sequence in polymorphic space) ---
 // Lifelines are LANES across y, one per actor, standing left to right in order of first appearance; time is the Z axis
 // (the SAME z gantt uses), read DOWN. An actor renders as a GANTT DURATION BAR — the very primitive gantt uses — spanning
 // the rows of its own objects, and each object stands on the lifeline it names at its own row, so reading down a lifeline

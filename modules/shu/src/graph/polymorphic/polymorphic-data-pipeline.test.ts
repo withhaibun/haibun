@@ -1,5 +1,5 @@
 /**
- * Valid time through the fisheye's own data path: extractTimes is fed snapshot-shaped quads (one property quad per
+ * Valid time through the polymorphic view's own data path: extractTimes is fed snapshot-shaped quads (one property quad per
  * field, exactly what getClusteredQuads delivers) and its output is what toGraphData maps to depth. These assert the
  * user-visible rule — an object places by its OWN time (an email's received time, a file's date) under the valid
  * basis, by generatedAtTime under the indexed basis, and by generatedAtTime as the fallback when a type declares
@@ -17,7 +17,7 @@ const YEAR_AGO = "2025-07-06T00:00:00.000Z";
 const LAST_WEEK = "2026-06-29T00:00:00.000Z";
 const TODAY = "2026-07-05T23:00:00.000Z";
 
-/** The catalog rule as the fisheye wires it (rels-cache getValidTimeField): the declared defaultSort, else generatedAtTime. */
+/** The catalog rule as the polymorphic view wires it (rels-cache getValidTimeField): the declared defaultSort, else generatedAtTime. */
 const validTimeFieldFor = (type: string): string => ({ Email: "dateReceived", File: "dateModified" })[type] ?? GENERATED;
 
 const quad = (subject: string, namedGraph: string, predicate: string, object: string): TQuad => ({ subject, namedGraph, predicate, object, timestamp: 0 });
@@ -35,7 +35,7 @@ const snapshotQuads = (): TQuad[] => [
 const pipelineWith = (basis: "valid" | "indexed", quads: TQuad[] = snapshotQuads()): DataPipeline =>
 	new DataPipeline({ quads: () => quads, zBasis: () => basis, validTimeFieldFor } as unknown as DataPipelineDeps);
 
-describe("fisheye valid-time placement from snapshot quads", () => {
+describe("polymorphic valid-time placement from snapshot quads", () => {
 	it("valid basis: each subject's time is its type's declared field (carried as the hover's unit label), with generatedAtTime only as the fallback", () => {
 		const { times } = pipelineWith("valid").extractTimes();
 		expect(times.get("e1")).toEqual({ ms: Date.parse(YEAR_AGO), field: "dateReceived" });

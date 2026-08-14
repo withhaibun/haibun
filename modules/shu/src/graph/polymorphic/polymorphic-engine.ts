@@ -1,6 +1,6 @@
 /**
  * The engine governor: the ONLY code that touches the library engine's pacing. The library's forces are removed
- * (the scene places nodes itself, see fisheye-layout.ts), so its ticks only move sprites — a pinned node tracks its
+ * (the scene places nodes itself, see polymorphic-layout.ts), so its ticks only move sprites — a pinned node tracks its
  * pin, an unpinned one has no velocity and stays put. Every consumer states INTENT: settle after a data feed (tick
  * briefly so the sprites reach their placed positions), hold for a tween or drag (tick continuously; pins move each
  * frame), freeze at rest. "Who controls the engine" has one answer, and the mode is observable.

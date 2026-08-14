@@ -1,12 +1,12 @@
 /**
- * FisheyeCamera.frame(fit) frames a time-DEEP but XY-clustered graph usably. The time axis (z) normalizes to fill its
+ * PolymorphicCamera.frame(fit) frames a time-DEEP but XY-clustered graph usably. The time axis (z) normalizes to fill its
  * full depth for ANY date range, so a multi-time graph is always a deep ribbon; framing by the 3D bounding-sphere radius
  * backed the camera so far the graph filled only ~20% of the view (right at the "graph fits the view" threshold, so it
  * flaked). Sizing the frustum to the XY extent and backing off by the z half-depth frames it far tighter while still
  * keeping the nearest-z node in front of the lens. This pins the distance the fit lands on.
  */
 import { describe, it, expect } from "vitest";
-import { FisheyeCamera, clearStripOffset, type CameraDeps } from "./polymorphic-camera.js";
+import { PolymorphicCamera, clearStripOffset, type CameraDeps } from "./polymorphic-camera.js";
 import { FRAME, REFRAME, type ReframeMode } from "../polymorphic/polymorphic-views.js";
 
 // Record the z the fit backs the camera to; the rest of the deps are inert stubs (only camera/controls/nodePositions
@@ -38,7 +38,7 @@ function harness(nodes: Array<{ x: number; y: number; z: number }>) {
 		sequenceExtent: () => null,
 		refreshPickBounds: () => undefined,
 	};
-	return { cam: new FisheyeCamera(deps), getCameraZ: () => cameraZ };
+	return { cam: new PolymorphicCamera(deps), getCameraZ: () => cameraZ };
 }
 
 /** A live target + position, as zooming needs them: zoomBy reads the offset between the two and rewrites the position. */
@@ -67,10 +67,10 @@ function zoomHarness(startZ: number) {
 		sequenceExtent: () => null,
 		refreshPickBounds: () => undefined,
 	} as unknown as CameraDeps;
-	return { cam: new FisheyeCamera(deps), distance: () => position.z };
+	return { cam: new PolymorphicCamera(deps), distance: () => position.z };
 }
 
-describe("FisheyeCamera.zoomBy: no limit on how near or far the camera goes", () => {
+describe("PolymorphicCamera.zoomBy: no limit on how near or far the camera goes", () => {
 	it("keeps closing in past any fixed distance, so zooming in never stops working", () => {
 		const { cam, distance } = zoomHarness(100);
 		for (let i = 0; i < 40; i++) cam.zoomBy(50, "percent", "in");
@@ -94,7 +94,7 @@ describe("FisheyeCamera.zoomBy: no limit on how near or far the camera goes", ()
 	});
 });
 
-describe("FisheyeCamera.frame(fit) — time-deep framing", () => {
+describe("PolymorphicCamera.frame(fit) — time-deep framing", () => {
 	it("frames a z-deep, XY-clustered graph by its XY extent + z depth, not the loose 3D sphere", () => {
 		// Tiny in XY (±1), deep in z ([0,400]): a wide date range. Centre z = 200, so the fit must back off past the
 		// z half-depth (200) to keep the nearest-z node in front, but far LESS than the sphere fit (radius/sin(40°)+20 ≈
@@ -165,10 +165,10 @@ function orbitedHarness(
 		const len = Math.hypot(d.x, d.y, d.z);
 		return { x: d.x / len, y: d.y / len, z: d.z / len };
 	};
-	return { cam: new FisheyeCamera(deps), target, position, up, viewDir };
+	return { cam: new PolymorphicCamera(deps), target, position, up, viewDir };
 }
 
-describe("FisheyeCamera.frame — fit keeps the user's orbit, the view aims reset it", () => {
+describe("PolymorphicCamera.frame — fit keeps the user's orbit, the view aims reset it", () => {
 	const nodes = [
 		{ x: -100, y: -50, z: 0 },
 		{ x: 100, y: 50, z: 400 },
@@ -248,7 +248,7 @@ describe("clearStripOffset — where a framing aims when an overlay covers the c
 	});
 });
 
-describe("FisheyeCamera.centerOn with an aim offset — the followed node lands in the clear strip", () => {
+describe("PolymorphicCamera.centerOn with an aim offset — the followed node lands in the clear strip", () => {
 	/** A live orbit + an identity matrixWorld (camera on +z looking down -z: screen right = +x, screen up = +y). */
 	function centreHarness() {
 		const vec = (x: number, y: number, z: number) => ({
@@ -277,7 +277,7 @@ describe("FisheyeCamera.centerOn with an aim offset — the followed node lands 
 			sequenceExtent: () => null,
 			refreshPickBounds: () => undefined,
 		} as unknown as CameraDeps;
-		return { cam: new FisheyeCamera(deps), target, position };
+		return { cam: new PolymorphicCamera(deps), target, position };
 	}
 
 	it("without an offset the node IS the target, as following always centred", () => {

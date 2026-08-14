@@ -272,7 +272,7 @@ export const LinkRelations = {
 	// PROV-O — provenance and lineage
 	// Entity → the responsible Agent (the party a node is attributed to, or its producing instance). The canonical
 	// provenance attribution edge; a role attribution (subPropertyOf inRoleOf — the broad role super-property defined
-	// below), so it is one of the predicates the fisheye's HypermediaRole grouping axis derives (see roleRels).
+	// below), so it is one of the predicates the polymorphic view's HypermediaRole grouping axis derives (see roleRels).
 	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 20 },
 	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
 	// What an activity read to do its work. A Derivation names the text whose links it turned into statements.
@@ -1128,7 +1128,7 @@ export const SceneSchema = z.object({
 	author: z.string().optional(),
 	generatedAtTime: z.string(),
 	accessLevel: AccessLevelSchema.optional(),
-	/** The views' options as JSON, keyed by element tag: `{"shu-fisheye-graph-view": {…}}`. Opaque to the graph; each view validates its own on apply. */
+	/** The views' options as JSON, keyed by element tag: `{"shu-polymorphic-graph-view": {…}}`. Opaque to the graph; each view validates its own on apply. */
 	state: z.string(),
 });
 export type TScene = z.infer<typeof SceneSchema>;

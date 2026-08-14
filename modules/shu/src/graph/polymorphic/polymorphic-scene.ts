@@ -11,7 +11,7 @@ import { formatDate } from "../../util.js";
 import { SHU_TEST_IDS } from "../../test-ids.js";
 import { FrameScheduler } from "../polymorphic/polymorphic-frame.js";
 import { EngineGovernor, type TPacedGraph } from "../polymorphic/polymorphic-engine.js";
-import { FisheyeProfiler } from "../polymorphic/polymorphic-profiler.js";
+import { PolymorphicProfiler } from "../polymorphic/polymorphic-profiler.js";
 import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troika-label.js";
 import { GLOW_RAMP, type GlowThree } from "../polymorphic/polymorphic-highlight.js";
 import { typeAvatar } from "../polymorphic/polymorphic-type-avatar.js";
@@ -23,7 +23,7 @@ import { quadsToGanttModel, cascadeReschedule } from "../gantt-model.js";
 import { availablePaints, browserRelOf } from "../paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../gantt-layout.js";
 import { type Adornment } from "../graph-layout.js";
-import { FisheyeCamera, clearStripOffset, type GanttExtent } from "./polymorphic-camera.js";
+import { PolymorphicCamera, clearStripOffset, type GanttExtent } from "./polymorphic-camera.js";
 import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, NDC_SPAN, type TNdc, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
 import { RenderContext } from "./polymorphic-render-context.js";
@@ -43,8 +43,8 @@ import { forceLayout, type IGraphLayout } from "../polymorphic/polymorphic-layou
 import { SvgRenderer } from "../polymorphic/polymorphic-svg-renderer.js";
 import { NodeDrag, DRAG_THRESHOLD_PX } from "../polymorphic/polymorphic-drag.js";
 import { NODE_TEXT_COLOR, chipTextHeight } from "../polymorphic/layout-forces.js";
-import { paintMarkFisheye, type ShapeLabel } from "../polymorphic/polymorphic-node-shapes.js";
-import { FisheyeFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "../polymorphic/polymorphic-focus.js";
+import { paintMarkScene, type ShapeLabel } from "../polymorphic/polymorphic-node-shapes.js";
+import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "../polymorphic/polymorphic-focus.js";
 import {
 	EnclosureController,
 	type EnclosureThree,
@@ -155,7 +155,7 @@ const SceneStateSchema = z.object({});
 // background, edges) follows the document theme tokens.
 const NODE_BORDER_COLOR = "#cccccc";
 // The glow the ACTIVE node carries — the node whose column is open, the one being read. Drawn behind the mark, so it
-// surrounds a chip and a lane bar alike; its colour cycles through the theme's warm ramp (see fisheye-highlight).
+// surrounds a chip and a lane bar alike; its colour cycles through the theme's warm ramp (see polymorphic-highlight).
 
 // three-forcegraph forces link objects to renderOrder 10; draw nodes above that (edges sit behind), labels between.
 // NODE_RENDER_ORDER / FOCUS_RENDER_ORDER / NODE_FONT_SIZE live with the focus subsystem (it drives the chip raster + pop).
@@ -394,7 +394,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// Sole owner of camera control: framing/viewport/nav + the load-time auto-fit and view-type re-aim state. It reads the
 	// shared leaf refs (camera/controls/canvas/renderer/container) and the node positions through these accessors, read at
 	// call time so a late-set ref or a re-fed nodeMap is always current; this component never mutates the camera directly.
-	private camera = new FisheyeCamera({
+	private camera = new PolymorphicCamera({
 		camera: () => this.ctx.camera,
 		controls: () => this.ctx.controls,
 		container: () => this.ctx.container,
@@ -470,7 +470,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// constructor-injected accessors read at call time, so a late-bound graph, a per-repaint nodeMap, or a theme-recoloured
 	// colour field is always current; it OWNS the magnify animation state, the component delegates and reads nothing back.
 	// (Named focusCtl, not focus — HTMLElement.focus() is a method on the element.)
-	private focusCtl = new FisheyeFocus({
+	private focusCtl = new PolymorphicFocus({
 		focusId: () => this.focusId,
 		selectedId: () => this.activeSubject,
 		previewType: () => this.previewType,
@@ -524,7 +524,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return rt;
 	}
 	// Nodes pinned only for the duration of a streamed-data settle so the feed's engine reheat can't move them
-	// (visible jitter); released at the next engine stop. Proven in fisheye-forces.test.ts.
+	// (visible jitter); released at the next engine stop. Proven in polymorphic-forces.test.ts.
 	private dataPinnedIds: string[] = [];
 	/** Positions the user pinned by dragging, id → {x,y}. Applied by the data pipeline (userPinXY) so a dragged node returns
 	 *  to where it was left after a reload; the host persists these across reloads (a page-wide layout choice). */
@@ -614,7 +614,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	fgCamera?: TSceneCamera;
 	private frame = new FrameScheduler();
 	private engine = new EngineGovernor();
-	private profiler = new FisheyeProfiler();
+	private profiler = new PolymorphicProfiler();
 	private fgCanvas?: HTMLCanvasElement;
 	private fgContainer?: HTMLElement;
 	private fgSceneEl?: HTMLElement & { emit(name: string, detail?: unknown, bubbles?: boolean): void };
@@ -727,7 +727,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * THE layout query: a JSON-safe snapshot of the scene's observable state — node positions, group boxes,
 	 * focus/drag/tween/engine state — for the behaviour suite and for humans in devtools. Tests assert layout
 	 * quality against this surface, never against private fields. `sample` carries every node's actual x/y/z. The host
-	 * delegates its own `inspect()` to this and registers itself on globalThis as `shuFisheye` for devtools.
+	 * delegates its own `inspect()` to this and registers itself on globalThis as `shuPolymorphic` for devtools.
 	 */
 	inspect(): Record<string, unknown> {
 		const nodes = [...this.nodeMap.values()];
@@ -869,39 +869,39 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return html`
 			<style>
 				shu-graph-scene { display: contents; }
-				shu-graph-scene #fisheye-info { position: absolute; bottom: var(--shu-space-5); left: var(--shu-space-5); z-index: 12; max-width: 70%; min-height: 20px; background: var(--shu-bg-elevated); padding: var(--shu-space-3) var(--shu-space-4); border-left: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-family: var(--shu-mono, monospace); font-size: var(--shu-font-sm); color: var(--shu-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-				shu-graph-scene #fisheye-info[hidden] { display: none; }
+				shu-graph-scene #polymorphic-info { position: absolute; bottom: var(--shu-space-5); left: var(--shu-space-5); z-index: 12; max-width: 70%; min-height: 20px; background: var(--shu-bg-elevated); padding: var(--shu-space-3) var(--shu-space-4); border-left: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-family: var(--shu-mono, monospace); font-size: var(--shu-font-sm); color: var(--shu-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+				shu-graph-scene #polymorphic-info[hidden] { display: none; }
 				/* Orbit compass: a minimal wire XYZ indicator in the upper-left, transparent to pointer events. */
-				shu-graph-scene #fisheye-compass { position: absolute; top: var(--shu-space-5); left: var(--shu-space-5); width: 72px; height: 72px; z-index: 9; pointer-events: none; opacity: 0.9; }
+				shu-graph-scene #polymorphic-compass { position: absolute; top: var(--shu-space-5); left: var(--shu-space-5); width: 72px; height: 72px; z-index: 9; pointer-events: none; opacity: 0.9; }
 				/* Axis legend: shown only when the layout gives the axes meaning (gantt: x = time span, y = task rows). */
-				shu-graph-scene #fisheye-axis-legend { position: absolute; top: var(--shu-space-5); right: var(--shu-space-5); z-index: 10; pointer-events: none; background: var(--shu-bg-elevated); padding: var(--shu-space-2) var(--shu-space-4); border-right: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-family: var(--shu-mono, monospace); font-size: var(--shu-font-sm); color: var(--shu-fg); }
-				shu-graph-scene #fisheye-axis-legend .axis-row { display: flex; gap: var(--shu-space-2); align-items: baseline; }
-				shu-graph-scene #fisheye-axis-legend .axis-key { color: var(--shu-fg-muted); min-width: 3.5em; }
+				shu-graph-scene #polymorphic-axis-legend { position: absolute; top: var(--shu-space-5); right: var(--shu-space-5); z-index: 10; pointer-events: none; background: var(--shu-bg-elevated); padding: var(--shu-space-2) var(--shu-space-4); border-right: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-family: var(--shu-mono, monospace); font-size: var(--shu-font-sm); color: var(--shu-fg); }
+				shu-graph-scene #polymorphic-axis-legend .axis-row { display: flex; gap: var(--shu-space-2); align-items: baseline; }
+				shu-graph-scene #polymorphic-axis-legend .axis-key { color: var(--shu-fg-muted); min-width: 3.5em; }
 				/* Pin the scene/canvas to the column box and clip: A-Frame may size its buffer larger, but it can never overflow or push scrollbars. The rAF loop keeps the buffer+camera matched to this box (no stretch/blur). */
-				shu-graph-scene #fisheye-canvas { position: absolute; inset: 0; overflow: hidden; }
-				shu-graph-scene #fisheye-canvas a-scene, shu-graph-scene #fisheye-canvas canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; display: block; }
+				shu-graph-scene #polymorphic-canvas { position: absolute; inset: 0; overflow: hidden; }
+				shu-graph-scene #polymorphic-canvas a-scene, shu-graph-scene #polymorphic-canvas canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; display: block; }
 				/* The guide: visually hidden until a keyboard reader tabs into it or the head's 🧭 opens it, then a
 				   readable overlay panel — a focused entry must be visible (WCAG focus visible), not
 				   clipped away. Both ways in land on the same shown state, so there is one appearance to maintain. */
-				shu-graph-scene #fisheye-a11y { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+				shu-graph-scene #polymorphic-a11y { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 				/* A reading is a document: its text selects and copies by hand. Each entry is also the way to that node,
 				   so it is written as a link is — underlined, in the accent — rather than as a face that says nothing. */
-				shu-graph-scene #fisheye-a11y button { user-select: text; background: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left; color: var(--shu-accent); text-decoration: underline; cursor: pointer; }
-				shu-graph-scene #fisheye-a11y button:hover, shu-graph-scene #fisheye-a11y button:focus-visible { text-decoration-thickness: 2px; }
+				shu-graph-scene #polymorphic-a11y button { user-select: text; background: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left; color: var(--shu-accent); text-decoration: underline; cursor: pointer; }
+				shu-graph-scene #polymorphic-a11y button:hover, shu-graph-scene #polymorphic-a11y button:focus-visible { text-decoration-thickness: 2px; }
 				/* A marker is drawn in the list's own left padding, so the padding has to hold the widest one: at a fixed
 				   step a two-digit line ran back over the region's edge. Sized in em, it holds three digits at any size. */
-				shu-graph-scene #fisheye-a11y ol { margin: 0; padding-left: 3em; }
-				shu-graph-scene #fisheye-a11y ul { margin: 0 0 var(--shu-space-1); padding-left: var(--shu-space-4); list-style: none; opacity: 0.85; }
-				shu-graph-scene #fisheye-a11y[data-shown] { user-select: text; }
-				shu-graph-scene #fisheye-a11y:focus-within, shu-graph-scene #fisheye-a11y[data-shown] { width: auto; height: auto; clip-path: none; top: var(--shu-space-5); left: var(--shu-space-5); max-width: 70%; max-height: 80%; overflow: auto; z-index: 13; background: color-mix(in srgb, var(--shu-bg-elevated) 82%, transparent); backdrop-filter: blur(6px); padding: var(--shu-space-3) var(--shu-space-4); user-select: text; border-left: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); color: var(--shu-fg); }
+				shu-graph-scene #polymorphic-a11y ol { margin: 0; padding-left: 3em; }
+				shu-graph-scene #polymorphic-a11y ul { margin: 0 0 var(--shu-space-1); padding-left: var(--shu-space-4); list-style: none; opacity: 0.85; }
+				shu-graph-scene #polymorphic-a11y[data-shown] { user-select: text; }
+				shu-graph-scene #polymorphic-a11y:focus-within, shu-graph-scene #polymorphic-a11y[data-shown] { width: auto; height: auto; clip-path: none; top: var(--shu-space-5); left: var(--shu-space-5); max-width: 70%; max-height: 80%; overflow: auto; z-index: 13; background: color-mix(in srgb, var(--shu-bg-elevated) 82%, transparent); backdrop-filter: blur(6px); padding: var(--shu-space-3) var(--shu-space-4); user-select: text; border-left: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 			</style>
-			<div id="fisheye-info" data-testid="fisheye-info" hidden></div>
-			<div id="fisheye-canvas" data-testid=${SHU_TEST_IDS.POLYMORPHIC_VIEW.GRAPH_CONTAINER} aria-hidden="true"></div>
-			<nav id="fisheye-a11y" data-testid=${SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y} aria-label="graph guide" ?data-shown=${this.config.readAsDocument}></nav>
-			<canvas id="fisheye-compass" aria-hidden="true"></canvas>
+			<div id="polymorphic-info" data-testid="polymorphic-info" hidden></div>
+			<div id="polymorphic-canvas" data-testid=${SHU_TEST_IDS.POLYMORPHIC_VIEW.GRAPH_CONTAINER} aria-hidden="true"></div>
+			<nav id="polymorphic-a11y" data-testid=${SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y} aria-label="graph guide" ?data-shown=${this.config.readAsDocument}></nav>
+			<canvas id="polymorphic-compass" aria-hidden="true"></canvas>
 			${
 				legend
-					? html`<div id="fisheye-axis-legend" data-testid="fisheye-axis-legend">
+					? html`<div id="polymorphic-axis-legend" data-testid="polymorphic-axis-legend">
 							<div class="axis-row"><span class="axis-key">time</span><span>${legend.from} → ${legend.to}</span></div>
 							<div class="axis-row"><span class="axis-key">rows</span><span>${legend.count} tasks</span></div>
 						</div>`
@@ -912,16 +912,16 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	protected override async onConnected(): Promise<void> {
 		await this.updateComplete;
-		this.infoEl = this.querySelector("#fisheye-info");
-		this.compassEl = this.querySelector<HTMLCanvasElement>("#fisheye-compass");
+		this.infoEl = this.querySelector("#polymorphic-info");
+		this.compassEl = this.querySelector<HTMLCanvasElement>("#polymorphic-compass");
 		if (this.compassEl) {
 			const dpr = window.devicePixelRatio || 1;
 			this.compassEl.width = Math.round(72 * dpr);
 			this.compassEl.height = Math.round(72 * dpr);
 		}
 
-		const container = this.querySelector<HTMLElement>("#fisheye-canvas");
-		if (!container) throw new Error("shu-graph-scene: #fisheye-canvas not found");
+		const container = this.querySelector<HTMLElement>("#polymorphic-canvas");
+		if (!container) throw new Error("shu-graph-scene: #polymorphic-canvas not found");
 
 		const VR = ForceGraphVR as unknown as new (el: HTMLElement) => FGInstance;
 		this.graph = new VR(container);
@@ -932,7 +932,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.renderer ??= compositeRenderer(
 			threeRenderer(this.graph, (n) => this.nodeObject(n)),
 			new A11yRenderer({
-				region: () => this.querySelector<HTMLElement>("#fisheye-a11y"),
+				region: () => this.querySelector<HTMLElement>("#polymorphic-a11y"),
 				bars: () => this.actorBars(),
 				onActivate: (id) => this.openNode(id),
 				onFocus: (id) => this.setHoveredNode(id),
@@ -982,7 +982,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Build a node's 3D object: hand the node off to its @type presenter for a backend-neutral mark, then paint it for
-	 *  the fisheye. The presenter decides shape/colour/label/role; this view supplies only the medium config. */
+	 *  the polymorphic view. The presenter decides shape/colour/label/role; this view supplies only the medium config. */
 	private nodeObject(n: FGNode): unknown {
 		// The per-node build is timed into the profiler's label total — its canvas raster + GPU texture upload is the
 		// dominant per-node cost when the per-type limit is raised (the profiler step reads the accumulated split).
@@ -1012,7 +1012,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 							avatar: typeAvatar(mark.type),
 						})
 					: spriteVisual(
-							paintMarkFisheye(mark, {
+							paintMarkScene(mark, {
 								three: aframeThree(),
 								makeLabel: (text, h, c) => new SpriteText(text, h, c) as unknown as ShapeLabel,
 								textColor: this.chipTextColor, // on a chip: dark on the light type colour
@@ -2252,7 +2252,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private openOntologyInstances(n: FGNode): void {
 		const target = this.propertyInstancesTarget(n.id);
 		if (!target) return;
-		// The fisheye is a separate bundle, so this CustomEvent detail isn't type-checked against DesiredPane at compile
+		// The polymorphic is a separate bundle, so this CustomEvent detail isn't type-checked against DesiredPane at compile
 		// time the way an in-bundle PaneState.request() is. Parse it against the shared schema so a shape drift fails fast
 		// here, at the source, rather than surfacing in the app's PANE_OPEN handler.
 		const detail = DesiredPaneSchema.parse({ paneType: "filter-prop", ...target });
@@ -2436,7 +2436,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The open guide's occlusion of the canvas, as the aim offset a framing applies — null when the guide is closed,
 	 *  elsewhere, or leaves the centre clear. */
 	private guideClearOffset(): { dxPx: number; dyPx: number } | null {
-		const region = this.querySelector<HTMLElement>("#fisheye-a11y");
+		const region = this.querySelector<HTMLElement>("#polymorphic-a11y");
 		const canvas = this.ctx.canvas;
 		if (!region || !canvas || !(region.hasAttribute("data-shown") || region.matches(":focus-within"))) return null;
 		return clearStripOffset(canvas.getBoundingClientRect(), region.getBoundingClientRect());

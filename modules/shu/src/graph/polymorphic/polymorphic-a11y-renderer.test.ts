@@ -97,7 +97,7 @@ describe("A11yRenderer — the graph as an accessible document", () => {
 			acting.every((b) => b.hasAttribute("data-node-id")),
 			"and each says which node it opens",
 		).toBe(true);
-		expect(region.querySelector("[data-testid='fisheye-a11y-copy']"), "nothing else to press: the text is copied by selecting it").toBeNull();
+		expect(region.querySelector("[data-testid='polymorphic-a11y-copy']"), "nothing else to press: the text is copied by selecting it").toBeNull();
 	});
 
 	it("activating an entry opens the node and focusing one highlights it — the pointer's own paths", () => {

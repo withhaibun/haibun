@@ -7,7 +7,7 @@
  * The matrix is therefore re-derived on every pick, whether or not anything moved: "the field already matches" says
  * nothing about the matrix, and is exactly the case that misses.
  *
- * Split out from the raycast so this rule is provable without a browser (fisheye-pick-sync.test.ts).
+ * Split out from the raycast so this rule is provable without a browser (polymorphic-pick-sync.test.ts).
  */
 
 /** The pick-target side: the fields a pick writes, and the matrix it must re-derive. */

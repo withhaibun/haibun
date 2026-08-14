@@ -1,4 +1,4 @@
-// The fisheye's render-type subsystem: the view's `viewType` union promoted into a pluggable RenderType — one object per
+// The polymorphic's render-type subsystem: the view's `viewType` union promoted into a pluggable RenderType — one object per
 // layout (force/td/lr, gantt, sequence) that owns BOTH sides of every layout-mode dispatch, so the force config and the
 // node placement can never disagree about where a node goes. The component holds a Map<id, RenderType> + the active one;
 // switching type swaps the active object, re-layouts, re-frames.
@@ -13,7 +13,7 @@
 // lanePlacement from a cached pure layout (mapGraphToSeqLayout) and suppresses the generic grouping (its lifelines ARE the
 // grouping). It also exposes seqModel()/seqLayout() — the actors + messages and the lane placement — for inspect()/tests.
 //
-// Wired the same way as FisheyeCamera / DataPipeline: each RenderType is constructed with accessor deps read at CALL
+// Wired the same way as PolymorphicCamera / DataPipeline: each RenderType is constructed with accessor deps read at CALL
 // time, so the component's per-repaint layout-target caches (ganttTargets) stay current behind a getter.
 
 import { nothing, type TemplateResult } from "lit";

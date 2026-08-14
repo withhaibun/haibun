@@ -1,4 +1,4 @@
-// The fisheye graph's node/link shapes and the minimal three.js object slices they carry. Shared by the view and the
+// The polymorphic graph's node/link shapes and the minimal three.js object slices they carry. Shared by the view and the
 // DataPipeline subsystem so both speak the same FGNode/FGLink without a circular import through the component.
 
 import type { TBurn } from "./polymorphic-highlight.js";

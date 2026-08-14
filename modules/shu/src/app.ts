@@ -258,7 +258,7 @@ const main = async (): Promise<void> => {
 	);
 
 	// Generic pane open: a view hands a fully-formed DesiredPane and it goes through the same PaneState path as
-	// COLUMN_OPEN. The fisheye uses this to open the windowed instances column (filter-prop) for an ontology Class/Property,
+	// COLUMN_OPEN. The polymorphic uses this to open the windowed instances column (filter-prop) for an ontology Class/Property,
 	// which COLUMN_OPEN (entity-only) can't express. Fail fast on a malformed request — no silent default pane.
 	appRoot.addEventListener(
 		SHU_EVENT.PANE_OPEN,

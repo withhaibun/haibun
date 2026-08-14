@@ -1,4 +1,4 @@
-/** Minimal ambient types for the slice of troika-three-text the fisheye uses (the package ships no .d.ts). Text is a
+/** Minimal ambient types for the slice of troika-three-text the polymorphic view uses (the package ships no .d.ts). Text is a
  *  THREE.Mesh subclass; only the properties this view sets/reads are declared, structurally (no dependency on three's types). */
 declare module "troika-three-text" {
 	export class Text {

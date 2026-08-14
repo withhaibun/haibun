@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FisheyeProfiler } from "./polymorphic-profiler.js";
+import { PolymorphicProfiler } from "./polymorphic-profiler.js";
 
 /** A monotonic fake clock so the stage attributions are exact, not wall-clock-dependent. */
 function withFakeClock(run: (tick: (ms: number) => void) => void): void {
@@ -15,10 +15,10 @@ function withFakeClock(run: (tick: (ms: number) => void) => void): void {
 	}
 }
 
-describe("FisheyeProfiler", () => {
+describe("PolymorphicProfiler", () => {
 	it("attributes each stage's elapsed time and accumulates across repaints since reset", () => {
 		withFakeClock((tick) => {
-			const p = new FisheyeProfiler();
+			const p = new PolymorphicProfiler();
 			// First repaint: 2ms compute, two node builds (3ms + 1ms), a 10ms graphData set.
 			p.compute(() => tick(2));
 			p.node(() => tick(3));
@@ -35,7 +35,7 @@ describe("FisheyeProfiler", () => {
 
 	it("reset zeroes the totals so a new window is measured in isolation", () => {
 		withFakeClock((tick) => {
-			const p = new FisheyeProfiler();
+			const p = new PolymorphicProfiler();
 			p.compute(() => tick(5));
 			p.set(3, () => tick(7));
 			p.reset();
@@ -48,7 +48,7 @@ describe("FisheyeProfiler", () => {
 	});
 
 	it("passes each wrapped stage's own return value through unchanged", () => {
-		const p = new FisheyeProfiler();
+		const p = new PolymorphicProfiler();
 		expect(p.compute(() => ({ nodes: [1, 2] }))).toEqual({ nodes: [1, 2] });
 		expect(p.node(() => "sprite")).toBe("sprite");
 	});

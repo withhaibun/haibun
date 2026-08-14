@@ -40,7 +40,7 @@ function fakeObject(
 	return o;
 }
 
-describe("fisheye pick target sync", () => {
+describe("polymorphic pick target sync", () => {
 	it("re-derives the matrix even when the target already sits at the node — the stale-matrix case that misses", () => {
 		const o = fakeObject({ x: 10, y: -44, z: 532 });
 		syncPickTarget(o, { x: 10, y: -44, z: 532, baseScale: RESTING }); // nothing to write: fields already match

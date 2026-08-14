@@ -53,7 +53,7 @@ export function viewHeadCss(host: string): string {
 /**
  * The one icon row. Every host gets the actions (⛶ fit, ⧉ copy — a graph never frames itself, and the copy source is
  * provided lazily so the graph serializes only when the person actually copies). A host with persisted layout choices
- * (the fisheye) also passes its state toggles and its settings groups; the class browser's layout is fixed, so it
+ * (the polymorphic view) also passes its state toggles and its settings groups; the class browser's layout is fixed, so it
  * passes `rotate` instead — its two head-on aims stay on its head, since it has no orientation row to hold them.
  *
  * Each host passes its own ids: both hosts can be on the page at once, and one shared id would make a query ambiguous.
@@ -69,7 +69,7 @@ function iconToggle(b: { id: string; glyph: string; label?: string; title: strin
 	</button>`;
 }
 
-/** The two head-on aims, wherever they are offered: on a host's head (the class browser) or inside the fisheye's
+/** The two head-on aims, wherever they are offered: on a host's head (the class browser) or inside the polymorphic view's
  *  orientation settings row. One definition, so the wording and the behaviour cannot drift between them. */
 export function rotateControls(o: { xyId: string; zId: string; onRotate: (aim: "xy" | "z") => void }): TemplateResult {
 	return html`<button type="button" data-testid=${o.xyId} title="rotate to face the layout plane" @click=${() => o.onRotate("xy")}>xy</button>

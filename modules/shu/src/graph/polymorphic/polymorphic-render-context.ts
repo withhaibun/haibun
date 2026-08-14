@@ -1,6 +1,6 @@
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-/** The one interface the fisheye subsystems read the live render world through. It bundles the late-bound three.js leaf
+/** The one interface the polymorphic view subsystems read the live render world through. It bundles the late-bound three.js leaf
  * refs (renderer/camera/canvas/container/scene, set at scene-load) AND the shared mutable graph-state collections
  * (nodeMap, currentLinks, linkMap) behind typed getters read at CALL time — so a ref set late (scene-load) or a
  * collection re-fed each repaint (the DataPipeline mutates nodeMap) is always current, never copied. The component

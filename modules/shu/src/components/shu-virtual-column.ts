@@ -3,7 +3,7 @@
  * with the custom glyph scrollbar. The one virtualization host every row-list column uses: give it a `source` and a
  * `renderRow`; it renders O(viewport) rows regardless of the total (tested to millions), pages data in on demand, and
  * paints the rail with position and annotation-marker glyphs. Light DOM, so the same element can also be layered over
- * the fisheye canvas as an overlay (the a-frame path); the WindowedSource it reads can equally drive a 3D rail.
+ * the polymorphic view canvas as an overlay (the a-frame path); the WindowedSource it reads can equally drive a 3D rail.
  *
  * It owns scrolling but not the data: `visibilityChanged` from the virtualizer sets the window and prefetches it; the
  * scrollbar emits `scroll-to-index` and the virtualizer scrolls. Live-follow is the shared `FollowController` (the one

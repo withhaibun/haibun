@@ -1,5 +1,5 @@
 /**
- * Render-stage timing for the fisheye. Attributes the synchronous main-thread cost of reaching a settled layout to
+ * Render-stage timing for the polymorphic view. Attributes the synchronous main-thread cost of reaching a settled layout to
  * three stages, accumulated since the last reset (one limit change triggers a refetch and several repaints; the totals
  * across them are the cost):
  *   - compute: toGraphData (time extraction + model build)
@@ -10,7 +10,7 @@
  */
 export type TRenderProfile = { nodes: number; repaints: number; computeMs: number; setMs: number; labelsMs: number };
 
-export class FisheyeProfiler {
+export class PolymorphicProfiler {
 	private nodes = 0;
 	private repaints = 0;
 	private computeMs = 0;

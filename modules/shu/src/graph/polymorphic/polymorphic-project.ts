@@ -4,7 +4,7 @@
  *
  * These are exact inverses, and they must stay so: the graph projects a node to aim at it and raycasts that same pixel
  * to identify it, so any drift between the two directions means a node cannot be picked where it is drawn. Kept pure —
- * rect arithmetic, no camera and no THREE — so the property is provable without a browser (fisheye-project.test.ts),
+ * rect arithmetic, no camera and no THREE — so the property is provable without a browser (polymorphic-project.test.ts),
  * leaving only the raycast itself to need one.
  */
 
