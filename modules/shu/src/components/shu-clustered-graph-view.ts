@@ -1,10 +1,10 @@
 /**
- * Shared base for every view that renders the clustered-quad snapshot as a graph (the reactive SVG
- * overview and any imperative canvas renderer a consumer mounts). It owns the one data pathway — fetch, live SSE merge, type filter, cluster +
- * neighborhood expansion, selection — so the two views can't drift. A subclass overrides only `onGraphConnected`
- * (mount its renderer), `onGraphData` (repaint), and `onGraphSelection` (highlight). Data lives on `this.state`:
- * `setState` repaints the overview reactively, while `onGraphData` drives an imperative renderer (e.g. a
- * WebGL canvas) that lit can't reconcile.
+ * Shared base for every view that hosts a <shu-graph-scene> over the clustered-quad snapshot: the graph view and the
+ * class browser today, and any other host of the same scene. It owns the one data pathway — fetch, live SSE merge,
+ * type filter, cluster + neighborhood expansion, selection — and the one scene pathway: the light DOM the scene needs,
+ * the model pushed to it, the cursor paint, and the scene outputs relayed as app events. A host declares what it is
+ * (`rootTestId`) and what slice of the data its scene shows (`buildSceneModel`), and overrides a hook only where it
+ * genuinely differs, so two hosts of one scene cannot drift apart.
  */
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
@@ -14,6 +14,8 @@ import { getRels } from "../rels-cache.js";
 import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, subscribeViewContext, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
+import "../graph/polymorphic/polymorphic-scene.js";
+import { type ShuGraphScene, GRAPH_SCENE_EVENT, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
 import { effectiveHiddenTypes } from "../graph-filter-projection.js";
 import { isSchemaType } from "../graph/ontology-projection.js";
 
@@ -91,17 +93,56 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		return false;
 	}
 
-	/** Awaited before the first load — a subclass mounts its renderer here (after its render root exists). */
-	protected onGraphConnected(): void | Promise<void> {
-		/* no-op default; subclasses override */
+	/** Light DOM: the scene resolves its A-Frame camera through the document, and its chrome positions against the host. */
+	createRenderRoot(): HTMLElement {
+		return this;
 	}
-	/** Repaint after a data change. The overview repaints reactively via setState, so it leaves this empty; an imperative canvas view redraws here. */
+
+	/** The test id a feature waits on before driving this host, declared by the host it belongs to. */
+	protected abstract get rootTestId(): string;
+
+	/** The slice of the snapshot this host's scene shows: the whole graph, or the part a scoped host is a view of. */
+	protected abstract buildSceneModel(): GraphSceneModel;
+
+	/** The scene is a child of the host, and on a host that hides it (a text tab) it is out of the DOM rather than
+	 *  hidden, so its render loop never runs where it is not shown. */
+	protected get scene(): ShuGraphScene | null {
+		return this.querySelector<ShuGraphScene>("shu-graph-scene");
+	}
+
+	protected get filterEl(): ShuGraphFilter | null {
+		return this.querySelector("shu-graph-filter");
+	}
+
+	/** Feed the scene the current data slice and refresh the filter's chip source (the filter is host-owned). */
+	protected pushSceneModel(): void {
+		this.filterEl?.setSource(this.knownClusters, this.cgState.quads);
+		this.scene?.setModel(this.buildSceneModel());
+	}
+
+	/** Awaited before the first load: the host's scene child exists by then, so the scene outputs every host relays the
+	 *  same way are wired here. A host adds its own outputs after awaiting this. */
+	protected async onGraphConnected(): Promise<void> {
+		await this.updateComplete; // renders the filter and creates the <shu-graph-scene> child
+		this.setAttribute("data-testid", this.rootTestId);
+		this.autoListen(this, GRAPH_SCENE_EVENT.NODE_CLICK, ((e: CustomEvent<{ label: string; subject: string; addToSelection: boolean }>) => {
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: e.detail, bubbles: true, composed: true }));
+		}) as EventListener);
+		this.autoListen(this, GRAPH_SCENE_EVENT.NODE_OPEN_PANE, ((e: CustomEvent) => {
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_OPEN, { detail: e.detail, bubbles: true, composed: true }));
+		}) as EventListener);
+		// Hovering a type chip previews its cluster: every other type dims while the pointer is on it.
+		this.autoListen(this, SHU_EVENT.GRAPH_TYPE_PREVIEW, ((e: CustomEvent<{ type: string | null }>) => {
+			this.scene?.setPreviewType(e.detail?.type ?? null);
+		}) as EventListener);
+	}
+	/** Repaint after a data change: the scene takes the new slice. */
 	protected onGraphData(): void {
-		/* no-op default; subclasses override */
+		this.pushSceneModel();
 	}
-	/** A selection (from any view) — the overview highlights it; the base also fetches its neighborhood (below). */
-	protected onGraphSelection(_subject: string | null, _label: string | null): void {
-		/* no-op default; subclasses override */
+	/** A selection (from any view) — the scene highlights it; the base also fetches its neighborhood (below). */
+	protected onGraphSelection(subject: string | null, _label: string | null): void {
+		this.scene?.setSelectedSubject(subject);
 	}
 
 	/** The time-visible slice of the snapshot: quads at/before the global time cursor (all of them with no cursor).
@@ -122,7 +163,8 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	 *  re-STYLE promptly — a cursor move re-places depth without changing the model, so it need not wait on the
 	 *  streamed-data coalesce (and must not stack a second debounce on top of this one). */
 	protected onTimeCursorPaint(): void {
-		this.onGraphData();
+		this.pushSceneModel();
+		this.scene?.setTimeCursorValue(this.timeCursor);
 	}
 	/** The cursor moves continuously during a scrub/play: coalesce to `timeSyncCoalesceMs` (the leading edge paints a
 	 *  single move at once; the trailing call lands the final position). */

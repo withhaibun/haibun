@@ -111,11 +111,6 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.buildSceneConfig();
 	}
 
-	/** Light DOM: A-Frame element scanners can't reach shadow DOM, and the scene chrome positions against this host. */
-	createRenderRoot(): HTMLElement {
-		return this;
-	}
-
 	/** External-data mode (`data-external` attribute): no RPC/SSE/selection wiring — the caller feeds quads via setQuads. */
 	protected override get usesExternalData(): boolean {
 		return this.hasAttribute("data-external");
@@ -127,17 +122,9 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.onGraphData();
 	}
 
-	private get scene(): ShuGraphScene | null {
-		return this.querySelector<ShuGraphScene>("shu-graph-scene");
-	}
-
 	/** The visible graph as JSON-LD — the scene's one representation, shared with the copy-graph button. */
 	summarizeForKihan(): TLinkedData | null {
 		return this.scene?.graphJsonLd() ?? null;
-	}
-
-	private get filterEl(): ShuGraphFilter | null {
-		return this.querySelector("shu-graph-filter");
 	}
 
 	/* Delegation surface — the tests read the scene's live objects off THIS element; forward each 1:1 (same object). */
@@ -367,8 +354,13 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		else f.removeAttribute("show-controls");
 	}
 
+	/** The view's own root, which every feature driving the graph waits on. */
+	protected override get rootTestId(): string {
+		return SHU_TEST_IDS.POLYMORPHIC_VIEW.ROOT;
+	}
+
 	protected override async onGraphConnected(): Promise<void> {
-		await this.updateComplete; // renders the control bar and creates the <shu-graph-scene> child
+		await super.onGraphConnected();
 		// Devtools handle for the layout query: `shuPolymorphic.inspect()` — the method name alone collides with the console's
 		// built-in inspect(). Last connected view wins; cleared on disconnect if still this instance.
 		(globalThis as { shuPolymorphic?: ShuPolymorphicGraphView }).shuPolymorphic = this;
@@ -376,16 +368,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 			const g = globalThis as { shuPolymorphic?: ShuPolymorphicGraphView };
 			if (g.shuPolymorphic === this) g.shuPolymorphic = undefined;
 		});
-		// The host is the view's test root; features wait on this id (declared in test-ids.ts) before driving the scene.
-		this.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.ROOT);
-
-		// Relay the scene's neutral outputs to the app's events, unchanged from when this element dispatched them directly.
-		this.autoListen(this, GRAPH_SCENE_EVENT.NODE_CLICK, ((e: CustomEvent<{ label: string; subject: string; addToSelection: boolean }>) => {
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: e.detail, bubbles: true, composed: true }));
-		}) as EventListener);
-		this.autoListen(this, GRAPH_SCENE_EVENT.NODE_OPEN_PANE, ((e: CustomEvent) => {
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_OPEN, { detail: e.detail, bubbles: true, composed: true }));
-		}) as EventListener);
+		// The scene outputs this view relays beyond the ones every host does.
 		this.autoListen(this, GRAPH_SCENE_EVENT.CLUSTER_EXPAND, ((e: CustomEvent<{ type: string }>) => {
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_CLUSTER_EXPAND, { detail: e.detail, bubbles: true, composed: true }));
 		}) as EventListener);
@@ -396,11 +379,6 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		// A view that needs its actors asks for them: shown through the filter, so the chips report what the graph shows
 		// and the reader can put them away again.
 		this.autoListen(this, GRAPH_SCENE_EVENT.SCOPE_REVEALED, ((e: CustomEvent<{ types: string[] }>) => this.filterEl?.setTypeVisibility(e.detail.types, true)) as EventListener);
-		// Hovering a type in the embedded filter dims every other type so the hovered one stands out.
-		this.autoListen(this, SHU_EVENT.GRAPH_TYPE_PREVIEW, ((e: CustomEvent<{ type: string | null }>) => {
-			this.scene?.setPreviewType(e.detail?.type ?? null);
-		}) as EventListener);
-
 		// Seed the persisted drag-pins BEFORE setConfig: setConfig emits a scene-changed carrying the scene's current
 		// pins, so if userPins were still empty that empty set would round-trip through onSceneChanged and clobber the
 		// just-restored state.pins (and persist the clobber). Seeding first makes that emit carry the restored pins.
@@ -427,7 +405,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	}
 
 	/** Assemble the scene's data slice from the base state (the time-filtered visibleQuads is the base's one time pathway). */
-	private buildSceneModel(): GraphSceneModel {
+	protected override buildSceneModel(): GraphSceneModel {
 		return {
 			quads: this.cgState.quads,
 			visibleQuads: this.visibleQuads,
@@ -462,12 +440,6 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		return this.sceneConfig;
 	}
 
-	/** Feed the scene the current data slice and refresh the filter's chip source (the filter is host-owned). */
-	private pushSceneModel(): void {
-		this.filterEl?.setSource(this.knownClusters, this.cgState.quads);
-		this.scene?.setModel(this.buildSceneModel());
-	}
-
 	protected override onGraphData(): void {
 		this.pushSceneModel();
 		this.offerNewScenes();
@@ -483,18 +455,10 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		if (live.some((name) => !this.sceneNames.includes(name))) void this.loadScenes();
 	}
 
-	protected override onGraphSelection(subject: string | null): void {
-		this.scene?.setSelectedSubject(subject);
-	}
-
 	/** A cursor move re-styles cheaply (depth re-place; positions pinned): paint promptly through the scene's cursor path,
 	 *  not the streamed-data window. The fresh time-filtered slice goes down first, then the prompt re-style fires. */
 	protected override get timeSyncCoalesceMs(): number {
 		return CURSOR_COALESCE_MS;
-	}
-	protected override onTimeCursorPaint(): void {
-		this.pushSceneModel();
-		this.scene?.setTimeCursorValue(this.timeCursor);
 	}
 
 	/** Persist each gantt-bar reschedule the scene emitted, refetch, then have the scene repaint at once. */
