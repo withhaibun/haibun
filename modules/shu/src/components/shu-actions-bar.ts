@@ -42,12 +42,10 @@ import {
 	setSelectValues,
 	whenSiteMetadataReady,
 } from "../rels-cache.js";
-import { getCookie, setCookie } from "../cookies.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 
-const HEIGHT_COOKIE = "shu-actions-height"; // the expanded overlay's height as a FRACTION of its container (0..1), so it stays proportionate across window sizes
 const MIN_PANEL_PX = 50; // a resize drag below this snaps the overlay back to the default proportion
 const DEFAULT_PROPORTION = 0.38; // expanded overlay height when the user hasn't dragged one
 const MIN_PROPORTION = 0.12;
@@ -172,7 +170,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	/** The mode toggle and the pinned-open latch are remembered across reloads (ShuElement.persistFields; singleton key). */
-	static persistFields = ["mode", "pinned"] as const;
+	static persistFields = ["mode", "pinned", "heightProportion"] as const;
 
 	constructor() {
 		super(ActionsBarSchema, { askExpanded: false, pinned: false, mode: "search" });
@@ -649,7 +647,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 * Cached so a render — which runs on every reactive update — does not re-scan document.cookie each time. */
 	private expandedProportion(): number {
 		if (this._proportion === null) {
-			const saved = Number.parseFloat(getCookie(HEIGHT_COOKIE));
+			const saved = this.state.heightProportion;
 			this._proportion = saved >= MIN_PROPORTION && saved <= MAX_PROPORTION ? saved : DEFAULT_PROPORTION;
 		}
 		return this._proportion;
@@ -1033,7 +1031,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._dragMoveCleanup = null;
 		// Remember the dragged size as a fraction of the container so it stays proportionate across window sizes.
 		this._proportion = clamp(this.offsetHeight / this._dragContainerH, MIN_PROPORTION, MAX_PROPORTION);
-		setCookie(HEIGHT_COOKIE, this._proportion.toFixed(3));
+		this.setState({ heightProportion: this._proportion });
 		this.applyHeight();
 	}
 

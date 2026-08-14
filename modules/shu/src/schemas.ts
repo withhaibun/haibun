@@ -185,4 +185,7 @@ export const ActionsBarSchema = z.object({
 	// search: browse/filter the graph (the default). step: run a haibun step. ask: LLM chat, present only when an
 	// ask-capable step is registered (the extension system), so the mode-select offers it conditionally.
 	mode: z.enum(["search", "ask", "step"]).default("search"),
+	// The expanded overlay's height as a FRACTION of its container (0..1), so a dragged size stays proportionate
+	// across window sizes. Persisted like every other remembered option, through persistFields.
+	heightProportion: z.number().gt(0).lt(1).default(0.38),
 });

@@ -6,13 +6,15 @@
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-export function getCookie(name: string): string {
+/** Internal: the JSON pair below is how a caller reads and writes a cookie. A component's remembered options go
+ *  through `persistFields`, never through here. */
+function getCookie(name: string): string {
 	if (typeof document === "undefined") return "";
 	const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
 	return match ? decodeURIComponent(match[1]) : "";
 }
 
-export function setCookie(name: string, value: string): void {
+function setCookie(name: string, value: string): void {
 	if (typeof document === "undefined") return;
 	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR}`;
 }
