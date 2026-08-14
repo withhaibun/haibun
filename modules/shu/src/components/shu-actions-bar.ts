@@ -13,6 +13,7 @@ import { AuthorityController } from "../controllers/index.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
+import { startPointerDrag } from "./pointer-drag.js";
 import { SHU_EVENT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION } from "../consts.js";
 import { isSchemaType } from "../graph/ontology-projection.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
@@ -715,7 +716,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// The resize grip sits at the TOP edge of the open overlay (the bar grows up from the bottom, so the top edge is
 		// where it meets the content) — drag it to resize. Only present when expanded; there is nothing to resize collapsed.
 		const resizeHandle = expanded
-			? html`<div class="resize-handle" data-testid=${`${this.testIdPrefix}resize-handle`} title="Drag to resize" @mousedown=${this.onResizeDown} @touchstart=${this.onResizeDown}></div>`
+			? html`<div class="resize-handle" data-testid=${`${this.testIdPrefix}resize-handle`} title="Drag to resize" @pointerdown=${this.onResizeDown}></div>`
 			: nothing;
 		return html`<div class=${classMap({ "actions-bar": true, collapsed: !expanded })}>
 				${resizeHandle}
@@ -1001,18 +1002,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	};
 
 	/** Start a resize drag from the top grip. The bar is bottom-anchored, so dragging the top edge UP enlarges it. */
-	private onResizeDown = (e: MouseEvent | TouchEvent): void => {
-		this._dragStartY = "touches" in e ? e.touches[0].clientY : e.clientY;
+	private onResizeDown = (e: PointerEvent): void => {
+		this._dragStartY = e.clientY;
 		this._dragStartH = this.offsetHeight;
 		this._dragContainerH = this.containerHeight();
 		this._dragMoveCleanup?.();
-		const ac = new AbortController();
-		const s = { signal: ac.signal };
-		document.addEventListener("mousemove", (ev) => this.onResizeMove((ev as MouseEvent).clientY), s);
-		document.addEventListener("mouseup", () => this.onResizeEnd(), s);
-		document.addEventListener("touchmove", (ev) => this.onResizeMove((ev as TouchEvent).touches[0].clientY), s);
-		document.addEventListener("touchend", () => this.onResizeEnd(), s);
-		this._dragMoveCleanup = () => ac.abort();
+		this._dragMoveCleanup = startPointerDrag(e, { onMove: (ev) => this.onResizeMove(ev.clientY), onEnd: () => this.onResizeEnd() });
 		e.preventDefault();
 	};
 

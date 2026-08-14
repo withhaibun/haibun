@@ -17,6 +17,7 @@ import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnPaneSchema } from "../schemas.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { readShowControlsCookie, writeShowControlsCookie } from "../show-controls.js";
+import { startPointerDrag } from "./pointer-drag.js";
 export { readShowControlsCookie };
 
 const ICON = { MIN: "―", MAX: "⤢", CONTROLS: "⚙", PIN: "📌", CLOSE: "×" } as const;
@@ -159,6 +160,8 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	protected override onDisconnected(): void {
 		this.removeEventListener("pointerdown", this.onPaneActivate, { capture: true });
+		this.#stopResize?.(); // a pane closed mid-drag would otherwise keep reading the pointer
+		this.#stopResize = null;
 	}
 
 	protected override onAttributeChanged(name: string): void {
@@ -319,45 +322,28 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return Math.max(MIN_RESIZED_WIDTH, strip.clientWidth - othersMin);
 	}
 
-	private onResizeMouseDown = (e: MouseEvent): void => {
+	/** Drag the edge to set this pane's width: the pointer's distance from where it was pressed, held between the
+	 *  narrowest a pane may be and the widest the strip can spare, and reported once the drag is over. */
+	/** A resize in flight, so a pane that goes away mid-drag takes its drag with it. */
+	#stopResize: (() => void) | null = null;
+
+	private onResizeDown = (e: PointerEvent): void => {
 		e.preventDefault();
 		e.stopPropagation();
 		this.setMaximized(false); // a drag says what width this pane should have, which is more specific than filling the strip
-		(e.currentTarget as HTMLElement).classList.add("dragging");
+		const handle = e.currentTarget as HTMLElement;
+		handle.classList.add("dragging");
 		const startX = e.clientX;
 		const startWidth = this.offsetWidth;
 		const maxWidth = this.#maxResizeWidth();
-		const move = (ev: MouseEvent) => this.setWidth(this.#asShare(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.clientX - startX)))));
-		const up = () => {
-			document.removeEventListener("mousemove", move);
-			document.removeEventListener("mouseup", up);
-			this.shadowRoot?.querySelector(`.${CLASS.RESIZE}`)?.classList.remove("dragging");
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_RESIZE, { detail: { width: this.state.width }, bubbles: true, composed: true }));
-		};
-		document.addEventListener("mousemove", move);
-		document.addEventListener("mouseup", up);
-	};
-
-	private onResizeTouchStart = (e: TouchEvent): void => {
-		e.preventDefault();
-		e.stopPropagation();
-		this.setMaximized(false);
-		(e.currentTarget as HTMLElement).classList.add("dragging");
-		const startX = e.touches[0].clientX;
-		const startWidth = this.offsetWidth;
-		const maxWidth = this.#maxResizeWidth();
-		const move = (ev: TouchEvent) => {
-			ev.preventDefault();
-			this.setWidth(this.#asShare(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.touches[0].clientX - startX)))));
-		};
-		const end = () => {
-			document.removeEventListener("touchmove", move);
-			document.removeEventListener("touchend", end);
-			this.shadowRoot?.querySelector(`.${CLASS.RESIZE}`)?.classList.remove("dragging");
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_RESIZE, { detail: { width: this.state.width }, bubbles: true, composed: true }));
-		};
-		document.addEventListener("touchmove", move, { passive: false });
-		document.addEventListener("touchend", end);
+		this.#stopResize = startPointerDrag(e, {
+			onMove: (ev) => this.setWidth(this.#asShare(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.clientX - startX))))),
+			onEnd: () => {
+				this.#stopResize = null;
+				handle.classList.remove("dragging");
+				this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_RESIZE, { detail: { width: this.state.width }, bubbles: true, composed: true }));
+			},
+		});
 	};
 
 	render(): TemplateResult {
@@ -384,7 +370,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			<div class=${CLASS.CONTENT}>
 				<slot @slotchange=${this.onSlotChange}></slot>
 			</div>
-			<div class=${CLASS.RESIZE} @mousedown=${this.onResizeMouseDown} @touchstart=${this.onResizeTouchStart}></div>
+			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>
 		`;
 	}
 }

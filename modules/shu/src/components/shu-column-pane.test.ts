@@ -218,15 +218,15 @@ describe("shu-column-pane buttons", () => {
 		pane.setMaximized(true);
 		expect(pane.style.flex.replace(/\s+/g, " ")).toMatch(/^(1|1 1 0%?)$/);
 		const handle = pane.shadowRoot?.querySelector(".resize-handle") as HTMLElement;
-		handle.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, composed: true, clientX: 100 }));
-		document.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 400 }));
-		document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+		handle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, clientX: 100 }));
+		document.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 400 }));
+		document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
 		expect(pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)).toBe(false);
 		expect((maximizeEvent as unknown as { maximized: boolean } | null)?.maximized).toBe(false); // the strip hears it, so the panes it hid come back
 		expect(pane.style.flex).toBe("0 0 30.000%");
 	});
 
-	it("resize handle drag updates inline flex through document mousemove and emits column-resize on mouseup", () => {
+	it("resize handle drag updates inline flex as the pointer moves and reports the width when it is released", () => {
 		// jsdom does not lay out, so offsetWidth starts at 0 and the drag's 160px is the whole width; the stated strip
 		// width is what those pixels become a share of.
 		stripWidth(pane.parentElement as HTMLElement, 1000);
@@ -236,10 +236,10 @@ describe("shu-column-pane buttons", () => {
 		pane.addEventListener(SHU_EVENT.COLUMN_RESIZE, (e) => {
 			resized = (e as CustomEvent).detail;
 		});
-		handle.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, composed: true, clientX: 100 }));
-		document.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 260 }));
+		handle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, clientX: 100 }));
+		document.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 260 }));
 		expect(pane.style.flex).toBe("0 0 16.000%"); // 160px dragged, as a share of the 1000px strip
-		document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+		document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
 		expect(resized).not.toBeNull();
 		expect(typeof (resized as unknown as { width: number }).width).toBe("number");
 	});
