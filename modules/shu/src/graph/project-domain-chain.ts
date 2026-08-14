@@ -17,6 +17,7 @@
  *   - capability-gated  →  step requires an unmet capability
  */
 import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
+import { AFFORDANCE_PARAM, DEEP_LINK_PREFIX } from "../consts.js";
 import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
 import type { TGraph, TGraphEdge, TGraphNode } from "./types.js";
@@ -143,7 +144,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 			kind: isSource ? "default" : findingToKind(goalFindings.get(d)),
 		};
 		if (!isSource) {
-			node.link = { href: `?aff-goal=${encodeURIComponent(d)}` };
+			node.link = { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(d)}` };
 			const producer = producersByDomain.get(d);
 			if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
 		}
@@ -177,10 +178,10 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		for (const [composite, ranges] of Object.entries(a.composites)) {
 			for (const [fieldName, fieldDomain] of Object.entries(ranges)) {
 				const fieldId = fieldNodeId(composite, fieldName);
-				nodes.push({ id: fieldId, label: `${fieldName} : ${fieldDomain}`, kind: "field", link: { href: `?aff-goal=${encodeURIComponent(fieldDomain)}` } });
+				nodes.push({ id: fieldId, label: `${fieldName} : ${fieldDomain}`, kind: "field", link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` } });
 				if (!domains.has(fieldDomain)) {
 					const node: TGraphNode = { id: fieldDomain, label: fieldDomain, kind: findingToKind(goalFindings.get(fieldDomain)) };
-					node.link = { href: `?aff-goal=${encodeURIComponent(fieldDomain)}` };
+					node.link = { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` };
 					const producer = producersByDomain.get(fieldDomain);
 					if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
 					nodes.push(node);
@@ -204,7 +205,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 				id,
 				label: `waypoint: ${w.outcome}`,
 				kind,
-				link: { href: `?aff-waypoint=${encodeURIComponent(w.outcome)}` },
+				link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.WAYPOINT}=${encodeURIComponent(w.outcome)}` },
 				invokes: { stepperName, stepName },
 			});
 			if (w.resolvesDomain && domains.has(w.resolvesDomain)) {

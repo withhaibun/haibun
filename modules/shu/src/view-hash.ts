@@ -59,6 +59,7 @@ function onHashArrival(): void {
 	const arrived = location.hash;
 	_storedHash = canonicalizeArrival(arrived, _storedHash);
 	if (_storedHash !== arrived) replaceLocationHash(_storedHash);
+	announce();
 }
 
 if (typeof location !== "undefined") {
@@ -66,6 +67,22 @@ if (typeof location !== "undefined") {
 	_storedHash = canonicalizeArrival(location.hash, location.hash);
 	if (_storedHash !== location.hash) replaceLocationHash(_storedHash);
 	if (typeof addEventListener !== "undefined") addEventListener("hashchange", onHashArrival);
+}
+
+/**
+ * What a view subscribes to when it renders from the hash: the address arriving with one, and a view writing one
+ * through history. A window `hashchange` covers only the first, and an offline snapshot raises neither, so a page
+ * saved for reading offline would otherwise never hear its own deep links.
+ */
+const subscribers = new Set<() => void>();
+
+export function onHashChanged(listener: () => void): () => void {
+	subscribers.add(listener);
+	return () => subscribers.delete(listener);
+}
+
+function announce(): void {
+	for (const listener of subscribers) listener();
 }
 
 export function getHash(): string {
@@ -77,6 +94,28 @@ export function pushHash(newHash: string): void {
 	if (isOffline()) return;
 	if (typeof location === "undefined" || typeof history === "undefined") return;
 	if (location.hash !== newHash) replaceLocationHash(newHash);
+}
+
+/** One param's value from the live hash, or "" when it carries none. */
+export function hashParam(name: string): string {
+	return hashParams(getHash()).get(name) ?? "";
+}
+
+/**
+ * Merge params into the live hash, leaving every other one as it stands: an empty value removes its param. The
+ * subscribers hear it, since the hash is written through history, which raises no event of its own, and a view
+ * reading the same param has to hear that it moved.
+ */
+export function mergeHashParams(values: Record<string, string>): void {
+	const params = hashParams(getHash());
+	for (const [name, value] of Object.entries(values)) {
+		if (value) params.set(name, value);
+		else params.delete(name);
+	}
+	const next = `#?${params.toString()}`;
+	if (next === getHash()) return;
+	pushHash(next);
+	announce();
 }
 
 /** The page's own address without the hash — what an embedded body's `<base>` re-roots against.

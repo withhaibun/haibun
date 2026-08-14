@@ -8,14 +8,18 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
+import * as ViewHash from "../view-hash.js";
+import { AFFORDANCE_PARAM } from "../consts.js";
+
+const deepLink = (name: string): string => ViewHash.hashParam(name);
+const clearDeepLink = (): void => ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
 
 describe("shu-domain-chain-view", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
-		// Clear deep-link params left over from previous tests so each one starts clean.
-		const url = new URL(window.location.href);
-		for (const key of ["aff-goal", "aff-waypoint"]) url.searchParams.delete(key);
-		window.history.replaceState(window.history.state, "", url.toString());
+		// Clear the deep link left over from previous tests so each one starts clean: it lives in the view hash, which
+		// is module state rather than the document's.
+		clearDeepLink();
 		if (!customElements.get("shu-domain-chain-view")) customElements.define("shu-domain-chain-view", ShuDomainChainView);
 		if (!customElements.get("shu-spinner")) {
 			class FakeSpinner extends HTMLElement {}
@@ -83,9 +87,9 @@ describe("shu-domain-chain-view", () => {
 	});
 
 	it("forwards graph-node-click from the embedded shu-graph to routeNodeClick so a deep-link node opens the affordances panel", async () => {
-		// Regression: clicking a blue (reachable) node in the chain must open the affordances
-		// panel deep-linked to that goal. The flow is: shu-graph dispatches graph-node-click on
-		// itself → chain view's listener catches → routeNodeClick pushes URL + dispatches popstate.
+		// Regression: clicking a blue (reachable) node in the chain must open the affordances panel deep-linked to that
+		// goal. The flow is: shu-graph dispatches graph-node-click on itself, the chain view's listener catches it, and
+		// routeNodeClick writes the deep link into the view state, which the panel reads.
 		if (!customElements.get("shu-graph-filter")) {
 			class FakeFilter extends HTMLElement {
 				setAxes(_axes: unknown): void {
@@ -109,9 +113,7 @@ describe("shu-domain-chain-view", () => {
 			}
 			customElements.define("shu-graph", FakeGraph);
 		}
-		const url = new URL(window.location.href);
-		for (const k of ["aff-goal", "aff-waypoint"]) url.searchParams.delete(k);
-		window.history.replaceState(window.history.state, "", url.toString());
+		clearDeepLink();
 
 		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView & {
 			applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean;
@@ -124,24 +126,23 @@ describe("shu-domain-chain-view", () => {
 		});
 		await view.updateComplete;
 
-		let popstateCount = 0;
-		const onPop = () => popstateCount++;
-		window.addEventListener("popstate", onPop);
+		let announced = 0;
+		const heard = ViewHash.onHashChanged(() => announced++);
 
 		const graphEl = view.shadowRoot?.querySelector("shu-graph");
 		expect(graphEl).toBeTruthy();
 		// Simulate the shu-graph component dispatching a node click for the "vc" domain.
 		graphEl?.dispatchEvent(
-			new CustomEvent("graph-node-click", { detail: { nodeId: "vc", node: { id: "vc", kind: "reachable", link: { href: "?aff-goal=vc" } } }, bubbles: true, composed: true }),
+			new CustomEvent("graph-node-click", { detail: { nodeId: "vc", node: { id: "vc", kind: "reachable", link: { href: "#?aff-goal=vc" } } }, bubbles: true, composed: true }),
 		);
-		expect(new URL(window.location.href).searchParams.get("aff-goal")).toBe("vc");
-		expect(popstateCount).toBeGreaterThanOrEqual(1);
-		window.removeEventListener("popstate", onPop);
+		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
+		expect(announced, "and every view reading the same deep link hears that it moved").toBeGreaterThanOrEqual(1);
+		heard();
 	});
 
-	it("routes a node click with link.href to URL update + popstate; never dispatches STEP_CHOOSE (every click opens a view)", () => {
+	it("routes a node click with link.href to the deep link it names; never dispatches STEP_CHOOSE (every click opens a view)", () => {
 		// Click router contract: every click opens a pane.
-		//   - node.link.href "?aff-goal=X" → updates URL search params + dispatches popstate (affordances panel opens deep-linked).
+		//   - node.link.href "#?aff-goal=X" → writes that deep link into the view state (the affordances panel opens on it).
 		//   - node.invokes alone (no link.href) → no-op; the projection is expected to set link.href on every domain node.
 		if (!customElements.get("shu-graph-filter")) {
 			class FakeFilter extends HTMLElement {
@@ -157,9 +158,8 @@ describe("shu-domain-chain-view", () => {
 		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView;
 		document.body.appendChild(view);
 
-		let popstateCount = 0;
-		const onPop = () => popstateCount++;
-		window.addEventListener("popstate", onPop);
+		let announced = 0;
+		const heard = ViewHash.onHashChanged(() => announced++);
 
 		let stepChosen: string | undefined;
 		const onChoose = (e: Event) => {
@@ -167,21 +167,20 @@ describe("shu-domain-chain-view", () => {
 		};
 		document.addEventListener("step-choose", onChoose);
 
-		// link.href branch → URL update + popstate, never STEP_CHOOSE
-		const beforeSearch = new URL(window.location.href).searchParams.get("aff-goal");
-		expect(beforeSearch).toBeNull();
-		view.routeNodeClick({ link: { href: "?aff-goal=vc" } });
-		expect(new URL(window.location.href).searchParams.get("aff-goal")).toBe("vc");
-		expect(popstateCount).toBeGreaterThanOrEqual(1);
+		// The link.href branch writes the deep link and announces it, and never chooses a step
+		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("");
+		view.routeNodeClick({ link: { href: "#?aff-goal=vc" } });
+		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
+		expect(announced).toBeGreaterThanOrEqual(1);
 		expect(stepChosen).toBeUndefined();
 
-		// No link.href and not fact-instance → no STEP_CHOOSE, no URL change. The chain
+		// No link.href and not fact-instance → no STEP_CHOOSE, no view-state change. The chain
 		// projection always sets link.href on domain nodes, so a node reaching this branch
 		// is a projection bug; routeNodeClick must not silently dispatch a step.
 		view.routeNodeClick({});
 		expect(stepChosen).toBeUndefined();
 
-		window.removeEventListener("popstate", onPop);
+		heard();
 		document.removeEventListener("step-choose", onChoose);
 	});
 
@@ -272,33 +271,25 @@ describe("shu-domain-chain-view", () => {
 			expect(view.getAffordances()?.satisfiedDomains).toEqual(["d0", "d1"]);
 		});
 
-		it("syncs selectedNodeId from ?aff-goal=<domain> on popstate without going through setState", () => {
+		it("syncs selectedNodeId from the goal deep link without going through setState", () => {
 			// Selection is a UI-only field outside StateSchema — toggling it must not
 			// trigger a full re-render (relayout shifts the graph).
 			const view = mount();
 			view.applySseSnapshot(mkSnap(2));
-			const url = new URL(window.location.href);
-			url.searchParams.set("aff-goal", "d1");
-			window.history.replaceState(window.history.state, "", url.toString());
-			window.dispatchEvent(new PopStateEvent("popstate"));
+			ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "d1" });
 			expect((view as unknown as { selectedNodeId: string }).selectedNodeId).toBe("d1");
-			url.searchParams.delete("aff-goal");
-			window.history.replaceState(window.history.state, "", url.toString());
+			clearDeepLink();
 		});
 
-		it("syncs selectedNodeId from ?aff-waypoint=<outcome> as the waypoint-prefixed node id", () => {
+		it("syncs selectedNodeId from the waypoint deep link as the waypoint-prefixed node id", () => {
 			const view = mount();
 			view.applySseSnapshot(mkSnap(2));
-			const url = new URL(window.location.href);
-			url.searchParams.set("aff-waypoint", "Logged in");
-			window.history.replaceState(window.history.state, "", url.toString());
-			window.dispatchEvent(new PopStateEvent("popstate"));
+			ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.WAYPOINT]: "Logged in" });
 			expect((view as unknown as { selectedNodeId: string }).selectedNodeId).toBe("waypoint:Logged in");
-			url.searchParams.delete("aff-waypoint");
-			window.history.replaceState(window.history.state, "", url.toString());
+			clearDeepLink();
 		});
 
-		it("routes a fact-instance node click to step-detail (the producing seqPath) without pushing ?aff-goal", () => {
+		it("routes a fact-instance node click to step-detail (the producing seqPath) without writing a goal deep link", () => {
 			// Each fact-instance's id is `fact:<seqPath>`. Clicking it opens the step-detail
 			// pane for that seqPath onto the producing step. It must NOT deep-link into the
 			// affordances panel.
@@ -306,12 +297,12 @@ describe("shu-domain-chain-view", () => {
 			let popstateCount = 0;
 			const onPop = () => popstateCount++;
 			window.addEventListener("popstate", onPop);
-			const initialAffGoal = new URL(window.location.href).searchParams.get("aff-goal");
+			const initialAffGoal = deepLink(AFFORDANCE_PARAM.GOAL);
 
 			view.routeNodeClick({ id: "fact:0.1.3.2", kind: "fact-instance" });
 
 			expect(popstateCount).toBe(0);
-			expect(new URL(window.location.href).searchParams.get("aff-goal")).toBe(initialAffGoal);
+			expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe(initialAffGoal);
 			window.removeEventListener("popstate", onPop);
 		});
 

@@ -24,7 +24,8 @@ import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
 import { filterGraph, graphAxes } from "../graph/filter-graph.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX } from "../consts.js";
+import * as ViewHash from "../view-hash.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -136,13 +137,14 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		} catch {
 			// No EventStream installed (early jsdom test, standalone). Ignore.
 		}
-		// React to URL changes so the highlight (`?aff-goal=` / `?aff-waypoint=`) follows
-		// the address bar. Selection lives outside the state schema, so update the
-		// shu-graph's selectedNodeId directly — no re-layout, no graph movement.
-		this.autoListen(window, "popstate", () => {
-			this.syncSelectionFromUrl();
-			this.applySelectionToGraph();
-		});
+		// React to view-state changes so the highlight follows the address. Selection lives outside the state schema, so
+		// update the shu-graph's selectedNodeId directly: no re-layout, no graph movement.
+		this.autoTeardown(
+			ViewHash.onHashChanged(() => {
+				this.syncSelectionFromUrl();
+				this.applySelectionToGraph();
+			}),
+		);
 	}
 
 	/** View-open contract — pane-opener assigns producer products on mount. */
@@ -299,28 +301,16 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		if (graphEl) graphEl.selectedNodeId = this.selectedNodeId;
 	}
 
-	/** Map the URL's `aff-goal` / `aff-waypoint` params to a node id and update selection. */
+	/** Map the deep-link params to a node id and update selection. */
 	private syncSelectionFromUrl(): void {
-		const url = new URL(window.location.href);
-		const goal = url.searchParams.get("aff-goal");
-		const waypoint = url.searchParams.get("aff-waypoint");
+		const goal = ViewHash.hashParam(AFFORDANCE_PARAM.GOAL);
+		const waypoint = ViewHash.hashParam(AFFORDANCE_PARAM.WAYPOINT);
 		this.selectedNodeId = goal ? goal : waypoint ? waypointNodeId(waypoint) : "";
 	}
 
-	/** Drop the deep-link params so deselecting in the chain clears the affordance URL state too. */
+	/** Drop the deep-link params so deselecting in the chain clears the affordance view state too. */
 	private clearAffordanceUrl(): void {
-		const url = new URL(window.location.href);
-		let changed = false;
-		for (const key of ["aff-goal", "aff-waypoint"]) {
-			if (url.searchParams.has(key)) {
-				url.searchParams.delete(key);
-				changed = true;
-			}
-		}
-		if (changed) {
-			window.history.pushState(window.history.state, "", url.toString());
-			window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
-		}
+		ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
 	}
 
 	/**
@@ -369,12 +359,9 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			return;
 		}
 		const href = node.link?.href;
-		if (typeof href === "string" && href.startsWith("?")) {
-			const url = new URL(window.location.href);
-			const incoming = new URLSearchParams(href.slice(1));
-			for (const [k, v] of incoming) url.searchParams.set(k, v);
-			window.history.pushState(window.history.state, "", url.toString());
-			window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
+		if (typeof href === "string" && href.startsWith(DEEP_LINK_PREFIX)) {
+			const incoming = ViewHash.hashParams(href);
+			ViewHash.mergeHashParams(Object.fromEntries(incoming));
 			PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "Affordances" });
 			console.log(`[chain] routeNodeClick: deep-linked ${href}`);
 			return;
