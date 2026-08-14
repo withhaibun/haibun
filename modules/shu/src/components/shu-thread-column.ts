@@ -10,7 +10,13 @@ import { SHU_EVENT } from "../consts.js";
 import { idOf, persistedTypeOf } from "../util.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../pane-fetch.js";
-import type { ShuGraphView } from "./shu-graph-view.js";
+import { getUiPresenting } from "../rels-cache.js";
+import { ensureUiComponentLoaded } from "../external-components.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
+
+/** What this column needs of a graph presenter: take a snapshot of quads and paint it. The site declares WHICH
+ *  component that is (`ui.presents: "graph"`), so the column names no particular view. */
+type GraphPresenter = HTMLElement & { setQuads(quads: TQuad[]): void };
 import { COMMENT_LABEL, LinkRelations, isReplyEdge } from "@haibun/core/lib/resources.js";
 
 const ThreadColumnSchema = z.object({
@@ -91,7 +97,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	];
 
 	private thread: ThreadVertex[] = [];
-	private graphViewEl: ShuGraphView | null = null;
+	private graphViewEl: GraphPresenter | null = null;
 
 	constructor() {
 		super(ThreadColumnSchema, { label: "", individualId: "", mode: "tree", depth: 2, loading: false });
@@ -157,16 +163,31 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		}
 		const container = this.shadowRoot?.querySelector(".graph-container") as HTMLElement | null;
 		if (!container) return;
-		if (!container.firstElementChild) {
-			const gv = document.createElement("shu-graph-view") as ShuGraphView;
-			gv.setAttribute("data-classifier", "thread");
-			gv.setAttribute("data-source", "external");
-			if (this.showControls) gv.setAttribute("data-show-controls", "");
-			gv.style.height = "100%";
-			container.appendChild(gv);
-			this.graphViewEl = gv;
-		}
+		const tag = ShuThreadColumn.graphPresenter();
+		if (!tag) return;
+		if (!container.firstElementChild) void this.mountPresenter(container, tag);
 		this.graphViewEl?.setQuads(this.threadToQuads());
+	}
+
+	/** The component the site declares as its graph, or undefined where a deployment declares none. */
+	private static graphPresenter(): string | undefined {
+		const component = getUiPresenting("graph")?.ui.component;
+		return typeof component === "string" ? component : undefined;
+	}
+
+	/** Mount the declared presenter in external-data mode: this column feeds it the thread, and it wires nothing of
+	 *  its own. Its module is fetched through the shared loader, exactly as a pane mounts a site component. */
+	private async mountPresenter(container: HTMLElement, tag: string): Promise<void> {
+		if (!customElements.get(tag)) await ensureUiComponentLoaded(tag);
+		if (container.firstElementChild) return; // a second update mounted it while the module loaded
+		const view = document.createElement(tag) as GraphPresenter;
+		view.setAttribute("data-external", "");
+		view.setAttribute("data-classifier", "thread");
+		if (this.showControls) view.setAttribute("data-show-controls", "");
+		view.style.height = "100%";
+		container.appendChild(view);
+		this.graphViewEl = view;
+		view.setQuads(this.threadToQuads());
 	}
 
 	render(): TemplateResult {
@@ -177,7 +198,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		return html`
 			<div class="toolbar">
 				<button class=${`mode-btn${mode === "tree" ? " active" : ""}`} @click=${this.onModeClick("tree")}>Tree</button>
-				<button class=${`mode-btn${mode === "graph" ? " active" : ""}`} @click=${this.onModeClick("graph")}>Graph</button>
+				${ShuThreadColumn.graphPresenter() ? html`<button class=${`mode-btn${mode === "graph" ? " active" : ""}`} @click=${this.onModeClick("graph")}>Graph</button>` : ""}
 				<label>depth <input type="number" .value=${String(depth)} min="1" max="99" style="width:40px" @change=${this.onDepthChange}></label>
 				<span class="count">${this.thread.length} items</span>
 			</div>
