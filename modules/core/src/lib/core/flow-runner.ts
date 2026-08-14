@@ -29,7 +29,9 @@ export class FlowRunner {
 		statement: string | TStepInput,
 		options: { args?: Record<string, string>; intent?: ExecutionIntent; parentStep?: TFeatureStep; seqPath?: TSeqPath } = {},
 	): Promise<TActionResult> {
-		const { intent = { mode: "authoritative" } } = options;
+		// A statement run under a speculative step is part of what that step is trying, not a claim of the run's own, so
+		// speculation is inherited: a caller that means otherwise passes an intent of its own.
+		const intent = options.intent ?? options.parentStep?.intent ?? { mode: "authoritative" };
 
 		const stmtText = typeof statement === "string" ? statement : statement.in;
 
@@ -116,7 +118,8 @@ export class FlowRunner {
 	}
 
 	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent; parentStep?: TFeatureStep; targetHostId?: number } = {}): Promise<TActionResult> {
-		const { intent = { mode: "authoritative" }, parentStep, targetHostId } = options;
+		const { parentStep, targetHostId } = options;
+		const intent = options.intent ?? parentStep?.intent ?? { mode: "authoritative" };
 		let lastResult: TActionResult = { ok: true };
 
 		for (const step of steps) {
