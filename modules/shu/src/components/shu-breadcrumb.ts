@@ -50,9 +50,9 @@ export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	}
 
 	protected override onConnected(): void {
-		// mousedown/touchstart inside a crumb must not bubble — the parent column-pane uses them to start a drag-resize, which would defeat the crumb click.
-		this.autoListen(this, "mousedown", this.stopProp);
-		this.autoListen(this, "touchstart", this.stopProp);
+		// A press inside a crumb must not bubble on: the pane around it starts a drag from one, which would defeat the
+		// crumb's click. The pane still activates, since it watches for the press on the way down rather than up.
+		this.autoListen(this, "pointerdown", this.stopProp);
 	}
 
 	private stopProp = (e: Event): void => {

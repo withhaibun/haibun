@@ -15,6 +15,7 @@ import { property } from "lit/decorators.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
+import { startPointerDrag } from "./pointer-drag.js";
 import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, formatCount, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
 
 const EmptySchema = z.object({});
@@ -80,6 +81,8 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	protected override onDisconnected(): void {
 		this.#ro?.disconnect();
 		this.#ro = null;
+		this.#stopDrag?.(); // a rail closed mid-drag would otherwise keep reading the pointer
+		this.#stopDrag = null;
 	}
 
 	protected updated(): void {
@@ -134,6 +137,8 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	}
 
 	#dragId: number | null = null;
+	/** The thumb drag in flight, so a rail that goes away mid-drag takes it with it. */
+	#stopDrag: (() => void) | null = null;
 
 	#onRailDown = (e: PointerEvent): void => {
 		if (this.#dragId !== null) return; // a thumb drag is in flight
@@ -143,26 +148,14 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	#onThumbDown = (e: PointerEvent): void => {
 		if (this.#dragId !== null) return; // a drag is already in flight; a second finger must not hijack it (mirrors #onRailDown)
 		e.stopPropagation();
-		const thumb = e.currentTarget as HTMLElement;
-		thumb.setPointerCapture(e.pointerId);
 		this.#dragId = e.pointerId;
-		thumb.addEventListener("pointermove", this.#onThumbMove);
-		thumb.addEventListener("pointerup", this.#onThumbUp);
-		thumb.addEventListener("pointercancel", this.#onThumbUp);
-	};
-
-	#onThumbMove = (e: PointerEvent): void => {
-		if (this.#dragId !== e.pointerId) return;
-		this.#emit(this.#pointerToIndex(e.clientY));
-	};
-
-	#onThumbUp = (e: PointerEvent): void => {
-		const thumb = e.currentTarget as HTMLElement;
-		thumb.releasePointerCapture(e.pointerId);
-		thumb.removeEventListener("pointermove", this.#onThumbMove);
-		thumb.removeEventListener("pointerup", this.#onThumbUp);
-		thumb.removeEventListener("pointercancel", this.#onThumbUp);
-		this.#dragId = null;
+		this.#stopDrag = startPointerDrag(e, {
+			onMove: (ev) => this.#emit(this.#pointerToIndex(ev.clientY)),
+			onEnd: () => {
+				this.#stopDrag = null;
+				this.#dragId = null;
+			},
+		});
 	};
 
 	#onMarker = (e: Event, index: number): void => {
