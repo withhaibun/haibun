@@ -26,14 +26,11 @@ import type { TContextPattern } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 
-
-
 const TOOL_LIMIT_DEFAULT = 5;
 const TOOL_LIMIT_MIN = 0;
 const TOOL_LIMIT_MAX = 99;
 /** Cookie holding the active chat session's root seqPath. Turns are persisted as threaded Comment pairs, so on connect
  * (after a collapse/expand or a full page reload) the chat re-hydrates from the graph via loadChatSession — surviving reloads, unlike a per-page DOM snapshot. */
-
 
 type TChatSession = { sessionSeqPath: string; label: string; generatedAtTime: string };
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
@@ -353,7 +350,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const clamped = Number.isFinite(raw) ? Math.max(TOOL_LIMIT_MIN, Math.min(TOOL_LIMIT_MAX, raw)) : TOOL_LIMIT_DEFAULT;
 		this.setState({ toolLimit: clamped });
 		el.value = String(clamped);
-
 	};
 	private onChatInput = (e: Event): void => {
 		const el = e.target as HTMLTextAreaElement;

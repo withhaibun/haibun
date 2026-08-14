@@ -735,7 +735,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					: this._openCorner === "status"
 						? html`<p class="status-full">${this._statusMessage}<shu-copy-button label="copy" title="copy this message" .source=${this._statusMessage}></shu-copy-button></p>`
 						: this._openCorner === "access"
-						? html`<shu-permissions
+							? html`<shu-permissions
 								data-testid=${`${this.testIdPrefix}permissions`}
 								.level=${this._contextAccessLevel}
 								.levels=${AccessQueryLevelSchema.options}
@@ -743,7 +743,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 								.awaitingRef=${this._awaitingRef}
 								.onLevelChange=${(level: string) => this.setAccessLevel(level)}
 							></shu-permissions>`
-						: nothing;
+							: nothing;
 		const testid = this._openCorner ? `${this.testIdPrefix}${this._openCorner}-popover` : nothing;
 		// stopPropagation: clicks must not bubble to the summary strip's expand handler. MANUAL popover deliberately:
 		// these panels are used alongside the page (scrub the timeline, then click a node to see it at that time), so

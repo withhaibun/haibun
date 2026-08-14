@@ -2,7 +2,7 @@
  * ShuStepper — serves the @haibun/shu hypermedia SPA.
  * Any application that loads this stepper gets a UI driven entirely by stepper concerns.
  */
-import { readFileSync } from "fs";
+import { readFileSync, statSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { gzipSync } from "node:zlib";
@@ -189,6 +189,19 @@ export function sessionActions(declared: string | undefined): string[] {
 		.filter((action) => action.length > 0);
 }
 
+
+// The graph view's bundled IIFE, under build/assets/ so tsc's per-file ESM emit cannot clobber it. Anchored at the
+// package root so one path resolves whether this runs from `src/` or `build/`, and cached by mtime so a rebuilt
+// bundle is served on the next request.
+export const POLYMORPHIC_VIEW_JS = "/assets/shu-polymorphic-graph-view.js";
+const POLYMORPHIC_BUNDLE_PATH = join(__dirname, "..", "build", "assets", "shu-polymorphic-graph-view.js");
+let polymorphicBundleCache: { mtimeMs: number; content: string } | undefined;
+const loadPolymorphicBundle = (): { content: string; etag: string } => {
+	const mtimeMs = statSync(POLYMORPHIC_BUNDLE_PATH).mtimeMs;
+	if (polymorphicBundleCache?.mtimeMs !== mtimeMs) polymorphicBundleCache = { mtimeMs, content: readFileSync(POLYMORPHIC_BUNDLE_PATH, "utf-8") };
+	return { content: polymorphicBundleCache.content, etag: `"polymorphic-${mtimeMs}"` };
+};
+
 function validateMountPath(path: string): string | undefined {
 	if (!path) return "path is required";
 	if (!path.startsWith("/")) return 'path must start with "/"';
@@ -197,6 +210,8 @@ function validateMountPath(path: string): string | undefined {
 }
 
 export default class ShuStepper extends AStepper implements IHasOptions {
+	/** One route per host for the view bundle, however many apps are mounted. */
+	private viewBundleServed = false;
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
@@ -217,12 +232,47 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	}
 
 	cycles = {
+		// A feature gets a fresh web server, so the route this stepper adds to the previous one is gone with it: the flag
+		// that stops a duplicate route within a feature must not outlive that feature, or the next one serves no bundle.
+		startFeature: (): void => {
+			this.viewBundleServed = false;
+		},
 		getConcerns: () => ({
 			domains: [
 				{ selectors: [DOMAIN_SHU_VIEW_ID], schema: ShuViewIdSchema, description: "Shu view id" },
 				// Built-in shu views — registering them as domains makes them discoverable
 				// via `show views` (the picker iterates domains with `ui.component`).
 				// External steppers register their own view domains the same way.
+				{
+					selectors: ["shu-polymorphic-graph-view"],
+					schema: z.object({}),
+					description: "The polymorphic graph view: one graph as a force cloud, a layered flow, a gantt or a sequence",
+					ui: {
+						component: "shu-polymorphic-graph-view",
+						js: POLYMORPHIC_VIEW_JS,
+						jsContent: loadPolymorphicBundle().content,
+						summary: "Graph view",
+						pinnedOnly: true,
+						// The site's graph presenter: a view embedding "the graph" finds this through ui.presents rather than
+						// naming a component.
+						presents: "graph",
+					},
+				},
+				{
+					selectors: ["shu-class-browser"],
+					schema: z.object({}),
+					description: "Schema (class/property) browser over the live graph",
+					ui: {
+						component: "shu-class-browser",
+						// Defined in the SAME bundle as the graph view — one served asset registers both.
+						js: POLYMORPHIC_VIEW_JS,
+						jsContent: loadPolymorphicBundle().content,
+						summary: "Class browser",
+						pinnedOnly: true,
+						// The site's schema presenter: the type column embeds this for its schema view.
+						presents: "schema",
+					},
+				},
 				{ selectors: ["shu-graph-view"], schema: z.object({}), description: "Quad-store graph", ui: { component: "shu-graph-view" } },
 				{ selectors: ["shu-monitor-column"], schema: z.object({}), description: "Execution monitor and event log", ui: { component: "shu-monitor-column" } },
 				{ selectors: ["shu-document-column"], schema: z.object({}), description: "Document/artifact viewer", ui: { component: "shu-document-column" } },
@@ -280,6 +330,19 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 					if (!ctx) byHost.set(ns, (ctx = getJsonLdContext(domains, ns)));
 					return c.json(ctx);
 				};
+				// The graph view's bundle, served once per host: `no-cache` revalidates, so an unchanged bundle answers 304
+				// and a rebuilt one gets a fresh ETag and a full body.
+				if (!this.viewBundleServed) {
+					this.viewBundleServed = true;
+					webserver.addRoute("get", POLYMORPHIC_VIEW_JS, { description: "The polymorphic graph view and the class browser" }, (c: Context) => {
+						const { content, etag } = loadPolymorphicBundle();
+						c.header("ETag", etag);
+						c.header("Cache-Control", "no-cache");
+						if (c.req.header("if-none-match") === etag) return c.body(null, 304);
+						c.header("Content-Type", "application/javascript");
+						return c.body(content);
+					});
+				}
 				webserver.addRoute("get", "/.well-known/haibun-context.jsonld", { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
 				webserver.addRoute("get", "/ns/context.jsonld", { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
 				return actionOK();
@@ -317,6 +380,13 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				}
 				return actionOKWithProducts({ values });
 			},
+		},
+		showPolymorphicGraphView: {
+			gwta: "show polymorphic graph view",
+			// Opened through the same affordance path as every other view: the products domain is the view's own, and the
+			// step-hypermedia projection injects what mounts it from the registered declaration.
+			productsDomain: "shu-polymorphic-graph-view",
+			action: () => actionOKWithProducts({}),
 		},
 		closeView: {
 			gwta: `close view {id: ${DOMAIN_SHU_VIEW_ID}}`,

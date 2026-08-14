@@ -127,7 +127,7 @@ describe("the scene every deployment has", () => {
 		setSiteMetadata(site);
 		const [scene] = builtInScenes();
 		expect(scene.id).toBe(NETWORK_SCENE);
-		expect(scene.state["shu-fisheye-graph-view"], "an exchange reads as a sequence").toEqual({ viewType: "sequence" });
+		expect(scene.state["shu-polymorphic-graph-view"], "an exchange reads as a sequence").toEqual({ viewType: "sequence" });
 		expect(scene.state["shu-graph-filter"], "the exchange shown and everything else hidden, so the scene is the exchange rather than the graph with it added").toEqual({
 			overrides: { Endpoint: true, HttpRequest: true, Principal: true, SeqPath: true, Comment: false, Email: false, Body: false },
 		});

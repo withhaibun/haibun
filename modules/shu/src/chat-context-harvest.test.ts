@@ -54,7 +54,7 @@ describe("harvestChatViewLd — the active pane's linked data plus the pane mani
 
 	it("finds a view nested inside a wrapper, and takes only the top-most summarizer of a composite view", () => {
 		const inner = view("shu-graph-scene", { "@id": "scene" });
-		const host = view("shu-fisheye-graph-view", { "@id": "graph" });
+		const host = view("shu-polymorphic-graph-view", { "@id": "graph" });
 		host.appendChild(inner);
 		const wrapper = document.createElement("div");
 		wrapper.appendChild(host);

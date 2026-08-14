@@ -58,7 +58,7 @@ import { presentationForType } from "../type-presentation.js";
 import type { NodeMark } from "../graph-scene.js";
 
 /**
- * shu-graph-scene — the A-Frame / ForceGraphVR rendering surface, extracted from shu-fisheye-graph-view so the scene is
+ * shu-graph-scene — the A-Frame / ForceGraphVR rendering surface, extracted from shu-polymorphic-graph-view so the scene is
  * reusable independent of the data feed and the control bar. It owns the WebGL scene, camera, render loop, node objects,
  * focus/highlight, drag, enclosures, and the gantt/sequence axes, and is driven entirely by inputs pushed from a host:
  *
@@ -70,7 +70,7 @@ import type { NodeMark } from "../graph-scene.js";
  *   scopeToType(type)       — an embedded schema view: fit around one type's node
  *
  * It emits (bubbles, composed) the constants in GRAPH_SCENE_EVENT. The host (a data-feeding wrapper such as
- * shu-fisheye-graph-view, or an embedding column) owns fetch/SSE/selection publication and the controls, and forwards
+ * shu-polymorphic-graph-view, or an embedding column) owns fetch/SSE/selection publication and the controls, and forwards
  * those events to the app.
  *
  * Light DOM (createRenderRoot returns this): A-Frame resolves its scene/camera through document.querySelector, which a

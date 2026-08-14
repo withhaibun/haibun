@@ -163,9 +163,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			${
 				this.state.showPrincipals
 					? html`<ul>
-						${principals.map(
-							(p) => html`<li><shu-ref kind="entity" linkTarget=${JSON.stringify({ persistedAs: PRINCIPAL_LABEL, id: p.id })} text=${p.id}></shu-ref></li>`,
-						)}
+						${principals.map((p) => html`<li><shu-ref kind="entity" linkTarget=${JSON.stringify({ persistedAs: PRINCIPAL_LABEL, id: p.id })} text=${p.id}></shu-ref></li>`)}
 					</ul>`
 					: ""
 			}

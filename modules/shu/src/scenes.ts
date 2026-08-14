@@ -91,7 +91,7 @@ export function builtInScenes(): TScene[] {
 	// by default visible beside it, and the scene reads as the whole graph with the exchange added to it.
 	const shown = new Set(types);
 	const overrides = Object.fromEntries(getTypes().map((type) => [type, shown.has(type)]));
-	return [{ id: NETWORK_SCENE, state: { "shu-fisheye-graph-view": { viewType: "sequence" }, "shu-graph-filter": { overrides } } }];
+	return [{ id: NETWORK_SCENE, state: { "shu-polymorphic-graph-view": { viewType: "sequence" }, "shu-graph-filter": { overrides } } }];
 }
 
 /** The scenes saved here, newest first, for a reader to pick from. */
