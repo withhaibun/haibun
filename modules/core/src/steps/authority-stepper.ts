@@ -6,39 +6,39 @@ import { formatSeqPath } from "../lib/seq-path.js";
 import type { TWorld } from "../lib/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
-import { ZCAP_AUTHORITY, ZCAP_TOKEN_KEY, ZcapAuthority } from "../lib/zcap-authority.js";
-import type { IZcapAuthority, TZcapGrant, TZcapInvocation } from "../lib/zcap-types.js";
+import { AUTHORITY_KEY, SESSION_TOKEN_KEY, SessionAuthority } from "../lib/session-authority.js";
+import type { IAuthority, TSessionGrant, TAuthorityEvidence } from "../lib/authority-types.js";
 import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { currentPrincipal, withPrincipal } from "../lib/principal.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
 import { PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
 
-const ZCAP_TOKEN_DOMAIN = "zcap-token";
-const ZCAP_ACTION_DOMAIN = "zcap-action";
+const SESSION_TOKEN_DOMAIN = "session-token";
+const AUTHORITY_ACTION_DOMAIN = "authority-action";
 
 /** A subkey `s` delegated from site principal `P` is the DID `${P}:${s}` (e.g. did:site:0 + alice → did:site:0:alice). */
 function subkeyDid(sitePrincipal: string, subkey: string): string {
 	return `${sitePrincipal}:${subkey}`;
 }
 
-const zcapTokenSchema = z
+const sessionTokenSchema = z
 	.string()
 	.min(1, "token is required")
 	.regex(/^\S+$/, "token must not contain whitespace")
-	.describe("Opaque bearer token used to look up delegated ZCAP capabilities.");
+	.describe("The token an in-process session presents, which the authority resolves to what that session may do.");
 
-const zcapActionSchema = z
+const authorityActionSchema = z
 	.string()
 	.min(1, "action is required")
 	.refine((value) => value === "*" || value.includes(":") || value.includes("."), "action must be * or namespaced like Stepper:scope or type.action")
 	.regex(/^\S+$/, "action must not contain whitespace")
 	.describe("Allowed action label such as GraphStepper:read, comment.grant, or Namespace:*.");
 
-const zcapGrantSchema = z.object({
+const sessionGrantSchema = z.object({
 	id: z.string(),
 	token: z.string().optional(),
-	allowedAction: z.array(zcapActionSchema),
+	allowedAction: z.array(authorityActionSchema),
 	revoked: z.boolean(),
 	created: z.number().optional(),
 	expires: z.number().optional(),
@@ -49,14 +49,14 @@ const zcapGrantSchema = z.object({
 /** What holding authority over this run's own authority means: revoking what it granted. */
 export const AUTHORITY_CAPABILITIES = { revoke: "Authority:revoke" } as const;
 
-const zcapGrantIssuedSchema = z.object({
-	token: zcapTokenSchema,
-	allowedAction: z.array(zcapActionSchema),
+const sessionGrantIssuedSchema = z.object({
+	token: sessionTokenSchema,
+	allowedAction: z.array(authorityActionSchema),
 	revoked: z.boolean(),
 });
 
-const zcapGrantRevokedSchema = z.object({
-	token: zcapTokenSchema,
+const sessionGrantRevokedSchema = z.object({
+	token: sessionTokenSchema,
 	revoked: z.number().int().nonnegative(),
 });
 
@@ -65,19 +65,19 @@ const zcapGrantRevokedSchema = z.object({
  * the id, which is the token: a bearer token is the credential itself, so a listing carrying one hands it to whoever
  * reads the listing.
  */
-export const zcapGrantShownSchema = z.object({
+export const sessionGrantShownSchema = z.object({
 	handle: z.string().describe("A name for this grant that is not its credential — what a reader revokes it by"),
 	seqPath: z.string().optional().describe("The step it was granted at, which a reader can open"),
 	controller: z.string().optional().describe("The principal the grant is held by, where it names one"),
-	allowedAction: z.array(zcapActionSchema).describe("What the holder may do"),
+	allowedAction: z.array(authorityActionSchema).describe("What the holder may do"),
 	revoked: z.boolean().describe("Whether it has been revoked"),
 	created: z.number().optional().describe("When it was issued, epoch ms"),
 	expires: z.number().optional().describe("When it stops holding, epoch ms; absent means it holds while this run does"),
 	note: z.string().optional().describe("What it was issued for"),
 });
-export type TZcapGrantShown = z.infer<typeof zcapGrantShownSchema>;
+export type TSessionGrantShown = z.infer<typeof sessionGrantShownSchema>;
 
-export const zcapGrantsListSchema = z.object({ grants: z.array(zcapGrantShownSchema) });
+export const sessionGrantsListSchema = z.object({ grants: z.array(sessionGrantShownSchema) });
 
 /** A grant's name, derived from its token and standing in for it: enough to say which grant is meant, and nothing that
  *  could be presented as one. A digest, so it is the same name every time the same grant is read. */
@@ -86,7 +86,7 @@ export function grantHandle(named: string): string {
 }
 
 /** What may be said about a grant: everything but the credential itself. */
-export function shownGrant(grant: { id: string; token?: string; controller?: string; allowedAction: string[]; revoked: boolean; created?: number; expires?: number; note?: string; seqPath?: string }): TZcapGrantShown {
+export function shownGrant(grant: { id: string; token?: string; controller?: string; allowedAction: string[]; revoked: boolean; created?: number; expires?: number; note?: string; seqPath?: string }): TSessionGrantShown {
 	return {
 		// Named by its token where it has one, else by its id: a grant that arrives signed carries no bearer token, and
 		// is still a grant a reader can see and revoke.
@@ -103,33 +103,33 @@ export function shownGrant(grant: { id: string; token?: string; controller?: str
 
 const siteNamedSchema = z.object({ site: z.string() });
 
-/** The inline signed-capability document presented to `as subkey holding capability …`. Must carry a controller and a Data Integrity proof; verification is delegated to the registered IZcapVerifier. */
+/** The inline signed-capability document presented to `as subkey holding capability …`. Must carry a controller and a Data Integrity proof; verification is delegated to the registered IAuthorityVerifier. */
 const signedCapabilitySchema = z.looseObject({
 	id: z.string().min(1, "capability id is required"),
 	controller: z.string().min(1, "capability controller is required"),
 	invocationTarget: z.string().min(1).optional(),
-	allowedAction: z.union([zcapActionSchema, z.array(zcapActionSchema)]).optional(),
+	allowedAction: z.union([authorityActionSchema, z.array(authorityActionSchema)]).optional(),
 	parentCapability: z.string().optional(),
 	proof: z.looseObject({}),
 });
 
-const zcapDomains: TDomainDefinition[] = [
+const authorityDomains: TDomainDefinition[] = [
 	{
-		selectors: [ZCAP_TOKEN_DOMAIN],
-		schema: zcapTokenSchema,
-		description: "Opaque bearer token used by the ZCAP authority.",
+		selectors: [SESSION_TOKEN_DOMAIN],
+		schema: sessionTokenSchema,
+		description: "The token an in-process session presents to act as itself.",
 	},
 	{
-		selectors: [ZCAP_ACTION_DOMAIN],
-		schema: zcapActionSchema,
+		selectors: [AUTHORITY_ACTION_DOMAIN],
+		schema: authorityActionSchema,
 		description: "Namespaced action label authorized by a capability.",
 	},
 ];
 
 class AuthorityStepper extends AStepper implements IHasCycles {
-	description = "Manage ZCAP bearer grants for protected step dispatch";
+	description = "Grant and withdraw what an in-process session may do";
 
-	private authority?: IZcapAuthority;
+	private authority?: IAuthority;
 	private steppers: AStepper[] = [];
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
@@ -139,29 +139,29 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
-			domains: zcapDomains,
+			domains: authorityDomains,
 		}),
 		startFeature: () => {
-			this.authority = new ZcapAuthority();
-			(this.getWorld().runtime.keys ??= {})[ZCAP_AUTHORITY] = this.authority;
+			this.authority = new SessionAuthority();
+			(this.getWorld().runtime.keys ??= {})[AUTHORITY_KEY] = this.authority;
 		},
 		endFeature: (endFeature?: TEndFeature) => {
 			if (!endFeature?.shouldClose) return Promise.resolve();
 			this.authority?.clear();
-			delete this.getWorld().runtime.keys?.[ZCAP_AUTHORITY];
+			delete this.getWorld().runtime.keys?.[AUTHORITY_KEY];
 			this.authority = undefined;
 			return Promise.resolve();
 		},
 	};
 
 	steps = {
-		issueZcapBearerGrant: {
-			gwta: `issue zcap bearer grant for token {token: ${ZCAP_TOKEN_DOMAIN}} with action {action: ${ZCAP_ACTION_DOMAIN}}`,
-			productsSchema: zcapGrantIssuedSchema,
+		issueSessionGrant: {
+			gwta: `issue session grant for token {token: ${SESSION_TOKEN_DOMAIN}} with action {action: ${AUTHORITY_ACTION_DOMAIN}}`,
+			productsSchema: sessionGrantIssuedSchema,
 			action: ({ token, action }: { token: string; action: string }, featureStep: TFeatureStep) => {
 				// The controller is the principal issuing the grant — this instance's own — so an act authorized by the
 				// token is attributable to an agent. A step name is how it was issued, which the note carries.
-				const grant = this.getAuthority().issueBearerGrant({
+				const grant = this.getAuthority().issueSessionGrant({
 					token,
 					allowedAction: [action],
 					controller: activeSitePrincipal(this.getWorld()),
@@ -175,44 +175,44 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				});
 			},
 		},
-		revokeZcapBearerGrant: {
-			gwta: `revoke zcap bearer grant for token {token: ${ZCAP_TOKEN_DOMAIN}}`,
-			productsSchema: zcapGrantRevokedSchema,
+		revokeSessionGrant: {
+			gwta: `revoke session grant for token {token: ${SESSION_TOKEN_DOMAIN}}`,
+			productsSchema: sessionGrantRevokedSchema,
 			action: ({ token }: { token: string }) => {
-				const revoked = this.getAuthority().revokeBearerGrant(token);
+				const revoked = this.getAuthority().revokeSessionGrant(token);
 				if (revoked === 0) {
-					return actionNotOK(`No ZCAP bearer grant found for token ${token}`);
+					return actionNotOK(`No session grant found for token ${token}`);
 				}
 				return actionOKWithProducts({ token, revoked });
 			},
 		},
-		revokeZcapGrantByHandle: {
-			gwta: "revoke the zcap grant named {handle: string}",
+		revokeSessionGrantByHandle: {
+			gwta: "revoke the session grant named {handle: string}",
 			capability: AUTHORITY_CAPABILITIES.revoke,
 			description:
 				"Revoke a grant by the name a listing gives it, so it can be revoked by whoever can see it without their ever holding the credential itself. Revoking is immediate: the next call under that grant is refused.",
 			productsSchema: z.object({ handle: z.string(), revoked: z.number().int().nonnegative() }),
 			action: ({ handle }: { handle: string }) => {
 				const authority = this.getAuthority();
-				const named = authority.listBearerGrants().filter((grant) => grantHandle(grant.token ?? grant.id) === handle);
+				const named = authority.listSessionGrants().filter((grant) => grantHandle(grant.token ?? grant.id) === handle);
 				if (named.length === 0) return Promise.resolve(actionNotOK(`no grant named ${handle}`));
-				const revoked = named.reduce((count, grant) => count + (grant.token ? authority.revokeBearerGrant(grant.token) : 0), 0);
+				const revoked = named.reduce((count, grant) => count + (grant.token ? authority.revokeSessionGrant(grant.token) : 0), 0);
 				return Promise.resolve(actionOKWithProducts({ handle, revoked }));
 			},
 		},
-		showZcapBearerGrants: {
-			exact: "show zcap bearer grants",
+		showSessionGrants: {
+			exact: "show session grants",
 			description:
 				"Who holds authority here and what it allows them: each grant's controller, its allowed actions, whether it still stands, and what it was issued for. The tokens themselves are never reported — a bearer token is the credential, so anything that reports one hands it over.",
-			productsSchema: zcapGrantsListSchema,
+			productsSchema: sessionGrantsListSchema,
 			action: () => {
-				const grants = this.getAuthority().listBearerGrants().map(shownGrant);
+				const grants = this.getAuthority().listSessionGrants().map(shownGrant);
 				this.getWorld().eventLogger.info(JSON.stringify(grants, null, 2));
 				return actionOKWithProducts({ grants });
 			},
 		},
 		issueSubkey: {
-			gwta: `issue subkey {subkey: ${ZCAP_TOKEN_DOMAIN}} delegated from site key with action {action: ${ZCAP_ACTION_DOMAIN}}`,
+			gwta: `issue subkey {subkey: ${SESSION_TOKEN_DOMAIN}} delegated from site key with action {action: ${AUTHORITY_ACTION_DOMAIN}}`,
 			action: async ({ subkey, action }: { subkey: string; action: string }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
 				const sitePrincipal = currentPrincipal(world);
@@ -220,7 +220,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 					return actionNotOK("no site principal established — cannot delegate a subkey");
 				}
 				const controller = subkeyDid(sitePrincipal, subkey);
-				const grant = this.getAuthority().issueBearerGrant({ token: subkey, allowedAction: [action], controller, note: featureStep.in });
+				const grant = this.getAuthority().issueSessionGrant({ token: subkey, allowedAction: [action], controller, note: featureStep.in });
 				// Persist the delegation as a Principal individual (public material only; never a private key).
 				// Best-effort: persists only once a store carrying the Principal label exists; the runtime grant is independent.
 				const now = new Date().toISOString();
@@ -255,11 +255,11 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			},
 		},
 		asSubkey: {
-			gwta: `as subkey {subkey: ${ZCAP_TOKEN_DOMAIN}}, {what: statement}`,
+			gwta: `as subkey {subkey: ${SESSION_TOKEN_DOMAIN}}, {what: statement}`,
 			action: ({ subkey, what }: { subkey: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => this.runUnderToken(subkey, what, featureStep),
 		},
 		withToken: {
-			gwta: `with token {token: ${ZCAP_TOKEN_DOMAIN}}, {what: statement}`,
+			gwta: `with token {token: ${SESSION_TOKEN_DOMAIN}}, {what: statement}`,
 			action: ({ token, what }: { token: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => this.runUnderToken(token, what, featureStep),
 		},
 		asSubkeyHoldingCapability: {
@@ -270,7 +270,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	};
 
 	/**
-	 * Run `what` as the controller of a *signed* capability, after verifying it through the registered IZcapVerifier.
+	 * Run `what` as the controller of a *signed* capability, after verifying it through the registered IAuthorityVerifier.
 	 * Mirrors the bearer `as subkey` path, but the principal is proven by signature rather than asserted by token.
 	 * haibun-core stays crypto-free: verification is delegated; on `ok` the capability's controller becomes the principal.
 	 */
@@ -281,20 +281,16 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		}
 		const capability = parsed.data;
 		const actions = capability.allowedAction === undefined ? ["*"] : Array.isArray(capability.allowedAction) ? capability.allowedAction : [capability.allowedAction];
-		const expectedAction = actions[0] ?? "*";
-		const invocation: TZcapInvocation = {
-			capability: capability as unknown as TZcapGrant,
-			capabilityAction: expectedAction,
-			invocationTarget: target,
-			proof: capability.proof,
-		};
-		const verified = await this.getAuthority().verifySigned(invocation, { action: expectedAction, target, rootCapability: capability.parentCapability });
+		const action = actions[0] ?? "*";
+		// The document goes to whoever knows how to read it, with what the caller says it lets them do. Nothing here
+		// reads inside it: the framework holds no key and knows no specification.
+		const verified = await this.getAuthority().verifyEvidence({ document: capability as Record<string, unknown>, action, target });
 		if (!verified.ok) {
-			return actionNotOK(`as subkey holding capability: signed capability verification failed — ${verified.error ?? "unknown error"}`);
+			return actionNotOK(`as subkey holding capability: the evidence was refused — ${verified.error ?? "no reason given"}`);
 		}
 		const runner = new FlowRunner(this.getWorld(), this.steppers);
 		const run = () => runner.runSteps(what, { parentStep: featureStep });
-		return await withPrincipal(this.getWorld(), capability.controller, run);
+		return await withPrincipal(this.getWorld(), verified.principal ?? capability.controller, run);
 	}
 
 	/** Run `what` with the bearer `token` active and the principal set to the token's controller (so authored writes are attributed to it). */
@@ -302,22 +298,22 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		const world = this.getWorld();
 		const principal = this.getAuthority().resolveController(token) ?? currentPrincipal(world);
 		const keys = (world.runtime.keys ??= {});
-		const previous = keys[ZCAP_TOKEN_KEY];
-		keys[ZCAP_TOKEN_KEY] = token;
+		const previous = keys[SESSION_TOKEN_KEY];
+		keys[SESSION_TOKEN_KEY] = token;
 		try {
 			const runner = new FlowRunner(world, this.steppers);
 			const run = () => runner.runSteps(what, { parentStep: featureStep });
 			return await (principal ? withPrincipal(world, principal, run) : run());
 		} finally {
 			if (previous !== undefined) {
-				keys[ZCAP_TOKEN_KEY] = previous;
+				keys[SESSION_TOKEN_KEY] = previous;
 			} else {
-				delete keys[ZCAP_TOKEN_KEY];
+				delete keys[SESSION_TOKEN_KEY];
 			}
 		}
 	}
 
-	private getAuthority(): IZcapAuthority {
+	private getAuthority(): IAuthority {
 		if (!this.authority) {
 			throw new Error("AuthorityStepper authority not initialized");
 		}

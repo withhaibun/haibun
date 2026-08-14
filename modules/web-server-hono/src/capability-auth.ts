@@ -1,5 +1,5 @@
 import type { TRuntime } from "@haibun/core/lib/world.js";
-import { getZcapAuthority } from "@haibun/core/lib/zcap-authority.js";
+import { getAuthority } from "@haibun/core/lib/session-authority.js";
 
 export type TCapabilityAuthConfig = {
 	accessToken?: string;
@@ -25,7 +25,7 @@ export function getGrantedCapabilityFromHeaders(
 	if (accessToken && accessCapability && token === accessToken) {
 		granted.add(accessCapability);
 	}
-	for (const action of getZcapAuthority(runtime)?.resolveBearer(token) ?? []) {
+	for (const action of getAuthority(runtime)?.resolveSession(token) ?? []) {
 		granted.add(action);
 	}
 	return granted.size > 0 ? Array.from(granted) : undefined;

@@ -340,17 +340,17 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method
 		expect(result.ok).toBe(true);
 	});
 
-	it("authorizes protected RPC steps through ZCAP bearer grants and revokes them cleanly", async () => {
+	it("authorizes protected RPC steps through session grants and revokes them cleanly", async () => {
 		const port = 8240;
 		const feature = {
-			path: "/features/zcap-protected-rpc.feature",
+			path: "/features/protected-rpc.feature",
 			content: `
 enable rpc
-webserver is listening for "rpc-zcap-step"
-issue zcap bearer grant for token "zcap-token" with action "PingStepper:protected"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "zcap-token"
-revoke zcap bearer grant for token "zcap-token"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied when bearer token is "zcap-token"
+webserver is listening for "rpc-session-step"
+issue session grant for token "session-token" with action "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "session-token"
+revoke session grant for token "session-token"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied when bearer token is "session-token"
 `,
 		};
 		const result = await passWithDefaults([feature], [AuthorityStepper, ...steppers], makeOptions(port));
