@@ -18,25 +18,25 @@ describe("canonicalizeArrival", () => {
 	});
 
 	it("merges open= panes into the base, keeping its state and activating the linked view", () => {
-		const p = hashParams(canonicalizeArrival("#?open=shu-graph-view", base));
+		const p = hashParams(canonicalizeArrival("#?open=shu-polymorphic-graph-view", base));
 		expect(p.get("label")).toBe("File");
 		expect(p.get("sort")).toBe("dateModified");
-		expect(p.getAll("col")).toEqual(["shu-monitor-column", "shu-graph-view"]);
-		expect(p.get("active")).toBe("shu-graph-view");
+		expect(p.getAll("col")).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);
+		expect(p.get("active")).toBe("shu-polymorphic-graph-view");
 		expect(p.get("open")).toBeNull();
 	});
 
 	it("several open= entries all become col= entries; the last one is active, its flag suffix stripped", () => {
-		const p = hashParams(canonicalizeArrival("#?open=shu-graph-view&open=shu-document-column~min", ""));
-		expect(p.getAll("col")).toEqual(["shu-graph-view", "shu-document-column~min"]);
+		const p = hashParams(canonicalizeArrival("#?open=shu-polymorphic-graph-view&open=shu-document-column~min", ""));
+		expect(p.getAll("col")).toEqual(["shu-polymorphic-graph-view", "shu-document-column~min"]);
 		expect(p.get("active")).toBe("shu-document-column");
 	});
 
 	it("at boot the arrival is its own merge base: open= converts without duplicating itself", () => {
-		const boot = "#?label=File&open=shu-graph-view";
+		const boot = "#?label=File&open=shu-polymorphic-graph-view";
 		const p = hashParams(canonicalizeArrival(boot, boot));
 		expect(p.get("label")).toBe("File");
-		expect(p.getAll("col")).toEqual(["shu-graph-view"]);
+		expect(p.getAll("col")).toEqual(["shu-polymorphic-graph-view"]);
 		expect(p.get("open")).toBeNull();
 	});
 });

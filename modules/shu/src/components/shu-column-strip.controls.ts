@@ -1,5 +1,5 @@
 /**
- * Assertions for the column browser (the Miller-column strip), kept beside the element (the shu-graph-view.controls
+ * Assertions for the column browser (the Miller-column strip), kept beside the element (the the polymorphic view's controls
  * pattern). WHICH column is focused is the browser's concern — deliberately NOT on any graph/view stepper. Reads the
  * live [active] pane from the page; the page-providing stepper (web-playwright) is found by duck-typing getPage, so
  * shu keeps no runtime dependency on it (mirrors how src/test/step-ui.ts injects it).

@@ -83,11 +83,12 @@ export const features: TKirejiExport = {
 		"show monitor",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
-		scenario({ scenario: "Open the graph view (mermaid) and confirm comments render" }),
+		scenario({ scenario: "Open the graph view and confirm the seeded comments render" }),
 
-		"The graph view renders the quad store as a Mermaid flowchart, with each named-graph as a subgraph. Our seeded comments live in the Comment named-graph; the graph view should pick them up via RPC and render the comment nodes.",
-		"show graph view",
-		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
+		"The graph view draws whatever types the store holds, placing each individual as a node in a scene the reader can turn. The comments seeded above are the only records here, so the view reaching its scene proves it asked the store over the wire, read the answer and drew it. The view arrives as its own bundle, fetched from the running server, so this also proves the server serves it.",
+		"show polymorphic graph view",
+		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
+		waitFor({ target: IDS.POLYMORPHIC_VIEW.SCENE }),
 
 		scenario({ scenario: "Browse the seeded comments in the column browser" }),
 
@@ -135,7 +136,7 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		"After hash-restore, the monitor and graph-view should also have come back. The timeline opens from the actions-bar's current-time control; click it again after reload to confirm the scrubber survives.",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
+		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
 		click({ target: IDS.APP.TIME_OFFSET }),
 		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
 		"Close the timeline popover again so it does not float over later scenarios' controls.",
@@ -159,11 +160,11 @@ export const features: TKirejiExport = {
 		"in shu-column-pane:has(shu-domain-chain-view), click pane-controls-toggle",
 		waitFor({ target: IDS.DOMAIN_CHAIN.CONTROLS }),
 
-		scenario({ scenario: "View settings reveals every graph-view control as one group" }),
+		scenario({ scenario: "The graph view's layout settings open as one group" }),
 
-		"Same invariant for the graph view: toolbar (zoom + layout + copy) and the predicate / axis filters all toggle together off a single gear click.",
-		"in shu-column-pane:has(shu-graph-view), click pane-controls-toggle",
-		waitFor({ target: IDS.GRAPH_VIEW.CONTROLS }),
+		"The graph view keeps its options in named groups, each opened by its own head icon. Opening the layout group brings up every control that decides how the graph is placed, so a reader reaches the view type, the grouping and the flattening in one move rather than hunting for separate toolbars.",
+		click({ target: IDS.POLYMORPHIC_VIEW.SETTINGS.layout }),
+		waitFor({ target: IDS.POLYMORPHIC_VIEW.VIEW_TYPE }),
 
 		scenario({ scenario: "Write the standalone HTML report mid-feature" }),
 

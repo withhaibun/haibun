@@ -1,5 +1,5 @@
 /**
- * Control steps for the scroll rail, kept beside the element (the shu-graph-view.controls pattern). The rail is shared:
+ * Control steps for the scroll rail, kept beside the element (the polymorphic view's controls pattern). The rail is shared:
  * every virtualized column hosts one (shu-virtual-column) and so does the annotated body, in its own pixel space. These
  * steps therefore take the HOST as an argument and find its rail, so one step covers every view that has one rather
  * than each view growing its own copy.

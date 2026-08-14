@@ -1,12 +1,9 @@
 import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
-import { INSTRUMENTATION_GRAPHS } from "@haibun/core/lib/instrumentation-graphs.js";
 import { dePolite } from "@haibun/core/lib/util/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-import ShuGraphViewControls from "../components/shu-graph-view.controls.js";
 
-const { setGraphVisibility } = withAction(new ShuGraphViewControls());
 const { setAs } = withAction(new VariablesStepper());
 
 /**
@@ -31,12 +28,6 @@ export function serviceHost(defaultPort: string): string {
 
 /** Declare one id under the `page-test-id` domain so the variable resolver maps the bare name to that test id. */
 const registerTestIdStep = (id: string): TKirejiStep => setAs({ what: id, domain: "page-test-id", value: `"${id}"` });
-
-// Hide the engine's instrumentation graphs so a feature's view shows only its domain data. Args are
-// quoted because an unquoted value would be resolved as a variable name rather than a literal.
-export function hideInstrumentationGraphs(): TKirejiStep {
-	return setGraphVisibility({ operation: '"hide"', types: `"${INSTRUMENTATION_GRAPHS.join(",")}"` });
-}
 
 /** Collect every leaf id string from the given id-set objects (and bare id arrays), de-duplicated. */
 function collectTestIds(idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): string[] {

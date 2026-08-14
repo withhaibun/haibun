@@ -23,7 +23,7 @@ describe("resolveUi", () => {
 	beforeEach(() => setSiteMetadata(META));
 
 	it("prefers the product's stamped _component", () => {
-		expect(resolveUi({ _component: "shu-graph-view", _type: "Affordances" }).component).toBe("shu-graph-view");
+		expect(resolveUi({ _component: "shu-polymorphic-graph-view", _type: "Affordances" }).component).toBe("shu-polymorphic-graph-view");
 	});
 
 	it("falls back to the type's registered UI component", () => {

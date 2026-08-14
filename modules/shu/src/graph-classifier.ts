@@ -3,7 +3,7 @@
  *
  * `classify` sorts a quad's predicate into name / identifier / edge / content / internal / scalar by its declared
  * hypermedia rel — never guessed from the value. The browser builds a classifier from rels-cache; the server can build
- * one from world.domains. Consumed by the SVG overview (shu-graph-view) and the topology projector (graph-topology).
+ * one from world.domains. Consumed by the SVG render and the topology projector (graph-topology).
  */
 import { LinkRelations, edgeRel as coreEdgeRel, getRelRange } from "@haibun/core/lib/resources.js";
 import { STORED_TYPE_PROP } from "./consts.js";
