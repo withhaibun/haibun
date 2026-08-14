@@ -41,6 +41,13 @@ import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.
 const STAY_ENV = `${BASE_PREFIX}${STAY}`;
 const NDJSON_ENV = `${BASE_PREFIX}${NDJSON}`;
 
+/**
+ * The environment name an instance takes its serving port from. It is the web server's own option, named here because
+ * a launcher assigns a port to an instance whose steppers it does not hold: what a launcher promised its caller is the
+ * port the instance serves on, so the assignment cannot depend on which steppers the launcher happens to register.
+ */
+const INSTANCE_PORT_ENV = "HAIBUN_O_WEBSERVERSTEPPER_PORT";
+
 const READY_DEADLINE_MS = 30_000;
 /** How long one handshake attempt is given before the next: a starting child answers late, not slowly. */
 const BEGIN_TIMEOUT_MS = 1_500;
@@ -146,7 +153,10 @@ export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, stand
 	for (const name of perProcess) delete env[name];
 	delete env[STAY_ENV];
 	delete env[HAIBUN_HOST_ID_ENV];
-	if (port > 0) for (const name of perProcess.filter((n) => n.endsWith("_PORT"))) env[name] = String(port);
+	if (port > 0) {
+		for (const name of perProcess.filter((n) => n.endsWith("_PORT"))) env[name] = String(port);
+		env[INSTANCE_PORT_ENV] = String(port);
+	}
 	if (standing) env[STAY_ENV] = STAY_ALWAYS;
 	// A run that stays is a host of its own: it takes an id, so its seqPaths say whose work they are and its steps
 	// register under it here.
@@ -412,17 +422,24 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// The child inherits this process's environment with its OWN port, so the launcher's port is not readable from
 		// it. LAUNCHED_FROM is passed as a run variable ($LAUNCHED_FROM$), which is how a launched instance addresses
 		// the run that started it, mounting its store and reporting to it, without naming a port in its own source.
-		const launcherPort = process.env.HAIBUN_O_WEBSERVERSTEPPER_PORT;
+		const launcherPort = process.env[INSTANCE_PORT_ENV];
 		const passed = [process.env.HAIBUN_ENV, launcherPort ? `${LAUNCHED_FROM}=http://localhost:${launcherPort}` : ""].filter(Boolean).join(",");
 		const env = { ...runEnvironment(process.env, port, false, hostId, perProcessOptionNames(this.steppers)), ...(passed ? { HAIBUN_ENV: passed } : {}) };
 		// execArgv: [] keeps the child plain node running the built CLI; it must not inherit a test runner's loader flags.
-		const child = fork(cliEntry, ["-c", config, dir], { env, silent: true, execArgv: [] });
+		// The child runs in the base it was started from, since what a base's config says is relative to that base: a
+		// launched instance whose steppers resolved against the launcher's directory could not name its own.
+		const child = fork(cliEntry, ["-c", config, dir], { env, cwd: dir, silent: true, execArgv: [] });
 		superviseChild(child); // owned for the life of THIS process: a staying session that ends by signal takes its children with it
 		const stderrTail = new RunTail(STDERR_TAIL_CHARS);
 		child.stderr?.on("data", (data: Buffer) => {
 			process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
 			stderrTail.append(data.toString());
 		});
+		// An instance that never becomes ready has usually said why on its own output rather than to its error stream,
+		// and a caller told only that it timed out has to go and start it by hand to find out. The tail is kept, not
+		// echoed: it is the instance's event stream, and only its last words are of interest here.
+		const saidTail = new RunTail(STDERR_TAIL_CHARS);
+		child.stdout?.on("data", (data: Buffer) => saidTail.append(data.toString()));
 		this.children.push({ child, label: `${dir} host ${hostId}`, launch: { dir, config, port, hostId } });
 
 		const url = `http://localhost:${port}`;
@@ -449,7 +466,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			}
 			await new Promise((r) => setTimeout(r, READY_POLL_MS));
 		}
-		const lastSaid = stderrTail.since(0).output;
+		const lastSaid = stderrTail.since(0).output || saidTail.since(0).output;
 		return actionNotOK(`instance at ${dir} not ready on ${url} within ${READY_DEADLINE_MS}ms${lastSaid ? `\n${lastSaid}` : ""}`);
 	}
 }

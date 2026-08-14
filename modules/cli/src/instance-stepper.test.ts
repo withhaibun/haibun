@@ -182,6 +182,10 @@ describe("what a run is started with", () => {
 			...reported,
 			HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331",
 		});
+		expect(
+			runEnvironment({}, 8331, false).HAIBUN_O_WEBSERVERSTEPPER_PORT,
+			"an instance serves on the port it was given, whether or not the launcher holds a web server of its own",
+		).toBe("8331");
 		expect(runEnvironment(supervisorEnv, 8331, true, 9, perProcess), "a run to be asked about afterwards serves on its port, takes its own id, and stays").toEqual({
 			...reported,
 			HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331",
