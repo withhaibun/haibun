@@ -101,6 +101,9 @@ const EdgeConcernSchema = z.object({
 	rolePriority: z.number().optional(),
 	/** Declared display phrase for the edge (rdfs:label), e.g. a consumer's "Issued by". */
 	label: z.string().optional(),
+	/** The noun a party displays under when it is this edge's TARGET: `X issuer→ P` makes P an "Issuer". Declared
+	 *  beside the edge that confers the role, so a view reads what a party is called rather than holding a list. */
+	roleNoun: z.string().optional(),
 });
 type TEdgeConcern = z.infer<typeof EdgeConcernSchema>;
 
@@ -218,6 +221,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 				target: edgeDef.range,
 				...(edgeDef.rolePriority !== undefined ? { rolePriority: edgeDef.rolePriority } : {}),
 				...(edgeDef.label !== undefined ? { label: edgeDef.label } : {}),
+				...(edgeDef.roleNoun !== undefined ? { roleNoun: edgeDef.roleNoun } : {}),
 			};
 		}
 

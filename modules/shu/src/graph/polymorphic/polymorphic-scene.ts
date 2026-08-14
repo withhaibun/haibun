@@ -33,7 +33,7 @@ import type { ViewType } from "../polymorphic/polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../polymorphic/polymorphic-views.js";
 import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, isSchemaType, propertyVocabulary } from "../ontology-projection.js";
 import { DesiredPaneSchema } from "../../pane-state.js";
-import { fromActorEdgeLabels, getValidTimeField, roleEdgeLabels, toActorEdgeLabels } from "../../rels-cache.js";
+import { fromActorEdgeLabels, getValidTimeField, roleEdgeLabels, toActorEdgeLabels, roleNounFor } from "../../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
@@ -504,8 +504,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		edgeLabelColor: () => this.edgeLabelColor,
 		enclosureParent: () => this.enclosureParent() as unknown as Parameters<Obj3D["add"]>[0] | undefined,
 		applyEnclosureFocus: () => this.focusCtl.applyEnclosureFocus(),
-		// This deployment's role nouns: what a party is called when it plays a role in a credential exchange.
-		roleDesignation: (roleRel, type) => this.roleNoun(roleRel, type),
 	});
 	// The render-type subsystem: one RenderType per layout (force, td/lr layered, gantt, sequence), each owning BOTH sides
 	// of every layout dispatch (the shared pin placement, mark time, drag mode, z included in the model hash) so the force config and the
@@ -2131,14 +2129,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The display name for a sequence actor (a participant id). Mirrors the role-container labelling: the party's display
 	 *  name prefixed by its role designation — named from the role rel by which nodes attribute to it, not the party's
 	 *  vertex type (one Principal per DID); an id with no node falls back to the id. */
-	/**
-	 * The noun a party displays under, given the role rel by which others attribute to it and its own vertex type.
-	 * A deployment sets this to its own vocabulary (a credential suite names an Issuer and a Holder); unset, a party
-	 * reads as its own type, which is all a graph view can know by itself.
-	 */
-	roleDesignation?: (roleRel: unknown, type: string | undefined) => string | undefined;
+	/** The noun a party displays under: what the edge conferring the role declares its target is called, else the
+	 *  party's own type. Declared vocabulary, read from the projection — a graph view names no roles of its own. */
 	private roleNoun(roleRel: unknown, type: string | undefined): string | undefined {
-		return this.roleDesignation?.(roleRel, type) ?? type;
+		return roleNounFor(roleRel) ?? type;
 	}
 
 	private seqLabelFor(participantId: string): string {

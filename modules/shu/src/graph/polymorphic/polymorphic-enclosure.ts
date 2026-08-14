@@ -8,6 +8,7 @@
 // the leaf state it shares with the gantt/swimlane overlays (the shared unit geometries are owned here and read back via
 // accessors) and delegates the enclosure concern entirely. (lovely-finding-babbage, step 2.)
 
+import { roleNounFor } from "../../rels-cache.js";
 import SpriteText from "three-spritetext";
 import { colorForType } from "../../type-colors.js";
 import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../grouping.js";
@@ -64,11 +65,6 @@ export type EnclosureDeps = {
 	edgeLabelColor: () => string;
 	enclosureParent: () => Obj3D | undefined; // the forcegraph object3D the box group parents into (shared node coordinate space)
 	applyEnclosureFocus: () => void; // re-assert the active dim state on boxes created this pass
-	/** The noun a party displays under, given the role rel by which others attribute to it and its own vertex type.
-	 *  Injected because which nouns exist is the SITE's vocabulary — a credential suite names an Issuer and a Holder,
-	 *  another deployment names neither — and a graph view is not the place that knows them. Omitted, a party reads as
-	 *  its own type. */
-	roleDesignation?: (roleRel: unknown, type: string | undefined) => string | undefined;
 };
 
 export class EnclosureController {
@@ -205,7 +201,7 @@ export class EnclosureController {
 		const containerLabel = (k: string): string => {
 			if (groupBy !== "role") return containerLabelOf(k, groupBy, labelById);
 			const party = labelById.get(k) ?? k;
-			const role = (this.deps.roleDesignation ?? ((_r: unknown, t: string | undefined) => t))(roleRelById.get(k), typeById.get(k));
+			const role = roleNounFor(roleRelById.get(k)) ?? typeById.get(k);
 			return role && role !== party ? `${role} — ${party}` : party;
 		};
 		for (const [key, members] of byKey) {

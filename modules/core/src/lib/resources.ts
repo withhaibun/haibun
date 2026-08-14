@@ -572,7 +572,16 @@ export function propertyIriOf(def: TPropertyDef | undefined): string | undefined
  *  its rel (e.g. `fromActor`/`toActor`) with `iri` carrying its genuine term — the edge KEY is the written edge label,
  *  the rel classifies it, the iri serves it. `rolePriority` orders actor edges when a node carries several (highest
  *  names its container/lane) — same scale as the core rels' declared rolePriority. */
-export type TEdgeDef = { range: string; rel?: TRel; iri?: string; rolePriority?: number; label?: string };
+export type TEdgeDef = {
+	range: string;
+	rel?: TRel;
+	iri?: string;
+	rolePriority?: number;
+	label?: string;
+	/** The noun a party displays under when it is this edge's TARGET: `X issuer→ P` makes P an "Issuer". A view reads
+	 *  it from the projection, so what a party is CALLED is declared with the edge that makes it one. */
+	roleNoun?: string;
+};
 
 /**
  * Per-property domain ranges. Maps a schema field name to another registered
