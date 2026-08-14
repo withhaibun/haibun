@@ -6,7 +6,7 @@
 // THE CRUX (3D views): a node's force lane target (the groupX/groupY pull) and its data-assigned z BOTH read ONE method —
 // lanePlacement(id) — so the two cannot diverge mid-settle (the "node teleports while the layout is still settling"
 // failure). A gantt RenderType returns {y, z} from its placement cache; the force-family RenderTypes return undefined (no
-// lane: the layout owns x/y, z is the recorded-time depth). render-type-consistency.test.ts pins this.
+// lane: the layout owns x/y, z is the recorded-time depth). polymorphic-render-type.test.ts pins this.
 //
 // THE SEQUENCE: a sequence diagram is gantt rotated 90° — participants are lanes, time is the SAME z axis gantt uses, and
 // each participant is a lifeline (a pillar along z). So SequenceRenderType is a 3D peer of gantt: it returns its {y,z}
@@ -42,6 +42,8 @@ export type MarkTime = { start: number; end: number; zExtent: number };
 /** Live caches the component exposes; every getter is read at CALL time so a per-repaint-refreshed map is current. */
 export type RenderTypeDeps = {
 	ganttTarget: (id: string) => GanttTarget | undefined;
+	/** The calendar the bars were placed on and how many were placed: what the gantt axis legend names. */
+	ganttPlacement: () => { scale?: { min: number; span: number }; count: number };
 };
 
 /** The data the SequenceRenderType reads to derive its actors/messages + lane layout: the visible graph (nodes + edges,
@@ -85,6 +87,20 @@ export interface RenderType {
 	 *  or collapse the very axis the view reads along. Declared here so choosing the view settles the conflict once,
 	 *  rather than each consumer remembering which options a view can't honour. */
 	readonly forces: TViewForces;
+	/** The x every node of this view sits at, when the view lays out in ONE plane: the sequence draws on x=0 (its wide
+	 *  actor chips ARE the lifelines), so its placement carries no x of its own. undefined = the view places its own x. */
+	readonly lanePlaneX: number | undefined;
+	/** A node's label caps it, upright above the mark, rather than sitting on it: the sequence-diagram read of a
+	 *  participant's name over its vertical lifeline. */
+	readonly capsNodeLabels: boolean;
+	/** This view draws the calendar ruler along its time axis (the baseline, its ticks and their dates). */
+	readonly drawsCalendarAxis: boolean;
+	/** What this view's axes mean, for the reader: gantt's z is a linear calendar span and its y is one row per task, so
+	 *  the legend names that span and that count. null = the axes carry no meaning of their own. */
+	axisLegend(): { from: string; to: string; count: number } | null;
+	/** The structural flow this view lays out along, for inspect() and its tests: which way the ranks read and which
+	 *  axis they advance on. null = the view is not a layered flow. */
+	layeredFlow(): { direction: "td" | "lr"; flowAxis: "x" | "y" } | null;
 	/** A LANE view (gantt) IS its own grouping — the lanes are the axis — so the generic group/group-by controls and the
 	 *  role/type enclosure boxes don't apply: true suppresses them while this view is active. The 2D sequence likewise
 	 *  suppresses them (it has no 3D enclosures at all). */
@@ -118,6 +134,15 @@ abstract class BaseRenderType implements RenderType {
 	}
 	readonly forces: TViewForces = {};
 	readonly needsActors: boolean = false;
+	readonly lanePlaneX: number | undefined = undefined;
+	readonly capsNodeLabels: boolean = false;
+	readonly drawsCalendarAxis: boolean = false;
+	axisLegend(): { from: string; to: string; count: number } | null {
+		return null;
+	}
+	layeredFlow(): { direction: "td" | "lr"; flowAxis: "x" | "y" } | null {
+		return null;
+	}
 	readonly dragReschedules: boolean = false;
 	readonly timeIsHorizontal: boolean = false;
 	readonly hashFoldsZ: boolean = false;
@@ -179,6 +204,9 @@ export class LayeredRenderType extends BaseRenderType {
 		const p = this.positions().get(id);
 		return p ? { x: p.x, y: p.y } : undefined;
 	}
+	override layeredFlow(): { direction: "td" | "lr"; flowAxis: "x" | "y" } | null {
+		return { direction: this.viewType, flowAxis: this.viewType === VIEW.td ? "y" : "x" };
+	}
 }
 
 /** gantt: tasks placed on the calendar — y = lane row, z = bar centre on the linear time axis; a drag reschedules. */
@@ -199,6 +227,13 @@ export class GanttRenderType extends BaseRenderType {
 	override readonly timeIsHorizontal: boolean = true;
 	override readonly hashFoldsZ = true;
 	override readonly forces: TViewForces = LANE_FORCES;
+	override readonly drawsCalendarAxis = true;
+	override axisLegend(): { from: string; to: string; count: number } | null {
+		const { scale, count } = this.deps.ganttPlacement();
+		if (!scale || count === 0) return null;
+		const day = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
+		return { from: day(scale.min), to: day(scale.min + scale.span), count };
+	}
 }
 
 /** sequence: a 3D sequence diagram aligned with gantt — participants are lanes on y, time is the SHARED z axis (the same
@@ -217,6 +252,8 @@ export class SequenceRenderType extends BaseRenderType {
 	}
 	override readonly forces: TViewForces = LANE_FORCES;
 	override readonly timeIsHorizontal: boolean = true;
+	override readonly lanePlaneX = 0;
+	override readonly capsNodeLabels = true;
 	override reframeMode(): ReframeMode {
 		return REFRAME.sequence;
 	}

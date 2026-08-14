@@ -458,10 +458,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		lanePinXY: (id) => {
 			const lp = this.renderType.lanePlacement(id);
 			if (!lp) return undefined;
-			// The sequence lays out in the x=0 plane (y = lane, z = time), so it has no x in its placement — pin x=0 there so
-			// the nodes sit exactly on their lanes (the wide actor chips ARE the lifelines); gantt keeps its own x.
-			if (this.renderType.viewType === VIEW.sequence) return { x: 0, y: lp.y };
-			return lp.x !== undefined ? { x: lp.x, y: lp.y } : undefined;
+			// A view that lays out in one plane carries no x in its placement and names the plane it draws on instead.
+			const x = lp.x ?? this.renderType.lanePlaneX;
+			return x !== undefined ? { x, y: lp.y } : undefined;
 		},
 		userPinXY: (id) => this.userPins.get(id),
 		startNewcomerPop: (n) => this.focusCtl.seedNewcomerPop(n),
@@ -511,7 +510,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// model deps (nodes + edges + label resolvers) the sequence and the layered flow read. `renderType` resolves the
 	// active one from state.viewType, so switching the view-type select swaps it.
 	private renderTypes = buildRenderTypeRegistry(
-		{ ganttTarget: (id) => this.ganttTargets.get(id) },
+		{ ganttTarget: (id) => this.ganttTargets.get(id), ganttPlacement: () => ({ scale: this.ganttScale, count: this.ganttTargets.size }) },
 		{
 			seqNodes: () => this.seqNodes(),
 			seqEdges: () => this.visibleModel().edges.map((e) => ({ from: e.from, to: e.to, predicate: e.predicate })),
@@ -638,7 +637,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private nodeRebuildPending = false;
 	private ganttShapeSig = "";
 	private ganttAxisGroup?: Obj3D; // the gantt calendar ruler (baseline + tick marks + date labels), parented like the enclosures; null off-gantt
-	private sequenceAxisGroup?: Obj3D; // the sequence lifelines (one pillar per participant + its label), parented like the enclosures; null off-sequence
 	private ganttGhost?: { group: Obj3D; label: TSprite }; // transient drag affordance: a wireframe outline + the new date-time, attached to the dragged bar (disposed via disposeGroup)
 
 	constructor() {
@@ -832,7 +830,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				sz: e.box.scale.z,
 				labelPos: { x: e.label.position.x, y: e.label.position.y, z: e.label.position.z },
 			})),
-			gantt: this.axisLegend,
+			gantt: this.renderType.axisLegend(),
 			sample: nodes.slice(0, 80).map((n) => ({
 				id: n.id,
 				type: n.type,
@@ -865,7 +863,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	override render(): TemplateResult {
-		const legend = this.axisLegend;
+		const legend = this.renderType.axisLegend();
 		return html`
 			<style>
 				shu-graph-scene { display: contents; }
@@ -947,7 +945,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			if (this.fitFrameTimer !== undefined) clearTimeout(this.fitFrameTimer);
 			for (const t of this.freshTimers) clearTimeout(t);
 			this.clearGanttAxis();
-			this.clearSequenceAxis();
 			this.clearGanttGhost();
 			this.enclosureCtl.dispose(); // boxes + the shared unit geometries (the gantt ghost reuses unitEdges but never disposes it)
 			// Release the scene's WebGL context deterministically: a context otherwise frees only at GC, and past the
@@ -1020,7 +1017,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 								borderColor: NODE_BORDER_COLOR,
 								fontSize: NODE_FONT_SIZE,
 								renderOrder: NODE_RENDER_ORDER,
-								headerLabel: this.renderType.viewType === VIEW.sequence, // a participant's name caps its vertical lifeline, upright — the sequence-diagram read
+								headerLabel: this.renderType.capsNodeLabels,
 							}) as unknown as Parameters<typeof spriteVisual>[0],
 							{ three: aframeThree() as unknown as GlowThree, color: this.activeHighlightColor, renderOrder: NODE_RENDER_ORDER - 1 },
 						);
@@ -1240,16 +1237,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			this.repaintTimer = undefined;
 		}
 		this.repaint();
-	}
-
-	/** The axis legend for the current view-type, or null when the axes carry no special meaning. Gantt's z is a linear
-	 *  calendar span and y is one row per task, so the legend names that span + count; other layouts have none yet.
-	 *  Reads the cached scale/targets (set in recomputeGanttTargets) — no re-parse of the quad model per render. */
-	private get axisLegend(): { from: string; to: string; count: number } | null {
-		const scale = this.ganttScale;
-		if (this.renderType.viewType !== VIEW.gantt || !scale || this.ganttTargets.size === 0) return null;
-		const fmt = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
-		return { from: fmt(scale.min), to: fmt(scale.min + scale.span), count: this.ganttTargets.size };
 	}
 
 	private onSceneLoaded(scene: HTMLElement, container: HTMLElement): void {
@@ -1897,7 +1884,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			paintOptions: availablePaints(this.model.visibleQuads),
 			counts: { nodes: this.nodeMap.size, edges: links.length, relTypes, omitted },
 			latestStep: this.computeLatestStep(),
-			axisLegend: this.axisLegend,
+			axisLegend: this.renderType.axisLegend(),
 			pins: this.getUserPins(),
 		};
 		this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCENE_CHANGED, { detail, bubbles: true, composed: true }));
@@ -2192,12 +2179,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  asserts the flow reads monotonically along that axis and the pins held (the render IS the layered structure). */
 	private layeredInspect(): { direction: "td" | "lr"; flowAxis: "x" | "y"; nodes: Array<{ id: string; tx: number; ty: number; x: number; y: number; z: number }> } | null {
 		const rt = this.renderType;
-		if (rt.viewType !== VIEW.td && rt.viewType !== VIEW.lr) return null;
+		const flow = rt.layeredFlow();
+		if (!flow) return null;
 		const nodes = [...this.nodeMap.values()].map((n) => {
 			const lp = rt.lanePlacement(n.id);
 			return { id: n.id, tx: lp?.x ?? 0, ty: lp?.y ?? 0, x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 };
 		});
-		return { direction: rt.viewType, flowAxis: rt.viewType === VIEW.td ? "y" : "x", nodes };
+		return { ...flow, nodes };
 	}
 
 	private onNodeClick(n: FGNode, e?: MouseEvent): void {
@@ -2451,17 +2439,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.updateLaneAxis();
 	}
 
-	/** Draw the active lane view's axis overlay and clear the other's: the gantt calendar ruler in gantt, the participant
-	 *  lifelines in sequence, neither in a force/td/lr view. Each updater self-clears, so a view switch can't leave a stale
-	 *  overlay from the previous lane view behind. */
+	/** Draw the calendar ruler for a view that reads along a calendar, and take it off screen for one that does not, so a
+	 *  view switch cannot leave the previous view's ruler behind. A sequence's lifelines are the actor chips themselves,
+	 *  so it needs no overlay of its own. */
 	private updateLaneAxis(): void {
-		if (this.renderType.viewType === VIEW.sequence) {
-			this.clearGanttAxis();
-			this.updateSequenceAxis();
-		} else {
-			this.clearSequenceAxis();
-			this.updateGanttAxis();
-		}
+		if (this.renderType.drawsCalendarAxis) this.updateGanttAxis();
+		else this.clearGanttAxis();
 	}
 
 	/** Standard overlay-label styling (the gantt ruler ticks + the drag-ghost date): always-on-top, never depth-hidden,
@@ -2522,20 +2505,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private clearGanttAxis(): void {
 		if (this.ganttAxisGroup) this.disposeGroup(this.ganttAxisGroup, true); // owns its BufferGeometry → dispose it
 		this.ganttAxisGroup = undefined;
-	}
-
-	/** The sequence lifelines: one world-space pillar per participant, drawn along z (the time axis) at the participant's
-	 *  lane y, x=0, from the time origin to the span end, with the participant's label at the head (z=0). The "concrete
-	 *  line pinned to each participant" — gantt's ruler counterpart, in the same node coordinate space; removed off-sequence. */
-	// The sequence has no separate axis overlay: each actor's wide chip (nodeObject → sequenceActorChip) IS its lifeline, so
-	// the lane lines live on the nodes themselves. This just clears any overlay left from a previous lane view.
-	private updateSequenceAxis(): void {
-		this.clearSequenceAxis();
-	}
-
-	private clearSequenceAxis(): void {
-		if (this.sequenceAxisGroup) this.disposeGroup(this.sequenceAxisGroup, true); // owns its BufferGeometry → dispose it
-		this.sequenceAxisGroup = undefined;
 	}
 
 	/** The drag affordance for a gantt bar: a wireframe outline around the bar at its live position plus the new start
