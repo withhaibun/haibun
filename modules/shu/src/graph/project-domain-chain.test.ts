@@ -74,7 +74,7 @@ describe("projectDomainChain", () => {
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
-		expect(b?.link?.href).toBe("?aff-goal=b");
+		expect(b?.link?.href).toBe("#?aff-goal=b");
 	});
 
 	it("exposes a unique producer via invokes so callers can dispatch directly", () => {
@@ -84,7 +84,7 @@ describe("projectDomainChain", () => {
 		};
 		const g = projectDomainChain(snap);
 		const greeting = g.nodes.find((n) => n.id === "greeting");
-		expect(greeting?.link?.href).toBe("?aff-goal=greeting");
+		expect(greeting?.link?.href).toBe("#?aff-goal=greeting");
 		expect(greeting?.invokes).toEqual({ stepperName: "Greeter", stepName: "createGreeting" });
 	});
 
@@ -99,7 +99,7 @@ describe("projectDomainChain", () => {
 		const g = projectDomainChain(snap);
 		const x = g.nodes.find((n) => n.id === "x");
 		expect(x?.invokes).toBeUndefined();
-		expect(x?.link?.href).toBe("?aff-goal=x");
+		expect(x?.link?.href).toBe("#?aff-goal=x");
 	});
 
 	it("colors a domain as satisfied when satisfiedDomains contains it, even when goals[] omits it (trivial-filtered)", () => {
@@ -161,7 +161,7 @@ describe("projectDomainChain", () => {
 		const declarative = g.nodes.find((n) => n.id === declarativeId);
 		const imperative = g.nodes.find((n) => n.id === imperativeId);
 		expect(declarative?.kind).toBe("waypoint-declarative");
-		expect(declarative?.link?.href).toBe("?aff-waypoint=VC%20issued");
+		expect(declarative?.link?.href).toBe("#?aff-waypoint=VC%20issued");
 		expect(declarative?.invokes).toEqual({ stepperName: "ActivitiesStepper", stepName: "VC issued" });
 		expect(imperative?.kind).toBe("waypoint-ensured");
 		const ensures = g.edges.find((e) => e.from === "vc" && e.to === declarativeId);

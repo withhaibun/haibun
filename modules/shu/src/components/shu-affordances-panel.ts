@@ -22,7 +22,8 @@ import {
 	satisfiedGoalDomains,
 } from "@haibun/core/lib/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, AFFORDANCE_PARAM } from "../consts.js";
+import * as ViewHash from "../view-hash.js";
 import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
 import { factIdRef } from "./shu-ref.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
@@ -50,28 +51,11 @@ const ShuAffordancesPanelSchema = z.object({
 	openWaypoint: z.string().default(""),
 });
 
-const AFF_GOAL_PARAM = "aff-goal";
-const AFF_WAYPOINT_PARAM = "aff-waypoint";
+const AFF_GOAL_PARAM = AFFORDANCE_PARAM.GOAL;
+const AFF_WAYPOINT_PARAM = AFFORDANCE_PARAM.WAYPOINT;
 /** Coalesce the per-step change signals into at most one snapshot refetch per window — a run emits one signal per
  * step, and refetching per signal is the RPC flood (hundreds per run). */
 const REFRESH_COALESCE_MS = 400;
-
-function readParamFromUrl(name: string): string {
-	if (typeof window === "undefined") return "";
-	try {
-		return new URL(window.location.href).searchParams.get(name) ?? "";
-	} catch {
-		return "";
-	}
-}
-
-function writeParamToUrl(name: string, value: string): void {
-	if (typeof window === "undefined") return;
-	const url = new URL(window.location.href);
-	if (value) url.searchParams.set(name, value);
-	else url.searchParams.delete(name);
-	window.history.replaceState(window.history.state, "", url.toString());
-}
 
 /**
  * Mutually exclusive selections: when both URL params are set, the one that
@@ -110,7 +94,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private lastScrolledGoal: string = "";
 	private lastScrolledWaypoint: string = "";
 	constructor() {
-		const { goal, waypoint } = normalizeSelection(readParamFromUrl(AFF_GOAL_PARAM), readParamFromUrl(AFF_WAYPOINT_PARAM), "", "");
+		const { goal, waypoint } = normalizeSelection(ViewHash.hashParam(AFF_GOAL_PARAM), ViewHash.hashParam(AFF_WAYPOINT_PARAM), "", "");
 		super(ShuAffordancesPanelSchema, { loadState: "idle", fetchError: "", openGoal: goal, openWaypoint: waypoint });
 	}
 
@@ -143,14 +127,13 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// Back/forward navigation should re-sync the open goal / waypoint from the URL so the
 		// panel reflects the address bar. Storing in history rather than state means
 		// a copy-pasted URL also opens the right entry on first load.
-		const popstate = () => {
-			const { goal, waypoint } = normalizeSelection(readParamFromUrl(AFF_GOAL_PARAM), readParamFromUrl(AFF_WAYPOINT_PARAM), this.state.openGoal, this.state.openWaypoint);
+		const fromHash = () => {
+			const { goal, waypoint } = normalizeSelection(ViewHash.hashParam(AFF_GOAL_PARAM), ViewHash.hashParam(AFF_WAYPOINT_PARAM), this.state.openGoal, this.state.openWaypoint);
 			// Write the normalized form back so the next reader sees a single selection.
-			writeParamToUrl(AFF_GOAL_PARAM, goal);
-			writeParamToUrl(AFF_WAYPOINT_PARAM, waypoint);
+			ViewHash.mergeHashParams({ [AFF_GOAL_PARAM]: goal, [AFF_WAYPOINT_PARAM]: waypoint });
 			if (goal !== this.state.openGoal || waypoint !== this.state.openWaypoint) this.setState({ openGoal: goal, openWaypoint: waypoint });
 		};
-		this.autoListen(window, "popstate", popstate);
+		this.autoTeardown(ViewHash.onHashChanged(fromHash));
 	}
 
 	private _refreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -165,7 +148,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	private toggleGoal(domain: string): void {
 		const next = this.state.openGoal === domain ? "" : domain;
-		writeParamToUrl(AFF_GOAL_PARAM, next);
+		ViewHash.mergeHashParams({ [AFF_GOAL_PARAM]: next });
 		this.setState({ openGoal: next });
 	}
 

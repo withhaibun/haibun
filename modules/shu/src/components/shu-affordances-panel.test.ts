@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
 import { setConduit, resetConduit, SerializedConduit } from "../hypermedia.js";
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "../event-stream.js";
+import * as ViewHash from "../view-hash.js";
+import { AFFORDANCE_PARAM } from "../consts.js";
 
 /** `products` applies synchronously (app.ts coalesces the replay upstream), so just await the lit render. */
 const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<void> => {
@@ -23,9 +25,9 @@ describe("shu-affordances-panel", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
-		const url = new URL(window.location.href);
-		for (const key of ["aff-goal", "aff-waypoint"]) url.searchParams.delete(key);
-		window.history.replaceState(window.history.state, "", url.toString());
+		// The deep link lives in the view hash, which is module state: clear it the way the app does, or one test's
+		// open goal is the next one's starting point.
+		ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
 		if (!customElements.get("shu-affordances-panel")) customElements.define("shu-affordances-panel", ShuAffordancesPanel);
 		if (!customElements.get("shu-spinner")) {
 			class FakeSpinner extends HTMLElement {}

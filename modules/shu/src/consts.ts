@@ -8,6 +8,14 @@
  */
 export const STORED_TYPE_PROP = "vertexLabel";
 
+/** The hash params an affordance deep-link is carried in: the goal a panel opens, or the waypoint it opens instead.
+ *  Written by the chain view and the projection's links, read by the affordances panel and the chain view alike. */
+export const AFFORDANCE_PARAM = { GOAL: "aff-goal", WAYPOINT: "aff-waypoint" } as const;
+
+/** What a deep link into the view state begins with: view state is carried in the hash, which a static document can
+ *  link to and a page saved for offline reading still keeps. */
+export const DEEP_LINK_PREFIX = "#?";
+
 export const SHU_EVENT = {
 	COLUMN_OPEN: "column-open",
 	// Open an arbitrary pane (a validated DesiredPane in the detail) — the generic bridge an external view (e.g. the
