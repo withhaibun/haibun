@@ -14,7 +14,8 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { fetchIndividuals } from "../pane-fetch.js";
+import { QueryController } from "../controllers/query-controller.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { appAccessLevel } from "../util.js";
 import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
 import { renderRefProse } from "../markdown-refs.js";
@@ -129,14 +130,18 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 			this.setState({ loading: false });
 			return;
 		}
-		const res = await fetchIndividuals(persistedAs, `type-column: ${persistedAs}`);
-		if (!res.ok) {
-			this.setState({ loading: false, error: res.error });
+		try {
+			const data = await this.#query.run({ label: persistedAs, accessLevel: appAccessLevel(), limit: 100 });
+			this.instances = data.vertices ?? [];
+		} catch (err) {
+			this.setState({ loading: false, error: errorDetail(err) });
 			return;
 		}
-		this.instances = res.value.vertices ?? [];
 		this.setState({ loading: false });
 	}
+
+	/** The view holds its data access, as every migrated column does, rather than calling the wire itself. */
+	#query = new QueryController(this);
 
 	private tableRef = createRef<ShuResultTable>();
 

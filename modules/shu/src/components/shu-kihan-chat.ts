@@ -22,19 +22,18 @@ import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
-import { getCookie, setCookie } from "../cookies.js";
 import type { TContextPattern } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 
-const MODEL_COOKIE = "shu-model";
-const TOOL_LIMIT_COOKIE = "shu-tool-limit";
+
+
 const TOOL_LIMIT_DEFAULT = 5;
 const TOOL_LIMIT_MIN = 0;
 const TOOL_LIMIT_MAX = 99;
 /** Cookie holding the active chat session's root seqPath. Turns are persisted as threaded Comment pairs, so on connect
  * (after a collapse/expand or a full page reload) the chat re-hydrates from the graph via loadChatSession — surviving reloads, unlike a per-page DOM snapshot. */
-const CHAT_SESSION_COOKIE = "shu-chat-session";
+
 
 type TChatSession = { sessionSeqPath: string; label: string; generatedAtTime: string };
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
@@ -44,14 +43,13 @@ function sessionOptionLabel(s: TChatSession): string {
 	return `${preview} · ${when}`;
 }
 
-function readToolLimitCookie(): number {
-	const raw = getCookie(TOOL_LIMIT_COOKIE);
-	const n = Number.parseInt(raw, 10);
-	if (!Number.isFinite(n)) return TOOL_LIMIT_DEFAULT;
-	return Math.max(TOOL_LIMIT_MIN, Math.min(TOOL_LIMIT_MAX, n));
-}
-
-const ChatSchema = z.object({});
+/** What the chat remembers between visits: which model to ask, how many chained tool calls it may make, and the
+ *  session being read. All three were hand-rolled cookies; they are remembered the way every other option is. */
+const ChatSchema = z.object({
+	model: z.string().default(""),
+	toolLimit: z.number().int().min(TOOL_LIMIT_MIN).max(TOOL_LIMIT_MAX).default(TOOL_LIMIT_DEFAULT),
+	session: z.string().default(""),
+});
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
@@ -102,8 +100,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	static domainSelector = "shu-kihan-chat";
 
 	private _models: Array<{ id: string; displayName?: string }> = [];
-	private _selectedModel = "";
-	private _toolLimit: number = readToolLimitCookie();
+	/** The chat's remembered options; a new visit restores the model, the tool limit and the session it was reading. */
+	static persistFields = ["model", "toolLimit", "session"] as const;
 	private _fullText = "";
 	private _abortController: AbortController | null = null;
 	private _sessionSeqPath: string | null = null;
@@ -207,7 +205,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this._sessions = await this.listSessions();
 		this.requestUpdate();
 		await this.updateComplete;
-		const active = getCookie(CHAT_SESSION_COOKIE);
+		const active = this.state.session;
 		if (active && this._sessions.some((s) => s.sessionSeqPath === active)) {
 			(this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null)?.setValue(active);
 			await this.loadAndRenderSession(active);
@@ -223,7 +221,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private onSessionChange = (e: CustomEvent): void => {
 		const seqPath = e.detail?.value;
 		if (!seqPath) return;
-		setCookie(CHAT_SESSION_COOKIE, seqPath);
+		this.setState({ session: seqPath });
 		void this.loadAndRenderSession(seqPath);
 	};
 
@@ -261,7 +259,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const envelope: { patterns: TContextPattern[]; viewLd: unknown[]; maxToolCalls: number; sessionSeqPath?: string; inReplyTo?: string } = {
 			patterns: this._contextPatterns,
 			viewLd: harvestChatViewLd(),
-			maxToolCalls: this._toolLimit,
+			maxToolCalls: this.state.toolLimit,
 		};
 		if (this._sessionSeqPath) envelope.sessionSeqPath = this._sessionSeqPath;
 		if (this._lastReplySeqPath) envelope.inReplyTo = this._lastReplySeqPath;
@@ -275,10 +273,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const data = await conduit().follow<{ vertices: Array<{ id: string; displayName?: string }> }>({ method: requireStep("showKihans") }, "kihan-chat: load model catalog");
 		if (data.vertices) {
 			this._models = data.vertices;
-			if (this._models.length > 0 && !this._selectedModel) {
-				const preferred = getCookie(MODEL_COOKIE);
+			if (this._models.length > 0 && !this.state.model) {
+				const preferred = this.state.model;
 				const match = preferred && this._models.find((m) => m.id === preferred);
-				this._selectedModel = match ? match.id : this._models[0].id;
+				this.setState({ model: match ? match.id : this._models[0].id });
 			}
 			this.requestUpdate();
 		}
@@ -306,7 +304,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				${showModel ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." @combo-change=${this.onModelChange}></shu-combobox>` : ""}
 				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
 					<span>tool calls</span>
-					<input class="tool-limit" type="number" min=${TOOL_LIMIT_MIN} max=${TOOL_LIMIT_MAX} step="1" .value=${String(this._toolLimit)} data-testid=${`${this.testIdPrefix}tool-limit`} @change=${this.onToolLimitChange}>
+					<input class="tool-limit" type="number" min=${TOOL_LIMIT_MIN} max=${TOOL_LIMIT_MAX} step="1" .value=${String(this.state.toolLimit)} data-testid=${`${this.testIdPrefix}tool-limit`} @change=${this.onToolLimitChange}>
 				</label>
 				${unsafeHTML(uiExtensionTags.map((tag) => `<${tag}></${tag}>`).join(""))}
 				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${this._streaming ? "display:none" : ""} @click=${this.submitChat}>Send</button>
@@ -331,13 +329,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	/** Combo options are imperative props (not lit-bound); all event handlers are declarative (@event) so lit wires them once. Re-applying is idempotent but churns the combos, so we skip when neither the model nor session data changed — the parent re-renders every streamed-text frame and the combos must not be reset 60×/s. */
 	private wireListeners(): void {
-		const sig = `${this._models.map((m) => m.id).join(",")}|${this._selectedModel}|${this._sessions.map((s) => s.sessionSeqPath).join(",")}|${this._sessionSeqPath ?? ""}`;
+		const sig = `${this._models.map((m) => m.id).join(",")}|${this.state.model}|${this._sessions.map((s) => s.sessionSeqPath).join(",")}|${this._sessionSeqPath ?? ""}`;
 		if (sig === this._comboSig) return;
 		this._comboSig = sig;
 		const modelCombo = this.shadowRoot?.querySelector(".model-select") as ShuCombobox | null;
 		if (modelCombo) {
 			modelCombo.setOptions(this._models.map((m) => ({ value: m.id, label: m.displayName || m.id })));
-			if (this._selectedModel) modelCombo.setValue(this._selectedModel);
+			if (this.state.model) modelCombo.setValue(this.state.model);
 		}
 		const sessionCombo = this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null;
 		if (sessionCombo) {
@@ -347,16 +345,15 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	private onModelChange = (e: CustomEvent): void => {
-		this._selectedModel = e.detail?.value || "";
-		setCookie(MODEL_COOKIE, this._selectedModel);
+		this.setState({ model: e.detail?.value || "" });
 	};
 	private onToolLimitChange = (e: Event): void => {
 		const el = e.target as HTMLInputElement;
 		const raw = Number.parseInt(el.value, 10);
 		const clamped = Number.isFinite(raw) ? Math.max(TOOL_LIMIT_MIN, Math.min(TOOL_LIMIT_MAX, raw)) : TOOL_LIMIT_DEFAULT;
-		this._toolLimit = clamped;
+		this.setState({ toolLimit: clamped });
 		el.value = String(clamped);
-		setCookie(TOOL_LIMIT_COOKIE, String(clamped));
+
 	};
 	private onChatInput = (e: Event): void => {
 		const el = e.target as HTMLTextAreaElement;
@@ -442,7 +439,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 						prompt,
 						context: JSON.stringify(this.activeChatContext()),
 						accessLevel: this._contextAccessLevel,
-						target: this._selectedModel,
+						target: this.state.model,
 					},
 				},
 				(chunk) => {
@@ -469,7 +466,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			if (turnSeqPath) {
 				if (!this._sessionSeqPath) {
 					this._sessionSeqPath = turnSeqPath;
-					setCookie(CHAT_SESSION_COOKIE, turnSeqPath);
+					this.setState({ session: turnSeqPath });
 				}
 				this._lastReplySeqPath = turnSeqPath;
 			}
