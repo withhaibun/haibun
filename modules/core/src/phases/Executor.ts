@@ -26,6 +26,23 @@ import { registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js"
 import { doStepperCycle, doStepperCycleSync } from "../lib/stepper-cycles.js";
 import { basename } from "path";
 
+/**
+ * What a run keeps of a feature it has moved on from. A passing step's products, artifacts and traces are read while
+ * that feature is the one running, and by a caller that has just received its result; once the run has moved to
+ * another feature, nothing reads them again, and holding them holds every graph slice, response body and rendered
+ * document the run has produced. That is what made a nineteen-feature run exhaust the heap and be killed rather than
+ * fail. A failed step keeps everything, since the verdict is made of it.
+ */
+export function releasePayloads(featureResult: TFeatureResult): void {
+	for (const step of featureResult.stepResults) {
+		if (!step.ok) continue;
+		step.products = undefined;
+		step.artifact = undefined;
+		step.traces = undefined;
+		step.protocol = undefined;
+	}
+}
+
 export function calculateShouldClose({
 	thisFeatureOK,
 	isLast,
@@ -194,6 +211,10 @@ export class Executor {
 				await doStepperCycle(steppers, "onFailure", { featureResult, failedStep });
 			}
 			okSoFar = okSoFar && thisFeatureOK;
+			// The feature just finished keeps what it produced for whoever receives this result; the one before it has
+			// no reader left, so the run stops holding what that one produced.
+			const previous = featureResults[featureResults.length - 1];
+			if (previous) releasePayloads(previous);
 			featureResults.push(featureResult);
 
 			const shouldClose = calculateShouldClose({
