@@ -105,14 +105,13 @@ function spaDocument(basePath: string, scriptsHtml: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Haibun</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; overflow: hidden; }
-    body { font-family: "Source Sans 3", "Source Code Pro", sans-serif; }
-    code, pre, table, td, th { font-family: "Source Code Pro", monospace; }
+    /* The reader's own fonts: an app over private records asks nothing of a font service, and a page served here
+       renders the same with no network at all. A named face is used where it is installed, the system's otherwise. */
+    body { font-family: "Source Sans 3", system-ui, sans-serif; }
+    code, pre, table, td, th { font-family: "Source Code Pro", ui-monospace, monospace; }
   </style>
 </head>
 <body>
