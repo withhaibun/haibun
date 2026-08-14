@@ -27,15 +27,19 @@
 		"bundle:watch": "npm run bundle:app -- --watch=forever & npm run bundle:report -- --watch=forever & wait"
 	},
 	"dependencies": {
+		"3d-force-graph-vr": "^3.1.1",
 		"@huggingface/transformers": "^4.2.0",
 		"@lit-labs/signals": "^0.3.0",
 		"@lit-labs/virtualizer": "^2.1.1",
 		"@lit/task": "^1.0.3",
 		"@recogito/text-annotator": "^4.2.5",
+		"aframe": "~1.7.1",
 		"d3-force-3d": "^3.0.6",
 		"dompurify": "^3.3.3",
 		"lit": "^3.3.3",
 		"markdown-it": "^14.0.0",
+		"three-spritetext": "^1.10.0",
+		"troika-three-text": "^0.52.4",
 		"zod": "4.4.2"
 	},
 	"devDependencies": {
