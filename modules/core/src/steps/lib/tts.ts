@@ -9,7 +9,7 @@ import { FEATURE_START } from "../../schema/protocol.js";
 import { SCENARIO_START } from "../../schema/protocol.js";
 import { TAnyFixme } from "../../lib/fixme.js";
 
-export type TCachedAudio = { transcript: string; durationS: number; cachedPath: string };
+type TCachedAudio = { transcript: string; durationS: number; cachedPath: string };
 export type TRenderedAudioMap = { [hash: string]: TCachedAudio };
 
 const CACHE_DIR = nodePath.resolve("capture/.said");
@@ -49,7 +49,7 @@ export async function preRenderFeatureProse(feature: TResolvedFeature): Promise<
 	return renderedAudio;
 }
 
-export function getMediafileDuration(filePath: string): Promise<number> {
+function getMediafileDuration(filePath: string): Promise<number> {
 	try {
 		const command = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
 		const durationStr = doExec(command);
@@ -69,7 +69,7 @@ export function getMediafileDuration(filePath: string): Promise<number> {
  * Render speech to WAV using kokoro-js with late require.
  * Checks if kokoro-js is installed in the current working directory; if not, installs it locally.
  */
-export async function renderSpeech(transcript: string): Promise<string> {
+async function renderSpeech(transcript: string): Promise<string> {
 	// Ensure kokoro-js is available in the local node_modules
 	const localKokoroPath = nodePath.join(process.cwd(), "node_modules/kokoro-js");
 
@@ -119,7 +119,7 @@ export async function renderSpeech(transcript: string): Promise<string> {
 	}
 }
 
-export async function renderAudio(hash: string, transcript: string, cacheDir: string): Promise<TCachedAudio> {
+async function renderAudio(hash: string, transcript: string, cacheDir: string): Promise<TCachedAudio> {
 	const generatedWavPath = await renderSpeech(transcript);
 	if (!existsSync(generatedWavPath)) {
 		throw new Error(`TTS command did not produce expected file: ${generatedWavPath}`);

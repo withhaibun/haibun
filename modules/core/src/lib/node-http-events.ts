@@ -6,13 +6,13 @@ import type { TWorld } from "./world.js";
 import type { TTag } from "./ttag.js";
 import { trackOutboundRequest } from "./http-observations.js";
 
-export interface TStepTrace {
+interface TStepTrace {
 	world: TWorld;
 	tag: TTag;
 	stepperName: string;
 }
 
-export const stepTraceStorage = new AsyncLocalStorage<TStepTrace>();
+const stepTraceStorage = new AsyncLocalStorage<TStepTrace>();
 
 interface UndiciRequest {
 	origin?: string;

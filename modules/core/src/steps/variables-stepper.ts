@@ -770,7 +770,7 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 	return { "@context": context, ...(queryable.length ? { "@queryable": queryable } : {}) } as THypermediaContext;
 }
 
-export const didNotOverwrite = (what: string, present: string, value: string) => ({
+const didNotOverwrite = (what: string, present: string, value: string) => ({
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },
 });
 
