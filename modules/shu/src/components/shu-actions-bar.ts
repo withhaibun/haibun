@@ -30,6 +30,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { clamp, prettifyGwta, appAccessLevel } from "../util.js";
+import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
 import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
@@ -48,10 +49,6 @@ import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 
-const MIN_PANEL_PX = 50; // a resize drag below this snaps the overlay back to the default proportion
-const DEFAULT_PROPORTION = 0.38; // expanded overlay height when the user hasn't dragged one
-const MIN_PROPORTION = 0.12;
-const MAX_PROPORTION = 0.9;
 
 /**
  * Build the secondary line shown under a step's gwta in the step picker.
@@ -210,31 +207,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			}
 		}
 
-		if (!this.isEntitySelection(patterns)) {
-			this._queryLabel = this.contextLabel(patterns, extra);
+		if (!isEntitySelection(patterns)) {
+			this._queryLabel = contextLabel(patterns, extra);
 		}
 
 		this.updateBreadcrumbDisplay();
 		if (this.state.askExpanded) this.requestUpdate();
-	}
-
-	private isEntitySelection(patterns: TContextPattern[]): boolean {
-		return patterns.length > 0 && patterns.every((p) => p.s && !p.p && !p.o);
-	}
-
-	private contextLabel(patterns: TContextPattern[], extra?: { total?: number; label?: string; folder?: string }): string {
-		if (patterns.length === 0) return "All";
-		const subjects = patterns.filter((p) => p.s && !p.p && !p.o);
-		if (subjects.length === patterns.length && subjects.length > 0) {
-			return subjects.length === 1 ? subjects[0].s || "" : `${subjects.length} items`;
-		}
-		const fieldPat = patterns.find((p) => p.s && p.p);
-		if (fieldPat && patterns.length === 1) return `${fieldPat.p}`;
-		const parts: string[] = [];
-		if (extra?.label) parts.push(`${extra.label}:`);
-		if (extra?.total !== undefined) parts.push(String(extra.total));
-		if (extra?.folder) parts.push(`in ${extra.folder}`);
-		return parts.length > 0 ? parts.join(" ") : "All";
 	}
 
 	setColumns(columns: string[]): void {
@@ -568,7 +546,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private dispatchFilterChange(): void {
-		this._queryLabel = this.contextLabel(this._contextPatterns, {
+		this._queryLabel = contextLabel(this._contextPatterns, {
 			label: this._selectedLabel,
 			...this._selectFilters,
 		});
@@ -620,15 +598,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _firstEventTime = 0;
 	private _latestEventTime = 0;
 
+	/** Widen the run's span to include this cursor, then say where in it the cursor sits. */
 	private formatTimeOffset(cursor: number | null): string {
 		if (cursor == null || cursor <= 0) return "now";
 		if (this._firstEventTime === 0 || cursor < this._firstEventTime) this._firstEventTime = cursor;
 		if (cursor > this._latestEventTime) this._latestEventTime = cursor;
-		const elapsed = cursor - this._firstEventTime;
-		const seconds = Math.round(elapsed / 1000);
-		if (cursor >= this._latestEventTime) return "now";
-		if (seconds < 60) return `${seconds}s`;
-		return `${Math.round(seconds / 60)}m`;
+		return timeOffsetLabel(cursor, this._firstEventTime, this._latestEventTime);
 	}
 
 	/** Lit handles the render via the standard `render() \u2192 TemplateResult \u2192 reconcile against the shadow root` path. `updated()` is where side-effects that depend on the freshly-reconciled DOM run \u2014 wiring drag handlers to nodes Lit just mounted, pushing combobox option lists, etc. */
@@ -648,10 +623,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** The remembered expanded height as a fraction of the container (drag-set, cookie-persisted), or the default.
 	 * Cached so a render — which runs on every reactive update — does not re-scan document.cookie each time. */
 	private expandedProportion(): number {
-		if (this._proportion === null) {
-			const saved = this.state.heightProportion;
-			this._proportion = saved >= MIN_PROPORTION && saved <= MAX_PROPORTION ? saved : DEFAULT_PROPORTION;
-		}
+		if (this._proportion === null) this._proportion = openAtProportion(this.state.heightProportion);
 		return this._proportion;
 	}
 
@@ -1017,7 +989,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		requestAnimationFrame(() => {
 			this._dragRafPending = false;
 			// Live feedback in px while dragging (top edge up = taller); on release it becomes a container fraction (onResizeEnd).
-			const h = clamp(this._dragStartH - (y - this._dragStartY), MIN_PANEL_PX, this._dragContainerH);
+			const h = draggedHeight(this._dragStartH, this._dragStartY, y, this._dragContainerH);
 			this.style.height = `${h}px`;
 		});
 	}
@@ -1026,7 +998,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._dragMoveCleanup?.();
 		this._dragMoveCleanup = null;
 		// Remember the dragged size as a fraction of the container so it stays proportionate across window sizes.
-		this._proportion = clamp(this.offsetHeight / this._dragContainerH, MIN_PROPORTION, MAX_PROPORTION);
+		this._proportion = draggedProportion(this.offsetHeight, this._dragContainerH);
 		this.setState({ heightProportion: this._proportion });
 		this.applyHeight();
 	}
