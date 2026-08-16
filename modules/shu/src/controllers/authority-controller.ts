@@ -17,9 +17,9 @@ const WHY = "authority: what this reader may do";
  * AuthorityController — the per-view handle to what authority stands here. A view that shows permissions HOLDS one and
  * calls `read()`; it never assembles the RPC itself.
  *
- * The grants come back without their tokens: a bearer token is the credential, so a listing carrying one would hand it
- * to whoever read the listing. What this reader holds is not asked for over the wire at all — it is in the credential
- * the page was served with, so a reader is told what they may do even when nothing may be read.
+ * The grants come back without their tokens: what names a grant is not itself authority, since acting takes the key
+ * the credential is bound to. What this reader holds is not asked for over the wire at all: it is in the session the
+ * page opened with its own key, so a reader is told what they may do even when nothing may be read.
  */
 export class AuthorityController implements ReactiveController {
 	constructor(host: ReactiveControllerHost) {

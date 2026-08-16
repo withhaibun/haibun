@@ -1,6 +1,7 @@
 import { conduit } from "./hypermedia.js";
 import { setRpcCache, findCachedMethod } from "./rpc-cache.js";
-import { getConcernCatalog, setConcernCatalog } from "./rels-cache.js";
+import { getConcernCatalog, heldConcernCatalog, setConcernCatalog } from "./rels-cache.js";
+import { pagePinned } from "./page-pinned.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { z } from "zod";
@@ -80,17 +81,11 @@ const StepListResponseSchema = z
 
 // What the site said it offers, pinned to the page rather than held per bundle: a page is more than one bundle, and a
 // panel a deployment adds asks the same site as the app. Held per bundle, a panel would discover the site again, and
-// would not know what a step it calls requires.
+// would not know what a step it calls requires. The catalog the site declares is not held here: rels-cache owns it,
+// pinned the same way, so one thing has one home.
 const REGISTRY_KEY = "__SHU_STEP_REGISTRY__";
-type TRegistry = { steps: StepDescriptor[] | null; domains: Record<string, DomainInfo> | null; concerns: TConcernCatalog | null; pending: Promise<StepListResponse> | null };
-const registry = (): TRegistry => {
-	const g = globalThis as unknown as Record<string, TRegistry | undefined>;
-	const existing = g[REGISTRY_KEY];
-	if (existing) return existing;
-	const fresh: TRegistry = { steps: null, domains: null, concerns: null, pending: null };
-	g[REGISTRY_KEY] = fresh;
-	return fresh;
-};
+type TRegistry = { steps: StepDescriptor[] | null; byName: Map<string, StepDescriptor> | null; domains: Record<string, DomainInfo> | null; pending: Promise<StepListResponse> | null };
+const registry = (): TRegistry => pagePinned(REGISTRY_KEY, () => ({ steps: null, byName: null, domains: null, pending: null }));
 
 // Both go through the step list even when the page already has it, because the answer is only half of what asking for
 // it does: the other half is this bundle reading what the site declares, which is what its views draw by.
@@ -140,19 +135,21 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainO
 }
 
 async function getStepList(): Promise<StepListResponse> {
-	const { steps, domains, concerns, pending } = registry();
-	if (steps && domains && concerns) {
-		// Another bundle of this page asked the site; this one is told the same answer, and reads it for itself.
-		readDeclarations(concerns, domains);
-		return { steps, domains, concerns };
+	const r = registry();
+	const concerns = heldConcernCatalog();
+	if (r.steps && r.domains && concerns) {
+		// Another bundle of this page asked the site; this one is told the same answer, and reads it for itself
+		// (a no-op in a bundle that already has: setConcernCatalog derives once per catalog).
+		setConcernCatalog(concerns, r.domains);
+		return { steps: r.steps, domains: r.domains, concerns };
 	}
-	if (pending) return pending;
+	if (r.pending) return r.pending;
 	const discovery = discover();
-	registry().pending = discovery;
+	r.pending = discovery;
 	try {
 		return await discovery;
 	} finally {
-		registry().pending = null;
+		r.pending = null;
 	}
 }
 
@@ -161,19 +158,13 @@ async function getStepList(): Promise<StepListResponse> {
 export interface ShuHydration {
 	rpcCache?: Record<string, unknown>;
 	viewHash?: string;
-	/** The credential this reader acts under, where the deployment declared one, and the actions it holds. */
-	session?: { token: string; allowedAction: string[] };
 }
 
-// The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension each carry
-// their own copy of this module). A module-level variable here is then a copy per bundle, and only the app's copy ever
-// read the payload: an extension asking for the session credential saw none and refused what the page may do. The one
-// payload is pinned on globalThis, the same way the quads snapshot is, so every bundle reads the same boot.
+// The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
+// each carry their own copy of this module). The one payload is pinned to the page so every bundle reads the same
+// boot: an extension reading a per-bundle copy would see an empty rpcCache and refetch what the export embedded.
 const HYDRATION_KEY = "__SHU_HYDRATION__";
-const heldHydration = (): { data: ShuHydration | null } => {
-	const g = globalThis as unknown as Record<string, { data: ShuHydration | null } | undefined>;
-	return (g[HYDRATION_KEY] ??= { data: null });
-};
+const heldHydration = (): { data: ShuHydration | null } => pagePinned(HYDRATION_KEY, () => ({ data: null }));
 
 /** Parse the embedded hydration and drop the text it was parsed from: the element holds the whole run — every event —
  *  as one string, which would sit in the DOM for the life of the page beside the objects parsed out of it. Read once
@@ -214,35 +205,31 @@ export function getHydratedViewHash(): string {
 	return heldHydration().data?.viewHash ?? "";
 }
 
-/**
- * What the site declares is one thing per page, and the reading built from it is each bundle's own: the metadata, the
- * edge index, the role nouns. A bundle reads once. Reading again would rebuild that metadata from the declarations
- * alone, discarding what a view merged onto it from the site itself, so a bundle already told is left as it is.
- */
-let read = false;
-function readDeclarations(concerns: TConcernCatalog, domains: Record<string, DomainInfo>): void {
-	if (read) return;
-	read = true;
-	setConcernCatalog(concerns, domains);
-}
-
 async function discover(): Promise<StepListResponse> {
 	const result = await conduit().follow<unknown>({ method: "step.list" }, "rpc-registry: discover available steps");
 	const parsed: StepListResponse = StepListResponseSchema.parse(result);
 	const { steps, domains, concerns } = parsed;
-	readDeclarations(concerns, domains);
+	setConcernCatalog(concerns, domains);
 	for (const [label, concern] of Object.entries(concerns.persisted)) {
 		if (/^\s*\[.*\]\s*$/.test(concern.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${concern.label}`);
 	}
-	registry().steps = steps;
-	registry().domains = domains;
-	registry().concerns = concerns;
+	const r = registry();
+	r.steps = steps;
+	r.domains = domains;
+	// Looked up on every call the page makes, so the registry is indexed once under both names a step answers to. Two
+	// steppers may offer the same friendly name; the first the site listed answers to it, as a scan of the list did.
+	const byName = new Map<string, StepDescriptor>();
+	for (const step of steps) {
+		if (!byName.has(step.stepName)) byName.set(step.stepName, step);
+		if (!byName.has(step.method)) byName.set(step.method, step);
+	}
+	r.byName = byName;
 	return { steps, domains, concerns };
 }
 
 /** Look up a registered step by either its friendly name (e.g. `"graphQuery"`) or its full `Stepper-method` form. The name is the wire contract — resolution, and any "unknown step" outcome, happen at runtime against the loaded registry. */
 export function findStep(name: string): StepDescriptor | undefined {
-	return registry().steps?.find((s) => s.stepName === name || s.method === name);
+	return registry().byName?.get(name);
 }
 
 /** Resolve a friendly name (e.g. `"graphQuery"`) to the loaded stepper's full method (e.g. `"GraphStepper-graphQuery"`). A name no loaded stepper provides fails fast at runtime. */

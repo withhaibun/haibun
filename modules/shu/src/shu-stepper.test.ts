@@ -8,6 +8,7 @@ import { z } from "zod";
 import ShuStepper, { sessionActions } from "./shu-stepper.js";
 import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { runWithRequestContext } from "@haibun/core/lib/request-context.js";
 import type { TCredentialRequest } from "@haibun/core/lib/authority-types.js";
 
@@ -34,8 +35,8 @@ function selectProducts(result: Awaited<ReturnType<ShuStepper["steps"]["getSelec
 	return result.products as { values: Record<string, string[]> };
 }
 
-/** The step a serving runs at: a grant records where it was granted, so the serving carries its own seqPath. */
-const servingStep = { seqPath: [0, 1, 1], in: "serve shu app", action: { stepperName: "ShuStepper", actionName: "serveShuApp", step: {}, stepValuesMap: {} } } as unknown as Parameters<typeof ShuStepper.prototype.steps.serveShuApp.action>[1];
+/** The step an issuing runs at: a grant records where it was granted, so the issuance carries its own seqPath. */
+const issuingStep = { seqPath: [0, 1, 1], in: "issue a session credential", action: { stepperName: "ShuStepper", actionName: "issueSessionCredential", step: {}, stepValuesMap: {} } } as unknown as TFeatureStep;
 
 describe("ShuStepper", () => {
 	let stepper: ShuStepper;
@@ -54,7 +55,7 @@ describe("ShuStepper", () => {
 	});
 
 	it("rejects invalid mount paths", async () => {
-		const result = await stepper.steps.serveShuApp.action({ path: "spa" }, servingStep);
+		const result = await stepper.steps.serveShuApp.action({ path: "spa" });
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("expected invalid mount path to fail");
 		expect(result.errorMessage).toContain('path must start with "/"');
@@ -62,9 +63,9 @@ describe("ShuStepper", () => {
 	});
 
 	it("throws on duplicate mount at same path", async () => {
-		const first = await stepper.steps.serveShuApp.action({ path: "/spa" }, servingStep);
+		const first = await stepper.steps.serveShuApp.action({ path: "/spa" });
 		expect(first.ok).toBe(true);
-		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" }, servingStep)).toThrow("already mounted");
+		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" })).toThrow("already mounted");
 	});
 
 	it("returns no select values for Comment (no enum-backed fields)", async () => {
@@ -122,7 +123,7 @@ describe("the credential a reader acts under", () => {
 		// action: the grant then held dozens of one-letter actions and the listing of it would not validate.
 		expect(sessionActions("Instance:read,comment.grant")).toEqual(["Instance:read", "comment.grant"]);
 		expect(sessionActions(" Instance:read , comment.grant "), "written with spaces, as a person writes a list").toEqual(["Instance:read", "comment.grant"]);
-		expect(sessionActions(undefined), "unset means the page carries no credential").toEqual([]);
+		expect(sessionActions(undefined), "unset means nothing is issued").toEqual([]);
 		expect(sessionActions(",, "), "and nothing but separators is nothing").toEqual([]);
 	});
 
@@ -133,7 +134,7 @@ describe("the credential a reader acts under", () => {
 		authority.registerIssuer({
 			issue: (request) => {
 				asked = request;
-				return Promise.resolve({ credential: { id: "urn:uuid:issued" }, keyId: "did:key:zHolder#zHolder" });
+				return Promise.resolve({ credential: { id: "urn:uuid:issued" }, keyId: "did:key:zHolder#zHolder", controller: "did:key:zHolder" });
 			},
 		});
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
@@ -141,7 +142,7 @@ describe("the credential a reader acts under", () => {
 		await stepper.setWorld({ ...world, moduleOptions: { [getStepperOptionName(stepper, "SESSION_CAPABILITY")]: "Instance:read,comment.grant" } }, [stepper]);
 		const holderKey = { kty: "EC", crv: "P-256", x: "zX", y: "zY" };
 		const issued = await runWithRequestContext({ baseIri: "http://localhost:8123" }, () =>
-			(stepper.steps.issueSessionCredential.action as (args: { holderKey: unknown }) => Promise<{ products?: Record<string, unknown> }>)({ holderKey }),
+			(stepper.steps.issueSessionCredential.action as (args: { holderKey: unknown }, step: TFeatureStep) => Promise<{ products?: Record<string, unknown> }>)({ holderKey }, issuingStep),
 		);
 		expect(asked?.allowedAction, "what the deployment declared a reader may do").toEqual(["Instance:read", "comment.grant"]);
 		expect(asked?.holderKey, "issued to the key the reader presented, and to nothing else").toEqual(holderKey);
@@ -159,8 +160,8 @@ describe("the credential a reader acts under", () => {
 		const holderKey = { kty: "EC", crv: "P-256", x: "zX", y: "zY" };
 		await expect(
 			runWithRequestContext({ baseIri: "http://localhost:8123" }, () =>
-				(stepper.steps.issueSessionCredential.action as (args: { holderKey: unknown }) => Promise<unknown>)({ holderKey }),
+				(stepper.steps.issueSessionCredential.action as (args: { holderKey: unknown }, step: TFeatureStep) => Promise<unknown>)({ holderKey }, issuingStep),
 			),
-		).rejects.toThrow(/nothing is registered to issue one/);
+		).rejects.toThrow(/nothing is registered to issue a credential/);
 	});
 });

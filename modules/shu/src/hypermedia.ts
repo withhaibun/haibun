@@ -24,7 +24,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
 import { rpcEnvelope, readNdjson } from "@haibun/core/lib/rpc-wire.js";
 import { findStep } from "./rpc-registry.js";
-import { signedHeaders } from "./session-key.js";
+import { sessionReady, signedHeaders } from "./session-key.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
 
@@ -110,7 +110,6 @@ function formatRpcError(method: string, status: number, data: unknown): string {
 	return `${method}: RPC failed with status ${status}`;
 }
 
-/** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path — wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */
 /**
  * What every call from this page carries. A call to a step that requires authority is signed with the key this reader
  * controls, over that request: the address, the method and the body, naming the capability the step declares. A call
@@ -122,13 +121,18 @@ async function rpcHeaders(url: string, method: string, body: string): Promise<Re
 	const base: Record<string, string> = { "content-type": "application/json" };
 	const required = findStep(method)?.capability;
 	if (!required) return base;
+	// Only a call that needs authority waits for the session: the page opens one while it renders, and a reader doing
+	// something that needs nothing never waits for it, nor is stopped by a deployment that gives readers nothing.
+	await sessionReady();
 	// What is signed is the address the request is actually made to: a proof over a relative path proves nothing about
-	// where it was sent, and the boundary checks the absolute one it received.
+	// where it was sent, and the boundary checks the absolute one it received. The body is signed as the string it is
+	// sent as, so the digest the proof carries is over those bytes.
 	const asked = new URL(url, location.href);
-	const signed = await signedHeaders({ url: asked.toString(), method: "POST", headers: { ...base, host: asked.host }, json: JSON.parse(body) as unknown, action: required });
+	const signed = await signedHeaders({ url: asked.toString(), method: "POST", headers: { ...base, host: asked.host }, body, action: required });
 	return signed ?? base;
 }
 
+/** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path — wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */
 export class LiveConduit implements Conduit {
 	constructor(
 		private readonly basePath: string = "",
@@ -137,10 +141,7 @@ export class LiveConduit implements Conduit {
 
 	async follow<T = TRepresentation>(link: TLink, why: string): Promise<T> {
 		const seqPath = await this.allocateSeqPath(why);
-		const id = nextRpcId();
-		const url = `${this.basePath}/rpc/${link.method}`;
-		const body = rpcEnvelope({ id, method: link.method, params: link.params ?? {}, seqPath });
-		const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, link.method, body), body });
+		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath });
 		const data: unknown = await res.json();
 		if (!res.ok || (data && typeof data === "object" && "error" in (data as Record<string, unknown>) && (data as { error?: unknown }).error)) {
 			throw new Error(formatRpcError(link.method, res.status, data));
@@ -155,10 +156,7 @@ export class LiveConduit implements Conduit {
 	): Promise<{ seqPath: number[] }> {
 		const seqPath = await this.allocateSeqPath(opts.why);
 		opts.onStart?.(seqPath);
-		const id = nextRpcId();
-		const url = `${this.basePath}/rpc/${link.method}`;
-		const body = rpcEnvelope({ id, method: link.method, params: link.params ?? {}, seqPath, stream: true });
-		const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, link.method, body), body, signal: opts.signal });
+		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, stream: true }, opts.signal);
 		if (!res.ok) throw new Error(`${link.method}: stream RPC failed with status ${res.status}`);
 		if (!res.body) throw new Error(`${link.method}: stream RPC returned no body`);
 		for await (const chunk of readNdjson<TStreamChunk>(res.body)) {
@@ -181,11 +179,15 @@ export class LiveConduit implements Conduit {
 		return this.beginAction(why);
 	}
 
+	// The one wire write: envelope, headers (signed where the step requires authority), POST. Every request above rides it.
+	private async post(method: string, envelope: Omit<Parameters<typeof rpcEnvelope>[0], "id">, signal?: AbortSignal): Promise<Response> {
+		const url = `${this.basePath}/rpc/${method}`;
+		const body = rpcEnvelope({ id: nextRpcId(), ...envelope });
+		return fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal });
+	}
+
 	private async beginAction(why: string): Promise<number[]> {
-		const id = nextRpcId();
-		const url = `${this.basePath}/rpc/action.begin`;
-		const body = rpcEnvelope({ id, method: "action.begin", params: { why } });
-		const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, "action.begin", body), body });
+		const res = await this.post("action.begin", { method: "action.begin", params: { why } });
 		const data: unknown = await res.json();
 		if (!res.ok || !data || typeof data !== "object" || !("seqPath" in (data as Record<string, unknown>))) {
 			throw new Error(formatRpcError("action.begin", res.status, data));

@@ -61,7 +61,7 @@ describe("what a page sends", () => {
 			url: "http://localhost:8123/rpc/ShuStepper-showViews",
 			method: "POST",
 			headers: { host: "localhost:8123", "content-type": "application/json" },
-			json: { jsonrpc: "2.0", id: "1", method: "ShuStepper-showViews", params: {} },
+			body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: "ShuStepper-showViews", params: {} }),
 			action: "comment.grant",
 		});
 		expect(headers?.["capability-invocation"], "the presentation names the action it exercises").toContain('action="comment.grant"');
@@ -75,8 +75,23 @@ describe("what a page sends", () => {
 		expect(session()).toBeUndefined();
 	});
 
+	it("says why where the browser withholds its key store, which is how a page served over plain http is reached", async () => {
+		const held = globalThis.crypto;
+		Object.defineProperty(globalThis, "crypto", { value: {}, configurable: true });
+		try {
+			await expect(opened()).rejects.toThrow(/secure context/);
+		} finally {
+			Object.defineProperty(globalThis, "crypto", { value: held, configurable: true });
+		}
+	});
+
+	it("says so when a deployment declares what a reader may do but issues nothing to do it with", async () => {
+		await expect(openSession(() => Promise.resolve({ allowedAction: ["comment.grant"] }))).rejects.toThrow(/issued no credential, keyId, expires/);
+		expect(session(), "and holds nothing, rather than a session that cannot sign").toBeUndefined();
+	});
+
 	it("signs nothing when the reader holds nothing, since there is nothing to prove", async () => {
-		const headers = await signedHeaders({ url: "http://localhost:8123/rpc/x", method: "POST", headers: {}, json: {}, action: "comment.grant" });
+		const headers = await signedHeaders({ url: "http://localhost:8123/rpc/x", method: "POST", headers: {}, body: "{}", action: "comment.grant" });
 		expect(headers).toBeUndefined();
 	});
 });
