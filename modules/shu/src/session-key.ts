@@ -10,6 +10,8 @@
  * reader presents a key, receives something to act with, and signs what it asks.
  */
 import { signCapabilityInvocation } from "@digitalbazaar/http-signature-zcap-invoke";
+import { pagePinned } from "./page-pinned.js";
+import { sessionCredentialSchema } from "./session-schema.js";
 
 /** What a reader holds while its page is open: the key it signs with, and what the deployment gave it to act under. */
 export type TSession = {
@@ -23,19 +25,12 @@ export type TSession = {
 	expires: string;
 };
 
-type THeld = TSession & { sign(options: { data: Uint8Array }): Promise<Uint8Array> };
+type THeld = { session: TSession; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
 
-// A page is more than one bundle — the app, a panel a deployment adds — and a reader is one reader across all of them.
-// The session is pinned to the page rather than held per bundle, so what a panel may do is what the app was given.
+// A reader is one reader across every bundle of its page, so what it holds is the page's, and so is the opening of it:
+// a bundle that signs a request waits on the same opening the app started rather than starting one of its own.
 const SESSION_KEY = "__SHU_READER_SESSION__";
-const pinned = (): { held?: THeld } => {
-	const g = globalThis as unknown as Record<string, { held?: THeld } | undefined>;
-	const existing = g[SESSION_KEY];
-	if (existing) return existing;
-	const fresh: { held?: THeld } = {};
-	g[SESSION_KEY] = fresh;
-	return fresh;
-};
+const pinned = (): { held?: THeld; opening?: Promise<TSession | undefined> } => pagePinned(SESSION_KEY, () => ({}));
 
 /**
  * The key this page signs with, made here and kept here: its private half is not readable material and never leaves
@@ -43,7 +38,13 @@ const pinned = (): { held?: THeld } => {
  * Only the public half is presented, as a JSON Web Key; how a credential names that key is the deployment's own
  * business, which is why this asks rather than encoding one.
  */
-async function pageKey(): Promise<{ publicKey: JsonWebKey; sign: THeld["sign"] }> {
+export async function pageKey(): Promise<{ publicKey: JsonWebKey; sign: THeld["sign"] }> {
+	// A browser gives a page its key store only in a secure context: over https, or from localhost. Served otherwise
+	// there is no key for a reader to control and nothing it could prove, which is a fact about how the deployment is
+	// reached rather than a fault in the page, so it is said as that.
+	if (!globalThis.crypto?.subtle) {
+		throw new Error(`a reader can only make a key it controls in a secure context (https, or localhost); this page was served from ${globalThis.location?.origin ?? "an origin"}, where the browser withholds its key store`);
+	}
 	const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
 	const publicKey = await crypto.subtle.exportKey("jwk", pair.publicKey);
 	const sign = async ({ data }: { data: Uint8Array }): Promise<Uint8Array> =>
@@ -54,43 +55,65 @@ async function pageKey(): Promise<{ publicKey: JsonWebKey; sign: THeld["sign"] }
 /**
  * Ask the deployment for what this reader may act under, presenting the public half of the key the page controls.
  * `issue` is the call that reaches the deployment's own issuing step, so this module assumes nothing about how that
- * step is named or what form the credential takes.
+ * step is named or what form the credential takes. A deployment that declares nothing has answered: the page holds
+ * nothing and signs nothing. An answer that declares actions but arrives without the credential to act under them is
+ * a fault in the deployment's issuing, and is said here, where it happened, rather than surfacing later as
+ * unexplained refusals of everything the reader was told it may do.
  */
-export async function openSession(issue: (holderKey: JsonWebKey) => Promise<Partial<TSession> & { allowedAction: string[] }>): Promise<TSession | undefined> {
+export function openSession(issue: (holderKey: JsonWebKey) => Promise<unknown>): Promise<TSession | undefined> {
+	const opening = open(issue);
+	pinned().opening = opening;
+	return opening;
+}
+
+/**
+ * Wait for the opening the page started, for a caller that is about to act under what it holds. A page that never
+ * opened one has nothing to wait for. An opening that failed fails here, at the request that needed it, rather than
+ * as a reader silently able to do nothing.
+ */
+export async function sessionReady(): Promise<void> {
+	await pinned().opening;
+}
+
+async function open(issue: (holderKey: JsonWebKey) => Promise<unknown>): Promise<TSession | undefined> {
 	const { publicKey, sign } = await pageKey();
-	const issued = await issue(publicKey);
-	// A deployment that gives a reader nothing has answered: the page holds nothing and signs nothing, and its key is
-	// of no use to it, so it is not kept.
-	if (!issued.credential || !issued.keyId || !issued.expires) return undefined;
-	pinned().held = { keyId: issued.keyId, credential: issued.credential, allowedAction: issued.allowedAction, expires: issued.expires, sign };
+	const issued = sessionCredentialSchema.parse(await issue(publicKey));
+	if (issued.allowedAction.length === 0) return undefined;
+	const { keyId, credential, expires, allowedAction } = issued;
+	if (!credential || !keyId || !expires) {
+		const missing = [!credential && "credential", !keyId && "keyId", !expires && "expires"].filter(Boolean).join(", ");
+		throw new Error(`open session: the deployment declared ${allowedAction.join(", ")} but issued no ${missing} to act under`);
+	}
+	pinned().held = { session: { keyId, credential, allowedAction, expires }, sign };
 	return session();
 }
 
 /** What this reader holds, for a view that shows what it may do. Undefined where the deployment gave it nothing. */
 export function session(): TSession | undefined {
-	const held = pinned().held;
-	return held ? { keyId: held.keyId, credential: held.credential, allowedAction: held.allowedAction, expires: held.expires } : undefined;
+	return pinned().held?.session;
 }
 
-/** Forget what this reader holds, which is what closing a session means: the key goes with it. */
+/** Forget what this reader holds, which is what closing a session means: the key goes with it, and so does the
+ *  opening it came from, so nothing waits on a session this reader no longer has. */
 export function closeSession(): void {
 	pinned().held = undefined;
+	pinned().opening = undefined;
 }
 
 /**
  * The headers that prove this reader is asking for this, of this. The signature covers the address, the method and the
  * body, so what is proven is the request rather than the holder's possession of anything.
  */
-export async function signedHeaders(request: { url: string; method: string; headers: Record<string, string>; json: unknown; action: string }): Promise<Record<string, string> | undefined> {
+export async function signedHeaders(request: { url: string; method: string; headers: Record<string, string>; body: string; action: string }): Promise<Record<string, string> | undefined> {
 	const held = pinned().held;
 	if (!held) return undefined;
 	return await signCapabilityInvocation({
 		url: request.url,
 		method: request.method,
 		headers: request.headers,
-		json: request.json,
-		capability: held.credential,
+		body: request.body,
+		capability: held.session.credential,
 		capabilityAction: request.action,
-		invocationSigner: { id: held.keyId, sign: held.sign },
+		invocationSigner: { id: held.session.keyId, sign: held.sign },
 	});
 }

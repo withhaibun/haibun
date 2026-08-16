@@ -15,10 +15,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 
 /** The modules that own the wire. A consumer importing them by package path matches on the same suffixes. */
-export const PLUMBING_MODULES = ["/hypermedia.js", "/pane-fetch.js", "/rpc-registry.js"];
+export const PLUMBING_MODULES = ["/hypermedia.js", "/pane-fetch.js", "/rpc-registry.js", "/session-key.js"];
 
 /** The names a component may not import: each one reassembles data access the controller already holds. */
-export const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "fetchIndividuals", "sessionCredential"]);
+export const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "fetchIndividuals", "session", "signedHeaders"]);
 
 /** True when this source imports a data-access primitive from a plumbing module. */
 export function importsDataAccessPrimitive(source: string): boolean {

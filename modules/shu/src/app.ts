@@ -5,7 +5,8 @@ import { SHU_EVENT, SHU_ATTR } from "./consts.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, isStandaloneMode, getHydratedViewHash } from "./rpc-registry.js";
+import { hydrateFromDom, isStandaloneMode, getHydratedViewHash, getAvailableSteps, findStep } from "./rpc-registry.js";
+import { openSession } from "./session-key.js";
 import { getCachedResponse } from "./rpc-cache.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
@@ -84,18 +85,19 @@ function seedHashFromQueryString(): void {
  * itself, presents the public half, and holds what comes back; every call needing authority is then signed with that
  * key. A deployment offering no such step gives its readers nothing, and they act with nothing, which is a deployment
  * where nothing a reader can reach requires authority.
+ *
+ * Started, not waited for. Nothing the page first renders acts under a session, and a reader browsing what needs no
+ * authority is not kept waiting for one; a call that does need it waits (rpcHeaders), and fails there with why.
  */
-async function openReaderSession(): Promise<void> {
-	const { findStep } = await import("./rpc-registry.js");
+function openReaderSession(): void {
 	const issuing = findStep("issueSessionCredential");
 	if (!issuing) return;
-	const { openSession } = await import("./session-key.js");
-	await openSession((holderKey) =>
-		conduit().follow<{ keyId?: string; credential?: Record<string, unknown>; allowedAction: string[]; expires?: string }>(
-			{ method: issuing.method, params: { holderKey: JSON.stringify(holderKey) } },
-			"open this reader's session",
-		),
-	);
+	// The key goes as the object the step declares it takes, so what the site published as this step's input is what
+	// the page sends.
+	const opening = openSession((holderKey) => conduit().follow<unknown>({ method: issuing.method, params: { holderKey } }, "open this reader's session"));
+	// Said once, where a reader can see it. What waits on the session raises the same failure at the call that needed
+	// it, so this is a notice rather than the handling of it.
+	opening.catch((err: unknown) => console.warn(`[shu] this reader has no session: ${errorDetail(err)}`));
 }
 
 const main = async (): Promise<void> => {
@@ -128,9 +130,8 @@ const main = async (): Promise<void> => {
 	if (!appRoot) return;
 
 	try {
-		const { getAvailableSteps } = await import("./rpc-registry.js");
 		await getAvailableSteps();
-		await openReaderSession();
+		openReaderSession();
 	} catch (err) {
 		if (!isOffline()) {
 			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${errorDetail(err)}</div>`;

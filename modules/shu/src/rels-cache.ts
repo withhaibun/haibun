@@ -247,27 +247,33 @@ export function hasUsableSelectValues(label: string): boolean {
 
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { LinkRelations, getPropertyDefinitions, isSubPropertyOf, roleRels, fromActorRels, toActorRels } from "@haibun/core/lib/resources.js";
+import { pagePinned } from "./page-pinned.js";
 
 // What the site declares is one thing per page, and a page is more than one bundle: the app, the graph view, a panel a
 // deployment adds. Held per bundle, whichever bundle did not ask the site would have no vocabulary at all.
 const CATALOG_KEY = "__SHU_CONCERN_CATALOG__";
 type TDeclared = { catalog: TConcernCatalog | null; meta: SiteMetadata | null };
-const declared = (): TDeclared => {
-	const g = globalThis as unknown as Record<string, TDeclared | undefined>;
-	const existing = g[CATALOG_KEY];
-	if (existing) return existing;
-	const fresh: TDeclared = { catalog: null, meta: null };
-	g[CATALOG_KEY] = fresh;
-	return fresh;
-};
+const declared = (): TDeclared => pagePinned(CATALOG_KEY, () => ({ catalog: null, meta: null }));
+
+/** The catalog the page holds, or null before any bundle has asked the site. For a caller deciding whether to derive;
+ *  a reader that needs the catalog to exist uses getConcernCatalog. */
+export function heldConcernCatalog(): TConcernCatalog | null {
+	return declared().catalog;
+}
 
 type TDomainUiInfo = { ui?: Record<string, unknown> };
 
 const edgeRelMap = new Map<string, string>();
 let cachedEdgeRelRecord: Record<string, string> | null = null;
+// The catalog this bundle last derived from. The catalog is the page's; everything derived from it here (the site
+// metadata, the edge index, the role caches) is this bundle's own, so each bundle derives once per catalog and a
+// repeat is a no-op. That keeps what a view merged onto the metadata afterward, instead of rebuilding over it.
+let derivedFromCatalog: TConcernCatalog | null = null;
 
 /** Set the concern catalog from step.list response. Caches derived SiteMetadata and edge→rel map. */
 export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<string, TDomainUiInfo>): void {
+	if (catalog === derivedFromCatalog) return;
+	derivedFromCatalog = catalog;
 	const meta = siteMetadataFromConcerns(catalog, domains);
 	declared().catalog = catalog;
 	declared().meta = meta;

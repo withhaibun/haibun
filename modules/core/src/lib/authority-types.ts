@@ -66,13 +66,16 @@ export type TCredentialRequest = {
 	target: string;
 };
 
+/** What an issuer answers with: the credential, the identifier of the key it names (what the holder signs as), and
+ *  the principal it names as holding it (who acted, when a signature under that key is accepted). */
+export type TIssuedCredential = { credential: Record<string, unknown>; keyId: string; controller: string };
+
 /**
  * Issues a credential to a holder that proves control of a key. A consumer registers one for the specification its
  * deployment uses; the framework holds no signing key and writes no proof itself.
  */
 export interface IAuthorityIssuer {
-	/** The credential, and the identifier of the key it names, which is what the holder signs as. */
-	issue(request: TCredentialRequest): Promise<{ credential: Record<string, unknown>; keyId: string }>;
+	issue(request: TCredentialRequest): Promise<TIssuedCredential>;
 }
 
 /**
@@ -87,9 +90,7 @@ export interface IAuthority {
 	listSessionGrants(): TSessionGrant[];
 	registerVerifier(verifier: IAuthorityVerifier): void;
 	registerIssuer(issuer: IAuthorityIssuer): void;
-	/** Whether anything is registered to issue a credential at all, so a caller knows whether to ask. */
-	hasIssuer(): boolean;
-	issueCredential(request: TCredentialRequest): Promise<{ credential: Record<string, unknown>; keyId: string }>;
+	issueCredential(request: TCredentialRequest): Promise<TIssuedCredential>;
 	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */
 	hasVerifier(): boolean;
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }>;

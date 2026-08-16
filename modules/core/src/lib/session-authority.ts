@@ -13,7 +13,7 @@
  * authority speak the same vocabulary regardless of presentation form.
  */
 import type { TRuntime } from "./world.js";
-import type { IAuthority, IAuthorityIssuer, IAuthorityVerifier, TSessionGrant, TAuthorityEvidence, TCredentialRequest } from "./authority-types.js";
+import type { IAuthority, IAuthorityIssuer, IAuthorityVerifier, TSessionGrant, TAuthorityEvidence, TCredentialRequest, TIssuedCredential } from "./authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
 /** Runtime key holding the active bearer token injected by `withToken`. */
@@ -110,12 +110,8 @@ export class SessionAuthority implements IAuthority {
 		this.issuer = issuer;
 	}
 
-	hasIssuer(): boolean {
-		return this.issuer !== undefined;
-	}
-
-	issueCredential(request: TCredentialRequest): Promise<{ credential: Record<string, unknown>; keyId: string }> {
-		if (!this.issuer) throw new Error("no issuer is registered to give a holder a credential to present");
+	issueCredential(request: TCredentialRequest): Promise<TIssuedCredential> {
+		if (!this.issuer) throw new Error("nothing is registered to issue a credential, so this deployment cannot give a holder authority it can prove");
 		return this.issuer.issue(request);
 	}
 

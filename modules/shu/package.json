@@ -29,6 +29,7 @@
 	},
 	"dependencies": {
 		"3d-force-graph-vr": "^3.1.1",
+		"@digitalbazaar/http-signature-zcap-invoke": "^6.1.0",
 		"@huggingface/transformers": "^4.2.0",
 		"@lit-labs/signals": "^0.3.0",
 		"@lit-labs/virtualizer": "^2.1.1",
@@ -41,9 +42,7 @@
 		"markdown-it": "^14.0.0",
 		"three-spritetext": "^1.10.0",
 		"troika-three-text": "^0.52.4",
-		"zod": "4.4.2",
-		"@digitalbazaar/http-signature-zcap-invoke": "^6.1.0",
-		"@digitalbazaar/ecdsa-multikey": "^1.7.0"
+		"zod": "4.4.2"
 	},
 	"devDependencies": {
 		"@types/markdown-it": "^14.1.2",
