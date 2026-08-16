@@ -135,16 +135,18 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
+		// The authority exists before any stepper's feature begins, since a stepper that registers a verifier or an
+		// issuer does so when its own feature begins, and which of them runs first is the order a deployment happened to
+		// list them in. What a deployment can decide should not depend on that.
+		this.authority = new SessionAuthority();
+		(world.runtime.keys ??= {})[AUTHORITY_KEY] = this.authority;
 	}
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: authorityDomains,
 		}),
-		startFeature: () => {
-			this.authority = new SessionAuthority();
-			(this.getWorld().runtime.keys ??= {})[AUTHORITY_KEY] = this.authority;
-		},
+
 		endFeature: (endFeature?: TEndFeature) => {
 			if (!endFeature?.shouldClose) return Promise.resolve();
 			this.authority?.clear();

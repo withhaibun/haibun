@@ -12,6 +12,7 @@ import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption } from "@haibun/core/lib/util/index.js";
 import { randomUUID } from "node:crypto";
 import { getAuthority } from "@haibun/core/lib/session-authority.js";
+import { currentRequestBaseIri } from "@haibun/core/lib/request-context.js";
 import { activeSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { getJsonLdContext, relOf } from "@haibun/core/lib/hypermedia.js";
@@ -179,6 +180,25 @@ function createSpaHandler(basePath: string, hydration: string) {
 	};
 }
 
+/** How long a reader's credential holds. A session is a sitting, not a standing grant, so it lapses on its own. */
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** What a reader presents: the public half of the key it controls and never sends, as a JSON Web Key. */
+const presentedKeySchema = z.looseObject({
+	kty: z.string().min(1, "the presented key states no key type"),
+	crv: z.string().min(1, "the presented key states no curve"),
+	x: z.string().min(1, "the presented key carries no coordinate"),
+	y: z.string().min(1, "the presented key carries no coordinate"),
+});
+
+/** What a reader receives: the credential itself, what it allows, and when it stops holding. */
+const sessionCredentialSchema = z.object({
+	keyId: z.string().optional().describe("What the credential names the reader's key by, which its signatures are made as."),
+	credential: z.looseObject({ id: z.string() }).optional().describe("The credential the reader presents, issued to the key it controls."),
+	allowedAction: z.array(z.string()).describe("What the reader may do, which is nothing where this deployment gives a reader nothing."),
+	expires: z.string().optional().describe("When it stops holding."),
+});
+
 /** The actions SESSION_CAPABILITY names, read from what the deployment wrote. One reader, used by the option's own
  *  check and by the serving, so what is accepted at boot and what is issued at serve cannot differ. */
 export function sessionActions(declared: string | undefined): string[] {
@@ -218,16 +238,21 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		this.sessionCapability = getStepperOption(this, "SESSION_CAPABILITY", world.moduleOptions) as string | undefined;
 	}
 
-	/** What the page boots with: the credential a reader acts under, where the deployment declared one. The token is
-	 *  registered with this run's own authority, so it holds exactly the declared actions and dies with the run. */
-	private sessionHydration(seqPath: string): Record<string, unknown> {
+	/**
+	 * The credential a reader acts under, issued to a key that reader controls. The page proves control by signing what
+	 * it asks; nothing secret is sent either way. What it may do is what the deployment declared, and it lapses with
+	 * the session, so a page left open stops being able to act rather than holding authority for as long as it is open.
+	 */
+	private async sessionCredentialFor(holderKey: Record<string, unknown>, target: string): Promise<Record<string, unknown>> {
+		// A deployment that declares nothing gives a reader nothing, which is an answer rather than a fault: what a
+		// reader may do there needs no authority, so there is nothing to issue and nothing for a page to sign with.
 		const allowedAction = sessionActions(this.sessionCapability);
-		if (allowedAction.length === 0) return {};
+		if (allowedAction.length === 0) return { allowedAction };
 		const authority = getAuthority(this.getWorld().runtime);
-		if (!authority) throw new Error("serve shu app: SESSION_CAPABILITY names actions, but this run has no authority to issue them from");
-		const token = `shu-session-${randomUUID()}`;
-		authority.issueSessionGrant({ token, allowedAction, controller: activeSitePrincipal(this.getWorld()), note: "the served app's own session", seqPath });
-		return { session: { token, allowedAction } };
+		if (!authority?.hasIssuer()) throw new Error("session credential: nothing is registered to issue one, so this deployment cannot give a reader authority it can prove");
+		const expires = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+		const { credential, keyId } = await authority.issueCredential({ holderKey, allowedAction, expires, target });
+		return { keyId, credential, allowedAction, expires };
 	}
 
 	cycles = {
@@ -309,6 +334,23 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	private sessionCapability?: string;
 
 	steps = {
+		/**
+		 * A reader's page presents the key it controls and receives what it may act with. This is the one interaction
+		 * that cannot happen while the app is being served: the key is made in the page, after the page has loaded.
+		 */
+		issueSessionCredential: {
+			gwta: "issue a session credential for the presented key {holderKey: json}",
+			productsSchema: sessionCredentialSchema,
+			action: async ({ holderKey }: { holderKey: unknown }) => {
+				const parsed = presentedKeySchema.safeParse(holderKey);
+				if (!parsed.success) return actionNotOK(`issue a session credential: the presented key is not a verification method — ${parsed.error.issues.map((i) => i.message).join("; ")}`);
+				// What the reader is given authority over is the instance it is talking to, so every address it asks of is
+				// under what it holds, and a credential cannot be carried to another instance.
+				const target = currentRequestBaseIri();
+				if (!target) return actionNotOK("issue a session credential: this was not asked over a request, so there is no instance to be given authority over");
+				return actionOKWithProducts(await this.sessionCredentialFor(parsed.data as Record<string, unknown>, target));
+			},
+		},
 		serveShuApp: {
 			gwta: "serve shu app at {path: string}",
 			action: ({ path }: { path: string }, featureStep: TFeatureStep) => {
@@ -318,7 +360,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				if (pathError) return actionNotOK(pathError);
 				// The page is served with the credential its reader acts under, in the payload the page already boots from.
 				// A fresh token per serving, held by the run's own authority, so it is gone when the run is.
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, JSON.stringify(this.sessionHydration(formatSeqPath(featureStep.seqPath)))));
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, "{}"));
 				const domains = this.getWorld().domains;
 				// The context varies only by serving host, drawn from a tiny set of origins — build it once per host.
 				const byHost = new Map<string, Record<string, unknown>>();

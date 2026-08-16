@@ -8,6 +8,8 @@ import { z } from "zod";
 import ShuStepper, { sessionActions } from "./shu-stepper.js";
 import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { runWithRequestContext } from "@haibun/core/lib/request-context.js";
+import type { TCredentialRequest } from "@haibun/core/lib/authority-types.js";
 
 function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 	return {
@@ -114,7 +116,7 @@ describe("ShuStepper", () => {
 	});
 });
 
-describe("the credential a served app is given", () => {
+describe("the credential a reader acts under", () => {
 	it("holds the actions the deployment named, not the letters it wrote them in", () => {
 		// The option arrives as the string a deployment wrote. Taken for an array, every character of it became an
 		// action: the grant then held dozens of one-letter actions and the listing of it would not validate.
@@ -124,16 +126,41 @@ describe("the credential a served app is given", () => {
 		expect(sessionActions(",, "), "and nothing but separators is nothing").toEqual([]);
 	});
 
-	it("issues one grant holding exactly those actions, and hands the page the same list", async () => {
+	it("gives a reader a credential over the instance it is talking to, naming the key that reader controls", async () => {
 		const world = getDefaultWorld();
 		const authority = new SessionAuthority();
+		let asked: TCredentialRequest | undefined;
+		authority.registerIssuer({
+			issue: (request) => {
+				asked = request;
+				return Promise.resolve({ credential: { id: "urn:uuid:issued" }, keyId: "did:key:zHolder#zHolder" });
+			},
+		});
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 		const stepper = new ShuStepper();
 		await stepper.setWorld({ ...world, moduleOptions: { [getStepperOptionName(stepper, "SESSION_CAPABILITY")]: "Instance:read,comment.grant" } }, [stepper]);
-		const hydration = (stepper as unknown as { sessionHydration(): { session?: { token: string; allowedAction: string[] } } }).sessionHydration();
-		expect(hydration.session?.allowedAction, "what the page is told it holds").toEqual(["Instance:read", "comment.grant"]);
-		const [issued] = authority.listSessionGrants();
-		expect(issued.allowedAction, "and what the run's authority actually holds for it").toEqual(["Instance:read", "comment.grant"]);
-		expect(issued.token, "under the token the page carries").toBe(hydration.session?.token);
+		const holderKey = { kty: "EC", crv: "P-256", x: "zX", y: "zY" };
+		const issued = await runWithRequestContext({ baseIri: "http://localhost:8123" }, () =>
+			(stepper.steps.issueSessionCredential.action as (args: { holderKey: unknown }) => Promise<{ products?: Record<string, unknown> }>)({ holderKey }),
+		);
+		expect(asked?.allowedAction, "what the deployment declared a reader may do").toEqual(["Instance:read", "comment.grant"]);
+		expect(asked?.holderKey, "issued to the key the reader presented, and to nothing else").toEqual(holderKey);
+		expect(asked?.target, "over the instance the reader is talking to").toBe("http://localhost:8123");
+		expect(new Date(String(asked?.expires)).getTime(), "and lapsing, since a session is a sitting").toBeGreaterThan(Date.now());
+		expect(issued.products?.allowedAction).toEqual(["Instance:read", "comment.grant"]);
+		expect(issued.products?.keyId, "and the reader is told what its signatures are made as").toBe("did:key:zHolder#zHolder");
+	});
+
+	it("refuses to give a reader anything where nothing is registered to issue it, rather than inventing a form", async () => {
+		const world = getDefaultWorld();
+		(world.runtime.keys ??= {})[AUTHORITY_KEY] = new SessionAuthority();
+		const stepper = new ShuStepper();
+		await stepper.setWorld({ ...world, moduleOptions: { [getStepperOptionName(stepper, "SESSION_CAPABILITY")]: "Instance:read" } }, [stepper]);
+		const holderKey = { kty: "EC", crv: "P-256", x: "zX", y: "zY" };
+		await expect(
+			runWithRequestContext({ baseIri: "http://localhost:8123" }, () =>
+				(stepper.steps.issueSessionCredential.action as (args: { holderKey: unknown }) => Promise<unknown>)({ holderKey }),
+			),
+		).rejects.toThrow(/nothing is registered to issue one/);
 	});
 });

@@ -13,7 +13,7 @@
  * authority speak the same vocabulary regardless of presentation form.
  */
 import type { TRuntime } from "./world.js";
-import type { IAuthority, IAuthorityVerifier, TSessionGrant, TAuthorityEvidence } from "./authority-types.js";
+import type { IAuthority, IAuthorityIssuer, IAuthorityVerifier, TSessionGrant, TAuthorityEvidence, TCredentialRequest } from "./authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
 /** Runtime key holding the active bearer token injected by `withToken`. */
@@ -24,6 +24,7 @@ export const TRUSTED_CONTEXT = "trustedContext";
 export class SessionAuthority implements IAuthority {
 	private grants = new Map<string, TSessionGrant[]>();
 	private verifier?: IAuthorityVerifier;
+	private issuer?: IAuthorityIssuer;
 
 	issueSessionGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string; expires?: number; seqPath?: string }): TSessionGrant {
 		const now = Date.now();
@@ -105,6 +106,19 @@ export class SessionAuthority implements IAuthority {
 		return this.verifier !== undefined;
 	}
 
+	registerIssuer(issuer: IAuthorityIssuer): void {
+		this.issuer = issuer;
+	}
+
+	hasIssuer(): boolean {
+		return this.issuer !== undefined;
+	}
+
+	issueCredential(request: TCredentialRequest): Promise<{ credential: Record<string, unknown>; keyId: string }> {
+		if (!this.issuer) throw new Error("no issuer is registered to give a holder a credential to present");
+		return this.issuer.issue(request);
+	}
+
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }> {
 		if (!this.verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to decide this evidence" });
 		return this.verifier.verify(evidence);
@@ -113,6 +127,7 @@ export class SessionAuthority implements IAuthority {
 	clear(): void {
 		this.grants.clear();
 		this.verifier = undefined;
+		this.issuer = undefined;
 	}
 }
 

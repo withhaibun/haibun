@@ -248,8 +248,18 @@ export function hasUsableSelectValues(label: string): boolean {
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { LinkRelations, getPropertyDefinitions, isSubPropertyOf, roleRels, fromActorRels, toActorRels } from "@haibun/core/lib/resources.js";
 
-let concernCatalog: TConcernCatalog | null = null;
-let cachedConcernMeta: SiteMetadata | null = null;
+// What the site declares is one thing per page, and a page is more than one bundle: the app, the graph view, a panel a
+// deployment adds. Held per bundle, whichever bundle did not ask the site would have no vocabulary at all.
+const CATALOG_KEY = "__SHU_CONCERN_CATALOG__";
+type TDeclared = { catalog: TConcernCatalog | null; meta: SiteMetadata | null };
+const declared = (): TDeclared => {
+	const g = globalThis as unknown as Record<string, TDeclared | undefined>;
+	const existing = g[CATALOG_KEY];
+	if (existing) return existing;
+	const fresh: TDeclared = { catalog: null, meta: null };
+	g[CATALOG_KEY] = fresh;
+	return fresh;
+};
 
 type TDomainUiInfo = { ui?: Record<string, unknown> };
 
@@ -258,9 +268,10 @@ let cachedEdgeRelRecord: Record<string, string> | null = null;
 
 /** Set the concern catalog from step.list response. Caches derived SiteMetadata and edge→rel map. */
 export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<string, TDomainUiInfo>): void {
-	concernCatalog = catalog;
-	cachedConcernMeta = siteMetadataFromConcerns(catalog, domains);
-	setSiteMetadata(cachedConcernMeta);
+	const meta = siteMetadataFromConcerns(catalog, domains);
+	declared().catalog = catalog;
+	declared().meta = meta;
+	setSiteMetadata(meta);
 	edgeRelMap.clear();
 	cachedEdgeRelRecord = null;
 	cachedRoleEdgeLabels = null;
@@ -277,21 +288,21 @@ export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<str
 
 /** Get cached SiteMetadata derived from concerns. */
 export function getConcernDerivedMetadata(): SiteMetadata {
-	if (!cachedConcernMeta) throw new Error("Concern catalog not initialized.");
-	return cachedConcernMeta;
+	const meta = declared().meta;
+	if (!meta) throw new Error("Concern catalog not initialized.");
+	return meta;
 }
 
 /** Get the concern catalog (populated from step.list). */
 export function getConcernCatalog(): TConcernCatalog {
-	if (!concernCatalog) {
-		throw new Error("Concern catalog not initialized. Call setConcernCatalog() first.");
-	}
-	return concernCatalog;
+	const catalog = declared().catalog;
+	if (!catalog) throw new Error("Concern catalog not initialized. Call setConcernCatalog() first.");
+	return catalog;
 }
 
 // A registered type's description. Undefined for ad-hoc result views that aren't a registered type.
 export function getTypeDescription(label: string): string | undefined {
-	return concernCatalog?.persisted[label]?.description;
+	return declared().catalog?.persisted[label]?.description;
 }
 
 /** Derive SiteMetadata from the concern catalog. Covers any stepper that declares persisted concerns. */
@@ -386,7 +397,7 @@ function actorEdgeWeights(upper: string, coreRels: ReadonlySet<string>): Map<str
 	const corePriority = new Map(getPropertyDefinitions().map((d) => [d.id, d.rolePriority ?? 0]));
 	const weights = new Map<string, number>();
 	for (const rel of coreRels) weights.set(rel, corePriority.get(rel) ?? 0);
-	for (const concern of Object.values(concernCatalog?.persisted ?? {})) {
+	for (const concern of Object.values(declared().catalog?.persisted ?? {})) {
 		for (const [edgeName, edge] of Object.entries(concern.edges)) {
 			if (!isSubPropertyOf(edge.rel, upper)) continue;
 			const weight = (edge as { rolePriority?: number }).rolePriority ?? 0;
@@ -449,7 +460,7 @@ export function toActorEdgeLabels(): ReadonlySet<string> {
 /** A concern-declared edge's display phrase (its declared label), else undefined — how a consumer's edge names the
  *  role a linked party plays without that vocabulary appearing in any component. First declaration wins. */
 export function getDeclaredEdgeLabel(edgeName: string): string | undefined {
-	for (const concern of Object.values(concernCatalog?.persisted ?? {})) {
+	for (const concern of Object.values(declared().catalog?.persisted ?? {})) {
 		const label = (concern.edges[edgeName] as { label?: string } | undefined)?.label;
 		if (label) return label;
 	}

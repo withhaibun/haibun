@@ -79,6 +79,25 @@ function seedHashFromQueryString(): void {
 	ShuElement.pushHash(`#?${hashParams.toString()}`);
 }
 
+/**
+ * What this reader may do, if the deployment offers a way to be given anything. The page makes a key it keeps to
+ * itself, presents the public half, and holds what comes back; every call needing authority is then signed with that
+ * key. A deployment offering no such step gives its readers nothing, and they act with nothing, which is a deployment
+ * where nothing a reader can reach requires authority.
+ */
+async function openReaderSession(): Promise<void> {
+	const { findStep } = await import("./rpc-registry.js");
+	const issuing = findStep("issueSessionCredential");
+	if (!issuing) return;
+	const { openSession } = await import("./session-key.js");
+	await openSession((holderKey) =>
+		conduit().follow<{ keyId?: string; credential?: Record<string, unknown>; allowedAction: string[]; expires?: string }>(
+			{ method: issuing.method, params: { holderKey: JSON.stringify(holderKey) } },
+			"open this reader's session",
+		),
+	);
+}
+
 const main = async (): Promise<void> => {
 	hydrateFromDom();
 	const standalone = isStandaloneMode();
@@ -111,6 +130,7 @@ const main = async (): Promise<void> => {
 	try {
 		const { getAvailableSteps } = await import("./rpc-registry.js");
 		await getAvailableSteps();
+		await openReaderSession();
 	} catch (err) {
 		if (!isOffline()) {
 			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${errorDetail(err)}</div>`;
