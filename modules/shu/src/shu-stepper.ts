@@ -13,7 +13,6 @@ import { presentedKeySchema, sessionCredentialSchema, type TPresentedKey } from 
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption } from "@haibun/core/lib/util/index.js";
 import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import { currentRequestBaseIri } from "@haibun/core/lib/request-context.js";
-import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { getJsonLdContext, relOf } from "@haibun/core/lib/hypermedia.js";
 import { Access, haibunNsForHost, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
@@ -26,7 +25,7 @@ import { buildGraphModelFromQuads } from "./graph-model.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
 import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import type { IHasOptions, TFeatureStep } from "@haibun/core/lib/astepper.js";
+import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 
 /**
  * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
@@ -226,8 +225,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	 * The credential a reader acts under, issued to a key that reader controls. The page proves control by signing what
 	 * it asks; nothing secret is sent either way. What it may do is what the deployment declared, and it lapses with
 	 * the session, so a page left open stops being able to act rather than holding authority for as long as it is open.
+	 *
+	 * What comes back is a proof, not a secret: the keyId names the reader's key so its signatures resolve, and is not
+	 * kept anywhere it could be presented as authority in its own right. The session is not filed as a bearer grant,
+	 * because the grants listing is what a bearer token resolves through, and the keyId is public — it rides every
+	 * signed request and is written into the credential's own record. A reader's authority is the key it holds, proven
+	 * per request, and nothing a third party can read stands in for it.
 	 */
-	private async sessionCredentialFor(holderKey: Record<string, unknown>, target: string, seqPath: string): Promise<Record<string, unknown>> {
+	private async sessionCredentialFor(holderKey: Record<string, unknown>, target: string): Promise<Record<string, unknown>> {
 		// A deployment that declares nothing gives a reader nothing, which is an answer rather than a fault: what a
 		// reader may do there needs no authority, so there is nothing to issue and nothing for a page to sign with.
 		const allowedAction = sessionActions(this.sessionCapability);
@@ -235,10 +240,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		const authority = getAuthority(this.getWorld().runtime);
 		if (!authority) throw new Error("session credential: this run has no authority to issue from (load an authority stepper)");
 		const expires = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-		const { credential, keyId, controller } = await authority.issueCredential({ holderKey, allowedAction, expires, target });
-		// The issuance joins the authority's own listing, named by the key it was issued to, so the permissions panel
-		// reads each held action as the grant that gave it and links to the step where the granting is recorded.
-		authority.issueSessionGrant({ token: keyId, allowedAction, controller, note: "issued to this reader's presented key", expires: Date.parse(expires), seqPath });
+		const { credential, keyId } = await authority.issueCredential({ holderKey, allowedAction, expires, target });
 		return { keyId, credential, allowedAction, expires };
 	}
 
@@ -335,12 +337,12 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			gwta: `issue a session credential for the presented key {holderKey: ${DOMAIN_PRESENTED_KEY}}`,
 			inputDomains: { holderKey: DOMAIN_PRESENTED_KEY },
 			productsSchema: sessionCredentialSchema,
-			action: async ({ holderKey }: { holderKey: TPresentedKey }, featureStep: TFeatureStep) => {
+			action: async ({ holderKey }: { holderKey: TPresentedKey }) => {
 				// What the reader is given authority over is the instance it is talking to, so every address it asks of is
 				// under what it holds, and a credential cannot be carried to another instance.
 				const target = currentRequestBaseIri();
 				if (!target) return actionNotOK("issue a session credential: this was not asked over a request, so there is no instance to be given authority over");
-				return actionOKWithProducts(await this.sessionCredentialFor(holderKey as Record<string, unknown>, target, formatSeqPath(featureStep.seqPath)));
+				return actionOKWithProducts(await this.sessionCredentialFor(holderKey as Record<string, unknown>, target));
 			},
 		},
 		serveShuApp: {
