@@ -33,25 +33,21 @@ export type TSessionGrant = {
 };
 
 /**
- * What a caller presents to act with authority it holds: the document that carries that authority, in whatever
- * specification it is written, and what the caller claims it lets them do. The verifier registered for that
- * specification reads the document and decides; the framework never reads inside it.
+ * What a caller presents to act with authority it holds. In this process, that is the document carrying the authority
+ * and what the caller says it lets them do. Over HTTP, the request itself is the presentation: it names what is being
+ * asked of what, and carries the proof that the caller may ask it. The verifier registered for the specification the
+ * evidence is written in reads it; the framework never reads inside it.
  */
-export type TAuthorityEvidence = {
-	/** The authority itself, as its own document. */
-	document: Record<string, unknown>;
-	/** What the caller is asking to do. */
-	action: string;
-	/** What the caller is asking to do it to. */
-	target: string;
-};
+export type TAuthorityEvidence =
+	| { kind: "document"; document: Record<string, unknown>; action: string; target: string }
+	| { kind: "request"; method: string; url: string; headers: Record<string, string | undefined> };
 
 /**
- * Decides whether evidence supports what it claims. A consumer registers one for the specification its deployment
- * uses; the framework holds no signing key and reads no proof itself.
+ * Decides whether evidence supports what it claims, and says what it supports. A consumer registers one for the
+ * specification its deployment uses; the framework holds no signing key and reads no proof itself.
  */
 export interface IAuthorityVerifier {
-	verify(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string }>;
+	verify(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }>;
 }
 
 /**
@@ -65,6 +61,8 @@ export interface IAuthority {
 	resolveController(token: string): string | undefined;
 	listSessionGrants(): TSessionGrant[];
 	registerVerifier(verifier: IAuthorityVerifier): void;
-	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string }>;
+	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */
+	hasVerifier(): boolean;
+	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }>;
 	clear(): void;
 }

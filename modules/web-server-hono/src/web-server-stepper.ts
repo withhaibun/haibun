@@ -19,7 +19,7 @@ import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { rpcCacheKey } from "@haibun/core/lib/rpc-cache-key.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
-import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
+import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import { attachTransportsToRegistry } from "@haibun/core/phases/Executor.js";
@@ -252,7 +252,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// Capability-filter the manifest: an LLM or other scoped
 						// caller should see only the tools it can actually
 						// invoke. An absent capability header means unscoped — the full manifest.
-						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, this.getWorld().runtime, {
+						const grantedCapability = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
@@ -282,7 +282,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// store. Always capability-gated — store.read/store.write by method, no ungated default — because it
 					// is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
 					if (isStoreMethod(method)) {
-						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, this.getWorld().runtime, {
+						const grantedCapability = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
@@ -307,7 +307,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
-						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, world.runtime, {
+						const grantedCapability = await grantedCapabilityForRequest(requestInfo, world.runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
