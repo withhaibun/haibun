@@ -23,7 +23,7 @@ import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
 import type { IStepTransport } from "./step-transport.js";
-import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
+import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./capability-auth.js";
 // --- Type Definitions ---
 
 type StoredTool = {
@@ -190,7 +190,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		// --- HANDLER 2: CALL TOOL ---
 		const defaultConnection = {};
 		this.mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-			const grantedCapability = this.getGrantedCapability(extra);
+			const grantedCapability = await this.getGrantedCapability(extra);
 			const connection = (extra as { connection?: ConnectionId })?.connection || defaultConnection;
 			const sessionId = this.getSessionId(connection, extra);
 
@@ -434,11 +434,12 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		}
 	}
 
-	private getGrantedCapability(extra: { requestInfo?: { headers?: Record<string, string | string[] | undefined> } }): string[] | undefined {
+	private getGrantedCapability(extra: { requestInfo?: { headers?: Record<string, string | string[] | undefined>; method?: string; url?: unknown } | undefined }): Promise<string[] | undefined> {
 		const headers = extra.requestInfo?.headers;
-		if (!headers) return undefined;
+		if (!headers) return Promise.resolve(undefined);
 		const normalizedHeaders = Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
-		return getGrantedCapabilityFromHeaders(normalizedHeaders, this.getWorld().runtime, {
+		const url = extra.requestInfo?.url;
+		return grantedCapabilityForRequest({ headers: normalizedHeaders, method: extra.requestInfo?.method, url: url === undefined ? undefined : String(url) }, this.getWorld().runtime, {
 			accessToken: this.accessToken || undefined,
 			accessCapability: this.accessCapability || undefined,
 		});

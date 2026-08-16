@@ -101,7 +101,11 @@ export class SessionAuthority implements IAuthority {
 		this.verifier = verifier;
 	}
 
-	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string }> {
+	hasVerifier(): boolean {
+		return this.verifier !== undefined;
+	}
+
+	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }> {
 		if (!this.verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to decide this evidence" });
 		return this.verifier.verify(evidence);
 	}

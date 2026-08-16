@@ -284,7 +284,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		const action = actions[0] ?? "*";
 		// The document goes to whoever knows how to read it, with what the caller says it lets them do. Nothing here
 		// reads inside it: the framework holds no key and knows no specification.
-		const verified = await this.getAuthority().verifyEvidence({ document: capability as Record<string, unknown>, action, target });
+		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability as Record<string, unknown>, action, target });
 		if (!verified.ok) {
 			return actionNotOK(`as subkey holding capability: the evidence was refused — ${verified.error ?? "no reason given"}`);
 		}
