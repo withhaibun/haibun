@@ -78,27 +78,35 @@ const StepListResponseSchema = z
 	})
 	.strict();
 
-let cachedSteps: StepDescriptor[] | null = null;
-let cachedDomains: Record<string, DomainInfo> | null = null;
+// What the site said it offers, pinned to the page rather than held per bundle: a page is more than one bundle, and a
+// panel a deployment adds asks the same site as the app. Held per bundle, a panel would discover the site again, and
+// would not know what a step it calls requires.
+const REGISTRY_KEY = "__SHU_STEP_REGISTRY__";
+type TRegistry = { steps: StepDescriptor[] | null; domains: Record<string, DomainInfo> | null; concerns: TConcernCatalog | null; pending: Promise<StepListResponse> | null };
+const registry = (): TRegistry => {
+	const g = globalThis as unknown as Record<string, TRegistry | undefined>;
+	const existing = g[REGISTRY_KEY];
+	if (existing) return existing;
+	const fresh: TRegistry = { steps: null, domains: null, concerns: null, pending: null };
+	g[REGISTRY_KEY] = fresh;
+	return fresh;
+};
 
-let pendingDiscovery: Promise<StepListResponse> | null = null;
-
+// Both go through the step list even when the page already has it, because the answer is only half of what asking for
+// it does: the other half is this bundle reading what the site declares, which is what its views draw by.
 export async function getAvailableSteps(): Promise<StepDescriptor[]> {
-	if (cachedSteps) return cachedSteps;
-	const { steps } = await getStepList();
-	return steps;
+	return (await getStepList()).steps;
 }
 
 export async function getAvailableDomains(): Promise<Record<string, DomainInfo>> {
-	if (cachedDomains) return cachedDomains;
-	const { domains } = await getStepList();
-	return domains;
+	return (await getStepList()).domains;
 }
 
 /** Get the stepper name for a persisted type label. */
 export function getStepperForType(persistedAs: string): string | undefined {
-	if (!cachedDomains) return undefined;
-	for (const info of Object.values(cachedDomains)) {
+	const domains = registry().domains;
+	if (!domains) return undefined;
+	for (const info of Object.values(domains)) {
 		if (info.persistedAs === persistedAs) return info.stepperName;
 	}
 	return undefined;
@@ -132,18 +140,19 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainO
 }
 
 async function getStepList(): Promise<StepListResponse> {
-	if (cachedSteps && cachedDomains)
-		return {
-			steps: cachedSteps,
-			domains: cachedDomains,
-			concerns: getConcernCatalog(),
-		};
-	if (pendingDiscovery) return pendingDiscovery;
-	pendingDiscovery = discover();
+	const { steps, domains, concerns, pending } = registry();
+	if (steps && domains && concerns) {
+		// Another bundle of this page asked the site; this one is told the same answer, and reads it for itself.
+		readDeclarations(concerns, domains);
+		return { steps, domains, concerns };
+	}
+	if (pending) return pending;
+	const discovery = discover();
+	registry().pending = discovery;
 	try {
-		return await pendingDiscovery;
+		return await discovery;
 	} finally {
-		pendingDiscovery = null;
+		registry().pending = null;
 	}
 }
 
@@ -189,11 +198,6 @@ export function hydrateFromDom(): void {
 	if (booted?.rpcCache) setRpcCache(booted.rpcCache);
 }
 
-/** The credential every call from this page presents, or none where the deployment declared none. */
-export function sessionCredential(): { token: string; allowedAction: string[] } | undefined {
-	return heldHydration().data?.session;
-}
-
 /**
  * True if the page was loaded from an offline HTML file. The hydration script
  * is present in BOTH live and standalone (live serves `{}` so SSR shape is
@@ -210,22 +214,35 @@ export function getHydratedViewHash(): string {
 	return heldHydration().data?.viewHash ?? "";
 }
 
+/**
+ * What the site declares is one thing per page, and the reading built from it is each bundle's own: the metadata, the
+ * edge index, the role nouns. A bundle reads once. Reading again would rebuild that metadata from the declarations
+ * alone, discarding what a view merged onto it from the site itself, so a bundle already told is left as it is.
+ */
+let read = false;
+function readDeclarations(concerns: TConcernCatalog, domains: Record<string, DomainInfo>): void {
+	if (read) return;
+	read = true;
+	setConcernCatalog(concerns, domains);
+}
+
 async function discover(): Promise<StepListResponse> {
 	const result = await conduit().follow<unknown>({ method: "step.list" }, "rpc-registry: discover available steps");
 	const parsed: StepListResponse = StepListResponseSchema.parse(result);
 	const { steps, domains, concerns } = parsed;
-	setConcernCatalog(concerns, domains);
+	readDeclarations(concerns, domains);
 	for (const [label, concern] of Object.entries(concerns.persisted)) {
 		if (/^\s*\[.*\]\s*$/.test(concern.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${concern.label}`);
 	}
-	cachedSteps = steps;
-	cachedDomains = domains;
+	registry().steps = steps;
+	registry().domains = domains;
+	registry().concerns = concerns;
 	return { steps, domains, concerns };
 }
 
 /** Look up a registered step by either its friendly name (e.g. `"graphQuery"`) or its full `Stepper-method` form. The name is the wire contract — resolution, and any "unknown step" outcome, happen at runtime against the loaded registry. */
 export function findStep(name: string): StepDescriptor | undefined {
-	return cachedSteps?.find((s) => s.stepName === name || s.method === name);
+	return registry().steps?.find((s) => s.stepName === name || s.method === name);
 }
 
 /** Resolve a friendly name (e.g. `"graphQuery"`) to the loaded stepper's full method (e.g. `"GraphStepper-graphQuery"`). A name no loaded stepper provides fails fast at runtime. */
@@ -242,15 +259,16 @@ export function requireStep(name: string): string {
  * persisted-type domain, or step pattern containing the label name.
  */
 export function stepsForContext(label: string): StepDescriptor[] {
-	if (!cachedSteps || !cachedDomains) return [];
+	const { steps, domains } = registry();
+	if (!steps || !domains) return [];
 	const lc = label.toLowerCase();
 	// Find domain keys that relate to this label
 	const contextDomains = new Set<string>();
-	for (const [key, info] of Object.entries(cachedDomains)) {
+	for (const [key, info] of Object.entries(domains)) {
 		if (info.persistedAs === label) contextDomains.add(key);
 		if (key.toLowerCase().includes(lc)) contextDomains.add(key);
 	}
-	return cachedSteps.filter((step) => {
+	return steps.filter((step) => {
 		// Match by param domain
 		if (step.paramDomains && Object.values(step.paramDomains).some((domain) => contextDomains.has(domain))) return true;
 		// Match by step pattern containing the label (e.g., "show contacts", "get contact")

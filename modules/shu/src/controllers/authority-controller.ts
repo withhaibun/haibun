@@ -2,7 +2,8 @@ import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import type { TSessionGrantShown } from "@haibun/core/steps/authority-stepper.js";
 import { conduit } from "../hypermedia.js";
-import { getAvailableSteps, findStep, requireStep, sessionCredential } from "../rpc-registry.js";
+import { getAvailableSteps, findStep, requireStep } from "../rpc-registry.js";
+import { session } from "../session-key.js";
 
 /** A principal as a view reads one: its own id, and the key it signs with where it declares one. */
 export type TPrincipalRow = { id: string; publicKey?: string };
@@ -36,7 +37,7 @@ export class AuthorityController implements ReactiveController {
 
 	async read(): Promise<TAuthority> {
 		await getAvailableSteps();
-		const holds = sessionCredential()?.allowedAction ?? [];
+		const holds = session()?.allowedAction ?? [];
 		const principals = await conduit().follow<{ vertices: TPrincipalRow[] }>({ method: requireStep("graphQuery"), params: { query: { label: PRINCIPAL_LABEL } } }, WHY);
 		// A deployment whose authority reports nothing (no authority stepper registered) still says who it knows and what
 		// this reader holds, so the view is a reading of what is there rather than an error.

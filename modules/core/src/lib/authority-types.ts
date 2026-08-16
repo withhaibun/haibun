@@ -51,8 +51,33 @@ export interface IAuthorityVerifier {
 }
 
 /**
- * The authority a process holds: its own session grants, and whatever verifier a consumer registered for evidence
- * that comes from outside it.
+ * What a holder is asking to be given: a key it controls, the actions it may exercise with what it is given, and when
+ * that lapses. The issuer registered for the deployment's specification decides what form the credential takes.
+ */
+export type TCredentialRequest = {
+	/** The public half of the key the holder controls, as a JSON Web Key. The holder keeps the other half and sends it
+	 *  nowhere; what form a credential names this key in is the issuing specification's business. */
+	holderKey: Record<string, unknown>;
+	/** What the credential allows, which is what the deployment declared this kind of holder may do. */
+	allowedAction: string[];
+	/** ISO 8601: authority that never lapses is authority nobody can withdraw by waiting. */
+	expires: string;
+	/** What the credential is over, so a holder cannot exercise it against something else. */
+	target: string;
+};
+
+/**
+ * Issues a credential to a holder that proves control of a key. A consumer registers one for the specification its
+ * deployment uses; the framework holds no signing key and writes no proof itself.
+ */
+export interface IAuthorityIssuer {
+	/** The credential, and the identifier of the key it names, which is what the holder signs as. */
+	issue(request: TCredentialRequest): Promise<{ credential: Record<string, unknown>; keyId: string }>;
+}
+
+/**
+ * The authority a process holds: its own session grants, whatever verifier a consumer registered for evidence that
+ * comes from outside it, and whatever issuer a consumer registered to give a holder something to present.
  */
 export interface IAuthority {
 	issueSessionGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string; expires?: number; seqPath?: string }): TSessionGrant;
@@ -61,6 +86,10 @@ export interface IAuthority {
 	resolveController(token: string): string | undefined;
 	listSessionGrants(): TSessionGrant[];
 	registerVerifier(verifier: IAuthorityVerifier): void;
+	registerIssuer(issuer: IAuthorityIssuer): void;
+	/** Whether anything is registered to issue a credential at all, so a caller knows whether to ask. */
+	hasIssuer(): boolean;
+	issueCredential(request: TCredentialRequest): Promise<{ credential: Record<string, unknown>; keyId: string }>;
 	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */
 	hasVerifier(): boolean;
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }>;
