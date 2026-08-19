@@ -40,7 +40,7 @@ export type TSessionGrant = {
  */
 export type TAuthorityEvidence =
 	| { kind: "document"; document: Record<string, unknown>; action: string; target: string }
-	| { kind: "request"; method: string; url: string; headers: Record<string, string | undefined> };
+	| { kind: "request"; method: string; url: string; headers: Record<string, string | undefined>; body?: string };
 
 /**
  * Decides whether evidence supports what it claims, and says what it supports. A consumer registers one for the

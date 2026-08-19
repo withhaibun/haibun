@@ -9,7 +9,7 @@ export type TCapabilityAuthConfig = {
 export type TRequestHeaders = Record<string, string | undefined>;
 
 /** What a request says about itself: a signed presentation covers the method and the address as well as the headers. */
-export type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHeaders };
+export type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHeaders; body?: string };
 
 /** The header a caller presenting proven authority carries, rather than a secret to be looked up. */
 const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
@@ -28,7 +28,7 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
 	const authority = getAuthority(runtime);
 	const presented = getHeader(request?.headers, PRESENTED_AUTHORITY_HEADER);
 	if (presented && authority?.hasVerifier() && request?.method && request.url) {
-		const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {} });
+		const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
 		if (!verdict.ok) return undefined;
 		return verdict.allowedAction?.length ? verdict.allowedAction : undefined;
 	}
