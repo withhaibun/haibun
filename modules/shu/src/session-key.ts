@@ -23,6 +23,9 @@ export type TSession = {
 	allowedAction: string[];
 	/** When it stops holding. */
 	expires: string;
+	/** Where the deployment recorded what it issued, when it keeps a record: a view shows what a reader holds as that
+	 *  record, so an action leads to what granted it rather than being a word on a page. */
+	record?: { persistedAs: string; id: string };
 };
 
 type THeld = { session: TSession; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
@@ -79,12 +82,12 @@ async function open(issue: (holderKey: JsonWebKey) => Promise<unknown>): Promise
 	const { publicKey, sign } = await pageKey();
 	const issued = sessionCredentialSchema.parse(await issue(publicKey));
 	if (issued.allowedAction.length === 0) return undefined;
-	const { keyId, credential, expires, allowedAction } = issued;
+	const { keyId, credential, expires, allowedAction, record } = issued;
 	if (!credential || !keyId || !expires) {
 		const missing = [!credential && "credential", !keyId && "keyId", !expires && "expires"].filter(Boolean).join(", ");
 		throw new Error(`open session: the deployment declared ${allowedAction.join(", ")} but issued no ${missing} to act under`);
 	}
-	pinned().held = { session: { keyId, credential, allowedAction, expires }, sign };
+	pinned().held = { session: { keyId, credential, allowedAction, expires, record }, sign };
 	return session();
 }
 

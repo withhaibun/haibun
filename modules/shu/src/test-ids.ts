@@ -32,6 +32,8 @@ export const SHU_TEST_IDS = {
 		PERMISSIONS: "app-permissions",
 		/** The row saying how many await a decision. A reference, so pressing it opens what it is about. */
 		AWAITING: "permissions-awaiting",
+		/** An action this reader holds. A reference, so pressing it opens the record of what granted it. */
+		HELD: "permissions-held",
 	},
 	FILTER: {
 		PROPERTY_0: "app-cond-property-0",

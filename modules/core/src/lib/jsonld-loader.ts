@@ -44,15 +44,30 @@ export function setNetworkResolver(resolver: NetworkResolver | undefined): void 
 	networkResolver = resolver;
 }
 
-/** JSON-LD document loader: local key documents, then registered contexts, then the injected network resolver. With no
- *  resolver an unresolved URL throws — core never reaches the network implicitly. */
-export async function documentLoader(url: string): Promise<LoaderResult> {
+/**
+ * What is held here, and nothing else: local key documents, then registered contexts. An unresolved URL throws.
+ *
+ * This is the loader for reading something a caller presented. Resolving a presented identifier over the network would
+ * let whoever wrote it choose the host that answers for it, so a proof would be checked against a document its own
+ * subject served. What a decision reads is therefore what this process was given beforehand.
+ */
+export function registryDocumentLoader(url: string): Promise<LoaderResult> {
 	const keyDoc = keyDocuments.get(url);
-	if (keyDoc !== undefined) return { contextUrl: null, documentUrl: url, document: keyDoc };
+	if (keyDoc !== undefined) return Promise.resolve({ contextUrl: null, documentUrl: url, document: keyDoc });
 	const ctx = contexts.get(url);
-	if (ctx !== undefined) return { contextUrl: null, documentUrl: url, document: ctx };
-	if (networkResolver) return await networkResolver(url);
-	throw new Error(`No registered JSON-LD document for ${url}, and no network resolver is enabled`);
+	if (ctx !== undefined) return Promise.resolve({ contextUrl: null, documentUrl: url, document: ctx });
+	throw new Error(`No registered JSON-LD document for ${url}`);
+}
+
+/** JSON-LD document loader: what is held here, then the injected network resolver. With no resolver an unresolved URL
+ *  throws — core never reaches the network implicitly. */
+export async function documentLoader(url: string): Promise<LoaderResult> {
+	try {
+		return await registryDocumentLoader(url);
+	} catch {
+		if (networkResolver) return await networkResolver(url);
+		throw new Error(`No registered JSON-LD document for ${url}, and no network resolver is enabled`);
+	}
 }
 
 /** The jsonld processor (expand / compact / toRDF / processContext), resolving external references through documentLoader. */

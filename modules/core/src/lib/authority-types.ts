@@ -67,8 +67,16 @@ export type TCredentialRequest = {
 };
 
 /** What an issuer answers with: the credential, the identifier of the key it names (what the holder signs as), and
- *  the principal it names as holding it (who acted, when a signature under that key is accepted). */
-export type TIssuedCredential = { credential: Record<string, unknown>; keyId: string; controller: string };
+ *  the principal it names as holding it (who acted, when a signature under that key is accepted). `record` is where
+ *  the deployment wrote what it issued, when it keeps one: a holder can then reach what it acts under and read how it
+ *  came to hold it, rather than holding a document that exists nowhere else. What kind of record that is belongs to
+ *  the deployment, so it is named as a type and an identifier and read no further here. */
+export type TIssuedCredential = {
+	credential: Record<string, unknown>;
+	keyId: string;
+	controller: string;
+	record?: { persistedAs: string; id: string };
+};
 
 /**
  * Issues a credential to a holder that proves control of a key. A consumer registers one for the specification its
