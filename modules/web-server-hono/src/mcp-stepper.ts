@@ -434,15 +434,16 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		}
 	}
 
-	private getGrantedCapability(extra: { requestInfo?: { headers?: Record<string, string | string[] | undefined>; method?: string; url?: unknown } | undefined }): Promise<string[] | undefined> {
+	private async getGrantedCapability(extra: { requestInfo?: { headers?: Record<string, string | string[] | undefined>; method?: string; url?: unknown } | undefined }): Promise<string[] | undefined> {
 		const headers = extra.requestInfo?.headers;
-		if (!headers) return Promise.resolve(undefined);
+		if (!headers) return undefined;
 		const normalizedHeaders = Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
 		const url = extra.requestInfo?.url;
-		return grantedCapabilityForRequest({ headers: normalizedHeaders, method: extra.requestInfo?.method, url: url === undefined ? undefined : String(url) }, this.getWorld().runtime, {
+		const { granted } = await grantedCapabilityForRequest({ headers: normalizedHeaders, method: extra.requestInfo?.method, url: url === undefined ? undefined : String(url) }, this.getWorld().runtime, {
 			accessToken: this.accessToken || undefined,
 			accessCapability: this.accessCapability || undefined,
 		});
+		return granted;
 	}
 
 	private setupMiddleware(webserver: IWebServer) {

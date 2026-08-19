@@ -4,10 +4,15 @@
  * (which calls `withPrincipal`); core stays crypto-free.
  */
 import type { TWorld } from "./world.js";
+import { actingAs } from "./capability-context.js";
 
 const PRINCIPAL = "principal";
 
+/** Whoever is acting: the one who proved themselves at the boundary this call came through, and otherwise whoever the
+ *  run itself is acting as. A proof is about the call that carried it, so it says who is acting inside that call. */
 export function currentPrincipal(world: TWorld): string | undefined {
+	const proven = actingAs();
+	if (proven) return proven;
 	const p = world.runtime.keys?.[PRINCIPAL];
 	return typeof p === "string" && p.length > 0 ? p : undefined;
 }

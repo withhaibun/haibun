@@ -14,7 +14,7 @@ import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, synthetic
 import { SERVING } from "@haibun/core/lib/serving.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { AccessLevelSchema, LinkRelations, narrowerCeiling, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { runReadingAt } from "@haibun/core/lib/capability-context.js";
+import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { rpcCacheKey } from "@haibun/core/lib/rpc-cache-key.js";
 
@@ -252,7 +252,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// Capability-filter the manifest: an LLM or other scoped
 						// caller should see only the tools it can actually
 						// invoke. An absent capability header means unscoped — the full manifest.
-						const grantedCapability = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
+						const { granted: grantedCapability } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
@@ -282,7 +282,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// store. Always capability-gated — store.read/store.write by method, no ungated default — because it
 					// is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
 					if (isStoreMethod(method)) {
-						const grantedCapability = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
+						const { granted: grantedCapability } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
@@ -307,7 +307,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
-						const grantedCapability = await grantedCapabilityForRequest(requestInfo, world.runtime, {
+						const { granted: grantedCapability, principal } = await grantedCapabilityForRequest(requestInfo, world.runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
@@ -319,8 +319,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// What this caller may see, stated once for the whole dispatch: the server's ceiling met with what the
 						// call asked for, narrower winning. Every read inside is bounded by it without naming it.
 						const ceiling = narrowerCeiling(this.readCeiling, msg.readingAt);
+						// Whoever proved themselves at this boundary is who acts inside it, so what a step records names the
+						// reader who asked for it rather than the process that carried it out.
 						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
-							runReadingAt(ceiling, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep)),
+							runActingAs(principal, () => runReadingAt(ceiling, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep))),
 						);
 						if (hr.ok) {
 							const result = hr.products ?? { ok: true };

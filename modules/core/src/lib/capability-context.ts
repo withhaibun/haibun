@@ -46,6 +46,24 @@ export function askedIn(): string | undefined {
 	return askStore.getStore();
 }
 
+const actingStore = new AsyncLocalStorage<string | undefined>();
+
+/**
+ * Who a call proved itself to be, for the length of that call.
+ *
+ * A boundary that checks a proof learns who made it, and what is done under that proof is done by them. Held here
+ * rather than on the world for the reason the capability is: the world has one value for the whole process, so two
+ * requests in flight would be recorded as each other, and this belongs to the call that proved it.
+ */
+export function runActingAs<T>(principal: string | undefined, within: () => Promise<T>): Promise<T> {
+	return actingStore.run(principal, within);
+}
+
+/** Who proved themselves at the boundary this call came through, or undefined where nothing did. */
+export function actingAs(): string | undefined {
+	return actingStore.getStore();
+}
+
 const readCeilingStore = new AsyncLocalStorage<AccessLevel | undefined>();
 
 /**

@@ -19,20 +19,27 @@ export function validateCapabilityAuthConfig(scope: string, { accessToken, acces
 	throw new Error(`${scope}: ACCESS_CAPABILITY requires ACCESS_TOKEN`);
 }
 
+/** What a request carries: what its caller may do, and who they proved themselves to be where a proof said so. A
+ *  token names no one, so a caller resolved by token acts as nobody in particular. */
+export type TRequestAuthority = { granted?: string[]; principal?: string };
+
 /**
  * What the caller of this request may do. A caller presents either a token this process issued to itself, which the
  * authority resolves, or proof of authority it holds, which whatever is registered to read that proof decides. A
  * request presenting proof is asked about as a whole, since a signed request's proof covers what it asks and of what.
+ *
+ * A proof also says who made it, and that is answered here as well: what is done under a proof is done by whoever
+ * proved it, so a record of the doing can name them rather than the process that carried it out.
  */
-export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, config: TCapabilityAuthConfig): Promise<string[] | undefined> {
+export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, config: TCapabilityAuthConfig): Promise<TRequestAuthority> {
 	const authority = getAuthority(runtime);
 	const presented = getHeader(request?.headers, PRESENTED_AUTHORITY_HEADER);
 	if (presented && authority?.hasVerifier() && request?.method && request.url) {
 		const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
-		if (!verdict.ok) return undefined;
-		return verdict.allowedAction?.length ? verdict.allowedAction : undefined;
+		if (!verdict.ok) return {};
+		return { granted: verdict.allowedAction?.length ? verdict.allowedAction : undefined, principal: verdict.principal };
 	}
-	return getGrantedCapabilityFromHeaders(request?.headers, runtime, config);
+	return { granted: getGrantedCapabilityFromHeaders(request?.headers, runtime, config) };
 }
 
 /** What a token this process issued grants: the actions the authority resolves it to, plus a configured access token's own. */
