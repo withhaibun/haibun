@@ -17,6 +17,7 @@ import { PermissionsSchema } from "../schemas.js";
 import { AuthorityController, type TAuthority } from "../controllers/index.js";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import { refTpl } from "./shu-ref.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import type { TRefKind } from "./ref-navigation.js";
 
 /** What the access indicator says beside the level, and the event carrying it: one count per thing this panel lists. */
@@ -38,6 +39,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	declare levels: readonly string[];
 	declare onLevelChange: (level: string) => void;
 	private held: TAuthority = { holds: [], principals: [], grants: [] };
+
 	private failure = "";
 
 	static observedHtmlAttributes = [];
@@ -103,9 +105,15 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		this.setState({ showGrants: !this.state.showGrants });
 	};
 
-	/** An action, as the step that granted it: opening it opens that step, where what was granted and by whom is
-	 *  recorded. An action nothing here granted is still named, since a reader holds it either way. */
+	/**
+	 * An action, as what granted it. A reader holds what it holds by a record this deployment keeps, so the action opens
+	 * that record, and from there what it was delegated from and on to its root. Where a grant of this run gave it
+	 * instead, it opens the step that granted it. An action nothing here recorded is still named, since a reader holds
+	 * it either way.
+	 */
 	private grantedAt(action: string, seqPath: string | undefined): TemplateResult {
+		const heldAs = this.held.heldAs;
+		if (heldAs) return refTpl("entity", { persistedAs: heldAs.persistedAs, id: heldAs.id }, action, SHU_TEST_IDS.APP.HELD);
 		if (!seqPath) return html`<span class="action">${action}</span>`;
 		return refTpl("seqPath", { seqPath: seqPath.split(".").map(Number) }, action);
 	}

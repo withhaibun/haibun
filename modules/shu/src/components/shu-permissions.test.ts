@@ -47,6 +47,18 @@ describe("what a reader may do here", () => {
 		expect(link?.getAttribute("linkTarget"), "the step the grant records").toContain("[0,1,1]");
 	});
 
+	it("opens what a reader holds as the record of it, which leads on to what that was granted from", async () => {
+		// A deployment that records what it issues tells the reader where: the action is then a way into that record,
+		// rather than a word naming authority whose origin the reader cannot reach.
+		const el = await mounted({ ...held, heldAs: { persistedAs: "Capability", id: "urn:uuid:session-delegation" } });
+		const link = Array.from(el.shadowRoot?.querySelectorAll("shu-ref") ?? []).find((r) => r.getAttribute("text") === "Instance:read");
+		expect(link?.getAttribute("kind"), "the ordinary way a record opens here").toBe("entity");
+		expect(link?.getAttribute("linkTarget"), "the delegation the reader acts under").toContain("urn:uuid:session-delegation");
+		expect(refTexts(el, "entity"), "and every action it holds leads there, since one delegation granted them all").toEqual(
+			expect.arrayContaining(["Instance:read", "comment.grant"]),
+		);
+	});
+
 	it("names an action no grant here accounts for, rather than offering a way to nowhere", async () => {
 		const el = await mounted();
 		const links = Array.from(el.shadowRoot?.querySelectorAll("shu-ref") ?? []).map((r) => r.getAttribute("text"));

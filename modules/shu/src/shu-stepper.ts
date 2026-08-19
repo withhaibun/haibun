@@ -240,8 +240,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		const authority = getAuthority(this.getWorld().runtime);
 		if (!authority) throw new Error("session credential: this run has no authority to issue from (load an authority stepper)");
 		const expires = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-		const { credential, keyId } = await authority.issueCredential({ holderKey, allowedAction, expires, target });
-		return { keyId, credential, allowedAction, expires };
+		const { credential, keyId, record } = await authority.issueCredential({ holderKey, allowedAction, expires, target });
+		return { keyId, credential, allowedAction, expires, record };
 	}
 
 	cycles = {

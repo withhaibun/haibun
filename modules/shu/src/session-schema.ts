@@ -20,5 +20,9 @@ export const sessionCredentialSchema = z.object({
 	credential: z.looseObject({ id: z.string() }).optional().describe("The credential the reader presents, issued to the key it controls."),
 	allowedAction: z.array(z.string()).describe("What the reader may do, which is nothing where this deployment gives a reader nothing."),
 	expires: z.string().optional().describe("When it stops holding."),
+	record: z
+		.object({ persistedAs: z.string(), id: z.string() })
+		.optional()
+		.describe("Where this deployment recorded what it issued, so a reader can open it and follow what it was granted from."),
 });
 export type TIssuedSession = z.infer<typeof sessionCredentialSchema>;
