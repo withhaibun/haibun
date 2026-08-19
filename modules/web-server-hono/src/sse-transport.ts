@@ -13,6 +13,9 @@ export type TTransportRequestInfo = {
 	/** What the request asks, and of what: a presentation signed over the request covers both. */
 	method?: string;
 	url?: string;
+	/** The body exactly as it arrived. A signature covers a digest of these bytes, and what the request asks is read
+	 *  out of them, so the two are the same bytes or the proof is over something other than what is dispatched. */
+	body?: string;
 };
 
 type TMessageHandler = (data: unknown, requestInfo?: TTransportRequestInfo) => unknown | Promise<unknown>;
@@ -72,14 +75,19 @@ export class SSETransport implements ITransport, IStepTransport {
 		});
 
 		this.webserver.addRoute("post", "/rpc/:_method", { description: "JSON-RPC dispatch for stepper methods" }, async (c) => {
+			// Read the body once, as the bytes it arrived as, and take what the request asks out of those same bytes: a
+			// proof covers a digest of what was sent, so parsing a second reading would leave what is checked and what
+			// is dispatched two different things.
+			let body: string;
 			let data: unknown;
 			try {
-				data = await c.req.json();
+				body = await c.req.text();
+				data = JSON.parse(body);
 			} catch (e) {
 				this.eventLogger.error(`Error parsing RPC POST message: ${e}`);
 				return c.json({ ok: false, error: String(e) }, 400);
 			}
-			const requestInfo: TTransportRequestInfo = { headers: c.req.header(), method: c.req.method, url: c.req.url };
+			const requestInfo: TTransportRequestInfo = { headers: c.req.header(), method: c.req.method, url: c.req.url, body };
 			const isStream = (data as Record<string, unknown>).stream === true;
 
 			// Streaming requests open an NDJSON response and run the same dispatcher inside `streamContext`. Step actions read the per-request emit callback from AsyncLocalStorage and push chunks during execution; the final dispatchStep result (success or refusal) lands on the seqPath via stepStart/stepEnd lifecycle events. No dual handler path — one dispatcher, one error contract.
