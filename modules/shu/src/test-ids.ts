@@ -24,7 +24,7 @@ export const SHU_TEST_IDS = {
 		ADD_FILTER: "app-add-filter",
 		SEARCH_GO: "app-search-go",
 		TIME_OFFSET: "app-time-offset",
-		TIMELINE_POPOVER: "app-timeline-popover",
+		PLAYBACK_POPOVER: "app-playback-popover",
 		/** The access indicator, which opens the permissions area. */
 		ACCESS_INDICATOR: "app-access-indicator",
 
@@ -87,13 +87,12 @@ export const SHU_TEST_IDS = {
 	SETTINGS: {
 		WINDOW_SIZE: "settings-window-size",
 	},
-	TIMELINE: {
-		ROOT: "shu-timeline",
-		SLIDER: "timeline-slider",
-		PLAY_PAUSE: "timeline-play",
-		SPEED: "timeline-speed",
-		RESTART: "timeline-restart",
-		TIME_DISPLAY: "timeline-time",
+	/** Moving the shared time cursor on its own: where it IS is the log's scroll rail. */
+	PLAYBACK: {
+		ROOT: "shu-playback",
+		PLAY: "playback-play",
+		SPEED: "playback-speed",
+		RESTART: "playback-restart",
 	},
 	COLUMN_PANE: {
 		MAXIMIZE: "pane-maximize",

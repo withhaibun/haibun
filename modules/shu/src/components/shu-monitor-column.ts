@@ -13,6 +13,7 @@ import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-mark
 import { ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
+import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import { eventKey, FULL_WINDOW } from "../events-snapshot.js";
 import type { Range } from "../ranges.js";
 import { arrayWindowedSource } from "../windowed-source.js";
@@ -169,7 +170,17 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	protected override onConnected(): void {
 		// The child virtual column reports when it pins to / leaves the live edge; that flip switches the window tail↔full.
 		this.autoListen(this, FOLLOW_CHANGED, this.#onFollowChanged as EventListener);
+		// A rail click, drag or mark jump is the reader saying WHEN, not just where: the row it lands on carries a time,
+		// so the cursor every other view reads moves with it. Wheeling through the rows does not — that is reading, and
+		// a reader scrolling their own log should not drag every other view along.
+		this.autoListen(this, SCROLL_TO_INDEX, this.#onRailSeek as EventListener);
 	}
+
+	#onRailSeek = (e: Event): void => {
+		const index = (e as CustomEvent<{ index: number }>).detail?.index;
+		const row = typeof index === "number" ? this.#filtered[index] : undefined;
+		if (row) this.timeCursor = row.timestamp;
+	};
 
 	/** The span this view wants: while following the live edge, a bounded tail below the newest event; otherwise the full
 	 *  history (a scrolled-back reader must reach anything). `from` clamps at 0, so a run shorter than the tail is the whole log. */

@@ -24,6 +24,7 @@ import { viewQuery, serializeViewQuery } from "../view-query.js";
 // customElements.define side effect and leaving un-upgraded elements at runtime.
 import { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
+import { PaneState } from "../pane-state.js";
 import { chatMessageStyles } from "./shu-chat-message.js";
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -87,11 +88,11 @@ function stepDetails(s: StepDescriptor): string {
 
 type TMode = z.infer<typeof ActionsBarSchema>["mode"];
 
-type TCorner = "settings" | "timeline" | "access" | "status";
+type TCorner = "settings" | "playback" | "access" | "status";
 /** Per-corner dismiss policy. Transient pickers dismiss on a click away; a panel is used alongside the view (scrub the
- *  timeline cursor, then click nodes/rows to inspect them at that time) so only its own toggle closes it. A new corner
+ *  cursor playing, then click nodes/rows to inspect them at that time) so only its own toggle closes it. A new corner
  *  must declare which it is. */
-const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", timeline: "panel", status: "click-away" };
+const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", playback: "panel", status: "click-away" };
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** A control, not a view of data — contributes nothing to the Kihan's context. */
@@ -696,8 +697,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const content =
 			this._openCorner === "settings"
 				? html`<shu-theme-switch></shu-theme-switch>`
-				: this._openCorner === "timeline"
-					? html`<shu-timeline class="corner-timeline"></shu-timeline>`
+				: this._openCorner === "playback"
+					? html`<shu-playback></shu-playback>`
 					: this._openCorner === "status"
 						? html`<p class="status-full">${this._statusMessage}<shu-copy-button label="copy" title="copy this message" .source=${this._statusMessage}></shu-copy-button></p>`
 						: this._openCorner === "access"
@@ -737,8 +738,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				title="what this says, in full" data-testid=${`${this.testIdPrefix}status`} @click=${this.onCornerToggle("status")}>${this._statusMessage}</button>
 			<shu-breadcrumb></shu-breadcrumb>
 			<span class="corner-controls">
-				<button class="pane-icon corner-toggle time-offset" aria-label="Timeline" aria-expanded=${this._openCorner === "timeline"}
-					data-testid=${`${this.testIdPrefix}time-offset`} @click=${this.onCornerToggle("timeline")}>${this._timeOffsetLabel}</button>
 				<button class="pane-icon corner-toggle access-indicator ${this._awaiting > 0 ? "awaiting" : ""}" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
 					title=${`read access ${this._contextAccessLevel}; ${this._summary.holds} actions held, ${this._summary.principals} principals, ${this._summary.grants} grants${this._awaiting > 0 ? `; ${this._awaiting} awaiting your decision` : ""}`}
 					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}
@@ -748,6 +747,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 				<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
 					@click=${this.onCornerToggle("settings")}>\u2699</button>
+				<button class="pane-icon corner-toggle time-offset" aria-label="Open the log" aria-expanded=${this._openCorner === "playback"}
+					title="where the run is; opens the log, whose rail is where you move it from"
+					data-testid=${`${this.testIdPrefix}time-offset`} @click=${this.onNowClick}>${this._timeOffsetLabel}</button>
 			</span>
 			<button class="pane-icon" aria-label=${pinned ? "Unpin actions bar" : "Pin actions bar open"} aria-pressed=${pinned}
 				data-testid=${`${this.testIdPrefix}ask-button`} @click=${this.onPinToggle}>\u{1F4CC}</button>
@@ -763,6 +765,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	/** Toggle one of the corner popovers; opening one replaces any other (a single surface). Top-layer, so it never
 	 *  needs the actions bar opened — it floats above the collapsed strip and the open panel alike. */
+	/** `now` says where the run has got to, and is how the log is opened. The log's own rail is where a reader moves
+	 *  through the run, so it opens minimized to that rail — the first time only, since after that where the reader
+	 *  left it is theirs. The controls this reveals are what a rail cannot do: move on its own. */
+	private onNowClick = (e: Event): void => {
+		const tag = "shu-monitor-column";
+		PaneState.request({ paneType: "component", tag, label: "Monitor", ...(PaneState.isOpen(tag) ? {} : { flag: "min" as const }) });
+		this.onCornerToggle("playback")(e);
+	};
+
 	private onCornerToggle(kind: TCorner): (e: Event) => void {
 		return (e: Event) => {
 			e.stopPropagation();
@@ -788,20 +799,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  timeline spans the bar's full width. */
 	private showCornerPopover(kind: TCorner, toggle: HTMLElement): void {
 		const pop = this.cornerPopoverEl();
-		const bar = this.shadowRoot?.querySelector(".summary-bar") as HTMLElement | null;
-		if (!pop || !bar) throw new Error("actions-bar: corner popover/summary bar missing from the rendered template");
+		if (!pop) throw new Error("actions-bar: corner popover missing from the rendered template");
 		const btn = toggle.getBoundingClientRect();
-		const strip = bar.getBoundingClientRect();
 		pop.style.margin = "0";
 		pop.style.inset = "auto";
 		pop.style.bottom = `${window.innerHeight - this.getBoundingClientRect().top + 4}px`;
-		if (kind === "timeline") {
-			pop.style.left = `${strip.left + 8}px`;
-			pop.style.right = `${window.innerWidth - strip.right + 8}px`;
-		} else {
-			pop.style.left = "auto";
-			pop.style.right = `${window.innerWidth - btn.right}px`;
-		}
+		pop.style.left = "auto";
+		pop.style.right = `${window.innerWidth - btn.right}px`;
 		pop.showPopover();
 	}
 
@@ -1218,7 +1222,6 @@ const STYLES = `
 		overflow: hidden;
 	}
 	.corner-popover:popover-open { display: inline-flex; align-items: center; }
-	.corner-timeline { display: block; width: 100%; min-width: 0; }
 	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
 	/* The negative margin cancels the bar's vertical padding so the buttons take the bar's full height. */
 	.corner-controls {

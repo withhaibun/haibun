@@ -339,11 +339,15 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	/** A control a spine view offers, which takes its own clicks. The rest of the strip opens the column. */
 	private static readonly SPINE_CONTROL = "button, input, select, textarea, a[href], [role='button'], [contenteditable]";
 
-	/** The strip opens the column, anywhere on it — a spine says what is behind it, and the way to see it is to click.
-	 *  A spine view offering its own controls keeps their clicks: a slider dragged in the strip is being used, not
-	 *  being asked to open the column, and the strip around it still opens it. */
+	/** The strip opens the column, anywhere on it — a spine that says what is behind it is asking to be opened.
+	 *
+	 *  Two things are not: a control the spine view offers (a button pressed in the strip is being used, not asking for
+	 *  the column), and the whole strip of a column rendering a narrow form of ITSELF. That strip is the column's own
+	 *  control surface — the log's rail is dragged and clicked to move through the run — so opening it on a click would
+	 *  put the rows back the moment the reader used it. Such a column is opened from its label instead. */
 	private onSpineClick = (e: Event): void => {
 		if (!this.isCollapsed) return;
+		if ((this.columnView?.constructor as { rendersOwnSpine?: boolean } | undefined)?.rendersOwnSpine) return;
 		const onControl = e.composedPath().some((node) => node instanceof Element && node.matches(ShuColumnPane.SPINE_CONTROL));
 		if (onControl) return;
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));

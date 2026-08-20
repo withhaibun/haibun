@@ -385,6 +385,57 @@ describe("what a pane renders when it collapses", () => {
 	});
 });
 
+describe("a column whose spine is a narrow form of itself", () => {
+	// Its strip is the column's own control surface — the log's rail is dragged and clicked to move through the run — so
+	// a click there is the reader using it, not asking for the rows back.
+	beforeAll(() => {
+		if (!customElements.get("shu-self-spine-column"))
+			customElements.define(
+				"shu-self-spine-column",
+				class extends HTMLElement {
+					static rendersOwnSpine = true;
+				},
+			);
+	});
+
+	const spined = async () => {
+		resetPanePrefs();
+		document.body.innerHTML = "";
+		const pane = makePane("Self");
+		pane.appendChild(document.createElement("shu-self-spine-column"));
+		document.body.appendChild(pane);
+		await nextFrame(pane);
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		return pane;
+	};
+
+	it("keeps rendering the column, so the part it shows in the strip stays where it is", async () => {
+		const pane = await spined();
+		const slots = Array.from(pane.shadowRoot?.querySelectorAll("slot") ?? []).map((sl) => sl.getAttribute("name"));
+		expect(slots, "the default slot, inside the strip — not the spine slot").toEqual([null]);
+		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE), "and the strip is sized for a spine").toBe(true);
+	});
+
+	it("tells the column it is serving as the strip, which is how it knows to render narrow", async () => {
+		const pane = await spined();
+		expect(pane.columnView?.hasAttribute(SHU_ATTR.SPINE)).toBe(true);
+		pane.setMinimized(false);
+		await nextFrame(pane);
+		expect(pane.columnView?.hasAttribute(SHU_ATTR.SPINE), "and stops saying so once there is room again").toBe(false);
+	});
+
+	it("does not open the column when its strip is clicked, since that click was for the strip", async () => {
+		const pane = await spined();
+		let expanded = 0;
+		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
+		const strip = pane.shadowRoot?.querySelector(".pane-spine") as HTMLElement | null;
+		if (!strip) throw new Error("a collapsed pane rendered no strip to click");
+		strip.click();
+		expect(expanded, "using the rail must not put the rows back under the reader").toBe(0);
+	});
+});
+
 describe("a column that declares no spine view", () => {
 	it("collapses to its rotated label alone, with no spine to render", async () => {
 		resetPanePrefs();
