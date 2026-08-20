@@ -63,7 +63,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		// pane lands the moment that pane attaches.
 		this.watchSignal(activePane, () => this.applyActive());
 		this.updateQueryAlone();
-		this.updateIsLast();
+		this.updateEdges();
 	}
 
 	/** Get all child panes. */
@@ -78,7 +78,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.ensureActive();
 		this.applyActive(); // paint active from the signal now this pane exists (a restore that named it lands here)
 		this.updateQueryAlone();
-		this.updateIsLast();
+		this.updateEdges();
 		this.emitColumnsChanged();
 		if (!minimized) requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
 		// A maximized column is the ONLY one visible. A column opened while one is maximized ends the maximize rather
@@ -100,14 +100,25 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.ensureActive();
 		this.applyActive();
 		this.updateQueryAlone();
-		this.updateIsLast();
+		this.updateEdges();
 		this.emitColumnsChanged();
 	}
 
-	/** Mark the rightmost pane with `is-last` so its resize handle and right border drop off and it renders flexible (the pane observes the attribute and recomputes its flex; its stored width is kept for when it stops being last). */
-	private updateIsLast(): void {
+	/**
+	 * Mark the rightmost pane with `is-last`, so its resize handle and right border drop off, and mark the pane that
+	 * grows into whatever width the others do not take.
+	 *
+	 * They are not always the same pane. A collapsed column is fixed at the width of its strip, so when the rightmost
+	 * column is collapsed the pane before it does the growing; marking the collapsed one would leave the strip's
+	 * remaining width belonging to nobody, and showing as a gap.
+	 */
+	private updateEdges(): void {
 		const panes = this.panes;
-		for (let i = 0; i < panes.length; i++) panes[i].toggleAttribute(SHU_ATTR.IS_LAST, i === panes.length - 1);
+		const growing = [...panes].reverse().find((p) => !p.isCollapsed);
+		for (let i = 0; i < panes.length; i++) {
+			panes[i].toggleAttribute(SHU_ATTR.IS_LAST, i === panes.length - 1);
+			panes[i].toggleAttribute(SHU_ATTR.GROWS, panes[i] === growing);
+		}
 	}
 
 	/** Activate the pane at `index` by setting the shared `activePane` signal. The signal subscriber (applyActive) paints
@@ -193,6 +204,8 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			avail -= COLLAPSED_WIDTH;
 			flexCount--;
 		}
+		// Auto-collapse just changed which panes are fixed at a strip's width, so which pane grows is decided again here.
+		this.updateEdges();
 	}
 
 	private get isMaximized(): boolean {
@@ -237,7 +250,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 				p.setCollapsed(s.accordionCollapsed);
 			}
 			this.savedLayout = null;
-			this.updateIsLast();
+			this.updateEdges();
 			this.updateAccordion();
 		}
 		this.emitColumnsChanged();
@@ -282,7 +295,10 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			}
 			if (target !== -1) this.activatePane(target);
 		}
+		// A minimize always changes which pane can grow. updateAccordion decides that too, but it returns early when
+		// there is no sharing to do (one pane, a maximized strip, the wrapped narrow layout), so it is said here.
 		this.updateAccordion();
+		this.updateEdges();
 		this.emitColumnsChanged();
 	};
 
@@ -304,7 +320,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	private onSlotChange = (): void => {
 		this.updateQueryAlone();
-		this.updateIsLast();
+		this.updateEdges();
 	};
 
 	render(): TemplateResult {

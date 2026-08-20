@@ -262,7 +262,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				},
 			],
 		}),
-		startFeature: async () => {
+		startFeature: () => {
 			const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer;
 			const artifactDir = resolve(this.storage.getArtifactBasePath());
 			this.storage.ensureDirExists(artifactDir);

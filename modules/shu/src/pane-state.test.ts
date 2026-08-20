@@ -11,6 +11,7 @@ import { ShuElement } from "./components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
 import { setConduit, resetConduit, SerializedConduit, LiveConduit } from "./hypermedia.js";
+import { SPINE_SLOT } from "./consts.js";
 
 /** Offline is which Conduit is installed: a serialized one has no location to mutate, a live one does. */
 const offline = () => setConduit(new SerializedConduit(() => { throw new Error("pane-state test: no dispatch expected"); }));
@@ -176,6 +177,29 @@ describe("PaneState", () => {
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
 		await flush();
 		expect(document.querySelectorAll("shu-column-pane")).toHaveLength(1);
+	});
+
+	it("attaches the spine view a column declares, so collapsing it leaves something to read", async () => {
+		if (!customElements.get("shu-spined-column"))
+			customElements.define(
+				"shu-spined-column",
+				class extends HTMLElement {
+					static spineView = "shu-spine-stub";
+				},
+			);
+		if (!customElements.get("shu-spine-stub")) customElements.define("shu-spine-stub", class extends HTMLElement {});
+		PaneState.request({ paneType: "component", tag: "shu-spined-column", label: "S" });
+		await flush();
+		const pane = document.querySelector("shu-column-pane");
+		expect(pane?.querySelector(`[slot="${SPINE_SLOT}"]`)?.tagName.toLowerCase(), "the declared view, assigned to the spine slot").toBe("shu-spine-stub");
+		expect(pane?.children.length, "alongside the column's own view, not in place of it").toBe(2);
+	});
+
+	it("attaches nothing to the spine of a column that declares none, which collapses to its label alone", async () => {
+		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
+		await flush();
+		const pane = document.querySelector("shu-column-pane");
+		expect(pane?.querySelector(`[slot="${SPINE_SLOT}"]`)).toBeNull();
 	});
 
 	it("dismiss removes the pane and the col= entry from the hash", async () => {

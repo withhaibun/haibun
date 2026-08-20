@@ -4,6 +4,11 @@
  * on right edge. Dispatches column-close, column-resize, column-minimize,
  * column-maximize, column-activate, column-expand events.
  *
+ * Collapsed, the pane renders the `spine` slot in place of the default one. Only one of the two slots exists at a
+ * time, so a column's main view is not rendered while it is collapsed, and a spine view is not rendered while it is
+ * not: an unslotted child stays in the DOM, keeping its state and its data, without being rendered. A column that
+ * declares no spine view collapses to the rotated label alone, as before.
+ *
  * The visual chrome is built entirely from `--shu-…` tokens (defined in styles.ts);
  * theme/scale/responsive shifts happen there, never inside this component.
  * Active toggle state (controls-on, maximized, pinned, minimized) is reflected
@@ -13,7 +18,7 @@
 import { html, css, nothing, type TemplateResult } from "lit";
 import { classMap } from "lit/directives/class-map.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT, SHU_ATTR } from "../consts.js";
+import { SHU_EVENT, SHU_ATTR, SPINE_SLOT } from "../consts.js";
 import { ColumnPaneSchema } from "../schemas.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { readShowControlsCookie, writeShowControlsCookie } from "../show-controls.js";
@@ -31,9 +36,11 @@ const CLASS = {
 	HEADER: "pane-header",
 	LABEL: "pane-label",
 	CONTENT: "pane-content",
+	SPINE: "pane-spine",
 	RESIZE: "resize-handle",
 } as const;
 const TEST_ID = { MAX: "pane-maximize", CONTROLS: "pane-controls-toggle", BROWSER_COLUMN: "browser-column" } as const;
+
 const MIN_RESIZED_WIDTH = 120;
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
@@ -42,7 +49,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return null;
 	}
 
-	static override observedHtmlAttributes = [SHU_ATTR.IS_LAST, SHU_ATTR.DATA_MAXIMIZED];
+	static override observedHtmlAttributes = [SHU_ATTR.IS_LAST, SHU_ATTR.GROWS, SHU_ATTR.DATA_MAXIMIZED];
 
 	static styles = [
 		shuBaseStyles,
@@ -64,13 +71,20 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			cursor: pointer;
 			transition: max-width 0.2s ease, min-width 0.2s ease;
 		}
-		:host([collapsed]) .pane-content { display: none; }
 		:host([collapsed]) .resize-handle { display: none; }
 		:host([collapsed]) .pane-header {
 			writing-mode: vertical-lr; text-orientation: mixed;
 			padding: var(--shu-space-4) var(--shu-space-2);
 			flex: 1;
 		}
+		/* A spine takes the height the rotated label does not, so the label stays readable at the top of the strip and
+		   the spine view gets the rest. Its own width governs the strip, which is why the collapsed cap lifts here. */
+		:host([collapsed][has-spine]) {
+			min-width: var(--shu-spine-w);
+			max-width: var(--shu-spine-w);
+		}
+		:host([collapsed][has-spine]) .pane-header { flex: 0 0 auto; }
+		.pane-spine { flex: 1; min-height: 0; overflow: hidden; display: flex; }
 		:host([collapsed]) .pane-controls-group { writing-mode: horizontal-tb; flex-direction: column; margin-left: 0; margin-top: var(--shu-space-3); }
 		:host([collapsed]) .pane-controls-group > button { display: none; }
 		:host([collapsed]) .pane-controls-group > button.pane-close,
@@ -107,7 +121,10 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			border-color: var(--shu-error);
 		}
 		.pane-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-		::slotted(*) { flex: 1; min-height: 0; overflow: auto; }
+		.pane-content ::slotted(*) { flex: 1; min-height: 0; overflow: auto; }
+		/* A spine is the width of the strip and no wider: its view sizes to that rather than scrolling inside it, or a
+		   few pixels of spill — a slider knob's label, say — become native scrollbars in a strip too narrow to use them. */
+		.pane-spine ::slotted(*) { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 		.resize-handle {
 			position: absolute; top: 0; right: 0;
 			width: var(--shu-resize-w); height: 100%;
@@ -165,7 +182,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	protected override onAttributeChanged(name: string): void {
-		if (name === SHU_ATTR.IS_LAST || name === SHU_ATTR.DATA_MAXIMIZED) this.#reflectLayout();
+		if (name === SHU_ATTR.IS_LAST || name === SHU_ATTR.GROWS || name === SHU_ATTR.DATA_MAXIMIZED) this.#reflectLayout();
 	}
 
 	/** Single writer of layout-derived DOM: the data-minimized attribute mirrors state for CSS and the strip's queries; collapsed is the union of user-minimize and accordion collapse; inline flex from #applyFlex. */
@@ -173,16 +190,18 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.toggleAttribute(SHU_ATTR.DATA_MINIMIZED, this.state.minimized);
 		this.toggleAttribute(SHU_ATTR.COLLAPSED, this.state.minimized || this.#accordionCollapsed);
 		this.#applyFlex();
+		this.requestUpdate(); // the template renders either the default slot or the spine slot, so it follows this
+
 	}
 
 	/** Inline flex computed from full state — one writer, so no path strands a stale width. Maximized fills the
-	 * strip; collapsed defers to the :host([collapsed]) CSS; the rightmost pane absorbs the remaining strip width
-	 * (its stored width stays put and reapplies when it stops being last); otherwise an explicit user width is
+	 * strip; collapsed defers to the :host([collapsed]) CSS; the pane the strip marked as growing takes the remaining
+	 * width (its stored width stays put and reapplies when it stops growing); otherwise an explicit user width is
 	 * fixed; default shares the strip via :host { flex: 1 }. */
 	#applyFlex(): void {
 		const w = this.state.width;
 		if (this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) this.style.flex = "1";
-		else if (this.isCollapsed || w === undefined || this.hasAttribute(SHU_ATTR.IS_LAST)) this.style.flex = "";
+		else if (this.isCollapsed || w === undefined || this.hasAttribute(SHU_ATTR.GROWS)) this.style.flex = "";
 		// Capped at what the strip can give while the other panes keep a usable minimum, so a share restored into a
 		// narrower strip cannot crush them and push this pane's resize handle off screen.
 		else this.style.flex = `0 0 ${(Math.min(w, this.#maxShare()) * 100).toFixed(3)}%`;
@@ -220,9 +239,10 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	/** The width to count as fixed in strip layout math, in pixels: the user's explicit share of the current strip,
-	 *  except a last or maximized pane, which always renders flexible (the stored share stays put for when it isn't). */
+	 *  except a growing or maximized pane, which always renders flexible (the stored share stays put for when it isn't).
+	 *  The same two the flex is derived from, so what the strip counts and what the pane renders cannot differ. */
 	get fixedWidth(): number | undefined {
-		if (this.hasAttribute(SHU_ATTR.IS_LAST) || this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return undefined;
+		if (this.hasAttribute(SHU_ATTR.GROWS) || this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return undefined;
 		const share = this.state.width;
 		return share === undefined ? undefined : Math.round(share * this.#stripWidth());
 	}
@@ -303,7 +323,24 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		if (this.isCollapsed) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
 	};
 
-	private onSlotChange = (): void => {
+	/** A control a spine view offers, which takes its own clicks. The rest of the strip opens the column. */
+	private static readonly SPINE_CONTROL = "button, input, select, textarea, a[href], [role='button'], [contenteditable]";
+
+	/** The strip opens the column, anywhere on it — a spine says what is behind it, and the way to see it is to click.
+	 *  A spine view offering its own controls keeps their clicks: a slider dragged in the strip is being used, not
+	 *  being asked to open the column, and the strip around it still opens it. */
+	private onSpineClick = (e: Event): void => {
+		if (!this.isCollapsed) return;
+		const onControl = e.composedPath().some((node) => node instanceof Element && node.matches(ShuColumnPane.SPINE_CONTROL));
+		if (onControl) return;
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
+	};
+
+	private onSlotChange = (e: Event): void => {
+		// A spine view holds its render while nothing shows it (ShuElement.shouldUpdate). The spine slot taking it is
+		// the moment it becomes visible, so it is asked to catch up on everything it heard and did not render.
+		const slot = e.target as HTMLSlotElement;
+		if (slot.name === SPINE_SLOT) for (const view of slot.assignedElements()) (view as Element & { requestUpdate?: () => void }).requestUpdate?.();
 		this.requestUpdate();
 	};
 
@@ -346,9 +383,18 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		});
 	};
 
+	/** The column's own view: the first child that is not its spine view. `controls` and the Kihan summary both mean
+	 *  this one, so neither is answered by the spine view when a column declares one. */
+	get columnView(): Element | undefined {
+		return Array.from(this.children).find((child) => child.getAttribute("slot") !== SPINE_SLOT);
+	}
+
 	render(): TemplateResult {
 		const { label, closable, columnType, pinned } = this.state;
-		const controlsActive = !!this.children[0]?.hasAttribute?.(SHU_ATTR.SHOW_CONTROLS);
+		const collapsed = this.isCollapsed;
+		const hasSpine = Array.from(this.children).some((child) => child.getAttribute("slot") === SPINE_SLOT);
+		this.toggleAttribute(SHU_ATTR.HAS_SPINE, hasSpine);
+		const controlsActive = !!this.columnView?.hasAttribute?.(SHU_ATTR.SHOW_CONTROLS);
 		const maximized = this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
 		const isEmpty = !label && !closable;
 		this.toggleAttribute(SHU_ATTR.DATA_CONTROLS_ON, controlsActive);
@@ -367,9 +413,9 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				<span class=${CLASS.LABEL} title=${label}>${label}</span>
 				${controlsGroup}
 			</div>
-			<div class=${CLASS.CONTENT}>
-				<slot @slotchange=${this.onSlotChange}></slot>
-			</div>
+			${collapsed
+				? html`<div class=${CLASS.SPINE} @click=${this.onSpineClick}><slot name=${SPINE_SLOT} @slotchange=${this.onSlotChange}></slot></div>`
+				: html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}
 			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>
 		`;
 	}

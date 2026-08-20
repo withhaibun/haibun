@@ -41,7 +41,7 @@ import { LitElement, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SPINE_SLOT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "../time-sync.js";
 import { timeCursor, activePane, type SharedSignal } from "../signals.js";
 import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
@@ -87,6 +87,22 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * via setState earlier in this element's lifetime (e.g. a URL-hash flag applied before attach) is never
 	 * overwritten by the remembered value. Do not hand-roll component cookies — declare the field here. */
 	static persistFields: readonly string[] = [];
+
+	/** The tag of the view this column shows in its spine: the narrow strip it collapses to. A column that declares
+	 *  one renders it in place of its main view while collapsed, and its main view is not rendered at all until it is
+	 *  expanded again. Left empty, the column collapses to its rotated label alone. */
+	static spineView = "";
+
+	/**
+	 * A spine view stays attached while its column is open, so it keeps hearing what it needs to be current the moment
+	 * the column collapses. Attached is not shown, though: until the pane's spine slot takes it, nothing it renders can
+	 * be seen, and rendering it anyway costs the same as rendering it for a reader. So it holds off, and the pane asks
+	 * it to catch up when the spine slot takes it.
+	 */
+	protected override shouldUpdate(changed: Map<PropertyKey, unknown>): boolean {
+		if (this.getAttribute("slot") === SPINE_SLOT && !this.assignedSlot) return false;
+		return super.shouldUpdate(changed);
+	}
 
 	/** Identity under which `persistFields` store: "" (default) is a per-tag singleton; a multi-instance
 	 * component overrides this with its instance identity (e.g. a column key); null means "no identity yet,
