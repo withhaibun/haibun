@@ -77,6 +77,10 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			writing-mode: vertical-lr; text-orientation: mixed;
 			padding: var(--shu-space-4) var(--shu-space-2);
 			flex: 1;
+			/* The label runs from the top of the strip and the controls sit at the bottom of it. Without this they pack
+			   against the label, which leaves them wherever the label's text happens to end. A header sized to its
+			   content (one with a spine below it) has no free space, so this changes nothing there. */
+			justify-content: space-between;
 		}
 		/* A spine takes the height the rotated label does not, so the label stays readable at the top of the strip and
 		   the spine view gets the rest. Its own width governs the strip, which is why the collapsed cap lifts here. */
@@ -85,7 +89,11 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			max-width: var(--shu-spine-w);
 		}
 		:host([collapsed][has-spine]) .pane-header { flex: 0 0 auto; }
-		.pane-spine { flex: 1; min-height: 0; overflow: hidden; display: flex; }
+		/* The spine box takes the height the header does not, but only once a column has a spine view to put in it. A
+		   column that declares none renders the slot (so one attached later is still noticed) with nothing assigned to
+		   it, and an empty box claiming half the strip is what pushed that column's controls to the middle of it. */
+		.pane-spine { flex: 0 0 auto; min-height: 0; overflow: hidden; display: flex; }
+		:host([has-spine]) .pane-spine { flex: 1; }
 		:host([collapsed]) .pane-controls-group { writing-mode: horizontal-tb; flex-direction: column; margin-left: 0; margin-top: var(--shu-space-3); }
 		:host([collapsed]) .pane-controls-group > button { display: none; }
 		:host([collapsed]) .pane-controls-group > button.pane-close,

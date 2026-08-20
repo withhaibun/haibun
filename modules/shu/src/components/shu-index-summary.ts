@@ -24,6 +24,10 @@ import { viewQuery } from "../view-query.js";
 
 const EmptySchema = z.object({});
 
+/** What the strip says the column is. The index pane carries no label — an open index shows no header — so the strip
+ *  would otherwise be the only column that does not say what it is. */
+const INDEX_NAME = "Index";
+
 export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 	/** A one-line reading of a view the model can already read in full when the index is open. */
 	summarizeForKihan(): TLinkedData | null {
@@ -65,10 +69,11 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 	}
 
 	render(): TemplateResult {
-		const described = describeSearch(viewQuery.current);
-		if (!described && this.found === null) return html``;
+		// Which column, then which search, then how many it found — in that order, so the strip answers what it is
+		// before it answers what is in it, and still says what it is before any search has been made.
+		const said = [INDEX_NAME, describeSearch(viewQuery.current)].filter(Boolean).join(" · ");
 		return html`<span data-testid=${SHU_TEST_IDS.INDEX_SUMMARY.ROOT}
-			>${described}${described && this.found !== null ? " · " : ""}${this.found === null ? "" : html`<span class="count">${this.found}</span>`}</span
+			>${said}${this.found === null ? "" : html` · <span class="count">${this.found}</span>`}</span
 		>`;
 	}
 }

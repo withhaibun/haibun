@@ -52,15 +52,16 @@ describe("the index's spine summary", () => {
 			.map((node) => node.textContent ?? "")
 			.join("");
 
-	it("says nothing before the index has published anything, rather than a count of nothing", () => {
-		expect(shown().trim()).toBe("");
+	it("says which column it is before any search has been made, since the strip is all a reader has to go on", () => {
+		expect(shown().trim()).toBe("Index");
 	});
 
 	it("names the search and how many it found", async () => {
 		searching("#?label=Person&q=smith");
 		publish("shu-graph-query", { total: 42 });
 		await summary.updateComplete;
-		expect(shown()).toContain("Person");
+		expect(shown(), "which column").toContain("Index");
+		expect(shown(), "which search").toContain("Person");
 		expect(shown(), "the text that was searched for").toContain("smith");
 		expect(shown(), "and how much is behind the strip").toContain("42");
 	});
