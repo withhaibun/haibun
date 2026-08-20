@@ -113,6 +113,32 @@ describe("EventLogger", () => {
 		});
 	});
 
+	describe("what a step that did not fail says about errors", () => {
+		const step = { source: { path: "/test/feature.ts", lineNumber: 1 }, in: "set count to 1", seqPath: [1, 1, 1] } as unknown as TFeatureStep;
+
+		it("says nothing, so nothing downstream shows an error where there was none", () => {
+			const emitted: unknown[] = [];
+			logger.subscribe((event) => emitted.push(event));
+
+			logger.stepEnd(step, "VariablesStepper", "set", true, undefined, {}, undefined, undefined);
+
+			const event = emitted[0] as { status?: string; error?: unknown };
+			expect(event.status).toBe("completed");
+			expect(event.error, "describing an absent error produces the word `undefined`, which reads as an error").toBeUndefined();
+		});
+
+		it("says what went wrong when something did", () => {
+			const emitted: unknown[] = [];
+			logger.subscribe((event) => emitted.push(event));
+
+			logger.stepEnd(step, "VariablesStepper", "set", false, new Error("no such variable"), {}, undefined, undefined);
+
+			const event = emitted[0] as { status?: string; error?: unknown };
+			expect(event.status).toBe("failed");
+			expect(event.error).toBe("no such variable");
+		});
+	});
+
 	describe("subscribe/unsubscribe", () => {
 		it("should stop receiving events after unsubscribe", () => {
 			const emitted: unknown[] = [];

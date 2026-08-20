@@ -238,7 +238,9 @@ export class EventLogger implements IEventLogger {
 		stepValuesMap: Record<string, unknown> | undefined,
 		products: Record<string, unknown> | undefined,
 	): void {
-		const errorMessage = errorDetail(error);
+		// A step that did not fail has no error, and saying so is leaving the field out. Describing `undefined` produces
+		// the string "undefined", which reads as an error to anything that shows one.
+		const errorMessage = error === undefined ? undefined : errorDetail(error);
 		const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;
 		this.emit(
 			LifecycleEvent.parse({
