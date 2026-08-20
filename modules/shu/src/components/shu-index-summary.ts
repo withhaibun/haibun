@@ -5,31 +5,33 @@
  * there is no room for the results, but there is room to say which search they came from and how many there are, so
  * the strip still answers what is behind it.
  *
- * It is told by the same CONTEXT_CHANGE the index already publishes for the actions bar, so nothing new is dispatched
- * for the spine. Other columns publish that context too, and theirs is a different search; only the index's own is
- * read here, which is why the source is checked rather than the event alone.
+ * The search itself is the shared `viewQuery`, read in render: ShuElement is a SignalWatcher, so reading it there
+ * subscribes this view to it and the strip follows the search without being told about it. The count is not part of
+ * the query — it is what the index found — so that one number comes from the context the index already publishes for
+ * the actions bar. Other columns publish that context too, about their own subject, which is why the source is
+ * checked rather than the event alone.
  */
 import { html, css, type TemplateResult } from "lit";
+import { state } from "lit/decorators.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { describeSearch } from "./shu-search-summary.js";
-import type { TViewQuery } from "../view-query.js";
+import { ShuGraphQuery } from "./shu-graph-query.js";
+import { viewQuery } from "../view-query.js";
 
 const EmptySchema = z.object({});
-
-/** The tag whose context is the index's. A context published by any other column describes a different search. */
-const INDEX_TAG = "SHU-GRAPH-QUERY";
-
-/** What the index publishes about the search it is showing. */
-type TIndexContext = { label?: string | null; textQuery?: string | null; conditions?: TViewQuery["f"]; accessLevel?: string; total?: number };
 
 export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 	/** A one-line reading of a view the model can already read in full when the index is open. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
+
+	static schema = EmptySchema;
+	static domainSelector = "shu-index-summary";
 
 	static styles = [
 		shuBaseStyles,
@@ -45,7 +47,8 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 	`,
 	];
 
-	private context: TIndexContext | null = null;
+	/** How many the index found. Not in the query — the query says what was asked, this says what came back. */
+	@state() private accessor found: number | null = null;
 
 	constructor() {
 		super(EmptySchema, {});
@@ -55,18 +58,19 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 		// The index is not an ancestor of this element (it renders into the pane from outside it), so its context does
 		// not bubble through here. The document is where both meet.
 		this.autoListen(document, SHU_EVENT.CONTEXT_CHANGE, (e: Event) => {
-			if ((e.target as Element | null)?.tagName !== INDEX_TAG) return;
-			this.context = (e as CustomEvent).detail ?? null;
-			this.requestUpdate();
+			if ((e.target as Element | null)?.tagName.toLowerCase() !== ShuGraphQuery.domainSelector) return;
+			const total = (e as CustomEvent).detail?.total;
+			this.found = typeof total === "number" ? total : null;
 		});
 	}
 
 	render(): TemplateResult {
-		const c = this.context;
-		if (!c) return html``;
-		const described = describeSearch({ label: c.label ?? null, q: c.textQuery ?? null, f: c.conditions ?? [], access: c.accessLevel } as TViewQuery);
-		return html`${described}${described ? " · " : ""}<span class="count">${c.total ?? 0}</span>`;
+		const described = describeSearch(viewQuery.current);
+		if (!described && this.found === null) return html``;
+		return html`<span data-testid=${SHU_TEST_IDS.INDEX_SUMMARY.ROOT}
+			>${described}${described && this.found !== null ? " · " : ""}${this.found === null ? "" : html`<span class="count">${this.found}</span>`}</span
+		>`;
 	}
 }
 
-customElements.define("shu-index-summary", ShuIndexSummary);
+customElements.define(ShuIndexSummary.domainSelector, ShuIndexSummary);

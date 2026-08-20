@@ -9,10 +9,16 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { ShuIndexSummary } from "./shu-index-summary.js";
 import { SHU_EVENT, SPINE_SLOT } from "../consts.js";
+import { viewQuery } from "../view-query.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { installTestMediaQueries } from "../test-setup.js";
 
-/** The index publishing what it is showing, from where the index actually sits: outside the pane, not under it. */
+/** The search the index is showing, which is shared state rather than anything the summary is handed. */
+function searching(hash: string): void {
+	viewQuery.hydrate(hash);
+}
+
+/** The index reporting how many it found, from where the index actually sits: outside the pane, not under it. */
 function publish(from: string, detail: Record<string, unknown>): void {
 	const source = document.createElement(from);
 	document.body.appendChild(source);
@@ -31,6 +37,7 @@ describe("the index's spine summary", () => {
 
 	beforeEach(async () => {
 		document.body.innerHTML = "";
+		searching("#?"); // the shared query outlives one test, so each starts from no search
 		summary = document.createElement("shu-index-summary") as ShuIndexSummary;
 		document.body.appendChild(summary);
 		await summary.updateComplete;
@@ -50,26 +57,29 @@ describe("the index's spine summary", () => {
 	});
 
 	it("names the search and how many it found", async () => {
-		publish("shu-graph-query", { label: "Person", textQuery: "smith", conditions: [], total: 42 });
+		searching("#?label=Person&q=smith");
+		publish("shu-graph-query", { total: 42 });
 		await summary.updateComplete;
 		expect(shown()).toContain("Person");
 		expect(shown(), "the text that was searched for").toContain("smith");
 		expect(shown(), "and how much is behind the strip").toContain("42");
 	});
 
-	it("does not read another column's search as the index's", async () => {
-		publish("shu-graph-query", { label: "Person", conditions: [], total: 42 });
+	it("does not take another column's count as the index's", async () => {
+		searching("#?label=Person");
+		publish("shu-graph-query", { total: 42 });
 		await summary.updateComplete;
-		publish("shu-entity-column", { label: "Invoice", conditions: [], total: 7 });
+		publish("shu-entity-column", { total: 7 });
 		await summary.updateComplete;
-		expect(shown(), "the entity column's own context is about its own subject").not.toContain("Invoice");
-		expect(shown()).toContain("Person");
+		expect(shown(), "an entity column reports on its own subject, not on the index").not.toContain("7");
+		expect(shown()).toContain("42");
 	});
 
-	it("follows the index as its search changes, since the strip is showing the current one", async () => {
-		publish("shu-graph-query", { label: "Person", conditions: [], total: 42 });
+	it("follows the search itself, which it reads rather than being told", async () => {
+		searching("#?label=Person");
 		await summary.updateComplete;
-		publish("shu-graph-query", { label: "Invoice", conditions: [], total: 7 });
+		expect(shown()).toContain("Person");
+		searching("#?label=Invoice");
 		await summary.updateComplete;
 		expect(shown()).toContain("Invoice");
 		expect(shown()).not.toContain("Person");
@@ -91,7 +101,8 @@ describe("a spine view while its column is open", () => {
 		document.body.appendChild(pane);
 		await pane.updateComplete;
 
-		publish("shu-graph-query", { label: "Person", conditions: [], total: 42 });
+		searching("#?label=Person");
+		publish("shu-graph-query", { total: 42 });
 		await summary.updateComplete;
 		expect(summary.shadowRoot?.querySelector(".count"), "open, nothing shows the spine, so nothing is rendered for it").toBeNull();
 

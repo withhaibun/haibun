@@ -50,7 +50,7 @@ export const registerComponents = async (): Promise<void> => {
 		["shu-thread-column", ShuThreadColumn],
 		["shu-step-detail", ShuStepDetail],
 		["shu-timeline", ShuTimeline],
-		["shu-index-summary", ShuIndexSummary],
+		[ShuIndexSummary.domainSelector, ShuIndexSummary],
 		["shu-document-column", ShuDocumentColumn],
 		["shu-product-view", ShuProductView],
 		["shu-views-picker", ShuViewsPicker],

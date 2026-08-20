@@ -98,6 +98,11 @@ export const SHU_TEST_IDS = {
 	COLUMN_PANE: {
 		MAXIMIZE: "pane-maximize",
 		CONTROLS_TOGGLE: "pane-controls-toggle",
+		SPINE: "pane-spine",
+	},
+	/** What the index says about itself in the strip it collapses to: which search, and how many it found. */
+	INDEX_SUMMARY: {
+		ROOT: "index-summary",
 	},
 	DOCUMENT: {
 		ROOT: "document-view",
