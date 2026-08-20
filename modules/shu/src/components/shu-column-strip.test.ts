@@ -5,6 +5,8 @@
  *     right, falling back to the left when none remain on the right
  *   - minimize persists via the pane's own persistFields, so a re-added pane with the same column key
  *     restores minimized — without stealing activation
+ *   - the strip's width is always fully used: the pane that grows into the leftover is the rightmost one that CAN
+ *     grow, which is not the rightmost pane when that one is collapsed
  */
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { ShuColumnPane } from "./shu-column-pane.js";
@@ -130,5 +132,49 @@ describe("shu-column-strip activation invariant", () => {
 		expect(activePane.get()).toBe("B");
 		strip.removePane(0);
 		expect(activePane.get()).toBeNull();
+	});
+});
+
+describe("which pane grows into the strip's leftover width", () => {
+	let strip: ShuColumnStrip;
+	let panes: ShuColumnPane[];
+
+	beforeEach(async () => {
+		flushPersistWrites();
+		setJsonCookie("shu-prefs-shu-column-pane", {});
+		activePane.set(null);
+		document.body.innerHTML = "";
+		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
+		document.body.appendChild(strip);
+		await (strip as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+		panes = [makePane("A"), makePane("B"), makePane("C")];
+		for (const p of panes) strip.addPane(p as ShuColumnPane & HTMLElement);
+	});
+
+	const grower = () => panes.find((p) => p.hasAttribute(SHU_ATTR.GROWS))?.getAttribute("label");
+
+	it("is the rightmost pane while that pane can grow", () => {
+		expect(grower()).toBe("C");
+		expect(panes[2].hasAttribute(SHU_ATTR.IS_LAST), "which is also the rightmost").toBe(true);
+	});
+
+	it("moves to the pane before it when the rightmost is collapsed, so no width belongs to nobody", () => {
+		minimize(panes[2]);
+		expect(grower()).toBe("B");
+		expect(panes[2].hasAttribute(SHU_ATTR.IS_LAST), "the collapsed one is still the rightmost, it just cannot grow").toBe(true);
+	});
+
+	it("skips a run of collapsed columns on the right rather than stopping at the first", () => {
+		minimize(panes[2]);
+		minimize(panes[1]);
+		expect(grower()).toBe("A");
+	});
+
+	it("gives it back when the rightmost column is opened again", () => {
+		minimize(panes[2]);
+		expect(grower()).toBe("B");
+		panes[2].setMinimized(false);
+		panes[2].dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { detail: { minimized: false }, bubbles: true, composed: true }));
+		expect(grower()).toBe("C");
 	});
 });

@@ -60,6 +60,10 @@ export function monitorTailWindow(following: boolean, newest: number, tailMs: nu
 }
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
+	/** Collapsed, the log's rows have nowhere to go, but when things happened still does: the timeline runs down the
+	 *  spine with the same event markers, so the run stays readable in a strip the width of its own label. */
+	static override spineView = "shu-timeline";
+
 	/** The live execution log as an ordered collection of rows (time, level, step, message). */
 	summarizeForKihan(): TLinkedData | null {
 		if (this.rows.length === 0) return null;

@@ -10,11 +10,13 @@
  *   - width + minimize persist per column key and restore on a fresh pane (the reload contract)
  *   - controls-toggle and pin click reflect `aria-pressed` so the SHU base style highlights
  *   - rightmost pane gets the `is-last` host attribute when added to the strip
+ *   - collapsed, a pane renders its spine slot and not its default one, so a column's main view is not rendered
+ *     while it is collapsed and its spine view is not rendered while it is not
  */
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
-import { SHU_EVENT, SHU_ATTR } from "../consts.js";
+import { SHU_EVENT, SHU_ATTR, SPINE_SLOT } from "../consts.js";
 import { flushPersistWrites } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
 import { installTestMediaQueries } from "../test-setup.js";
@@ -153,15 +155,24 @@ describe("shu-column-pane buttons", () => {
 		expect(pane.fixedWidth).toBeUndefined();
 	});
 
-	it("a last pane renders flexible but keeps its stored width, reapplying it when it stops being last", () => {
+	it("the growing pane renders flexible but keeps its stored width, reapplying it when it stops growing", () => {
+		stripWidth(pane.parentElement as HTMLElement, 1000);
+		pane.setWidth(0.32);
+		pane.toggleAttribute(SHU_ATTR.GROWS, true);
+		expect(pane.style.flex).toBe("");
+		expect(pane.fixedWidth).toBeUndefined();
+		pane.toggleAttribute(SHU_ATTR.GROWS, false);
+		expect(pane.style.flex).toBe("0 0 32.000%");
+		expect(pane.fixedWidth).toBe(320);
+	});
+
+	it("being rightmost is not what makes a pane grow, since the rightmost pane can be collapsed", () => {
+		// The two were once one attribute, which is how a collapsed rightmost column left the strip's remaining width
+		// belonging to nobody. `is-last` drops the resize handle and the right border; `grows` takes the leftover width.
 		stripWidth(pane.parentElement as HTMLElement, 1000);
 		pane.setWidth(0.32);
 		pane.toggleAttribute(SHU_ATTR.IS_LAST, true);
-		expect(pane.style.flex).toBe("");
-		expect(pane.fixedWidth).toBeUndefined();
-		pane.toggleAttribute(SHU_ATTR.IS_LAST, false);
-		expect(pane.style.flex).toBe("0 0 32.000%");
-		expect(pane.fixedWidth).toBe(320);
+		expect(pane.style.flex, "rightmost and not marked as growing keeps its own width").toBe("0 0 32.000%");
 	});
 
 	it("persists width, minimize, and pin per column key and restores all on a fresh pane with that key (the reload contract)", async () => {
@@ -302,5 +313,90 @@ describe("shu-column-strip maximize + is-last", () => {
 		await nextFrame(strip);
 		expect(a.style.flex).toBe("0 0 32.000%");
 		expect(b.style.display).toBe("");
+	});
+});
+
+describe("what a pane renders when it collapses", () => {
+	let pane: ShuColumnPane;
+
+	beforeEach(async () => {
+		resetPanePrefs();
+		document.body.innerHTML = "";
+		pane = makePane("Spined");
+		pane.appendChild(document.createElement("div"));
+		const spine = document.createElement("span");
+		spine.setAttribute("slot", SPINE_SLOT);
+		pane.appendChild(spine);
+		document.body.appendChild(pane);
+		await nextFrame(pane);
+	});
+
+	const slots = () => Array.from(pane.shadowRoot?.querySelectorAll("slot") ?? []).map((s) => s.getAttribute("name"));
+
+	it("renders only the default slot while it is open, so the spine view is not rendered", () => {
+		expect(slots(), "one slot, unnamed").toEqual([null]);
+	});
+
+	it("renders only the spine slot once collapsed, so the column's main view is not rendered", async () => {
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		expect(slots(), "one slot, the spine's").toEqual([SPINE_SLOT]);
+	});
+
+	it("gives the main view back when it expands again", async () => {
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		pane.setMinimized(false);
+		await nextFrame(pane);
+		expect(slots()).toEqual([null]);
+		expect(pane.children.length, "and the spine view stayed put, keeping whatever state it had").toBe(2);
+	});
+
+	it("says it has a spine, which is what widens the collapsed strip enough to show one", async () => {
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE)).toBe(true);
+	});
+
+	it("answers the column's own view, not its spine view, when asked which child is the column", () => {
+		expect(pane.columnView?.tagName).toBe("DIV");
+	});
+
+	it("opens the column when the strip is clicked, since a spine says what is behind it", async () => {
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		let expanded = 0;
+		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
+		const spineBox = pane.shadowRoot?.querySelector(".pane-spine") as HTMLElement | null;
+		if (!spineBox) throw new Error("collapsed pane rendered no spine to click");
+		spineBox.click();
+		expect(expanded).toBe(1);
+	});
+
+	it("leaves a control in the spine its own clicks, so using one is not asking for the column", async () => {
+		const button = document.createElement("button");
+		(pane.querySelector(`[slot="${SPINE_SLOT}"]`) as HTMLElement).appendChild(button);
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		let expanded = 0;
+		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
+		button.click();
+		expect(expanded, "the button was used, not the strip around it").toBe(0);
+	});
+});
+
+describe("a column that declares no spine view", () => {
+	it("collapses to its rotated label alone, with no spine to render", async () => {
+		resetPanePrefs();
+		document.body.innerHTML = "";
+		const pane = makePane("Bare");
+		pane.appendChild(document.createElement("div"));
+		document.body.appendChild(pane);
+		await nextFrame(pane);
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE), "nothing is assigned to the spine slot").toBe(false);
+		const assigned = (pane.shadowRoot?.querySelector(`slot[name="${SPINE_SLOT}"]`) as HTMLSlotElement | null)?.assignedNodes() ?? [];
+		expect(assigned.length, "so the strip shows the label and nothing else").toBe(0);
 	});
 });

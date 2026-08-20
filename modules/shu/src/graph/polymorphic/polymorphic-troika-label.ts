@@ -26,7 +26,6 @@ import type { NodeVisual, Obj3D, QLike } from "./polymorphic-graph-types.js";
  *  mark that parents nothing never needs it. */
 type Group3D = Obj3D & { add(child: unknown): void };
 
-type V3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 
 /** The uniform handle the view holds for a node's render object (FGNode.__visual). Every subsystem that used to reach
  *  into the concrete object — pick, billboard, focus dim, inspect — goes through this instead, so the object's type

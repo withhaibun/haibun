@@ -18,7 +18,7 @@ import { property } from "lit/decorators.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SPINE_SLOT } from "../consts.js";
 import { eventStream, type EventStream } from "../event-stream.js";
 import { buildPiecewiseTimeline, displayToTime, timeToDisplay, type TPiecewiseTimeline } from "../piecewise-timeline.js";
 import { eventMarkerStyle, shouldMarkEvent, MARK_COLOUR } from "../event-marker.js";
@@ -66,6 +66,21 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 			font-size: var(--shu-font-xs); line-height: 12px;
 			white-space: nowrap; pointer-events: none; z-index: 3;
 		}
+		/* In a column's spine the strip is tall and narrow, so the same timeline runs down it instead of across. Every
+		   rule here swaps an axis: the track, the slider, the segment extents and the marker offsets. The slider is turned
+		   by writing-mode, which keeps it a range input rather than a rotated picture of one. */
+		:host([slot="spine"]) { flex-direction: column; height: 100%; padding: var(--shu-space-2) var(--shu-space-1); gap: var(--shu-space-2); }
+		:host([slot="spine"]) .slider-wrap { flex: 1; min-height: 0; width: 22px; height: auto; flex-direction: column; justify-content: center; }
+		/* The slider takes the track's length from the flex line rather than a percentage: the wrap's height comes from
+		   the flex line itself, so a percentage of it resolves against nothing and the slider runs past the strip. */
+		:host([slot="spine"]) input[type="range"] { writing-mode: vertical-lr; width: auto; height: auto; flex: 1 1 auto; min-height: 0; }
+		:host([slot="spine"]) .track-overlay { flex-direction: column; justify-content: flex-start; }
+		:host([slot="spine"]) .track-overlay .seg { height: auto; width: 4px; }
+		:host([slot="spine"]) .track-overlay .idle { background: repeating-linear-gradient(180deg, var(--shu-border), var(--shu-border) 2px, transparent 2px, transparent 4px); }
+		:host([slot="spine"]) .marker { top: auto; left: 50%; }
+		:host([slot="spine"]) .knob-label { top: auto; left: 100%; transform: translate(2px, -50%); }
+		/* The speed select has no room in a spine, and playback speed is not what a spine is read for. */
+		:host([slot="spine"]) select { display: none; }
 	`,
 	];
 
@@ -242,6 +257,9 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 		const current = this.currentEventIndex();
 		const knobLabel = wrapped ? `${current} / ${count} / ${totalRecorded}` : `${current} / ${count}`;
 		const knobPct = total > 0 ? (display / total) * 100 : 0;
+		// Down the strip in a spine, across the bar everywhere else. The percentages are the same either way; which
+		// property carries them is what turns the timeline.
+		const runs = this.getAttribute("slot") === SPINE_SLOT ? { extent: "height", offset: "top" } : { extent: "width", offset: "left" };
 		return html`
 			<button data-action="restart" data-testid="timeline-restart" title="Restart" @click=${this.onRestart}>⏮</button>
 			<button data-action="play" data-testid="timeline-play" title=${this.state.playing ? "Pause" : "Play"} @click=${this.togglePlay}>${this.state.playing ? "⏸️" : "▶️"}</button>
@@ -250,7 +268,7 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 				<div class="track-overlay">${this.piecewise.segments.map((seg) => {
 					const width = seg.displayEnd - seg.displayStart;
 					const pct = (width / total) * 100;
-					return html`<div class=${`seg ${seg.kind}`} style=${`width:${pct.toFixed(2)}%`}></div>`;
+					return html`<div class=${`seg ${seg.kind}`} style=${`${runs.extent}:${pct.toFixed(2)}%`}></div>`;
 				})}</div>
 				<div class="markers">${this.events
 					.filter((e) => e.icon)
@@ -259,10 +277,10 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 						const pct = (pos / total) * 100;
 						const cls = e.color === MARK_COLOUR.fault ? "marker error" : "marker";
 						const label = `${e.label} @ ${formatRelative(e.timestamp - this.firstEventTime())}`;
-						return html`<span class=${cls} style=${`left:${pct.toFixed(2)}%;color:${e.color}`} title=${label}>${e.icon}</span>`;
+						return html`<span class=${cls} style=${`${runs.offset}:${pct.toFixed(2)}%;color:${e.color}`} title=${label}>${e.icon}</span>`;
 					})}</div>
 				<input type="range" data-testid="timeline-slider" min="0" max=${total} .value=${String(display)} @input=${this.onSliderInput}>
-				<span class="knob-label" data-testid="timeline-time" style=${`left:${knobPct.toFixed(2)}%`}>${knobLabel}</span>
+				<span class="knob-label" data-testid="timeline-time" style=${`${runs.offset}:${knobPct.toFixed(2)}%`}>${knobLabel}</span>
 			</div>
 		`;
 	}

@@ -80,6 +80,13 @@ export const SHU_TYPE = {
 	CLOSE_VIEW: "shu-close-view",
 } as const;
 
+/** The index pane's identity: the column every other one is opened from, and the only one the app builds itself. */
+export const INDEX_PANE_KEY = "query";
+
+/** The slot a column's spine view is assigned to: what the column shows in the narrow strip it collapses to. A
+ *  collapsed pane renders this slot and not the default one, so only one of the two views is ever rendered. */
+export const SPINE_SLOT = "spine";
+
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
 	DATA_MAXIMIZED: "data-maximized",
@@ -88,6 +95,8 @@ export const SHU_ATTR = {
 	ACTIVE: "active",
 	CLOSABLE: "closable",
 	COLLAPSED: "collapsed",
+	HAS_SPINE: "has-spine",
+	GROWS: "grows",
 	IS_LAST: "is-last",
 	SHOW_CONTROLS: "data-show-controls",
 	COLUMN_TYPE: "column-type",

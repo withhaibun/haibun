@@ -17,7 +17,7 @@ import { QuoteAnchorSchema, type TQuoteAnchor } from "@haibun/core/lib/resources
 import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { objectId } from "./object-id.js";
-import { SHU_ATTR, SHU_EVENT } from "./consts.js";
+import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
 import { readElementPrefs } from "./element-prefs.js";
 import { presentationForType } from "./graph/type-presentation.js";
@@ -353,7 +353,7 @@ class PaneStateImpl {
 		const live = new Map<string, ShuColumnPane>();
 		for (const p of this.strip.panes) {
 			const id = p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE);
-			if (id && id !== "query") live.set(id, p);
+			if (id && id !== INDEX_PANE_KEY) live.set(id, p);
 		}
 		// Route removals through `removePane` so the strip emits COLUMNS_CHANGED for each
 		// dismissal. A bare `pane.remove()` mutates the DOM but the actions-bar breadcrumb
@@ -433,6 +433,15 @@ class PaneStateImpl {
 		const definition = customElements.get(tag);
 		if (definition && !(child instanceof definition))
 			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane has none of its own methods`);
+		// A column may declare the view its spine shows while collapsed. It is attached now and left in place: the pane
+		// renders whichever of the two slots the collapsed state calls for, so neither view is rendered out of its turn.
+		const spineTag = (definition as { spineView?: string } | undefined)?.spineView;
+		if (spineTag) {
+			await this.hooks.ensureLoaded?.(spineTag);
+			const spine = document.createElement(spineTag);
+			spine.setAttribute("slot", SPINE_SLOT);
+			pane.appendChild(spine);
+		}
 		await this.hooks.afterAttach?.[d.paneType]?.(d, child);
 	}
 

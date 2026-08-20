@@ -19,6 +19,7 @@ export const registerComponents = async (): Promise<void> => {
 	const { ShuThreadColumn } = await import("./components/shu-thread-column.js");
 	const { ShuStepDetail } = await import("./components/shu-step-detail.js");
 	const { ShuTimeline } = await import("./components/shu-timeline.js");
+	const { ShuIndexSummary } = await import("./components/shu-index-summary.js");
 	const { ShuDocumentColumn } = await import("./components/shu-document-column.js");
 	const { ShuProductView } = await import("./components/shu-product-view.js");
 	const { ShuViewsPicker } = await import("./components/shu-views-picker.js");
@@ -49,6 +50,7 @@ export const registerComponents = async (): Promise<void> => {
 		["shu-thread-column", ShuThreadColumn],
 		["shu-step-detail", ShuStepDetail],
 		["shu-timeline", ShuTimeline],
+		["shu-index-summary", ShuIndexSummary],
 		["shu-document-column", ShuDocumentColumn],
 		["shu-product-view", ShuProductView],
 		["shu-views-picker", ShuViewsPicker],

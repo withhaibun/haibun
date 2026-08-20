@@ -38,6 +38,8 @@ export const SHU_TOKENS = `
 		--shu-input-h: calc(22px * var(--shu-scale));
 		--shu-resize-w: 10px;
 		--shu-scrollbar-w: 32px;
+		/* A collapsed column that shows a spine view, which needs more than the rotated label's sliver. */
+		--shu-spine-w: calc(44px * var(--shu-scale));
 
 		/* Light theme defaults */
 		--shu-bg: #ffffff;

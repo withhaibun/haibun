@@ -1,5 +1,5 @@
 import { defaultLabel } from "./util.js";
-import { SHU_EVENT, SHU_ATTR } from "./consts.js";
+import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR } from "./consts.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
@@ -150,6 +150,22 @@ const main = async (): Promise<void> => {
 
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
+	const getIndexPane = () => getStrip()?.panes.find((p) => p.dataset.columnKey === INDEX_PANE_KEY) ?? null;
+
+	// What the page starts on is what the statements run so far have opened: the connect-time replay arrives as the
+	// first batch, so a view in it is the view this page is being shown for, and the index gives it the room by
+	// starting minimized to its spine, where it still says which search is behind it. Only what the page starts with
+	// counts. A view a statement opens later is opened beside an index the reader is already using, and leaves it
+	// alone; so does a run that opens no view at all.
+	let startingUp = true;
+	let indexYielded = false;
+	const yieldIndexTo = (tag: string): void => {
+		if (!startingUp || indexYielded) return;
+		indexYielded = true;
+		const index = getIndexPane();
+		if (!index) throw new Error(`no index pane to minimize when the page started on ${tag} — the app builds one at boot and nothing removes it`);
+		index.setMinimized(true);
+	};
 
 	// Boot-time smoke test for the diagnostic channel.
 	const reportBootDiagnostic = (level: "debug" | "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
@@ -214,8 +230,9 @@ const main = async (): Promise<void> => {
 		<div class="app-container">
 			<shu-actions-bar api-base="${apiBase}" testid-prefix="app-"></shu-actions-bar>
 			<shu-column-strip>
-				<shu-column-pane label="" column-type="query" closable="false" active data-column-key="query">
+				<shu-column-pane label="" column-type="query" closable="false" active data-column-key="${INDEX_PANE_KEY}">
 					<div class="results-target" style="height:100%;overflow:hidden;"></div>
+					<shu-index-summary slot="spine"></shu-index-summary>
 				</shu-column-pane>
 			</shu-column-strip>
 			<shu-graph-query api-base="${apiBase}" label="${defaultLabel()}" sort-order="desc" results-target=".results-target"></shu-graph-query>
@@ -306,9 +323,12 @@ const main = async (): Promise<void> => {
 			};
 			for (const op of paneOpsFor(events, paneRouteState, uiComponentByType).values()) {
 				if (op.op === "dismiss") PaneState.dismiss(op.view);
-				else if (op.op === "component") PaneState.request({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
-				else PaneState.request({ paneType: "views-picker", views: op.views, label: op.label });
+				else if (op.op === "component") {
+					PaneState.request({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
+					yieldIndexTo(op.tag);
+				} else PaneState.request({ paneType: "views-picker", views: op.views, label: op.label });
 			}
+			startingUp = false;
 		},
 	});
 
