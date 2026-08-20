@@ -294,6 +294,9 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		[SEQ_PATH_FIELD.called]: `${featureStep.action.stepperName}.${featureStep.action.actionName}`,
 		[SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running,
 		[SEQ_PATH_FIELD.generatedAtTime]: new Date().toISOString(),
+		// Written for every step, the default included: a reader asking for the steps that were NOT speculative can only
+		// be answered if the ordinary ones say so as well.
+		[SEQ_PATH_FIELD.mode]: featureStep.intent?.mode ?? "authoritative",
 	};
 	if (authorization) {
 		record[SEQ_PATH_FIELD.capabilityAction] = authorization.required;

@@ -439,6 +439,25 @@ describe("step-dispatch", () => {
 			expect(byPredicate[SEQ_PATH_FIELD.endedAtTime]).toEqual(expect.any(String));
 			expect(byPredicate[LinkRelations.PART_OF.rel]).toBe(formatSeqPath([0, 3]));
 			expect(byPredicate[SEQ_PATH_FIELD.stepText]).toEqual(expect.any(String));
+			// Written even for the ordinary case: a reader asking for the steps that were NOT speculative can only be
+			// answered if an authoritative step says so as well.
+			expect(byPredicate[SEQ_PATH_FIELD.mode]).toBe("authoritative");
+		});
+
+		it("records the mode a step ran under, so speculative and authoritative can be told apart afterwards", async () => {
+			const stepper = new ProductStepper();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("ProductStepper-getCount");
+			if (!tool) throw new Error("Expected ProductStepper-getCount to be registered");
+
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 4, 1]);
+			featureStep.intent = { mode: "speculative" };
+			await dispatchStep({ registry, world, steppers }, featureStep);
+
+			const store = world.shared.getStore();
+			const mode = await store.get(formatSeqPath([0, 4, 1]), SEQ_PATH_FIELD.mode, SEQ_PATH_LABEL);
+			expect(mode, "a try whose failure is expected is not the run failing, and its record says which it was").toBe("speculative");
 		});
 
 		it("emits SeqPath quads with status=failed for a failing step", async () => {

@@ -333,8 +333,19 @@ export class EventFormatter {
 // Execution Protocol
 // ============================================================================
 
+/**
+ * How a statement's outcome is to be taken: the run asserting something, or a try whose failure is expected and is
+ * therefore not the run failing. One axis with two ends, which is why every reader of it asks only which of the two.
+ *
+ * Whether a line is prose at all is a different question, about what the line IS rather than how its outcome counts,
+ * and it is answered where that belongs (document-content classifies a line as prose or technical). A prose line runs
+ * nothing, so it has no outcome to take either way and never reaches here.
+ */
+export const EXECUTION_MODES = ["authoritative", "speculative"] as const;
+export type TExecutionMode = (typeof EXECUTION_MODES)[number];
+
 export const ExecutionIntentSchema = z.object({
-	mode: z.enum(["authoritative", "speculative", "prose"]).default("authoritative"),
+	mode: z.enum(EXECUTION_MODES).default("authoritative"),
 	usage: z.enum(["testing", "debugging", "background", "polling"]).optional(),
 	stepperOptions: z.record(z.string(), z.unknown()).optional(),
 });
