@@ -58,6 +58,9 @@ export const virtualColumnCss: CSSResultGroup = css`
 	/* The virtualizer owns scrolling; its native scrollbar is hidden because the custom rail drives and reads it. */
 	shu-virtual-column lit-virtualizer { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
 	shu-virtual-column lit-virtualizer::-webkit-scrollbar { width: 0; height: 0; }
+	/* Serving as a column's spine: the rail is the whole of it, filling the strip's height. */
+	shu-virtual-column[spine] { flex: 1; min-height: 0; }
+	shu-virtual-column[spine] .spine-rail { display: flex; flex: 1; min-height: 0; }
 `;
 
 /** Fired (bubbling, composed) when this scroller's follow state flips: pinned to the live edge (`following: true`) or the
@@ -81,6 +84,10 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	/** Whether this view tails at all — its live-log capability (a monitor's tail toggle). When on, the follow kit's rules
 	 *  decide moment to moment whether to stick to the live edge; when off, the view never auto-scrolls. */
 	@property({ type: Boolean }) accessor follow = false;
+
+	/** Serving as its column's spine: render the rail and not the rows. The element itself stays, which is the point —
+	 *  the window it is showing is its own field, so collapsing a column does not lose where the reader was. */
+	@property({ type: Boolean }) accessor spine = false;
 
 	/** Light DOM: the virtualized rows must be styled by the host column, and lit-virtualizer itself renders in light DOM. */
 	createRenderRoot(): HTMLElement {
@@ -157,6 +164,16 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 
 	protected updated(changed: Map<string, unknown>): void {
 		if (changed.has("source")) this.#subscribe();
+		// Leaving the strip, the virtualizer is rendered again and starts at the top. The window survived in this
+		// element, so the rows are put back under it: expanding a column returns the reader to where they were rather
+		// than to the live edge.
+		if (changed.has("spine") && changed.get("spine") === true && !this.spine && this.#window.visible > 0) {
+			// The virtualizer was just rendered again and has measured nothing, so one scroll lands short. The target is
+			// held and re-driven by #onVisibility until the window reports it, the same convergence the follow kit uses.
+			this.#restoreFirst = this.#window.first;
+			this.#restoreTries = 0;
+			this.scrollToIndex(this.#restoreFirst);
+		}
 	}
 
 	#subscribe(): void {
@@ -206,8 +223,17 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		return this.#items;
 	}
 
+	/** Where to put the reader back after the rows return from the strip, and how many attempts are left to get there.
+	 *  Bounded, so a target the content can never reach (a shortened log) gives up rather than re-scrolling forever. */
+	#restoreFirst: number | null = null;
+	#restoreTries = 0;
+
 	#onVisibility = (e: VisibilityChangedEvent): void => {
 		this.#window = visibleWindow(e.first, e.last);
+		if (this.#restoreFirst !== null) {
+			if (this.#window.first === this.#restoreFirst || this.#restoreTries++ >= 8) this.#restoreFirst = null;
+			else this.scrollToIndex(this.#restoreFirst);
+		}
 		if (this.source && e.last >= e.first) void this.source.ensureRange(e.first, e.last + 1);
 		const count = this.source?.count() ?? 0;
 		const short = Math.max(0, count - (this.#window.first + this.#window.visible));
@@ -279,12 +305,23 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// back to the bottom and fight the seek. Landing on the last row re-engages follow via the window-reaches-last path.
 		if (this.follow) this.#follow.setAtBottom(false);
 		this.#emitFollow();
-		this.#virt.value?.scrollToIndex((e as CustomEvent<{ index: number }>).detail.index, "start");
+		const index = (e as CustomEvent<{ index: number }>).detail.index;
+		// In the strip there are no rows to scroll, so the rail moves the window itself. That is what makes the strip a
+		// control rather than a picture: the reader drags it to a place in the run, and expanding puts the rows there.
+		if (this.spine) {
+			this.#window = { first: index, visible: this.#window.visible };
+			this.requestUpdate();
+			return;
+		}
+		this.#virt.value?.scrollToIndex(index, "start");
 	};
 
 	render(): TemplateResult {
 		const total = this.source?.count() ?? 0;
 		const rail = html`<shu-scrollbar .total=${total} .window=${this.#window} .viewportFraction=${this.#viewportFraction} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]}></shu-scrollbar>`;
+		// Serving as a column's spine: the strip has room for the rail and nothing else. The rows are not rendered, and
+		// the rail keeps the same window over the same source, so collapsing does not move the reader.
+		if (this.spine) return html`<div class="spine-rail">${rail}</div>`;
 		// lit-virtualizer requires a ResizeObserver to measure and virtualize. A non-DOM host (a jsdom unit test) has none,
 		// so fall back to a plain list there; every real browser has one, so this branch is test-only and the O(viewport)
 		// behavior is proven by the browser e2e.

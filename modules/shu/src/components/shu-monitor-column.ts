@@ -3,7 +3,7 @@
  * A ShuEventConsumer: the base owns the shared event log (one backfill + live merge + dedup); this view only derives
  * its rows from it. Clickable time values dispatch TIME_SYNC for cross-view synchronization.
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
@@ -83,9 +83,10 @@ export function monitorTailWindow(following: boolean, newest: number, tailMs: nu
 }
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
-	/** Collapsed, the log's rows have nowhere to go, but when things happened still does: the timeline runs down the
-	 *  spine with the same event markers, so the run stays readable in a strip the width of its own label. */
-	static override spineView = "shu-timeline";
+	/** Collapsed, the log's rows have nowhere to go, but its scroll rail does: the rail is already a narrow vertical
+	 *  strip carrying a mark per significant event and driving the log's position, so the strip IS the rail, left where
+	 *  it is. Nothing is copied into a second control, so there is nothing to keep in step. */
+	static override rendersOwnSpine = true;
 
 	/** The live execution log as an ordered collection of rows (time, level, step, message). */
 	summarizeForKihan(): TLinkedData | null {
@@ -307,16 +308,24 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	render(): TemplateResult {
 		const { level, hideStart } = this.state;
 		const total = this.#source.count();
+		// In the strip there is room for the rail and nothing else: no toolbar, no rows. It is the SAME virtual column in
+		// both, in the same place in this template, so the element survives collapsing rather than being torn down and
+		// built again — and with it the window it is showing, which is where the reader was.
+		const spine = this.isSpineView;
 		return html`
-			<div class="toolbar" data-testid="monitor-log-stream">
+			${
+				spine
+					? nothing
+					: html`<div class="toolbar" data-testid="monitor-log-stream">
 				<select data-action="level" @change=${this.onLevelChange}>${LEVEL_ORDER.map((l) => html`<option value=${l} ?selected=${l === level}>${l}</option>`)}</select>
 				<label class="hide-start"><input type="checkbox" data-action="hide-start" .checked=${hideStart} @change=${this.onHideStartChange}/> hide start</label>
 				<span class="count">${total} events</span>
-			</div>
+			</div>`
+			}
 			${
-				total === 0
+				total === 0 && !spine
 					? html`<div class="log-rows">${emptyOrLoading(this.#events.loaded, "No events at this level.")}</div>`
-					: html`<shu-virtual-column .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
+					: html`<shu-virtual-column ?spine=${spine} .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
 			}
 		`;
 	}

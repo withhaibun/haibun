@@ -96,6 +96,7 @@ export const SHU_ATTR = {
 	CLOSABLE: "closable",
 	COLLAPSED: "collapsed",
 	HAS_SPINE: "has-spine",
+	SPINE: "spine",
 	GROWS: "grows",
 	IS_LAST: "is-last",
 	SHOW_CONTROLS: "data-show-controls",
