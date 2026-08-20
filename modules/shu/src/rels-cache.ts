@@ -4,6 +4,7 @@
  */
 import { propertyVocabulary } from "./graph/ontology-projection.js";
 import { ACTION_BAR_CHAT_SLOT } from "./consts.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 /**
  * Per-rel runtime metadata — the Property node projection.
@@ -206,6 +207,33 @@ export function setSelectValues(label: string, values: Record<string, string[]>)
 /** Get cached select (dropdown) field values for a label. */
 export function getSelectValues(label: string): Record<string, string[]> {
 	return selectCache.get(label) ?? {};
+}
+
+/**
+ * Take into a label's dropdowns the values its live quads just announced.
+ *
+ * A value that has newly appeared is IN the quad that announced it, so a view learns it from what it was already sent
+ * rather than by asking the server again. Asking again is what made this loop: the question is dispatched as a step,
+ * the step is recorded in the graph, and the recording is another change to answer.
+ *
+ * Only predicates the label already offers gain values. Which predicates are dropdowns at all is the type's own
+ * declaration, established by the fetch that built this entry; a quad about any other predicate is not one of them,
+ * and a label with no entry yet has not been fetched, so there is nothing to add to. Returns whether anything was
+ * added, so a caller re-renders only when the dropdowns actually changed.
+ */
+export function addObservedSelectValues(label: string, quads: readonly TQuad[]): boolean {
+	const held = selectCache.get(label);
+	if (!held) return false;
+	let added = false;
+	for (const quad of quads) {
+		if (quad.namedGraph !== label) continue;
+		const values = held[quad.predicate];
+		if (!values || typeof quad.object !== "string" || quad.object === "" || values.includes(quad.object)) continue;
+		values.push(quad.object);
+		values.sort();
+		added = true;
+	}
+	return added;
 }
 
 /** Get all site metadata. */

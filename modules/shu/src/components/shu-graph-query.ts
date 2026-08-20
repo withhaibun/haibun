@@ -20,7 +20,7 @@ import { getAvailableDomains } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
 import { arrayWindowedSource, lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
 import { getWindowSize } from "./shu-window-size.js";
-import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 
 /** A vertex row: flat property object. */
 type VertexRow = Record<string, unknown>;
@@ -142,9 +142,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		if (!isOffline()) {
 			this.autoTeardown(
 				this.subscribeBatched({
-					onBatch: (events) => {
-						if (eventsAffectLabel(events, this.qLabel)) void this.executeQuery();
-					},
+					onBatch: (events) => this.applyLiveQuads(events),
 				}),
 			);
 		}
@@ -341,6 +339,28 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			this.inflightPromise = null;
 		});
 		return this.inflightPromise;
+	}
+
+	/**
+	 * Apply what a live batch carries to the rows on screen, instead of asking the server again.
+	 *
+	 * A change arrives AS the quads that changed, so a row already shown is brought up to date from them. Answering a
+	 * change with a fresh query is what made a view of the run's own records feed itself: the query is dispatched as a
+	 * step, the step is recorded in the graph, and that recording is another change to answer, without end. Rows past
+	 * the ones on screen are read when a reader reaches them, which is what the windowed source already does.
+	 */
+	private applyLiveQuads(events: Record<string, unknown>[]): void {
+		if (!this.qLabel) return;
+		const quads = extractQuadsFromEvents(events);
+		let changed = false;
+		for (const quad of quads) {
+			if (quad.namedGraph !== this.qLabel) continue;
+			const row = this.results.find((r) => String(r.id) === quad.subject);
+			if (!row || row[quad.predicate] === quad.object) continue;
+			row[quad.predicate] = quad.object;
+			changed = true;
+		}
+		if (changed) this.renderResults();
 	}
 
 	private get resultsTarget(): HTMLElement | null {
