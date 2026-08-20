@@ -100,8 +100,14 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * it to catch up when the spine slot takes it.
 	 */
 	protected override shouldUpdate(changed: Map<PropertyKey, unknown>): boolean {
-		if (this.getAttribute("slot") === SPINE_SLOT && !this.assignedSlot) return false;
+		if (this.isSpineView && !this.assignedSlot) return false;
 		return super.shouldUpdate(changed);
+	}
+
+	/** Whether this view is serving as a column's spine: what the column shows in the strip it collapses to. A spine
+	 *  is a tall, narrow box, so a view that lays out differently there asks this rather than reading the slot itself. */
+	protected get isSpineView(): boolean {
+		return this.getAttribute("slot") === SPINE_SLOT;
 	}
 
 	/** Identity under which `persistFields` store: "" (default) is a per-tag singleton; a multi-instance

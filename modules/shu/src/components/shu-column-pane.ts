@@ -19,6 +19,7 @@ import { html, css, nothing, type TemplateResult } from "lit";
 import { classMap } from "lit/directives/class-map.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR, SPINE_SLOT } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { ColumnPaneSchema } from "../schemas.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { readShowControlsCookie, writeShowControlsCookie } from "../show-controls.js";
@@ -39,7 +40,7 @@ const CLASS = {
 	SPINE: "pane-spine",
 	RESIZE: "resize-handle",
 } as const;
-const TEST_ID = { MAX: "pane-maximize", CONTROLS: "pane-controls-toggle", BROWSER_COLUMN: "browser-column" } as const;
+const TEST_ID = { MAX: SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE, CONTROLS: SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE, SPINE: SHU_TEST_IDS.COLUMN_PANE.SPINE, BROWSER_COLUMN: "browser-column" } as const;
 
 const MIN_RESIZED_WIDTH = 120;
 
@@ -414,7 +415,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				${controlsGroup}
 			</div>
 			${collapsed
-				? html`<div class=${CLASS.SPINE} @click=${this.onSpineClick}><slot name=${SPINE_SLOT} @slotchange=${this.onSlotChange}></slot></div>`
+				? html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE} @click=${this.onSpineClick}><slot name=${SPINE_SLOT} @slotchange=${this.onSlotChange}></slot></div>`
 				: html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}
 			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>
 		`;

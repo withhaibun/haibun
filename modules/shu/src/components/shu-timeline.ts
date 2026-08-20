@@ -13,7 +13,7 @@
  * Live-tailing: when the cursor sits at "end", incoming events advance it. With
  * the cursor parked mid-history, new events extend bounds but leave the cursor.
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, unsafeCSS, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -22,6 +22,10 @@ import { SHU_EVENT, SPINE_SLOT } from "../consts.js";
 import { eventStream, type EventStream } from "../event-stream.js";
 import { buildPiecewiseTimeline, displayToTime, timeToDisplay, type TPiecewiseTimeline } from "../piecewise-timeline.js";
 import { eventMarkerStyle, shouldMarkEvent, MARK_COLOUR } from "../event-marker.js";
+
+/** The spine slot's name, reaching the stylesheet through the same unsafeCSS the base styles use, so the name this
+ *  component styles against and the one the pane assigns are one declaration. */
+const SPINE = unsafeCSS(SPINE_SLOT);
 
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 const formatSpeed = (s: number): string => (s === 0.02 ? "-50×" : s === 0.05 ? "-20×" : `${s}×`);
@@ -69,18 +73,19 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 		/* In a column's spine the strip is tall and narrow, so the same timeline runs down it instead of across. Every
 		   rule here swaps an axis: the track, the slider, the segment extents and the marker offsets. The slider is turned
 		   by writing-mode, which keeps it a range input rather than a rotated picture of one. */
-		:host([slot="spine"]) { flex-direction: column; height: 100%; padding: var(--shu-space-2) var(--shu-space-1); gap: var(--shu-space-2); }
-		:host([slot="spine"]) .slider-wrap { flex: 1; min-height: 0; width: 22px; height: auto; flex-direction: column; justify-content: center; }
+		:host([slot="${SPINE}"]) { flex-direction: column; height: 100%; padding: var(--shu-space-2) var(--shu-space-1); gap: var(--shu-space-2); }
+		:host([slot="${SPINE}"]) .slider-wrap { flex: 1; min-height: 0; width: 22px; height: auto; flex-direction: column; justify-content: center; }
 		/* The slider takes the track's length from the flex line rather than a percentage: the wrap's height comes from
 		   the flex line itself, so a percentage of it resolves against nothing and the slider runs past the strip. */
-		:host([slot="spine"]) input[type="range"] { writing-mode: vertical-lr; width: auto; height: auto; flex: 1 1 auto; min-height: 0; }
-		:host([slot="spine"]) .track-overlay { flex-direction: column; justify-content: flex-start; }
-		:host([slot="spine"]) .track-overlay .seg { height: auto; width: 4px; }
-		:host([slot="spine"]) .track-overlay .idle { background: repeating-linear-gradient(180deg, var(--shu-border), var(--shu-border) 2px, transparent 2px, transparent 4px); }
-		:host([slot="spine"]) .marker { top: auto; left: 50%; }
-		:host([slot="spine"]) .knob-label { top: auto; left: 100%; transform: translate(2px, -50%); }
-		/* The speed select has no room in a spine, and playback speed is not what a spine is read for. */
-		:host([slot="spine"]) select { display: none; }
+		:host([slot="${SPINE}"]) input[type="range"] { writing-mode: vertical-lr; width: auto; height: auto; flex: 1 1 auto; min-height: 0; }
+		:host([slot="${SPINE}"]) .track-overlay { flex-direction: column; justify-content: flex-start; }
+		:host([slot="${SPINE}"]) .track-overlay .seg { height: auto; width: 4px; }
+		:host([slot="${SPINE}"]) .track-overlay .idle { background: repeating-linear-gradient(180deg, var(--shu-border), var(--shu-border) 2px, transparent 2px, transparent 4px); }
+		:host([slot="${SPINE}"]) .marker { top: auto; left: 50%; }
+		/* The speed select and the knob's label are text in a strip narrower than either. The label would sit outside the
+		   strip, where it is clipped to a fragment, and the knob itself already says where the playhead is. */
+		:host([slot="${SPINE}"]) select,
+		:host([slot="${SPINE}"]) .knob-label { display: none; }
 	`,
 	];
 
@@ -259,7 +264,7 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 		const knobPct = total > 0 ? (display / total) * 100 : 0;
 		// Down the strip in a spine, across the bar everywhere else. The percentages are the same either way; which
 		// property carries them is what turns the timeline.
-		const runs = this.getAttribute("slot") === SPINE_SLOT ? { extent: "height", offset: "top" } : { extent: "width", offset: "left" };
+		const runs = this.isSpineView ? { extent: "height", offset: "top" } : { extent: "width", offset: "left" };
 		return html`
 			<button data-action="restart" data-testid="timeline-restart" title="Restart" @click=${this.onRestart}>⏮</button>
 			<button data-action="play" data-testid="timeline-play" title=${this.state.playing ? "Pause" : "Play"} @click=${this.togglePlay}>${this.state.playing ? "⏸️" : "▶️"}</button>
