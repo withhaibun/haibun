@@ -21,7 +21,7 @@ import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT, SPINE_SLOT } from "../consts.js";
 import { eventStream, type EventStream } from "../event-stream.js";
 import { buildPiecewiseTimeline, displayToTime, timeToDisplay, type TPiecewiseTimeline } from "../piecewise-timeline.js";
-import { eventMarkerStyle, shouldMarkEvent, MARK_COLOUR } from "../event-marker.js";
+import { markFor, MARK_COLOUR } from "../event-marker.js";
 
 /** The spine slot's name, reaching the stylesheet through the same unsafeCSS the base styles use, so the name this
  *  component styles against and the one the pane assigns are one declaration. */
@@ -150,11 +150,12 @@ export class ShuTimeline extends ShuElement<typeof StateSchema> {
 	private processEvent(event: unknown): void {
 		const ts = (event as { timestamp?: number })?.timestamp;
 		if (typeof ts !== "number" || !Number.isFinite(ts) || ts <= 0) return;
-		const marked = shouldMarkEvent(event);
-		const { icon, color } = marked ? eventMarkerStyle(event) : { icon: "", color: "" };
+		// Every event is kept, since the track's shape comes from when things happened; only the marked ones carry a
+		// glyph, which is what render filters on.
+		const mark = markFor(event);
 		const label = describeEvent(event);
 		const seqPath = (event as { seqPath?: number[] | string })?.seqPath;
-		this.events.push({ timestamp: ts, icon, color, label, seqPath });
+		this.events.push({ timestamp: ts, icon: mark?.icon ?? "", color: mark?.color ?? "", label, seqPath });
 		this.piecewiseDirty = true;
 		if (this.state.atEnd) {
 			this.currentTime = ts;

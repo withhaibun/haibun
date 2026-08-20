@@ -75,6 +75,18 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 }
 
 /**
+ * The mark an event earns, or nothing where it earns none.
+ *
+ * This is the one call a surface makes to mark an event: whether it is worth marking and what it looks like are
+ * decided together, in one place, so a rail, a track and anything else that marks events cannot disagree about which
+ * events matter or how they are drawn. What a surface decides for itself is only WHERE the mark goes — a moment along
+ * a time axis, a row's place in a log.
+ */
+export function markFor(event: unknown): TEventMarkerStyle | undefined {
+	return shouldMarkEvent(event) ? eventMarkerStyle(event) : undefined;
+}
+
+/**
  * Decide whether an event deserves a slider marker. High-signal events
  * (failures, warnings, artifacts, feature/scenario structure, completed
  * step ends) get markers; low-level start events and internal log noise
