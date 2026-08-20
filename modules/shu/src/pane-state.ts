@@ -231,6 +231,12 @@ class PaneStateImpl {
 		this.scheduleReconcile();
 	}
 
+	/** Whether a pane is already open. For a caller that wants a FIRST open to differ from a re-open — opening a column
+	 *  minimized the first time, while leaving a reader who has since expanded it alone. */
+	isOpen(paneId: string): boolean {
+		return this.desired.has(paneId);
+	}
+
 	/** Add or update a pane. Validates against the schema; throws loudly on a bad input. */
 	request(input: DesiredPane): void {
 		const parsed = DesiredPaneSchema.parse(input);
