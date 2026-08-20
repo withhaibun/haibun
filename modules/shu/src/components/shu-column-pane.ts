@@ -9,6 +9,10 @@
  * not: an unslotted child stays in the DOM, keeping its state and its data, without being rendered. A column that
  * declares no spine view collapses to the rotated label alone, as before.
  *
+ * A column can instead declare that its spine is a narrow form of ITSELF (`rendersOwnSpine`). Then the default slot is
+ * what the strip renders and the column is marked as serving as the spine, so a part it already owns — the log's scroll
+ * rail — stays where it is rather than being copied into a second element that would have to be kept in step.
+ *
  * The visual chrome is built entirely from `--shu-…` tokens (defined in styles.ts);
  * theme/scale/responsive shifts happen there, never inside this component.
  * Active toggle state (controls-on, maximized, pinned, minimized) is reflected
@@ -401,7 +405,13 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	render(): TemplateResult {
 		const { label, closable, columnType, pinned } = this.state;
 		const collapsed = this.isCollapsed;
-		const hasSpine = Array.from(this.children).some((child) => child.getAttribute("slot") === SPINE_SLOT);
+		// A column whose spine is a narrow form of itself keeps being rendered while collapsed, and is told it is
+		// serving as the spine so it can render only what fits the strip. Everything else is swapped for the view
+		// mounted in the spine slot.
+		const view = this.columnView;
+		const ownSpine = collapsed && !!(view?.constructor as { rendersOwnSpine?: boolean } | undefined)?.rendersOwnSpine;
+		view?.toggleAttribute(SHU_ATTR.SPINE, ownSpine);
+		const hasSpine = ownSpine || Array.from(this.children).some((child) => child.getAttribute("slot") === SPINE_SLOT);
 		this.toggleAttribute(SHU_ATTR.HAS_SPINE, hasSpine);
 		const controlsActive = !!this.columnView?.hasAttribute?.(SHU_ATTR.SHOW_CONTROLS);
 		const maximized = this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
@@ -423,7 +433,9 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				${controlsGroup}
 			</div>
 			${collapsed
-				? html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE} @click=${this.onSpineClick}><slot name=${SPINE_SLOT} @slotchange=${this.onSlotChange}></slot></div>`
+				? html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE} @click=${this.onSpineClick}>
+						${ownSpine ? html`<slot @slotchange=${this.onSlotChange}></slot>` : html`<slot name=${SPINE_SLOT} @slotchange=${this.onSlotChange}></slot>`}
+					</div>`
 				: html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}
 			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>
 		`;
