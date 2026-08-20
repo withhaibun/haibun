@@ -9,7 +9,7 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { EventsController } from "../controllers/index.js";
-import { MARK_COLOUR, eventMarkerStyle } from "../event-marker.js";
+import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-marker.js";
 import { ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
@@ -28,7 +28,7 @@ const MonitorColumnSchema = z.object({
 	hideStart: z.boolean().default(true),
 });
 
-type TLogRow = {
+export type TLogRow = {
 	time: string;
 	timestamp: number;
 	level: string;
@@ -39,6 +39,10 @@ type TLogRow = {
 	isAsync?: boolean;
 	hasEnd?: boolean;
 	dispatch?: TDispatchTrace;
+	/** How this row marks the rail, for the rows worth marking. Decided from the event when the row is built, by the
+	 *  same two calls the timeline marks its track with, so the rail and the timeline never disagree about which
+	 *  events matter or what they look like. */
+	mark?: TEventMarkerStyle;
 };
 
 const LEVEL_ICONS: Record<string, string> = { error: ICON_LOG_ERROR, warn: ICON_LOG_WARN, info: ICON_LOG_INFO, debug: "💬", trace: "🔍" };
@@ -50,6 +54,25 @@ const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 // reader who scrolls further (follow pauses) gets the full history back until they return to the edge. Tunable.
 const MONITOR_TAIL_MS = 10 * 60_000;
 const MONITOR_SLIDE_STEP_MS = MONITOR_TAIL_MS / 4;
+
+/**
+ * The marks a filtered log puts on its rail: every row whose event earned one, at its place in that log.
+ *
+ * The rail carries what the timeline carries — the same events, in the same colours and glyphs, since both take their
+ * mark from `markFor`. All this decides is WHERE each mark goes, which on a log is the row's index rather than a
+ * moment in time. Indices are into the list passed in, so they address the rows the reader can actually scroll to.
+ * Pure, so which rows mark the rail is tested without a virtualizer.
+ */
+export function railMarkers(rows: readonly TLogRow[]): TScrollMarker[] {
+	const markers: TScrollMarker[] = [];
+	rows.forEach((row, index) => {
+		// Both halves of what the row says: what it is about and what happened to it. Either alone leaves marks a reader
+		// cannot tell apart — every feature boundary reads "▸ feature" without the first, and a log line names no step
+		// without the second.
+		if (row.mark) markers.push({ ...row.mark, index, id: `${row.step}-${index}`, label: [row.step, row.message].filter(Boolean).join(" ") });
+	});
+	return markers;
+}
 
 /** The monitor's window: a bounded tail below the newest event while pinned to the live edge, else the full history so a
  *  scrolled-back reader can reach anything. `from` clamps at 0, so a run shorter than the tail is just the whole log (no
@@ -230,7 +253,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		}
 		const rowIdx = this.rows.length;
 		const isAsync = isStart && e.isAsync === true;
-		this.rows.push({ time: `${relTime}s`, timestamp: ts, level, step, message, seqPath, isStart, isAsync });
+		this.rows.push({ time: `${relTime}s`, timestamp: ts, level, step, message, seqPath, isStart, isAsync, mark: markFor(e) });
 		if (isStart && seqPath) this.startRowIndex.set(seqPath.join("."), rowIdx);
 	}
 
@@ -257,9 +280,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, addToSelection);
 		};
 
-	// Derive the resident window source before each render: the level/hide-start filter, the rail markers (error and warn
-	// rows, so a failure is visible on the rail across the whole log), and the time-cursor row. shu-virtual-column reads
-	// the source and virtualizes; its notify-driven follow tails the live edge.
+	// Derive the resident window source before each render: the level/hide-start filter, the rail markers (every event
+	// the shared vocabulary calls significant, so a failure, an artifact or a feature boundary is visible on the rail
+	// across the whole log), and the time-cursor row. shu-virtual-column reads the source and virtualizes; its
+	// notify-driven follow tails the live edge.
 	protected willUpdate(): void {
 		const { level, hideStart } = this.state;
 		if (this.rows !== this.#lastRows || level !== this.#lastLevel || hideStart !== this.#lastHideStart) {
@@ -268,19 +292,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			this.#lastHideStart = hideStart;
 			const minLevel = LEVEL_ORDER.indexOf(level);
 			this.#filtered = this.rows.filter((r) => LEVEL_ORDER.indexOf(r.level) >= minLevel && !(hideStart && r.isStart && r.hasEnd));
-			const markers: TScrollMarker[] = [];
-			for (let i = 0; i < this.#filtered.length; i++) {
-				const lvl = this.#filtered[i].level;
-				if (lvl === "error" || lvl === "warn")
-					markers.push({
-						index: i,
-						id: `${this.#filtered[i].step}-${i}`,
-						icon: LEVEL_ICONS[lvl],
-						color: lvl === "error" ? MARK_COLOUR.fault : MARK_COLOUR.pending,
-						label: this.#filtered[i].message,
-					});
-			}
-			this.#source.set(this.#filtered, markers);
+			this.#source.set(this.#filtered, railMarkers(this.#filtered));
 		}
 		// The current-row highlight depends on the time cursor, so recompute it every update against the cached filter.
 		this.#currentIdx = -1;
