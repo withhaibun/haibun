@@ -33,12 +33,13 @@ import { clamp, prettifyGwta, appAccessLevel } from "../util.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
 import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
-import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,
 	getUiExtensionTags,
 	getQueryableFields,
+	addObservedSelectValues,
 	getSelectValues,
 	hasSelectValues,
 	hasUsableSelectValues,
@@ -128,7 +129,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectedDomainKey = "";
 	private _selectFilters: Record<string, string> = {};
 	private _selectedLabel = "";
-	private _selectValuesRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 	/** The shared output region: one node for the bar's lifetime, so accumulated activity survives mode switches
 	 *  and collapse/expand. */
 	private _history = new ShuActivityHistory();
@@ -321,15 +321,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		});
 	}
 
-	/** Coalesce a burst of relevant live batches into one forced distinct-value refetch (force: bypass the usable-values cache). */
-	private scheduleSelectValuesRefresh(): void {
-		if (this._selectValuesRefreshTimer) clearTimeout(this._selectValuesRefreshTimer);
-		this._selectValuesRefreshTimer = setTimeout(() => {
-			this._selectValuesRefreshTimer = undefined;
-			this.triggerSelectValuesLoad(this._selectedLabel, true);
-		}, 150);
-	}
-
 	/** A step-caller's result lands after its entry was appended, growing it in place; re-pin so the newest output stays in view. */
 	private _onStepSettled = (): void => this._history.scrollToBottom();
 
@@ -369,19 +360,20 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 
 		// Live filter values: when a batch carries a change in the selected type's named graph, the distinct-value
-		// dropdowns may have gained a value (a new folder, status, …). Force-refetch them so the facet menus stay
-		// current without a page reload — the same relevance test the results list uses (eventsAffectLabel).
+		// dropdowns may have gained a value (a new folder, status, …). It is read out of the batch, so the menus stay
+		// current without a page reload and without a request.
 		if (!isOffline()) {
 			this.autoTeardown(
 				this.subscribeBatched({
 					onBatch: (events) => {
-						if (this._selectedLabel && eventsAffectLabel(events, this._selectedLabel)) this.scheduleSelectValuesRefresh();
+						// The values are in the quads the batch carries, so they are taken from it. Answering a change by
+						// asking the server again is what made this a loop: the question is itself a step, the step is
+						// recorded in the graph, and that recording is another change to answer, every debounce forever.
+						if (!this._selectedLabel) return;
+						if (addObservedSelectValues(this._selectedLabel, extractQuadsFromEvents(events))) this.requestUpdate();
 					},
 				}),
 			);
-			this.autoTeardown(() => {
-				if (this._selectValuesRefreshTimer) clearTimeout(this._selectValuesRefreshTimer);
-			});
 		}
 
 		// The bar is left/right:0, so it resizes with its container (window width); republish the collapsed footprint when
