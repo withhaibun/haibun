@@ -119,7 +119,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
 				let loopCount = 0;
 				const MAX_LOOPS = 1000;
-				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+				const mode = featureStep.intent?.mode ?? "authoritative";
 				const usage = featureStep.intent?.usage;
 
 				// eslint-disable-next-line no-constant-condition
@@ -152,7 +152,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				// Vacuously true if condition is false
 				if (!check.ok) return OK;
 
-				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+				const mode = featureStep.intent?.mode ?? "authoritative";
 				const result = await this.runner.runSteps(action, { intent: { mode, usage }, parentStep: featureStep });
 
 				return result.ok ? OK : actionNotOK(`Constraint failed: Condition was true, but Action failed: ${result.errorMessage}`);
@@ -278,7 +278,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 				if (values.length === 0) return OK;
 
-				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+				const mode = featureStep.intent?.mode ?? "authoritative";
 
 				for (const val of values) {
 					await this.getWorld().shared.set(

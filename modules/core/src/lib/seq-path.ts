@@ -12,6 +12,7 @@
  * domain definition steppers register.
  */
 import { z } from "zod";
+import { EXECUTION_MODES } from "../schema/protocol.js";
 import { AccessLevelSchema, LinkRelations, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 
 export const SEQ_PATH_DOMAIN = "seq-path";
@@ -65,6 +66,11 @@ export const SEQ_PATH_FIELD = {
 	generatedAtTime: "generatedAtTime",
 	endedAtTime: "endedAtTime",
 	path: "path",
+	/** How the statement's outcome is to be taken. A speculative step's failure is expected, so a reader looking for
+	 *  what actually went wrong wants the authoritative ones, and that is a distinction they can draw only if each step
+	 *  says which it was. Written for every step, the ordinary case included, since "not speculative" is only
+	 *  answerable when an authoritative step says so too. */
+	mode: "mode",
 } as const;
 
 /** SeqPath edge names. */
@@ -94,6 +100,7 @@ export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
 	[SEQ_PATH_FIELD.path]: z.string().optional(),
+	[SEQ_PATH_FIELD.mode]: z.enum(EXECUTION_MODES).optional(),
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
@@ -116,6 +123,9 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.endedAtTime]: LinkRelations.ENDED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.path]: LinkRelations.SOURCE_PATH.rel,
+			// Grouped-as, which is what makes it one of the sub-filters offered beside the type rather than a field a
+			// reader has to type a condition for.
+			[SEQ_PATH_FIELD.mode]: LinkRelations.CONTEXT.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },

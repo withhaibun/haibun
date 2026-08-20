@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { compareSeqPath, extractSeqPathPrefix, parseSeqPath } from "./seq-path.js";
+import { SEQ_PATH_FIELD, SeqPathSchema, compareSeqPath, extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "./seq-path.js";
+import { LinkRelations } from "./resources.js";
+import { EXECUTION_MODES } from "../schema/protocol.js";
 
 describe("parseSeqPath", () => {
 	it("parses a dot-joined seqPath string back to its number tuple", () => {
@@ -67,5 +69,25 @@ describe("extractSeqPathPrefix", () => {
 	it("returns null for ids that do not start with a dot-joined integer prefix", () => {
 		expect(extractSeqPathPrefix("foo.bar")).toBe(null);
 		expect(extractSeqPathPrefix("")).toBe(null);
+	});
+});
+
+describe("the mode a step ran under", () => {
+	// A speculative step's failure is expected and a prose step runs nothing, so a reader looking for what actually went
+	// wrong wants the authoritative ones. That is a distinction they can draw only if the mode is on the record, and
+	// only offered as a choice beside the type if it is declared as something the type is grouped by.
+	it("is offered as a sub-filter, which is what grouped-as declares", () => {
+		expect(seqPathDomainDefinition.topology?.properties?.[SEQ_PATH_FIELD.mode]).toBe(LinkRelations.CONTEXT.rel);
+	});
+
+	it("accepts every mode a run can be, and nothing else", () => {
+		for (const mode of EXECUTION_MODES) {
+			expect(SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", generatedAtTime: "now", mode }).success, mode).toBe(true);
+		}
+		expect(SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", generatedAtTime: "now", mode: "invented" }).success).toBe(false);
+	});
+
+	it("names speculative among them, since telling it apart is what the filter is for", () => {
+		expect(EXECUTION_MODES).toContain("speculative");
 	});
 });

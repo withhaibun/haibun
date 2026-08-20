@@ -568,7 +568,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				// 2. Proof Failed or not present
 				if (!featureStep.intent?.stepperOptions?.isEnsure) {
 					if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
-						const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+						const mode = featureStep.intent?.mode ?? "authoritative";
 						const act = await this.runner.runStatements(normalizedActivitySteps, {
 							args: robustArgs,
 							intent: { mode, usage: featureStep.intent?.usage },
@@ -588,7 +588,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 				// 3. Ensure Mode: Run Activity Body
 				if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
-					const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+					const mode = featureStep.intent?.mode ?? "authoritative";
 					const act = await this.runner.runStatements(normalizedActivitySteps, {
 						args: robustArgs,
 						intent: { mode, usage: featureStep.intent?.usage },

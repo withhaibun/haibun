@@ -48,7 +48,7 @@ class Haibun extends AStepper implements IHasCycles {
 				const stepsToRun = afterEvery.filter((aeStep) => aeStep.action.actionName !== featureStep.action.actionName);
 
 				if (stepsToRun.length > 0) {
-					const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+					const mode = featureStep.intent?.mode ?? "authoritative";
 					// Mark these steps as afterEvery steps to prevent recursion
 					const markedSteps = stepsToRun.map((s) => ({ ...s, isAfterEveryStep: true }));
 					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
@@ -91,7 +91,7 @@ class Haibun extends AStepper implements IHasCycles {
 		onHost: {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
 			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+				const mode = featureStep.intent?.mode ?? "authoritative";
 				return this.runner.runSteps(statement, { intent: { mode }, parentStep: featureStep, targetHostId: hostId });
 			},
 		},
@@ -100,7 +100,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `until {statements:${DOMAIN_STATEMENT}}`,
 			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				let signal;
-				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+				const mode = featureStep.intent?.mode ?? "authoritative";
 				do {
 					signal = await this.runner.runSteps(statements, { intent: { mode, usage: "polling" }, parentStep: featureStep });
 					if (!signal.ok) {
@@ -149,7 +149,7 @@ class Haibun extends AStepper implements IHasCycles {
 				const world = this.getWorld();
 				// Prepend 'Backgrounds: ' so expandLine correctly recognizes this as a background directive
 				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names}`, this.steppers, world, featureStep.source?.path, featureStep.seqPath, 1);
-				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
+				const mode = featureStep.intent?.mode ?? "authoritative";
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
 			},
