@@ -12,3 +12,9 @@ import { html, type TemplateResult } from "lit";
 export function emptyOrLoading(loaded: boolean, emptyMessage: string): TemplateResult {
 	return loaded ? html`<div class="empty">${emptyMessage}</div>` : html`<div class="empty"><shu-spinner></shu-spinner> Loading…</div>`;
 }
+
+/** The same pathway for data that may be UNAVAILABLE: not cached on this device and no server answered. That is a third
+ *  state, distinct from loading and from empty, and the reader is told which it is rather than shown a false "no data". */
+export function unavailableOrEmpty(loaded: boolean, unavailable: string | null, emptyMessage: string): TemplateResult {
+	return unavailable ? html`<div class="empty unavailable">${unavailable}</div>` : emptyOrLoading(loaded, emptyMessage);
+}

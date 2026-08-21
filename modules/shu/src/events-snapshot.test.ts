@@ -2,13 +2,14 @@
 // The shared event log: one backfill paged from the byte-bounded getEvents, one dedup, fanned out to every consumer —
 // the events analog of quads-snapshot. These pin the contract the monitor/document/step-detail/sequence views rely on.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { getEventSnapshot, currentEvents, mergeEvents, subscribeEvents, eventKey, resetEventsSnapshot, type TEventRecord } from "./events-snapshot.js";
+import { registerTail, registerWindow, eventsInWindow, atRunStart, eventsUnavailable, EVENTS_UNAVAILABLE, setEventStore, currentEvents, mergeEvents, subscribeEvents, eventKey, resetEventsSnapshot, type TEventRecord } from "./events-snapshot.js";
+import { MemoryEventStore } from "./event-store-idb.js";
 import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
 
 const ev = (i: number, over: TEventRecord = {}): TEventRecord => ({ id: `0.${i}`, timestamp: i, kind: "log", message: `e${i}`, ...over });
 
 /** Simulate the server's byte/count-bounded getEvents: the newest `cap` events with timestamp <= until, truncated if older remain. */
-function windowed(all: TEventRecord[], filter: { until?: number }, cap: number): { events: TEventRecord[]; truncated: boolean } {
+function windowed(all: TEventRecord[], filter: { until?: number; limit?: number }, cap: number): { events: TEventRecord[]; truncated: boolean } {
 	const matching = all.filter((e) => filter.until === undefined || (e.timestamp as number) <= filter.until);
 	const events = matching.slice(Math.max(0, matching.length - cap));
 	return { events, truncated: events.length < matching.length };
@@ -51,47 +52,84 @@ describe("events-snapshot shared cache", () => {
 		expect((globalThis as Record<string, unknown>).__SHU_EVENTS_SNAPSHOT_STORE__).toBeDefined();
 	});
 
-	describe("backfill against a paging service", () => {
+	describe("a tail, paged back from the newest event", () => {
+		// A tailing view asks for the newest N: the log pages back from the live edge by `until`, a page at a time, each page
+		// from the device's own store when it holds that span completely and from the server otherwise, until N are held or
+		// the start of the run is reached; and it persists what it fetched, with the spans it now holds, for the next time.
 		let handle: TShuTestHandle;
-		let calls: Array<{ until?: number }>;
+		let calls: Array<{ until?: number; limit?: number }>;
+		let store: MemoryEventStore;
 		const ALL = [ev(1), ev(2), ev(3), ev(4)];
 		beforeEach(() => {
 			calls = [];
+			store = new MemoryEventStore();
+			setEventStore(store);
 			handle = setupShuTest({
 				dispatch: (method, params) => {
 					if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
-					const filter = (params as { filter: { until?: number } }).filter;
+					const filter = (params as { filter: { until?: number; limit?: number } }).filter;
 					calls.push(filter);
-					return windowed(ALL, filter, 2); // cap 2 forces backward paging
+					return windowed(ALL, filter, filter.limit ?? 100);
 				},
 			});
 		});
 		afterEach(() => handle.teardown());
 
-		it("pages backward via `until` and assembles the full deduped history oldest-first", async () => {
-			const events = await getEventSnapshot();
-			expect(events.map((e) => e.id)).toEqual(["0.1", "0.2", "0.3", "0.4"]);
-			expect(calls.length).toBeGreaterThan(1); // truncation forced backward paging
+		it("holds the newest N, paging back by `until` from the server, oldest-first", async () => {
+			await registerTail("view", 3);
+			expect(eventsInWindow("view").map((e) => e.id), "the newest three").toEqual(["0.2", "0.3", "0.4"]);
+			expect(calls[0], "the first page is the newest N").toEqual({ limit: 3 });
 		});
 
-		it("caches the backfill — a second call does not re-page", async () => {
-			await getEventSnapshot();
+		it("reaches the start of the run and says so, so nothing widens past it", async () => {
+			await registerTail("view", 10);
+			expect(eventsInWindow("view").map((e) => e.id)).toEqual(["0.1", "0.2", "0.3", "0.4"]);
+			expect(atRunStart()).toBe(true);
+		});
+
+		it("a second consumer's tail is served from what is held: no second fetch", async () => {
+			await registerTail("a", 10);
 			const after = calls.length;
-			await getEventSnapshot();
+			await registerTail("b", 10);
 			expect(calls.length).toBe(after);
+			expect(eventsInWindow("b").map((e) => e.id)).toEqual(["0.1", "0.2", "0.3", "0.4"]);
 		});
 
-		it("forceRefresh re-pages from scratch", async () => {
-			await getEventSnapshot();
-			const after = calls.length;
-			await getEventSnapshot({ forceRefresh: true });
-			expect(calls.length).toBeGreaterThan(after);
+		it("persists what it fetched and the spans it holds, so the next time it serves from the device", async () => {
+			await registerTail("view", 10);
+			await new Promise((r) => setTimeout(r, 0)); // persistence is fire-and-forget
+			expect(store.size, "every fetched event is on the device").toBe(4);
+			expect((await store.held()).length, "and the span they cover is recorded as held").toBeGreaterThan(0);
+			// A fresh log (a reload) on the same device: the held span and the events come back without the server.
+			const held = await store.held();
+			resetEventsSnapshot();
+			setEventStore(store);
+			calls = [];
+			await registerTail("view", 3);
+			expect(calls, "served from the device: no server page").toEqual([]);
+			expect(eventsInWindow("view").map((e) => e.id)).toEqual(["0.2", "0.3", "0.4"]);
+			expect(held.length).toBeGreaterThan(0);
 		});
 
-		it("concurrent callers share one in-flight backfill", async () => {
-			const [a, b] = await Promise.all([getEventSnapshot(), getEventSnapshot()]);
-			expect(a).toBe(b);
-			expect(a.map((e) => e.id)).toEqual(["0.1", "0.2", "0.3", "0.4"]);
+		it("without the server, serves what the device holds and says what it could not load", async () => {
+			await registerTail("view", 10);
+			await new Promise((r) => setTimeout(r, 0));
+			resetEventsSnapshot();
+			setEventStore(store);
+			handle.teardown();
+			handle = setupShuTest({
+				dispatch: () => {
+					throw new Error("offline");
+				},
+			});
+			await registerTail("view", 10);
+			expect(eventsInWindow("view").map((e) => e.id), "the device's copy still shows").toEqual(["0.1", "0.2", "0.3", "0.4"]);
+			expect(eventsUnavailable(), "and the reader is told what could not be loaded, rather than a false 'no events'").toBe(EVENTS_UNAVAILABLE);
+		});
+
+		it("a time-span window (a step's own span) is fetched as a gap, and served from the device when held there", async () => {
+			await registerWindow("step", [{ from: 2, to: 4 }]);
+			expect(eventsInWindow("step").map((e) => e.id)).toEqual(["0.2", "0.3"]);
 		});
 	});
 });

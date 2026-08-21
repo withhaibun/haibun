@@ -68,6 +68,10 @@ export const virtualColumnCss: CSSResultGroup = css`
  *  to switch between a live-tail window and the full history. Additive: it never changes the follow behaviour itself. */
 export const FOLLOW_CHANGED = "shu-follow-changed";
 export type FollowChangedDetail = { following: boolean };
+/** Fired (bubbling, composed) when the visible window over the source moves: its first row, how many are visible, and the
+ *  source's count. A host that pages its data listens for this to widen what it holds as the reader nears the top. */
+export const WINDOW_CHANGED = "shu-window-changed";
+export type WindowChangedDetail = { first: number; visible: number; total: number };
 
 export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	constructor() {
@@ -265,6 +269,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			this.#lastWindowShort = short;
 			this.recordBlip(VIEW_WINDOW_BLIP, short, { first: this.#window.first, visible: this.#window.visible, count, following: this.follow && this.#follow.isFollowing });
 		}
+		this.dispatchEvent(new CustomEvent<WindowChangedDetail>(WINDOW_CHANGED, { detail: { first: this.#window.first, visible: this.#window.visible, total: count }, bubbles: true, composed: true }));
 		if (this.follow && count > 0) {
 			if (this.#window.first + this.#window.visible >= count && !this.#pressedAway) {
 				// The last row is inside the reported window — the reader is at (or scrolled back to) the live edge. Resume (the

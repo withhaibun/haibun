@@ -1,70 +1,61 @@
 /**
- * The window a view that tails the live edge registers with the shared event log (events-snapshot).
+ * The window a view that tails the live edge keeps over the shared event log (events-snapshot), counted in events.
  *
- * While the reader is pinned to the live edge, the view wants only a bounded tail below the newest event, so memory stays
- * flat however long the run is. When the reader scrolls back, it wants the full history, so nothing is out of reach; the
- * log's server pages that history in from the run's disk log as far back as the reader goes. The tail's lower bound moves
- * as the live edge moves, but only in coarse steps: a reconcile per event would thrash, and re-registering is what evicts
- * the events that fell below it. Every view that tails (the monitor's log, the document) shares this one rule.
+ * While pinned to the live edge the view holds the newest page of events, where a page is the one window-size setting
+ * every windowed view shares (shu-window-size, default 500 rows): memory stays flat however long the run is. When the
+ * reader scrolls back to the top of what is held, the view widens by one more page, and so on back to the start of the
+ * run; when the reader returns to the live edge the view narrows to one page again, and the log evicts the rest. The
+ * count is what the view decides; the log turns it into the span of time those events cover (`registerTail`), reading
+ * from its own persisted store first and the server only for what it lacks.
  */
-import type { Range } from "./ranges.js";
-import { FULL_WINDOW, newestEventTime } from "./events-snapshot.js";
+import { getWindowSize } from "./components/shu-window-size.js";
 
-export const TAIL_MS = 10 * 60_000;
+/** How close to the top of the held events a reader has to scroll before the next page is asked for, as a fraction of a page. */
+const WIDEN_MARGIN = 0.25;
 
-/** The window for a tailing view: a bounded tail below the newest event while following, else the full history. `from`
- *  clamps at 0, so a run shorter than the tail is just the whole log (no eviction). Pure, so the decision is unit-tested
- *  without a virtualizer. */
-export function tailWindow(following: boolean, newest: number, tailMs: number = TAIL_MS): Range[] {
-	if (!following) return [FULL_WINDOW];
-	return [{ from: Math.max(0, newest - tailMs), to: Number.POSITIVE_INFINITY }];
-}
-
-/** The bookkeeping of one tailing view: whether it follows, and where its tail's lower bound was last registered. Each
- *  method says whether the view should re-register its window now. A view that follows by default starts following, so
- *  its FIRST registration is already the tail: otherwise every boot would fetch the whole history and then evict it. */
+/** The bookkeeping of one tailing view: whether it follows, and how many pages back it has been widened. Each method
+ *  says whether the view should re-register its window now. */
 export class TailWindow {
 	#following: boolean;
-	#registeredFrom = 0;
-	readonly #tailMs: number;
+	#pages = 1;
 
-	constructor({ following = false, tailMs = TAIL_MS }: { following?: boolean; tailMs?: number } = {}) {
+	constructor({ following = false }: { following?: boolean } = {}) {
 		this.#following = following;
-		this.#tailMs = tailMs;
 	}
 
 	get following(): boolean {
 		return this.#following;
 	}
 
-	/** The span this view wants right now. `newest` is the newest event this view has seen; before it has seen any (the
-	 *  first registration at boot), the tail is anchored at the run's newest event as the shared log or the server knows
-	 *  it, never at a clock: the events' own times are the only times that place a window. So the first fetch is a tail
-	 *  of the run rather than the whole run, and a run from another day (a saved report) is still found. */
-	async ranges(newest: number): Promise<Range[]> {
-		if (!this.#following) return tailWindow(false, newest, this.#tailMs);
-		const anchor = newest || (await newestEventTime());
-		const ranges = tailWindow(true, anchor, this.#tailMs);
-		this.#registeredFrom = ranges[0].from;
-		return ranges;
+	/** How many events this view wants held: its pages of the shared window size. */
+	count(): number {
+		return this.#pages * getWindowSize();
 	}
 
-	/** The follow state flipped (the reader reached the live edge, or scrolled back from it). True when the window should
-	 *  be re-registered: narrowed to the tail, which evicts the old, or widened to full, which fetches history back. */
-	follow(following: boolean, newest: number): boolean {
+	/** The follow state flipped. Returning to the live edge narrows back to one page (true: re-register, which evicts the
+	 *  rest); leaving it changes nothing by itself — the widening comes from scrolling toward the top. */
+	follow(following: boolean): boolean {
 		if (following === this.#following) return false;
 		this.#following = following;
-		this.#registeredFrom = following ? Math.max(0, newest - this.#tailMs) : 0;
-		return true;
+		if (following && this.#pages !== 1) {
+			this.#pages = 1;
+			return true;
+		}
+		return false;
 	}
 
-	/** The live edge moved. True when the tail's lower bound has moved a full step since it was last registered, so the
-	 *  view should re-register (evicting what fell below); false while following is off or the step is not yet due. */
-	slide(newest: number): boolean {
-		if (!this.#following) return false;
-		const from = Math.max(0, newest - this.#tailMs);
-		if (from - this.#registeredFrom < this.#tailMs / 4) return false; // a quarter of the tail per step: coarse, so eviction runs in chunks
-		this.#registeredFrom = from;
+	/** Live events arrived while following: `held` is how many the view now holds. Past its pages by a slack of a quarter
+	 *  page, the view re-registers (true), which narrows back to its pages and evicts the oldest — in chunks, not per event. */
+	slide(held: number): boolean {
+		return this.#following && held > this.count() * (1 + WIDEN_MARGIN);
+	}
+
+	/** The reader's visible window moved: `first` is the first visible row of `held` rows. Near the top of what is held,
+	 *  and not already at the start of the run, the view widens by one page (true: re-register). */
+	widenIfNear(first: number, held: number, atStart: boolean): boolean {
+		if (this.#following || atStart || held === 0) return false;
+		if (first > getWindowSize() * WIDEN_MARGIN) return false;
+		this.#pages++;
 		return true;
 	}
 }
