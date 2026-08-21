@@ -142,3 +142,25 @@ describe("before anything has reported what is on screen", () => {
 		expect(el.shadowRoot?.querySelectorAll('[data-testid="scrollbar-marker"]').length).toBe(1);
 	});
 });
+
+describe("aiming at the rail", () => {
+	// The whole width of the control is the target — a 14px track asks for a precision nobody should need, least of all
+	// in a collapsed column where the rail is the only control there is. The widths themselves are CSS, which this
+	// environment does not apply to a shadow root, so they are checked in the browser; what is structural is that the
+	// drawn band is its OWN element, so the target can be widened without widening what is drawn.
+	it("takes a press on the target and seeks from it", async () => {
+		const { el, seeks } = await mount(100, { first: 0, visible: 10 });
+		const rail = el.shadowRoot?.querySelector('[data-testid="scrollbar-rail"]') as HTMLElement | null;
+		if (!rail) throw new Error("no rail rendered");
+		pointerdown(rail);
+		expect(seeks.length).toBe(1);
+	});
+
+	it("draws the track as its own element, separate from the target that takes the press", async () => {
+		const { el } = await mount(100, { first: 0, visible: 10 });
+		const rail = el.shadowRoot?.querySelector('[data-testid="scrollbar-rail"]');
+		const track = el.shadowRoot?.querySelector(".track");
+		expect(track, "the visible band").toBeTruthy();
+		expect(track?.parentElement, "drawn inside the target, not instead of it").toBe(rail);
+	});
+});
