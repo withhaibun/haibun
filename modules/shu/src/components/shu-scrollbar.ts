@@ -51,12 +51,27 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
-			:host { display: flex; flex-direction: column; align-items: center; width: var(--shu-scrollbar-w); flex-shrink: 0; user-select: none; touch-action: none; }
+			:host {
+				display: flex; flex-direction: column; align-items: center; width: var(--shu-scrollbar-w); flex-shrink: 0;
+				user-select: none; touch-action: none;
+				/* What is DRAWN as the track. The control's own width is the target, which is wider (see .rail). */
+				--shu-rail-track-w: 14px;
+			}
 			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
 			.pos-bottom { margin-top: auto; }
-			.rail { position: relative; flex: 1; width: 14px; background: var(--shu-bg-input); cursor: pointer; border-radius: var(--shu-radius); }
+			/* The rail takes the WHOLE width of the control, because that is the target a reader aims at: a 14px track asks
+			   for a precision nobody should need, least of all in a collapsed column where this is the only control there
+			   is. What is drawn stays narrow — the track below is the visible band — while every pixel across is live. */
+			.rail { position: relative; flex: 1; width: 100%; cursor: pointer; }
+			.track {
+				position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
+				width: var(--shu-rail-track-w); background: var(--shu-bg-input); border-radius: var(--shu-radius); pointer-events: none;
+			}
 			/* The in-view thumb wants clear contrast against the rail track so the reader sees where they are at a glance. */
-			.thumb { position: absolute; left: 0; right: 0; background: var(--shu-fg-muted); min-height: 16px; border-radius: var(--shu-radius); cursor: grab; }
+			.thumb {
+				position: absolute; left: 50%; transform: translateX(-50%); width: var(--shu-rail-track-w);
+				background: var(--shu-fg-muted); min-height: 16px; border-radius: var(--shu-radius); cursor: grab;
+			}
 			.thumb:hover { background: var(--shu-fg); }
 			.thumb:active { cursor: grabbing; }
 			/* A LINE ACROSS the rail, not a block on it. Everything else here is a block — the thumb is a bar down the
@@ -65,7 +80,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			   down a dense rail, and it sits above the marks so a chip can never hide it. The caret at the left end gives
 			   the line a definite anchor, and the shadow keeps both readable where they cross a bright chip. */
 			.cursor {
-				position: absolute; left: calc(var(--shu-space-3) * -1); right: calc(var(--shu-space-3) * -1);
+				position: absolute; left: 0; right: 0;
 				height: 0; transform: translateY(-50%); pointer-events: none; z-index: 3;
 				border-top: 2px solid var(--shu-fg); filter: drop-shadow(0 1px 0 var(--shu-bg)) drop-shadow(0 -1px 0 var(--shu-bg));
 			}
@@ -131,6 +146,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		return html`
 			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP}>${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
 			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
+				<div class="track"></div>
 				${
 					// Nothing has reported what is on screen yet, so there is nothing true to draw: a thumb here would be the
 					// minimum-height box at the top, which says "you are at the start looking at very little" — a claim about

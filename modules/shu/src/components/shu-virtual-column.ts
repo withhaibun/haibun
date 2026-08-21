@@ -58,9 +58,12 @@ export const virtualColumnCss: CSSResultGroup = css`
 	/* The virtualizer owns scrolling; its native scrollbar is hidden because the custom rail drives and reads it. */
 	shu-virtual-column lit-virtualizer { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
 	shu-virtual-column lit-virtualizer::-webkit-scrollbar { width: 0; height: 0; }
-	/* Serving as a column's spine: the rail is the whole of it, filling the strip's height. */
+	/* Serving as a column's spine: the rail is the whole of it, filling the strip's height AND its width. The width
+	   matters because the rail is then the only control the column has, and every pixel across the strip should aim at
+	   it rather than asking a reader to find the drawn track. */
 	shu-virtual-column[spine] { flex: 1; min-height: 0; }
 	shu-virtual-column[spine] .spine-rail { display: flex; flex: 1; min-height: 0; }
+	shu-virtual-column[spine] shu-scrollbar { width: 100%; }
 `;
 
 /** Fired (bubbling, composed) when this scroller's follow state flips: pinned to the live edge (`following: true`) or the
