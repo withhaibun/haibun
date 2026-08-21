@@ -16,7 +16,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { startPointerDrag } from "./pointer-drag.js";
-import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, formatCount, markerTopPx, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
+import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, formatCount, markerTopPx, pressTarget, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
 
 const EmptySchema = z.object({});
 
@@ -92,7 +92,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 				content: ""; position: absolute; left: 0; top: -6px;
 				border: 5px solid transparent; border-left-color: var(--shu-fg); border-right-width: 0;
 			}
-			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1; cursor: pointer; opacity: 0.85; pointer-events: auto; z-index: 1; }
+			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1;  opacity: 0.85; pointer-events: none; z-index: 1; }
 			.marker:hover { opacity: 1; }
 			.marker sub { font-size: 0.6em; opacity: 0.8; }
 		`,
@@ -167,7 +167,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 				}
 				${marks.map(
 					(m) =>
-						html`<span class="marker" style=${`top:${m.topPx}px;color:${m.color}`} title=${m.label ?? m.id} data-testid=${SHU_TEST_IDS.SCROLLBAR.MARKER} @pointerdown=${(e: Event) => this.#onMarker(e, m.index)}
+						html`<span class="marker" style=${`top:${m.topPx}px;color:${m.color}`} title=${m.label ?? m.id} data-testid=${SHU_TEST_IDS.SCROLLBAR.MARKER}
 							>${m.icon}${m.count > 1 ? html`<sub>${m.count}</sub>` : ""}</span
 						>`,
 				)}
@@ -194,7 +194,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 
 	#onRailDown = (e: PointerEvent): void => {
 		if (this.#dragId !== null) return; // a thumb drag is in flight
-		this.#emit(this.#pointerToIndex(e.clientY));
+		this.#emit(this.#railTarget(e.clientY));
 	};
 
 	#onThumbDown = (e: PointerEvent): void => {
@@ -219,10 +219,14 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		});
 	};
 
-	#onMarker = (e: Event, index: number): void => {
-		e.stopPropagation();
-		this.#emit(index);
-	};
+	/** The row a press on the rail means, from the model: a mark where one was pressed, else the place pressed. */
+	#railTarget(clientY: number): number {
+		const rect = this.#rail()?.getBoundingClientRect();
+		if (!rect) return this.window.first;
+		const heightPx = this.#thumbPx(rect.height);
+		const pressedPx = clientY - rect.top;
+		return pressTarget(pressedPx, clusterMarkers(this.markers, this.total, rect.height, heightPx), this.total, this.window.visible, rect.height, heightPx);
+	}
 
 	#onWheel = (e: WheelEvent): void => {
 		e.preventDefault();
