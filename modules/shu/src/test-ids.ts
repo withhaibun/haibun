@@ -75,6 +75,8 @@ export const SHU_TEST_IDS = {
 	MONITOR: {
 		LOG_STREAM: "monitor-log-stream",
 		LOG_ROW: "monitor-log-row",
+		/** The run's first row: on the page only once the start of the run has been reached and paged in. */
+		FIRST_ROW: "monitor-log-row-first",
 	},
 	/** The scroll rail every virtualized column and the annotated body share. */
 	SCROLLBAR: {
@@ -109,6 +111,8 @@ export const SHU_TEST_IDS = {
 	},
 	DOCUMENT: {
 		ROOT: "document-view",
+		/** A heading's block: this prefix and the heading's anchor (core's headingAnchor of its name). */
+		HEADING: "doc-heading-",
 	},
 /**
  * The polymorphic graph view: one graph painted as a force cloud, a layered flow, a gantt or a sequence, with the

@@ -64,6 +64,7 @@ describe("generateDocumentMarkdown", () => {
 	it("stamps each heading with its own name, which is what a link to it can be written from", () => {
 		const md = generateDocumentMarkdown([featureEvent("/test", "Test"), scenarioEvent("5. Confirming the permit was stored")], new Map(), "info", 1000).md;
 		expect(md, "the name a feature author wrote, not the id assigned while running").toContain('data-heading="5-confirming-the-permit-was-stored"');
+		expect(md, "and a test id a feature can wait for, from the same name").toContain('data-testid="doc-heading-5-confirming-the-permit-was-stored"');
 	});
 
 	it("names a heading by lower case, with every run of anything else one hyphen", () => {

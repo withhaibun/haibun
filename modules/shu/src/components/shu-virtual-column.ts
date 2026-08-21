@@ -356,9 +356,13 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// control rather than a picture: the reader drags it to a place in the run, and expanding puts the rows there.
 		if (this.spine) {
 			// The rail says which ROW; a window cannot start past the last one, so what the strip shows is clamped even
-			// though what the reader picked is not.
-			const last = Math.max(0, (this.source?.count() ?? 0) - this.#window.visible);
+			// though what the reader picked is not. The rows of that window are asked for as they would be by scrolling,
+			// so a source that pages the run in holds what the strip points at when the column is opened there.
+			const count = this.source?.count() ?? 0;
+			const last = Math.max(0, count - this.#window.visible);
 			this.#window = { first: Math.min(index, last), visible: this.#window.visible };
+			if (this.source && count > 0) void this.source.ensureRange(this.#window.first, Math.min(count, this.#window.first + Math.max(1, this.#window.visible)));
+			this.dispatchEvent(new CustomEvent<WindowChangedDetail>(WINDOW_CHANGED, { detail: { first: this.#window.first, visible: this.#window.visible, total: count }, bubbles: true, composed: true }));
 			this.requestUpdate();
 			return;
 		}
@@ -375,6 +379,8 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// so fall back to a plain list there; every real browser has one, so this branch is test-only and the O(viewport)
 		// behavior is proven by the browser e2e.
 		if (typeof ResizeObserver === "undefined") {
+			// The fallback renders every row, so it asks the source for every row (a paged source would otherwise paint skeletons).
+			if (this.source && total > 0) void this.source.ensureRange(0, total);
 			return html`<div class="virtual-fallback">${Array.from({ length: total }, (_, i) => this.renderRow(i, this.source?.rowAt(i)))}</div>
 				${rail}`;
 		}

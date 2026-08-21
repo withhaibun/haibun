@@ -27,9 +27,19 @@ export class TailWindow {
 		return this.#following;
 	}
 
-	/** How many events this view wants held: its pages of the shared window size. */
+	/** How many events this view wants held: its pages of the shared window size; every event at its levels once the
+	 *  reader has asked for the start of the run. */
 	count(): number {
-		return this.#pages * getWindowSize();
+		return this.#pages === Number.POSITIVE_INFINITY ? Number.MAX_SAFE_INTEGER : this.#pages * getWindowSize();
+	}
+
+	/** The reader asked for the START of the run (the rail's top glyph): hold everything at this view's levels from the
+	 *  start to the live edge, rather than one page more. True: re-register. Returning to the live edge narrows as ever. */
+	toStart(): boolean {
+		if (this.#pages === Number.POSITIVE_INFINITY) return false;
+		this.#pages = Number.POSITIVE_INFINITY;
+		this.#following = false; // the reader is going to the start, not to the live edge
+		return true;
 	}
 
 	/** The follow state flipped. Returning to the live edge narrows back to one page (true: re-register, which evicts the

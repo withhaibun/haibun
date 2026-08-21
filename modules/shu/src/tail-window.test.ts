@@ -55,6 +55,16 @@ describe("TailWindow", () => {
 		expect(tail.slide(500), "scrolled back: what is held is wanted, nothing narrows").toBe(false);
 	});
 
+	it("holds everything from the start once the reader asks for the start, and one page again back at the live edge", () => {
+		const tail = new TailWindow({ following: true });
+		expect(tail.toStart(), "asked for the start: re-register for everything").toBe(true);
+		expect(tail.count()).toBe(Number.MAX_SAFE_INTEGER);
+		expect(tail.following, "going to the start is leaving the live edge").toBe(false);
+		expect(tail.toStart(), "asked again: nothing more to do").toBe(false);
+		expect(tail.follow(true), "back at the live edge: one page").toBe(true);
+		expect(tail.count()).toBe(50);
+	});
+
 	it("starts following or not as its view does", () => {
 		expect(new TailWindow({ following: true }).following).toBe(true);
 		expect(new TailWindow().following).toBe(false);

@@ -6,7 +6,7 @@
  */
 import { resolve } from "path";
 import { z } from "zod";
-import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync, openSync, readSync, closeSync, fstatSync } from "fs";
+import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync, openSync, readSync, closeSync, fstatSync, statSync } from "fs";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
@@ -16,6 +16,7 @@ import { recordBlip } from "@haibun/core/lib/blips.js";
 import "./view-blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, HaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
 import { actionNotOK, actionOKWithProducts, getStepperOption, intOrError, stringOrError, findStepperFromOptionOrKind, errorDetail } from "@haibun/core/lib/util/index.js";
@@ -177,11 +178,19 @@ export const EventsFilterSchema = z.object({
 	limit: z.number().optional(),
 	/** One step's own events: its id is its seqPath (start and end share it), so a view about one step asks for that alone. */
 	seqPath: z.string().optional(),
+	/** Events at this level or above (the rule every log view filters by), so a view that shows `log` and up pages its own
+	 *  tail rather than a tail of every level that may hold nothing it shows. */
+	minLevel: HaibunLogLevel.optional(),
+	/** A page by INDEX among the events at `minLevel` and up, oldest first: the events whose index at that level is in
+	 *  [offset, offset + limit). This is how a view whose rail spans the whole run pages any region of it in. */
+	offset: z.number().optional(),
 });
 export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
 
 // `total` is the count matching the filter; `events` may be a recent window of it (see EVENTS_BYTE_BUDGET) with `truncated` set.
-const MonitorEventsSchema = z.object({ events: z.array(z.unknown()), total: z.number().optional(), truncated: z.boolean().optional() });
+/** What a page carries beside its events: `total`, how many events the run holds at the asked level (its whole extent);
+ *  `first`, when the run's first event happened; `truncated`, whether older events exist past a time-paged page. */
+const MonitorEventsSchema = z.object({ events: z.array(z.unknown()), total: z.number().optional(), first: z.number().optional(), truncated: z.boolean().optional() });
 
 const DispatchTracesSchema = z.object({ traces: z.array(z.unknown()) });
 
@@ -219,6 +228,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private maxEvents: number = MAX_EVENTS_DEFAULT;
 	/** Whether the live buffer has dropped its oldest events — the run extends further back than `events` holds. */
 	private eventsTrimmed = false;
+	/** How many events the run's log holds at each level and up: the extent a view at that level spans. */
+	private levelCounts: Record<string, number> = {};
+	/** When the run's first logged event happened. */
+	private firstLoggedAt: number | undefined;
+	/** Where each flushed batch begins in the log and how many events at each level precede it, so a page by index seeks
+	 *  to its batch and reads forward from there rather than from the start of the log. */
+	private logIndex: Array<{ offset: number; counts: Record<string, number> }> = [];
 	/** buildResourceRels walks every domain; memoized by domain count so per-RPC calls reuse it while a runtime-declared domain still invalidates. */
 	private relsCache?: { rels: ReturnType<typeof buildResourceRels>; size: number };
 	private resourceRels(): ReturnType<typeof buildResourceRels> {
@@ -294,6 +310,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// Per-run lean event log (the report's full-history source). Start fresh so a re-run never appends to a stale log.
 			this.eventLogPath = resolve(artifactDir, "events.jsonl");
 			if (existsSync(this.eventLogPath)) rmSync(this.eventLogPath);
+			this.levelCounts = {};
+			this.firstLoggedAt = undefined;
+			this.logIndex = [];
 		},
 		onEvent: (event: THaibunEvent) => {
 			const e = event as Record<string, unknown>;
@@ -326,6 +345,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// Live SSE streaming is unaffected; events forward as they happen.
 			this.events = [];
 			this.eventsTrimmed = false;
+			this.levelCounts = {};
+			this.firstLoggedAt = undefined;
+			this.logIndex = [];
 			this.observationQuads = [];
 			this.diskBuffer = [];
 			if (this.eventLogPath && existsSync(this.eventLogPath)) rmSync(this.eventLogPath);
@@ -341,27 +363,85 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	/** Record one event: into the bounded live buffer (trimmed to the newest maxEvents) and onto the run's disk log,
 	 *  which keeps every event. The buffer serves the live tail; the log is where a page past the buffer reads from. */
 	private recordEvent(event: THaibunEvent): void {
+		// An event the log keeps is given its index at every level it counts toward (its own and each below), the position
+		// it has among the run's events at that level. A view at a level reads its whole extent by these: the rail spans
+		// `levelCounts[level]` rows, and any region of it is a page by index. Stamped before the event is buffered, logged
+		// or streamed, so every copy of it agrees. What the log does not keep (debug-level bulk) has no index: it is not
+		// part of any view's extent.
+		const lean = slimReportEvent(slimLiveEvent(event));
+		if (lean) {
+			const idx: Record<string, number> = {};
+			const own = HAIBUN_LOG_LEVELS.indexOf(event.level);
+			for (const level of HAIBUN_LOG_LEVELS.slice(0, own + 1)) idx[level] = this.levelCounts[level] = (this.levelCounts[level] ?? 0) + 1;
+			for (const level of Object.keys(idx)) idx[level]--; // counts are how many so far, an index is one less
+			(event as Record<string, unknown>).idx = idx;
+			(lean as Record<string, unknown>).idx = idx;
+			this.firstLoggedAt ??= event.timestamp;
+		}
 		this.events.push(event);
 		if (this.events.length > this.maxEvents + BUFFER_TRIM_SLACK) {
 			this.events.splice(0, this.events.length - this.maxEvents);
 			this.eventsTrimmed = true;
 		}
-		this.appendToEventLog(event);
+		if (lean) this.appendToEventLog(lean);
 	}
 
-	/** Buffer a report-lean form of the event for the disk log; flush in batches so the log never does sync I/O per event. */
-	private appendToEventLog(event: THaibunEvent): void {
-		const lean = slimReportEvent(slimLiveEvent(event));
-		if (!lean) return; // debug-level bulk (e.g. screenshots) is not part of the report's event narrative
+	/** Buffer a report-lean event for the disk log; flush in batches so the log never does sync I/O per event. */
+	private appendToEventLog(lean: TReportEvent): void {
 		this.diskBuffer.push(JSON.stringify(lean));
 		if (this.diskBuffer.length >= EVENT_LOG_FLUSH_BATCH) this.flushEventLog();
 	}
 
-	/** Append the buffered lean events to the on-disk run log. */
+	/** Append the buffered lean events to the on-disk run log, recording where the batch begins and how many events at
+	 *  each level precede it, so a page by index seeks to the batch it starts in. */
 	private flushEventLog(): void {
 		if (!this.eventLogPath || this.diskBuffer.length === 0) return;
+		const offset = existsSync(this.eventLogPath) ? statSync(this.eventLogPath).size : 0;
+		const before: Record<string, number> = {};
+		// The counts before this batch: the running totals less what this batch holds at each level.
+		for (const level of HAIBUN_LOG_LEVELS) before[level] = this.levelCounts[level] ?? 0;
+		for (const line of this.diskBuffer) {
+			const idx = (JSON.parse(line) as { idx?: Record<string, number> }).idx ?? {};
+			for (const level of Object.keys(idx)) before[level]--;
+		}
+		this.logIndex.push({ offset, counts: before });
 		appendFileSync(this.eventLogPath, `${this.diskBuffer.join("\n")}\n`);
 		this.diskBuffer = [];
+	}
+
+	/** The run's lean events oldest first from the log, starting at the batch whose events at `level` begin at or before
+	 *  `fromIndex`: the flush index says where that batch begins, the file is read forward from there a chunk at a time,
+	 *  and the buffered lines follow. Stopping early (a page filled) reads no further. */
+	private *leanEventsFromIndex(level: string, fromIndex: number, chunkBytes = EVENT_LOG_READ_CHUNK): Generator<TReportEvent> {
+		let start = 0;
+		for (const entry of this.logIndex) if ((entry.counts[level] ?? 0) <= fromIndex) start = entry.offset;
+		if (this.eventLogPath && existsSync(this.eventLogPath)) {
+			const fd = openSync(this.eventLogPath, "r");
+			try {
+				const size = fstatSync(fd).size;
+				let position = start;
+				let carry = Buffer.alloc(0); // the start of a line whose end is in the chunk after
+				while (position < size) {
+					const length = Math.min(chunkBytes, size - position);
+					const chunk = Buffer.alloc(length);
+					readSync(fd, chunk, 0, length, position);
+					position += length;
+					const joined = carry.length > 0 ? Buffer.concat([carry, chunk]) : chunk;
+					const lastNewline = joined.lastIndexOf(0x0a);
+					if (lastNewline === -1) {
+						carry = joined;
+						continue;
+					}
+					for (const line of joined.toString("utf8", 0, lastNewline).split("\n")) if (line) yield JSON.parse(line) as TReportEvent;
+					carry = joined.subarray(lastNewline + 1);
+				}
+				const last = carry.toString("utf8");
+				if (last) yield JSON.parse(last) as TReportEvent;
+			} finally {
+				closeSync(fd);
+			}
+		}
+		for (const line of this.diskBuffer) yield JSON.parse(line) as TReportEvent;
 	}
 
 	/** The run's lean events newest first, without holding the log in memory: the lines still buffered (the newest), then
@@ -554,10 +634,16 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// The events are the RPC response that fills the client's backfill; keeping them on this event too re-embeds the whole log, recursively.
 			retainProducts: false,
 			action: ({ filter }: { filter: TEventsFilter }) => {
-				const { level, kind, since, until, limit, seqPath } = filter;
+				const { level, kind, since, until, limit, seqPath, minLevel, offset } = filter;
 				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
+				const floor = minLevel ? HAIBUN_LOG_LEVELS.indexOf(minLevel) : 0;
 				const wanted = (e: THaibunEvent): boolean =>
-					(!level || e.level === level) && (!kind || e.kind === kind) && (!since || e.timestamp >= since) && (!until || e.timestamp <= until) && (!seqPath || e.id === seqPath);
+					(!level || e.level === level) &&
+					(!kind || e.kind === kind) &&
+					(!since || e.timestamp >= since) &&
+					(!until || e.timestamp <= until) &&
+					(!seqPath || e.id === seqPath) &&
+					(floor === 0 || HAIBUN_LOG_LEVELS.indexOf(e.level) >= floor);
 				// The live buffer holds only the newest maxEvents; the run's disk log (the report's source) holds every
 				// event. A page that reaches at or past the buffer's oldest event is served from the log, read backward
 				// from its end a chunk at a time, so a page over a log of any size costs a chunk and the page. And a page
@@ -567,14 +653,44 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				// document read (id, timestamp, kind, stage, level) survives the slimming. `total` is the count matching
 				// the filter; a page from the log does not scan the whole log to count, so it carries none.
 				const oldestHeld = this.events[0]?.timestamp;
+				const at = minLevel ?? HAIBUN_LOG_LEVELS[0];
+				const total = this.levelCounts[at] ?? 0;
+				const first = this.firstLoggedAt;
+				// A page by index: the events whose index at `minLevel` is in [offset, offset + limit), oldest first. From the
+				// buffer when the buffer holds them; else from the log, read forward from the batch they begin in.
+				if (offset !== undefined) {
+					const end = Math.min(total, offset + cap);
+					const inRange = (e: { idx?: Record<string, number> }): boolean => e.idx?.[at] !== undefined && e.idx[at] >= offset && e.idx[at] < end;
+					const oldestBufferedIdx = (this.events.find((e) => (e as { idx?: Record<string, number> }).idx?.[at] !== undefined) as { idx?: Record<string, number> } | undefined)?.idx?.[at];
+					let page: Record<string, unknown>[];
+					if (oldestBufferedIdx !== undefined && offset >= oldestBufferedIdx) page = this.events.filter((e) => inRange(e as { idx?: Record<string, number> }) && wanted(e)).map(slimLiveEvent);
+					else {
+						page = [];
+						for (const e of this.leanEventsFromIndex(at, offset)) {
+							const i = (e as { idx?: Record<string, number> }).idx?.[at];
+							if (i === undefined || i < offset) continue;
+							if (i >= end) break;
+							if (wanted(e as unknown as THaibunEvent)) page.push(slimLiveEvent(e as unknown as THaibunEvent));
+						}
+					}
+					return actionOKWithProducts({ events: page, total, first });
+				}
 				if (this.eventsTrimmed && until !== undefined && (oldestHeld === undefined || until <= oldestHeld)) {
 					const fromLog = this.leanEventsNewestFirst() as Iterable<THaibunEvent>;
-					return actionOKWithProducts(takeRecentWithinBudget(filterIterable(fromLog, wanted), cap, EVENTS_BYTE_BUDGET));
+					return actionOKWithProducts({ ...takeRecentWithinBudget(filterIterable(fromLog, wanted), cap, EVENTS_BYTE_BUDGET), total, first });
 				}
 				const filtered = this.events.filter(wanted);
 				const { events, truncated } = recentEventsWithinBudget(filtered, cap, EVENTS_BYTE_BUDGET);
 				const headTrimmed = this.eventsTrimmed && (!since || oldestHeld === undefined || since < oldestHeld);
-				return actionOKWithProducts({ events, total: filtered.length, truncated: truncated || headTrimmed });
+				// A page the buffer cannot fill at these levels (its newest events at them are fewer than asked, because what is
+				// older was trimmed to the log) is completed from the log, with what is older than the buffer holds: a short
+				// page must mean the run has no more, never that the buffer has no more.
+				if (events.length < cap && headTrimmed && oldestHeld !== undefined) {
+					const olderThanBuffer = (e: THaibunEvent): boolean => wanted(e) && e.timestamp < oldestHeld;
+					const older = takeRecentWithinBudget(filterIterable(this.leanEventsNewestFirst() as Iterable<THaibunEvent>, olderThanBuffer), cap - events.length, EVENTS_BYTE_BUDGET);
+					return actionOKWithProducts({ events: [...older.events, ...events], truncated: truncated || older.truncated, total, first });
+				}
+				return actionOKWithProducts({ events, total, first, truncated: truncated || headTrimmed });
 			},
 		},
 		logClient: {

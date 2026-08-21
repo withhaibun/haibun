@@ -10,7 +10,7 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { mergeEvents, resetEventsSnapshot } from "../events-snapshot.js";
+import { mergeEvents, registerWindow, resetEventsSnapshot } from "../events-snapshot.js";
 import { SHU_EVENT } from "../consts.js";
 
 const FIRST = 1_000_000;
@@ -29,8 +29,10 @@ async function playing(): Promise<ShuPlayback> {
 	const el = document.createElement("shu-playback") as ShuPlayback;
 	document.body.appendChild(el);
 	await el.updateComplete;
-	// The run's span comes from the shared event log, so that is what a run is put into here — the same call the events
+	// The run's span comes from the shared event log, which keeps what the open views claim: so a view over the whole run
+	// is registered (as an open monitor or document would be), and the run is put in through the same call the events
 	// controller makes for every view that reads it.
+	await registerWindow("a-view", [{ from: 0, to: Number.POSITIVE_INFINITY }]);
 	mergeEvents([
 		{ id: "a", timestamp: FIRST, kind: "log", level: "info" },
 		{ id: "b", timestamp: LAST, kind: "log", level: "info" },

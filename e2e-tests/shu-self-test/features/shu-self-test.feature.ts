@@ -6,6 +6,7 @@ import Haibun from "@haibun/core/steps/haibun.js";
 import { ShuStepper, SHU_TEST_IDS } from "@haibun/shu";
 import { createStepUI, stepTestIds, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
+import { headingAnchor } from "@haibun/core/lib/document-content.js";
 
 const wp = new WebPlaywright();
 const { waitFor, click, gotoPage, reloadPage, inElement } = withAction(wp);
@@ -17,6 +18,11 @@ const { enterStepMode, passesStepExecution, chooseGraphLabel } = createStepUI(wp
 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
+/** The document column names the rail a press is for: every open virtualized column carries one. */
+const DOC_CONTAINER = "shu-document-column";
+const MONITOR_CONTAINER = "shu-monitor-column";
+/** The block of this feature's own heading in the document, named from the feature's name the way the document names it. */
+const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SPA Self-Test")}`;
 /** Every open column carries the same controls, so the log's own column names which one a click is for. */
 const MONITOR_PANE = 'shu-column-pane[column-type="shu-monitor-column"]';
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
@@ -151,6 +157,17 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
+
+		"The document comes back too, with the monitor open beside it. Each view holds its own page of the log at the levels it shows: the document opens at the live edge with its newest events, and the start of the run is one press away, the top glyph of its own rail. After that press its first heading, the feature's title, is on the page: the whole run is reachable from a reload, not only the latest events.",
+		"show document",
+		waitFor({ target: IDS.DOCUMENT.ROOT }),
+		setAs({ what: FEATURE_HEADING, domain: "page-test-id", value: `"${FEATURE_HEADING}"` }),
+		`in "${DOC_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
+		waitFor({ target: FEATURE_HEADING }),
+
+		"The monitor's rail spans the whole run by index, whatever it holds: its top glyph is the run's first row, and pressing it pages that region in. The first row is then on the page, from a log that held only its newest page a moment before.",
+		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
+		waitFor({ target: IDS.MONITOR.FIRST_ROW }),
 		click({ target: IDS.APP.TIME_OFFSET }),
 		waitFor({ target: IDS.PLAYBACK.PLAY }),
 		"Close the popover again so it does not float over later scenarios' controls.",

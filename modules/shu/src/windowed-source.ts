@@ -63,6 +63,9 @@ export function lazyWindowedSource<T>(opts: {
 	/** Seed an already-fetched, page-aligned run of rows (the first page the caller fetched to learn the total) so the
 	 *  first paint needs no second round-trip. `startRow` must be a multiple of `pageSize`. */
 	prime(startRow: number, rows: readonly T[]): void;
+	/** A row arrived live at `index` (the source's count has grown to include it): placed into its page when that page is
+	 *  resident up to it, so the live edge keeps rendering without a fetch; otherwise left for ensureRange to bring in. */
+	append(index: number, row: T): void;
 } {
 	const pageSize = opts.pageSize ?? 200;
 	const maxResidentPages = Math.max(4, opts.maxResidentPages ?? 24);
@@ -161,6 +164,18 @@ export function lazyWindowedSource<T>(opts: {
 		markers: opts.markers ?? (() => []),
 		notifyCountChanged() {
 			dataEnd = Number.POSITIVE_INFINITY;
+			notify();
+		},
+		append(index, row) {
+			const p = pageOf(index);
+			const have = pages.get(p);
+			const within = index - p * pageSize;
+			if (within === 0 || (have && have.length === within)) {
+				// The page is resident up to this row (or begins with it): extend it in place. A short resident page is re-read
+				// as partial by `resident()` only against the count, which now includes this row.
+				pages.set(p, [...(have ?? []), row]);
+				dataEnd = Number.POSITIVE_INFINITY;
+			}
 			notify();
 		},
 		prime(startRow, rows) {

@@ -14,6 +14,7 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
@@ -23,6 +24,7 @@ import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss, FOLLOW_CHANGED, WINDOW_CHANGED, type FollowChangedDetail, type WindowChangedDetail } from "./shu-virtual-column.js";
 import { TailWindow } from "../tail-window.js";
+import { SCROLL_TO_INDEX, type TSeekEdge } from "./shu-scrollbar.js";
 import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js";
 import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
@@ -57,6 +59,7 @@ const SANITIZE_OPTS = {
 		"data-time",
 		"data-raw-time",
 		"data-heading",
+		"data-testid",
 		"data-action",
 		"data-has-artifacts",
 		"data-ids",
@@ -77,7 +80,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#events = new EventsController(
 		this,
 		() => this.onEventsChanged(),
-		() => ({ tail: this.#tail.count() }),
+		() => ({ tail: this.#tail.count(), minLevel: this.state.level as THaibunLogLevel }), // the newest page at the levels this document shows
 	);
 	#tail = new TailWindow({ following: true }); // the document always opens pinned to the live edge
 	#source: WindowedSource<TDocBlock> & { set(items: readonly TDocBlock[], markers?: TScrollMarker[]): void } = arrayWindowedSource<TDocBlock>([]);
@@ -158,6 +161,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.autoListen(this, WINDOW_CHANGED, (e) => {
 			const { first } = (e as CustomEvent<WindowChangedDetail>).detail;
 			if (this.#tail.widenIfNear(first, this.events.length, this.#events.atStart)) void this.#events.updateWindow();
+		});
+		// The rail's top glyph asks for the start of the run: hold everything from there, not one page more.
+		this.autoListen(this, SCROLL_TO_INDEX, (e) => {
+			const { edge } = (e as CustomEvent<{ edge?: TSeekEdge }>).detail ?? {};
+			if (edge === "start" && this.#tail.toStart()) void this.#events.updateWindow();
 		});
 		// ←/→ from an expanded thumbnail: only this column can navigate the whole run — the off-screen frames are not in the DOM.
 		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
@@ -289,7 +297,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 				</select></label>
 			</div>
 			${this.#events.unavailable ? html`<div class="empty unavailable">${this.#events.unavailable}</div>` : ""}
-			<shu-virtual-column .source=${this.#source} .renderRow=${(i: number, b: unknown) => this.#renderRow(i, b)} ?follow=${true}></shu-virtual-column>
+			<shu-virtual-column data-testid=${SHU_TEST_IDS.DOCUMENT.ROOT} .source=${this.#source} .renderRow=${(i: number, b: unknown) => this.#renderRow(i, b)} ?follow=${true}></shu-virtual-column>
 		`;
 	}
 
@@ -384,5 +392,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	private onLevelChange(e: Event): void {
 		this.setState({ level: (e.target as HTMLSelectElement).value as THaibunLogLevel });
 		this.#rebuild(); // the visible event set changes with the level
+		void this.#events.updateWindow(); // and so does the tail held: the newest page at the levels now shown
 	}
 }

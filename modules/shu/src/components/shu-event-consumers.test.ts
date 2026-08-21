@@ -21,7 +21,21 @@ const step = (i: number): Record<string, unknown> => ({
 	in: `step ${i}`,
 	level: "info",
 	seqPath: [0, i],
+	idx: { debug: i - 1, trace: i - 1, log: i - 1, info: i - 1 }, // its index at each level it counts toward, as the server stamps it
 });
+
+/** The server's answer: a page by index (offset/limit at a level) with the run's extent, or a page by time (until/limit). */
+function answer(all: Array<Record<string, unknown>>, filter: { until?: number; limit?: number; minLevel?: string; offset?: number }): Record<string, unknown> {
+	const level = filter.minLevel ?? "debug";
+	const at = all.filter((e) => (e.idx as Record<string, number>)[level] !== undefined);
+	const extent = { total: at.length, first: all[0]?.timestamp };
+	if (filter.offset !== undefined) {
+		const events = at.filter((e) => { const i = (e.idx as Record<string, number>)[level]; return i >= (filter.offset as number) && i < (filter.offset as number) + (filter.limit ?? 100); });
+		return { events, ...extent };
+	}
+	const eligible = filter.until === undefined ? at : at.filter((e) => (e.timestamp as number) <= (filter.until as number));
+	return { events: filter.limit ? eligible.slice(-filter.limit) : eligible, truncated: false, ...extent };
+}
 
 describe("event consumers over the shared log", () => {
 	let handle: TShuTestHandle;
@@ -34,26 +48,28 @@ describe("event consumers over the shared log", () => {
 		handle = setupShuTest({
 			dispatch: (method, params) => {
 				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
-				const filter = (params as { filter: { until?: number; limit?: number } }).filter;
-				backfillCalls++;
-				// A tailing view asks for the newest page, then older pages by `until`; this run has two events.
-				const all = [step(1), step(2)];
-				const eligible = filter.until === undefined ? all : all.filter((e) => (e.timestamp as number) <= (filter.until as number));
-				return { events: filter.limit ? eligible.slice(-filter.limit) : eligible, truncated: false };
+				const filter = (params as { filter: { until?: number; limit?: number; minLevel?: string; offset?: number } }).filter;
+				// The monitor's run source asks once for the extent (limit 1, no cursor) and then for pages by index; the document's
+				// tail asks for the newest page and older pages by `until`. Pages of either kind are counted as backfills.
+				if (filter.offset !== undefined || filter.until !== undefined || filter.limit !== 1) backfillCalls++;
+				return answer([step(1), step(2)], filter);
 			},
 		});
 	});
 	afterEach(() => handle.teardown());
 
-	it("the monitor shows every backfilled event, then appends live ones, with one shared backfill", async () => {
+	it("the monitor shows the run's rows from one page, then places live ones by their index without another fetch", async () => {
 		const mon = document.createElement("shu-monitor-column") as ShuMonitorColumn;
 		document.body.appendChild(mon);
 		await flush();
+		await flush();
 		expect(mon.rows.map((r) => r.step)).toEqual(["step 1", "step 2"]);
+		expect(backfillCalls, "the run's one page").toBe(1);
 		handle.emit(step(3));
 		await flush();
+		await flush();
 		expect(mon.rows.map((r) => r.step)).toEqual(["step 1", "step 2", "step 3"]);
-		expect(backfillCalls).toBe(1);
+		expect(backfillCalls, "a live event carries its index: no page is asked for to place it").toBe(1);
 	});
 
 	it("a second consumer reuses the single backfill instead of re-paging", async () => {
@@ -107,10 +123,8 @@ describe("the document holds the newest page, widens toward the start, and scrub
 		handle = setupShuTest({
 			dispatch: (method, params) => {
 				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
-				const filter = (params as { filter: { until?: number; limit?: number } }).filter;
-				const all = Array.from({ length: EVENTS }, (_, i) => step(i + 1));
-				const eligible = filter.until === undefined ? all : all.filter((e) => (e.timestamp as number) <= (filter.until as number));
-				return { events: filter.limit ? eligible.slice(-filter.limit) : eligible, truncated: false };
+				const filter = (params as { filter: { until?: number; limit?: number; minLevel?: string; offset?: number } }).filter;
+				return answer(Array.from({ length: EVENTS }, (_, i) => step(i + 1)), filter);
 			},
 		});
 	});
@@ -123,6 +137,31 @@ describe("the document holds the newest page, widens toward the start, and scrub
 		(Array.from(doc.shadowRoot?.querySelectorAll(".doc-row[data-raw-time]") ?? []) as HTMLElement[]).sort(
 			(a, b) => parseFloat(a.getAttribute("data-raw-time") ?? "0") - parseFloat(b.getAttribute("data-raw-time") ?? "0"),
 		);
+
+	it("shows its newest page even when the run's newest events are below its level", async () => {
+		// The server holds 60 lifecycle events followed by 200 debug events. The document shows log and up: its page is the
+		// newest 50 it shows, not an empty page of debug events it does not.
+		handle.teardown();
+		handle = setupShuTest({
+			dispatch: (method, params) => {
+				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
+				const filter = (params as { filter: { until?: number; limit?: number; minLevel?: string } }).filter;
+				const all = [
+					...Array.from({ length: EVENTS }, (_, i) => step(i + 1)),
+					...Array.from({ length: 200 }, (_, i) => ({ id: `d${i}`, timestamp: EVENTS + 1 + i, kind: "log", level: "debug", message: `noise ${i}` })),
+				];
+				const floor = filter.minLevel ? ["debug", "trace", "log", "info", "warn", "error"].indexOf(filter.minLevel) : 0;
+				const atLevel = all.filter((e) => ["debug", "trace", "log", "info", "warn", "error"].indexOf(String(e.level)) >= floor);
+				const eligible = filter.until === undefined ? atLevel : atLevel.filter((e) => (e.timestamp as number) <= (filter.until as number));
+				return { events: filter.limit ? eligible.slice(-filter.limit) : eligible, truncated: false };
+			},
+		});
+		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
+		document.body.appendChild(doc);
+		await flush();
+		await flush();
+		expect(sortedRows(doc).length, "the newest page of what the document shows").toBe(WINDOW);
+	});
 
 	it("holds the newest page at the live edge, widens to the start as the reader nears the top, and a clicked row scrubs to its own instant", async () => {
 		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;

@@ -28,6 +28,9 @@ export const SCROLL_TO_INDEX = "scroll-to-index";
  *  reading, the same as wheeling the rows. A view that acts on more than scrolling — moving the shared time cursor,
  *  say — cares which, and would otherwise drag every other view along with a scroll gesture. */
 export type TSeekBy = "press" | "wheel";
+/** A press on one of the rail's position glyphs: the top one asks for the START of the run, the bottom one for its live
+ *  END — beyond what the rail's rows hold, which a host that pages its data answers by loading to that edge. */
+export type TSeekEdge = "start" | "end";
 
 export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	constructor() {
@@ -57,7 +60,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		shuBaseStyles,
 		css`
 			:host { display: flex; flex-direction: column; align-items: center; width: var(--shu-scrollbar-w); flex-shrink: 0; user-select: none; touch-action: none; }
-			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
+			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; min-height: 1em; }
 			.pos-bottom { margin-top: auto; }
 			/* The rail takes the WHOLE width of the control, because that is the target a reader aims at: a 14px track asks
 			   for a precision nobody should need, least of all in a collapsed column where this is the only control there
@@ -148,7 +151,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		const topPx = thumbTopPx(this.total, this.window, railPx, heightPx);
 		const marks = this.#marks(railPx);
 		return html`
-			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP}>${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
+			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP} title="To the start" @click=${() => this.#emit(0, "press", "start")}>${this.showPosition && this.total ? formatCount(this.window.first + 1) : "⤒"}</span>
 			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
 				<div class="track"></div>
 				${
@@ -173,16 +176,16 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 						>`,
 				)}
 			</div>
-			<span class="pos pos-bottom" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_BOTTOM}>${this.showPosition && this.total ? formatCount(this.total) : ""}</span>
+			<span class="pos pos-bottom" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_BOTTOM} title="To the end" @click=${() => this.#emit(Math.max(0, this.total - 1), "press", "end")}>${this.showPosition && this.total ? formatCount(this.total) : "⤓"}</span>
 		`;
 	}
 
 	/** Say which row the reader picked. A ROW, not a window start: the last `visible` rows begin no window, and clamping
 	 *  here would make them unpickable — which is a scroller's limit, not a reader's. What to show is the scroller's to
 	 *  work out from this. */
-	#emit(index: number, by: TSeekBy): void {
+	#emit(index: number, by: TSeekBy, edge?: TSeekEdge): void {
 		const row = Math.max(0, Math.min(index, Math.max(0, this.total - 1)));
-		this.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: row, by }, bubbles: true, composed: true }));
+		this.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: row, by, ...(edge ? { edge } : {}) }, bubbles: true, composed: true }));
 	}
 
 	/**

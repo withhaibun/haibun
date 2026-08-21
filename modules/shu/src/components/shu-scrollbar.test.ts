@@ -81,8 +81,9 @@ describe("shu-scrollbar interaction", () => {
 		el.showPosition = false;
 		document.body.appendChild(el);
 		await el.updateComplete;
-		expect((el.shadowRoot?.querySelector("[data-testid=scrollbar-pos-top]")?.textContent ?? "").trim()).toBe("");
-		expect((el.shadowRoot?.querySelector("[data-testid=scrollbar-pos-bottom]")?.textContent ?? "").trim()).toBe("");
+		// Without the numbers the glyphs still read as what they are: presses to the start and the end of the run.
+		expect((el.shadowRoot?.querySelector("[data-testid=scrollbar-pos-top]")?.textContent ?? "").trim()).toBe("⤒");
+		expect((el.shadowRoot?.querySelector("[data-testid=scrollbar-pos-bottom]")?.textContent ?? "").trim()).toBe("⤓");
 		expect(el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]")).toBeTruthy(); // marks stay
 	});
 
@@ -215,5 +216,31 @@ describe("a press on the thumb that never moves", () => {
 		expect(during, "the move seeks").toBeGreaterThan(0);
 		release();
 		expect(seeks.length, "and the release adds nothing on top of it").toBe(during);
+	});
+});
+
+describe("the position glyphs are presses to the run's edges", () => {
+	// The rail's rows are what a view holds; the top glyph asks for the START of the run and the bottom one for its live
+	// END, beyond what is held, which a host that pages its data answers by loading to that edge.
+	beforeAll(() => {
+		if (!customElements.get("shu-scrollbar")) customElements.define("shu-scrollbar", ShuScrollbar);
+		(globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= StubResizeObserver;
+	});
+
+	it("pressing the top glyph seeks row 0 and names the start; the bottom glyph the last row and the end", async () => {
+		const el = document.createElement("shu-scrollbar") as ShuScrollbar;
+		el.total = 100;
+		el.window = { first: 40, visible: 10 };
+		const seeks: Array<{ index: number; edge?: string }> = [];
+		el.addEventListener(SCROLL_TO_INDEX, (e) => seeks.push((e as CustomEvent<{ index: number; edge?: string }>).detail));
+		document.body.appendChild(el);
+		await el.updateComplete;
+		const root = el.shadowRoot as ShadowRoot;
+		(root.querySelector('[data-testid="scrollbar-pos-top"]') as HTMLElement).click();
+		(root.querySelector('[data-testid="scrollbar-pos-bottom"]') as HTMLElement).click();
+		expect(seeks).toEqual([
+			{ index: 0, by: "press", edge: "start" },
+			{ index: 99, by: "press", edge: "end" },
+		]);
 	});
 });
