@@ -176,6 +176,20 @@ export function runSpan(): { first: number; last: number } {
 	return events.length === 0 ? { first: 0, last: 0 } : { first: eventTime(events[0]), last: eventTime(events[events.length - 1]) };
 }
 
+/**
+ * When the run's newest event happened, for a view that wants a tail below it before it has seen any event itself. The
+ * shared log answers if it holds anything; otherwise one page of one event is asked of the server, which returns its
+ * newest. Nothing is registered or retained: this only anchors a window, which is then fetched in the ordinary way.
+ * 0 when the run has no events yet, which makes a tail anchored on it the whole (empty) run.
+ */
+export async function newestEventTime(): Promise<number> {
+	const held = runSpan().last;
+	if (held > 0) return held;
+	const page = await conduit().follow<{ events?: TEventRecord[] }>({ method: GET_EVENTS_METHOD, params: { filter: { limit: 1 } } }, "events-snapshot: newest event");
+	const newest = page.events?.at(-1);
+	return newest ? eventTime(newest) : 0;
+}
+
 /** Whether a reconcile has completed — lets a consumer tell "retrieved, and empty" from "still retrieving". */
 export function eventsLoaded(): boolean {
 	return getStore().loaded;

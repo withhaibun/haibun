@@ -6,7 +6,7 @@ import { subscribeBatchedEvents } from "../event-stream.js";
 /** A view's time window over the shared log. Default (no hook, or hook returns none) = the full span, so a view that
  *  declares nothing sees the whole history exactly as before. A view that wants to bound its memory (e.g. the monitor
  *  following the live tail) supplies a hook returning its current span and calls `updateWindow()` when that span moves. */
-export type WindowHook = () => Range[];
+export type WindowHook = () => Range[] | Promise<Range[]>;
 
 /**
  * EventsController — the per-view handle to the event/log stream. A view that renders events HOLDS one
@@ -31,9 +31,10 @@ export class EventsController implements ReactiveController {
 		host.addController(this);
 	}
 
-	/** The span(s) this view wants right now — the hook's answer, or the full window when it declares nothing. */
-	#windowRanges(): Range[] {
-		const ranges = this.#getWindow?.();
+	/** The span(s) this view wants right now — the hook's answer, or the full window when it declares nothing. A hook may
+	 *  answer asynchronously: a tailing view has to learn the run's newest event before it can place its first tail. */
+	async #windowRanges(): Promise<Range[]> {
+		const ranges = await this.#getWindow?.();
 		return ranges && ranges.length > 0 ? ranges : [FULL_WINDOW];
 	}
 
@@ -41,7 +42,7 @@ export class EventsController implements ReactiveController {
 		if (this.#initialized) return;
 		this.#initialized = true;
 		try {
-			await registerWindow(this.#clientId, this.#windowRanges()); // shared: each span is fetched once, cached for every consumer
+			await registerWindow(this.#clientId, await this.#windowRanges()); // shared: each span is fetched once, cached for every consumer
 		} catch {
 			/* stepper may not be loaded yet */
 		}
@@ -68,7 +69,7 @@ export class EventsController implements ReactiveController {
 	async updateWindow(): Promise<void> {
 		if (!this.#initialized) return;
 		try {
-			await registerWindow(this.#clientId, this.#windowRanges());
+			await registerWindow(this.#clientId, await this.#windowRanges());
 		} catch {
 			/* stepper may not be loaded yet */
 		}
@@ -86,7 +87,7 @@ export class EventsController implements ReactiveController {
 	}
 
 	/** Await this view's window being loaded — a selector view (e.g. step-detail) awaits this before reading `all` on demand. */
-	ensureLoaded(): Promise<void> {
-		return registerWindow(this.#clientId, this.#windowRanges());
+	async ensureLoaded(): Promise<void> {
+		return registerWindow(this.#clientId, await this.#windowRanges());
 	}
 }

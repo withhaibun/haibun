@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // side-effect import so the module runs (registration is via component-registry in the app)
-import { ShuStepDetail } from "./shu-step-detail.js";
+import { ShuStepDetail, stepSpan } from "./shu-step-detail.js";
 import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
 
@@ -25,6 +25,8 @@ describe("shu-step-detail", () => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith("/rpc/action.begin")) return json({ seqPath: [0, -1, 1] }); // conduit().group() opens a batch here
 			if (url.includes("getDispatchTraces")) return json({ traces: [{ seqPath: [0, 1], transport: "rpc", durationMs: 5, productKeys: ["p1"] }] });
+			// The step's own events, asked for by seqPath: what places this view's window on the run.
+			if (url.includes("getEvents")) return json({ events: [{ id: "0.1", timestamp: 1000, kind: "lifecycle", stage: "start" }, { id: "0.1", timestamp: 1500, kind: "lifecycle", stage: "end" }] });
 			if (url.includes("getClusteredQuads"))
 				return json({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] });
 			return json({});
@@ -80,5 +82,21 @@ describe("shu-step-detail", () => {
 		await el.open([0, 3]);
 		await el.updateComplete;
 		expect(text(el)).toContain("Failed to load step [0.3]");
+	});
+});
+
+describe("the window a step detail registers", () => {
+	// A view about one step must not put the whole run in the tab to find it: its window is the span of its own step,
+	// from the step's start to its end, or to the live edge while the step is still running.
+	it("is the step's own span once its events are known", () => {
+		expect(stepSpan([{ id: "0.1", timestamp: 1000, kind: "lifecycle", stage: "start" }, { id: "0.1", timestamp: 1500, kind: "lifecycle", stage: "end" }])).toEqual({ from: 1000, to: 1501 });
+	});
+
+	it("runs to the live edge while the step has not ended, since its end will arrive live", () => {
+		expect(stepSpan([{ id: "0.1", timestamp: 1000, kind: "lifecycle", stage: "start" }])).toEqual({ from: 1000, to: Number.POSITIVE_INFINITY });
+	});
+
+	it("is nothing when the step has no events, so nothing is asked for", () => {
+		expect(stepSpan([])).toBeUndefined();
 	});
 });

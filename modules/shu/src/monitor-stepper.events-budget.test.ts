@@ -188,3 +188,29 @@ describe("reading the disk log backward", () => {
 		}
 	});
 });
+
+describe("one step's own events", () => {
+	// A view about one step asks for that step's events by its seqPath, which is its id (start and end share it), so it
+	// never has to page the run to find them: from the live buffer, or from the log when the step is older than the buffer.
+	it("returns only the events whose id is the seqPath, from the buffer and from the log alike", () => {
+		const stepper = new MonitorStepper() as unknown as {
+			eventLogPath: string | null;
+			diskBuffer: string[];
+			maxEvents: number;
+			recordEvent(e: THaibunEvent): void;
+			steps: { getEvents: { action(args: { filter: Record<string, unknown> }): { products: { events: Array<Record<string, unknown>>; truncated?: boolean } } } };
+		};
+		stepper.eventLogPath = join(tmpdir(), `shu-seq-${process.pid}-${Date.now()}.jsonl`);
+		stepper.diskBuffer = [];
+		stepper.maxEvents = 5;
+		try {
+			for (let i = 0; i < 600; i++) stepper.recordEvent(ev(i, { kind: "lifecycle", stage: i % 2 ? "end" : "start" } as Partial<THaibunEvent>));
+			const inBuffer = stepper.steps.getEvents.action({ filter: { seqPath: "0.599" } }).products;
+			expect(inBuffer.events.map((e) => e.id)).toEqual(["0.599"]);
+			const pastBuffer = stepper.steps.getEvents.action({ filter: { seqPath: "0.7", until: 1007 } }).products;
+			expect(pastBuffer.events.map((e) => e.id), "older than the buffer holds: found on the log").toEqual(["0.7"]);
+		} finally {
+			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
+		}
+	});
+});
