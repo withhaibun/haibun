@@ -17,6 +17,7 @@ const { watchBlips } = withAction(new BlipsStepper());
 const { feature, scenario } = withAction(new Haibun());
 const {
 	monitorShowsFewerThan,
+	monitorRailThumbTakesAPress,
 	seekMonitorRail,
 	monitorFirstVisibleRow,
 	monitorFirstVisibleRowIsNot,
@@ -100,6 +101,9 @@ export const features: TKirejiExport = {
 		monitorFirstVisibleRowIsNot({ ordinal: '"1"' }),
 		seekMonitorRail({ where: '"top"' }),
 		monitorFirstVisibleRow({ ordinal: '"1"' }),
+
+		"The thumb is what a reader grabs to drag, so a press aimed at the middle of it has to reach it. Every event worth marking is drawn on this rail, and a mark drawn over the thumb would take that press and jump to itself instead, leaving the thumb ungrabbable on exactly the runs that have the most to look through.",
+		monitorRailThumbTakesAPress(),
 
 		scenario({ scenario: "A manual scroll up pauses the tail; returning to the bottom resumes it" }),
 		"A reader scrolling back through the log must not be yanked to the newest row every time an event streams in. Scrolled to the top, a streamed event leaves the view where it is — the tail is paused because the reader is no longer at the bottom, not because any cursor was scrubbed. Scroll back to the bottom and the tail re-engages, so the next event is followed again.",

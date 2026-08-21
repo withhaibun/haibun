@@ -68,11 +68,15 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 				width: var(--shu-rail-track-w); background: var(--shu-bg-input); border-radius: var(--shu-radius); pointer-events: none;
 			}
 			/* The in-view thumb wants clear contrast against the rail track so the reader sees where they are at a glance. */
+			/* Above the marks, so a press on the thumb is a drag: the marks come after it in the DOM and would otherwise take
+			   it, which on a densely marked rail means the thumb can barely be grabbed at all. Translucent so the marks it
+			   covers still show through — they are the rows on screen, and the reader should still see what is among them. */
 			.thumb {
 				position: absolute; left: 50%; transform: translateX(-50%); width: var(--shu-rail-track-w);
 				background: var(--shu-fg-muted); min-height: 16px; border-radius: var(--shu-radius); cursor: grab;
+				z-index: 2; opacity: 0.6;
 			}
-			.thumb:hover { background: var(--shu-fg); }
+			.thumb:hover { background: var(--shu-fg); opacity: 0.8; }
 			.thumb:active { cursor: grabbing; }
 			/* A LINE ACROSS the rail, not a block on it. Everything else here is a block — the thumb is a bar down the
 			   track, every event is a chip on it — so a cursor drawn as one more block reads as one more of them however
@@ -88,7 +92,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 				content: ""; position: absolute; left: 0; top: -6px;
 				border: 5px solid transparent; border-left-color: var(--shu-fg); border-right-width: 0;
 			}
-			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1; cursor: pointer; opacity: 0.85; pointer-events: auto; }
+			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1; cursor: pointer; opacity: 0.85; pointer-events: auto; z-index: 1; }
 			.marker:hover { opacity: 1; }
 			.marker sub { font-size: 0.6em; opacity: 0.8; }
 		`,
