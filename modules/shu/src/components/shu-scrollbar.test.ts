@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import { ShuScrollbar, SCROLL_TO_INDEX } from "./shu-scrollbar.js";
-import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
+import { markerTopPx, thumbHeightPx, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
 
 class StubResizeObserver {
 	observe(): void {
@@ -32,9 +32,17 @@ async function mount(total: number, window: TWindow, markers: TScrollMarker[] = 
 	return { el, seeks };
 }
 
-const pointerdown = (target: Element): void => {
-	target.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+const pointerdown = (target: Element, clientY = 0): void => {
+	target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerId: 1, clientY }));
 };
+
+/** jsdom lays nothing out, so a rail measures 0 and every press maps to row 0. State its box, and the press path — which
+ *  is all geometry — can be driven here rather than only in a browser. */
+function railBox(el: ShuScrollbar, top: number, height: number): void {
+	const rail = el.shadowRoot?.querySelector('[data-testid="scrollbar-rail"]');
+	if (!rail) throw new Error("no rail rendered to measure");
+	Object.defineProperty(rail, "getBoundingClientRect", { configurable: true, value: () => ({ top, height, bottom: top + height, left: 0, right: 32, width: 32, x: 0, y: top }) });
+}
 
 describe("shu-scrollbar interaction", () => {
 	beforeAll(() => {
@@ -42,11 +50,15 @@ describe("shu-scrollbar interaction", () => {
 		if (!customElements.get("shu-scrollbar")) customElements.define("shu-scrollbar", ShuScrollbar);
 	});
 
-	it("a marker past the last window seeks only to total-visible, never over-scrolling", async () => {
+	it("a press on a marker past the last window seeks only to total-visible, never over-scrolling", async () => {
+		const RAIL = 200;
 		const { el, seeks } = await mount(1000, { first: 990, visible: 20 }, [{ index: 999, id: "z", icon: "📝", color: "#000" }]);
-		const marker = el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]");
-		expect(marker).toBeTruthy();
-		pointerdown(marker as Element);
+		railBox(el, 0, RAIL);
+		expect(el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]"), "the mark is drawn").toBeTruthy();
+		// Pressed where that mark sits on a rail of this height. The mark does not take the press itself — the rail does,
+		// and reads it as meaning that mark, which is the last row and so clamps to the last window.
+		const at = markerTopPx(999, 1000, RAIL, thumbHeightPx(20 / 1000, RAIL));
+		pointerdown(el.shadowRoot?.querySelector("[data-testid=scrollbar-rail]") as Element, at);
 		expect(seeks).toEqual([980]); // clamped to 1000 - 20
 	});
 

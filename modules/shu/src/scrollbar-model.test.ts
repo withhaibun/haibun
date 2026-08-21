@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { thumbHeightPx, thumbTopPx, firstAtPointer, markerTopPx, clusterMarkers, formatCount, type TScrollMarker } from "./scrollbar-model.js";
+import { thumbHeightPx, thumbTopPx, firstAtPointer, markerTopPx, clusterMarkers, formatCount, pressTarget, MARK_SNAP_PX, type TScrollMarker } from "./scrollbar-model.js";
 
 const RAIL = 400;
 /** A representative thumb height: geometry below takes it as a pixel input, whatever produced it. */
@@ -149,5 +149,48 @@ describe("hardening (adversarial review)", () => {
 		expect(thumbTopPx(100, { first: 0, visible: 10 }, 0, 0)).toBe(0);
 		expect(firstAtPointer(0, 0, 200, RAIL, THUMB)).toBe(0);
 		expect(markerTopPx(5, 1, RAIL, 16)).toBeLessThanOrEqual(RAIL); // single-row column: no crash, stays on the rail
+	});
+});
+
+describe("what a press on the rail means", () => {
+	// Two answers, because a rail carries two things: marks, which sit at their row among all the rows, and positions,
+	// which pick a window among the windows there are. A press on a mark means that mark; a press on the track means the
+	// place pressed. The marks do not take their own presses — drawn across the middle of a narrow rail, a mark that did
+	// would swallow most attempts to point at a position.
+	const RAIL = 200;
+	const THUMB = 20;
+	const at = (index: number) => markerTopPx(index, 100, RAIL, THUMB);
+
+	it("means the mark, when the press lands on one", () => {
+		const marks = [{ index: 40, topPx: at(40) }];
+		expect(pressTarget(at(40), marks, 100, 10, RAIL, THUMB)).toBe(40);
+	});
+
+	it("still means the mark just inside the reach, and the place pressed just outside it", () => {
+		const marks = [{ index: 40, topPx: at(40) }];
+		expect(pressTarget(at(40) + MARK_SNAP_PX, marks, 100, 10, RAIL, THUMB), "within reach").toBe(40);
+		const beyond = pressTarget(at(40) + MARK_SNAP_PX + 1, marks, 100, 10, RAIL, THUMB);
+		expect(beyond, "past it, the press means where it landed").toBe(firstAtPointer(100, 10, at(40) + MARK_SNAP_PX + 1, RAIL, THUMB));
+	});
+
+	it("means the nearer mark when two are within reach", () => {
+		const marks = [
+			{ index: 40, topPx: at(40) },
+			{ index: 43, topPx: at(40) + 5 },
+		];
+		expect(pressTarget(at(40) + 4, marks, 100, 10, RAIL, THUMB)).toBe(43);
+	});
+
+	it("means the place pressed when there are no marks at all", () => {
+		const px = RAIL / 2;
+		expect(pressTarget(px, [], 100, 10, RAIL, THUMB)).toBe(firstAtPointer(100, 10, px, RAIL, THUMB));
+	});
+
+	it("does not read a mark's row as a window, which would land somewhere else entirely", () => {
+		// The two scales differ by what is on screen: the same pixel is a different answer to each question, so a press
+		// on a mark must give the mark's ROW rather than the window that pixel would scroll to.
+		const marks = [{ index: 50, topPx: at(50) }];
+		expect(pressTarget(at(50), marks, 100, 40, RAIL, THUMB)).toBe(50);
+		expect(firstAtPointer(100, 40, at(50), RAIL, THUMB), "which the place-pressed answer would have given").not.toBe(50);
 	});
 });
