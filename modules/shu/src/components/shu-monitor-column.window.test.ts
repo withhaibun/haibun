@@ -34,6 +34,13 @@ describe("what a log marks on its rail", () => {
 		expect(marks[2].label, "a row with no step is labelled by what it says").toBe("saved");
 	});
 
+	it("places a mark at the row's index in the RUN when the rows are the resident part of a longer run", () => {
+		// The monitor's rail spans the whole run; what it holds is a resident window of it, so a mark on a resident row sits
+		// at that row's index in the run, not at its position in the resident list.
+		const marks = railMarkers([row(), row({ mark: { icon: "❌", color: MARK_COLOUR.fault } })], [4000, 4001]);
+		expect(marks.map((m) => m.index)).toEqual([4001]);
+	});
+
 	it("marks nothing for a log with nothing worth marking", () => {
 		expect(railMarkers([row(), row()])).toEqual([]);
 	});

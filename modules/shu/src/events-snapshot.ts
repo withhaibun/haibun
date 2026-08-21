@@ -13,12 +13,27 @@ import { fetchRange, eventTime } from "./event-backfill.js";
 import { mergeRanges, rangeContains, subtractRanges, type Range } from "./ranges.js";
 import { GET_EVENTS_METHOD } from "./rpc-cache.js";
 import { IndexedDbEventStore, type EventStore } from "./event-store-idb.js";
+import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+
+/** The levels at or above `minLevel`: the rule every log view filters by, and so the rule every claim on the log states. */
+export function levelsFrom(minLevel: THaibunLogLevel | undefined): readonly string[] | undefined {
+	if (!minLevel) return undefined;
+	return HAIBUN_LOG_LEVELS.slice(HAIBUN_LOG_LEVELS.indexOf(minLevel));
+}
+
+/** A consumer's claim: spans of time, and the levels it shows (all, when unstated). An event is wanted by a claim when its
+ *  time is in a span and its level is one shown. */
+export type TClaim = { ranges: Range[]; levels?: readonly string[] };
+const claimWants = (c: TClaim, e: TEventRecord): boolean => rangeContains(c.ranges, eventTime(e)) && (!c.levels || c.levels.includes(String(e.level)));
 
 export type TEventRecord = Record<string, unknown>;
 type EventsListener = (events: TEventRecord[]) => void;
 
 /** The whole span — what a consumer that declares no window gets. */
 export const FULL_WINDOW: Range = { from: 0, to: Number.POSITIVE_INFINITY };
+
+/** The most events one page of a tail asks for: a walk to the start of a long run is many pages, never one answer of it. */
+const TAIL_PAGE_MAX = 2000;
 
 /** What a reader is told when history is not to hand: not on this device, and no server answered for it. */
 export const EVENTS_UNAVAILABLE = "Earlier events are not cached on this device, and the server could not be reached to load them.";
@@ -27,15 +42,17 @@ export const EVENTS_UNAVAILABLE = "Earlier events are not cached on this device,
  *  `id`, so the lifecycle `stage` disambiguates; other kinds fall back to `kind`. */
 export const eventKey = (e: TEventRecord): string => `${e.id}:${(e.stage as string | undefined) ?? (e.kind as string | undefined) ?? ""}`;
 
+type TPage = { page: TEventRecord[]; added: number; truncated: boolean };
 type Store = {
 	events: TEventRecord[]; // kept sorted by timestamp, deduped — the shared log (the union of held spans)
 	seen: Set<string>; // eventKey set backing the dedup
-	windows: Map<string, Range[]>; // per-consumer registered windows (a tail is registered as the span its events cover); their union is `wanted`
-	wanted: Range[]; // memo of mergeRanges(windows); recomputed at each reconcile
+	windows: Map<string, TClaim>; // per-consumer claims (a tail is registered as the span its events cover, at its levels)
+	wanted: Range[]; // memo of the union of claimed spans; recomputed at each reconcile (the gate for what is fetched and held)
 	held: Range[]; // spans actually held (canonical, via mergeRanges)
 	persistedHeld: boolean; // the persisted held spans have been read into `held` once
-	atStart: boolean; // a page back found no older events: the start of the run is held
-	gaps: Map<string, Promise<void>>; // in-flight fetches, deduped by key
+	runStart: number | undefined; // when the run's first event happened, once known: a walk back that holds it holds the start
+	gaps: Map<string, Promise<void>>; // in-flight span fetches, deduped by key
+	pages: Map<string, Promise<TPage>>; // in-flight page fetches, deduped by key: concurrent askers share the one page
 	loaded: boolean; // a reconcile has completed at least once
 	unavailable: string | null; // why the last fetch could not be satisfied, for the views to say
 	listeners: Set<EventsListener>;
@@ -56,8 +73,9 @@ function getStore(): Store {
 		wanted: [],
 		held: [],
 		persistedHeld: false,
-		atStart: false,
+		runStart: undefined,
 		gaps: new Map(),
+		pages: new Map(),
 		loaded: false,
 		unavailable: null,
 		listeners: new Set(),
@@ -89,16 +107,18 @@ function notify(s: Store): void {
 	}
 }
 
-const wantedOf = (s: Store): Range[] => mergeRanges([...s.windows.values()].flat());
+const wantedOf = (s: Store): Range[] => mergeRanges([...s.windows.values()].flatMap((c) => c.ranges));
+/** Whether any consumer's claim wants this event: in one of its spans, at one of its levels. */
+const anyClaimWants = (s: Store, e: TEventRecord): boolean => [...s.windows.values()].some((c) => claimWants(c, e));
 
-/** Dedup + sorted (by timestamp) insert of a batch; drops quad-observation artifacts (graph data, not log events). When a
- *  `gate` is given, keeps only events whose time falls in it (live-edge routing — an event past every window is dropped).
- *  Returns the events actually admitted. */
-function admit(s: Store, batch: TEventRecord[], gate?: Range[]): TEventRecord[] {
+/** Dedup + sorted (by timestamp) insert of a batch; drops quad-observation artifacts (graph data, not log events). When
+ *  `gated`, keeps only events some claim wants (live-edge routing — an event past every span, or at a level no view shows,
+ *  is not retained). Returns the events actually admitted. */
+function admit(s: Store, batch: TEventRecord[], gated = false): TEventRecord[] {
 	const added: TEventRecord[] = [];
 	for (const e of batch) {
 		if (e.kind === "artifact" && (e.json as { quadObservation?: unknown } | undefined)?.quadObservation !== undefined) continue;
-		if (gate && !rangeContains(gate, eventTime(e))) continue;
+		if (gated && !anyClaimWants(s, e)) continue;
 		const key = eventKey(e);
 		if (s.seen.has(key)) continue;
 		s.seen.add(key);
@@ -120,12 +140,27 @@ function admit(s: Store, batch: TEventRecord[], gate?: Range[]): TEventRecord[] 
 	return added;
 }
 
-/** What the cache holds, persisted: the events (idempotent) and the spans known complete. Fire-and-forget, like the quad
- *  store's writes — persistence never holds up a render, and a context without IndexedDB simply does not persist. */
+/** An event as the device keeps it: what the run's report keeps of it. Inline artifact content (an image's bytes) and
+ *  the step's value map are the bulk of a live event and are never read back from the store — the artifact is fetched
+ *  by its path, the values by the step — so they are not written to it; products keep only their display fields. A
+ *  store of raw live events was read at a hundred milliseconds a row, and a page of five hundred never returned. */
+export function leanForStore(e: TEventRecord): TEventRecord {
+	const { content: _content, stepValuesMap: _values, ...rest } = e as TEventRecord & { content?: unknown; stepValuesMap?: unknown };
+	const products = rest.products as Record<string, unknown> | undefined;
+	if (products && typeof products === "object") {
+		const kept: Record<string, unknown> = {};
+		for (const f of ["view", "_component", "_type", "_summary"]) if (products[f] !== undefined) kept[f] = products[f];
+		rest.products = Object.keys(kept).length > 0 ? kept : undefined;
+	}
+	return rest;
+}
+
+/** What the cache holds, persisted: the events (lean, idempotent) and the spans known complete. Fire-and-forget, like the
+ *  quad store's writes — persistence never holds up a render, and a context without IndexedDB simply does not persist. */
 function persist(s: Store, events: readonly TEventRecord[]): void {
 	const store = s.eventStore;
 	void store
-		.putMany(events)
+		.putMany(events.map(leanForStore))
 		.then(() => store.setHeld(s.held))
 		.catch((err) => failFastOrLog("[events-snapshot] persist failed:", err));
 }
@@ -177,49 +212,57 @@ async function reconcile(s: Store): Promise<void> {
 		s.unavailable = EVENTS_UNAVAILABLE;
 		console.warn("[events-snapshot] history unavailable:", err);
 	}
-	const orphans = subtractRanges(s.held, wanted);
-	if (orphans.length > 0) {
-		s.events = s.events.filter((e) => !rangeContains(orphans, eventTime(e)));
-		s.seen = new Set(s.events.map(eventKey));
-		// Evicted from memory only: the device's store keeps them, and `held` keeps saying they are there to read back.
+	// Evict what no claim wants: outside every span, or inside one but at a level no view there shows. From memory only:
+	// the device's store keeps them, and `held` keeps saying they are there to read back.
+	if (s.windows.size > 0) {
+		const kept = s.events.filter((e) => anyClaimWants(s, e));
+		if (kept.length !== s.events.length) {
+			s.events = kept;
+			s.seen = new Set(kept.map(eventKey));
+		}
 	}
 	s.loaded = true;
 	notify(s);
 }
 
-/** Register (or replace) a consumer's window(s), then reconcile so the cache holds the union of all registered windows. */
+/** Register (or replace) a consumer's claim on spans of time (all levels), then reconcile so the cache holds the union. */
 export async function registerWindow(clientId: string, ranges: Range[]): Promise<void> {
 	const s = getStore();
-	s.windows.set(clientId, ranges);
+	s.windows.set(clientId, { ranges });
 	await reconcile(s);
 }
 
 /** The newest `limit` events at or before `until` as one page, from the device's store when that span is held there,
  *  else from the server (which pages its own disk log past its buffer). Admitted, held and persisted. Returns the page
  *  and how many of it were new to the log. */
-function pageBefore(s: Store, until: number | undefined, limit: number): Promise<{ page: TEventRecord[]; added: number }> {
-	const key = `tail:${until ?? "now"}:${limit}`;
-	const inflight = s.gaps.get(key);
-	if (inflight) return inflight.then(() => ({ page: [], added: 0 }));
-	const p = (async (): Promise<{ page: TEventRecord[]; added: number }> => {
+function pageBefore(s: Store, until: number | undefined, limit: number, minLevel: THaibunLogLevel | undefined): Promise<TPage> {
+	const key = `${until ?? "now"}:${limit}:${minLevel ?? ""}`;
+	const inflight = s.pages.get(key);
+	if (inflight) return inflight; // two views asking for the same page at once (boot) share the one answer, page and all
+	const p = (async (): Promise<TPage> => {
+		let truncated = false;
 		// What the device holds of this page shows whatever else happens: it is real data, admitted first. It is the whole
 		// page only when the device holds that span completely; otherwise the server is asked, and what it sends is
 		// persisted for next time. A server that cannot be reached leaves the device's part showing and throws, so the
 		// caller can say the rest could not be loaded.
-		const stored = await s.eventStore.newestBefore(until, limit);
+		const stored = await s.eventStore.newestBefore(until, limit, levelsFrom(minLevel));
 		const storedSpan = stored.length > 0 ? { from: eventTime(stored[0]), to: until ?? eventTime(stored[stored.length - 1]) + 1 } : undefined;
 		const complete = stored.length >= limit && storedSpan !== undefined && rangeContains(s.held, storedSpan.from) && rangeContains(s.held, storedSpan.to - 1);
-		let added = admit(s, stored);
+		const levels = levelsFrom(minLevel);
+		const atLevels = (events: TEventRecord[]): TEventRecord[] => (levels ? events.filter((e) => levels.includes(String(e.level))) : events);
+		let added = admit(s, atLevels(stored));
 		let page = stored;
 		if (!complete) {
-			page =
-				(
-					await conduit().follow<{ events?: TEventRecord[] }>(
-						{ method: GET_EVENTS_METHOD, params: { filter: { ...(until === undefined ? {} : { until }), limit } } },
-						"events-snapshot: a page of the newest events",
-					)
-				).events ?? [];
-			added = [...added, ...admit(s, page)];
+			const answer = await conduit().follow<{ events?: TEventRecord[]; truncated?: boolean; first?: number }>(
+				{ method: GET_EVENTS_METHOD, params: { filter: { ...(until === undefined ? {} : { until }), ...(minLevel ? { minLevel } : {}), limit } } },
+				"events-snapshot: a page of the newest events",
+			);
+			page = answer.events ?? [];
+			truncated = answer.truncated === true; // the server says whether older events exist past this page
+			if (typeof answer.first === "number") s.runStart = answer.first; // and when the run began, so a walk knows when it holds the start
+			// Only the levels asked for are kept: a server answering at every level (one that predates `minLevel`) must
+			// not fill the tab with what the asking view does not show.
+			added = [...added, ...admit(s, atLevels(page))];
 		}
 		if (page.length > 0) {
 			const from = eventTime(page[0]);
@@ -227,48 +270,75 @@ function pageBefore(s: Store, until: number | undefined, limit: number): Promise
 			s.held = mergeRanges([...s.held, { from, to }]);
 		}
 		if (!complete) persist(s, added);
-		return { page, added: added.length };
+		return { page, added: added.length, truncated };
 	})();
-	s.gaps.set(
-		key,
-		p.then(
-			() => undefined,
-			() => undefined, // the caller observes the rejection; this entry only dedups concurrent asks
-		),
-	);
-	return p.finally(() => s.gaps.delete(key));
+	s.pages.set(key, p);
+	p.catch(() => undefined); // every caller observes the rejection through its own await; this only keeps it from being unhandled
+	return p.finally(() => s.pages.delete(key));
 }
 
 /**
- * Register (or replace) a consumer's TAIL: it wants the newest `count` events. Pages back from the newest held event
- * until that many are held or the start of the run is reached, each page from the device's store first, then registers
- * the span those events cover as this consumer's window. A page that reaches past the buffer on the server is served
- * from the server's disk log, so the walk reaches the start of the run. When the count shrinks (the reader is back at
- * the live edge) the window narrows and the reconcile evicts what nothing else wants.
+ * Register (or replace) a consumer's TAIL: it wants the newest `count` events at the levels it shows (`minLevel` and
+ * up; all levels when unstated). Pages back from the newest held event at those levels until that many are held or the
+ * start of the run is reached, each page from the device's store first, then registers the span those events cover, at
+ * those levels, as this consumer's claim. A page that reaches past the buffer on the server is served from the server's
+ * disk log, so the walk reaches the start of the run. When the count shrinks (the reader is back at the live edge) the
+ * claim narrows and the reconcile evicts what nothing else wants.
  */
-export async function registerTail(clientId: string, count: number): Promise<void> {
+export async function registerTail(clientId: string, count: number, minLevel?: THaibunLogLevel): Promise<void> {
 	const s = getStore();
 	await recallHeld(s);
+	const levels = levelsFrom(minLevel);
+	const shown = (e: TEventRecord): boolean => !levels || levels.includes(String(e.level));
+	// Whether what is held in memory at these levels reaches the run's start: its oldest held event is the run's first
+	// (known from the server, or from a walk that ran out of older events). Held in memory, not once-known: a view that
+	// narrowed back to its newest page no longer holds the start, and must be able to page back to it again.
+	let reachedStart = false;
+	const holdsStart = (): boolean => {
+		if (reachedStart) return true;
+		const oldestHeld = s.events.find(shown);
+		return s.runStart !== undefined && oldestHeld !== undefined && eventTime(oldestHeld) <= s.runStart;
+	};
+	// The claim this consumer holds as of now: from the count-th newest held event at its levels to the live edge, or
+	// the whole run when the start is held and the run holds fewer. Set before the first page and after every page, so
+	// the view renders what is held while the rest of its tail is still being paged in.
+	const claim = (): void => {
+		const mine = s.events.filter(shown);
+		const newest = mine.slice(Math.max(0, mine.length - count));
+		// Nothing held yet and the start not reached (mid-walk): a claim on nothing, so no reconcile fetches the whole run
+		// for it. The start held with nothing at these levels: a claim on everything to come, so live events are kept.
+		const from = holdsStart() && newest.length === mine.length ? 0 : newest.length > 0 ? eventTime(newest[0]) : undefined;
+		s.windows.set(clientId, { ranges: from === undefined ? [] : [{ from, to: Number.POSITIVE_INFINITY }], levels });
+	};
+	claim();
 	try {
 		// What is held at the newest end already: from the live edge back to the oldest event held contiguously with it.
 		let oldest: number | undefined;
 		for (let i = s.events.length - 1; i >= 0 && rangeContains(s.held, eventTime(s.events[i])); i--) oldest = eventTime(s.events[i]);
-		let have = oldest === undefined ? 0 : s.events.filter((e) => eventTime(e) >= (oldest as number)).length;
+		let have = oldest === undefined ? 0 : s.events.filter((e) => eventTime(e) >= (oldest as number) && shown(e)).length;
 		let until = oldest;
-		let limit = count;
-		while (have < count && !s.atStart) {
-			const { page, added } = await pageBefore(s, until, limit);
-			// A page that adds nothing the log did not hold (at most the event at the cursor itself) means the run has nothing
-			// older: the start is held, and so is everything before the oldest event — there is nothing there to fetch.
-			if (added === 0 || page.length < limit) {
-				s.atStart = true;
-				if (s.events.length > 0) s.held = mergeRanges([...s.held, { from: 0, to: eventTime(s.events[0]) + 1 }]);
+		// The cursor is inclusive: a page asked for at `until` brings the event at `until` back too, so one more is asked for.
+		// A walk to the start of a long run asks a page at a time, never the whole run in one answer.
+		let limit = Math.min(TAIL_PAGE_MAX, count - have + (until === undefined ? 0 : 1));
+		while (have < count && !holdsStart()) {
+			const { page, truncated } = await pageBefore(s, until, limit, minLevel);
+			// The start of the run is held when a page comes back short AND the server says nothing older exists: a short
+			// page the server marks truncated is a buffer's edge, not the run's. Then everything before the oldest event is
+			// held too — there is nothing there to fetch.
+			if (page.length < limit && !truncated) {
+				reachedStart = true;
+				if (s.events.length > 0) {
+					s.runStart = eventTime(s.events[0]);
+					s.held = mergeRanges([...s.held, { from: 0, to: eventTime(s.events[0]) + 1 }]);
+				}
 			}
 			if (page.length === 0) break;
+			claim();
+			notify(s); // each page shows as it lands: a view is not blank while the rest of its tail is still being paged
 			const earliest = eventTime(page[0]);
-			have = s.events.filter((e) => eventTime(e) >= earliest).length;
+			have = s.events.filter((e) => eventTime(e) >= earliest && shown(e)).length;
 			// Many events in one millisecond can fill a page at the cursor's own time: ask for more so the walk moves.
-			limit = earliest === until ? limit * 2 : Math.max(1, count - have);
+			limit = Math.min(TAIL_PAGE_MAX, earliest === until ? limit * 2 : Math.max(1, count - have) + 1);
 			until = earliest;
 		}
 		s.unavailable = null;
@@ -276,11 +346,7 @@ export async function registerTail(clientId: string, count: number): Promise<voi
 		s.unavailable = EVENTS_UNAVAILABLE; // told to the reader, not thrown: see reconcile
 		console.warn("[events-snapshot] tail unavailable:", err);
 	}
-	// The span this consumer's count covers: from the count-th newest held event to the live edge, or the whole run when
-	// the start is held and the run is shorter than the count.
-	const newest = s.events.slice(Math.max(0, s.events.length - count));
-	const from = s.atStart && newest.length === s.events.length ? 0 : newest.length > 0 ? eventTime(newest[0]) : 0;
-	s.windows.set(clientId, [{ from, to: Number.POSITIVE_INFINITY }]);
+	claim();
 	await reconcile(s);
 }
 
@@ -291,19 +357,22 @@ export async function unregisterWindow(clientId: string): Promise<void> {
 	await reconcile(s);
 }
 
-/** The events inside a consumer's own window — the slice it renders. With the full window this is the whole log. */
+/** The events inside a consumer's own claim — the slice it renders. With the full window at all levels this is the whole log. */
 export function eventsInWindow(clientId: string): TEventRecord[] {
 	const s = getStore();
-	const ranges = s.windows.get(clientId);
-	if (!ranges) return [];
-	const merged = mergeRanges(ranges);
-	if (merged.length === 1 && merged[0].from <= 0 && !Number.isFinite(merged[0].to)) return s.events; // full window: no filter pass
-	return s.events.filter((e) => rangeContains(merged, eventTime(e)));
+	const claim = s.windows.get(clientId);
+	if (!claim) return [];
+	const merged = mergeRanges(claim.ranges);
+	if (!claim.levels && merged.length === 1 && merged[0].from <= 0 && !Number.isFinite(merged[0].to)) return s.events; // full window: no filter pass
+	const whole = { ranges: merged, levels: claim.levels };
+	return s.events.filter((e) => claimWants(whole, e));
 }
 
-/** Whether the start of the run is held: paging back found nothing older. */
-export function atRunStart(): boolean {
-	return getStore().atStart;
+/** Whether a consumer's claim reaches the start of the run: it holds everything at its levels from the first event on. A
+ *  view that narrowed back to its newest page does not, and can page back to it again. */
+export function claimReachesStart(clientId: string): boolean {
+	const claim = getStore().windows.get(clientId);
+	return !!claim && claim.ranges.length > 0 && claim.ranges[0].from === 0;
 }
 
 /** Why the last fetch could not be satisfied, or null: what a view says instead of a false "no events". */
@@ -342,11 +411,12 @@ export function eventsLoaded(): boolean {
 	return getStore().loaded;
 }
 
-/** Merge a live SSE batch into the shared log, gated to the union of registered windows (an event past every window's
- *  edge is not retained), deduped + time-sorted, and persisted. Notifies subscribers iff at least one event was new. */
+/** Merge a live SSE batch into the shared log: kept only where some view's claim wants it (in a span it holds, at a level
+ *  it shows), so a page with no event view open retains nothing of the stream, and a page with one retains only what it
+ *  shows; deduped, time-sorted, persisted. Notifies subscribers iff at least one event was new. */
 export function mergeEvents(batch: TEventRecord[]): void {
 	const s = getStore();
-	const added = admit(s, batch, s.wanted.length > 0 ? s.wanted : undefined); // memoized gate — no per-batch mergeRanges over the windows
+	const added = admit(s, batch, true);
 	if (added.length === 0) return;
 	// Live events extend what is held to the live edge: everything from the oldest admitted to now is complete.
 	const from = eventTime(added[0]);

@@ -1,0 +1,134 @@
+// @vitest-environment jsdom
+// The run as a view at one level reads it: a source spanning the whole run by index, paged in from the device's store
+// first and the server for what the device lacks, grown by live events that carry their index, bounded in what it holds,
+// and honest when a page cannot be had. These pin the contract the monitor's whole-run rail relies on.
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { eventRunSource, resetRunSources, setRunSourceStore } from "./event-source.js";
+import { MemoryEventStore } from "./event-store-idb.js";
+import { EVENTS_UNAVAILABLE, type TEventRecord } from "./events-snapshot.js";
+import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
+import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "./components/shu-window-size.js";
+
+/** Live batches are coalesced into an animation frame; this lets one land. */
+const flush = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+
+const LEVELS = ["debug", "trace", "log", "info", "warn", "error"];
+/** A run of `n` events, every third at info and the rest at debug, each stamped with its index per level as the server stamps it. */
+function run(n: number): TEventRecord[] {
+	const counts: Record<string, number> = {};
+	return Array.from({ length: n }, (_, i) => {
+		const level = i % 3 === 0 ? "info" : "debug";
+		const idx: Record<string, number> = {};
+		for (const l of LEVELS.slice(0, LEVELS.indexOf(level) + 1)) idx[l] = counts[l] = (counts[l] ?? 0) + 1;
+		for (const l of Object.keys(idx)) idx[l]--;
+		return { id: `0.${i}`, timestamp: 1000 + i, kind: "log", level, message: `e${i}`, idx };
+	});
+}
+/** The server's answer to a page by index at a level, with the run's extent. */
+function serverFor(all: TEventRecord[]) {
+	const calls: Array<Record<string, unknown>> = [];
+	const dispatch = (method: string, params: unknown) => {
+		if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
+		const filter = (params as { filter: { minLevel?: string; offset?: number; limit?: number } }).filter;
+		calls.push(filter);
+		const level = filter.minLevel ?? "debug";
+		const at = all.filter((e) => (e.idx as Record<string, number>)[level] !== undefined);
+		const first = all[0]?.timestamp;
+		if (filter.offset === undefined) return { events: at.slice(-(filter.limit ?? 1)), total: at.length, first };
+		return { events: at.filter((e) => { const i = (e.idx as Record<string, number>)[level]; return i >= (filter.offset as number) && i < (filter.offset as number) + (filter.limit ?? 100); }), total: at.length, first };
+	};
+	return { calls, dispatch };
+}
+
+describe("the run source at a level", () => {
+	let handle: TShuTestHandle;
+	let store: MemoryEventStore;
+	const ALL = run(180); // 180 events: 60 at info, 180 at debug — more than one page of the smallest window size
+	let server: ReturnType<typeof serverFor>;
+	beforeEach(() => {
+		windowSizeSetting.set("50"); // a page is the shared window size; the smallest, so a run has several
+		resetRunSources();
+		store = new MemoryEventStore();
+		setRunSourceStore(store);
+		server = serverFor(ALL);
+		handle = setupShuTest({ dispatch: server.dispatch });
+	});
+	afterEach(() => {
+		handle.teardown();
+		resetRunSources();
+		windowSizeSetting.set(DEFAULT_WINDOW_SIZE);
+	});
+
+	it("spans the run's whole extent at its level once ready, from one ask", async () => {
+		const info = eventRunSource("info");
+		await info.ready();
+		expect(info.count(), "sixty events at info and up").toBe(60);
+		expect(info.extent().first, "and when the run began").toBe(1000);
+		expect(eventRunSource("debug").count(), "another level is another source, not yet asked").toBe(0);
+		await eventRunSource("debug").ready();
+		expect(eventRunSource("debug").count()).toBe(180);
+	});
+
+	it("pages any region in by index and serves it by index, leaving the rest unresident", async () => {
+		const info = eventRunSource("info");
+		await info.ready();
+		expect(info.rowAt(4), "not fetched yet").toBeUndefined();
+		await info.ensureRange(3, 6);
+		expect((info.rowAt(4) as TEventRecord).id, "the fifth info event is event 12").toBe("0.12");
+		expect(info.rowAt(55), "beyond the page that was asked: still unresident").toBeUndefined();
+		await info.ensureRange(55, 58);
+		expect((info.rowAt(55) as TEventRecord).id, "paged in on demand: the 56th info event is event 165").toBe("0.165");
+	});
+
+	it("serves a page the device holds whole without the server, and persists what the server sends", async () => {
+		const info = eventRunSource("info");
+		await info.ready();
+		await info.ensureRange(0, 50);
+		await new Promise((r) => setTimeout(r, 0));
+		const asked = server.calls.length;
+		resetRunSources(); // a reload: sources anew over the same device store
+		setRunSourceStore(store);
+		const again = eventRunSource("info");
+		await again.ready();
+		await again.ensureRange(0, 50);
+		expect(server.calls.length - asked, "one ask for the extent, none for the page the device held").toBe(1);
+		expect((again.rowAt(0) as TEventRecord).id).toBe("0.0");
+	});
+
+	it("places a live event at the index it carries and grows the extent; a missed one leaves a gap the next page fills", async () => {
+		const info = eventRunSource("info");
+		await info.ready();
+		await info.ensureRange(50, 60); // the last page resident (info indices 50..59)
+		const more = run(186).slice(180); // six more events: two at info (180 and 183 → info indices 60 and 61)
+		handle.emit(more[0]); // event 180, info index 60
+		await flush();
+		expect(info.count()).toBe(61);
+		expect((info.rowAt(60) as TEventRecord).id, "appended in place, at the end of the resident last page").toBe("0.180");
+		handle.emit(more[3]); // event 183, info index 61
+		await flush();
+		expect(info.count(), "the extent grows to include it").toBe(62);
+		expect((info.rowAt(61) as TEventRecord).id).toBe("0.183");
+	});
+
+	it("without the server, spans the extent the device last knew and serves its cached pages; with nothing cached, says so", async () => {
+		const info = eventRunSource("info");
+		await info.ready();
+		await info.ensureRange(0, 50);
+		await new Promise((r) => setTimeout(r, 0));
+		handle.teardown();
+		handle = setupShuTest({ dispatch: () => { throw new Error("offline"); } });
+		resetRunSources();
+		setRunSourceStore(store);
+		const offline = eventRunSource("info");
+		await offline.ready();
+		expect(offline.count(), "the extent the device knew").toBe(60);
+		await offline.ensureRange(0, 50);
+		expect((offline.rowAt(49) as TEventRecord).id, "from the device").toBe("0.147");
+		expect(offline.unavailable).toBeNull();
+		// a level the device never saw: nothing to span, and the reader is told
+		const cold = eventRunSource("error");
+		await cold.ready();
+		expect(cold.count()).toBe(0);
+		expect(cold.unavailable).toBe(EVENTS_UNAVAILABLE);
+	});
+});

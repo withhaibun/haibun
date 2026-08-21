@@ -13,6 +13,7 @@
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import type { Range } from "./ranges.js";
 import { eventTime } from "./event-backfill.js";
+import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 
 export type TStoredEvent = Record<string, unknown>;
 
@@ -20,21 +21,35 @@ export type TStoredEvent = Record<string, unknown>;
 export interface EventStore {
 	/** Persist events (idempotent by key; a re-put of the same event is a no-op). */
 	putMany(events: readonly TStoredEvent[]): Promise<void>;
-	/** The newest `limit` stored events at or before `until` (the whole store's newest when `until` is omitted), oldest-first. */
-	newestBefore(until: number | undefined, limit: number): Promise<TStoredEvent[]>;
+	/** The newest `limit` stored events at or before `until` (the whole store's newest when `until` is omitted), at the given
+	 *  levels (all, when omitted), oldest-first. */
+	newestBefore(until: number | undefined, limit: number, levels?: readonly string[]): Promise<TStoredEvent[]>;
 	/** The spans of time this store holds completely. */
 	held(): Promise<Range[]>;
 	/** Record the spans this store holds completely. */
 	setHeld(ranges: Range[]): Promise<void>;
+	/** The events whose index at `level` is in [start, end), in index order — ALL of them, or none: a page served from the
+	 *  device is a page the device holds completely, never a page with rows missing in it. */
+	pageAt(level: string, start: number, end: number): Promise<TStoredEvent[]>;
+	/** The run's extent at each level as last known (how many events it holds there, and when it began), for a tab with
+	 *  no server to span its rail by. */
+	extent(level: string): Promise<{ total: number; first?: number } | undefined>;
+	setExtent(level: string, extent: { total: number; first?: number }): Promise<void>;
 	/** Forget everything. */
 	clear(): Promise<void>;
 }
 
 const DB_NAME = "shu-events";
-const VERSION = 1;
+/** Bumped when what is stored changes shape or meaning; an upgrade starts the store afresh (the server has the run). */
+const VERSION = 4;
 const EVENTS = "events";
 const META = "meta";
 const IDX_TIME = "by-time";
+const IDX_LEVEL_TIME = "by-level-time";
+/** One index per level over the event's index at that level (`idx.<level>`, stamped by the server); an event that does
+ *  not count toward a level is simply absent from that level's index. */
+const idxIndexName = (level: string): string => `by-idx-${level}`;
+const EXTENT_KEY = (level: string): string => `extent:${level}`;
 const HELD_KEY = "held";
 
 /** An event's storage key: its time first, so two runs' events (whose ids repeat: every run has a step 0.1) never collide,
@@ -52,9 +67,13 @@ function openDb(): Promise<IDBDatabase | null> {
 		}
 		const req = indexedDB.open(DB_NAME, VERSION);
 		req.onupgradeneeded = () => {
-			const events = req.result.createObjectStore(EVENTS, { keyPath: "__key" });
+			const db = req.result;
+			for (const name of Array.from(db.objectStoreNames)) db.deleteObjectStore(name); // a new shape: start afresh
+			const events = db.createObjectStore(EVENTS, { keyPath: "__key" });
 			events.createIndex(IDX_TIME, "timestamp", { unique: false });
-			req.result.createObjectStore(META);
+			events.createIndex(IDX_LEVEL_TIME, ["level", "timestamp"], { unique: false });
+			for (const level of HAIBUN_LOG_LEVELS) events.createIndex(idxIndexName(level), `idx.${level}`, { unique: false });
+			db.createObjectStore(META);
 		};
 		req.onsuccess = () => resolve(req.result);
 		req.onerror = () => {
@@ -93,22 +112,49 @@ export class IndexedDbEventStore implements EventStore {
 		});
 	}
 
-	async newestBefore(until: number | undefined, limit: number): Promise<TStoredEvent[]> {
+	async newestBefore(until: number | undefined, limit: number, levels?: readonly string[]): Promise<TStoredEvent[]> {
 		if (limit <= 0) return [];
-		const rows = await withStores("readonly", [EVENTS], (tx) => {
-			const range = until === undefined ? null : IDBKeyRange.upperBound(until);
-			const out: TStoredEvent[] = [];
-			return new Promise<TStoredEvent[]>((resolve, reject) => {
-				const req = tx.objectStore(EVENTS).index(IDX_TIME).openCursor(range, "prev"); // newest first
-				req.onsuccess = () => {
-					const cursor = req.result;
-					if (!cursor || out.length >= limit) return resolve(out.reverse());
-					const { __key, ...event } = cursor.value as TStoredEvent & { __key: string };
-					out.push(event);
-					cursor.continue();
-				};
-				req.onerror = () => reject(req.error);
-			});
+		const rows = await withStores("readonly", [EVENTS], async (tx) => {
+			// A few requests, never one per row: per level a key cursor skips to the limit-th newest time in one step (stepping
+			// a cursor a row at a time is one main-thread turn per row, and on a page also drawing a 3D scene a page of five
+			// hundred took longer than the reader waited); the oldest of those times bounds one getAll over the time index,
+			// which is then filtered to the levels and cut to the newest `limit`.
+			const store = tx.objectStore(EVENTS);
+			const wantedLevels = levels ?? null;
+			const oldestOf = (range: IDBKeyRange | null, index: IDBIndex, keyTime: (key: IDBValidKey) => number): Promise<number | null> =>
+				new Promise((resolve, reject) => {
+					const req = index.openKeyCursor(range, "prev");
+					let skipped = false;
+					req.onsuccess = () => {
+						const cursor = req.result;
+						if (!cursor) return resolve(null); // fewer rows than asked at this level: everything of it is wanted
+						if (!skipped && limit > 1) {
+							skipped = true;
+							cursor.advance(limit - 1);
+							return;
+						}
+						resolve(keyTime(cursor.key));
+					};
+					req.onerror = () => reject(req.error);
+				});
+			let oldestWanted: number | null = null;
+			let unbounded = false;
+			if (!wantedLevels) {
+				oldestWanted = await oldestOf(until === undefined ? null : IDBKeyRange.upperBound(until), store.index(IDX_TIME), (k) => k as number);
+				unbounded = oldestWanted === null;
+			} else {
+				for (const level of wantedLevels) {
+					const range = until === undefined ? IDBKeyRange.bound([level, Number.NEGATIVE_INFINITY], [level, Number.POSITIVE_INFINITY]) : IDBKeyRange.bound([level, Number.NEGATIVE_INFINITY], [level, until]);
+					const t = await oldestOf(range, store.index(IDX_LEVEL_TIME), (k) => (k as [string, number])[1]);
+					if (t === null) unbounded = true; // this level has fewer than limit: all of it is wanted, so the bound is the others'
+					else oldestWanted = oldestWanted === null ? t : Math.min(oldestWanted, t);
+				}
+			}
+			const lower = unbounded || oldestWanted === null ? undefined : oldestWanted;
+			const span = lower === undefined ? (until === undefined ? null : IDBKeyRange.upperBound(until)) : until === undefined ? IDBKeyRange.lowerBound(lower) : IDBKeyRange.bound(lower, until);
+			const all = (await done(store.index(IDX_TIME).getAll(span))) as Array<TStoredEvent & { __key: string }>;
+			const mine = wantedLevels ? all.filter((e) => wantedLevels.includes(String(e.level))) : all;
+			return mine.slice(Math.max(0, mine.length - limit)).map(({ __key, ...event }) => event);
 		});
 		return rows ?? [];
 	}
@@ -121,6 +167,29 @@ export class IndexedDbEventStore implements EventStore {
 	async setHeld(ranges: Range[]): Promise<void> {
 		await withStores("readwrite", [META], (tx) => {
 			tx.objectStore(META).put(ranges, HELD_KEY);
+		});
+	}
+
+	async pageAt(level: string, start: number, end: number): Promise<TStoredEvent[]> {
+		if (end <= start) return [];
+		const rows = await withStores("readonly", [EVENTS], async (tx) => {
+			const index = tx.objectStore(EVENTS).index(idxIndexName(level));
+			const range = IDBKeyRange.bound(start, end - 1);
+			const held = await done(index.count(range));
+			if (held < end - start) return []; // not all of it: none of it, so the server is asked for the page whole
+			return ((await done(index.getAll(range))) as Array<TStoredEvent & { __key: string }>).map(({ __key, ...event }) => event);
+		});
+		return rows ?? [];
+	}
+
+	async extent(level: string): Promise<{ total: number; first?: number } | undefined> {
+		const found = await withStores("readonly", [META], (tx) => done(tx.objectStore(META).get(EXTENT_KEY(level))));
+		return found && typeof found === "object" ? (found as { total: number; first?: number }) : undefined;
+	}
+
+	async setExtent(level: string, extent: { total: number; first?: number }): Promise<void> {
+		await withStores("readwrite", [META], (tx) => {
+			tx.objectStore(META).put(extent, EXTENT_KEY(level));
 		});
 	}
 
@@ -140,12 +209,12 @@ export class MemoryEventStore implements EventStore {
 		for (const e of events) this.#events.set(storedEventKey(e), e);
 		return Promise.resolve();
 	}
-	newestBefore(until: number | undefined, limit: number): Promise<TStoredEvent[]> {
+	newestBefore(until: number | undefined, limit: number, levels?: readonly string[]): Promise<TStoredEvent[]> {
 		const keys = [...this.#events.keys()].sort();
 		const picked: TStoredEvent[] = [];
 		for (let i = keys.length - 1; i >= 0 && picked.length < limit; i--) {
 			const e = this.#events.get(keys[i]) as TStoredEvent;
-			if (until === undefined || eventTime(e) <= until) picked.push(e);
+			if ((until === undefined || eventTime(e) <= until) && (!levels || levels.includes(String(e.level)))) picked.push(e);
 		}
 		return Promise.resolve(picked.reverse());
 	}
@@ -156,9 +225,27 @@ export class MemoryEventStore implements EventStore {
 		this.#held = ranges;
 		return Promise.resolve();
 	}
+	pageAt(level: string, start: number, end: number): Promise<TStoredEvent[]> {
+		const rows = [...this.#events.values()].filter((e) => {
+			const i = (e.idx as Record<string, number> | undefined)?.[level];
+			return i !== undefined && i >= start && i < end;
+		});
+		if (rows.length < end - start) return Promise.resolve([]);
+		rows.sort((a, b) => ((a.idx as Record<string, number>)[level] ?? 0) - ((b.idx as Record<string, number>)[level] ?? 0));
+		return Promise.resolve(rows);
+	}
+	#extents = new Map<string, { total: number; first?: number }>();
+	extent(level: string): Promise<{ total: number; first?: number } | undefined> {
+		return Promise.resolve(this.#extents.get(level));
+	}
+	setExtent(level: string, extent: { total: number; first?: number }): Promise<void> {
+		this.#extents.set(level, extent);
+		return Promise.resolve();
+	}
 	clear(): Promise<void> {
 		this.#events.clear();
 		this.#held = [];
+		this.#extents.clear();
 		return Promise.resolve();
 	}
 	/** Test reading: how many events are stored. */

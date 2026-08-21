@@ -96,13 +96,16 @@ describe("a reloading client can page back to the start of the run", () => {
 	};
 	const page = (stepper: ReturnType<typeof harness>, filter: Record<string, unknown>): TPage => stepper.steps.getEvents.action({ filter }).products;
 
-	it("reports a page over a trimmed buffer as truncated, since older events exist on the log", () => {
+	it("completes a page the buffer cannot fill from the log, and says when older events still remain", () => {
 		const stepper = harness();
 		try {
 			for (let i = 0; i < 600; i++) stepper.recordEvent(ev(i)); // maxEvents 5 + trim slack: the buffer holds a tail
-			const first = page(stepper, {});
-			expect(first.events.length).toBeLessThan(600);
-			expect(first.truncated, "older events exist beyond this page, on the run's disk log").toBe(true);
+			const short = page(stepper, { limit: 10 });
+			expect(short.events.length, "the page asked for, from buffer and log together").toBe(10);
+			expect(short.truncated, "older events exist beyond this page, on the run's disk log").toBe(true);
+			const whole = page(stepper, {});
+			expect(whole.events.length, "no limit: the whole run up to the count cap, buffer and log together").toBe(600);
+			expect(whole.truncated, "nothing older remains").toBe(false);
 		} finally {
 			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
 		}
@@ -211,6 +214,121 @@ describe("one step's own events", () => {
 			expect(pastBuffer.events.map((e) => e.id), "older than the buffer holds: found on the log").toEqual(["0.7"]);
 		} finally {
 			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
+		}
+	});
+});
+
+describe("events at a level and above", () => {
+	// Every log view shows a level and up; the server pages a tail by that same rule, so a view whose shown events are
+	// older than the newest events of all still gets its own newest page.
+	it("returns only events at or above minLevel, newest first within the limit", () => {
+		const stepper = new MonitorStepper() as unknown as {
+			eventLogPath: string | null;
+			diskBuffer: string[];
+			maxEvents: number;
+			recordEvent(e: THaibunEvent): void;
+			steps: { getEvents: { action(args: { filter: Record<string, unknown> }): { products: { events: Array<Record<string, unknown>> } } } };
+		};
+		stepper.eventLogPath = null;
+		stepper.diskBuffer = [];
+		stepper.maxEvents = 5000;
+		for (let i = 0; i < 3; i++) stepper.recordEvent(ev(i, { level: "info" } as Partial<THaibunEvent>));
+		for (let i = 10; i < 30; i++) stepper.recordEvent(ev(i, { level: "debug" } as Partial<THaibunEvent>));
+		const page = stepper.steps.getEvents.action({ filter: { minLevel: "log", limit: 2 } }).products;
+		expect(page.events.map((e) => e.id), "the newest two at log and up, not the newest two of all").toEqual(["0.1", "0.2"]);
+		expect(stepper.steps.getEvents.action({ filter: { minLevel: "debug", limit: 2 } }).products.events.map((e) => e.id)).toEqual(["0.28", "0.29"]);
+	});
+});
+
+describe("a page the buffer cannot fill is completed from the log", () => {
+	// Instrumentation at debug level can trim a run's earlier info events out of the live buffer while the buffer is still
+	// full of debug. A view that shows info asks for its newest page; the buffer yields a few, and the rest must come from
+	// the log — a short page must mean the run has no more, never that the buffer has no more.
+	it("fills the page from the log with what is older than the buffer, and says whether more remains", () => {
+		const stepper = new MonitorStepper() as unknown as {
+			eventLogPath: string | null;
+			diskBuffer: string[];
+			maxEvents: number;
+			recordEvent(e: THaibunEvent): void;
+			steps: { getEvents: { action(args: { filter: Record<string, unknown> }): { products: { events: Array<Record<string, unknown>>; truncated?: boolean } } } };
+		};
+		stepper.eventLogPath = join(tmpdir(), `shu-fill-${process.pid}-${Date.now()}.jsonl`);
+		stepper.diskBuffer = [];
+		stepper.maxEvents = 5; // the buffer keeps the newest five plus slack; the rest lives on the log
+		try {
+			for (let i = 0; i < 40; i++) stepper.recordEvent(ev(i, { level: "info" } as Partial<THaibunEvent>));
+			for (let i = 100; i < 700; i++) stepper.recordEvent(ev(i, { level: "debug" } as Partial<THaibunEvent>)); // trims every info event to the log
+			const page = stepper.steps.getEvents.action({ filter: { minLevel: "log", limit: 10 } }).products;
+			expect(page.events.map((e) => e.id), "the newest ten at info, from the log since the buffer holds none").toEqual(Array.from({ length: 10 }, (_, i) => `0.${30 + i}`));
+			expect(page.truncated, "thirty older remain").toBe(true);
+			const rest = stepper.steps.getEvents.action({ filter: { minLevel: "log", until: 1030, limit: 100 } }).products;
+			expect(rest.events.map((e) => e.id).at(0)).toBe("0.0");
+			expect(rest.truncated, "and now nothing older does").toBe(false);
+		} finally {
+			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
+		}
+	});
+});
+
+describe("the run's extent and pages by index", () => {
+	// A view whose rail spans the whole run reads it by index: every logged event is stamped with its index at each level
+	// it counts toward, every answer carries the run's total at the asked level and when it began, and a page by index
+	// comes from the buffer when the buffer holds it, else from the log, read forward from the batch it begins in.
+	type TPage = { events: Array<Record<string, unknown>>; total?: number; first?: number };
+	const harness = (maxEvents: number) => {
+		const stepper = new MonitorStepper() as unknown as {
+			eventLogPath: string | null;
+			diskBuffer: string[];
+			maxEvents: number;
+			recordEvent(e: THaibunEvent): void;
+			steps: { getEvents: { action(args: { filter: Record<string, unknown> }): { products: TPage } } };
+		};
+		stepper.eventLogPath = join(tmpdir(), `shu-index-${process.pid}-${Date.now()}-${Math.random()}.jsonl`);
+		stepper.diskBuffer = [];
+		stepper.maxEvents = maxEvents;
+		return stepper;
+	};
+	const page = (stepper: ReturnType<typeof harness>, filter: Record<string, unknown>): TPage => stepper.steps.getEvents.action({ filter }).products;
+	const cleanup = (stepper: ReturnType<typeof harness>) => {
+		if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
+	};
+
+	it("stamps each event with its index at its own level and every level below, and counts the run's extent per level", () => {
+		const stepper = harness(5000);
+		try {
+			stepper.recordEvent(ev(0, { level: "info" } as Partial<THaibunEvent>));
+			stepper.recordEvent(ev(1, { level: "debug" } as Partial<THaibunEvent>));
+			stepper.recordEvent(ev(2, { level: "error" } as Partial<THaibunEvent>));
+			const all = page(stepper, { offset: 0, limit: 10 });
+			expect(all.events.map((e) => e.idx)).toEqual([
+				{ debug: 0, trace: 0, log: 0, info: 0 },
+				{ debug: 1 },
+				{ debug: 2, trace: 1, log: 1, info: 1, warn: 0, error: 0 },
+			]);
+			expect(all.total, "three events at debug and up").toBe(3);
+			expect(page(stepper, { minLevel: "info", offset: 0, limit: 10 }).total, "two at info and up").toBe(2);
+			expect(all.first, "when the run began").toBe(1000);
+		} finally {
+			cleanup(stepper);
+		}
+	});
+
+	it("serves a page by index from the buffer when it holds it, and from the log across flush batches when it does not", () => {
+		const stepper = harness(5); // the buffer keeps the newest few; the log keeps every event in batches of 256
+		try {
+			for (let i = 0; i < 700; i++) stepper.recordEvent(ev(i, { level: i % 3 === 0 ? "info" : "debug" } as Partial<THaibunEvent>));
+			const tail = page(stepper, { minLevel: "debug", offset: 695, limit: 5 });
+			expect(tail.events.map((e) => e.id), "from the buffer: the newest").toEqual(["0.695", "0.696", "0.697", "0.698", "0.699"]);
+			expect(tail.total).toBe(700);
+			const middle = page(stepper, { minLevel: "debug", offset: 250, limit: 10 });
+			expect(middle.events.map((e) => e.id), "from the log, across a flush boundary").toEqual(Array.from({ length: 10 }, (_, i) => `0.${250 + i}`));
+			const atInfo = page(stepper, { minLevel: "info", offset: 100, limit: 3 });
+			expect(atInfo.events.map((e) => e.id), "indexed among info events only: the 101st info event is event 300").toEqual(["0.300", "0.303", "0.306"]);
+			expect(atInfo.total, "234 info events in the run").toBe(234);
+			expect(page(stepper, { minLevel: "info", offset: 233, limit: 5 }).events.map((e) => e.id), "the last page is short").toEqual(["0.699"]);
+			expect(page(stepper, { minLevel: "info", offset: 500, limit: 5 }).events, "past the end: nothing").toEqual([]);
+		} finally {
+			cleanup(stepper);
 		}
 	});
 });

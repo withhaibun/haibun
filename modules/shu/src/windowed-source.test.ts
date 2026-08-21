@@ -159,6 +159,33 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		expect(cb).toHaveBeenCalledOnce();
 	});
 
+	describe("append", () => {
+		it("places a live row at the end of a resident page, or starts the next page, without a fetch", async () => {
+			let total = 10;
+			const { fetch } = counted();
+			const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 5 });
+			await src.ensureRange(5, 10); // page 1 resident: rows 5..9
+			total = 11;
+			src.append(10, 10); // begins page 2
+			expect(src.rowAt(10), "the new row is resident at its index").toBe(10);
+			total = 12;
+			src.append(11, 11); // extends page 2
+			expect(src.rowAt(11)).toBe(11);
+			expect(fetch).toHaveBeenCalledTimes(1);
+		});
+
+		it("leaves a live row whose page is not resident for ensureRange, rather than inventing a partial page", async () => {
+			let total = 10;
+			const { fetch } = counted();
+			const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 5 });
+			total = 13;
+			src.append(12, 12); // page 2 holds nothing before it: not placed
+			expect(src.rowAt(12)).toBeUndefined();
+			await src.ensureRange(10, 13);
+			expect(src.rowAt(12), "fetched with its page").toBe(12);
+		});
+	});
+
 	describe("prime", () => {
 		it("seeds a full first page so ensureRange over it fetches nothing", async () => {
 			const { fetch } = counted();
