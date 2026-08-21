@@ -55,6 +55,16 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
  * windowed caller (one that renders only a tail slice of a longer log) MUST pass its stable global start so the offsets
  * stay comparable across renders: the document's time-cursor arithmetic adds `data-raw-time` back to that same global
  * start, so a per-slice base would scrub every clicked row to a wrong, earlier instant. */
+/** The name of a heading as it can be written in a link: lower case, with every run of anything else as a single
+ *  hyphen. A feature that lists its own scenarios links to them this way, which is the only handle an author has
+ *  before the run exists — the block ids beside it are assigned while running. */
+export function headingAnchor(title: string): string {
+	return title
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
 export function generateDocumentMarkdown(
 	events: THaibunEvent[],
 	artifactsByStep: Map<string, TArtifactEvent[]>,
@@ -123,10 +133,11 @@ export function generateDocumentMarkdown(
 				if (lastType === "technical") md += '\n<div class="h-1"></div>\n';
 				const rawTime = le.timestamp - baseTime;
 				const headingLevel = le.type === "feature" ? 1 : le.type === "scenario" ? 2 : 3;
-				const title = le.type === "feature" ? `Feature: ${ev.featureName ?? ev.featurePath}` : le.type === "scenario" ? `Scenario: ${ev.scenarioName}` : "Background";
+				const named = String(le.type === "feature" ? (ev.featureName ?? ev.featurePath) : le.type === "scenario" ? ev.scenarioName : "Background");
+				const title = le.type === "feature" ? `Feature: ${named}` : le.type === "scenario" ? `Scenario: ${named}` : named;
 				const nid = normalizeId(le.id);
 				visibleIds.add(nid);
-				md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${nid}">\n\n${"#".repeat(headingLevel)} ${title}\n\n</div>\n`;
+				md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${nid}" data-heading="${headingAnchor(named)}">\n\n${"#".repeat(headingLevel)} ${title}\n\n</div>\n`;
 				const header = claimWithHolder(le.id, nid);
 				if (header.holder) md += `\n${header.holder}`;
 				lastType = "prose";

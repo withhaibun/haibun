@@ -51,6 +51,14 @@ export function recordPaneDismissal(state: TPaneRouteState, paneKey: string): Re
 	return Object.fromEntries(state.dismissedAt);
 }
 
+/** Whether a batch is still the connect-time replay and nothing else. What a page STARTS on is what the replay
+ *  opens, so a caller that treats the opening view differently (the index gives it the room) needs to know when the
+ *  replay is over. The first live event ends it, not the first batch: batches are one animation frame each, and a
+ *  history of any size arrives over several, so a view being replayed can land in the second or the tenth. */
+export function isReplayOnly(events: readonly { replay?: true }[]): boolean {
+	return events.every((e) => e.replay === true);
+}
+
 export function paneOpsFor(events: TEvent[], state: TPaneRouteState, uiComponentByType: (type: string) => string | undefined): Map<string, TPaneOp> {
 	const ops = new Map<string, TPaneOp>();
 	const openUnlessDismissed = (key: string, timestamp: number, op: TPaneOp): void => {

@@ -23,7 +23,7 @@ import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js";
-import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockTimeClass, type TDocBlock } from "../document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, type TDocBlock } from "../document-blocks.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { EventFormatter } from "@haibun/core/schema/protocol.js";
@@ -54,6 +54,7 @@ const SANITIZE_OPTS = {
 		"data-id",
 		"data-time",
 		"data-raw-time",
+		"data-heading",
 		"data-action",
 		"data-has-artifacts",
 		"data-ids",
@@ -207,6 +208,25 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.requestUpdate(); // refresh even when the value is unchanged (the setter no-ops an equal value)
 	}
 
+	/** A click in a block scrubs to that block. A click on a link to a heading of this document goes to that heading
+	 *  instead: the reader asked for somewhere else in the run, not for the moment they clicked in. A link naming
+	 *  anything else is left alone, so a link out of the document still leads out of it. */
+	private onBlockClick(e: Event, rawTime: number): void {
+		const href = (e.composedPath().find((n) => n instanceof HTMLAnchorElement) as HTMLAnchorElement | undefined)?.getAttribute("href") ?? "";
+		if (href.startsWith("#") && this.#goToHeading(href.slice(1))) return e.preventDefault();
+		this.cursorToRow(rawTime);
+	}
+
+	/** Go to the heading a link names, and say whether this document has one. The heading's own name is the handle,
+	 *  stamped on its block when the document was built (headingAnchor), so a feature can link to its own scenarios. */
+	#goToHeading(anchor: string): boolean {
+		const idx = blockIndexForHeading(this.#blocks, anchor);
+		if (idx < 0) return false;
+		this.cursorToRow(this.#blocks[idx].rawTime);
+		this.#virtualColumn()?.scrollToIndex(idx, "start");
+		return true;
+	}
+
 	#virtualColumn(): ShuVirtualColumn | null {
 		return this.shadowRoot?.querySelector("shu-virtual-column") ?? null;
 	}
@@ -257,7 +277,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const t = blockTimeClass(b, i, this.startTime, this.timeCursor, this.#currentIdx);
 		const cls = `doc-block${t === "future" ? ` ${TIME_SYNC_CLASS.FUTURE}` : t === "current" ? ` ${TIME_SYNC_CLASS.CURRENT}` : ""}`;
 		const products = b.id ? this.#productsById.get(stripId(b.id)) : undefined;
-		return html`<div class=${cls} data-id=${b.id} @click=${() => this.cursorToRow(b.rawTime)}>
+		return html`<div class=${cls} data-id=${b.id} @click=${(e: Event) => this.onBlockClick(e, b.rawTime)}>
 			${unsafeHTML(b.html)}${products ? this.#productViewFor(products, b.rawTime) : ""}
 		</div>`;
 	};

@@ -1,5 +1,7 @@
 import { defaultLabel } from "./util.js";
 import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR } from "./consts.js";
+import { hashParams, getHash } from "./view-hash.js";
+import type { TDeliveredEvent } from "@haibun/core/lib/sse-subscriber.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
@@ -17,7 +19,7 @@ import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { getUiByType } from "./rels-cache.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
-import { paneOpsFor, createPaneRouteState, recordPaneDismissal } from "./pane-event-router.js";
+import { paneOpsFor, createPaneRouteState, recordPaneDismissal, isReplayOnly } from "./pane-event-router.js";
 import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext } from "./quads-snapshot.js";
 import { activePane } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
@@ -152,15 +154,23 @@ const main = async (): Promise<void> => {
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
 	const getIndexPane = () => getStrip()?.panes.find((p) => p.dataset.columnKey === INDEX_PANE_KEY) ?? null;
 
-	// What the page starts on is what the statements run so far have opened: the connect-time replay arrives as the
-	// first batch, so a view in it is the view this page is being shown for, and the index gives it the room by
+	// What the page starts on is what the statements run so far have opened: the server replays its history on connect,
+	// so a view opened by a REPLAYED event is the view this page is being shown for, and the index gives it the room by
 	// starting minimized to its spine, where it still says which search is behind it. Only what the page starts with
-	// counts. A view a statement opens later is opened beside an index the reader is already using, and leaves it
-	// alone; so does a run that opens no view at all.
+	// counts. A view a statement opens later, once live events are arriving, is opened beside an index the reader is
+	// already using, and leaves it alone; so does a run that opens no view at all.
+	//
+	// The replay is what ends this, not the first batch of it: batches are one animation frame each, and a history of
+	// any size arrives over several, so the view being replayed can land in the second or the tenth.
+	//
+	// A page whose address already names its columns is not starting on anything: the address IS the view state, so a
+	// reload is the reader's own layout coming back, index included, and the replay that rebuilds it must not narrow
+	// what they had. Only an address with no columns of its own is arriving fresh.
+	const arrivedWithColumns = hashParams(getHash()).getAll("col").length > 0;
 	let startingUp = true;
 	let indexYielded = false;
 	const yieldIndexTo = (tag: string): void => {
-		if (!startingUp || indexYielded) return;
+		if (!startingUp || indexYielded || arrivedWithColumns) return;
 		indexYielded = true;
 		const index = getIndexPane();
 		if (!index) throw new Error(`no index pane to minimize when the page started on ${tag} — the app builds one at boot and nothing removes it`);
@@ -328,7 +338,7 @@ const main = async (): Promise<void> => {
 					yieldIndexTo(op.tag);
 				} else PaneState.request({ paneType: "views-picker", views: op.views, label: op.label });
 			}
-			startingUp = false;
+			if (!isReplayOnly(events as TDeliveredEvent[])) startingUp = false;
 		},
 	});
 

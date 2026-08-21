@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPaneRouteState, paneOpsFor, recordPaneDismissal } from "./pane-event-router.js";
+import { createPaneRouteState, paneOpsFor, recordPaneDismissal, isReplayOnly } from "./pane-event-router.js";
 import type { TEvent } from "./event-stream.js";
 
 /** A completed step-end lifecycle event whose products open the given component view. */
@@ -83,5 +83,23 @@ describe("pane-event-router: non-matching events", () => {
 			{ id: "ev-9", timestamp: 2, kind: "lifecycle", type: "step", stage: "end", status: "completed", level: "info" },
 		] as unknown as TEvent[];
 		expect(paneOpsFor(events, createPaneRouteState(), noUi).size).toBe(0);
+	});
+});
+
+describe("when a page is still being shown what it started on", () => {
+	// A batch is one animation frame, and a history of any size arrives over several of them, so "the first batch" is
+	// not "the replay". The first live event is what ends it.
+	it("is still starting up while every event is a replay, however many batches that takes", () => {
+		expect(isReplayOnly([{ replay: true }, { replay: true }])).toBe(true);
+		expect(isReplayOnly([{ replay: true }]), "a later batch of the same history is still the same history").toBe(true);
+	});
+
+	it("has started once a live event arrives, alone or beside replayed ones", () => {
+		expect(isReplayOnly([{}])).toBe(false);
+		expect(isReplayOnly([{ replay: true }, {}]), "the run is live from here on").toBe(false);
+	});
+
+	it("treats an empty batch as no live event, since nothing has happened yet", () => {
+		expect(isReplayOnly([])).toBe(true);
 	});
 });
