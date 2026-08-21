@@ -5,7 +5,7 @@
  * consecutive thumbnails into a strip while leaving lone thumbnails and thumbnail runs broken by other content alone.
  */
 import { describe, it, expect } from "vitest";
-import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockTimeClass, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
 
 const thumb = (id: string): string => `<shu-artifact-frame class="thumb"><img src="${id}.png" /></shu-artifact-frame>`;
 const resolver: TArtifactResolver = (id) => (id.startsWith("img") ? thumb(id) : `<shu-artifact-frame><pre>${id}</pre></shu-artifact-frame>`);
@@ -119,6 +119,26 @@ describe("finalizeBlocks", () => {
 });
 
 const b = (id: string, rawTime: number): TDocBlock => ({ html: `<div class="log-row" data-id="${id}">x</div>`, id, rawTime });
+
+describe("blockIndexForHeading", () => {
+	// A feature that lists its own scenarios links to them by name. The name is stamped on the heading's block when the
+	// document is built, and it is the only handle the author has: block ids are assigned while the run happens.
+	const heading = (anchor: string, rawTime: number): TDocBlock => ({ html: `<div class="header-block" data-heading="${anchor}"><h2>x</h2></div>`, id: "", rawTime });
+	const blocks = [b("intro", 0), heading("4-the-authority-issues-the-permit", 10), b("body", 20), heading("9-the-authority-revokes-the-permit", 30)];
+
+	it("finds the block carrying the heading a link names", () => {
+		expect(blockIndexForHeading(blocks, "9-the-authority-revokes-the-permit")).toBe(3);
+	});
+
+	it("finds nothing for a link this document has no heading for, so such a link is left alone", () => {
+		expect(blockIndexForHeading(blocks, "Principal"), "a link out of the document, not into it").toBe(-1);
+		expect(blockIndexForHeading(blocks, ""), "and an empty target names nothing").toBe(-1);
+	});
+
+	it("does not take a heading whose name merely starts the same way", () => {
+		expect(blockIndexForHeading(blocks, "4-the-authority")).toBe(-1);
+	});
+});
 
 describe("currentBlockIndex", () => {
 	const blocks = [b("a", 0), { html: "<div class='h-1'></div>", id: "", rawTime: 0 }, b("c", 10), b("d", 20)];

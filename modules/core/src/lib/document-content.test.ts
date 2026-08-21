@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateDocumentMarkdown, buildArtifactIndex } from "./document-content.js";
+import { generateDocumentMarkdown, buildArtifactIndex, headingAnchor } from "./document-content.js";
 import type { THaibunEvent } from "../schema/protocol.js";
 import { LifecycleEvent } from "../schema/protocol.js";
 
@@ -59,6 +59,16 @@ describe("generateDocumentMarkdown", () => {
 		const { md } = generateDocumentMarkdown(events, artifactsByStep);
 		expect(md).toContain("# Feature: /path/to/test.feature");
 		expect(md).not.toContain("undefined");
+	});
+
+	it("stamps each heading with its own name, which is what a link to it can be written from", () => {
+		const md = generateDocumentMarkdown([featureEvent("/test", "Test"), scenarioEvent("5. Confirming the permit was stored")], new Map(), "info", 1000).md;
+		expect(md, "the name a feature author wrote, not the id assigned while running").toContain('data-heading="5-confirming-the-permit-was-stored"');
+	});
+
+	it("names a heading by lower case, with every run of anything else one hyphen", () => {
+		expect(headingAnchor("8. The border checks the permit, and it passes")).toBe("8-the-border-checks-the-permit-and-it-passes");
+		expect(headingAnchor("  Trailing and leading  ")).toBe("trailing-and-leading");
 	});
 
 	it("renders Scenario: with scenarioName", () => {

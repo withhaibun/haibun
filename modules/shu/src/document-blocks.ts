@@ -115,6 +115,14 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 
 /** The content block that carries the time cursor: the one with the greatest instant at or before it. Not simply the
  *  last block — events can append out of timestamp order — and spacers/strips (no id) never count. -1 when no cursor. */
+/** Which block carries the heading a link names, or -1 when this document has none. The heading's own name is stamped
+ *  on its block when the document is built (headingAnchor), which is the only handle a feature author has: the block
+ *  ids beside it are assigned while the run happens. */
+export function blockIndexForHeading(blocks: readonly TDocBlock[], anchor: string): number {
+	if (anchor === "") return -1;
+	return blocks.findIndex((b) => b.html.includes(`data-heading="${anchor}"`));
+}
+
 export function currentBlockIndex(blocks: readonly TDocBlock[], startTime: number, cursor: number | null): number {
 	if (cursor === null) return -1;
 	let idx = -1;
