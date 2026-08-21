@@ -6,7 +6,7 @@
  */
 import { resolve } from "path";
 import { z } from "zod";
-import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync } from "fs";
+import { writeFileSync, appendFileSync, readFileSync, existsSync, rmSync, openSync, readSync, closeSync, fstatSync } from "fs";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { IHasTunables } from "@haibun/core/lib/tunables.js";
@@ -56,6 +56,9 @@ const BUFFER_TRIM_SLACK = 500;
 const EVENTS_BYTE_BUDGET = 16 * 1024 * 1024; // 16MB of slimmed-event JSON
 const EVENTS_COUNT_CAP = 20000; // hard ceiling on returned count regardless of size
 const EVENT_LOG_FLUSH_BATCH = 256; // buffer lean events and append in batches so the disk log never does sync I/O per event
+/** How much of the disk log is read at a time when a page is served from it, from the end backward. Bounds the memory a
+ *  page over a log of any size costs: one chunk plus the page itself, never the whole log. */
+const EVENT_LOG_READ_CHUNK = 1024 * 1024;
 
 type TReportEvent = Record<string, unknown>;
 
@@ -89,15 +92,32 @@ export function slimLiveEvent(e: THaibunEvent): Record<string, unknown> {
 
 /** The most recent slimmed events that fit a byte budget and a count cap, in chronological order — so the response can never approach the serialize ceiling. The newest event is always included even if it alone exceeds the budget; `truncated` reports any drop. */
 export function recentEventsWithinBudget(events: THaibunEvent[], countCap: number, byteBudget: number): { events: Record<string, unknown>[]; truncated: boolean } {
+	return takeRecentWithinBudget(newestFirst(events), countCap, byteBudget);
+}
+
+/** The events of `source` that `keep` accepts, in the source's order, without collecting it. */
+function* filterIterable<T>(source: Iterable<T>, keep: (item: T) => boolean): Generator<T> {
+	for (const item of source) if (keep(item)) yield item;
+}
+
+/** An array's events newest first, without copying it. */
+function* newestFirst(events: THaibunEvent[]): Generator<THaibunEvent> {
+	for (let i = events.length - 1; i >= 0; i--) yield events[i];
+}
+
+/** Take events, newest first, until the count cap or the byte budget is reached; `truncated` says a further event existed
+ *  past the page. The source decides where the events come from (the live buffer, or the disk log read backward); this is
+ *  the one bound every page has. */
+export function takeRecentWithinBudget(source: Iterable<THaibunEvent>, countCap: number, byteBudget: number): { events: Record<string, unknown>[]; truncated: boolean } {
 	const out: Record<string, unknown>[] = [];
 	let bytes = 0;
 	let truncated = false;
-	for (let i = events.length - 1; i >= 0; i--) {
+	for (const event of source) {
 		if (out.length >= countCap) {
 			truncated = true;
 			break;
 		}
-		const slim = slimLiveEvent(events[i]);
+		const slim = slimLiveEvent(event);
 		const size = JSON.stringify(slim).length;
 		if (out.length > 0 && bytes + size > byteBudget) {
 			truncated = true;
@@ -342,6 +362,39 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		this.diskBuffer = [];
 	}
 
+	/** The run's lean events newest first, without holding the log in memory: the lines still buffered (the newest), then
+	 *  the file read from its end backward, `chunkBytes` at a time. A line split across two chunks is carried as bytes
+	 *  until the chunk before it completes it, so a multibyte character on the boundary is decoded whole. Stopping
+	 *  early (a page filled) reads no further. */
+	private *leanEventsNewestFirst(chunkBytes = EVENT_LOG_READ_CHUNK): Generator<TReportEvent> {
+		for (let i = this.diskBuffer.length - 1; i >= 0; i--) yield JSON.parse(this.diskBuffer[i]) as TReportEvent;
+		if (!this.eventLogPath || !existsSync(this.eventLogPath)) return;
+		const fd = openSync(this.eventLogPath, "r");
+		try {
+			let position = fstatSync(fd).size;
+			let carry = Buffer.alloc(0); // the start of a line whose end was in the chunk read before this one
+			while (position > 0) {
+				const length = Math.min(chunkBytes, position);
+				position -= length;
+				const chunk = Buffer.alloc(length);
+				readSync(fd, chunk, 0, length, position);
+				const joined = carry.length > 0 ? Buffer.concat([chunk, carry]) : chunk;
+				const firstNewline = joined.indexOf(0x0a);
+				if (firstNewline === -1) {
+					carry = joined;
+					continue;
+				}
+				carry = joined.subarray(0, firstNewline);
+				const lines = joined.toString("utf8", firstNewline + 1).split("\n");
+				for (let i = lines.length - 1; i >= 0; i--) if (lines[i]) yield JSON.parse(lines[i]) as TReportEvent;
+			}
+			const first = carry.toString("utf8");
+			if (first) yield JSON.parse(first) as TReportEvent;
+		} finally {
+			closeSync(fd);
+		}
+	}
+
 	/** The FULL run history (every lean event) — the report's event source, never truncated by the window. Flushed disk
 	 *  lines plus any still-buffered lines, so the report holds every event even when the log was never flushed to disk
 	 *  (a write with no per-run log path, or fewer than one batch emitted). */
@@ -500,22 +553,24 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			retainProducts: false,
 			action: ({ filter }: { filter: TEventsFilter }) => {
 				const { level, kind, since, until, limit } = filter;
-				// The live buffer holds only the newest maxEvents; the run's disk log (the report's source) holds every
-				// event. A page that reaches at or past the buffer's oldest event is served from the log, and a page
-				// over a trimmed buffer reports truncated even when it fits the budget — so a client paging backward
-				// (fetchRange) reaches the start of the run instead of stopping where the buffer was trimmed.
-				const oldestHeld = this.events[0]?.timestamp;
-				const pastBuffer = this.eventsTrimmed && until !== undefined && (oldestHeld === undefined || until <= oldestHeld);
-				// The log's lean events are these same events, slimmed for the report; every field the filters and the
-				// document read (id, timestamp, kind, stage, level) survives the slimming.
-				let filtered: THaibunEvent[] = pastBuffer ? (this.readEventLog() as unknown as THaibunEvent[]) : this.events;
-				if (level) filtered = filtered.filter((e) => e.level === level);
-				if (kind) filtered = filtered.filter((e) => e.kind === kind);
-				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
-				if (until) filtered = filtered.filter((e) => e.timestamp <= until);
 				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
+				const wanted = (e: THaibunEvent): boolean => (!level || e.level === level) && (!kind || e.kind === kind) && (!since || e.timestamp >= since) && (!until || e.timestamp <= until);
+				// The live buffer holds only the newest maxEvents; the run's disk log (the report's source) holds every
+				// event. A page that reaches at or past the buffer's oldest event is served from the log, read backward
+				// from its end a chunk at a time, so a page over a log of any size costs a chunk and the page. And a page
+				// over a trimmed buffer reports truncated even when it fits the budget. Together these let a client paging
+				// backward (fetchRange) reach the start of the run instead of stopping where the buffer was trimmed. The
+				// log's lean events are these same events slimmed for the report; every field the filters and the
+				// document read (id, timestamp, kind, stage, level) survives the slimming. `total` is the count matching
+				// the filter; a page from the log does not scan the whole log to count, so it carries none.
+				const oldestHeld = this.events[0]?.timestamp;
+				if (this.eventsTrimmed && until !== undefined && (oldestHeld === undefined || until <= oldestHeld)) {
+					const fromLog = this.leanEventsNewestFirst() as Iterable<THaibunEvent>;
+					return actionOKWithProducts(takeRecentWithinBudget(filterIterable(fromLog, wanted), cap, EVENTS_BYTE_BUDGET));
+				}
+				const filtered = this.events.filter(wanted);
 				const { events, truncated } = recentEventsWithinBudget(filtered, cap, EVENTS_BYTE_BUDGET);
-				const headTrimmed = !pastBuffer && this.eventsTrimmed && (!since || oldestHeld === undefined || since < oldestHeld);
+				const headTrimmed = this.eventsTrimmed && (!since || oldestHeld === undefined || since < oldestHeld);
 				return actionOKWithProducts({ events, total: filtered.length, truncated: truncated || headTrimmed });
 			},
 		},

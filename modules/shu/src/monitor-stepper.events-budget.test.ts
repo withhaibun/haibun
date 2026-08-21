@@ -85,6 +85,8 @@ describe("a reloading client can page back to the start of the run", () => {
 			diskBuffer: string[];
 			maxEvents: number;
 			recordEvent(e: THaibunEvent): void;
+			leanEventsNewestFirst(chunkBytes?: number): Iterable<Record<string, unknown>>;
+			readEventLog(): Record<string, unknown>[];
 			steps: { getEvents: { action(args: { filter: Record<string, unknown> }): { products: TPage } } };
 		};
 		stepper.eventLogPath = join(tmpdir(), `shu-page-${process.pid}-${Date.now()}.jsonl`);
@@ -125,6 +127,62 @@ describe("a reloading client can page back to the start of the run", () => {
 			}
 			expect(seen.size, "every event of the run, not just the buffer's tail").toBe(N);
 			expect(seen.has("0.0"), "including the very first").toBe(true);
+		} finally {
+			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
+		}
+	});
+});
+
+describe("reading the disk log backward", () => {
+	// A page from the log must not cost the whole log: it is read from the end a chunk at a time, and a line cut by a
+	// chunk boundary is carried as bytes until the chunk before it completes it, so nothing is lost or garbled however
+	// small the chunk, and a multibyte character on the boundary survives.
+	it("yields every event newest first, across chunk boundaries, with multibyte text intact", () => {
+		const stepper = new MonitorStepper() as unknown as {
+			eventLogPath: string | null;
+			diskBuffer: string[];
+			maxEvents: number;
+			recordEvent(e: THaibunEvent): void;
+			flushEventLog(): void;
+			leanEventsNewestFirst(chunkBytes?: number): Iterable<Record<string, unknown>>;
+			readEventLog(): Record<string, unknown>[];
+		};
+		stepper.eventLogPath = join(tmpdir(), `shu-backward-${process.pid}-${Date.now()}.jsonl`);
+		stepper.diskBuffer = [];
+		stepper.maxEvents = 5;
+		try {
+			const N = 300;
+			for (let i = 0; i < N; i++) stepper.recordEvent(ev(i, { message: `é✅ ${i} ünïcode` } as Partial<THaibunEvent>));
+			stepper.flushEventLog(); // everything on disk, so the chunked path is what is exercised
+			for (const chunk of [7, 64, 1024]) {
+				const backward = [...stepper.leanEventsNewestFirst(chunk)];
+				expect(backward.map((e) => e.id), `chunk ${chunk}: the whole log, newest first`).toEqual(stepper.readEventLog().reverse().map((e) => e.id));
+				expect(backward[N - 1].message, `chunk ${chunk}: the first line, carried across every boundary`).toBe("é✅ 0 ünïcode");
+				expect(backward.every((e) => String(e.message).startsWith("é✅ ")), `chunk ${chunk}: no line garbled`).toBe(true);
+			}
+		} finally {
+			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
+		}
+	});
+
+	it("yields the lines still buffered before the file, since they are the newest", () => {
+		const stepper = new MonitorStepper() as unknown as {
+			eventLogPath: string | null;
+			diskBuffer: string[];
+			maxEvents: number;
+			recordEvent(e: THaibunEvent): void;
+			leanEventsNewestFirst(chunkBytes?: number): Iterable<Record<string, unknown>>;
+		};
+		stepper.eventLogPath = join(tmpdir(), `shu-buffered-${process.pid}-${Date.now()}.jsonl`);
+		stepper.diskBuffer = [];
+		stepper.maxEvents = 5;
+		try {
+			for (let i = 0; i < 300; i++) stepper.recordEvent(ev(i)); // 256 flush to disk, the rest stay buffered
+			expect(stepper.diskBuffer.length).toBeGreaterThan(0);
+			const ids = [...stepper.leanEventsNewestFirst()].map((e) => e.id);
+			expect(ids[0]).toBe("0.299");
+			expect(ids.at(-1)).toBe("0.0");
+			expect(ids).toHaveLength(300);
 		} finally {
 			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
 		}
