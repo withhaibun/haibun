@@ -23,7 +23,7 @@ import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js";
-import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, type TDocBlock } from "../document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { EventFormatter } from "@haibun/core/schema/protocol.js";
@@ -39,6 +39,7 @@ const DocumentColumnSchema = z.object({
 });
 
 const mdRenderer = new MarkdownIt({ html: true, linkify: true, typographer: true });
+withHeadingAnchors(mdRenderer);
 // A `#Type` / `#Type:id` link in prose opens the type or individual in a column (shu-ref), never navigating the page.
 refLinksPlugin(mdRenderer, (name) => getRels(name) !== undefined);
 

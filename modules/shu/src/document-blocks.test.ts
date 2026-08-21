@@ -5,7 +5,7 @@
  * consecutive thumbnails into a strip while leaving lone thumbnails and thumbnail runs broken by other content alone.
  */
 import { describe, it, expect } from "vitest";
-import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, withHeadingAnchors, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
 
 const thumb = (id: string): string => `<shu-artifact-frame class="thumb"><img src="${id}.png" /></shu-artifact-frame>`;
 const resolver: TArtifactResolver = (id) => (id.startsWith("img") ? thumb(id) : `<shu-artifact-frame><pre>${id}</pre></shu-artifact-frame>`);
@@ -119,6 +119,18 @@ describe("finalizeBlocks", () => {
 });
 
 const b = (id: string, rawTime: number): TDocBlock => ({ html: `<div class="log-row" data-id="${id}">x</div>`, id, rawTime });
+
+describe("withHeadingAnchors", () => {
+	// A prose block's own markdown headings get the same link-by-name handle the scenario headings carry, so a feature
+	// whose introduction says "skip to [the contents](#contents)" can land on its own "## Contents" heading.
+	it("stamps a rendered markdown heading with its name as an anchor", async () => {
+		const { default: MarkdownIt } = await import("markdown-it");
+		const md = new MarkdownIt();
+		withHeadingAnchors(md);
+		expect(md.render("## Contents")).toContain('data-heading="contents"');
+		expect(md.render("## The graph and its views")).toContain('data-heading="the-graph-and-its-views"');
+	});
+});
 
 describe("blockIndexForHeading", () => {
 	// A feature that lists its own scenarios links to them by name. The name is stamped on the heading's block when the
