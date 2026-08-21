@@ -31,6 +31,9 @@ export const SHU_EVENT = {
 	COLUMN_MINIMIZE: "column-minimize",
 	COLUMNS_CHANGED: "columns-changed",
 	CONTEXT_CHANGE: "context-change",
+	/** Return to the live edge and tail it again. Any view that tails answers this; it is the one way the tail is
+	 *  re-engaged after a reader has pressed a rail to a moment, since a press is meant to stay where it was put. */
+	GO_LIVE: "shu-go-live",
 	FILTER_CHANGE: "filter-change",
 	// A recorded search summary was clicked: restore its exact viewQuery snapshot (detail: { query: TViewQuery }).
 	SEARCH_RESTORE: "search-restore",
@@ -79,6 +82,9 @@ export const SHU_TYPE = {
 	VIEW_COLLECTION: "shu-view-collection",
 	CLOSE_VIEW: "shu-close-view",
 } as const;
+
+/** The column container every view sits in. Named once: a view asks for its hosting column by this. */
+export const COLUMN_PANE_TAG = "shu-column-pane";
 
 /** The index pane's identity: the column every other one is opened from, and the only one the app builds itself. */
 export const INDEX_PANE_KEY = "query";

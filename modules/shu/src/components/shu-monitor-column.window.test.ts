@@ -3,7 +3,7 @@
 // log to a tail below the newest event; scrolled back it is the whole history; a run shorter than the tail is the whole log.
 // And what the log marks on its rail: the rows whose events earned a mark, at the place a reader can scroll to.
 import { describe, it, expect } from "vitest";
-import { monitorTailWindow, railMarkers, type TLogRow } from "./shu-monitor-column.js";
+import { cursorMark, monitorTailWindow, railMarkers, type TLogRow } from "./shu-monitor-column.js";
 import { markFor, MARK_COLOUR } from "../event-marker.js";
 
 const INF = Number.POSITIVE_INFINITY;
@@ -19,6 +19,30 @@ describe("monitorTailWindow", () => {
 
 	it("clamps `from` at 0 — a run shorter than the tail is the whole log (no eviction)", () => {
 		expect(monitorTailWindow(true, 300_000, 600_000)).toEqual([{ from: 0, to: INF }]);
+	});
+});
+
+describe("where the rail marks the moment being shown", () => {
+	// The mark is not the current row. A reader following the live edge has no upper bound and so no current row, and a
+	// reader who went back before the run began has none either — but in both cases there is a moment being shown, and
+	// the rail is the only thing that says where on the run it is.
+
+	it("marks the row the cursor is at, when the cursor is inside the run", () => {
+		expect(cursorMark(4, 10, 1_000_000)).toBe(4);
+	});
+
+	it("marks the newest row at now, and moves as newer rows arrive", () => {
+		expect(cursorMark(-1, 10, null), "no upper bound means the newest row").toBe(9);
+		expect(cursorMark(-1, 11, null), "and one more arrived").toBe(10);
+	});
+
+	it("marks the top of the run when the cursor is before the first row, which no row is current for", () => {
+		expect(cursorMark(-1, 10, 999)).toBe(0);
+	});
+
+	it("marks nothing only when there is nothing to mark", () => {
+		expect(cursorMark(-1, 0, null)).toBe(-1);
+		expect(cursorMark(-1, 0, 1_000_000)).toBe(-1);
 	});
 });
 

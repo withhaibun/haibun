@@ -43,21 +43,30 @@ export function firstAtPointer(total: number, visible: number, pointerPx: number
 	return Math.round(frac * Math.max(0, total - visible));
 }
 
-/** The centre pixel on a `railPx` rail for a marker at absolute `index`: the row's position spread across the rail, but
- *  INSET by the thumb's half-height so every mark sits within the range the thumb's centre can actually reach. This keeps
- *  marks distinct along the whole set (no pile-up of the last rows at the bottom, which a windowed `first`-scale causes)
- *  while guaranteeing the row is inside the window when the thumb reaches its mark, so clicking it jumps there. */
-export function markerTopPx(index: number, total: number, railPx: number, heightPx: number): number {
+/** Half a mark's glyph: the only inset the mark scale carries, so the first and last are drawn whole rather than
+ *  clipped by the rail's ends. */
+export const MARK_INSET_PX = 8;
+
+/**
+ * The centre pixel on a `railPx` rail for a mark at absolute `index`: the row's position spread across the WHOLE rail.
+ *
+ * The scale is the rows and the rail, and nothing else. It used to be inset by half the THUMB, so that a press on a
+ * mark would land inside the window the thumb would then show — but a press picks a row directly now, and the scroller
+ * works out what to show from it. The inset only did harm: a viewport holding a third of a short log makes a thumb a
+ * third of the rail, which squeezed every mark into the middle two thirds and left the ends of the rail dead. What the
+ * viewport happens to be showing is no business of where a row sits in the run.
+ */
+export function markerTopPx(index: number, total: number, railPx: number): number {
 	if (total <= 1 || railPx <= 0) return 0;
 	const frac = Math.min(index, total - 1) / (total - 1);
-	return Math.round(heightPx / 2 + frac * (railPx - heightPx));
+	return Math.round(MARK_INSET_PX + frac * Math.max(0, railPx - MARK_INSET_PX * 2));
 }
 
 /** Collapse markers that land within `mergePx` of each other into one representative carrying a `count`, so a dense run
  *  of rows shows one glyph rather than a pile. Input need not be sorted; the surviving mark of a cluster is its topmost row. */
-export function clusterMarkers(markers: TScrollMarker[], total: number, railPx: number, heightPx: number, mergePx = 10): Array<TScrollMarker & { topPx: number; count: number }> {
+export function clusterMarkers(markers: TScrollMarker[], total: number, railPx: number, mergePx = 10): Array<TScrollMarker & { topPx: number; count: number }> {
 	// Sort by pixel, breaking ties by index, so a dense cluster is deterministic and its surviving mark is the topmost row.
-	const placed = markers.map((m) => ({ ...m, topPx: markerTopPx(m.index, total, railPx, heightPx) })).sort((a, b) => a.topPx - b.topPx || a.index - b.index);
+	const placed = markers.map((m) => ({ ...m, topPx: markerTopPx(m.index, total, railPx) })).sort((a, b) => a.topPx - b.topPx || a.index - b.index);
 	const out: Array<TScrollMarker & { topPx: number; count: number }> = [];
 	for (const m of placed) {
 		const last = out[out.length - 1];
@@ -74,10 +83,10 @@ export const MARK_SNAP_PX = 8;
  *
  *  Every row is reachable, which is what picking needs: the rail's other scale spans the WINDOWS there are rather than
  *  the rows, so its last `visible` rows have no window that starts at them and cannot be pointed at at all. */
-export function indexAtMarkerPx(pointerPx: number, total: number, railPx: number, heightPx: number): number {
+export function indexAtMarkerPx(pointerPx: number, total: number, railPx: number): number {
 	if (total <= 1 || railPx <= 0) return 0;
-	const travel = Math.max(1, railPx - heightPx);
-	const frac = Math.min(1, Math.max(0, (pointerPx - heightPx / 2) / travel));
+	const travel = Math.max(1, railPx - MARK_INSET_PX * 2);
+	const frac = Math.min(1, Math.max(0, (pointerPx - MARK_INSET_PX) / travel));
 	return Math.round(frac * (total - 1));
 }
 
@@ -92,13 +101,18 @@ export function indexAtMarkerPx(pointerPx: number, total: number, railPx: number
  * Marks take no press of their own: drawn across the middle of a narrow rail, a mark that did would swallow most
  * attempts to point anywhere near it.
  */
-export function pressTarget(pressedPx: number, marks: ReadonlyArray<{ index: number; topPx: number }>, total: number, railPx: number, heightPx: number): number {
+export function pressTarget(pressedPx: number, marks: ReadonlyArray<{ index: number; topPx: number }>, total: number, railPx: number): number {
+	// The head and foot of the rail are the start and end of the run, whatever is drawn there. A mark now sits at each
+	// end, and letting it take these presses would mean the first and last rows could only be reached when nothing
+	// happened to be marked near them — the ends going missing again, by a different route.
+	if (pressedPx <= MARK_INSET_PX) return 0;
+	if (pressedPx >= railPx - MARK_INSET_PX) return Math.max(0, total - 1);
 	let nearest: { index: number; away: number } | null = null;
 	for (const m of marks) {
 		const away = Math.abs(m.topPx - pressedPx);
 		if (away <= MARK_SNAP_PX && (!nearest || away < nearest.away)) nearest = { index: m.index, away };
 	}
-	return nearest ? nearest.index : indexAtMarkerPx(pressedPx, total, railPx, heightPx);
+	return nearest ? nearest.index : indexAtMarkerPx(pressedPx, total, railPx);
 }
 
 /** A position glyph for a count of `n` rows: thousands-separated up to a million, then compacted to `1.2M` so it fits

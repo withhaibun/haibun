@@ -67,9 +67,16 @@ describe("how far along a run the cursor sits", () => {
 	const first = 1_000_000;
 	const latest = first + 600_000;
 
-	it("counts seconds from the first moment seen, then minutes once there are enough of them", () => {
-		expect(timeOffsetLabel(first + 5_000, first, latest)).toBe("5s");
-		expect(timeOffsetLabel(first + 120_000, first, latest)).toBe("2m");
+	it("says the moment out of the whole run, so a reader can tell near-the-start from near-the-end", () => {
+		// A ten minute run: two minutes in reads as two of ten. On its own, "2m" says nothing about where in the run that
+		// is, which is the one thing worth knowing from a readout this small.
+		expect(timeOffsetLabel(first + 120_000, first, latest)).toBe("2/10m");
+		expect(timeOffsetLabel(first + 540_000, first, latest)).toBe("9/10m");
+	});
+
+	it("counts a short run in seconds, both halves in the same unit so they can be read against each other", () => {
+		const short = first + 40_000;
+		expect(timeOffsetLabel(first + 11_000, first, short)).toBe("11/40s");
 	});
 
 	it("reads now at the latest moment and beyond it, and with no cursor at all", () => {

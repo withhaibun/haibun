@@ -35,17 +35,6 @@ const authorityActionSchema = z
 	.regex(/^\S+$/, "action must not contain whitespace")
 	.describe("Allowed action label such as GraphStepper:read, comment.grant, or Namespace:*.");
 
-const sessionGrantSchema = z.object({
-	id: z.string(),
-	token: z.string().optional(),
-	allowedAction: z.array(authorityActionSchema),
-	revoked: z.boolean(),
-	created: z.number().optional(),
-	expires: z.number().optional(),
-	note: z.string().optional(),
-	controller: z.string().optional(),
-});
-
 /** What holding authority over this run's own authority means: revoking what it granted. */
 export const AUTHORITY_CAPABILITIES = { revoke: "Authority:revoke" } as const;
 

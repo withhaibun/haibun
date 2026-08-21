@@ -146,16 +146,17 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		const railPx = this.#railPx;
 		const heightPx = this.#thumbPx(railPx);
 		const topPx = thumbTopPx(this.total, this.window, railPx, heightPx);
-		const marks = this.#marks(railPx, heightPx);
+		const marks = this.#marks(railPx);
 		return html`
 			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP}>${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
 			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
 				<div class="track"></div>
 				${
-					// Nothing has reported what is on screen yet, so there is nothing true to draw: a thumb here would be the
-					// minimum-height box at the top, which says "you are at the start looking at very little" — a claim about
-					// the reader's position made before anything knows it. It appears with the first reported window.
-					this.window.visible > 0
+					// A thumb says how much of the column is on screen. In a collapsed column nothing is, and before the first
+					// window is reported nothing is known — in both cases a thumb would be a claim nobody has made, and in a
+					// strip a large one sits over the marks a reader is trying to point at. It appears when there is a
+					// viewport for it to be the size of.
+					this.window.visible > 0 && !this.columnCollapsed
 						? html`<div class="thumb" data-testid=${SHU_TEST_IDS.SCROLLBAR.THUMB} style=${`top:${topPx}px;height:${heightPx}px`} @pointerdown=${this.#onThumbDown}></div>`
 						: nothing
 				}
@@ -163,7 +164,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 					this.cursor < 0
 						? nothing
 						: html`<span class="cursor" data-testid=${SHU_TEST_IDS.SCROLLBAR.CURSOR} title="the moment being shown"
-								style=${`top:${markerTopPx(this.cursor, this.total, railPx, heightPx)}px`}></span>`
+								style=${`top:${markerTopPx(this.cursor, this.total, railPx)}px`}></span>`
 				}
 				${marks.map(
 					(m) =>
@@ -197,7 +198,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		// row scale, through pressTarget, so every row can be pointed at.
 		const at = clientY - rect.top;
 		if (!snapToMarks) return firstAtPointer(this.total, this.window.visible, at, rect.height, heightPx);
-		return pressTarget(at, this.#marks(rect.height, heightPx), this.total, rect.height, heightPx);
+		return pressTarget(at, this.#marks(rect.height), this.total, rect.height);
 	}
 
 	/** The marks as drawn, held so a render and a press cannot cluster the same marks twice — the clustering maps and
@@ -206,10 +207,10 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	 *  swapped which rows are marked without changing how many would slip past a count. */
 	#clustered: { of: TScrollMarker[]; key: string; marks: Array<TScrollMarker & { topPx: number; count: number }> } | null = null;
 
-	#marks(railPx: number, heightPx: number): Array<TScrollMarker & { topPx: number; count: number }> {
-		const key = `${this.total}:${railPx}:${heightPx}`;
+	#marks(railPx: number): Array<TScrollMarker & { topPx: number; count: number }> {
+		const key = `${this.total}:${railPx}`;
 		if (this.#clustered?.of !== this.markers || this.#clustered.key !== key) {
-			this.#clustered = { of: this.markers, key, marks: clusterMarkers(this.markers, this.total, railPx, heightPx) };
+			this.#clustered = { of: this.markers, key, marks: clusterMarkers(this.markers, this.total, railPx) };
 		}
 		return this.#clustered.marks;
 	}
@@ -238,7 +239,11 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 				this.#emit(this.#pointerToIndex(ev.clientY), "press");
 			},
 			onEnd: () => {
-				if (!carried) this.#emit(this.#pointerToIndex(pressedAt), "press");
+				// A click means the row at that height — the same as a click anywhere else on the rail. Only the DRAG above
+				// uses the window scale, and only because a thumb has to stay under the pointer dragging it. Answering a
+				// click that way put every press inside the thumb at the thumb's own top row, which is most of the rail
+				// once a viewport holds a good share of the log, and sits over exactly the later moments.
+				if (!carried) this.#emit(this.#pointerToIndex(pressedAt, true), "press");
 				this.#stopDrag = null;
 				this.#dragId = null;
 			},

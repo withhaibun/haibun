@@ -58,7 +58,7 @@ describe("shu-scrollbar interaction", () => {
 		// Pressed where that mark sits on a rail of this height. The mark does not take the press itself — the rail does,
 		// and says which ROW was picked. Row 999 begins no window (the last starts at 980), and saying 980 instead would
 		// mean the last twenty rows could never be pointed at.
-		const at = markerTopPx(999, 1000, RAIL, thumbHeightPx(20 / 1000, RAIL));
+		const at = markerTopPx(999, 1000, RAIL);
 		pointerdown(el.shadowRoot?.querySelector("[data-testid=scrollbar-rail]") as Element, at);
 		expect(seeks).toEqual([999]);
 	});
