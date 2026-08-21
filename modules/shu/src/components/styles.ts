@@ -40,6 +40,8 @@ export const SHU_TOKENS = `
 		--shu-scrollbar-w: 32px;
 		/* A collapsed column that shows a spine view, which needs more than the rotated label's sliver. */
 		--shu-spine-w: calc(44px * var(--shu-scale));
+		/* The band DRAWN as a scroll rail's track. The control's own width is the press target, and is wider. */
+		--shu-rail-track-w: calc(14px * var(--shu-scale));
 
 		/* Light theme defaults */
 		--shu-bg: #ffffff;

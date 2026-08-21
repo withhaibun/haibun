@@ -12,18 +12,17 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { shuBaseStyles } from "./styles.js";
+import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-import { EventsController } from "../controllers/index.js";
+import { runSpan } from "../events-snapshot.js";
 
 /** Playback rates. The two below 1 run slower than the run did, for a dense burst worth watching unfold. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
-const formatSpeed = (s: number): string => (s === 0.02 ? "-50×" : s === 0.05 ? "-20×" : `${s}×`);
+const formatSpeed = (s: number): string => (s < 1 ? `-${Math.round(1 / s)}×` : `${s}×`);
 
 const StateSchema = z.object({
 	playing: z.boolean().default(false),
 	speed: z.number().default(1),
-	atEnd: z.boolean().default(true),
 });
 
 export class ShuPlayback extends ShuElement<typeof StateSchema> {
@@ -36,47 +35,51 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		shuIconButtonStyles,
 		css`
 		:host { display: flex; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-1) var(--shu-space-3); font: var(--shu-font-sm) var(--shu-font-family); }
-		button { background: none; border: none; cursor: pointer; font-size: var(--shu-font-lg); padding: 0 3px; color: var(--shu-fg-muted); }
-		button:hover { color: var(--shu-fg); }
-		select { font: inherit; padding: 0 var(--shu-space-1); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); }
+		/* The look of an icon button and of a select are the base's (shuIconButtonStyles, shuBaseStyles); only the glyph
+		   size and the tighter select padding are this control's own. */
+		button.icon { font-size: var(--shu-font-lg); }
+		select { padding: 0 var(--shu-space-1); }
 	`,
 	];
-
-	/** The shared event log, which is where the run's span comes from — this control keeps no running bounds of its own. */
-	#events = new EventsController(this, () => this.requestUpdate());
 
 	#currentTime = 0;
 	#lastFrame = 0;
 	#rafId = 0;
 
 	constructor() {
-		super(StateSchema, { playing: false, speed: 1, atEnd: true });
+		super(StateSchema, {});
 	}
 
 	protected override onConnected(): void {
 		this.autoTeardown(() => this.#stop());
 	}
 
-	/** What playing runs between. */
-	get #firstTime(): number {
-		return this.#events.span.first;
-	}
-	get #lastTime(): number {
-		return this.#events.span.last;
+	/** What playing runs between: the shared log's span, read without asking for a window of it. This control keeps no
+	 *  running bounds of its own, and registers nothing that would hold the run in memory after it is put away. */
+	get #span(): { first: number; last: number } {
+		return runSpan();
 	}
 
-	/** The cursor moved somewhere else — a rail seek, a row click. Playing from here means playing from there. */
+	/** Whether the cursor has reached the end of the run. Derived rather than kept: every place that would have written
+	 *  it is this same comparison, and nothing renders from it. */
+	get #atEnd(): boolean {
+		return this.#currentTime >= this.#span.last;
+	}
+
+	/** The cursor moved somewhere else — a rail seek, a row click. Playing from here means playing from there. Its own
+	 *  publishes come back through here, and re-reading them would fight the frame that is mid-flight. */
 	protected override onTimeSync(cursor: number | null): void {
-		this.#currentTime = cursor ?? this.#lastTime;
-		const atEnd = cursor === null || this.#currentTime >= this.#lastTime;
-		if (this.state.atEnd !== atEnd) this.setState({ atEnd });
+		const at = cursor ?? this.#span.last;
+		if (at === this.#currentTime) return;
+		this.#currentTime = at;
 	}
 
 	/** Publish where playback has reached. At the end that is null — "now" — so live records are not read as future. */
 	#publish(): void {
-		this.timeCursor = this.state.atEnd ? null : this.#currentTime;
+		this.timeCursor = this.#atEnd ? null : this.#currentTime;
 	}
 
 	#stop(): void {
@@ -90,26 +93,25 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 		const now = performance.now();
 		const elapsed = now - this.#lastFrame;
 		this.#lastFrame = now;
-		this.#currentTime = Math.min(this.#lastTime, this.#currentTime + elapsed * this.state.speed);
-		const reachedEnd = this.#currentTime >= this.#lastTime;
-		if (this.state.atEnd !== reachedEnd) this.setState({ atEnd: reachedEnd });
+		const last = this.#span.last; // read once: this runs every frame
+		this.#currentTime = Math.min(last, this.#currentTime + elapsed * this.state.speed);
 		this.#publish();
-		if (reachedEnd) return this.#stop();
+		if (this.#currentTime >= last) return this.#stop();
 		this.#rafId = requestAnimationFrame(this.#tick);
 	};
 
 	private onPlay = (): void => {
 		if (this.state.playing) return this.#stop();
-		if (this.#lastTime === 0) return; // nothing has happened yet, so there is nothing to play through
+		const { first, last } = this.#span;
+		if (last === 0) return; // nothing has happened yet, so there is nothing to play through
 		this.#lastFrame = performance.now();
-		if (this.#currentTime >= this.#lastTime) this.#currentTime = this.#firstTime;
-		this.setState({ playing: true, atEnd: false });
+		if (this.#currentTime >= last) this.#currentTime = first;
+		this.setState({ playing: true });
 		this.#tick();
 	};
 
 	private onRestart = (): void => {
-		this.#currentTime = this.#firstTime - 1;
-		if (this.state.atEnd) this.setState({ atEnd: false });
+		this.#currentTime = this.#span.first - 1;
 		this.#publish();
 	};
 
@@ -120,8 +122,8 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	render(): TemplateResult {
 		const ids = SHU_TEST_IDS.PLAYBACK;
 		return html`
-			<button data-testid=${ids.RESTART} title="Back to the start" @click=${this.onRestart}>⏮</button>
-			<button data-testid=${ids.PLAY} title=${this.state.playing ? "Pause" : "Play"} @click=${this.onPlay}>${this.state.playing ? "⏸️" : "▶️"}</button>
+			<button class="icon" data-testid=${ids.RESTART} title="Back to the start" @click=${this.onRestart}>⏮</button>
+			<button class="icon" data-testid=${ids.PLAY} title=${this.state.playing ? "Pause" : "Play"} @click=${this.onPlay}>${this.state.playing ? "⏸️" : "▶️"}</button>
 			<select data-testid=${ids.SPEED} title="Playback speed" @change=${this.onSpeed}>
 				${SPEED_OPTIONS.map((s) => html`<option value=${s} ?selected=${s === this.state.speed}>${formatSpeed(s)}</option>`)}
 			</select>

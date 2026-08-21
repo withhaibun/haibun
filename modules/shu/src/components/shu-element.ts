@@ -78,9 +78,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	static attributeFields: Record<string, string> = {};
 
 	static get observedAttributes(): string[] {
-		// SPINE is always observed: the pane sets it on a column that renders its own spine, and the column has to
-		// re-render to show the narrow form. It is the base's own concept, so no subclass has to remember to list it.
-		return [...super.observedAttributes, ...Object.keys(this.attributeFields), ...this.observedHtmlAttributes, SHU_ATTR.SPINE];
+		return [...super.observedAttributes, ...Object.keys(this.attributeFields), ...this.observedHtmlAttributes];
 	}
 
 	/** State fields remembered across reloads — THE mechanism for any persisted UI option, declared like
@@ -89,11 +87,6 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * via setState earlier in this element's lifetime (e.g. a URL-hash flag applied before attach) is never
 	 * overwritten by the remembered value. Do not hand-roll component cookies — declare the field here. */
 	static persistFields: readonly string[] = [];
-
-	/** The tag of the view this column shows in its spine: the narrow strip it collapses to. A column that declares
-	 *  one renders it in place of its main view while collapsed, and its main view is not rendered at all until it is
-	 *  expanded again. Left empty, the column collapses to its rotated label alone. */
-	static spineView = "";
 
 	/** Set by a column whose spine is a narrow form of ITSELF rather than a separate view the pane mounts. The pane keeps
 	 *  rendering such a column while it is collapsed and marks it as serving as the spine; the column renders only what
@@ -113,13 +106,6 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		// so it renders — which is why this asks about the slot rather than about serving as a spine.
 		if (this.getAttribute("slot") === SPINE_SLOT && !this.assignedSlot) return false;
 		return super.shouldUpdate(changed);
-	}
-
-	/** Whether this view is serving as a column's spine: what the column shows in the strip it collapses to. A spine is
-	 *  a tall, narrow box, so a view that lays out differently there asks this rather than working it out itself. True
-	 *  either way it got there — mounted into the pane's spine slot, or kept on as the narrow form of its own column. */
-	protected get isSpineView(): boolean {
-		return this.getAttribute("slot") === SPINE_SLOT || this.hasAttribute(SHU_ATTR.SPINE);
 	}
 
 	/** Identity under which `persistFields` store: "" (default) is a per-tag singleton; a multi-instance
@@ -335,9 +321,6 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
 		super.attributeChangedCallback(name, oldValue, newValue);
 		if (!this.#reflectingToAttr) this.#reflectAttribute(name, newValue); // skip the echo of our own state→attribute write
-		// Lit re-renders only for attributes bound to a reactive property. SPINE is bound to none — it is the pane
-		// telling a column it is now the strip — and the column's render turns on it, so the update is asked for here.
-		if (name === SHU_ATTR.SPINE) this.requestUpdate();
 		this.onAttributeChanged(name, oldValue, newValue);
 	}
 

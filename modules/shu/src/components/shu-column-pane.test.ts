@@ -331,10 +331,11 @@ describe("what a pane renders when it collapses", () => {
 		await nextFrame(pane);
 	});
 
-	const slots = () => Array.from(pane.shadowRoot?.querySelectorAll("slot") ?? []).map((s) => s.getAttribute("name"));
+	// A slot's `name` is "" for the default slot however it was written, which is what "the default slot" means here.
+	const slots = () => Array.from(pane.shadowRoot?.querySelectorAll("slot") ?? []).map((s) => s.name);
 
 	it("renders only the default slot while it is open, so the spine view is not rendered", () => {
-		expect(slots(), "one slot, unnamed").toEqual([null]);
+		expect(slots(), "one slot, unnamed").toEqual([""]);
 	});
 
 	it("renders only the spine slot once collapsed, so the column's main view is not rendered", async () => {
@@ -348,7 +349,7 @@ describe("what a pane renders when it collapses", () => {
 		await nextFrame(pane);
 		pane.setMinimized(false);
 		await nextFrame(pane);
-		expect(slots()).toEqual([null]);
+		expect(slots()).toEqual([""]);
 		expect(pane.children.length, "and the spine view stayed put, keeping whatever state it had").toBe(2);
 	});
 
@@ -412,8 +413,8 @@ describe("a column whose spine is a narrow form of itself", () => {
 
 	it("keeps rendering the column, so the part it shows in the strip stays where it is", async () => {
 		const pane = await spined();
-		const slots = Array.from(pane.shadowRoot?.querySelectorAll("slot") ?? []).map((sl) => sl.getAttribute("name"));
-		expect(slots, "the default slot, inside the strip — not the spine slot").toEqual([null]);
+		const slots = Array.from(pane.shadowRoot?.querySelectorAll("slot") ?? []).map((sl) => sl.name);
+		expect(slots, "the default slot, inside the strip — not the spine slot").toEqual([""]);
 		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE), "and the strip is sized for a spine").toBe(true);
 	});
 

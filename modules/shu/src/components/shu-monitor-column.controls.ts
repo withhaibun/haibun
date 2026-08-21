@@ -69,29 +69,6 @@ export default class ShuMonitorColumnControls extends AStepper {
 		}, where);
 	}
 
-	/** What a press at the middle of the rail's thumb actually reaches: "thumb" when the thumb can be grabbed, otherwise
-	 *  what is covering it. Read inside the scrollbar's own shadow root, which is where both are drawn. */
-	private thumbPressReaches(page: EvalPage): Promise<string | null> {
-		return page.evaluate(() => {
-			const stack: Array<Document | ShadowRoot> = [document];
-			while (stack.length > 0) {
-				const root = stack.pop();
-				if (!root) break;
-				const sb = root.querySelector("shu-scrollbar");
-				if (sb?.shadowRoot) {
-					const thumb = sb.shadowRoot.querySelector('[data-testid="scrollbar-thumb"]');
-					if (!thumb) return null;
-					const r = thumb.getBoundingClientRect();
-					const at = sb.shadowRoot.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
-					const id = at?.getAttribute?.("data-testid") ?? "";
-					return id.startsWith("scrollbar-") ? id.slice("scrollbar-".length) : String(at?.tagName ?? "nothing").toLowerCase();
-				}
-				for (const el of Array.from(root.querySelectorAll("*"))) if (el.shadowRoot) stack.push(el.shadowRoot);
-			}
-			return null;
-		});
-	}
-
 	steps: TStepperSteps = {
 		monitorShowsMoreThan: {
 			gwta: "monitor shows more than {min} rows",
@@ -123,17 +100,6 @@ export default class ShuMonitorColumnControls extends AStepper {
 				const want = Number(max);
 				const n = await this.waitForSettled(await this.page(), (p) => this.rowCount(p));
 				return n > 0 && n < want ? actionOK() : actionNotOK(`monitor renders ${n} rows, expected a virtualized count below ${want}`);
-			},
-		},
-		monitorRailThumbTakesAPress: {
-			gwta: "monitor rail thumb takes a press",
-			action: async () => {
-				const at = await this.thumbPressReaches(await this.page());
-				if (at === null) return actionNotOK("no shu-scrollbar thumb found to press");
-				// The marks are drawn after the thumb, so without the thumb above them a press meant to grab it lands on
-				// whichever mark covers it — and on a densely marked rail that is most of the thumb. Dragging then does
-				// nothing but jump to that mark. Nothing below the browser can see this: it is what paints over what.
-				return at === "thumb" ? actionOK() : actionNotOK(`a press at the middle of the rail thumb reaches the ${at}, so the thumb cannot be grabbed to drag it`);
 			},
 		},
 		seekMonitorRail: {

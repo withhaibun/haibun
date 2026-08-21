@@ -90,7 +90,6 @@ export const SHU_TEST_IDS = {
 	},
 	/** Moving the shared time cursor on its own: where it IS is the log's scroll rail. */
 	PLAYBACK: {
-		ROOT: "shu-playback",
 		PLAY: "playback-play",
 		SPEED: "playback-speed",
 		RESTART: "playback-restart",

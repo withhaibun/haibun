@@ -347,7 +347,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	 *  put the rows back the moment the reader used it. Such a column is opened from its label instead. */
 	private onSpineClick = (e: Event): void => {
 		if (!this.isCollapsed) return;
-		if ((this.columnView?.constructor as { rendersOwnSpine?: boolean } | undefined)?.rendersOwnSpine) return;
+		if (this.#ownSpineColumn) return;
 		const onControl = e.composedPath().some((node) => node instanceof Element && node.matches(ShuColumnPane.SPINE_CONTROL));
 		if (onControl) return;
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
@@ -406,6 +406,11 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return Array.from(this.children).find((child) => child.getAttribute("slot") !== SPINE_SLOT);
 	}
 
+	/** Whether this column's spine is a narrow form of ITSELF, declared by the column's own class. */
+	get #ownSpineColumn(): boolean {
+		return !!(this.columnView?.constructor as { rendersOwnSpine?: boolean } | undefined)?.rendersOwnSpine;
+	}
+
 	render(): TemplateResult {
 		const { label, closable, columnType, pinned } = this.state;
 		const collapsed = this.isCollapsed;
@@ -413,7 +418,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		// serving as the spine so it can render only what fits the strip. Everything else is swapped for the view
 		// mounted in the spine slot.
 		const view = this.columnView;
-		const ownSpine = collapsed && !!(view?.constructor as { rendersOwnSpine?: boolean } | undefined)?.rendersOwnSpine;
+		const ownSpine = collapsed && this.#ownSpineColumn;
 		view?.toggleAttribute(SHU_ATTR.SPINE, ownSpine);
 		const hasSpine = ownSpine || Array.from(this.children).some((child) => child.getAttribute("slot") === SPINE_SLOT);
 		this.toggleAttribute(SHU_ATTR.HAS_SPINE, hasSpine);
@@ -438,7 +443,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			</div>
 			${collapsed
 				? html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE} @click=${this.onSpineClick}>
-						${ownSpine ? html`<slot @slotchange=${this.onSlotChange}></slot>` : html`<slot name=${SPINE_SLOT} @slotchange=${this.onSlotChange}></slot>`}
+						<slot name=${ownSpine ? "" : SPINE_SLOT} @slotchange=${this.onSlotChange}></slot>
 					</div>`
 				: html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}
 			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>
