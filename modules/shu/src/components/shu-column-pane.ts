@@ -30,7 +30,7 @@ import { readShowControlsCookie, writeShowControlsCookie } from "../show-control
 import { startPointerDrag } from "./pointer-drag.js";
 export { readShowControlsCookie };
 
-const ICON = { MIN: "―", MAX: "⤢", CONTROLS: "⚙", PIN: "📌", CLOSE: "×" } as const;
+const ICON = { MIN: "―", RESTORE: "▭", MAX: "⤢", CONTROLS: "⚙", PIN: "📌", CLOSE: "×" } as const;
 const CLASS = {
 	MIN: "pane-minimize",
 	MAX: "pane-maximize",
@@ -44,7 +44,7 @@ const CLASS = {
 	SPINE: "pane-spine",
 	RESIZE: "resize-handle",
 } as const;
-const TEST_ID = { MAX: SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE, CONTROLS: SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE, SPINE: SHU_TEST_IDS.COLUMN_PANE.SPINE, BROWSER_COLUMN: "browser-column" } as const;
+const TEST_ID = { MIN: SHU_TEST_IDS.COLUMN_PANE.MINIMIZE, MAX: SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE, CONTROLS: SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE, SPINE: SHU_TEST_IDS.COLUMN_PANE.SPINE, BROWSER_COLUMN: "browser-column" } as const;
 
 const MIN_RESIZED_WIDTH = 120;
 
@@ -101,6 +101,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		:host([collapsed]) .pane-controls-group { writing-mode: horizontal-tb; flex-direction: column; margin-left: 0; margin-top: var(--shu-space-3); }
 		:host([collapsed]) .pane-controls-group > button { display: none; }
 		:host([collapsed]) .pane-controls-group > button.pane-close,
+		:host([collapsed]) .pane-controls-group > button.pane-minimize,
 		:host([collapsed]) .pane-controls-group > button.pane-pin { display: inline-flex; }
 		:host([column-type="query"]) { position: sticky; left: 0; z-index: 1; background: var(--shu-bg); }
 		.pane-header {
@@ -430,7 +431,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		const controlsGroup = isEmpty
 			? nothing
 			: html`<span class=${CLASS.GROUP}>
-				<button class="pane-icon ${CLASS.MIN}" type="button" title="Minimize" aria-label="Minimize column" @click=${this.onMinimize}>${ICON.MIN}</button>
+				<button class="pane-icon ${CLASS.MIN}" type="button" data-testid=${TEST_ID.MIN} title=${collapsed ? "Restore" : "Minimize"} aria-label=${collapsed ? "Restore column" : "Minimize column"} aria-pressed=${collapsed} @click=${this.onMinimize}>${collapsed ? ICON.RESTORE : ICON.MIN}</button>
 				<button class="pane-icon ${CLASS.MAX}" type="button" data-testid=${TEST_ID.MAX} title=${maximized ? "Restore" : "Maximize"} aria-label="Maximize column" aria-pressed=${maximized} @click=${this.onMaximize}>${ICON.MAX}</button>
 				<button class="pane-icon ${CLASS.CONTROLS}" type="button" data-testid=${TEST_ID.CONTROLS} title=${controlsActive ? "Hide controls" : "Show controls"} aria-label="Toggle controls" aria-pressed=${controlsActive} @click=${this.onControlsToggle}>${ICON.CONTROLS}</button>
 				<button class="pane-icon ${CLASS.PIN}" type="button" title=${pinned ? "Unpin column" : "Pin column"} aria-label="Pin column" aria-pressed=${pinned} @click=${this.onPin}>${ICON.PIN}</button>

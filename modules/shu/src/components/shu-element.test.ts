@@ -11,10 +11,12 @@
  * tests stayed green while the live UI was unstyled. This test pins the mechanism that
  * jsdom *can* see: declaring `observedHtmlAttributes` must still finalize styles.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { css, html, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuColumnPane } from "./shu-column-pane.js";
+import { installTestMediaQueries } from "../test-setup.js";
 import { shuBaseStyles } from "./styles.js";
 import { flushPersistWrites, readElementPrefs, writeElementPrefs } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
@@ -268,5 +270,84 @@ describe("ShuElement invalid state reporting", () => {
 		el.write({ label: "a name" });
 		expect(() => el.attributeChangedCallback("data-label", "a name", null)).not.toThrow();
 		expect(el.read().label).toBe("a name");
+	});
+});
+
+describe("knowing whether the hosting column is collapsed", () => {
+	// Ambient, at any depth: this is what the pane→column→scroller threading replaced, which could not reach a view
+	// nested inside another view's shadow root at all.
+	const EmptySchema = z.object({});
+
+	class Deep extends ShuElement<typeof EmptySchema> {
+		summarizeForKihan(): TLinkedData | null {
+			return null;
+		}
+		constructor() {
+			super(EmptySchema, {});
+		}
+		get collapsed(): boolean {
+			return this.columnCollapsed;
+		}
+		render() {
+			return html``;
+		}
+	}
+	class Wrapper extends ShuElement<typeof EmptySchema> {
+		summarizeForKihan(): TLinkedData | null {
+			return null;
+		}
+		constructor() {
+			super(EmptySchema, {});
+		}
+		render() {
+			return html`<shu-deep-probe></shu-deep-probe>`;
+		}
+	}
+
+	beforeAll(() => {
+		installTestMediaQueries();
+		if (!customElements.get("shu-deep-probe")) customElements.define("shu-deep-probe", Deep);
+		if (!customElements.get("shu-wrapper-probe")) customElements.define("shu-wrapper-probe", Wrapper);
+		if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
+	});
+
+	const mounted = async (): Promise<{ pane: ShuColumnPane; deep: Deep }> => {
+		document.body.innerHTML = "";
+		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
+		pane.setAttribute("label", "A");
+		pane.dataset.columnKey = "a";
+		const wrapper = document.createElement("shu-wrapper-probe") as Wrapper;
+		pane.appendChild(wrapper);
+		document.body.appendChild(pane);
+		await pane.updateComplete;
+		await wrapper.updateComplete;
+		const deep = wrapper.shadowRoot?.querySelector("shu-deep-probe") as Deep;
+		await deep.updateComplete;
+		return { pane, deep };
+	};
+
+	it("reaches a view nested inside another view's shadow root", async () => {
+		const { pane, deep } = await mounted();
+		expect(deep.collapsed, "open to begin with").toBe(false);
+		pane.setMinimized(true);
+		await deep.updateComplete;
+		expect(deep.collapsed, "and told when its column becomes a strip, with nothing passing it down").toBe(true);
+	});
+
+	it("follows the column back open", async () => {
+		const { pane, deep } = await mounted();
+		pane.setMinimized(true);
+		await deep.updateComplete;
+		pane.setMinimized(false);
+		await deep.updateComplete;
+		expect(deep.collapsed).toBe(false);
+	});
+
+	it("says open for a view in no column at all, rather than throwing", async () => {
+		document.body.innerHTML = "";
+		const loose = document.createElement("shu-deep-probe") as Deep;
+		document.body.appendChild(loose);
+		await loose.updateComplete;
+		expect(loose.collapsed).toBe(false);
 	});
 });

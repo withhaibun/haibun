@@ -11,6 +11,7 @@ import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { mergeEvents, resetEventsSnapshot } from "../events-snapshot.js";
+import { SHU_EVENT } from "../consts.js";
 
 const FIRST = 1_000_000;
 const LAST = 1_000_500;
@@ -83,9 +84,9 @@ describe("playing through a run", () => {
 		timeCursor.set(null);
 	});
 
-	it("offers back-to-start, play and speed, which is all a rail cannot do for itself", async () => {
+	it("offers back-to-start, play, back-to-now and speed, which is all a rail cannot do for itself", async () => {
 		const el = await playing();
-		for (const id of ["playback-restart", "playback-play", "playback-speed"]) {
+		for (const id of ["playback-restart", "playback-play", "playback-live", "playback-speed"]) {
 			expect(el.shadowRoot?.querySelector(`[data-testid="${id}"]`), id).toBeTruthy();
 		}
 	});
@@ -131,5 +132,28 @@ describe("playing through a run", () => {
 		await el.updateComplete;
 		await click(el, "playback-play");
 		expect(timeCursor.get()).toBeNull();
+	});
+});
+
+describe("going back to now", () => {
+	// A press on a rail is meant to stay where it was put, so nothing takes a reader off a chosen moment by itself. This
+	// is what does: the cursor is released, and any view that tails is asked to return to the live edge and follow again.
+	beforeEach(() => {
+		shu?.teardown();
+		resetEventsSnapshot();
+		shu = setupShuTest();
+		frames.install();
+		timeCursor.set(null);
+	});
+
+	it("releases the cursor and asks the tailing views to catch up", async () => {
+		const el = await playing();
+		const asked: string[] = [];
+		document.addEventListener(SHU_EVENT.GO_LIVE, () => asked.push("go-live"));
+		timeCursor.set(FIRST + 100);
+		await el.updateComplete;
+		await click(el, "playback-live");
+		expect(timeCursor.get(), "no upper bound any more, which is what now means").toBeNull();
+		expect(asked, "and the views that tail are told").toEqual(["go-live"]);
 	});
 });

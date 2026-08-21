@@ -14,6 +14,7 @@ import { ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schem
 import "./shu-virtual-column.js";
 import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
+import { SHU_EVENT } from "../consts.js";
 import { eventKey, FULL_WINDOW } from "../events-snapshot.js";
 import type { Range } from "../ranges.js";
 import { arrayWindowedSource } from "../windowed-source.js";
@@ -64,6 +65,16 @@ const MONITOR_SLIDE_STEP_MS = MONITOR_TAIL_MS / 4;
  * moment in time. Indices are into the list passed in, so they address the rows the reader can actually scroll to.
  * Pure, so which rows mark the rail is tested without a virtualizer.
  */
+/** Where the rail marks the moment being shown. It is always somewhere on the run: with no upper bound it is the newest
+ *  row, and it moves as newer ones arrive; before the run began it is the top. That is not the same question as which
+ *  row is current — no row is current before the first one — so a run with rows always has a mark, and only an empty
+ *  one has none. */
+export function cursorMark(currentIdx: number, rows: number, cursor: number | null): number {
+	if (rows === 0) return -1;
+	if (currentIdx >= 0) return currentIdx;
+	return cursor === null ? rows - 1 : 0;
+}
+
 export function railMarkers(rows: readonly TLogRow[]): TScrollMarker[] {
 	const markers: TScrollMarker[] = [];
 	rows.forEach((row, index) => {
@@ -119,6 +130,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	// live-edge follow (tail), so this view derives the filtered rows and their rail markers and hands them over.
 	#source = arrayWindowedSource<TLogRow>([]);
 	#currentIdx = -1;
+	#cursorMark = -1;
 	// Memoize the filtered list by its inputs so a time-cursor scrub (which changes only the current row) does not
 	// re-filter the whole log and re-notify the virtual column. `this.rows` gets a fresh identity on every event batch.
 	#filtered: TLogRow[] = [];
@@ -178,7 +190,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// the cursor every other view reads moves with it. Wheeling does not, over the rail or over the rows — that is
 		// reading, and a reader scrolling their own log should not drag every other view along. The rail says which.
 		this.autoListen(this, SCROLL_TO_INDEX, this.#onRailSeek as EventListener);
+		// Asked from anywhere on the page — the playback control sits in the actions bar, not in this column.
+		this.autoListen(document, SHU_EVENT.GO_LIVE, this.#onGoLive);
 	}
+
+	#onGoLive = (): void => {
+		(this.shadowRoot?.querySelector("shu-virtual-column") as { goLive?: () => void } | null)?.goLive?.();
+	};
 
 	#onRailSeek = (e: Event): void => {
 		const { index, by } = (e as CustomEvent<{ index: number; by: TSeekBy }>).detail ?? {};
@@ -327,6 +345,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			}
 			this.#currentIdx = lo;
 		}
+		this.#cursorMark = cursorMark(this.#currentIdx, this.#filtered.length, cursor);
 	}
 
 	render(): TemplateResult {
@@ -349,7 +368,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			${
 				total === 0 && !spine
 					? html`<div class="log-rows">${emptyOrLoading(this.#events.loaded, "No events at this level.")}</div>`
-					: html`<shu-virtual-column ?spine=${spine} .cursor=${this.#currentIdx} .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
+					: html`<shu-virtual-column ?spine=${spine} .cursor=${this.#cursorMark} .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
 			}
 		`;
 	}

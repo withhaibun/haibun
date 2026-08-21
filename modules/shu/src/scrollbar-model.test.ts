@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { thumbHeightPx, thumbTopPx, firstAtPointer, markerTopPx, clusterMarkers, formatCount, pressTarget, indexAtMarkerPx, MARK_SNAP_PX, type TScrollMarker } from "./scrollbar-model.js";
+import { thumbHeightPx, thumbTopPx, firstAtPointer, markerTopPx, clusterMarkers, formatCount, pressTarget, indexAtMarkerPx, MARK_SNAP_PX, MARK_INSET_PX, type TScrollMarker } from "./scrollbar-model.js";
 
 const RAIL = 400;
 /** A representative thumb height: geometry below takes it as a pixel input, whatever produced it. */
@@ -24,12 +24,14 @@ describe("thumb size and position", () => {
 		expect(thumbHeightPx(10 / 10, RAIL)).toBe(RAIL);
 	});
 
-	it("takes the thumb height as an input, so a caller holding it steady holds the marks steady too", () => {
-		// Marks are inset by half the thumb. Sizing from the viewport share (not the rendered row count) is what keeps that
-		// height steady while a reader scrolls; here it is simply given, and two different heights place a mark differently.
+	it("places a mark by the rows and the rail alone, never by how much happens to be on screen", () => {
+		// A mark says where a row sits in the run. The thumb says how much of the run is on screen — a different question,
+		// and once it was allowed into this answer a viewport holding a third of a short log squeezed every mark into the
+		// middle third of the rail and left its ends dead. Both ends stay reachable whatever the thumb is doing.
 		const total = 300;
-		expect(markerTopPx(200, total, RAIL, 40)).not.toBe(markerTopPx(200, total, RAIL, 16));
-		expect(thumbTopPx(total, { first: 0, visible: 30 }, RAIL, 40)).toBe(0);
+		expect(markerTopPx(0, total, RAIL)).toBeLessThan(MARK_INSET_PX + 1);
+		expect(markerTopPx(total - 1, total, RAIL), "the last row reaches the foot of the rail").toBeGreaterThan(RAIL - MARK_INSET_PX - 1);
+		expect(thumbTopPx(total, { first: 0, visible: 30 }, RAIL, 40), "while the thumb keeps its own scale").toBe(0);
 	});
 });
 
@@ -55,17 +57,18 @@ describe("firstAtPointer is the inverse of thumb positioning", () => {
 });
 
 describe("markerTopPx (spread, inset into the thumb's reach)", () => {
-	it("spreads marks across the thumb's reachable range: first near the top inset, last near the bottom inset", () => {
+	it("spreads marks across the whole rail: the first at its head, the last at its foot", () => {
+		// Inset only by half a glyph, so the end marks are drawn whole rather than clipped — not by half the thumb, which
+		// would hand the ends of the rail to whatever the viewport happens to be showing.
 		const total = 1000;
-		const heightPx = THUMB;
-		expect(markerTopPx(0, total, RAIL, THUMB)).toBe(Math.round(heightPx / 2));
-		expect(markerTopPx(total - 1, total, RAIL, THUMB)).toBe(RAIL - Math.round(heightPx / 2));
+		expect(markerTopPx(0, total, RAIL)).toBe(MARK_INSET_PX);
+		expect(markerTopPx(total - 1, total, RAIL)).toBe(RAIL - MARK_INSET_PX);
 	});
 	it("does not pile the last rows at the bottom: distinct tail indices map to distinct, increasing pixels (the bug the windowed scale caused)", () => {
 		const total = 200; // a small total where a fat thumb once made the windowed scale clamp the tail
-		const a = markerTopPx(190, total, RAIL, THUMB);
-		const b = markerTopPx(195, total, RAIL, THUMB);
-		const c = markerTopPx(199, total, RAIL, THUMB);
+		const a = markerTopPx(190, total, RAIL);
+		const b = markerTopPx(195, total, RAIL);
+		const c = markerTopPx(199, total, RAIL);
 		expect(a).toBeLessThan(b);
 		expect(b).toBeLessThan(c);
 	});
@@ -73,7 +76,7 @@ describe("markerTopPx (spread, inset into the thumb's reach)", () => {
 		const total = 5_000_000;
 		let prev = -1;
 		for (let i = 0; i < total; i += 50_000) {
-			const px = markerTopPx(i, total, RAIL, THUMB);
+			const px = markerTopPx(i, total, RAIL);
 			expect(px).toBeGreaterThanOrEqual(prev);
 			expect(px).toBeLessThanOrEqual(RAIL);
 			prev = px;
@@ -87,14 +90,14 @@ describe("clusterMarkers", () => {
 	it("merges annotations that fall within a few pixels into one mark carrying a count", () => {
 		// three rows adjacent in a huge column collapse to one pixel slot
 		const markers = [mk(10, "a"), mk(11, "b"), mk(12, "c"), mk(900_000, "d")];
-		const clustered = clusterMarkers(markers, 1_000_000, RAIL, THUMB);
+		const clustered = clusterMarkers(markers, 1_000_000, RAIL);
 		expect(clustered).toHaveLength(2);
 		expect(clustered[0].count).toBe(3);
 		expect(clustered[1].count).toBe(1);
 	});
 
 	it("keeps well-separated annotations distinct", () => {
-		const clustered = clusterMarkers([mk(0, "a"), mk(500, "b"), mk(999, "c")], 1000, RAIL, THUMB);
+		const clustered = clusterMarkers([mk(0, "a"), mk(500, "b"), mk(999, "c")], 1000, RAIL);
 		expect(clustered.map((c) => c.count)).toEqual([1, 1, 1]);
 	});
 });
@@ -136,7 +139,7 @@ describe("hardening (adversarial review)", () => {
 			{ index: 10, id: "a", icon: "📝", color: "#00f" },
 			{ index: 11, id: "b", icon: "⚠️", color: "#fa0" },
 		];
-		const clustered = clusterMarkers(markers, 1_000_000, RAIL, THUMB);
+		const clustered = clusterMarkers(markers, 1_000_000, RAIL);
 		expect(clustered).toHaveLength(1);
 		expect(clustered[0].count).toBe(3);
 		expect(clustered[0].id).toBe("a"); // the topmost (lowest index)
@@ -148,7 +151,7 @@ describe("hardening (adversarial review)", () => {
 		expect(thumbHeightPx(10 / 100, 0)).toBe(0); // zero-height rail
 		expect(thumbTopPx(100, { first: 0, visible: 10 }, 0, 0)).toBe(0);
 		expect(firstAtPointer(0, 0, 200, RAIL, THUMB)).toBe(0);
-		expect(markerTopPx(5, 1, RAIL, 16)).toBeLessThanOrEqual(RAIL); // single-row column: no crash, stays on the rail
+		expect(markerTopPx(5, 1, RAIL)).toBeLessThanOrEqual(RAIL); // single-row column: no crash, stays on the rail
 	});
 });
 
@@ -158,32 +161,32 @@ describe("what a press on the rail means", () => {
 	// are, whose last `visible` rows begin none, and that is what made the bottom of a strip unpickable.
 	const RAIL = 200;
 	const THUMB = 20;
-	const at = (index: number) => markerTopPx(index, 100, RAIL, THUMB);
+	const at = (index: number) => markerTopPx(index, 100, RAIL);
 
 	it("means the mark, when the press lands on one", () => {
-		expect(pressTarget(at(40), [{ index: 40, topPx: at(40) }], 100, RAIL, THUMB)).toBe(40);
+		expect(pressTarget(at(40), [{ index: 40, topPx: at(40) }], 100, RAIL)).toBe(40);
 	});
 
 	it("means the row at that height when no mark is there, on the same scale the mark would have been", () => {
-		expect(pressTarget(at(40), [], 100, RAIL, THUMB), "a mark there or not, the press means the same row").toBe(40);
+		expect(pressTarget(at(40), [], 100, RAIL), "a mark there or not, the press means the same row").toBe(40);
 	});
 
 	it("reaches the last row, which no window begins and the scrolling scale therefore cannot point at", () => {
-		expect(pressTarget(at(99), [], 100, RAIL, THUMB)).toBe(99);
+		expect(pressTarget(at(99), [], 100, RAIL)).toBe(99);
 		expect(firstAtPointer(100, 41, at(99), RAIL, THUMB), "where scrolling stops, 41 rows short").toBe(59);
 	});
 
 	it("spreads the rail over every row rather than flattening its ends", () => {
-		const picked = [0.05, 0.25, 0.5, 0.75, 0.95].map((f) => pressTarget(f * RAIL, [], 100, RAIL, THUMB));
+		const picked = [0.05, 0.25, 0.5, 0.75, 0.95].map((f) => pressTarget(f * RAIL, [], 100, RAIL));
 		expect(new Set(picked).size, "five heights, five different rows").toBe(5);
 		expect(picked[0]).toBeLessThan(picked[4]);
 	});
 
 	it("still means the mark just inside the reach, and the row pressed just outside it", () => {
 		const marks = [{ index: 40, topPx: at(40) }];
-		expect(pressTarget(at(40) + MARK_SNAP_PX, marks, 100, RAIL, THUMB), "within reach").toBe(40);
+		expect(pressTarget(at(40) + MARK_SNAP_PX, marks, 100, RAIL), "within reach").toBe(40);
 		const beyond = at(40) + MARK_SNAP_PX + 1;
-		expect(pressTarget(beyond, marks, 100, RAIL, THUMB), "past it, the row pressed").toBe(indexAtMarkerPx(beyond, 100, RAIL, THUMB));
+		expect(pressTarget(beyond, marks, 100, RAIL), "past it, the row pressed").toBe(indexAtMarkerPx(beyond, 100, RAIL));
 	});
 
 	it("means the nearer mark when two are within reach", () => {
@@ -191,11 +194,23 @@ describe("what a press on the rail means", () => {
 			{ index: 40, topPx: at(40) },
 			{ index: 43, topPx: at(40) + 5 },
 		];
-		expect(pressTarget(at(40) + 4, marks, 100, RAIL, THUMB)).toBe(43);
+		expect(pressTarget(at(40) + 4, marks, 100, RAIL)).toBe(43);
 	});
 
 	it("holds at the ends rather than running past them", () => {
-		expect(indexAtMarkerPx(-50, 100, RAIL, THUMB), "above the rail is the first row").toBe(0);
-		expect(indexAtMarkerPx(RAIL + 50, 100, RAIL, THUMB), "below it is the last").toBe(99);
+		expect(indexAtMarkerPx(-50, 100, RAIL), "above the rail is the first row").toBe(0);
+		expect(indexAtMarkerPx(RAIL + 50, 100, RAIL), "below it is the last").toBe(99);
+	});
+
+	it("gives the head and foot of the rail to the start and end of the run, whatever is drawn there", () => {
+		// A mark sits at each end of the rail now. If it took these presses, the first and last rows could be reached
+		// only when nothing happened to be marked near them — the ends going missing again, by another route.
+		const marks = [
+			{ index: 7, topPx: markerTopPx(7, 100, RAIL) },
+			{ index: 92, topPx: markerTopPx(92, 100, RAIL) },
+		];
+		expect(pressTarget(0, marks, 100, RAIL), "the very head is the first row").toBe(0);
+		expect(pressTarget(RAIL, marks, 100, RAIL), "the very foot is the last").toBe(99);
+		expect(pressTarget(markerTopPx(7, 100, RAIL) + 3, marks, 100, RAIL), "and inside the rail a mark is still taken").toBe(7);
 	});
 });

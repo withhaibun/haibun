@@ -17,6 +17,7 @@ import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR, SPINE_SLOT } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { flushPersistWrites } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
 import { installTestMediaQueries } from "../test-setup.js";
@@ -434,6 +435,17 @@ describe("a column whose spine is a narrow form of itself", () => {
 		if (!strip) throw new Error("a collapsed pane rendered no strip to click");
 		strip.click();
 		expect(expanded, "using the rail must not put the rows back under the reader").toBe(0);
+	});
+
+	it("is opened again by the control that minimized it, which is the only way back when the strip keeps its clicks", async () => {
+		const pane = await spined();
+		const restore = pane.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.MINIMIZE}"]`) as HTMLButtonElement | null;
+		if (!restore) throw new Error("a collapsed pane rendered no control to open it with");
+		expect(restore.title, "and says which way it goes").toBe("Restore");
+		restore.click();
+		await nextFrame(pane);
+		expect(pane.isCollapsed, "the column is back").toBe(false);
+		expect(pane.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.MINIMIZE}"]`)?.getAttribute("title")).toBe("Minimize");
 	});
 });
 

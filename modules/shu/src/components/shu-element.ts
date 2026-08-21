@@ -41,7 +41,7 @@ import { LitElement, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
-import { SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../consts.js";
+import { COLUMN_PANE_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "../time-sync.js";
 import { timeCursor, activePane, type SharedSignal } from "../signals.js";
 import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
@@ -156,6 +156,57 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		const root = this.getRootNode();
 		const view = root instanceof ShadowRoot ? root.host.localName : this.localName;
 		recordClientBlip(name, value, { view, ...attributes });
+	}
+
+	#collapsedColumn = false;
+
+	/**
+	 * Whether the column hosting this view is collapsed to its strip, rather than open.
+	 *
+	 * Ambient, and true at any depth: a view nested inside another view's shadow root gets the same answer as the column
+	 * itself, without each layer between passing it down. That threading is what it replaces — the pane told the column,
+	 * the column told the scroller, and anything below that could not be told at all.
+	 *
+	 * Distinct from the `spine` attribute, which is an INSTRUCTION to one column ("you are the strip now, render
+	 * narrow"). This is a fact about the surroundings that anything may read: a scroll rail draws no thumb in a strip,
+	 * where nothing is on screen for a thumb to be the size of.
+	 */
+	protected get columnCollapsed(): boolean {
+		return this.#collapsedColumn;
+	}
+
+	/** The column-pane hosting this view, across shadow boundaries — `closest` stops at the first shadow root, and most
+	 *  views are nested inside one. */
+	#hostingColumn(): HTMLElement | null {
+		let node: Element | null = this;
+		while (node) {
+			if (node.tagName.toLowerCase() === COLUMN_PANE_TAG) return node as HTMLElement;
+			const parent: Element | null = node.parentElement;
+			if (parent) {
+				node = parent;
+				continue;
+			}
+			const root = node.getRootNode();
+			node = root instanceof ShadowRoot ? (root.host as Element) : null;
+		}
+		return null;
+	}
+
+	/** Follow the hosting column's collapsed state. Watched on the pane's own attribute, which is the pane's single
+	 *  writer of it, so there is nothing to keep in step and no event to route down through the views between. */
+	#installColumnDisplay(): void {
+		const pane = this.#hostingColumn();
+		if (!pane) return;
+		const read = (): void => {
+			const collapsed = pane.hasAttribute(SHU_ATTR.COLLAPSED);
+			if (collapsed === this.#collapsedColumn) return;
+			this.#collapsedColumn = collapsed;
+			this.requestUpdate();
+		};
+		read();
+		const observer = new MutationObserver(read);
+		observer.observe(pane, { attributes: true, attributeFilter: [SHU_ATTR.COLLAPSED] });
+		this.#teardowns.push(() => observer.disconnect());
 	}
 
 	/** Whether this view is the strip's active pane: its containing column-pane's key equals the global `activePane`
@@ -309,6 +360,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		this.#restorePersisted();
 		this.#installTimeSync();
 		this.#installActiveView();
+		this.#installColumnDisplay();
 		this.onConnected();
 	}
 

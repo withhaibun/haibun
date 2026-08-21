@@ -8,7 +8,7 @@ import { createStepUI, stepTestIds, flattenTestIds } from "@haibun/shu/test/step
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 
 const wp = new WebPlaywright();
-const { waitFor, click, gotoPage, reloadPage } = withAction(wp);
+const { waitFor, click, gotoPage, reloadPage, inElement } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
@@ -17,6 +17,8 @@ const { enterStepMode, passesStepExecution, chooseGraphLabel } = createStepUI(wp
 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
+/** Every open column carries the same controls, so the log's own column names which one a click is for. */
+const MONITOR_PANE = 'shu-column-pane[column-type="shu-monitor-column"]';
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 // Step-caller test-ids are generated per-invocation by createStepUI's helpers
 // (method + callIndex + param), so there's nothing to pre-register at file scope —
@@ -59,29 +61,40 @@ export const features: TKirejiExport = {
 		"The SPA is a single-page app served at /haibun. Navigating here boots the shu app shell, which connects to /sse for live events and to /rpc for step invocations. If the bundle fails to register web components or the SSE handshake fails, subsequent waitFor calls will time out — which is the signal we want.",
 		gotoPage({ name: `"${host}/haibun"` }),
 
-		scenario({ scenario: "Actions-bar timeline mounts and the scrubber moves" }),
-
-		"The timeline scrubber lives in the actions-bar at the page level (not inside any pane) — it consumes the same SSE event stream as the monitor and drives time-travel for every view via TIME_SYNC. It opens from the current-time control in the bar's corner; click that to reveal the scrubber, then assert the timeline is interactive. Exercising play/restart proves the cursor moves through history rather than parking at the latest event.",
-		click({ target: IDS.APP.TIME_OFFSET }),
-		waitFor({ target: IDS.TIMELINE.SLIDER }),
-		waitFor({ target: IDS.TIMELINE.PLAY_PAUSE }),
-		waitFor({ target: IDS.TIMELINE.RESTART }),
-		waitFor({ target: IDS.TIMELINE.SPEED }),
-		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
-		click({ target: IDS.TIMELINE.RESTART }),
-		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
-		click({ target: IDS.TIMELINE.PLAY_PAUSE }),
-		"pause for 2s",
-		click({ target: IDS.TIMELINE.PLAY_PAUSE }),
-		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
-		"Close the timeline popover so it does not float over the controls the later scenarios click.",
-		click({ target: IDS.APP.TIME_OFFSET }),
-
 		scenario({ scenario: "Open the monitor column" }),
 
 		"The monitor column subscribes to SSE artifact events and renders them as a log stream. Opening it asserts the SSE handshake reached the client and the event projection runs.",
 		"show monitor",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+
+		"The log's own scroll rail is where the shared cursor is shown and picked, so there is no separate range control on the page. The moment being shown is always somewhere on the run, so its mark is on the rail from the start: at the live edge, with nothing scrubbed to.",
+		waitFor({ target: IDS.SCROLLBAR.RAIL }),
+		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
+
+		scenario({ scenario: "The log narrows to its rail, and the playback controls move the cursor" }),
+
+		"Minimized, this column is a narrow form of itself: the rows go and the rail stays, with the mark still on it. Its strip is that rail, so a click there is the reader using it rather than asking for the rows back, and the control that minimized the column is what opens it again.",
+		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.MINIMIZE}` }),
+		waitFor({ target: IDS.SCROLLBAR.RAIL }),
+		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
+
+		"What a rail cannot do is move on its own, and that is what these controls are: back to the start, play, back to now, and a speed. They live in the actions bar at page level, not inside any pane, and the current-time control opens them. It also opens the log when the log is closed; here the reader already has it, so it is left as they have it. Exercising restart then play proves the cursor moves through the run rather than parking at the newest event.",
+		click({ target: IDS.APP.TIME_OFFSET }),
+		waitFor({ target: IDS.PLAYBACK.RESTART }),
+		waitFor({ target: IDS.PLAYBACK.SPEED }),
+		click({ target: IDS.PLAYBACK.RESTART }),
+		click({ target: IDS.PLAYBACK.PLAY }),
+		"pause for 2s",
+		click({ target: IDS.PLAYBACK.PLAY }),
+		"Back to now, so the later scenarios read a page that is showing everything rather than a moment part-way through the run.",
+		click({ target: IDS.PLAYBACK.LIVE }),
+		"Close the popover so it does not float over the controls the later scenarios click.",
+		click({ target: IDS.APP.TIME_OFFSET }),
+
+		"Opened again, the rows are back and the rail is still the same one.",
+		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.MINIMIZE}` }),
+		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 
 		scenario({ scenario: "Open the graph view and confirm the seeded comments render" }),
 
@@ -134,12 +147,13 @@ export const features: TKirejiExport = {
 		"matches reloadUri with *shu-affordances-panel*",
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
-		"After hash-restore, the monitor and graph-view should also have come back. The timeline opens from the actions-bar's current-time control; click it again after reload to confirm the scrubber survives.",
+		"After hash-restore, the monitor and graph-view should also have come back, and with the monitor its rail and the mark on it. The playback controls open from the actions bar's current-time control; click it again after reload to confirm they survive.",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
 		click({ target: IDS.APP.TIME_OFFSET }),
-		waitFor({ target: IDS.TIMELINE.TIME_DISPLAY }),
-		"Close the timeline popover again so it does not float over later scenarios' controls.",
+		waitFor({ target: IDS.PLAYBACK.PLAY }),
+		"Close the popover again so it does not float over later scenarios' controls.",
 		click({ target: IDS.APP.TIME_OFFSET }),
 
 		scenario({ scenario: "Variable inspection: `show vars` should produce an entry per seeded variable" }),

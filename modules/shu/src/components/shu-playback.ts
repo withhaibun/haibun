@@ -14,6 +14,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { SHU_EVENT } from "../consts.js";
 import { runSpan } from "../events-snapshot.js";
 
 /** Playback rates. The two below 1 run slower than the run did, for a dense burst worth watching unfold. */
@@ -115,6 +116,13 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 		this.#publish();
 	};
 
+	/** Back to the live edge, and tailing again. A press on a rail is meant to stay put, so this is what takes a reader
+	 *  off a moment they picked and back to whatever is happening now. */
+	private onLive = (): void => {
+		this.timeCursor = null;
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.GO_LIVE, { bubbles: true, composed: true }));
+	};
+
 	private onSpeed = (e: Event): void => {
 		this.setState({ speed: Number.parseFloat((e.target as HTMLSelectElement).value) });
 	};
@@ -124,6 +132,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 		return html`
 			<button class="icon" data-testid=${ids.RESTART} title="Back to the start" @click=${this.onRestart}>⏮</button>
 			<button class="icon" data-testid=${ids.PLAY} title=${this.state.playing ? "Pause" : "Play"} @click=${this.onPlay}>${this.state.playing ? "⏸️" : "▶️"}</button>
+			<button class="icon" data-testid=${ids.LIVE} title="Back to now, and follow" @click=${this.onLive}>⏭</button>
 			<select data-testid=${ids.SPEED} title="Playback speed" @change=${this.onSpeed}>
 				${SPEED_OPTIONS.map((s) => html`<option value=${s} ?selected=${s === this.state.speed}>${formatSpeed(s)}</option>`)}
 			</select>

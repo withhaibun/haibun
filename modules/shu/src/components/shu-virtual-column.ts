@@ -58,11 +58,9 @@ export const virtualColumnCss: CSSResultGroup = css`
 	/* The virtualizer owns scrolling; its native scrollbar is hidden because the custom rail drives and reads it. */
 	shu-virtual-column lit-virtualizer { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
 	shu-virtual-column lit-virtualizer::-webkit-scrollbar { width: 0; height: 0; }
-	/* Serving as a column's spine: the rail is the whole of it, filling the strip's height AND its width. The width
-	   matters because the rail is then the only control the column has, and every pixel across the strip should aim at
-	   it rather than asking a reader to find the drawn track. */
-	shu-virtual-column[spine] .spine-rail { display: flex; flex: 1; min-height: 0; }
-	shu-virtual-column[spine] shu-scrollbar { width: 100%; }
+	/* Serving as a column's spine: the rail takes the strip's height, keeps its own width, and stays flush against the
+	   column's edge — the same width at the same place as when the column is open, so collapsing does not move it. */
+	shu-virtual-column[spine] .spine-rail { display: flex; flex: 1; min-height: 0; justify-content: flex-end; }
 `;
 
 /** Fired (bubbling, composed) when this scroller's follow state flips: pinned to the live edge (`following: true`) or the
@@ -177,9 +175,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		if (changed.get("spine") === true && this.#window.visible > 0) {
 			// The virtualizer was just rendered again and has measured nothing, so one scroll lands short. The row is held
 			// and re-driven by #onVisibility until the window reports it, on the same bound as the live-edge convergence.
+			// Only RECORDED here, never scrolled: the virtualizer has just been created and has no layout yet, and asking it
+			// to scroll before it has one throws inside its own internals. #onVisibility drives it instead — the first
+			// report is the first moment a layout is known to exist.
 			this.#wantedFirst = this.#window.first;
 			this.#wantedCount = 0;
-			this.scrollToIndex(this.#wantedFirst);
 		}
 	}
 
@@ -202,7 +202,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 
 	/** Scroll so `index` is at the top of the viewport. For a jump-to from another view (a framed row a reader clicked). */
 	scrollToIndex(index: number, position: "start" | "center" | "end" = "start"): void {
-		this.#virt.value?.scrollToIndex(index, position);
+		// Held to the rows there are: asked for one past the end, the virtualizer reaches for an element that was never
+		// rendered and throws inside its own scrollIntoView.
+		const rows = this.source?.count() ?? 0;
+		if (rows === 0) return;
+		this.#virt.value?.scrollToIndex(Math.max(0, Math.min(index, rows - 1)), position);
 	}
 
 	/** The follow kit's jump-to-live-edge for this virtualized scroller: put the last row at the bottom of the viewport.
@@ -236,11 +240,23 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	#wantedFirst: number | null = null;
 	#wantedCount = 0;
 
+	/** Set while the reader has pressed the rail to a moment of their choosing, so arriving at the last row does not read
+	 *  as "scrolled back to the live edge" and quietly resume the tail. Cleared by a scroll, or by going live. */
+	#pressedAway = false;
+
 	#onVisibility = (e: VisibilityChangedEvent): void => {
 		this.#window = visibleWindow(e.first, e.last);
 		if (this.#wantedFirst !== null) {
+			// Deferred, never called from inside this notification: the virtualizer is mid-update here and the row being
+			// asked for may have no element yet, which throws inside its own scrollIntoView. The follow kit waits for the
+			// update to settle for the same reason, and this waits with it.
 			if (this.#window.first === this.#wantedFirst || this.#wantedCount++ >= MAX_CONVERGE) this.#wantedFirst = null;
-			else this.scrollToIndex(this.#wantedFirst);
+			else {
+				const wanted = this.#wantedFirst;
+				void this.updateComplete.then(() => {
+					if (this.#wantedFirst === wanted) this.scrollToIndex(wanted);
+				});
+			}
 		}
 		if (this.source && e.last >= e.first) void this.source.ensureRange(e.first, e.last + 1);
 		const count = this.source?.count() ?? 0;
@@ -250,7 +266,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			this.recordBlip(VIEW_WINDOW_BLIP, short, { first: this.#window.first, visible: this.#window.visible, count, following: this.follow && this.#follow.isFollowing });
 		}
 		if (this.follow && count > 0) {
-			if (this.#window.first + this.#window.visible >= count) {
+			if (this.#window.first + this.#window.visible >= count && !this.#pressedAway) {
 				// The last row is inside the reported window — the reader is at (or scrolled back to) the live edge. Resume (the
 				// follow's own scroll also lands here, keeping follow engaged) and end this target's convergence.
 				this.#follow.setAtBottom(true);
@@ -300,18 +316,35 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 
 	// Real reader input is the one reliable pause signal: scroll events and the virtualizer's pin state both misreport the
 	// follow's own motion (estimate corrections) as a reader scrolling away.
+	/** Return to the live edge and tail it, whatever the reader had picked. The one way the tail is re-engaged after a
+	 *  press, since a press is meant to stay where it was put. */
+	goLive(): void {
+		this.#pressedAway = false;
+		this.#wantedFirst = null;
+		if (this.follow) {
+			this.#follow.setAtBottom(true);
+			this.#emitFollow();
+		}
+		const rows = this.source?.count() ?? 0;
+		if (rows > 0) this.scrollToIndex(rows - 1, "end");
+	}
+
 	#onUserScroll = (): void => {
 		this.#readerInputAt = Date.now();
+		this.#pressedAway = false; // scrolling is moving through the log again, so the tail may resume as it always did
 		if (this.follow) this.#follow.setAtBottom(false);
 		this.#emitFollow();
 	};
 
 	#onScrollTo = (e: Event): void => {
 		this.#readerInputAt = Date.now();
-		// A rail drag or marker jump is the reader navigating to a specific row — an explicit move away from the live edge, so
-		// pause the follow. Otherwise the convergence, seeing the seeked window short of the last row, would re-jump the tail
-		// back to the bottom and fight the seek. Landing on the last row re-engages follow via the window-reaches-last path.
+		// A rail press or drag is the reader navigating to a specific row — an explicit move away from the live edge, so
+		// pause the follow. Otherwise the convergence, seeing the seeked window short of the last row, would re-jump the
+		// tail back to the bottom and fight the seek. It also has to STAY paused when the row picked happens to be the
+		// last one: reading that as "scrolled back to the live edge" re-engaged the tail, and every later press was then
+		// undone by a jump back to the edge. Scrolling resumes it, and so does asking to go live.
 		if (this.follow) this.#follow.setAtBottom(false);
+		this.#pressedAway = true;
 		this.#emitFollow();
 		const index = (e as CustomEvent<{ index: number }>).detail.index;
 		// In the strip there are no rows to scroll, so the rail moves the window itself. That is what makes the strip a

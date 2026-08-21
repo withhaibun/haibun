@@ -50,6 +50,7 @@ describe("the ceiling a read runs under", () => {
 		expect(readingAt(), "a feature line in its own run is bounded by nothing of its own").toBeUndefined();
 		await runReadingAt("public", async () => {
 			expect(readingAt()).toBe("public");
+			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the innermost scope has nothing to wait on
 			await runReadingAt("private", async () => {
 				expect(readingAt(), "an inner scope states its own, and the store meets the two").toBe("private");
 			});

@@ -93,8 +93,12 @@ export const SHU_TEST_IDS = {
 		PLAY: "playback-play",
 		SPEED: "playback-speed",
 		RESTART: "playback-restart",
+		LIVE: "playback-live",
 	},
 	COLUMN_PANE: {
+		/** Minimize when the column is open, restore when it is a strip: the one control that owns that state, and on a
+		 *  column whose strip keeps its own clicks (the log's rail) the only way back to the column. */
+		MINIMIZE: "pane-minimize",
 		MAXIMIZE: "pane-maximize",
 		CONTROLS_TOGGLE: "pane-controls-toggle",
 		SPINE: "pane-spine",

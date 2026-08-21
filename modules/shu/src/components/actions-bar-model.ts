@@ -54,9 +54,21 @@ export function draggedProportion(height: number, containerHeight: number): numb
 	return clamp(height / containerHeight, PROPORTION.min, PROPORTION.max);
 }
 
-/** How far along a run the time cursor sits, counted from the first moment seen: "now" at the latest of them. */
+/** A span in seconds or minutes, whichever reads shorter. */
+const spanLabel = (ms: number): { n: number; unit: "s" | "m" } => {
+	const seconds = Math.max(0, Math.round(ms / 1000));
+	return seconds < 60 ? { n: seconds, unit: "s" } : { n: Math.round(seconds / 60), unit: "m" };
+};
+
+/**
+ * How far along a run the time cursor sits: the moment it is at, out of how long the run is — "11/40s". A bare "11s"
+ * says nothing about whether that is near the beginning or the end, which is the thing a reader wants from a readout
+ * this small. "now" at the latest moment seen, since there is no upper bound to be a fraction of.
+ */
 export function timeOffsetLabel(cursor: number | null, firstEventTime: number, latestEventTime: number): string {
 	if (cursor == null || cursor <= 0 || cursor >= latestEventTime) return "now";
-	const seconds = Math.round((cursor - firstEventTime) / 1000);
-	return seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)}m`;
+	const at = spanLabel(cursor - firstEventTime);
+	const whole = spanLabel(latestEventTime - firstEventTime);
+	// One unit for both halves, so the two numbers can be read against each other.
+	return at.unit === whole.unit ? `${at.n}/${whole.n}${whole.unit}` : `${Math.round((cursor - firstEventTime) / 1000)}/${whole.n * 60}s`;
 }

@@ -93,7 +93,6 @@ const AnnotationCreatedSchema = z.object({
 	linkedSpecificResourceIds: z.array(z.string()).optional(),
 	contextRoot: z.string(),
 });
-const RelatedItemsSchema = z.object({ items: z.array(z.unknown()), contextRoot: z.string() });
 
 const AnnotationListSchema = z.object({
 	annotations: z.array(
