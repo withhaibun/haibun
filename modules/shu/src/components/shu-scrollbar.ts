@@ -9,14 +9,14 @@
  * It drives nothing itself: it emits `scroll-to-index` and the column (which owns the virtualizer) scrolls. Input is
  * unified through Pointer Events so mouse, touch, and pen behave identically on every device.
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { z } from "zod";
 import { property } from "lit/decorators.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { startPointerDrag } from "./pointer-drag.js";
-import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, formatCount, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
+import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, formatCount, markerTopPx, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
 
 const EmptySchema = z.object({});
 
@@ -43,6 +43,11 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	 *  where the numbers would read as raw pixels, sets this false and keeps only the marks and the thumb. */
 	@property({ type: Boolean }) accessor showPosition = true;
 
+	/** Where the shared time cursor sits, as an absolute index, or -1 for no cursor at all. The thumb says what is on
+	 *  screen; this says which moment every view is showing. They are different things and are drawn differently: the
+	 *  thumb fills the track, the cursor is a mark down its left edge. */
+	@property({ attribute: false }) accessor cursor = -1;
+
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -54,6 +59,19 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			.thumb { position: absolute; left: 0; right: 0; background: var(--shu-fg-muted); min-height: 16px; border-radius: var(--shu-radius); cursor: grab; }
 			.thumb:hover { background: var(--shu-fg); }
 			.thumb:active { cursor: grabbing; }
+			/* Down the left edge, clear of the thumb and the marks so the moment being shown is never mistaken for either.
+			   In the foreground colour rather than an accent: every mark is already coloured, and a cursor in one more
+			   colour reads as one more mark. This is chrome — where you are — so it takes the plainest, strongest one. */
+			.cursor {
+				position: absolute; left: calc(var(--shu-space-2) * -1); width: 5px; height: 22px;
+				transform: translateY(-50%); background: var(--shu-fg); border-radius: var(--shu-radius);
+				pointer-events: none; box-shadow: 0 0 0 2px var(--shu-bg);
+			}
+			/* And a line across the track at the same height, so the moment is findable at a glance down a dense rail. */
+			.cursor::after {
+				content: ""; position: absolute; left: 100%; top: 50%; width: var(--shu-scrollbar-w);
+				border-top: 1px solid var(--shu-fg); opacity: 0.45;
+			}
 			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1; cursor: pointer; opacity: 0.85; pointer-events: auto; }
 			.marker:hover { opacity: 1; }
 			.marker sub { font-size: 0.6em; opacity: 0.8; }
@@ -113,6 +131,12 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP}>${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
 			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
 				<div class="thumb" data-testid=${SHU_TEST_IDS.SCROLLBAR.THUMB} style=${`top:${topPx}px;height:${heightPx}px`} @pointerdown=${this.#onThumbDown}></div>
+				${
+					this.cursor < 0
+						? nothing
+						: html`<span class="cursor" data-testid=${SHU_TEST_IDS.SCROLLBAR.CURSOR} title="the moment being shown"
+								style=${`top:${markerTopPx(this.cursor, this.total, railPx, heightPx)}px`}></span>`
+				}
 				${marks.map(
 					(m) =>
 						html`<span class="marker" style=${`top:${m.topPx}px;color:${m.color}`} title=${m.label ?? m.id} data-testid=${SHU_TEST_IDS.SCROLLBAR.MARKER} @pointerdown=${(e: Event) => this.#onMarker(e, m.index)}
