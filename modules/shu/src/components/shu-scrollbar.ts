@@ -59,18 +59,19 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			.thumb { position: absolute; left: 0; right: 0; background: var(--shu-fg-muted); min-height: 16px; border-radius: var(--shu-radius); cursor: grab; }
 			.thumb:hover { background: var(--shu-fg); }
 			.thumb:active { cursor: grabbing; }
-			/* Down the left edge, clear of the thumb and the marks so the moment being shown is never mistaken for either.
-			   In the foreground colour rather than an accent: every mark is already coloured, and a cursor in one more
-			   colour reads as one more mark. This is chrome — where you are — so it takes the plainest, strongest one. */
+			/* A LINE ACROSS the rail, not a block on it. Everything else here is a block — the thumb is a bar down the
+			   track, every event is a chip on it — so a cursor drawn as one more block reads as one more of them however
+			   it is coloured. Crossing the rail is a shape nothing else uses, which is what makes it findable at a glance
+			   down a dense rail, and it sits above the marks so a chip can never hide it. The caret at the left end gives
+			   the line a definite anchor, and the shadow keeps both readable where they cross a bright chip. */
 			.cursor {
-				position: absolute; left: calc(var(--shu-space-2) * -1); width: 5px; height: 22px;
-				transform: translateY(-50%); background: var(--shu-fg); border-radius: var(--shu-radius);
-				pointer-events: none; box-shadow: 0 0 0 2px var(--shu-bg);
+				position: absolute; left: calc(var(--shu-space-3) * -1); right: calc(var(--shu-space-3) * -1);
+				height: 0; transform: translateY(-50%); pointer-events: none; z-index: 3;
+				border-top: 2px solid var(--shu-fg); filter: drop-shadow(0 1px 0 var(--shu-bg)) drop-shadow(0 -1px 0 var(--shu-bg));
 			}
-			/* And a line across the track at the same height, so the moment is findable at a glance down a dense rail. */
-			.cursor::after {
-				content: ""; position: absolute; left: 100%; top: 50%; width: var(--shu-scrollbar-w);
-				border-top: 1px solid var(--shu-fg); opacity: 0.45;
+			.cursor::before {
+				content: ""; position: absolute; left: 0; top: -6px;
+				border: 5px solid transparent; border-left-color: var(--shu-fg); border-right-width: 0;
 			}
 			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1; cursor: pointer; opacity: 0.85; pointer-events: auto; }
 			.marker:hover { opacity: 1; }
@@ -130,7 +131,14 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		return html`
 			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP}>${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
 			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
-				<div class="thumb" data-testid=${SHU_TEST_IDS.SCROLLBAR.THUMB} style=${`top:${topPx}px;height:${heightPx}px`} @pointerdown=${this.#onThumbDown}></div>
+				${
+					// Nothing has reported what is on screen yet, so there is nothing true to draw: a thumb here would be the
+					// minimum-height box at the top, which says "you are at the start looking at very little" — a claim about
+					// the reader's position made before anything knows it. It appears with the first reported window.
+					this.window.visible > 0
+						? html`<div class="thumb" data-testid=${SHU_TEST_IDS.SCROLLBAR.THUMB} style=${`top:${topPx}px;height:${heightPx}px`} @pointerdown=${this.#onThumbDown}></div>`
+						: nothing
+				}
 				${
 					this.cursor < 0
 						? nothing

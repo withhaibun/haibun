@@ -117,3 +117,28 @@ describe("showing which moment is being shown", () => {
 	// assertion would pass whatever the code did. It is drawn by markerTopPx, the same call and the same arguments the
 	// event marks use, so it is on their scale by construction — see scrollbar-model's own tests for that geometry.
 });
+
+describe("before anything has reported what is on screen", () => {
+	// A thumb needs a viewport to be about. With none reported yet the height clamps to its minimum and sits at the top,
+	// which reads as "you are at the start, looking at very little" — a claim about the reader made before anything knows
+	// it, and the grey box that used to appear on load until the first window arrived.
+	const thumb = (el: ShuScrollbar) => el.shadowRoot?.querySelector('[data-testid="scrollbar-thumb"]');
+
+	it("draws no thumb", async () => {
+		const { el } = await mount(500, { first: 0, visible: 0 });
+		expect(thumb(el)).toBeNull();
+	});
+
+	it("draws one as soon as a window is reported", async () => {
+		const { el } = await mount(500, { first: 0, visible: 0 });
+		el.window = { first: 0, visible: 40 };
+		await el.updateComplete;
+		expect(thumb(el)).toBeTruthy();
+	});
+
+	it("still marks the events, which are known whether or not anything is on screen", async () => {
+		const marks: TScrollMarker[] = [{ index: 10, id: "m", icon: "x", color: "#fff" }];
+		const { el } = await mount(500, { first: 0, visible: 0 }, marks);
+		expect(el.shadowRoot?.querySelectorAll('[data-testid="scrollbar-marker"]').length).toBe(1);
+	});
+});

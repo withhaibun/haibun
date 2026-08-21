@@ -10,6 +10,7 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { resetEventsSnapshot } from "../events-snapshot.js";
 
 const FIRST = 1_000_000;
 const LAST = 1_000_500;
@@ -76,6 +77,8 @@ const click = async (el: ShuPlayback, testid: string) => {
 describe("playing through a run", () => {
 	beforeEach(() => {
 		shu?.teardown();
+		// The shared event log is one store for the page, so a run left in it by the last test is still there for the next.
+		resetEventsSnapshot();
 		shu = setupShuTest();
 		frames.install();
 		timeCursor.set(null);
