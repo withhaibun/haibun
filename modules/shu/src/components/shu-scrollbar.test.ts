@@ -85,3 +85,35 @@ describe("shu-scrollbar interaction", () => {
 		expect(seeks).toHaveLength(1);
 	});
 });
+
+describe("showing which moment is being shown", () => {
+	// The thumb says what is ON SCREEN; the cursor says WHEN. They are different questions, so the rail answers them
+	// with different marks — and the cursor is drawn on the same scale as the event marks, so it lines up with the one
+	// it is sitting on rather than being a few pixels off it.
+	const cursorEl = (el: ShuScrollbar) => el.shadowRoot?.querySelector('[data-testid="scrollbar-cursor"]') as HTMLElement | null;
+
+	it("shows nothing when no moment is pinned, since every view is then showing now", async () => {
+		const { el } = await mount(100, { first: 0, visible: 10 });
+		expect(cursorEl(el)).toBeNull();
+	});
+
+	it("marks the moment once one is pinned", async () => {
+		const { el } = await mount(100, { first: 0, visible: 10 });
+		el.cursor = 50;
+		await el.updateComplete;
+		expect(cursorEl(el)).toBeTruthy();
+	});
+
+	it("takes it away again when the moment is released", async () => {
+		const { el } = await mount(100, { first: 0, visible: 10 });
+		el.cursor = 50;
+		await el.updateComplete;
+		el.cursor = -1;
+		await el.updateComplete;
+		expect(cursorEl(el), "back to showing now, so there is no moment to mark").toBeNull();
+	});
+
+	// WHERE it lands needs a laid-out rail, which this environment has none of: every position would read 0 and the
+	// assertion would pass whatever the code did. It is drawn by markerTopPx, the same call and the same arguments the
+	// event marks use, so it is on their scale by construction — see scrollbar-model's own tests for that geometry.
+});

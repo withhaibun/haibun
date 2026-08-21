@@ -81,6 +81,7 @@ export const SHU_TEST_IDS = {
 		RAIL: "scrollbar-rail",
 		THUMB: "scrollbar-thumb",
 		MARKER: "scrollbar-marker",
+		CURSOR: "scrollbar-cursor",
 		POS_TOP: "scrollbar-pos-top",
 		POS_BOTTOM: "scrollbar-pos-bottom",
 	},

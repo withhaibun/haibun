@@ -336,7 +336,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			${
 				total === 0 && !spine
 					? html`<div class="log-rows">${emptyOrLoading(this.#events.loaded, "No events at this level.")}</div>`
-					: html`<shu-virtual-column ?spine=${spine} .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
+					: html`<shu-virtual-column ?spine=${spine} .cursor=${this.#currentIdx} .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
 			}
 		`;
 	}

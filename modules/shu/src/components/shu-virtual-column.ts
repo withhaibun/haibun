@@ -89,6 +89,10 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	 *  the window it is showing is its own field, so collapsing a column does not lose where the reader was. */
 	@property({ type: Boolean }) accessor spine = false;
 
+	/** The row the shared time cursor sits on, or -1 for none. Passed straight to the rail, which draws it: this column
+	 *  knows about rows, not about time, so it carries the index its host worked out rather than deciding one. */
+	@property({ attribute: false }) accessor cursor = -1;
+
 	/** Light DOM: the virtualized rows must be styled by the host column, and lit-virtualizer itself renders in light DOM. */
 	createRenderRoot(): HTMLElement {
 		return this;
@@ -318,7 +322,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 
 	render(): TemplateResult {
 		const total = this.source?.count() ?? 0;
-		const rail = html`<shu-scrollbar .total=${total} .window=${this.#window} .viewportFraction=${this.#viewportFraction} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]}></shu-scrollbar>`;
+		const rail = html`<shu-scrollbar .total=${total} .window=${this.#window} .viewportFraction=${this.#viewportFraction} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]} .cursor=${this.cursor}></shu-scrollbar>`;
 		// Serving as a column's spine: the strip has room for the rail and nothing else. The rows are not rendered, and
 		// the rail keeps the same window over the same source, so collapsing does not move the reader.
 		if (this.spine) return html`<div class="spine-rail">${rail}</div>`;
