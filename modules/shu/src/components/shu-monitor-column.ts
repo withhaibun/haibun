@@ -13,9 +13,10 @@ import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-mark
 import { ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
+import { TailWindow } from "../tail-window.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT } from "../consts.js";
-import { eventKey, FULL_WINDOW } from "../events-snapshot.js";
+import { eventKey } from "../events-snapshot.js";
 import type { Range } from "../ranges.js";
 import { arrayWindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
@@ -54,8 +55,6 @@ const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 // long-running tab stays bounded instead of holding the whole history. It slides with the edge in quarter-span steps so
 // eviction happens in chunks, not per event. Generous enough that following and a little scroll-back stay inside it; a
 // reader who scrolls further (follow pauses) gets the full history back until they return to the edge. Tunable.
-const MONITOR_TAIL_MS = 10 * 60_000;
-const MONITOR_SLIDE_STEP_MS = MONITOR_TAIL_MS / 4;
 
 /**
  * The marks a filtered log puts on its rail: every row whose event earned one, at its place in that log.
@@ -84,14 +83,6 @@ export function railMarkers(rows: readonly TLogRow[]): TScrollMarker[] {
 		if (row.mark) markers.push({ ...row.mark, index, id: `${row.step}-${index}`, label: [row.step, row.message].filter(Boolean).join(" ") });
 	});
 	return markers;
-}
-
-/** The monitor's window: a bounded tail below the newest event while pinned to the live edge, else the full history so a
- *  scrolled-back reader can reach anything. `from` clamps at 0, so a run shorter than the tail is just the whole log (no
- *  eviction). Pure, so the tail-vs-full decision is unit-tested without a virtualizer. */
-export function monitorTailWindow(following: boolean, newest: number, tailMs: number = MONITOR_TAIL_MS): Range[] {
-	if (!following) return [FULL_WINDOW];
-	return [{ from: Math.max(0, newest - tailMs), to: Number.POSITIVE_INFINITY }];
 }
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
@@ -123,8 +114,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		() => this.onEventsChanged(),
 		() => this.#windowRanges(),
 	);
-	#following = false; // whether the virtual column is pinned to the live edge (drives tail vs full window)
-	#registeredFrom = 0; // the tail window's lower bound as last registered, so a slide re-registers only in coarse steps
+	#tail = new TailWindow({ following: true }); // the log opens pinned to the live edge (its `tail` default); a remembered pause widens on the first FOLLOW_CHANGED
 	#firstKey = ""; // eventKey of the first held event, so a front eviction (not just a shrink) triggers a rebuild
 	// The rows are virtualized: shu-virtual-column renders only the visible window over a resident source and owns the
 	// live-edge follow (tail), so this view derives the filtered rows and their rail markers and hands them over.
@@ -205,29 +195,15 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (row) this.timeCursor = row.timestamp;
 	};
 
-	/** The span this view wants: while following the live edge, a bounded tail below the newest event; otherwise the full
-	 *  history (a scrolled-back reader must reach anything). `from` clamps at 0, so a run shorter than the tail is the whole log. */
-	#windowRanges(): Range[] {
-		return monitorTailWindow(this.#following, this.endTime);
+	/** The span this view wants: the shared tailing rule over this log's newest event. */
+	#windowRanges(): Promise<Range[]> {
+		return this.#tail.ranges(this.endTime);
 	}
 
 	#onFollowChanged = (e: Event): void => {
 		const { following } = (e as CustomEvent<FollowChangedDetail>).detail;
-		if (following === this.#following) return;
-		this.#following = following;
-		this.#registeredFrom = following ? Math.max(0, this.endTime - MONITOR_TAIL_MS) : 0;
-		void this.#events.updateWindow(); // narrow to the tail (evicts old) or widen to full (fetches history back)
+		if (this.#tail.follow(following, this.endTime)) void this.#events.updateWindow(); // narrow to the tail (evicts old) or widen to full (fetches history back)
 	};
-
-	/** While following, advance the tail's lower bound as the live edge moves — but only once it has moved a full step, so
-	 *  eviction runs in coarse chunks (a reconcile per event would thrash). Re-registering evicts the events now below `from`. */
-	#maybeSlide(): void {
-		if (!this.#following) return;
-		const from = Math.max(0, this.endTime - MONITOR_TAIL_MS);
-		if (from - this.#registeredFrom < MONITOR_SLIDE_STEP_MS) return;
-		this.#registeredFrom = from;
-		void this.#events.updateWindow();
-	}
 
 	/** Re-derive rows from this view's window of the shared log (ShuEventConsumer owns backfill + live merge + dedup). The
 	 *  fast path appends the events past the last render (the log grows at the tail). A shrink (forceRefresh) OR a front
@@ -247,7 +223,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		this.renderedCount = all.length;
 		this.#firstKey = firstKey;
 		this.rows = [...this.rows];
-		this.#maybeSlide();
+		if (this.#tail.slide(this.endTime)) void this.#events.updateWindow(); // re-registering evicts what fell below the tail
 	}
 
 	protected override onTimeSync(): void {

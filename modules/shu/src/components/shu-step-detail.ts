@@ -12,6 +12,8 @@ import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
 import { eventMarkerStyle } from "../event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { GET_EVENTS_METHOD } from "../rpc-cache.js";
+import type { Range } from "../ranges.js";
 import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
@@ -29,6 +31,16 @@ const StateSchema = z.object({
 type TVar = { name: string; value: unknown; graph: string };
 type TStepData = { trace?: Record<string, unknown>; variablesSet: TVar[] };
 
+/** The span of a step from its own events: its first event's time to its last's, or to the live edge when no end has
+ *  been seen yet (the step is still running, so its end will arrive live). No events: nothing to ask for. */
+export function stepSpan(events: Array<Record<string, unknown>>): Range | undefined {
+	const times = events.map((e) => Number(e.timestamp) || 0).filter((t) => t > 0);
+	if (times.length === 0) return undefined;
+	const from = Math.min(...times);
+	const ended = events.some((e) => e.kind === "lifecycle" && e.stage === "end");
+	return { from, to: ended ? Math.max(...times) + 1 : Number.POSITIVE_INFINITY };
+}
+
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	/** A single step execution as a prov:Activity: the step event, its dispatch trace, and the variables it set. */
 	summarizeForKihan(): TLinkedData | null {
@@ -45,7 +57,15 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		};
 	}
 
-	#events = new EventsController(this, () => this.onEventsChanged());
+	// The window this view registers with the shared log is the span of its own step: from the step's start to its end, or
+	// to the live edge while it is still running. Nothing before the step is known, so nothing is asked for before the step's
+	// own events have been fetched; a view about one step must not put the whole run in the tab to find it.
+	#events = new EventsController(
+		this,
+		() => this.onEventsChanged(),
+		() => (this.#span ? [this.#span] : [{ from: 0, to: 0 }]),
+	);
+	#span: Range | undefined;
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -79,6 +99,9 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			if (!seqKey) return { variablesSet: [] };
 			const [{ tracesData, quadsData }] = await Promise.all([
 				conduit().group("step-detail: load traces + quads for one step", async (g) => {
+					// The step's own events, by its seqPath, place this view's window on the run before anything else is asked.
+					const own = await g.follow<{ events?: Array<Record<string, unknown>> }>({ method: GET_EVENTS_METHOD, params: { filter: { seqPath: seqKey, limit: 2 } } }, "step-detail: the step's own events");
+					this.#span = stepSpan(own.events ?? []);
 					const tracesData = await g.follow<{ traces: Array<Record<string, unknown>> }>({ method: "MonitorStepper-getDispatchTraces" }, "step-detail: dispatch traces");
 					const quadsData = await g.follow<{
 						quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;

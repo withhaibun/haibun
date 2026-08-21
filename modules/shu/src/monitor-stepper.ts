@@ -175,6 +175,8 @@ export const EventsFilterSchema = z.object({
 	since: z.number().optional(),
 	until: z.number().optional(),
 	limit: z.number().optional(),
+	/** One step's own events: its id is its seqPath (start and end share it), so a view about one step asks for that alone. */
+	seqPath: z.string().optional(),
 });
 export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
 
@@ -552,9 +554,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// The events are the RPC response that fills the client's backfill; keeping them on this event too re-embeds the whole log, recursively.
 			retainProducts: false,
 			action: ({ filter }: { filter: TEventsFilter }) => {
-				const { level, kind, since, until, limit } = filter;
+				const { level, kind, since, until, limit, seqPath } = filter;
 				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
-				const wanted = (e: THaibunEvent): boolean => (!level || e.level === level) && (!kind || e.kind === kind) && (!since || e.timestamp >= since) && (!until || e.timestamp <= until);
+				const wanted = (e: THaibunEvent): boolean =>
+					(!level || e.level === level) && (!kind || e.kind === kind) && (!since || e.timestamp >= since) && (!until || e.timestamp <= until) && (!seqPath || e.id === seqPath);
 				// The live buffer holds only the newest maxEvents; the run's disk log (the report's source) holds every
 				// event. A page that reaches at or past the buffer's oldest event is served from the log, read backward
 				// from its end a chunk at a time, so a page over a log of any size costs a chunk and the page. And a page

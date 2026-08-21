@@ -21,7 +21,8 @@ import "./shu-artifact-frame.js";
 import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
-import { virtualColumnCss } from "./shu-virtual-column.js";
+import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
+import { TailWindow } from "../tail-window.js";
 import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js";
 import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
@@ -69,7 +70,15 @@ const SANITIZE_OPTS = {
 const stripId = (id: string): string => id.replace(/^\[|\]$/g, "");
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
-	#events = new EventsController(this, () => this.onEventsChanged());
+	// The window this view registers with the shared log is the tailing rule the monitor uses: a bounded tail below the
+	// newest event while pinned to the live edge, so a long run does not put its whole history in the tab; the full history
+	// once the reader scrolls back, paged in from the run's disk log as far back as they go.
+	#events = new EventsController(
+		this,
+		() => this.onEventsChanged(),
+		() => this.#tail.ranges(this.endTime),
+	);
+	#tail = new TailWindow({ following: true }); // the document always opens pinned to the live edge
 	#source: WindowedSource<TDocBlock> & { set(items: readonly TDocBlock[], markers?: TScrollMarker[]): void } = arrayWindowedSource<TDocBlock>([]);
 	#blocks: TDocBlock[] = [];
 	#productsById = new Map<string, Record<string, unknown>>();
@@ -134,11 +143,16 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	private onEventsChanged(): void {
 		this.#rebuild();
+		if (this.#tail.slide(this.endTime)) void this.#events.updateWindow(); // re-registering evicts what fell below the tail
 	}
 
 	protected override onConnected(): void {
 		// A framed row a reader clicked in another view asks the document to scrub to that instant and reveal the row.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.jumpToRow((e as CustomEvent<{ row: Element }>).detail.row));
+		// Pinned to the live edge or scrolled back from it decides the window this view holds (see #tail).
+		this.autoListen(this, FOLLOW_CHANGED, (e) => {
+			if (this.#tail.follow((e as CustomEvent<FollowChangedDetail>).detail.following, this.endTime)) void this.#events.updateWindow();
+		});
 		// ←/→ from an expanded thumbnail: only this column can navigate the whole run — the off-screen frames are not in the DOM.
 		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
 	}

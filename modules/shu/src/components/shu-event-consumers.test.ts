@@ -33,8 +33,10 @@ describe("event consumers over the shared log", () => {
 		handle = setupShuTest({
 			dispatch: (method, params) => {
 				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
+				const filter = (params as { filter: { until?: number; limit?: number } }).filter;
+				// A tailing view anchors its first tail on the run's newest event: one page of one event, not a backfill.
+				if (filter.limit === 1) return { events: [step(2)], truncated: true };
 				backfillCalls++;
-				const filter = (params as { filter: { until?: number } }).filter;
 				if (filter.until !== undefined) return { events: [], truncated: false }; // nothing older
 				return { events: [step(1), step(2)], truncated: false };
 			},
