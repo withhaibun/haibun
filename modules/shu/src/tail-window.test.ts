@@ -1,66 +1,62 @@
-// The window a tailing view registers with the shared event log, unit-tested pure (no virtualizer): following the live
-// edge bounds the log to a tail below the newest event; scrolled back it is the whole history; a run shorter than the
-// tail is the whole log. And the bookkeeping that says when to re-register: on a follow flip, and as the edge moves, in
-// coarse steps. The monitor's log and the document both tail by this one rule.
-import { describe, it, expect, beforeEach } from "vitest";
-import { tailWindow, TailWindow } from "./tail-window.js";
-import { mergeEvents, resetEventsSnapshot } from "./events-snapshot.js";
+// What a tailing view holds of the shared event log, counted in events: the newest page (the shared window-size setting)
+// while pinned to the live edge; one page more each time the reader nears the top of what is held, back to the start of
+// the run; one page again when the reader returns to the live edge. Pure bookkeeping, no virtualizer: the monitor's log
+// and the document both tail by this one rule.
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { TailWindow } from "./tail-window.js";
+import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "./components/shu-window-size.js";
 
-const INF = Number.POSITIVE_INFINITY;
+describe("TailWindow", () => {
+	beforeEach(() => windowSizeSetting.set("50"));
+	afterEach(() => windowSizeSetting.set(DEFAULT_WINDOW_SIZE));
 
-describe("tailWindow", () => {
-	it("is the full history when not following (a scrolled-back reader must reach anything)", () => {
-		expect(tailWindow(false, 1_000_000)).toEqual([{ from: 0, to: INF }]);
+	it("wants one page of the shared window size while pinned to the live edge", () => {
+		const tail = new TailWindow({ following: true });
+		expect(tail.count()).toBe(50);
+		windowSizeSetting.set("2000");
+		expect(tail.count(), "the setting is read live, so a change re-sizes every tailing view").toBe(2000);
 	});
 
-	it("is a bounded tail below the newest event when following a long run", () => {
-		expect(tailWindow(true, 1_000_000, 600_000)).toEqual([{ from: 400_000, to: INF }]);
+	it("widens by one page when the reader nears the top of what is held, and not before", () => {
+		const tail = new TailWindow({ following: true });
+		tail.follow(false); // scrolled back from the live edge
+		expect(tail.widenIfNear(40, 50, false), "forty rows from the top: not near").toBe(false);
+		expect(tail.widenIfNear(10, 50, false), "within a quarter page of the top: widen").toBe(true);
+		expect(tail.count()).toBe(100);
+		expect(tail.widenIfNear(3, 100, false), "near the top again: one more page").toBe(true);
+		expect(tail.count()).toBe(150);
 	});
 
-	it("clamps `from` at 0: a run shorter than the tail is the whole log (no eviction)", () => {
-		expect(tailWindow(true, 300_000, 600_000)).toEqual([{ from: 0, to: INF }]);
-	});
-});
-
-describe("TailWindow bookkeeping", () => {
-	it("re-registers on a follow flip, and not on a repeat of the same state", async () => {
-		const tail = new TailWindow({ tailMs: 600_000 });
-		expect(tail.follow(true, 1_000_000), "pinned to the live edge: narrow to the tail").toBe(true);
-		expect(tail.follow(true, 1_000_000), "still pinned: nothing to do").toBe(false);
-		expect(await tail.ranges(1_000_000)).toEqual([{ from: 400_000, to: INF }]);
-		expect(tail.follow(false, 1_000_000), "scrolled back: widen to full").toBe(true);
-		expect(await tail.ranges(1_000_000)).toEqual([{ from: 0, to: INF }]);
+	it("does not widen while following, at the start of the run, or with nothing held", () => {
+		const tail = new TailWindow({ following: true });
+		expect(tail.widenIfNear(0, 50, false), "pinned to the live edge: the top is not being read").toBe(false);
+		tail.follow(false);
+		expect(tail.widenIfNear(0, 50, true), "the start of the run is held: nothing older to ask for").toBe(false);
+		expect(tail.widenIfNear(0, 0, false), "nothing held yet: nothing to be near the top of").toBe(false);
 	});
 
-	it("slides the tail only once the edge has moved a quarter of the tail, so eviction runs in chunks", () => {
-		const tail = new TailWindow({ tailMs: 600_000 });
-		tail.follow(true, 1_000_000); // registered from 400_000
-		expect(tail.slide(1_100_000), "moved 100s: under a step").toBe(false);
-		expect(tail.slide(1_150_000), "moved 150s: a full step").toBe(true);
-		expect(tail.slide(1_200_000), "50s since the last registration: under a step again").toBe(false);
+	it("narrows back to one page when the reader returns to the live edge, and only then re-registers", () => {
+		const tail = new TailWindow({ following: true });
+		tail.follow(false);
+		tail.widenIfNear(0, 50, false);
+		tail.widenIfNear(0, 100, false);
+		expect(tail.count()).toBe(150);
+		expect(tail.follow(false), "still scrolled back: nothing to do").toBe(false);
+		expect(tail.follow(true), "back at the live edge: one page again").toBe(true);
+		expect(tail.count()).toBe(50);
+		expect(tail.follow(true), "already there").toBe(false);
 	});
 
-	it("never slides while not following, since the window is the full history then", () => {
-		const tail = new TailWindow({ tailMs: 600_000 });
-		expect(tail.slide(5_000_000)).toBe(false);
-	});
-});
-
-describe("the first registration", () => {
-	// A view that follows by default has seen no event when it first registers, so it cannot place its tail from its own
-	// newest. It is anchored at the run's newest event, which the shared log knows once anything has arrived; the times
-	// that place a window are always the events' own, never the clock, so a run from another day is still found.
-	beforeEach(() => resetEventsSnapshot());
-
-	it("is already a tail for a view that follows by default, anchored at the newest event the shared log holds", async () => {
-		mergeEvents([{ id: "a", timestamp: 4_000_000, kind: "log", level: "info" }, { id: "b", timestamp: 5_000_000, kind: "log", level: "info" }]);
-		const tail = new TailWindow({ following: true, tailMs: 600_000 });
-		expect(await tail.ranges(0), "boot: no event seen by this view yet").toEqual([{ from: 4_400_000, to: INF }]);
-		expect(await tail.ranges(5_100_000), "once events are seen, the newest seen anchors it").toEqual([{ from: 4_500_000, to: INF }]);
-		expect(tail.slide(5_100_000), "the anchor was registered, so a move under a step is not a slide").toBe(false);
+	it("narrows back to its page once live events have carried it a quarter page past, in chunks rather than per event", () => {
+		const tail = new TailWindow({ following: true });
+		expect(tail.slide(55), "five past the page: not yet").toBe(false);
+		expect(tail.slide(63), "a quarter page past: re-register, which evicts the oldest").toBe(true);
+		tail.follow(false);
+		expect(tail.slide(500), "scrolled back: what is held is wanted, nothing narrows").toBe(false);
 	});
 
-	it("is the full history for a view that does not follow by default", async () => {
-		expect(await new TailWindow({ tailMs: 600_000 }).ranges(0)).toEqual([{ from: 0, to: INF }]);
+	it("starts following or not as its view does", () => {
+		expect(new TailWindow({ following: true }).following).toBe(true);
+		expect(new TailWindow().following).toBe(false);
 	});
 });

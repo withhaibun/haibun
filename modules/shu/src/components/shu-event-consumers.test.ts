@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
+import { FOLLOW_CHANGED, WINDOW_CHANGED } from "./shu-virtual-column.js";
 import { resetEventsSnapshot } from "../events-snapshot.js";
 import { timeCursor } from "../signals.js";
 import { DEFAULT_WINDOW_SIZE, windowSizeSetting } from "./shu-window-size.js";
@@ -34,11 +35,11 @@ describe("event consumers over the shared log", () => {
 			dispatch: (method, params) => {
 				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
 				const filter = (params as { filter: { until?: number; limit?: number } }).filter;
-				// A tailing view anchors its first tail on the run's newest event: one page of one event, not a backfill.
-				if (filter.limit === 1) return { events: [step(2)], truncated: true };
 				backfillCalls++;
-				if (filter.until !== undefined) return { events: [], truncated: false }; // nothing older
-				return { events: [step(1), step(2)], truncated: false };
+				// A tailing view asks for the newest page, then older pages by `until`; this run has two events.
+				const all = [step(1), step(2)];
+				const eligible = filter.until === undefined ? all : all.filter((e) => (e.timestamp as number) <= (filter.until as number));
+				return { events: filter.limit ? eligible.slice(-filter.limit) : eligible, truncated: false };
 			},
 		});
 	});
@@ -94,9 +95,9 @@ describe("event consumers over the shared log", () => {
 // The whole run renders (virtualized to the viewport in a real browser; every row in jsdom, which has no
 // ResizeObserver) — no cap may hide earlier events. Clicking a row scrubs to that row's real instant — measured from
 // the column's global start, the same origin cursorToRow adds it back to — so a click never shifts by a hidden span.
-describe("the document renders the whole run and scrubs a clicked row to its real time", () => {
+describe("the document holds the newest page, widens toward the start, and scrubs a clicked row to its real time", () => {
 	let handle: TShuTestHandle;
-	const WINDOW = 50; // a window size well below the event count: the document must ignore it now, showing every event
+	const WINDOW = 50; // the window size now counts the events a tailing view holds: one page at the live edge, more as the reader nears the top
 	const EVENTS = 60;
 
 	beforeEach(() => {
@@ -106,8 +107,10 @@ describe("the document renders the whole run and scrubs a clicked row to its rea
 		handle = setupShuTest({
 			dispatch: (method, params) => {
 				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
-				if ((params as { filter: { until?: number } }).filter.until !== undefined) return { events: [], truncated: false };
-				return { events: Array.from({ length: EVENTS }, (_, i) => step(i + 1)), truncated: false };
+				const filter = (params as { filter: { until?: number; limit?: number } }).filter;
+				const all = Array.from({ length: EVENTS }, (_, i) => step(i + 1));
+				const eligible = filter.until === undefined ? all : all.filter((e) => (e.timestamp as number) <= (filter.until as number));
+				return { events: filter.limit ? eligible.slice(-filter.limit) : eligible, truncated: false };
 			},
 		});
 	});
@@ -116,14 +119,23 @@ describe("the document renders the whole run and scrubs a clicked row to its rea
 		windowSizeSetting.set(DEFAULT_WINDOW_SIZE);
 	});
 
-	it("renders every event (the 500-cut is gone) and a clicked row scrubs to its own instant", async () => {
+	const sortedRows = (doc: ShuDocumentColumn): HTMLElement[] =>
+		(Array.from(doc.shadowRoot?.querySelectorAll(".doc-row[data-raw-time]") ?? []) as HTMLElement[]).sort(
+			(a, b) => parseFloat(a.getAttribute("data-raw-time") ?? "0") - parseFloat(b.getAttribute("data-raw-time") ?? "0"),
+		);
+
+	it("holds the newest page at the live edge, widens to the start as the reader nears the top, and a clicked row scrubs to its own instant", async () => {
 		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
 		document.body.appendChild(doc);
 		await flush();
-		const rows = (Array.from(doc.shadowRoot?.querySelectorAll(".doc-row[data-raw-time]") ?? []) as HTMLElement[]).sort(
-			(a, b) => parseFloat(a.getAttribute("data-raw-time") ?? "0") - parseFloat(b.getAttribute("data-raw-time") ?? "0"),
-		);
-		expect(rows.length, "the whole 60-event run renders, not a 50-row window").toBe(EVENTS);
+		expect(sortedRows(doc).length, "pinned to the live edge: one page of the newest events, not the whole run").toBe(WINDOW);
+		// The reader scrolls back and reaches the top of what is held: the document widens by a page, which here is the rest.
+		doc.dispatchEvent(new CustomEvent(FOLLOW_CHANGED, { detail: { following: false }, bubbles: true, composed: true }));
+		doc.dispatchEvent(new CustomEvent(WINDOW_CHANGED, { detail: { first: 0, visible: 10, total: WINDOW }, bubbles: true, composed: true }));
+		await flush();
+		await flush();
+		const rows = sortedRows(doc);
+		expect(rows.length, "the whole 60-event run, reached by widening, no cut").toBe(EVENTS);
 		timeCursor.set(999); // a non-null start so the published cutoff registers as a change
 		const row11 = rows.find((r) => r.getAttribute("data-raw-time") === "10"); // event 11: rawTime 10 from the global start (1)
 		row11?.click();

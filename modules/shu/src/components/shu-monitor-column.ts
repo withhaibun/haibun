@@ -12,15 +12,14 @@ import { EventsController } from "../controllers/index.js";
 import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-marker.js";
 import { ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
-import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
+import { virtualColumnCss, FOLLOW_CHANGED, WINDOW_CHANGED, type FollowChangedDetail, type WindowChangedDetail } from "./shu-virtual-column.js";
 import { TailWindow } from "../tail-window.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT } from "../consts.js";
 import { eventKey } from "../events-snapshot.js";
-import type { Range } from "../ranges.js";
 import { arrayWindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
-import { emptyOrLoading } from "./empty-state.js";
+import { unavailableOrEmpty } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import type { TDispatchTrace } from "@haibun/core/schema/protocol.js";
@@ -107,14 +106,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		};
 	}
 
-	// The window this view registers with the shared log: while pinned to the live edge, a bounded tail (memory stays flat on
-	// a long run); when the reader scrolls back (follow pauses), the full history so nothing is out of reach. Slice-1 windowing.
+	// What this view holds of the shared log, counted in events: the newest page while pinned to the live edge (memory stays
+	// flat on a long run); one page more each time the reader nears the top of what is held, back to the start of the run.
 	#events = new EventsController(
 		this,
 		() => this.onEventsChanged(),
-		() => this.#windowRanges(),
+		() => ({ tail: this.#tail.count() }),
 	);
-	#tail = new TailWindow({ following: true }); // the log opens pinned to the live edge (its `tail` default); a remembered pause widens on the first FOLLOW_CHANGED
+	#tail = new TailWindow({ following: true }); // the log opens pinned to the live edge (its `tail` default)
 	#firstKey = ""; // eventKey of the first held event, so a front eviction (not just a shrink) triggers a rebuild
 	// The rows are virtualized: shu-virtual-column renders only the visible window over a resident source and owns the
 	// live-edge follow (tail), so this view derives the filtered rows and their rail markers and hands them over.
@@ -176,6 +175,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	protected override onConnected(): void {
 		// The child virtual column reports when it pins to / leaves the live edge; that flip switches the window tail↔full.
 		this.autoListen(this, FOLLOW_CHANGED, this.#onFollowChanged as EventListener);
+		this.autoListen(this, WINDOW_CHANGED, this.#onWindowChanged as EventListener);
 		// A press or drag on the rail is the reader saying WHEN, not just where: the row it lands on carries a time, so
 		// the cursor every other view reads moves with it. Wheeling does not, over the rail or over the rows — that is
 		// reading, and a reader scrolling their own log should not drag every other view along. The rail says which.
@@ -195,14 +195,15 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (row) this.timeCursor = row.timestamp;
 	};
 
-	/** The span this view wants: the shared tailing rule over this log's newest event. */
-	#windowRanges(): Promise<Range[]> {
-		return this.#tail.ranges(this.endTime);
-	}
-
 	#onFollowChanged = (e: Event): void => {
 		const { following } = (e as CustomEvent<FollowChangedDetail>).detail;
-		if (this.#tail.follow(following, this.endTime)) void this.#events.updateWindow(); // narrow to the tail (evicts old) or widen to full (fetches history back)
+		if (this.#tail.follow(following)) void this.#events.updateWindow(); // back at the live edge: one page again, the rest evicted
+	};
+
+	/** The reader's visible window moved. Near the top of what is held, and short of the run's start, one more page is asked for. */
+	#onWindowChanged = (e: Event): void => {
+		const { first } = (e as CustomEvent<WindowChangedDetail>).detail;
+		if (this.#tail.widenIfNear(first, this.#filtered.length, this.#events.atStart)) void this.#events.updateWindow();
 	};
 
 	/** Re-derive rows from this view's window of the shared log (ShuEventConsumer owns backfill + live merge + dedup). The
@@ -223,7 +224,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		this.renderedCount = all.length;
 		this.#firstKey = firstKey;
 		this.rows = [...this.rows];
-		if (this.#tail.slide(this.endTime)) void this.#events.updateWindow(); // re-registering evicts what fell below the tail
+		if (this.#tail.slide(all.length)) void this.#events.updateWindow(); // following: narrow back to the page, evicting the oldest
 	}
 
 	protected override onTimeSync(): void {
@@ -343,7 +344,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			}
 			${
 				total === 0 && !spine
-					? html`<div class="log-rows">${emptyOrLoading(this.#events.loaded, "No events at this level.")}</div>`
+					? html`<div class="log-rows">${unavailableOrEmpty(this.#events.loaded, this.#events.unavailable, "No events at this level.")}</div>`
 					: html`<shu-virtual-column ?spine=${spine} .cursor=${this.#cursorMark} .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
 			}
 		`;
