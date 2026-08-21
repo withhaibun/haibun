@@ -81,6 +81,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			writing-mode: vertical-lr; text-orientation: mixed;
 			padding: var(--shu-space-4) var(--shu-space-2);
 			flex: 1;
+			align-items: center;
 			/* The label runs from the top of the strip and the controls sit at the bottom of it. Without this they pack
 			   against the label, which leaves them wherever the label's text happens to end. A header sized to its
 			   content (one with a spine below it) has no free space, so this changes nothing there. */
@@ -96,7 +97,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		/* The spine box takes the height the header does not, but only once a column has a spine view to put in it. A
 		   column that declares none renders the slot (so one attached later is still noticed) with nothing assigned to
 		   it, and an empty box claiming half the strip is what pushed that column's controls to the middle of it. */
-		.pane-spine { flex: 0 0 auto; min-height: 0; overflow: hidden; display: flex; }
+		.pane-spine { flex: 0 0 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; }
 		:host([has-spine]) .pane-spine { flex: 1; }
 		:host([collapsed]) .pane-controls-group { writing-mode: horizontal-tb; flex-direction: column; margin-left: 0; margin-top: var(--shu-space-3); }
 		:host([collapsed]) .pane-controls-group > button { display: none; }
@@ -139,6 +140,10 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		/* A spine is the width of the strip and no wider: its view sizes to that rather than scrolling inside it, or a
 		   few pixels of spill — a slider knob's label, say — become native scrollbars in a strip too narrow to use them. */
 		.pane-spine ::slotted(*) { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+		/* A declared spine view is a line down the strip, so it keeps its own width and the box centres it. A column
+		   serving as its OWN spine keeps the stretch above: its rail must stay exactly where it is when the column is
+		   open, and centring a narrowed column would move it. */
+		.pane-spine slot[name="spine"]::slotted(*) { flex: 0 1 auto; }
 		.resize-handle {
 			position: absolute; top: 0; right: 0;
 			width: var(--shu-resize-w); height: 100%;
