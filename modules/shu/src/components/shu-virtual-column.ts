@@ -317,7 +317,10 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// In the strip there are no rows to scroll, so the rail moves the window itself. That is what makes the strip a
 		// control rather than a picture: the reader drags it to a place in the run, and expanding puts the rows there.
 		if (this.spine) {
-			this.#window = { first: index, visible: this.#window.visible };
+			// The rail says which ROW; a window cannot start past the last one, so what the strip shows is clamped even
+			// though what the reader picked is not.
+			const last = Math.max(0, (this.source?.count() ?? 0) - this.#window.visible);
+			this.#window = { first: Math.min(index, last), visible: this.#window.visible };
 			this.requestUpdate();
 			return;
 		}

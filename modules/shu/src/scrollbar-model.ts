@@ -70,21 +70,35 @@ export function clusterMarkers(markers: TScrollMarker[], total: number, railPx: 
 /** How near a mark a press must land to be taken as meaning that mark: about the height of the glyph drawn there. */
 export const MARK_SNAP_PX = 8;
 
-/**
- * The row a press on the rail means: the mark it landed on if it landed on one, otherwise the window it points at.
+/** The row a pointer at `pointerPx` picks out, on the scale the marks are DRAWN at — the inverse of markerTopPx.
  *
- * Marks do not take their own presses. They are drawn across the middle of a narrow rail, so a mark that took its own
- * press would swallow most attempts to point at a position — and a press beside a mark cannot simply be read as its row
- * either, because where a mark is DRAWN and where a press SCROLLS to are different scales: a mark sits at its row among
- * all the rows, while a press picks a window among the windows there are. Hence both answers, chosen here.
+ *  Every row is reachable, which is what picking needs: the rail's other scale spans the WINDOWS there are rather than
+ *  the rows, so its last `visible` rows have no window that starts at them and cannot be pointed at at all. */
+export function indexAtMarkerPx(pointerPx: number, total: number, railPx: number, heightPx: number): number {
+	if (total <= 1 || railPx <= 0) return 0;
+	const travel = Math.max(1, railPx - heightPx);
+	const frac = Math.min(1, Math.max(0, (pointerPx - heightPx / 2) / travel));
+	return Math.round(frac * (total - 1));
+}
+
+/**
+ * The ROW a press on the rail means: the mark it landed on if it landed on one, else the row at that height.
+ *
+ * Both answers are on the marks' own scale, so a press means the same row whether or not a mark happens to be drawn
+ * there. Answering on the scale a press SCROLLS by instead would leave the last `visible` rows unreachable — no window
+ * starts at them — and flatten the ends of the rail, where half a thumb's worth of travel maps to one row. What to
+ * scroll to is a separate question, and the scroller answers it from this row.
+ *
+ * Marks take no press of their own: drawn across the middle of a narrow rail, a mark that did would swallow most
+ * attempts to point anywhere near it.
  */
-export function pressTarget(pressedPx: number, marks: ReadonlyArray<{ index: number; topPx: number }>, total: number, visible: number, railPx: number, heightPx: number): number {
+export function pressTarget(pressedPx: number, marks: ReadonlyArray<{ index: number; topPx: number }>, total: number, railPx: number, heightPx: number): number {
 	let nearest: { index: number; away: number } | null = null;
 	for (const m of marks) {
 		const away = Math.abs(m.topPx - pressedPx);
 		if (away <= MARK_SNAP_PX && (!nearest || away < nearest.away)) nearest = { index: m.index, away };
 	}
-	return nearest ? nearest.index : firstAtPointer(total, visible, pressedPx, railPx, heightPx);
+	return nearest ? nearest.index : indexAtMarkerPx(pressedPx, total, railPx, heightPx);
 }
 
 /** A position glyph for a count of `n` rows: thousands-separated up to a million, then compacted to `1.2M` so it fits

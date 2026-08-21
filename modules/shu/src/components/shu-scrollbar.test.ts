@@ -50,16 +50,27 @@ describe("shu-scrollbar interaction", () => {
 		if (!customElements.get("shu-scrollbar")) customElements.define("shu-scrollbar", ShuScrollbar);
 	});
 
-	it("a press on a marker past the last window seeks only to total-visible, never over-scrolling", async () => {
+	it("a press on a marker past the last window says that row, which no window begins", async () => {
 		const RAIL = 200;
 		const { el, seeks } = await mount(1000, { first: 990, visible: 20 }, [{ index: 999, id: "z", icon: "📝", color: "#000" }]);
 		railBox(el, 0, RAIL);
 		expect(el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]"), "the mark is drawn").toBeTruthy();
 		// Pressed where that mark sits on a rail of this height. The mark does not take the press itself — the rail does,
-		// and reads it as meaning that mark, which is the last row and so clamps to the last window.
+		// and says which ROW was picked. Row 999 begins no window (the last starts at 980), and saying 980 instead would
+		// mean the last twenty rows could never be pointed at.
 		const at = markerTopPx(999, 1000, RAIL, thumbHeightPx(20 / 1000, RAIL));
 		pointerdown(el.shadowRoot?.querySelector("[data-testid=scrollbar-rail]") as Element, at);
-		expect(seeks).toEqual([980]); // clamped to 1000 - 20
+		expect(seeks).toEqual([999]);
+	});
+
+	it("never says a row the log does not have", async () => {
+		const RAIL = 200;
+		const { el, seeks } = await mount(1000, { first: 0, visible: 20 });
+		railBox(el, 0, RAIL);
+		const rail = el.shadowRoot?.querySelector("[data-testid=scrollbar-rail]") as Element;
+		pointerdown(rail, RAIL + 500); // far below the rail's foot
+		pointerdown(rail, -500); // and far above its head
+		expect(seeks, "held to the rows there are").toEqual([999, 0]);
 	});
 
 	it("showPosition=false hides the ordinal/total readout but keeps the marks", async () => {

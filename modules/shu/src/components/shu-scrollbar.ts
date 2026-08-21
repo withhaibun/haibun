@@ -176,9 +176,12 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		`;
 	}
 
+	/** Say which row the reader picked. A ROW, not a window start: the last `visible` rows begin no window, and clamping
+	 *  here would make them unpickable — which is a scroller's limit, not a reader's. What to show is the scroller's to
+	 *  work out from this. */
 	#emit(index: number, by: TSeekBy): void {
-		const clamped = Math.max(0, Math.min(index, Math.max(0, this.total - this.window.visible)));
-		this.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: clamped, by }, bubbles: true, composed: true }));
+		const row = Math.max(0, Math.min(index, Math.max(0, this.total - 1)));
+		this.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: row, by }, bubbles: true, composed: true }));
 	}
 
 	/**
@@ -190,8 +193,11 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		const rect = this.#rail()?.getBoundingClientRect();
 		if (!rect) return this.window.first;
 		const heightPx = this.#thumbPx(rect.height);
-		const marks = snapToMarks ? this.#marks(rect.height, heightPx) : [];
-		return pressTarget(clientY - rect.top, marks, this.total, this.window.visible, rect.height, heightPx);
+		// A drag takes the window scale: the thumb has to stay under the pointer that is dragging it. A press takes the
+		// row scale, through pressTarget, so every row can be pointed at.
+		const at = clientY - rect.top;
+		if (!snapToMarks) return firstAtPointer(this.total, this.window.visible, at, rect.height, heightPx);
+		return pressTarget(at, this.#marks(rect.height, heightPx), this.total, rect.height, heightPx);
 	}
 
 	/** The marks as drawn, held so a render and a press cannot cluster the same marks twice — the clustering maps and
