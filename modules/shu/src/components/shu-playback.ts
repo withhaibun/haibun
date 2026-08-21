@@ -14,6 +14,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { EventsController } from "../controllers/index.js";
 
 /** Playback rates. The two below 1 run slower than the run did, for a dense burst worth watching unfold. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
@@ -43,9 +44,9 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	`,
 	];
 
-	/** The run's bounds, taken from the events as they arrive: what playing runs between. */
-	#firstTime = 0;
-	#lastTime = 0;
+	/** The shared event log, which is where the run's span comes from — this control keeps no running bounds of its own. */
+	#events = new EventsController(this, () => this.requestUpdate());
+
 	#currentTime = 0;
 	#lastFrame = 0;
 	#rafId = 0;
@@ -55,19 +56,15 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	}
 
 	protected override onConnected(): void {
-		this.autoTeardown(
-			this.subscribeBatched({
-				onBatch: (events) => {
-					for (const e of events) {
-						const ts = (e as { timestamp?: number }).timestamp;
-						if (typeof ts !== "number" || !Number.isFinite(ts) || ts <= 0) continue;
-						if (this.#firstTime === 0 || ts < this.#firstTime) this.#firstTime = ts;
-						if (ts > this.#lastTime) this.#lastTime = ts;
-					}
-				},
-			}),
-		);
 		this.autoTeardown(() => this.#stop());
+	}
+
+	/** What playing runs between. */
+	get #firstTime(): number {
+		return this.#events.span.first;
+	}
+	get #lastTime(): number {
+		return this.#events.span.last;
 	}
 
 	/** The cursor moved somewhere else — a rail seek, a row click. Playing from here means playing from there. */

@@ -9,7 +9,7 @@ import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
-import { AuthorityController } from "../controllers/index.js";
+import { AuthorityController, EventsController } from "../controllers/index.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
@@ -111,6 +111,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** What this reader holds and how many grants stand behind them — the indicator says both beside the level, so a
 	 *  reader sees at a glance that there is authority here to look at. */
 	#authority = new AuthorityController(this);
+	/** The shared event log, for the run's span behind the time-offset readout. */
+	#events = new EventsController(this, () => this.requestUpdate());
 	private _summary: TPermissionsSummary = { holds: 0, principals: 0, grants: 0 };
 	/** What an extension in the permissions area says awaits the reader's decision: how many, and the reference that
 	 *  leads to them. The bar marks that something is waiting and renders the reference; what kind of thing it is
@@ -367,6 +369,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.autoTeardown(
 				this.subscribeBatched({
 					onBatch: (events) => {
+						// The run has moved on, so where the cursor sits in it may read differently.
+						this.#showTimeOffset(this.formatTimeOffset(this.timeCursor));
 						// The values are in the quads the batch carries, so they are taken from it. Answering a change by
 						// asking the server again is what made this a loop: the question is itself a step, the step is
 						// recorded in the graph, and that recording is another change to answer, every debounce forever.
@@ -577,26 +581,28 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	/**
-	 * Track the timeline cursor as elapsed seconds since the first event, so the
-	 * collapsed summary bar reads `0s` at start and grows positive toward `now`.
-	 * The display sits next to the access-indicator and is read-only.
+	 * Say where the cursor sits in the run, as elapsed seconds from its first event, so the control reads `now` while
+	 * every view is showing now and a real offset once a moment is pinned.
 	 */
 	protected onTimeSync(cursor: number | null): void {
-		const label = this.formatTimeOffset(cursor);
+		this.#showTimeOffset(this.formatTimeOffset(cursor));
+	}
+
+	#showTimeOffset(label: string): void {
 		if (label === this._timeOffsetLabel) return;
 		this._timeOffsetLabel = label;
 		this.requestUpdate();
 	}
 
-	private _firstEventTime = 0;
-	private _latestEventTime = 0;
 
-	/** Widen the run's span to include this cursor, then say where in it the cursor sits. */
+	/** Where in the run the cursor sits. The span is the shared event log's, read through this bar's own events
+	 *  controller — not a running minimum and maximum kept here, and not inferred from the cursors themselves, which a
+	 *  rail publishes one at a time on a deliberate seek and which would leave the span degenerate until a second one
+	 *  arrived at a different moment. */
 	private formatTimeOffset(cursor: number | null): string {
 		if (cursor == null || cursor <= 0) return "now";
-		if (this._firstEventTime === 0 || cursor < this._firstEventTime) this._firstEventTime = cursor;
-		if (cursor > this._latestEventTime) this._latestEventTime = cursor;
-		return timeOffsetLabel(cursor, this._firstEventTime, this._latestEventTime);
+		const { first, last } = this.#events.span;
+		return timeOffsetLabel(cursor, first, last);
 	}
 
 	/** Lit handles the render via the standard `render() \u2192 TemplateResult \u2192 reconcile against the shadow root` path. `updated()` is where side-effects that depend on the freshly-reconciled DOM run \u2014 wiring drag handlers to nodes Lit just mounted, pushing combobox option lists, etc. */

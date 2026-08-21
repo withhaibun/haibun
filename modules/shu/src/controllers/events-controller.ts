@@ -2,6 +2,7 @@ import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { registerWindow, unregisterWindow, eventsInWindow, eventsLoaded, mergeEvents, newWindowClientId, FULL_WINDOW, type TEventRecord } from "../events-snapshot.js";
 import type { Range } from "../ranges.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
+import { eventTime } from "../event-backfill.js";
 
 /** A view's time window over the shared log. Default (no hook, or hook returns none) = the full span, so a view that
  *  declares nothing sees the whole history exactly as before. A view that wants to bound its memory (e.g. the monitor
@@ -83,6 +84,15 @@ export class EventsController implements ReactiveController {
 	/** Whether the window fetch has completed: lets a view show "retrieving" vs "retrieved, and empty" — never a false "no data". */
 	get loaded(): boolean {
 		return eventsLoaded();
+	}
+
+	/** When the run this view can see starts and ends. `all` is time-sorted, so this is its two ends rather than a scan,
+	 *  and rather than each view keeping its own running minimum and maximum off the live stream. It is the span of what
+	 *  is HELD: a window that has evicted an early span starts where the held events do, which is also as far back as a
+	 *  view could take a reader. Both ends are 0 before anything has happened. */
+	get span(): { first: number; last: number } {
+		const events = this.all;
+		return events.length === 0 ? { first: 0, last: 0 } : { first: eventTime(events[0]), last: eventTime(events[events.length - 1]) };
 	}
 
 	/** Await this view's window being loaded — a selector view (e.g. step-detail) awaits this before reading `all` on demand. */
