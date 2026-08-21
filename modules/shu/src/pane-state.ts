@@ -17,7 +17,7 @@ import { QuoteAnchorSchema, type TQuoteAnchor } from "@haibun/core/lib/resources
 import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { objectId } from "./object-id.js";
-import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "./consts.js";
+import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
 import { readElementPrefs } from "./element-prefs.js";
 import { presentationForType } from "./graph/type-presentation.js";
@@ -231,12 +231,6 @@ class PaneStateImpl {
 		this.scheduleReconcile();
 	}
 
-	/** Whether a pane is already open. For a caller that wants a FIRST open to differ from a re-open — opening a column
-	 *  minimized the first time, while leaving a reader who has since expanded it alone. */
-	isOpen(paneId: string): boolean {
-		return this.desired.has(paneId);
-	}
-
 	/** Add or update a pane. Validates against the schema; throws loudly on a bad input. */
 	request(input: DesiredPane): void {
 		const parsed = DesiredPaneSchema.parse(input);
@@ -439,15 +433,6 @@ class PaneStateImpl {
 		const definition = customElements.get(tag);
 		if (definition && !(child instanceof definition))
 			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane has none of its own methods`);
-		// A column may declare the view its spine shows while collapsed. It is attached now and left in place: the pane
-		// renders whichever of the two slots the collapsed state calls for, so neither view is rendered out of its turn.
-		const spineTag = (definition as { spineView?: string } | undefined)?.spineView;
-		if (spineTag) {
-			await this.hooks.ensureLoaded?.(spineTag);
-			const spine = document.createElement(spineTag);
-			spine.setAttribute("slot", SPINE_SLOT);
-			pane.appendChild(spine);
-		}
 		await this.hooks.afterAttach?.[d.paneType]?.(d, child);
 	}
 

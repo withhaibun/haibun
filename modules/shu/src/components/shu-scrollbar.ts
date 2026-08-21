@@ -24,6 +24,11 @@ const EmptySchema = z.object({});
  *  marker: the column should scroll so `index` is the first visible row. */
 export const SCROLL_TO_INDEX = "scroll-to-index";
 
+/** How the reader asked. A press or a drag on the rail is someone saying where they want to be; a wheel over it is
+ *  reading, the same as wheeling the rows. A view that acts on more than scrolling — moving the shared time cursor,
+ *  say — cares which, and would otherwise drag every other view along with a scroll gesture. */
+export type TSeekBy = "press" | "wheel";
+
 export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	constructor() {
 		super(EmptySchema, {});
@@ -51,12 +56,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
-			:host {
-				display: flex; flex-direction: column; align-items: center; width: var(--shu-scrollbar-w); flex-shrink: 0;
-				user-select: none; touch-action: none;
-				/* What is DRAWN as the track. The control's own width is the target, which is wider (see .rail). */
-				--shu-rail-track-w: 14px;
-			}
+			:host { display: flex; flex-direction: column; align-items: center; width: var(--shu-scrollbar-w); flex-shrink: 0; user-select: none; touch-action: none; }
 			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
 			.pos-bottom { margin-top: auto; }
 			/* The rail takes the WHOLE width of the control, because that is the target a reader aims at: a 14px track asks
@@ -92,7 +92,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 				content: ""; position: absolute; left: 0; top: -6px;
 				border: 5px solid transparent; border-left-color: var(--shu-fg); border-right-width: 0;
 			}
-			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1;  opacity: 0.85; pointer-events: none; z-index: 1; }
+			.marker { position: absolute; left: 50%; transform: translate(-50%, -50%); font-size: var(--shu-font-md); line-height: 1;  opacity: 0.85; z-index: 1; }
 			.marker:hover { opacity: 1; }
 			.marker sub { font-size: 0.6em; opacity: 0.8; }
 		`,
@@ -146,7 +146,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		const railPx = this.#railPx;
 		const heightPx = this.#thumbPx(railPx);
 		const topPx = thumbTopPx(this.total, this.window, railPx, heightPx);
-		const marks = clusterMarkers(this.markers, this.total, railPx, heightPx);
+		const marks = this.#marks(railPx, heightPx);
 		return html`
 			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP}>${this.showPosition && this.total ? formatCount(this.window.first + 1) : ""}</span>
 			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
@@ -176,16 +176,36 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		`;
 	}
 
-	#emit(index: number): void {
+	#emit(index: number, by: TSeekBy): void {
 		const clamped = Math.max(0, Math.min(index, Math.max(0, this.total - this.window.visible)));
-		this.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: clamped }, bubbles: true, composed: true }));
+		this.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: clamped, by }, bubbles: true, composed: true }));
 	}
 
-	#pointerToIndex(clientY: number): number {
-		const rail = this.#rail();
-		if (!rail) return this.window.first;
-		const rect = rail.getBoundingClientRect();
-		return firstAtPointer(this.total, this.window.visible, clientY - rect.top, rect.height, this.#thumbPx(rect.height));
+	/**
+	 * The row a pointer at `clientY` means. `snapToMarks` is what separates the two ways of pointing: a press on the
+	 * rail may mean the mark it landed on, while a thumb drag is a position and nothing else — a drag that snapped to
+	 * marks would stick to them as it passed.
+	 */
+	#pointerToIndex(clientY: number, snapToMarks = false): number {
+		const rect = this.#rail()?.getBoundingClientRect();
+		if (!rect) return this.window.first;
+		const heightPx = this.#thumbPx(rect.height);
+		const marks = snapToMarks ? this.#marks(rect.height, heightPx) : [];
+		return pressTarget(clientY - rect.top, marks, this.total, this.window.visible, rect.height, heightPx);
+	}
+
+	/** The marks as drawn, held so a render and a press cannot cluster the same marks twice — the clustering maps and
+	 *  sorts every marker, a long run supplies thousands, and the rail re-renders whenever the cursor moves. Keyed on the
+	 *  marker array ITSELF, not its length: a host that re-derives its marks hands over a new array, while a filter that
+	 *  swapped which rows are marked without changing how many would slip past a count. */
+	#clustered: { of: TScrollMarker[]; key: string; marks: Array<TScrollMarker & { topPx: number; count: number }> } | null = null;
+
+	#marks(railPx: number, heightPx: number): Array<TScrollMarker & { topPx: number; count: number }> {
+		const key = `${this.total}:${railPx}:${heightPx}`;
+		if (this.#clustered?.of !== this.markers || this.#clustered.key !== key) {
+			this.#clustered = { of: this.markers, key, marks: clusterMarkers(this.markers, this.total, railPx, heightPx) };
+		}
+		return this.#clustered.marks;
 	}
 
 	#dragId: number | null = null;
@@ -194,7 +214,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 
 	#onRailDown = (e: PointerEvent): void => {
 		if (this.#dragId !== null) return; // a thumb drag is in flight
-		this.#emit(this.#railTarget(e.clientY));
+		this.#emit(this.#pointerToIndex(e.clientY, true), "press");
 	};
 
 	#onThumbDown = (e: PointerEvent): void => {
@@ -209,29 +229,20 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		this.#stopDrag = startPointerDrag(e, {
 			onMove: (ev) => {
 				carried = true;
-				this.#emit(this.#pointerToIndex(ev.clientY));
+				this.#emit(this.#pointerToIndex(ev.clientY), "press");
 			},
 			onEnd: () => {
-				if (!carried) this.#emit(this.#pointerToIndex(pressedAt));
+				if (!carried) this.#emit(this.#pointerToIndex(pressedAt), "press");
 				this.#stopDrag = null;
 				this.#dragId = null;
 			},
 		});
 	};
 
-	/** The row a press on the rail means, from the model: a mark where one was pressed, else the place pressed. */
-	#railTarget(clientY: number): number {
-		const rect = this.#rail()?.getBoundingClientRect();
-		if (!rect) return this.window.first;
-		const heightPx = this.#thumbPx(rect.height);
-		const pressedPx = clientY - rect.top;
-		return pressTarget(pressedPx, clusterMarkers(this.markers, this.total, rect.height, heightPx), this.total, this.window.visible, rect.height, heightPx);
-	}
-
 	#onWheel = (e: WheelEvent): void => {
 		e.preventDefault();
 		const step = Math.sign(e.deltaY) * Math.max(1, Math.round(this.window.visible * 0.5));
-		this.#emit(this.window.first + step);
+		this.#emit(this.window.first + step, "wheel");
 	};
 }
 

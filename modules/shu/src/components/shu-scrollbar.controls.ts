@@ -103,7 +103,58 @@ export default class ShuScrollbarControls extends AStepper {
 		);
 	}
 
+	/** What a press at the middle of the host's rail thumb actually reaches: the thumb's own test id when it can be
+	 *  grabbed, otherwise whatever covers it. Read inside the rail's shadow root, which is where both are drawn. */
+	private thumbPressReaches(page: EvalPage, host: string): Promise<string | null> {
+		return page.evaluate<string | null, { host: string; thumbId: string }>(
+			(arg: { host: string; thumbId: string }) => {
+				const stack: Array<Document | ShadowRoot> = [document];
+				while (stack.length > 0) {
+					const root = stack.pop();
+					if (!root) break;
+					for (const el of Array.from(root.querySelectorAll("*"))) {
+						if (el.tagName.toLowerCase() === arg.host.toLowerCase()) {
+							const inner: Array<Element | ShadowRoot> = el.shadowRoot ? [el, el.shadowRoot] : [el];
+							while (inner.length > 0) {
+								const node = inner.pop();
+								if (!node) break;
+								for (const child of Array.from(node.querySelectorAll("*"))) {
+									if (child.tagName.toLowerCase() === "shu-scrollbar") {
+										const thumb = child.shadowRoot?.querySelector(`[data-testid="${arg.thumbId}"]`);
+										if (!thumb) return null;
+										const r = thumb.getBoundingClientRect();
+										const at = child.shadowRoot?.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+										return at?.getAttribute?.("data-testid") ?? String(at?.tagName ?? "nothing").toLowerCase();
+									}
+									if (child.shadowRoot) inner.push(child.shadowRoot);
+								}
+							}
+							return null;
+						}
+						if (el.shadowRoot) stack.push(el.shadowRoot);
+					}
+				}
+				return null;
+			},
+			{ host, thumbId: SHU_TEST_IDS.SCROLLBAR.THUMB },
+		);
+	}
+
 	steps = {
+		railThumbTakesAPress: {
+			// The thumb is what a reader grabs to drag, so a press aimed at its middle has to reach it. Every event worth
+			// marking is drawn on the same rail, and a mark over the thumb would take that press and jump to itself,
+			// leaving the thumb ungrabbable on exactly the runs with the most to look through. Nothing below a browser
+			// can see this: it is a question of what paints over what.
+			gwta: "rail thumb in {host} takes a press",
+			action: async ({ host }: { host: string }) => {
+				const at = await this.thumbPressReaches(await this.page(), host);
+				if (at === null) return actionNotOK(`no scroll rail thumb found in ${host} to press`);
+				return at === SHU_TEST_IDS.SCROLLBAR.THUMB
+					? actionOK()
+					: actionNotOK(`a press at the middle of the rail thumb in ${host} reaches the ${at}, so the thumb cannot be grabbed to drag it`);
+			},
+		},
 		railThumbHoldsSize: {
 			// The thumb states how much of the column is on screen, so it must not resize as the reader scrolls past
 			// content of differing heights — a run document holds both a line of prose and a screenshot. It must also

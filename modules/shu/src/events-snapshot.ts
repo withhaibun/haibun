@@ -163,6 +163,19 @@ export function currentEvents(): TEventRecord[] {
 	return getStore().events;
 }
 
+/**
+ * When the run this page holds starts and ends, read without asking for anything.
+ *
+ * The log is kept time-sorted, so this is its two ends rather than a scan. It registers NO window: a reader that only
+ * wants to say where the cursor sits in the run must not thereby ask for the whole history, which would both page the
+ * entire run in at boot and pin it in memory — a window nobody can evict past, since eviction keeps whatever any
+ * consumer still wants. Both ends are 0 before anything has happened.
+ */
+export function runSpan(): { first: number; last: number } {
+	const events = getStore().events;
+	return events.length === 0 ? { first: 0, last: 0 } : { first: eventTime(events[0]), last: eventTime(events[events.length - 1]) };
+}
+
 /** Whether a reconcile has completed — lets a consumer tell "retrieved, and empty" from "still retrieving". */
 export function eventsLoaded(): boolean {
 	return getStore().loaded;

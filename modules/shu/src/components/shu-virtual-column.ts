@@ -61,7 +61,6 @@ export const virtualColumnCss: CSSResultGroup = css`
 	/* Serving as a column's spine: the rail is the whole of it, filling the strip's height AND its width. The width
 	   matters because the rail is then the only control the column has, and every pixel across the strip should aim at
 	   it rather than asking a reader to find the drawn track. */
-	shu-virtual-column[spine] { flex: 1; min-height: 0; }
 	shu-virtual-column[spine] .spine-rail { display: flex; flex: 1; min-height: 0; }
 	shu-virtual-column[spine] shu-scrollbar { width: 100%; }
 `;
@@ -174,12 +173,13 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// Leaving the strip, the virtualizer is rendered again and starts at the top. The window survived in this
 		// element, so the rows are put back under it: expanding a column returns the reader to where they were rather
 		// than to the live edge.
-		if (changed.has("spine") && changed.get("spine") === true && !this.spine && this.#window.visible > 0) {
-			// The virtualizer was just rendered again and has measured nothing, so one scroll lands short. The target is
-			// held and re-driven by #onVisibility until the window reports it, the same convergence the follow kit uses.
-			this.#restoreFirst = this.#window.first;
-			this.#restoreTries = 0;
-			this.scrollToIndex(this.#restoreFirst);
+		// Lit records a changed entry only when the value actually changed, so an old `true` is already a new `false`.
+		if (changed.get("spine") === true && this.#window.visible > 0) {
+			// The virtualizer was just rendered again and has measured nothing, so one scroll lands short. The row is held
+			// and re-driven by #onVisibility until the window reports it, on the same bound as the live-edge convergence.
+			this.#wantedFirst = this.#window.first;
+			this.#wantedCount = 0;
+			this.scrollToIndex(this.#wantedFirst);
 		}
 	}
 
@@ -230,16 +230,17 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		return this.#items;
 	}
 
-	/** Where to put the reader back after the rows return from the strip, and how many attempts are left to get there.
-	 *  Bounded, so a target the content can never reach (a shortened log) gives up rather than re-scrolling forever. */
-	#restoreFirst: number | null = null;
-	#restoreTries = 0;
+	/** The row the reader should be put back at once the rows return from the strip, and the passes spent getting there.
+	 *  Bounded by MAX_CONVERGE, as the live-edge convergence below is: a row the content can never reach (a log that has
+	 *  since been trimmed) gives up rather than re-scrolling for ever. */
+	#wantedFirst: number | null = null;
+	#wantedCount = 0;
 
 	#onVisibility = (e: VisibilityChangedEvent): void => {
 		this.#window = visibleWindow(e.first, e.last);
-		if (this.#restoreFirst !== null) {
-			if (this.#window.first === this.#restoreFirst || this.#restoreTries++ >= 8) this.#restoreFirst = null;
-			else this.scrollToIndex(this.#restoreFirst);
+		if (this.#wantedFirst !== null) {
+			if (this.#window.first === this.#wantedFirst || this.#wantedCount++ >= MAX_CONVERGE) this.#wantedFirst = null;
+			else this.scrollToIndex(this.#wantedFirst);
 		}
 		if (this.source && e.last >= e.first) void this.source.ensureRange(e.first, e.last + 1);
 		const count = this.source?.count() ?? 0;

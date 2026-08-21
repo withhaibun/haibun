@@ -13,7 +13,7 @@ import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-mark
 import { ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss, FOLLOW_CHANGED, type FollowChangedDetail } from "./shu-virtual-column.js";
-import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
+import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { eventKey, FULL_WINDOW } from "../events-snapshot.js";
 import type { Range } from "../ranges.js";
 import { arrayWindowedSource } from "../windowed-source.js";
@@ -88,6 +88,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	 *  strip carrying a mark per significant event and driving the log's position, so the strip IS the rail, left where
 	 *  it is. Nothing is copied into a second control, so there is nothing to keep in step. */
 	static override rendersOwnSpine = true;
+
+	/** Set by the pane while this column is serving as its own strip. A plain reactive property, so the attribute the
+	 *  pane writes re-renders this column the way any other attribute-bound property does. */
+	@property({ type: Boolean }) accessor spine = false;
 
 	/** The live execution log as an ordered collection of rows (time, level, step, message). */
 	summarizeForKihan(): TLinkedData | null {
@@ -170,14 +174,15 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	protected override onConnected(): void {
 		// The child virtual column reports when it pins to / leaves the live edge; that flip switches the window tail↔full.
 		this.autoListen(this, FOLLOW_CHANGED, this.#onFollowChanged as EventListener);
-		// A rail click, drag or mark jump is the reader saying WHEN, not just where: the row it lands on carries a time,
-		// so the cursor every other view reads moves with it. Wheeling through the rows does not — that is reading, and
-		// a reader scrolling their own log should not drag every other view along.
+		// A press or drag on the rail is the reader saying WHEN, not just where: the row it lands on carries a time, so
+		// the cursor every other view reads moves with it. Wheeling does not, over the rail or over the rows — that is
+		// reading, and a reader scrolling their own log should not drag every other view along. The rail says which.
 		this.autoListen(this, SCROLL_TO_INDEX, this.#onRailSeek as EventListener);
 	}
 
 	#onRailSeek = (e: Event): void => {
-		const index = (e as CustomEvent<{ index: number }>).detail?.index;
+		const { index, by } = (e as CustomEvent<{ index: number; by: TSeekBy }>).detail ?? {};
+		if (by !== "press") return; // a wheel over the rail is reading, the same as wheeling the rows
 		const row = typeof index === "number" ? this.#filtered[index] : undefined;
 		if (row) this.timeCursor = row.timestamp;
 	};
@@ -306,14 +311,22 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			this.#filtered = this.rows.filter((r) => LEVEL_ORDER.indexOf(r.level) >= minLevel && !(hideStart && r.isStart && r.hasEnd));
 			this.#source.set(this.#filtered, railMarkers(this.#filtered));
 		}
-		// The current-row highlight depends on the time cursor, so recompute it every update against the cached filter.
+		// The current row depends on the time cursor, so it is found again every update against the cached filter. The
+		// cursor is read ONCE: it is an accessor over an attribute check and a signal read, and this runs per update on
+		// a log that can hold thousands of rows. The rows are time-ordered, so the last one at or before the cursor is
+		// found by halving rather than by walking.
+		const cursor = this.timeCursor;
 		this.#currentIdx = -1;
-		if (this.timeCursor !== null)
-			for (let i = this.#filtered.length - 1; i >= 0; i--)
-				if (this.#filtered[i].timestamp <= this.timeCursor) {
-					this.#currentIdx = i;
-					break;
-				}
+		if (cursor !== null && this.#filtered.length > 0 && this.#filtered[0].timestamp <= cursor) {
+			let lo = 0;
+			let hi = this.#filtered.length - 1;
+			while (lo < hi) {
+				const mid = (lo + hi + 1) >> 1;
+				if (this.#filtered[mid].timestamp <= cursor) lo = mid;
+				else hi = mid - 1;
+			}
+			this.#currentIdx = lo;
+		}
 	}
 
 	render(): TemplateResult {
@@ -322,7 +335,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// In the strip there is room for the rail and nothing else: no toolbar, no rows. It is the SAME virtual column in
 		// both, in the same place in this template, so the element survives collapsing rather than being torn down and
 		// built again — and with it the window it is showing, which is where the reader was.
-		const spine = this.isSpineView;
+		const spine = this.spine;
 		return html`
 			${
 				spine

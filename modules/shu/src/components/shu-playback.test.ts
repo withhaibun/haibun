@@ -10,7 +10,7 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { resetEventsSnapshot } from "../events-snapshot.js";
+import { mergeEvents, resetEventsSnapshot } from "../events-snapshot.js";
 
 const FIRST = 1_000_000;
 const LAST = 1_000_500;
@@ -28,13 +28,12 @@ async function playing(): Promise<ShuPlayback> {
 	const el = document.createElement("shu-playback") as ShuPlayback;
 	document.body.appendChild(el);
 	await el.updateComplete;
-	shu.emit({ id: "a", timestamp: FIRST, kind: "log", level: "info" } as never);
-	shu.emit({ id: "b", timestamp: LAST, kind: "log", level: "info" } as never);
-	// The event subscription batches on a frame, and frames are driven by hand here, so the batch is flushed the same
-	// way. No time passes: these frames are delivering events, not playing anything.
-	await frames.run(3, 0);
-	await new Promise((r) => setTimeout(r, 5));
-	await frames.run(3, 0);
+	// The run's span comes from the shared event log, so that is what a run is put into here — the same call the events
+	// controller makes for every view that reads it.
+	mergeEvents([
+		{ id: "a", timestamp: FIRST, kind: "log", level: "info" },
+		{ id: "b", timestamp: LAST, kind: "log", level: "info" },
+	]);
 	await el.updateComplete;
 	return el;
 }

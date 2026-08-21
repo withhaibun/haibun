@@ -9,7 +9,7 @@ import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
-import { AuthorityController, EventsController } from "../controllers/index.js";
+import { AuthorityController } from "../controllers/index.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
@@ -35,6 +35,7 @@ import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, open
 import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { runSpan } from "../events-snapshot.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,
@@ -111,8 +112,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** What this reader holds and how many grants stand behind them — the indicator says both beside the level, so a
 	 *  reader sees at a glance that there is authority here to look at. */
 	#authority = new AuthorityController(this);
-	/** The shared event log, for the run's span behind the time-offset readout. */
-	#events = new EventsController(this, () => this.requestUpdate());
 	private _summary: TPermissionsSummary = { holds: 0, principals: 0, grants: 0 };
 	/** What an extension in the permissions area says awaits the reader's decision: how many, and the reference that
 	 *  leads to them. The bar marks that something is waiting and renders the reference; what kind of thing it is
@@ -141,7 +140,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
-	/** Which lower-right corner popover is open — the gear's settings, the timeline (over the current-time display), or the access control. At most one. */
+	/** Which lower-right corner popover is open — the gear's settings, playback (over the current-time display), or the access control. At most one. */
 	private _openCorner: TCorner | null = null;
 	private _onDocumentClick = (e: Event): void => {
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
@@ -595,13 +594,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 
-	/** Where in the run the cursor sits. The span is the shared event log's, read through this bar's own events
-	 *  controller — not a running minimum and maximum kept here, and not inferred from the cursors themselves, which a
-	 *  rail publishes one at a time on a deliberate seek and which would leave the span degenerate until a second one
-	 *  arrived at a different moment. */
+	/** Where in the run the cursor sits. The span is read off the shared event log without registering a window: this
+	 *  bar is mounted for the whole session, so asking for one would page the entire run in at boot and pin it there,
+	 *  and the log could never evict past a window nobody gives up. Nor is it inferred from the cursors themselves,
+	 *  which a rail publishes one at a time on a deliberate seek, leaving the span degenerate until a second arrives. */
 	private formatTimeOffset(cursor: number | null): string {
 		if (cursor == null || cursor <= 0) return "now";
-		const { first, last } = this.#events.span;
+		const { first, last } = runSpan();
 		return timeOffsetLabel(cursor, first, last);
 	}
 
@@ -719,7 +718,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 							: nothing;
 		const testid = this._openCorner ? `${this.testIdPrefix}${this._openCorner}-popover` : nothing;
 		// stopPropagation: clicks must not bubble to the summary strip's expand handler. MANUAL popover deliberately:
-		// these panels are used alongside the page (scrub the timeline, then click a node to see it at that time), so
+		// these panels are used alongside the page (set the run playing, then click a node to see it at that time), so
 		// they stay put on outside clicks — only their own control puts them away. Never over the bar's own controls:
 		// showCornerPopover anchors above the whole bar.
 		// The permissions extensions are mounted whether or not the popover is open: an extension that only exists once
@@ -769,17 +768,17 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.toggleExpanded();
 	};
 
-	/** Toggle one of the corner popovers; opening one replaces any other (a single surface). Top-layer, so it never
-	 *  needs the actions bar opened — it floats above the collapsed strip and the open panel alike. */
 	/** `now` says where the run has got to, and is how the log is opened. The log's own rail is where a reader moves
-	 *  through the run, so it opens minimized to that rail — the first time only, since after that where the reader
-	 *  left it is theirs. The controls this reveals are what a rail cannot do: move on its own. */
+	 *  through the run, so opening it lands on that rail: minimized, unless it is already open, in which case it is left
+	 *  exactly as the reader has it. The controls this reveals are what a rail cannot do: move on its own. */
 	private onNowClick = (e: Event): void => {
 		const tag = "shu-monitor-column";
-		PaneState.request({ paneType: "component", tag, label: "Monitor", ...(PaneState.isOpen(tag) ? {} : { flag: "min" as const }) });
+		PaneState.request({ paneType: "component", tag, label: "Monitor", ...(PaneState.has(tag) ? {} : { flag: "min" as const }) });
 		this.onCornerToggle("playback")(e);
 	};
 
+	/** Toggle one of the corner popovers; opening one replaces any other (a single surface). Top-layer, so it never
+	 *  needs the actions bar opened — it floats above the collapsed strip and the open panel alike. */
 	private onCornerToggle(kind: TCorner): (e: Event) => void {
 		return (e: Event) => {
 			e.stopPropagation();
@@ -801,8 +800,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** Float the popover just above the whole bar's top edge, not the summary strip's. The corner controls sit at the
 	 *  bar's BOTTOM, so a popover opening upward from the strip would overlap the expanded input line above it (and
 	 *  intercept clicks on the step input). Above the whole bar it clears the content in every mode. A click elsewhere
-	 *  dismisses the transient pickers (CORNER_DISMISS); the timeline stays by policy. Right edge over the control; the
-	 *  timeline spans the bar's full width. */
+	 *  dismisses the transient pickers (CORNER_DISMISS); playback stays by policy. Right edge over the control. */
 	private showCornerPopover(kind: TCorner, toggle: HTMLElement): void {
 		const pop = this.cornerPopoverEl();
 		if (!pop) throw new Error("actions-bar: corner popover missing from the rendered template");
@@ -1047,7 +1045,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private onModeChange = (e: Event): void => {
 		const mode = (e.target as HTMLSelectElement).value as TMode;
 		// Switching the input mode dismisses a transient corner picker (settings/access) that was floating over the
-		// input; the timeline is a panel used alongside the view (CORNER_DISMISS) and stays.
+		// input; playback is a panel used alongside the view (CORNER_DISMISS) and stays.
 		if (this._openCorner && CORNER_DISMISS[this._openCorner] === "click-away") this.closeCornerPopover();
 		this.setState({ mode });
 	};
@@ -1213,7 +1211,7 @@ const STYLES = `
 	/* Corner controls are shared pane-icon chips — same box + accent-inverse-when-open as an active column view control.
 	   The text toggles (now / access) size to their label instead of the icon's square; the gear keeps the square. */
 	/* The one corner-popover surface (a native top-layer popover): floats just above its corner toggle without
-	   opening the actions bar. Position (bottom/right, or full-bar-width for the timeline) is set at show time. */
+	   opening the actions bar. Position (bottom, right edge over its control) is set at show time. */
 	.corner-popover {
 		width: auto; cursor: default;
 		/* display only in the open state — an unconditional display would override the UA's [popover] hidden rule
@@ -1224,7 +1222,7 @@ const STYLES = `
 		border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius);
 		box-shadow: 0 1px 4px var(--shu-shadow);
 		/* a floating panel sizes to its content and never scrolls it — without this the UA's [popover]
-		   overflow:auto turns the timeline knob's few px of spill into scrollbars */
+		   overflow:auto turns a control's few px of spill into scrollbars */
 		overflow: hidden;
 	}
 	.corner-popover:popover-open { display: inline-flex; align-items: center; }
