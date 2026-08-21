@@ -164,3 +164,33 @@ describe("aiming at the rail", () => {
 		expect(track?.parentElement, "drawn inside the target, not instead of it").toBe(rail);
 	});
 });
+
+describe("a press on the thumb that never moves", () => {
+	// A press the pointer never carries anywhere is a click, and a click goes to where it landed. That is a tap on a
+	// touch screen, and it is what a click on anything the thumb happens to be covering has to do — the thumb sits above
+	// the marks, so without this a click on a covered mark does nothing at all.
+	const press = (el: ShuScrollbar) => {
+		const thumb = el.shadowRoot?.querySelector('[data-testid="scrollbar-thumb"]');
+		if (!thumb) throw new Error("no thumb rendered to press");
+		thumb.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerId: 1, clientY: 40 }));
+	};
+	const release = () => document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, clientY: 40 }));
+
+	it("seeks to where it landed", async () => {
+		const { el, seeks } = await mount(100, { first: 0, visible: 10 });
+		press(el);
+		expect(seeks, "nothing yet — a press alone might still become a drag").toEqual([]);
+		release();
+		expect(seeks.length, "released without moving, so it was a click").toBe(1);
+	});
+
+	it("does not seek again when the press was carried, since the drag already did", async () => {
+		const { el, seeks } = await mount(100, { first: 0, visible: 10 });
+		press(el);
+		document.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientY: 90 }));
+		const during = seeks.length;
+		expect(during, "the move seeks").toBeGreaterThan(0);
+		release();
+		expect(seeks.length, "and the release adds nothing on top of it").toBe(during);
+	});
+});
