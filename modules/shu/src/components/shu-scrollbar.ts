@@ -201,9 +201,18 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		if (this.#dragId !== null) return; // a drag is already in flight; a second finger must not hijack it (mirrors #onRailDown)
 		e.stopPropagation();
 		this.#dragId = e.pointerId;
+		// A press that never moves is a click, and a click on the rail goes to where it landed — the same as pressing the
+		// track beside the thumb. Without this, a press the pointer never carries anywhere does nothing at all, which is
+		// what a tap is on a touch screen and what a click is on anything the thumb happens to be covering.
+		const pressedAt = e.clientY;
+		let carried = false;
 		this.#stopDrag = startPointerDrag(e, {
-			onMove: (ev) => this.#emit(this.#pointerToIndex(ev.clientY)),
+			onMove: (ev) => {
+				carried = true;
+				this.#emit(this.#pointerToIndex(ev.clientY));
+			},
 			onEnd: () => {
+				if (!carried) this.#emit(this.#pointerToIndex(pressedAt));
 				this.#stopDrag = null;
 				this.#dragId = null;
 			},
