@@ -195,6 +195,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private storage!: AStorage;
 	private outputPath?: string;
 	private maxEvents: number = MAX_EVENTS_DEFAULT;
+	/** Whether the live buffer has dropped its oldest events — the run extends further back than `events` holds. */
+	private eventsTrimmed = false;
 	/** buildResourceRels walks every domain; memoized by domain count so per-RPC calls reuse it while a runtime-declared domain still invalidates. */
 	private relsCache?: { rels: ReturnType<typeof buildResourceRels>; size: number };
 	private resourceRels(): ReturnType<typeof buildResourceRels> {
@@ -288,11 +290,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					properties: quad.properties,
 				});
 				if (this.observationQuads.length > this.maxEvents + BUFFER_TRIM_SLACK) this.observationQuads.splice(0, this.observationQuads.length - this.maxEvents);
-			} else {
-				this.events.push(event);
-				if (this.events.length > this.maxEvents + BUFFER_TRIM_SLACK) this.events.splice(0, this.events.length - this.maxEvents);
-				this.appendToEventLog(event);
-			}
+			} else this.recordEvent(event);
 			this.transport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
@@ -305,6 +303,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// getEvents backfill) holds only its own events — and serialized artifacts resolve from the report's own dir.
 			// Live SSE streaming is unaffected; events forward as they happen.
 			this.events = [];
+			this.eventsTrimmed = false;
 			this.observationQuads = [];
 			this.diskBuffer = [];
 			if (this.eventLogPath && existsSync(this.eventLogPath)) rmSync(this.eventLogPath);
@@ -317,6 +316,17 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 * chosen point — `saves shu to <path>` triggers a write, and `endFeature` writes
 	 * once more so the final state always reflects the full run.
 	 */
+	/** Record one event: into the bounded live buffer (trimmed to the newest maxEvents) and onto the run's disk log,
+	 *  which keeps every event. The buffer serves the live tail; the log is where a page past the buffer reads from. */
+	private recordEvent(event: THaibunEvent): void {
+		this.events.push(event);
+		if (this.events.length > this.maxEvents + BUFFER_TRIM_SLACK) {
+			this.events.splice(0, this.events.length - this.maxEvents);
+			this.eventsTrimmed = true;
+		}
+		this.appendToEventLog(event);
+	}
+
 	/** Buffer a report-lean form of the event for the disk log; flush in batches so the log never does sync I/O per event. */
 	private appendToEventLog(event: THaibunEvent): void {
 		const lean = slimReportEvent(slimLiveEvent(event));
@@ -490,14 +500,23 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			retainProducts: false,
 			action: ({ filter }: { filter: TEventsFilter }) => {
 				const { level, kind, since, until, limit } = filter;
-				let filtered: THaibunEvent[] = this.events;
+				// The live buffer holds only the newest maxEvents; the run's disk log (the report's source) holds every
+				// event. A page that reaches at or past the buffer's oldest event is served from the log, and a page
+				// over a trimmed buffer reports truncated even when it fits the budget — so a client paging backward
+				// (fetchRange) reaches the start of the run instead of stopping where the buffer was trimmed.
+				const oldestHeld = this.events[0]?.timestamp;
+				const pastBuffer = this.eventsTrimmed && until !== undefined && (oldestHeld === undefined || until <= oldestHeld);
+				// The log's lean events are these same events, slimmed for the report; every field the filters and the
+				// document read (id, timestamp, kind, stage, level) survives the slimming.
+				let filtered: THaibunEvent[] = pastBuffer ? (this.readEventLog() as unknown as THaibunEvent[]) : this.events;
 				if (level) filtered = filtered.filter((e) => e.level === level);
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
 				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
 				if (until) filtered = filtered.filter((e) => e.timestamp <= until);
 				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
 				const { events, truncated } = recentEventsWithinBudget(filtered, cap, EVENTS_BYTE_BUDGET);
-				return actionOKWithProducts({ events, total: filtered.length, truncated });
+				const headTrimmed = !pastBuffer && this.eventsTrimmed && (!since || oldestHeld === undefined || since < oldestHeld);
+				return actionOKWithProducts({ events, total: filtered.length, truncated: truncated || headTrimmed });
 			},
 		},
 		logClient: {

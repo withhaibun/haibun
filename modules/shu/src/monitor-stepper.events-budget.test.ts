@@ -72,3 +72,61 @@ describe("the disk event log is the report's full history (never windowed)", () 
 		}
 	});
 });
+
+describe("a reloading client can page back to the start of the run", () => {
+	// The in-memory buffer holds only the newest maxEvents; the run's disk log holds every event. A client that reloads
+	// backfills by paging getEvents backward through the `until` cursor (fetchRange), so a page over a trimmed buffer
+	// must say it is truncated, and a page reaching past the buffer must be served from the log — otherwise the pager
+	// stops at the trim and the document's leading lines never load.
+	type TPage = { events: Array<Record<string, unknown>>; truncated?: boolean };
+	const harness = () => {
+		const stepper = new MonitorStepper() as unknown as {
+			eventLogPath: string | null;
+			diskBuffer: string[];
+			maxEvents: number;
+			recordEvent(e: THaibunEvent): void;
+			steps: { getEvents: { action(args: { filter: Record<string, unknown> }): { products: TPage } } };
+		};
+		stepper.eventLogPath = join(tmpdir(), `shu-page-${process.pid}-${Date.now()}.jsonl`);
+		stepper.diskBuffer = [];
+		stepper.maxEvents = 5;
+		return stepper;
+	};
+	const page = (stepper: ReturnType<typeof harness>, filter: Record<string, unknown>): TPage => stepper.steps.getEvents.action({ filter }).products;
+
+	it("reports a page over a trimmed buffer as truncated, since older events exist on the log", () => {
+		const stepper = harness();
+		try {
+			for (let i = 0; i < 600; i++) stepper.recordEvent(ev(i)); // maxEvents 5 + trim slack: the buffer holds a tail
+			const first = page(stepper, {});
+			expect(first.events.length).toBeLessThan(600);
+			expect(first.truncated, "older events exist beyond this page, on the run's disk log").toBe(true);
+		} finally {
+			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
+		}
+	});
+
+	it("serves pages past the buffer from the run's disk log, all the way to the first event", () => {
+		const stepper = harness();
+		try {
+			const N = 600;
+			for (let i = 0; i < N; i++) stepper.recordEvent(ev(i));
+			// Page backward exactly the way the client's fetchRange does.
+			const seen = new Set<string>();
+			let until: number | undefined;
+			for (let pages = 0; pages < 100; pages++) {
+				const { events, truncated } = page(stepper, until === undefined ? {} : { until });
+				if (events.length === 0) break;
+				for (const e of events) seen.add(String(e.id));
+				const earliest = Math.min(...events.map((e) => Number(e.timestamp)));
+				if (!truncated) break;
+				if (until !== undefined && earliest >= until) break;
+				until = earliest;
+			}
+			expect(seen.size, "every event of the run, not just the buffer's tail").toBe(N);
+			expect(seen.has("0.0"), "including the very first").toBe(true);
+		} finally {
+			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
+		}
+	});
+});
