@@ -75,6 +75,7 @@ describe("the client cache view", () => {
 	it("shows every change at once: a source made after it opened, the cursor's row in it, and the live stream by level", async () => {
 		const view = await open();
 		expect(text(view)).toContain("No events yet");
+		expect(text(view), "what the live counts are measured from: the device's time when the view opened").toMatch(/Live stream since this view opened \(device time \d\d:\d\d:\d\d\.\d\d\d\)/);
 		document.body.appendChild(document.createElement(SHU_TAG.MONITOR_COLUMN)); // a source made after this view opened
 		await flush();
 		await flush();
