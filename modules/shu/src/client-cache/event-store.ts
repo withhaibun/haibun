@@ -17,7 +17,13 @@ export type TStoredEvent = Record<string, unknown>;
 /** What the shared log asks of its persistence, every question scoped to ONE RUN (the `run` the server stamps on its
  *  events and answers; "" for a server that names none): a device keeps every run it has seen, and a view shows one. One
  *  implementation over IndexedDB; tests use an in-memory one. */
+/** What the store holds, as a reader of the device is told: the run last seen, and per run and level how many events are
+ *  stored and the extent kept. */
+export type TEventStoreSummary = { lastRun?: string; runs: Array<{ run: string; levels: Array<{ level: string; stored: number; extent?: { total: number; first?: number; last?: number } }> }> };
+
 export interface EventStore {
+	/** What this store holds: per run and level, how many events and the extent kept, and the run last seen. */
+	summary(): Promise<TEventStoreSummary>;
 	/** Persist events (idempotent by key; a re-put of the same event is a no-op). Each carries its run. */
 	putMany(events: readonly TStoredEvent[]): Promise<void>;
 	/** The events of `run` whose index at `level` is in [start, end), in index order — ALL of them, or none: a page served
@@ -130,6 +136,37 @@ export class IndexedDbEventStore implements EventStore {
 		});
 	}
 
+	async summary(): Promise<TEventStoreSummary> {
+		const out = await withStores("readonly", [EVENTS, META], async (tx) => {
+			const meta = tx.objectStore(META);
+			const keys = (await done(meta.getAllKeys())) as string[];
+			const values = (await done(meta.getAll())) as unknown[];
+			const extents = new Map<string, Map<string, { total: number; first?: number; last?: number }>>();
+			let lastRun: string | undefined;
+			keys.forEach((k, i) => {
+				if (k === LAST_RUN_KEY) lastRun = String(values[i]);
+				else if (k.startsWith("extent:")) {
+					const [, run, level] = k.split(":");
+					if (!extents.has(run)) extents.set(run, new Map());
+					extents.get(run)?.set(level, values[i] as { total: number; first?: number; last?: number });
+				}
+			});
+			const events = tx.objectStore(EVENTS);
+			const runs: TEventStoreSummary["runs"] = [];
+			for (const [run, byLevel] of extents) {
+				const levels: TEventStoreSummary["runs"][number]["levels"] = [];
+				for (const level of HAIBUN_LOG_LEVELS) {
+					const stored = await done(events.index(idxIndexName(level)).count(IDBKeyRange.bound([run, Number.NEGATIVE_INFINITY], [run, Number.POSITIVE_INFINITY])));
+					const extent = byLevel.get(level);
+					if (stored > 0 || extent) levels.push({ level, stored, extent });
+				}
+				runs.push({ run, levels });
+			}
+			return { lastRun, runs };
+		});
+		return out ?? { runs: [] };
+	}
+
 	async lastRun(): Promise<string | undefined> {
 		const found = await withStores("readonly", [META], (tx) => done(tx.objectStore(META).get(LAST_RUN_KEY)));
 		return typeof found === "string" ? found : undefined;
@@ -176,6 +213,21 @@ export class MemoryEventStore implements EventStore {
 	#lastRun: string | undefined;
 	lastRun(): Promise<string | undefined> {
 		return Promise.resolve(this.#lastRun);
+	}
+	summary(): Promise<TEventStoreSummary> {
+		const runs = new Set<string>([...this.#events.values()].map(runOf));
+		for (const key of this.#extents.keys()) runs.add(key.slice(0, key.lastIndexOf(":")));
+		return Promise.resolve({
+			lastRun: this.#lastRun,
+			runs: [...runs].map((run) => ({
+				run,
+				levels: HAIBUN_LOG_LEVELS.map((level) => ({
+					level,
+					stored: [...this.#events.values()].filter((e) => runOf(e) === run && (e.idx as Record<string, number> | undefined)?.[level] !== undefined).length,
+					extent: this.#extents.get(`${run}:${level}`),
+				})).filter((l) => l.stored > 0 || l.extent),
+			})),
+		});
 	}
 	setLastRun(run: string): Promise<void> {
 		this.#lastRun = run;

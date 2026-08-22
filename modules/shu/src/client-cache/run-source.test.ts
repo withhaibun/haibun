@@ -3,10 +3,10 @@
 // first and the server for what the device lacks, grown by live events that carry their index, bounded in what it holds,
 // and honest when a page cannot be had. These pin the contract the monitor's whole-run rail relies on.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { eventRunSource, resetRunSources, runSpan, setRunSourceStore, leanForStore, EVENTS_UNAVAILABLE, type TEventRecord } from "./event-source.js";
-import { MemoryEventStore } from "./event-store-idb.js";
-import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
-import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "./components/shu-window-size.js";
+import { eventRunSource, resetRunSources, runSpan, setRunSourceStore, leanForStore, EVENTS_UNAVAILABLE, type TEventRecord } from "./run-source.js";
+import { MemoryEventStore } from "./event-store.js";
+import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "../components/shu-window-size.js";
 
 /** Live batches are coalesced into an animation frame; this lets one land. */
 const flush = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));

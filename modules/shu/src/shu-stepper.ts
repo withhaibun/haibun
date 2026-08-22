@@ -19,7 +19,7 @@ import { requestBaseIri } from "@haibun/core/lib/request-context.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
-import { SHU_TYPE } from "./consts.js";
+import { SHU_TYPE, SHU_TAG } from "./consts.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "./graph-model.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
@@ -292,8 +292,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						presents: "schema",
 					},
 				},
-				{ selectors: ["shu-monitor-column"], schema: z.object({}), description: "Execution monitor and event log", ui: { component: "shu-monitor-column" } },
-				{ selectors: ["shu-document-column"], schema: z.object({}), description: "Document/artifact viewer", ui: { component: "shu-document-column" } },
+				{ selectors: [SHU_TAG.MONITOR_COLUMN], schema: z.object({}), description: "Execution monitor and event log", ui: { component: SHU_TAG.MONITOR_COLUMN } },
+				{ selectors: [SHU_TAG.DOCUMENT_COLUMN], schema: z.object({}), description: "Document/artifact viewer", ui: { component: SHU_TAG.DOCUMENT_COLUMN } },
 				{
 					selectors: [DOMAIN_SHU_VIEW_COLLECTION],
 					schema: ShuViewCollectionSchema,

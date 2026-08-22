@@ -1,3 +1,4 @@
+import { SHU_TAG } from "./consts.js";
 /**
  * Register all graph-based web components.
  * Must only be called in browser context.
@@ -21,6 +22,7 @@ export const registerComponents = async (): Promise<void> => {
 	const { ShuIndexSummary } = await import("./components/shu-index-summary.js");
 	const { ShuPlayback } = await import("./components/shu-playback.js");
 	const { ShuDocumentColumn } = await import("./components/shu-document-column.js");
+	const { ShuClientCacheColumn } = await import("./components/shu-client-cache-column.js");
 	const { ShuProductView } = await import("./components/shu-product-view.js");
 	const { ShuViewsPicker } = await import("./components/shu-views-picker.js");
 	const { ShuAffordancesPanel } = await import("./components/shu-affordances-panel.js");
@@ -33,34 +35,35 @@ export const registerComponents = async (): Promise<void> => {
 	const { ShuPermissions } = await import("./components/shu-permissions.js");
 
 	const components: [string, typeof HTMLElement][] = [
-		["shu-permissions", ShuPermissions],
-		["shu-graph-query", ShuGraphQuery],
-		["shu-result-table", ShuResultTable],
-		["shu-column-pane", ShuColumnPane],
-		["shu-column-strip", ShuColumnStrip],
-		["shu-entity-column", ShuEntityColumn],
-		["shu-filter-column", ShuFilterColumn],
-		["shu-actions-bar", ShuActionsBar],
-		["shu-kihan-chat", ShuKihanChat],
-		["shu-breadcrumb", ShuBreadcrumb],
-		["shu-combobox", ShuCombobox],
-		["shu-spinner", ShuSpinner],
-		["shu-step-caller", StepCaller],
-		["shu-monitor-column", ShuMonitorColumn],
-		["shu-thread-column", ShuThreadColumn],
-		["shu-step-detail", ShuStepDetail],
-		[ShuIndexSummary.domainSelector, ShuIndexSummary],
-		[ShuPlayback.domainSelector, ShuPlayback],
-		["shu-document-column", ShuDocumentColumn],
-		["shu-product-view", ShuProductView],
-		["shu-views-picker", ShuViewsPicker],
-		["shu-affordances-panel", ShuAffordancesPanel],
-		["shu-domain-chain-view", ShuDomainChainView],
-		["shu-graph", ShuGraph],
-		["shu-copy-button", ShuCopyButton],
-		["shu-ref", ShuRef],
-		["shu-type-column", ShuTypeColumn],
-		["shu-theme-switch", ShuThemeSwitch],
+		[SHU_TAG.PERMISSIONS, ShuPermissions],
+		[SHU_TAG.GRAPH_QUERY, ShuGraphQuery],
+		[SHU_TAG.RESULT_TABLE, ShuResultTable],
+		[SHU_TAG.COLUMN_PANE, ShuColumnPane],
+		[SHU_TAG.COLUMN_STRIP, ShuColumnStrip],
+		[SHU_TAG.ENTITY_COLUMN, ShuEntityColumn],
+		[SHU_TAG.FILTER_COLUMN, ShuFilterColumn],
+		[SHU_TAG.ACTIONS_BAR, ShuActionsBar],
+		[SHU_TAG.KIHAN_CHAT, ShuKihanChat],
+		[SHU_TAG.BREADCRUMB, ShuBreadcrumb],
+		[SHU_TAG.COMBOBOX, ShuCombobox],
+		[SHU_TAG.SPINNER, ShuSpinner],
+		[SHU_TAG.STEP_CALLER, StepCaller],
+		[SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn],
+		[SHU_TAG.THREAD_COLUMN, ShuThreadColumn],
+		[SHU_TAG.STEP_DETAIL, ShuStepDetail],
+		[SHU_TAG.INDEX_SUMMARY, ShuIndexSummary],
+		[SHU_TAG.PLAYBACK, ShuPlayback],
+		[SHU_TAG.DOCUMENT_COLUMN, ShuDocumentColumn],
+		[SHU_TAG.CLIENT_CACHE_COLUMN, ShuClientCacheColumn],
+		[SHU_TAG.PRODUCT_VIEW, ShuProductView],
+		[SHU_TAG.VIEWS_PICKER, ShuViewsPicker],
+		[SHU_TAG.AFFORDANCES_PANEL, ShuAffordancesPanel],
+		[SHU_TAG.DOMAIN_CHAIN_VIEW, ShuDomainChainView],
+		[SHU_TAG.GRAPH, ShuGraph],
+		[SHU_TAG.COPY_BUTTON, ShuCopyButton],
+		[SHU_TAG.REF, ShuRef],
+		[SHU_TAG.TYPE_COLUMN, ShuTypeColumn],
+		[SHU_TAG.THEME_SWITCH, ShuThemeSwitch],
 	];
 
 	for (const [tag, component] of components) {

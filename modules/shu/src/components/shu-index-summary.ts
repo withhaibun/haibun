@@ -16,7 +16,7 @@ import { state } from "lit/decorators.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { describeSearch } from "./shu-search-summary.js";
 import { ShuGraphQuery } from "./shu-graph-query.js";
@@ -35,7 +35,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 	}
 
 	static schema = EmptySchema;
-	static domainSelector = "shu-index-summary";
+	static domainSelector = SHU_TAG.INDEX_SUMMARY;
 
 	static styles = [
 		shuBaseStyles,

@@ -12,6 +12,7 @@ import { html } from "lit";
 import { timeCursor } from "../signals.js";
 import { DEFAULT_WINDOW_SIZE, windowSizeSetting } from "./shu-window-size.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { SHU_TAG } from "../consts.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
 const step = (i: number): Record<string, unknown> => ({
@@ -43,8 +44,8 @@ describe("event consumers over the shared log", () => {
 	let handle: TShuTestHandle;
 	let backfillCalls: number;
 	beforeEach(() => {
-		if (!customElements.get("shu-monitor-column")) customElements.define("shu-monitor-column", ShuMonitorColumn);
-		if (!customElements.get("shu-document-column")) customElements.define("shu-document-column", ShuDocumentColumn);
+		if (!customElements.get(SHU_TAG.MONITOR_COLUMN)) customElements.define(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);
+		if (!customElements.get(SHU_TAG.DOCUMENT_COLUMN)) customElements.define(SHU_TAG.DOCUMENT_COLUMN, ShuDocumentColumn);
 		backfillCalls = 0;
 		handle = setupShuTest({
 			dispatch: (method, params) => {
@@ -60,7 +61,7 @@ describe("event consumers over the shared log", () => {
 	afterEach(() => handle.teardown());
 
 	it("the monitor shows the run's rows from one page, then places live ones by their index without another fetch", async () => {
-		const mon = document.createElement("shu-monitor-column") as ShuMonitorColumn;
+		const mon = document.createElement(SHU_TAG.MONITOR_COLUMN) as ShuMonitorColumn;
 		document.body.appendChild(mon);
 		await flush();
 		await flush();
@@ -74,7 +75,7 @@ describe("event consumers over the shared log", () => {
 	});
 
 	it("the monitor's rows are the run's: a live burst adds exactly its rows, the count reads the extent, and the first row is named", async () => {
-		const mon = document.createElement("shu-monitor-column") as ShuMonitorColumn;
+		const mon = document.createElement(SHU_TAG.MONITOR_COLUMN) as ShuMonitorColumn;
 		document.body.appendChild(mon);
 		await flush();
 		await flush();
@@ -92,7 +93,7 @@ describe("event consumers over the shared log", () => {
 	});
 
 	it("a click on a monitor row's time places the cursor at that instant; on the newest row it is the live edge, null, so every view follows again", async () => {
-		const mon = document.createElement("shu-monitor-column") as ShuMonitorColumn;
+		const mon = document.createElement(SHU_TAG.MONITOR_COLUMN) as ShuMonitorColumn;
 		document.body.appendChild(mon);
 		await flush();
 		await flush();
@@ -106,22 +107,22 @@ describe("event consumers over the shared log", () => {
 	});
 
 	it("each kind of view pages its own source once, and a second view of the same kind reuses it rather than re-paging", async () => {
-		document.body.appendChild(document.createElement("shu-monitor-column")); // the run by index, at info
+		document.body.appendChild(document.createElement(SHU_TAG.MONITOR_COLUMN)); // the run by index, at info
 		await flush();
 		await flush();
 		expect(backfillCalls, "the monitor's page of the run").toBe(1);
-		document.body.appendChild(document.createElement("shu-document-column")); // the run by index, at log and up
+		document.body.appendChild(document.createElement(SHU_TAG.DOCUMENT_COLUMN)); // the run by index, at log and up
 		await flush();
 		await flush();
 		expect(backfillCalls, "the document's source reads its page from the device: the monitor's page put those events there").toBe(1);
-		document.body.appendChild(document.createElement("shu-document-column")); // a second document
+		document.body.appendChild(document.createElement(SHU_TAG.DOCUMENT_COLUMN)); // a second document
 		await flush();
 		await flush();
 		expect(backfillCalls, "the second document shares the first's source").toBe(1);
 	});
 
 	it("renders the log as blocks and a benign re-render keeps them (no blank-on-update)", async () => {
-		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
+		const doc = document.createElement(SHU_TAG.DOCUMENT_COLUMN) as ShuDocumentColumn;
 		document.body.appendChild(doc);
 		await flush();
 		const count = () => doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0;
@@ -133,7 +134,7 @@ describe("event consumers over the shared log", () => {
 	});
 
 	it("clicking the latest document row publishes a null cursor (live edge), an earlier row a concrete cutoff", async () => {
-		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
+		const doc = document.createElement(SHU_TAG.DOCUMENT_COLUMN) as ShuDocumentColumn;
 		document.body.appendChild(doc);
 		await flush();
 		const rows = (Array.from(doc.shadowRoot?.querySelectorAll(".doc-row[data-raw-time]") ?? []) as HTMLElement[]).sort(
@@ -162,8 +163,8 @@ describe("the document reads the run source: the whole run by index, one row per
 	let pageCalls: Array<{ offset?: number; limit?: number; minLevel?: string }>;
 	let events: Array<Record<string, unknown>>;
 	beforeEach(() => {
-		if (!customElements.get("shu-document-column")) customElements.define("shu-document-column", ShuDocumentColumn);
-		if (!customElements.get("shu-monitor-column")) customElements.define("shu-monitor-column", ShuMonitorColumn);
+		if (!customElements.get(SHU_TAG.DOCUMENT_COLUMN)) customElements.define(SHU_TAG.DOCUMENT_COLUMN, ShuDocumentColumn);
+		if (!customElements.get(SHU_TAG.MONITOR_COLUMN)) customElements.define(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);
 		windowSizeSetting.set(String(WINDOW));
 		pageCalls = [];
 		events = all();
@@ -186,7 +187,7 @@ describe("the document reads the run source: the whole run by index, one row per
 			(a, b) => parseFloat(a.getAttribute("data-raw-time") ?? "0") - parseFloat(b.getAttribute("data-raw-time") ?? "0"),
 		);
 	const open = async (): Promise<ShuDocumentColumn> => {
-		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
+		const doc = document.createElement(SHU_TAG.DOCUMENT_COLUMN) as ShuDocumentColumn;
 		document.body.appendChild(doc);
 		await flush();
 		await flush();
@@ -237,7 +238,7 @@ describe("the document reads the run source: the whole run by index, one row per
 		select.dispatchEvent(new Event("change"));
 		await flush();
 		await flush();
-		const mon = document.createElement("shu-monitor-column") as ShuMonitorColumn;
+		const mon = document.createElement(SHU_TAG.MONITOR_COLUMN) as ShuMonitorColumn;
 		document.body.appendChild(mon);
 		await flush();
 		await flush();

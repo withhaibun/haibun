@@ -12,7 +12,7 @@ import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-mark
 import { HAIBUN_LOG_LEVELS, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { atLiveEdge, eventRunSource, type RunSource } from "../event-source.js";
+import { atLiveEdge, eventRunSource, type RunSource } from "../client-cache/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT } from "../consts.js";

@@ -12,6 +12,7 @@ import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 
 import { type EvalPage, pollUntil, countMatching, firstText, firstAttr, hasText, clickFirst } from "./controls-util.js";
 import { FOLLOW_EDGE_SLACK_PX } from "./shu-virtual-column.js";
+import { SHU_TAG } from "../consts.js";
 
 // Selectors reused across the assertions, so a markup rename lands in one place.
 const MONITOR_ROW = '[data-testid="monitor-log-row"]';
@@ -142,13 +143,13 @@ export default class ShuMonitorColumnControls extends AStepper {
 			gwta: "document thumbnails flow as tiles sized to the column grid",
 			action: async () => {
 				const read = (p: EvalPage) =>
-					p.evaluate(() => {
+					p.evaluate((docTag: string) => {
 						let doc: Element | null = null;
 						const stack: Array<Document | ShadowRoot> = [document];
 						while (stack.length && !doc) {
 							const r = stack.pop();
 							if (!r) break;
-							doc = r.querySelector("shu-document-column");
+							doc = r.querySelector(docTag);
 							for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
 						}
 						const root = doc?.shadowRoot;
@@ -158,7 +159,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 							return { w: f.offsetWidth, inRow: f.parentElement?.classList.contains("thumb-row") ?? false, imgLoaded: (img?.naturalWidth ?? 0) > 0, imgW: img?.offsetWidth ?? 0 };
 						});
 						return { frames };
-					});
+					}, SHU_TAG.DOCUMENT_COLUMN);
 				const v = await pollUntil(await this.page(), read, (s) => s.frames.length >= 3 && s.frames.every((f) => f.imgLoaded), 40, 250);
 				const { frames } = v;
 				if (frames.length < 3) return actionNotOK(`only ${frames.length} real thumbnails rendered, expected the run's screenshots (the artifact placeholders were not filled)`);
@@ -184,13 +185,13 @@ export default class ShuMonitorColumnControls extends AStepper {
 			action: async () => {
 				if (!(await clickFirst(await this.page(), "shu-artifact-frame.thumb img"))) return actionNotOK("no rendered thumbnail image to click");
 				const read = (p: EvalPage) =>
-					p.evaluate(() => {
+					p.evaluate((docTag: string) => {
 						let doc: Element | null = null;
 						const stack: Array<Document | ShadowRoot> = [document];
 						while (stack.length && !doc) {
 							const rr = stack.pop();
 							if (!rr) break;
-							doc = rr.querySelector("shu-document-column");
+							doc = rr.querySelector(docTag);
 							for (const e of Array.from(rr.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
 						}
 						const f = doc?.shadowRoot?.querySelector("shu-artifact-frame.fullscreen");
@@ -222,7 +223,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 							widthRatio: fr && cr && cr.width > 0 ? fr.width / cr.width : 0,
 							onTop,
 						};
-					});
+					}, SHU_TAG.DOCUMENT_COLUMN);
 				const v = await pollUntil(await this.page(), read, (s) => s.open && s.caption.length > 0, 20, 150);
 				if (!v.open) return actionNotOK("clicking the thumbnail did not expand it fullscreen");
 				if (!v.caption) return actionNotOK("the expanded thumbnail shows no step caption (the data-step-label stamp is missing)");
@@ -280,18 +281,18 @@ export default class ShuMonitorColumnControls extends AStepper {
 			gwta: "document panel is scrolled to the live edge",
 			action: async () => {
 				const read = async (p: EvalPage): Promise<number> =>
-					p.evaluate(() => {
+					p.evaluate((docTag: string) => {
 						let doc: Element | null = null;
 						const stack: Array<Document | ShadowRoot> = [document];
 						while (stack.length && !doc) {
 							const r = stack.pop();
 							if (!r) break;
-							doc = r.querySelector("shu-document-column");
+							doc = r.querySelector(docTag);
 							for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
 						}
 						const virt = doc?.shadowRoot?.querySelector("lit-virtualizer") as HTMLElement | null;
 						return virt ? virt.scrollHeight - virt.scrollTop - virt.clientHeight : Number.POSITIVE_INFINITY;
-					});
+					}, SHU_TAG.DOCUMENT_COLUMN);
 				const dist = await pollUntil(await this.page(), read, (d) => d < DOC_LIVE_EDGE_PX, 25, 200);
 				return dist < DOC_LIVE_EDGE_PX
 					? actionOK()

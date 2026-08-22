@@ -41,7 +41,7 @@ import { LitElement, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
-import { COLUMN_PANE_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../consts.js";
+import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "../time-sync.js";
 import { timeCursor, activePane, type SharedSignal } from "../signals.js";
 import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
@@ -180,7 +180,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	#hostingColumn(): HTMLElement | null {
 		let node: Element | null = this;
 		while (node) {
-			if (node.tagName.toLowerCase() === COLUMN_PANE_TAG) return node as HTMLElement;
+			if (node.tagName.toLowerCase() === SHU_TAG.COLUMN_PANE) return node as HTMLElement;
 			const parent: Element | null = node.parentElement;
 			if (parent) {
 				node = parent;

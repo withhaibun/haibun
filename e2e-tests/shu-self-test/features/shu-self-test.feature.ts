@@ -4,6 +4,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { ShuStepper, SHU_TEST_IDS } from "@haibun/shu";
+import { SHU_TAG } from "@haibun/shu/consts.js";
 import { createStepUI, stepTestIds, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { headingAnchor } from "@haibun/core/lib/document-content.js";
@@ -19,12 +20,15 @@ const { enterStepMode, passesStepExecution, chooseGraphLabel } = createStepUI(wp
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
 /** The document column names the rail a press is for: every open virtualized column carries one. */
-const DOC_CONTAINER = "shu-document-column";
-const MONITOR_CONTAINER = "shu-monitor-column";
+const DOC_CONTAINER = SHU_TAG.DOCUMENT_COLUMN;
+const MONITOR_CONTAINER = SHU_TAG.MONITOR_COLUMN;
 /** The block of this feature's own heading in the document, named from the feature's name the way the document names it. */
 const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SPA Self-Test")}`;
+// The client cache view's readings of the run source at log (the document's level): its resident spans and its extent.
+const CACHE_LOG_RESIDENT = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-resident`;
+const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 /** Every open column carries the same controls, so the log's own column names which one a click is for. */
-const MONITOR_PANE = 'shu-column-pane[column-type="shu-monitor-column"]';
+const MONITOR_PANE = `shu-column-pane[column-type="${SHU_TAG.MONITOR_COLUMN}"]`;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 // Step-caller test-ids are generated per-invocation by createStepUI's helpers
 // (method + callIndex + param), so there's nothing to pre-register at file scope —
@@ -164,6 +168,17 @@ export const features: TKirejiExport = {
 		setAs({ what: FEATURE_HEADING, domain: "page-test-id", value: `"${FEATURE_HEADING}"` }),
 		`in "${DOC_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
 		waitFor({ target: FEATURE_HEADING }),
+
+		"What the page holds of the run is read from one place: the client cache view lists each run source read so far with its extent and the spans it holds resident, the live stream by level, and what the device's store keeps, every value under its own id. The document reads the run at log, so the source at log is there: the start of the run was just paged in, so its resident spans begin at row 0, and its extent counts the events so far.",
+		"show client cache",
+		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		setAs({ what: CACHE_LOG_RESIDENT, domain: "page-test-id", value: `"${CACHE_LOG_RESIDENT}"` }),
+		setAs({ what: CACHE_LOG_EVENTS, domain: "page-test-id", value: `"${CACHE_LOG_EVENTS}"` }),
+		waitFor({ target: CACHE_LOG_RESIDENT }),
+		`save text from ${CACHE_LOG_RESIDENT} to cacheLogResident`,
+		'matches cacheLogResident with "0..*"',
+		`save text from ${CACHE_LOG_EVENTS} to cacheLogEvents`,
+		'not variable cacheLogEvents is "0"',
 
 		"The monitor's rail spans the whole run by index too, whatever it holds: its top glyph is the run's first row, and pressing it pages that region in. The first row is then on the page, from a log that held only its newest page a moment before. The playback controls open from the actions bar's current-time control.",
 		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,

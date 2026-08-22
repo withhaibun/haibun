@@ -24,7 +24,7 @@ import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
 import { filterGraph, graphAxes } from "../graph/filter-graph.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX } from "../consts.js";
+import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX, SHU_TAG } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
@@ -79,7 +79,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		shu-graph { flex: 1; min-height: 0; overflow: hidden; }
 	`,
 	];
-	static domainSelector = "shu-domain-chain-view";
+	static domainSelector = SHU_TAG.DOMAIN_CHAIN_VIEW;
 
 	private affordances: TAffordancesSnapshot | null = null;
 	/** Test-only accessor; production reads happen inside `render()`. */

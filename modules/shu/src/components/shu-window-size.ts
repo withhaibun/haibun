@@ -11,6 +11,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { persistedSetting } from "../signals.js";
+import { SHU_TAG } from "../consts.js";
 
 const STORAGE_WINDOW_SIZE = "shu.windowSize";
 
@@ -46,7 +47,7 @@ export class ShuWindowSize extends ShuElement<typeof EmptySchema> {
 	}
 
 	static schema = EmptySchema;
-	static domainSelector = "shu-window-size";
+	static domainSelector = SHU_TAG.WINDOW_SIZE;
 
 	static styles = [
 		shuBaseStyles,
@@ -86,4 +87,4 @@ export class ShuWindowSize extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define("shu-window-size", ShuWindowSize);
+customElements.define(SHU_TAG.WINDOW_SIZE, ShuWindowSize);
