@@ -37,6 +37,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	#reading = false;
 	#readDue: ReturnType<typeof setTimeout> | undefined;
 	#liveByLevel = new Map<string, { count: number; newest?: number }>(); // what the live stream brought since this view opened
+	#openedAt = 0; // the device's time when this view opened: what "since this view opened" is measured from
 
 	static styles = [
 		shuBaseStyles,
@@ -61,6 +62,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			name: "what this page holds of the run",
 			cursor: this.timeCursor,
 			sources: runSources().map((s) => ({ level: s.level, ...s.extent(), resident: spans(s.residentRanges()), cursorRow: this.#cursorRowIn(s) })),
+			openedAt: this.#openedAt,
 			live: Object.fromEntries(this.#liveByLevel),
 			store: this.#store,
 			indexedDb: this.#databases,
@@ -68,6 +70,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	}
 
 	protected override onConnected(): void {
+		this.#openedAt = Date.now();
 		this.#changed();
 		// A source made from now on (a view opened at another level) is watched from the moment it exists.
 		this.autoTeardown(subscribeRunSources(() => this.#changed()));
@@ -150,7 +153,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		return html`<div data-testid=${IDS.ROOT}>
 			<h4>Cursor</h4>
 			<div data-testid=${IDS.CURSOR}>${cursor === null ? "live edge" : at(cursor)}</div>
-			<h4>Live stream since this view opened</h4>
+			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>
 			${
 				this.#liveByLevel.size === 0
 					? html`<div class="empty">No events yet.</div>`
