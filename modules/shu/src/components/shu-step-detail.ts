@@ -4,7 +4,8 @@
  * Displays: step text, stepper/action, duration, dispatch trace, products, and variables set by this step (quads whose
  * provenance includes this seqPath). Entity references are clickable. The trace/quads load is a @lit/task keyed on the
  * seqPath, so switching steps cancels the stale load and renders only the latest — no hand-rolled loading flag, no
- * out-of-order overwrite. The step's own lifecycle event is separate, tracked live from the shared log.
+ * out-of-order overwrite. The step's own events (its start, its end, the trace of its dispatch) come from one ask by its
+ * seqPath, answered from the run's buffer or its log; a still-running step's end arrives on the live stream.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
@@ -13,8 +14,7 @@ import { z } from "zod";
 import { eventMarkerStyle } from "../event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { GET_EVENTS_METHOD } from "../rpc-cache.js";
-import type { Range } from "../ranges.js";
-import { EventsController } from "../controllers/index.js";
+import { subscribeBatchedEvents } from "../event-stream.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
@@ -30,16 +30,20 @@ const StateSchema = z.object({
 
 type TVar = { name: string; value: unknown; graph: string };
 type TStepData = { trace?: Record<string, unknown>; variablesSet: TVar[] };
+type TEvent = Record<string, unknown>;
 
-/** The span of a step from its own events: its first event's time to its last's, or to the live edge when no end has
- *  been seen yet (the step is still running, so its end will arrive live). No events: nothing to ask for. */
-export function stepSpan(events: Array<Record<string, unknown>>): Range | undefined {
-	const times = events.map((e) => Number(e.timestamp) || 0).filter((t) => t > 0);
-	if (times.length === 0) return undefined;
-	const from = Math.min(...times);
-	const ended = events.some((e) => e.kind === "lifecycle" && e.stage === "end");
-	return { from, to: ended ? Math.max(...times) + 1 : Number.POSITIVE_INFINITY };
+/** Whether an event is one step's own: its lifecycle events carry the seqPath as their id, its dispatch trace is named for it. */
+export const ofStep = (e: TEvent, seqKey: string): boolean => e.id === `dispatch.${seqKey}` || parseSeqPath(String(e.id ?? ""))?.join(".") === seqKey;
+
+/** The step's event to show, from its own events: its completed end, else any end, else its start. */
+export function stepEventOf(events: readonly TEvent[]): TEvent | undefined {
+	const ends = events.filter((e) => e.kind === "lifecycle" && e.stage === "end");
+	return ends.find((e) => e.status === "completed") ?? ends[0] ?? events.find((e) => e.kind === "lifecycle" && e.stage === "start");
 }
+
+/** The trace of the step's dispatch, from its own events. */
+export const traceOf = (events: readonly TEvent[]): Record<string, unknown> | undefined =>
+	events.find((e) => e.kind === "artifact" && e.artifactType === "dispatch-trace")?.trace as Record<string, unknown> | undefined;
 
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	/** A single step execution as a prov:Activity: the step event, its dispatch trace, and the variables it set. */
@@ -57,15 +61,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		};
 	}
 
-	// The window this view registers with the shared log is the span of its own step: from the step's start to its end, or
-	// to the live edge while it is still running. Nothing before the step is known, so nothing is asked for before the step's
-	// own events have been fetched; a view about one step must not put the whole run in the tab to find it.
-	#events = new EventsController(
-		this,
-		() => this.onEventsChanged(),
-		() => (this.#span ? [this.#span] : [{ from: 0, to: 0 }]),
-	);
-	#span: Range | undefined;
+	#own: TEvent[] = []; // the step's own events, as asked for and as they arrive live
+	#unsubscribeLive?: () => void;
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -89,28 +86,23 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		super(StateSchema, { seqPath: [] });
 	}
 
-	/** Load this step's dispatch trace and the quads it set, keyed on the seqPath. The quad query is a fuller per-step
-	 *  provenance fetch (perTypeLimit 1000) — NOT the budgeted display snapshot the graph views share via quads-snapshot,
-	 *  which would drop the very quads whose provenance names this step. Events come from the shared log (ShuEventConsumer)
-	 *  loaded alongside, so there is no second getEvents backfill here. */
+	/** Load this step's own events (its start and end, and the trace of its dispatch, one ask by its seqPath) and the quads
+	 *  it set, keyed on the seqPath. The quad query is a fuller per-step provenance fetch (perTypeLimit 1000) — NOT the
+	 *  budgeted display snapshot the graph views share via quads-snapshot, which would drop the very quads whose provenance
+	 *  names this step. */
 	#load = new Task(this, {
 		args: () => [this.state.seqPath.join(".")] as const,
 		task: async ([seqKey]): Promise<TStepData> => {
 			if (!seqKey) return { variablesSet: [] };
-			const [{ tracesData, quadsData }] = await Promise.all([
-				conduit().group("step-detail: load traces + quads for one step", async (g) => {
-					// The step's own events, by its seqPath, place this view's window on the run before anything else is asked.
-					const own = await g.follow<{ events?: Array<Record<string, unknown>> }>({ method: GET_EVENTS_METHOD, params: { filter: { seqPath: seqKey, limit: 2 } } }, "step-detail: the step's own events");
-					this.#span = stepSpan(own.events ?? []);
-					const tracesData = await g.follow<{ traces: Array<Record<string, unknown>> }>({ method: "MonitorStepper-getDispatchTraces" }, "step-detail: dispatch traces");
-					const quadsData = await g.follow<{
-						quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
-					}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } }, "step-detail: clustered quads");
-					return { tracesData, quadsData };
-				}),
-				this.#events.ensureLoaded(),
-			]);
-			const trace = tracesData.traces?.find((t) => Array.isArray(t.seqPath) && (t.seqPath as number[]).join(".") === seqKey);
+			const { own, quadsData } = await conduit().group("step-detail: load one step's events + quads", async (g) => {
+				const own = await g.follow<{ events?: TEvent[] }>({ method: GET_EVENTS_METHOD, params: { filter: { seqPath: seqKey, limit: 8 } } }, "step-detail: the step's own events");
+				const quadsData = await g.follow<{
+					quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
+				}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } }, "step-detail: clustered quads");
+				return { own, quadsData };
+			});
+			this.#own = own.events ?? [];
+			const trace = traceOf(this.#own);
 			const variablesSet: TVar[] = (quadsData.quads ?? [])
 				.filter((q) => {
 					const prov = q.properties?.provenance;
@@ -130,21 +122,27 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		await this.#load.taskComplete.catch(() => undefined);
 	}
 
-	/** The step's lifecycle event lives in the shared log; a still-running step's `end` arrives after the load. Re-find it
-	 *  cheaply on each live batch (no RPC) so the pane stops going stale. */
-	private onEventsChanged(): void {
-		if (this.state.seqPath.length > 0 && this.#load.status === TaskStatus.COMPLETE) this.refreshStepEvent();
+	protected override onConnected(): void {
+		// A still-running step's end, or its trace, arrives after the load: the step's own events are taken from the live
+		// stream as they come (no RPC), so the pane does not go stale. In snapshot mode nothing is live.
+		if (this.hasAttribute("data-snapshot-time")) return;
+		this.#unsubscribeLive = subscribeBatchedEvents({
+			onBatch: (events) => {
+				const seqKey = this.state.seqPath.join(".");
+				if (!seqKey) return;
+				const mine = events.filter((e) => ofStep(e as TEvent, seqKey));
+				if (mine.length === 0) return;
+				this.#own = [...this.#own, ...(mine as TEvent[])];
+				if (this.#load.status === TaskStatus.COMPLETE) this.refreshStepEvent();
+			},
+		});
+		this.autoTeardown(() => this.#unsubscribeLive?.());
 	}
 
 	private refreshStepEvent(): void {
-		const seqKey = this.state.seqPath.join(".");
-		const matches = (e: Record<string, unknown>) => Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey;
-		const events = this.#events.all;
-		const stepEvent =
-			events.find((e) => e.kind === "lifecycle" && e.stage === "end" && e.status === "completed" && matches(e)) ??
-			events.find((e) => e.kind === "lifecycle" && e.stage === "end" && matches(e)) ??
-			events.find((e) => e.kind === "lifecycle" && e.stage === "start" && matches(e));
+		const stepEvent = stepEventOf(this.#own);
 		if (stepEvent) this.setState({ stepEvent });
+		this.requestUpdate(); // a trace that arrived live shows without a new load
 	}
 
 	private onLink = (subject: string, label: string, isVertex: boolean) => (): void => {
@@ -171,7 +169,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	private renderContent(key: string, data: TStepData): TemplateResult {
 		const { stepEvent } = this.state;
-		const { trace, variablesSet } = data;
+		const { variablesSet } = data;
+		const trace = traceOf(this.#own) ?? data.trace;
 		// The same glyph the log and the rail use, so a speculative try or a handed-out call is not shown as a fault.
 		const status = stepEvent?.status ? eventMarkerStyle({ ...stepEvent, kind: "lifecycle", type: "step" }).icon : "";
 		const stepIn = String(stepEvent?.in ?? "");

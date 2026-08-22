@@ -21,6 +21,7 @@ import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";
 import "@lit-labs/virtualizer";
 import type { LitVirtualizer } from "@lit-labs/virtualizer/LitVirtualizer.js";
+import { knownSizeFlow } from "../known-size-flow.js";
 import type { VisibilityChangedEvent } from "@lit-labs/virtualizer/events.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { railTotalAndWindow } from "../annotation-rail.js";
@@ -63,11 +64,6 @@ export const virtualColumnCss: CSSResultGroup = css`
 	shu-virtual-column[spine] .spine-rail { display: flex; flex: 1; min-height: 0; justify-content: flex-end; }
 `;
 
-/** Fired (bubbling, composed) when this scroller's follow state flips: pinned to the live edge (`following: true`) or the
- *  reader has scrolled back / follow is off (`following: false`). A host that bounds its data window — the monitor — listens
- *  to switch between a live-tail window and the full history. Additive: it never changes the follow behaviour itself. */
-export const FOLLOW_CHANGED = "shu-follow-changed";
-export type FollowChangedDetail = { following: boolean };
 /** Fired (bubbling, composed) when the visible window over the source moves: its first row, how many are visible, and the
  *  source's count. A host that pages its data listens for this to widen what it holds as the reader nears the top. */
 export const WINDOW_CHANGED = "shu-window-changed";
@@ -109,6 +105,9 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	// its estimated scroll-height and rebuild-time corrections make both misreport the follow's own motion as a reader
 	// scrolling away, which false-paused the tail. RESUME is the reported window reaching the last row again.
 	#follow = new FollowController(this, () => this.#scrollToEnd());
+	// The rows' layout: the source's word on which rows render nothing, so those take no room and do not drag the estimate
+	// of the rows not yet measured. One specifier for the element's life: a new one would make the virtualizer start over.
+	#layout = knownSizeFlow((i) => this.source?.rowSize?.(i));
 	#window: TWindow = { first: 0, visible: 0 };
 	#viewportFraction: number | undefined;
 	#measureQueued = false;
@@ -117,21 +116,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	#items: unknown[] = [];
 	#itemCount = -1;
 	#unsub: (() => void) | null = null;
-	#lastFollowing = false; // last-emitted follow state, so FOLLOW_CHANGED fires only on a transition
 	// Change gates for the occurrences this view records: only a movement records, so a stable reading costs nothing.
 	#lastRawFraction: number | undefined;
 	#lastScrollTop: number | undefined;
 	#lastWindowShort: number | undefined;
 	#readerInputAt = 0; // when the reader last touched the view, so a scroll can say who moved it
-
-	/** Emit FOLLOW_CHANGED when the pinned-to-live-edge state flips (follow enabled AND the reader at the edge). A host that
-	 *  windows its data listens for this to switch between a live-tail span and the full history. Only fires on a transition. */
-	#emitFollow(): void {
-		const following = this.follow && this.#follow.isFollowing;
-		if (following === this.#lastFollowing) return;
-		this.#lastFollowing = following;
-		this.dispatchEvent(new CustomEvent<FollowChangedDetail>(FOLLOW_CHANGED, { detail: { following }, bubbles: true, composed: true }));
-	}
 
 	protected override onConnected(): void {
 		this.#subscribe();
@@ -285,7 +274,6 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 				if (this.#convergeCount < MAX_CONVERGE) (this.#convergeCount += 1), void this.updateComplete.then(() => this.#follow.stick());
 			}
 		}
-		this.#emitFollow(); // tell a windowing host if this pass reached / left the live edge
 		this.requestUpdate(); // reposition the rail thumb and glyphs
 		this.#scheduleMeasure();
 	};
@@ -328,7 +316,6 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.#wantedFirst = null;
 		if (this.follow) {
 			this.#follow.setAtBottom(true);
-			this.#emitFollow();
 		}
 		const rows = this.source?.count() ?? 0;
 		if (rows > 0) this.scrollToIndex(rows - 1, "end");
@@ -338,7 +325,6 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.#readerInputAt = Date.now();
 		this.#pressedAway = false; // scrolling is moving through the log again, so the tail may resume as it always did
 		if (this.follow) this.#follow.setAtBottom(false);
-		this.#emitFollow();
 	};
 
 	#onScrollTo = (e: Event): void => {
@@ -350,7 +336,6 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// undone by a jump back to the edge. Scrolling resumes it, and so does asking to go live.
 		if (this.follow) this.#follow.setAtBottom(false);
 		this.#pressedAway = true;
-		this.#emitFollow();
 		const index = (e as CustomEvent<{ index: number }>).detail.index;
 		// In the strip there are no rows to scroll, so the rail moves the window itself. That is what makes the strip a
 		// control rather than a picture: the reader drags it to a place in the run, and expanding puts the rows there.
@@ -369,9 +354,16 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.#virt.value?.scrollToIndex(index, "start");
 	};
 
+	/** The window the rail shows. A following column that has never shown rows (opened as a strip) has reported none, and
+	 *  reporting row 0 would draw it at the top of a run it is following: it is at the live edge, its last row. */
+	#railWindow(total: number): TWindow {
+		if (this.#window.visible === 0 && total > 0 && this.follow && this.#follow.isFollowing) return { first: total - 1, visible: 1 };
+		return this.#window;
+	}
+
 	render(): TemplateResult {
 		const total = this.source?.count() ?? 0;
-		const rail = html`<shu-scrollbar .total=${total} .window=${this.#window} .viewportFraction=${this.#viewportFraction} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]} .cursor=${this.cursor}></shu-scrollbar>`;
+		const rail = html`<shu-scrollbar .total=${total} .window=${this.#railWindow(total)} .viewportFraction=${this.#viewportFraction} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]} .cursor=${this.cursor}></shu-scrollbar>`;
 		// Serving as a column's spine: the strip has room for the rail and nothing else. The rows are not rendered, and
 		// the rail keeps the same window over the same source, so collapsing does not move the reader.
 		if (this.spine) return html`<div class="spine-rail">${rail}</div>`;
@@ -388,6 +380,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			<lit-virtualizer
 				${ref(this.#virt)}
 				scroller
+				.layout=${this.#layout}
 				.items=${this.#itemsFor(total)}
 				.keyFunction=${(_: unknown, i: number) => i}
 				.renderItem=${(_: unknown, i: number) => this.renderRow(i, this.source?.rowAt(i))}

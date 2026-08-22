@@ -180,12 +180,15 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	const end = Timer.since();
 	await emitSeqPathEnd(world, featureStep, ok);
+	// How the step was dispatched is a diagnostic of the dispatcher, at debug: every RPC a page makes is a dispatch, and
+	// a trace of each at info would put the page's own traffic into every view of the run as rows of their own.
 	world.eventLogger.emit(
 		DispatchTraceArtifact.parse({
 			id: `dispatch.${featureStep.seqPath.join(".")}`,
 			timestamp: Date.now(),
 			kind: "artifact",
 			artifactType: "dispatch-trace",
+			level: "debug",
 			trace: {
 				stepName: tool.name,
 				transport: tool.transport ?? "local",

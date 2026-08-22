@@ -3,9 +3,8 @@
 // first and the server for what the device lacks, grown by live events that carry their index, bounded in what it holds,
 // and honest when a page cannot be had. These pin the contract the monitor's whole-run rail relies on.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { eventRunSource, resetRunSources, setRunSourceStore } from "./event-source.js";
+import { eventRunSource, resetRunSources, runSpan, setRunSourceStore, leanForStore, EVENTS_UNAVAILABLE, type TEventRecord } from "./event-source.js";
 import { MemoryEventStore } from "./event-store-idb.js";
-import { EVENTS_UNAVAILABLE, type TEventRecord } from "./events-snapshot.js";
 import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
 import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "./components/shu-window-size.js";
 
@@ -183,5 +182,39 @@ describe("the run source at a level", () => {
 		const debugOnly = eventRunSource("debug");
 		await debugOnly.ready();
 		expect(debugOnly.count(), "the debug source counts them all").toBe(189);
+	});
+
+	it("knows the run's span: its first instant from the server, its newest from the newest event, moved on by live ones; the page size is the shared window size", async () => {
+		const src = eventRunSource("info");
+		await src.ready();
+		expect(src.extent().first).toBe(1000);
+		expect(src.extent().last, "the newest info event (index 177)").toBe(1177);
+		expect(src.pageSize).toBe(50);
+		expect(runSpan(), "the span the playback and the actions bar read, without asking for a window").toEqual({ first: 1000, last: 1177 });
+		handle.emit({ id: "0.180", timestamp: 1180, kind: "log", level: "info", message: "e180", idx: { debug: 180, trace: 180, log: 180, info: 60 } });
+		await flush();
+		expect(src.extent().last).toBe(1180);
+		expect(runSpan().last).toBe(1180);
+	});
+
+	it("says which index spans it holds resident, joined where pages touch, so a view derives from them rather than scanning the extent", async () => {
+		const src = eventRunSource("info");
+		await src.ready();
+		expect(src.residentRanges()).toEqual([]);
+		await src.ensureRange(0, 20);
+		await src.ensureRange(50, 60);
+		expect(src.residentRanges(), "page 0 (50) and the short page 1 (10), touching").toEqual([{ from: 0, to: 60 }]);
+	});
+
+	it("persists events lean: no inline artifact content, no step value map, products reduced to their display fields; an event without bulk as it is", async () => {
+		const src = eventRunSource("info");
+		await src.ready();
+		handle.emit({ id: "0.180", timestamp: 1180, kind: "artifact", level: "info", content: "BIG IMAGE BYTES", stepValuesMap: { a: 1 }, products: { view: "v", _type: "T", payload: { huge: "x".repeat(100) } }, idx: { info: 60 } });
+		await flush();
+		const [stored] = await store.pageAt("", "info", 60, 61);
+		expect(stored.content, "an artifact's bytes are fetched by path, never read back from the store").toBeUndefined();
+		expect(stored.stepValuesMap).toBeUndefined();
+		expect(stored.products, "only what the views display").toEqual({ view: "v", _type: "T" });
+		expect(leanForStore({ id: "a", timestamp: 1 })).toEqual({ id: "a", timestamp: 1 });
 	});
 });

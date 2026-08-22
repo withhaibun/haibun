@@ -176,7 +176,8 @@ export const EventsFilterSchema = z.object({
 	since: z.number().optional(),
 	until: z.number().optional(),
 	limit: z.number().optional(),
-	/** One step's own events: its id is its seqPath (start and end share it), so a view about one step asks for that alone. */
+	/** One step's own events, by its seqPath (dot-joined): its start and end, which share it as their id, and the trace of
+	 *  its dispatch, named for it. A view about one step asks for these alone, from the buffer or the run's log. */
 	seqPath: z.string().optional(),
 	/** Events at this level or above (the rule every log view filters by), so a view that shows `log` and up pages its own
 	 *  tail rather than a tail of every level that may hold nothing it shows. */
@@ -643,13 +644,15 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
 				const floor = minLevel ? HAIBUN_LOG_LEVELS.indexOf(minLevel) : 0;
 				const run = this.runId;
+				// A step's own events: its lifecycle events carry its seqPath as their id (written bracketed), and its dispatch trace is named for it.
+				const ofStep = (e: THaibunEvent, step: string): boolean => e.id === `dispatch.${step}` || parseSeqPath(e.id)?.join(".") === step;
 				const wanted = (e: THaibunEvent): boolean =>
 					(!run || (e as Record<string, unknown>).run === run) && // the run being recorded; a stayed instance's buffer may still hold the last one's tail
 					(!level || e.level === level) &&
 					(!kind || e.kind === kind) &&
 					(!since || e.timestamp >= since) &&
 					(!until || e.timestamp <= until) &&
-					(!seqPath || e.id === seqPath) &&
+					(!seqPath || ofStep(e, seqPath)) &&
 					(floor === 0 || HAIBUN_LOG_LEVELS.indexOf(e.level) >= floor);
 				// The live buffer holds only the newest maxEvents; the run's disk log (the report's source) holds every
 				// event. A page that reaches at or past the buffer's oldest event is served from the log, read backward
@@ -681,6 +684,19 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 						}
 					}
 					return actionOKWithProducts({ events: page, total, first, run });
+				}
+				// One step's events are few and asked for by name: what the buffer holds of them, completed from the run's log
+				// when the buffer does not hold the run from its start (it was trimmed, or this process did not record it).
+				if (seqPath !== undefined) {
+					const held = this.events.filter(wanted).map(slimLiveEvent);
+					if (held.length >= cap || (!this.eventsTrimmed && oldestHeld !== undefined)) return actionOKWithProducts({ events: held.slice(-cap), total, first, run });
+					const ids = new Set(held.map((e) => `${e.id}:${e.stage ?? ""}`));
+					const older: Record<string, unknown>[] = [];
+					for (const e of this.leanEventsNewestFirst() as Iterable<THaibunEvent>) {
+						if (older.length + held.length >= cap) break;
+						if (wanted(e) && !ids.has(`${e.id}:${(e as { stage?: string }).stage ?? ""}`)) older.push(slimLiveEvent(e));
+					}
+					return actionOKWithProducts({ events: [...older.reverse(), ...held], total, first, run });
 				}
 				if (this.eventsTrimmed && until !== undefined && (oldestHeld === undefined || until <= oldestHeld)) {
 					const fromLog = this.leanEventsNewestFirst() as Iterable<THaibunEvent>;

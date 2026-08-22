@@ -5,7 +5,7 @@
  * consecutive thumbnails into a strip while leaving lone thumbnails and thumbnail runs broken by other content alone.
  */
 import { describe, it, expect } from "vitest";
-import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, withHeadingAnchors, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockIndexForHeading, withHeadingAnchors, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
 
 const thumb = (id: string): string => `<shu-artifact-frame class="thumb"><img src="${id}.png" /></shu-artifact-frame>`;
 const resolver: TArtifactResolver = (id) => (id.startsWith("img") ? thumb(id) : `<shu-artifact-frame><pre>${id}</pre></shu-artifact-frame>`);
@@ -152,41 +152,32 @@ describe("blockIndexForHeading", () => {
 	});
 });
 
-describe("currentBlockIndex", () => {
-	const blocks = [b("a", 0), { html: "<div class='h-1'></div>", id: "", rawTime: 0 }, b("c", 10), b("d", 20)];
-	it("returns -1 when there is no cursor", () => {
-		expect(currentBlockIndex(blocks, 100, null)).toBe(-1);
+describe("blocksByEvent", () => {
+	const block = (id: string, html = `<div data-id="${id}"></div>`): TDocBlock => ({ html, id, rawTime: 0 });
+	it("gives each block to the event whose id it carries, and a spacer to the event before it", () => {
+		const events = [{ id: "[0.1]" }, { id: "[0.1]" }, { id: "[0.2]" }];
+		const blocks = [block("0.1"), block("", '<div class="h-1"></div>'), block("0.2")];
+		expect(blocksByEvent(events, blocks).map((bs) => bs.map((b) => b.id))).toEqual([["0.1", ""], [], ["0.2"]]);
 	});
-	it("picks the block with the greatest instant at or before the cursor", () => {
-		expect(currentBlockIndex(blocks, 100, 115)).toBe(2); // start 100: a@100, c@110, d@120 -> cursor 115 lands on c
+	it("a step's blocks go to its start, never to its end, which shares the id and comes later", () => {
+		const events = [{ id: "[0.1]" }, { id: "[0.1]" }]; // start, end
+		expect(blocksByEvent(events, [block("0.1"), block("0.1")]).map((bs) => bs.length)).toEqual([2, 0]);
 	});
-	it("lands on the last block when the cursor is at the live edge", () => {
-		expect(currentBlockIndex(blocks, 100, 120)).toBe(3);
+	it("a block whose id no later event carries stays with the event last matched (a holder filled for an earlier step)", () => {
+		const events = [{ id: "[0.1]" }, { id: "[0.2]" }];
+		expect(blocksByEvent(events, [block("0.2"), block("0.1")]).map((bs) => bs.map((b) => b.id))).toEqual([[], ["0.2", "0.1"]]);
 	});
-	it("skips spacers (no id) and out-of-order times", () => {
-		const ooo = [b("a", 0), b("b", 30), b("c", 10)]; // b appended before c in time
-		expect(currentBlockIndex(ooo, 0, 15)).toBe(2); // greatest <= 15 is c@10, not b@30
+	it("blocks before any id'd block belong to the first event; no events, no rows", () => {
+		expect(blocksByEvent([{ id: "a" }], [block("", "<div></div>")]).map((bs) => bs.length)).toEqual([1]);
+		expect(blocksByEvent([], [block("a")])).toEqual([]);
 	});
 });
 
-describe("blockTimeClass", () => {
-	const past = b("a", 0),
-		cur = b("c", 10),
-		fut = b("d", 20);
-	const startTime = 100,
-		cursor = 110;
-	const currentIdx = currentBlockIndex([past, cur, fut], startTime, cursor);
-	it("dims a block recorded after the cursor as future", () => {
-		expect(blockTimeClass(fut, 2, startTime, cursor, currentIdx)).toBe("future");
-	});
-	it("marks the cursor's block current", () => {
-		expect(blockTimeClass(cur, 1, startTime, cursor, currentIdx)).toBe("current");
-	});
-	it("leaves a past, non-current block unclassed", () => {
-		expect(blockTimeClass(past, 0, startTime, cursor, currentIdx)).toBe("");
-	});
-	it("classes nothing when there is no cursor or the block is a spacer", () => {
-		expect(blockTimeClass(fut, 2, startTime, null, -1)).toBe("");
-		expect(blockTimeClass({ html: "<div class='h-1'></div>", id: "", rawTime: 0 }, 0, startTime, cursor, currentIdx)).toBe("");
+describe("finalizeBlocks frame ordinals", () => {
+	it("stamps frames in order under the caller's prefix, so a page of the run names its own frames", () => {
+		const resolver: TArtifactResolver = (id) => `<shu-artifact-frame class="thumb"><img src="${id}.png" /></shu-artifact-frame>`;
+		const out = finalizeBlocks(splitDocumentBlocks(`<div class="feature-artifacts" data-ids="a,b"></div>`), resolver, "3:");
+		expect(out[0].html).toContain('data-frame-ordinal="3:0"');
+		expect(out[0].html).toContain('data-frame-ordinal="3:1"');
 	});
 });

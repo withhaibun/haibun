@@ -158,14 +158,14 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
 
-		"The document comes back too, with the monitor open beside it. Each view holds its own page of the log at the levels it shows: the document opens at the live edge with its newest events, and the start of the run is one press away, the top glyph of its own rail. After that press its first heading, the feature's title, is on the page: the whole run is reachable from a reload, not only the latest events.",
+		"The document comes back too, with the monitor open beside it. Both read the run the same way, at the level each shows: the whole run by index, paged in as the reader reaches for a region, with nothing asked for twice between them. The document opens at the live edge with its newest events, and the start of the run is one press away on its rail: its top glyph is the first row, and pressing it pages that region in, so the feature's own heading is on the page.",
 		"show document",
 		waitFor({ target: IDS.DOCUMENT.ROOT }),
 		setAs({ what: FEATURE_HEADING, domain: "page-test-id", value: `"${FEATURE_HEADING}"` }),
 		`in "${DOC_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
 		waitFor({ target: FEATURE_HEADING }),
 
-		"The monitor's rail spans the whole run by index, whatever it holds: its top glyph is the run's first row, and pressing it pages that region in. The first row is then on the page, from a log that held only its newest page a moment before.",
+		"The monitor's rail spans the whole run by index too, whatever it holds: its top glyph is the run's first row, and pressing it pages that region in. The first row is then on the page, from a log that held only its newest page a moment before. The playback controls open from the actions bar's current-time control.",
 		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
 		waitFor({ target: IDS.MONITOR.FIRST_ROW }),
 		click({ target: IDS.APP.TIME_OFFSET }),

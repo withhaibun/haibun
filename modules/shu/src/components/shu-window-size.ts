@@ -3,8 +3,8 @@
  * `windowSizeSetting`. The current value is read reactively from the shared signal, so every mounted picker stays in
  * step. This module also owns the setting itself and its reader `getWindowSize` — one home for the whole concern.
  *
- * Since the views virtualize their rendering to the viewport and the event log is bounded by time-range windows
- * (events-snapshot), this setting's remaining consumer is the graph query's server-side page size.
+ * Since the views virtualize their rendering to the viewport, this setting is the page size of the run sources (how
+ * many events a page of the run holds, event-source) and of the graph query's server-side page.
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";

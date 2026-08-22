@@ -10,11 +10,13 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { mergeEvents, registerWindow, resetEventsSnapshot } from "../events-snapshot.js";
+import { eventRunSource } from "../event-source.js";
 import { SHU_EVENT } from "../consts.js";
 
 const FIRST = 1_000_000;
 const LAST = 1_000_500;
+/** The server's answer for the run: its two events, newest first (as the extent ask is answered), and its extent. */
+const RUN = { events: [{ id: "b", timestamp: LAST, kind: "log", level: "info", idx: { info: 1 } }, { id: "a", timestamp: FIRST, kind: "log", level: "info", idx: { info: 0 } }], total: 2, first: FIRST };
 
 let shu: TShuTestHandle;
 
@@ -29,14 +31,9 @@ async function playing(): Promise<ShuPlayback> {
 	const el = document.createElement("shu-playback") as ShuPlayback;
 	document.body.appendChild(el);
 	await el.updateComplete;
-	// The run's span comes from the shared event log, which keeps what the open views claim: so a view over the whole run
-	// is registered (as an open monitor or document would be), and the run is put in through the same call the events
-	// controller makes for every view that reads it.
-	await registerWindow("a-view", [{ from: 0, to: Number.POSITIVE_INFINITY }]);
-	mergeEvents([
-		{ id: "a", timestamp: FIRST, kind: "log", level: "info" },
-		{ id: "b", timestamp: LAST, kind: "log", level: "info" },
-	]);
+	// The run's span comes from the run sources the open views read: so the run is read at a level (as an open monitor or
+	// document would read it), and its extent is what the control plays between.
+	await eventRunSource("info").ready();
 	await el.updateComplete;
 	return el;
 }
@@ -80,8 +77,7 @@ describe("playing through a run", () => {
 	beforeEach(() => {
 		shu?.teardown();
 		// The shared event log is one store for the page, so a run left in it by the last test is still there for the next.
-		resetEventsSnapshot();
-		shu = setupShuTest();
+		shu = setupShuTest({ dispatch: () => RUN });
 		frames.install();
 		timeCursor.set(null);
 	});
@@ -142,8 +138,7 @@ describe("going back to now", () => {
 	// is what does: the cursor is released, and any view that tails is asked to return to the live edge and follow again.
 	beforeEach(() => {
 		shu?.teardown();
-		resetEventsSnapshot();
-		shu = setupShuTest();
+		shu = setupShuTest({ dispatch: () => RUN });
 		frames.install();
 		timeCursor.set(null);
 	});
