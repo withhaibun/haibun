@@ -11,15 +11,15 @@
  * This is the source every rail spans: dragging anywhere in the run pages that region in. The monitor reads it a row per
  * event; the document reads the same source and builds its blocks a page at a time from the events it holds.
  */
-import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
-import { conduit } from "./hypermedia.js";
-import { subscribeBatchedEvents } from "./event-stream.js";
-import { GET_EVENTS_METHOD } from "./rpc-cache.js";
-import { lazyWindowedSource, type WindowedSource } from "./windowed-source.js";
-import { getWindowSize } from "./components/shu-window-size.js";
-import { IndexedDbEventStore, runOf, type EventStore } from "./event-store-idb.js";
-import type { Range } from "./ranges.js";
+import { conduit } from "../hypermedia.js";
+import { subscribeBatchedEvents } from "../event-stream.js";
+import { GET_EVENTS_METHOD } from "../rpc-cache.js";
+import { lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
+import { getWindowSize } from "../components/shu-window-size.js";
+import { IndexedDbEventStore, runOf, type EventStore } from "./event-store.js";
+import type { Range } from "../ranges.js";
 
 export type TEventRecord = Record<string, unknown>;
 
@@ -62,11 +62,17 @@ export interface RunSource extends WindowedSource<TEventRecord> {
 
 const SOURCES_KEY = "__SHU_EVENT_RUN_SOURCES__";
 const STORE_KEY = "__SHU_EVENT_RUN_STORE__";
-type Shared = { sources: Map<string, RunSource & { appendLive(events: TEventRecord[]): void; beginRun(): void }>; store: EventStore; unsubscribe?: () => void; run?: string };
+type Shared = {
+	sources: Map<string, RunSource & { appendLive(events: TEventRecord[]): void; beginRun(): void }>;
+	store: EventStore;
+	unsubscribe?: () => void;
+	run?: string;
+	made: Set<(source: RunSource) => void>; // told when a source is made, so a view of the page's caches watches it from then on
+};
 
 function shared(): Shared {
 	const g = globalThis as unknown as Record<string, Shared | undefined>;
-	return (g[SHARED_SLOT] ??= { sources: new Map(), store: new IndexedDbEventStore() });
+	return (g[SHARED_SLOT] ??= { sources: new Map(), store: new IndexedDbEventStore(), made: new Set() });
 }
 const SHARED_SLOT = `${SOURCES_KEY}:${STORE_KEY}`;
 
@@ -75,6 +81,24 @@ export function setRunSourceStore(store: EventStore): void {
 	const s = shared();
 	s.store = store;
 	s.sources.clear();
+}
+
+/** The run sources built so far, in level order: what a view of the page's own caches reads, making none. */
+export function runSources(): RunSource[] {
+	const s = shared();
+	return HAIBUN_LOG_LEVELS.filter((l) => s.sources.has(l)).map((l) => s.sources.get(l) as RunSource);
+}
+
+/** Be told of each run source as it is made (a view reading a level for the first time). Returns an unsubscribe. */
+export function subscribeRunSources(fn: (source: RunSource) => void): () => void {
+	const s = shared();
+	s.made.add(fn);
+	return () => s.made.delete(fn);
+}
+
+/** The store the sources persist to: what the device holds of the run, for a view of the page's own caches. */
+export function runSourceStore(): EventStore {
+	return shared().store;
 }
 
 /** Test-only: forget every source, so the next asks again. */
@@ -141,6 +165,7 @@ export function eventRunSource(level: THaibunLogLevel): RunSource {
 	if (existing) return existing;
 	const source = makeRunSource(level, s);
 	s.sources.set(level, source);
+	for (const fn of s.made) fn(source);
 	// Every live batch reaches every source: each places the events that count at its level. A live event names the run
 	// being recorded now; a new name is a new run.
 	s.unsubscribe ??= subscribeBatchedEvents({

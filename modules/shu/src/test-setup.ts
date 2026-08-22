@@ -16,9 +16,9 @@
  */
 
 import { setConduit, resetConduit, SerializedConduit, type TDispatch } from "./hypermedia.js";
-import { resetRunSources, setRunSourceStore } from "./event-source.js";
-import { MemoryEventStore } from "./event-store-idb.js";
+
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
+import { resetRunSources, setRunSourceStore, MemoryEventStore } from "./client-cache/index.js";
 
 export type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method — tests opt in by supplying a function that returns wire results for the methods they exercise. */

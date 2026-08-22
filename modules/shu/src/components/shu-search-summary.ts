@@ -11,7 +11,7 @@ import type { TemplateResult } from "lit";
 import { html } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import type { TViewQuery } from "../view-query.js";
 
 const EmptySchema = z.object({});
@@ -33,7 +33,7 @@ export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
 	}
 
 	static schema = EmptySchema;
-	static domainSelector = "shu-search-summary";
+	static domainSelector = SHU_TAG.SEARCH_SUMMARY;
 
 	/** The exact query this entry restores. Set once at record time; never mutated by later searches. */
 	query: TViewQuery | null = null;
@@ -68,4 +68,4 @@ export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define("shu-search-summary", ShuSearchSummary);
+customElements.define(SHU_TAG.SEARCH_SUMMARY, ShuSearchSummary);

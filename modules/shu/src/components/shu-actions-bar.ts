@@ -14,7 +14,7 @@ import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import { startPointerDrag } from "./pointer-drag.js";
-import { SHU_EVENT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION } from "../consts.js";
+import { SHU_EVENT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG } from "../consts.js";
 import { isSchemaType } from "../graph/ontology-projection.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
@@ -35,7 +35,7 @@ import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, open
 import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
-import { runSpan } from "../event-source.js";
+import { runSpan } from "../client-cache/index.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,
@@ -102,7 +102,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	static schema = ActionsBarSchema;
-	static domainSelector = "shu-actions-bar";
+	static domainSelector = SHU_TAG.ACTIONS_BAR;
 
 	private _contextPatterns: TContextPattern[] = [];
 	/** The read access every query here runs at, opening at the level the page opened at: one reader of the view hash,
@@ -772,7 +772,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  through the run, so opening it lands on that rail: minimized, unless it is already open, in which case it is left
 	 *  exactly as the reader has it. The controls this reveals are what a rail cannot do: move on its own. */
 	private onNowClick = (e: Event): void => {
-		const tag = "shu-monitor-column";
+		const tag = SHU_TAG.MONITOR_COLUMN;
 		PaneState.request({ paneType: "component", tag, label: "Monitor", ...(PaneState.has(tag) ? {} : { flag: "min" as const }) });
 		this.onCornerToggle("playback")(e);
 	};

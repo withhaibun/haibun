@@ -14,8 +14,8 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-import { SHU_EVENT } from "../consts.js";
-import { runSpan } from "../event-source.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { runSpan } from "../client-cache/index.js";
 
 /** Playback rates. The two below 1 run slower than the run did, for a dense burst worth watching unfold. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
@@ -32,7 +32,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 		return null;
 	}
 
-	static domainSelector = "shu-playback";
+	static domainSelector = SHU_TAG.PLAYBACK;
 
 	static styles = [
 		shuBaseStyles,

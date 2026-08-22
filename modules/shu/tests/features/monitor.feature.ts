@@ -8,6 +8,7 @@ import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SHU_TEST_IDS } from "../../build/test-ids.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { SHU_TAG } from "@haibun/shu/consts.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
@@ -102,7 +103,7 @@ export const features: TKirejiExport = {
 		monitorFirstVisibleRow({ ordinal: '"1"' }),
 
 		"The thumb is what a reader grabs to drag, so a press aimed at the middle of it has to reach it. Every event worth marking is drawn on this rail, and a mark drawn over the thumb would take that press and jump to itself instead, leaving the thumb ungrabbable on exactly the runs that have the most to look through.",
-		railThumbTakesAPress({ host: '"shu-monitor-column"' }),
+		railThumbTakesAPress({ host: `"${SHU_TAG.MONITOR_COLUMN}"` }),
 
 		scenario({ scenario: "A manual scroll up pauses the tail; returning to the bottom resumes it" }),
 		"A reader scrolling back through the log must not be yanked to the newest row every time an event streams in. Scrolled to the top, a streamed event leaves the view where it is — the tail is paused because the reader is no longer at the bottom, not because any cursor was scrubbed. Scroll back to the bottom and the tail re-engages, so the next event is followed again.",
@@ -113,7 +114,7 @@ export const features: TKirejiExport = {
 		monitorShowsRowContaining({ text: '"scrollResumedEvent"' }),
 
 		"The rail thumb states how much of the column is on screen, so it holds its size as the reader scrolls and travels with them. Rows here are uniform lines of log.",
-		railThumbHoldsSize({ host: '"shu-monitor-column"' }),
+		railThumbHoldsSize({ host: `"${SHU_TAG.MONITOR_COLUMN}"` }),
 
 		"Everything the views did through all that scrolling reached the run as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be affordable. The run keeps none of them; the watch holds them in order, which is what says whether a size changed while a reader was scrolling rather than only that it changed.",
 		'some occurrence observed in watched blips is "variable occurrence/name is "haibun.shu.view.thumb_resize""',
@@ -135,10 +136,10 @@ export const features: TKirejiExport = {
 		"The screenshots this very run just took stream in as artifact events and render as thumbnail tiles in the document: each frame sits in a thumbnail grid row, sized as a tile of the column's grid (never shrink-wrapped small, never blown up to the whole column), with the real image served and filling its frame. Grouping a run of screenshots into one strip is covered by the document-blocks unit tests; this measures the real rendered result.",
 		documentThumbnailsFlow(),
 		"The same holds where the blocks differ in height: a screen of prose and a screen of screenshots put very different numbers of blocks on screen, and the thumb must not resize between them.",
-		railThumbHoldsSize({ host: '"shu-document-column"' }),
+		railThumbHoldsSize({ host: `"${SHU_TAG.DOCUMENT_COLUMN}"` }),
 
 		"The document column's own micro-movement reached the run: every raw change of its thumb measurement, including the ones too small to redraw, recorded from the browser and held in order. This is the record a smoothness problem is diagnosed from.",
-		'some occurrence observed in watched blips is "variable occurrence/view is "shu-document-column""',
+		`some occurrence observed in watched blips is "variable occurrence/view is "${SHU_TAG.DOCUMENT_COLUMN}""`,
 
 		scenario({ scenario: "A thumbnail expands with its step caption and arrows walk the run's screenshots" }),
 		"Clicking a thumbnail expands it over the column and captions it with the step that took it; the caption rides a stamp the document build put on the frame, since under virtualization the step's own row may not be in the reading window at all. Arrow keys then move between the run's screenshots through the document column, which is the only party that can reach frames outside the rendered window; the time cursor follows each expanded screenshot's step, dimming everything recorded after it.",

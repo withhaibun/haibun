@@ -25,6 +25,7 @@ import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
+import { SHU_TAG } from "../consts.js";
 
 const TOOL_LIMIT_DEFAULT = 5;
 const TOOL_LIMIT_MIN = 0;
@@ -94,7 +95,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	`,
 	];
 	static schema = ChatSchema;
-	static domainSelector = "shu-kihan-chat";
+	static domainSelector = SHU_TAG.KIHAN_CHAT;
 
 	private _models: Array<{ id: string; displayName?: string }> = [];
 	/** The chat's remembered options; a new visit restores the model, the tool limit and the session it was reading. */
@@ -499,4 +500,4 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 }
 
-customElements.define("shu-kihan-chat", ShuKihanChat);
+customElements.define(SHU_TAG.KIHAN_CHAT, ShuKihanChat);

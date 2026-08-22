@@ -109,6 +109,19 @@ export const SHU_TEST_IDS = {
 	INDEX_SUMMARY: {
 		ROOT: "index-summary",
 	},
+	/** The client cache view: what the page holds of the run. Every value has its own id, so a feature asserts cache facts
+	 *  through the generic steps (`save text from {id} to {var}`, `variable {var} is …`, `matches`) rather than a probe of
+	 *  its own: a source's value is `${SOURCE}${level}-${field}` (fields: events, first, newest, page, resident, held,
+	 *  cursor, state); the live count at a level `${LIVE}${level}`; what the device stores of the last run at a level
+	 *  `${STORE}${level}-stored` / `-extent`; an IndexedDB store's records `${IDB}${database}-${store}`. */
+	CLIENT_CACHE: {
+		ROOT: "client-cache-view",
+		CURSOR: "client-cache-cursor",
+		LIVE: "client-cache-live-",
+		SOURCE: "client-cache-source-",
+		STORE: "client-cache-store-",
+		IDB: "client-cache-idb-",
+	},
 	DOCUMENT: {
 		ROOT: "document-view",
 		/** A heading's block: this prefix and the heading's anchor (core's headingAnchor of its name). */

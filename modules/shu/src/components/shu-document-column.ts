@@ -15,7 +15,7 @@ import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
@@ -24,7 +24,7 @@ import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { atLiveEdge, eventRunSource, type RunSource, type TEventRecord } from "../event-source.js";
+import { atLiveEdge, eventRunSource, type RunSource, type TEventRecord } from "../client-cache/index.js";
 import type { WindowedSource } from "../windowed-source.js";
 import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, stripId, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
 import { currentRowIndex, cursorMark, rowTimeClass } from "../virtual-column-model.js";
@@ -432,7 +432,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		for (const e of events) {
 			if (e.kind !== "lifecycle") continue;
 			const products = (e as Record<string, unknown>).products as Record<string, unknown> | undefined;
-			if (products?._component === "shu-document-column") {
+			if (products?._component === SHU_TAG.DOCUMENT_COLUMN) {
 				documentShowTime = e.timestamp;
 				break;
 			}
@@ -448,7 +448,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 				const ui = getUiByType(typeStr);
 				if (ui?.pinnedOnly) continue;
 			}
-			if (products._component === "shu-document-column") continue;
+			if (products._component === SHU_TAG.DOCUMENT_COLUMN) continue;
 			map.set(stripId(e.id), products);
 		}
 		return map;

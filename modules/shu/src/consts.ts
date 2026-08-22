@@ -84,7 +84,44 @@ export const SHU_TYPE = {
 } as const;
 
 /** The column container every view sits in. Named once: a view asks for its hosting column by this. */
-export const COLUMN_PANE_TAG = "shu-column-pane";
+/** Every built-in shu element, by its tag: what the registry defines, a step opens (`productsDomain`), a domain
+ *  declares (`ui.component`), a component looks for in its tree and a test looks for on the page. One name each, here,
+ *  so no file spells a tag again; a component that is also a domain exposes its own as `static domainSelector`. */
+export const SHU_TAG = {
+	PERMISSIONS: "shu-permissions",
+	GRAPH_QUERY: "shu-graph-query",
+	RESULT_TABLE: "shu-result-table",
+	COLUMN_PANE: "shu-column-pane",
+	COLUMN_STRIP: "shu-column-strip",
+	ENTITY_COLUMN: "shu-entity-column",
+	FILTER_COLUMN: "shu-filter-column",
+	ACTIONS_BAR: "shu-actions-bar",
+	KIHAN_CHAT: "shu-kihan-chat",
+	BREADCRUMB: "shu-breadcrumb",
+	COMBOBOX: "shu-combobox",
+	SPINNER: "shu-spinner",
+	STEP_CALLER: "shu-step-caller",
+	MONITOR_COLUMN: "shu-monitor-column",
+	THREAD_COLUMN: "shu-thread-column",
+	STEP_DETAIL: "shu-step-detail",
+	INDEX_SUMMARY: "shu-index-summary",
+	PLAYBACK: "shu-playback",
+	DOCUMENT_COLUMN: "shu-document-column",
+	CLIENT_CACHE_COLUMN: "shu-client-cache-column",
+	PRODUCT_VIEW: "shu-product-view",
+	VIEWS_PICKER: "shu-views-picker",
+	AFFORDANCES_PANEL: "shu-affordances-panel",
+	DOMAIN_CHAIN_VIEW: "shu-domain-chain-view",
+	GRAPH: "shu-graph",
+	COPY_BUTTON: "shu-copy-button",
+	REF: "shu-ref",
+	TYPE_COLUMN: "shu-type-column",
+	THEME_SWITCH: "shu-theme-switch",
+	ACTIVITY_HISTORY: "shu-activity-history",
+	WINDOW_SIZE: "shu-window-size",
+	SEARCH_SUMMARY: "shu-search-summary",
+} as const;
+
 
 /** The index pane's identity: the column every other one is opened from, and the only one the app builds itself. */
 export const INDEX_PANE_KEY = "query";

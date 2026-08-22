@@ -12,6 +12,7 @@ import type { TemplateResult } from "lit";
 import { html } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHU_TAG } from "../consts.js";
 
 const EmptySchema = z.object({});
 
@@ -23,7 +24,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	}
 
 	static schema = EmptySchema;
-	static domainSelector = "shu-activity-history";
+	static domainSelector = SHU_TAG.ACTIVITY_HISTORY;
 
 	constructor() {
 		super(EmptySchema, {});
@@ -51,4 +52,4 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define("shu-activity-history", ShuActivityHistory);
+customElements.define(SHU_TAG.ACTIVITY_HISTORY, ShuActivityHistory);

@@ -29,6 +29,7 @@ import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { buildConcernCatalog, buildResourceRels } from "@haibun/core/lib/hypermedia.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
+import { SHU_TAG } from "./consts.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 import { GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
 import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
@@ -626,12 +627,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// so every view-opening step shares the same single mechanism.
 		showMonitor: {
 			gwta: "show monitor",
-			productsDomain: "shu-monitor-column",
+			productsDomain: SHU_TAG.MONITOR_COLUMN,
 			action: () => actionOKWithProducts({}),
 		},
 		showDocument: {
 			gwta: "show document",
-			productsDomain: "shu-document-column",
+			productsDomain: SHU_TAG.DOCUMENT_COLUMN,
 			action: () => actionOKWithProducts({}),
 		},
 		getEvents: {

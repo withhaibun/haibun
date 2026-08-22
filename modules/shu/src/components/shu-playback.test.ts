@@ -10,7 +10,7 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { eventRunSource } from "../event-source.js";
+import { eventRunSource } from "../client-cache/index.js";
 import { SHU_EVENT } from "../consts.js";
 
 const FIRST = 1_000_000;

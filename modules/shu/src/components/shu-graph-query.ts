@@ -1,7 +1,7 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { defaultLabel } from "../util.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
 /**
  * <shu-graph-query> — Query component for the graph store.
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
@@ -34,7 +34,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	];
 
 	static schema = QueryViewSchema;
-	static domainSelector = "shu-graph-query";
+	static domainSelector = SHU_TAG.GRAPH_QUERY;
 
 	#query = new QueryController(this);
 	private results: VertexRow[] = [];
