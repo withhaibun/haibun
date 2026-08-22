@@ -3,10 +3,10 @@
 // first and the server for what the device lacks, grown by live events that carry their index, bounded in what it holds,
 // and honest when a page cannot be had. These pin the contract the monitor's whole-run rail relies on.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { eventRunSource, resetRunSources, runSpan, setRunSourceStore, leanForStore, EVENTS_UNAVAILABLE, type TEventRecord } from "./run-source.js";
-import { MemoryEventStore } from "./event-store.js";
+import { eventRunSource, resetRunSources, runSpan, setDeviceStore, leanForStore, EVENTS_UNAVAILABLE, type TEventRecord } from "./run-source.js";
+import { MemoryDeviceStore } from "./device-store.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "../components/shu-window-size.js";
+import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "../window-size-setting.js";
 
 /** Live batches are coalesced into an animation frame; this lets one land. */
 const flush = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -44,15 +44,15 @@ function serverFor(initial: TEventRecord[], run = "") {
 
 describe("the run source at a level", () => {
 	let handle: TShuTestHandle;
-	let store: MemoryEventStore;
+	let store: MemoryDeviceStore;
 	const ALL = run(180); // 180 events: 60 at info, 180 at debug — more than one page of the smallest window size
 	let server: ReturnType<typeof serverFor>;
 	beforeEach(() => {
 		windowSizeSetting.set("50"); // a page is the shared window size; the smallest, so a run has several
 		server = serverFor(ALL);
 		handle = setupShuTest({ dispatch: server.dispatch }); // starts the sources afresh over a memory store of its own
-		store = new MemoryEventStore();
-		setRunSourceStore(store); // this test's store, so what the sources persist can be read back here
+		store = new MemoryDeviceStore();
+		setDeviceStore(store); // this test's store, so what the sources persist can be read back here
 	});
 	afterEach(() => {
 		handle.teardown();
@@ -88,7 +88,7 @@ describe("the run source at a level", () => {
 		await new Promise((r) => setTimeout(r, 0));
 		const asked = server.calls.length;
 		resetRunSources(); // a reload: sources anew over the same device store
-		setRunSourceStore(store);
+		setDeviceStore(store);
 		const again = eventRunSource("info");
 		await again.ready();
 		await again.ensureRange(0, 50);
@@ -119,7 +119,7 @@ describe("the run source at a level", () => {
 		handle.teardown();
 		handle = setupShuTest({ dispatch: () => { throw new Error("offline"); } });
 		resetRunSources();
-		setRunSourceStore(store);
+		setDeviceStore(store);
 		const offline = eventRunSource("info");
 		await offline.ready();
 		expect(offline.count(), "the extent the device knew").toBe(60);
@@ -216,5 +216,42 @@ describe("the run source at a level", () => {
 		expect(stored.stepValuesMap).toBeUndefined();
 		expect(stored.products, "only what the views display").toEqual({ view: "v", _type: "T" });
 		expect(leanForStore({ id: "a", timestamp: 1 })).toEqual({ id: "a", timestamp: 1 });
+	});
+
+	it("keeps two events the same instant, id and stage apart (the server's index is the key), and the newest event the extent ask brought", async () => {
+		const src = eventRunSource("info");
+		await src.ready();
+		await flush();
+		expect(store.size, "the newest event, from the extent ask alone").toBe(1);
+		handle.emit({ id: "[0.9]", timestamp: 5000, kind: "lifecycle", stage: "end", level: "info", idx: { debug: 180, trace: 180, log: 180, info: 60 } });
+		handle.emit({ id: "[0.9]", timestamp: 5000, kind: "lifecycle", stage: "end", level: "info", idx: { debug: 181, trace: 181, log: 181, info: 61 } });
+		await flush();
+		expect(store.size, "three rows: one storage key per event of the run").toBe(3);
+	});
+
+	it("with no server, a page the device holds in part renders what it holds, a hole for each row it lacks, and says the rest is not to hand", async () => {
+		const src = eventRunSource("info");
+		await src.ready();
+		await src.ensureRange(0, 50);
+		// The same device but for one row of the page (row 7 was never kept), and no server.
+		const held = await store.rowsAt("", "info", 0, 50);
+		const partial = new MemoryDeviceStore();
+		await partial.putMany(held.filter((e, i): e is TEventRecord => e !== undefined && i !== 7));
+		await partial.setExtent("", "info", (await store.extent("", "info")) as { total: number });
+		await partial.setLastRun("");
+		handle.teardown();
+		handle = setupShuTest({
+			dispatch: () => {
+				throw new Error("offline");
+			},
+		});
+		setDeviceStore(partial);
+		const again = eventRunSource("info");
+		await again.ready();
+		await again.ensureRange(0, 50);
+		expect(again.rowAt(0), "held on the device").toBeDefined();
+		expect(again.rowAt(49)).toBeDefined();
+		expect(again.rowAt(7), "the row the device lacks: a hole, not a blank page").toBeUndefined();
+		expect(again.unavailable, "and the reader is told").toBe(EVENTS_UNAVAILABLE);
 	});
 });

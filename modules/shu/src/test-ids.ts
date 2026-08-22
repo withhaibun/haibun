@@ -117,6 +117,7 @@ export const SHU_TEST_IDS = {
 	CLIENT_CACHE: {
 		ROOT: "client-cache-view",
 		CURSOR: "client-cache-cursor",
+		REGISTRY: "client-cache-registry",
 		LIVE: "client-cache-live-",
 		SOURCE: "client-cache-source-",
 		STORE: "client-cache-store-",

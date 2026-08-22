@@ -17,8 +17,8 @@ import { conduit } from "../hypermedia.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
 import { GET_EVENTS_METHOD } from "../rpc-cache.js";
 import { lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
-import { getWindowSize } from "../components/shu-window-size.js";
-import { IndexedDbEventStore, runOf, type EventStore } from "./event-store.js";
+import { getWindowSize } from "../window-size-setting.js";
+import { IndexedDbDeviceStore, runOf, type DeviceStore } from "./device-store.js";
 import type { Range } from "../ranges.js";
 
 export type TEventRecord = Record<string, unknown>;
@@ -64,7 +64,7 @@ const SOURCES_KEY = "__SHU_EVENT_RUN_SOURCES__";
 const STORE_KEY = "__SHU_EVENT_RUN_STORE__";
 type Shared = {
 	sources: Map<string, RunSource & { appendLive(events: TEventRecord[]): void; beginRun(): void }>;
-	store: EventStore;
+	store: DeviceStore;
 	unsubscribe?: () => void;
 	run?: string;
 	made: Set<(source: RunSource) => void>; // told when a source is made, so a view of the page's caches watches it from then on
@@ -72,12 +72,12 @@ type Shared = {
 
 function shared(): Shared {
 	const g = globalThis as unknown as Record<string, Shared | undefined>;
-	return (g[SHARED_SLOT] ??= { sources: new Map(), store: new IndexedDbEventStore(), made: new Set() });
+	return (g[SHARED_SLOT] ??= { sources: new Map(), store: new IndexedDbDeviceStore(), made: new Set() });
 }
 const SHARED_SLOT = `${SOURCES_KEY}:${STORE_KEY}`;
 
 /** Install the store the sources persist to (tests: a memory store), dropping any sources built over the previous one. */
-export function setRunSourceStore(store: EventStore): void {
+export function setDeviceStore(store: DeviceStore): void {
 	const s = shared();
 	s.store = store;
 	s.sources.clear();
@@ -97,7 +97,7 @@ export function subscribeRunSources(fn: (source: RunSource) => void): () => void
 }
 
 /** The store the sources persist to: what the device holds of the run, for a view of the page's own caches. */
-export function runSourceStore(): EventStore {
+export function deviceStore(): DeviceStore {
 	return shared().store;
 }
 
@@ -221,9 +221,13 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 					void store.putMany(events.map(leanForStore)).catch((err) => failFastOrLog("[event-source] page not persisted:", err));
 					return events;
 				} catch (err) {
-					unavailable = EVENTS_UNAVAILABLE; // told to the reader, not thrown
+					// No server: what the device holds of the page is all there is to show, with a hole for each row it lacks, and
+					// the reader is told the rest is not to hand (told, not thrown). A page the device holds nothing of stays empty.
+					unavailable = EVENTS_UNAVAILABLE;
 					console.warn(`[event-source] a page at ${level} is unavailable:`, err);
 					notifyAll();
+					const held = await store.rowsAt(run(), level, start, end).catch(() => []);
+					if (held.some((e) => e !== undefined)) return held as TEventRecord[];
 					throw err;
 				}
 			},
@@ -248,8 +252,10 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 		readying = (async () => {
 			await recallRun(s);
 			try {
-				learn(await ask({ limit: 1 })); // the newest event, and with it the run's extent (and which run it is)
+				const answer = await ask({ limit: 1 }); // the newest event, and with it the run's extent (and which run it is)
+				learn(answer);
 				unavailable = null;
+				void store.putMany((answer.events ?? []).map(leanForStore)).catch((err) => failFastOrLog("[event-source] newest event not persisted:", err));
 			} catch (err) {
 				// No server: the extent the device last knew of its last run, so the rail still spans the run it holds; else
 				// nothing, and said so.

@@ -19,7 +19,7 @@ import { isOffline } from "../hypermedia.js";
 import { getAvailableDomains } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
 import { arrayWindowedSource, lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
-import { getWindowSize } from "./shu-window-size.js";
+import { getWindowSize } from "../window-size-setting.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 
 /** A vertex row: flat property object. */

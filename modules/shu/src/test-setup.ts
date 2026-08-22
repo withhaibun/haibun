@@ -18,7 +18,7 @@
 import { setConduit, resetConduit, SerializedConduit, type TDispatch } from "./hypermedia.js";
 
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
-import { resetRunSources, setRunSourceStore, MemoryEventStore } from "./client-cache/index.js";
+import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 
 export type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method — tests opt in by supplying a function that returns wire results for the methods they exercise. */
@@ -92,7 +92,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	// The run sources are page-wide singletons (one per level, pinned on globalThis): each test starts them afresh over a
 	// memory store, so a source grown by one test's live events is not the next test's.
 	resetRunSources();
-	setRunSourceStore(new MemoryEventStore());
+	setDeviceStore(new MemoryDeviceStore());
 	return {
 		emit: (event) => eventStream.emit(event),
 		teardown: () => {

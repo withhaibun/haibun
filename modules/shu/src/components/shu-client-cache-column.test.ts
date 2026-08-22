@@ -7,7 +7,7 @@ import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "./shu-window-size.js";
+import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "../window-size-setting.js";
 import { timeCursor } from "../signals.js";
 import { SHU_TAG } from "../consts.js";
 
@@ -54,6 +54,7 @@ describe("the client cache view", () => {
 		const view = await open();
 		expect(text(view)).toContain("No view has read the run yet");
 		expect(value(view, IDS.CURSOR)).toBe("live edge");
+		expect(value(view, IDS.REGISTRY), "no step list has been asked for in this page").toBe("not known yet");
 	});
 
 	it("reads a source's extent, page size, resident spans and state, and what the device stores of the last run, each under its id", async () => {

@@ -10,7 +10,7 @@ import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../windowed-source.js";
 import { html } from "lit";
 import { timeCursor } from "../signals.js";
-import { DEFAULT_WINDOW_SIZE, windowSizeSetting } from "./shu-window-size.js";
+import { DEFAULT_WINDOW_SIZE, windowSizeSetting } from "../window-size-setting.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { SHU_TAG } from "../consts.js";
 
