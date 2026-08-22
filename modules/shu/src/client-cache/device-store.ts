@@ -1,12 +1,13 @@
 /**
- * IndexedDbEventStore — the client-side persistence behind the run sources (event-source), the events analogue of
- * quad-store-idb: the bulk lives here, off the JS heap, and survives a reload. Events are stored lean, keyed by their time
- * and identity, indexed by their index at each level so a page of the run is one ranged read, and the store keeps beside
- * them each run's extent per level, so a tab with no server still spans the run it last held.
+ * The device's store — the client cache's persistence, the events analogue of quad-store-idb: the bulk lives here, off
+ * the JS heap, and survives a reload. Events are stored lean, keyed by their time and identity, indexed by their index
+ * at each level so a page of the run is one ranged read; beside them each run's extent per level, the run last seen,
+ * and the site's registry (the step list with its concerns and domains), so a tab with no server still spans the run it
+ * last held and still knows the site's declarations.
  *
  * Degrades by design: without IndexedDB (a standalone report, a context without it) every read returns empty and every
  * write is a no-op, so the log falls back to the server exactly as before. Browser-only (IndexedDB is absent in
- * jsdom/node) → exercised by the e2e suites; the log's logic is unit-tested against the `EventStore` contract with an
+ * jsdom/node) → exercised by the e2e suites; the log's logic is unit-tested against the `DeviceStore` contract with an
  * in-memory stand-in. No dependency: raw IndexedDB, promisified.
  */
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -14,14 +15,25 @@ import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 
 export type TStoredEvent = Record<string, unknown>;
 
-/** What the shared log asks of its persistence, every question scoped to ONE RUN (the `run` the server stamps on its
- *  events and answers; "" for a server that names none): a device keeps every run it has seen, and a view shows one. One
- *  implementation over IndexedDB; tests use an in-memory one. */
+/** The site's registry as the device keeps it: the step list answer (steps, concerns, domains), and when it was kept. */
+export type TStoredRegistry = { savedAt: number; answer: unknown };
+
+/** What the client cache asks of the device, every question about events scoped to ONE RUN (the `run` the server stamps
+ *  on its events and answers; "" for a server that names none): a device keeps every run it has seen, and a view shows
+ *  one. One implementation over IndexedDB; tests use an in-memory one. */
 /** What the store holds, as a reader of the device is told: the run last seen, and per run and level how many events are
  *  stored and the extent kept. */
-export type TEventStoreSummary = { lastRun?: string; runs: Array<{ run: string; levels: Array<{ level: string; stored: number; extent?: { total: number; first?: number; last?: number } }> }> };
+export type TEventStoreSummary = {
+	lastRun?: string;
+	runs: Array<{ run: string; levels: Array<{ level: string; stored: number; extent?: { total: number; first?: number; last?: number } }> }>;
+	registry?: { savedAt: number };
+};
 
-export interface EventStore {
+export interface DeviceStore {
+	/** The site's registry as kept here, or undefined when none has been. */
+	registry(): Promise<TStoredRegistry | undefined>;
+	/** Keep the site's registry: the step list answer, as the server gave it now. */
+	setRegistry(answer: unknown): Promise<void>;
 	/** What this store holds: per run and level, how many events and the extent kept, and the run last seen. */
 	summary(): Promise<TEventStoreSummary>;
 	/** Persist events (idempotent by key; a re-put of the same event is a no-op). Each carries its run. */
@@ -29,6 +41,9 @@ export interface EventStore {
 	/** The events of `run` whose index at `level` is in [start, end), in index order — ALL of them, or none: a page served
 	 *  from the device is a page the device holds completely, never a page with rows missing in it. */
 	pageAt(run: string, level: string, start: number, end: number): Promise<TStoredEvent[]>;
+	/** What the device holds of that page, by index: a row for each event held, a hole for each it lacks — for when there is
+	 *  no server to ask, and what the device holds is all there is to show. */
+	rowsAt(run: string, level: string, start: number, end: number): Promise<Array<TStoredEvent | undefined>>;
 	/** The run's extent at a level as last known (how many events it holds there, and when it began), for a tab with no
 	 *  server to span its rail by. */
 	extent(run: string, level: string): Promise<{ total: number; first?: number; last?: number } | undefined>;
@@ -43,9 +58,11 @@ export interface EventStore {
 /** The run an event belongs to, as the server stamped it; "" for a server that names none (one run, then). */
 export const runOf = (e: TStoredEvent): string => (typeof e.run === "string" ? e.run : "");
 
-const DB_NAME = "shu-events";
+const DB_NAME = "shu-client-cache";
+/** The database this one replaces, dropped once on open so a device does not keep both. */
+const FORMER_DB_NAME = "shu-events";
 /** Bumped when what is stored changes shape or meaning; an upgrade starts the store afresh (the server has the run). */
-const VERSION = 7;
+const VERSION = 1;
 const EVENTS = "events";
 const META = "meta";
 /** One index per level over [run, the event's index at that level] (`idx.<level>`, stamped by the server); an event that
@@ -53,11 +70,17 @@ const META = "meta";
 const idxIndexName = (level: string): string => `by-run-idx-${level}`;
 const EXTENT_KEY = (run: string, level: string): string => `extent:${run}:${level}`;
 const LAST_RUN_KEY = "lastRun";
+const REGISTRY_KEY = "registry";
 
-/** An event's storage key: its time first, so two runs' events (whose ids repeat: every run has a step 0.1) never collide,
- *  then its identity, so a step's start and end (which share an id) are two rows. */
+/** An event's storage key: its run and its index among the run's events (`idx.debug`: every event counts at the lowest
+ *  level), which the server stamps and which is unique by construction; an event a server did not index (none of this
+ *  server's) is keyed by its time and identity instead, so a step's start and end (which share an id) are two rows. */
 export const eventTime = (e: Record<string, unknown>): number => Number(e.timestamp) || 0;
-export const storedEventKey = (e: TStoredEvent): string => `${String(eventTime(e)).padStart(15, "0")}|${e.id}|${(e.stage as string | undefined) ?? (e.kind as string | undefined) ?? ""}`;
+export const storedEventKey = (e: TStoredEvent): string => {
+	const idx = (e.idx as Record<string, number> | undefined)?.[HAIBUN_LOG_LEVELS[0]];
+	if (typeof idx === "number") return `${runOf(e)}|${String(idx).padStart(12, "0")}`;
+	return `${String(eventTime(e)).padStart(15, "0")}|${e.id}|${(e.stage as string | undefined) ?? (e.kind as string | undefined) ?? ""}`;
+};
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;
 
@@ -76,9 +99,12 @@ function openDb(): Promise<IDBDatabase | null> {
 			for (const level of HAIBUN_LOG_LEVELS) events.createIndex(idxIndexName(level), ["__run", `idx.${level}`], { unique: false });
 			db.createObjectStore(META);
 		};
-		req.onsuccess = () => resolve(req.result);
+		req.onsuccess = () => {
+			resolve(req.result);
+			indexedDB.deleteDatabase(FORMER_DB_NAME); // the former database, if this device has one; its events are on the server
+		};
 		req.onerror = () => {
-			failFastOrLog("[event-store-idb] open failed; the event log will not persist:", req.error);
+			failFastOrLog("[device-store] open failed; the client cache will not persist:", req.error);
 			resolve(null);
 		};
 	});
@@ -104,7 +130,19 @@ async function withStores<T>(mode: IDBTransactionMode, names: string[], fn: (tx:
 	return result;
 }
 
-export class IndexedDbEventStore implements EventStore {
+export class IndexedDbDeviceStore implements DeviceStore {
+	async registry(): Promise<TStoredRegistry | undefined> {
+		const found = await withStores("readonly", [META], (tx) => done(tx.objectStore(META).get(REGISTRY_KEY)));
+		return found && typeof found === "object" ? (found as TStoredRegistry) : undefined;
+	}
+
+	async setRegistry(answer: unknown): Promise<void> {
+		const kept: TStoredRegistry = { savedAt: Date.now(), answer };
+		await withStores("readwrite", [META], (tx) => {
+			tx.objectStore(META).put(kept, REGISTRY_KEY);
+		});
+	}
+
 	async putMany(events: readonly TStoredEvent[]): Promise<void> {
 		if (events.length === 0) return;
 		await withStores("readwrite", [EVENTS], (tx) => {
@@ -121,6 +159,18 @@ export class IndexedDbEventStore implements EventStore {
 			const held = await done(index.count(range));
 			if (held < end - start) return []; // not all of it: none of it, so the server is asked for the page whole
 			return ((await done(index.getAll(range))) as Array<TStoredEvent & { __key: string; __run: string }>).map(({ __key, __run, ...event }) => event);
+		});
+		return rows ?? [];
+	}
+
+	async rowsAt(run: string, level: string, start: number, end: number): Promise<Array<TStoredEvent | undefined>> {
+		if (end <= start) return [];
+		const rows = await withStores("readonly", [EVENTS], async (tx) => {
+			const index = tx.objectStore(EVENTS).index(idxIndexName(level));
+			const held = (await done(index.getAll(IDBKeyRange.bound([run, start], [run, end - 1])))) as Array<TStoredEvent & { __key: string; __run: string; idx: Record<string, number> }>;
+			const out: Array<TStoredEvent | undefined> = new Array(end - start);
+			for (const { __key, __run, ...event } of held) out[(event.idx as Record<string, number>)[level] - start] = event;
+			return out;
 		});
 		return rows ?? [];
 	}
@@ -143,8 +193,10 @@ export class IndexedDbEventStore implements EventStore {
 			const values = (await done(meta.getAll())) as unknown[];
 			const extents = new Map<string, Map<string, { total: number; first?: number; last?: number }>>();
 			let lastRun: string | undefined;
+			let registry: { savedAt: number } | undefined;
 			keys.forEach((k, i) => {
 				if (k === LAST_RUN_KEY) lastRun = String(values[i]);
+				else if (k === REGISTRY_KEY) registry = { savedAt: (values[i] as TStoredRegistry).savedAt };
 				else if (k.startsWith("extent:")) {
 					const [, run, level] = k.split(":");
 					if (!extents.has(run)) extents.set(run, new Map());
@@ -162,7 +214,7 @@ export class IndexedDbEventStore implements EventStore {
 				}
 				runs.push({ run, levels });
 			}
-			return { lastRun, runs };
+			return { lastRun, runs, registry };
 		});
 		return out ?? { runs: [] };
 	}
@@ -186,9 +238,17 @@ export class IndexedDbEventStore implements EventStore {
 	}
 }
 
-/** An `EventStore` over memory: what a context without IndexedDB gets, and what the log's unit tests drive. */
-export class MemoryEventStore implements EventStore {
+/** A `DeviceStore` over memory: what a context without IndexedDB gets, and what the unit tests drive. */
+export class MemoryDeviceStore implements DeviceStore {
 	#events = new Map<string, TStoredEvent>();
+	#registry: TStoredRegistry | undefined;
+	registry(): Promise<TStoredRegistry | undefined> {
+		return Promise.resolve(this.#registry);
+	}
+	setRegistry(answer: unknown): Promise<void> {
+		this.#registry = { savedAt: Date.now(), answer };
+		return Promise.resolve();
+	}
 	#extents = new Map<string, { total: number; first?: number; last?: number }>();
 	putMany(events: readonly TStoredEvent[]): Promise<void> {
 		for (const e of events) this.#events.set(storedEventKey(e), e);
@@ -202,6 +262,14 @@ export class MemoryEventStore implements EventStore {
 		if (rows.length < end - start) return Promise.resolve([]);
 		rows.sort((a, b) => ((a.idx as Record<string, number>)[level] ?? 0) - ((b.idx as Record<string, number>)[level] ?? 0));
 		return Promise.resolve(rows);
+	}
+	rowsAt(run: string, level: string, start: number, end: number): Promise<Array<TStoredEvent | undefined>> {
+		const out: Array<TStoredEvent | undefined> = new Array(Math.max(0, end - start));
+		for (const e of this.#events.values()) {
+			const i = (e.idx as Record<string, number> | undefined)?.[level];
+			if (runOf(e) === run && i !== undefined && i >= start && i < end) out[i - start] = e;
+		}
+		return Promise.resolve(out);
 	}
 	extent(run: string, level: string): Promise<{ total: number; first?: number; last?: number } | undefined> {
 		return Promise.resolve(this.#extents.get(`${run}:${level}`));
@@ -219,6 +287,7 @@ export class MemoryEventStore implements EventStore {
 		for (const key of this.#extents.keys()) runs.add(key.slice(0, key.lastIndexOf(":")));
 		return Promise.resolve({
 			lastRun: this.#lastRun,
+			registry: this.#registry ? { savedAt: this.#registry.savedAt } : undefined,
 			runs: [...runs].map((run) => ({
 				run,
 				levels: HAIBUN_LOG_LEVELS.map((level) => ({
@@ -237,6 +306,7 @@ export class MemoryEventStore implements EventStore {
 		this.#events.clear();
 		this.#extents.clear();
 		this.#lastRun = undefined;
+		this.#registry = undefined;
 		return Promise.resolve();
 	}
 	/** Test reading: how many events are stored. */
@@ -246,6 +316,6 @@ export class MemoryEventStore implements EventStore {
 }
 
 /** Test/reset hook — drop the cached DB handle so a fresh open happens next. */
-export function resetEventStoreIdb(): void {
+export function resetDeviceStoreIdb(): void {
 	dbPromise = null;
 }

@@ -5,8 +5,9 @@
  *   and up, spanning the whole run by index, paged in on demand (the device first, then the server), bounded in what it
  *   holds, grown by live events; one per level, shared by every view at that level. The run's span and the live-edge rule
  *   every view places the cursor by come from here.
- * - the device's event store (event-store.ts): where the sources persist lean events by their index at each level and
- *   each run's extent, so a reload or a page with no server serves from the device.
+ * - the device's store (device-store.ts): where the sources persist lean events by their index at each level and each
+ *   run's extent, and where the site's registry is kept, so a reload or a page with no server serves from the device and
+ *   still knows the site's declarations (rpc-registry reads it when the site does not answer).
  * - what IndexedDB holds for the origin (idb-summary.ts): every database, its stores and their counts, read-only.
  *
  * The client cache view (components/shu-client-cache-column) reads all of it, and the client cache stepper
@@ -15,17 +16,17 @@
 export {
 	eventRunSource,
 	runSources,
-	runSourceStore,
+	deviceStore,
 	subscribeRunSources,
 	runSpan,
 	atLiveEdge,
 	leanForStore,
-	setRunSourceStore,
+	setDeviceStore,
 	resetRunSources,
 	EVENTS_UNAVAILABLE,
 	type RunSource,
 	type TRunExtent,
 	type TEventRecord,
 } from "./run-source.js";
-export { IndexedDbEventStore, MemoryEventStore, eventTime, runOf, storedEventKey, resetEventStoreIdb, type EventStore, type TEventStoreSummary, type TStoredEvent } from "./event-store.js";
+export { IndexedDbDeviceStore, MemoryDeviceStore, eventTime, runOf, storedEventKey, resetDeviceStoreIdb, type DeviceStore, type TEventStoreSummary, type TStoredEvent, type TStoredRegistry } from "./device-store.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";

@@ -6,7 +6,8 @@
  * read its level, the store is read as it is, and nothing is asked of the server. It watches everything that moves —
  * each source as it is made and as it changes, every live batch, the cursor — and shows the change at once; the device
  * is re-read after changes at a bounded cadence, since reading it is slower than the stream. Every value carries its own
- * test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is what a feature reads cache facts from.
+ * test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is what a feature reads cache facts from. It also says where
+ * the site's registry the page runs on came from: the site, or the device's copy when the site did not answer.
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -19,7 +20,8 @@ import { currentRowIndex } from "../virtual-column-model.js";
 
 import type { Range } from "../ranges.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
-import { runSources, runSourceStore, subscribeRunSources, type RunSource, type TEventStoreSummary, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
+import { registryOrigin } from "../rpc-registry.js";
+import { runSources, deviceStore, subscribeRunSources, type RunSource, type TEventStoreSummary, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
 
 const EmptySchema = z.object({});
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
@@ -61,6 +63,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			"@type": "as:Note",
 			name: "what this page holds of the run",
 			cursor: this.timeCursor,
+			registry: registryOrigin(),
 			sources: runSources().map((s) => ({ level: s.level, ...s.extent(), resident: spans(s.residentRanges()), cursorRow: this.#cursorRowIn(s) })),
 			openedAt: this.#openedAt,
 			live: Object.fromEntries(this.#liveByLevel),
@@ -127,7 +130,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		if (this.#reading) return; // a read under way: the one due after it reads what this one would have
 		this.#reading = true;
 		try {
-			const [store, databases] = await Promise.all([runSourceStore().summary(), indexedDbSummary()]);
+			const [store, databases] = await Promise.all([deviceStore().summary(), indexedDbSummary()]);
 			this.#store = store;
 			this.#databases = databases;
 		} finally {
@@ -149,9 +152,13 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		const sources = runSources();
 		const cursor = this.timeCursor;
 		const lastRun = this.#store.lastRun;
+		const registry = registryOrigin();
+		const kept = this.#store.registry;
 		const stored = lastRun === undefined ? undefined : this.#store.runs.find((r) => r.run === lastRun);
 		const cell = (id: string, value: unknown): TemplateResult => html`<td data-testid=${id}>${value}</td>`;
 		return html`<div data-testid=${IDS.ROOT}>
+			<h4>Registry</h4>
+			<div data-testid=${IDS.REGISTRY}>${registry === null ? "not known yet" : registry.from === "site" ? `from the site${kept ? `, kept on the device at ${at(kept.savedAt)}` : ""}` : `from the device, kept at ${at(registry.savedAt)} (the site did not answer)`}</div>
 			<h4>Cursor</h4>
 			<div data-testid=${IDS.CURSOR}>${cursor === null ? "live edge" : at(cursor)}</div>
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>

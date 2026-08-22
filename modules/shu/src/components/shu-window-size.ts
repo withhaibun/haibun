@@ -1,42 +1,14 @@
 /**
- * <shu-window-size> — the window-size picker (rows fetched per windowed query), bound to the ONE global
- * `windowSizeSetting`. The current value is read reactively from the shared signal, so every mounted picker stays in
- * step. This module also owns the setting itself and its reader `getWindowSize` — one home for the whole concern.
- *
- * Since the views virtualize their rendering to the viewport, this setting is the page size of the run sources (how
- * many events a page of the run holds, event-source) and of the graph query's server-side page.
+ * <shu-window-size> — the window-size picker, bound to the ONE global `windowSizeSetting` (window-size-setting.ts, the
+ * setting's home, read by the run sources and the graph query). The current value is read reactively from the shared
+ * signal, so every mounted picker stays in step.
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { persistedSetting } from "../signals.js";
 import { SHU_TAG } from "../consts.js";
-
-const STORAGE_WINDOW_SIZE = "shu.windowSize";
-
-/** First-run fallback rows per windowed view — a named const (never a bare literal), and a member of WINDOW_SIZES. */
-export const DEFAULT_WINDOW_SIZE = "500";
-
-/** Rows fetched per windowed query (the graph query's page size). One global setting. `∞` (9e9) is effectively unlimited. */
-const WINDOW_SIZES = [
-	{ value: "50", label: "50" },
-	{ value: DEFAULT_WINDOW_SIZE, label: DEFAULT_WINDOW_SIZE },
-	{ value: "2000", label: "2000" },
-	{ value: "5000", label: "5000" },
-	{ value: "10000", label: "10000" },
-	{ value: "20000", label: "20000" },
-	{ value: "9000000000", label: "∞" },
-] as const;
-
-/** The one global window-size setting. Exported alongside its reader `getWindowSize` so the picker element and tests
- *  drive the same handle rather than reaching into storage. */
-export const windowSizeSetting = persistedSetting(STORAGE_WINDOW_SIZE, DEFAULT_WINDOW_SIZE, (v) => WINDOW_SIZES.some((w) => w.value === v));
-
-/** The global window size (rows per windowed query), read reactively so a settings change re-runs every consumer. */
-export function getWindowSize(): number {
-	return Number.parseInt(windowSizeSetting.get(), 10);
-}
+import { WINDOW_SIZES, windowSizeSetting } from "../window-size-setting.js";
 
 const EmptySchema = z.object({});
 

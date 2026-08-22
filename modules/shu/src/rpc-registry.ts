@@ -2,6 +2,7 @@ import { conduit } from "./hypermedia.js";
 import { setRpcCache, findCachedMethod } from "./rpc-cache.js";
 import { getConcernCatalog, heldConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
+import { deviceStore } from "./client-cache/index.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { z } from "zod";
@@ -205,9 +206,46 @@ export function getHydratedViewHash(): string {
 	return heldHydration().data?.viewHash ?? "";
 }
 
+/** Where the registry the page runs on came from: the site, or the device's copy of it (when the site did not answer),
+ *  and when that copy was kept. Pinned to the page like the registry itself; null until the registry is known. */
+export type TRegistryOrigin = { from: "site" | "device"; savedAt?: number };
+const ORIGIN_KEY = "__SHU_STEP_REGISTRY_ORIGIN__";
+const origin = (): { value: TRegistryOrigin | null } => pagePinned(ORIGIN_KEY, () => ({ value: null }));
+export function registryOrigin(): TRegistryOrigin | null {
+	return origin().value;
+}
+
+/** Test-only: forget the registry and where it came from, so the next ask discovers again. */
+export function resetStepRegistry(): void {
+	const r = registry();
+	r.steps = null;
+	r.byName = null;
+	r.domains = null;
+	r.pending = null;
+	origin().value = null;
+}
+
+/** Ask the site what it offers. Its answer is kept on the device; when the site does not answer, the device's copy is
+ *  the registry the page runs on (and says so), so a page with no server still knows the site's declarations. With
+ *  neither, the ask fails as it did. */
 async function discover(): Promise<StepListResponse> {
-	const result = await conduit().follow<unknown>({ method: "step.list" }, "rpc-registry: discover available steps");
-	const parsed: StepListResponse = StepListResponseSchema.parse(result);
+	let parsed: StepListResponse;
+	try {
+		const result = await conduit().follow<unknown>({ method: "step.list" }, "rpc-registry: discover available steps");
+		parsed = StepListResponseSchema.parse(result);
+		origin().value = { from: "site" };
+		void deviceStore()
+			.setRegistry(parsed)
+			.catch((err) => failFastOrLog("[rpc-registry] the registry was not kept on the device:", err));
+	} catch (err) {
+		const kept = await deviceStore()
+			.registry()
+			.catch(() => undefined);
+		if (!kept) throw err;
+		parsed = StepListResponseSchema.parse(kept.answer);
+		origin().value = { from: "device", savedAt: kept.savedAt };
+		console.warn(`[rpc-registry] the site did not answer; the registry kept on this device (${new Date(kept.savedAt).toISOString()}) is in use:`, err);
+	}
 	const { steps, domains, concerns } = parsed;
 	setConcernCatalog(concerns, domains);
 	for (const [label, concern] of Object.entries(concerns.persisted)) {
