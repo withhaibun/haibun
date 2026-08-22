@@ -50,11 +50,10 @@ describe("the run source at a level", () => {
 	let server: ReturnType<typeof serverFor>;
 	beforeEach(() => {
 		windowSizeSetting.set("50"); // a page is the shared window size; the smallest, so a run has several
-		resetRunSources();
-		store = new MemoryEventStore();
-		setRunSourceStore(store);
 		server = serverFor(ALL);
-		handle = setupShuTest({ dispatch: server.dispatch });
+		handle = setupShuTest({ dispatch: server.dispatch }); // starts the sources afresh over a memory store of its own
+		store = new MemoryEventStore();
+		setRunSourceStore(store); // this test's store, so what the sources persist can be read back here
 	});
 	afterEach(() => {
 		handle.teardown();
@@ -156,5 +155,33 @@ describe("the run source at a level", () => {
 		expect(info.rowAt(0), "run 1's rows are gone until run 2's page lands").toBeUndefined();
 		await info.ensureRange(0, 11);
 		expect((info.rowAt(0) as TEventRecord).run).toBe("run-2");
+	});
+
+	it("reaching the live edge fetches the last page once, and reaching it again fetches nothing", async () => {
+		const info = eventRunSource("info");
+		await info.ready();
+		const end = info.count();
+		await info.ensureRange(Math.max(0, end - 10), end);
+		const asked = server.calls.length;
+		for (let i = 0; i < 5; i++) await info.ensureRange(Math.max(0, end - 10), end); // at the bottom, again and again
+		expect(server.calls.length, "the last page is resident: nothing more is asked").toBe(asked);
+		expect(info.count(), "and nothing grew").toBe(end);
+	});
+
+	it("a live burst at the level adds exactly its rows to the extent and fetches nothing; events below the level add none", async () => {
+		const info = eventRunSource("info");
+		await info.ready();
+		await info.ensureRange(50, 60); // the last page resident
+		const asked = server.calls.length;
+		const burst = run(189).slice(180); // nine more events: three at info (180, 183, 186 → info 60, 61, 62), six at debug
+		server.state.all = run(189); // the server recorded them too
+		for (const e of burst) handle.emit(e);
+		await flush();
+		expect(info.count(), "three at info and up: three more").toBe(63);
+		expect(server.calls.length, "placed by their index, not fetched").toBe(asked);
+		expect((info.rowAt(62) as TEventRecord).id).toBe("0.186");
+		const debugOnly = eventRunSource("debug");
+		await debugOnly.ready();
+		expect(debugOnly.count(), "the debug source counts them all").toBe(189);
 	});
 });

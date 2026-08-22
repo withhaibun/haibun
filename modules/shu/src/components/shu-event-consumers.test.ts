@@ -5,7 +5,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
-import { FOLLOW_CHANGED, WINDOW_CHANGED } from "./shu-virtual-column.js";
+import { FOLLOW_CHANGED, WINDOW_CHANGED, ShuVirtualColumn } from "./shu-virtual-column.js";
+import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
+import type { WindowedSource } from "../windowed-source.js";
+import { html } from "lit";
 import { resetEventsSnapshot } from "../events-snapshot.js";
 import { timeCursor } from "../signals.js";
 import { DEFAULT_WINDOW_SIZE, windowSizeSetting } from "./shu-window-size.js";
@@ -72,12 +75,37 @@ describe("event consumers over the shared log", () => {
 		expect(backfillCalls, "a live event carries its index: no page is asked for to place it").toBe(1);
 	});
 
-	it("a second consumer reuses the single backfill instead of re-paging", async () => {
-		document.body.appendChild(document.createElement("shu-monitor-column"));
+	it("the monitor's rows are the run's: a live burst adds exactly its rows, the count reads the extent, and the first row is named", async () => {
+		const mon = document.createElement("shu-monitor-column") as ShuMonitorColumn;
+		document.body.appendChild(mon);
 		await flush();
-		document.body.appendChild(document.createElement("shu-document-column"));
 		await flush();
-		expect(backfillCalls).toBe(1); // shared cache: the document read the same log, no second page-walk
+		expect(mon.rows.length).toBe(2);
+		expect(mon.shadowRoot?.querySelector("[data-testid=monitor-log-row-first]"), "the run's first row is on the page, named").toBeTruthy();
+		for (const i of [3, 4, 5, 6]) handle.emit(step(i)); // a burst at the live edge
+		await flush();
+		await flush();
+		expect(mon.rows.map((r) => r.step), "four more rows, in order, nothing else").toEqual(["step 1", "step 2", "step 3", "step 4", "step 5", "step 6"]);
+		expect(mon.shadowRoot?.querySelector(".count")?.textContent, "the count is the run's extent").toBe("6 events");
+		for (const i of [7, 8]) handle.emit({ ...step(i), level: "debug", idx: { debug: i - 1 } }); // below the monitor's level (info)
+		await flush();
+		await flush();
+		expect(mon.rows.length, "debug events are not the monitor's rows at info").toBe(6);
+	});
+
+	it("each kind of view pages its own source once, and a second view of the same kind reuses it rather than re-paging", async () => {
+		document.body.appendChild(document.createElement("shu-monitor-column")); // the run by index, at info
+		await flush();
+		await flush();
+		expect(backfillCalls, "the monitor's page of the run").toBe(1);
+		document.body.appendChild(document.createElement("shu-document-column")); // the log's newest page, at log and up
+		await flush();
+		await flush();
+		expect(backfillCalls, "and the document's: a different source, its own page").toBe(2);
+		document.body.appendChild(document.createElement("shu-document-column")); // a second document
+		await flush();
+		await flush();
+		expect(backfillCalls, "shared log: the second document holds what the first fetched, no page-walk").toBe(2);
 	});
 
 	it("renders the log as blocks and a benign re-render keeps them (no blank-on-update)", async () => {
@@ -116,14 +144,17 @@ describe("the document holds the newest page, widens toward the start, and scrub
 	const WINDOW = 50; // the window size now counts the events a tailing view holds: one page at the live edge, more as the reader nears the top
 	const EVENTS = 60;
 
+	let pageCalls = 0;
 	beforeEach(() => {
 		if (!customElements.get("shu-document-column")) customElements.define("shu-document-column", ShuDocumentColumn);
 		resetEventsSnapshot();
 		windowSizeSetting.set(String(WINDOW));
+		pageCalls = 0;
 		handle = setupShuTest({
 			dispatch: (method, params) => {
 				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
 				const filter = (params as { filter: { until?: number; limit?: number; minLevel?: string; offset?: number } }).filter;
+				pageCalls++;
 				return answer(Array.from({ length: EVENTS }, (_, i) => step(i + 1)), filter);
 			},
 		});
@@ -179,5 +210,95 @@ describe("the document holds the newest page, widens toward the start, and scrub
 		const row11 = rows.find((r) => r.getAttribute("data-raw-time") === "10"); // event 11: rawTime 10 from the global start (1)
 		row11?.click();
 		expect(timeCursor.get(), "clicked row → its own timestamp (start 1 + rawTime 10)").toBe(11);
+	});
+
+	it("scrolling back to the live edge narrows to one page again and adds nothing: no rows, no fetch, however often the edge is reached", async () => {
+		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
+		document.body.appendChild(doc);
+		await flush();
+		doc.dispatchEvent(new CustomEvent(FOLLOW_CHANGED, { detail: { following: false }, bubbles: true, composed: true }));
+		doc.dispatchEvent(new CustomEvent(WINDOW_CHANGED, { detail: { first: 0, visible: 10, total: WINDOW }, bubbles: true, composed: true }));
+		await flush();
+		await flush();
+		expect(sortedRows(doc).length, "widened to the whole run").toBe(EVENTS);
+		const asked = pageCalls;
+		// The reader scrolls to the bottom. Reaching the live edge flips follow on — and a scroll that ends there flips it
+		// several times on the way (off, on, off, on), as a real scroll does.
+		for (const following of [true, false, true, false, true]) doc.dispatchEvent(new CustomEvent(FOLLOW_CHANGED, { detail: { following }, bubbles: true, composed: true }));
+		doc.dispatchEvent(new CustomEvent(WINDOW_CHANGED, { detail: { first: WINDOW - 10, visible: 10, total: WINDOW }, bubbles: true, composed: true }));
+		await flush();
+		await flush();
+		expect(sortedRows(doc).length, "back to the newest page: narrowed, nothing added").toBe(WINDOW);
+		expect(pageCalls, "narrowing asks the server for nothing").toBe(asked);
+		// Reaching the edge again and again changes nothing.
+		for (let i = 0; i < 5; i++) doc.dispatchEvent(new CustomEvent(FOLLOW_CHANGED, { detail: { following: true }, bubbles: true, composed: true }));
+		await flush();
+		expect(sortedRows(doc).length).toBe(WINDOW);
+		expect(pageCalls).toBe(asked);
+	});
+
+	it("at the live edge a live event at the document's level adds exactly its row, and one below its level adds none", async () => {
+		const doc = document.createElement("shu-document-column") as ShuDocumentColumn;
+		document.body.appendChild(doc);
+		await flush();
+		expect(sortedRows(doc).length).toBe(WINDOW);
+		handle.emit(step(EVENTS + 1));
+		await flush();
+		await flush();
+		expect(sortedRows(doc).length, "one live step: one more row").toBe(WINDOW + 1);
+		handle.emit({ id: "noise", timestamp: EVENTS + 2, kind: "log", level: "debug", message: "not shown at log and up", idx: { debug: 0 } });
+		await flush();
+		await flush();
+		expect(sortedRows(doc).length, "a debug event is below the document's level: no row").toBe(WINDOW + 1);
+	});
+});
+
+describe("the virtual column over a paged source", () => {
+	// A source that pages the run in is asked for the rows the column shows: every row in the headless fallback (which
+	// renders them all), and, as a strip, the rows the rail is dragged to — and the strip says where its window went.
+	type TSpy = WindowedSource<number> & { asked: Array<[number, number]> };
+	const spy = (total: number): TSpy => {
+		const asked: Array<[number, number]> = [];
+		return {
+			asked,
+			count: () => total,
+			rowAt: (i) => i,
+			ensureRange: async (a, b) => {
+				asked.push([a, b]);
+			},
+			subscribe: () => () => undefined,
+			markers: () => [],
+		};
+	};
+	beforeEach(() => {
+		if (!customElements.get("shu-virtual-column")) customElements.define("shu-virtual-column", ShuVirtualColumn);
+	});
+
+	it("asks the source for every row it renders in the headless fallback", async () => {
+		const src = spy(7);
+		const col = document.createElement("shu-virtual-column") as ShuVirtualColumn;
+		col.source = src;
+		col.renderRow = (_i, row) => html`<div class="r">${String(row)}</div>`;
+		document.body.appendChild(col);
+		await col.updateComplete;
+		expect(src.asked.at(0), "all seven, since all seven are painted").toEqual([0, 7]);
+		expect(col.querySelectorAll(".r").length).toBe(7);
+	});
+
+	it("as a strip, a rail seek asks for the rows the rail was dragged to and says where its window went", async () => {
+		const src = spy(1000);
+		const col = document.createElement("shu-virtual-column") as ShuVirtualColumn;
+		col.source = src;
+		col.spine = true;
+		col.renderRow = (_i, row) => html`<div class="r">${String(row)}</div>`;
+		const moves: Array<{ first: number; total: number }> = [];
+		col.addEventListener(WINDOW_CHANGED, (e) => moves.push((e as CustomEvent<{ first: number; total: number }>).detail));
+		document.body.appendChild(col);
+		await col.updateComplete;
+		src.asked.length = 0;
+		col.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: 400, by: "press" }, bubbles: true, composed: true }));
+		await col.updateComplete;
+		expect(src.asked.at(-1)?.[0], "the rows from where the rail was dragged to").toBe(400);
+		expect(moves.at(-1), "and the strip says where its window went, over the whole run").toMatchObject({ first: 400, total: 1000 });
 	});
 });

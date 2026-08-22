@@ -16,6 +16,8 @@
  */
 
 import { setConduit, resetConduit, SerializedConduit, type TDispatch } from "./hypermedia.js";
+import { resetRunSources, setRunSourceStore } from "./event-source.js";
+import { MemoryEventStore } from "./event-store-idb.js";
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 
 export type TShuTestConfig = {
@@ -87,9 +89,14 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	const eventStream = new SerializedEventStream();
 	setConduit(conduit);
 	setEventStream(eventStream);
+	// The run sources are page-wide singletons (one per level, pinned on globalThis): each test starts them afresh over a
+	// memory store, so a source grown by one test's live events is not the next test's.
+	resetRunSources();
+	setRunSourceStore(new MemoryEventStore());
 	return {
 		emit: (event) => eventStream.emit(event),
 		teardown: () => {
+			resetRunSources();
 			resetConduit();
 			resetEventStream();
 			eventStream.close();
