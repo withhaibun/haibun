@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 // What the log marks on its rail: the rows whose events earned a mark, at the place a reader can scroll to; and where it
-// marks the moment being shown. (The tail-vs-full window rule it tails by is shared, and tested in tail-window.test.ts.)
+// marks the moment being shown (cursorMark, shared with the document through virtual-column-model).
 import { describe, it, expect } from "vitest";
-import { cursorMark, railMarkers, type TLogRow } from "./shu-monitor-column.js";
+import { railMarkers, type TLogRow } from "./shu-monitor-column.js";
+import { cursorMark } from "../virtual-column-model.js";
 import { markFor, MARK_COLOUR } from "../event-marker.js";
 
 /** A log row, with only what the rail reads off it. */

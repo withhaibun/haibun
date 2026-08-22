@@ -5,10 +5,11 @@
  * the page whole, else from the server, which pages its buffer and its disk log by index — and the resident pages are
  * bounded, so memory stays flat however long the run. Live events carry their index at each level (the server stamps
  * it), so each one takes its place exactly, and a missed one leaves a gap that the next ensureRange fills. One source
- * per level, shared by every view at that level, pinned on globalThis like the other shared caches.
+ * per level, shared by every view at that level, pinned on globalThis like the other shared caches. This is THE event
+ * path of the page: a view about one step asks for that step's own events by its seqPath, and nothing else holds events.
  *
- * This is the source the rail spans: dragging anywhere in the run pages that region in; the document, a prose view of
- * blocks rather than rows, keeps its time-windowed claim (events-snapshot).
+ * This is the source every rail spans: dragging anywhere in the run pages that region in. The monitor reads it a row per
+ * event; the document reads the same source and builds its blocks a page at a time from the events it holds.
  */
 import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -18,15 +19,39 @@ import { GET_EVENTS_METHOD } from "./rpc-cache.js";
 import { lazyWindowedSource, type WindowedSource } from "./windowed-source.js";
 import { getWindowSize } from "./components/shu-window-size.js";
 import { IndexedDbEventStore, runOf, type EventStore } from "./event-store-idb.js";
-import { EVENTS_UNAVAILABLE, leanForStore, type TEventRecord } from "./events-snapshot.js";
+import type { Range } from "./ranges.js";
 
-export type TRunExtent = { total: number; first?: number };
+export type TEventRecord = Record<string, unknown>;
+
+/** What a reader is told when history is not to hand: not on this device, and no server answered for it. */
+export const EVENTS_UNAVAILABLE = "Earlier events are not cached on this device, and the server could not be reached to load them.";
+
+/** An event as the device keeps it: what the run's report keeps of it. Inline artifact content (an image's bytes) and
+ *  the step's value map are the bulk of a live event and are never read back from the store — the artifact is fetched
+ *  by its path, the values by the step — so they are not written to it; products keep only their display fields. A
+ *  store of raw live events was read at a hundred milliseconds a row, and a page of five hundred never returned. */
+export function leanForStore(e: TEventRecord): TEventRecord {
+	const { content: _content, stepValuesMap: _values, ...rest } = e as TEventRecord & { content?: unknown; stepValuesMap?: unknown };
+	const products = rest.products as Record<string, unknown> | undefined;
+	if (products && typeof products === "object") {
+		const kept: Record<string, unknown> = {};
+		for (const f of ["view", "_component", "_type", "_summary"]) if (products[f] !== undefined) kept[f] = products[f];
+		rest.products = Object.keys(kept).length > 0 ? kept : undefined;
+	}
+	return rest;
+}
+
+export type TRunExtent = { total: number; first?: number; last?: number };
 
 export interface RunSource extends WindowedSource<TEventRecord> {
 	/** The level this source reads at (its events are at this level and up). */
 	readonly level: THaibunLogLevel;
-	/** The run's extent as known: how many events at this level, and when the run began. */
+	/** The run's extent as known: how many events at this level, when the run began, and the instant of its newest event. */
 	extent(): TRunExtent;
+	/** The index spans held resident, in order: what a view derives its marks and cursor from, never a scan of the extent. */
+	residentRanges(): Range[];
+	/** How many events a page holds: a view that derives per page (the document's blocks) aligns to it. */
+	readonly pageSize: number;
 	/** Whether the extent has been learnt (from the server, or from the device when there is no server). */
 	readonly loaded: boolean;
 	/** Why a page could not be fetched, or null: not on this device and no server answered. */
@@ -84,6 +109,28 @@ async function recallRun(s: Shared): Promise<string> {
 	return s.run ?? "";
 }
 
+/** When the run the page holds starts and ends, as the run sources know it: the earliest start and the newest event over
+ *  every level read. Asks for nothing and holds nothing: a control that only places the cursor in the run (playback, the
+ *  actions bar) reads it without paging the run in. Both 0 before any view has read the run. */
+export function runSpan(): { first: number; last: number } {
+	let first = Number.POSITIVE_INFINITY;
+	let last = 0;
+	for (const src of shared().sources.values()) {
+		const { first: f, last: l } = src.extent();
+		if (f !== undefined && f < first) first = f;
+		if (l !== undefined && l > last) last = l;
+	}
+	return Number.isFinite(first) ? { first, last } : { first: 0, last: 0 };
+}
+
+/** Whether an instant is the run's live edge: at or past its newest event, as the run sources know it. The ONE rule every
+ *  view places the cursor by: a row that is the newest is the live edge, and the cursor there is null (the slider at its
+ *  end, every view following), never a cutoff that excludes what comes next. */
+export function atLiveEdge(instant: number): boolean {
+	const { last } = runSpan();
+	return last > 0 && instant >= last;
+}
+
 /** The index of an event at `level`, as the server stamped it, or undefined when it does not count at that level. */
 const indexAt = (e: TEventRecord, level: string): number | undefined => (e.idx as Record<string, number> | undefined)?.[level];
 
@@ -117,20 +164,26 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 	};
 	const run = (): string => s.run ?? "";
 
-	const ask = (filter: Record<string, unknown>): Promise<{ events?: TEventRecord[]; total?: number; first?: number; run?: string }> =>
+	type TAnswer = { events?: TEventRecord[]; total?: number; first?: number; run?: string };
+	const ask = (filter: Record<string, unknown>): Promise<TAnswer> =>
 		conduit().follow({ method: GET_EVENTS_METHOD, params: { filter: { minLevel: level, ...filter } } }, `run source at ${level}`);
 
-	const learn = (answer: { total?: number; first?: number; run?: string }): void => {
+	/** The newest instant among events, or the one known: the run's end moves only forward. */
+	const lastOf = (events: readonly TEventRecord[], known: number | undefined): number | undefined =>
+		events.reduce<number | undefined>((acc, e) => (typeof e.timestamp === "number" && (acc === undefined || e.timestamp > acc) ? e.timestamp : acc), known);
+
+	const learn = (answer: TAnswer): void => {
 		learnRun(s, answer.run ?? ""); // may begin a new run, which starts this source over before the answer is applied
-		if (typeof answer.total === "number") extent = { total: Math.max(extent.total, answer.total), first: answer.first ?? extent.first };
+		if (typeof answer.total === "number") extent = { total: Math.max(extent.total, answer.total), first: answer.first ?? extent.first, last: lastOf(answer.events ?? [], extent.last) };
 		loaded = true;
 		void store.setExtent(run(), level, extent).catch((err) => failFastOrLog("[event-source] extent not persisted:", err));
 	};
 
+	const pageSize = getWindowSize();
 	const makePages = () =>
 		lazyWindowedSource<TEventRecord>({
 			count: () => extent.total,
-			pageSize: getWindowSize(),
+			pageSize,
 			fetch: async (start, end) => {
 				// The device first: a page it holds whole needs no server. Else the server, and what it sends is kept for next time.
 				const stored = await store.pageAt(run(), level, start, end);
@@ -196,7 +249,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 			const i = indexAt(e, level);
 			if (i === undefined) continue;
 			if (i >= extent.total) {
-				extent = { total: i + 1, first: extent.first ?? (Number(e.timestamp) || undefined) };
+				extent = { total: i + 1, first: extent.first ?? (Number(e.timestamp) || undefined), last: lastOf([e], extent.last) };
 				grew = true;
 			}
 			pages.append(i, e); // placed when its page is resident up to it; a gap before it is ensureRange's to fill
@@ -218,6 +271,8 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 			return () => subs.delete(cb);
 		},
 		markers: () => pages.markers(),
+		residentRanges: () => pages.residentRanges(),
+		pageSize,
 		extent: () => extent,
 		get loaded() {
 			return loaded;

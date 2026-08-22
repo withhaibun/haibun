@@ -25,3 +25,33 @@ export function convergeTarget(window: TWindow, count: number): number {
 	const windowEnd = window.first + window.visible;
 	return count - windowEnd > COARSE_GAP ? count - 1 : Math.min(count - 1, windowEnd + CONVERGE_STEP);
 }
+
+/** A row the cursor can sit on: its index in the column and the instant it records. */
+export type TTimedRow = { index: number; timestamp: number };
+
+/** The row that carries the time cursor: the last of `rows` (in index order) at or before it, or -1 for none (no
+ *  cursor, or every row after it). The rows are what the column holds resident; one pass, no scan of the extent. */
+export function currentRowIndex(rows: Iterable<TTimedRow>, cursor: number | null): number {
+	if (cursor === null) return -1;
+	let idx = -1;
+	for (const { index, timestamp } of rows) if (timestamp <= cursor) idx = index;
+	return idx;
+}
+
+/** Where the rail marks the moment being shown. It is always somewhere on the run: with no upper bound it is the newest
+ *  row, and it moves as newer ones arrive; before the run began it is the top. That is not the same question as which
+ *  row is current — no row is current before the first one — so a run with rows always has a mark, and only an empty
+ *  one has none. */
+export function cursorMark(currentIdx: number, rows: number, cursor: number | null): number {
+	if (rows === 0) return -1;
+	if (currentIdx >= 0) return currentIdx;
+	return cursor === null ? rows - 1 : 0;
+}
+
+/** A row's time-cursor state: "future" (recorded after the cursor, dimmed), "current" (the cursor's row), or "" (past, or
+ *  no cursor). The columns map these to the shared time-sync classes. */
+export function rowTimeClass(timestamp: number, index: number, cursor: number | null, currentIdx: number): "future" | "current" | "" {
+	if (cursor === null) return "";
+	if (timestamp > cursor) return "future";
+	return index === currentIdx ? "current" : "";
+}

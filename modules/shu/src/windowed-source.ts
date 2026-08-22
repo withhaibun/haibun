@@ -5,6 +5,7 @@
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
 import type { TScrollMarker } from "./scrollbar-model.js";
+import type { Range } from "./ranges.js";
 
 export interface WindowedSource<T> {
 	/** Total rows. May be an estimate for a server-counted or still-arriving set of millions. */
@@ -17,6 +18,9 @@ export interface WindowedSource<T> {
 	subscribe(cb: () => void): () => void;
 	/** Significant rows to mark on the scroll rail (annotations, failed steps, feature boundaries), across the whole set. */
 	markers(): TScrollMarker[];
+	/** The size of a row known without rendering it: 0 for a resident row that renders nothing, so the renderer gives it
+	 *  no room and does not let it drag its estimate of the rows it has not measured; undefined to measure and estimate. */
+	rowSize?(index: number): number | undefined;
 }
 
 /** A source over data already resident in memory (a fetched page of query results, a finite in-memory list): every row
@@ -64,13 +68,19 @@ export function lazyWindowedSource<T>(opts: {
 	 *  first paint needs no second round-trip. `startRow` must be a multiple of `pageSize`. */
 	prime(startRow: number, rows: readonly T[]): void;
 	/** A row arrived live at `index` (the source's count has grown to include it): placed into its page when that page is
-	 *  resident up to it, so the live edge keeps rendering without a fetch; otherwise left for ensureRange to bring in. */
+	 *  resident up to it, so the live edge keeps rendering without a fetch; kept aside while that page is being fetched and
+	 *  placed once the fetch lands, so a live edge under a steady stream is never a short page fetched again and again;
+	 *  otherwise left for ensureRange to bring in. */
 	append(index: number, row: T): void;
+	/** The index spans held resident, in order, as half-open [from, to) ranges: what a view derives marks or a cursor
+	 *  from without scanning the whole extent for the rows it holds. */
+	residentRanges(): Range[];
 } {
 	const pageSize = opts.pageSize ?? 200;
 	const maxResidentPages = Math.max(4, opts.maxResidentPages ?? 24);
 	const pages = new Map<number, readonly T[]>();
 	const inflight = new Map<number, Promise<void>>();
+	const arrived = new Map<number, Map<number, T>>(); // live rows for a page being fetched, by their offset in it, placed when the fetch lands
 	const subs = new Set<() => void>();
 	let dataEnd = Number.POSITIVE_INFINITY; // highest index confirmed to hold data; a fetch that returns fewer rows than asked reveals the true end
 	let lastFirst = 0; // the most recent request span, so eviction always centres on the LIVE window, never a completing call's stale closure
@@ -108,8 +118,16 @@ export function lazyWindowedSource<T>(opts: {
 		const rows = await opts.fetch(startRow, endRow);
 		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the fetch reached the real end of data
 		for (let p = firstPage; p <= lastPage; p++) {
-			const slice = rows.slice((p - firstPage) * pageSize, (p - firstPage + 1) * pageSize);
+			const fetched = rows.slice((p - firstPage) * pageSize, (p - firstPage + 1) * pageSize);
+			// The rows that arrived live while this page was in flight follow what the fetch brought, in order: a live row the
+			// fetch already included is the same row at the same offset, and is not placed twice; one past a gap waits for the
+			// next fetch with the gap.
+			const slice = [...fetched];
+			const late = arrived.get(p);
+			arrived.delete(p);
+			if (late) for (let within = slice.length; late.has(within); within++) slice.push(late.get(within) as T);
 			if (slice.length > 0) pages.set(p, slice);
+			if (slice.length > fetched.length) dataEnd = Number.POSITIVE_INFINITY; // live rows carried the page past the fetched end
 		}
 	}
 
@@ -170,13 +188,29 @@ export function lazyWindowedSource<T>(opts: {
 			const p = pageOf(index);
 			const have = pages.get(p);
 			const within = index - p * pageSize;
-			if (within === 0 || (have && have.length === within)) {
+			if (inflight.has(p)) {
+				// Its page is being fetched: kept for when the fetch lands, so the page is whole then rather than short and
+				// fetched again — under a steady stream that would never settle.
+				if (!arrived.has(p)) arrived.set(p, new Map());
+				arrived.get(p)?.set(within, row);
+			} else if (within === 0 || (have && have.length === within)) {
 				// The page is resident up to this row (or begins with it): extend it in place. A short resident page is re-read
 				// as partial by `resident()` only against the count, which now includes this row.
 				pages.set(p, [...(have ?? []), row]);
 				dataEnd = Number.POSITIVE_INFINITY;
 			}
 			notify();
+		},
+		residentRanges() {
+			const out: Range[] = [];
+			for (const p of [...pages.keys()].sort((a, b) => a - b)) {
+				const from = p * pageSize;
+				const to = from + (pages.get(p)?.length ?? 0);
+				const last = out[out.length - 1];
+				if (last && last.to === from) last.to = to;
+				else out.push({ from, to });
+			}
+			return out;
 		},
 		prime(startRow, rows) {
 			const firstPage = pageOf(startRow); // startRow is page-aligned: the caller fetched from a page boundary

@@ -1,10 +1,12 @@
 /**
  * <shu-document-column> — the run as an academic-paper document: execution events rendered as headings, step lines,
- * prose, and embedded artifacts. The events are split into self-contained blocks (see document-blocks.ts) and rendered
- * through <shu-virtual-column>, so only the visible window is in the DOM and every event of an arbitrarily long run
- * stays reachable. Time-cursor dimming, click-to-scrub, jump-to-row from another view, and failed-step glyphs on the
- * rail all operate on the block list. Product views are embedded inside their block (once per element, so the
- * virtualizer recycling a row does not re-open it).
+ * prose, and embedded artifacts. It reads the run the way every event view does (event-source): one source per level,
+ * spanning the whole run by index, paged in as the reader reaches for a region, bounded in what it holds, live events
+ * taking their place at the edge. One row per event. An event's blocks (document-blocks) are generated a page at a time
+ * from the resident events of that page and given to the events they came from, so only what is held is rendered and an
+ * arbitrarily long run stays reachable from its first heading to its live edge, with nothing asked for twice. Time-cursor
+ * dimming, click-to-scrub, jump-to-row from another view, and failed-step glyphs on the rail all operate on the rows.
+ * Product views are embedded inside their row (once per element, so the virtualizer recycling a row does not re-open it).
  */
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
@@ -15,18 +17,17 @@ import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-import { EventsController } from "../controllers/index.js";
 import { shuBaseStyles } from "./styles.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
 import "./shu-artifact-frame.js";
 import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
-import { virtualColumnCss, FOLLOW_CHANGED, WINDOW_CHANGED, type FollowChangedDetail, type WindowChangedDetail } from "./shu-virtual-column.js";
-import { TailWindow } from "../tail-window.js";
-import { SCROLL_TO_INDEX, type TSeekEdge } from "./shu-scrollbar.js";
-import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js";
-import { splitDocumentBlocks, finalizeBlocks, currentBlockIndex, blockIndexForHeading, blockTimeClass, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
+import { virtualColumnCss } from "./shu-virtual-column.js";
+import { atLiveEdge, eventRunSource, type RunSource, type TEventRecord } from "../event-source.js";
+import type { WindowedSource } from "../windowed-source.js";
+import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, stripId, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
+import { currentRowIndex, cursorMark, rowTimeClass } from "../virtual-column-model.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { EventFormatter } from "@haibun/core/schema/protocol.js";
@@ -70,26 +71,32 @@ const SANITIZE_OPTS = {
 	ADD_TAGS: ["div", "shu-ref"],
 };
 
-const stripId = (id: string): string => id.replace(/^\[|\]$/g, "");
+/** One row of the document: an event of the run at its index, the blocks it produced, and the products its step made. */
+export type TDocRow = { index: number; event: TEventRecord; blocks: TDocBlock[]; products?: Record<string, unknown> };
+/** The rows of one page of the run, with what they were built from: how many events of the page were held, and the first
+ *  and last of them, so a page that grew (the live edge) or changed (another run's, fetched again) is built again and an
+ *  unchanged one never is, told apart in constant time. */
+type TPageRows = { held: number; first: TEventRecord; last: TEventRecord; rows: TDocRow[] };
+
+/** How many pages of rows are kept built: the resident pages are bounded the same way, so the rows of what is held are
+ *  to hand and the rows of what was paged out go with it. */
+const BUILT_PAGES = 24;
+/** How far ←/→ from a thumbnail walks through pages without one before giving up: a bound, not a hang. */
+const MAX_FRAME_HOPS = 50;
+const FRAME_ORDINAL = /data-frame-ordinal="(\d+):(\d+)"/g;
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
-	// What this view holds of the shared log, counted in events, by the rule the monitor uses: the newest page while pinned
-	// to the live edge, so a long run does not put its whole history in the tab; one page more each time the reader nears
-	// the top of what is held, back to the start of the run, each page from the device's store first and the server's disk
-	// log for what it lacks.
-	#events = new EventsController(
-		this,
-		() => this.onEventsChanged(),
-		() => ({ tail: this.#tail.count(), minLevel: this.state.level as THaibunLogLevel }), // the newest page at the levels this document shows
-	);
-	#tail = new TailWindow({ following: true }); // the document always opens pinned to the live edge
-	#source: WindowedSource<TDocBlock> & { set(items: readonly TDocBlock[], markers?: TScrollMarker[]): void } = arrayWindowedSource<TDocBlock>([]);
-	#blocks: TDocBlock[] = [];
-	#productsById = new Map<string, Record<string, unknown>>();
+	// The run this view reads is the run at its level, spanning the whole run by index (event-source): the rail is the
+	// run's extent, any region of it pages in on demand, the resident pages are bounded, and live events take their place
+	// as they arrive. One source per level, shared across views, swapped when the level changes.
+	#run: RunSource = eventRunSource(this.state.level);
+	#unsubscribeRun?: () => void;
+	#source: WindowedSource<TDocRow> = this.#rowsOver(this.#run);
+	#pages = new Map<number, TPageRows>();
+	#residentRows: TDocRow[] = []; // the rows of what is held, in index order, derived once per update
 	#productViews = new WeakMap<Element, string>();
-	private startTime = 0;
-	private endTime = 0;
 	#currentIdx = -1;
+	#cursorMark = -1;
 
 	static styles = [
 		shuBaseStyles,
@@ -98,6 +105,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; font-family: "Source Serif 4", Georgia, serif; font-size: 15px; line-height: 1.7; color: var(--shu-fg); }
 			/* Each block centres itself in a reading column (the old .document-body 80%-centred layout, per row now). */
 			.doc-block { max-width: 760px; margin: 0 auto; padding: 0 1.5rem; }
+			/* An event that rendered nothing at this level takes no room; a page not yet held keeps a line's worth. */
+			.doc-block.doc-empty { padding: 0; }
+			.doc-block.doc-skeleton { min-height: 1.7em; }
 			h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--shu-border); }
 			h2 { font-size: 1.35rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--shu-fg-muted); }
 			h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--shu-fg-muted); }
@@ -130,114 +140,162 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		`,
 	];
 
-	/** The shared event log (ShuEventConsumer owns backfill + live merge + dedup). Read-only here; the document renders from it. */
-	private get events(): THaibunEvent[] {
-		return this.#events.all as unknown as THaibunEvent[];
-	}
-
 	constructor() {
 		super(DocumentColumnSchema, { level: "log" });
 	}
 
-	/** The run document as an as:Document, with the whole log rendered to markdown (mirrors what the column shows). */
+	/** When the run began, as the run source knows it: the epoch every row's raw time is measured from. */
+	get #first(): number {
+		return this.#run.extent().first ?? 0;
+	}
+
+	/** The run document as an as:Document, with what is held rendered to markdown (mirrors what the column shows). */
 	summarizeForKihan(): TLinkedData | null {
-		if (this.events.length === 0) return null;
-		const { md } = generateDocumentMarkdown(this.events, buildArtifactIndex(this.events).artifactsByStep, this.state.level as THaibunLogLevel, this.startTime);
+		const events = this.#residentRows.map((r) => r.event) as unknown as THaibunEvent[];
+		if (events.length === 0) return null;
+		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, this.state.level as THaibunLogLevel, this.#first);
 		return { "@id": "view:document-log", "@type": "as:Document", name: "the run document shown in this column, as markdown", content: md };
 	}
 
-	private onEventsChanged(): void {
-		this.#rebuild();
-		if (this.#tail.slide(this.events.length)) void this.#events.updateWindow(); // following: narrow back to the page, evicting the oldest
-	}
-
 	protected override onConnected(): void {
+		this.#readRun();
+		this.autoTeardown(() => this.#unsubscribeRun?.());
 		// A framed row a reader clicked in another view asks the document to scrub to that instant and reveal the row.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.jumpToRow((e as CustomEvent<{ row: Element }>).detail.row));
-		// Back at the live edge narrows what this view holds to one page again; nearing the top of what is held widens it by one.
-		this.autoListen(this, FOLLOW_CHANGED, (e) => {
-			if (this.#tail.follow((e as CustomEvent<FollowChangedDetail>).detail.following)) void this.#events.updateWindow();
-		});
-		this.autoListen(this, WINDOW_CHANGED, (e) => {
-			const { first } = (e as CustomEvent<WindowChangedDetail>).detail;
-			if (this.#tail.widenIfNear(first, this.events.length, this.#events.atStart)) void this.#events.updateWindow();
-		});
-		// The rail's top glyph asks for the start of the run: hold everything from there, not one page more.
-		this.autoListen(this, SCROLL_TO_INDEX, (e) => {
-			const { edge } = (e as CustomEvent<{ edge?: TSeekEdge }>).detail ?? {};
-			if (edge === "start" && this.#tail.toStart()) void this.#events.updateWindow();
-		});
 		// ←/→ from an expanded thumbnail: only this column can navigate the whole run — the off-screen frames are not in the DOM.
-		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
+		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => void this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
 	}
 
 	protected override onTimeSync(): void {
-		this.requestUpdate(); // renderRow recomputes each block's past/current/future class
+		this.requestUpdate(); // renderRow recomputes each row's past/current/future class
 	}
 
-	/** Re-derive the whole document from the current log: recompute the time span, split the generated HTML into blocks,
-	 *  finalize them (fill artifacts, add classes, group thumbnails), index this run's product steps, and hand the blocks
-	 *  and failed-step marks to the source. Rebuilding the block list (strings) is safe under virtualization — only the
-	 *  visible rows re-render, so no embedded component is destroyed the way re-setting one big innerHTML used to. */
-	#rebuild(): void {
-		this.#recomputeTimes();
-		this.#productsById = this.getProductsByStepId(this.events);
-		const html = DOMPurify.sanitize(
-			mdRenderer.render(generateDocumentMarkdown(this.events, buildArtifactIndex(this.events).artifactsByStep, this.state.level as THaibunLogLevel, this.startTime).md),
-			SANITIZE_OPTS,
-		);
-		// One by-id map per rebuild: the resolver runs once per artifact placeholder, and a find() over the whole event log
-		// per id would make each rebuild O(artifacts x events) as a screenshot-heavy run streams.
-		const artifactsById = new Map(this.events.filter((e) => e.kind === "artifact").map((e) => [e.id, e as TArtifactEvent]));
-		this.#blocks = finalizeBlocks(splitDocumentBlocks(html), (id) => {
-			const artifact = artifactsById.get(id);
-			return artifact ? this.renderArtifact(artifact) : "";
-		});
-		this.#source.set(this.#blocks, this.#buildMarkers(this.#blocks));
-		this.requestUpdate();
+	/** Read the run at the level now shown: one source per level, shared across views, swapped when the level changes. */
+	#readRun(): void {
+		this.#unsubscribeRun?.();
+		this.#run = eventRunSource(this.state.level);
+		this.#pages.clear();
+		this.#source = this.#rowsOver(this.#run);
+		this.#unsubscribeRun = this.#run.subscribe(() => this.requestUpdate());
+		void this.#run.ready().then(() => this.requestUpdate());
 	}
 
-	#recomputeTimes(): void {
-		let start = 0;
-		let end = 0;
-		for (const e of this.events) {
-			const ts = e.timestamp;
-			if (!ts) continue;
-			if (!start || ts < start) start = ts;
-			if (ts > end) end = ts;
+	/** A WindowedSource of rows over the run source: the run's extent, each resident event as a row, the rest undefined
+	 *  until their page lands. The rail marks come from the resident rows. */
+	#rowsOver(run: RunSource): WindowedSource<TDocRow> {
+		return {
+			count: () => run.count(),
+			rowAt: (i) => this.#rowAt(i),
+			ensureRange: (a, b) => run.ensureRange(a, b),
+			subscribe: (cb) => run.subscribe(cb),
+			markers: () => this.#markers(),
+			// An event that produced nothing at this level is a row of no height, known before it renders.
+			rowSize: (i) => {
+				const row = this.#rowAt(i);
+				return row && row.blocks.length === 0 && !row.products ? 0 : undefined;
+			},
+		};
+	}
+
+	#rowAt(i: number): TDocRow | undefined {
+		const p = Math.floor(i / this.#run.pageSize);
+		return this.#pageRows(p)?.rows[i - p * this.#run.pageSize];
+	}
+
+	/** The rows of page `p`, built from the events of it held contiguously from its start, and kept until the page holds
+	 *  more (the live edge growing) or other events (a new run); nothing when none of it is held. */
+	#pageRows(p: number): TPageRows | undefined {
+		const size = this.#run.pageSize;
+		const start = p * size;
+		const end = Math.min(start + size, this.#run.count());
+		const kept = this.#pages.get(p);
+		// Still the page that was built: the same first and last events are held, and nothing more of the page is (three
+		// reads, not a walk of the page, for every row the virtualizer asks for).
+		if (kept && this.#run.rowAt(start) === kept.first && this.#run.rowAt(start + kept.held - 1) === kept.last && (start + kept.held >= end || this.#run.rowAt(start + kept.held) === undefined)) return kept;
+		const events: TEventRecord[] = [];
+		for (let i = start; i < end; i++) {
+			const e = this.#run.rowAt(i);
+			if (!e) break;
+			events.push(e);
 		}
-		this.startTime = start;
-		this.endTime = end;
+		if (events.length === 0) {
+			this.#pages.delete(p);
+			return undefined;
+		}
+		const built = { held: events.length, first: events[0], last: events[events.length - 1], rows: this.#buildRows(p, start, events) };
+		this.#pages.set(p, built);
+		if (this.#pages.size > BUILT_PAGES) for (const q of [...this.#pages.keys()].sort((a, b) => Math.abs(b - p) - Math.abs(a - p)).slice(0, this.#pages.size - BUILT_PAGES)) this.#pages.delete(q);
+		return built;
+	}
+
+	/** One page of events as rows: the document markdown of those events (headings, step lines, prose, artifact holders),
+	 *  rendered, sanitized, split into blocks, finalized (artifacts filled, reader classes, thumbnail strips stamped with
+	 *  this page's name), and each block given to the event it came from; the products of each step beside it. Raw times
+	 *  are from the run's start, so rows of every page share one epoch. */
+	#buildRows(p: number, start: number, events: TEventRecord[]): TDocRow[] {
+		const typed = events as unknown as THaibunEvent[];
+		const { artifactsByStep } = buildArtifactIndex(typed);
+		const html = DOMPurify.sanitize(mdRenderer.render(generateDocumentMarkdown(typed, artifactsByStep, this.state.level as THaibunLogLevel, this.#first).md), SANITIZE_OPTS);
+		// Every artifact the index knows, by id: the ones recorded as events and the ones embedded in a step's products.
+		const artifactsById = new Map<string, TArtifactEvent>();
+		for (const list of artifactsByStep.values()) for (const a of list) artifactsById.set(a.id, a);
+		const blocks = finalizeBlocks(
+			splitDocumentBlocks(html),
+			(id) => {
+				const artifact = artifactsById.get(id);
+				return artifact ? this.renderArtifact(artifact) : "";
+			},
+			`${p}:`,
+		);
+		const per = blocksByEvent(events, blocks);
+		const products = this.getProductsByStepId(typed);
+		return events.map((event, i) => ({ index: start + i, event, blocks: per[i], products: products.get(stripId(String(event.id ?? ""))) }));
+	}
+
+	/** The rows of what is held, in index order: what the rail marks, the cursor, the Kihan summary, jumps and heading links read. */
+	#resident(): TDocRow[] {
+		const out: TDocRow[] = [];
+		for (const { from, to } of this.#run.residentRanges()) for (let i = from; i < to; i++) {
+			const row = this.#rowAt(i);
+			if (row) out.push(row);
+		}
+		return out;
 	}
 
 	/** A mark on the rail for every step that failed, so a reader jumps to it in a long run without scrolling for it.
-	 *  Its glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
+	 *  The mark sits on the step's own row (its start, which carries its blocks), found from the end that failed. Its
+	 *  glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
 	 *  they are rather than as the run failing. */
-	#buildMarkers(blocks: TDocBlock[]): TScrollMarker[] {
-		const failed = new Map(
-			this.events
-				.filter((e) => e.kind === "lifecycle" && (e as Record<string, unknown>).stage === "end" && (e as Record<string, unknown>).status === "failed")
-				.map((e) => [stripId(e.id), e]),
-		);
+	#markers(): TScrollMarker[] {
+		const starts = new Map<string, number>();
 		const markers: TScrollMarker[] = [];
-		blocks.forEach((b, i) => {
-			const event = b.id ? failed.get(stripId(b.id)) : undefined;
-			if (!event || !b.id) return;
+		for (const { index, event } of this.#residentRows) {
+			if (event.kind !== "lifecycle") continue;
+			const id = stripId(String(event.id ?? ""));
+			if (event.stage === "start") starts.set(id, index);
+			if (event.stage !== "end" || event.status !== "failed") continue;
 			const { icon, color } = eventMarkerStyle(event);
-			markers.push({ index: i, id: b.id, icon, color, label: `${EventFormatter.getIndication(event as THaibunEvent & { kind: "lifecycle" })} step` });
-		});
+			markers.push({ index: starts.get(id) ?? index, id, icon, color, label: `${EventFormatter.getIndication(event as unknown as THaibunEvent & { kind: "lifecycle" })} step` });
+		}
 		return markers;
 	}
 
-	/** Scrub the global time cursor to a block's instant and highlight it here; never scrolls (a click lands on a row in
-	 *  view). The latest instant is the live edge — a cursor at or past the end shows everything, like the slider at its end. */
+	protected willUpdate(): void {
+		this.#residentRows = this.#resident();
+		const cursor = this.timeCursor;
+		this.#currentIdx = currentRowIndex(this.#residentRows.map(({ index, event }) => ({ index, timestamp: Number(event.timestamp) || 0 })), cursor);
+		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
+	}
+
+	/** Scrub the global time cursor to a row's instant and highlight it here; never scrolls (a click lands on a row in
+	 *  view). The newest instant is the live edge — the cursor there is null, every view following, like the slider at its end. */
 	private cursorToRow(rawTime: number): void {
-		const absTime = this.startTime + rawTime;
-		this.timeCursor = absTime >= this.endTime ? null : absTime; // the setter fires onTimeSync → requestUpdate
+		const absTime = this.#first + rawTime;
+		this.timeCursor = atLiveEdge(absTime) ? null : absTime; // the setter fires onTimeSync → requestUpdate
 		this.requestUpdate(); // refresh even when the value is unchanged (the setter no-ops an equal value)
 	}
 
-	/** A click in a block scrubs to that block. A click on a link to a heading of this document goes to that heading
+	/** A click in a row scrubs to that row. A click on a link to a heading of this document goes to that heading
 	 *  instead: the reader asked for somewhere else in the run, not for the moment they clicked in. A link naming
 	 *  anything else is left alone, so a link out of the document still leads out of it. */
 	private onBlockClick(e: Event, rawTime: number): void {
@@ -246,76 +304,105 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.cursorToRow(rawTime);
 	}
 
-	/** Go to the heading a link names, and say whether this document has one. The heading's own name is the handle,
-	 *  stamped on its block when the document was built (headingAnchor), so a feature can link to its own scenarios. */
+	/** Go to the heading a link names, and say whether the held part of this document has one. The heading's own name is
+	 *  the handle, stamped on its block when the page was built (headingAnchor), so a feature can link to its own scenarios. */
 	#goToHeading(anchor: string): boolean {
-		const idx = blockIndexForHeading(this.#blocks, anchor);
-		if (idx < 0) return false;
-		this.cursorToRow(this.#blocks[idx].rawTime);
-		this.#virtualColumn()?.scrollToIndex(idx, "start");
+		if (anchor === "") return false;
+		const stamp = `data-heading="${anchor}"`;
+		const row = this.#residentRows.find((r) => r.blocks.some((b) => b.html.includes(stamp)));
+		if (!row) return false;
+		this.#revealRow(row, "start");
 		return true;
+	}
+
+	#rawTimeOf = (row: TDocRow): number => (Number(row.event.timestamp) || 0) - this.#first;
+
+	/** Scrub to a row and scroll it into view: the one deliberate scroll. */
+	#revealRow(row: TDocRow, position: "start" | "center"): void {
+		this.cursorToRow(this.#rawTimeOf(row));
+		this.#virtualColumn()?.scrollToIndex(row.index, position);
 	}
 
 	#virtualColumn(): ShuVirtualColumn | null {
 		return this.shadowRoot?.querySelector("shu-virtual-column") ?? null;
 	}
 
-	/** A jump-to from another view: scrub to the row AND scroll it into view — the one deliberate scroll. The row is either
-	 *  a block element carrying `data-id`, or an artifact frame carrying its build-time-stamped `data-step-id`. */
+	/** A jump-to from another view: the row is either a block element carrying `data-id`, or an artifact frame carrying its
+	 *  build-time-stamped `data-step-id`; the held row that rendered that id is scrubbed to and scrolled into view. */
 	private jumpToRow(row: Element): void {
 		const id = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
-		const idx = this.#blocks.findIndex((b) => b.id !== "" && b.id === id);
-		if (idx < 0) return;
-		this.cursorToRow(this.#blocks[idx].rawTime);
-		this.#virtualColumn()?.scrollToIndex(idx, "center");
+		const hit = id === "" ? undefined : this.#residentRows.find((r) => r.blocks.length > 0 && stripId(String(r.event.id ?? "")) === id);
+		if (hit) this.#revealRow(hit, "center");
+	}
+
+	/** The thumbnail frames a page of rows holds, in order, each with the row it is in: stamped `page:ordinal` when the page was built. */
+	#framesOf(p: number): Array<{ row: TDocRow; stamp: string }> {
+		const rows = this.#pageRows(p)?.rows ?? [];
+		return rows.flatMap((row) => row.blocks.flatMap((b) => [...b.html.matchAll(FRAME_ORDINAL)].map((m) => ({ row, stamp: `data-frame-ordinal="${m[1]}:${m[2]}"` }))));
 	}
 
 	/** ←/→ from an expanded thumbnail: move to the previous/next thumbnail in the WHOLE run, not just the rendered window.
-	 *  Each frame carries its run-wide `data-frame-ordinal`, stamped at document build; the target's block is found by that
-	 *  stamp in the block html, scrolled into the virtualizer's window, and its rendered frame expanded once it exists. */
+	 *  Each frame carries its page and ordinal in it, stamped at build; the neighbour is found in the same page, or the
+	 *  next page with a thumbnail in that direction is brought in and its nearest end taken; the row is scrolled into the
+	 *  virtualizer's window and its rendered frame expanded once it exists. */
 	async #frameNav({ dir, from }: { dir: number; from: HTMLElement }): Promise<void> {
-		const target = Number(from.getAttribute("data-frame-ordinal")) + dir;
-		const stamp = `data-frame-ordinal="${target}"`;
-		const tBlock = target < 0 ? -1 : this.#blocks.findIndex((b) => b.html.includes(stamp));
-		if (tBlock < 0) return; // at the run's first/last thumbnail — nothing to move to
+		const [pStr, nStr] = (from.getAttribute("data-frame-ordinal") ?? "").split(":");
+		let p = Number(pStr);
+		let n = Number(nStr) + dir;
+		if (!Number.isInteger(p) || !Number.isInteger(n) || dir === 0) return;
+		const size = this.#run.pageSize;
+		let frames = this.#framesOf(p);
+		for (let hops = 0; (n < 0 || n >= frames.length) && hops < MAX_FRAME_HOPS; hops++) {
+			p += dir;
+			if (p < 0 || p * size >= this.#run.count()) return; // at the run's first/last thumbnail — nothing to move to
+			await this.#run.ensureRange(p * size, Math.min((p + 1) * size, this.#run.count()));
+			frames = this.#framesOf(p);
+			n = dir < 0 ? frames.length - 1 : 0;
+		}
+		const target = frames[n];
+		if (!target) return;
 		(from as ShuArtifactFrame).setFullscreen(false);
-		this.#virtualColumn()?.scrollToIndex(tBlock, "center");
-		// The virtualizer renders the scrolled-to block asynchronously; wait for the target frame to exist, bounded.
+		this.#virtualColumn()?.scrollToIndex(target.row.index, "center");
+		// The virtualizer renders the scrolled-to row asynchronously; wait for the target frame to exist, bounded.
 		for (let tries = 0; tries < 60; tries++) {
-			const frame = this.shadowRoot?.querySelector(`shu-artifact-frame[${stamp}]`) as ShuArtifactFrame | null;
+			const frame = this.shadowRoot?.querySelector(`shu-artifact-frame[${target.stamp}]`) as ShuArtifactFrame | null;
 			if (frame) return frame.setFullscreen(true);
 			await new Promise((r) => requestAnimationFrame(r));
 		}
 	}
 
 	render(): TemplateResult {
-		this.#currentIdx = currentBlockIndex(this.#blocks, this.startTime, this.timeCursor);
 		return html`
 			<div class="doc-controls">
 				<label>level <select @change=${this.onLevelChange}>
 					${HAIBUN_LOG_LEVELS.map((l) => html`<option value=${l} ?selected=${l === this.state.level}>${l}</option>`)}
 				</select></label>
 			</div>
-			${this.#events.unavailable ? html`<div class="empty unavailable">${this.#events.unavailable}</div>` : ""}
-			<shu-virtual-column data-testid=${SHU_TEST_IDS.DOCUMENT.ROOT} .source=${this.#source} .renderRow=${(i: number, b: unknown) => this.#renderRow(i, b)} ?follow=${true}></shu-virtual-column>
+			${this.#run.unavailable ? html`<div class="empty unavailable">${this.#run.unavailable}</div>` : ""}
+			<shu-virtual-column data-testid=${SHU_TEST_IDS.DOCUMENT.ROOT} .cursor=${this.#cursorMark} .source=${this.#source} .renderRow=${(i: number, r: unknown) => this.#renderRow(i, r)} ?follow=${true}></shu-virtual-column>
 		`;
 	}
 
-	#renderRow = (i: number, block: unknown): TemplateResult => {
-		const b = block as TDocBlock | undefined;
-		if (!b) return html`<div class="doc-block" aria-hidden="true"></div>`;
-		const t = blockTimeClass(b, i, this.startTime, this.timeCursor, this.#currentIdx);
+	/** One event's row: its blocks as rendered, its products embedded; a skeleton while its page is not held; an event that
+	 *  produced nothing at this level (a step's end, a trace) is an empty row, so the run's index space is the column's. */
+	#renderRow = (i: number, row: unknown): TemplateResult => {
+		const r = row as TDocRow | undefined;
+		if (!r) return html`<div class="doc-block doc-skeleton" aria-hidden="true"></div>`;
+		const id = stripId(String(r.event.id ?? ""));
+		if (r.blocks.length === 0 && !r.products) return html`<div class="doc-block doc-empty" data-id=${id}></div>`;
+		const ts = Number(r.event.timestamp) || 0;
+		const t = rowTimeClass(ts, i, this.timeCursor, this.#currentIdx);
 		const cls = `doc-block${t === "future" ? ` ${TIME_SYNC_CLASS.FUTURE}` : t === "current" ? ` ${TIME_SYNC_CLASS.CURRENT}` : ""}`;
-		const products = b.id ? this.#productsById.get(stripId(b.id)) : undefined;
-		return html`<div class=${cls} data-id=${b.id} @click=${(e: Event) => this.onBlockClick(e, b.rawTime)}>
-			${unsafeHTML(b.html)}${products ? this.#productViewFor(products, b.rawTime) : ""}
+		const rawTime = ts - this.#first;
+		return html`<div class=${cls} data-id=${id} @click=${(e: Event) => this.onBlockClick(e, rawTime)}>
+			${unsafeHTML(r.blocks.map((b) => b.html).join(""))}${r.products ? this.#productViewFor(r.products, rawTime) : ""}
 		</div>`;
 	};
 
 	/** A product a step produced, embedded in its block. The ref opens it once per (element, product) so the virtualizer
 	 *  recycling this row for another block does not re-open the previous product. */
 	#productViewFor(products: Record<string, unknown>, rawTime: number): TemplateResult {
-		const snapshotTime = this.startTime + rawTime;
+		const snapshotTime = this.#first + rawTime;
 		return html`<shu-artifact-frame caption=${String(products._summary ?? products._type ?? "")}
 			><shu-product-view style="max-height:400px;overflow:auto" ${ref((el) => this.#openProductOnce(el as HTMLElement | undefined, products, snapshotTime))}></shu-product-view
 		></shu-artifact-frame>`;
@@ -391,7 +478,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	private onLevelChange(e: Event): void {
 		this.setState({ level: (e.target as HTMLSelectElement).value as THaibunLogLevel });
-		this.#rebuild(); // the visible event set changes with the level
-		void this.#events.updateWindow(); // and so does the tail held: the newest page at the levels now shown
+		this.#readRun(); // another level is another run source: the run at that level
 	}
 }

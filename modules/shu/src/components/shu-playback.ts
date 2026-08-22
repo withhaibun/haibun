@@ -15,7 +15,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SHU_EVENT } from "../consts.js";
-import { runSpan } from "../events-snapshot.js";
+import { runSpan } from "../event-source.js";
 
 /** Playback rates. The two below 1 run slower than the run did, for a dense burst worth watching unfold. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];

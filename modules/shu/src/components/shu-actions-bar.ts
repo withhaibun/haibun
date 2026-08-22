@@ -35,7 +35,7 @@ import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, open
 import { conduit, isOffline } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
-import { runSpan } from "../events-snapshot.js";
+import { runSpan } from "../event-source.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,

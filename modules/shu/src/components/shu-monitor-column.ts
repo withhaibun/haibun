@@ -12,7 +12,7 @@ import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-mark
 import { HAIBUN_LOG_LEVELS, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { eventRunSource, type RunSource } from "../event-source.js";
+import { atLiveEdge, eventRunSource, type RunSource } from "../event-source.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT } from "../consts.js";
@@ -22,6 +22,7 @@ import { unavailableOrEmpty } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import type { TDispatchTrace } from "@haibun/core/schema/protocol.js";
+import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
 
 const MonitorColumnSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
@@ -62,16 +63,6 @@ const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
  * moment in time. Indices are into the list passed in, so they address the rows the reader can actually scroll to.
  * Pure, so which rows mark the rail is tested without a virtualizer.
  */
-/** Where the rail marks the moment being shown. It is always somewhere on the run: with no upper bound it is the newest
- *  row, and it moves as newer ones arrive; before the run began it is the top. That is not the same question as which
- *  row is current — no row is current before the first one — so a run with rows always has a mark, and only an empty
- *  one has none. */
-export function cursorMark(currentIdx: number, rows: number, cursor: number | null): number {
-	if (rows === 0) return -1;
-	if (currentIdx >= 0) return currentIdx;
-	return cursor === null ? rows - 1 : 0;
-}
-
 export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[]): TScrollMarker[] {
 	const markers: TScrollMarker[] = [];
 	rows.forEach((row, i) => {
@@ -180,7 +171,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const { index, by } = (e as CustomEvent<{ index: number; by: TSeekBy }>).detail ?? {};
 		if (by !== "press") return; // a wheel over the rail is reading, the same as wheeling the rows
 		const event = typeof index === "number" ? this.#run.rowAt(index) : undefined;
-		if (event) this.timeCursor = (event.timestamp as number) || 0; // a resident row is a moment; a page not yet landed lands first
+		if (event) this.#cursorTo((event.timestamp as number) || 0); // a resident row is a moment; a page not yet landed lands first
 	};
 
 	/** Read the run at the level now shown: one source per level, shared across views, swapped when the level changes. */
@@ -203,7 +194,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			},
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
-			markers: () => railMarkers(this.#resident().map(({ row }) => row), this.#resident().map(({ index }) => index)),
+			markers: () => {
+				const resident = this.#resident();
+				return railMarkers(resident.map(({ row }) => row), resident.map(({ index }) => index));
+			},
 		};
 	}
 
@@ -228,11 +222,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		return row;
 	}
 
-	/** The resident rows in index order, with their indices: what the rail marks, the cursor and the Kihan summary read. */
+	/** The resident rows in index order, with their indices: what the rail marks, the cursor and the Kihan summary read.
+	 *  Walked from the spans the source holds, never a scan of the run's extent. */
 	#resident(): Array<{ index: number; row: TLogRow; event: Record<string, unknown> }> {
 		const out: Array<{ index: number; row: TLogRow; event: Record<string, unknown> }> = [];
-		const n = this.#run.count();
-		for (let i = 0; i < n; i++) {
+		for (const { from, to } of this.#run.residentRanges()) for (let i = from; i < to; i++) {
 			const e = this.#run.rowAt(i) as Record<string, unknown> | undefined;
 			if (e) out.push({ index: i, row: this.#rowOf(e), event: e });
 		}
@@ -252,11 +246,16 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		this.setState({ hideStart: (e.target as HTMLInputElement).checked });
 	};
 
+	/** Place the shared cursor at a row's instant; the newest row is the live edge, so the cursor there is null (every view follows again). */
+	#cursorTo(instant: number): void {
+		this.timeCursor = atLiveEdge(instant) ? null : instant;
+	}
+
 	private onTimeClick =
 		(ts: number) =>
 		(e: Event): void => {
 			e.stopPropagation();
-			this.timeCursor = ts;
+			this.#cursorTo(ts);
 		};
 
 	private onRowClick =
@@ -284,8 +283,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			if (trace?.seqPath) this.#dispatchBySeq.set(trace.seqPath.join("."), trace);
 		}
 		const cursor = this.timeCursor;
-		this.#currentIdx = -1;
-		if (cursor !== null) for (const { index, row } of resident) if (row.timestamp <= cursor) this.#currentIdx = index;
+		this.#currentIdx = currentRowIndex(resident.map(({ index, row }) => ({ index, timestamp: row.timestamp })), cursor);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 

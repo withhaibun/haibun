@@ -195,7 +195,7 @@ describe("reading the disk log backward", () => {
 describe("one step's own events", () => {
 	// A view about one step asks for that step's events by its seqPath, which is its id (start and end share it), so it
 	// never has to page the run to find them: from the live buffer, or from the log when the step is older than the buffer.
-	it("returns only the events whose id is the seqPath, from the buffer and from the log alike", () => {
+	it("returns the step's own events (its bracketed id) and its dispatch trace, from the buffer, from the log when older, and from the log alone when this process did not record them", () => {
 		const stepper = new MonitorStepper() as unknown as {
 			eventLogPath: string | null;
 			diskBuffer: string[];
@@ -207,11 +207,20 @@ describe("one step's own events", () => {
 		stepper.diskBuffer = [];
 		stepper.maxEvents = 5;
 		try {
-			for (let i = 0; i < 600; i++) stepper.recordEvent(ev(i, { kind: "lifecycle", stage: i % 2 ? "end" : "start" } as Partial<THaibunEvent>));
+			for (let i = 0; i < 600; i++) {
+				stepper.recordEvent(ev(i, { id: `[0.${i}]`, kind: "lifecycle", stage: "start" } as Partial<THaibunEvent>));
+				stepper.recordEvent(ev(i, { id: `[0.${i}]`, kind: "lifecycle", stage: "end" } as Partial<THaibunEvent>));
+				stepper.recordEvent(ev(i, { id: `dispatch.0.${i}`, kind: "artifact", artifactType: "dispatch-trace", trace: { seqPath: [0, i] } } as unknown as Partial<THaibunEvent>));
+			}
 			const inBuffer = stepper.steps.getEvents.action({ filter: { seqPath: "0.599" } }).products;
-			expect(inBuffer.events.map((e) => e.id)).toEqual(["0.599"]);
-			const pastBuffer = stepper.steps.getEvents.action({ filter: { seqPath: "0.7", until: 1007 } }).products;
-			expect(pastBuffer.events.map((e) => e.id), "older than the buffer holds: found on the log").toEqual(["0.7"]);
+			expect(inBuffer.events.map((e) => `${e.id}:${e.stage ?? e.artifactType}`)).toEqual(["[0.599]:start", "[0.599]:end", "dispatch.0.599:dispatch-trace"]);
+			const pastBuffer = stepper.steps.getEvents.action({ filter: { seqPath: "0.7" } }).products;
+			expect(pastBuffer.events.map((e) => `${e.id}:${e.stage ?? e.artifactType}`), "older than the buffer holds: found on the log").toEqual(["[0.7]:start", "[0.7]:end", "dispatch.0.7:dispatch-trace"]);
+			// The process that recorded the run is gone (a restart): the buffer is empty and untrimmed, the log holds the run.
+			(stepper as unknown as { events: THaibunEvent[]; eventsTrimmed: boolean }).events = [];
+			(stepper as unknown as { events: THaibunEvent[]; eventsTrimmed: boolean }).eventsTrimmed = false;
+			const afterRestart = stepper.steps.getEvents.action({ filter: { seqPath: "0.300" } }).products;
+			expect(afterRestart.events.map((e) => e.id), "from the log alone").toEqual(["[0.300]", "[0.300]", "dispatch.0.300"]);
 		} finally {
 			if (stepper.eventLogPath && existsSync(stepper.eventLogPath)) rmSync(stepper.eventLogPath);
 		}

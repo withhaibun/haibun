@@ -13,6 +13,9 @@ import { headingAnchor } from "@haibun/core/lib/document-content.js";
  *  (offset from the column's global start) for time-cursor dimming. `id`/`rawTime` are empty/0 for spacers and strips. */
 export type TDocBlock = { html: string; id: string; rawTime: number };
 
+/** An event's id as the document stamps it on its blocks: without the brackets a step id is written in. */
+export const stripId = (id: string): string => id.replace(/^\[|\]$/g, "");
+
 /** Resolve an artifact placeholder's `data-id(s)` to its rendered HTML (an `<shu-artifact-frame>…`), or "" if unknown.
  *  The column supplies this from its event log; a test supplies a stub. */
 export type TArtifactResolver = (id: string) => string;
@@ -50,7 +53,7 @@ function thumbFrames(blockEl: Element): Element[] {
  *  column's imperative post-process and thumbnail grouping used to do (artifact filling, reader classes, thumbnail strips).
  *  Product-view embedding stays in the
  *  column (it needs live event products and a mounted element); it is not a block-HTML concern. */
-export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactResolver): TDocBlock[] {
+export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactResolver, frameOrdinalPrefix = ""): TDocBlock[] {
 	type TFilled = { el: Element; id: string; rawTime: number };
 	const filled = blocks
 		.map((b): TFilled | null => {
@@ -80,9 +83,10 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	// (extracted from their placeholder holders — a holder as the grid child would nest a step's several frames into one
 	// cell), so per-step screenshots flow as equal tiles that take the column width. A lone thumbnail is wrapped too (a
 	// single full-width tile); a run ends at the next non-thumbnail block, so thumbnails split by a step never share a row.
-	// Each frame is stamped with the step it belongs to (the nearest preceding step/prose/header block) and its run-wide
-	// ordinal — the expanded view's caption, cursor scrub, and ←/→ navigation read these, since under virtualization a
-	// frame can neither walk to its step's block nor see its off-window siblings.
+	// Each frame is stamped with the step it belongs to (the nearest preceding step/prose/header block) and its ordinal
+	// among these blocks, under the caller's prefix (the document generates a page of the run at a time, and names the
+	// page) — the expanded view's caption, cursor scrub, and ←/→ navigation read these, since under virtualization a frame
+	// can neither walk to its step's block nor see its off-window siblings.
 	const out: TDocBlock[] = [];
 	let run: { frames: Element[]; id: string; rawTime: number }[] = [];
 	let step: { id: string; el: Element } | null = null;
@@ -101,7 +105,7 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 					f.setAttribute("data-step-id", step.id);
 					f.setAttribute("data-step-label", step.el.textContent?.trim() ?? "");
 				}
-				f.setAttribute("data-frame-ordinal", String(ordinal++));
+				f.setAttribute("data-frame-ordinal", `${frameOrdinalPrefix}${ordinal++}`);
 			}
 			run.push({ frames, id: b.id, rawTime: b.rawTime });
 		} else {
@@ -114,8 +118,6 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	return out;
 }
 
-/** The content block that carries the time cursor: the one with the greatest instant at or before it. Not simply the
- *  last block — events can append out of timestamp order — and spacers/strips (no id) never count. -1 when no cursor. */
 /** Stamp every markdown heading the renderer produces with its own name as a link anchor (`data-heading`), the same
  *  handle the run's scenario headings carry: a prose block's "## Contents" becomes reachable as `#contents`. The name
  *  comes through the one anchor rule (core's headingAnchor), so a heading and a link to it can never disagree. */
@@ -135,28 +137,25 @@ export function blockIndexForHeading(blocks: readonly TDocBlock[], anchor: strin
 	return blocks.findIndex((b) => b.html.includes(`data-heading="${anchor}"`));
 }
 
-export function currentBlockIndex(blocks: readonly TDocBlock[], startTime: number, cursor: number | null): number {
-	if (cursor === null) return -1;
-	let idx = -1;
-	let best = Number.NEGATIVE_INFINITY;
-	for (let i = 0; i < blocks.length; i++) {
-		const b = blocks[i];
-		if (!b.id) continue;
-		const abs = startTime + b.rawTime;
-		if (abs <= cursor && abs > best) {
-			best = abs;
-			idx = i;
+/** Give the blocks generated for a run of events to the event each came from, in order: a block carrying an id belongs
+ *  to the next event from the last one matched whose id it is (a step's start, never its end, which shares the id and
+ *  comes later), and a block carrying none (a spacer, a strip of thumbnails) stays with the event before it. The
+ *  document renders one row per event of the run, so each event must own exactly the blocks it produced. */
+export function blocksByEvent(events: readonly { id?: unknown }[], blocks: readonly TDocBlock[]): TDocBlock[][] {
+	const out: TDocBlock[][] = events.map(() => []);
+	if (events.length === 0) return out;
+	let k = 0;
+	for (const b of blocks) {
+		if (b.id) {
+			const want = stripId(b.id);
+			for (let j = k; j < events.length; j++) {
+				if (stripId(String(events[j].id ?? "")) === want) {
+					k = j;
+					break;
+				}
+			}
 		}
+		out[k].push(b);
 	}
-	return idx;
-}
-
-/** A block's time-cursor state: "future" (recorded after the cursor, dimmed), "current" (the cursor's row), or "" (past,
- *  or no cursor, or a spacer). The column maps these to its time-sync classes. */
-export function blockTimeClass(block: TDocBlock, index: number, startTime: number, cursor: number | null, currentIdx: number): "future" | "current" | "" {
-	if (!block.id || cursor === null) return "";
-	const abs = startTime + block.rawTime;
-	if (abs > cursor) return "future";
-	if (index === currentIdx) return "current";
-	return "";
+	return out;
 }
