@@ -262,6 +262,26 @@ describe("events-snapshot shared cache", () => {
 			expect(currentEvents().some((e) => e.id === "0.8")).toBe(true);
 		});
 
+		it("narrowing back to one page after widening evicts to that page, asks the server for nothing, and is idempotent", async () => {
+			await registerTail("view", 10); // the whole run: four events
+			const asked = calls.length;
+			await registerTail("view", 2); // back at the live edge: the newest two
+			expect(eventsInWindow("view").map((e) => e.id)).toEqual(["0.3", "0.4"]);
+			expect(currentEvents().length, "the rest is evicted from memory").toBe(2);
+			expect(calls.length, "nothing asked").toBe(asked);
+			for (let i = 0; i < 5; i++) await registerTail("view", 2); // reaching the edge again and again
+			expect(eventsInWindow("view").map((e) => e.id)).toEqual(["0.3", "0.4"]);
+			expect(calls.length).toBe(asked);
+		});
+
+		it("a live event a view shows is one more row; one at a level no view shows is nothing", async () => {
+			await registerTail("view", 10, "info");
+			const before = eventsInWindow("view").length;
+			mergeEvents([ev(50, { level: "info" }), ev(51, { level: "debug" }), ev(52, { level: "trace" })]);
+			expect(eventsInWindow("view").length, "the info event, and only it").toBe(before + 1);
+			expect(currentEvents().some((e) => e.id === "0.51" || e.id === "0.52"), "below the level: not kept at all").toBe(false);
+		});
+
 		it("a time-span window (a step's own span) is fetched as a gap, and served from the device when held there", async () => {
 			await registerWindow("step", [{ from: 2, to: 4 }]);
 			expect(eventsInWindow("step").map((e) => e.id)).toEqual(["0.2", "0.3"]);
