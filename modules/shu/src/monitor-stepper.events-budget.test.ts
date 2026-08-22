@@ -332,3 +332,30 @@ describe("the run's extent and pages by index", () => {
 		}
 	});
 });
+
+describe("the run an event belongs to", () => {
+	// A stayed instance run again keeps the last run's tail in its buffer. Every event is stamped with its run, every answer
+	// names the run being recorded, and an answer holds only that run's events, so a client never sees two runs as one.
+	it("stamps events with the run, names it on every answer, and serves only the run being recorded", () => {
+		const stepper = new MonitorStepper() as unknown as {
+			eventLogPath: string | null;
+			diskBuffer: string[];
+			maxEvents: number;
+			runId: string | undefined;
+			recordEvent(e: THaibunEvent): void;
+			steps: { getEvents: { action(args: { filter: Record<string, unknown> }): { products: { events: Array<Record<string, unknown>>; run?: string } } } };
+		};
+		stepper.eventLogPath = null;
+		stepper.diskBuffer = [];
+		stepper.maxEvents = 5000;
+		stepper.runId = "run-a";
+		for (let i = 0; i < 3; i++) stepper.recordEvent(ev(i));
+		stepper.runId = "run-b"; // the instance is run again: a new run, the old one's events still in the buffer
+		for (let i = 10; i < 13; i++) stepper.recordEvent(ev(i));
+		const page = stepper.steps.getEvents.action({ filter: {} }).products;
+		expect(page.run, "the answer names the run being recorded").toBe("run-b");
+		expect(page.events.map((e) => e.id), "and holds only its events").toEqual(["0.10", "0.11", "0.12"]);
+		expect(page.events.every((e) => e.run === "run-b"), "each stamped with it").toBe(true);
+		expect(stepper.steps.getEvents.action({ filter: { offset: 0, limit: 10 } }).products.events.map((e) => e.id), "by index too").toEqual(["0.10", "0.11", "0.12"]);
+	});
+});

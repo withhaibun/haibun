@@ -2,7 +2,7 @@
 // The shared event log: one backfill paged from the byte-bounded getEvents, one dedup, fanned out to every consumer —
 // the events analog of quads-snapshot. These pin the contract the monitor/document/step-detail/sequence views rely on.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { registerTail, registerWindow, eventsInWindow, claimReachesStart, eventsUnavailable, EVENTS_UNAVAILABLE, setEventStore, leanForStore, currentEvents, mergeEvents, subscribeEvents, eventKey, resetEventsSnapshot, type TEventRecord } from "./events-snapshot.js";
+import { registerTail, registerWindow, eventsInWindow, claimReachesStart, eventsUnavailable, EVENTS_UNAVAILABLE, setEventStore, leanForStore, currentEvents, currentRun, subscribeRunChanges, mergeEvents, subscribeEvents, eventKey, resetEventsSnapshot, type TEventRecord } from "./events-snapshot.js";
 import { MemoryEventStore } from "./event-store-idb.js";
 import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
 
@@ -126,9 +126,9 @@ describe("events-snapshot shared cache", () => {
 			await registerTail("view", 10);
 			await new Promise((r) => setTimeout(r, 0)); // persistence is fire-and-forget
 			expect(store.size, "every fetched event is on the device").toBe(4);
-			expect((await store.held()).length, "and the span they cover is recorded as held").toBeGreaterThan(0);
+			expect((await store.held("")).length, "and the span they cover is recorded as held").toBeGreaterThan(0);
 			// A fresh log (a reload) on the same device: the held span and the events come back without the server.
-			const held = await store.held();
+			const held = await store.held("");
 			resetEventsSnapshot();
 			setEventStore(store);
 			calls = [];
@@ -172,7 +172,7 @@ describe("events-snapshot shared cache", () => {
 				ev(9, { kind: "artifact", content: "BIG IMAGE BYTES", stepValuesMap: { a: 1 }, products: { view: "v", _type: "T", payload: { huge: "x".repeat(100) } } }),
 			]);
 			await new Promise((r) => setTimeout(r, 0));
-			const [stored] = await store.newestBefore(undefined, 1);
+			const [stored] = await store.newestBefore("", undefined, 1);
 			expect(stored.content, "an artifact's bytes are fetched by path, never read back from the store").toBeUndefined();
 			expect(stored.stepValuesMap).toBeUndefined();
 			expect(stored.products, "only what the views display").toEqual({ view: "v", _type: "T" });
@@ -229,6 +229,37 @@ describe("events-snapshot shared cache", () => {
 			await registerTail("view", 10);
 			expect(eventsInWindow("view").length, "ten held, past the short first page").toBe(10);
 			expect(claimReachesStart("view"), "and the run's start is not yet held").toBe(false);
+		});
+
+		it("holds one run: a new run named by the server replaces what was held, and the views are told to claim again", async () => {
+			// A stayed instance run again keeps the last run's tail in its buffer and names a new run on every event and answer.
+			// The log holds the run the server names now; the old run's events are not admitted, and each view registers again.
+			handle.teardown();
+			let serverRun = "run-1";
+			handle = setupShuTest({
+				dispatch: (method, params) => {
+					if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
+					const filter = (params as { filter: { until?: number; limit?: number } }).filter;
+					const page = windowed(ALL.map((e) => ({ ...e, run: serverRun })), filter, filter.limit ?? 100);
+					return { ...page, run: serverRun };
+				},
+			});
+			let toldTimes = 0;
+			subscribeRunChanges(() => toldTimes++);
+			await registerTail("view", 10);
+			expect(currentRun()).toBe("run-1");
+			expect(eventsInWindow("view").length).toBe(4);
+			// The server begins run 2: its live events name it, and so does every answer from now on.
+			serverRun = "run-2";
+			mergeEvents([{ ...ev(1), run: "run-2" }]);
+			await registerTail("view", 10);
+			expect(currentRun()).toBe("run-2");
+			expect(toldTimes, "every view is told once, so it can claim again").toBe(1);
+			expect(eventsInWindow("view").every((e) => e.run === "run-2"), "only the new run's events").toBe(true);
+			// A live event still of run 1 (a straggler) is not this log's; one of run 2 is.
+			mergeEvents([{ ...ev(9), run: "run-1" }, { ...ev(8), run: "run-2" }]);
+			expect(currentEvents().some((e) => e.id === "0.9")).toBe(false);
+			expect(currentEvents().some((e) => e.id === "0.8")).toBe(true);
 		});
 
 		it("a time-span window (a step's own span) is fetched as a gap, and served from the device when held there", async () => {

@@ -1,5 +1,5 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { registerWindow, registerTail, unregisterWindow, eventsInWindow, eventsLoaded, eventsUnavailable, claimReachesStart, mergeEvents, subscribeEvents, newWindowClientId, FULL_WINDOW, type TEventRecord } from "../events-snapshot.js";
+import { registerWindow, registerTail, unregisterWindow, eventsInWindow, eventsLoaded, eventsUnavailable, claimReachesStart, mergeEvents, subscribeEvents, subscribeRunChanges, newWindowClientId, FULL_WINDOW, type TEventRecord } from "../events-snapshot.js";
 import type { Range } from "../ranges.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
 import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
@@ -25,6 +25,7 @@ export class EventsController implements ReactiveController {
 	#initialized = false;
 	#teardown?: () => void;
 	#unsubscribeLog?: () => void;
+	#unsubscribeRun?: () => void;
 	#clientId = newWindowClientId();
 
 	constructor(host: ReactiveControllerHost & Element, onChange: () => void, getWindow?: WindowHook) {
@@ -49,6 +50,9 @@ export class EventsController implements ReactiveController {
 		// merge, an eviction. One path, the log's own notification, whoever caused the change — so a view is never blank
 		// while its tail is still being paged in, and never stale for a change another view brought about.
 		this.#unsubscribeLog = subscribeEvents(() => this.#onChange());
+		// A new run began on the server (a stayed instance run again): what was held was another run's; this view's claim
+		// is registered again in the new one, and it shows the new run from its newest page.
+		this.#unsubscribeRun = subscribeRunChanges(() => void this.updateWindow());
 		await this.#register(); // shared: each span is fetched once, cached for every consumer
 		this.#onChange();
 		if (this.#host.hasAttribute("data-snapshot-time")) return; // snapshot mode: one fetch, no live updates
@@ -62,6 +66,8 @@ export class EventsController implements ReactiveController {
 		this.#teardown = undefined;
 		this.#unsubscribeLog?.();
 		this.#unsubscribeLog = undefined;
+		this.#unsubscribeRun?.();
+		this.#unsubscribeRun = undefined;
 		this.#initialized = false;
 		void unregisterWindow(this.#clientId);
 	}

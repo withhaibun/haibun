@@ -190,7 +190,7 @@ export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
 // `total` is the count matching the filter; `events` may be a recent window of it (see EVENTS_BYTE_BUDGET) with `truncated` set.
 /** What a page carries beside its events: `total`, how many events the run holds at the asked level (its whole extent);
  *  `first`, when the run's first event happened; `truncated`, whether older events exist past a time-paged page. */
-const MonitorEventsSchema = z.object({ events: z.array(z.unknown()), total: z.number().optional(), first: z.number().optional(), truncated: z.boolean().optional() });
+const MonitorEventsSchema = z.object({ events: z.array(z.unknown()), total: z.number().optional(), first: z.number().optional(), truncated: z.boolean().optional(), run: z.string().optional() });
 
 const DispatchTracesSchema = z.object({ traces: z.array(z.unknown()) });
 
@@ -228,6 +228,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private maxEvents: number = MAX_EVENTS_DEFAULT;
 	/** Whether the live buffer has dropped its oldest events — the run extends further back than `events` holds. */
 	private eventsTrimmed = false;
+	/** The run being recorded: begun at startFeature, stamped on every event and every answer, so a client holding events
+	 *  of an earlier run (a stayed instance run again, a device store from yesterday) can tell them apart and show one run. */
+	private runId: string | undefined;
 	/** How many events the run's log holds at each level and up: the extent a view at that level spans. */
 	private levelCounts: Record<string, number> = {};
 	/** When the run's first logged event happened. */
@@ -310,6 +313,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// Per-run lean event log (the report's full-history source). Start fresh so a re-run never appends to a stale log.
 			this.eventLogPath = resolve(artifactDir, "events.jsonl");
 			if (existsSync(this.eventLogPath)) rmSync(this.eventLogPath);
+			this.runId = `${Date.now().toString(36)}-${process.pid.toString(36)}`;
 			this.levelCounts = {};
 			this.firstLoggedAt = undefined;
 			this.logIndex = [];
@@ -368,6 +372,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// `levelCounts[level]` rows, and any region of it is a page by index. Stamped before the event is buffered, logged
 		// or streamed, so every copy of it agrees. What the log does not keep (debug-level bulk) has no index: it is not
 		// part of any view's extent.
+		if (this.runId) (event as Record<string, unknown>).run = this.runId;
 		const lean = slimReportEvent(slimLiveEvent(event));
 		if (lean) {
 			const idx: Record<string, number> = {};
@@ -637,7 +642,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				const { level, kind, since, until, limit, seqPath, minLevel, offset } = filter;
 				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
 				const floor = minLevel ? HAIBUN_LOG_LEVELS.indexOf(minLevel) : 0;
+				const run = this.runId;
 				const wanted = (e: THaibunEvent): boolean =>
+					(!run || (e as Record<string, unknown>).run === run) && // the run being recorded; a stayed instance's buffer may still hold the last one's tail
 					(!level || e.level === level) &&
 					(!kind || e.kind === kind) &&
 					(!since || e.timestamp >= since) &&
@@ -673,11 +680,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 							if (wanted(e as unknown as THaibunEvent)) page.push(slimLiveEvent(e as unknown as THaibunEvent));
 						}
 					}
-					return actionOKWithProducts({ events: page, total, first });
+					return actionOKWithProducts({ events: page, total, first, run });
 				}
 				if (this.eventsTrimmed && until !== undefined && (oldestHeld === undefined || until <= oldestHeld)) {
 					const fromLog = this.leanEventsNewestFirst() as Iterable<THaibunEvent>;
-					return actionOKWithProducts({ ...takeRecentWithinBudget(filterIterable(fromLog, wanted), cap, EVENTS_BYTE_BUDGET), total, first });
+					return actionOKWithProducts({ ...takeRecentWithinBudget(filterIterable(fromLog, wanted), cap, EVENTS_BYTE_BUDGET), total, first, run });
 				}
 				const filtered = this.events.filter(wanted);
 				const { events, truncated } = recentEventsWithinBudget(filtered, cap, EVENTS_BYTE_BUDGET);
@@ -688,9 +695,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (events.length < cap && headTrimmed && oldestHeld !== undefined) {
 					const olderThanBuffer = (e: THaibunEvent): boolean => wanted(e) && e.timestamp < oldestHeld;
 					const older = takeRecentWithinBudget(filterIterable(this.leanEventsNewestFirst() as Iterable<THaibunEvent>, olderThanBuffer), cap - events.length, EVENTS_BYTE_BUDGET);
-					return actionOKWithProducts({ events: [...older.events, ...events], truncated: truncated || older.truncated, total, first });
+					return actionOKWithProducts({ events: [...older.events, ...events], truncated: truncated || older.truncated, total, first, run });
 				}
-				return actionOKWithProducts({ events, total, first, truncated: truncated || headTrimmed });
+				return actionOKWithProducts({ events, total, first, run, truncated: truncated || headTrimmed });
 			},
 		},
 		logClient: {
