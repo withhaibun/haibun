@@ -263,8 +263,9 @@ describe("the virtual column over a paged source", () => {
 			asked,
 			count: () => total,
 			rowAt: (i) => i,
-			ensureRange: async (a, b) => {
+			ensureRange: (a, b) => {
 				asked.push([a, b]);
+				return Promise.resolve();
 			},
 			subscribe: () => () => undefined,
 			markers: () => [],
