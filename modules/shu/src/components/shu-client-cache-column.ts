@@ -71,7 +71,8 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 
 	protected override onConnected(): void {
 		this.#openedAt = Date.now();
-		this.#changed();
+		this.#watchSources();
+		void this.#readDevice(); // the device at once on open; after changes, at the bounded cadence
 		// A source made from now on (a view opened at another level) is watched from the moment it exists.
 		this.autoTeardown(subscribeRunSources(() => this.#changed()));
 		// Every live batch: counted by level and shown, whether or not any source takes it (a page with no event view open takes none).
