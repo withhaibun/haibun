@@ -12,7 +12,7 @@ import { conduit } from "./hypermedia.js";
 import { fetchRange, eventTime } from "./event-backfill.js";
 import { mergeRanges, rangeContains, subtractRanges, type Range } from "./ranges.js";
 import { GET_EVENTS_METHOD } from "./rpc-cache.js";
-import { IndexedDbEventStore, type EventStore } from "./event-store-idb.js";
+import { IndexedDbEventStore, runOf, type EventStore } from "./event-store-idb.js";
 import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 
 /** The levels at or above `minLevel`: the rule every log view filters by, and so the rule every claim on the log states. */
@@ -51,6 +51,8 @@ type Store = {
 	held: Range[]; // spans actually held (canonical, via mergeRanges)
 	persistedHeld: boolean; // the persisted held spans have been read into `held` once
 	runStart: number | undefined; // when the run's first event happened, once known: a walk back that holds it holds the start
+	run: string | undefined; // the run this log holds: the one the server names on its events and answers ("" for a server that names none)
+	runListeners: Set<() => void>; // told when the run changes, so every view re-registers its claim in the new one
 	gaps: Map<string, Promise<void>>; // in-flight span fetches, deduped by key
 	pages: Map<string, Promise<TPage>>; // in-flight page fetches, deduped by key: concurrent askers share the one page
 	loaded: boolean; // a reconcile has completed at least once
@@ -74,6 +76,8 @@ function getStore(): Store {
 		held: [],
 		persistedHeld: false,
 		runStart: undefined,
+		run: undefined,
+		runListeners: new Set(),
 		gaps: new Map(),
 		pages: new Map(),
 		loaded: false,
@@ -108,6 +112,45 @@ function notify(s: Store): void {
 }
 
 const wantedOf = (s: Store): Range[] => mergeRanges([...s.windows.values()].flatMap((c) => c.ranges));
+
+/** The run this log holds, as the server named it on its latest answer or event. A different run named later is a NEW
+ *  run (a stayed instance run again): what was held is another run's and is dropped, and every view is told to register
+ *  its claim again in this one. A device keeps every run it has seen; the log holds one. */
+function learnRun(s: Store, run: string | undefined): void {
+	if (run === undefined) return;
+	if (s.run === undefined) {
+		s.run = run;
+		void s.eventStore.setLastRun(run).catch((err) => failFastOrLog("[events-snapshot] last run not persisted:", err));
+		return;
+	}
+	if (s.run === run) return;
+	void s.eventStore.setLastRun(run).catch((err) => failFastOrLog("[events-snapshot] last run not persisted:", err));
+	s.run = run;
+	s.events = [];
+	s.seen = new Set();
+	s.held = [];
+	s.persistedHeld = false;
+	s.runStart = undefined;
+	for (const fn of s.runListeners) {
+		try {
+			fn();
+		} catch (err) {
+			failFastOrLog("[events-snapshot] run listener failed:", err);
+		}
+	}
+}
+
+/** Be told when the log's run changes (a new run began on the server). Returns an unsubscribe. */
+export function subscribeRunChanges(fn: () => void): () => void {
+	const s = getStore();
+	s.runListeners.add(fn);
+	return () => s.runListeners.delete(fn);
+}
+
+/** The run this log holds ("" for a server that names none; undefined before anything has been seen). */
+export function currentRun(): string | undefined {
+	return getStore().run;
+}
 /** Whether any consumer's claim wants this event: in one of its spans, at one of its levels. */
 const anyClaimWants = (s: Store, e: TEventRecord): boolean => [...s.windows.values()].some((c) => claimWants(c, e));
 
@@ -118,6 +161,7 @@ function admit(s: Store, batch: TEventRecord[], gated = false): TEventRecord[] {
 	const added: TEventRecord[] = [];
 	for (const e of batch) {
 		if (e.kind === "artifact" && (e.json as { quadObservation?: unknown } | undefined)?.quadObservation !== undefined) continue;
+		if (s.run !== undefined && runOf(e) !== s.run) continue; // another run's: not this log's
 		if (gated && !anyClaimWants(s, e)) continue;
 		const key = eventKey(e);
 		if (s.seen.has(key)) continue;
@@ -159,18 +203,28 @@ export function leanForStore(e: TEventRecord): TEventRecord {
  *  quad store's writes — persistence never holds up a render, and a context without IndexedDB simply does not persist. */
 function persist(s: Store, events: readonly TEventRecord[]): void {
 	const store = s.eventStore;
+	const run = s.run ?? "";
 	void store
 		.putMany(events.map(leanForStore))
-		.then(() => store.setHeld(s.held))
+		.then(() => store.setHeld(run, s.held))
 		.catch((err) => failFastOrLog("[events-snapshot] persist failed:", err));
 }
 
 /** Read the persisted held spans once: what this device already holds completely, before anything is fetched. */
 async function recallHeld(s: Store): Promise<void> {
-	if (s.persistedHeld) return;
+	// Before any answer has named the run, the device's last run stands in: a tab with no server reads the run it last held,
+	// and one with a server is corrected by its first answer (a different run resets what was recalled).
+	if (s.run === undefined) {
+		try {
+			s.run = await s.eventStore.lastRun();
+		} catch (err) {
+			failFastOrLog("[events-snapshot] reading the last run failed:", err);
+		}
+	}
+	if (s.persistedHeld || s.run === undefined) return;
 	s.persistedHeld = true;
 	try {
-		s.held = mergeRanges([...s.held, ...(await s.eventStore.held())]);
+		s.held = mergeRanges([...s.held, ...(await s.eventStore.held(s.run ?? ""))]);
 	} catch (err) {
 		failFastOrLog("[events-snapshot] reading persisted spans failed:", err);
 	}
@@ -184,11 +238,13 @@ function fetchGap(s: Store, gap: Range): Promise<void> {
 		// The device's own store first: a span it holds completely needs no server. A span it does not is the server's.
 		const fromStore = rangeContains(s.held, gap.from) && rangeContains(s.held, Number.isFinite(gap.to) ? gap.to - 1 : gap.from);
 		let fetched: TEventRecord[];
-		if (fromStore) fetched = (await s.eventStore.newestBefore(Number.isFinite(gap.to) ? gap.to : undefined, Number.MAX_SAFE_INTEGER)).filter((e) => rangeContains([gap], eventTime(e)));
+		if (fromStore) fetched = (await s.eventStore.newestBefore(s.run ?? "", Number.isFinite(gap.to) ? gap.to : undefined, Number.MAX_SAFE_INTEGER)).filter((e) => rangeContains([gap], eventTime(e)));
 		else
-			fetched = await fetchRange(gap, (window) =>
-				conduit().follow<{ events?: TEventRecord[]; truncated?: boolean }>({ method: GET_EVENTS_METHOD, params: { filter: window } }, "events-snapshot: window fetch"),
-			);
+			fetched = await fetchRange(gap, async (window) => {
+				const answer = await conduit().follow<{ events?: TEventRecord[]; truncated?: boolean; run?: string }>({ method: GET_EVENTS_METHOD, params: { filter: window } }, "events-snapshot: window fetch");
+				learnRun(s, answer.run ?? "");
+				return answer;
+			});
 		const added = admit(s, fetched);
 		s.held = mergeRanges([...s.held, gap]);
 		if (!fromStore) persist(s, added);
@@ -245,7 +301,7 @@ function pageBefore(s: Store, until: number | undefined, limit: number, minLevel
 		// page only when the device holds that span completely; otherwise the server is asked, and what it sends is
 		// persisted for next time. A server that cannot be reached leaves the device's part showing and throws, so the
 		// caller can say the rest could not be loaded.
-		const stored = await s.eventStore.newestBefore(until, limit, levelsFrom(minLevel));
+		const stored = await s.eventStore.newestBefore(s.run ?? "", until, limit, levelsFrom(minLevel));
 		const storedSpan = stored.length > 0 ? { from: eventTime(stored[0]), to: until ?? eventTime(stored[stored.length - 1]) + 1 } : undefined;
 		const complete = stored.length >= limit && storedSpan !== undefined && rangeContains(s.held, storedSpan.from) && rangeContains(s.held, storedSpan.to - 1);
 		const levels = levelsFrom(minLevel);
@@ -253,10 +309,11 @@ function pageBefore(s: Store, until: number | undefined, limit: number, minLevel
 		let added = admit(s, atLevels(stored));
 		let page = stored;
 		if (!complete) {
-			const answer = await conduit().follow<{ events?: TEventRecord[]; truncated?: boolean; first?: number }>(
+			const answer = await conduit().follow<{ events?: TEventRecord[]; truncated?: boolean; first?: number; run?: string }>(
 				{ method: GET_EVENTS_METHOD, params: { filter: { ...(until === undefined ? {} : { until }), ...(minLevel ? { minLevel } : {}), limit } } },
 				"events-snapshot: a page of the newest events",
 			);
+			learnRun(s, answer.run ?? ""); // the server says which run it is recording; a server that names none records one
 			page = answer.events ?? [];
 			truncated = answer.truncated === true; // the server says whether older events exist past this page
 			if (typeof answer.first === "number") s.runStart = answer.first; // and when the run began, so a walk knows when it holds the start
@@ -416,6 +473,8 @@ export function eventsLoaded(): boolean {
  *  shows; deduped, time-sorted, persisted. Notifies subscribers iff at least one event was new. */
 export function mergeEvents(batch: TEventRecord[]): void {
 	const s = getStore();
+	// A live event is of the run being recorded now: the newest named run is the run this log holds.
+	for (const e of batch) if (typeof e.run === "string") learnRun(s, e.run);
 	const added = admit(s, batch, true);
 	if (added.length === 0) return;
 	// Live events extend what is held to the live edge: everything from the oldest admitted to now is complete.

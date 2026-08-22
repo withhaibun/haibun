@@ -24,20 +24,23 @@ function run(n: number): TEventRecord[] {
 		return { id: `0.${i}`, timestamp: 1000 + i, kind: "log", level, message: `e${i}`, idx };
 	});
 }
-/** The server's answer to a page by index at a level, with the run's extent. */
-function serverFor(all: TEventRecord[]) {
+/** The server's answer to a page by index at a level, with the run's extent; `run` names the run it records (settable). */
+function serverFor(initial: TEventRecord[], run = "") {
 	const calls: Array<Record<string, unknown>> = [];
+	const state = { all: initial, run };
 	const dispatch = (method: string, params: unknown) => {
 		if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
 		const filter = (params as { filter: { minLevel?: string; offset?: number; limit?: number } }).filter;
 		calls.push(filter);
 		const level = filter.minLevel ?? "debug";
+		const all = state.all.map((e) => (state.run ? { ...e, run: state.run } : e));
 		const at = all.filter((e) => (e.idx as Record<string, number>)[level] !== undefined);
 		const first = all[0]?.timestamp;
-		if (filter.offset === undefined) return { events: at.slice(-(filter.limit ?? 1)), total: at.length, first };
-		return { events: at.filter((e) => { const i = (e.idx as Record<string, number>)[level]; return i >= (filter.offset as number) && i < (filter.offset as number) + (filter.limit ?? 100); }), total: at.length, first };
+		const extent = { total: at.length, first, ...(state.run ? { run: state.run } : {}) };
+		if (filter.offset === undefined) return { events: at.slice(-(filter.limit ?? 1)), ...extent };
+		return { events: at.filter((e) => { const i = (e.idx as Record<string, number>)[level]; return i >= (filter.offset as number) && i < (filter.offset as number) + (filter.limit ?? 100); }), ...extent };
 	};
-	return { calls, dispatch };
+	return { calls, dispatch, state };
 }
 
 describe("the run source at a level", () => {
@@ -130,5 +133,28 @@ describe("the run source at a level", () => {
 		await cold.ready();
 		expect(cold.count()).toBe(0);
 		expect(cold.unavailable).toBe(EVENTS_UNAVAILABLE);
+	});
+
+	it("holds one run: when the server names a new run, the source starts over in it", async () => {
+		handle.teardown();
+		server = serverFor(ALL, "run-1");
+		handle = setupShuTest({ dispatch: server.dispatch });
+		const info = eventRunSource("info");
+		await info.ready();
+		await info.ensureRange(0, 50);
+		expect(info.count()).toBe(60);
+		expect((info.rowAt(0) as TEventRecord).id).toBe("0.0");
+		// The instance is run again: a shorter run 2, named on its live events and on every answer.
+		server.state.all = run(30);
+		server.state.run = "run-2";
+		const fresh = { ...run(31)[30], run: "run-2" }; // a live event of run 2 (debug, index 30; info index 10)
+		handle.emit(fresh);
+		await flush();
+		await info.ready();
+		await flush();
+		expect(info.count(), "run 2's extent: ten at info, and the live one").toBe(11);
+		expect(info.rowAt(0), "run 1's rows are gone until run 2's page lands").toBeUndefined();
+		await info.ensureRange(0, 11);
+		expect((info.rowAt(0) as TEventRecord).run).toBe("run-2");
 	});
 });
