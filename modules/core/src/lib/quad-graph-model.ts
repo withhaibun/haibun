@@ -3,12 +3,12 @@
  *
  * One implementation of the graph operations: dedup-indexed quads + per-type cluster summaries
  * (sampled/omitted counts, display labels), bounded by a per-type budget plus pinned subjects.
- * The SERVER builds a snapshot by feeding it AGE-sampled quads (injecting the true per-type totals
+ * The SERVER builds a snapshot by feeding it quads sampled from the site's store (injecting the true per-type totals
  * and SQL-fetched body previews); the CLIENT holds the live snapshot, feeding it the RPC backfill
  * and live SSE quads (reading body previews from its own in-memory body quads). Same merge, same
  * relabel — the only differences are the injected providers, never the logic.
  *
- * No persistence lives here: the backing store (AGE server-side, IndexedDB client-side) is the
+ * No persistence lives here: the backing store (the site's graph store server-side, IndexedDB client-side) is the
  * `IQuadStore` behind the model. Consumer-specific identity (e.g. the `@id` IRI prefix) is also
  * never hardcoded here — it is injected, so core names no downstream.
  */
@@ -36,7 +36,7 @@ export type DisplayLabelRelProvider = (type: string) => string | undefined;
 export type BodyContentProvider = (subject: string) => string | undefined;
 
 export type MergeOptions = {
-	/** Authoritative per-type total from the store (the AGE count). Without it, totalCount is the observed distinct-subject count. */
+	/** Authoritative per-type total from the store (the store's own count). Without it, totalCount is the observed distinct-subject count. */
 	totalCounts?: Map<string, number>;
 	/** Where body preview text comes from for the display-label rule. Defaults to the model's own in-memory body quads. */
 	bodyContentFor?: BodyContentProvider;
@@ -143,7 +143,7 @@ export class QuadGraphModel {
 			cluster.omittedCount = Math.max(0, cluster.totalCount - cluster.sampledCount);
 			touched.add(q.subject);
 		}
-		// The store's authoritative totals override the observed count (the AGE total is the truth).
+		// The store's authoritative totals override the observed count (the store's total is authoritative).
 		if (opts.totalCounts)
 			for (const c of this.clusters) {
 				const t = opts.totalCounts.get(c.type);

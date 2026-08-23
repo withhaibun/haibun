@@ -13,7 +13,7 @@ import { LinkRelations, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL, type TPrincipal } fro
  *
  * Delegation is a single navigable `delegatedFrom` (sec:delegator) edge, never a Principal property —
  * so it is written AFTER the upsert (which replaces the subject's quads) and via the store's edge
- * primitive when available: graph-native stores (AGE) get one real, walkable edge through `createEdge`;
+ * primitive when available: a graph-native store gets one real, walkable edge through `createEdge`;
  * the in-memory quad store models edges as quads, so it falls back to `add`. Either way: exactly one edge.
  */
 export async function persistPrincipalIndividual(world: TWorld, p: TPrincipal, delegatedFrom?: string): Promise<void> {
