@@ -1,6 +1,6 @@
 import { conduit } from "./hypermedia.js";
 import { setRpcCache, findCachedMethod } from "./rpc-cache.js";
-import { getConcernCatalog, heldConcernCatalog, setConcernCatalog } from "./rels-cache.js";
+import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
 import { deviceStore } from "./client-cache/index.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
@@ -80,16 +80,16 @@ const StepListResponseSchema = z
 	})
 	.strict();
 
-// What the site said it offers, pinned to the page rather than held per bundle: a page is more than one bundle, and a
-// panel a deployment adds asks the same site as the app. Held per bundle, a panel would discover the site again, and
-// would not know what a step it calls requires. The catalog the site declares is not held here: rels-cache owns it,
+// What the server said it offers, pinned to the page rather than cached per bundle: a page is more than one bundle, and a
+// panel a deployment adds requests the same server as the app. Stored per bundle, a panel would discover the server again, and
+// would not know what a step it calls requires. The catalog the server declares is not cached here: rels-cache owns it,
 // pinned the same way, so one thing has one home.
 const REGISTRY_KEY = "__SHU_STEP_REGISTRY__";
 type TRegistry = { steps: StepDescriptor[] | null; byName: Map<string, StepDescriptor> | null; domains: Record<string, DomainInfo> | null; pending: Promise<StepListResponse> | null };
 const registry = (): TRegistry => pagePinned(REGISTRY_KEY, () => ({ steps: null, byName: null, domains: null, pending: null }));
 
-// Both go through the step list even when the page already has it, because the answer is only half of what asking for
-// it does: the other half is this bundle reading what the site declares, which is what its views draw by.
+// Both go through the step list even when the page already has it, because the response is only half of what asking for
+// it does: the other half is this bundle reading what the server declares, which is what its views draw by.
 export async function getAvailableSteps(): Promise<StepDescriptor[]> {
 	return (await getStepList()).steps;
 }
@@ -137,9 +137,9 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainO
 
 async function getStepList(): Promise<StepListResponse> {
 	const r = registry();
-	const concerns = heldConcernCatalog();
+	const concerns = cachedConcernCatalog();
 	if (r.steps && r.domains && concerns) {
-		// Another bundle of this page asked the site; this one is told the same answer, and reads it for itself
+		// Another bundle of this page requested the server; this one receives the same response, and reads it for itself
 		// (a no-op in a bundle that already has: setConcernCatalog derives once per catalog).
 		setConcernCatalog(concerns, r.domains);
 		return { steps: r.steps, domains: r.domains, concerns };
@@ -165,9 +165,9 @@ export interface ShuHydration {
 // each carry their own copy of this module). The one payload is pinned to the page so every bundle reads the same
 // boot: an extension reading a per-bundle copy would see an empty rpcCache and refetch what the export embedded.
 const HYDRATION_KEY = "__SHU_HYDRATION__";
-const heldHydration = (): { data: ShuHydration | null } => pagePinned(HYDRATION_KEY, () => ({ data: null }));
+const cachedHydration = (): { data: ShuHydration | null } => pagePinned(HYDRATION_KEY, () => ({ data: null }));
 
-/** Parse the embedded hydration and drop the text it was parsed from: the element holds the whole run — every event —
+/** Parse the embedded hydration and drop the text it was parsed from: the element caches the whole run — every event —
  *  as one string, which would sit in the DOM for the life of the page beside the objects parsed out of it. Read once
  *  (`hydrateFromDom`, at boot), so nothing reads it again. */
 function readHydration(): ShuHydration | null {
@@ -185,8 +185,8 @@ function readHydration(): ShuHydration | null {
 
 /** Apply hydrated data immediately (before any RPC). */
 export function hydrateFromDom(): void {
-	heldHydration().data = readHydration();
-	const booted = heldHydration().data;
+	cachedHydration().data = readHydration();
+	const booted = cachedHydration().data;
 	if (booted?.rpcCache) setRpcCache(booted.rpcCache);
 }
 
@@ -198,24 +198,24 @@ export function hydrateFromDom(): void {
  * the live serve never does.
  */
 export function isStandaloneMode(): boolean {
-	return heldHydration().data !== null && heldHydration().data?.rpcCache !== undefined;
+	return cachedHydration().data !== null && cachedHydration().data?.rpcCache !== undefined;
 }
 
 /** Get the view hash embedded at export time (offline mode). */
 export function getHydratedViewHash(): string {
-	return heldHydration().data?.viewHash ?? "";
+	return cachedHydration().data?.viewHash ?? "";
 }
 
-/** Where the registry the page runs on came from: the site, or the device's copy of it (when the site did not answer),
- *  and when that copy was kept. Pinned to the page like the registry itself; null until the registry is known. */
-export type TRegistryOrigin = { from: "site" | "device"; savedAt?: number };
+/** Where the registry the page runs on came from: the server, or the device's copy of it (when the server did not respond),
+ *  and when that copy was cached. Pinned to the page like the registry itself; null until the registry is known. */
+export type TRegistryOrigin = { from: "server" | "device"; savedAt?: number };
 const ORIGIN_KEY = "__SHU_STEP_REGISTRY_ORIGIN__";
 const origin = (): { value: TRegistryOrigin | null } => pagePinned(ORIGIN_KEY, () => ({ value: null }));
 export function registryOrigin(): TRegistryOrigin | null {
 	return origin().value;
 }
 
-/** Test-only: forget the registry and where it came from, so the next ask discovers again. */
+/** Test-only: forget the registry and where it came from, so the next request discovers again. */
 export function resetStepRegistry(): void {
 	const r = registry();
 	r.steps = null;
@@ -225,26 +225,26 @@ export function resetStepRegistry(): void {
 	origin().value = null;
 }
 
-/** Ask the site what it offers. Its answer is kept on the device; when the site does not answer, the device's copy is
- *  the registry the page runs on (and says so), so a page with no server still knows the site's declarations. With
- *  neither, the ask fails as it did. */
+/** Ask the server what it offers. Its response is cached on the device; when the server does not respond, the device's copy is
+ *  the registry the page runs on (and reports it), so a page with no server still knows the server's declarations. With
+ *  neither, the request fails as it did. */
 async function discover(): Promise<StepListResponse> {
 	let parsed: StepListResponse;
 	try {
 		const result = await conduit().follow<unknown>({ method: "step.list" }, "rpc-registry: discover available steps");
 		parsed = StepListResponseSchema.parse(result);
-		origin().value = { from: "site" };
+		origin().value = { from: "server" };
 		void deviceStore()
 			.setRegistry(parsed)
-			.catch((err) => failFastOrLog("[rpc-registry] the registry was not kept on the device:", err));
+			.catch((err) => failFastOrLog("[rpc-registry] the registry was not cached on the device:", err));
 	} catch (err) {
-		const kept = await deviceStore()
+		const cached = await deviceStore()
 			.registry()
 			.catch(() => undefined);
-		if (!kept) throw err;
-		parsed = StepListResponseSchema.parse(kept.answer);
-		origin().value = { from: "device", savedAt: kept.savedAt };
-		console.warn(`[rpc-registry] the site did not answer; the registry kept on this device (${new Date(kept.savedAt).toISOString()}) is in use:`, err);
+		if (!cached) throw err;
+		parsed = StepListResponseSchema.parse(cached.response);
+		origin().value = { from: "device", savedAt: cached.savedAt };
+		console.warn(`[rpc-registry] the server did not respond; the registry cached on this device (${new Date(cached.savedAt).toISOString()}) is in use:`, err);
 	}
 	const { steps, domains, concerns } = parsed;
 	setConcernCatalog(concerns, domains);
@@ -254,8 +254,8 @@ async function discover(): Promise<StepListResponse> {
 	const r = registry();
 	r.steps = steps;
 	r.domains = domains;
-	// Looked up on every call the page makes, so the registry is indexed once under both names a step answers to. Two
-	// steppers may offer the same friendly name; the first the site listed answers to it, as a scan of the list did.
+	// Looked up on every call the page makes, so the registry is indexed once under both names a step responds to. Two
+	// steppers may offer the same friendly name; the first the server listed responds to it, as a scan of the list did.
 	const byName = new Map<string, StepDescriptor>();
 	for (const step of steps) {
 		if (!byName.has(step.stepName)) byName.set(step.stepName, step);

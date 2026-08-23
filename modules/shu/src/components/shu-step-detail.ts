@@ -2,10 +2,10 @@
  * <shu-step-detail> — Shows details for a specific step execution identified by seqPath.
  *
  * Displays: step text, stepper/action, duration, dispatch trace, products, and variables set by this step (quads whose
- * provenance includes this seqPath). Entity references are clickable. The trace/quads load is a @lit/task keyed on the
+ * provenance includes this seqPath). Entity references are clickable. The trace/quads load is a @lit/trequest keyed on the
  * seqPath, so switching steps cancels the stale load and renders only the latest — no hand-rolled loading flag, no
- * out-of-order overwrite. The step's own events (its start, its end, the trace of its dispatch) come from one ask by its
- * seqPath, answered from the run's buffer or its log; a still-running step's end arrives on the live stream.
+ * out-of-order overwrite. The step's own events (its start, its end, the trace of its dispatch) come from one request by its
+ * seqPath, served from the run's buffer or its log; a still-running step's end arrives on the live stream.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
@@ -61,7 +61,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		};
 	}
 
-	#own: TEvent[] = []; // the step's own events, as asked for and as they arrive live
+	#own: TEvent[] = []; // the step's own events, as requested and as they arrive live
 	#unsubscribeLive?: () => void;
 	static styles = [
 		shuBaseStyles,
@@ -86,7 +86,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		super(StateSchema, { seqPath: [] });
 	}
 
-	/** Load this step's own events (its start and end, and the trace of its dispatch, one ask by its seqPath) and the quads
+	/** Load this step's own events (its start and end, and the trace of its dispatch, one request by its seqPath) and the quads
 	 *  it set, keyed on the seqPath. The quad query is a fuller per-step provenance fetch (perTypeLimit 1000) — NOT the
 	 *  budgeted display snapshot the graph views share via quads-snapshot, which would drop the very quads whose provenance
 	 *  names this step. */

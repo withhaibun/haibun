@@ -3,9 +3,9 @@
  *
  * The flow layout positions the rows it has not measured by the average of the ones it has. A column whose rows
  * include many that render nothing (the run document: an event that produced no block at its level) measures ever more
- * empty rows as it goes, the average keeps falling, every position above the viewport is estimated again on each row,
- * and the reader sees the document jitter and its scroll range never settle. Here the source says which rows are known
- * empty (`rowSize` answers 0): they take no room without being measured, the average is over rows with content only,
+ * empty rows as it goes, the average caches falling, every position above the viewport is estimated again on each row,
+ * and the reader sees the document jitter and its scroll range never settle. Here the source reports which rows are known
+ * empty (`rowSize` responds 0): they take no room without being measured, the average is over rows with content only,
  * and an unknown stretch is estimated at that average times the share of rows seen to have content.
  */
 import { FlowLayout, flow } from "@lit-labs/virtualizer/layouts/flow.js";
@@ -71,7 +71,7 @@ export class KnownSizeFlowLayout extends FlowLayout {
 }
 
 /** The layout for a virtual column whose source can say which rows render nothing: the flow layout's own defaults, with
- *  this class and the source's answer in place. */
+ *  this class and the source's response in place. */
 export function knownSizeFlow(rowSize: TRowSize): ReturnType<typeof flow> {
 	return { ...flow(), type: KnownSizeFlowLayout, rowSize } as unknown as ReturnType<typeof flow>;
 }

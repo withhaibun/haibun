@@ -1,10 +1,10 @@
 /**
  * <shu-document-column> — the run as an academic-paper document: execution events rendered as headings, step lines,
  * prose, and embedded artifacts. It reads the run the way every event view does (event-source): one source per level,
- * spanning the whole run by index, paged in as the reader reaches for a region, bounded in what it holds, live events
+ * spanning the whole run by index, paged in as the reader reaches for a region, bounded in what it caches, live events
  * taking their place at the edge. One row per event. An event's blocks (document-blocks) are generated a page at a time
- * from the resident events of that page and given to the events they came from, so only what is held is rendered and an
- * arbitrarily long run stays reachable from its first heading to its live edge, with nothing asked for twice. Time-cursor
+ * from the cached events of that page and given to the events they came from, so only what is cached is rendered and an
+ * arbitrarily long run stays reachable from its first heading to its live edge, with nothing requested twice. Time-cursor
  * dimming, click-to-scrub, jump-to-row from another view, and failed-step glyphs on the rail all operate on the rows.
  * Product views are embedded inside their row (once per element, so the virtualizer recycling a row does not re-open it).
  */
@@ -73,13 +73,13 @@ const SANITIZE_OPTS = {
 
 /** One row of the document: an event of the run at its index, the blocks it produced, and the products its step made. */
 export type TDocRow = { index: number; event: TEventRecord; blocks: TDocBlock[]; products?: Record<string, unknown> };
-/** The rows of one page of the run, with what they were built from: how many events of the page were held, and the first
+/** The rows of one page of the run, with what they were built from: how many events of the page were cached, and the first
  *  and last of them, so a page that grew (the live edge) or changed (another run's, fetched again) is built again and an
- *  unchanged one never is, told apart in constant time. */
-type TPageRows = { held: number; first: TEventRecord; last: TEventRecord; rows: TDocRow[] };
+ *  unchanged one never is, distinguished in constant time. */
+type TPageRows = { cached: number; first: TEventRecord; last: TEventRecord; rows: TDocRow[] };
 
-/** How many pages of rows are kept built: the resident pages are bounded the same way, so the rows of what is held are
- *  to hand and the rows of what was paged out go with it. */
+/** How many pages of rows are cached built: the cached pages are bounded the same way, so the rows of what is cached are
+ *  available and the rows of what was paged out go with it. */
 const BUILT_PAGES = 24;
 /** How far ←/→ from a thumbnail walks through pages without one before giving up: a bound, not a hang. */
 const MAX_FRAME_HOPS = 50;
@@ -87,13 +87,13 @@ const FRAME_ORDINAL = /data-frame-ordinal="(\d+):(\d+)"/g;
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	// The run this view reads is the run at its level, spanning the whole run by index (event-source): the rail is the
-	// run's extent, any region of it pages in on demand, the resident pages are bounded, and live events take their place
+	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
 	#run: RunSource = eventRunSource(this.state.level);
 	#unsubscribeRun?: () => void;
 	#source: WindowedSource<TDocRow> = this.#rowsOver(this.#run);
 	#pages = new Map<number, TPageRows>();
-	#residentRows: TDocRow[] = []; // the rows of what is held, in index order, derived once per update
+	#cachedRows: TDocRow[] = []; // the rows of what is cached, in index order, derived once per update
 	#productViews = new WeakMap<Element, string>();
 	#currentIdx = -1;
 	#cursorMark = -1;
@@ -105,7 +105,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; font-family: "Source Serif 4", Georgia, serif; font-size: 15px; line-height: 1.7; color: var(--shu-fg); }
 			/* Each block centres itself in a reading column (the old .document-body 80%-centred layout, per row now). */
 			.doc-block { max-width: 760px; margin: 0 auto; padding: 0 1.5rem; }
-			/* An event that rendered nothing at this level takes no room; a page not yet held keeps a line's worth. */
+			/* An event that rendered nothing at this level takes no room; a page not yet cached caches a line's worth. */
 			.doc-block.doc-empty { padding: 0; }
 			.doc-block.doc-skeleton { min-height: 1.7em; }
 			h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--shu-border); }
@@ -128,7 +128,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			img { display: block; }
 			.feature-artifacts, .standalone-artifact { margin-left: 32px; }
 			/* A run of per-step screenshots flows as a grid of TILE-SIZED thumbnails across the column width: fixed ~160px
-			   minimum tracks (auto-fill keeps the unused tracks, so a lone screenshot stays a tile instead of blowing up to
+			   minimum tracks (auto-fill caches the unused tracks, so a lone screenshot stays a tile instead of blowing up to
 			   the whole column), each frame stretching only to its track, wrapping to new rows. The strip spans the column;
 			   the tiles stay thumbnails — expanding is what the fullscreen click is for. */
 			.thumb-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: var(--shu-space-2); margin-left: 32px; }
@@ -149,9 +149,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return this.#run.extent().first ?? 0;
 	}
 
-	/** The run document as an as:Document, with what is held rendered to markdown (mirrors what the column shows). */
+	/** The run document as an as:Document, with what is cached rendered to markdown (mirrors what the column shows). */
 	summarizeForKihan(): TLinkedData | null {
-		const events = this.#residentRows.map((r) => r.event) as unknown as THaibunEvent[];
+		const events = this.#cachedRows.map((r) => r.event) as unknown as THaibunEvent[];
 		if (events.length === 0) return null;
 		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, this.state.level as THaibunLogLevel, this.#first);
 		return { "@id": "view:document-log", "@type": "as:Document", name: "the run document shown in this column, as markdown", content: md };
@@ -160,7 +160,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	protected override onConnected(): void {
 		this.#readRun();
 		this.autoTeardown(() => this.#unsubscribeRun?.());
-		// A framed row a reader clicked in another view asks the document to scrub to that instant and reveal the row.
+		// A framed row a reader clicked in another view requests the document to scroll to that instant and reveal the row.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.jumpToRow((e as CustomEvent<{ row: Element }>).detail.row));
 		// ←/→ from an expanded thumbnail: only this column can navigate the whole run — the off-screen frames are not in the DOM.
 		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => void this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
@@ -180,8 +180,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		void this.#run.ready().then(() => this.requestUpdate());
 	}
 
-	/** A WindowedSource of rows over the run source: the run's extent, each resident event as a row, the rest undefined
-	 *  until their page lands. The rail marks come from the resident rows. */
+	/** A WindowedSource of rows over the run source: the run's extent, each cached event as a row, the rest undefined
+	 *  until their page lands. The rail marks come from the cached rows. */
 	#rowsOver(run: RunSource): WindowedSource<TDocRow> {
 		return {
 			count: () => run.count(),
@@ -202,16 +202,16 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return this.#pageRows(p)?.rows[i - p * this.#run.pageSize];
 	}
 
-	/** The rows of page `p`, built from the events of it held contiguously from its start, and kept until the page holds
-	 *  more (the live edge growing) or other events (a new run); nothing when none of it is held. */
+	/** The rows of page `p`, built from the events of it cached contiguously from its start, and cached until the page caches
+	 *  more (the live edge growing) or other events (a new run); nothing when none of it is cached. */
 	#pageRows(p: number): TPageRows | undefined {
 		const size = this.#run.pageSize;
 		const start = p * size;
 		const end = Math.min(start + size, this.#run.count());
-		const kept = this.#pages.get(p);
-		// Still the page that was built: the same first and last events are held, and nothing more of the page is (three
-		// reads, not a walk of the page, for every row the virtualizer asks for).
-		if (kept && this.#run.rowAt(start) === kept.first && this.#run.rowAt(start + kept.held - 1) === kept.last && (start + kept.held >= end || this.#run.rowAt(start + kept.held) === undefined)) return kept;
+		const cached = this.#pages.get(p);
+		// Still the page that was built: the same first and last events are cached, and nothing more of the page is (three
+		// reads, not a walk of the page, for every row the virtualizer requests).
+		if (cached && this.#run.rowAt(start) === cached.first && this.#run.rowAt(start + cached.cached - 1) === cached.last && (start + cached.cached >= end || this.#run.rowAt(start + cached.cached) === undefined)) return cached;
 		const events: TEventRecord[] = [];
 		for (let i = start; i < end; i++) {
 			const e = this.#run.rowAt(i);
@@ -222,7 +222,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			this.#pages.delete(p);
 			return undefined;
 		}
-		const built = { held: events.length, first: events[0], last: events[events.length - 1], rows: this.#buildRows(p, start, events) };
+		const built = { cached: events.length, first: events[0], last: events[events.length - 1], rows: this.#buildRows(p, start, events) };
 		this.#pages.set(p, built);
 		if (this.#pages.size > BUILT_PAGES) for (const q of [...this.#pages.keys()].sort((a, b) => Math.abs(b - p) - Math.abs(a - p)).slice(0, this.#pages.size - BUILT_PAGES)) this.#pages.delete(q);
 		return built;
@@ -252,10 +252,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return events.map((event, i) => ({ index: start + i, event, blocks: per[i], products: products.get(stripId(String(event.id ?? ""))) }));
 	}
 
-	/** The rows of what is held, in index order: what the rail marks, the cursor, the Kihan summary, jumps and heading links read. */
-	#resident(): TDocRow[] {
+	/** The rows of what is cached, in index order: what the rail marks, the cursor, the Kihan summary, jumps and heading links read. */
+	#cached(): TDocRow[] {
 		const out: TDocRow[] = [];
-		for (const { from, to } of this.#run.residentRanges()) for (let i = from; i < to; i++) {
+		for (const { from, to } of this.#run.cachedRanges()) for (let i = from; i < to; i++) {
 			const row = this.#rowAt(i);
 			if (row) out.push(row);
 		}
@@ -269,7 +269,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#markers(): TScrollMarker[] {
 		const starts = new Map<string, number>();
 		const markers: TScrollMarker[] = [];
-		for (const { index, event } of this.#residentRows) {
+		for (const { index, event } of this.#cachedRows) {
 			if (event.kind !== "lifecycle") continue;
 			const id = stripId(String(event.id ?? ""));
 			if (event.stage === "start") starts.set(id, index);
@@ -281,9 +281,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	protected willUpdate(): void {
-		this.#residentRows = this.#resident();
+		this.#cachedRows = this.#cached();
 		const cursor = this.timeCursor;
-		this.#currentIdx = currentRowIndex(this.#residentRows.map(({ index, event }) => ({ index, timestamp: Number(event.timestamp) || 0 })), cursor);
+		this.#currentIdx = currentRowIndex(this.#cachedRows.map(({ index, event }) => ({ index, timestamp: Number(event.timestamp) || 0 })), cursor);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 
@@ -296,7 +296,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	/** A click in a row scrubs to that row. A click on a link to a heading of this document goes to that heading
-	 *  instead: the reader asked for somewhere else in the run, not for the moment they clicked in. A link naming
+	 *  instead: the reader requested somewhere else in the run, not for the moment they clicked in. A link naming
 	 *  anything else is left alone, so a link out of the document still leads out of it. */
 	private onBlockClick(e: Event, rawTime: number): void {
 		const href = (e.composedPath().find((n) => n instanceof HTMLAnchorElement) as HTMLAnchorElement | undefined)?.getAttribute("href") ?? "";
@@ -304,12 +304,12 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.cursorToRow(rawTime);
 	}
 
-	/** Go to the heading a link names, and say whether the held part of this document has one. The heading's own name is
+	/** Go to the heading a link names, and say whether the cached part of this document has one. The heading's own name is
 	 *  the handle, stamped on its block when the page was built (headingAnchor), so a feature can link to its own scenarios. */
 	#goToHeading(anchor: string): boolean {
 		if (anchor === "") return false;
 		const stamp = `data-heading="${anchor}"`;
-		const row = this.#residentRows.find((r) => r.blocks.some((b) => b.html.includes(stamp)));
+		const row = this.#cachedRows.find((r) => r.blocks.some((b) => b.html.includes(stamp)));
 		if (!row) return false;
 		this.#revealRow(row, "start");
 		return true;
@@ -328,14 +328,14 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	/** A jump-to from another view: the row is either a block element carrying `data-id`, or an artifact frame carrying its
-	 *  build-time-stamped `data-step-id`; the held row that rendered that id is scrubbed to and scrolled into view. */
+	 *  build-time-stamped `data-step-id`; the cached row that rendered that id is scrubbed to and scrolled into view. */
 	private jumpToRow(row: Element): void {
 		const id = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
-		const hit = id === "" ? undefined : this.#residentRows.find((r) => r.blocks.length > 0 && stripId(String(r.event.id ?? "")) === id);
+		const hit = id === "" ? undefined : this.#cachedRows.find((r) => r.blocks.length > 0 && stripId(String(r.event.id ?? "")) === id);
 		if (hit) this.#revealRow(hit, "center");
 	}
 
-	/** The thumbnail frames a page of rows holds, in order, each with the row it is in: stamped `page:ordinal` when the page was built. */
+	/** The thumbnail frames a page of rows caches, in order, each with the row it is in: stamped `page:ordinal` when the page was built. */
 	#framesOf(p: number): Array<{ row: TDocRow; stamp: string }> {
 		const rows = this.#pageRows(p)?.rows ?? [];
 		return rows.flatMap((row) => row.blocks.flatMap((b) => [...b.html.matchAll(FRAME_ORDINAL)].map((m) => ({ row, stamp: `data-frame-ordinal="${m[1]}:${m[2]}"` }))));
@@ -343,7 +343,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** ←/→ from an expanded thumbnail: move to the previous/next thumbnail in the WHOLE run, not just the rendered window.
 	 *  Each frame carries its page and ordinal in it, stamped at build; the neighbour is found in the same page, or the
-	 *  next page with a thumbnail in that direction is brought in and its nearest end taken; the row is scrolled into the
+	 *  next page with a thumbnail in that direction is delivered in and its nearest end taken; the row is scrolled into the
 	 *  virtualizer's window and its rendered frame expanded once it exists. */
 	async #frameNav({ dir, from }: { dir: number; from: HTMLElement }): Promise<void> {
 		const [pStr, nStr] = (from.getAttribute("data-frame-ordinal") ?? "").split(":");
@@ -383,7 +383,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		`;
 	}
 
-	/** One event's row: its blocks as rendered, its products embedded; a skeleton while its page is not held; an event that
+	/** One event's row: its blocks as rendered, its products embedded; a skeleton while its page is not cached; an event that
 	 *  produced nothing at this level (a step's end, a trace) is an empty row, so the run's index space is the column's. */
 	#renderRow = (i: number, row: unknown): TemplateResult => {
 		const r = row as TDocRow | undefined;

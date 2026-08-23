@@ -1,5 +1,5 @@
 /**
- * What IndexedDB holds for this origin, as a reader of the device is told: each database, each of its object stores and
+ * What IndexedDB caches for this origin, as reported to a reader: each database, each of its object stores and
  * how many records are in it. Read-only, and nothing where there is no IndexedDB (a test, a context without it).
  */
 export type TIdbStoreSummary = { name: string; count: number };

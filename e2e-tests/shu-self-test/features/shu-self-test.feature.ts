@@ -24,8 +24,8 @@ const DOC_CONTAINER = SHU_TAG.DOCUMENT_COLUMN;
 const MONITOR_CONTAINER = SHU_TAG.MONITOR_COLUMN;
 /** The block of this feature's own heading in the document, named from the feature's name the way the document names it. */
 const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SPA Self-Test")}`;
-// The client cache view's readings of the run source at log (the document's level): its resident spans and its extent.
-const CACHE_LOG_RESIDENT = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-resident`;
+// The client cache view's readings of the run source at log (the document's level): its cached spans and its extent.
+const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 /** Every open column carries the same controls, so the log's own column names which one a click is for. */
 const MONITOR_PANE = `shu-column-pane[column-type="${SHU_TAG.MONITOR_COLUMN}"]`;
@@ -83,7 +83,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The log narrows to its rail, and the playback controls move the cursor" }),
 
-		"Minimized, this column is a narrow form of itself: the rows go and the rail stays, with the mark still on it. Its strip is that rail, so a click there is the reader using it rather than asking for the rows back, and the control that minimized the column is what opens it again.",
+		"Minimized, this column is a narrow form of itself: the rows go and the rail stays, with the mark still on it. Its strip is that rail, so a click there is the reader using it rather tha requesting for the rows back, and the control that minimized the column is what opens it again.",
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.MINIMIZE}` }),
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
@@ -108,14 +108,14 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Open the graph view and confirm the seeded comments render" }),
 
-		"The graph view draws whatever types the store holds, placing each individual as a node in a scene the reader can turn. The comments seeded above are the only records here, so the view reaching its scene proves it asked the store over the wire, read the answer and drew it. The view arrives as its own bundle, fetched from the running server, so this also proves the server serves it.",
+		"The graph view draws whatever types the store caches, placing each individual as a node in a scene the reader can turn. The comments seeded above are the only records here, so the view reaching its scene proves it requested the store over the wire, read the response and drew it. The view arrives as its own bundle, fetched from the running server, so this also proves the server serves it.",
 		"show polymorphic graph view",
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.SCENE }),
 
 		scenario({ scenario: "Browse the seeded comments in the column browser" }),
 
-		"The column browser lists stored records of a chosen type. Picking the Comment type queries the store and shows the comments seeded earlier as a table, one row per comment. Every store answers this query the same way, so the browser needs no type-specific code.",
+		"The column browser lists stored records of a chosen type. Picking the Comment type queries the store and shows the comments seeded earlier as a table, one row per comment. Every store responds this query the same way, so the browser needs no type-specific code.",
 		...chooseGraphLabel(COMMENT_LABEL),
 		waitFor({ target: IDS.QUERY.TABLE }),
 		waitFor({ target: IDS.QUERY.FIRST_ROW }),
@@ -162,25 +162,25 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
 
-		"The document comes back too, with the monitor open beside it. Both read the run the same way, at the level each shows: the whole run by index, paged in as the reader reaches for a region, with nothing asked for twice between them. The document opens at the live edge with its newest events, and the start of the run is one press away on its rail: its top glyph is the first row, and pressing it pages that region in, so the feature's own heading is on the page.",
+		"The document comes back too, with the monitor open beside it. Both read the run the same way, at the level each shows: the whole run by index, paged in as the reader reaches for a region, with nothing requested twice between them. The document opens at the live edge with its newest events, and the start of the run is one press away on its rail: its top glyph is the first row, and pressing it pages that region in, so the feature's own heading is on the page.",
 		"show document",
 		waitFor({ target: IDS.DOCUMENT.ROOT }),
 		setAs({ what: FEATURE_HEADING, domain: "page-test-id", value: `"${FEATURE_HEADING}"` }),
 		`in "${DOC_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
 		waitFor({ target: FEATURE_HEADING }),
 
-		"What the page holds of the run is read from one place: the client cache view lists each run source read so far with its extent and the spans it holds resident, the live stream by level, and what the device's store keeps, every value under its own id. The document reads the run at log, so the source at log is there: the start of the run was just paged in, so its resident spans begin at row 0, and its extent counts the events so far.",
+		"What the page caches of the run is read from one place: the client cache view lists each run source read so far with its extent and the spans it caches, the live stream by level, and what the device's store caches, every value under its own id. The document reads the run at log, so the source at log is there: the start of the run was just paged in, so its cached spans begin at row 0, and its extent counts the events so far.",
 		"show client cache",
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		setAs({ what: CACHE_LOG_RESIDENT, domain: "page-test-id", value: `"${CACHE_LOG_RESIDENT}"` }),
+		setAs({ what: CACHE_LOG_CACHED, domain: "page-test-id", value: `"${CACHE_LOG_CACHED}"` }),
 		setAs({ what: CACHE_LOG_EVENTS, domain: "page-test-id", value: `"${CACHE_LOG_EVENTS}"` }),
-		waitFor({ target: CACHE_LOG_RESIDENT }),
-		`save text from ${CACHE_LOG_RESIDENT} to cacheLogResident`,
-		'matches cacheLogResident with "0..*"',
+		waitFor({ target: CACHE_LOG_CACHED }),
+		`save text from ${CACHE_LOG_CACHED} to cacheLogCached`,
+		'matches cacheLogCached with "0..*"',
 		`save text from ${CACHE_LOG_EVENTS} to cacheLogEvents`,
 		'not variable cacheLogEvents is "0"',
 
-		"The monitor's rail spans the whole run by index too, whatever it holds: its top glyph is the run's first row, and pressing it pages that region in. The first row is then on the page, from a log that held only its newest page a moment before. The playback controls open from the actions bar's current-time control.",
+		"The monitor's rail spans the whole run by index too, whatever it caches: its top glyph is the run's first row, and pressing it pages that region in. The first row is then on the page, from a log that cached only its newest page a moment before. The playback controls open from the actions bar's current-time control.",
 		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
 		waitFor({ target: IDS.MONITOR.FIRST_ROW }),
 		click({ target: IDS.APP.TIME_OFFSET }),
@@ -208,7 +208,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The graph view's layout settings open as one group" }),
 
-		"The graph view keeps its options in named groups, each opened by its own head icon. Opening the layout group brings up every control that decides how the graph is placed, so a reader reaches the view type, the grouping and the flattening in one move rather than hunting for separate toolbars.",
+		"The graph view caches its options in named groups, each opened by its own head icon. Opening the layout group delivers up every control that decides how the graph is placed, so a reader reaches the view type, the grouping and the flattening in one move rather than hunting for separate toolbars.",
 		click({ target: IDS.POLYMORPHIC_VIEW.SETTINGS.layout }),
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.VIEW_TYPE }),
 

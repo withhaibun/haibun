@@ -43,7 +43,7 @@ const ARTIFACT_HOLDER_SELECTOR = ".feature-artifacts, .standalone-artifact";
 
 /** The thumbnail frames of a filled block, when the block is PURELY thumbnails (every frame in it carries the `thumb`
  *  class and there is at least one) — those flow as grid tiles. A block mixing a thumbnail with another artifact frame
- *  (a step that saved an image and a json) keeps its own layout. */
+ *  (a step that saved an image and a json) caches its own layout. */
 function thumbFrames(blockEl: Element): Element[] {
 	const frames = Array.from(blockEl.querySelectorAll("shu-artifact-frame"));
 	return frames.length > 0 && frames.every((f) => f.classList.contains("thumb")) ? frames : [];

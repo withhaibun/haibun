@@ -50,7 +50,7 @@ export type TLogRow = {
 const LEVEL_ICONS: Record<string, string> = { error: ICON_LOG_ERROR, warn: ICON_LOG_WARN, info: ICON_LOG_INFO, debug: "💬", trace: "🔍" };
 const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
 
-// Tail retention while following the live edge: the shared log keeps only events within this span of the newest one, so a
+// Tail retention while following the live edge: the shared log caches only events within this span of the newest one, so a
 // long-running tab stays bounded instead of holding the whole history. It slides with the edge in quarter-span steps so
 // eviction happens in chunks, not per event. Generous enough that following and a little scroll-back stay inside it; a
 // reader who scrolls further (follow pauses) gets the full history back until they return to the edge. Tunable.
@@ -66,8 +66,8 @@ const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
 export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[]): TScrollMarker[] {
 	const markers: TScrollMarker[] = [];
 	rows.forEach((row, i) => {
-		// A mark sits at the row's index in the RUN (`indices`, when the rows are the resident part of a longer run), so it
-		// is placed on the rail where the run has it, not where the resident list does. Both halves of what the row says:
+		// A mark sits at the row's index in the RUN (`indices`, when the rows are the cached part of a longer run), so it
+		// is placed on the rail where the run has it, not where the cached list does. Both halves of what the row reports:
 		// what it is about and what happened to it. Either alone leaves marks a reader cannot tell apart — every feature
 		// boundary reads "▸ feature" without the first, and a log line names no step without the second.
 		const index = indices?.[i] ?? i;
@@ -99,8 +99,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	}
 
 	// The log this view reads is the run at its level, spanning the whole run by index (event-source): the rail is the
-	// run's extent, any region of it pages in on demand, the resident pages are bounded, and live events take their place
-	// as they arrive. Rows are derived from the resident events as they are painted; what is not resident paints as a
+	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
+	// as they arrive. Rows are derived from the cached events as they are painted; what is not cached paints as a
 	// skeleton until its page lands. One source per level, shared across views, swapped when the level changes.
 	#run: RunSource = eventRunSource(this.state.level);
 	#unsubscribeRun?: () => void;
@@ -108,8 +108,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	#source: WindowedSource<TLogRow> = this.#rowsOver(this.#run);
 	#currentIdx = -1;
 	#cursorMark = -1;
-	#endedStarts = new Set<string>(); // the steps whose end is resident, for the hide-start toggle
-	#dispatchBySeq = new Map<string, TDispatchTrace>(); // the dispatch trace of each step whose trace is resident
+	#endedStarts = new Set<string>(); // the steps whose end is cached, for the hide-start toggle
+	#dispatchBySeq = new Map<string, TDispatchTrace>(); // the dispatch trace of each step whose trace is cached
 	static styles = [
 		virtualColumnCss,
 		shuBaseStyles,
@@ -157,7 +157,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		this.autoTeardown(() => this.#unsubscribeRun?.());
 		// A press or drag on the rail is the reader saying WHEN, not just where: the row it lands on carries a time, so
 		// the cursor every other view reads moves with it. Wheeling does not, over the rail or over the rows — that is
-		// reading, and a reader scrolling their own log should not drag every other view along. The rail says which.
+		// reading, and a reader scrolling their own log should not drag every other view along. The rail reports which.
 		this.autoListen(this, SCROLL_TO_INDEX, this.#onRailSeek as EventListener);
 		// Asked from anywhere on the page — the playback control sits in the actions bar, not in this column.
 		this.autoListen(document, SHU_EVENT.GO_LIVE, this.#onGoLive);
@@ -171,7 +171,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const { index, by } = (e as CustomEvent<{ index: number; by: TSeekBy }>).detail ?? {};
 		if (by !== "press") return; // a wheel over the rail is reading, the same as wheeling the rows
 		const event = typeof index === "number" ? this.#run.rowAt(index) : undefined;
-		if (event) this.#cursorTo((event.timestamp as number) || 0); // a resident row is a moment; a page not yet landed lands first
+		if (event) this.#cursorTo((event.timestamp as number) || 0); // a cached row is a moment; a page not yet landed lands first
 	};
 
 	/** Read the run at the level now shown: one source per level, shared across views, swapped when the level changes. */
@@ -183,8 +183,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		void this.#run.ready().then(() => this.requestUpdate());
 	}
 
-	/** A WindowedSource of rows over the run source: the run's extent, each resident event as a row (derived once per event
-	 *  and cached), the rest undefined until their page lands. The rail marks come from the resident rows. */
+	/** A WindowedSource of rows over the run source: the run's extent, each cached event as a row (derived once per event
+	 *  and cached), the rest undefined until their page lands. The rail marks come from the cached rows. */
 	#rowsOver(run: RunSource): WindowedSource<TLogRow> {
 		return {
 			count: () => run.count(),
@@ -195,8 +195,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
 			markers: () => {
-				const resident = this.#resident();
-				return railMarkers(resident.map(({ row }) => row), resident.map(({ index }) => index));
+				const cached = this.#cached();
+				return railMarkers(cached.map(({ row }) => row), cached.map(({ index }) => index));
 			},
 		};
 	}
@@ -222,11 +222,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		return row;
 	}
 
-	/** The resident rows in index order, with their indices: what the rail marks, the cursor and the Kihan summary read.
-	 *  Walked from the spans the source holds, never a scan of the run's extent. */
-	#resident(): Array<{ index: number; row: TLogRow; event: Record<string, unknown> }> {
+	/** The cached rows in index order, with their indices: what the rail marks, the cursor and the Kihan summary read.
+	 *  Walked from the spans the source caches, never a scan of the run's extent. */
+	#cached(): Array<{ index: number; row: TLogRow; event: Record<string, unknown> }> {
 		const out: Array<{ index: number; row: TLogRow; event: Record<string, unknown> }> = [];
-		for (const { from, to } of this.#run.residentRanges()) for (let i = from; i < to; i++) {
+		for (const { from, to } of this.#run.cachedRanges()) for (let i = from; i < to; i++) {
 			const e = this.#run.rowAt(i) as Record<string, unknown> | undefined;
 			if (e) out.push({ index: i, row: this.#rowOf(e), event: e });
 		}
@@ -266,24 +266,24 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, addToSelection);
 		};
 
-	// Derive the resident window source before each render: the level/hide-start filter, the rail markers (every event
+	// Derive the cached window source before each render: the level/hide-start filter, the rail markers (every event
 	// the shared vocabulary calls significant, so a failure, an artifact or a feature boundary is visible on the rail
 	// across the whole log), and the time-cursor row. shu-virtual-column reads the source and virtualizes; its
 	// notify-driven follow tails the live edge.
 	protected willUpdate(): void {
-		// Derived per update from what is resident: the rows (for the Kihan summary and the tests), which steps have their
-		// end resident (for the hide-start toggle), and the current row — the last resident row at or before the time
+		// Derived per update from what is cached: the rows (for the Kihan summary and the tests), which steps have their
+		// end cached (for the hide-start toggle), and the current row — the last cached row at or before the time
 		// cursor, read ONCE (an accessor over an attribute check and a signal read).
-		const resident = this.#resident();
-		this.rows = resident.map(({ row }) => row);
-		this.#endedStarts = new Set(resident.filter(({ event }) => event.kind === "lifecycle" && event.type === "step" && event.stage === "end").map(({ row }) => row.seqPath?.join(".") ?? ""));
+		const cached = this.#cached();
+		this.rows = cached.map(({ row }) => row);
+		this.#endedStarts = new Set(cached.filter(({ event }) => event.kind === "lifecycle" && event.type === "step" && event.stage === "end").map(({ row }) => row.seqPath?.join(".") ?? ""));
 		this.#dispatchBySeq = new Map();
-		for (const { event } of resident) {
+		for (const { event } of cached) {
 			const trace = event.kind === "artifact" && event.artifactType === "dispatch-trace" ? (event.trace as TDispatchTrace | undefined) : undefined;
 			if (trace?.seqPath) this.#dispatchBySeq.set(trace.seqPath.join("."), trace);
 		}
 		const cursor = this.timeCursor;
-		this.#currentIdx = currentRowIndex(resident.map(({ index, row }) => ({ index, timestamp: row.timestamp })), cursor);
+		this.#currentIdx = currentRowIndex(cached.map(({ index, row }) => ({ index, timestamp: row.timestamp })), cursor);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 
@@ -313,12 +313,12 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	}
 
 	/** One log row at its absolute index. The time-cursor and future classes read the derived state; `row` is always
-	 *  resident (the source holds the whole filtered list), so the skeleton is only a defensive fallback. An arrow so its
+	 *  cached (the source caches the whole filtered list), so the skeleton is only a defensive fallback. An arrow so its
 	 *  identity is stable across renders, which lit-virtualizer relies on. */
 	private renderLogRow = (index: number, row: unknown): TemplateResult => {
 		const r = row as TLogRow | undefined;
 		if (!r) return html`<div class="log-row" data-testid="monitor-log-row"></div>`; // its page has not landed yet: a skeleton row
-		// A start row hidden by the hide-start toggle keeps its index in the run and paints nothing: the run's extent is
+		// A start row hidden by the hide-start toggle retains its index in the run and paints nothing: the run's extent is
 		// the server's to count, not this toggle's to recount.
 		if (this.state.hideStart && r.isStart && this.#endedStarts.has(r.seqPath?.join(".") ?? "")) return html`<div class="log-row hidden"></div>`;
 		const testId = index === 0 ? SHU_TEST_IDS.MONITOR.FIRST_ROW : "monitor-log-row";
@@ -328,7 +328,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			if (index === this.#currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
 		}
 		let dispatchText = "";
-		// What a gated step required and whether the caller held it. A step that requires nothing says nothing, so the
+		// What a gated step required and whether the caller cached it. A step that requires nothing reports nothing, so the
 		// rows that mention a capability are exactly the acts that were authorized.
 		let capabilityText = "";
 		let capabilityRefused = false;

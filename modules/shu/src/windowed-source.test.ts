@@ -8,7 +8,7 @@ function counted() {
 }
 
 describe("arrayWindowedSource", () => {
-	it("serves every resident row and no-ops ensureRange", async () => {
+	it("serves every cached row and no-ops ensureRange", async () => {
 		const src = arrayWindowedSource([10, 20, 30]);
 		expect(src.count()).toBe(3);
 		expect(src.rowAt(1)).toBe(20);
@@ -34,12 +34,12 @@ describe("lazyWindowedSource", () => {
 		expect(src.rowAt(9)).toBe(9);
 	});
 
-	it("fetches a contiguous range in one call, and never re-fetches resident pages", async () => {
+	it("fetches a contiguous range in one call, and never re-fetches cached pages", async () => {
 		const { fetch, calls } = counted();
 		const src = lazyWindowedSource({ count: () => 1000, fetch, pageSize: 5 });
 		await src.ensureRange(0, 10); // pages 0,1
 		expect(calls()).toEqual([[0, 10]]);
-		await src.ensureRange(5, 15); // page 1 resident → only page 2 fetched
+		await src.ensureRange(5, 15); // page 1 cached → only page 2 fetched
 		expect(calls()).toEqual([
 			[0, 10],
 			[10, 15],
@@ -54,12 +54,12 @@ describe("lazyWindowedSource", () => {
 		expect(src.rowAt(7)).toBe(7);
 	});
 
-	it("bounds the resident set: pages far from the last request are evicted", async () => {
+	it("bounds the cached set: pages far from the last request are evicted", async () => {
 		const { fetch } = counted();
 		const src = lazyWindowedSource({ count: () => 100_000, fetch, pageSize: 5, maxResidentPages: 4 });
 		await src.ensureRange(0, 20); // pages 0..3
 		await src.ensureRange(100, 120); // pages 20..23 → evict the far pages
-		expect(src.rowAt(100)).toBe(100); // near the last request, resident
+		expect(src.rowAt(100)).toBe(100); // near the last request, cached
 		expect(src.rowAt(0)).toBeUndefined(); // evicted
 	});
 
@@ -112,7 +112,7 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		expect(src.rowAt(949)).toBe(949);
 		expect(src.rowAt(950)).toBeUndefined();
 		const before = fetch.mock.calls.length;
-		await src.ensureRange(800, 1000); // page 4 is now resident-to-data-end, no re-fetch
+		await src.ensureRange(800, 1000); // page 4 is now cached-to-data-end, no re-fetch
 		expect(fetch.mock.calls.length).toBe(before);
 	});
 
@@ -127,7 +127,7 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		expect(src.rowAt(700)).toBeUndefined();
 	});
 
-	it("keeps a whole oversized single request resident despite the cap (B3)", async () => {
+	it("caches a whole oversized single request cached despite the cap (B3)", async () => {
 		const { fetch } = counted();
 		const src = lazyWindowedSource({ count: () => 100_000, fetch, pageSize: 5, maxResidentPages: 4 });
 		await src.ensureRange(0, 40); // pages 0..7, more than the cap
@@ -160,26 +160,26 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 	});
 
 	describe("append", () => {
-		it("places a live row at the end of a resident page, or starts the next page, without a fetch", async () => {
+		it("places a live row at the end of a cached page, or starts the next page, without a fetch", async () => {
 			let total = 10;
 			const { fetch } = counted();
 			const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 5 });
-			await src.ensureRange(5, 10); // page 1 resident: rows 5..9
+			await src.ensureRange(5, 10); // page 1 cached: rows 5..9
 			total = 11;
 			src.append(10, 10); // begins page 2
-			expect(src.rowAt(10), "the new row is resident at its index").toBe(10);
+			expect(src.rowAt(10), "the new row is cached at its index").toBe(10);
 			total = 12;
 			src.append(11, 11); // extends page 2
 			expect(src.rowAt(11)).toBe(11);
 			expect(fetch).toHaveBeenCalledTimes(1);
 		});
 
-		it("leaves a live row whose page is not resident for ensureRange, rather than inventing a partial page", async () => {
+		it("leaves a live row whose page is not cached for ensureRange, rather than inventing a partial page", async () => {
 			let total = 10;
 			const { fetch } = counted();
 			const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 5 });
 			total = 13;
-			src.append(12, 12); // page 2 holds nothing before it: not placed
+			src.append(12, 12); // page 2 caches nothing before it: not placed
 			expect(src.rowAt(12)).toBeUndefined();
 			await src.ensureRange(10, 13);
 			expect(src.rowAt(12), "fetched with its page").toBe(12);
@@ -212,7 +212,7 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 			expect(src.rowAt(75)).toBe(75);
 		});
 
-		it("a short seed that reaches the total counts as resident (no re-fetch of the last page)", async () => {
+		it("a short seed that reaches the total counts as cached (no re-fetch of the last page)", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 30, fetch, pageSize: 50 });
 			src.prime(
@@ -233,7 +233,7 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 				Array.from({ length: 50 }, (_, k) => k),
 			); // only page 0, total is 200
 			await src.ensureRange(0, 50);
-			expect(fetch).not.toHaveBeenCalled(); // page 0 resident
+			expect(fetch).not.toHaveBeenCalled(); // page 0 cached
 			await src.ensureRange(150, 200);
 			expect(fetch).toHaveBeenCalledTimes(1); // the tail was fetched
 			expect(src.rowAt(199)).toBe(199);
@@ -265,68 +265,68 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 });
 
 describe("lazyWindowedSource — the live edge under a stream", () => {
-	/** A fetcher answered by hand, so a live row can arrive while its page is in flight. */
+	/** A fetcher responded by hand, so a live row can arrive while its page is in flight. */
 	function deferred() {
 		const pending: Array<{ start: number; end: number; resolve: (rows: number[]) => void }> = [];
 		const fetch = vi.fn((start: number, end: number) => new Promise<number[]>((resolve) => pending.push({ start, end, resolve })));
-		const answer = (rows: number[]) => pending.shift()?.resolve(rows);
-		return { fetch, answer, pending };
+		const response = (rows: number[]) => pending.shift()?.resolve(rows);
+		return { fetch, response, pending };
 	}
 
 	it("a live row arriving while its page is being fetched is placed when the fetch lands, and the page is whole: no second fetch", async () => {
 		let total = 3;
-		const { fetch, answer } = deferred();
+		const { fetch, response } = deferred();
 		const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 5 });
 		const landing = src.ensureRange(0, 3); // page 0 in flight for rows 0..2
 		total = 4;
 		src.append(3, 3); // arrives during the fetch
 		expect(src.rowAt(3), "not placed before the page it belongs to").toBeUndefined();
-		answer([0, 1, 2]);
+		response([0, 1, 2]);
 		await landing;
 		expect([0, 1, 2, 3].map((i) => src.rowAt(i)), "the fetched rows, then the live one").toEqual([0, 1, 2, 3]);
 		await src.ensureRange(0, 4);
 		expect(fetch, "the page is whole for the count: nothing to fetch again").toHaveBeenCalledTimes(1);
 	});
 
-	it("a live row the fetch already brought is the same row once, not twice", async () => {
+	it("a live row the fetch already delivered is the same row once, not twice", async () => {
 		let total = 3;
-		const { fetch, answer } = deferred();
+		const { fetch, response } = deferred();
 		const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 5 });
 		const landing = src.ensureRange(0, 3);
 		total = 4;
 		src.append(3, 3);
-		answer([0, 1, 2, 3]); // the server recorded row 3 before it answered
+		response([0, 1, 2, 3]); // the server recorded row 3 before it responded
 		await landing;
-		expect(src.residentRanges()).toEqual([{ from: 0, to: 4 }]);
+		expect(src.cachedRanges()).toEqual([{ from: 0, to: 4 }]);
 		expect(src.rowAt(4)).toBeUndefined();
 	});
 
 	it("settles under a steady stream: rows arriving throughout a fetch are all placed, and the page is fetched once", async () => {
 		let total = 1;
-		const { fetch, answer } = deferred();
+		const { fetch, response } = deferred();
 		const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 100 });
 		const landing = src.ensureRange(0, 1);
 		for (let i = 1; i < 40; i++) {
 			total = i + 1;
 			src.append(i, i);
 		}
-		answer([0]);
+		response([0]);
 		await landing;
 		for (let i = 40; i < 60; i++) {
 			total = i + 1;
 			src.append(i, i); // after the fetch: placed directly
 		}
 		await src.ensureRange(0, 60);
-		expect(src.residentRanges()).toEqual([{ from: 0, to: 60 }]);
+		expect(src.cachedRanges()).toEqual([{ from: 0, to: 60 }]);
 		expect(fetch).toHaveBeenCalledTimes(1);
 	});
 
-	it("residentRanges joins adjacent pages and leaves a gap between separated ones", async () => {
+	it("cachedRanges joins adjacent pages and leaves a gap between separated ones", async () => {
 		const fetch = vi.fn(async (s: number, e: number) => Array.from({ length: e - s }, (_, k) => s + k));
 		const src = lazyWindowedSource<number>({ count: () => 100, fetch, pageSize: 10 });
 		await src.ensureRange(0, 20);
 		await src.ensureRange(50, 60);
-		expect(src.residentRanges()).toEqual([
+		expect(src.cachedRanges()).toEqual([
 			{ from: 0, to: 20 },
 			{ from: 50, to: 60 },
 		]);

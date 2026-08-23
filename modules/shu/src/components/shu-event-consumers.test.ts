@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Feature-level coverage of the event views over the ONE run source per level: the monitor shows every event (the
 // "monitor wasn't showing all events" symptom), a second view at the same level reuses the one source rather than
-// re-paging, and the document renders the run's rows from the same source, with nothing asked for twice.
+// re-paging, and the document renders the run's rows from the same source, with nothing requested twice.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
@@ -27,8 +27,8 @@ const step = (i: number): Record<string, unknown> => ({
 	idx: { debug: i - 1, trace: i - 1, log: i - 1, info: i - 1 }, // its index at each level it counts toward, as the server stamps it
 });
 
-/** The server's answer: a page by index (offset/limit at a level) with the run's extent, or a page by time (until/limit). */
-function answer(all: Array<Record<string, unknown>>, filter: { until?: number; limit?: number; minLevel?: string; offset?: number }): Record<string, unknown> {
+/** The server's response: a page by index (offset/limit at a level) with the run's extent, or a page by time (until/limit). */
+function response(all: Array<Record<string, unknown>>, filter: { until?: number; limit?: number; minLevel?: string; offset?: number }): Record<string, unknown> {
 	const level = filter.minLevel ?? "debug";
 	const at = all.filter((e) => (e.idx as Record<string, number>)[level] !== undefined);
 	const extent = { total: at.length, first: all[0]?.timestamp };
@@ -51,10 +51,10 @@ describe("event consumers over the shared log", () => {
 			dispatch: (method, params) => {
 				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
 				const filter = (params as { filter: { until?: number; limit?: number; minLevel?: string; offset?: number } }).filter;
-				// The monitor's run source asks once for the extent (limit 1, no cursor) and then for pages by index; the document's
-				// tail asks for the newest page and older pages by `until`. Pages of either kind are counted as backfills.
+				// The monitor's run source requests once for the extent (limit 1, no cursor) and then for pages by index; the document's
+				// tail requests the newest page and older pages by `until`. Pages of either kind are counted as backfills.
 				if (filter.offset !== undefined || filter.until !== undefined || filter.limit !== 1) backfillCalls++;
-				return answer([step(1), step(2)], filter);
+				return response([step(1), step(2)], filter);
 			},
 		});
 	});
@@ -71,7 +71,7 @@ describe("event consumers over the shared log", () => {
 		await flush();
 		await flush();
 		expect(mon.rows.map((r) => r.step)).toEqual(["step 1", "step 2", "step 3"]);
-		expect(backfillCalls, "a live event carries its index: no page is asked for to place it").toBe(1);
+		expect(backfillCalls, "a live event carries its index: no page is requested to place it").toBe(1);
 	});
 
 	it("the monitor's rows are the run's: a live burst adds exactly its rows, the count reads the extent, and the first row is named", async () => {
@@ -121,7 +121,7 @@ describe("event consumers over the shared log", () => {
 		expect(backfillCalls, "the second document shares the first's source").toBe(1);
 	});
 
-	it("renders the log as blocks and a benign re-render keeps them (no blank-on-update)", async () => {
+	it("renders the log as blocks and a benign re-render caches them (no blank-on-update)", async () => {
 		const doc = document.createElement(SHU_TAG.DOCUMENT_COLUMN) as ShuDocumentColumn;
 		document.body.appendChild(doc);
 		await flush();
@@ -152,7 +152,7 @@ describe("event consumers over the shared log", () => {
 // The whole run renders (virtualized to the viewport in a real browser; every row in jsdom, which has no
 // ResizeObserver) — no cap may hide earlier events. Clicking a row scrubs to that row's real instant — measured from
 // the column's global start, the same origin cursorToRow adds it back to — so a click never shifts by a hidden span.
-describe("the document reads the run source: the whole run by index, one row per event, nothing asked for twice", () => {
+describe("the document reads the run source: the whole run by index, one row per event, nothing requested twice", () => {
 	let handle: TShuTestHandle;
 	const WINDOW = 50; // a page of the run source
 	const EVENTS = 60; // more than a page
@@ -173,7 +173,7 @@ describe("the document reads the run source: the whole run by index, one row per
 				if (method !== "MonitorStepper-getEvents") throw new Error(`unexpected ${method}`);
 				const filter = (params as { filter: { until?: number; limit?: number; minLevel?: string; offset?: number } }).filter;
 				if (filter.offset !== undefined) pageCalls.push(filter);
-				return answer(events, filter);
+				return response(events, filter);
 			},
 		});
 	});
@@ -194,20 +194,20 @@ describe("the document reads the run source: the whole run by index, one row per
 		return doc;
 	};
 
-	it("renders every event of the run it holds as its row, the feature's heading first, each page of the run fetched once", async () => {
+	it("renders every event of the run it caches as its row, the feature's heading first, each page of the run fetched once", async () => {
 		const doc = await open();
 		expect(rows(doc).length, "the heading and the 60 steps").toBe(EVENTS + 1);
 		expect(doc.shadowRoot?.querySelector(`[data-testid="doc-heading-shu-spa-self-test"]`), "the feature heading, named for the feature").not.toBeNull();
-		// The two pages the run spans at this level are contiguous, so the source asks for them in ONE call, at the level shown.
+		// The two pages the run spans at this level are contiguous, so the source requests them in ONE call, at the level shown.
 		expect(pageCalls.map((c) => `${c.minLevel}:${c.offset}+${c.limit}`), "the whole run at the document's level, once").toEqual([`log:0+${EVENTS + 1}`]);
 		await flush();
-		expect(pageCalls.length, "nothing asked again once held").toBe(1);
+		expect(pageCalls.length, "nothing requested again once cached").toBe(1);
 	});
 
 	it("a live event at its level is one more row, without a fetch; one below its level is none; the rows keep their place", async () => {
 		const doc = await open();
 		const before = rows(doc).map((r) => r.getAttribute("data-raw-time"));
-		const asked = pageCalls.length;
+		const requested = pageCalls.length;
 		handle.emit({ ...step(EVENTS + 1), idx: { debug: EVENTS + 1, trace: EVENTS + 1, log: EVENTS + 1, info: EVENTS + 1 } });
 		await flush();
 		await flush();
@@ -217,7 +217,7 @@ describe("the document reads the run source: the whole run by index, one row per
 		handle.emit({ id: "noise", timestamp: EVENTS + 2, kind: "log", level: "debug", message: "not shown at log and up", idx: { debug: EVENTS + 2 } });
 		await flush();
 		expect(rows(doc).length, "a debug event is below the document's level: no row").toBe(before.length + 1);
-		expect(pageCalls.length, "the live edge grows without a fetch").toBe(asked);
+		expect(pageCalls.length, "the live edge grows without a fetch").toBe(requested);
 	});
 
 	it("a clicked row scrubs the shared cursor to its own instant, from the run's first instant; the newest row is the live edge", async () => {
@@ -243,7 +243,7 @@ describe("the document reads the run source: the whole run by index, one row per
 		await flush();
 		await flush();
 		// The document's page at log put every event on the device; at info the same events are read back from it, for both views.
-		expect(pageCalls.map((c) => `${c.minLevel}:${c.offset}+${c.limit}`), "the server asked once, for the run at log").toEqual([`log:0+${EVENTS + 1}`]);
+		expect(pageCalls.map((c) => `${c.minLevel}:${c.offset}+${c.limit}`), "the server requested once, for the run at log").toEqual([`log:0+${EVENTS + 1}`]);
 		expect(mon.rows.length, "the monitor shows the run from the same source").toBe(EVENTS + 1);
 		expect(rows(doc).length, "and so does the document, at its new level").toBe(EVENTS + 1);
 	});
@@ -257,10 +257,10 @@ describe("the document reads the run source: the whole run by index, one row per
 		await flush();
 		await flush();
 		expect(source.rowSize?.(EVENTS + 1), "a step's end renders nothing in the document: a row of no height").toBe(0);
-		expect(source.rowSize?.(EVENTS + 5), "a row not held: unknown, to be measured or estimated").toBeUndefined();
+		expect(source.rowSize?.(EVENTS + 5), "a row not cached: unknown, to be measured or estimated").toBeUndefined();
 	});
 
-	it("without the server and nothing on the device, says so rather than showing a false empty document", async () => {
+	it("without the server and nothing on the device, reports it rather than showing a false empty document", async () => {
 		handle.teardown();
 		handle = setupShuTest({
 			dispatch: () => {
@@ -273,17 +273,17 @@ describe("the document reads the run source: the whole run by index, one row per
 });
 
 describe("the virtual column over a paged source", () => {
-	// A source that pages the run in is asked for the rows the column shows: every row in the headless fallback (which
-	// renders them all), and, as a strip, the rows the rail is dragged to — and the strip says where its window went.
-	type TSpy = WindowedSource<number> & { asked: Array<[number, number]> };
+	// A source that pages the run in is requested the rows the column shows: every row in the headless fallback (which
+	// renders them all), and, as a strip, the rows the rail is dragged to — and the strip reports where its window went.
+	type TSpy = WindowedSource<number> & { requested: Array<[number, number]> };
 	const spy = (total: number): TSpy => {
-		const asked: Array<[number, number]> = [];
+		const requested: Array<[number, number]> = [];
 		return {
-			asked,
+			requested,
 			count: () => total,
 			rowAt: (i) => i,
 			ensureRange: (a, b) => {
-				asked.push([a, b]);
+				requested.push([a, b]);
 				return Promise.resolve();
 			},
 			subscribe: () => () => undefined,
@@ -307,18 +307,18 @@ describe("the virtual column over a paged source", () => {
 		expect(rail.window, "the last row: where a following column is").toEqual({ first: 99, visible: 1 });
 	});
 
-	it("asks the source for every row it renders in the headless fallback", async () => {
+	it("requests from the source for every row it renders in the headless fallback", async () => {
 		const src = spy(7);
 		const col = document.createElement("shu-virtual-column") as ShuVirtualColumn;
 		col.source = src;
 		col.renderRow = (_i, row) => html`<div class="r">${String(row)}</div>`;
 		document.body.appendChild(col);
 		await col.updateComplete;
-		expect(src.asked.at(0), "all seven, since all seven are painted").toEqual([0, 7]);
+		expect(src.requested.at(0), "all seven, since all seven are painted").toEqual([0, 7]);
 		expect(col.querySelectorAll(".r").length).toBe(7);
 	});
 
-	it("as a strip, a rail seek asks for the rows the rail was dragged to and says where its window went", async () => {
+	it("as a strip, a rail seek requests the rows the rail was dragged to and reports where its window went", async () => {
 		const src = spy(1000);
 		const col = document.createElement("shu-virtual-column") as ShuVirtualColumn;
 		col.source = src;
@@ -328,10 +328,10 @@ describe("the virtual column over a paged source", () => {
 		col.addEventListener(WINDOW_CHANGED, (e) => moves.push((e as CustomEvent<{ first: number; total: number }>).detail));
 		document.body.appendChild(col);
 		await col.updateComplete;
-		src.asked.length = 0;
+		src.requested.length = 0;
 		col.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: 400, by: "press" }, bubbles: true, composed: true }));
 		await col.updateComplete;
-		expect(src.asked.at(-1)?.[0], "the rows from where the rail was dragged to").toBe(400);
-		expect(moves.at(-1), "and the strip says where its window went, over the whole run").toMatchObject({ first: 400, total: 1000 });
+		expect(src.requested.at(-1)?.[0], "the rows from where the rail was dragged to").toBe(400);
+		expect(moves.at(-1), "and the strip reports where its window went, over the whole run").toMatchObject({ first: 400, total: 1000 });
 	});
 });

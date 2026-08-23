@@ -2,8 +2,8 @@
  * The device's store — the client cache's persistence, the events analogue of quad-store-idb: the bulk lives here, off
  * the JS heap, and survives a reload. Events are stored lean, keyed by their time and identity, indexed by their index
  * at each level so a page of the run is one ranged read; beside them each run's extent per level, the run last seen,
- * and the site's registry (the step list with its concerns and domains), so a tab with no server still spans the run it
- * last held and still knows the site's declarations.
+ * and the server's registry (the step list with its concerns and domains), so a tab with no server still spans the run it
+ * last cached and still knows the server's declarations.
  *
  * Degrades by design: without IndexedDB (a standalone report, a context without it) every read returns empty and every
  * write is a no-op, so the log falls back to the server exactly as before. Browser-only (IndexedDB is absent in
@@ -15,14 +15,14 @@ import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 
 export type TStoredEvent = Record<string, unknown>;
 
-/** The site's registry as the device keeps it: the step list answer (steps, concerns, domains), and when it was kept. */
-export type TStoredRegistry = { savedAt: number; answer: unknown };
+/** The site's registry as the device caches it: the step list response (steps, concerns, domains), and when it was cached. */
+export type TStoredRegistry = { savedAt: number; response: unknown };
 
-/** What the client cache asks of the device, every question about events scoped to ONE RUN (the `run` the server stamps
- *  on its events and answers; "" for a server that names none): a device keeps every run it has seen, and a view shows
+/** What the client cache requests of the device, every question about events scoped to ONE RUN (the `run` the server stamps
+ *  on its events and responses; "" for a server that names none): a device caches every run it has seen, and a view shows
  *  one. One implementation over IndexedDB; tests use an in-memory one. */
-/** What the store holds, as a reader of the device is told: the run last seen, and per run and level how many events are
- *  stored and the extent kept. */
+/** What the store caches, as reported to a reader: the run last seen, and per run and level how many events are
+ *  stored and the extent cached. */
 export type TEventStoreSummary = {
 	lastRun?: string;
 	runs: Array<{ run: string; levels: Array<{ level: string; stored: number; extent?: { total: number; first?: number; last?: number } }> }>;
@@ -30,25 +30,25 @@ export type TEventStoreSummary = {
 };
 
 export interface DeviceStore {
-	/** The site's registry as kept here, or undefined when none has been. */
+	/** The site's registry as cached here, or undefined when none has been. */
 	registry(): Promise<TStoredRegistry | undefined>;
-	/** Keep the site's registry: the step list answer, as the server gave it now. */
-	setRegistry(answer: unknown): Promise<void>;
-	/** What this store holds: per run and level, how many events and the extent kept, and the run last seen. */
+	/** Keep the server's registry: the step list response, as the server gave it now. */
+	setRegistry(response: unknown): Promise<void>;
+	/** What this store caches: per run and level, how many events and the extent cached, and the run last seen. */
 	summary(): Promise<TEventStoreSummary>;
 	/** Persist events (idempotent by key; a re-put of the same event is a no-op). Each carries its run. */
 	putMany(events: readonly TStoredEvent[]): Promise<void>;
 	/** The events of `run` whose index at `level` is in [start, end), in index order — ALL of them, or none: a page served
-	 *  from the device is a page the device holds completely, never a page with rows missing in it. */
+	 *  from the device is a page the device caches completely, never a page with rows missing in it. */
 	pageAt(run: string, level: string, start: number, end: number): Promise<TStoredEvent[]>;
-	/** What the device holds of that page, by index: a row for each event held, a hole for each it lacks — for when there is
-	 *  no server to ask, and what the device holds is all there is to show. */
+	/** What the device caches of that page, by index: a row for each event cached, a hole for each it lacks — for when there is
+	 *  no server to query, and what the device caches is all there is to show. */
 	rowsAt(run: string, level: string, start: number, end: number): Promise<Array<TStoredEvent | undefined>>;
-	/** The run's extent at a level as last known (how many events it holds there, and when it began), for a tab with no
+	/** The run's extent at a level as last known (how many events it caches there, and when it began), for a tab with no
 	 *  server to span its rail by. */
 	extent(run: string, level: string): Promise<{ total: number; first?: number; last?: number } | undefined>;
 	setExtent(run: string, level: string, extent: { total: number; first?: number; last?: number }): Promise<void>;
-	/** The run last seen from the server, so a tab with no server reads the run it last held rather than none. */
+	/** The run last seen from the server, so a tab with no server reads the run it last cached rather than none. */
 	lastRun(): Promise<string | undefined>;
 	setLastRun(run: string): Promise<void>;
 	/** Forget everything. */
@@ -136,10 +136,10 @@ export class IndexedDbDeviceStore implements DeviceStore {
 		return found && typeof found === "object" ? (found as TStoredRegistry) : undefined;
 	}
 
-	async setRegistry(answer: unknown): Promise<void> {
-		const kept: TStoredRegistry = { savedAt: Date.now(), answer };
+	async setRegistry(response: unknown): Promise<void> {
+		const cached: TStoredRegistry = { savedAt: Date.now(), response };
 		await withStores("readwrite", [META], (tx) => {
-			tx.objectStore(META).put(kept, REGISTRY_KEY);
+			tx.objectStore(META).put(cached, REGISTRY_KEY);
 		});
 	}
 
@@ -156,8 +156,8 @@ export class IndexedDbDeviceStore implements DeviceStore {
 		const rows = await withStores("readonly", [EVENTS], async (tx) => {
 			const index = tx.objectStore(EVENTS).index(idxIndexName(level));
 			const range = IDBKeyRange.bound([run, start], [run, end - 1]);
-			const held = await done(index.count(range));
-			if (held < end - start) return []; // not all of it: none of it, so the server is asked for the page whole
+			const cached = await done(index.count(range));
+			if (cached < end - start) return []; // not all of it: none of it, so the page is requested whole from the server
 			return ((await done(index.getAll(range))) as Array<TStoredEvent & { __key: string; __run: string }>).map(({ __key, __run, ...event }) => event);
 		});
 		return rows ?? [];
@@ -167,9 +167,9 @@ export class IndexedDbDeviceStore implements DeviceStore {
 		if (end <= start) return [];
 		const rows = await withStores("readonly", [EVENTS], async (tx) => {
 			const index = tx.objectStore(EVENTS).index(idxIndexName(level));
-			const held = (await done(index.getAll(IDBKeyRange.bound([run, start], [run, end - 1])))) as Array<TStoredEvent & { __key: string; __run: string; idx: Record<string, number> }>;
+			const cached = (await done(index.getAll(IDBKeyRange.bound([run, start], [run, end - 1])))) as Array<TStoredEvent & { __key: string; __run: string; idx: Record<string, number> }>;
 			const out: Array<TStoredEvent | undefined> = new Array(end - start);
-			for (const { __key, __run, ...event } of held) out[(event.idx as Record<string, number>)[level] - start] = event;
+			for (const { __key, __run, ...event } of cached) out[(event.idx as Record<string, number>)[level] - start] = event;
 			return out;
 		});
 		return rows ?? [];
@@ -245,8 +245,8 @@ export class MemoryDeviceStore implements DeviceStore {
 	registry(): Promise<TStoredRegistry | undefined> {
 		return Promise.resolve(this.#registry);
 	}
-	setRegistry(answer: unknown): Promise<void> {
-		this.#registry = { savedAt: Date.now(), answer };
+	setRegistry(response: unknown): Promise<void> {
+		this.#registry = { savedAt: Date.now(), response };
 		return Promise.resolve();
 	}
 	#extents = new Map<string, { total: number; first?: number; last?: number }>();

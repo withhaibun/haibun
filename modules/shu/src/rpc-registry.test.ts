@@ -55,7 +55,7 @@ describe("isStandaloneMode", () => {
 	});
 
 	// The embedded payload carries the whole run — every event — as one string. Parsing it is its only reader, so the
-	// text goes: left in the DOM it would hold a second copy of the run beside the objects parsed out of it.
+	// text goes: left in the DOM it would cache a second copy of the run beside the objects parsed out of it.
 	it("does not keep the embedded run in the DOM once it has been parsed", () => {
 		setHydration({ rpcCache: { "MonitorStepper-getEvents": { events: [{ id: "0.1", message: "x" }] } }, viewHash: "" });
 		hydrateFromDom();
@@ -64,9 +64,9 @@ describe("isStandaloneMode", () => {
 	});
 });
 
-describe("the registry kept on the device", () => {
-	// The site's answer to step.list is kept on the device; a page whose site does not answer runs on that copy and says
-	// so; with neither, the ask fails as it did.
+describe("the registry cached on the device", () => {
+	// The site's response to step.list is cached on the device; a page whose site does not respond runs on that copy and reports
+	// so; with neither, the request fails as it did.
 	const ANSWER = { steps: [], domains: {}, concerns: { persisted: {} } };
 	let handle: TShuTestHandle;
 	beforeEach(() => {
@@ -78,14 +78,14 @@ describe("the registry kept on the device", () => {
 		resetStepRegistry();
 	});
 
-	it("keeps the site's answer on the device and runs on it when the site does not answer; with neither, fails", async () => {
+	it("caches the server's response on the device and runs on it when the server does not respond; with neither, fails", async () => {
 		handle = setupShuTest({ dispatch: (method) => (method === "step.list" ? ANSWER : undefined) });
 		await getAvailableSteps();
-		expect(registryOrigin()).toEqual({ from: "site" });
+		expect(registryOrigin()).toEqual({ from: "server" });
 		const store = deviceStore() as MemoryDeviceStore;
-		await new Promise((r) => setTimeout(r, 0)); // kept without holding the page up
-		expect((await store.registry())?.answer, "the answer as validated, kept on the device").toMatchObject(ANSWER);
-		// The same device, a site that does not answer: the page runs on the device's copy.
+		await new Promise((r) => setTimeout(r, 0)); // cached without holding the page up
+		expect((await store.registry())?.response, "the response as validated, cached on the device").toMatchObject(ANSWER);
+		// The same device, a server that does not respond: the page runs on the device's copy.
 		handle.teardown();
 		resetStepRegistry();
 		handle = setupShuTest({
@@ -97,7 +97,7 @@ describe("the registry kept on the device", () => {
 		await getAvailableSteps();
 		expect(registryOrigin()?.from).toBe("device");
 		expect(typeof registryOrigin()?.savedAt).toBe("number");
-		// A device with nothing kept and a site that does not answer: the failure is the site's.
+		// A device with nothing cached and a server that does not respond: the failure is the server's.
 		resetStepRegistry();
 		setDeviceStore(new MemoryDeviceStore());
 		await expect(getAvailableSteps()).rejects.toThrow("offline");

@@ -32,7 +32,7 @@ export const SHU_TEST_IDS = {
 		PERMISSIONS: "app-permissions",
 		/** The row saying how many await a decision. A reference, so pressing it opens what it is about. */
 		AWAITING: "permissions-awaiting",
-		/** An action this reader holds. A reference, so pressing it opens the record of what granted it. */
+		/** An action this reader caches. A reference, so pressing it opens the record of what granted it. */
 		HELD: "permissions-held",
 	},
 	FILTER: {
@@ -99,19 +99,19 @@ export const SHU_TEST_IDS = {
 	},
 	COLUMN_PANE: {
 		/** Minimize when the column is open, restore when it is a strip: the one control that owns that state, and on a
-		 *  column whose strip keeps its own clicks (the log's rail) the only way back to the column. */
+		 *  column whose strip caches its own clicks (the log's rail) the only way back to the column. */
 		MINIMIZE: "pane-minimize",
 		MAXIMIZE: "pane-maximize",
 		CONTROLS_TOGGLE: "pane-controls-toggle",
 		SPINE: "pane-spine",
 	},
-	/** What the index says about itself in the strip it collapses to: which search, and how many it found. */
+	/** What the index reports about itself in the strip it collapses to: which search, and how many it found. */
 	INDEX_SUMMARY: {
 		ROOT: "index-summary",
 	},
-	/** The client cache view: what the page holds of the run. Every value has its own id, so a feature asserts cache facts
+	/** The client cache view: what the page caches of the run. Every value has its own id, so a feature asserts cache facts
 	 *  through the generic steps (`save text from {id} to {var}`, `variable {var} is …`, `matches`) rather than a probe of
-	 *  its own: a source's value is `${SOURCE}${level}-${field}` (fields: events, first, newest, page, resident, held,
+	 *  its own: a source's value is `${SOURCE}${level}-${field}` (fields: events, first, newest, page, cached, cached-rows,
 	 *  cursor, state); the live count at a level `${LIVE}${level}`; what the device stores of the last run at a level
 	 *  `${STORE}${level}-stored` / `-extent`; an IndexedDB store's records `${IDB}${database}-${store}`. */
 	CLIENT_CACHE: {

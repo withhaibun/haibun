@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The client cache view is THE reading of what the page holds of the run: each run source's extent, resident spans and
+// The client cache view is THE reading of what the page caches of the run: each run source's extent, cached spans and
 // cursor row, the live stream by level, what the device stores; every value under its own test id, so a feature reads
 // cache facts from here with the generic steps. It watches everything that moves and makes no source of its own.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -54,10 +54,10 @@ describe("the client cache view", () => {
 		const view = await open();
 		expect(text(view)).toContain("No view has read the run yet");
 		expect(value(view, IDS.CURSOR)).toBe("live edge");
-		expect(value(view, IDS.REGISTRY), "no step list has been asked for in this page").toBe("not known yet");
+		expect(value(view, IDS.REGISTRY), "no step list has been requested in this page").toBe("not known yet");
 	});
 
-	it("reads a source's extent, page size, resident spans and state, and what the device stores of the last run, each under its id", async () => {
+	it("reads a source's extent, page size, cached spans and state, and what the device stores of the last run, each under its id", async () => {
 		document.body.appendChild(document.createElement(SHU_TAG.MONITOR_COLUMN)); // reads the run at info: 70 events, two pages
 		await flush();
 		await flush();
@@ -65,12 +65,12 @@ describe("the client cache view", () => {
 		await settle();
 		expect(value(view, `${IDS.SOURCE}info-events`), "the run's extent at info").toBe(String(EVENTS));
 		expect(value(view, `${IDS.SOURCE}info-page`)).toBe("50");
-		expect(value(view, `${IDS.SOURCE}info-resident`), "the whole run resident (the headless fallback renders every row)").toBe(`0..${EVENTS - 1}`);
-		expect(value(view, `${IDS.SOURCE}info-held`)).toBe(String(EVENTS));
+		expect(value(view, `${IDS.SOURCE}info-cached`), "the whole run cached (the headless fallback renders every row)").toBe(`0..${EVENTS - 1}`);
+		expect(value(view, `${IDS.SOURCE}info-cached-rows`)).toBe(String(EVENTS));
 		expect(value(view, `${IDS.SOURCE}info-cursor`), "no cursor: the live edge, no row").toBe("");
 		expect(value(view, `${IDS.SOURCE}info-state`)).toBe("loaded");
 		expect(value(view, `${IDS.STORE}info-stored`), "the device store: every event of the last run at info").toBe(String(EVENTS));
-		expect(value(view, `${IDS.STORE}info-extent`), "and the extent kept").toBe(String(EVENTS));
+		expect(value(view, `${IDS.STORE}info-extent`), "and the extent cached").toBe(String(EVENTS));
 	});
 
 	it("shows every change at once: a source made after it opened, the cursor's row in it, and the live stream by level", async () => {

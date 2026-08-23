@@ -1,5 +1,5 @@
 // The size-aware flow layout: rows the source knows render nothing take no room and never count toward the average, so a
-// column with many empty rows keeps a steady estimate of what it has not measured.
+// column with many empty rows caches a steady estimate of what it has not measured.
 import { describe, it, expect } from "vitest";
 import { KnownSizeFlowLayout } from "./known-size-flow.js";
 
@@ -31,7 +31,7 @@ describe("KnownSizeFlowLayout", () => {
 		l.updateItemSizes(sizes([[1, 60]]));
 		expect(l._getAverageSize()).toBe(40);
 	});
-	it("without a rowSize answer it is the flow layout: every row measured, the plain average", () => {
+	it("without a rowSize response it is the flow layout: every row measured, the plain average", () => {
 		const l = new KnownSizeFlowLayout(() => undefined, {});
 		l.updateItemSizes(sizes([[0, 10], [1, 0]]));
 		expect(l._getAverageSize()).toBe(5);

@@ -1,6 +1,6 @@
 /**
- * WindowedSource — the data behind a virtualized column, in index space. The renderer asks for the total row count and
- * for the ranges it can see; the source pages windows in and out of a bounded resident cache on demand, so every row of
+ * WindowedSource — the data behind a virtualized column, in index space. The renderer requests the total row count and
+ * for the ranges it can see; the source pages windows in and out of a bounded cached cache on demand, so every row of
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
@@ -10,20 +10,20 @@ import type { Range } from "./ranges.js";
 export interface WindowedSource<T> {
 	/** Total rows. May be an estimate for a server-counted or still-arriving set of millions. */
 	count(): number;
-	/** The row at `index`: resident → the row, not yet fetched → undefined (the renderer paints a skeleton; ensureRange brings it in). */
+	/** The row at `index`: cached → the row, not yet fetched → undefined (the renderer paints a skeleton; ensureRange delivers it in). */
 	rowAt(index: number): T | undefined;
-	/** Prefetch `[start, end)`. Coalesces contiguous missing pages into one fetch, never re-fetches resident or in-flight pages, and resolves once the range is resident. */
+	/** Prefetch `[start, end)`. Coalesces contiguous missing pages into one fetch, never re-fetches cached or in-flight pages, and resolves once the range is cached. */
 	ensureRange(start: number, end: number): Promise<void>;
 	/** Notify on data arrival, count change, or live append; returns an unsubscribe. */
 	subscribe(cb: () => void): () => void;
 	/** Significant rows to mark on the scroll rail (annotations, failed steps, feature boundaries), across the whole set. */
 	markers(): TScrollMarker[];
-	/** The size of a row known without rendering it: 0 for a resident row that renders nothing, so the renderer gives it
+	/** The size of a row known without rendering it: 0 for a cached row that renders nothing, so the renderer gives it
 	 *  no room and does not let it drag its estimate of the rows it has not measured; undefined to measure and estimate. */
 	rowSize?(index: number): number | undefined;
 }
 
-/** A source over data already resident in memory (a fetched page of query results, a finite in-memory list): every row
+/** A source over data already cached in memory (a fetched page of query results, a finite in-memory list): every row
  *  is available and ensureRange is a no-op. `set` swaps the backing list and notifies (a live re-query). */
 export function arrayWindowedSource<T>(
 	initial: readonly T[] = [],
@@ -36,7 +36,7 @@ export function arrayWindowedSource<T>(
 		count: () => items.length,
 		rowAt: (i) => items[i],
 		ensureRange: async () => {
-			/* resident: every row is already in memory, nothing to fetch */
+			/* cached: every row is already in memory, nothing to fetch */
 		},
 		subscribe: (cb) => (subs.add(cb), () => subs.delete(cb)),
 		markers: () => marks,
@@ -51,7 +51,7 @@ export function arrayWindowedSource<T>(
 /** Fetch the rows for `[start, end)`. May return fewer than requested at the end of the data. */
 export type TPageFetcher<T> = (start: number, end: number) => Promise<readonly T[]>;
 
-/** A paged source for data too large to hold resident (up to millions): rows are fetched a page at a time on
+/** A paged source for data too large to cache cached (up to millions): rows are fetched a page at a time on
  *  ensureRange, cached in a bounded window (pages far from the last request are evicted so memory stays flat regardless
  *  of total), and concurrent or overlapping requests for the same pages coalesce into a single fetch. */
 export function lazyWindowedSource<T>(opts: {
@@ -64,17 +64,17 @@ export function lazyWindowedSource<T>(opts: {
 	/** Re-probe the tail and notify: call after `count()` grows (a live append) or a previously-capped fetch can now
 	 *  return more, so a partial last page is re-fetched and the view re-renders. */
 	notifyCountChanged(): void;
-	/** Seed an already-fetched, page-aligned run of rows (the first page the caller fetched to learn the total) so the
+	/** Seed an already-fetched, page-aligned run of rows (the first page the caller fetched to record the total) so the
 	 *  first paint needs no second round-trip. `startRow` must be a multiple of `pageSize`. */
 	prime(startRow: number, rows: readonly T[]): void;
 	/** A row arrived live at `index` (the source's count has grown to include it): placed into its page when that page is
-	 *  resident up to it, so the live edge keeps rendering without a fetch; kept aside while that page is being fetched and
+	 *  cached up to it, so the live edge caches rendering without a fetch; cached aside while that page is being fetched and
 	 *  placed once the fetch lands, so a live edge under a steady stream is never a short page fetched again and again;
-	 *  otherwise left for ensureRange to bring in. */
+	 *  otherwise left for ensureRange to deliver in. */
 	append(index: number, row: T): void;
-	/** The index spans held resident, in order, as half-open [from, to) ranges: what a view derives marks or a cursor
-	 *  from without scanning the whole extent for the rows it holds. */
-	residentRanges(): Range[];
+	/** The index spans cached, in order, as half-open [from, to) ranges: what a view derives marks or a cursor
+	 *  from without scanning the whole extent for the rows it caches. */
+	cachedRanges(): Range[];
 } {
 	const pageSize = opts.pageSize ?? 200;
 	const maxResidentPages = Math.max(4, opts.maxResidentPages ?? 24);
@@ -82,7 +82,7 @@ export function lazyWindowedSource<T>(opts: {
 	const inflight = new Map<number, Promise<void>>();
 	const arrived = new Map<number, Map<number, T>>(); // live rows for a page being fetched, by their offset in it, placed when the fetch lands
 	const subs = new Set<() => void>();
-	let dataEnd = Number.POSITIVE_INFINITY; // highest index confirmed to hold data; a fetch that returns fewer rows than asked reveals the true end
+	let dataEnd = Number.POSITIVE_INFINITY; // highest index confirmed to cache data; a fetch that returns fewer rows than requested reveals the true end
 	let lastFirst = 0; // the most recent request span, so eviction always centres on the LIVE window, never a completing call's stale closure
 	let lastLast = 0;
 	const pageOf = (i: number) => Math.floor(i / pageSize);
@@ -90,9 +90,9 @@ export function lazyWindowedSource<T>(opts: {
 		for (const cb of subs) cb();
 	};
 
-	/** A page is resident only when it holds every row it should for the current count and confirmed data end; a partial
-	 *  page (a short last page, or a capped fetch) is NOT resident, so a later count growth or a re-probe re-fetches it. */
-	function resident(p: number): boolean {
+	/** A page is cached only when it caches every row it should for the current count and confirmed data end; a partial
+	 *  page (a short last page, or a capped fetch) is NOT cached, so a later count growth or a re-probe re-fetches it. */
+	function cached(p: number): boolean {
 		const rows = pages.get(p);
 		if (!rows) return false;
 		const wantEnd = Math.min((p + 1) * pageSize, opts.count(), dataEnd);
@@ -119,7 +119,7 @@ export function lazyWindowedSource<T>(opts: {
 		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the fetch reached the real end of data
 		for (let p = firstPage; p <= lastPage; p++) {
 			const fetched = rows.slice((p - firstPage) * pageSize, (p - firstPage + 1) * pageSize);
-			// The rows that arrived live while this page was in flight follow what the fetch brought, in order: a live row the
+			// The rows that arrived live while this page was in flight follow what the fetch delivered, in order: a live row the
 			// fetch already included is the same row at the same offset, and is not placed twice; one past a gap waits for the
 			// next fetch with the gap.
 			const slice = [...fetched];
@@ -141,11 +141,11 @@ export function lazyWindowedSource<T>(opts: {
 			const lastPage = pageOf(Math.max(start, end - 1));
 			lastFirst = firstPage;
 			lastLast = lastPage;
-			// Split the needed pages into contiguous runs of not-resident, not-in-flight pages; each run is one fetch.
+			// Split the needed pages into contiguous runs of not-cached, not-in-flight pages; each run is one fetch.
 			const runs: Array<[number, number]> = [];
 			let runStart = -1;
 			for (let p = firstPage; p <= lastPage; p++) {
-				const missing = !resident(p) && !inflight.has(p);
+				const missing = !cached(p) && !inflight.has(p);
 				if (missing && runStart < 0) runStart = p;
 				else if (!missing && runStart >= 0) {
 					runs.push([runStart, p - 1]);
@@ -189,19 +189,19 @@ export function lazyWindowedSource<T>(opts: {
 			const have = pages.get(p);
 			const within = index - p * pageSize;
 			if (inflight.has(p)) {
-				// Its page is being fetched: kept for when the fetch lands, so the page is whole then rather than short and
+				// Its page is being fetched: cached for when the fetch lands, so the page is whole then rather than short and
 				// fetched again — under a steady stream that would never settle.
 				if (!arrived.has(p)) arrived.set(p, new Map());
 				arrived.get(p)?.set(within, row);
 			} else if (within === 0 || (have && have.length === within)) {
-				// The page is resident up to this row (or begins with it): extend it in place. A short resident page is re-read
-				// as partial by `resident()` only against the count, which now includes this row.
+				// The page is cached up to this row (or begins with it): extend it in place. A short cached page is re-read
+				// as partial by `cached()` only against the count, which now includes this row.
 				pages.set(p, [...(have ?? []), row]);
 				dataEnd = Number.POSITIVE_INFINITY;
 			}
 			notify();
 		},
-		residentRanges() {
+		cachedRanges() {
 			const out: Range[] = [];
 			for (const p of [...pages.keys()].sort((a, b) => a - b)) {
 				const from = p * pageSize;
@@ -219,7 +219,7 @@ export function lazyWindowedSource<T>(opts: {
 				if (slice.length > 0) pages.set(p, slice);
 			}
 			// If the seed reaches the total, it is the real end of data — record it so the short last page counts as
-			// resident instead of being re-fetched.
+			// cached instead of being re-fetched.
 			if (startRow + rows.length >= opts.count()) dataEnd = startRow + rows.length;
 			notify();
 		},
