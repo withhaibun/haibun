@@ -1,13 +1,13 @@
 /**
- * <shu-client-cache-column> — what this page holds of the run, as it stands: each run source (one per level read) with
- * its extent, the index spans it holds resident and the row the shared cursor sits on in it; what the live stream has
- * brought since the view opened, by level; what the device's event store keeps of the last run, by level; and every
+ * <shu-client-cache-column> — what this page caches of the run, as it stands: each run source (one per level read) with
+ * its extent, the index spans it caches and the row the shared cursor sits on in it; what the live stream has
+ * delivered since the view opened, by level; what the device's event store caches of the last run, by level; and every
  * IndexedDB database of the origin with its stores and their counts. It makes nothing: a source is listed once a view has
- * read its level, the store is read as it is, and nothing is asked of the server. It watches everything that moves —
+ * read its level, the store is read as it is, and nothing is requested of the server. It watches everything that moves —
  * each source as it is made and as it changes, every live batch, the cursor — and shows the change at once; the device
  * is re-read after changes at a bounded cadence, since reading it is slower than the stream. Every value carries its own
- * test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is what a feature reads cache facts from. It also says where
- * the site's registry the page runs on came from: the site, or the device's copy when the site did not answer.
+ * test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is what a feature reads cache facts from. It also reports where
+ * the server's registry the page runs on came from: the server, or the device's copy when the server did not respond.
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -30,7 +30,7 @@ export const DEVICE_READ_DELAY_MS = 500;
 
 const at = (t: number | undefined): string => (t === undefined || !Number.isFinite(t) ? "" : new Date(t).toISOString().slice(11, 23));
 const spans = (ranges: Range[]): string => ranges.map((r) => `${r.from}..${r.to - 1}`).join(", ") || "none";
-const held = (ranges: Range[]): number => ranges.reduce((n, r) => n + (r.to - r.from), 0);
+const cachedRows = (ranges: Range[]): number => ranges.reduce((n, r) => n + (r.to - r.from), 0);
 
 export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	#unsubscribes = new Map<RunSource, () => void>();
@@ -38,7 +38,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	#databases: TIdbDatabaseSummary[] = [];
 	#reading = false;
 	#readDue: ReturnType<typeof setTimeout> | undefined;
-	#liveByLevel = new Map<string, { count: number; newest?: number }>(); // what the live stream brought since this view opened
+	#liveByLevel = new Map<string, { count: number; newest?: number }>(); // what the live stream delivered since this view opened
 	#openedAt = 0; // the device's time when this view opened: what "since this view opened" is measured from
 
 	static styles = [
@@ -61,10 +61,10 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		return {
 			"@id": "view:client-cache",
 			"@type": "as:Note",
-			name: "what this page holds of the run",
+			name: "what this page caches of the run",
 			cursor: this.timeCursor,
 			registry: registryOrigin(),
-			sources: runSources().map((s) => ({ level: s.level, ...s.extent(), resident: spans(s.residentRanges()), cursorRow: this.#cursorRowIn(s) })),
+			sources: runSources().map((s) => ({ level: s.level, ...s.extent(), cached: spans(s.cachedRanges()), cursorRow: this.#cursorRowIn(s) })),
 			openedAt: this.#openedAt,
 			live: Object.fromEntries(this.#liveByLevel),
 			store: this.#store,
@@ -139,12 +139,12 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		this.requestUpdate();
 	}
 
-	/** The row the cursor sits on in a source, among the rows it holds: -1 for none (the live edge, or before the first held). */
+	/** The row the cursor sits on in a source, among the rows it caches: -1 for none (the live edge, or before the first cached). */
 	#cursorRowIn(src: RunSource): number {
 		const cursor = this.timeCursor;
 		if (cursor === null) return -1;
 		const rows: Array<{ index: number; timestamp: number }> = [];
-		for (const { from, to } of src.residentRanges()) for (let i = from; i < to; i++) rows.push({ index: i, timestamp: Number(src.rowAt(i)?.timestamp) || 0 });
+		for (const { from, to } of src.cachedRanges()) for (let i = from; i < to; i++) rows.push({ index: i, timestamp: Number(src.rowAt(i)?.timestamp) || 0 });
 		return currentRowIndex(rows, cursor);
 	}
 
@@ -153,12 +153,12 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		const cursor = this.timeCursor;
 		const lastRun = this.#store.lastRun;
 		const registry = registryOrigin();
-		const kept = this.#store.registry;
+		const cached = this.#store.registry;
 		const stored = lastRun === undefined ? undefined : this.#store.runs.find((r) => r.run === lastRun);
 		const cell = (id: string, value: unknown): TemplateResult => html`<td data-testid=${id}>${value}</td>`;
 		return html`<div data-testid=${IDS.ROOT}>
 			<h4>Registry</h4>
-			<div data-testid=${IDS.REGISTRY}>${registry === null ? "not known yet" : registry.from === "site" ? `from the site${kept ? `, kept on the device at ${at(kept.savedAt)}` : ""}` : `from the device, kept at ${at(registry.savedAt)} (the site did not answer)`}</div>
+			<div data-testid=${IDS.REGISTRY}>${registry === null ? "not known yet" : registry.from === "server" ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}</div>
 			<h4>Cursor</h4>
 			<div data-testid=${IDS.CURSOR}>${cursor === null ? "live edge" : at(cursor)}</div>
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>
@@ -178,15 +178,15 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 				sources.length === 0
 					? html`<div class="empty">No view has read the run yet.</div>`
 					: html`<table>
-						<tr><th>level</th><th>events</th><th>first</th><th>newest</th><th>page</th><th>resident</th><th>held</th><th>cursor row</th><th>state</th></tr>
+						<tr><th>level</th><th>events</th><th>first</th><th>newest</th><th>page</th><th>cached</th><th>cached rows</th><th>cursor row</th><th>state</th></tr>
 						${sources.map((s) => {
 							const e = s.extent();
-							const resident = s.residentRanges();
+							const cached = s.cachedRanges();
 							const row = this.#cursorRowIn(s);
 							const id = (field: string): string => `${IDS.SOURCE}${s.level}-${field}`;
 							return html`<tr>
 								<td>${s.level}</td>${cell(id("events"), e.total)}${cell(id("first"), at(e.first))}${cell(id("newest"), at(e.last))}${cell(id("page"), s.pageSize)}
-								${cell(id("resident"), spans(resident))}${cell(id("held"), held(resident))}${cell(id("cursor"), row < 0 ? "" : row)}${cell(id("state"), s.unavailable ?? (s.loaded ? "loaded" : "loading"))}
+								${cell(id("cached"), spans(cached))}${cell(id("cached-rows"), cachedRows(cached))}${cell(id("cursor"), row < 0 ? "" : row)}${cell(id("state"), s.unavailable ?? (s.loaded ? "loaded" : "loading"))}
 							</tr>`;
 						})}
 					</table>`

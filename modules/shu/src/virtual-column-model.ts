@@ -1,7 +1,7 @@
 /**
  * Pure window derivation for shu-virtual-column, split out so it is unit-testable without lit-virtualizer (which needs
  * real layout and so is exercised in the browser e2e). The live-edge follow decision does NOT live here: it is the shared
- * FollowController (timeline-follow.ts); this module holds the geometry the component's wiring feeds it.
+ * FollowController (timeline-follow.ts); this module caches the geometry the component's wiring feeds it.
  */
 import type { TWindow } from "./scrollbar-model.js";
 
@@ -30,7 +30,7 @@ export function convergeTarget(window: TWindow, count: number): number {
 export type TTimedRow = { index: number; timestamp: number };
 
 /** The row that carries the time cursor: the last of `rows` (in index order) at or before it, or -1 for none (no
- *  cursor, or every row after it). The rows are what the column holds resident; one pass, no scan of the extent. */
+ *  cursor, or every row after it). The rows are what the column caches; one pass, no scan of the extent. */
 export function currentRowIndex(rows: Iterable<TTimedRow>, cursor: number | null): number {
 	if (cursor === null) return -1;
 	let idx = -1;

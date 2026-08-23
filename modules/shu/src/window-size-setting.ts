@@ -1,6 +1,6 @@
 /**
  * The one global window size: how many rows a windowed query fetches. Since the views virtualize their rendering to
- * the viewport, this is the page size of the run sources (how many events a page of the run holds, client-cache) and of
+ * the viewport, this is the page size of the run sources (how many events a page of the run caches, client-cache) and of
  * the graph query's server-side page. The setting lives here, apart from the picker element (<shu-window-size>), so the
  * library that reads it does not import a component.
  */

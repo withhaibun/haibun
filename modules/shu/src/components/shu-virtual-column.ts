@@ -36,7 +36,7 @@ const EmptySchema = z.object({});
 
 /** Cap on re-issuing the jump-to-edge as the virtualizer measures its way down to the last row: a handful of passes closes
  *  the height-estimate gap; the bound stops an unreachable target (a row that can't fit) from re-jumping forever. */
-/** Resolution the viewport share is held at — finer than a pixel on any rail worth drawing, so the thumb only resizes
+/** Resolution the viewport share is cached at — finer than a pixel on any rail worth drawing, so the thumb only resizes
  *  when the resize is visible. */
 const FRACTION_STEPS = 512;
 
@@ -59,13 +59,13 @@ export const virtualColumnCss: CSSResultGroup = css`
 	/* The virtualizer owns scrolling; its native scrollbar is hidden because the custom rail drives and reads it. */
 	shu-virtual-column lit-virtualizer { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
 	shu-virtual-column lit-virtualizer::-webkit-scrollbar { width: 0; height: 0; }
-	/* Serving as a column's spine: the rail takes the strip's height, keeps its own width, and stays flush against the
+	/* Serving as a column's spine: the rail takes the strip's height, caches its own width, and stays flush against the
 	   column's edge — the same width at the same place as when the column is open, so collapsing does not move it. */
 	shu-virtual-column[spine] .spine-rail { display: flex; flex: 1; min-height: 0; justify-content: flex-end; }
 `;
 
 /** Fired (bubbling, composed) when the visible window over the source moves: its first row, how many are visible, and the
- *  source's count. A host that pages its data listens for this to widen what it holds as the reader nears the top. */
+ *  source's count. A host that pages its data listens for this to widen what it caches as the reader nears the top. */
 export const WINDOW_CHANGED = "shu-window-changed";
 export type WindowChangedDetail = { first: number; visible: number; total: number };
 
@@ -144,7 +144,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		if (delta !== 0) this.recordBlip(VIEW_SCROLL_BLIP, delta, { reason: Date.now() - this.#readerInputAt < READER_INPUT_WINDOW_MS ? "reader" : "system" });
 		// The live edge moves on appended rows AND on content measured taller after the fact. The second case arrives as
 		// exactly this event: a scroll while the reader is pinned, leaving the pane short of its end in pixels even when
-		// the row window already holds the last index (recorded occurrences showed the document column settling 1396px
+		// the row window already caches the last index (recorded occurrences showed the document column settling 1396px
 		// short that way, index-converged and pixel-drifted). Re-stick once this move has landed; a stick that moves
 		// nothing emits no scroll, so the chain ends by itself.
 		if (this.follow && this.#follow.isFollowing)
@@ -166,7 +166,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// than to the live edge.
 		// Lit records a changed entry only when the value actually changed, so an old `true` is already a new `false`.
 		if (changed.get("spine") === true && this.#window.visible > 0) {
-			// The virtualizer was just rendered again and has measured nothing, so one scroll lands short. The row is held
+			// The virtualizer was just rendered again and has measured nothing, so one scroll lands short. The row is cached
 			// and re-driven by #onVisibility until the window reports it, on the same bound as the live-edge convergence.
 			// Only RECORDED here, never scrolled: the virtualizer has just been created and has no layout yet, and asking it
 			// to scroll before it has one throws inside its own internals. #onVisibility drives it instead — the first
@@ -182,10 +182,10 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.#unsub =
 			this.source?.subscribe(() => {
 				this.requestUpdate();
-				// After an appended row commits, ask the follow kit to stick — it jumps ONLY while the reader is still at the
+				// After an appended row commits, request the follow kit to stick — it jumps ONLY while the reader is still at the
 				// live edge (following, cursor null), so a scrolled-up reader is left alone. Only a changed row count moves
 				// the live edge; a notify that recomputed the same rows (a filter pass over a buffer that gained only
-				// filtered-out events) must not re-stick, or it overrides a scroll position nothing visible asked to change.
+				// filtered-out events) must not re-stick, or it overrides a scroll position nothing visible requested to change.
 				const count = this.source?.count() ?? 0;
 				const moved = count !== lastCount;
 				lastCount = count;
@@ -195,7 +195,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 
 	/** Scroll so `index` is at the top of the viewport. For a jump-to from another view (a framed row a reader clicked). */
 	scrollToIndex(index: number, position: "start" | "center" | "end" = "start"): void {
-		// Held to the rows there are: asked for one past the end, the virtualizer reaches for an element that was never
+		// Held to the rows there are: requested one past the end, the virtualizer reaches for an element that was never
 		// rendered and throws inside its own scrollIntoView.
 		const rows = this.source?.count() ?? 0;
 		if (rows === 0) return;
@@ -205,7 +205,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	/** The follow kit's jump-to-live-edge for this virtualized scroller: put the last row at the bottom of the viewport.
 	 *  Always the virtualizer's own scrollToIndex, never a raw scrollTop (which fights its scroll management). The target
 	 *  is convergeTarget's two-gait choice (see virtual-column-model.ts), re-driven by #onVisibility until the window
-	 *  holds the last row. */
+	 *  caches the last row. */
 	#scrollToEnd(): void {
 		const el = this.#virt.value;
 		const n = this.source?.count() ?? 0;
@@ -241,7 +241,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.#window = visibleWindow(e.first, e.last);
 		if (this.#wantedFirst !== null) {
 			// Deferred, never called from inside this notification: the virtualizer is mid-update here and the row being
-			// asked for may have no element yet, which throws inside its own scrollIntoView. The follow kit waits for the
+			// requested may have no element yet, which throws inside its own scrollIntoView. The follow kit waits for the
 			// update to settle for the same reason, and this waits with it.
 			if (this.#window.first === this.#wantedFirst || this.#wantedCount++ >= MAX_CONVERGE) this.#wantedFirst = null;
 			else {
@@ -278,7 +278,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.#scheduleMeasure();
 	};
 
-	/** The viewport's share of the column, for the rail's thumb: rows here can differ in height (a run document holds both
+	/** The viewport's share of the column, for the rail's thumb: rows here can differ in height (a run document caches both
 	 *  a line of prose and a screenshot), so the scroller's own pixels are what "how much is on screen" means.
 	 *
 	 *  Measured on a frame of its own, never inside the virtualizer's range event: reading scrollHeight there forces layout
@@ -340,9 +340,9 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		// In the strip there are no rows to scroll, so the rail moves the window itself. That is what makes the strip a
 		// control rather than a picture: the reader drags it to a place in the run, and expanding puts the rows there.
 		if (this.spine) {
-			// The rail says which ROW; a window cannot start past the last one, so what the strip shows is clamped even
-			// though what the reader picked is not. The rows of that window are asked for as they would be by scrolling,
-			// so a source that pages the run in holds what the strip points at when the column is opened there.
+			// The rail reports which ROW; a window cannot start past the last one, so what the strip shows is clamped even
+			// though what the reader picked is not. The rows of that window are requested as they would be by scrolling,
+			// so a source that pages the run in caches what the strip points at when the column is opened there.
 			const count = this.source?.count() ?? 0;
 			const last = Math.max(0, count - this.#window.visible);
 			this.#window = { first: Math.min(index, last), visible: this.#window.visible };
@@ -365,13 +365,13 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		const total = this.source?.count() ?? 0;
 		const rail = html`<shu-scrollbar .total=${total} .window=${this.#railWindow(total)} .viewportFraction=${this.#viewportFraction} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]} .cursor=${this.cursor}></shu-scrollbar>`;
 		// Serving as a column's spine: the strip has room for the rail and nothing else. The rows are not rendered, and
-		// the rail keeps the same window over the same source, so collapsing does not move the reader.
+		// the rail caches the same window over the same source, so collapsing does not move the reader.
 		if (this.spine) return html`<div class="spine-rail">${rail}</div>`;
 		// lit-virtualizer requires a ResizeObserver to measure and virtualize. A non-DOM host (a jsdom unit test) has none,
 		// so fall back to a plain list there; every real browser has one, so this branch is test-only and the O(viewport)
 		// behavior is proven by the browser e2e.
 		if (typeof ResizeObserver === "undefined") {
-			// The fallback renders every row, so it asks the source for every row (a paged source would otherwise paint skeletons).
+			// The fallback renders every row, so it requests from the source for every row (a paged source would otherwise paint skeletons).
 			if (this.source && total > 0) void this.source.ensureRange(0, total);
 			return html`<div class="virtual-fallback">${Array.from({ length: total }, (_, i) => this.renderRow(i, this.source?.rowAt(i)))}</div>
 				${rail}`;

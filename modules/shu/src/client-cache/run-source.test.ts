@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The run as a view at one level reads it: a source spanning the whole run by index, paged in from the device's store
-// first and the server for what the device lacks, grown by live events that carry their index, bounded in what it holds,
+// first and the server for what the device lacks, grown by live events that carry their index, bounded in what it caches,
 // and honest when a page cannot be had. These pin the contract the monitor's whole-run rail relies on.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { eventRunSource, resetRunSources, runSpan, setDeviceStore, leanForStore, EVENTS_UNAVAILABLE, type TEventRecord } from "./run-source.js";
@@ -23,7 +23,7 @@ function run(n: number): TEventRecord[] {
 		return { id: `0.${i}`, timestamp: 1000 + i, kind: "log", level, message: `e${i}`, idx };
 	});
 }
-/** The server's answer to a page by index at a level, with the run's extent; `run` names the run it records (settable). */
+/** The server's response to a page by index at a level, with the run's extent; `run` names the run it records (settable). */
 function serverFor(initial: TEventRecord[], run = "") {
 	const calls: Array<Record<string, unknown>> = [];
 	const state = { all: initial, run };
@@ -60,58 +60,58 @@ describe("the run source at a level", () => {
 		windowSizeSetting.set(DEFAULT_WINDOW_SIZE);
 	});
 
-	it("spans the run's whole extent at its level once ready, from one ask", async () => {
+	it("spans the run's whole extent at its level once ready, from one request", async () => {
 		const info = eventRunSource("info");
 		await info.ready();
 		expect(info.count(), "sixty events at info and up").toBe(60);
 		expect(info.extent().first, "and when the run began").toBe(1000);
-		expect(eventRunSource("debug").count(), "another level is another source, not yet asked").toBe(0);
+		expect(eventRunSource("debug").count(), "another level is another source, not yet requested").toBe(0);
 		await eventRunSource("debug").ready();
 		expect(eventRunSource("debug").count()).toBe(180);
 	});
 
-	it("pages any region in by index and serves it by index, leaving the rest unresident", async () => {
+	it("pages any region in by index and serves it by index, leaving the rest uncached", async () => {
 		const info = eventRunSource("info");
 		await info.ready();
 		expect(info.rowAt(4), "not fetched yet").toBeUndefined();
 		await info.ensureRange(3, 6);
 		expect((info.rowAt(4) as TEventRecord).id, "the fifth info event is event 12").toBe("0.12");
-		expect(info.rowAt(55), "beyond the page that was asked: still unresident").toBeUndefined();
+		expect(info.rowAt(55), "beyond the page that was requested: still uncached").toBeUndefined();
 		await info.ensureRange(55, 58);
 		expect((info.rowAt(55) as TEventRecord).id, "paged in on demand: the 56th info event is event 165").toBe("0.165");
 	});
 
-	it("serves a page the device holds whole without the server, and persists what the server sends", async () => {
+	it("serves a page the device caches whole without the server, and persists what the server sends", async () => {
 		const info = eventRunSource("info");
 		await info.ready();
 		await info.ensureRange(0, 50);
 		await new Promise((r) => setTimeout(r, 0));
-		const asked = server.calls.length;
+		const requested = server.calls.length;
 		resetRunSources(); // a reload: sources anew over the same device store
 		setDeviceStore(store);
 		const again = eventRunSource("info");
 		await again.ready();
 		await again.ensureRange(0, 50);
-		expect(server.calls.length - asked, "one ask for the extent, none for the page the device held").toBe(1);
+		expect(server.calls.length - requested, "one request for the extent, none for the page the device cached").toBe(1);
 		expect((again.rowAt(0) as TEventRecord).id).toBe("0.0");
 	});
 
 	it("places a live event at the index it carries and grows the extent; a missed one leaves a gap the next page fills", async () => {
 		const info = eventRunSource("info");
 		await info.ready();
-		await info.ensureRange(50, 60); // the last page resident (info indices 50..59)
+		await info.ensureRange(50, 60); // the last page cached (info indices 50..59)
 		const more = run(186).slice(180); // six more events: two at info (180 and 183 → info indices 60 and 61)
 		handle.emit(more[0]); // event 180, info index 60
 		await flush();
 		expect(info.count()).toBe(61);
-		expect((info.rowAt(60) as TEventRecord).id, "appended in place, at the end of the resident last page").toBe("0.180");
+		expect((info.rowAt(60) as TEventRecord).id, "appended in place, at the end of the cached last page").toBe("0.180");
 		handle.emit(more[3]); // event 183, info index 61
 		await flush();
 		expect(info.count(), "the extent grows to include it").toBe(62);
 		expect((info.rowAt(61) as TEventRecord).id).toBe("0.183");
 	});
 
-	it("without the server, spans the extent the device last knew and serves its cached pages; with nothing cached, says so", async () => {
+	it("without the server, spans the extent the device last knew and serves its cached pages; with nothing cached, reports it", async () => {
 		const info = eventRunSource("info");
 		await info.ready();
 		await info.ensureRange(0, 50);
@@ -126,14 +126,14 @@ describe("the run source at a level", () => {
 		await offline.ensureRange(0, 50);
 		expect((offline.rowAt(49) as TEventRecord).id, "from the device").toBe("0.147");
 		expect(offline.unavailable).toBeNull();
-		// a level the device never saw: nothing to span, and the reader is told
+		// a level the device never saw: nothing to span, and the view reports it
 		const cold = eventRunSource("error");
 		await cold.ready();
 		expect(cold.count()).toBe(0);
 		expect(cold.unavailable).toBe(EVENTS_UNAVAILABLE);
 	});
 
-	it("holds one run: when the server names a new run, the source starts over in it", async () => {
+	it("caches one run: when the server names a new run, the source starts over in it", async () => {
 		handle.teardown();
 		server = serverFor(ALL, "run-1");
 		handle = setupShuTest({ dispatch: server.dispatch });
@@ -142,7 +142,7 @@ describe("the run source at a level", () => {
 		await info.ensureRange(0, 50);
 		expect(info.count()).toBe(60);
 		expect((info.rowAt(0) as TEventRecord).id).toBe("0.0");
-		// The instance is run again: a shorter run 2, named on its live events and on every answer.
+		// The instance is run again: a shorter run 2, named on its live events and on every response.
 		server.state.all = run(30);
 		server.state.run = "run-2";
 		const fresh = { ...run(31)[30], run: "run-2" }; // a live event of run 2 (debug, index 30; info index 10)
@@ -161,23 +161,23 @@ describe("the run source at a level", () => {
 		await info.ready();
 		const end = info.count();
 		await info.ensureRange(Math.max(0, end - 10), end);
-		const asked = server.calls.length;
+		const requested = server.calls.length;
 		for (let i = 0; i < 5; i++) await info.ensureRange(Math.max(0, end - 10), end); // at the bottom, again and again
-		expect(server.calls.length, "the last page is resident: nothing more is asked").toBe(asked);
+		expect(server.calls.length, "the last page is cached: nothing more is requested").toBe(requested);
 		expect(info.count(), "and nothing grew").toBe(end);
 	});
 
 	it("a live burst at the level adds exactly its rows to the extent and fetches nothing; events below the level add none", async () => {
 		const info = eventRunSource("info");
 		await info.ready();
-		await info.ensureRange(50, 60); // the last page resident
-		const asked = server.calls.length;
+		await info.ensureRange(50, 60); // the last page cached
+		const requested = server.calls.length;
 		const burst = run(189).slice(180); // nine more events: three at info (180, 183, 186 → info 60, 61, 62), six at debug
 		server.state.all = run(189); // the server recorded them too
 		for (const e of burst) handle.emit(e);
 		await flush();
 		expect(info.count(), "three at info and up: three more").toBe(63);
-		expect(server.calls.length, "placed by their index, not fetched").toBe(asked);
+		expect(server.calls.length, "placed by their index, not fetched").toBe(requested);
 		expect((info.rowAt(62) as TEventRecord).id).toBe("0.186");
 		const debugOnly = eventRunSource("debug");
 		await debugOnly.ready();
@@ -197,13 +197,13 @@ describe("the run source at a level", () => {
 		expect(runSpan().last).toBe(1180);
 	});
 
-	it("says which index spans it holds resident, joined where pages touch, so a view derives from them rather than scanning the extent", async () => {
+	it("reports which index spans it caches, joined where pages touch, so a view derives from them rather than scanning the extent", async () => {
 		const src = eventRunSource("info");
 		await src.ready();
-		expect(src.residentRanges()).toEqual([]);
+		expect(src.cachedRanges()).toEqual([]);
 		await src.ensureRange(0, 20);
 		await src.ensureRange(50, 60);
-		expect(src.residentRanges(), "page 0 (50) and the short page 1 (10), touching").toEqual([{ from: 0, to: 60 }]);
+		expect(src.cachedRanges(), "page 0 (50) and the short page 1 (10), touching").toEqual([{ from: 0, to: 60 }]);
 	});
 
 	it("persists events lean: no inline artifact content, no step value map, products reduced to their display fields; an event without bulk as it is", async () => {
@@ -218,25 +218,25 @@ describe("the run source at a level", () => {
 		expect(leanForStore({ id: "a", timestamp: 1 })).toEqual({ id: "a", timestamp: 1 });
 	});
 
-	it("keeps two events the same instant, id and stage apart (the server's index is the key), and the newest event the extent ask brought", async () => {
+	it("caches two events the same instant, id and stage apart (the server's index is the key), and the newest event the extent request delivered", async () => {
 		const src = eventRunSource("info");
 		await src.ready();
 		await flush();
-		expect(store.size, "the newest event, from the extent ask alone").toBe(1);
+		expect(store.size, "the newest event, from the extent request alone").toBe(1);
 		handle.emit({ id: "[0.9]", timestamp: 5000, kind: "lifecycle", stage: "end", level: "info", idx: { debug: 180, trace: 180, log: 180, info: 60 } });
 		handle.emit({ id: "[0.9]", timestamp: 5000, kind: "lifecycle", stage: "end", level: "info", idx: { debug: 181, trace: 181, log: 181, info: 61 } });
 		await flush();
 		expect(store.size, "three rows: one storage key per event of the run").toBe(3);
 	});
 
-	it("with no server, a page the device holds in part renders what it holds, a hole for each row it lacks, and says the rest is not to hand", async () => {
+	it("with no server, a page the device caches in part renders what it caches, a hole for each row it lacks, and reports the rest is not available", async () => {
 		const src = eventRunSource("info");
 		await src.ready();
 		await src.ensureRange(0, 50);
-		// The same device but for one row of the page (row 7 was never kept), and no server.
-		const held = await store.rowsAt("", "info", 0, 50);
+		// The same device but for one row of the page (row 7 was never cached), and no server.
+		const cached = await store.rowsAt("", "info", 0, 50);
 		const partial = new MemoryDeviceStore();
-		await partial.putMany(held.filter((e, i): e is TEventRecord => e !== undefined && i !== 7));
+		await partial.putMany(cached.filter((e, i): e is TEventRecord => e !== undefined && i !== 7));
 		await partial.setExtent("", "info", (await store.extent("", "info")) as { total: number });
 		await partial.setLastRun("");
 		handle.teardown();
@@ -249,9 +249,9 @@ describe("the run source at a level", () => {
 		const again = eventRunSource("info");
 		await again.ready();
 		await again.ensureRange(0, 50);
-		expect(again.rowAt(0), "held on the device").toBeDefined();
+		expect(again.rowAt(0), "cached on the device").toBeDefined();
 		expect(again.rowAt(49)).toBeDefined();
 		expect(again.rowAt(7), "the row the device lacks: a hole, not a blank page").toBeUndefined();
-		expect(again.unavailable, "and the reader is told").toBe(EVENTS_UNAVAILABLE);
+		expect(again.unavailable, "and the view reports it").toBe(EVENTS_UNAVAILABLE);
 	});
 });

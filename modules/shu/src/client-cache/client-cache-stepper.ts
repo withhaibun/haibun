@@ -16,7 +16,7 @@ export default class ClientCacheStepper extends AStepper implements IHasCycles {
 				{
 					selectors: [SHU_TAG.CLIENT_CACHE_COLUMN],
 					schema: z.object({}),
-					description: "What this page holds of the run: each run source's extent, resident spans and cursor row, the live stream by level, and what the device stores",
+					description: "What this page caches of the run: each run source's extent, cached spans and cursor row, the live stream by level, and what the device stores",
 					ui: { component: SHU_TAG.CLIENT_CACHE_COLUMN },
 				},
 			],
@@ -26,7 +26,7 @@ export default class ClientCacheStepper extends AStepper implements IHasCycles {
 	steps = {
 		showClientCache: {
 			gwta: "show client cache",
-			description: "Open the client cache view: what the page holds of the run, every value under its own test id.",
+			description: "Open the client cache view: what the page caches of the run, every value under its own test id.",
 			productsDomain: SHU_TAG.CLIENT_CACHE_COLUMN,
 			action: () => actionOKWithProducts({}),
 		},

@@ -285,7 +285,7 @@ const declared = (): TDeclared => pagePinned(CATALOG_KEY, () => ({ catalog: null
 
 /** The catalog the page holds, or null before any bundle has asked the site. For a caller deciding whether to derive;
  *  a reader that needs the catalog to exist uses getConcernCatalog. */
-export function heldConcernCatalog(): TConcernCatalog | null {
+export function cachedConcernCatalog(): TConcernCatalog | null {
 	return declared().catalog;
 }
 

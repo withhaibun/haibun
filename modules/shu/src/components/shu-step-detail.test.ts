@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * shu-step-detail drives its trace/quads load through a @lit/task keyed on the seqPath. These tests confirm the loaded
- * state renders the step's trace and the variables it set, and that switching steps re-keys the task so the previous
- * step's data never lingers. RPC is a stubbed fetch behind LiveConduit; the step's own events come from that one ask.
+ * shu-step-detail drives its trace/quads load through a @lit/trequest keyed on the seqPath. These tests confirm the loaded
+ * state renders the step's trace and the variables it set, and that switching steps re-keys the trequest so the previous
+ * step's data never lingers. RPC is a stubbed fetch behind LiveConduit; the step's own events come from that one request.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // side-effect import so the module runs (registration is via component-registry in the app)
@@ -29,7 +29,7 @@ describe("shu-step-detail", () => {
 		globalThis.fetch = (input: unknown, init?: { body?: unknown }): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith("/rpc/action.begin")) return json({ seqPath: [0, -1, 1] }); // conduit().group() opens a batch here
-			// The step's own events, asked for by seqPath: its start, its end, and the trace of its dispatch; step 0.1 has them.
+			// The step's own events, requested by seqPath: its start, its end, and the trace of its dispatch; step 0.1 has them.
 			if (url.includes("getEvents")) return json({ events: String(init?.body ?? "").includes('"seqPath":"0.1"') ? OWN_EVENTS : [] });
 			if (url.includes("getClusteredQuads"))
 				return json({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] });
@@ -62,7 +62,7 @@ describe("shu-step-detail", () => {
 		expect(t).toContain("myVar");
 	});
 
-	it("re-keys the task when the step changes, dropping the previous step's data", async () => {
+	it("re-keys the trequest when the step changes, dropping the previous step's data", async () => {
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
 		await el.open([0, 1]);
