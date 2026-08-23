@@ -1,6 +1,6 @@
 /**
  * IndexedDbQuadStore — the client-side `IQuadStore`: the persistent graph backing behind the in-memory `QuadGraphModel`
- * (server uses AGE, client uses IndexedDB — see quad-graph-model.ts "the backing store ... is the IQuadStore behind the
+ * (the server uses the site's graph store, the client IndexedDB — see quad-graph-model.ts "the backing store ... is the IQuadStore behind the
  * model"). Quad observations stream in via `set()` (upsert by subject+predicate+namedGraph, so the live graph stays
  * bounded rather than appending a row per update), and a view derefs a node by `@id` via `query({ subject })`. The bulk
  * lives here, off the JS heap and off the event log — events carry references, not payloads.

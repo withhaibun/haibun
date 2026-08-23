@@ -830,7 +830,7 @@ export const commentDomainDefinition: TDomainDefinition = {
  *
  * Two kinds persist: the root site principal (self-issued — `controller === id`,
  * no delegation) and explicit `issue subkey` delegations (linked to the delegating
- * principal by a single navigable `delegatedFrom` AGE edge, `allowedAction` = the
+ * principal by a single navigable `delegatedFrom` graph edge, `allowedAction` = the
  * delegated actions). Ephemeral `as subkey` / `with token` activations do NOT persist a
  * Principal. Delegation is an edge, not a scalar field — so it never appears in
  * PrincipalSchema; `persistPrincipalIndividual` writes the lone `delegatedFrom` edge.
@@ -844,7 +844,7 @@ export const commentDomainDefinition: TDomainDefinition = {
 
 export const PrincipalSchema = z.object({
 	id: z.string(),
-	/** as:name — an optional human name for this Principal (a DID has none intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is an AGE-reserved column name. */
+	/** as:name — an optional human name for this Principal (a DID has none intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is a reserved column name in a graph store. */
 	name: z.string().optional(),
 	controller: z.string().optional(),
 	allowedAction: z.string().optional(),
@@ -864,7 +864,7 @@ export type TPrincipal = z.infer<typeof PrincipalSchema>;
  * GENERATED_AT_TIME-rel field is optional.
  *
  * Delegation is the lone topology edge, `delegatedFrom` (sec:delegator), ranging
- * over the delegating Principal — one navigable AGE edge per subkey, written by
+ * over the delegating Principal — one navigable graph edge per subkey, written by
  * `persistPrincipalIndividual`. `controller` is a plain property: in every persist path
  * `controller === id` (a Principal controls itself), so a self-referential edge
  * draws nothing useful; it stays a scalar in `properties` + `sortColumns`.
