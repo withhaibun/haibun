@@ -13,7 +13,7 @@ import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
 import { eventMarkerStyle } from "../event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { GET_EVENTS_METHOD } from "../rpc-cache.js";
+import { RPC_METHOD } from "../consts.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
@@ -95,7 +95,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		task: async ([seqKey]): Promise<TStepData> => {
 			if (!seqKey) return { variablesSet: [] };
 			const { own, quadsData } = await conduit().group("step-detail: load one step's events + quads", async (g) => {
-				const own = await g.follow<{ events?: TEvent[] }>({ method: GET_EVENTS_METHOD, params: { filter: { seqPath: seqKey, limit: 8 } } }, "step-detail: the step's own events");
+				const own = await g.follow<{ events?: TEvent[] }>({ method: RPC_METHOD.GET_EVENTS, params: { filter: { seqPath: seqKey, limit: 8 } } }, "step-detail: the step's own events");
 				const quadsData = await g.follow<{
 					quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
 				}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } }, "step-detail: clustered quads");

@@ -3,9 +3,11 @@ import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { appAccessLevel } from "./util.js";
 import { conduit } from "./hypermedia.js";
-import { getRels, getDisplayLabelRel } from "./rels-cache.js";
-import { getAvailableSteps } from "./rpc-registry.js";
+import { getRels, getDisplayLabelRel, getSelectFields } from "./rels-cache.js";
+import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { originGraphStore } from "./client-cache/index.js";
+import { pagePinned } from "./page-pinned.js";
+import type { AccessLevel } from "@haibun/core/lib/resources.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand) — so no path can silently inflate the budget past what the slider expresses. */
@@ -14,18 +16,20 @@ export const MAX_PER_TYPE_LIMIT = 1000;
 /** Off-heap persistent backing for the client graph: live merges + each backfill are written here, and a reload seeds
  *  the model from it (instant graph; an offline context serves it). Degrades to a no-op when IndexedDB is unavailable. */
 /** The graph this page caches. The client's own store on a served origin; a report installs a memory-backed one holding
- *  the graph it carries, so the same reads serve both. */
+ *  the graph it carries, so the same reads serve both. Held by the page, not by a bundle: the app installs it and a
+ *  view a deployment adds reads the same one, which is how a report's graph reaches a view in its own bundle. */
 type TCachedGraphStore = IQuadStore & { setMany(quads: TQuad[]): Promise<void> };
-let graphStore: TCachedGraphStore = originGraphStore;
+const GRAPH_STORE_KEY = "__SHU_CACHED_GRAPH_STORE__";
+const graphStoreSlot = (): { store: TCachedGraphStore } => pagePinned(GRAPH_STORE_KEY, () => ({ store: originGraphStore }));
 
 /** Install the store the graph is cached in (a report: memory, holding what the report carries). */
 export function setGraphStore(store: TCachedGraphStore): void {
-	graphStore = store;
+	graphStoreSlot().store = store;
 }
 
 /** The store the graph is cached in. */
 export function cachedGraphStore(): TCachedGraphStore {
-	return graphStore;
+	return graphStoreSlot().store;
 }
 
 /** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site) — one type, no drift. */
@@ -246,14 +250,15 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			model.seed({ quads: data.quads, clusters: data.clusters ?? [], site: data.site });
 			if (priorPinned) model.pin(priorPinned);
 			st.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
-			void graphStore.setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)
+			void cachedGraphStore().setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)
 			notify(s, scope);
 			return model.snapshot;
 		} catch (err) {
-			// Offline / RPC unavailable: serve the persisted graph if one survived a prior session (survives reload/disconnect).
-			const persisted = await graphStore.all();
-			if (persisted.length === 0) throw err;
-			model.merge(persisted);
+			// No server: the graph this page caches is the graph, and it answers the question the server was asked, so the
+			// sample, its totals and its `+N more` nodes are what they would have been.
+			const clustered = await cachedGraphStore().getClusteredQuads({ perTypeLimit, types: opts.types, accessLevel: accessLevel as AccessLevel });
+			if (clustered.quads.length === 0) throw err;
+			model.seed({ quads: clustered.quads, clusters: clustered.clusters ?? [], site: clustered.site });
 			if (priorPinned) model.pin(priorPinned);
 			st.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
 			notify(s, scope);
@@ -264,6 +269,26 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 		return await st.pending;
 	} finally {
 		st.pending = null;
+	}
+}
+
+/**
+ * A label's dropdown values: what the site answers, and when nothing answers, the distinct values its context fields
+ * hold in the graph this page caches. The site derives its answer from the same declaration over the same fields, so a
+ * reader with no server offered the values in the graph they hold is offered the same fields, narrowed to what is there.
+ */
+export async function selectValuesFor(label: string): Promise<Record<string, string[]>> {
+	try {
+		await getAvailableSteps();
+		const data = await conduit().follow<{ values: Record<string, string[]> }>({ method: requireStep("getSelectValues"), params: { label } }, `select values for ${label}`);
+		return data.values ?? {};
+	} catch (err) {
+		// A type the site never declared is a question this page cannot answer at all; a declared type with no context
+		// field has no dropdowns, which is an answer.
+		if (!getRels(label)) throw err;
+		const values: Record<string, string[]> = {};
+		for (const field of getSelectFields(label)) values[field] = await cachedGraphStore().distinctPropertyValues(label, field);
+		return values;
 	}
 }
 
@@ -309,7 +334,7 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 		st.cache.model.merge(quads);
 		notify(s, scope);
 	}
-	void graphStore.setMany(quads); // persist live observations off-heap for the next reload
+	void cachedGraphStore().setMany(quads); // persist live observations off-heap for the next reload
 }
 
 /**
@@ -319,7 +344,7 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
  * + incomingCount) so a caller applies it the same way as a live fetch.
  */
 export async function derefStoredEntity(label: string, id: string): Promise<{ vertex: Record<string, unknown>; edges: unknown[]; incomingCount: number } | undefined> {
-	const quads = await graphStore.query({ subject: id, namedGraph: label });
+	const quads = await cachedGraphStore().query({ subject: id, namedGraph: label });
 	if (quads.length === 0) return undefined;
 	const vertex: Record<string, unknown> = { "@id": id, "@type": label };
 	for (const q of quads) if (!q.objectType) vertex[q.predicate] = q.object;
@@ -330,5 +355,5 @@ export async function derefStoredEntity(label: string, id: string): Promise<{ ve
  *  annotation's SpecificResource points AT its source, so finding a subject's annotations reads incoming edges the IDB
  *  store indexes only by subject/namedGraph. Callers scan a namedGraph and filter, since object is not an IDB index. */
 export function queryStoredQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<TQuad[]> {
-	return graphStore.query(pattern);
+	return cachedGraphStore().query(pattern);
 }

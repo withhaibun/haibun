@@ -13,7 +13,6 @@ import { scanComponents } from "./data-access-scan.js";
 // Components that predate the controller pattern and still reach the RPC directly. This list may only SHRINK: migrate
 // one onto a controller, then delete it here. A NEW component that reaches the RPC fails the first test below.
 const PENDING_MIGRATION = new Set([
-	"shu-actions-bar.ts",
 	"shu-affordances-panel.ts",
 	"shu-domain-chain-view.ts",
 	"shu-kihan-chat.ts",

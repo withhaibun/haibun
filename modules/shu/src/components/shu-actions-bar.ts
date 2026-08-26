@@ -32,11 +32,12 @@ import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { clamp, prettifyGwta, appAccessLevel } from "../util.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
-import { conduit, isOffline, isServerUnreachable } from "../hypermedia.js";
+import { isOffline, isServerUnreachable } from "../hypermedia.js";
+import { selectValuesFor } from "../quads-snapshot.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { runSpan } from "../client-cache/index.js";
-import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
+import { buildDomainOptions, getAvailableDomains, getAvailableSteps, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,
 	getUiExtensionTags,
@@ -516,12 +517,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// was indexed returns empty dropdowns, and caching that as "loaded" would freeze them until a full
 		// page reload. `force` lets an explicit type selection always pull the current values.
 		if (!force && hasUsableSelectValues(target)) return;
-		await getAvailableSteps();
-		const data = await conduit().follow<{ values: Record<string, string[]> }>(
-			{ method: requireStep("getSelectValues"), params: { label: target } },
-			`actions-bar: load select values for ${target}`,
-		);
-		if (data.values) setSelectValues(target, data.values);
+		setSelectValues(target, await selectValuesFor(target));
 		this.requestUpdate();
 	}
 

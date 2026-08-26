@@ -15,7 +15,7 @@ import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/pro
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { conduit } from "../hypermedia.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
-import { GET_EVENTS_METHOD } from "../rpc-cache.js";
+import { RPC_METHOD } from "../consts.js";
 import { lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
 import { getWindowSize } from "../window-size-setting.js";
 import { IndexedDbDeviceStore, runOf, type DeviceStore } from "./device-store.js";
@@ -235,7 +235,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 
 	type TAnswer = { events?: TEventRecord[]; total?: number; first?: number; run?: string };
 	const request = (filter: Record<string, unknown>): Promise<TAnswer> =>
-		conduit().follow({ method: GET_EVENTS_METHOD, params: { filter: { minLevel: level, ...filter } } }, `run source at ${level}`);
+		conduit().follow({ method: RPC_METHOD.GET_EVENTS, params: { filter: { minLevel: level, ...filter } } }, `run source at ${level}`);
 
 	/** The newest instant among events, or the one known: the run's end moves only forward. */
 	const lastOf = (events: readonly TEventRecord[], known: number | undefined): number | undefined =>

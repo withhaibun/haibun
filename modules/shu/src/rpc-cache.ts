@@ -3,11 +3,6 @@ import { rpcCacheKey, rpcCacheKeyMethod } from "@haibun/core/lib/rpc-cache-key.j
 
 const cache = new Map<string, unknown>();
 
-/** Fully-qualified methods whose report embeds one canonical response under the bare key (see monitor-stepper.writeStandaloneReport). */
-export const GET_EVENTS_METHOD = "MonitorStepper-getEvents";
-export const CLUSTERED_QUADS_METHOD = "MonitorStepper-getClusteredQuads";
-const BARE_KEY_METHODS = new Set<string>([GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD]);
-
 /** Find a cached method by partial name (e.g., "graphQuery" matches "MonitorStepper-graphQuery"). */
 export function findCachedMethod(name: string): string | undefined {
 	for (const key of cache.keys()) {
@@ -21,8 +16,6 @@ export function findCachedMethod(name: string): string | undefined {
 export function getCachedResponse(method: string, params: Record<string, unknown>): { found: boolean; value: unknown } {
 	const key = rpcCacheKey(method, params);
 	if (cache.has(key)) return { found: true, value: cache.get(key) };
-	// These methods embed one canonical response under the bare key; serve it for any params — the consumers filter.
-	if (BARE_KEY_METHODS.has(method) && cache.has(method)) return { found: true, value: cache.get(method) };
 	return { found: false, value: undefined };
 }
 

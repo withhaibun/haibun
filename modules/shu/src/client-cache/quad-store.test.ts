@@ -1,32 +1,46 @@
-// The client IQuadStore is persist + deref-by-@id locally; its query surface (clustered sampling, filtered individual
-// queries, distinct values) is server-side, so it delegates to an injected remote — and fails loudly, never silently
-// empty, when none is wired. (The persist/deref methods are IndexedDB-backed and exercised by the e2e suites, not here.)
+// The client IQuadStore answers every read over what this page caches, its query surface included: with no server to
+// ask, a view is offered what the reader holds rather than nothing. The quad primitives are covered by the conformance
+// specification both stores answer; these are the questions the site is otherwise asked.
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import { IndexedDbQuadStore } from "./quad-store.js";
 import { resetDeviceStoreIdb } from "./device-store.js";
 
-describe("IndexedDbQuadStore query surface (server-delegated)", () => {
-	it("delegates getClusteredQuads / queryIndividuals / distinctPropertyValues to the injected remote", async () => {
-		const remote = {
-			getClusteredQuads: vi.fn().mockResolvedValue({ quads: [], clusters: [] }),
-			queryIndividuals: vi.fn().mockResolvedValue([{ "@id": "x" }]),
-			distinctPropertyValues: vi.fn().mockResolvedValue(["a", "b"]),
-		};
-		const store = new IndexedDbQuadStore(remote);
-		const opts = { perTypeLimit: 10, accessLevel: "private" as AccessLevel };
-		await store.getClusteredQuads(opts);
-		await store.queryIndividuals("Email", { from: "x" });
-		await store.distinctPropertyValues("Email", "from");
-		expect(remote.getClusteredQuads).toHaveBeenCalledWith(opts);
-		expect(remote.queryIndividuals).toHaveBeenCalledWith("Email", { from: "x" }, undefined);
-		expect(remote.distinctPropertyValues).toHaveBeenCalledWith("Email", "from");
+describe("the questions the site answers, asked of the graph this page caches", () => {
+	const access = { perTypeLimit: 10, accessLevel: "private" as AccessLevel };
+	let store: IndexedDbQuadStore;
+	beforeEach(async () => {
+		resetDeviceStoreIdb();
+		store = new IndexedDbQuadStore();
+		await store.clear();
+		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", subject: "one" });
+		await store.upsertIndividual("Email", { "@id": "b", folder: "Sent", subject: "two" });
+		await store.upsertIndividual("Comment", { "@id": "c", content: "hello" });
 	});
 
-	it("throws (never returns silently empty) when a query method is called with no remote wired", async () => {
-		const store = new IndexedDbQuadStore();
-		await expect(store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" as AccessLevel })).rejects.toThrow(/not a query engine/);
+	it("groups what it caches by type, with each type's total", async () => {
+		const clustered = await store.getClusteredQuads(access);
+		expect(clustered.clusters.map((c) => c.type).sort()).toEqual(["Comment", "Email"]);
+		expect(clustered.clusters.find((c) => c.type === "Email")?.totalCount).toBe(2);
+		expect((await store.getClusteredQuads({ ...access, types: ["Comment"] })).clusters.map((c) => c.type)).toEqual(["Comment"]);
+	});
+
+	it("keeps a type's sample within the limit, and says how many it left out", async () => {
+		const one = (await store.getClusteredQuads({ ...access, perTypeLimit: 1, types: ["Email"] })).clusters[0];
+		expect(one.sampledCount).toBe(1);
+		expect(one.omittedCount).toBe(1);
+	});
+
+	it("lists a type's records, narrowed by a field and windowed", async () => {
+		expect((await store.queryIndividuals("Email")).length).toBe(2);
+		expect(await store.queryIndividuals("Email", { folder: "Sent" })).toEqual([{ "@id": "b", "@type": "Email", folder: "Sent", subject: "two" }]);
+		expect((await store.queryIndividuals<{ "@id": string }>("Email", undefined, { offset: 1, limit: 1 })).map((i) => i["@id"])).toEqual(["b"]);
+	});
+
+	it("reports the distinct values a field holds, for the dropdowns a reader filters by", async () => {
+		expect(await store.distinctPropertyValues("Email", "folder")).toEqual(["INBOX", "Sent"]);
+		expect(await store.distinctPropertyValues("Email", "nothing")).toEqual([]);
 	});
 });
 

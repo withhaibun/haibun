@@ -204,6 +204,15 @@ export function setSelectValues(label: string, values: Record<string, string[]>)
 	selectCache.set(label, values);
 }
 
+/** The fields a label offers as dropdowns: those its type declares as context. The site reads the same declaration to
+ *  answer with their values, so a page deriving them from the graph it holds offers the same fields. */
+export function getSelectFields(label: string): string[] {
+	return Object.entries(getRels(label) ?? {})
+		.filter(([, rel]) => rel === LinkRelations.CONTEXT.rel)
+		.map(([property]) => property)
+		.sort();
+}
+
 /** Get cached select (dropdown) field values for a label. */
 export function getSelectValues(label: string): Record<string, string[]> {
 	return selectCache.get(label) ?? {};

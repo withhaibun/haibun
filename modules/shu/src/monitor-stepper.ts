@@ -29,9 +29,9 @@ import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { buildConcernCatalog, buildResourceRels } from "@haibun/core/lib/hypermedia.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { SHU_TAG } from "./consts.js";
+import { SHU_TAG, RPC_METHOD } from "./consts.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
-import { GET_EVENTS_METHOD, CLUSTERED_QUADS_METHOD } from "./rpc-cache.js";
+
 import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
@@ -512,14 +512,17 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// The run itself is carried as the client cache holds it, not as responses to replay: every event of the run from
 		// the on-disk log (never truncated by the in-memory window, already report-lean), with the index the server
 		// stamped. What the live run captured of those responses is dropped, since nothing reads them.
-		for (const key of Object.keys(rpcCache)) if (key === GET_EVENTS_METHOD || key.startsWith(`${GET_EVENTS_METHOD}:`)) delete rpcCache[key];
+		for (const key of Object.keys(rpcCache)) if (key === RPC_METHOD.GET_EVENTS || key.startsWith(`${RPC_METHOD.GET_EVENTS}:`)) delete rpcCache[key];
+		// The graph rides in the cache as quads, which a page clusters for itself: a captured clustering of them is the same
+		// graph a second time, so what the live run captured of it is dropped.
+		for (const key of Object.keys(rpcCache)) if (key === RPC_METHOD.CLUSTERED_QUADS || key.startsWith(`${RPC_METHOD.CLUSTERED_QUADS}:`)) delete rpcCache[key];
 		const reportEvents = this.readEventLog();
 		// 2. Parameterless steps with view products (deterministic view toggles). Exclude getClusteredQuads: it's the graph
 		//    DATA RPC, not a view toggle (no `.view` product), it requires an accessLevel by design (no default — it honors
 		//    the caller's access exactly), and it's serialized canonically below via buildGraphSource. Running it here arg-less
 		//    only threw on the missing accessLevel; its bare-key entry is written after this loop, so the early-cache guard misses it.
 		const candidates = Object.entries(this.steps).filter(
-			([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{") && `MonitorStepper-${name}` !== CLUSTERED_QUADS_METHOD,
+			([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{") && `MonitorStepper-${name}` !== RPC_METHOD.CLUSTERED_QUADS,
 		);
 		const logger = this.getWorld().eventLogger;
 		await Promise.all(
@@ -556,15 +559,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}
 		}
-		// Serialize the FULL graph as ONE canonical getClusteredQuads response, exactly like the live RPC — the offline overview
-		// and sequence views paint client-side from this quad set and hide instrumentation by default themselves (toggleable),
-		// so there is no server-rendered image to embed and the offline filter behaves identically to live.
+		// The whole graph, as the site holds it: it rides in the cache as quads, and a page reading it clusters them for
+		// itself, so what a reader sees of the graph is what the views would have painted from the site's own answer.
 		const built = await buildGraphSource(this.getWorld());
-		// Drop the live run's many per-params getClusteredQuads copies; offline serves only this canonical snapshot, so every
-		// view that reads the snapshot sees the same graph.
-		for (const key of Object.keys(rpcCache)) if (key === CLUSTERED_QUADS_METHOD || key.startsWith(`${CLUSTERED_QUADS_METHOD}:`)) delete rpcCache[key];
-		if (built) rpcCache[CLUSTERED_QUADS_METHOD] = { quads: built.quads, clusters: built.clusters };
-		else logger.warn("[shu writeStandaloneReport] graph snapshot not captured: QuadStore has no getClusteredQuads; the offline graph will be unavailable");
+		if (!built) logger.warn("[shu writeStandaloneReport] the graph was not captured: this store does not cluster, so a page reading this report has no graph");
 		// Reconstruct view hash from events (view products) and cache (last query label).
 		// `view` is the productsDomain key (e.g. "affordances"); pane-state expects the
 		// component tag (e.g. "shu-affordances-panel"). Resolve via the registered domain's
@@ -596,7 +594,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// No report-time slimming: the disk log is already report-lean by construction (slimmed at write — debug-artifact
 		// bulk excluded, stepValuesMap dropped, products reduced to display subfields). The whole payload is compressed below.
 		// `events` lives only in the rpcCache (getEvents); hydrateFromDom reads rpcCache + viewHash, never a top-level events field.
-		const hydration = JSON.stringify({ rpcCache, viewHash, cache: this.cacheForReport(reportEvents, registry, this.observationQuads) });
+		const hydration = JSON.stringify({ rpcCache, viewHash, cache: this.cacheForReport(reportEvents, registry, built?.quads ?? this.observationQuads) });
 		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
 		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
 		const secrets = await this.getWorld().shared.getSecrets();

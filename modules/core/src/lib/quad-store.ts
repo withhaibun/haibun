@@ -388,7 +388,7 @@ export class QuadStore implements IQuadStore {
  * pass already-included subjects (from another store) so totals stay coherent
  * across merged sources.
  */
-function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existingQuads: TQuad[] = []): TClusteredQuads {
+export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existingQuads: TQuad[] = []): TClusteredQuads {
 	const subjectsByType = new Map<string, Set<string>>();
 	const sampledByType = new Map<string, Set<string>>();
 	for (const q of existingQuads) {
