@@ -12,6 +12,7 @@
  */
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
+import { pagePinned } from "../page-pinned.js";
 
 export type TStoredEvent = Record<string, unknown>;
 
@@ -25,9 +26,40 @@ export type TStoredRegistry = { savedAt: number; response: unknown };
  *  stored and the extent cached. */
 export type TEventStoreSummary = {
 	lastRun?: string;
-	runs: Array<{ run: string; levels: Array<{ level: string; stored: number; extent?: { total: number; first?: number; last?: number } }> }>;
+	runs: Array<{ run: string; features: string[]; first?: number; last?: number; levels: Array<{ level: string; stored: number; extent?: { total: number; first?: number; last?: number } }> }>;
 	registry?: { savedAt: number };
 };
+
+/** What a run was, as the device caches it: the features it ran, when it began and when it last changed. Written from the
+ *  events themselves, so a run is presentable by what it did rather than by the id the server gave it. */
+export type TStoredRun = { features: string[]; first?: number; last?: number };
+
+/** The features a batch of events names, and the instants it spans: what a run record is updated from. */
+export function runFactsIn(events: readonly TStoredEvent[]): Map<string, TStoredRun> {
+	const facts = new Map<string, TStoredRun>();
+	for (const e of events) {
+		const run = runOf(e);
+		const at = eventTime(e);
+		const fact = facts.get(run) ?? { features: [] };
+		if (at > 0) {
+			fact.first = fact.first === undefined ? at : Math.min(fact.first, at);
+			fact.last = fact.last === undefined ? at : Math.max(fact.last, at);
+		}
+		const named = e.kind === "lifecycle" && e.type === "feature" && e.stage === "start" ? String(e.featureName ?? e.featurePath ?? "") : "";
+		if (named && !fact.features.includes(named)) fact.features.push(named);
+		facts.set(run, fact);
+	}
+	return facts;
+}
+
+/** A run record and what a batch says about it, as one record. */
+export function mergeRunFacts(cached: TStoredRun | undefined, fact: TStoredRun): TStoredRun {
+	const features = [...(cached?.features ?? [])];
+	for (const name of fact.features) if (!features.includes(name)) features.push(name);
+	const firsts = [cached?.first, fact.first].filter((n): n is number => typeof n === "number");
+	const lasts = [cached?.last, fact.last].filter((n): n is number => typeof n === "number");
+	return { features, first: firsts.length ? Math.min(...firsts) : undefined, last: lasts.length ? Math.max(...lasts) : undefined };
+}
 
 export interface DeviceStore {
 	/** The site's registry as cached here, or undefined when none has been. */
@@ -51,8 +83,42 @@ export interface DeviceStore {
 	/** The run last seen from the server, so a tab with no server reads the run it last cached rather than none. */
 	lastRun(): Promise<string | undefined>;
 	setLastRun(run: string): Promise<void>;
+	/** Keep the newest `keep` runs and the run named in `reading`; forget every other run's events and extents. Returns the
+	 *  runs forgotten. A device caches every run it has seen, so without this it grows without bound. */
+	cullRuns(keep: number, reading?: string): Promise<string[]>;
 	/** Forget everything. */
 	clear(): Promise<void>;
+}
+
+/** The runs a summary reports, newest first by the last instant cached for them; a run with no instant sorts last. */
+export function runsNewestFirst(summary: TEventStoreSummary): Array<{ run: string; last: number }> {
+	return summary.runs
+		.map((r) => ({ run: r.run, last: Math.max(0, r.last ?? 0, ...r.levels.map((l) => l.extent?.last ?? 0)) }))
+		.sort((a, b) => b.last - a.last);
+}
+
+/** The runs to forget: every run but the newest `keep` and the one being read. */
+export function runsToForget(summary: TEventStoreSummary, keep: number, reading?: string): string[] {
+	const kept = new Set(runsNewestFirst(summary).slice(0, Math.max(0, keep)).map((r) => r.run));
+	if (reading !== undefined) kept.add(reading);
+	return summary.runs.map((r) => r.run).filter((run) => !kept.has(run));
+}
+
+/** Pinned to the page, not to this module: the store instance is shared across the separately built bundles, so a write
+ *  made through it must reach every bundle's readers, not only the one whose copy of this module performed it. */
+const WRITE_LISTENERS_KEY = "__SHU_CLIENT_CACHE_WRITE_LISTENERS__";
+const writeListeners = (): Set<() => void> => pagePinned(WRITE_LISTENERS_KEY, () => new Set<() => void>());
+
+/** Be told when anything is written to the device: what a view reports of the cache is then read again. Writes are
+ *  fire-and-forget from the sources, so a view that re-read only on a source's own notification would report a device
+ *  state older than the one it caches. */
+export function subscribeDeviceWrites(fn: () => void): () => void {
+	writeListeners().add(fn);
+	return () => writeListeners().delete(fn);
+}
+
+function wrote(): void {
+	for (const fn of writeListeners()) fn();
 }
 
 /** The run an event belongs to, as the server stamped it; "" for a server that names none (one run, then). */
@@ -61,8 +127,9 @@ export const runOf = (e: TStoredEvent): string => (typeof e.run === "string" ? e
 const DB_NAME = "shu-client-cache";
 /** The databases this one replaces, dropped once on open so a device does not keep them beside it. */
 const FORMER_DB_NAMES = ["shu-events", "shu-graph"];
-/** Bumped when what is stored changes shape or meaning; an upgrade starts the store afresh (the server has the run). */
-const VERSION = 3;
+/** Bumped when the shape changes. An upgrade creates what is missing and keeps what is cached, and a page holding an
+ *  earlier version closes its connection as soon as another page upgrades, so no page waits on another. */
+const VERSION = 4;
 const EVENTS = "events";
 const META = "meta";
 /** The graph the page caches: quads, kept in the same database as the events so the client cache has one lifecycle. */
@@ -78,6 +145,7 @@ const IDX_RUN = "by-run";
 const EXTENT_KEY = (run: string, level: string): string => `extent:${run}:${level}`;
 const LAST_RUN_KEY = "lastRun";
 const REGISTRY_KEY = "registry";
+const RUN_KEY = (run: string): string => `run:${run}`;
 
 /** An event's storage key: its run and its index among the run's events (`idx.debug`: every event counts at the lowest
  *  level), which the server stamps and which is unique by construction; an event a server did not index (none of this
@@ -99,20 +167,33 @@ function openDb(): Promise<IDBDatabase | null> {
 			return;
 		}
 		const req = indexedDB.open(DB_NAME, VERSION);
+		// Additive: a version that adds a store or an index creates what is missing and keeps what a reader already
+		// cached. Deleting the stores would drop every run on this device for a change that only extends the shape.
 		req.onupgradeneeded = () => {
 			const db = req.result;
-			for (const name of Array.from(db.objectStoreNames)) db.deleteObjectStore(name); // a new shape: start afresh
-			const quads = db.createObjectStore(QUADS, { autoIncrement: true });
-			quads.createIndex(IDX_QUAD_SPG, "spg", { unique: false });
-			quads.createIndex(IDX_QUAD_SUBJECT, "subject", { unique: false });
-			quads.createIndex(IDX_QUAD_NAMED_GRAPH, "namedGraph", { unique: false });
-			const events = db.createObjectStore(EVENTS, { keyPath: "__key" });
-			events.createIndex(IDX_RUN, "__run", { unique: false });
-			for (const level of HAIBUN_LOG_LEVELS) events.createIndex(idxIndexName(level), ["__run", `idx.${level}`], { unique: false });
-			db.createObjectStore(META);
+			const tx = req.transaction as IDBTransaction;
+			const store = (name: string, options?: IDBObjectStoreParameters): IDBObjectStore => (db.objectStoreNames.contains(name) ? tx.objectStore(name) : db.createObjectStore(name, options));
+			const index = (on: IDBObjectStore, name: string, keyPath: string | string[]): void => {
+				if (!on.indexNames.contains(name)) on.createIndex(name, keyPath, { unique: false });
+			};
+			const quads = store(QUADS, { autoIncrement: true });
+			index(quads, IDX_QUAD_SPG, "spg");
+			index(quads, IDX_QUAD_SUBJECT, "subject");
+			index(quads, IDX_QUAD_NAMED_GRAPH, "namedGraph");
+			const events = store(EVENTS, { keyPath: "__key" });
+			index(events, IDX_RUN, "__run");
+			for (const level of HAIBUN_LOG_LEVELS) index(events, idxIndexName(level), ["__run", `idx.${level}`]);
+			store(META);
 		};
+		// Another page of this origin is upgrading: this connection closes at once so it is not the reason that page waits.
+		req.onblocked = () => console.warn("[device-store] another page of this origin holds an earlier version open; waiting for it to close");
 		req.onsuccess = () => {
-			resolve(req.result);
+			const db = req.result;
+			db.onversionchange = () => {
+				db.close();
+				dbPromise = null;
+			};
+			resolve(db);
 			for (const former of FORMER_DB_NAMES) indexedDB.deleteDatabase(former); // the databases this one replaces; what they cached is on the server
 		};
 		req.onerror = () => {
@@ -153,14 +234,21 @@ export class IndexedDbDeviceStore implements DeviceStore {
 		await withStores("readwrite", [META], (tx) => {
 			tx.objectStore(META).put(cached, REGISTRY_KEY);
 		});
+		wrote();
 	}
 
 	async putMany(events: readonly TStoredEvent[]): Promise<void> {
 		if (events.length === 0) return;
-		await withStores("readwrite", [EVENTS], (tx) => {
+		await withStores("readwrite", [EVENTS, META], async (tx) => {
 			const store = tx.objectStore(EVENTS);
 			for (const e of events) store.put({ ...e, __key: storedEventKey(e), __run: runOf(e) });
+			const meta = tx.objectStore(META);
+			for (const [run, fact] of runFactsIn(events)) {
+				const cached = (await done(meta.get(RUN_KEY(run)))) as TStoredRun | undefined;
+				meta.put(mergeRunFacts(cached, fact), RUN_KEY(run));
+			}
 		});
+		wrote();
 	}
 
 	async pageAt(run: string, level: string, start: number, end: number): Promise<TStoredEvent[]> {
@@ -196,6 +284,7 @@ export class IndexedDbDeviceStore implements DeviceStore {
 		await withStores("readwrite", [META], (tx) => {
 			tx.objectStore(META).put(extent, EXTENT_KEY(run, level));
 		});
+		wrote();
 	}
 
 	async summary(): Promise<TEventStoreSummary> {
@@ -206,9 +295,11 @@ export class IndexedDbDeviceStore implements DeviceStore {
 			const extents = new Map<string, Map<string, { total: number; first?: number; last?: number }>>();
 			let lastRun: string | undefined;
 			let registry: { savedAt: number } | undefined;
+			const runRecords = new Map<string, TStoredRun>();
 			keys.forEach((k, i) => {
 				if (k === LAST_RUN_KEY) lastRun = String(values[i]);
 				else if (k === REGISTRY_KEY) registry = { savedAt: (values[i] as TStoredRegistry).savedAt };
+				else if (k.startsWith("run:")) runRecords.set(k.slice("run:".length), values[i] as TStoredRun);
 				else if (k.startsWith("extent:")) {
 					const [, run, level] = k.split(":");
 					if (!extents.has(run)) extents.set(run, new Map());
@@ -239,7 +330,8 @@ export class IndexedDbDeviceStore implements DeviceStore {
 					const extent = byLevel.get(level);
 					if (stored > 0 || extent) levels.push({ level, stored, extent });
 				}
-				runs.push({ run, levels });
+				const record = runRecords.get(run);
+				runs.push({ run, features: record?.features ?? [], first: record?.first, last: record?.last, levels });
 			}
 			return { lastRun, runs, registry };
 		});
@@ -255,6 +347,23 @@ export class IndexedDbDeviceStore implements DeviceStore {
 		await withStores("readwrite", [META], (tx) => {
 			tx.objectStore(META).put(run, LAST_RUN_KEY);
 		});
+		wrote();
+	}
+
+	async cullRuns(keep: number, reading?: string): Promise<string[]> {
+		const forget = runsToForget(await this.summary(), keep, reading);
+		if (forget.length === 0) return [];
+		await withStores("readwrite", [EVENTS, META], async (tx) => {
+			const events = tx.objectStore(EVENTS);
+			const meta = tx.objectStore(META);
+			for (const run of forget) {
+				for (const key of (await done(events.index(IDX_RUN).getAllKeys(IDBKeyRange.only(run)))) as IDBValidKey[]) events.delete(key);
+				for (const level of HAIBUN_LOG_LEVELS) meta.delete(EXTENT_KEY(run, level));
+				meta.delete(RUN_KEY(run));
+			}
+		});
+		wrote();
+		return forget;
 	}
 
 	async clear(): Promise<void> {
@@ -263,6 +372,7 @@ export class IndexedDbDeviceStore implements DeviceStore {
 			tx.objectStore(META).clear();
 			tx.objectStore(QUADS).clear();
 		});
+		wrote();
 	}
 }
 
@@ -275,11 +385,15 @@ export class MemoryDeviceStore implements DeviceStore {
 	}
 	setRegistry(response: unknown): Promise<void> {
 		this.#registry = { savedAt: Date.now(), response };
+		wrote();
 		return Promise.resolve();
 	}
 	#extents = new Map<string, { total: number; first?: number; last?: number }>();
+	#runs = new Map<string, TStoredRun>();
 	putMany(events: readonly TStoredEvent[]): Promise<void> {
 		for (const e of events) this.#events.set(storedEventKey(e), e);
+		for (const [run, fact] of runFactsIn(events)) this.#runs.set(run, mergeRunFacts(this.#runs.get(run), fact));
+		wrote();
 		return Promise.resolve();
 	}
 	pageAt(run: string, level: string, start: number, end: number): Promise<TStoredEvent[]> {
@@ -304,6 +418,7 @@ export class MemoryDeviceStore implements DeviceStore {
 	}
 	setExtent(run: string, level: string, extent: { total: number; first?: number; last?: number }): Promise<void> {
 		this.#extents.set(`${run}:${level}`, extent);
+		wrote();
 		return Promise.resolve();
 	}
 	#lastRun: string | undefined;
@@ -318,6 +433,9 @@ export class MemoryDeviceStore implements DeviceStore {
 			registry: this.#registry ? { savedAt: this.#registry.savedAt } : undefined,
 			runs: [...runs].map((run) => ({
 				run,
+				features: this.#runs.get(run)?.features ?? [],
+				first: this.#runs.get(run)?.first,
+				last: this.#runs.get(run)?.last,
 				levels: HAIBUN_LOG_LEVELS.map((level) => ({
 					level,
 					stored: [...this.#events.values()].filter((e) => runOf(e) === run && (e.idx as Record<string, number> | undefined)?.[level] !== undefined).length,
@@ -328,13 +446,25 @@ export class MemoryDeviceStore implements DeviceStore {
 	}
 	setLastRun(run: string): Promise<void> {
 		this.#lastRun = run;
+		wrote();
 		return Promise.resolve();
+	}
+	async cullRuns(keep: number, reading?: string): Promise<string[]> {
+		const forget = runsToForget(await this.summary(), keep, reading);
+		const forgotten = new Set(forget);
+		for (const [key, e] of [...this.#events.entries()]) if (forgotten.has(runOf(e))) this.#events.delete(key);
+		for (const key of [...this.#extents.keys()]) if (forgotten.has(key.slice(0, key.lastIndexOf(":")))) this.#extents.delete(key);
+		for (const run of forgotten) this.#runs.delete(run);
+		wrote();
+		return forget;
 	}
 	clear(): Promise<void> {
 		this.#events.clear();
 		this.#extents.clear();
+		this.#runs.clear();
 		this.#lastRun = undefined;
 		this.#registry = undefined;
+		wrote();
 		return Promise.resolve();
 	}
 	/** Test reading: how many events are stored. */

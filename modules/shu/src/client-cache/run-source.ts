@@ -67,12 +67,15 @@ type Shared = {
 	store: DeviceStore;
 	unsubscribe?: () => void;
 	run?: string;
+	/** The run a reader chose, if any: the server naming its own run does not take a reader away from the one they opened. */
+	reading?: string;
+	switched: Set<() => void>;
 	made: Set<(source: RunSource) => void>; // called when a source is made, so a view of the page's caches watches it from then on
 };
 
 function shared(): Shared {
 	const g = globalThis as unknown as Record<string, Shared | undefined>;
-	return (g[SHARED_SLOT] ??= { sources: new Map(), store: new IndexedDbDeviceStore(), made: new Set() });
+	return (g[SHARED_SLOT] ??= { sources: new Map(), store: new IndexedDbDeviceStore(), made: new Set(), switched: new Set() });
 }
 const SHARED_SLOT = `${SOURCES_KEY}:${STORE_KEY}`;
 
@@ -101,6 +104,40 @@ export function deviceStore(): DeviceStore {
 	return shared().store;
 }
 
+/** How many runs the device caches: the newest this many, plus the run being read. A device caches every run it has
+ *  seen, so this is what bounds it; the client cache view reports the bound and what it forgot. */
+export const RUNS_CACHED = 5;
+
+/** Read a run the device caches rather than the one the server is recording: a finished run is not on the server, so its
+ *  pages come from the device alone. Reading the run the server names again resumes following it. */
+export async function readRun(run: string): Promise<void> {
+	const s = shared();
+	if (s.run === run) return;
+	s.run = run;
+	s.reading = run;
+	await s.store.setLastRun(run).catch((err) => failFastOrLog("[event-source] last run not persisted:", err));
+	for (const src of s.sources.values()) src.beginRun();
+	for (const fn of s.switched) fn();
+}
+
+/** The run the sources are reading, or undefined before any has been named. */
+export function currentRun(): string | undefined {
+	return shared().run;
+}
+
+/** Be told when the run being read changes, by the server naming a new one or by a reader choosing one. */
+export function subscribeRunSwitch(fn: () => void): () => void {
+	const s = shared();
+	s.switched.add(fn);
+	return () => s.switched.delete(fn);
+}
+
+/** Forget every run but the newest few and the one being read; reports what it forgot. */
+export async function cullCachedRuns(): Promise<string[]> {
+	const s = shared();
+	return await s.store.cullRuns(RUNS_CACHED, s.run);
+}
+
 /** Test-only: forget every source, so the next requests again. */
 export function resetRunSources(): void {
 	const s = shared();
@@ -108,6 +145,8 @@ export function resetRunSources(): void {
 	s.unsubscribe = undefined;
 	s.sources.clear();
 	s.run = undefined;
+	s.reading = undefined;
+	s.switched.clear();
 }
 
 /** The run the sources read: the one the server named on its latest response or event. A different run named later is a
@@ -115,10 +154,13 @@ export function resetRunSources(): void {
  *  server that names no run records one (""). */
 function recordRun(s: Shared, run: string | undefined): void {
 	if (run === undefined || s.run === run) return;
+	if (s.reading !== undefined && s.reading !== run) return; // a reader is reading a run they chose; the server's own run waits
 	const switching = s.run !== undefined;
 	s.run = run;
 	void s.store.setLastRun(run).catch((err) => failFastOrLog("[event-source] last run not persisted:", err));
 	if (switching) for (const src of s.sources.values()) src.beginRun();
+	for (const fn of s.switched) fn();
+	void s.store.cullRuns(RUNS_CACHED, run).catch((err) => failFastOrLog("[event-source] the cached runs were not culled:", err));
 }
 
 /** The run to read before any response has named one: the device's last, so a tab with no server reads the run it last cached. */
@@ -188,6 +230,8 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 		for (const cb of subs) cb();
 	};
 	const run = (): string => s.run ?? "";
+	/** A run the reader chose is a finished run: the server is recording another one, so only the device has it. */
+	const deviceOnly = (): boolean => s.reading !== undefined && s.reading === run();
 
 	type TAnswer = { events?: TEventRecord[]; total?: number; first?: number; run?: string };
 	const request = (filter: Record<string, unknown>): Promise<TAnswer> =>
@@ -199,6 +243,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 
 	const record = (response: TAnswer): void => {
 		recordRun(s, response.run ?? ""); // may begin a new run, which starts this source over before the response is applied
+		if ((response.run ?? "") !== run()) return; // another run's response says nothing about the run being read
 		if (typeof response.total === "number") extent = { total: Math.max(extent.total, response.total), first: response.first ?? extent.first, last: lastOf(response.events ?? [], extent.last) };
 		loaded = true;
 		void store.setExtent(run(), level, extent).catch((err) => failFastOrLog("[event-source] extent not persisted:", err));
@@ -212,7 +257,18 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 			fetch: async (start, end) => {
 				// The device first: a page it caches completely needs no server. Else the server, and what it sends is cached for next time.
 				const stored = await store.pageAt(run(), level, start, end);
-				if (stored.length === end - start) return stored;
+				if (stored.length === end - start) {
+					extent = { ...extent, last: lastOf(stored, extent.last) }; // a page from the device tells the run's span as well as its rows
+					return stored;
+				}
+				if (deviceOnly()) {
+					// The run being read is not the run the server is recording: what the device caches of this page is all there is.
+					const cached = await store.rowsAt(run(), level, start, end).catch(() => []);
+					if (cached.some((e) => e !== undefined)) return cached as TEventRecord[];
+					unavailable = EVENTS_UNAVAILABLE;
+					notifyAll();
+					throw new Error(`the run being read is not on the server, and this page is not cached: ${level} ${start}..${end}`);
+				}
 				try {
 					const response = await request({ offset: start, limit: end - start });
 					record(response);
@@ -251,6 +307,16 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 		if (readying) return readying;
 		readying = (async () => {
 			await recallLastRun(s);
+			if (deviceOnly()) {
+				const cached = await store.extent(run(), level).catch(() => undefined);
+				if (cached) {
+					extent = cached;
+					loaded = true;
+					unavailable = null;
+				} else unavailable = EVENTS_UNAVAILABLE;
+				pages.notifyCountChanged();
+				return;
+			}
 			try {
 				const response = await request({ limit: 1 }); // the newest event, and with it the run's extent (and which run it is)
 				record(response);
@@ -279,6 +345,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 			if (runOf(e) !== run()) continue; // another run's event is not this run's row
 			const i = indexAt(e, level);
 			if (i === undefined) continue;
+			extent = { ...extent, last: lastOf([e], extent.last) }; // the run's newest instant at this level, whether or not its extent grew
 			if (i >= extent.total) {
 				extent = { total: i + 1, first: extent.first ?? (Number(e.timestamp) || undefined), last: lastOf([e], extent.last) };
 				grew = true;

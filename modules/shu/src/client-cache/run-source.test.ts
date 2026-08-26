@@ -3,7 +3,7 @@
 // first and the server for what the device lacks, grown by live events that carry their index, bounded in what it caches,
 // and honest when a page cannot be had. These pin the contract the monitor's whole-run rail relies on.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { eventRunSource, resetRunSources, runSpan, setDeviceStore, leanForStore, EVENTS_UNAVAILABLE, type TEventRecord } from "./run-source.js";
+import { eventRunSource, resetRunSources, runSpan, setDeviceStore, leanForStore, readRun, currentRun, cullCachedRuns, RUNS_CACHED, EVENTS_UNAVAILABLE, type TEventRecord } from "./run-source.js";
 import { MemoryDeviceStore } from "./device-store.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "../window-size-setting.js";
@@ -253,5 +253,59 @@ describe("the run source at a level", () => {
 		expect(again.rowAt(49)).toBeDefined();
 		expect(again.rowAt(7), "the row the device lacks: a hole, not a blank page").toBeUndefined();
 		expect(again.unavailable, "and the view reports it").toBe(EVENTS_UNAVAILABLE);
+	});
+
+	it("reads a run the device caches: its pages come from the device, and the server naming its own run does not take the reader away", async () => {
+		// The device caches a finished run; the server is recording another one.
+		const finished = "finished-run";
+		await store.putMany(Array.from({ length: 3 }, (_, i) => ({ id: `[0.${i}]`, timestamp: 500 + i, kind: "log", level: "info", run: finished, idx: { debug: i, trace: i, log: i, info: i } })));
+		await store.setExtent(finished, "info", { total: 3, first: 500, last: 502 });
+		server.state.run = "current-run";
+		const live = eventRunSource("info");
+		await live.ready();
+		expect(currentRun()).toBe("current-run");
+		await readRun(finished);
+		expect(currentRun()).toBe(finished);
+		const reading = eventRunSource("info");
+		await reading.ready();
+		await reading.ensureRange(0, 3);
+		expect(reading.count(), "the finished run's extent, from the device").toBe(3);
+		expect((reading.rowAt(0) as TEventRecord)?.id, "its first row, from the device").toBe("[0.0]");
+		// The server goes on recording its own run: a reader reading a run they chose stays in it.
+		handle.emit({ id: "[9.9]", timestamp: 9999, kind: "log", level: "info", run: "current-run", idx: { debug: 99, trace: 99, log: 99, info: 99 } });
+		await flush();
+		expect(currentRun(), "still the run the reader chose").toBe(finished);
+		expect(reading.count(), "and its extent is unchanged by the other run's event").toBe(3);
+	});
+
+	it("caches the newest runs and the one being read, forgetting the rest", async () => {
+		for (let n = 0; n < RUNS_CACHED + 2; n++) {
+			const run = `run-${n}`;
+			await store.putMany([{ id: "[0.0]", timestamp: 1000 + n, kind: "log", level: "info", run, idx: { debug: 0, trace: 0, log: 0, info: 0 } }]);
+			await store.setExtent(run, "info", { total: 1, first: 1000 + n, last: 1000 + n });
+		}
+		const forgotten = await cullCachedRuns();
+		expect(forgotten.length, "two runs past the bound").toBe(2);
+		expect((await store.summary()).runs.length).toBe(RUNS_CACHED);
+	});
+
+	it("knows the run's newest instant from what it caches, whether the response carried events or the device did", async () => {
+		const src = eventRunSource("info");
+		await src.ready();
+		await src.ensureRange(0, 50);
+		const newest = src.extent().last;
+		expect(newest, "the newest instant among the events it read").toBeGreaterThan(0);
+		// A fresh page over the same device, with no server: the extent's newest instant still comes from the events cached.
+		handle.teardown();
+		handle = setupShuTest({
+			dispatch: () => {
+				throw new Error("offline");
+			},
+		});
+		setDeviceStore(store);
+		const again = eventRunSource("info");
+		await again.ready();
+		await again.ensureRange(0, 50);
+		expect(again.extent().last, "read back from the device").toBe(newest);
 	});
 });

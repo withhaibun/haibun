@@ -108,6 +108,27 @@ for (const [name, make] of stores) {
 			expect(info).toEqual({ level: "info", stored: 3, extent: { total: 3, first: 1000 } });
 		});
 
+		it("keeps the newest runs and the one being read, and forgets the rest", async () => {
+			for (const [run, at] of [["old", 1000], ["older", 500], ["newest", 9000]] as const) {
+				await store.putMany([ev(0, { run, id: `[${run}]` })]);
+				await store.setExtent(run, "info", { total: 1, first: at, last: at });
+			}
+			const forgotten = await store.cullRuns(1, "older");
+			expect(forgotten, "everything but the newest and the one being read").toEqual(["old"]);
+			const left = (await store.summary()).runs.map((r) => r.run).sort();
+			expect(left).toEqual(["newest", "older"]);
+			expect(await store.pageAt("old", "info", 0, 1), "its events are gone").toEqual([]);
+			expect(await store.extent("old", "info"), "and its extent").toBeUndefined();
+			expect(await store.pageAt("older", "info", 0, 1), "the run being read is kept whatever its age").not.toEqual([]);
+		});
+
+		it("forgets nothing when it caches no more runs than are kept", async () => {
+			await store.putMany([ev(0)]);
+			await store.setExtent(RUN, "info", { total: 1, first: 1000, last: 1000 });
+			expect(await store.cullRuns(5)).toEqual([]);
+			expect((await store.summary()).runs.map((r) => r.run)).toEqual([RUN]);
+		});
+
 		it("forgets everything on clear", async () => {
 			await store.putMany([ev(0)]);
 			await store.setExtent(RUN, "info", { total: 1 });
@@ -121,3 +142,52 @@ for (const [name, make] of stores) {
 		});
 	});
 }
+
+describe("the device's database across versions", () => {
+	// A version that adds a store or an index must keep what a reader already cached: deleting the stores would drop every
+	// run on the device for a change that only extends the shape. And a page holding an earlier version must not be the
+	// reason another page waits.
+	const forgetDatabase = (): Promise<void> =>
+		new Promise((resolve) => {
+			const req = indexedDB.deleteDatabase("shu-client-cache");
+			req.onsuccess = () => resolve();
+			req.onerror = () => resolve();
+			req.onblocked = () => resolve();
+		});
+	beforeEach(async () => {
+		resetDeviceStoreIdb();
+		await forgetDatabase(); // this case starts from a database an earlier version created
+	});
+	afterEach(async () => {
+		resetDeviceStoreIdb();
+		await forgetDatabase();
+	});
+
+	it("keeps what an earlier version cached, and creates what the new shape adds", async () => {
+		// A database as an earlier version left it: the events store alone, with one event in it.
+		await new Promise<void>((resolve, reject) => {
+			const req = indexedDB.open("shu-client-cache", 1);
+			req.onupgradeneeded = () => {
+				const db = req.result;
+				for (const name of Array.from(db.objectStoreNames)) db.deleteObjectStore(name);
+				const events = db.createObjectStore("events", { keyPath: "__key" });
+				events.createIndex("by-run-idx-info", ["__run", "idx.info"], { unique: false });
+			};
+			req.onsuccess = () => {
+				const db = req.result;
+				const tx = db.transaction("events", "readwrite");
+				tx.objectStore("events").put({ __key: "k1", __run: RUN, id: "[0.0]", timestamp: 1000, kind: "log", level: "info", run: RUN, idx: { info: 0 } });
+				tx.oncomplete = () => {
+					db.close();
+					resolve();
+				};
+				tx.onerror = () => reject(tx.error);
+			};
+			req.onerror = () => reject(req.error);
+		});
+		const store = new IndexedDbDeviceStore();
+		expect((await store.pageAt(RUN, "info", 0, 1)).map((e) => e.id), "what the earlier version cached is still there").toEqual(["[0.0]"]);
+		await store.setRegistry({ steps: [] });
+		expect((await store.registry())?.response, "and the stores the new shape adds work").toEqual({ steps: [] });
+	});
+});
