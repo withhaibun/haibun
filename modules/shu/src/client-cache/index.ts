@@ -34,6 +34,6 @@ export {
 	type TRunExtent,
 	type TEventRecord,
 } from "./run-source.js";
-export { IndexedDbDeviceStore, MemoryDeviceStore, subscribeDeviceWrites, runsNewestFirst, eventTime, runOf, storedEventKey, resetDeviceStoreIdb, type DeviceStore, type TEventStoreSummary, type TStoredEvent, type TStoredRegistry } from "./device-store.js";
+export { IndexedDbDeviceStore, MemoryDeviceStore, subscribeDeviceWrites, runsNewestFirst, CACHE_SHAPE, eventTime, runOf, storedEventKey, resetDeviceStoreIdb, type DeviceStore, type TEventStoreSummary, type TStoredEvent, type TStoredRegistry } from "./device-store.js";
 export { IndexedDbQuadStore } from "./quad-store.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";

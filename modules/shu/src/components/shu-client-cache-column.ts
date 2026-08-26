@@ -22,7 +22,7 @@ import type { Range } from "../ranges.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { registryOrigin } from "../rpc-registry.js";
 import { emptyOrLoading } from "./empty-state.js";
-import { runSources, deviceStore, subscribeRunSources, subscribeRunSwitch, subscribeDeviceWrites, runsNewestFirst, readRun, currentRun, atLiveEdge, RUNS_CACHED, type RunSource, type TEventStoreSummary, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
+import { runSources, deviceStore, subscribeRunSources, subscribeRunSwitch, subscribeDeviceWrites, runsNewestFirst, CACHE_SHAPE, readRun, currentRun, atLiveEdge, RUNS_CACHED, type RunSource, type TEventStoreSummary, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
 
 const EmptySchema = z.object({});
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
@@ -276,7 +276,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 						)}
 					</table>`
 			}
-			<h4>IndexedDB</h4>
+			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is forgotten on open)</small></h4>
 			${
 				this.#databases.length === 0
 					? emptyOrLoading(this.#deviceRead, "No IndexedDB database on this origin.")
