@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import "fake-indexeddb/auto";
-import { IndexedDbDeviceStore, MemoryDeviceStore, resetDeviceStoreIdb, storedEventKey, type DeviceStore, type TStoredEvent } from "./device-store.js";
+import { CACHE_SHAPE, IndexedDbDeviceStore, MemoryDeviceStore, resetDeviceStoreIdb, storedEventKey, type DeviceStore, type TStoredEvent } from "./device-store.js";
 
 const RUN = "r1";
 const OTHER = "r2";
@@ -163,20 +163,22 @@ describe("the device's database across versions", () => {
 		await forgetDatabase();
 	});
 
-	it("keeps what an earlier version cached, and creates what the new shape adds", async () => {
-		// A database as an earlier version left it: the events store alone, with one event in it.
-		await new Promise<void>((resolve, reject) => {
+	/** A database as an earlier version left it: the events store alone, one event in it, marked with `shape`. */
+	const asEarlierVersion = (shape: string | undefined): Promise<void> =>
+		new Promise<void>((resolve, reject) => {
 			const req = indexedDB.open("shu-client-cache", 1);
 			req.onupgradeneeded = () => {
 				const db = req.result;
 				for (const name of Array.from(db.objectStoreNames)) db.deleteObjectStore(name);
 				const events = db.createObjectStore("events", { keyPath: "__key" });
 				events.createIndex("by-run-idx-info", ["__run", "idx.info"], { unique: false });
+				db.createObjectStore("meta");
 			};
 			req.onsuccess = () => {
 				const db = req.result;
-				const tx = db.transaction("events", "readwrite");
+				const tx = db.transaction(["events", "meta"], "readwrite");
 				tx.objectStore("events").put({ __key: "k1", __run: RUN, id: "[0.0]", timestamp: 1000, kind: "log", level: "info", run: RUN, idx: { info: 0 } });
+				if (shape !== undefined) tx.objectStore("meta").put(shape, "shape");
 				tx.oncomplete = () => {
 					db.close();
 					resolve();
@@ -185,9 +187,27 @@ describe("the device's database across versions", () => {
 			};
 			req.onerror = () => reject(req.error);
 		});
+
+	it("keeps what an earlier version cached when it was written to the same rule, and creates what the new shape adds", async () => {
+		await asEarlierVersion(CACHE_SHAPE);
 		const store = new IndexedDbDeviceStore();
 		expect((await store.pageAt(RUN, "info", 0, 1)).map((e) => e.id), "what the earlier version cached is still there").toEqual(["[0.0]"]);
 		await store.setRegistry({ steps: [] });
 		expect((await store.registry())?.response, "and the stores the new shape adds work").toEqual({ steps: [] });
+	});
+
+	it("forgets what was cached to a different rule, rather than reading it wrongly", async () => {
+		await asEarlierVersion("some-earlier-rule/0");
+		const store = new IndexedDbDeviceStore();
+		expect(await store.pageAt(RUN, "info", 0, 1), "written to another rule: forgotten").toEqual([]);
+		expect((await store.summary()).runs, "and nothing of it is reported").toEqual([]);
+		// What this build writes from now on is kept: the cache says which rule it holds.
+		await store.putMany([ev(0)]);
+		expect((await store.pageAt(RUN, "info", 0, 1)).map((e) => e.id)).toEqual(["[0.0]"]);
+	});
+
+	it("forgets what was cached before the rule was recorded at all", async () => {
+		await asEarlierVersion(undefined);
+		expect(await new IndexedDbDeviceStore().pageAt(RUN, "info", 0, 1)).toEqual([]);
 	});
 });

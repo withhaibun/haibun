@@ -145,6 +145,12 @@ const IDX_RUN = "by-run";
 const EXTENT_KEY = (run: string, level: string): string => `extent:${run}:${level}`;
 const LAST_RUN_KEY = "lastRun";
 const REGISTRY_KEY = "registry";
+const SHAPE_KEY = "shape";
+/** What the cached data means, apart from the database's structure. The schema version says which stores and indexes
+ *  exist and upgrades additively; this says how what is in them is written and read — the storage key rule, what an
+ *  event keeps, what a run record holds. Change it whenever cached data written by an earlier build would be read
+ *  wrongly by this one: the store then forgets what it cached rather than serving it, and says so. */
+export const CACHE_SHAPE = "run-indexed-events/1";
 const RUN_KEY = (run: string): string => `run:${run}`;
 
 /** An event's storage key: its run and its index among the run's events (`idx.debug`: every event counts at the lowest
@@ -193,8 +199,8 @@ function openDb(): Promise<IDBDatabase | null> {
 				db.close();
 				dbPromise = null;
 			};
-			resolve(db);
 			for (const former of FORMER_DB_NAMES) indexedDB.deleteDatabase(former); // the databases this one replaces; what they cached is on the server
+			void forgetIfIncompatible(db).then(() => resolve(db));
 		};
 		req.onerror = () => {
 			failFastOrLog("[device-store] open failed; the client cache will not persist:", req.error);
@@ -202,6 +208,26 @@ function openDb(): Promise<IDBDatabase | null> {
 		};
 	});
 	return dbPromise;
+}
+
+/** Forget what was cached under a different shape, and record the shape this build reads. What is forgotten is a cache:
+ *  the run is on the server, and reading data written to another rule would report the wrong thing. */
+function forgetIfIncompatible(db: IDBDatabase): Promise<void> {
+	return new Promise((resolve) => {
+		const tx = db.transaction([EVENTS, META, QUADS], "readwrite");
+		const meta = tx.objectStore(META);
+		const found = meta.get(SHAPE_KEY);
+		found.onsuccess = () => {
+			if (found.result === CACHE_SHAPE) return;
+			if (found.result !== undefined) console.warn(`[device-store] what this device cached was written as ${String(found.result)}; this build reads ${CACHE_SHAPE}, so the cache is forgotten`);
+			tx.objectStore(EVENTS).clear();
+			tx.objectStore(QUADS).clear();
+			meta.clear();
+			meta.put(CACHE_SHAPE, SHAPE_KEY);
+		};
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => resolve();
+	});
 }
 
 export const done = <T>(req: IDBRequest<T>): Promise<T> =>
@@ -299,6 +325,7 @@ export class IndexedDbDeviceStore implements DeviceStore {
 			keys.forEach((k, i) => {
 				if (k === LAST_RUN_KEY) lastRun = String(values[i]);
 				else if (k === REGISTRY_KEY) registry = { savedAt: (values[i] as TStoredRegistry).savedAt };
+				else if (k === SHAPE_KEY) return;
 				else if (k.startsWith("run:")) runRecords.set(k.slice("run:".length), values[i] as TStoredRun);
 				else if (k.startsWith("extent:")) {
 					const [, run, level] = k.split(":");
