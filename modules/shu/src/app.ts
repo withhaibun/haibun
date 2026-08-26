@@ -7,7 +7,7 @@ import type { TDeliveredEvent } from "@haibun/core/lib/sse-subscriber.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, isStandaloneMode, getHydratedViewHash, getAvailableSteps, findStep } from "./rpc-registry.js";
+import { hydrateFromDom, isStandaloneMode, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache } from "./rpc-registry.js";
 import { openSession } from "./session-key.js";
 import { getCachedResponse } from "./rpc-cache.js";
 import { Access } from "@haibun/core/lib/resources.js";
@@ -32,6 +32,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
+import { hydrateClientCache } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -122,6 +123,10 @@ const main = async (): Promise<void> => {
 		setConduit(new LiveConduit(""));
 		setEventStream(new LiveEventStream("/sse"));
 	}
+	// A page that carries its run fills the client cache with it before anything reads the run: every view then reads it
+	// through the sources it uses against a server, and the reads that would have gone to a server find it cached.
+	const carried = hydratedCache();
+	if (carried) await hydrateClientCache(carried);
 	if (standalone) ShuElement.pushHash(getHydratedViewHash());
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();

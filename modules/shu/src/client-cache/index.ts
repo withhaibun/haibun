@@ -9,6 +9,7 @@
  *   run's extent, and where the server's registry is cached, so a reload or a page with no server serves from the device and
  *   still knows the server's declarations (rpc-registry reads it when the server does not respond).
  * - the graph this page caches (quad-store.ts): the client's `IQuadStore`, in the same database as the events.
+ * - a run carried in a page (hydrate.ts): what a standalone report embeds, read through the same sources.
  * - what IndexedDB caches for the origin (idb-summary.ts): every database, its stores and their counts, read-only.
  *
  * The client cache view (components/shu-client-cache-column) reads all of it, and the client cache stepper
@@ -36,4 +37,5 @@ export {
 } from "./run-source.js";
 export { IndexedDbDeviceStore, MemoryDeviceStore, subscribeDeviceWrites, runsNewestFirst, CACHE_SHAPE, eventTime, runOf, storedEventKey, resetDeviceStoreIdb, type DeviceStore, type TEventStoreSummary, type TStoredEvent, type TStoredRegistry } from "./device-store.js";
 export { IndexedDbQuadStore } from "./quad-store.js";
+export { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";
