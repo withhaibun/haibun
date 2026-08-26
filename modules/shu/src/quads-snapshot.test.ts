@@ -22,9 +22,17 @@ import {
 	currentSnapshot,
 	selectionFromContext,
 	DEFAULT_PER_TYPE_LIMIT,
+	getGraphSnapshot,
+	setGraphStore,
+	selectValuesFor,
+	cachedGraphStore,
 } from "./quads-snapshot.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL } from "@haibun/core/lib/resources.js";
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
+import { setConduit, LiveConduit } from "./hypermedia.js";
 
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
 
@@ -193,5 +201,69 @@ describe("selectionFromContext — only a context that ADDRESSES selection moves
 	it("a query context (label/predicate/object, no subject) leaves the selection untouched", () => {
 		expect(selectionFromContext({ patterns: [{ p: "label", o: "Body" }] })).toEqual({ action: "none" });
 		expect(selectionFromContext({})).toEqual({ action: "none" });
+	});
+});
+
+describe("the graph a page caches, with no server to ask", () => {
+	// A page that carries its graph clusters it for itself: the sample, its totals and its `+N more` nodes are what the
+	// site's own answer would have been, rather than a captured copy of that answer riding in the page.
+	beforeEach(() => {
+		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		setConduit(new LiveConduit(""));
+		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
+	});
+
+	it("holds the store on the page, so a view in another bundle reads the graph the app installed", async () => {
+		const store = new QuadStore();
+		setGraphStore(store);
+		// A second bundle has its own copy of this module's bindings and reaches the store through the page, as here.
+		expect((globalThis as unknown as Record<string, { store: unknown }>)["__SHU_CACHED_GRAPH_STORE__"].store).toBe(store);
+		expect(cachedGraphStore()).toBe(store);
+	});
+
+	it("clusters what it caches when the store clusters", async () => {
+		const store = new QuadStore();
+		await store.setMany([
+			{ subject: "c1", predicate: "content", object: "one", namedGraph: "Comment", timestamp: 1 },
+			{ subject: "c2", predicate: "content", object: "two", namedGraph: "Comment", timestamp: 2 },
+		]);
+		setGraphStore(store);
+		const snapshot = await getGraphSnapshot({ perTypeLimit: 10, scope: "carried" });
+		expect(snapshot.quads.length, "the graph it caches").toBe(2);
+		expect(Array.isArray(snapshot.clusters), "clustered by the store, not by a captured response").toBe(true);
+	});
+
+	it("reports that the graph is not available when it caches none and no server answers", async () => {
+		setGraphStore(new QuadStore());
+		await expect(getGraphSnapshot({ perTypeLimit: 10, scope: "empty" })).rejects.toThrow();
+	});
+});
+
+describe("the dropdown values a reader is offered, with no server to ask", () => {
+	// The site derives them from the fields a type declares as context; a page with no server derives them the same way
+	// over the graph it caches, so the reader is offered the same fields narrowed to the values actually there.
+	beforeEach(() => {
+		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		setConduit(new LiveConduit(""));
+		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
+		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel, subject: "name" } }, edgeRanges: {} } as unknown as SiteMetadata);
+	});
+
+	it("offers the distinct values its context fields hold, and no field the type does not declare as one", async () => {
+		const store = new QuadStore();
+		await store.setMany([
+			{ subject: "a", predicate: "folder", object: "INBOX", namedGraph: "Email", timestamp: 1 },
+			{ subject: "b", predicate: "folder", object: "Sent", namedGraph: "Email", timestamp: 2 },
+			{ subject: "b", predicate: "subject", object: "two", namedGraph: "Email", timestamp: 3 },
+		]);
+		setGraphStore(store);
+		expect(await selectValuesFor("Email")).toEqual({ folder: ["INBOX", "Sent"] });
+	});
+
+	it("offers no dropdown for a declared type that has no context field, and reports the failure for a type the site never declared", async () => {
+		setSiteMetadata({ types: ["Email", "Note"], rels: { Email: { folder: LinkRelations.CONTEXT.rel }, Note: { body: "hasBody" } }, edgeRanges: {} } as unknown as SiteMetadata);
+		setGraphStore(new QuadStore());
+		expect(await selectValuesFor("Note")).toEqual({});
+		await expect(selectValuesFor("NeverDeclared")).rejects.toThrow();
 	});
 });

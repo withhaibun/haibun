@@ -5,16 +5,14 @@
  * in the client cache's one database beside the events and the registry, so the page has one cache with one lifecycle.
  *
  * Degrades by design: without IndexedDB (a report, or any context without it) every read returns empty and the view
- * renders what it has. Queries the server's engine answers (filtered individual queries, distinct values over the whole
- * graph, clustering) are delegated to the wired remote rather than reimplemented here.
+ * renders what it has. Every read, the query surface included, is answered from what this page caches: the site serves
+ * the graph while it can be reached, and the page reads the same store either way, so a view offline sees what it holds
+ * rather than nothing. What it holds is what the site already served this reader, so a read of it gates nothing further.
  */
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { IQuadStore, TClusteredQuads, TQuad, TQuadPattern } from "@haibun/core/lib/quad-types.js";
+import { sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, done, withStores as withClientCacheStores } from "./device-store.js";
-
-/** The server-side query surface the client delegates rather than reimplements — heavy queries stay server-side via RPC. */
-type RemoteQuery = Pick<IQuadStore, "queryIndividuals" | "distinctPropertyValues" | "getClusteredQuads">;
-
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
 type StoredQuad = TQuad & { spg: string };
@@ -33,9 +31,6 @@ const withStore = <T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => T
 	withClientCacheStores(mode, [QUADS], (tx) => fn(tx.objectStore(QUADS)));
 
 export class IndexedDbQuadStore implements IQuadStore {
-	/** @param remote server delegate for the query surface; unwired, those methods throw rather than silently return empty. */
-	constructor(private readonly remote?: RemoteQuery) {}
-
 	async set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
 		const spg = spgKey(namedGraph, subject, predicate);
 		await withStore("readwrite", async (store) => {
@@ -128,37 +123,41 @@ export class IndexedDbQuadStore implements IQuadStore {
 
 	async getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined> {
 		const quads = await this.query({ subject: id, namedGraph: label });
-		if (!quads.length) return undefined;
-		const individual: Record<string, unknown> = { "@id": id, "@type": label };
-		for (const q of quads) individual[q.predicate] = q.object;
-		return individual as T;
+		return quads.length ? (individualFrom(label, id, quads) as T) : undefined;
 	}
 
 	async deleteIndividual(label: string, id: string): Promise<void> {
 		await this.remove({ subject: id, namedGraph: label });
 	}
 
-	// --- Query surface: server-side (the client is not a query engine) — delegate to the wired remote or fail clearly. ---
-
-	private requireRemote(method: string): RemoteQuery {
-		if (!this.remote)
-			throw new Error(
-				`IndexedDbQuadStore.${method}: the client store is persist + deref-by-@id, not a query engine — heavy queries stay server-side; wire a remote (server RPC) to run them.`,
-			);
-		return this.remote;
-	}
+	// --- Query surface, answered over the cached quads: the same questions the site answers, asked of what this page holds. ---
 
 	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
-		return await this.requireRemote("queryIndividuals").queryIndividuals<T>(label, filters, options);
+		const quads = await this.query({ namedGraph: label });
+		let individuals = [...new Set(quads.map((q) => q.subject))].map((subject) => individualFrom(label, subject, quads));
+		for (const [predicate, value] of Object.entries(filters ?? {})) individuals = individuals.filter((i) => i[predicate] === value);
+		const offset = options?.offset ?? 0;
+		return individuals.slice(offset, offset + (options?.limit ?? individuals.length)) as T[];
 	}
 
 	async distinctPropertyValues(label: string, property: string): Promise<string[]> {
-		return await this.requireRemote("distinctPropertyValues").distinctPropertyValues(label, property);
+		const quads = await this.query({ predicate: property, namedGraph: label });
+		return [...new Set(quads.map((q) => String(q.object)))].sort();
 	}
 
 	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads> {
-		return await this.requireRemote("getClusteredQuads").getClusteredQuads(opts);
+		const quads = await this.all();
+		const types = opts.types;
+		return sliceQuadsPerType(types ? quads.filter((q) => types.includes(q.namedGraph)) : quads, opts.perTypeLimit);
 	}
+}
+
+/** One subject's quads read as a record: its `@id` and type, then a field per predicate. The page caches what it
+ *  dereferenced by `@id`, so that is the identity a record it returns carries. */
+function individualFrom(label: string, subject: string, quads: TQuad[]): Record<string, unknown> {
+	const individual: Record<string, unknown> = { "@id": subject, "@type": label };
+	for (const q of quads) if (q.subject === subject) individual[q.predicate] = q.object;
+	return individual;
 }
 
 /** The store this page caches the graph in, on a served origin: one per page, beside the events and the registry. A page
