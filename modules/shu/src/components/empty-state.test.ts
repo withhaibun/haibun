@@ -4,10 +4,10 @@ import { render } from "lit";
 import { emptyOrLoading } from "./empty-state.js";
 
 describe("emptyOrLoading", () => {
-	it("shows a loading indicator and never the empty message while not loaded", () => {
+	it("reports that it is waiting, and never the empty message, while the data has not been read", () => {
 		const c = document.createElement("div");
 		render(emptyOrLoading(false, "No events at this level."), c);
-		expect(c.textContent).toContain("Loading");
+		expect(c.textContent).toContain("Waiting");
 		expect(c.textContent).not.toContain("No events at this level.");
 	});
 

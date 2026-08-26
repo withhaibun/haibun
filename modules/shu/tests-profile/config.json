@@ -1,0 +1,18 @@
+{
+	"$schema": "../node_modules/@haibun/core/haibun-core-specl.schema.json",
+	"steppers": [
+		"haibun",
+		"variables-stepper",
+		"resources-stepper",
+		"logic-stepper",
+		"@haibun/web-server-hono/web-server-stepper",
+		"@haibun/web-playwright/web-playwright",
+		"@haibun/storage-fs/storage-fs",
+		"@haibun/shu/shu-stepper",
+		"@haibun/shu/monitor-stepper",
+		"@haibun/shu/client-cache-stepper",
+		"./build/components/shu-scrollbar.controls",
+		"./build/components/shu-monitor-column.controls",
+		"@haibun/monitor-tui"
+	]
+}
