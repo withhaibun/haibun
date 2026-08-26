@@ -22,7 +22,7 @@
 		"format": "biome format --write .",
 		"check": "biome check .",
 		"build:watch": "tsc -b . --watch --preserveWatchOutput & npm run bundle:watch & wait",
-		"bundle:app": "esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --sourcemap=inline --conditions=development",
+		"bundle:app": "esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --sourcemap=external --conditions=development",
 		"bundle:report": "esbuild src/app.ts --bundle --outfile=build/shu-report-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
 		"bundle:watch": "npm run bundle:app -- --watch=forever & npm run bundle:report -- --watch=forever & wait",
 		"bundle:polymorphic": "esbuild src/components/polymorphic-bundle.ts --bundle --outfile=build/assets/shu-polymorphic-graph-view.js --format=iife --platform=browser --target=es2022 --conditions=development --minify"

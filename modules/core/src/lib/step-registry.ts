@@ -343,6 +343,9 @@ export type DomainDiscoveryInfo = {
 	values?: string[];
 	stepperName?: string;
 	persistedAs?: string;
+	/** How a domain presents itself: the component that renders it, the URL its source is served from, and its labels.
+	 *  Never the component's source itself — a client loads that from the URL, and a standalone report inlines it from
+	 *  the domains in memory, so a manifest that carried it would send a bundle to every caller. */
 	ui?: Record<string, unknown>;
 };
 
@@ -411,12 +414,13 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 				// schema not convertible — leave values undefined
 			}
 		}
+		const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui as Record<string, unknown> & { jsContent?: string }) : undefined;
 		domains[key] = {
 			description: domain.description,
 			values,
 			stepperName: domain.stepperName,
 			persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined,
-			ui: domain.ui,
+			ui,
 		};
 	}
 	const concerns = buildConcernCatalog(world.domains);

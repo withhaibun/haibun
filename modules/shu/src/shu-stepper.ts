@@ -88,12 +88,13 @@ export function loadBundle(): string {
 	}
 }
 
-/** The bundle for the standalone report: the minified production build (≈half the dev bundle, no sourcemap). Falls back to the sourcemap-stripped dev bundle if the report bundle isn't built yet. */
+/** The bundle for the standalone report: the minified production build (≈half the development build). Falls back to the
+ *  development build if the report bundle is not built yet; neither carries a source map, which the served page adds. */
 export function loadReportBundle(): string {
 	try {
 		return readFileSync(join(__dirname, "..", "build", "shu-report-bundle.js"), "utf-8");
 	} catch {
-		return loadBundle().replace(/\n?\/\/# sourceMappingURL=data:application\/json;[^\n]*/g, "");
+		return loadBundle();
 	}
 }
 
@@ -127,7 +128,7 @@ ${scriptsHtml}
 // The served page's hydration is empty: a live page carries no boot payload. Only the offline report embeds one, and
 // it writes its own hydration element (buildReportHtml). The tag is still served so the SSR shape is one shape.
 export function buildSpaHtml(basePath: string, bundle: string): string {
-	const scripts = `  <script type="application/json" id="shu-hydration">{}</script>\n\n  <script>${bundle}</script>`;
+	const scripts = `  <script type="application/json" id="shu-hydration">{}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
 	return spaDocument(basePath, scripts);
 }
 
@@ -196,6 +197,9 @@ export function sessionActions(declared: string | undefined): string[] {
 // package root so one path resolves whether this runs from `src/` or `build/`, and cached by mtime so a rebuilt
 // bundle is served on the next request.
 export const POLYMORPHIC_VIEW_JS = "/assets/shu-polymorphic-graph-view.js";
+/** Where the served page's source map is read from. The bundle is inlined in the page, so the map is addressed
+ *  absolutely rather than beside a file that is never fetched; only a reader with developer tools open asks for it. */
+export const SPA_SOURCE_MAP = "/assets/shu-bundle.js.map";
 const POLYMORPHIC_BUNDLE_PATH = join(__dirname, "..", "build", "assets", "shu-polymorphic-graph-view.js");
 let polymorphicBundleCache: { mtimeMs: number; content: string } | undefined;
 const loadPolymorphicBundle = (): { content: string; etag: string } => {
@@ -375,6 +379,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						if (c.req.header("if-none-match") === etag) return c.body(null, 304);
 						c.header("Content-Type", "application/javascript");
 						return c.body(content);
+					});
+					webserver.addRoute("get", SPA_SOURCE_MAP, { description: "Source map for the served shu bundle" }, (c: Context) => {
+						try {
+							c.header("Content-Type", "application/json");
+							return c.body(readFileSync(join(__dirname, "..", "build", "shu-bundle.js.map"), "utf-8"));
+						} catch {
+							return c.body("the source map is not built; run npm run build in @haibun/shu", 404);
+						}
 					});
 				}
 				webserver.addRoute("get", "/.well-known/haibun-context.jsonld", { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);

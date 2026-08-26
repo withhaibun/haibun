@@ -194,7 +194,6 @@ export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
  *  `first`, when the run's first event happened; `truncated`, whether older events exist past a time-paged page. */
 const MonitorEventsSchema = z.object({ events: z.array(z.unknown()), total: z.number().optional(), first: z.number().optional(), truncated: z.boolean().optional(), run: z.string().optional() });
 
-const DispatchTracesSchema = z.object({ traces: z.array(z.unknown()) });
 
 const ClusteredQuadsSchema = z.object({
 	quads: z.array(z.unknown()),
@@ -741,19 +740,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				const missed = (batch.recorded ?? 0) - (this.clientBlipsReceived += batch.blips.length);
 				if (missed > 0) world.eventLogger.debug(`[shu] ${missed} client occurrence(s) recorded but not delivered; the page's buffer filled between batches`);
 				return actionOKWithProducts({});
-			},
-		},
-		getDispatchTraces: {
-			gwta: "get dispatch traces",
-			productsSchema: DispatchTracesSchema,
-			action: () => {
-				const traces = this.events
-					.filter((e) => e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace")
-					.map((e) => {
-						const t = (e as Record<string, unknown>).trace;
-						return typeof t === "object" && t ? { ...(t as Record<string, unknown>), timestamp: e.timestamp } : t;
-					});
-				return actionOKWithProducts({ traces });
 			},
 		},
 		getClusteredQuads: {
