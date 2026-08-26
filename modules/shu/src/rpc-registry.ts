@@ -2,7 +2,7 @@ import { conduit } from "./hypermedia.js";
 import { setRpcCache, findCachedMethod } from "./rpc-cache.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
-import { deviceStore } from "./client-cache/index.js";
+import { deviceStore, type TCachePayload } from "./client-cache/index.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { z } from "zod";
@@ -159,6 +159,8 @@ async function getStepList(): Promise<StepListResponse> {
 export interface ShuHydration {
 	rpcCache?: Record<string, unknown>;
 	viewHash?: string;
+	/** The run this page carries, for a page with no server: filled into the client cache at boot. */
+	cache?: TCachePayload;
 }
 
 // The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
@@ -199,6 +201,11 @@ export function hydrateFromDom(): void {
  */
 export function isStandaloneMode(): boolean {
 	return cachedHydration().data !== null && cachedHydration().data?.rpcCache !== undefined;
+}
+
+/** The run this page carries, when it carries one. */
+export function hydratedCache(): TCachePayload | undefined {
+	return cachedHydration().data?.cache;
 }
 
 /** Get the view hash embedded at export time (offline mode). */

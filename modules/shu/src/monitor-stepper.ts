@@ -42,6 +42,7 @@ import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { RemoteGraphSource } from "./remote-graph-source.js";
+import { CACHE_SHAPE, type TCachePayload, type TStoredEvent } from "./client-cache/index.js";
 
 /** Result of the inherent `graphQuery` step: matched rows + their count. */
 const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(), z.unknown())), total: z.number().int().nonnegative() });
@@ -494,16 +495,25 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		return lines.map((line) => JSON.parse(line) as TReportEvent);
 	}
 
+	/** The run as the client cache holds it, for a page that has no server to read it from: every event of the run from
+	 *  the log with the index the server stamped, what each level spans, and the site's registry as it stood. */
+	private cacheForReport(events: TReportEvent[], registry: unknown): TCachePayload {
+		const extents: Record<string, { total: number; first?: number; last?: number }> = {};
+		const newest = events.reduce((at, e) => Math.max(at, Number((e as { timestamp?: number }).timestamp) || 0), 0);
+		for (const level of HAIBUN_LOG_LEVELS) {
+			const total = this.levelCounts[level] ?? 0;
+			if (total > 0) extents[level] = { total, first: this.firstLoggedAt, last: newest || undefined };
+		}
+		return { shape: CACHE_SHAPE, run: this.runId ?? "", events: events as unknown as TStoredEvent[], extents, registry };
+	}
+
 	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {
 		const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
-		// Ensure essential data is always available offline:
-		// 1. Events — embed one complete end-of-run copy under the bare key; drop the per-filter copies the live run
-		//    cached (getCachedResponse serves the bare copy for any filter; the views filter themselves).
-		for (const key of Object.keys(rpcCache)) if (key.startsWith(`${GET_EVENTS_METHOD}:`)) delete rpcCache[key];
-		// The report embeds the FULL run history from the on-disk log — every event, never truncated by the in-memory
-		// window, already report-lean (slimmed at write). The in-memory `events` buffer is only the live-backfill window.
+		// The run itself is carried as the client cache holds it, not as responses to replay: every event of the run from
+		// the on-disk log (never truncated by the in-memory window, already report-lean), with the index the server
+		// stamped. What the live run captured of those responses is dropped, since nothing reads them.
+		for (const key of Object.keys(rpcCache)) if (key === GET_EVENTS_METHOD || key.startsWith(`${GET_EVENTS_METHOD}:`)) delete rpcCache[key];
 		const reportEvents = this.readEventLog();
-		rpcCache[GET_EVENTS_METHOD] = { events: reportEvents };
 		// 2. Parameterless steps with view products (deterministic view toggles). Exclude getClusteredQuads: it's the graph
 		//    DATA RPC, not a view toggle (no `.view` product), it requires an accessLevel by design (no default — it honors
 		//    the caller's access exactly), and it's serialized canonically below via buildGraphSource. Running it here arg-less
@@ -523,9 +533,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}),
 		);
-		if (!rpcCache["step.list"]) {
-			rpcCache["step.list"] = { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
-		}
+		// The site's declarations ride in the cache as the registry, where a page with no server reads them; the captured
+		// response is dropped so there is one place a registry comes from.
+		const registry = rpcCache["step.list"] ?? { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
+		delete rpcCache["step.list"];
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the
 		// last live snapshot is the one that matters. Re-run the parameterless producers
@@ -585,7 +596,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// No report-time slimming: the disk log is already report-lean by construction (slimmed at write — debug-artifact
 		// bulk excluded, stepValuesMap dropped, products reduced to display subfields). The whole payload is compressed below.
 		// `events` lives only in the rpcCache (getEvents); hydrateFromDom reads rpcCache + viewHash, never a top-level events field.
-		const hydration = JSON.stringify({ rpcCache, viewHash });
+		const hydration = JSON.stringify({ rpcCache, viewHash, cache: this.cacheForReport(reportEvents, registry) });
 		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
 		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
 		const secrets = await this.getWorld().shared.getSecrets();
