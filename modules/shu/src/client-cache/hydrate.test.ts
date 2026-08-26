@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { CACHE_SHAPE } from "./device-store.js";
 import { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 import { deviceStore, eventRunSource, resetRunSources, currentRun } from "./run-source.js";
+import { cachedGraphStore } from "../quads-snapshot.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "../window-size-setting.js";
 
@@ -58,5 +59,15 @@ describe("a run carried in a page", () => {
 
 	it("refuses a payload written to another rule rather than reading it wrongly", async () => {
 		await expect(hydrateClientCache(payload({ shape: "some-earlier-rule/0" }))).rejects.toThrow(/does not read/);
+	});
+
+	it("carries the graph, in a store of the page's own rather than the origin's", async () => {
+		const quads = [
+			{ subject: "c1", predicate: "content", object: "hello", namedGraph: "Comment", timestamp: 1 },
+			{ subject: "c1", predicate: "author", object: "did:example:a", namedGraph: "Comment", timestamp: 2 },
+		];
+		await hydrateClientCache(payload({ quads }));
+		expect((await cachedGraphStore().query({ subject: "c1" })).length, "the graph the page carries is what the graph views read").toBe(2);
+		expect(await cachedGraphStore().get("c1", "content", "Comment")).toBe("hello");
 	});
 });

@@ -1,5 +1,12 @@
 /**
- * The client cache: what a page caches of the run, and how. One library, read through this surface.
+ * The client cache: what a page holds of a run, and the ONE path a view reads it by. Every view reads the run through a
+ * run source over the device's store, the graph through the store the page caches it in, and the site's declarations
+ * through the registry this cache holds. Where the cache was filled from — a server, this device from an earlier visit,
+ * or a run the page carries because it is a report — is settled once at boot and never asked again by a view.
+ *
+ * A change that needs data a view does not have extends this library: a new read on the store, a new source, a value on
+ * the cache view. It does not add a fetch beside it, a second store, or a branch on what kind of page this is;
+ * `one-path.test.ts` fails the build when one appears.
  *
  * - run sources (run-source.ts): the run at a level as a view reads it, a WindowedSource over every event at that level
  *   and up, spanning the whole run by index, paged in on demand (the device first, then the server), bounded in what it
@@ -36,6 +43,6 @@ export {
 	type TEventRecord,
 } from "./run-source.js";
 export { IndexedDbDeviceStore, MemoryDeviceStore, subscribeDeviceWrites, runsNewestFirst, CACHE_SHAPE, eventTime, runOf, storedEventKey, resetDeviceStoreIdb, type DeviceStore, type TEventStoreSummary, type TStoredEvent, type TStoredRegistry } from "./device-store.js";
-export { IndexedDbQuadStore } from "./quad-store.js";
+export { IndexedDbQuadStore, originGraphStore } from "./quad-store.js";
 export { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";

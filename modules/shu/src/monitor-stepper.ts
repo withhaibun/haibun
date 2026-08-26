@@ -497,14 +497,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 
 	/** The run as the client cache holds it, for a page that has no server to read it from: every event of the run from
 	 *  the log with the index the server stamped, what each level spans, and the site's registry as it stood. */
-	private cacheForReport(events: TReportEvent[], registry: unknown): TCachePayload {
+	private cacheForReport(events: TReportEvent[], registry: unknown, quads: TQuad[]): TCachePayload {
 		const extents: Record<string, { total: number; first?: number; last?: number }> = {};
 		const newest = events.reduce((at, e) => Math.max(at, Number((e as { timestamp?: number }).timestamp) || 0), 0);
 		for (const level of HAIBUN_LOG_LEVELS) {
 			const total = this.levelCounts[level] ?? 0;
 			if (total > 0) extents[level] = { total, first: this.firstLoggedAt, last: newest || undefined };
 		}
-		return { shape: CACHE_SHAPE, run: this.runId ?? "", events: events as unknown as TStoredEvent[], extents, registry };
+		return { shape: CACHE_SHAPE, run: this.runId ?? "", events: events as unknown as TStoredEvent[], extents, registry, quads };
 	}
 
 	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {
@@ -596,7 +596,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// No report-time slimming: the disk log is already report-lean by construction (slimmed at write — debug-artifact
 		// bulk excluded, stepValuesMap dropped, products reduced to display subfields). The whole payload is compressed below.
 		// `events` lives only in the rpcCache (getEvents); hydrateFromDom reads rpcCache + viewHash, never a top-level events field.
-		const hydration = JSON.stringify({ rpcCache, viewHash, cache: this.cacheForReport(reportEvents, registry) });
+		const hydration = JSON.stringify({ rpcCache, viewHash, cache: this.cacheForReport(reportEvents, registry, this.observationQuads) });
 		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
 		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
 		const secrets = await this.getWorld().shared.getSecrets();

@@ -35,7 +35,7 @@ import { eventMarkerStyle } from "../event-marker.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
 import { getRels, getUiByType } from "../rels-cache.js";
-import { isStandaloneMode } from "../rpc-registry.js";
+import { artifactUrl } from "../artifact-url.js";
 import { refLinksPlugin } from "../markdown-refs.js";
 
 const DocumentColumnSchema = z.object({
@@ -457,15 +457,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	private renderArtifact(artifact: TArtifactEvent): string {
 		const type = artifact.artifactType;
 		const a = artifact as Record<string, unknown>;
-		// Serialized (file://): shu.html sits in the feature dir, so reference artifacts by their feature-relative path
-		// (e.g. ./image/x.png). The emitter supplies `featureRelativePath`; the fallback derives it by dropping the
-		// leading `featn-N/` segment of the base-relative `path`. Live: the /artifacts route serves the base-relative `path`.
-		const url = a.url as string | undefined;
-		const base = a.path ? String(a.path).replace(/^\.?\//, "") : undefined;
-		const featureRelativeFallback = base ? `./${base.split("/").slice(1).join("/")}` : undefined;
-		const artifactPath = isStandaloneMode()
-			? ((a.featureRelativePath as string | undefined) ?? url ?? featureRelativeFallback)
-			: (url ?? (base ? `/artifacts/${base}` : undefined));
+		const artifactPath = artifactUrl(a);
 		if (type === "image") {
 			return `<shu-artifact-frame class="thumb"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
 		}
