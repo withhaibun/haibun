@@ -8,7 +8,7 @@
  * unambiguously.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { hasLink, getLink, conduit, setConduit, resetConduit, SerializedConduit, type TRepresentation } from "./hypermedia.js";
+import { hasLink, getLink, conduit, setConduit, resetConduit, SerializedConduit, type TRepresentation, LiveConduit, ServerUnreachable, isServerUnreachable } from "./hypermedia.js";
 
 beforeEach(() => {
 	resetConduit();
@@ -148,5 +148,35 @@ describe("SerializedConduit.followStream", () => {
 		const c = new SerializedConduit(() => ({ text: "only one" }));
 		await c.followStream({ method: "X-stream" }, (c) => chunks.push(c), { why: "test" });
 		expect(chunks).toEqual([{ text: "only one" }]);
+	});
+});
+
+describe("a server that does not respond", () => {
+	// A request that never gets a response says nothing about what it asked: the page reports it and reads what it caches.
+	// Every other failure, including an error the server itself returns, stays a fault to fail on.
+	it("raises ServerUnreachable when the request cannot be made, and isServerUnreachable finds it through a chain of causes", async () => {
+		const fetchWas = globalThis.fetch;
+		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
+		try {
+			const conduit = new LiveConduit("");
+			const err = await conduit.follow({ method: "step.list" }, "test").then(() => undefined, (e: unknown) => e);
+			expect(err).toBeInstanceOf(ServerUnreachable);
+			expect(isServerUnreachable(err)).toBe(true);
+			expect(isServerUnreachable(new Error("wrapped", { cause: err }))).toBe(true);
+			expect(String((err as Error).message)).toContain("/rpc/action.begin");
+		} finally {
+			globalThis.fetch = fetchWas;
+		}
+	});
+
+	it("an error the server returns is not unreachability", async () => {
+		const fetchWas = globalThis.fetch;
+		globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ error: "no such step" }), { status: 422, headers: { "Content-Type": "application/json" } }));
+		try {
+			const err = await new LiveConduit("").follow({ method: "step.list" }, "test").then(() => undefined, (e: unknown) => e);
+			expect(isServerUnreachable(err)).toBe(false);
+		} finally {
+			globalThis.fetch = fetchWas;
+		}
 	});
 });

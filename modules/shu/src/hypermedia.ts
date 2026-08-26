@@ -133,6 +133,25 @@ async function rpcHeaders(url: string, method: string, body: string): Promise<Re
 }
 
 /** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path — wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */
+/** The server could not be reached: the request never got a response, so nothing is known about what it asked. A
+ *  deployment state a view reports (the reader is offline, the server is stopped), not a fault to fail on; every other
+ *  failure, including an error the server itself returns, stays a fault. */
+export class ServerUnreachable extends Error {
+	constructor(
+		readonly url: string,
+		cause: unknown,
+	) {
+		super(`the server did not respond to ${url}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+		this.name = "ServerUnreachable";
+	}
+}
+
+/** Whether a failure is the server being unreachable, however deep in a chain of causes it was raised. */
+export function isServerUnreachable(err: unknown): boolean {
+	for (let e: unknown = err, depth = 0; e && depth < 8; e = (e as { cause?: unknown }).cause, depth++) if (e instanceof ServerUnreachable) return true;
+	return false;
+}
+
 export class LiveConduit implements Conduit {
 	constructor(
 		private readonly basePath: string = "",
@@ -183,7 +202,12 @@ export class LiveConduit implements Conduit {
 	private async post(method: string, envelope: Omit<Parameters<typeof rpcEnvelope>[0], "id">, signal?: AbortSignal): Promise<Response> {
 		const url = `${this.basePath}/rpc/${method}`;
 		const body = rpcEnvelope({ id: nextRpcId(), ...envelope });
-		return fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal });
+		try {
+			return await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal });
+		} catch (err) {
+			if (signal?.aborted) throw err; // the caller stopped this request; the server's reachability is not in question
+			throw new ServerUnreachable(url, err);
+		}
 	}
 
 	private async beginAction(why: string): Promise<number[]> {

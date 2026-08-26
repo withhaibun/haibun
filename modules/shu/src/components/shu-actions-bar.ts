@@ -32,7 +32,7 @@ import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { clamp, prettifyGwta, appAccessLevel } from "../util.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
-import { conduit, isOffline } from "../hypermedia.js";
+import { conduit, isOffline, isServerUnreachable } from "../hypermedia.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { runSpan } from "../client-cache/index.js";
@@ -51,6 +51,7 @@ import {
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
+import { reportToRun, type TClientLogLevel } from "../client-log.js";
 
 
 /**
@@ -319,6 +320,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private triggerSelectValuesLoad(label?: string, force = false): void {
 		void this.loadSelectValues(label, force).catch((err) => {
+			// The values a step offers come from the server; unreachable, the bar reports it and the reader types the value.
+			if (isServerUnreachable(err)) return this.setStatus(`the values for this step are not available: ${errorDetail(err)}`);
 			this.failFast(`ShuActionsBar select-values load failed: ${errorDetail(err)}`);
 		});
 	}
@@ -346,6 +349,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.autoListen(document, AWAITING_DECISION, this._onAwaitingDecision);
 
 		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
+			// What this bar offers comes from the server; unreachable, it reports that and the page reads what it caches.
+			if (isServerUnreachable(err)) return this.setStatus(`the server did not respond: this bar offers what the page already read`);
 			this.failFast(`ShuActionsBar initialization failed: ${errorDetail(err)}`);
 		});
 
@@ -432,35 +437,14 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (errors.length > 0) throw new Error(errors.join("\n"));
 	}
 
-	private reportActionsBar(level: "debug" | "info" | "warn" | "error", message: string, attributes: Record<string, unknown> = {}): void {
-		void conduit()
-			.follow(
-				{
-					method: "MonitorStepper-logClient",
-					params: {
-						event: {
-							level,
-							source: "shu-actions-bar",
-							message,
-							attributes: {
-								"haibun.shu.actions-bar.event": "ui-extension",
-								...attributes,
-								...(level === "error"
-									? {
-											"haibun.autonomic.event": "step.failure",
-											"exception.type": "ActionsBarUiExtension",
-											"exception.message": typeof attributes.error === "string" ? attributes.error : message,
-										}
-									: {}),
-							},
-						},
-					},
-				},
-				`actions-bar: log ${level}`,
-			)
-			.catch((err: unknown) => {
-				failFastOrLog(`[shu-actions-bar] reportActionsBar dispatch failed: ${errorDetail(err)}`, err);
-			});
+	private reportActionsBar(level: TClientLogLevel, message: string, attributes: Record<string, unknown> = {}): void {
+		reportToRun(level, "shu-actions-bar", message, {
+			"haibun.shu.actions-bar.event": "ui-extension",
+			...attributes,
+			...(level === "error"
+				? { "haibun.autonomic.event": "step.failure", "exception.type": "ActionsBarUiExtension", "exception.message": typeof attributes.error === "string" ? attributes.error : message }
+				: {}),
+		});
 	}
 
 	notifyQueryCompleted(): void {
