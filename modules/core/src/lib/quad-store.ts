@@ -132,6 +132,12 @@ export class QuadStore implements IQuadStore {
 		return [...new Set(this.routing.values())];
 	}
 
+	/** Upsert a batch as one act: each quad replaces any prior quad with the same subject, predicate and named graph, so
+	 *  caching a batch keeps one row per fact rather than appending. The client's store does the same in one transaction. */
+	async setMany(quads: TQuad[]): Promise<void> {
+		for (const q of quads) await this.set(q.subject, q.predicate, q.object, q.namedGraph, q.properties);
+	}
+
 	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
 		const backing = this.storeFor(namedGraph);
 		if (backing) return backing.set(subject, predicate, object, namedGraph, properties);

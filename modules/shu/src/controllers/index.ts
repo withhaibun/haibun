@@ -12,7 +12,7 @@
  *   }
  *
  * Adding a new data capability (a new kind of read)? Add a controller HERE and reuse the shared data layer
- * (event-source / quads-snapshot / the query steps); do NOT reassemble RPC inside a component. `data-access.test.ts`
+ * (the client cache / quads-snapshot / the query steps); do NOT reassemble RPC inside a component. `data-access.test.ts`
  * fails the build if a component reaches the raw RPC/store primitives directly — that test is the guardrail, this file
  * is the map.
  */

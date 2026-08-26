@@ -161,3 +161,6 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 }
 
+/** The store this page caches the graph in, on a served origin: one per page, beside the events and the registry. A page
+ *  that carries its own graph (a report) installs one of its own through `setGraphStore`. */
+export const originGraphStore = new IndexedDbQuadStore();

@@ -6,6 +6,9 @@
  * Memory, not IndexedDB: a report is opened from a file, where every report shares one origin, so a report that
  * persisted would mix its run with the next report's.
  */
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { setGraphStore } from "../quads-snapshot.js";
 import { CACHE_SHAPE, MemoryDeviceStore, type TStoredEvent } from "./device-store.js";
 import { readRun, setDeviceStore } from "./run-source.js";
 
@@ -17,6 +20,8 @@ export type TCachePayload = {
 	events: TStoredEvent[];
 	extents: Record<string, { total: number; first?: number; last?: number }>;
 	registry?: unknown;
+	/** The graph as it stood, so the views that read the graph read it here rather than from a server. */
+	quads?: TQuad[];
 };
 
 /** Fill a memory-backed device store with a report's run, and read the run through it from now on. */
@@ -28,6 +33,11 @@ export async function hydrateClientCache(cache: TCachePayload): Promise<void> {
 	await store.setLastRun(cache.run);
 	if (cache.registry !== undefined) await store.setRegistry(cache.registry);
 	setDeviceStore(store);
+	// The graph the page carries, in a store of its own rather than the origin's: a file shares one origin with every
+	// other report, so a report that persisted its graph would mix it with the next report's.
+	const graph = new QuadStore();
+	if (cache.quads?.length) await graph.setMany(cache.quads);
+	setGraphStore(graph);
 	// The run this page carries is the run it reads: there is no server recording another one, so every page comes from
 	// what the page carries rather than from a response about some other run.
 	await readRun(cache.run);
