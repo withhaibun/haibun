@@ -13,7 +13,7 @@ import { getCachedResponse } from "./rpc-cache.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
-import { conduit, setConduit, LiveConduit, SerializedConduit, isOffline, type TDispatch } from "./hypermedia.js";
+import { conduit, setConduit, LiveConduit, SerializedConduit, isOffline, type TDispatch, isServerUnreachable } from "./hypermedia.js";
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
@@ -31,6 +31,7 @@ import type { ShuActionsBar } from "./components/shu-actions-bar.js";
 import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { reportToRun, type TClientLogLevel } from "./client-log.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -177,28 +178,10 @@ const main = async (): Promise<void> => {
 		index.setMinimized(true);
 	};
 
-	// Boot-time smoke test for the diagnostic channel.
-	const reportBootDiagnostic = (level: "debug" | "info" | "warn" | "error", msg: string, attrs?: Record<string, unknown>) => {
-		if (isOffline()) return;
-		void conduit()
-			.follow({ method: "MonitorStepper-logClient", params: { event: { level, source: "shu-app-boot", message: msg, attributes: attrs } } }, `app: boot diagnostic ${level}`)
-			.catch((e) => failFastOrLog("[shu-boot] diagnostic failed:", e));
-	};
+	const reportBootDiagnostic = (level: TClientLogLevel, msg: string, attrs?: Record<string, unknown>): void => reportToRun(level, "shu-app-boot", msg, attrs);
 	reportBootDiagnostic("debug", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
 
-	const reportClientLog = (level: "debug" | "info" | "warn" | "error", message: string, attributes?: Record<string, unknown>) => {
-		// Offline (standalone shu.html): no server to log to. Skip silently — the
-		// diagnostic channel only exists in live mode.
-		if (isOffline()) return;
-		// Fail-fast — surface RPC plumbing issues that would otherwise hide every diagnostic.
-		void conduit()
-			.follow({ method: "MonitorStepper-logClient", params: { event: { level, message, source: "shu-app", attributes } } }, `app: client log ${level}`)
-			.catch((err) => {
-				const detail = errorDetail(err);
-				console.error(`[shu] reportClientLog dispatch failed: ${detail}`, { level, message, attributes });
-				throw new Error(`[shu] reportClientLog dispatch failed: ${detail}`);
-			});
-	};
+	const reportClientLog = (level: TClientLogLevel, message: string, attributes?: Record<string, unknown>): void => reportToRun(level, "shu-app", message, attributes);
 
 	/**
 	 * Structured-event channel for external-component lifecycle phases. Error-level

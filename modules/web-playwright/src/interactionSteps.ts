@@ -18,6 +18,10 @@ import { JsonArtifact } from "@haibun/core/schema/protocol.js";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
+/** Whether the requests a page makes to a URL glob reach the network. `unroute` drops the handler added under the same glob. */
+const BLOCKED = "blocked";
+const REQUEST_STATES = [BLOCKED, "allowed"] as const;
+
 export const interactionSteps = (wp: WebPlaywright) =>
 	({
 		// INPUT
@@ -638,6 +642,17 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					}));
 					return await page.setViewportSize({ width, height });
 				});
+				return OK;
+			},
+		},
+		requestsMatching: {
+			gwta: `requests matching {pattern} are {state}`,
+			description: `Block or allow the requests this page makes, by URL glob, for the rest of the feature: what a view does when the server it reads from is unreachable, and what it does when the server responds again. ${REQUEST_STATES.join(" or ")}.`,
+			action: async ({ pattern, state }: { pattern: string; state: string }) => {
+				if (!(REQUEST_STATES as readonly string[]).includes(state)) return actionNotOK(`requests are ${REQUEST_STATES.join(" or ")}, not "${state}"`);
+				// On the page, not the context: every page carries the tracer's own `**/*` route, which takes precedence over a
+				// context route and continues what it records. Page routes run newest first, so this one is consulted before it.
+				await wp.withPage(async (page: Page) => (state === BLOCKED ? page.route(pattern, (route) => route.abort()) : page.unroute(pattern)));
 				return OK;
 			},
 		},

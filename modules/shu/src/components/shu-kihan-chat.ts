@@ -26,6 +26,7 @@ import type { TContextPattern } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
+import { reportToRun } from "../client-log.js";
 
 const TOOL_LIMIT_DEFAULT = 5;
 const TOOL_LIMIT_MIN = 0;
@@ -476,12 +477,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				this.patchMessage(aiId, { error: errorDetail(err), spinnerVisible: false, status: "failed" });
 				// A turn that fails in the browser was invisible to the run: the pane showed the error, the log showed a
 				// missing element. Report it so a failed turn says why wherever the run is read.
-				void conduit()
-					.follow(
-						{ method: "MonitorStepper-logClient", params: { event: { level: "error", source: "shu-kihan-chat", message: `chat turn failed: ${errorDetail(err)}` } } },
-						"chat: turn failed",
-					)
-					.catch(() => undefined);
+				reportToRun("error", "shu-kihan-chat", `chat turn failed: ${errorDetail(err)}`);
 			}
 		} finally {
 			const aborted = signal.aborted;

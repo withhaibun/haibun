@@ -23,3 +23,12 @@ describe("clickBy", () => {
 		expect(steps[0].featureSteps[0].action.actionName).toBe("clickBy");
 	});
 });
+describe("requestsMatching", () => {
+	it("resolves blocking and allowing a URL glob", async () => {
+		const features = asExpandedFeatures([{ path: "l1", content: 'requests matching "**/rpc/**" are "blocked"\nrequests matching "**/rpc/**" are "allowed"' }]);
+		const steppers = createSteppers([WebPlaywright]);
+		const resolver = new Resolver(steppers);
+		const steps = await resolver.resolveStepsFromFeatures(features);
+		expect(steps[0].featureSteps.map((f) => f.action.actionName)).toEqual(["requestsMatching", "requestsMatching"]);
+	});
+});

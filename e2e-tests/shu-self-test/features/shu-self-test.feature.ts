@@ -27,6 +27,10 @@ const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SP
 // The client cache view's readings of the run source at log (the document's level): its cached spans and its extent.
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
+const CACHE_LOG_STATE = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-state`;
+/** The globs that cover everything this page reads from its server: every remote call and the event stream. */
+const RPC_GLOB = "**/rpc/**";
+const STREAM_GLOB = "**/sse*";
 /** Every open column carries the same controls, so the log's own column names which one a click is for. */
 const MONITOR_PANE = `shu-column-pane[column-type="${SHU_TAG.MONITOR_COLUMN}"]`;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
@@ -218,5 +222,33 @@ export const features: TKirejiExport = {
 		'saves shu to "/tmp/shu.html"',
 		"An uncompressed copy carries the same content as plain text, so a reader can confirm secrets are redacted in the output without unpacking it.",
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
+
+		scenario({ scenario: "A reload with the server unreachable reads the run from the device" }),
+
+		"Everything this page has read of the run is cached on the device: the events by their index at each level, each level's extent, and the site's registry. Blocking every remote call and the event stream leaves the page with the device alone, which is what a reader has when their network drops. Reloading then must still produce a run: the registry comes from the device, the source at log reports itself loaded with its cached spans starting at the run's first row, and the monitor renders rows.",
+		`requests matching "${RPC_GLOB}" are "blocked"`,
+		`requests matching "${STREAM_GLOB}" are "blocked"`,
+		reloadPage({}),
+		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		setAs({ what: CACHE_LOG_STATE, domain: "page-test-id", value: `"${CACHE_LOG_STATE}"` }),
+		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to offlineRegistry`,
+		'matches offlineRegistry with "from the device*"',
+		`save text from ${CACHE_LOG_STATE} to offlineState`,
+		'variable offlineState is "loaded"',
+		`save text from ${CACHE_LOG_CACHED} to offlineCached`,
+		'matches offlineCached with "0..*"',
+		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+
+		scenario({ scenario: "The server responding again returns the page to it" }),
+
+		"A network that comes back is the same page reading the same stores, with the server available again: the registry is the server's once more, and the run source is loaded from it. Nothing about the views changes between the two states, which is the point of reading everything through the one cache.",
+		`requests matching "${RPC_GLOB}" are "allowed"`,
+		`requests matching "${STREAM_GLOB}" are "allowed"`,
+		reloadPage({}),
+		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to onlineRegistry`,
+		'matches onlineRegistry with "from the server*"',
+		`save text from ${CACHE_LOG_STATE} to onlineState`,
+		'variable onlineState is "loaded"',
 	],
 };
