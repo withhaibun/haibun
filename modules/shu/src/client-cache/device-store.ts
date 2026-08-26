@@ -1,5 +1,5 @@
 /**
- * The device's store — the client cache's persistence, the events analogue of quad-store-idb: the bulk lives here, off
+ * The device's store — the client cache's persistence: the bulk lives here, off
  * the JS heap, and survives a reload. Events are stored lean, keyed by their time and identity, indexed by their index
  * at each level so a page of the run is one ranged read; beside them each run's extent per level, the run last seen,
  * and the server's registry (the step list with its concerns and domains), so a tab with no server still spans the run it
@@ -59,15 +59,22 @@ export interface DeviceStore {
 export const runOf = (e: TStoredEvent): string => (typeof e.run === "string" ? e.run : "");
 
 const DB_NAME = "shu-client-cache";
-/** The database this one replaces, dropped once on open so a device does not keep both. */
-const FORMER_DB_NAME = "shu-events";
+/** The databases this one replaces, dropped once on open so a device does not keep them beside it. */
+const FORMER_DB_NAMES = ["shu-events", "shu-graph"];
 /** Bumped when what is stored changes shape or meaning; an upgrade starts the store afresh (the server has the run). */
-const VERSION = 1;
+const VERSION = 3;
 const EVENTS = "events";
 const META = "meta";
+/** The graph the page caches: quads, kept in the same database as the events so the client cache has one lifecycle. */
+export const QUADS = "quads";
+export const IDX_QUAD_SPG = "by-spg";
+export const IDX_QUAD_SUBJECT = "by-subject";
+export const IDX_QUAD_NAMED_GRAPH = "by-named-graph";
 /** One index per level over [run, the event's index at that level] (`idx.<level>`, stamped by the server); an event that
  *  does not count toward a level is simply absent from that level's index. */
 const idxIndexName = (level: string): string => `by-run-idx-${level}`;
+/** Every event's run, so the runs this store caches are read without a walk over the events themselves. */
+const IDX_RUN = "by-run";
 const EXTENT_KEY = (run: string, level: string): string => `extent:${run}:${level}`;
 const LAST_RUN_KEY = "lastRun";
 const REGISTRY_KEY = "registry";
@@ -95,13 +102,18 @@ function openDb(): Promise<IDBDatabase | null> {
 		req.onupgradeneeded = () => {
 			const db = req.result;
 			for (const name of Array.from(db.objectStoreNames)) db.deleteObjectStore(name); // a new shape: start afresh
+			const quads = db.createObjectStore(QUADS, { autoIncrement: true });
+			quads.createIndex(IDX_QUAD_SPG, "spg", { unique: false });
+			quads.createIndex(IDX_QUAD_SUBJECT, "subject", { unique: false });
+			quads.createIndex(IDX_QUAD_NAMED_GRAPH, "namedGraph", { unique: false });
 			const events = db.createObjectStore(EVENTS, { keyPath: "__key" });
+			events.createIndex(IDX_RUN, "__run", { unique: false });
 			for (const level of HAIBUN_LOG_LEVELS) events.createIndex(idxIndexName(level), ["__run", `idx.${level}`], { unique: false });
 			db.createObjectStore(META);
 		};
 		req.onsuccess = () => {
 			resolve(req.result);
-			indexedDB.deleteDatabase(FORMER_DB_NAME); // the former database, if this device has one; its events are on the server
+			for (const former of FORMER_DB_NAMES) indexedDB.deleteDatabase(former); // the databases this one replaces; what they cached is on the server
 		};
 		req.onerror = () => {
 			failFastOrLog("[device-store] open failed; the client cache will not persist:", req.error);
@@ -111,14 +123,14 @@ function openDb(): Promise<IDBDatabase | null> {
 	return dbPromise;
 }
 
-const done = <T>(req: IDBRequest<T>): Promise<T> =>
+export const done = <T>(req: IDBRequest<T>): Promise<T> =>
 	new Promise((resolve, reject) => {
 		req.onsuccess = () => resolve(req.result);
 		req.onerror = () => reject(req.error);
 	});
 
 /** Run `fn` in one transaction over the named stores and resolve once it commits; `undefined` when IndexedDB is unavailable. */
-async function withStores<T>(mode: IDBTransactionMode, names: string[], fn: (tx: IDBTransaction) => T | Promise<T>): Promise<T | undefined> {
+export async function withStores<T>(mode: IDBTransactionMode, names: string[], fn: (tx: IDBTransaction) => T | Promise<T>): Promise<T | undefined> {
 	const db = await openDb();
 	if (!db) return undefined;
 	const tx = db.transaction(names, mode);
@@ -204,8 +216,23 @@ export class IndexedDbDeviceStore implements DeviceStore {
 				}
 			});
 			const events = tx.objectStore(EVENTS);
+			// Every run this store caches: the runs it has events for, and the runs it has an extent for, which are not the
+			// same set — a page cached before its extent was recorded belongs to a run all the same.
+			const seen = new Set(extents.keys());
+			// One step per distinct run, not per event: a key cursor over the run index skips to the next run each time.
+			await new Promise<void>((resolve, reject) => {
+				const req = events.index(IDX_RUN).openKeyCursor(null, "nextunique");
+				req.onsuccess = () => {
+					const cursor = req.result;
+					if (!cursor) return resolve();
+					seen.add(String(cursor.key));
+					cursor.continue();
+				};
+				req.onerror = () => reject(req.error);
+			});
 			const runs: TEventStoreSummary["runs"] = [];
-			for (const [run, byLevel] of extents) {
+			for (const run of seen) {
+				const byLevel = extents.get(run) ?? new Map<string, { total: number; first?: number; last?: number }>();
 				const levels: TEventStoreSummary["runs"][number]["levels"] = [];
 				for (const level of HAIBUN_LOG_LEVELS) {
 					const stored = await done(events.index(idxIndexName(level)).count(IDBKeyRange.bound([run, Number.NEGATIVE_INFINITY], [run, Number.POSITIVE_INFINITY])));
@@ -231,9 +258,10 @@ export class IndexedDbDeviceStore implements DeviceStore {
 	}
 
 	async clear(): Promise<void> {
-		await withStores("readwrite", [EVENTS, META], (tx) => {
+		await withStores("readwrite", [EVENTS, META, QUADS], (tx) => {
 			tx.objectStore(EVENTS).clear();
 			tx.objectStore(META).clear();
+			tx.objectStore(QUADS).clear();
 		});
 	}
 }

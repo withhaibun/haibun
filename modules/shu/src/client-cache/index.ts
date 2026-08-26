@@ -8,6 +8,7 @@
  * - the device's store (device-store.ts): where the sources persist lean events by their index at each level and each
  *   run's extent, and where the server's registry is cached, so a reload or a page with no server serves from the device and
  *   still knows the server's declarations (rpc-registry reads it when the server does not respond).
+ * - the graph this page caches (quad-store.ts): the client's `IQuadStore`, in the same database as the events.
  * - what IndexedDB caches for the origin (idb-summary.ts): every database, its stores and their counts, read-only.
  *
  * The client cache view (components/shu-client-cache-column) reads all of it, and the client cache stepper
@@ -29,4 +30,5 @@ export {
 	type TEventRecord,
 } from "./run-source.js";
 export { IndexedDbDeviceStore, MemoryDeviceStore, eventTime, runOf, storedEventKey, resetDeviceStoreIdb, type DeviceStore, type TEventStoreSummary, type TStoredEvent, type TStoredRegistry } from "./device-store.js";
+export { IndexedDbQuadStore } from "./quad-store.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";
