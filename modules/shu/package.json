@@ -2,7 +2,7 @@
 	"name": "@haibun/shu",
 	"version": "4.0.0-alpha.3",
 	"type": "module",
-	"description": "Haibun hypermedia SPA \u2014 renders any domain-driven application from stepper concerns",
+	"description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
 	"main": "build/app.js",
 	"types": "build/app.d.ts",
 	"exports": {
@@ -28,13 +28,13 @@
 		"bundle:polymorphic": "esbuild src/components/polymorphic-bundle.ts --bundle --outfile=build/assets/shu-polymorphic-graph-view.js --format=iife --platform=browser --target=es2022 --conditions=development --minify"
 	},
 	"dependencies": {
-		"3d-force-graph-vr": "^3.1.1",
 		"@digitalbazaar/http-signature-zcap-invoke": "^6.1.0",
 		"@huggingface/transformers": "^4.2.0",
 		"@lit-labs/signals": "^0.3.0",
 		"@lit-labs/virtualizer": "^2.1.1",
 		"@lit/task": "^1.0.3",
 		"@recogito/text-annotator": "^4.2.5",
+		"3d-force-graph-vr": "^3.1.1",
 		"aframe": "~1.7.1",
 		"d3-force-3d": "^3.0.6",
 		"dompurify": "^3.3.3",
@@ -47,6 +47,7 @@
 	"devDependencies": {
 		"@types/markdown-it": "^14.1.2",
 		"esbuild": "^0.27.3",
+		"fake-indexeddb": "^6.2.5",
 		"jsdom": "^28.1.0"
 	}
 }

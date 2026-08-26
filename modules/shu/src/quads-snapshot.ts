@@ -5,7 +5,7 @@ import { appAccessLevel } from "./util.js";
 import { conduit } from "./hypermedia.js";
 import { getRels, getDisplayLabelRel } from "./rels-cache.js";
 import { getAvailableSteps } from "./rpc-registry.js";
-import { IndexedDbQuadStore } from "./quad-store-idb.js";
+import { IndexedDbQuadStore } from "./client-cache/index.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand) — so no path can silently inflate the budget past what the slider expresses. */

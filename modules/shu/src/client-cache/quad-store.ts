@@ -1,27 +1,20 @@
 /**
- * IndexedDbQuadStore — the client-side `IQuadStore`: the persistent graph backing behind the in-memory `QuadGraphModel`
- * (the server uses the site's graph store, the client IndexedDB — see quad-graph-model.ts "the backing store ... is the IQuadStore behind the
- * model"). Quad observations stream in via `set()` (upsert by subject+predicate+namedGraph, so the live graph stays
- * bounded rather than appending a row per update), and a view derefs a node by `@id` via `query({ subject })`. The bulk
- * lives here, off the JS heap and off the event log — events carry references, not payloads.
+ * The graph this page caches, as an `IQuadStore`: the persistent backing behind the in-memory `QuadGraphModel`. Quad
+ * observations arrive through `set()` (upsert by subject, predicate and named graph, so the cached graph stays one row
+ * per fact rather than a row per update), and a view dereferences a node by `@id` through `query({ subject })`. It lives
+ * in the client cache's one database beside the events and the registry, so the page has one cache with one lifecycle.
  *
- * Degrades by design: when IndexedDB is unavailable (a standalone report has none, or any context without it) every read
- * returns empty, so the view renders a stub. Browser-only (IndexedDB is absent in jsdom/node) → exercised by the e2e
- * suites, not unit tests. No dependency: raw IndexedDB, promisified.
+ * Degrades by design: without IndexedDB (a report, or any context without it) every read returns empty and the view
+ * renders what it has. Queries the server's engine answers (filtered individual queries, distinct values over the whole
+ * graph, clustering) are delegated to the wired remote rather than reimplemented here.
  */
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { IQuadStore, TClusteredQuads, TQuad, TQuadPattern } from "@haibun/core/lib/quad-types.js";
-import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, done, withStores as withClientCacheStores } from "./device-store.js";
 
 /** The server-side query surface the client delegates rather than reimplements — heavy queries stay server-side via RPC. */
 type RemoteQuery = Pick<IQuadStore, "queryIndividuals" | "distinctPropertyValues" | "getClusteredQuads">;
 
-const DB_NAME = "shu-graph";
-const STORE = "quads";
-const VERSION = 1;
-const IDX_SPG = "by-spg";
-const IDX_SUBJECT = "by-subject";
-const IDX_NAMED_GRAPH = "by-named-graph";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
 type StoredQuad = TQuad & { spg: string };
@@ -35,49 +28,9 @@ const matchesPattern = (q: TQuad, p: TQuadPattern): boolean =>
 	(p.namedGraph === undefined || q.namedGraph === p.namedGraph) &&
 	(p.object === undefined || objectEquals(q.object, p.object));
 
-let dbPromise: Promise<IDBDatabase | null> | null = null;
-
-function openDb(): Promise<IDBDatabase | null> {
-	if (dbPromise) return dbPromise;
-	dbPromise = new Promise((resolve) => {
-		if (typeof indexedDB === "undefined") {
-			resolve(null); // a report context without IndexedDB → reads stub
-			return;
-		}
-		const req = indexedDB.open(DB_NAME, VERSION);
-		req.onupgradeneeded = () => {
-			const store = req.result.createObjectStore(STORE, { autoIncrement: true });
-			store.createIndex(IDX_SPG, "spg", { unique: false });
-			store.createIndex(IDX_SUBJECT, "subject", { unique: false });
-			store.createIndex(IDX_NAMED_GRAPH, "namedGraph", { unique: false });
-		};
-		req.onsuccess = () => resolve(req.result);
-		req.onerror = () => {
-			failFastOrLog("[quad-store-idb] open failed; graph reads will stub:", req.error);
-			resolve(null);
-		};
-	});
-	return dbPromise;
-}
-
-const done = <T>(req: IDBRequest<T>): Promise<T> =>
-	new Promise((resolve, reject) => {
-		req.onsuccess = () => resolve(req.result);
-		req.onerror = () => reject(req.error);
-	});
-
-/** Run `fn` in one transaction and resolve once it commits; resolves `undefined` when IndexedDB is unavailable. */
-async function withStore<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => T | Promise<T>): Promise<T | undefined> {
-	const db = await openDb();
-	if (!db) return undefined;
-	const tx = db.transaction(STORE, mode);
-	const result = await fn(tx.objectStore(STORE));
-	await new Promise<void>((resolve, reject) => {
-		tx.oncomplete = () => resolve();
-		tx.onerror = () => reject(tx.error);
-	});
-	return result;
-}
+/** Run `fn` in one transaction over the quads, and resolve once it commits; `undefined` when IndexedDB is unavailable. */
+const withStore = <T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => T | Promise<T>): Promise<T | undefined> =>
+	withClientCacheStores(mode, [QUADS], (tx) => fn(tx.objectStore(QUADS)));
 
 export class IndexedDbQuadStore implements IQuadStore {
 	/** @param remote server delegate for the query surface; unwired, those methods throw rather than silently return empty. */
@@ -86,7 +39,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	async set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
 		const spg = spgKey(namedGraph, subject, predicate);
 		await withStore("readwrite", async (store) => {
-			for (const key of await done(store.index(IDX_SPG).getAllKeys(spg))) store.delete(key);
+			for (const key of await done(store.index(IDX_QUAD_SPG).getAllKeys(spg))) store.delete(key);
 			store.add({ subject, predicate, object, namedGraph, timestamp: Date.now(), properties, spg } satisfies StoredQuad);
 		});
 	}
@@ -107,9 +60,9 @@ export class IndexedDbQuadStore implements IQuadStore {
 			// Narrow with the most selective available index, then filter the remaining fields.
 			const indexed =
 				pattern.subject !== undefined
-					? await done(store.index(IDX_SUBJECT).getAll(pattern.subject))
+					? await done(store.index(IDX_QUAD_SUBJECT).getAll(pattern.subject))
 					: pattern.namedGraph !== undefined
-						? await done(store.index(IDX_NAMED_GRAPH).getAll(pattern.namedGraph))
+						? await done(store.index(IDX_QUAD_NAMED_GRAPH).getAll(pattern.namedGraph))
 						: await done(store.getAll());
 			return (indexed as StoredQuad[]).filter((q) => matchesPattern(q, pattern)).map(strip);
 		});
@@ -122,7 +75,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 				store.clear();
 				return;
 			}
-			for (const key of await done(store.index(IDX_NAMED_GRAPH).getAllKeys(namedGraph))) store.delete(key);
+			for (const key of await done(store.index(IDX_QUAD_NAMED_GRAPH).getAllKeys(namedGraph))) store.delete(key);
 		});
 	}
 
@@ -156,7 +109,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 		await withStore("readwrite", async (store) => {
 			for (const quad of quads) {
 				const spg = spgKey(quad.namedGraph, quad.subject, quad.predicate);
-				for (const key of await done(store.index(IDX_SPG).getAllKeys(spg))) store.delete(key);
+				for (const key of await done(store.index(IDX_QUAD_SPG).getAllKeys(spg))) store.delete(key);
 				store.add({ ...quad, spg } satisfies StoredQuad);
 			}
 		});
@@ -208,7 +161,3 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 }
 
-/** Test/reset hook — drop the cached DB handle so a fresh open happens next. */
-export function resetQuadStoreIdb(): void {
-	dbPromise = null;
-}
