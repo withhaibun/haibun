@@ -274,23 +274,38 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 }
 
 /**
+ * The one rule for reading the graph: ask the site, and when nothing answers, give the answer from what this page
+ * holds. `held` returns undefined when the page cannot answer either, and then the site's own failure is what the
+ * caller is told, since a question this page cannot answer is not one to be quiet about.
+ */
+async function askElseHeld<T>(ask: () => Promise<T>, held: () => Promise<T | undefined>): Promise<T> {
+	try {
+		await getAvailableSteps();
+		return await ask();
+	} catch (err) {
+		const own = await held();
+		if (own === undefined) throw err;
+		return own;
+	}
+}
+
+/**
  * A label's dropdown values: what the site answers, and when nothing answers, the distinct values its context fields
  * hold in the graph this page caches. The site derives its answer from the same declaration over the same fields, so a
  * reader with no server offered the values in the graph they hold is offered the same fields, narrowed to what is there.
  */
-export async function selectValuesFor(label: string): Promise<Record<string, string[]>> {
-	try {
-		await getAvailableSteps();
-		const data = await conduit().follow<{ values: Record<string, string[]> }>({ method: requireStep("getSelectValues"), params: { label } }, `select values for ${label}`);
-		return data.values ?? {};
-	} catch (err) {
-		// A type the site never declared is a question this page cannot answer at all; a declared type with no context
-		// field has no dropdowns, which is an answer.
-		if (!getRels(label)) throw err;
-		const values: Record<string, string[]> = {};
-		for (const field of getSelectFields(label)) values[field] = await cachedGraphStore().distinctPropertyValues(label, field);
-		return values;
-	}
+export function selectValuesFor(label: string): Promise<Record<string, string[]>> {
+	return askElseHeld(
+		async () => (await conduit().follow<{ values: Record<string, string[]> }>({ method: requireStep("getSelectValues"), params: { label } }, `select values for ${label}`)).values ?? {},
+		async () => {
+			// A type the site never declared is a question this page cannot answer at all; a declared type with no context
+			// field has no dropdowns, which is an answer.
+			if (!getRels(label)) return undefined;
+			const values: Record<string, string[]> = {};
+			for (const field of getSelectFields(label)) values[field] = await cachedGraphStore().distinctPropertyValues(label, field);
+			return values;
+		},
+	);
 }
 
 /**
@@ -299,15 +314,14 @@ export async function selectValuesFor(label: string): Promise<Record<string, str
  * answer the site would have given, bounded by what they hold. A type the site never declared, or a query a store of
  * quads cannot answer, is reported as the failure it is.
  */
-export async function queryGraph(query: Record<string, unknown>): Promise<TGraphQueryResult> {
-	try {
-		await getAvailableSteps();
-		return await conduit().follow<TGraphQueryResult>({ method: requireStep("graphQuery"), params: { query } }, `query: ${(query.label as string) || "(any)"}`);
-	} catch (err) {
-		const parsed = GraphQuerySchema.safeParse(query);
-		if (!parsed.success || !getRels(parsed.data.label ?? "")) throw err;
-		return await queryQuadStore(cachedGraphStore(), parsed.data);
-	}
+export function queryGraph(query: Record<string, unknown>): Promise<TGraphQueryResult> {
+	return askElseHeld(
+		() => conduit().follow<TGraphQueryResult>({ method: requireStep("graphQuery"), params: { query } }, `query: ${(query.label as string) || "(any)"}`),
+		async () => {
+			const parsed = GraphQuerySchema.safeParse(query);
+			return parsed.success && getRels(parsed.data.label ?? "") ? await queryQuadStore(cachedGraphStore(), parsed.data) : undefined;
+		},
+	);
 }
 
 /** A scope's current snapshot, read synchronously (no fetch). Empty before anything loads. */
@@ -397,33 +411,30 @@ async function storedIncomingEdges(id: string): Promise<TStoredEdge[]> {
  * One individual with its edges: what the site answers, and when nothing answers, the individual as the page holds it.
  * Undefined only when the site answered that there is no such individual; anything else the site said is reported.
  */
-export async function readIndividual(label: string, id: string, accessLevel: string): Promise<TStoredEntity | undefined> {
-	try {
-		await getAvailableSteps();
-		return await conduit().follow<TStoredEntity>({ method: requireStep("getIndividualWithEdges"), params: { label, id, accessLevel } }, `read ${label}:${id}`);
-	} catch (err) {
-		const held = await derefStoredEntity(label, id);
-		if (!held) throw err;
-		return held;
-	}
+export function readIndividual(label: string, id: string, accessLevel: string): Promise<TStoredEntity> {
+	return askElseHeld(
+		() => conduit().follow<TStoredEntity>({ method: requireStep("getIndividualWithEdges"), params: { label, id, accessLevel } }, `read ${label}:${id}`),
+		() => derefStoredEntity(label, id),
+	);
 }
 
 /**
  * What points at an individual: what the site answers, and when nothing answers, the edges the page holds that point at
  * it, windowed the same way. The count is what the reader can reach, which offline is what they hold.
  */
-export async function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<{ edges: TStoredEdge[]; total: number }> {
-	try {
-		await getAvailableSteps();
-		return await conduit().follow<{ edges: TStoredEdge[]; total: number }>(
-			{ method: requireStep("getIncomingEdges"), params: { label, id, accessLevel: appAccessLevel(), ...window } },
-			`what points at ${label}:${id}`,
-		);
-	} catch (err) {
-		if (!getRels(label)) throw err;
-		const edges = await storedIncomingEdges(id);
-		return { edges: edges.slice(window.offset, window.offset + window.limit), total: edges.length };
-	}
+export function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<{ edges: TStoredEdge[]; total: number }> {
+	return askElseHeld(
+		() =>
+			conduit().follow<{ edges: TStoredEdge[]; total: number }>(
+				{ method: requireStep("getIncomingEdges"), params: { label, id, accessLevel: appAccessLevel(), ...window } },
+				`what points at ${label}:${id}`,
+			),
+		async () => {
+			if (!getRels(label)) return undefined;
+			const edges = await storedIncomingEdges(id);
+			return { edges: edges.slice(window.offset, window.offset + window.limit), total: edges.length };
+		},
+	);
 }
 
 /** Query the off-heap snapshot store (the serialized-report / offline backing). The reverse walks a display needs — an
