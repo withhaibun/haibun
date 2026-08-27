@@ -5,6 +5,7 @@ vitest.useFakeTimers();
 import { CAPTURE, DEFAULT_DEST, OK, TStepArgs } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import StorageMem from "./storage-mem.js";
+import { describeStorage } from "@haibun/domain-storage/test/storage-conformance.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
@@ -12,6 +13,10 @@ import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 // separately-imported Timer.key — a different value when the module loads twice under vitest (its own static startTime).
 
 vi.spyOn(process, "cwd").mockReturnValue("/");
+
+// What this storage shares with every other is the specification below; what is here is its own: the base files a test
+// hands it, and the steppers that read through it.
+describeStorage("memory", () => new StorageMem(), "/");
 
 describe("BASE_FS", () => {
 	afterEach(() => {
@@ -26,84 +31,6 @@ describe("BASE_FS", () => {
 		StorageMem.BASE_FS = { "/hello/world": "eh" };
 		const storageMem = new StorageMem();
 		expect(storageMem.readFile("/hello/world", "utf-8")).toEqual("eh");
-	});
-});
-
-describe("mem getCaptureLocation", () => {
-	it("gets capture location", async () => {
-		const storageMem = new StorageMem();
-		const world = getDefaultWorld();
-		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/default/${world.tag.key}/featn-0/test`);
-	});
-	it("gets options capture location", async () => {
-		const storageMem = new StorageMem();
-		const world = getTestWorldWithOptions();
-		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
-	});
-	it("gets relative capture location", async () => {
-		const storageMem = new StorageMem();
-		const world = getTestWorldWithOptions();
-		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
-	});
-	it("ensures capture location", async () => {
-		const storageMem = new StorageMem();
-		const world = getDefaultWorld();
-		const loc = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		await storageMem.ensureCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(storageMem.exists(loc)).toBe(true);
-	});
-	it("creates a directory", () => {
-		const storageMem = new StorageMem();
-		storageMem.mkdir(`/${CAPTURE}`);
-		expect(storageMem.exists(`/${CAPTURE}`)).toBe(true);
-	});
-	it("creates a directory with parents", () => {
-		const storageMem = new StorageMem();
-		storageMem.mkdirp(`/${CAPTURE}/wtw`);
-		expect(storageMem.exists(`/${CAPTURE}/wtw`)).toBe(true);
-	});
-
-	it("a created directory exists", () => {
-		const storageMem = new StorageMem();
-		storageMem.mkdirp(`/${CAPTURE}/wtw`);
-		expect(storageMem.exists(`/${CAPTURE}/wtw`)).toBe(true);
-	});
-	it("does not exist", () => {
-		const storageMem = new StorageMem();
-		expect(storageMem.exists(`/${CAPTURE}/wtw`)).toBe(false);
-	});
-	it("readdir", async () => {
-		const storageMem = new StorageMem();
-		storageMem.mkdirp(`/${CAPTURE}/wtw`);
-		const files = await storageMem.readdir(`/${CAPTURE}`);
-		expect(files).toEqual(["wtw"]);
-	});
-
-	it("writes and reads a file", () => {
-		const storageMem = new StorageMem();
-		storageMem.writeFileBuffer(`/test.txt`, Buffer.from("test"));
-		const text = storageMem.readFile(`/test.txt`);
-		expect(text).toEqual(Buffer.from("test"));
-	});
-	it("lstat", async () => {
-		const storageMem = new StorageMem();
-		storageMem.mkdirp(`/${CAPTURE}/wtw`);
-		const lstat = await storageMem.lstatToIFile(`/${CAPTURE}/wtw`);
-		expect(lstat.name).toEqual(`/${CAPTURE}/wtw`);
-		expect(lstat.isDirectory).toBe(true);
-	});
-	it("readdirStat", async () => {
-		const storageMem = new StorageMem();
-		storageMem.mkdirp(`/${CAPTURE}/wtw`);
-		storageMem.writeFileBuffer(`/${CAPTURE}/wtw/test.txt`, Buffer.from("test"));
-		const files = await storageMem.readdirStat(`/${CAPTURE}`);
-		expect(files).toHaveLength(1);
-		expect(files[0].name).toEqual(`/${CAPTURE}/wtw`);
-		expect(files[0].isDirectory).toBe(true);
-		expect(files[0].isFile).toBe(false);
 	});
 });
 
