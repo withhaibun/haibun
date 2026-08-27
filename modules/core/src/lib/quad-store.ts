@@ -16,6 +16,7 @@ import {
 	type TFederatedGraphSource,
 	type TGraphQuery,
 	type TGraphQueryResult,
+	type TSearchCondition,
 	type TQuad,
 	type TQuadPattern,
 } from "./quad-types.js";
@@ -393,10 +394,62 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 	const { label, limit, offset } = query;
 	if (!label) throw new Error("a graph query over quads reads one type at a time, and this one names none");
 	if (query.textQuery) throw new Error("a graph query over quads matches a type and equality filters; text search needs a store with a query engine");
-	// Equality only: queryIndividuals matches predicate to value, and richer operators need a store with a query engine.
-	const filters = Object.fromEntries(query.filters.map((f) => [f.predicate, f.value]));
-	const vertices = await store.queryIndividuals<Record<string, unknown>>(label, Object.keys(filters).length ? filters : undefined, { limit, offset });
-	return { vertices, total: vertices.length };
+	// The store matches equality itself; the comparisons are made here over the values it returned, which a store of
+	// quads holds in full. Reading a range of time is a comparison, so answering only equality would have meant either a
+	// wrong answer or no paging by time.
+	const equality = Object.fromEntries(query.filters.filter((f) => f.operator === "eq").map((f) => [f.predicate, f.value]));
+	const compared = query.filters.filter((f) => f.operator !== "eq");
+	const matched = await store.queryIndividuals<Record<string, unknown>>(label, Object.keys(equality).length ? equality : undefined, {});
+	const vertices = matched.filter((individual) => compared.every((f) => satisfies(individual[f.predicate], f)));
+	// The order a query asks for, applied before the window: a page of the newest is the newest of what matched, not the
+	// first the store happened to return. A query naming no order takes the store's own.
+	if (query.sortBy) {
+		const by = query.sortBy;
+		const direction = query.sortOrder === "asc" ? 1 : -1;
+		vertices.sort((a, b) => direction * compare(a[by], b[by]));
+	}
+	const from = offset ?? 0;
+	return { vertices: vertices.slice(from, from + (limit ?? vertices.length)), total: vertices.length };
+}
+
+/** Two held values in order. Numbers compare as numbers where both are; anything else compares as text, which orders an
+ *  ISO instant by time. A value a record does not hold sorts before one it does. */
+function compare(a: unknown, b: unknown): number {
+	if (a === undefined || a === null) return b === undefined || b === null ? 0 : -1;
+	if (b === undefined || b === null) return 1;
+	if (typeof a === "number" && typeof b === "number") return a < b ? -1 : a > b ? 1 : 0;
+	const [x, y] = [String(a), String(b)];
+	return x < y ? -1 : x > y ? 1 : 0;
+}
+
+/** Whether a held value satisfies one condition. Numbers compare as numbers where both sides are numbers, and anything
+ *  else compares as text, which orders an ISO instant by time. A value the record does not hold satisfies nothing. */
+function satisfies(held: unknown, condition: TSearchCondition): boolean {
+	if (held === undefined || held === null) return false;
+	const order = (against: string): number => {
+		const a = typeof held === "number" ? held : Number(held);
+		const b = Number(against);
+		if (!Number.isNaN(a) && !Number.isNaN(b) && typeof held !== "string") return a < b ? -1 : a > b ? 1 : 0;
+		const text = String(held);
+		return text < against ? -1 : text > against ? 1 : 0;
+	};
+	switch (condition.operator) {
+		case "contains":
+			return String(held).includes(condition.value);
+		case "gt":
+			return order(condition.value) > 0;
+		case "gte":
+			return order(condition.value) >= 0;
+		case "lt":
+			return order(condition.value) < 0;
+		case "lte":
+			return order(condition.value) <= 0;
+		case "between":
+			if (condition.value2 === undefined) throw new Error(`a "between" condition on ${condition.predicate} names only one bound`);
+			return order(condition.value) >= 0 && order(condition.value2) <= 0;
+		default:
+			throw new Error(`a graph query over quads does not answer the "${condition.operator}" condition on ${condition.predicate}`);
+	}
 }
 
 /**

@@ -171,6 +171,35 @@ describe("the answer a store of quads gives a graph query", () => {
 		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", limit: 1, offset: 1 }))).vertices).toEqual([{ id: "b", folder: "Sent" }]);
 	});
 
+	it("reads a range of time, which is what paging through a long run by time asks of it", async () => {
+		const at = (t: string) => GraphQuerySchema.parse({ label: "Note", filters: [{ predicate: "generatedAtTime", operator: "gt", value: t }], sortBy: "generatedAtTime", sortOrder: "asc" });
+		const times = new QuadStore();
+		await times.upsertIndividual("Note", { id: "a", generatedAtTime: "2026-01-01T00:00:00.000Z" });
+		await times.upsertIndividual("Note", { id: "b", generatedAtTime: "2026-06-01T00:00:00.000Z" });
+		await times.upsertIndividual("Note", { id: "c", generatedAtTime: "2026-12-01T00:00:00.000Z" });
+		expect((await queryQuadStore(times, at("2026-05-01T00:00:00.000Z"))).vertices.map((v) => v.id)).toEqual(["b", "c"]);
+		const between = GraphQuerySchema.parse({ label: "Note", filters: [{ predicate: "generatedAtTime", operator: "between", value: "2026-02-01T00:00:00.000Z", value2: "2026-07-01T00:00:00.000Z" }] });
+		expect((await queryQuadStore(times, between)).vertices.map((v) => v.id)).toEqual(["b"]);
+	});
+
+	it("windows what the conditions matched, not what the store returned before they were applied", async () => {
+		const times = new QuadStore();
+		for (const [id, month] of [["a", "01"], ["b", "06"], ["c", "12"]]) await times.upsertIndividual("Note", { id, generatedAtTime: `2026-${month}-01T00:00:00.000Z` });
+		const after = { label: "Note", filters: [{ predicate: "generatedAtTime", operator: "gt", value: "2026-05-01T00:00:00.000Z" }], limit: 1 };
+		const page = await queryQuadStore(times, GraphQuerySchema.parse(after));
+		expect(page.vertices.map((v) => v.id), "the first of what matched").toEqual(["b"]);
+		expect(page.total, "and how many matched, which is what a reader is told there are").toBe(2);
+	});
+
+	it("orders what matched before windowing it, so a page of the newest is the newest of what matched", async () => {
+		const times = new QuadStore();
+		for (const [id, month] of [["b", "06"], ["c", "12"], ["a", "01"]]) await times.upsertIndividual("Note", { id, generatedAtTime: `2026-${month}-01T00:00:00.000Z` });
+		const newest = GraphQuerySchema.parse({ label: "Note", sortBy: "generatedAtTime", sortOrder: "desc", limit: 2 });
+		expect((await queryQuadStore(times, newest)).vertices.map((v) => v.id)).toEqual(["c", "b"]);
+		const oldest = GraphQuerySchema.parse({ label: "Note", sortBy: "generatedAtTime", sortOrder: "asc", limit: 2 });
+		expect((await queryQuadStore(times, oldest)).vertices.map((v) => v.id)).toEqual(["a", "b"]);
+	});
+
 	it("says what it cannot answer rather than answering wrongly", async () => {
 		await expect(queryQuadStore(store, GraphQuerySchema.parse({}))).rejects.toThrow(/one type at a time/);
 		await expect(queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", textQuery: "inbox" }))).rejects.toThrow(/query engine/);
