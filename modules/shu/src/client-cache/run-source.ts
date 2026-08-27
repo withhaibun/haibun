@@ -25,6 +25,9 @@ export type TEventRecord = Record<string, unknown>;
 
 /** The message shown when history is not available: not cached on this device, and the server did not respond. */
 export const EVENTS_UNAVAILABLE = "Earlier events are not cached on this device, and the server could not be reached to load them.";
+/** A run the server has finished with. Its events are not kept there: the report of the run carries all of them, and so
+ *  does a device that was reading it while it ran. */
+export const RUN_ENDED = "This run has ended, and the server holds none of it. The report of the run carries all of it, and so does a device that was reading it.";
 
 /** An event as the device caches it: what the run's report caches of it. Inline artifact content (an image's bytes) and
  *  the step's value map are the bulk of a live event and are never read back from the store — the artifact is fetched
@@ -56,6 +59,9 @@ export interface RunSource extends WindowedSource<TEventRecord> {
 	readonly loaded: boolean;
 	/** Why a page could not be fetched, or null: not on this device and no server responded. */
 	readonly unavailable: string | null;
+	/** Whether the server has finished with this run. A finished run's events are not kept there, so what a reader can
+	 *  read of it is what their device cached and what the report of it carries. */
+	readonly ended: boolean;
 	/** Learn the extent if not yet known: the first thing a view awaits. */
 	ready(): Promise<void>;
 }
@@ -223,6 +229,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 	const store = s.store;
 	let extent: TRunExtent = { total: 0 };
 	let loaded = false;
+	let ended = false;
 	let unavailable: string | null = null;
 	let readying: Promise<void> | null = null;
 	const subs = new Set<() => void>();
@@ -233,7 +240,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 	/** A run the reader chose is a finished run: the server is recording another one, so only the device has it. */
 	const deviceOnly = (): boolean => s.reading !== undefined && s.reading === run();
 
-	type TAnswer = { events?: TEventRecord[]; total?: number; first?: number; run?: string };
+	type TAnswer = { events?: TEventRecord[]; total?: number; first?: number; run?: string; ended?: boolean };
 	const request = (filter: Record<string, unknown>): Promise<TAnswer> =>
 		conduit().follow({ method: RPC_METHOD.GET_EVENTS, params: { filter: { minLevel: level, ...filter } } }, `run source at ${level}`);
 
@@ -244,6 +251,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 	const record = (response: TAnswer): void => {
 		recordRun(s, response.run ?? ""); // may begin a new run, which starts this source over before the response is applied
 		if ((response.run ?? "") !== run()) return; // another run's response says nothing about the run being read
+		ended = response.ended === true;
 		if (typeof response.total === "number") extent = { total: Math.max(extent.total, response.total), first: response.first ?? extent.first, last: lastOf(response.events ?? [], extent.last) };
 		loaded = true;
 		void store.setExtent(run(), level, extent).catch((err) => failFastOrLog("[event-source] extent not persisted:", err));
@@ -265,7 +273,9 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 					// The run being read is not the run the server is recording: what the device caches of this page is all there is.
 					const cached = await store.rowsAt(run(), level, start, end).catch(() => []);
 					if (cached.some((e) => e !== undefined)) return cached as TEventRecord[];
-					unavailable = EVENTS_UNAVAILABLE;
+					// A run read from the device alone is one the server is not recording: a finished run, or the run a page
+					// carries. Either way what can be read of it is what the device holds, not something a server could send.
+					unavailable = RUN_ENDED;
 					notifyAll();
 					throw new Error(`the run being read is not on the server, and this page is not cached: ${level} ${start}..${end}`);
 				}
@@ -279,7 +289,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 				} catch (err) {
 					// No server: what the device caches of the page is all there is to show, with a hole for each row it lacks, and
 					// the view reports that the rest is not available (reported, not thrown). A page the device caches nothing of stays empty.
-					unavailable = EVENTS_UNAVAILABLE;
+					unavailable = ended ? RUN_ENDED : EVENTS_UNAVAILABLE;
 					console.warn(`[event-source] a page at ${level} is unavailable:`, err);
 					notifyAll();
 					const cached = await store.rowsAt(run(), level, start, end).catch(() => []);
@@ -298,6 +308,7 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 		unsubscribePages = pages.subscribe(notifyAll);
 		extent = { total: 0 };
 		loaded = false;
+		ended = false;
 		unavailable = null;
 		void ready().then(notifyAll);
 	};
@@ -377,6 +388,9 @@ function makeRunSource(level: THaibunLogLevel, s: Shared): RunSource & { appendL
 		},
 		get unavailable() {
 			return unavailable;
+		},
+		get ended() {
+			return ended;
 		},
 		ready,
 		appendLive,

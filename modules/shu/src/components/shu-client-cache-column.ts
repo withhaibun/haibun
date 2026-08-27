@@ -241,7 +241,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 							const id = (field: string): string => `${IDS.SOURCE}${s.level}-${field}`;
 							return html`<tr>
 								<td>${s.level}</td>${cell(id("events"), e.total)}${this.#instant(id("first"), e.first)}${this.#instant(id("newest"), e.last)}${cell(id("page"), s.pageSize)}
-								${this.#spans(s, id("cached"))}${cell(id("cached-rows"), cachedRows(cached))}${cell(id("cursor"), row < 0 ? "" : row)}${cell(id("state"), s.unavailable ?? (s.loaded ? "loaded" : "loading"))}
+								${this.#spans(s, id("cached"))}${cell(id("cached-rows"), cachedRows(cached))}${cell(id("cursor"), row < 0 ? "" : row)}${cell(id("state"), s.unavailable ?? (s.ended ? "ended" : s.loaded ? "loaded" : "loading"))}
 							</tr>`;
 						})}
 					</table>`
