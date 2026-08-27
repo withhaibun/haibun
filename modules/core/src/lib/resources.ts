@@ -337,6 +337,10 @@ export const LinkRelations = {
 	// What ran for a step: the stepper and action, as `Stepper.action`. Its TEXT says what was asked for; this says what was called.
 	CALLED: { rel: "called", uri: "hbn:called", range: "literal" },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
+	/** How a step reached what ran it: in this process, in another host, or in a subprocess. */
+	RAN_VIA: { rel: "ranVia", uri: "hbn:ranVia", range: "literal" },
+	/** The host that ran a step, where another one did. */
+	RAN_ON: { rel: "ranOn", uri: "hbn:ranOn", range: "literal" },
 	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "governance" as TRelPresentation },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },

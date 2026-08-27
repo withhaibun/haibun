@@ -1,7 +1,8 @@
 /**
  * The named graphs the engine emits to record its own execution — the `observation/*` family plus the persisted
  * instrumentation types (SeqPath, Endpoint, the HTTP observation records, visited pages, facts and variables) — as
- * opposed to a feature's domain data. `isInstrumentationGraph` matches the open-ended `observation/*` prefix plus the
+ * opposed to a feature's domain data. What a run did, said and produced is all of that kind: a reader looking at a
+ * feature's data is not looking for the run's own record of itself. `isInstrumentationGraph` matches the open-ended `observation/*` prefix plus the
  * named entries; `INSTRUMENTATION_GRAPHS` is the one concrete list (a store's other types are runtime-discovered).
  *
  * Separate from quad-types.ts to avoid a cycle: it imports working-memory and http-observations, which import quad-types.
@@ -10,6 +11,8 @@ import { SHARED_GRAPH } from "./quad-types.js";
 import { READING_LABEL, SEQ_PATH_LABEL } from "./resources.js";
 import { FACT_GRAPH, OBSERVATION_GRAPH as RUNTIME_OBSERVATION_GRAPH } from "./working-memory.js";
 import { ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "./http-observations.js";
+import { LOG_MESSAGE_LABEL } from "./log-message.js";
+import { RUN_ARTIFACT_LABEL } from "./run-artifact.js";
 
 const OBSERVATION_PREFIX = "observation/";
 
@@ -21,6 +24,8 @@ export type TInstrumentationGraph =
 	| typeof FACT_GRAPH
 	| typeof SHARED_GRAPH
 	| typeof SEQ_PATH_LABEL
+	| typeof LOG_MESSAGE_LABEL
+	| typeof RUN_ARTIFACT_LABEL
 	| typeof READING_LABEL
 	| typeof VISITED_PAGE_LABEL
 	| typeof ENDPOINT_LABEL
@@ -34,6 +39,8 @@ export const INSTRUMENTATION_GRAPHS: readonly TInstrumentationGraph[] = [
 		FACT_GRAPH,
 		SHARED_GRAPH,
 		SEQ_PATH_LABEL,
+		LOG_MESSAGE_LABEL,
+		RUN_ARTIFACT_LABEL,
 		READING_LABEL,
 		VISITED_PAGE_LABEL,
 		ENDPOINT_LABEL,

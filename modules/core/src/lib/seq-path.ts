@@ -71,6 +71,11 @@ export const SEQ_PATH_FIELD = {
 	 *  says which it was. Written for every step, the ordinary case included, since "not speculative" is only
 	 *  answerable when an authoritative step says so too. */
 	mode: "mode",
+	/** How the step reached what ran it: in this process, in another host, or in a subprocess. Where a step ran is a
+	 *  fact about that step, so it is written on it rather than traced beside it. */
+	ranVia: "ranVia",
+	/** The host that ran it, where another one did. */
+	ranOn: "ranOn",
 } as const;
 
 /** SeqPath edge names. */
@@ -101,6 +106,8 @@ export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
 	[SEQ_PATH_FIELD.path]: z.string().optional(),
 	[SEQ_PATH_FIELD.mode]: z.enum(EXECUTION_MODES).optional(),
+	[SEQ_PATH_FIELD.ranVia]: z.enum(["local", "remote", "subprocess"]).optional(),
+	[SEQ_PATH_FIELD.ranOn]: z.string().optional(),
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
@@ -126,6 +133,9 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			// Grouped-as, which is what makes it one of the sub-filters offered beside the type rather than a field a
 			// reader has to type a condition for.
 			[SEQ_PATH_FIELD.mode]: LinkRelations.CONTEXT.rel,
+			// Grouped-as as well, so "the steps another host ran" is a filter the type offers rather than a condition to write.
+			[SEQ_PATH_FIELD.ranVia]: LinkRelations.CONTEXT.rel,
+			[SEQ_PATH_FIELD.ranOn]: LinkRelations.RAN_ON.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },
