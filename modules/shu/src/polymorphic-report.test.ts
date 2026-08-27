@@ -1,9 +1,8 @@
 // @vitest-environment node
-// End-to-end guard: when a feature USES an external component view (the A-Frame polymorphic), the serialized HTML report
-// must actually embed that component's bundle — and must NOT carry it when the view isn't shown. This drives the real
-// chain (graph-stepper's polymorphic domain ui.jsContent → final-view cols → inlineScriptsForView → compressed payload →
-// HTML), then decompresses the payload to confirm the bundle is present, so the "include external components on use"
-// behaviour can never silently regress again.
+// What a report carries, driven through the real writer and read back out of the compressed payload it embeds.
+// A report is the page with the run it reports held inside it: the run in the client cache, the site's declarations
+// beside it, and the component bundles of the views that were open. It carries no answers a live page happened to
+// receive, since every read a view makes is answered from what the page holds.
 import { describe, it, expect } from "vitest";
 import type { IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { readFileSync } from "node:fs";
@@ -27,8 +26,17 @@ function reportScripts(html: string): string[] {
 	return scripts;
 }
 
-/** Generate a report with `finalView` (a domain key) as the final-view column, using the real GraphStepper domains. */
-async function generateReport(finalView: string | undefined): Promise<string> {
+/** What the report holds of the run, read back out of the payload: the client cache and the replay beside it. */
+function reportHydration(html: string): { cache: { registry?: { steps?: unknown[] } }; rpcCache: Record<string, unknown> } {
+	const b64 = html.match(/<script[^>]*id="shu-payload"[^>]*>([^<]+)<\/script>/)?.[1];
+	if (!b64) throw new Error("shu-payload script not found in report HTML");
+	const { hydration } = JSON.parse(gunzipSync(Buffer.from(b64, "base64")).toString("utf-8")) as { hydration: string };
+	return JSON.parse(hydration);
+}
+
+/** Generate a report with `finalView` (a domain key) as the final-view column, using the real GraphStepper domains.
+ *  `writes` is how many reports the same run writes, since a run writes one whenever it is asked and one at its end. */
+async function generateReport(finalView: string | undefined, captured: Record<string, unknown> = {}, writes = 1): Promise<string> {
 	const world = getDefaultWorld();
 	const shu = new ShuStepper();
 	const monitor = new MonitorStepper();
@@ -38,7 +46,7 @@ async function generateReport(finalView: string | undefined): Promise<string> {
 		world,
 		steppers.map((s) => (s as { cycles?: IStepperCycles }).cycles?.getConcerns?.().domains ?? []).filter((d) => d.length > 0),
 	);
-	world.runtime[RPC_CACHE] = {};
+	world.runtime[RPC_CACHE] = captured;
 	// The store + secrets are irrelevant to the component-inclusion rule; stub them so report generation runs.
 	(world.shared as unknown as { getStore: () => unknown }).getStore = () => ({});
 	(world.shared as unknown as { getSecrets: () => Promise<Record<string, string>> }).getSecrets = async () => ({});
@@ -48,7 +56,7 @@ async function generateReport(finalView: string | undefined): Promise<string> {
 		await monitor.cycles.onEvent?.(event as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	}
 	const out = join(tmpdir(), `polymorphic-report-${process.pid}-${finalView ?? "none"}.html`);
-	await (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out });
+	for (let i = 0; i < writes; i++) await (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out });
 	return readFileSync(out, "utf-8");
 }
 
@@ -63,5 +71,22 @@ describe("serialized report bundles an external component's JS iff its view is u
 	it("OMITS the graph view's bundle when no polymorphic view is shown", async () => {
 		const scripts = reportScripts(await generateReport(undefined));
 		expect(scripts.some((s) => s.includes(GRAPH_VIEW))).toBe(false);
+	});
+});
+
+describe("a report carries the run and the site's declarations, and no captured answer", () => {
+	const declarations = { steps: [{ method: "GraphStepper-graphQuery", stepperName: "GraphStepper", stepName: "graphQuery", pattern: "graph query {query}" }], domains: {}, concerns: { persisted: {} } };
+
+	it("carries the site's declarations, and still does when the same run writes a second report", async () => {
+		const captured = { "step.list": declarations };
+		expect(reportHydration(await generateReport(undefined, captured)).cache.registry?.steps, "the first report").toEqual(declarations.steps);
+		expect(reportHydration(await generateReport(undefined, captured, 2)).cache.registry?.steps, "and the one written when the run ends").toEqual(declarations.steps);
+	});
+
+	it("carries no answer a live page received, since a view reads what the page holds", async () => {
+		const captured = { "step.list": declarations, 'GraphStepper-graphQuery:{"query":{"label":"Email"}}': { vertices: [{ id: "a" }], total: 1 } };
+		const replayed = Object.keys(reportHydration(await generateReport(undefined, captured)).rpcCache);
+		expect(replayed.filter((k) => k.includes("graphQuery")), "the rows a query returned are the graph, which rides in the cache").toEqual([]);
+		expect(replayed.includes("step.list"), "and the declarations ride in the cache, not beside it").toBe(false);
 	});
 });

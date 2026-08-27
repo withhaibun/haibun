@@ -1,5 +1,6 @@
-import { QuadStore } from "./quad-store.js";
-import { describe, it, expect, beforeEach } from "vitest";
+import { QuadStore, queryQuadStore } from "./quad-store.js";
+import { GraphQuerySchema } from "./quad-types.js";
+import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 
 describe("QuadStore Contexts", () => {
 	let store: QuadStore;
@@ -153,5 +154,25 @@ describe("federated clustered reads (reads-first federation)", () => {
 		store.unfederate(source);
 		const after = await next.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
 		expect(after.clusters.find((c) => c.type === "Email")).toBeUndefined();
+	});
+});
+
+describe("the answer a store of quads gives a graph query", () => {
+	// The site's inherent query and a page reading its own copy of the graph both ask this, so the two never drift.
+	const store = new QuadStore();
+	beforeAll(async () => {
+		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
+		await store.upsertIndividual("Email", { id: "b", folder: "Sent" });
+	});
+
+	it("lists a type's records, narrowed by equality and windowed", async () => {
+		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email" }))).total).toBe(2);
+		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] }))).vertices).toEqual([{ id: "b", folder: "Sent" }]);
+		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", limit: 1, offset: 1 }))).vertices).toEqual([{ id: "b", folder: "Sent" }]);
+	});
+
+	it("says what it cannot answer rather than answering wrongly", async () => {
+		await expect(queryQuadStore(store, GraphQuerySchema.parse({}))).rejects.toThrow(/one type at a time/);
+		await expect(queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", textQuery: "inbox" }))).rejects.toThrow(/query engine/);
 	});
 });

@@ -16,6 +16,6 @@
  * fails the build if a component reaches the raw RPC/store primitives directly — that test is the guardrail, this file
  * is the map.
  */
-export { QueryController, type TQueryResult } from "./query-controller.js";
+export { QueryController } from "./query-controller.js";
 export { EntityController } from "./entity-controller.js";
 export { AuthorityController, type TAuthority, type TPrincipalRow } from "./authority-controller.js";

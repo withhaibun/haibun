@@ -3,6 +3,7 @@ import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import type { TSessionGrantShown } from "@haibun/core/steps/authority-stepper.js";
 import { conduit } from "../hypermedia.js";
 import { getAvailableSteps, findStep, requireStep } from "../rpc-registry.js";
+import { queryGraph } from "../quads-snapshot.js";
 import { session } from "../session-key.js";
 
 /** A principal as a view reads one: its own id, and the key it signs with where it declares one. */
@@ -40,11 +41,11 @@ export class AuthorityController implements ReactiveController {
 		await getAvailableSteps();
 		const held = session();
 		const holds = held?.allowedAction ?? [];
-		const principals = await conduit().follow<{ vertices: TPrincipalRow[] }>({ method: requireStep("graphQuery"), params: { query: { label: PRINCIPAL_LABEL } } }, WHY);
+		const principals = await queryGraph({ label: PRINCIPAL_LABEL });
 		// A deployment whose authority reports nothing (no authority stepper registered) still says who it knows and what
 		// this reader holds, so the view is a reading of what is there rather than an error.
 		const listing = findStep("showSessionGrants");
 		const grants = listing ? await conduit().follow<{ grants: TSessionGrantShown[] }>({ method: listing.method }, WHY) : { grants: [] };
-		return { holds, heldAs: held?.record, principals: principals.vertices ?? [], grants: grants.grants ?? [] };
+		return { holds, heldAs: held?.record, principals: (principals.vertices ?? []) as TPrincipalRow[], grants: grants.grants ?? [] };
 	}
 }

@@ -14,6 +14,8 @@ import {
 	type TClusteredQuads,
 	type TClusteredQuadsOpts,
 	type TFederatedGraphSource,
+	type TGraphQuery,
+	type TGraphQueryResult,
 	type TQuad,
 	type TQuadPattern,
 } from "./quad-types.js";
@@ -380,6 +382,21 @@ export class QuadStore implements IQuadStore {
 		const quads = await this.query({ predicate: property, namedGraph: label });
 		return [...new Set(quads.map((q) => String(q.object)))].sort();
 	}
+}
+
+/**
+ * The rows a graph query names, answered by a store that holds quads: one type at a time, equality filters, windowed.
+ * A store with a query engine answers richer queries itself; this is what a store of quads can say, and it is the same
+ * answer whether the store is the site's or the copy a page caches, which is why both ask it here.
+ */
+export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Promise<TGraphQueryResult> {
+	const { label, limit, offset } = query;
+	if (!label) throw new Error("a graph query over quads reads one type at a time, and this one names none");
+	if (query.textQuery) throw new Error("a graph query over quads matches a type and equality filters; text search needs a store with a query engine");
+	// Equality only: queryIndividuals matches predicate to value, and richer operators need a store with a query engine.
+	const filters = Object.fromEntries(query.filters.map((f) => [f.predicate, f.value]));
+	const vertices = await store.queryIndividuals<Record<string, unknown>>(label, Object.keys(filters).length ? filters : undefined, { limit, offset });
+	return { vertices, total: vertices.length };
 }
 
 /**

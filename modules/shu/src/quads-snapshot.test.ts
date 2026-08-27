@@ -26,6 +26,7 @@ import {
 	setGraphStore,
 	selectValuesFor,
 	cachedGraphStore,
+	queryGraph,
 } from "./quads-snapshot.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL } from "@haibun/core/lib/resources.js";
@@ -213,7 +214,7 @@ describe("the graph a page caches, with no server to ask", () => {
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 	});
 
-	it("holds the store on the page, so a view in another bundle reads the graph the app installed", async () => {
+	it("holds the store on the page, so a view in another bundle reads the graph the app installed", () => {
 		const store = new QuadStore();
 		setGraphStore(store);
 		// A second bundle has its own copy of this module's bindings and reaches the store through the page, as here.
@@ -221,7 +222,7 @@ describe("the graph a page caches, with no server to ask", () => {
 		expect(cachedGraphStore()).toBe(store);
 	});
 
-	it("clusters what it caches when the store clusters", async () => {
+	it("groups what it caches by type, as the site would have", async () => {
 		const store = new QuadStore();
 		await store.setMany([
 			{ subject: "c1", predicate: "content", object: "one", namedGraph: "Comment", timestamp: 1 },
@@ -265,5 +266,34 @@ describe("the dropdown values a reader is offered, with no server to ask", () =>
 		setGraphStore(new QuadStore());
 		expect(await selectValuesFor("Note")).toEqual({});
 		await expect(selectValuesFor("NeverDeclared")).rejects.toThrow();
+	});
+});
+
+describe("the rows a graph query names, with no server to ask", () => {
+	// The page answers with the same function the site's own inherent query uses, over the graph it caches.
+	beforeEach(() => {
+		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		setConduit(new LiveConduit(""));
+		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
+		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);
+	});
+
+	it("lists what it caches of the type, narrowed by the same filters", async () => {
+		const store = new QuadStore();
+		await store.setMany([
+			{ subject: "a", predicate: "messageId", object: "a", namedGraph: "Email", timestamp: 1 },
+			{ subject: "a", predicate: "folder", object: "INBOX", namedGraph: "Email", timestamp: 1 },
+			{ subject: "b", predicate: "messageId", object: "b", namedGraph: "Email", timestamp: 2 },
+			{ subject: "b", predicate: "folder", object: "Sent", namedGraph: "Email", timestamp: 2 },
+		]);
+		setGraphStore(store);
+		expect((await queryGraph({ label: "Email" })).total).toBe(2);
+		// The row carries the type's own identity field, which is how a reader opens it from the list.
+		expect((await queryGraph({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] })).vertices).toEqual([{ messageId: "b", folder: "Sent" }]);
+	});
+
+	it("reports the failure for a type the site never declared, rather than an empty list", async () => {
+		setGraphStore(new QuadStore());
+		await expect(queryGraph({ label: "NeverDeclared" })).rejects.toThrow();
 	});
 });

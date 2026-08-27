@@ -1,5 +1,6 @@
-import type { TCluster, TClusteredQuads, TQuad, IQuadStore } from "@haibun/core/lib/quad-types.js";
+import { GraphQuerySchema, type TCluster, type TClusteredQuads, type TGraphQueryResult, type TQuad, type IQuadStore } from "@haibun/core/lib/quad-types.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
+import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { appAccessLevel } from "./util.js";
 import { conduit } from "./hypermedia.js";
@@ -292,6 +293,23 @@ export async function selectValuesFor(label: string): Promise<Record<string, str
 	}
 }
 
+/**
+ * The rows a graph query names: what the site answers, and when nothing answers, the same query over the graph this
+ * page caches. The site's own inherent query is that function over its store, so a reader with no server is given the
+ * answer the site would have given, bounded by what they hold. A type the site never declared, or a query a store of
+ * quads cannot answer, is reported as the failure it is.
+ */
+export async function queryGraph(query: Record<string, unknown>): Promise<TGraphQueryResult> {
+	try {
+		await getAvailableSteps();
+		return await conduit().follow<TGraphQueryResult>({ method: requireStep("graphQuery"), params: { query } }, `query: ${(query.label as string) || "(any)"}`);
+	} catch (err) {
+		const parsed = GraphQuerySchema.safeParse(query);
+		if (!parsed.success || !getRels(parsed.data.label ?? "")) throw err;
+		return await queryQuadStore(cachedGraphStore(), parsed.data);
+	}
+}
+
 /** A scope's current snapshot, read synchronously (no fetch). Empty before anything loads. */
 export function currentSnapshot(scope = ""): TGraphSnapshot {
 	return getStore().scopes.get(scope)?.cache?.model.snapshot ?? { quads: [], clusters: [] };
@@ -337,18 +355,57 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	void cachedGraphStore().setMany(quads); // persist live observations off-heap for the next reload
 }
 
+/** One edge of an individual the page holds: what it is, which way it points, and the record it points at. */
+type TStoredEdge = { type: string; direction: "out" | "in"; target: Record<string, unknown> };
+
+/** The record the page holds for a node, always stamped with the identity it was reached by, so an edge resolves to
+ *  something a reader can open even when that node's own fields were never cached. */
+async function storedTarget(label: string, id: string): Promise<Record<string, unknown>> {
+	return { "@id": id, "@type": label, ...((await cachedGraphStore().getIndividual<Record<string, unknown>>(label, id)) ?? {}) };
+}
+
 /**
- * Deref a persisted individual's vertex from the off-heap store — scalar/property quads only (topology edges, marked by
- * `objectType`, need the live graph). Used as an offline / RPC-down fallback so a previously-seen entity still opens.
- * Returns undefined when the individual was never persisted. The shape mirrors the entity views' result (vertex + edges
- * + incomingCount) so a caller applies it the same way as a live fetch.
+ * One individual as the page holds it: its own fields, the edges its quads name in both directions, and how many point
+ * at it. Used when the server does not respond, so an individual a reader has seen still opens with its links. An edge
+ * quad carries the type of what it points at, which is how a target resolves to a record rather than a bare id.
+ * Undefined when nothing of the individual is cached. The shape mirrors a live read, so a caller applies it the same way.
  */
-export async function derefStoredEntity(label: string, id: string): Promise<{ vertex: Record<string, unknown>; edges: unknown[]; incomingCount: number } | undefined> {
+export async function derefStoredEntity(label: string, id: string): Promise<{ vertex: Record<string, unknown>; edges: TStoredEdge[]; incomingCount: number } | undefined> {
 	const quads = await cachedGraphStore().query({ subject: id, namedGraph: label });
 	if (quads.length === 0) return undefined;
 	const vertex: Record<string, unknown> = { "@id": id, "@type": label };
-	for (const q of quads) if (!q.objectType) vertex[q.predicate] = q.object;
-	return { vertex, edges: [], incomingCount: 0 };
+	const edges: TStoredEdge[] = [];
+	for (const q of quads) {
+		if (!q.objectType) vertex[q.predicate] = q.object;
+		else edges.push({ type: q.predicate, direction: "out", target: await storedTarget(q.objectType, String(q.object)) });
+	}
+	const incoming = await storedIncomingEdges(id);
+	return { vertex, edges: [...edges, ...incoming], incomingCount: incoming.length };
+}
+
+/** The edges pointing at an individual, as the page holds them: the quads elsewhere whose object is this one, read as
+ *  edges from the records that name them. */
+async function storedIncomingEdges(id: string): Promise<TStoredEdge[]> {
+	const quads = (await cachedGraphStore().query({ object: id })).filter((q) => q.objectType);
+	return Promise.all(quads.map(async (q) => ({ type: q.predicate, direction: "in" as const, target: await storedTarget(q.namedGraph, q.subject) })));
+}
+
+/**
+ * What points at an individual: what the site answers, and when nothing answers, the edges the page holds that point at
+ * it, windowed the same way. The count is what the reader can reach, which offline is what they hold.
+ */
+export async function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<{ edges: TStoredEdge[]; total: number }> {
+	try {
+		await getAvailableSteps();
+		return await conduit().follow<{ edges: TStoredEdge[]; total: number }>(
+			{ method: requireStep("getIncomingEdges"), params: { label, id, accessLevel: appAccessLevel(), ...window } },
+			`what points at ${label}:${id}`,
+		);
+	} catch (err) {
+		if (!getRels(label)) throw err;
+		const edges = await storedIncomingEdges(id);
+		return { edges: edges.slice(window.offset, window.offset + window.limit), total: edges.length };
+	}
 }
 
 /** Query the off-heap snapshot store (the serialized-report / offline backing). The reverse walks a display needs — an

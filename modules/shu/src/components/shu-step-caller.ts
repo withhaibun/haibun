@@ -1,6 +1,7 @@
 import { SHU_BASE } from "./styles.js";
 import { conduit } from "../hypermedia.js";
 import { getAvailableSteps, findStep, requireStep, type StepDescriptor } from "../rpc-registry.js";
+import { queryGraph } from "../quads-snapshot.js";
 import { dispatchAffordanceFromResponse } from "../affordance-dispatch.js";
 import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -453,11 +454,7 @@ export class StepCaller extends HTMLElement {
 
 	private async populatePersistedRef(cb: HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void }, label: string): Promise<void> {
 		try {
-			const method = requireStep("graphQuery");
-			const data = await conduit().follow<{ vertices: Array<Record<string, unknown>> }>(
-				{ method, params: { query: { label, limit: 50 } } },
-				`step-caller: populate ${label} persisted-ref combobox`,
-			);
+			const data = await queryGraph({ label, limit: 50 });
 			const concerns = getConcernCatalog();
 			const concern = Object.values(concerns.persisted).find((c) => c.label === label);
 			const idField = concern?.idField ?? "id";

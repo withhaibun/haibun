@@ -2,6 +2,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { conduit } from "./hypermedia.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { appAccessLevel } from "./util.js";
+import { queryGraph } from "./quads-snapshot.js";
 
 export type FetchOutcome<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -17,7 +18,12 @@ export async function callStep<T>(step: string, params: Record<string, unknown> 
 }
 
 /** A bounded slice of a type's individuals, at the caller's app access level — the query a type view and the class
- *  browser both list from. Callers own their loading/error UI. */
-export function fetchIndividuals(label: string, why: string): Promise<FetchOutcome<{ vertices: Record<string, unknown>[] }>> {
-	return callStep("graphQuery", { query: { label, accessLevel: appAccessLevel(), limit: 100 } }, why);
+ *  browser both list from, through the one graph query, so with no server it lists what the page caches. Callers own
+ *  their loading/error UI. */
+export async function fetchIndividuals(label: string, why: string): Promise<FetchOutcome<{ vertices: Record<string, unknown>[] }>> {
+	try {
+		return { ok: true, value: await queryGraph({ label, accessLevel: appAccessLevel(), limit: 100 }) };
+	} catch (err) {
+		return { ok: false, error: `${why}: ${errorDetail(err)}` };
+	}
 }

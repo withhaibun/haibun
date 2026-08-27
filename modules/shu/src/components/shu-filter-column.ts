@@ -12,7 +12,8 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
-import { callStep } from "../pane-fetch.js";
+import { queryGraph, incomingEdges } from "../quads-snapshot.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { appAccessLevel, defaultLabel } from "../util.js";
 import { getIdField, getQueryableFields } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
@@ -91,29 +92,17 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	}
 
 	private async fetchIncoming(label: string, id: string, limit: number, offset: number): Promise<void> {
-		const res = await callStep<{ edges: Array<{ type: string; target: VertexData }>; total: number }>(
-			"getIncomingEdges",
-			{ label, id, limit, offset, accessLevel: appAccessLevel() },
-			`filter-column: incoming ${label}:${id}`,
-		);
-		if (!res.ok) {
-			this.setState({ loading: false, error: res.error });
-			return;
-		}
-		const targets = res.value.edges.map((e) => e.target);
+		const res = await incomingEdges(label, id, { limit, offset }).catch((err) => {
+			this.setState({ loading: false, error: errorDetail(err) });
+			return undefined;
+		});
+		if (!res) return;
+		const targets = res.edges.map((e) => e.target as VertexData);
 		this.results = targets;
-		this.#total = res.value.total ?? targets.length;
+		this.#total = res.total ?? targets.length;
 		const src = lazyWindowedSource<VertexData>({
 			count: () => this.#total,
-			fetch: async (start, end) => {
-				const r = await callStep<{ edges: Array<{ type: string; target: VertexData }>; total: number }>(
-					"getIncomingEdges",
-					{ label, id, limit: end - start, offset: start, accessLevel: appAccessLevel() },
-					`filter-column: incoming page ${label}:${id}`,
-				);
-				if (!r.ok) throw new Error(r.error);
-				return r.value.edges.map((e) => e.target);
-			},
+			fetch: async (start, end) => (await incomingEdges(label, id, { limit: end - start, offset: start })).edges.map((e) => e.target as VertexData),
 			pageSize: limit,
 		});
 		src.prime(offset, targets);
@@ -122,22 +111,18 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	}
 
 	private async fetchResults(query: Record<string, unknown>): Promise<void> {
-		const res = await callStep<{ vertices: VertexData[]; total: number }>("graphQuery", { query }, `filter-column: query`);
-		if (!res.ok) {
-			this.setState({ loading: false, error: res.error });
-			return;
-		}
-		const vertices = res.value.vertices ?? [];
+		const res = await queryGraph(query).catch((err) => {
+			this.setState({ loading: false, error: errorDetail(err) });
+			return undefined;
+		});
+		if (!res) return;
+		const vertices = (res.vertices ?? []) as VertexData[];
 		this.results = vertices;
-		this.#total = res.value.total ?? vertices.length;
+		this.#total = res.total ?? vertices.length;
 		const pageSize = (query.limit as number) || 50;
 		const src = lazyWindowedSource<VertexData>({
 			count: () => this.#total,
-			fetch: async (start, end) => {
-				const r = await callStep<{ vertices: VertexData[]; total: number }>("graphQuery", { query: { ...query, limit: end - start, offset: start } }, `filter-column: page`);
-				if (!r.ok) throw new Error(r.error);
-				return r.value.vertices ?? [];
-			},
+			fetch: async (start, end) => ((await queryGraph({ ...query, limit: end - start, offset: start })).vertices ?? []) as VertexData[],
 			pageSize,
 		});
 		src.prime((query.offset as number) || 0, vertices);
