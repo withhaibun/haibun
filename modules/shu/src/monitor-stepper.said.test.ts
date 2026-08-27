@@ -38,10 +38,10 @@ describe("what a run said, as a record", () => {
 		expect(record?.isPartOf, "the step it was said during").toBe("0.1.2");
 	});
 
-	it("keeps two statements of one step apart, since a step says more than one thing", async () => {
+	it("keeps two statements of one step apart, including two said in the same millisecond, which a clock cannot tell apart", async () => {
 		const monitor = monitorOver(store);
 		monitor.onEvent(said({ message: "first", timestamp: 1700 }));
-		monitor.onEvent(said({ message: "second", timestamp: 1701 }));
+		monitor.onEvent(said({ message: "second", timestamp: 1700 }));
 		await new Promise((r) => setTimeout(r, 0));
 		const records = await store.queryIndividuals<Record<string, unknown>>(LOG_MESSAGE_LABEL);
 		expect(records.map((r) => r[LOG_MESSAGE_FIELD.message]).sort()).toEqual(["first", "second"]);
