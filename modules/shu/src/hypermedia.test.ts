@@ -8,7 +8,7 @@
  * unambiguously.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { hasLink, getLink, conduit, setConduit, resetConduit, type TRepresentation, LiveConduit, ServerUnreachable, isServerUnreachable } from "./hypermedia.js";
+import { hasLink, getLink, conduit, setConduit, resetConduit, type TRepresentation, LiveConduit, ServerUnreachable, isServerUnreachable, serverLastRespondedAt } from "./hypermedia.js";
 import { TestConduit } from "./test-setup.js";
 
 beforeEach(() => {
@@ -167,6 +167,24 @@ describe("a server that does not respond", () => {
 			expect(String((err as Error).message)).toContain("/rpc/action.begin");
 		} finally {
 			globalThis.fetch = fetchWas;
+		}
+	});
+
+	it("records when the server last responded, and records nothing when it never did", async () => {
+		const fetchWas = globalThis.fetch;
+		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
+		try {
+			await new LiveConduit("").follow({ method: "step.list" }, "test").catch(() => undefined);
+			expect(serverLastRespondedAt(), "a page that has reached no server holds no such time").toBeUndefined();
+			// An error the server returns is still the server responding: what a reader is told is that it was reached.
+			globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ error: "no such step" }), { status: 422, headers: { "Content-Type": "application/json" } }));
+			const before = Date.now();
+			await new LiveConduit("").follow({ method: "step.list" }, "test").catch(() => undefined);
+			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
+		} finally {
+			globalThis.fetch = fetchWas;
+			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
 		}
 	});
 

@@ -21,6 +21,7 @@ import { currentRowIndex } from "../virtual-column-model.js";
 import type { Range } from "../ranges.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { registryOrigin } from "../rpc-registry.js";
+import { serverLastRespondedAt } from "../hypermedia.js";
 import { emptyOrLoading } from "./empty-state.js";
 import { runSources, deviceStore, subscribeRunSources, subscribeRunSwitch, subscribeDeviceWrites, runsNewestFirst, CACHE_SHAPE, readRun, currentRun, atLiveEdge, RUNS_CACHED, type RunSource, type TEventStoreSummary, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
 
@@ -200,6 +201,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		const earlier = runsNewestFirst(this.#store).find(({ run }) => run !== reading)?.run;
 		const lastRun = reading;
 		const registry = registryOrigin();
+		const respondedAt = serverLastRespondedAt();
 		const cached = this.#store.registry;
 		const stored = lastRun === undefined ? undefined : this.#store.runs.find((r) => r.run === lastRun);
 		// A level a view has read the run at: it has an extent. The others carry the same events by the way indexes are
@@ -210,6 +212,8 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		return html`<div data-testid=${IDS.ROOT}>
 			<h4>Registry</h4>
 			<div data-testid=${IDS.REGISTRY}>${registry === null ? "not known yet" : registry.from === "server" ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}</div>
+			<h4>Server</h4>
+			<div data-testid=${IDS.SERVER}>${respondedAt === undefined ? "has not responded to this page" : `last responded at ${at(respondedAt)}`}</div>
 			<h4>Cursor</h4>
 			<div data-testid=${IDS.CURSOR}>${cursor === null ? "live edge" : html`${at(cursor)} <button class="link" title="back to the live edge" @click=${() => (this.timeCursor = null)}>to the live edge</button>`}</div>
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>
