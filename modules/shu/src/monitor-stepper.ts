@@ -30,6 +30,7 @@ import { buildConcernCatalog, buildResourceRels } from "@haibun/core/lib/hyperme
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SHU_TAG, RPC_METHOD } from "./consts.js";
+import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 
 import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
@@ -359,6 +360,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				});
 				if (this.observationQuads.length > this.maxEvents + BUFFER_TRIM_SLACK) this.observationQuads.splice(0, this.observationQuads.length - this.maxEvents);
 			} else this.recordEvent(event);
+			if (e.kind === "log") void this.recordSaid(event);
 			this.transport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
@@ -414,6 +416,31 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.eventsTrimmed = true;
 		}
 		if (lean) this.appendToEventLog(lean);
+	}
+
+	/**
+	 * What a run said, written as a record under the step it was said during. A reader is told it by the run saying it,
+	 * over the stream; this is the durable copy of that same statement, which is what a reader asks for when they were
+	 * not there to hear it. The type declares that writing it is not announced, so saying it once is saying it once.
+	 */
+	private async recordSaid(event: THaibunEvent): Promise<void> {
+		const e = event as Record<string, unknown>;
+		const message = typeof e.message === "string" ? e.message : undefined;
+		if (message === undefined) return;
+		const at = typeof e.timestamp === "number" ? e.timestamp : Date.now();
+		const under = parseSeqPath(String(e.id));
+		const said = under?.length ? under.join(".") : "";
+		const record: Record<string, unknown> = {
+			[LOG_MESSAGE_FIELD.id]: `${String(e.id)}@${at}`,
+			[LOG_MESSAGE_FIELD.message]: message,
+			[LOG_MESSAGE_FIELD.level]: e.level,
+			[LOG_MESSAGE_FIELD.generatedAtTime]: new Date(at).toISOString(),
+			...(said ? { [LOG_MESSAGE_EDGE.isPartOf]: said } : {}),
+		};
+		await this.getWorld()
+			.shared.getStore()
+			.upsertIndividual(LOG_MESSAGE_LABEL, record)
+			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what the run said was not recorded: ${errorDetail(err)}`));
 	}
 
 	/** Buffer a report-lean event for the disk log; flush in batches so the log never does sync I/O per event. */

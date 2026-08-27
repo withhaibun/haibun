@@ -44,6 +44,7 @@ import {
 	assertCommentGrounded, MEDIA_TYPE, QuoteAnchorSchema, type TQuoteAnchor } from "../lib/resources.js";
 import { linkVocabularyFor } from "../lib/domains.js";
 import { formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
+import { logMessageDomainDefinition } from "../lib/log-message.js";
 import { statementsWith, type TStatementRow } from "../lib/statements.js";
 import { typedLinkFacts } from "../lib/typed-links.js";
 
@@ -123,6 +124,7 @@ const cycles = (stepper: ResourcesStepper): IStepperCycles => ({
 			readingDomainDefinition,
 			principalDomainDefinition,
 			sceneDomainDefinition,
+			logMessageDomainDefinition,
 			seqPathDomainDefinition,
 			specificResourceDomainDefinition,
 			textQuoteSelectorDomainDefinition,

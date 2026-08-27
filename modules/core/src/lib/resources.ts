@@ -645,6 +645,14 @@ export type THypermediaTopology = {
 	/** DB-specific: default sort columns per property. */
 	sortColumns?: Record<string, string>;
 	/**
+	 * Whether writing a record of this type is announced as an observation of the quads it holds. A type whose records
+	 * ARE the record of something already announced declares false, since announcing the write repeats what the reader
+	 * was told: a message a run said reaches a reader as the run saying it, and the record of it is the durable copy of
+	 * that same statement rather than a second occurrence. Absent means announced, which is what a record whose writing
+	 * is the only news of it needs.
+	 */
+	announceWrites?: boolean;
+	/**
 	 * The level records of this type are stored at when a record states none. A type declares the LEAST sharing its
 	 * records can be read under and still be useful, so nothing is published by a writer forgetting to say: what is
 	 * shared more widely says so on the record itself. A type declaring none stores private, which shares least.
