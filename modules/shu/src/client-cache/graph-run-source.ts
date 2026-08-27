@@ -20,7 +20,7 @@ import { RUN_WINDOW_SIZE, runWindow, type TRunRow } from "./run-window.js";
 import type { RunSource, TEventRecord, TRunExtent } from "./run-source.js";
 
 /** How long a burst of changes is collected before the window is read again. */
-const RE_READ_AFTER_MS = 250;
+export const RE_READ_AFTER_MS = 250;
 
 /** A row as a view renders it. A step carries how it went and how long it took; what was said carries its own level. */
 function asRendered(row: TRunRow): TEventRecord {
@@ -37,12 +37,17 @@ function asRendered(row: TRunRow): TEventRecord {
 		status: row.status,
 		timestamp: row.at,
 		...(row.endedAt === undefined ? {} : { endedAt: row.endedAt, durationMs: row.endedAt - row.at }),
+		...(row.ranVia === undefined ? {} : { ranVia: row.ranVia }),
+		...(row.ranOn === undefined ? {} : { ranOn: row.ranOn }),
+		...(row.capabilityAction === undefined ? {} : { capabilityAction: row.capabilityAction }),
+		...(row.allowedAction === undefined ? {} : { allowedAction: row.allowedAction }),
+		...(row.performedBy === undefined ? {} : { performedBy: row.performedBy }),
 		seqPath,
 	};
 }
 
 /** The run as a view reads it, at one level. `at` moves the window; absent, it follows the newest records. */
-export function graphRunSource(level: THaibunLogLevel, size: number = RUN_WINDOW_SIZE): RunSource & { readAt(at?: number): Promise<void> } {
+export function graphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, reReadAfterMs = RE_READ_AFTER_MS }: { size?: number; reReadAfterMs?: number } = {}): RunSource & { readAt(at?: number): Promise<void> } {
 	let rows: TEventRecord[] = [];
 	let extent: TRunExtent = { total: 0 };
 	let loaded = false;
@@ -69,7 +74,7 @@ export function graphRunSource(level: THaibunLogLevel, size: number = RUN_WINDOW
 			due = setTimeout(() => {
 				due = null;
 				void read();
-			}, RE_READ_AFTER_MS);
+			}, reReadAfterMs);
 		},
 	});
 

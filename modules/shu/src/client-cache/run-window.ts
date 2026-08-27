@@ -32,12 +32,22 @@ export type TRunRow = {
 	/** A step's outcome, and when it reached it. */
 	status?: string;
 	endedAt?: number;
+	/** How a step reached what ran it, and the host that ran it where another one did. */
+	ranVia?: string;
+	ranOn?: string;
+	/** What a step had to hold to run, what the caller held, and who they were. */
+	capabilityAction?: string;
+	allowedAction?: string;
+	performedBy?: string;
 };
 
 /** The records a reader is looking at, oldest first, and the moments they span. */
 export type TRunWindow = { rows: TRunRow[]; from?: number; to?: number };
 
 const instant = (value: unknown): number => (typeof value === "string" ? Date.parse(value) : typeof value === "number" ? value : Number.NaN);
+
+/** One field of a record, where it holds one, under the name a row carries it by. */
+const text = (record: Record<string, unknown>, field: string, as: string): Record<string, string> => (typeof record[field] === "string" ? { [as]: record[field] } : {});
 
 /** A step, as a row. A step's own level is `info`: what a step said carries its own. */
 function stepRow(record: Record<string, unknown>): TRunRow {
@@ -50,6 +60,11 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 		text: String(record[SEQ_PATH_FIELD.stepText] ?? ""),
 		...(record[SEQ_PATH_FIELD.actionStatus] === undefined ? {} : { status: String(record[SEQ_PATH_FIELD.actionStatus]) }),
 		...(Number.isNaN(ended) ? {} : { endedAt: ended }),
+		...text(record, SEQ_PATH_FIELD.ranVia, "ranVia"),
+		...text(record, SEQ_PATH_FIELD.ranOn, "ranOn"),
+		...text(record, SEQ_PATH_FIELD.capabilityAction, "capabilityAction"),
+		...text(record, SEQ_PATH_FIELD.allowedAction, "allowedAction"),
+		...text(record, "performedBy", "performedBy"),
 	};
 }
 
