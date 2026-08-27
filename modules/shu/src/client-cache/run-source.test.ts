@@ -3,7 +3,7 @@
 // first and the server for what the device lacks, grown by live events that carry their index, bounded in what it caches,
 // and honest when a page cannot be had. These pin the contract the monitor's whole-run rail relies on.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { eventRunSource, resetRunSources, runSpan, setDeviceStore, leanForStore, readRun, currentRun, cullCachedRuns, RUNS_CACHED, EVENTS_UNAVAILABLE, type TEventRecord } from "./run-source.js";
+import { eventRunSource, resetRunSources, runSpan, setDeviceStore, leanForStore, readRun, currentRun, cullCachedRuns, RUNS_CACHED, EVENTS_UNAVAILABLE, RUN_ENDED, type TEventRecord } from "./run-source.js";
 import { MemoryDeviceStore } from "./device-store.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "../window-size-setting.js";
@@ -307,5 +307,48 @@ describe("the run source at a level", () => {
 		await again.ready();
 		await again.ensureRange(0, 50);
 		expect(again.extent().last, "read back from the device").toBe(newest);
+	});
+});
+
+describe("a run the server has finished with", () => {
+	// The server keeps no events of a finished run: the report of the run carries them, and so does a device that was
+	// reading it while it ran. A page told the run has ended says so, rather than reporting a server it could not reach.
+	let handle: TShuTestHandle;
+	beforeEach(() => {
+		windowSizeSetting.set("50");
+		setDeviceStore(new MemoryDeviceStore());
+	});
+	afterEach(() => {
+		handle.teardown();
+		resetRunSources();
+		windowSizeSetting.set(DEFAULT_WINDOW_SIZE);
+	});
+
+	it("says the run has ended, and reports that rather than an unreachable server when a page cannot be read", async () => {
+		// What the server answers about a run it has finished with: it names the run, holds none of its events, and says so.
+		handle = setupShuTest({ dispatch: () => ({ events: [], total: 0, run: "r-done", ended: true }) });
+		const source = eventRunSource("info");
+		await source.ready();
+		expect(source.ended, "the run the server named has ended").toBe(true);
+		expect(source.extent().total, "and it holds none of it").toBe(0);
+	});
+
+	it("is a run still running when the server says nothing of the sort", async () => {
+		handle = setupShuTest({ dispatch: () => ({ events: [], total: 0, run: "r-live" }) });
+		const source = eventRunSource("info");
+		await source.ready();
+		expect(source.ended).toBe(false);
+	});
+
+	it("tells a reader of a run the server is not recording that it is finished, not that the server was unreachable", async () => {
+		handle = setupShuTest({ dispatch: () => ({ events: [], total: 0, run: "r-live" }) });
+		const store = new MemoryDeviceStore();
+		setDeviceStore(store); // after the harness, which starts the sources over a store of its own
+		await store.setExtent("r-earlier", "info", { total: 3, first: 1000, last: 1002 });
+		await readRun("r-earlier");
+		const source = eventRunSource("info");
+		await source.ready();
+		await source.ensureRange(0, 3).catch(() => undefined);
+		expect(source.unavailable, "the run is finished; there is no server that could have it").toBe(RUN_ENDED);
 	});
 });

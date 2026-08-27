@@ -206,7 +206,7 @@ export type TEventsFilter = z.infer<typeof EventsFilterSchema>;
 // `total` is the count matching the filter; `events` may be a recent window of it (see EVENTS_BYTE_BUDGET) with `truncated` set.
 /** What a page carries beside its events: `total`, how many events the run holds at the asked level (its whole extent);
  *  `first`, when the run's first event happened; `truncated`, whether older events exist past a time-paged page. */
-const MonitorEventsSchema = z.object({ events: z.array(z.unknown()), total: z.number().optional(), first: z.number().optional(), truncated: z.boolean().optional(), run: z.string().optional() });
+const MonitorEventsSchema = z.object({ events: z.array(z.unknown()), total: z.number().optional(), first: z.number().optional(), truncated: z.boolean().optional(), run: z.string().optional(), ended: z.boolean().optional() });
 
 
 const ClusteredQuadsSchema = z.object({
@@ -249,6 +249,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	/** The run being recorded: begun at startFeature, stamped on every event and every answer, so a client holding events
 	 *  of an earlier run (a stayed instance run again, a device store from yesterday) can tell them apart and show one run. */
 	private runId: string | undefined;
+	/** Whether the run this server named has finished. A finished run's events are not kept: the report carries them, and
+	 *  so does a device that was reading it. Saying so is how a page knows it is looking at a run rather than at nothing. */
+	private runEnded = false;
 	/** How many events the run's log holds at each level and up: the extent a view at that level spans. */
 	private levelCounts: Record<string, number> = {};
 	/** When the run's first logged event happened. */
@@ -332,6 +335,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.eventLogPath = resolve(artifactDir, "events.jsonl");
 			if (existsSync(this.eventLogPath)) rmSync(this.eventLogPath);
 			this.runId = `${Date.now().toString(36)}-${process.pid.toString(36)}`;
+			this.runEnded = false;
 			this.levelCounts = {};
 			this.firstLoggedAt = undefined;
 			this.logIndex = [];
@@ -366,6 +370,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// Each feature's report stands alone: clear the per-feature buffers so the next feature's report (and the live
 			// getEvents backfill) holds only its own events — and serialized artifacts resolve from the report's own dir.
 			// Live SSE streaming is unaffected; events forward as they happen.
+			this.runEnded = true;
 			this.events = [];
 			this.eventsTrimmed = false;
 			this.levelCounts = {};
@@ -653,6 +658,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				const cap = limit && limit > 0 ? Math.min(limit, EVENTS_COUNT_CAP) : EVENTS_COUNT_CAP;
 				const floor = minLevel ? HAIBUN_LOG_LEVELS.indexOf(minLevel) : 0;
 				const run = this.runId;
+				const ended = this.runEnded;
 				// A step's own events: its lifecycle events carry its seqPath as their id (written bracketed), and its dispatch trace is named for it.
 				const ofStep = (e: THaibunEvent, step: string): boolean => e.id === `dispatch.${step}` || parseSeqPath(e.id)?.join(".") === step;
 				const wanted = (e: THaibunEvent): boolean =>
@@ -692,24 +698,24 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 							if (wanted(e as unknown as THaibunEvent)) page.push(slimLiveEvent(e as unknown as THaibunEvent));
 						}
 					}
-					return actionOKWithProducts({ events: page, total, first, run });
+					return actionOKWithProducts({ events: page, total, first, run, ended });
 				}
 				// One step's events are few and asked for by name: what the buffer holds of them, completed from the run's log
 				// when the buffer does not hold the run from its start (it was trimmed, or this process did not record it).
 				if (seqPath !== undefined) {
 					const held = this.events.filter(wanted).map(slimLiveEvent);
-					if (held.length >= cap || (!this.eventsTrimmed && oldestHeld !== undefined)) return actionOKWithProducts({ events: held.slice(-cap), total, first, run });
+					if (held.length >= cap || (!this.eventsTrimmed && oldestHeld !== undefined)) return actionOKWithProducts({ events: held.slice(-cap), total, first, run, ended });
 					const ids = new Set(held.map((e) => `${e.id}:${e.stage ?? ""}`));
 					const older: Record<string, unknown>[] = [];
 					for (const e of this.leanEventsNewestFirst() as Iterable<THaibunEvent>) {
 						if (older.length + held.length >= cap) break;
 						if (wanted(e) && !ids.has(`${e.id}:${(e as { stage?: string }).stage ?? ""}`)) older.push(slimLiveEvent(e));
 					}
-					return actionOKWithProducts({ events: [...older.reverse(), ...held], total, first, run });
+					return actionOKWithProducts({ events: [...older.reverse(), ...held], total, first, run, ended });
 				}
 				if (this.eventsTrimmed && until !== undefined && (oldestHeld === undefined || until <= oldestHeld)) {
 					const fromLog = this.leanEventsNewestFirst() as Iterable<THaibunEvent>;
-					return actionOKWithProducts({ ...takeRecentWithinBudget(filterIterable(fromLog, wanted), cap, EVENTS_BYTE_BUDGET), total, first, run });
+					return actionOKWithProducts({ ...takeRecentWithinBudget(filterIterable(fromLog, wanted), cap, EVENTS_BYTE_BUDGET), total, first, run, ended });
 				}
 				const filtered = this.events.filter(wanted);
 				const { events, truncated } = recentEventsWithinBudget(filtered, cap, EVENTS_BYTE_BUDGET);
@@ -720,9 +726,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (events.length < cap && headTrimmed && oldestHeld !== undefined) {
 					const olderThanBuffer = (e: THaibunEvent): boolean => wanted(e) && e.timestamp < oldestHeld;
 					const older = takeRecentWithinBudget(filterIterable(this.leanEventsNewestFirst() as Iterable<THaibunEvent>, olderThanBuffer), cap - events.length, EVENTS_BYTE_BUDGET);
-					return actionOKWithProducts({ events: [...older.events, ...events], truncated: truncated || older.truncated, total, first, run });
+					return actionOKWithProducts({ events: [...older.events, ...events], truncated: truncated || older.truncated, total, first, run, ended });
 				}
-				return actionOKWithProducts({ events, total, first, run, truncated: truncated || headTrimmed });
+				return actionOKWithProducts({ events, total, first, run, ended, truncated: truncated || headTrimmed });
 			},
 		},
 		logClient: {

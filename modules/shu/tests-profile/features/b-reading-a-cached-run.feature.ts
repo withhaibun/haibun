@@ -13,6 +13,7 @@ const { feature, scenario } = withAction(new Haibun());
 
 const host = "http://localhost:8241";
 const IDS = SHU_TEST_IDS;
+const SOURCE_STATE = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}info-state`;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 
 
@@ -42,5 +43,10 @@ export const features: TKirejiExport = {
 		`save text from ${IDS.CLIENT_CACHE.READING} to readingEarlier`,
 		'matches readingEarlier with "*A run to come back to*"',
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+
+		"A run the server is no longer recording is finished, and a reader of it is never told that a server could not be reached: there is no server that could have it. What can be read of it is what this device holds, and the report of the run carries all of it.",
+		setAs({ what: SOURCE_STATE, domain: "page-test-id", value: `"${SOURCE_STATE}"` }),
+		`save text from ${SOURCE_STATE} to earlierState`,
+		'not matches earlierState with "*server could not be reached*"',
 	],
 };
