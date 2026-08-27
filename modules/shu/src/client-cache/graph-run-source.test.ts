@@ -55,7 +55,7 @@ describe("the run a view reads, over the records it wrote", () => {
 	});
 
 	it("moves to a moment, so a reader reads a run far from its newest records", async () => {
-		const source = graphRunSource("debug", 2);
+		const source = graphRunSource("debug", { size: 2 });
 		await source.ready();
 		expect(source.count()).toBe(2);
 		await source.readAt(1000);

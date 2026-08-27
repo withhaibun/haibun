@@ -44,5 +44,7 @@ export {
 } from "./run-source.js";
 export { IndexedDbDeviceStore, MemoryDeviceStore, subscribeDeviceWrites, runsNewestFirst, CACHE_SHAPE, eventTime, runOf, storedEventKey, resetDeviceStoreIdb, type DeviceStore, type TEventStoreSummary, type TStoredEvent, type TStoredRegistry } from "./device-store.js";
 export { IndexedDbQuadStore, originGraphStore } from "./quad-store.js";
+export { graphRunSource } from "./graph-run-source.js";
+export { runWindow, RUN_WINDOW_SIZE, type TRunRow, type TRunWindow } from "./run-window.js";
 export { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";
