@@ -444,9 +444,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (missing: ${resolution.missing.join(", ")})` };
 		}
 
-		// The resolver returns multiple michi (paths). The declarative waypoint always runs
-		// the first; choice-driven flows go through the chain-walker (advanceChainInstance),
-		// which steps one michi forward at a time so the SPA can collect per-step input.
+		// The resolver returns multiple michi (paths). The declarative waypoint always runs the first, and runs it
+		// straight through, so it reaches only a path whose steps need nothing supplied. A path that needs something
+		// from a person gets walked instead, through `walk toward` and `advance the walk`.
 		const registry = world.runtime.stepRegistry;
 		if (!registry) return { handled: true, ok: false, errorMessage: "no step registry available" };
 		const firstMichi = resolution.michi[0];

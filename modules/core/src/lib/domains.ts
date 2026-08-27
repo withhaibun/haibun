@@ -17,6 +17,7 @@ export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_MICHI = "michi";
 export const DOMAIN_AFFORDANCES = "affordances";
 export const DOMAIN_CHAIN_LINT = "domain-chain-lint";
+export const DOMAIN_CHAIN_WALK = "chain-walk";
 
 export type TEnumDomainInput = {
 	name: string;

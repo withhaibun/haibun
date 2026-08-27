@@ -6,11 +6,15 @@
  *   show affordances                                    → DOMAIN_AFFORDANCES (forward edges + goal verdicts)
  *   show chain lint                                     → DOMAIN_CHAIN_LINT (orphan/starved/unreachable findings + affordance overlay)
  *
- * The resolver is pure search; it never auto-runs anything. Multi-step
- * execution along a resolved michi happens through the chain-walker
- * (`advanceChainInstance` in lib/chain-walker.js), which drives one step at
- * a time so the SPA can collect per-step user input.
+ * The resolver is pure search; it never auto-runs anything. A resolved path gets run in one of two ways: `pursue`
+ * runs it straight through, which it can only do where no step needs anything supplied, and `walk toward` holds it
+ * open one step at a time so what each step takes can be given to it, which is what the chain-walker
+ * (`advanceChainInstance` in lib/chain-walker.js) does.
+ *
+ *   walk toward {goal: domain-key}                      → DOMAIN_CHAIN_WALK (begins a walk, stops before its first step)
+ *   advance the walk {walk} with {args: json}           → DOMAIN_CHAIN_WALK (runs the next step with what it takes)
  */
+import { z } from "zod";
 import {
 	AStepper,
 	type IHasCycles,
@@ -23,8 +27,10 @@ import {
 	type TStepperOption,
 } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
-import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
-import { affordancesSchema, chainLintSchema, goalResolutionSchema } from "../lib/core-domains.js";
+import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT, DOMAIN_CHAIN_WALK, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
+import { affordancesSchema, chainLintSchema, chainWalkSchema, goalResolutionSchema } from "../lib/core-domains.js";
+import { createChainInstance, type TChainInstance } from "../lib/chain-instance.js";
+import { advanceChainInstance } from "../lib/chain-walker.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
@@ -273,6 +279,47 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			},
 		},
 
+		/**
+		 * Begin a walk toward a goal: resolve it, hold the path chosen, and stop before each step so what that step needs
+		 * can be supplied. `pursue` runs a path straight through and so can only run one whose steps need nothing; a walk
+		 * is how a path that needs something from a person is run, one step at a time, with what it produced recorded as
+		 * it goes. The walk belongs to whoever began it.
+		 */
+		walkToward: {
+			gwta: `walk toward {goal: ${DOMAIN_DOMAIN_KEY}}`,
+			inputDomains: { goal: DOMAIN_DOMAIN_KEY },
+			productsDomain: DOMAIN_CHAIN_WALK,
+			action: async ({ goal }: { goal: string }) => {
+				const resolution = await this.runResolution(goal);
+				if (resolution.finding === GOAL_FINDING.SATISFIED) return actionNotOK(`walk toward ${goal}: already satisfied, so there is no path to walk`);
+				if (resolution.finding === GOAL_FINDING.UNREACHABLE) return actionNotOK(`walk toward ${goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
+				if (resolution.finding === GOAL_FINDING.REFUSED) return actionNotOK(`walk toward ${goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
+				const michi: TMichi = resolution.michi[0];
+				if (!michi) return actionNotOK(`walk toward ${goal}: no michi returned`);
+				const world = this.getWorld();
+				const instance = await createChainInstance(world, goal, michi);
+				return actionOKWithProducts(walkProducts(instance, new StepRegistry(this.steppers, world)));
+			},
+		},
+
+		/**
+		 * Run the walk's next step with what it needs. Only the reader who began the walk may advance it, since the
+		 * arguments a step runs with are theirs.
+		 */
+		advanceWalk: {
+			gwta: `advance the walk {walk: string} with {args: ${DOMAIN_JSON}}`,
+			inputDomains: { args: DOMAIN_JSON },
+			productsDomain: DOMAIN_CHAIN_WALK,
+			action: async ({ walk, args }: { walk: string; args: unknown }) => {
+				const world = this.getWorld();
+				const ctx = { registry: new StepRegistry(this.steppers, world), world, steppers: this.steppers, grantedCapability: Array.from(this.grantedCapabilities()) };
+				const supplied = typeof args === "string" ? (JSON.parse(args) as Record<string, unknown>) : ((args ?? {}) as Record<string, unknown>);
+				const advanced = await advanceChainInstance(ctx, walk, supplied);
+				if (advanced.kind === "failed") return actionNotOK(`advance the walk ${walk}: ${advanced.error}`);
+				return actionOKWithProducts(walkProducts(advanced.instance, ctx.registry));
+			},
+		},
+
 		resolveWhere: {
 			gwta: `resolve {goal: ${DOMAIN_DOMAIN_KEY}} where {constraint: ${DOMAIN_JSON}}`,
 			inputDomains: { goal: DOMAIN_DOMAIN_KEY, constraint: DOMAIN_JSON },
@@ -331,6 +378,24 @@ export default GoalResolutionStepper;
  * domain names that need argument values supplied by the caller. The list is
  * what `pursue` surfaces when execution can't proceed without input.
  */
+/** A walk as a reader is shown it: where it has got to, what runs next, and what that step takes of them. What it
+ *  needs is read from the step's own declaration, since that is what an advance has to supply. */
+function walkProducts(instance: TChainInstance, registry: StepRegistry): z.infer<typeof chainWalkSchema> {
+	const steps = instance.michi.steps.map((step) => stepMethodName(step.stepperName, step.stepName));
+	const next = steps[instance.stepIndex];
+	const takes = next === undefined ? [] : [...(registry.get(next)?.paramSchemas.keys() ?? [])];
+	return chainWalkSchema.parse({
+		walk: instance.id,
+		goal: instance.goal,
+		status: instance.status,
+		stepIndex: instance.stepIndex,
+		steps,
+		...(next === undefined ? {} : { next }),
+		needs: takes,
+		factIds: instance.stepFactIds.flat(),
+	});
+}
+
 function collectArgumentBindings(bindings: TBinding[]): string[] {
 	const out: string[] = [];
 	const visit = (b: TBinding | { kind: string; domain?: string; fields?: unknown[] }): void => {
