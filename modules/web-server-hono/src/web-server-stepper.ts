@@ -16,7 +16,6 @@ import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { AccessLevelSchema, LinkRelations, narrowerCeiling, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
-import { rpcCacheKey } from "@haibun/core/lib/rpc-cache-key.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
 import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./capability-auth.js";
@@ -257,7 +256,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 							accessCapability: this.rpcAccessCapability,
 						});
 						const result = discoverSteps(this.steppers, this.getWorld(), this.stepRegistry, { grantedCapability });
-						this.cacheRpcResponse(method, params, result);
+						// Held for whatever writes a record of this run: what a page was served is what a reader of that record
+						// is given, capability-filtered as this caller saw it, rather than a fuller manifest built later.
+						this.getWorld().runtime[DISCOVERY_RESPONSE] = result;
 						return result;
 					}
 					if (method === "step.validate") return validateStep(String(params.text || ""), this.steppers);
@@ -324,11 +325,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
 							runActingAs(principal, () => runReadingAt(ceiling, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep))),
 						);
-						if (hr.ok) {
-							const result = hr.products ?? { ok: true };
-							this.cacheRpcResponse(method, params, result);
-							return result;
-						}
+						if (hr.ok) return hr.products ?? { ok: true };
 						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
 						const detail = errorDetail(err);
@@ -378,13 +375,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		await this.webserver.listen(why, this.port, this.hostname);
 	}
 
-	private cacheRpcResponse(method: string, params: Record<string, unknown>, result: unknown): void {
-		const cache = (this.getWorld().runtime[RPC_CACHE] ??= {}) as Record<string, unknown>;
-		cache[rpcCacheKey(method, params)] = result;
-	}
 }
 
-export const RPC_CACHE = "rpc-cache";
+/** Runtime key holding the step discovery response this server last served, for whatever writes a record of the run. */
+export const DISCOVERY_RESPONSE = "discovery-response";
 
 export default WebServerStepper;
 

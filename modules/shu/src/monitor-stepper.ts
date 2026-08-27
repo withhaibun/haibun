@@ -32,8 +32,7 @@ import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SHU_TAG, RPC_METHOD } from "./consts.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 
-import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
-import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
+import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
@@ -148,6 +147,21 @@ export function inlineScriptsForView(domains: Record<string, unknown>, finalView
 
 export const DOMAIN_LOG_EVENT = "shu-log-event";
 
+/**
+ * The type a graph query named, read off the step that ran it. The match is the argument's DOMAIN, not the step's name:
+ * a deployment answers graph queries with its own step, and every one of them takes an argument of this domain, so this
+ * reads the type from whichever step answered. Undefined for every other event.
+ */
+export function queriedLabelOf(event: THaibunEvent): string | undefined {
+	const values = (event as { stepValuesMap?: Record<string, { domain?: string; value?: unknown }> }).stepValuesMap ?? {};
+	for (const held of Object.values(values)) {
+		if (held?.domain !== DOMAIN_GRAPH_QUERY) continue;
+		const label = (held.value as { label?: unknown } | undefined)?.label;
+		if (typeof label === "string" && label) return label;
+	}
+	return undefined;
+}
+
 /** Client-side log event forwarded from the SPA. Validated with Zod at the action boundary. */
 export const LogEventSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
@@ -217,6 +231,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
 	private observationQuads: TQuad[] = [];
+	/** The type a reader is looking at: the last one a graph query named, so a record of this run opens where the run
+	 *  left off. Per feature, like everything else a report carries. */
+	private queriedLabel = "";
 	/** Occurrences accepted from the SPA, so a page whose buffer overflowed between batches can be told apart from a quiet one. */
 	private clientBlipsReceived = 0;
 	/** Per-run lean event log (full history, JSONL on disk). The report reads ALL of it (never truncated); the in-memory
@@ -321,6 +338,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		onEvent: (event: THaibunEvent) => {
 			const e = event as Record<string, unknown>;
+			this.queriedLabel = queriedLabelOf(event) ?? this.queriedLabel;
 			const quad = e.kind === "artifact" && e.artifactType === "json" ? (e.json as { quadObservation?: TQuad })?.quadObservation : undefined;
 			if (quad?.subject && quad.predicate && quad.namedGraph) {
 				// Graph data — kept only in the bounded observation buffer (feeds getClusteredQuads live + buildGraphSource
@@ -354,6 +372,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.firstLoggedAt = undefined;
 			this.logIndex = [];
 			this.observationQuads = [];
+			this.queriedLabel = "";
 			this.diskBuffer = [];
 			if (this.eventLogPath && existsSync(this.eventLogPath)) rmSync(this.eventLogPath);
 		},
@@ -510,8 +529,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// A report carries the run and the view state it was left in, never the answers a live page happened to receive:
 		// the run rides in the client cache (its events, the graph as quads, the site's declarations), and every read a
 		// view makes of those is answered from what the page holds. So this begins empty and holds only the view products
-		// computed below, rather than what the live run captured.
-		const captured = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
+		// computed below.
 		const rpcCache: Record<string, unknown> = {};
 		const reportEvents = this.readEventLog();
 		// The view toggles: parameterless steps with a `.view` product, run once so the page opens where the reader left
@@ -531,8 +549,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			}),
 		);
 		// The site's declarations ride in the cache as the registry, where a page with no server reads them, so there is
-		// one place a registry comes from.
-		const registry = captured["step.list"] ?? { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
+		// one place a registry comes from: what this server served a page, as that page was allowed to see it.
+		const registry = this.getWorld().runtime[DISCOVERY_RESPONSE] ?? { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the
 		// last live snapshot is the one that matters. Re-run the parameterless producers
@@ -562,7 +580,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// `ui.component` so the offline file uses the same vocabulary as live runs.
 		const domains = this.getWorld().domains;
 		const cols: string[] = [];
-		let label = "";
 		for (const e of reportEvents) {
 			const ev = e as Record<string, unknown>;
 			if (ev.kind !== "lifecycle" || ev.stage !== "end") continue;
@@ -571,17 +588,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			const component = (domains[view]?.ui as { component?: string } | undefined)?.component ?? view;
 			if (!cols.includes(component)) cols.push(component);
 		}
-		for (const key of Object.keys(captured)) {
-			if (!key.includes("graphQuery:")) continue;
-			try {
-				const params = rpcCacheKeyParams(key) as { query?: { label?: string } } | undefined;
-				if (params?.query?.label) label = params.query.label;
-			} catch {
-				/* */
-			}
-		}
 		const hashParts = new URLSearchParams();
-		if (label) hashParts.set("label", label);
+		if (this.queriedLabel) hashParts.set("label", this.queriedLabel);
 		for (const col of cols) hashParts.append("col", col);
 		const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
 		// No report-time slimming: the disk log is already report-lean by construction (slimmed at write — debug-artifact
