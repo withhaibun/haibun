@@ -18,7 +18,6 @@ const PENDING_MIGRATION = new Set([
 	"shu-kihan-chat.ts",
 	"shu-step-caller.ts",
 	"shu-step-detail.ts",
-	"shu-filter-column.ts",
 	"shu-thread-column.ts",
 	// Arrived with this debt when the graph view moved in from a consumer, which is why they are here rather than the
 	// list having grown: each still fetches for itself instead of holding a controller.

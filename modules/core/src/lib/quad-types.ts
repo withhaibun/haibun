@@ -49,6 +49,16 @@ export const GraphQuerySchema = z
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
 
+/** What a graph query answers with: the rows it matched and how many there are, plus what a store with a query engine
+ *  can add about how it answered. One shape, so the site's step and a page reading its own copy agree on the answer. */
+export const GraphQueryResultSchema = z.object({
+	vertices: z.array(z.record(z.string(), z.unknown())),
+	total: z.number().int().nonnegative(),
+	cypher: z.string().optional(),
+	sort: z.object({ fields: z.array(z.string()), orders: z.array(z.enum(["asc", "desc"])), current: z.object({ field: z.string().optional(), order: z.enum(["asc", "desc"]) }) }).optional(),
+});
+export type TGraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
+
 export interface TQuad {
 	subject: string;
 	predicate: string;

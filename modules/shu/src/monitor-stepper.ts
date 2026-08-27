@@ -35,17 +35,16 @@ import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepp
 import { rpcCacheKeyParams } from "@haibun/core/lib/rpc-cache-key.js";
 import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
-import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
+import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
 import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { QuadStore, queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { RemoteGraphSource } from "./remote-graph-source.js";
 import { CACHE_SHAPE, type TCachePayload, type TStoredEvent } from "./client-cache/index.js";
 
 /** Result of the inherent `graphQuery` step: matched rows + their count. */
-const GraphQueryResultSchema = z.object({ vertices: z.array(z.record(z.string(), z.unknown())), total: z.number().int().nonnegative() });
 
 // The in-memory buffers hold a recent WINDOW, never the run: over months, an unbounded buffer is the process's heap
 // death (a first-time index of a large mailbox OOMed the daemon at ~4GB). The store is canonical for graph data and
@@ -508,22 +507,17 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	}
 
 	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {
-		const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
-		// The run itself is carried as the client cache holds it, not as responses to replay: every event of the run from
-		// the on-disk log (never truncated by the in-memory window, already report-lean), with the index the server
-		// stamped. What the live run captured of those responses is dropped, since nothing reads them.
-		for (const key of Object.keys(rpcCache)) if (key === RPC_METHOD.GET_EVENTS || key.startsWith(`${RPC_METHOD.GET_EVENTS}:`)) delete rpcCache[key];
-		// The graph rides in the cache as quads, which a page clusters for itself: a captured clustering of them is the same
-		// graph a second time, so what the live run captured of it is dropped.
-		for (const key of Object.keys(rpcCache)) if (key === RPC_METHOD.CLUSTERED_QUADS || key.startsWith(`${RPC_METHOD.CLUSTERED_QUADS}:`)) delete rpcCache[key];
+		// A report carries the run and the view state it was left in, never the answers a live page happened to receive:
+		// the run rides in the client cache (its events, the graph as quads, the site's declarations), and every read a
+		// view makes of those is answered from what the page holds. So this begins empty and holds only the view products
+		// computed below, rather than what the live run captured.
+		const captured = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
+		const rpcCache: Record<string, unknown> = {};
 		const reportEvents = this.readEventLog();
-		// 2. Parameterless steps with view products (deterministic view toggles). Exclude getClusteredQuads: it's the graph
-		//    DATA RPC, not a view toggle (no `.view` product), it requires an accessLevel by design (no default — it honors
-		//    the caller's access exactly), and it's serialized canonically below via buildGraphSource. Running it here arg-less
-		//    only threw on the missing accessLevel; its bare-key entry is written after this loop, so the early-cache guard misses it.
-		const candidates = Object.entries(this.steps).filter(
-			([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{") && `MonitorStepper-${name}` !== RPC_METHOD.CLUSTERED_QUADS,
-		);
+		// The view toggles: parameterless steps with a `.view` product, run once so the page opens where the reader left
+		// it. getClusteredQuads is excluded: it is a read of the graph, not a view toggle, and it requires an accessLevel
+		// by design, so running it arg-less only ever threw.
+		const candidates = Object.entries(this.steps).filter(([name, step]) => !step.gwta.includes("{") && `MonitorStepper-${name}` !== RPC_METHOD.CLUSTERED_QUADS);
 		const logger = this.getWorld().eventLogger;
 		await Promise.all(
 			candidates.map(async ([name, step]) => {
@@ -536,10 +530,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}),
 		);
-		// The site's declarations ride in the cache as the registry, where a page with no server reads them; the captured
-		// response is dropped so there is one place a registry comes from.
-		const registry = rpcCache["step.list"] ?? { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
-		delete rpcCache["step.list"];
+		// The site's declarations ride in the cache as the registry, where a page with no server reads them, so there is
+		// one place a registry comes from.
+		const registry = captured["step.list"] ?? { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the
 		// last live snapshot is the one that matters. Re-run the parameterless producers
@@ -578,7 +571,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			const component = (domains[view]?.ui as { component?: string } | undefined)?.component ?? view;
 			if (!cols.includes(component)) cols.push(component);
 		}
-		for (const key of Object.keys(rpcCache)) {
+		for (const key of Object.keys(captured)) {
 			if (!key.includes("graphQuery:")) continue;
 			try {
 				const params = rpcCacheKeyParams(key) as { query?: { label?: string } } | undefined;
@@ -859,17 +852,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			productsSchema: GraphQueryResultSchema,
 			// The vertex rows are the RPC response; keeping them on the event too is the per-query bloat.
 			retainProducts: false,
-			action: async ({ query }: { query: TGraphQuery }) => {
-				const store = this.getWorld().shared.getStore();
-				const { label, limit, offset } = query;
-				if (!label) return actionNotOK("graphQuery requires a label; the inherent quad store reads one type at a time");
-				if (query.textQuery) return actionNotOK("graphQuery (inherent quad store) supports label + equality filters only; textQuery needs a query-capable store");
-				const filters: Record<string, unknown> = {};
-				for (const f of query.filters) filters[f.predicate] = f.value; // equality only: queryIndividuals matches predicate→value; richer operators need a query-capable store
-				const hasFilters = Object.keys(filters).length > 0;
-				const vertices = await store.queryIndividuals(label, hasFilters ? filters : undefined, { limit, offset });
-				return actionOKWithProducts({ vertices, total: vertices.length });
-			},
+			// The same answer a page reading its own copy of the graph gives itself, so the two never drift.
+			action: async ({ query }: { query: TGraphQuery }) => actionOKWithProducts(await queryQuadStore(this.getWorld().shared.getStore(), query)),
 		},
 	} satisfies TStepperSteps;
 }
