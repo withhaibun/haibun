@@ -10,6 +10,7 @@ import { FACT_GRAPH } from "./working-memory.js";
 import type { TMichi } from "./goal-resolver.js";
 import { CHAIN_INSTANCE_STATUS, createChainInstance } from "./chain-instance.js";
 import { advanceChainInstance } from "./chain-walker.js";
+import { runActingAs } from "./capability-context.js";
 
 const ISSUER_DOMAIN = "issuer";
 const VC_DOMAIN = "vc";
@@ -33,6 +34,16 @@ class VcStepper extends AStepper {
 			gwta: "issue a credential",
 			productsDomain: VC_DOMAIN,
 			action: () => Promise.resolve(actionOKWithProducts({ vcId: "vc-001" })),
+		},
+	};
+}
+
+class CountingStepper extends AStepper {
+	steps: TStepperSteps = {
+		countTo: {
+			gwta: "count to {count: number}",
+			productsDomain: ISSUER_DOMAIN,
+			action: ({ count }: { count: number }) => Promise.resolve(actionOKWithProducts({ issuerId: `counted-${count}` })),
 		},
 	};
 }
@@ -119,5 +130,66 @@ describe("chain-walker", () => {
 		expect(again.kind).toBe("completed");
 		if (again.kind !== "completed") throw new Error("unreachable");
 		expect(again.instance.status).toBe(CHAIN_INSTANCE_STATUS.COMPLETED);
+	});
+});
+
+describe("a walk belongs to whoever began it", () => {
+	// A walk is one reader's: the arguments each step runs with are theirs, so a handle to a walk is not authority over
+	// it. What the walker holds to is who is acting, not who says they are.
+	let world: TWorld;
+	beforeEach(() => {
+		world = getDefaultWorld();
+	});
+
+	it("is advanced by the reader who began it", async () => {
+		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
+		const inst = await runActingAs("did:example:alice", () => createChainInstance(world, VC_DOMAIN, twoStepMichi));
+		expect(inst.owner, "the walk records who began it").toBe("did:example:alice");
+		const advanced = await runActingAs("did:example:alice", () => advanceChainInstance(ctx, inst.id, { issuerId: "alice" }));
+		expect(advanced.kind).toBe("advanced");
+	});
+
+	it("is refused to anyone else, and to no one at all", async () => {
+		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
+		const inst = await runActingAs("did:example:alice", () => createChainInstance(world, VC_DOMAIN, twoStepMichi));
+		await expect(runActingAs("did:example:mallory", () => advanceChainInstance(ctx, inst.id, { issuerId: "mallory" }))).rejects.toThrow(/begun by did:example:alice/);
+		await expect(advanceChainInstance(ctx, inst.id, { issuerId: "nobody" }), "and by a run acting as no one").rejects.toThrow(/begun by did:example:alice/);
+	});
+
+	it("a walk begun by no one is not advanced by someone", async () => {
+		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
+		const inst = await createChainInstance(world, VC_DOMAIN, twoStepMichi);
+		expect(inst.owner).toBeUndefined();
+		await expect(runActingAs("did:example:mallory", () => advanceChainInstance(ctx, inst.id, {}))).rejects.toThrow(/begun by no one/);
+	});
+});
+
+describe("a walk gives a step only what that step takes", () => {
+	// Every other caller of a step passes through the same validation; a walk that could hand a step anything would be
+	// a way past it.
+	let world: TWorld;
+	beforeEach(() => {
+		world = getDefaultWorld();
+	});
+
+	const countingMichi: TMichi = { steps: [{ stepperName: "CountingStepper", stepName: "countTo", gwta: "count to {count: number}" }], bindings: [{ kind: "argument", domain: ISSUER_DOMAIN }] };
+
+	it("fails the walk when an argument is not what the step declares, rather than dispatching it", async () => {
+		const ctx = buildContext(world, [new CountingStepper()]);
+		const inst = await createChainInstance(world, ISSUER_DOMAIN, countingMichi);
+		const advanced = await advanceChainInstance(ctx, inst.id, { count: "not a number" });
+		expect(advanced.kind).toBe("failed");
+		if (advanced.kind !== "failed") throw new Error("unreachable");
+		expect(advanced.error).toMatch(/does not take/);
+		expect(advanced.instance.status).toBe(CHAIN_INSTANCE_STATUS.FAILED);
+	});
+
+	it("runs the step with the value the declaration coerces it to", async () => {
+		const ctx = buildContext(world, [new CountingStepper()]);
+		const inst = await createChainInstance(world, ISSUER_DOMAIN, countingMichi);
+		const advanced = await advanceChainInstance(ctx, inst.id, { count: 3 });
+		expect(advanced.kind).toBe("completed");
+		if (advanced.kind !== "completed") throw new Error("unreachable");
+		expect(advanced.instance.stepArgs[0], "what it ran with is what the walk records").toEqual({ count: 3 });
 	});
 });

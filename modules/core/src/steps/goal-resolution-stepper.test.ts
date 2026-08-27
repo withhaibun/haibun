@@ -168,6 +168,24 @@ variable second.finding is "satisfied"`,
 			expect(result.ok).toBe(true);
 		});
 
+		it("a walk runs the very path pursue refuses, one step at a time, with what that step needs", async () => {
+			// The auth session's producer takes an argument no fact supplies, which is why pursue refuses it. A walk is how
+			// such a path is run: it is begun, it says what it still needs, and it is advanced with that.
+			const feature = {
+				path: "/features/walk-with-an-argument.feature",
+				content: `set walk from walk toward "${DOMAIN_AUTH_SESSION}"
+variable walk.status is "pending"
+variable walk.next is "AuthStepper-signIn"
+variable walk.needs.0 is "subject"
+set advanced from advance the walk \`walk.walk\` with {"subject": "alice"}
+variable advanced.status is "completed"
+set after from resolve "${DOMAIN_AUTH_SESSION}"
+variable after.finding is "satisfied"`,
+			};
+			const result = await passWithDefaults([feature], steppers);
+			expect(result.ok).toBe(true);
+		});
+
 		it("pursue refuses an unreachable goal with the missing-producers list named in the error", async () => {
 			const feature = {
 				path: "/features/pursue-unreachable.feature",

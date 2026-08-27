@@ -7,7 +7,7 @@ import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";
 import {
 	DOMAIN_AFFORDANCES,
-	DOMAIN_CHAIN_LINT,
+	DOMAIN_CHAIN_LINT, DOMAIN_CHAIN_WALK,
 	DOMAIN_DATE,
 	DOMAIN_GOAL_RESOLUTION,
 	DOMAIN_MICHI,
@@ -77,6 +77,29 @@ export const goalResolutionSchema = z.discriminatedUnion("finding", [
 	z.object({ finding: z.literal("unreachable"), goal: z.string(), missing: z.array(z.string()) }),
 	z.object({ finding: z.literal("refused"), goal: z.string(), refusalReason: z.enum(["anonymous-outputs-present", "capability-context-required"]), detail: z.string() }),
 ]);
+
+/**
+ * DOMAIN_CHAIN_WALK product shape: a walk toward a goal, as a reader is shown it. A walk is a resolved path held open
+ * one step at a time, so what it reports is where it has got to, what the next step is, and what that step still needs
+ * from whoever is walking it.
+ */
+export const chainWalkSchema = z
+	.object({
+		walk: z.string(),
+		goal: z.string(),
+		status: z.string(),
+		stepIndex: z.number().int().nonnegative(),
+		/** Every step of the path, named as it is dispatched. */
+		steps: z.array(z.string()),
+		/** The step the next advance runs; absent once the walk is done. */
+		next: z.string().optional(),
+		/** What the next step takes, named as it declares them: what an advance must supply for the walk to go on. */
+		needs: z.array(z.string()),
+		/** What each step that has run asserted. */
+		factIds: z.array(z.string()),
+		error: z.string().optional(),
+	})
+	.strict();
 
 /** DOMAIN_AFFORDANCES product shape — forward-reachable steps and goal-resolution verdicts. Strict: unknown keys throw, surfacing producer drift instead of silently dropping data on the way to the SPA. */
 export const affordancesSchema = z
@@ -195,6 +218,11 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: affordancesSchema,
 		description: "What can I do next: forward-reachable steps and goal-resolution verdicts.",
 		ui: { component: "shu-affordances-panel" },
+	},
+	{
+		selectors: [DOMAIN_CHAIN_WALK],
+		schema: chainWalkSchema,
+		description: "A walk toward a goal, held open one step at a time: where it has got to, what runs next, and what that step still needs from whoever is walking it.",
 	},
 	{
 		selectors: [DOMAIN_CHAIN_LINT],

@@ -20,6 +20,7 @@
 import type { TWorld } from "./world.js";
 import type { IQuadStore } from "./quad-types.js";
 import type { TMichi } from "./goal-resolver.js";
+import { actingAs } from "./capability-context.js";
 
 /** Named graph that carries chain-instance facts. */
 export const CHAIN_INSTANCE_GRAPH = "chain/instance";
@@ -34,6 +35,8 @@ export const CHAIN_INSTANCE_PREDICATE = {
 	STEP_FACT_IDS: "stepFactIds",
 	CREATED_AT: "createdAt",
 	UPDATED_AT: "updatedAt",
+	/** Who began the walk. A walk is one reader's, and only they may advance it. */
+	OWNER: "owner",
 } as const;
 
 export const CHAIN_INSTANCE_STATUS = {
@@ -65,6 +68,9 @@ export type TChainInstance = {
 	stepFactIds: string[][];
 	createdAt: number;
 	updatedAt: number;
+	/** Who began the walk, where anyone was acting. A run with no principal begins a walk owned by no one, which is
+	 *  what a feature walking toward a goal is. */
+	owner?: string;
 };
 
 /**
@@ -98,6 +104,9 @@ export async function createChainInstance(world: TWorld, goal: string, michi: TM
 	const store: IQuadStore = world.shared.getStore();
 	const id = newChainInstanceId();
 	const createdAt = nowMs();
+	// A walk is begun by whoever is acting, and it records that rather than being handed it: a caller that had to
+	// remember to say who it was could forget, and an unowned walk is one anyone may advance.
+	const owner = actingAs();
 	const inst: TChainInstance = {
 		id,
 		goal,
@@ -108,6 +117,7 @@ export async function createChainInstance(world: TWorld, goal: string, michi: TM
 		stepFactIds: michi.steps.map((): string[] => []),
 		createdAt,
 		updatedAt: createdAt,
+		...(owner === undefined ? {} : { owner }),
 	};
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.GOAL, goal);
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.MICHI, michi);
@@ -117,6 +127,7 @@ export async function createChainInstance(world: TWorld, goal: string, michi: TM
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.STEP_FACT_IDS, inst.stepFactIds);
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.CREATED_AT, createdAt);
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.UPDATED_AT, createdAt);
+	if (owner !== undefined) await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.OWNER, owner);
 	return inst;
 }
 
@@ -136,6 +147,7 @@ export async function getChainInstance(world: TWorld, id: string): Promise<TChai
 	const stepFactIds = (await store.get(id, CHAIN_INSTANCE_PREDICATE.STEP_FACT_IDS, CHAIN_INSTANCE_GRAPH)) as string[][] | undefined;
 	const createdAt = (await store.get(id, CHAIN_INSTANCE_PREDICATE.CREATED_AT, CHAIN_INSTANCE_GRAPH)) as number | undefined;
 	const updatedAt = (await store.get(id, CHAIN_INSTANCE_PREDICATE.UPDATED_AT, CHAIN_INSTANCE_GRAPH)) as number | undefined;
+	const owner = (await store.get(id, CHAIN_INSTANCE_PREDICATE.OWNER, CHAIN_INSTANCE_GRAPH)) as string | undefined;
 	if (
 		michi === undefined ||
 		stepIndex === undefined ||
@@ -147,7 +159,7 @@ export async function getChainInstance(world: TWorld, id: string): Promise<TChai
 	) {
 		throw new Error(`chain instance ${id} is partially written: missing one or more required predicates in ${CHAIN_INSTANCE_GRAPH}`);
 	}
-	return { id, goal: goal as string, michi, stepIndex, status, stepArgs, stepFactIds, createdAt, updatedAt };
+	return { id, goal: goal as string, michi, stepIndex, status, stepArgs, stepFactIds, createdAt, updatedAt, ...(owner === undefined ? {} : { owner }) };
 }
 
 /**
