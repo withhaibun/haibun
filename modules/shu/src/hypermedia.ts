@@ -21,6 +21,7 @@
 
 // Type-only import — erased from the browser bundle (never pulls core's node:async_hooks runtime).
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
+import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
 import { rpcEnvelope, readNdjson } from "@haibun/core/lib/rpc-wire.js";
 import { findStep } from "./rpc-registry.js";
@@ -203,7 +204,9 @@ export class LiveConduit implements Conduit {
 		const url = `${this.basePath}/rpc/${method}`;
 		const body = rpcEnvelope({ id: nextRpcId(), ...envelope });
 		try {
-			return await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal });
+			const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal });
+			responded().at = Date.now();
+			return res;
 		} catch (err) {
 			if (signal?.aborted) throw err; // the caller stopped this request; the server's reachability is not in question
 			throw new ServerUnreachable(url, err);
@@ -223,6 +226,16 @@ export class LiveConduit implements Conduit {
 }
 
 // ─── Accessor ────────────────────────────────────────────────────────────────
+
+/** When the server last responded to this page, whatever it answered. A reader looking at what the page holds can tell
+ *  whether it is current; a page that has never reached a server has nothing here. Held by the page, since a request
+ *  from any bundle is this page reaching the server. */
+const RESPONDED_KEY = "__SHU_SERVER_RESPONDED__";
+const responded = (): { at: number | undefined } => pagePinned(RESPONDED_KEY, () => ({ at: undefined }));
+
+export function serverLastRespondedAt(): number | undefined {
+	return responded().at;
+}
 
 /** The active Conduit lives on `globalThis` keyed by a globally-registered Symbol so bundles that are built separately (e.g. esbuild emits per-component bundles for slot extensions) share one installation instead of each carrying its own module-level cell. Without this, `setConduit` in the SPA bundle wouldn't be visible to a slot-extension component bundle, and its `conduit()` would throw at first use. */
 const CONDUIT_SLOT = Symbol.for("@haibun/shu/active-conduit");
