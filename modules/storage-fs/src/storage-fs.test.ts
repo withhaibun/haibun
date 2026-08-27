@@ -1,34 +1,22 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { CAPTURE, DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
-import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
+import { CAPTURE } from "@haibun/core/schema/protocol.js";
+import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import StorageFS from "./storage-fs.js";
+import { describeStorage } from "@haibun/domain-storage/test/storage-conformance.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 
-// The capture key is the WORLD's own tag.key (getCaptureLocation reads loc.tag.key), so assert against that — never a
-// separately-imported Timer.key, which is a different value when the module loads twice under vitest (its own static
-// startTime), the source of the historic flake.
+// What this storage shares with every other is the specification below; what is here is its own: where an artifact
+// lands on a filesystem. The capture key is the WORLD's own tag.key (getCaptureLocation reads loc.tag.key), so assert
+// against that, never a separately-imported Timer.key, which is a different value when the module loads twice under
+// vitest (its own static startTime), the source of the historic flake.
 
-describe("fs getCaptureLocation", () => {
-	it("gets capture location", async () => {
-		const storageFS = new StorageFS();
-		const world = getDefaultWorld();
-		const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/default/${world.tag.key}/featn-0/test`);
-	});
-	it("gets options capture location", async () => {
-		const storageFS = new StorageFS();
-		const world = getTestWorldWithOptions();
-		const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
-	});
-	it("gets relative capture location", async () => {
-		const storageFS = new StorageFS();
-		const world = getTestWorldWithOptions();
-		const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
-	});
-});
+const scratch = mkdtempSync(join(tmpdir(), "haibun-storage-fs-"));
+afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+describeStorage("the filesystem", () => new StorageFS(), scratch);
 
 describe("getArtifactBasePath", () => {
 	it("returns base path without seq/featn", () => {
