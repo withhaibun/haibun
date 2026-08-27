@@ -11,7 +11,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { registerDomains } from "@haibun/core/lib/domains.js";
-import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
+import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
+import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import MonitorStepper from "./monitor-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import ShuStepper from "./shu-stepper.js";
@@ -34,9 +35,25 @@ function reportHydration(html: string): { cache: { registry?: { steps?: unknown[
 	return JSON.parse(hydration);
 }
 
+/** A step that ran a graph query, as the run records one: the argument it took carries the graph-query domain and the
+ *  type the query named, whichever step a deployment answers queries with. */
+const queryEvent = (stepperName: string, label: string) => ({
+	id: "0.2",
+	timestamp: 0,
+	kind: "lifecycle",
+	type: "step",
+	stage: "start",
+	level: "trace",
+	in: "graph query",
+	stepperName,
+	actionName: "graphQuery",
+	stepValuesMap: { query: { term: JSON.stringify({ label }), value: { label }, origin: 3, domain: DOMAIN_GRAPH_QUERY } },
+});
+
 /** Generate a report with `finalView` (a domain key) as the final-view column, using the real GraphStepper domains.
- *  `writes` is how many reports the same run writes, since a run writes one whenever it is asked and one at its end. */
-async function generateReport(finalView: string | undefined, captured: Record<string, unknown> = {}, writes = 1): Promise<string> {
+ *  `served` is the discovery response this server gave a page; `writes` is how many reports the same run writes, since
+ *  a run writes one whenever it is asked and one at its end. */
+async function generateReport(finalView: string | undefined, served?: unknown, writes = 1, queries: Array<Record<string, unknown>> = []): Promise<string> {
 	const world = getDefaultWorld();
 	const shu = new ShuStepper();
 	const monitor = new MonitorStepper();
@@ -46,7 +63,7 @@ async function generateReport(finalView: string | undefined, captured: Record<st
 		world,
 		steppers.map((s) => (s as { cycles?: IStepperCycles }).cycles?.getConcerns?.().domains ?? []).filter((d) => d.length > 0),
 	);
-	world.runtime[RPC_CACHE] = captured;
+	if (served) world.runtime[DISCOVERY_RESPONSE] = served;
 	// The store + secrets are irrelevant to the component-inclusion rule; stub them so report generation runs.
 	(world.shared as unknown as { getStore: () => unknown }).getStore = () => ({});
 	(world.shared as unknown as { getSecrets: () => Promise<Record<string, string>> }).getSecrets = async () => ({});
@@ -55,6 +72,7 @@ async function generateReport(finalView: string | undefined, captured: Record<st
 		const event = { id: "0.1", timestamp: 0, kind: "lifecycle", stage: "end", level: "info", products: { view: finalView } };
 		await monitor.cycles.onEvent?.(event as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	}
+	for (const q of queries) await monitor.cycles.onEvent?.(q as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	const out = join(tmpdir(), `polymorphic-report-${process.pid}-${finalView ?? "none"}.html`);
 	for (let i = 0; i < writes; i++) await (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out });
 	return readFileSync(out, "utf-8");
@@ -77,16 +95,33 @@ describe("serialized report bundles an external component's JS iff its view is u
 describe("a report carries the run and the site's declarations, and no captured answer", () => {
 	const declarations = { steps: [{ method: "GraphStepper-graphQuery", stepperName: "GraphStepper", stepName: "graphQuery", pattern: "graph query {query}" }], domains: {}, concerns: { persisted: {} } };
 
-	it("carries the site's declarations, and still does when the same run writes a second report", async () => {
-		const captured = { "step.list": declarations };
-		expect(reportHydration(await generateReport(undefined, captured)).cache.registry?.steps, "the first report").toEqual(declarations.steps);
-		expect(reportHydration(await generateReport(undefined, captured, 2)).cache.registry?.steps, "and the one written when the run ends").toEqual(declarations.steps);
+	it("carries the declarations this server served a page, and still does when the same run writes a second report", async () => {
+		expect(reportHydration(await generateReport(undefined, declarations)).cache.registry?.steps, "the first report").toEqual(declarations.steps);
+		expect(reportHydration(await generateReport(undefined, declarations, 2)).cache.registry?.steps, "and the one written when the run ends").toEqual(declarations.steps);
 	});
 
 	it("carries no answer a live page received, since a view reads what the page holds", async () => {
-		const captured = { "step.list": declarations, 'GraphStepper-graphQuery:{"query":{"label":"Email"}}': { vertices: [{ id: "a" }], total: 1 } };
-		const replayed = Object.keys(reportHydration(await generateReport(undefined, captured)).rpcCache);
+		const replayed = Object.keys(reportHydration(await generateReport(undefined, declarations)).rpcCache);
 		expect(replayed.filter((k) => k.includes("graphQuery")), "the rows a query returned are the graph, which rides in the cache").toEqual([]);
 		expect(replayed.includes("step.list"), "and the declarations ride in the cache, not beside it").toBe(false);
+	});
+});
+
+describe("a report opens on the type the reader was looking at", () => {
+	// Switching type in the actions bar runs a graph query, and the run records that step. The type is read from the
+	// argument's domain, so a deployment answering queries with its own step is read the same way as the inherent one.
+	const viewHash = (html: string): string => (reportHydration(html) as unknown as { viewHash: string }).viewHash;
+
+	it("opens on the type the last query named, whichever step answered it", async () => {
+		expect(viewHash(await generateReport(undefined, undefined, 1, [queryEvent("MonitorStepper", "Comment")]))).toContain("label=Comment");
+		expect(viewHash(await generateReport(undefined, undefined, 1, [queryEvent("GraphStepper", "Email")]))).toContain("label=Email");
+	});
+
+	it("opens on the type switched to, not the one switched away from", async () => {
+		expect(viewHash(await generateReport(undefined, undefined, 1, [queryEvent("GraphStepper", "Email"), queryEvent("GraphStepper", "Person")]))).toContain("label=Person");
+	});
+
+	it("names no type when the run never queried one", async () => {
+		expect(viewHash(await generateReport(undefined))).not.toContain("label=");
 	});
 });
