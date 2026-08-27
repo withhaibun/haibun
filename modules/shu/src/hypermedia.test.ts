@@ -2,13 +2,14 @@
 /**
  * Locks the wire-shape contract for `hypermedia.ts`: type guards, link
  * resolution semantics, the `Conduit` accessor's not-installed failure mode,
- * and `SerializedConduit` behaviour. `LiveConduit`-against-real-RPC is
+ * and the conduit a test installs. `LiveConduit`-against-real-RPC is
  * exercised by the component integration tests; this covers the pure-logic
  * and in-memory surface so regressions in the contract fail immediately and
  * unambiguously.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { hasLink, getLink, conduit, setConduit, resetConduit, SerializedConduit, type TRepresentation, LiveConduit, ServerUnreachable, isServerUnreachable } from "./hypermedia.js";
+import { hasLink, getLink, conduit, setConduit, resetConduit, type TRepresentation, LiveConduit, ServerUnreachable, isServerUnreachable } from "./hypermedia.js";
+import { TestConduit } from "./test-setup.js";
 
 beforeEach(() => {
 	resetConduit();
@@ -72,21 +73,21 @@ describe("conduit accessor", () => {
 	});
 
 	it("returns the installed instance after setConduit", () => {
-		const c = new SerializedConduit(() => ({ _type: "Email" }));
+		const c = new TestConduit(() => ({ _type: "Email" }));
 		setConduit(c);
 		expect(conduit()).toBe(c);
 	});
 
 	it("resetConduit returns to the not-installed state", () => {
-		setConduit(new SerializedConduit(() => ({})));
+		setConduit(new TestConduit(() => ({})));
 		resetConduit();
 		expect(() => conduit()).toThrow(/no Conduit installed/);
 	});
 });
 
-describe("SerializedConduit.follow", () => {
+describe("the conduit a test installs, answering from its own function", () => {
 	it("returns the dispatched result for a known method", async () => {
-		const c = new SerializedConduit((method) => {
+		const c = new TestConduit((method) => {
 			if (method === "Q-getOne") return { _type: "Email", subject: "hello" };
 			throw new Error(`unmocked method: ${method}`);
 		});
@@ -96,7 +97,7 @@ describe("SerializedConduit.follow", () => {
 	});
 
 	it("surfaces the dispatch throw verbatim — no swallowing — naming the unmocked method", async () => {
-		const c = new SerializedConduit(() => {
+		const c = new TestConduit(() => {
 			throw new Error("unmocked method: NotConfigured-getThing");
 		});
 		await expect(c.follow({ method: "NotConfigured-getThing" }, "test")).rejects.toThrow(/unmocked method: NotConfigured-getThing/);
@@ -104,7 +105,7 @@ describe("SerializedConduit.follow", () => {
 
 	it("passes link.params through to the dispatch function", async () => {
 		const seen: Array<{ method: string; params: Record<string, unknown> }> = [];
-		const c = new SerializedConduit((method, params) => {
+		const c = new TestConduit((method, params) => {
 			seen.push({ method, params });
 			return { ok: true };
 		});
@@ -113,7 +114,7 @@ describe("SerializedConduit.follow", () => {
 	});
 
 	it("group passes the same instance as `g` — composed follows still serve from the same dispatch", async () => {
-		const c = new SerializedConduit((method) => ({ _type: method }));
+		const c = new TestConduit((method) => ({ _type: method }));
 		const reps = await c.group("test-group", async (g) => {
 			const a = await g.follow<TRepresentation>({ method: "A" }, "a");
 			const b = await g.follow<TRepresentation>({ method: "B" }, "b");
@@ -123,10 +124,10 @@ describe("SerializedConduit.follow", () => {
 	});
 });
 
-describe("SerializedConduit.followStream", () => {
+describe("the conduit a test installs, streaming from its own function", () => {
 	it("calls onStart once before chunks arrive, then onChunk per emitted chunk for array results", async () => {
 		const events: string[] = [];
-		const c = new SerializedConduit(() => [{ text: "hello " }, { text: "world" }, { status: "done" }]);
+		const c = new TestConduit(() => [{ text: "hello " }, { text: "world" }, { status: "done" }]);
 		const { seqPath } = await c.followStream(
 			{ method: "X-stream" },
 			(chunk) => {
@@ -145,7 +146,7 @@ describe("SerializedConduit.followStream", () => {
 
 	it("emits a single chunk for non-array dispatch results", async () => {
 		const chunks: unknown[] = [];
-		const c = new SerializedConduit(() => ({ text: "only one" }));
+		const c = new TestConduit(() => ({ text: "only one" }));
 		await c.followStream({ method: "X-stream" }, (c) => chunks.push(c), { why: "test" });
 		expect(chunks).toEqual([{ text: "only one" }]);
 	});

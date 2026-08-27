@@ -32,12 +32,12 @@ import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { clamp, prettifyGwta, appAccessLevel } from "../util.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
-import { isOffline, isServerUnreachable } from "../hypermedia.js";
+import { isServerUnreachable } from "../hypermedia.js";
 import { selectValuesFor } from "../quads-snapshot.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { runSpan } from "../client-cache/index.js";
-import { buildDomainOptions, getAvailableDomains, getAvailableSteps, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
+import { buildDomainOptions, getAvailableDomains, getAvailableSteps, stepsForContext, type DomainOption, type StepDescriptor, isOffline } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,
 	getUiExtensionTags,

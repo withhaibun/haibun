@@ -1,6 +1,6 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { conduit } from "./hypermedia.js";
-import { getAvailableSteps, requireStep } from "./rpc-registry.js";
+import { getAvailableSteps, requireStep, carriedProducts } from "./rpc-registry.js";
 import { appAccessLevel } from "./util.js";
 import { queryGraph } from "./quads-snapshot.js";
 
@@ -10,7 +10,12 @@ export type FetchOutcome<T> = { ok: true; value: T } | { ok: false; error: strin
 export async function callStep<T>(step: string, params: Record<string, unknown> = {}, why?: string): Promise<FetchOutcome<T>> {
 	try {
 		await getAvailableSteps();
-		const value = await conduit().follow<T>({ method: requireStep(step), params }, why ?? `pane-fetch: ${step}`);
+		const method = requireStep(step);
+		// A page carrying a run holds what its views showed, which is the answer here: the step took no arguments, so
+		// what it produced then is what it produces now, and there is no server to ask.
+		const carried = Object.keys(params).length === 0 ? carriedProducts(method) : undefined;
+		if (carried !== undefined) return { ok: true, value: carried as T };
+		const value = await conduit().follow<T>({ method, params }, why ?? `pane-fetch: ${step}`);
 		return { ok: true, value };
 	} catch (err) {
 		return { ok: false, error: errorDetail(err) };

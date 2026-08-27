@@ -10,10 +10,11 @@ import { PaneState, parseColEntry, DesiredPaneSchema, paneIdOf, tagOf, labelOf }
 import { ShuElement } from "./components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
-import { setConduit, resetConduit, SerializedConduit, LiveConduit } from "./hypermedia.js";
+import { setConduit, resetConduit, LiveConduit } from "./hypermedia.js";
+import { TestConduit } from "./test-setup.js";
 
 /** Offline is which Conduit is installed: a serialized one has no location to mutate, a live one does. */
-const offline = () => setConduit(new SerializedConduit(() => { throw new Error("pane-state test: no dispatch expected"); }));
+const offline = () => setConduit(new TestConduit(() => { throw new Error("pane-state test: no dispatch expected"); }));
 
 const emptyMeta = (ui: SiteMetadata["ui"] = {}): SiteMetadata => ({
 	types: [],

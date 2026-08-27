@@ -1,11 +1,13 @@
+import { isOffline } from "./rpc-registry.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { subscribeBatchedEvents, hasEventStream } from "./event-stream.js";
-import { isOffline } from "./hypermedia.js";
+import { } from "./hypermedia.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { callStep } from "./pane-fetch.js";
 import { appAccessLevel } from "./util.js";
-import { derefStoredEntity } from "./quads-snapshot.js";
+import { readIndividual } from "./quads-snapshot.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";
 
 /** The client's copy of one entity — the `getIndividualWithEdges` result, kept current by SSE. */
@@ -133,18 +135,14 @@ export async function openEntity(label: string, id: string, accessLevel: string)
 	} else {
 		entry.view = loadingView();
 		notify(s, id);
-		const res = await callStep<TEntityResult>("getIndividualWithEdges", { label, id, accessLevel }, `entity-store: open ${label}:${id}`);
-		if (res.ok) {
-			entry.view = { status: "ready", provenance: "live", entity: res.value, annotations: [], bodies: {} };
-		} else {
-			// A live server that answered with an error is a real error — surface it (never mask it as "offline"). Only when
-			// there is genuinely no live server (the serialized / file:// report) do we serve the persisted vertex instead.
-			const offline = isOffline() ? await derefStoredEntity(label, id) : undefined;
-			entry.view = offline
-				? { status: "ready", provenance: "offline", entity: offline, annotations: [], bodies: {} }
-				: { status: "error", annotations: [], error: res.error, bodies: {} };
-			if (!offline) return void notify(s, id);
+		// The one read of an individual: the site's answer, or the individual as this page holds it when nothing answers.
+		// Which of the two it was is what the reader is told, so a record read from the page is never presented as live.
+		const read = await readIndividual(label, id, accessLevel).catch((err: unknown) => errorDetail(err));
+		if (typeof read === "string") {
+			entry.view = { status: "error", annotations: [], error: read, bodies: {} };
+			return void notify(s, id);
 		}
+		entry.view = { status: "ready", provenance: isOffline() ? "offline" : "live", entity: read as TEntityResult, annotations: [], bodies: {} };
 		notify(s, id);
 	}
 	await loadAnnotationsInto(entry);
@@ -158,12 +156,8 @@ export async function requestBody(label: string, id: string, bodyId: string): Pr
 	const s = getStore();
 	const entry = s.entries.get(keyOf(label, id));
 	if (!entry?.view.entity || entry.view.bodies[bodyId] !== undefined) return;
-	const res = await callStep<{ vertex?: { content?: string } }>(
-		"getIndividualWithEdges",
-		{ label: BODY_LABEL, id: bodyId, accessLevel: appAccessLevel() },
-		`entity-store: body ${bodyId}`,
-	);
-	const content = res.ok ? res.value.vertex?.content : undefined;
+	const read = await readIndividual(BODY_LABEL, bodyId, appAccessLevel()).catch(() => undefined);
+	const content = read?.vertex.content;
 	if (typeof content !== "string") return;
 	entry.view = { ...entry.view, bodies: { ...entry.view.bodies, [bodyId]: content } };
 	notify(s, id);

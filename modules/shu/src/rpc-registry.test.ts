@@ -1,17 +1,14 @@
 // @vitest-environment jsdom
 /**
- * Live and offline pages both ship a `<script id="shu-hydration">` element —
- * the live SSR template injects `{}` so the page shape is stable. The
- * distinguishing signal is whether `rpcCache` is present:
- *   - live serve: `{}`                         → no rpcCache → live
- *   - standalone save: `{rpcCache, viewHash}` → rpcCache    → offline
+ * A served page and a record of a run both ship a `<script id="shu-hydration">` element, since the live template injects
+ * an empty one so the page shape is stable. What tells them apart is the run: a record carries one, a served page never
+ * does, and a page that carries its own run has no server behind it.
  *
- * If a future change widens the offline signal (e.g. presence of the script
- * alone), every live page would erroneously enter offline mode and the very
- * first action would throw `OfflineError`. These tests pin the rule.
+ * If the signal widened to the script alone, every served page would decide it had no server and stop reaching the one
+ * it has. These tests pin the rule.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { hydrateFromDom, isStandaloneMode, getAvailableSteps, registryOrigin, resetStepRegistry } from "./rpc-registry.js";
+import { hydrateFromDom, isOffline, getAvailableSteps, registryOrigin, resetStepRegistry } from "./rpc-registry.js";
 import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 
@@ -25,42 +22,36 @@ function setHydration(payload: unknown): void {
 	document.head.appendChild(s);
 }
 
-describe("isStandaloneMode", () => {
+describe("a page that carries its own run has no server behind it", () => {
 	beforeEach(() => {
 		document.head.innerHTML = "";
 		document.body.innerHTML = "";
 	});
 
-	it("returns true when the hydration script carries an rpcCache (typical save)", () => {
-		setHydration({ events: [], rpcCache: { "step.list": { steps: [] } }, viewHash: "" });
+	it("says so when the page carries a run", () => {
+		setHydration({ cache: { shape: "run-indexed-events/1", run: "r1", events: [], extents: {} }, rpcCache: {}, viewHash: "" });
 		hydrateFromDom();
-		expect(isStandaloneMode()).toBe(true);
+		expect(isOffline()).toBe(true);
 	});
 
-	it("returns true when the hydration script carries an empty rpcCache (save with no recorded RPC)", () => {
-		setHydration({ events: [], rpcCache: {}, viewHash: "" });
-		hydrateFromDom();
-		expect(isStandaloneMode()).toBe(true);
-	});
-
-	it("returns false for the live SSR template (`{}` hydration, no rpcCache)", () => {
+	it("says nothing of the sort for the served template, which carries an empty hydration", () => {
 		setHydration({});
 		hydrateFromDom();
-		expect(isStandaloneMode()).toBe(false);
+		expect(isOffline()).toBe(false);
 	});
 
-	it("returns false when there is no hydration script", () => {
+	it("says nothing of the sort when there is no hydration script at all", () => {
 		hydrateFromDom();
-		expect(isStandaloneMode()).toBe(false);
+		expect(isOffline()).toBe(false);
 	});
 
 	// The embedded payload carries the whole run — every event — as one string. Parsing it is its only reader, so the
 	// text goes: left in the DOM it would cache a second copy of the run beside the objects parsed out of it.
 	it("does not keep the embedded run in the DOM once it has been parsed", () => {
-		setHydration({ rpcCache: { "MonitorStepper-getEvents": { events: [{ id: "0.1", message: "x" }] } }, viewHash: "" });
+		setHydration({ cache: { shape: "run-indexed-events/1", run: "r1", events: [{ id: "0.1", message: "x" }], extents: {} }, viewHash: "" });
 		hydrateFromDom();
 		expect(document.getElementById("shu-hydration")?.textContent).toBe("");
-		expect(isStandaloneMode()).toBe(true); // the mode is decided by the parsed data, not the DOM text
+		expect(isOffline()).toBe(true); // decided by the parsed data, not the DOM text
 	});
 });
 

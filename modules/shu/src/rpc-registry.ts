@@ -1,5 +1,4 @@
 import { conduit } from "./hypermedia.js";
-import { setRpcCache, findCachedMethod } from "./rpc-cache.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
@@ -154,10 +153,11 @@ async function getStepList(): Promise<StepListResponse> {
 	}
 }
 
-/** Hydration data embedded in the HTML by monitor-stepper at endFeature. The run's events ride inside `rpcCache`, under
- *  the `getEvents` response the client would otherwise have fetched. */
+/** What a record of a run carries in its own page: the run, the views it was left showing, and what those views showed. */
 export interface ShuHydration {
-	rpcCache?: Record<string, unknown>;
+	/** What a view showed, by the step that produces it. A view whose products cannot be read from the run is given
+	 *  what it showed when the record was written, rather than asking a server that is not there. */
+	viewProducts?: Record<string, unknown>;
 	viewHash?: string;
 	/** The run this page carries, for a page with no server: filled into the client cache at boot. */
 	cache?: TCachePayload;
@@ -188,19 +188,20 @@ function readHydration(): ShuHydration | null {
 /** Apply hydrated data immediately (before any RPC). */
 export function hydrateFromDom(): void {
 	cachedHydration().data = readHydration();
-	const booted = cachedHydration().data;
-	if (booted?.rpcCache) setRpcCache(booted.rpcCache);
+}
+
+/** What this page carries of a view's products, by the step that produces them; undefined on a page with a server. */
+export function carriedProducts(method: string): unknown | undefined {
+	return cachedHydration().data?.viewProducts?.[method];
 }
 
 /**
- * True if the page was loaded from an offline HTML file. The hydration script
- * is present in BOTH live and standalone (live serves `{}` so SSR shape is
- * stable). The distinguishing signal is presence of `rpcCache` — saves always
- * embed at least `rpcCache: {}` (see monitor-stepper.writeStandaloneReport),
- * the live serve never does.
+ * True when this page carries its own run, which is what a record of a run is: there is no server behind it, so every
+ * read is answered from what the page holds. The hydration script is present either way (a live serve carries an empty
+ * one so the shape is stable); a carried run is the signal, since a live serve never has one.
  */
-export function isStandaloneMode(): boolean {
-	return cachedHydration().data !== null && cachedHydration().data?.rpcCache !== undefined;
+export function isOffline(): boolean {
+	return cachedHydration().data?.cache !== undefined;
 }
 
 /** The run this page carries, when it carries one. */
@@ -281,7 +282,6 @@ export function findStep(name: string): StepDescriptor | undefined {
 export function requireStep(name: string): string {
 	const step = findStep(name);
 	if (step) return step.method;
-	if (isStandaloneMode()) return findCachedMethod(name) ?? name;
 	throw new Error(`Step "${name}" not found in registry. Call getAvailableSteps() first.`);
 }
 

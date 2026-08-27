@@ -3,7 +3,7 @@
  * types, link helpers, the affordance union, the `Conduit` interface, both
  * implementations, and the module accessor. Components and infrastructure
  * import from this one path; tests use `setupShuTest` to install a
- * `SerializedConduit`. Nothing else talks to `/rpc/*`, and nothing else owns
+ * `LiveConduit`. Nothing else talks to `/rpc/*`, and nothing else owns
  * the active conduit reference.
  *
  * A Resource (linked-data sense — an Email node, a Comment, any consumer
@@ -74,7 +74,7 @@ export function getLink(rep: TRepresentation, rel: string): TLink {
 
 // ─── Conduit interface ───────────────────────────────────────────────────────
 
-/** The single contract for outbound calls from shu to the haibun service. `LiveConduit` runs against a real server; `SerializedConduit` against an in-memory map (tests and offline shu.html). The signature is identical so call sites are unaware which they're using. */
+/** The single contract for outbound calls from shu to the haibun service. `LiveConduit` runs against a real server; a test installs one of its own against an in-memory map (tests and offline shu.html). The signature is identical so call sites are unaware which they're using. */
 export interface Conduit {
 	/** One-shot RPC. The result is typed as `T` (defaulting to `TRepresentation`); callers narrow to their expected wire shape. `why` describes user intent; it travels to the server's observation graph via the underlying action. Throws on transport failure, server error, or malformed response. */
 	follow<T = TRepresentation>(link: TLink, why: string): Promise<T>;
@@ -222,38 +222,6 @@ export class LiveConduit implements Conduit {
 	}
 }
 
-// ─── SerializedConduit ───────────────────────────────────────────────────────
-
-/** Caller-supplied function that returns a wire result for `(method, params)`. Throw to signal "no fixture for this call" — `SerializedConduit` surfaces the throw directly so tests get loud, named failures naming the unmocked method. */
-export type TDispatch = (method: string, params: Record<string, unknown>) => unknown | Promise<unknown>;
-
-/** `Conduit` implementation that dispatches against an in-memory function. Powers two real modes with one implementation: the offline shu.html report (boot wraps an embedded JSON map of frozen responses) and tests (setupShuTest constructs one with an inline `dispatch`). Components are unaware they're not talking to a server. `group` does not call `action.begin` — there is no server to allocate seqPaths and the `why` carries no observation graph to write to; the same instance is passed as the group's `g` so the API semantic ("every follow inside `fn` belongs to one logical action") survives at the contract level. */
-export class SerializedConduit implements Conduit {
-	constructor(private readonly dispatch: TDispatch) {}
-
-	async follow<T = TRepresentation>(link: TLink, _why: string): Promise<T> {
-		const result = await this.dispatch(link.method, link.params ?? {});
-		return result as T;
-	}
-
-	async followStream(
-		link: TLink,
-		onChunk: (chunk: TStreamChunk) => void,
-		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
-	): Promise<{ seqPath: number[] }> {
-		const seqPath = [0];
-		opts.onStart?.(seqPath);
-		const result = await this.dispatch(link.method, link.params ?? {});
-		if (Array.isArray(result)) for (const chunk of result) onChunk(chunk as TStreamChunk);
-		else onChunk(result as TStreamChunk);
-		return { seqPath };
-	}
-
-	group<T>(_why: string, fn: (g: Conduit) => Promise<T>): Promise<T> {
-		return fn(this);
-	}
-}
-
 // ─── Accessor ────────────────────────────────────────────────────────────────
 
 /** The active Conduit lives on `globalThis` keyed by a globally-registered Symbol so bundles that are built separately (e.g. esbuild emits per-component bundles for slot extensions) share one installation instead of each carrying its own module-level cell. Without this, `setConduit` in the SPA bundle wouldn't be visible to a slot-extension component bundle, and its `conduit()` would throw at first use. */
@@ -261,7 +229,7 @@ const CONDUIT_SLOT = Symbol.for("@haibun/shu/active-conduit");
 type ConduitGlobal = { [CONDUIT_SLOT]?: Conduit | null };
 const conduitGlobal = globalThis as ConduitGlobal;
 
-/** SPA boot installs one Conduit (live or serialized); every component, infrastructure module, and test reads via `conduit()`. */
+/** Boot installs one Conduit; every component, infrastructure module, and test reads via `conduit()`. */
 export function setConduit(c: Conduit): void {
 	conduitGlobal[CONDUIT_SLOT] = c;
 }
@@ -273,11 +241,6 @@ export function conduit(): Conduit {
 		throw new Error("conduit: no Conduit installed. Call setConduit() in app boot or setupShuTest() in tests before using conduit().");
 	}
 	return active;
-}
-
-/** True iff the installed Conduit is the serialized (no live server) variant. Offline mode is derived from Conduit identity so the single source of truth is which Conduit was installed at boot. Safe to call before any Conduit is installed — returns false. */
-export function isOffline(): boolean {
-	return conduitGlobal[CONDUIT_SLOT] instanceof SerializedConduit;
 }
 
 /** Test-only: clear the active conduit so subsequent setConduit calls are clean. */

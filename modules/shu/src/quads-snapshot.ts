@@ -358,6 +358,9 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 /** One edge of an individual the page holds: what it is, which way it points, and the record it points at. */
 type TStoredEdge = { type: string; direction: "out" | "in"; target: Record<string, unknown> };
 
+/** An individual as a view reads it: the record, the edges either way, and how many point at it. */
+export type TStoredEntity = { vertex: Record<string, unknown>; edges: TStoredEdge[]; incomingCount: number };
+
 /** The record the page holds for a node, always stamped with the identity it was reached by, so an edge resolves to
  *  something a reader can open even when that node's own fields were never cached. */
 async function storedTarget(label: string, id: string): Promise<Record<string, unknown>> {
@@ -370,7 +373,7 @@ async function storedTarget(label: string, id: string): Promise<Record<string, u
  * quad carries the type of what it points at, which is how a target resolves to a record rather than a bare id.
  * Undefined when nothing of the individual is cached. The shape mirrors a live read, so a caller applies it the same way.
  */
-export async function derefStoredEntity(label: string, id: string): Promise<{ vertex: Record<string, unknown>; edges: TStoredEdge[]; incomingCount: number } | undefined> {
+export async function derefStoredEntity(label: string, id: string): Promise<TStoredEntity | undefined> {
 	const quads = await cachedGraphStore().query({ subject: id, namedGraph: label });
 	if (quads.length === 0) return undefined;
 	const vertex: Record<string, unknown> = { "@id": id, "@type": label };
@@ -388,6 +391,21 @@ export async function derefStoredEntity(label: string, id: string): Promise<{ ve
 async function storedIncomingEdges(id: string): Promise<TStoredEdge[]> {
 	const quads = (await cachedGraphStore().query({ object: id })).filter((q) => q.objectType);
 	return Promise.all(quads.map(async (q) => ({ type: q.predicate, direction: "in" as const, target: await storedTarget(q.namedGraph, q.subject) })));
+}
+
+/**
+ * One individual with its edges: what the site answers, and when nothing answers, the individual as the page holds it.
+ * Undefined only when the site answered that there is no such individual; anything else the site said is reported.
+ */
+export async function readIndividual(label: string, id: string, accessLevel: string): Promise<TStoredEntity | undefined> {
+	try {
+		await getAvailableSteps();
+		return await conduit().follow<TStoredEntity>({ method: requireStep("getIndividualWithEdges"), params: { label, id, accessLevel } }, `read ${label}:${id}`);
+	} catch (err) {
+		const held = await derefStoredEntity(label, id);
+		if (!held) throw err;
+		return held;
+	}
 }
 
 /**

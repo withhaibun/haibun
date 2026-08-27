@@ -5,7 +5,7 @@
  *
  * What it holds to:
  *  - nothing outside the client cache builds a store of its own,
- *  - nothing outside it reads the replayed responses a report used to carry,
+ *  - nothing rebuilds the replayed responses a report used to carry,
  *  - a view branching on "is this a report" is a mode, and a mode is a second path.
  */
 import { describe, it, expect } from "vitest";
@@ -52,8 +52,8 @@ describe("the client cache is the one path to a run", () => {
 		).toEqual([]);
 	});
 
-	it("the replayed responses are read in one place, so removing them is one change", () => {
-		const readers = outsideTheLibrary.filter((f) => f !== "rpc-cache.ts" && /getCachedResponse|findCachedMethod|setRpcCache/.test(text(f)));
-		expect(readers.sort(), "the replay is read by the boot path and the registry alone").toEqual(["app.ts", "rpc-registry.ts"]);
+	it("nothing serves a page answers a live run received: the replay is gone and stays gone", () => {
+		const offenders = outsideTheLibrary.filter((f) => /getCachedResponse|findCachedMethod|setRpcCache|rpc-cache\.js/.test(text(f)));
+		expect(offenders, `${offenders.join(", ")} replays a captured response. A page reads the run it carries; what a view showed and the run does not say is carried as that view's products.`).toEqual([]);
 	});
 });

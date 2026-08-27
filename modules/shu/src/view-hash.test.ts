@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { canonicalizeArrival, hashParam, hashParams, mergeHashParams, onHashChanged, pageAddress, pushHash } from "./view-hash.js";
-import { setConduit, resetConduit, SerializedConduit, LiveConduit } from "./hypermedia.js";
+import { hydrateFromDom } from "./rpc-registry.js";
 
 describe("canonicalizeArrival", () => {
 	const base = "#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column";
@@ -41,14 +41,29 @@ describe("canonicalizeArrival", () => {
 	});
 });
 
+/** Make this page a record of a run: it carries one, so there is no server behind it. */
+function carryARun(): void {
+	const carried = document.createElement("script");
+	carried.type = "application/json";
+	carried.id = "shu-hydration";
+	carried.textContent = JSON.stringify({ cache: { shape: "run-indexed-events/1", run: "r1", events: [], extents: {} } });
+	document.head.appendChild(carried);
+	hydrateFromDom();
+}
+
+/** Make it a served page again. */
+function carryNothing(): void {
+	document.head.innerHTML = "";
+	hydrateFromDom();
+}
+
 describe("pageAddress", () => {
-	it("is the page address without its fragment online, and empty offline (a snapshot has no servable address)", () => {
-		setConduit(new LiveConduit(""));
+	it("is the page address without its fragment when a server serves it, and empty when the page carries its own run", () => {
+		carryNothing();
 		expect(pageAddress()).toBe(location.origin + location.pathname + location.search);
-		resetConduit();
-		setConduit(new SerializedConduit(() => { throw new Error("view-hash test: no dispatch expected"); }));
-		expect(pageAddress()).toBe("");
-		resetConduit();
+		carryARun();
+		expect(pageAddress(), "a record of a run has no address to serve").toBe("");
+		carryNothing();
 	});
 });
 
@@ -76,8 +91,8 @@ describe("params a view writes into the hash", () => {
 		expect(announced, "and a view that has gone hears nothing").toBe(1);
 	});
 
-	it("round-trips in a snapshot saved for reading offline, where there is no address to write to", () => {
-		setConduit(new SerializedConduit(() => { throw new Error("view-hash test: no dispatch expected"); }));
+	it("round-trips in a record of a run, where there is no address to write to", () => {
+		carryARun();
 		pushHash("#?");
 		let announced = 0;
 		const heard = onHashChanged(() => announced++);
@@ -85,6 +100,6 @@ describe("params a view writes into the hash", () => {
 		expect(hashParam("aff-goal"), "the report keeps its own view state").toBe("vc");
 		expect(announced, "and its views hear the deep link the same way").toBe(1);
 		heard();
-		resetConduit();
+		carryNothing();
 	});
 });

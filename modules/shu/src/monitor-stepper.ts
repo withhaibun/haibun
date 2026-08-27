@@ -528,9 +528,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {
 		// A report carries the run and the view state it was left in, never the answers a live page happened to receive:
 		// the run rides in the client cache (its events, the graph as quads, the site's declarations), and every read a
-		// view makes of those is answered from what the page holds. So this begins empty and holds only the view products
-		// computed below.
-		const rpcCache: Record<string, unknown> = {};
+		// view makes of those is answered from what the page holds. What is left is what a view SHOWED and the run does
+		// not say, which is produced here.
+		const viewProducts: Record<string, unknown> = {};
 		const reportEvents = this.readEventLog();
 		// The view toggles: parameterless steps with a `.view` product, run once so the page opens where the reader left
 		// it. getClusteredQuads is excluded: it is a read of the graph, not a view toggle, and it requires an accessLevel
@@ -542,7 +542,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				try {
 					const r = (await (step.action as () => unknown)()) as { products?: Record<string, unknown> } | undefined;
 					const products = r?.products;
-					if (products?.view) rpcCache[`MonitorStepper-${name}`] = products;
+					if (products?.view) viewProducts[`MonitorStepper-${name}`] = products;
 				} catch (err) {
 					logger.warn(`[shu writeStandaloneReport] step ${name} failed: ${errorDetail(err)}`);
 				}
@@ -564,7 +564,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				const key = `${stepper.constructor.name}-${name}`;
 				try {
 					const r = (await (step as { action: (a: Record<string, unknown>) => unknown }).action({})) as { products?: Record<string, unknown> } | undefined;
-					if (r?.products) rpcCache[key] = r.products;
+					if (r?.products) viewProducts[key] = r.products;
 				} catch (err) {
 					logger.warn(`[shu writeStandaloneReport] ${key} refresh failed: ${errorDetail(err)}`);
 				}
@@ -594,8 +594,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
 		// No report-time slimming: the disk log is already report-lean by construction (slimmed at write — debug-artifact
 		// bulk excluded, stepValuesMap dropped, products reduced to display subfields). The whole payload is compressed below.
-		// `events` lives only in the rpcCache (getEvents); hydrateFromDom reads rpcCache + viewHash, never a top-level events field.
-		const hydration = JSON.stringify({ rpcCache, viewHash, cache: this.cacheForReport(reportEvents, registry, built?.quads ?? this.observationQuads) });
+		const hydration = JSON.stringify({ viewProducts, viewHash, cache: this.cacheForReport(reportEvents, registry, built?.quads ?? this.observationQuads) });
 		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
 		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
 		const secrets = await this.getWorld().shared.getSecrets();
