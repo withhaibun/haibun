@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
+import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import MonitorStepper from "./monitor-stepper.js";
 
@@ -16,7 +17,7 @@ function monitorOver(store: QuadStore): { onEvent: (e: THaibunEvent) => void } {
 	stepper.getWorld = () => ({
 		shared: { getStore: () => store },
 		eventLogger: { warn: () => undefined, emit: () => undefined },
-		domains: { [logMessageDomainDefinition.selectors[0]]: logMessageDomainDefinition },
+		domains: { [logMessageDomainDefinition.selectors[0]]: logMessageDomainDefinition, [runArtifactDomainDefinition.selectors[0]]: runArtifactDomainDefinition },
 		runtime: {},
 	});
 	return { onEvent: (e) => stepper.cycles.onEvent?.(e) };
@@ -55,5 +56,50 @@ describe("what a run said, as a record", () => {
 
 	it("declares that writing it announces nothing, since the run saying it was the announcement", () => {
 		expect(logMessageDomainDefinition.topology).toMatchObject({ announceWrites: false });
+	});
+});
+
+describe("what a run produced, as a record", () => {
+	// An artifact is a file; the record of it says where it is and what it is, and points at the step that produced it.
+	let store: QuadStore;
+	beforeEach(() => {
+		store = new QuadStore();
+	});
+
+	it("records where it is, what it is and the step that produced it", async () => {
+		monitorOver(store).onEvent({
+			id: "0.1.2",
+			timestamp: 1700,
+			kind: "artifact",
+			level: "info",
+			artifactType: "image",
+			path: "/artifacts/shot.png",
+			featureRelativePath: "./image/shot.png",
+			mimetype: "image/png",
+		} as unknown as THaibunEvent);
+		await new Promise((r) => setTimeout(r, 0));
+		const [record] = await store.queryIndividuals<Record<string, unknown>>(RUN_ARTIFACT_LABEL);
+		expect(record).toMatchObject({
+			[RUN_ARTIFACT_FIELD.artifactType]: "image",
+			[RUN_ARTIFACT_FIELD.path]: "/artifacts/shot.png",
+			[RUN_ARTIFACT_FIELD.featureRelativePath]: "./image/shot.png",
+			[RUN_ARTIFACT_FIELD.mediaType]: "image/png",
+			isPartOf: "0.1.2",
+		});
+	});
+
+	it("keeps two produced in one millisecond apart", async () => {
+		const monitor = monitorOver(store);
+		const shot = (path: string) => ({ id: "0.1", timestamp: 1700, kind: "artifact", level: "info", artifactType: "image", path }) as unknown as THaibunEvent;
+		monitor.onEvent(shot("/artifacts/one.png"));
+		monitor.onEvent(shot("/artifacts/two.png"));
+		await new Promise((r) => setTimeout(r, 0));
+		expect((await store.queryIndividuals(RUN_ARTIFACT_LABEL)).length).toBe(2);
+	});
+
+	it("records nothing for the quad observations a store announces, which are not something a run produced", async () => {
+		monitorOver(store).onEvent({ id: "0.1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "json", json: {} } as unknown as THaibunEvent);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(await store.queryIndividuals(RUN_ARTIFACT_LABEL)).toEqual([]);
 	});
 });

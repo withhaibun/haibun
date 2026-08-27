@@ -81,7 +81,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
 	if (isLifecycle) {
-		await emitSeqPathStart(world, featureStep);
+		await emitSeqPathStart(world, featureStep, undefined, { ranVia: "local" });
 		await emitSeqPathEnd(world, featureStep, true);
 		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
 	}
@@ -109,7 +109,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
 
 	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
-	await emitSeqPathStart(world, featureStep, authorization);
+	await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport ?? "local", ranOn: tool.remoteHost });
 	const previousSeqPath = world.runtime.currentSeqPath;
 	const currentSeqPathStr = featureStep.seqPath.join(".");
 	world.runtime.currentSeqPath = currentSeqPathStr;
@@ -284,7 +284,7 @@ async function autoAssertProducts(world: TWorld, step: TStepperStep, actionResul
  *  never written: a bearer token is the credential, so recording it would copy the credential into the graph. */
 type TStepAuthorization = { required: string; held?: string; controller?: string };
 
-async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization?: TStepAuthorization): Promise<void> {
+async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization | undefined, ran: { ranVia: string; ranOn?: string }): Promise<void> {
 	const store = world.shared.getStore();
 	const id = formatSeqPath(featureStep.seqPath);
 	// Single upsert with all required fields — partial writes via sequential set() let a concurrent
@@ -300,6 +300,8 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		// Written for every step, the default included: a reader asking for the steps that were NOT speculative can only
 		// be answered if the ordinary ones say so as well.
 		[SEQ_PATH_FIELD.mode]: featureStep.intent?.mode ?? "authoritative",
+		[SEQ_PATH_FIELD.ranVia]: ran.ranVia,
+		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 	};
 	if (authorization) {
 		record[SEQ_PATH_FIELD.capabilityAction] = authorization.required;

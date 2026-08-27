@@ -31,6 +31,7 @@ import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SHU_TAG, RPC_METHOD } from "./consts.js";
 import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
+import { RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 
 import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
@@ -361,6 +362,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (this.observationQuads.length > this.maxEvents + BUFFER_TRIM_SLACK) this.observationQuads.splice(0, this.observationQuads.length - this.maxEvents);
 			} else this.recordEvent(event);
 			if (e.kind === "log") void this.recordSaid(event);
+			if (e.kind === "artifact" && e.artifactType !== "json") void this.recordProduced(event);
 			this.transport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
@@ -374,6 +376,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// Live SSE streaming is unaffected; events forward as they happen.
 			this.runEnded = true;
 			this.saidCount = 0;
+			this.producedCount = 0;
 			this.events = [];
 			this.eventsTrimmed = false;
 			this.levelCounts = {};
@@ -427,6 +430,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	/** How many statements have been recorded, so two said in one millisecond are two records rather than one written
 	 *  over the other. A record's identity cannot rest on a clock a run can outpace. */
 	private saidCount = 0;
+	/** The same, for what a run produced. */
+	private producedCount = 0;
 
 	private async recordSaid(event: THaibunEvent): Promise<void> {
 		const e = event as Record<string, unknown>;
@@ -446,6 +451,29 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			.shared.getStore()
 			.upsertIndividual(LOG_MESSAGE_LABEL, record)
 			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what the run said was not recorded: ${errorDetail(err)}`));
+	}
+
+	/**
+	 * What a run produced, written as a record under the step that produced it. The record says where the artifact is
+	 * and what it is, not what it holds: an artifact is a file, and a record of it is a pointer to that file.
+	 */
+	private async recordProduced(event: THaibunEvent): Promise<void> {
+		const e = event as Record<string, unknown>;
+		const at = typeof e.timestamp === "number" ? e.timestamp : Date.now();
+		const under = parseSeqPath(String(e.id));
+		const record: Record<string, unknown> = {
+			[RUN_ARTIFACT_FIELD.id]: `${String(e.id)}@${at}.${this.producedCount++}`,
+			[RUN_ARTIFACT_FIELD.artifactType]: String(e.artifactType ?? "file"),
+			...(typeof e.path === "string" ? { [RUN_ARTIFACT_FIELD.path]: e.path } : {}),
+			...(typeof e.featureRelativePath === "string" ? { [RUN_ARTIFACT_FIELD.featureRelativePath]: e.featureRelativePath } : {}),
+			...(typeof e.mimetype === "string" ? { [RUN_ARTIFACT_FIELD.mediaType]: e.mimetype } : {}),
+			[RUN_ARTIFACT_FIELD.generatedAtTime]: new Date(at).toISOString(),
+			...(under?.length ? { [RUN_ARTIFACT_EDGE.isPartOf]: under.join(".") } : {}),
+		};
+		await this.getWorld()
+			.shared.getStore()
+			.upsertIndividual(RUN_ARTIFACT_LABEL, record)
+			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what the run produced was not recorded: ${errorDetail(err)}`));
 	}
 
 	/** Buffer a report-lean event for the disk log; flush in batches so the log never does sync I/O per event. */

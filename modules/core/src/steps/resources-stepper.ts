@@ -45,6 +45,7 @@ import {
 import { linkVocabularyFor } from "../lib/domains.js";
 import { formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
+import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/statements.js";
 import { typedLinkFacts } from "../lib/typed-links.js";
 
@@ -125,6 +126,7 @@ const cycles = (stepper: ResourcesStepper): IStepperCycles => ({
 			principalDomainDefinition,
 			sceneDomainDefinition,
 			logMessageDomainDefinition,
+			runArtifactDomainDefinition,
 			seqPathDomainDefinition,
 			specificResourceDomainDefinition,
 			textQuoteSelectorDomainDefinition,
