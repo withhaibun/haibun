@@ -373,6 +373,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// getEvents backfill) holds only its own events — and serialized artifacts resolve from the report's own dir.
 			// Live SSE streaming is unaffected; events forward as they happen.
 			this.runEnded = true;
+			this.saidCount = 0;
 			this.events = [];
 			this.eventsTrimmed = false;
 			this.levelCounts = {};
@@ -423,6 +424,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 * over the stream; this is the durable copy of that same statement, which is what a reader asks for when they were
 	 * not there to hear it. The type declares that writing it is not announced, so saying it once is saying it once.
 	 */
+	/** How many statements have been recorded, so two said in one millisecond are two records rather than one written
+	 *  over the other. A record's identity cannot rest on a clock a run can outpace. */
+	private saidCount = 0;
+
 	private async recordSaid(event: THaibunEvent): Promise<void> {
 		const e = event as Record<string, unknown>;
 		const message = typeof e.message === "string" ? e.message : undefined;
@@ -431,7 +436,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const under = parseSeqPath(String(e.id));
 		const said = under?.length ? under.join(".") : "";
 		const record: Record<string, unknown> = {
-			[LOG_MESSAGE_FIELD.id]: `${String(e.id)}@${at}`,
+			[LOG_MESSAGE_FIELD.id]: `${String(e.id)}@${at}.${this.saidCount++}`,
 			[LOG_MESSAGE_FIELD.message]: message,
 			[LOG_MESSAGE_FIELD.level]: e.level,
 			[LOG_MESSAGE_FIELD.generatedAtTime]: new Date(at).toISOString(),
