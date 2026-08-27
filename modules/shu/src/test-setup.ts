@@ -22,7 +22,7 @@ import { setConduit, resetConduit, type Conduit, type TLink, type TRepresentatio
 /** A test's answers, by `(method, params)`. Throwing inside it signals "no fixture for this call": `TestConduit` surfaces the throw so a test fails loudly, naming the method nothing answered. */
 export type TDispatch = (method: string, params: Record<string, unknown>) => unknown | Promise<unknown>;
 
-/** `Conduit` implementation that dispatches against an in-memory function. Powers two real modes with one implementation: the offline shu.html report (boot wraps an embedded JSON map of frozen responses) and tests (setupShuTest constructs one with an inline `dispatch`). Components are unaware they're not talking to a server. `group` does not call `action.begin` — there is no server to allocate seqPaths and the `why` carries no observation graph to write to; the same instance is passed as the group's `g` so the API semantic ("every follow inside `fn` belongs to one logical action") survives at the contract level. */
+/** A `Conduit` answering from a function a test supplies, so nothing under test knows it is not talking to a server. */
 export class TestConduit implements Conduit {
 	constructor(private readonly dispatch: TDispatch) {}
 

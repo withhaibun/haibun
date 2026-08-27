@@ -19,6 +19,16 @@ describe("the questions the site answers, asked of the graph this page caches", 
 		await store.upsertIndividual("Comment", { "@id": "c", content: "hello" });
 	});
 
+	it("answers a read at the level it was asked for, not everything it happens to hold", async () => {
+		// A page holds what it was served, which may have been read at a wider level than a later read asks for.
+		await store.upsertIndividual("Email", { "@id": "p", accessLevel: "private", folder: "INBOX" });
+		await store.upsertIndividual("Email", { "@id": "o", accessLevel: "public", folder: "INBOX" });
+		const publicly = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Email"], accessLevel: "public" as AccessLevel });
+		expect([...new Set(publicly.quads.map((q) => q.subject))].sort(), "the record stating a level beyond the read is not in it").toEqual(["a", "b", "o"]);
+		const privately = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Email"], accessLevel: "private" as AccessLevel });
+		expect([...new Set(privately.quads.map((q) => q.subject))].sort(), "and a read that may see it does").toEqual(["a", "b", "o", "p"]);
+	});
+
 	it("groups what it caches by type, with each type's total", async () => {
 		const clustered = await store.getClusteredQuads(access);
 		expect(clustered.clusters.map((c) => c.type).sort()).toEqual(["Comment", "Email"]);

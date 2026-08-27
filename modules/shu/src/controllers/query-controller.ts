@@ -19,8 +19,8 @@ export class QueryController implements ReactiveController {
 
 	hostConnected(): void {} // queries are on-demand; nothing to do at connect
 
-	/** Run the `graphQuery` step — a graph store's rich query where present, else the inherent one; with no server, the
-	 *  same query over the graph the page caches. */
+	/** Run the `graphQuery` step: a graph store's rich query where present, else the inherent one, and with no server
+	 *  the same query over the graph the page caches. */
 	run(query: Record<string, unknown>): Promise<TGraphQueryResult> {
 		return queryGraph(query);
 	}

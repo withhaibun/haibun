@@ -5,6 +5,7 @@ import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { subscribeBatchedEvents, hasEventStream } from "./event-stream.js";
 import { } from "./hypermedia.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { reportToRun } from "./client-log.js";
 import { callStep } from "./pane-fetch.js";
 import { appAccessLevel } from "./util.js";
 import { readIndividual } from "./quads-snapshot.js";
@@ -156,7 +157,12 @@ export async function requestBody(label: string, id: string, bodyId: string): Pr
 	const s = getStore();
 	const entry = s.entries.get(keyOf(label, id));
 	if (!entry?.view.entity || entry.view.bodies[bodyId] !== undefined) return;
-	const read = await readIndividual(BODY_LABEL, bodyId, appAccessLevel()).catch(() => undefined);
+	// A body that cannot be read leaves the area waiting, so what went wrong is said where a reader's diagnostics go
+	// rather than being dropped here.
+	const read = await readIndividual(BODY_LABEL, bodyId, appAccessLevel()).catch((err: unknown) => {
+		reportToRun("warn", "entity-store", `the body ${bodyId} of ${label}:${id} could not be read: ${errorDetail(err)}`);
+		return undefined;
+	});
 	const content = read?.vertex.content;
 	if (typeof content !== "string") return;
 	entry.view = { ...entry.view, bodies: { ...entry.view.bodies, [bodyId]: content } };

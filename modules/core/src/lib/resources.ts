@@ -97,6 +97,13 @@ export function narrowerAccess(inForce: AccessLevel, asked: AccessLevel): Access
 	return ACCESS_BREADTH[asked] < ACCESS_BREADTH[inForce] ? asked : inForce;
 }
 
+/** Whether a record at `level` is within what a read at `asked` may see. A record stating no level of its own is not
+ *  something the reading can judge, and is left to whatever served it to decide. */
+export function withinAccess(level: unknown, asked: AccessLevel): boolean {
+	const held = typeof level === "string" ? ACCESS_BREADTH[level as AccessLevel] : undefined;
+	return held === undefined || held <= ACCESS_BREADTH[asked];
+}
+
 /** The scope a read runs at in a store, from the level it asked for: `all` asks for every level, which a store reads
  *  at its widest. One reading, so no two surfaces scope the same request differently. */
 export function storeScopeFor(asked: AccessQueryLevel): AccessLevel {

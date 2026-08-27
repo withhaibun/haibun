@@ -9,7 +9,7 @@
  * the graph while it can be reached, and the page reads the same store either way, so a view offline sees what it holds
  * rather than nothing. What it holds is what the site already served this reader, so a read of it gates nothing further.
  */
-import type { AccessLevel } from "@haibun/core/lib/resources.js";
+import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
 import type { IQuadStore, TClusteredQuads, TQuad, TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, done, withStores as withClientCacheStores } from "./device-store.js";
@@ -148,8 +148,17 @@ export class IndexedDbQuadStore implements IQuadStore {
 	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads> {
 		const quads = await this.all();
 		const types = opts.types;
-		return sliceQuadsPerType(types ? quads.filter((q) => types.includes(q.namedGraph)) : quads, opts.perTypeLimit);
+		const asked = types ? quads.filter((q) => types.includes(q.namedGraph)) : quads;
+		// A page holds what it was served, which may have been read at a wider level than this one asks for. A read here
+		// answers what the site would have: a record stating a level beyond what was asked is not in it, so the control a
+		// reader sets means the same thing whether or not there is a server behind the page.
+		return sliceQuadsPerType(asked.filter((q) => withinAccess(levelOf(asked, q), opts.accessLevel)), opts.perTypeLimit);
 	}
+}
+
+/** The access level a subject states, from the quads describing it: what it was recorded at, where it says. */
+function levelOf(quads: TQuad[], of: TQuad): unknown {
+	return quads.find((q) => q.subject === of.subject && q.namedGraph === of.namedGraph && q.predicate === LinkRelations.ACCESS_LEVEL.rel)?.object;
 }
 
 /** One subject's quads read as a record: its `@id` and type, then a field per predicate. The page caches what it
