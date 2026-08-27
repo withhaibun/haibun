@@ -28,7 +28,7 @@ function reportScripts(html: string): string[] {
 }
 
 /** What the report holds of the run, read back out of the payload: the client cache and the replay beside it. */
-function reportHydration(html: string): { cache: { registry?: { steps?: unknown[] } }; rpcCache: Record<string, unknown> } {
+function reportHydration(html: string): { cache: { registry?: { steps?: unknown[] } }; viewProducts: Record<string, unknown> } {
 	const b64 = html.match(/<script[^>]*id="shu-payload"[^>]*>([^<]+)<\/script>/)?.[1];
 	if (!b64) throw new Error("shu-payload script not found in report HTML");
 	const { hydration } = JSON.parse(gunzipSync(Buffer.from(b64, "base64")).toString("utf-8")) as { hydration: string };
@@ -100,10 +100,10 @@ describe("a report carries the run and the site's declarations, and no captured 
 		expect(reportHydration(await generateReport(undefined, declarations, 2)).cache.registry?.steps, "and the one written when the run ends").toEqual(declarations.steps);
 	});
 
-	it("carries no answer a live page received, since a view reads what the page holds", async () => {
-		const replayed = Object.keys(reportHydration(await generateReport(undefined, declarations)).rpcCache);
-		expect(replayed.filter((k) => k.includes("graphQuery")), "the rows a query returned are the graph, which rides in the cache").toEqual([]);
-		expect(replayed.includes("step.list"), "and the declarations ride in the cache, not beside it").toBe(false);
+	it("carries what its views showed, and no answer a live page received", async () => {
+		const carried = Object.keys(reportHydration(await generateReport(undefined, declarations)).viewProducts);
+		expect(carried.filter((k) => k.includes("graphQuery")), "the rows a query returned are the graph, which rides in the cache").toEqual([]);
+		expect(carried.includes("step.list"), "and the declarations ride in the cache, not beside it").toBe(false);
 	});
 });
 

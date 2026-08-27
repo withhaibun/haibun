@@ -1,3 +1,4 @@
+import { isOffline } from "./rpc-registry.js";
 /**
  * The browser side of the blip channel.
  *
@@ -10,7 +11,7 @@
  * where nothing happens costs nothing. On the run's side each occurrence lands in the same channel a server-side
  * recording does, where it costs one check when nothing is watching.
  */
-import { conduit, isOffline } from "./hypermedia.js";
+import { conduit, } from "./hypermedia.js";
 
 /** How many occurrences the browser holds between batches. Fixed, so the buffer cannot grow while a batch is in flight. */
 export const CLIENT_RING = 240;

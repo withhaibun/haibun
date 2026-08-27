@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 
 const follow = vi.fn((_request: unknown, _label?: string) => Promise.resolve({}));
 let offline = false;
-vi.mock("./hypermedia.js", () => ({ conduit: () => ({ follow }), isOffline: () => offline }));
+vi.mock("./hypermedia.js", () => ({ conduit: () => ({ follow }) }));
+vi.mock("./rpc-registry.js", () => ({ isOffline: () => offline }));
 
 import { recordClientBlip, flushClientBlips, resetClientBlips, clientBlipsRecorded, clientBlipsSent, CLIENT_RING } from "./client-blips.js";
 

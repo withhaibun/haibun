@@ -7,13 +7,12 @@ import type { TDeliveredEvent } from "@haibun/core/lib/sse-subscriber.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, isStandaloneMode, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache } from "./rpc-registry.js";
+import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline } from "./rpc-registry.js";
 import { openSession } from "./session-key.js";
-import { getCachedResponse } from "./rpc-cache.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
-import { conduit, setConduit, LiveConduit, SerializedConduit, isOffline, type TDispatch, isServerUnreachable } from "./hypermedia.js";
+import { conduit, setConduit, LiveConduit, isServerUnreachable } from "./hypermedia.js";
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
@@ -106,28 +105,18 @@ function openReaderSession(): void {
 
 const main = async (): Promise<void> => {
 	hydrateFromDom();
-	const standalone = isStandaloneMode();
-	// Install the conduit + event-stream pair before anything else: every component reads via the accessor and would
-	// otherwise throw on first use, and the Conduit identity (Serialized vs Live) IS "is the SPA offline" — view-hash
-	// asks it before deciding whether there is a `location.hash` to mutate, so nothing may write a hash ahead of this.
-	if (standalone) {
-		const offlineDispatch: TDispatch = (method, params) => {
-			// Serve responses captured during the live run (embedded in the report) — including the server-rendered graph SVG.
-			const { found, value } = getCachedResponse(method, params ?? {});
-			if (found) return value;
-			throw new Error(`shu offline mode: no captured response for ${method} ${JSON.stringify(params).slice(0, 200)}`);
-		};
-		setConduit(new SerializedConduit(offlineDispatch));
-		setEventStream(new SerializedEventStream());
-	} else {
-		setConduit(new LiveConduit(""));
-		setEventStream(new LiveEventStream("/sse"));
-	}
+	// One conduit, whatever the page is: a page with a server behind it reaches it, and a page carrying its own run
+	// reaches nothing, which every read already answers from what the page holds. Installed before anything else, since
+	// every component reads through the accessor and would otherwise throw on first use.
+	setConduit(new LiveConduit(""));
 	// A page that carries its run fills the client cache with it before anything reads the run: every view then reads it
 	// through the sources it uses against a server, and the reads that would have gone to a server find it cached.
 	const carried = hydratedCache();
-	if (carried) await hydrateClientCache(carried);
-	if (standalone) ShuElement.pushHash(getHydratedViewHash());
+	if (carried) {
+		setEventStream(new SerializedEventStream());
+		await hydrateClientCache(carried);
+		ShuElement.pushHash(getHydratedViewHash());
+	} else setEventStream(new LiveEventStream("/sse"));
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();
 	applyShuPreferences();

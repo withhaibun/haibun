@@ -1,3 +1,4 @@
+import { isOffline } from "./rpc-registry.js";
 /**
  * The page's diagnostic channel to the run: one call, one behaviour. A diagnostic is reported to the run through the
  * monitor's client-log step; a page with no server (a report) reports nothing; a server that cannot be reached has
@@ -9,7 +10,7 @@
  */
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { conduit, isOffline, isServerUnreachable } from "./hypermedia.js";
+import { conduit, isServerUnreachable } from "./hypermedia.js";
 
 export const CLIENT_LOG_METHOD = "MonitorStepper-logClient";
 export type TClientLogLevel = "debug" | "info" | "warn" | "error";

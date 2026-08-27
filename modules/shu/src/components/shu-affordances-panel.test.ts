@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
-import { setConduit, resetConduit, SerializedConduit } from "../hypermedia.js";
+import { setConduit, resetConduit } from "../hypermedia.js";
+import { TestConduit } from "../test-setup.js";
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "../event-stream.js";
 import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
@@ -293,7 +294,7 @@ describe("shu-affordances-panel", () => {
 
 	it("waypoints carried by `show affordances` products render the waypoint section — the ONE verb brings the whole snapshot", async () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
-		setConduit(new SerializedConduit(async () => ({})));
+		setConduit(new TestConduit(async () => ({})));
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		panel.products = { forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
@@ -308,7 +309,7 @@ describe("shu-affordances-panel", () => {
 		// (REFRESH_COALESCE_MS) and the burst rides it — exactly one GoalResolutionStepper-showAffordances RPC.
 		let snapshotCalls = 0;
 		setConduit(
-			new SerializedConduit((method: string) => {
+			new TestConduit((method: string) => {
 				if (method === "GoalResolutionStepper-showAffordances") snapshotCalls++;
 				return { waypoints: [], forward: [], goals: [] };
 			}),

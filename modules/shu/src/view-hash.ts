@@ -1,3 +1,4 @@
+import { isOffline } from "./rpc-registry.js";
 /**
  * View-hash IO — the URL hash is the SPA's canonical view-state encoding. This
  * module owns reading and writing it, with an offline-mode fallback for the
@@ -17,7 +18,7 @@
  * import time, ahead of every runtime listener (they all import this module), so
  * by the time pane-state or viewQuery reads the hash it is already canonical.
  */
-import { isOffline } from "./hypermedia.js";
+import { } from "./hypermedia.js";
 
 /** The hash body as URLSearchParams, tolerant of a leading `#` or `#?`. */
 export function hashParams(hash: string): URLSearchParams {

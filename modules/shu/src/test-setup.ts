@@ -15,7 +15,40 @@
  * was missed.
  */
 
-import { setConduit, resetConduit, SerializedConduit, type TDispatch } from "./hypermedia.js";
+import { setConduit, resetConduit, type Conduit, type TLink, type TRepresentation, type TStreamChunk } from "./hypermedia.js";
+
+// ─── The conduit a test installs ─────────────────────────────────────────────
+
+/** A test's answers, by `(method, params)`. Throwing inside it signals "no fixture for this call": `TestConduit` surfaces the throw so a test fails loudly, naming the method nothing answered. */
+export type TDispatch = (method: string, params: Record<string, unknown>) => unknown | Promise<unknown>;
+
+/** `Conduit` implementation that dispatches against an in-memory function. Powers two real modes with one implementation: the offline shu.html report (boot wraps an embedded JSON map of frozen responses) and tests (setupShuTest constructs one with an inline `dispatch`). Components are unaware they're not talking to a server. `group` does not call `action.begin` — there is no server to allocate seqPaths and the `why` carries no observation graph to write to; the same instance is passed as the group's `g` so the API semantic ("every follow inside `fn` belongs to one logical action") survives at the contract level. */
+export class TestConduit implements Conduit {
+	constructor(private readonly dispatch: TDispatch) {}
+
+	async follow<T = TRepresentation>(link: TLink, _why: string): Promise<T> {
+		const result = await this.dispatch(link.method, link.params ?? {});
+		return result as T;
+	}
+
+	async followStream(
+		link: TLink,
+		onChunk: (chunk: TStreamChunk) => void,
+		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
+	): Promise<{ seqPath: number[] }> {
+		const seqPath = [0];
+		opts.onStart?.(seqPath);
+		const result = await this.dispatch(link.method, link.params ?? {});
+		if (Array.isArray(result)) for (const chunk of result) onChunk(chunk as TStreamChunk);
+		else onChunk(result as TStreamChunk);
+		return { seqPath };
+	}
+
+	group<T>(_why: string, fn: (g: Conduit) => Promise<T>): Promise<T> {
+		return fn(this);
+	}
+}
+
 
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
@@ -30,8 +63,8 @@ export type TShuTestHandle = {
 	emit: (event: TEvent) => void;
 	/** Tear down both services. Call from `afterEach` (or rely on the next `beforeEach`'s `setupShuTest` overwriting them — both are valid). */
 	teardown: () => void;
-	/** The `SerializedConduit` instance installed under `conduit()`. Exposed for assertions that need to swap the dispatch mid-test or read the instance identity. */
-	conduit: SerializedConduit;
+	/** The `TestConduit` instance installed under `conduit()`. Exposed for assertions that need to swap the dispatch mid-test or read the instance identity. */
+	conduit: TestConduit;
 	/** The `SerializedEventStream` instance installed under `eventStream()`. Exposed for assertions that need its `totalRecorded()` or to inspect identity. */
 	eventStream: SerializedEventStream;
 };
@@ -85,7 +118,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 				`setupShuTest: no dispatch configured for "${method}". Pass setupShuTest({ dispatch: (method, params) => ... }) and return a wire result for the methods this test exercises.`,
 			);
 		});
-	const conduit = new SerializedConduit(dispatch);
+	const conduit = new TestConduit(dispatch);
 	const eventStream = new SerializedEventStream();
 	setConduit(conduit);
 	setEventStream(eventStream);
