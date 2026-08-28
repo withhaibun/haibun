@@ -11,26 +11,48 @@
  * The window re-reads when the run says something changed. A view therefore holds what a reader is looking at rather
  * than everything that has happened, which is what keeps a run of years readable.
  */
-import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import { FEATURE_START, HAIBUN_LOG_LEVELS, SCENARIO_START, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
 import { getWindowSize } from "../window-size-setting.js";
+import { pagePinned } from "../page-pinned.js";
 import type { Range } from "../ranges.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import { RUN_WINDOW_SIZE, runWindow, type TRunRow } from "./run-window.js";
-import type { RunSource, TEventRecord, TRunExtent } from "./run-source.js";
+import { noteRunSpan, readingBy, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
 
 /** How long a burst of changes is collected before the window is read again. */
 export const RE_READ_AFTER_MS = 250;
+
+/** What a step declared, where it declared one: a feature or a scenario is the step that named it, and a view titles it
+ *  by the name that step carries rather than by a second announcement of the same thing. */
+function declared(row: TRunRow): Record<string, unknown> {
+	const named = (prefix: string): string => row.text.slice(prefix.length).trim();
+	if (row.called?.endsWith(`.${FEATURE_START}`)) return { type: "feature", featureName: named("Feature:") };
+	if (row.called?.endsWith(`.${SCENARIO_START}`)) return { type: "scenario", scenarioName: named("Scenario:") };
+	return { type: "step" };
+}
 
 /** A row as a view renders it. A step carries how it went and how long it took; what was said carries its own level. */
 function asRendered(row: TRunRow): TEventRecord {
 	const seqPath = row.step ? row.step.split(".").map(Number).filter((n) => !Number.isNaN(n)) : undefined;
 	if (row.kind === "said") return { id: row.step, kind: "log", level: row.level, message: row.text, timestamp: row.at, seqPath };
+	// A produced thing is claimed by the step it came from, which a document reads from the identity it carries.
+	if (row.kind === "produced")
+		return {
+			id: row.id ?? row.step,
+			kind: "artifact",
+			artifactType: row.artifactType,
+			level: row.level,
+			timestamp: row.at,
+			...(row.path === undefined ? {} : { path: row.path }),
+			...(row.featureRelativePath === undefined ? {} : { featureRelativePath: row.featureRelativePath }),
+			...(row.mediaType === undefined ? {} : { mimetype: row.mediaType }),
+			seqPath,
+		};
 	return {
 		id: row.step,
 		kind: "lifecycle",
-		type: "step",
-		stage: "end",
+		...declared(row),
 		level: row.level,
 		in: row.text,
 		actionName: row.text,
@@ -47,7 +69,28 @@ function asRendered(row: TRunRow): TEventRecord {
 }
 
 /** The run as a view reads it, at one level. `at` moves the window; absent, it follows the newest records. */
-export function graphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, reReadAfterMs = RE_READ_AFTER_MS }: { size?: number; reReadAfterMs?: number } = {}): RunSource & { readAt(at?: number): Promise<void> } {
+/** The sources a page reads by, one per level: every view at a level reads the same window, so a level is read once
+ *  however many views show it, and a view of what this page holds lists one source per level rather than one per view. */
+const SOURCES_KEY = "__SHU_GRAPH_RUN_SOURCES__";
+const sources = (): Map<string, TGraphRunSource> => pagePinned(SOURCES_KEY, () => new Map<string, TGraphRunSource>());
+
+/** Test-only: forget the sources, so the next read makes them afresh. */
+export function resetGraphRunSources(): void {
+	for (const source of sources().values()) source.close();
+	sources().clear();
+}
+
+export type TGraphRunSource = RunSource & { readAt(at?: number): Promise<void>; close(): void };
+
+export function graphRunSource(level: THaibunLogLevel, options: { size?: number; reReadAfterMs?: number } = {}): TGraphRunSource {
+	const held = sources().get(level);
+	if (held) return held;
+	const made = makeGraphRunSource(level, options);
+	sources().set(level, made);
+	return made;
+}
+
+function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, reReadAfterMs = RE_READ_AFTER_MS }: { size?: number; reReadAfterMs?: number }): TGraphRunSource {
 	let rows: TEventRecord[] = [];
 	let extent: TRunExtent = { total: 0 };
 	let loaded = false;
@@ -64,13 +107,17 @@ export function graphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE,
 		rows = window.rows.map(asRendered);
 		extent = { total: rows.length, ...(window.from === undefined ? {} : { first: window.from }), ...(window.to === undefined ? {} : { last: window.to }) };
 		loaded = true;
+		noteRunSpan(window.from, window.to);
 		notify();
 	};
 
-	// What the run says has changed is what makes the window stale; a burst of changes reads it once.
+	// What the run says has changed is what makes the window stale, and a burst of changes reads it once. Only a change
+	// this view would show counts: reading the run is itself steps the run records, at a level under any view's, so a
+	// view that re-read for those would re-read for its own reading, without end.
+	const shows = new Set(HAIBUN_LOG_LEVELS.slice(HAIBUN_LOG_LEVELS.indexOf(level)));
 	const unsubscribe = subscribeBatchedEvents({
-		onBatch: () => {
-			if (due) return;
+		onBatch: (events) => {
+			if (due || !events.some((e) => shows.has((e as { level?: THaibunLogLevel }).level ?? "info"))) return;
 			due = setTimeout(() => {
 				due = null;
 				void read();
@@ -78,7 +125,7 @@ export function graphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE,
 		},
 	});
 
-	const source: RunSource & { readAt(at?: number): Promise<void>; close(): void } = {
+	const source: TGraphRunSource = {
 		level,
 		pageSize: getWindowSize(),
 		get loaded() {
@@ -106,9 +153,12 @@ export function graphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE,
 			return () => subs.delete(fn);
 		},
 		close: () => {
+			stopReading();
 			unsubscribe();
 			if (due) clearTimeout(due);
 		},
 	};
+	// A view of what this page holds lists what is being read, whichever kind of source reads it.
+	const stopReading = readingBy(source);
 	return source;
 }

@@ -4,11 +4,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
+import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { graphRunSource } from "./graph-run-source.js";
+import { graphRunSource, resetGraphRunSources } from "./graph-run-source.js";
 
 const iso = (n: number): string => new Date(n).toISOString();
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
@@ -18,12 +19,13 @@ describe("the run a view reads, over the records it wrote", () => {
 	let store: QuadStore;
 	beforeEach(async () => {
 		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		resetGraphRunSources();
 		handle = setupShuTest({
 			dispatch: () => {
 				throw new Error("this test reads the records, not a server");
 			},
 		});
-		setSiteMetadata({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL], rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+		setSiteMetadata({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 		store = new QuadStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, { id: "0.1", stepText: "a step", actionStatus: "passed", generatedAtTime: iso(1000), endedAtTime: iso(1300) });
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "0.1@said", message: "it said this", level: "warn", generatedAtTime: iso(1100), isPartOf: "0.1" });
