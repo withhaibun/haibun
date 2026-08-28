@@ -18,6 +18,7 @@ import { subscribeBatchedEvents } from "../event-stream.js";
 import { RPC_METHOD } from "../consts.js";
 import { lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
 import { getWindowSize } from "../window-size-setting.js";
+import { pagePinned } from "../page-pinned.js";
 import { IndexedDbDeviceStore, runOf, type DeviceStore } from "./device-store.js";
 import type { Range } from "../ranges.js";
 
@@ -95,7 +96,20 @@ export function setDeviceStore(store: DeviceStore): void {
 /** The run sources built so far, in level order: what a view of the page's own caches reads, making none. */
 export function runSources(): RunSource[] {
 	const s = shared();
-	return HAIBUN_LOG_LEVELS.filter((l) => s.sources.has(l)).map((l) => s.sources.get(l) as RunSource);
+	const held = HAIBUN_LOG_LEVELS.filter((l) => s.sources.has(l)).map((l) => s.sources.get(l) as RunSource);
+	return [...held, ...reading()].sort((a, b) => HAIBUN_LOG_LEVELS.indexOf(a.level) - HAIBUN_LOG_LEVELS.indexOf(b.level));
+}
+
+/** The sources a view is reading the run by, whichever kind they are, so a view of what this page holds lists what is
+ *  actually being read rather than one kind of reader. */
+const READING_KEY = "__SHU_RUN_SOURCES_READING__";
+const reading = (): Set<RunSource> => pagePinned(READING_KEY, () => new Set<RunSource>());
+
+/** Report a source a view is reading by; the returned function says it has stopped. */
+export function readingBy(source: RunSource): () => void {
+	reading().add(source);
+	for (const fn of shared().made) fn(source);
+	return () => reading().delete(source);
 }
 
 /** Subscribe to each run source as it is made (a view reading a level for the first time). Returns an unsubscribe. */
@@ -181,12 +195,26 @@ async function recallLastRun(s: Shared): Promise<string> {
 	return s.run ?? "";
 }
 
+/** What the run spans, as whatever has read it has seen. Held by the page, since a run's extent is the run's rather
+ *  than one reader's, and the live edge is read from it. The span only widens: a window over part of a run says
+ *  nothing about the rest, so a narrower reading never contradicts a wider one. */
+const SPAN_KEY = "__SHU_RUN_SPAN__";
+const span = (): { first?: number; last?: number } => pagePinned(SPAN_KEY, () => ({}));
+
+/** Report what a source has seen of the run's extent. */
+export function noteRunSpan(first?: number, last?: number): void {
+	const held = span();
+	if (first !== undefined && (held.first === undefined || first < held.first)) held.first = first;
+	if (last !== undefined && (held.last === undefined || last > held.last)) held.last = last;
+}
+
 /** When the run the page caches starts and ends, as the run sources know it: the earliest start and the newest event over
  *  every level read. Asks for nothing and caches nothing: a control that only places the cursor in the run (playback, the
  *  actions bar) reads it without paging the run in. Both 0 before any view has read the run. */
 export function runSpan(): { first: number; last: number } {
-	let first = Number.POSITIVE_INFINITY;
-	let last = 0;
+	const held = span();
+	let first = held.first ?? Number.POSITIVE_INFINITY;
+	let last = held.last ?? 0;
 	for (const src of shared().sources.values()) {
 		const { first: f, last: l } = src.extent();
 		if (f !== undefined && f < first) first = f;

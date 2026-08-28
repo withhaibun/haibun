@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
+import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { setConduit, LiveConduit } from "../hypermedia.js";
 import { setGraphStore } from "../quads-snapshot.js";
@@ -29,7 +30,7 @@ describe("the window of a run a reader is looking at", () => {
 		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
 		setConduit(new LiveConduit(""));
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
-		setSiteMetadata({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL], rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+		setSiteMetadata({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 	});
 
 	it("holds the steps and what they said, oldest first, and says what it spans", async () => {

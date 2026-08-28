@@ -13,22 +13,26 @@
  */
 import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
+import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { queryGraph } from "../quads-snapshot.js";
+import { getRels } from "../rels-cache.js";
 
 /** How many records a reader is shown around where they are. */
 export const RUN_WINDOW_SIZE = 10000;
 
-/** One thing that happened: a step, or something said while it ran. */
+/** One thing that happened: a step, something said while it ran, or something it produced. */
 export type TRunRow = {
-	kind: "step" | "said";
+	kind: "step" | "said" | "produced";
 	/** The step this row is, or the step it was said during. */
 	step: string;
 	at: number;
 	level: THaibunLogLevel;
 	/** The step's own text, or what was said. */
 	text: string;
+	/** What the step called: the stepper and the action within it. The text says what was asked for; this says what ran. */
+	called?: string;
 	/** A step's outcome, and when it reached it. */
 	status?: string;
 	endedAt?: number;
@@ -39,6 +43,13 @@ export type TRunRow = {
 	capabilityAction?: string;
 	allowedAction?: string;
 	performedBy?: string;
+	/** What a produced thing is and where it is: an artifact is a file, and a row of it points at that file. */
+	artifactType?: string;
+	path?: string;
+	featureRelativePath?: string;
+	mediaType?: string;
+	/** A produced thing's own identity, which is what a document claims it by. */
+	id?: string;
 };
 
 /** The records a reader is looking at, oldest first, and the moments they span. */
@@ -60,6 +71,7 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 		text: String(record[SEQ_PATH_FIELD.stepText] ?? ""),
 		...(record[SEQ_PATH_FIELD.actionStatus] === undefined ? {} : { status: String(record[SEQ_PATH_FIELD.actionStatus]) }),
 		...(Number.isNaN(ended) ? {} : { endedAt: ended }),
+		...text(record, SEQ_PATH_FIELD.called, "called"),
 		...text(record, SEQ_PATH_FIELD.ranVia, "ranVia"),
 		...text(record, SEQ_PATH_FIELD.ranOn, "ranOn"),
 		...text(record, SEQ_PATH_FIELD.capabilityAction, "capabilityAction"),
@@ -79,6 +91,22 @@ function saidRow(record: Record<string, unknown>): TRunRow {
 	};
 }
 
+/** Something produced, as a row. It is shown wherever the step that produced it is, so it takes that step's level. */
+function producedRow(record: Record<string, unknown>): TRunRow {
+	return {
+		kind: "produced",
+		step: String(record.isPartOf ?? ""),
+		at: instant(record[RUN_ARTIFACT_FIELD.generatedAtTime]),
+		level: "info",
+		text: String(record[RUN_ARTIFACT_FIELD.artifactType] ?? ""),
+		id: String(record[RUN_ARTIFACT_FIELD.id] ?? ""),
+		...text(record, RUN_ARTIFACT_FIELD.artifactType, "artifactType"),
+		...text(record, RUN_ARTIFACT_FIELD.path, "path"),
+		...text(record, RUN_ARTIFACT_FIELD.featureRelativePath, "featureRelativePath"),
+		...text(record, RUN_ARTIFACT_FIELD.mediaType, "mediaType"),
+	};
+}
+
 /** The levels at or above the one a reader asked for, which is what a level filter means. */
 function atOrAbove(minLevel: THaibunLogLevel): THaibunLogLevel[] {
 	return HAIBUN_LOG_LEVELS.slice(HAIBUN_LOG_LEVELS.indexOf(minLevel)) as THaibunLogLevel[];
@@ -86,6 +114,8 @@ function atOrAbove(minLevel: THaibunLogLevel): THaibunLogLevel[] {
 
 /** One type's records on one side of a moment, in the order they are read from it. */
 async function side(label: string, timeField: string, at: number | undefined, direction: "before" | "after", limit: number): Promise<Record<string, unknown>[]> {
+	// A site that does not declare a type holds none of it, so asking for it would be asking a question with no answer.
+	if (!getRels(label)) return [];
 	const filters = at === undefined ? [] : [{ predicate: timeField, operator: direction === "before" ? "lt" : "gte", value: new Date(at).toISOString() }];
 	const { vertices } = await queryGraph({ label, filters, sortBy: timeField, sortOrder: direction === "before" ? "desc" : "asc", limit, skipCount: true });
 	return vertices;
@@ -99,11 +129,12 @@ export async function runWindow({ at, size = RUN_WINDOW_SIZE, minLevel = "info" 
 	const wanted = new Set(atOrAbove(minLevel));
 	const read = async (direction: "before" | "after", limit: number): Promise<TRunRow[]> => {
 		if (limit <= 0) return [];
-		const [steps, said] = await Promise.all([
+		const [steps, said, produced] = await Promise.all([
 			side(SEQ_PATH_LABEL, SEQ_PATH_FIELD.generatedAtTime, at, direction, limit),
 			side(LOG_MESSAGE_LABEL, LOG_MESSAGE_FIELD.generatedAtTime, at, direction, limit),
+			side(RUN_ARTIFACT_LABEL, RUN_ARTIFACT_FIELD.generatedAtTime, at, direction, limit),
 		]);
-		const rows = [...steps.map(stepRow), ...said.map(saidRow)].filter((r) => wanted.has(r.level) && !Number.isNaN(r.at));
+		const rows = [...steps.map(stepRow), ...said.map(saidRow), ...produced.map(producedRow)].filter((r) => wanted.has(r.level) && !Number.isNaN(r.at));
 		rows.sort((a, b) => a.at - b.at);
 		return direction === "before" ? rows.slice(-limit) : rows.slice(0, limit);
 	};
