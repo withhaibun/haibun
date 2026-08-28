@@ -102,9 +102,24 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		for (const fn of subs) fn();
 	};
 
+	// A row a re-read finds again is the same row: a view holds its place, and what it built from that row, by the row
+	// being the same object. Re-reading is how a window stays current, so re-reading must not look like every row changing.
+	const held = new Map<string, TEventRecord>();
+	const same = (row: TRunRow): TEventRecord => {
+		const key = `${row.kind}|${row.step}|${row.at}|${row.text}|${row.status ?? ""}|${row.endedAt ?? ""}`;
+		const carried = held.get(key);
+		if (carried) return carried;
+		const made = asRendered(row);
+		held.set(key, made);
+		return made;
+	};
+
 	const read = async (): Promise<void> => {
 		const window = await runWindow({ at, size, minLevel: level });
-		rows = window.rows.map(asRendered);
+		rows = window.rows.map(same);
+		// What the window no longer holds is not held here either, so a window that moves does not grow this without bound.
+		const shown = new Set(rows);
+		for (const [key, row] of held) if (!shown.has(row)) held.delete(key);
 		extent = { total: rows.length, ...(window.from === undefined ? {} : { first: window.from }), ...(window.to === undefined ? {} : { last: window.to }) };
 		loaded = true;
 		noteRunSpan(window.from, window.to);

@@ -17,11 +17,11 @@ const { setAs } = withAction(new VariablesStepper());
 const { watchBlips } = withAction(new BlipsStepper());
 const { feature, scenario } = withAction(new Haibun());
 const {
-	monitorShowsFewerThan,
+	monitorRendersAWindow,
 	seekMonitorRail,
 	monitorFirstVisibleRow,
 	monitorFirstVisibleRowIsNot,
-	documentShowsFewerThan,
+	documentRendersAWindow,
 	clickFirstDocRow,
 	documentFutureRowsAtLeast,
 	scrubMonitorFirstRow,
@@ -76,7 +76,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The monitor virtualizes the log to the viewport" }),
 		"Every buffered event is in the log, but the monitor renders only the rows in view plus the virtualizer's small overscan, so the DOM stays small no matter how long the run.",
-		monitorShowsFewerThan({ max: "150" }),
+		monitorRendersAWindow({}),
 		"On load the monitor sits at the live edge, not the top: it followed the newest buffered event, so the first visible row is not row one.",
 		monitorFirstVisibleRowIsNot({ ordinal: '"1"' }),
 
@@ -122,7 +122,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "The run document virtualizes the same buffered log" }),
 		"The document reads the same buffered events as prose. It too renders only the blocks in view, so a long run stays a small DOM with every earlier event still reachable.",
 		...passesStepExecution("MonitorStepper-showDocument", {}),
-		documentShowsFewerThan({ max: "150" }),
+		documentRendersAWindow({}),
 
 		scenario({ scenario: "The document panel follows the live edge, not just its rail" }),
 		"Opened at the live edge, the document scrolls its PANEL, not only its rail, as events stream. A burst streams in with the cursor at the live edge; the panel's own scroller ends at the bottom (the height-estimate overshoot aside), showing the newest of them rather than parked where a rail-only follow would leave the content.",
