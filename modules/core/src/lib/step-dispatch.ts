@@ -301,6 +301,9 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		// be answered if the ordinary ones say so as well.
 		[SEQ_PATH_FIELD.mode]: featureStep.intent?.mode ?? "authoritative",
 		[SEQ_PATH_FIELD.ranVia]: ran.ranVia,
+		// A call made into a running instance is a step the run records, and reports as its events do: under the run's own
+		// steps, so a reader of the run is not shown the traffic of whoever is reading it.
+		[SEQ_PATH_FIELD.level]: featureStep.isSubStep ? "trace" : "info",
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 	};
 	if (authorization) {

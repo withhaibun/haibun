@@ -67,7 +67,7 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 		kind: "step",
 		step: String(record[SEQ_PATH_FIELD.id] ?? ""),
 		at: instant(record[SEQ_PATH_FIELD.generatedAtTime]),
-		level: "info",
+		level: (record[SEQ_PATH_FIELD.level] as THaibunLogLevel) ?? "info",
 		text: String(record[SEQ_PATH_FIELD.stepText] ?? ""),
 		...(record[SEQ_PATH_FIELD.actionStatus] === undefined ? {} : { status: String(record[SEQ_PATH_FIELD.actionStatus]) }),
 		...(Number.isNaN(ended) ? {} : { endedAt: ended }),

@@ -12,7 +12,7 @@
  * domain definition steppers register.
  */
 import { z } from "zod";
-import { EXECUTION_MODES } from "../schema/protocol.js";
+import { EXECUTION_MODES, HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { AccessLevelSchema, LinkRelations, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 
 export const SEQ_PATH_DOMAIN = "seq-path";
@@ -76,6 +76,10 @@ export const SEQ_PATH_FIELD = {
 	ranVia: "ranVia",
 	/** The host that ran it, where another one did. */
 	ranOn: "ranOn",
+	/** How prominently the step reports: a run's own steps at `info`, a call made into a running instance at `trace`.
+	 *  Written on the record because a reader filtering by level filters records, and a page's own calls are steps the
+	 *  run records exactly like any other. */
+	level: "level",
 } as const;
 
 /** SeqPath edge names. */
@@ -108,6 +112,7 @@ export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.mode]: z.enum(EXECUTION_MODES).optional(),
 	[SEQ_PATH_FIELD.ranVia]: z.enum(["local", "remote", "subprocess"]).optional(),
 	[SEQ_PATH_FIELD.ranOn]: z.string().optional(),
+	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS).optional(),
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
@@ -136,6 +141,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			// Grouped-as as well, so "the steps another host ran" is a filter the type offers rather than a condition to write.
 			[SEQ_PATH_FIELD.ranVia]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.ranOn]: LinkRelations.RAN_ON.rel,
+			[SEQ_PATH_FIELD.level]: LinkRelations.CONTEXT.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },

@@ -36,6 +36,14 @@ export default class ShuMonitorColumnControls extends AStepper {
 		return countMatching(page, MONITOR_ROW);
 	}
 
+	/** How many rows the run holds, as the monitor itself reports: what a window is measured against. */
+	private async runHolds(page: EvalPage): Promise<number> {
+		const text = await firstText(page, MONITOR_COUNT);
+		const held = Number(text.replace(/[^0-9]/g, ""));
+		if (!held) throw new Error(`the monitor reports no count to measure a window against (read "${text}")`);
+		return held;
+	}
+
 	/** Poll `read` until the count settles (two equal, non-zero reads in a row), so a "fewer than" assertion reads the
 	 *  stable virtualized count, never a mid-backfill snapshot that happens to be small. */
 	private async waitForSettled(page: EvalPage, read: (p: EvalPage) => Promise<number>): Promise<number> {
@@ -95,12 +103,16 @@ export default class ShuMonitorColumnControls extends AStepper {
 				return n === want ? actionOK() : actionNotOK(`monitor shows ${n} rows, expected exactly ${want}`);
 			},
 		},
-		monitorShowsFewerThan: {
-			gwta: "monitor shows fewer than {max} rows",
-			action: async ({ max }: { max: string }) => {
-				const want = Number(max);
-				const n = await this.waitForSettled(await this.page(), (p) => this.rowCount(p));
-				return n > 0 && n < want ? actionOK() : actionNotOK(`monitor renders ${n} rows, expected a virtualized count below ${want}`);
+		monitorRendersAWindow: {
+			// What a column of a long run must do: render what the reader can see, not the run. Stated against the run's own
+			// size rather than a number, so it holds for a run of any length and needs no retuning when a row's shape changes.
+			gwta: "monitor renders a window of the run",
+			action: async () => {
+				const page = await this.page();
+				const rendered = await this.waitForSettled(page, (p) => this.rowCount(p));
+				const held = await this.runHolds(page);
+				if (held <= rendered) return actionNotOK(`the monitor renders ${rendered} rows of a run holding ${held}: a window is fewer than the run, and this is not one`);
+				return actionOK();
 			},
 		},
 		seekMonitorRail: {
@@ -335,12 +347,14 @@ export default class ShuMonitorColumnControls extends AStepper {
 				return n >= want ? actionOK() : actionNotOK(`document dimmed ${n} future rows after the cursor moved, expected at least ${want}`);
 			},
 		},
-		documentShowsFewerThan: {
-			gwta: "document shows fewer than {max} rows",
-			action: async ({ max }: { max: string }) => {
-				const want = Number(max);
-				const n = await this.waitForSettled(await this.page(), (p) => countMatching(p, DOC_ROW));
-				return n > 0 && n < want ? actionOK() : actionNotOK(`document renders ${n} rows, expected a virtualized count below ${want}`);
+		documentRendersAWindow: {
+			gwta: "document renders a window of the run",
+			action: async () => {
+				const page = await this.page();
+				const rendered = await this.waitForSettled(page, (p) => countMatching(p, DOC_ROW));
+				const held = await this.runHolds(page);
+				if (held <= rendered) return actionNotOK(`the document renders ${rendered} rows of a run holding ${held}: a window is fewer than the run, and this is not one`);
+				return actionOK();
 			},
 		},
 	};
