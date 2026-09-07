@@ -80,6 +80,19 @@ export interface TQuadPattern {
 	namedGraph?: string;
 }
 
+/** Whether a quad answers a pattern: each field the pattern names must equal the quad's, and an object is compared as
+ *  a value, so an array or an object it holds is the same object wherever it is read from. The one rule every store of
+ *  quads matches a pattern by. */
+export function matchesQuadPattern(q: TQuad, p: TQuadPattern): boolean {
+	const objectEquals = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
+	return (
+		(p.subject === undefined || q.subject === p.subject) &&
+		(p.predicate === undefined || q.predicate === p.predicate) &&
+		(p.namedGraph === undefined || q.namedGraph === p.namedGraph) &&
+		(p.object === undefined || objectEquals(q.object, p.object))
+	);
+}
+
 /** The most of a string value a quad OBSERVATION carries. Events carry references and previews, never payloads:
  *  an emitted body would otherwise ride into every event buffer and SSE frame (a first-time index of a large
  *  mailbox measured in gigabytes). The store keeps the full value; a consumer that needs it dereferences. */

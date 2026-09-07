@@ -19,6 +19,7 @@ import {
 	type TSearchCondition,
 	type TQuad,
 	type TQuadPattern,
+	matchesQuadPattern,
 } from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
 import { BODY_LABEL } from "./resources.js";
@@ -219,13 +220,7 @@ export class QuadStore implements IQuadStore {
 	}
 
 	private localQuery(pattern: TQuadPattern): TQuad[] {
-		return this.quads.filter((q) => {
-			if (pattern.subject !== undefined && q.subject !== pattern.subject) return false;
-			if (pattern.predicate !== undefined && q.predicate !== pattern.predicate) return false;
-			if (pattern.object !== undefined && q.object !== pattern.object) return false;
-			if (pattern.namedGraph !== undefined && q.namedGraph !== pattern.namedGraph) return false;
-			return true;
-		});
+		return this.quads.filter((q) => matchesQuadPattern(q, pattern));
 	}
 
 	clear(namedGraph?: string): Promise<void> {
@@ -245,13 +240,7 @@ export class QuadStore implements IQuadStore {
 			const backing = this.storeFor(pattern.namedGraph);
 			if (backing) return backing.remove(pattern);
 		}
-		this.quads = this.quads.filter((q) => {
-			if (pattern.subject !== undefined && q.subject !== pattern.subject) return true;
-			if (pattern.predicate !== undefined && q.predicate !== pattern.predicate) return true;
-			if (pattern.object !== undefined && q.object !== pattern.object) return true;
-			if (pattern.namedGraph !== undefined && q.namedGraph !== pattern.namedGraph) return true;
-			return false;
-		});
+		this.quads = this.quads.filter((q) => !matchesQuadPattern(q, pattern));
 		return Promise.resolve();
 	}
 

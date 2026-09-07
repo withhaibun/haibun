@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { SEQ_PATH_FIELD, RecordNameSchema, SeqPathSchema, compareSeqPath, extractSeqPathPrefix, formatRecordName, parseRecordName, parseSeqPath, seqPathDomainDefinition } from "./seq-path.js";
 import { LinkRelations } from "./resources.js";
 import { EXECUTION_MODES } from "../schema/protocol.js";
+import { queryableFields } from "./hypermedia.js";
 
 describe("parseSeqPath", () => {
 	it("parses a dot-joined seqPath string back to its number tuple", () => {
@@ -112,5 +113,11 @@ describe("what names a record of a run", () => {
 	it("is strict about what a name holds, so a second shape cannot creep in", () => {
 		expect(RecordNameSchema.safeParse({ execution: "1700000000000-4", path: [0], suffix: "x" }).success).toBe(false);
 		expect(RecordNameSchema.safeParse({ execution: "[0.1]", path: [0] }).success).toBe(false);
+	});
+});
+
+describe("what a step offers as a filter", () => {
+	it("includes when it ended, which is what a reader following the run asks for to find the steps whose records changed", () => {
+		expect(queryableFields(seqPathDomainDefinition)).toContain("endedAtTime");
 	});
 });

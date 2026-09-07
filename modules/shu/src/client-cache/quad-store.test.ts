@@ -29,6 +29,16 @@ describe("the questions the site answers, asked of the graph this page caches", 
 		expect([...new Set(privately.quads.map((q) => q.subject))].sort(), "and a read that may see it does").toEqual(["a", "b", "o", "p"]);
 	});
 
+	it("answers what points at an individual by its id, and a value that is not an id the same way", async () => {
+		// An id is looked up; a value that cannot be a key is matched after the widest read. Both answer the same question.
+		await store.upsertIndividual("Email", { "@id": "e", inReplyTo: "a", flagged: true, tags: ["x", "y"] });
+		await store.upsertIndividual("Comment", { "@id": "d", inReplyTo: "a" });
+		expect((await store.query({ object: "a" })).map((q) => `${q.namedGraph}:${q.subject}`).sort()).toEqual(["Comment:d", "Email:e"]);
+		expect((await store.query({ object: true })).map((q) => q.subject)).toEqual(["e"]);
+		expect((await store.query({ object: ["x", "y"], namedGraph: "Email" })).map((q) => q.predicate)).toEqual(["tags"]);
+		expect((await store.query({ object: "nothing points here" })).length).toBe(0);
+	});
+
 	it("groups what it caches by type, with each type's total", async () => {
 		const clustered = await store.getClusteredQuads(access);
 		expect(clustered.clusters.map((c) => c.type).sort()).toEqual(["Comment", "Email"]);

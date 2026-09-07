@@ -165,6 +165,11 @@ export function rowOfRecord(label: string, record: Record<string, unknown>): TRu
 	return stepRow(record);
 }
 
+/** Each record once, in the order the run put them: two readings of one record are one row. */
+function oneEach(rows: TRunRow[]): TRunRow[] {
+	return [...new Map(rows.map((r) => [r.id, r])).values()].sort(inRunOrder);
+}
+
 /** A window and the moments it spans: its first and last row's instants. */
 function windowOf(rows: TRunRow[]): TRunWindow {
 	return { rows, ...(rows.length ? { from: rows[0].at, to: rows[rows.length - 1].at } : {}) };
@@ -248,15 +253,17 @@ export async function runWindow({
 		rows.sort(inRunOrder);
 		return direction === "before" ? rows.slice(-limit) : rows.slice(0, limit);
 	};
-	// What has happened since a reader last read: the records from that moment on, which is what a view following the
-	// run asks for once it holds the rest. Reading the whole window again to find a few new records is what makes
-	// following a long run cost what the run costs.
-	if (since !== undefined) return windowOf(boundToOne(await read("after", size, since)));
+	// What has happened since a reader last read: the records from that moment on, and the steps that ended since it,
+	// whose records changed at their end though they began before. Reading the whole window again to find a few new
+	// records is what makes following a long run cost what the run costs.
+	if (since !== undefined) {
+		const [begun, ended] = await Promise.all([read("after", size, since), side(SEQ_PATH_LABEL, SEQ_PATH_FIELD.endedAtTime, since, "after", size, shown)]);
+		return windowOf(boundToOne(oneEach([...begun, ...ended.map(stepRow)])));
+	}
 	// No moment named is the live edge, which is the newest records and nothing after them.
 	if (at === undefined) return windowOf(boundToOne(await read("before", size)));
 	const half = Math.floor(size / 2);
 	const [before, after] = await Promise.all([read("before", half), read("after", size - half)]);
 	const filled = await toppedUp(before, after, half, size, read);
-	const oneEach = [...new Map(filled.map((r) => [r.id, r])).values()].sort(inRunOrder);
-	return windowOf(boundToOne(oneEach).slice(0, size));
+	return windowOf(boundToOne(oneEach(filled)).slice(0, size));
 }

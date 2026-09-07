@@ -10,21 +10,14 @@
  * rather than nothing. What it holds is what the site already served this reader, so a read of it gates nothing further.
  */
 import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
-import type { IQuadStore, TClusteredQuads, TQuad, TQuadPattern } from "@haibun/core/lib/quad-types.js";
+import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
-import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, done, withStores as withClientCacheStores } from "./device-store.js";
+import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, withStores as withClientCacheStores } from "./device-store.js";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
 type StoredQuad = TQuad & { spg: string };
 const spgKey = (namedGraph: string, subject: string, predicate: string): string => `${namedGraph}|${subject}|${predicate}`;
 const strip = ({ spg, ...quad }: StoredQuad): TQuad => quad;
-const objectEquals = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
-
-const matchesPattern = (q: TQuad, p: TQuadPattern): boolean =>
-	(p.subject === undefined || q.subject === p.subject) &&
-	(p.predicate === undefined || q.predicate === p.predicate) &&
-	(p.namedGraph === undefined || q.namedGraph === p.namedGraph) &&
-	(p.object === undefined || objectEquals(q.object, p.object));
 
 /** Run `fn` in one transaction over the quads, and resolve once it commits; `undefined` when IndexedDB is unavailable. */
 const withStore = <T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => T | Promise<T>): Promise<T | undefined> =>
@@ -52,14 +45,13 @@ export class IndexedDbQuadStore implements IQuadStore {
 
 	async query(pattern: TQuadPattern): Promise<TQuad[]> {
 		const rows = await withStore("readonly", async (store) => {
-			// Narrow with the most selective available index, then filter the remaining fields.
-			const indexed =
-				pattern.subject !== undefined
-					? await done(store.index(IDX_QUAD_SUBJECT).getAll(pattern.subject))
-					: pattern.namedGraph !== undefined
-						? await done(store.index(IDX_QUAD_NAMED_GRAPH).getAll(pattern.namedGraph))
-						: await done(store.getAll());
-			return (indexed as StoredQuad[]).filter((q) => matchesPattern(q, pattern)).map(strip);
+			// Narrow with the most selective index the pattern names, then filter the remaining fields. An object is an
+			// index key where it names an individual (an id); any other value is matched after the widest read.
+			const keyed = typeof pattern.object === "string" || typeof pattern.object === "number";
+			const by: [string, IDBValidKey] | undefined =
+				pattern.subject !== undefined ? [IDX_QUAD_SUBJECT, pattern.subject] : keyed ? [IDX_QUAD_OBJECT, pattern.object as IDBValidKey] : pattern.namedGraph !== undefined ? [IDX_QUAD_NAMED_GRAPH, pattern.namedGraph] : undefined;
+			const indexed = by ? await done(store.index(by[0]).getAll(by[1])) : await done(store.getAll());
+			return (indexed as StoredQuad[]).filter((q) => matchesQuadPattern(q, pattern)).map(strip);
 		});
 		return rows ?? [];
 	}
@@ -84,7 +76,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 						resolve();
 						return;
 					}
-					if (matchesPattern(cursor.value as StoredQuad, pattern)) cursor.delete();
+					if (matchesQuadPattern(cursor.value as StoredQuad, pattern)) cursor.delete();
 					cursor.continue();
 				};
 				req.onerror = () => reject(req.error);
