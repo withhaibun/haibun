@@ -117,7 +117,7 @@ describe("what names a record of a run", () => {
 });
 
 describe("what a step offers as a filter", () => {
-	it("includes when it ended, which is what a reader following the run asks for to find the steps whose records changed", () => {
+	it("includes when the step ended, so a follower can ask for the steps that ended after its last read", () => {
 		expect(queryableFields(seqPathDomainDefinition)).toContain("endedAtTime");
 	});
 });

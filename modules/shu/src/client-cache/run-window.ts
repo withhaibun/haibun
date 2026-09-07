@@ -253,9 +253,9 @@ export async function runWindow({
 		rows.sort(inRunOrder);
 		return direction === "before" ? rows.slice(-limit) : rows.slice(0, limit);
 	};
-	// What has happened since a reader last read: the records from that moment on, and the steps that ended since it,
-	// whose records changed at their end though they began before. Reading the whole window again to find a few new
-	// records is what makes following a long run cost what the run costs.
+	// What happened after the last read: the records that began after it, and the steps that ended after it. A step's
+	// record changes when the step ends, so an ended step is a changed record even though it began earlier. Reading
+	// the whole window again to find a few new records is what makes following a long run cost what the run costs.
 	if (since !== undefined) {
 		const [begun, ended] = await Promise.all([read("after", size, since), side(SEQ_PATH_LABEL, SEQ_PATH_FIELD.endedAtTime, since, "after", size, shown)]);
 		return windowOf(boundToOne(oneEach([...begun, ...ended.map(stepRow)])));
