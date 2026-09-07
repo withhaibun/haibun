@@ -8,6 +8,7 @@
  */
 import type { IQuadStore, TDensityQuery, TDensityResult, TGraphQuery, TGraphQueryResult } from "@haibun/core/lib/quad-types.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
+import { EXECUTION_FIELD } from "@haibun/core/lib/seq-path.js";
 
 export type TRunGraph = {
 	/** The records of one type the query names. */
@@ -24,5 +25,23 @@ export function runGraphOf(store: IQuadStore, declares: (label: string) => boole
 		query: (query) => queryQuadStore(store, query),
 		density: (query) => store.density(query),
 		declares,
+	};
+}
+
+/**
+ * One run of the graph given: every read of it carries the run's own name, so what is read, counted and spanned is one
+ * run rather than whatever the store holds.
+ *
+ * A store holds the records of every run written to it, and a record states the run it belongs to, so this is a filter
+ * rather than a second store. With no run named the graph is read as it is, which is what a page reads by before it
+ * has read anything and learned which run it is looking at.
+ */
+export function ofExecution(graph: TRunGraph, execution: string | undefined): TRunGraph {
+	if (execution === undefined) return graph;
+	const named = { predicate: EXECUTION_FIELD, operator: "eq", value: execution };
+	return {
+		query: (query) => graph.query({ ...query, filters: [...(query.filters ?? []), named] } as TGraphQuery),
+		density: (query) => graph.density({ ...query, filters: [...(query.filters ?? []), named] } as TDensityQuery),
+		declares: graph.declares,
 	};
 }

@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
+import { EXECUTION_FIELD } from "./seq-path.js";
 import { AccessLevelSchema, LinkRelations, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 export const RUN_ARTIFACT_DOMAIN = "run-artifact";
@@ -27,6 +28,8 @@ export const RUN_ARTIFACT_FIELD = {
 	 *  own machinery under them. */
 	level: "level",
 	generatedAtTime: "generatedAtTime",
+	/** The run that produced it. */
+	execution: EXECUTION_FIELD,
 } as const;
 
 /** Artifact edge names. */
@@ -44,6 +47,7 @@ export const RunArtifactSchema = z.object({
 	[RUN_ARTIFACT_FIELD.mediaType]: z.string().optional(),
 	[RUN_ARTIFACT_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
 	[RUN_ARTIFACT_FIELD.generatedAtTime]: z.string(),
+	[RUN_ARTIFACT_FIELD.execution]: z.string().optional(),
 	accessLevel: AccessLevelSchema.optional(),
 });
 export type TRunArtifact = z.infer<typeof RunArtifactSchema>;
@@ -65,6 +69,7 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 			[RUN_ARTIFACT_FIELD.featureRelativePath]: LinkRelations.SOURCE_PATH.rel,
 			[RUN_ARTIFACT_FIELD.mediaType]: LinkRelations.MEDIA_TYPE.rel,
 			[RUN_ARTIFACT_FIELD.level]: LinkRelations.CONTEXT.rel,
+			[RUN_ARTIFACT_FIELD.execution]: LinkRelations.CONTEXT.rel,
 			[RUN_ARTIFACT_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},

@@ -45,6 +45,11 @@ export function extractSeqPathPrefix(id: string): string | null {
  * feature walk the same step paths, so a path alone does not name a step; this is what tells one run of it from
  * another, and what a reader coming back to a run reads by.
  */
+/** The field every record of a run states its execution in. A record's id names its execution too, but a field is what
+ *  a store can filter on, which is what lets a run be read, counted and spanned as one run rather than as whatever the
+ *  store holds. */
+export const EXECUTION_FIELD = "execution";
+
 export function executionOf(tag: { key: string; featureNum: number }): string {
 	return `${tag.key}-${tag.featureNum}`;
 }
@@ -132,6 +137,9 @@ export const SEQ_PATH_FIELD = {
 	 *  Written on the record because a reader filtering by level filters records, and a page's own calls are steps the
 	 *  run records exactly like any other. */
 	level: "level",
+	/** The run this step belongs to. Written by every writer; a record without one was written before the field was
+	 *  declared, and is part of no run a reader can ask for by name. */
+	execution: EXECUTION_FIELD,
 } as const;
 
 /** SeqPath edge names. */
@@ -167,6 +175,7 @@ export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.ranVia]: z.enum(["local", "remote", "subprocess"]).optional(),
 	[SEQ_PATH_FIELD.ranOn]: z.string().optional(),
 	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS).optional(),
+	[SEQ_PATH_FIELD.execution]: z.string().optional(),
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
@@ -199,6 +208,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.ranVia]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.ranOn]: LinkRelations.RAN_ON.rel,
 			[SEQ_PATH_FIELD.level]: LinkRelations.CONTEXT.rel,
+			[SEQ_PATH_FIELD.execution]: LinkRelations.CONTEXT.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },

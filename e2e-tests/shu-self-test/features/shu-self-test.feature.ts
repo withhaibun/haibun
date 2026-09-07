@@ -28,6 +28,9 @@ const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SP
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
+/** The client cache's count of what the live stream has delivered at the run's own level since the view opened: what
+ *  says the stream is announcing again, as against a page that is still deaf. */
+const CACHE_LIVE_INFO = `${SHU_TEST_IDS.CLIENT_CACHE.LIVE}info`;
 /** The line the whole run's shape is read from, the line of the region around where a reader is, and the earliest
  *  division of each that a reader can press. */
 const RUN_SHAPE = `${SHU_TEST_IDS.TIME_BAR.ROOT}run`;
@@ -275,8 +278,10 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The stream coming back is what a view catches up on" }),
 
-		"Allowing the stream is the only thing that happens: the page is not reloaded and nothing is clicked. What a stream that comes back delivers first is what the run recorded while nobody was listening, which arrives as any other announcement does, so the reading is no longer what it held while it was deaf. Catching up is not a second path beside following: it is the same one.",
+		"Allowing the stream is the only thing that happens: the page is not reloaded and nothing is clicked. What a stream that comes back delivers first is what the run recorded while nobody was listening, which arrives as any other announcement does, so the reading is no longer what it held while it was deaf. Catching up is not a second path beside following: it is the same one. The stream being back is waited for rather than assumed from a length of time, since a page reconnects on its own schedule and reading again follows the announcement rather than the clock.",
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
+		setAs({ what: CACHE_LIVE_INFO, domain: "page-test-id", value: `"${CACHE_LIVE_INFO}"` }),
+		waitFor({ target: CACHE_LIVE_INFO }),
 		"pause for 6s",
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
 		"not variable eventsCaughtUp is eventsUnheard",
