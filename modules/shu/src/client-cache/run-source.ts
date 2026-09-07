@@ -32,6 +32,8 @@ export interface RunSource extends WindowedSource<TEventRecord> {
 	readonly ended: boolean;
 	/** Learn the extent if not yet known: the first thing a view awaits. */
 	ready(): Promise<void>;
+	/** Read the run around a moment, or follow its newest records where none is named. */
+	readAt(at?: number): Promise<void>;
 }
 
 /** The sources a view is reading the run by, so a view of what this page holds lists what is actually being read. */
@@ -43,6 +45,40 @@ const made = (): Set<(source: RunSource) => void> => pagePinned(MADE_KEY, () => 
 /** The run sources being read, in level order: what a view of the page's own caches reads, making none. */
 export function runSources(): RunSource[] {
 	return [...reading()].sort((a, b) => HAIBUN_LOG_LEVELS.indexOf(a.level) - HAIBUN_LOG_LEVELS.indexOf(b.level));
+}
+
+/** The moment the run is read around, held by the page rather than by each source: every view of a run reads the same
+ *  moment of it, and a source made after the moment was set starts there rather than at the newest records. Undefined
+ *  is the newest records, which is what a run is read at until a reader moves. */
+const READING_AT_KEY = "__SHU_RUN_READING_AT__";
+const readingAt = (): { at?: number } => pagePinned(READING_AT_KEY, () => ({}));
+
+/** The moment the run is read around, or undefined while the newest records are being followed. */
+export function runReadingAt(): number | undefined {
+	return readingAt().at;
+}
+
+/** Whether a source's window already holds a moment, so reading it there would read the records it holds. Following
+ *  the newest records is holding them: a window whose newest row is the newest the page has seen of the run is already
+ *  where a reader returning to the live edge is going. A source that has read nothing holds nothing. */
+function alreadyHolds(source: RunSource, moment: number | undefined): boolean {
+	const { first, last } = source.extent();
+	if (first === undefined || last === undefined) return false;
+	return moment === undefined ? last >= runSpan().last : moment >= first && moment <= last;
+}
+
+/** Read the run around a moment, on every source a view is reading by; `null` follows the newest records again.
+ *
+ * What a reader is looking at is what is read. A window holds a few thousand records, so a moment far from the newest
+ * is a moment no window holds, and a reader moving there with nothing read would be shown the records they had left
+ * rather than the ones they asked for. A source whose window already holds the moment reads nothing, which is what
+ * bounds this: playback moves the cursor every frame, and a run is read again only when the cursor leaves the window. */
+export async function readRunAt(at: number | null): Promise<void> {
+	const moment = at ?? undefined;
+	const held = readingAt();
+	if (held.at === moment) return;
+	held.at = moment;
+	await Promise.all(runSources().filter((source) => !alreadyHolds(source, moment)).map((source) => source.readAt(moment)));
 }
 
 /** Report a source a view is reading by; the returned function says it has stopped. */
@@ -98,6 +134,7 @@ export function atLiveEdge(instant: number): boolean {
 export function resetRunSources(): void {
 	reading().clear();
 	made().clear();
+	readingAt().at = undefined;
 	const held = span();
 	held.first = undefined;
 	held.last = undefined;

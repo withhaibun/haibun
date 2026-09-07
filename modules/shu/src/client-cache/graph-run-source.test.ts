@@ -10,6 +10,7 @@ import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { graphRunSource, resetGraphRunSources } from "./graph-run-source.js";
+import { readRunAt, runReadingAt } from "./run-source.js";
 
 const iso = (n: number): string => new Date(n).toISOString();
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
@@ -63,6 +64,51 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.count()).toBe(2);
 		await source.readAt(1000);
 		expect(source.rowAt(0)).toMatchObject({ timestamp: 1000 });
+	});
+
+	it("reads every source at the moment the run is read around, and follows the newest records again when none is named", async () => {
+		const info = graphRunSource("info", { size: 2 });
+		const debug = graphRunSource("debug", { size: 2 });
+		await Promise.all([info.ready(), debug.ready()]);
+		await readRunAt(1000);
+		expect(runReadingAt(), "the moment is the page's, so every view of the run reads the same one").toBe(1000);
+		expect(info.rowAt(0)).toMatchObject({ timestamp: 1000 });
+		expect(debug.rowAt(0)).toMatchObject({ timestamp: 1000 });
+		await readRunAt(null);
+		expect(runReadingAt()).toBeUndefined();
+		expect(debug.rowAt(1), "the newest records the run holds").toMatchObject({ timestamp: 1400 });
+	});
+
+	it("makes a source at the moment the run is read around, so a view opened while a reader reads the past reads it too", async () => {
+		await readRunAt(1000);
+		const source = graphRunSource("debug", { size: 2 });
+		await source.ready();
+		expect(source.rowAt(0), "where the reader is, rather than the newest records").toMatchObject({ timestamp: 1000 });
+	});
+
+	it("reads a run past the window at the window's size, wherever in it the reader is", async () => {
+		// A run of more records than a window holds is the case the window exists for: what it costs to read must be the
+		// window's size and not the run's, and where a reader moves must be read rather than assumed to be held already.
+		const PAST_THE_WINDOW = 600;
+		const size = 50;
+		const began = 10000;
+		const each = 1000;
+		for (let i = 0; i < PAST_THE_WINDOW; i++) {
+			await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.1.${i}@0`, message: `record ${i}`, level: "info", generatedAtTime: iso(began + i * each), isPartOf: `${RUN}.0.1` });
+		}
+		const source = graphRunSource("info", { size });
+		await source.ready();
+		expect(source.count(), "the newest of the run, at the window's size").toBe(size);
+		const early = began + 100 * each;
+		await readRunAt(early);
+		const times = Array.from({ length: source.count() }, (_, i) => (source.rowAt(i) as { timestamp: number }).timestamp);
+		expect(times.length, "still the window's size, however far from the newest records the reader moved").toBe(size);
+		expect(Math.min(...times)).toBeGreaterThan(began);
+		expect(Math.max(...times)).toBeLessThan(began + (PAST_THE_WINDOW - 1) * each);
+		expect(times.some((t) => Math.abs(t - early) < size * each), "the records around where the reader is").toBe(true);
+		await readRunAt(early + each);
+		const after = Array.from({ length: source.count() }, (_, i) => (source.rowAt(i) as { timestamp: number }).timestamp);
+		expect(after, "a moment the window already holds is read from the window rather than read again").toEqual(times);
 	});
 
 

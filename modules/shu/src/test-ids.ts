@@ -122,6 +122,8 @@ export const SHU_TEST_IDS = {
 	CLIENT_CACHE: {
 		ROOT: "client-cache-view",
 		CURSOR: "client-cache-cursor",
+		/** The moment the run is read around, or that its newest records are being followed. */
+		READING_AT: "client-cache-reading-at",
 		/** When the server last responded to this page, or that it has not. */
 		SERVER: "client-cache-server",
 		REGISTRY: "client-cache-registry",

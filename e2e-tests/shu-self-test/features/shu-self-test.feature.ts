@@ -285,14 +285,21 @@ export const features: TKirejiExport = {
 		setAs({ what: RUN_SHAPE, domain: "page-test-id", value: `"${RUN_SHAPE}"` }),
 		setAs({ what: RUN_SHAPE_FIRST_MARK, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.TIME_BAR.MARK}'] >> nth=0"` }),
 		setAs({ what: IDS.CLIENT_CACHE.CURSOR, domain: "page-test-id", value: `"${IDS.CLIENT_CACHE.CURSOR}"` }),
+		setAs({ what: IDS.CLIENT_CACHE.READING_AT, domain: "page-test-id", value: `"${IDS.CLIENT_CACHE.READING_AT}"` }),
 		waitFor({ target: RUN_SHAPE }),
 
 		"Every view follows the shared cursor, and the client cache says where it is: at the live edge until a reader moves it. Pressing the earliest division of the run moves it there, which is a moment the run has already passed.",
 		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAtEdge`,
 		'variable cursorAtEdge is "live edge"',
+		`save text from ${IDS.CLIENT_CACHE.READING_AT} to readingAtEdge`,
+		'variable readingAtEdge is "following the newest records"',
 		click({ target: RUN_SHAPE_FIRST_MARK }),
 		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAfterPress`,
 		'not variable cursorAfterPress is "live edge"',
+
+		"Moving the cursor is not enough on its own. A window holds a few thousand records, so a division far from the newest records is a division no window holds, and a reader pressing it would be shown the records they had left. The cursor names the moment the run is read around, so pressing a division reads the run there. The client cache says which it is: the newest records are followed until a reader moves, and after that the run is read around the moment they moved to.",
+		`save text from ${IDS.CLIENT_CACHE.READING_AT} to readingAfterPress`,
+		`matches readingAfterPress with "the run is read around *"`,
 
 		scenario({ scenario: "A page with no layout of its own starts on the views the run showed" }),
 

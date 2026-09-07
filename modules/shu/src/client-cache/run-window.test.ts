@@ -6,7 +6,7 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { detailRegion, runWindow } from "./run-window.js";
+import { detailRegion, runExtent, runWindow } from "./run-window.js";
 import { runGraphOf } from "./run-graph.js";
 
 const RUN = "1700000000000-1";
@@ -192,5 +192,29 @@ describe("the span a reader is shown in detail", () => {
 	it("spans nothing when the run holds nothing, rather than failing", async () => {
 		const graph = runGraphOf(new QuadStore());
 		expect(await detailRegion(graph, { at: 1000, half: 2 })).toEqual({ from: 1000, to: 1000 });
+	});
+});
+
+describe("how far a run reaches", () => {
+	it("reads the run's own first and last, not the part of it a reader has read", async () => {
+		const store = new QuadStore();
+		for (let i = 0; i < 50; i++) await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i) });
+		const graph = runGraphOf(store);
+		// A reader holding a window of three still sees a run of fifty.
+		const window = await runWindow(graph, { size: 3 });
+		expect([window.from, window.to]).toEqual([1047, 1049]);
+		expect(await runExtent(graph)).toEqual({ first: 1000, last: 1049 });
+	});
+
+	it("reaches across every kind of record a run writes, not only its steps", async () => {
+		const store = new QuadStore();
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1`, stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(2000) });
+		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.1@0`, message: "said before it", level: "info", generatedAtTime: iso(1000) });
+		await store.upsertIndividual(RUN_ARTIFACT_LABEL, { id: `${RUN}.0.1@1`, artifactType: "json", level: "info", generatedAtTime: iso(3000) });
+		expect(await runExtent(runGraphOf(store))).toEqual({ first: 1000, last: 3000 });
+	});
+
+	it("reaches nowhere when the run has written nothing, rather than failing", async () => {
+		expect(await runExtent(runGraphOf(new QuadStore()))).toEqual({ first: 0, last: 0 });
 	});
 });

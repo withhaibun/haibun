@@ -24,7 +24,7 @@ import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import type { Range } from "../ranges.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import { RUN_WINDOW_SIZE, inRunOrder, runWindow, type TRunRow } from "./run-window.js";
-import { noteRunSpan, readingBy, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
+import { noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
 
 /** How long a burst of changes is collected before the window is read again. */
 export const RE_READ_AFTER_MS = 250;
@@ -90,7 +90,7 @@ export function resetGraphRunSources(): void {
 	sources().clear();
 }
 
-export type TGraphRunSource = RunSource & { readAt(at?: number): Promise<void>; close(): void };
+export type TGraphRunSource = RunSource & { close(): void };
 
 export function graphRunSource(level: THaibunLogLevel, options: { size?: number; reReadAfterMs?: number } = {}): TGraphRunSource {
 	const held = sources().get(level);
@@ -104,7 +104,9 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	let rows: TEventRecord[] = [];
 	let extent: TRunExtent = { total: 0 };
 	let loaded = false;
-	let at: number | undefined;
+	// The moment the page reads the run around: a source made while a reader is reading the past starts where they are
+	// rather than at the newest records, so two views of one run cannot show two moments of it.
+	let at: number | undefined = runReadingAt();
 	let reading: Promise<void> | null = null;
 	let due: ReturnType<typeof setTimeout> | null = null;
 	const subs = new Set<() => void>();
