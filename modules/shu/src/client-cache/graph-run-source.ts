@@ -165,13 +165,16 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		const shown = new Set(rows);
 		for (const [key, row] of held) if (!shown.has(row)) held.delete(key);
 		const newest = window[window.length - 1]?.name;
-		if (newest) noteExecution(newest.execution);
 		const from = window[0]?.at;
 		const to = window[window.length - 1]?.at;
 		extent = { total: rows.length, ...(from === undefined ? {} : { first: from }), ...(to === undefined ? {} : { last: to }) };
 		loaded = true;
 		noteRunSpan(from, to);
 		notify();
+		// Last of all: saying which run this window is of can be what says the run being read has changed, and what
+		// reads a run again on hearing that is this same source. A read that announced before it had finished would be
+		// answering with the window it was told to leave.
+		if (newest) noteExecution(newest.execution);
 	};
 
 	// What the run says has changed is what makes the window stale, and a burst of changes reads it once. Only a change

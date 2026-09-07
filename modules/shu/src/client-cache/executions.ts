@@ -29,9 +29,18 @@ export function currentExecution(): string | undefined {
 	return reading().chosen;
 }
 
-/** The execution whose records a window last read: what the page is looking at when no reader has chosen one. */
+/** The execution whose records a window last read: what the page is looking at when no reader has chosen one. A run
+ *  that has started while a page was following the one before it is the execution being read from that moment, so this
+ *  says so the way a reader choosing one does: what is drawn of a run and what is read of it are of the same run. */
 export function noteExecution(execution: string): void {
-	reading().observed = execution;
+	const held = reading();
+	if (held.observed === execution) return;
+	const was = readingExecution();
+	held.observed = execution;
+	// A page learning which run it is reading is not a change of run: it read nothing before and reads that run now.
+	// One named run giving way to another is, and that is a run that started while the page followed the one before it.
+	if (was === undefined || readingExecution() === was) return;
+	for (const fn of held.switched) fn();
 }
 
 /** The execution being read: the one chosen, else the one the last window read. Undefined before any has been read. */
@@ -48,7 +57,8 @@ export function readExecution(execution: string | undefined): void {
 	for (const fn of held.switched) fn();
 }
 
-/** Be told when the execution being read changes, by a reader choosing one. */
+/** Be told when the execution being read changes, whether a reader chose it or a run that started while the page was
+ *  following the one before it became the one being read. */
 export function subscribeExecutionSwitch(fn: () => void): () => void {
 	const held = reading();
 	held.switched.add(fn);

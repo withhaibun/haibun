@@ -29,7 +29,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
-import { hydrateClientCache, viewsShown, runShape, runCounts, marksOf, detailRegion, RUN_DIVISIONS, runSpan, atLiveEdge, readRunAt, subscribeExecutionSwitch, subscribeRunSources, type TRunMark } from "./client-cache/index.js";
+import { hydrateClientCache, viewsShown, runShape, runCounts, marksOf, detailRegion, ofExecution, readingExecution, RUN_DIVISIONS, runSpan, atLiveEdge, readRunAt, subscribeExecutionSwitch, subscribeRunSources, type TRunMark } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -381,8 +381,12 @@ const main = async (): Promise<void> => {
 	// The run counted as it grows: a division is a fixed stretch of time, so what has been counted stays counted and
 	// each count reads only what the run has recorded since the last one. Another execution is another run, and its
 	// shape is its own.
-	let shape = runShape(pageRunGraph());
-	eventsController.signal.addEventListener("abort", subscribeExecutionSwitch(() => (shape = runShape(pageRunGraph()))));
+	// The run being read, which is the run drawn: a store holds every run written to it, so a shape counted over the
+	// store would be the shape of all of them. A run that starts while the page is following the one before it becomes
+	// the run being read, and its shape is its own, so the shape is made again rather than added to.
+	const runGraph = () => ofExecution(pageRunGraph(), readingExecution());
+	let shape = runShape(runGraph());
+	eventsController.signal.addEventListener("abort", subscribeExecutionSwitch(() => (shape = runShape(runGraph()))));
 	const drawRunShape = async (): Promise<void> => {
 		const bar = timeBar("run");
 		if (!bar) return;
@@ -418,7 +422,7 @@ const main = async (): Promise<void> => {
 		if (detailSpan && at >= detailSpan.from && at <= detailSpan.to) return;
 		readingRegion = true;
 		try {
-			const graph = pageRunGraph();
+			const graph = runGraph();
 			detailSpan = await detailRegion(graph, { at });
 			bar.divisions = RUN_DIVISIONS;
 			bar.marks = marksOf(await runCounts(graph, { from: detailSpan.from, to: detailSpan.to, divisions: RUN_DIVISIONS }), RUN_DIVISIONS);

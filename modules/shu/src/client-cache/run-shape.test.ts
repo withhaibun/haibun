@@ -5,9 +5,10 @@ import { describe, it, expect } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { MARK_COLOUR } from "../event-marker.js";
-import { runGraphOf, type TRunGraph } from "./run-graph.js";
+import { ofExecution, runGraphOf, type TRunGraph } from "./run-graph.js";
 import { runShape } from "./run-shape.js";
 
 const RUN = "1700000000000-1";
@@ -17,14 +18,14 @@ const iso = (n: number): string => new Date(n).toISOString();
 const aRun = async (steps: Array<{ at: number; status: string }> = [], said: Array<{ at: number; level: string }> = []) => {
 	const store = new QuadStore();
 	const counted: TDensityQuery[] = [];
-	const addStep = async (at: number, status: string, i: number) => store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at) });
-	const addSaid = async (at: number, level: string, i: number) => store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, message: `said ${i}`, level, generatedAtTime: iso(at) });
+	const addStep = async (at: number, status: string, i: number) => store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, execution: RUN, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at) });
+	const addSaid = async (at: number, level: string, i: number) => store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, execution: RUN, message: `said ${i}`, level, generatedAtTime: iso(at) });
 	for (const [i, s] of steps.entries()) await addStep(s.at, s.status, i);
 	for (const [i, m] of said.entries()) await addSaid(m.at, m.level, 100 + i);
 	const over = runGraphOf(store);
 	const graph: TRunGraph = { ...over, density: (query) => (counted.push(query), over.density(query)) };
 	let more = steps.length;
-	return { graph, counted, step: (at: number, status: string) => addStep(at, status, more++) };
+	return { graph, store, counted, step: (at: number, status: string) => addStep(at, status, more++) };
 };
 
 describe("the shape of a run, by division", () => {
@@ -85,6 +86,18 @@ describe("the shape of a run, by division", () => {
 		await shape.update(1001);
 		expect(shape.marks.length, "the debug message is not shown at this level, the error is").toBe(1);
 		expect(shape.marks[0].color).toBe(MARK_COLOUR.fault);
+	});
+
+	it("is the shape of one run, over a store holding more than one", async () => {
+		const { graph, store } = await aRun([
+			{ at: 1000, status: "passed" },
+			{ at: 3000, status: "passed" },
+		]);
+		const other = "1700000009000-2";
+		for (const at of [1500, 2000, 2500]) await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: `${other}.0.${at}`, [SEQ_PATH_FIELD.execution]: other, stepText: "another run's step", actionStatus: "failed", level: "info", generatedAtTime: iso(at) });
+		const shape = runShape(ofExecution(graph, RUN), { divisions: 3 });
+		await shape.update(3000);
+		expect(shape.marks.map((m) => m.division), "the divisions the other run wrote in hold nothing of this one").toEqual([0, 2]);
 	});
 
 	it("counts only what the run has recorded since the last count", async () => {

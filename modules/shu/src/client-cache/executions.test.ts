@@ -7,7 +7,7 @@ import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { individualAsQuads } from "./quad-store.js";
 import { setGraphStore } from "../quads-snapshot.js";
-import { executionsHeld, forgetExecution, holdOnDevice, readExecution, resetExecutions } from "./executions.js";
+import { executionsHeld, forgetExecution, holdOnDevice, noteExecution, readExecution, readingExecution, resetExecutions, subscribeExecutionSwitch } from "./executions.js";
 
 const OLDER = "1700000000000-1";
 const NEWER = "1700000009000-2";
@@ -39,6 +39,29 @@ describe("what a device holds of the runs it has read", () => {
 		await aDevice();
 		expect((await executionsHeld()).map((one) => one.execution)).toEqual([NEWER, OLDER]);
 		expect((await executionsHeld())[0].features).toEqual(["run 1"]);
+	});
+
+	it("says the run being read changed when a run starts while the page is following the one before it", () => {
+		let told = 0;
+		const stop = subscribeExecutionSwitch(() => told++);
+		noteExecution(OLDER);
+		expect(readingExecution()).toBe(OLDER);
+		expect(told, "a page learning which run it is reading has not changed run").toBe(0);
+		noteExecution(OLDER);
+		expect(told, "the same run again is not a change either").toBe(0);
+		noteExecution(NEWER);
+		expect(told, "the run that started is the one being read, and what is drawn of a run follows it").toBe(1);
+		stop();
+	});
+
+	it("leaves the run being read alone while a reader has chosen one, whatever the newest records belong to", () => {
+		readExecution(OLDER);
+		let told = 0;
+		const stop = subscribeExecutionSwitch(() => told++);
+		noteExecution(NEWER);
+		expect(readingExecution(), "the run the reader chose").toBe(OLDER);
+		expect(told, "nothing changed for a reader who is reading a run of their own choosing").toBe(0);
+		stop();
 	});
 
 	it("forgets one run entirely and holds the rest of what it has read", async () => {

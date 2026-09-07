@@ -273,6 +273,9 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 	// generatedAtTime and trip the SeqPathSchema invariant.
 	const record: Record<string, unknown> = {
 		[SEQ_PATH_FIELD.id]: id,
+		// The run this step belongs to, as a field rather than only as the leading part of its id: a store filters on a
+		// field, so a run can be read, counted and spanned as one run.
+		[SEQ_PATH_FIELD.execution]: execution,
 		[SEQ_PATH_FIELD.stepText]: featureStep.in,
 		// What ran, beside what was asked for: a step's own record otherwise says only the words of the line.
 		[SEQ_PATH_FIELD.called]: `${featureStep.action.stepperName}.${featureStep.action.actionName}`,

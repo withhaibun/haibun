@@ -30,6 +30,6 @@ export { graphRunSource } from "./graph-run-source.js";
 export { runWindow, detailRegion, runExtent, RUN_WINDOW_SIZE, DETAIL_HALF, type TRunRow, type TRunWindow } from "./run-window.js";
 export { runCounts, marksOf, type TRunMark } from "./run-marks.js";
 export { runShape, RUN_DIVISIONS, type TRunShape } from "./run-shape.js";
-export { runGraphOf, type TRunGraph } from "./run-graph.js";
+export { runGraphOf, ofExecution, type TRunGraph } from "./run-graph.js";
 export { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";

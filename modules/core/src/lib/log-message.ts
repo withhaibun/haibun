@@ -10,6 +10,7 @@
  */
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
+import { EXECUTION_FIELD } from "./seq-path.js";
 import { AccessLevelSchema, LinkRelations, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 export const LOG_MESSAGE_DOMAIN = "log-message";
@@ -21,6 +22,8 @@ export const LOG_MESSAGE_FIELD = {
 	message: "message",
 	level: "level",
 	generatedAtTime: "generatedAtTime",
+	/** The run this was said during. */
+	execution: EXECUTION_FIELD,
 } as const;
 
 /** LogMessage edge names. */
@@ -36,6 +39,7 @@ export const LogMessageSchema = z.object({
 	[LOG_MESSAGE_FIELD.message]: z.string(),
 	[LOG_MESSAGE_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
 	[LOG_MESSAGE_FIELD.generatedAtTime]: z.string(),
+	[LOG_MESSAGE_FIELD.execution]: z.string().optional(),
 	accessLevel: AccessLevelSchema.optional(),
 });
 export type TLogMessage = z.infer<typeof LogMessageSchema>;
@@ -54,6 +58,7 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 			[LOG_MESSAGE_FIELD.id]: LinkRelations.IDENTIFIER.rel,
 			[LOG_MESSAGE_FIELD.message]: LinkRelations.CONTENT.rel,
 			[LOG_MESSAGE_FIELD.level]: LinkRelations.CONTEXT.rel,
+			[LOG_MESSAGE_FIELD.execution]: LinkRelations.CONTEXT.rel,
 			[LOG_MESSAGE_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
