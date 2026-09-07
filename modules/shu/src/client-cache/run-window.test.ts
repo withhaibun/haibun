@@ -150,6 +150,18 @@ describe("following a run that is still happening", () => {
 		expect(since.rows.map((r) => r.text), "what happened since, and the row at that moment which the reader already holds").toEqual(["step 3", "step 4", "step 5"]);
 	});
 
+	it("reads again a step that ended since, whose record changed at its end though it began before", async () => {
+		const store = new QuadStore();
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1`, stepText: "the feature", actionStatus: "running", level: "info", generatedAtTime: iso(1000) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.2`, stepText: "a step that ended", actionStatus: "passed", level: "info", generatedAtTime: iso(1001), endedAtTime: iso(1002) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "the step now running", actionStatus: "running", level: "info", generatedAtTime: iso(1003) });
+		setGraphStore(store);
+		const first = await runWindow({ size: 10 });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "the step now running", actionStatus: "failed", level: "info", generatedAtTime: iso(1003), endedAtTime: iso(1004) });
+		const since = await runWindow({ size: 10, since: first.to });
+		expect(since.rows.map((r) => [r.text, r.status]), "the step that ended since, as it is now; not the one that ended before, nor the one still open").toEqual([["the step now running", "failed"]]);
+	});
+
 	it("says nothing has happened when nothing has", async () => {
 		const store = new QuadStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1`, stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });

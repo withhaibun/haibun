@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emitQuadObservation, extractQuadsFromEvents, eventsAffectLabel, OBSERVATION_VALUE_MAX, type TQuad } from "./quad-types.js";
+import { emitQuadObservation, extractQuadsFromEvents, eventsAffectLabel, OBSERVATION_VALUE_MAX, type TQuad, matchesQuadPattern } from "./quad-types.js";
 
 const quadEvent = (namedGraph: string) => ({
 	id: `q-${namedGraph}`,
@@ -95,5 +95,22 @@ describe("emitQuadObservation carries previews, never payloads", () => {
 		expect(String(observations[0].object).endsWith("\u2026")).toBe(true);
 		expect(observations[0].properties?.preview).toBe(true);
 		expect(observations[1]).toBe(short);
+	});
+});
+
+describe("matching a quad against a pattern", () => {
+	const quad = (object: unknown) => ({ subject: "s", predicate: "p", object, namedGraph: "G", timestamp: 1 });
+
+	it("compares an object as a value, so an array or an object read back from any store is the same object", () => {
+		expect(matchesQuadPattern(quad(["x", "y"]), { object: ["x", "y"] })).toBe(true);
+		expect(matchesQuadPattern(quad({ a: 1 }), { object: { a: 1 } })).toBe(true);
+		expect(matchesQuadPattern(quad(true), { object: true })).toBe(true);
+		expect(matchesQuadPattern(quad("one"), { object: "two" })).toBe(false);
+	});
+
+	it("names only the fields it states, so a pattern of nothing matches everything", () => {
+		expect(matchesQuadPattern(quad("one"), {})).toBe(true);
+		expect(matchesQuadPattern(quad("one"), { subject: "s", predicate: "q" })).toBe(false);
+		expect(matchesQuadPattern(quad("one"), { namedGraph: "H" })).toBe(false);
 	});
 });

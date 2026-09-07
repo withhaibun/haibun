@@ -205,5 +205,8 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_EDGE.precededBy]: { rel: LinkRelations.PRECEDED_BY.rel, range: SEQ_PATH_LABEL },
 			[SEQ_PATH_EDGE.performedBy]: { rel: LinkRelations.PERFORMED_BY.rel, range: PRINCIPAL_LABEL },
 		},
+		// A step's record changes when the step ends, so when it ended is what a reader following the run asks for to
+		// find the records that changed since they last read, rather than reading each open step again by name.
+		sortColumns: { [SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ" },
 	},
 };

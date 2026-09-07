@@ -46,13 +46,16 @@ const DB_NAME = "shu-client-cache";
 const FORMER_DB_NAMES = ["shu-events", "shu-graph"];
 /** Bumped when the shape changes. An upgrade creates what is missing and keeps what is cached, and a page holding an
  *  earlier version closes its connection as soon as another page upgrades, so no page waits on another. */
-const VERSION = 5;
+const VERSION = 6;
 const META = "meta";
 /** The graph the page holds: quads, in the same database as the registry so the client cache has one lifecycle. */
 export const QUADS = "quads";
 export const IDX_QUAD_SPG = "by-spg";
 export const IDX_QUAD_SUBJECT = "by-subject";
 export const IDX_QUAD_NAMED_GRAPH = "by-named-graph";
+/** What points at an individual is every quad whose object names it: asked of the page whenever it reads an individual it
+ *  holds, so the object is indexed, or that read is a read of everything the page holds. */
+export const IDX_QUAD_OBJECT = "by-object";
 const REGISTRY_KEY = "registry";
 const SHAPE_KEY = "shape";
 /** What the cached data means, apart from the database's structure. The schema version says which stores and indexes
@@ -83,6 +86,7 @@ function openDb(): Promise<IDBDatabase | null> {
 			index(quads, IDX_QUAD_SPG, "spg");
 			index(quads, IDX_QUAD_SUBJECT, "subject");
 			index(quads, IDX_QUAD_NAMED_GRAPH, "namedGraph");
+			index(quads, IDX_QUAD_OBJECT, "object");
 			store(META);
 			// What an earlier build kept its events in: a run is records now, and they are read from the graph.
 			if (db.objectStoreNames.contains("events")) db.deleteObjectStore("events");
