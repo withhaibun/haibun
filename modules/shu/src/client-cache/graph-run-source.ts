@@ -17,7 +17,7 @@ import { HAIBUN_LOG_LEVELS, declaredName, declaresFeature, declaresScenario, typ
 import { subscribeBatchedEvents } from "../event-stream.js";
 import { getWindowSize } from "../window-size-setting.js";
 import { pagePinned } from "../page-pinned.js";
-import { cachedGraphStore } from "../quads-snapshot.js";
+import { cachedGraphStore, pageRunGraph } from "../quads-snapshot.js";
 import { individualAsQuads } from "./quad-store.js";
 import { currentExecution, noteExecution, subscribeExecutionSwitch } from "./executions.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -147,7 +147,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		const execution = currentExecution();
 		const of = { size, minLevel: level, ...(execution === undefined ? {} : { execution }) };
 		const following = at === undefined && window.length > 0;
-		const answer = await runWindow(following ? { ...of, since: window[window.length - 1].at } : { ...of, ...(at === undefined ? {} : { at }) });
+		const answer = await runWindow(pageRunGraph(), following ? { ...of, since: window[window.length - 1].at } : { ...of, ...(at === undefined ? {} : { at }) });
 		if (following) {
 			// A record read again replaces the one held under its name; one not held before is new. Either way the
 			// window is what it held and what has changed, in the order the run put them.

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "./quad-types.js";
+import { DOMAIN_GRAPH_QUERY, GraphQuerySchema , DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { objectCoercer } from "./domains.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
@@ -187,6 +187,12 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: GraphQuerySchema,
 		coerce: objectCoercer(GraphQuerySchema),
 		description: "A request for records of one type from the graph, with optional filters, sort order, and a result limit.",
+	},
+	{
+		selectors: [DOMAIN_DENSITY_QUERY],
+		schema: DensityQuerySchema,
+		coerce: objectCoercer(DensityQuerySchema),
+		description: "A request for how many records of one type fall in each division of a span of time, by how each turned out.",
 	},
 	{
 		selectors: [DOMAIN_JSON],

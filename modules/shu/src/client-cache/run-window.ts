@@ -11,13 +11,13 @@
  * side runs short the other side makes up the difference, so a window is always the size that was asked for when the
  * run holds that many.
  */
+import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_FIELD, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { queryGraph } from "../quads-snapshot.js";
-import { getRels } from "../rels-cache.js";
+import type { TRunGraph } from "./run-graph.js";
 
 /** How many records a reader is shown around where they are. */
 export const RUN_WINDOW_SIZE = 10000;
@@ -219,6 +219,7 @@ const LEVEL = "level";
  * a chatty run read the whole run.
  */
 async function side(
+	graph: TRunGraph,
 	label: string,
 	timeField: string,
 	at: number | undefined,
@@ -230,13 +231,13 @@ async function side(
 	// side with fewer records than a reader asked for is bounded by its furthest, which is one read rather than a count.
 	order: "nearest" | "furthest" = "nearest",
 ): Promise<Record<string, unknown>[]> {
-	// A site that does not declare a type holds none of it, so asking for it would be asking a question with no answer.
-	if (!getRels(label)) return [];
+	// A graph that does not carry a type holds none of it, so asking for it would be asking a question with no answer.
+	if (!graph.declares(label)) return [];
 	const when = at === undefined ? [] : [{ predicate: timeField, operator: direction === "before" ? "lt" : "gte", value: new Date(at).toISOString() }];
 	const shown = { predicate: LEVEL, operator: "in", value: levels[0], values: [...levels] };
 	const nearestFirst = direction === "before" ? "desc" : "asc";
 	const sortOrder = order === "nearest" ? nearestFirst : nearestFirst === "desc" ? "asc" : "desc";
-	const { vertices } = await queryGraph({ label, filters: [...when, shown], sortBy: timeField, sortOrder, limit, offset, skipCount: true });
+	const { vertices } = await graph.query(GraphQuerySchema.parse({ label, filters: [...when, shown], sortBy: timeField, sortOrder, limit, offset, skipCount: true }));
 	return vertices;
 }
 
@@ -246,6 +247,7 @@ export const DETAIL_HALF = 5000;
 /** The instant of one record on one side of a moment, that many records along, or undefined where the side holds
  *  fewer. One row read at an offset, so finding it costs the same whatever it is reaching past. */
 async function instantAt(
+	graph: TRunGraph,
 	type: { label: string; timeField: string },
 	at: number,
 	direction: "before" | "after",
@@ -253,7 +255,7 @@ async function instantAt(
 	levels: readonly THaibunLogLevel[],
 	order: "nearest" | "furthest" = "nearest",
 ): Promise<number | undefined> {
-	const [record] = await side(type.label, type.timeField, at, direction, 1, levels, offset, order);
+	const [record] = await side(graph, type.label, type.timeField, at, direction, 1, levels, offset, order);
 	if (!record) return undefined;
 	const found = instant(record[type.timeField]);
 	return Number.isNaN(found) ? undefined : found;
@@ -269,17 +271,17 @@ async function instantAt(
  * Each bound is one record read at an offset, per type, so finding the span costs the same whatever it spans. The span
  * reaches as far as any type's own bound, since a type cut short of its share would be missing from what is drawn.
  */
-export async function detailRegion({ at, half = DETAIL_HALF, minLevel = "info" }: { at: number; half?: number; minLevel?: THaibunLogLevel }): Promise<{ from: number; to: number }> {
+export async function detailRegion(graph: TRunGraph, { at, half = DETAIL_HALF, minLevel = "info" }: { at: number; half?: number; minLevel?: THaibunLogLevel }): Promise<{ from: number; to: number }> {
 	const shown = atOrAbove(minLevel);
 	const bounds = await Promise.all(
 		RUN_TYPES.map(async (type) => {
-			const [back, forward] = await Promise.all([instantAt(type, at, "before", half - 1, shown), instantAt(type, at, "after", half - 1, shown)]);
+			const [back, forward] = await Promise.all([instantAt(graph, type, at, "before", half - 1, shown), instantAt(graph, type, at, "after", half - 1, shown)]);
 			// A side holding fewer than its share is bounded by its furthest record, and the other side reads on for
 			// what it did not use, so the region holds what was asked for wherever the run has it.
-			const from = back ?? (await instantAt(type, at, "before", 0, shown, "furthest"));
-			const to = forward ?? (await instantAt(type, at, "after", 0, shown, "furthest"));
-			if (back === undefined && to !== undefined) return { from, to: (await instantAt(type, at, "after", 2 * half - 1, shown)) ?? to };
-			if (forward === undefined && from !== undefined) return { from: (await instantAt(type, at, "before", 2 * half - 1, shown)) ?? from, to };
+			const from = back ?? (await instantAt(graph, type, at, "before", 0, shown, "furthest"));
+			const to = forward ?? (await instantAt(graph, type, at, "after", 0, shown, "furthest"));
+			if (back === undefined && to !== undefined) return { from, to: (await instantAt(graph, type, at, "after", 2 * half - 1, shown)) ?? to };
+			if (forward === undefined && from !== undefined) return { from: (await instantAt(graph, type, at, "before", 2 * half - 1, shown)) ?? from, to };
 			return { from, to };
 		}),
 	);
@@ -292,13 +294,10 @@ export async function detailRegion({ at, half = DETAIL_HALF, minLevel = "info" }
  * The window around a moment, or the newest records where no moment is given. `size` is how many records the reader is
  * shown; a level narrows what counts as a record, since a reader asking for warnings is not shown everything under them.
  */
-export async function runWindow({
-	at,
-	since,
-	size = RUN_WINDOW_SIZE,
-	minLevel = "info",
-	execution,
-}: { at?: number; since?: number; size?: number; minLevel?: THaibunLogLevel; execution?: string } = {}): Promise<TRunWindow> {
+export async function runWindow(
+	graph: TRunGraph,
+	{ at, since, size = RUN_WINDOW_SIZE, minLevel = "info", execution }: { at?: number; since?: number; size?: number; minLevel?: THaibunLogLevel; execution?: string } = {},
+): Promise<TRunWindow> {
 	const shown = atOrAbove(minLevel);
 	// A window is of one execution. Records are read by time, and a device holds the records of more than one run, so
 	// what makes a window one run is the execution its ids name: the one asked for, else the one the newest record read
@@ -312,7 +311,7 @@ export async function runWindow({
 	};
 	const read = async (direction: "before" | "after", limit: number, from: number | undefined = at): Promise<TRunRow[]> => {
 		if (limit <= 0) return [];
-		const perType = await Promise.all(RUN_TYPES.map((type) => side(type.label, type.timeField, from, direction, limit, shown)));
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, type.timeField, from, direction, limit, shown)));
 		// The store answered at the levels asked for, so what is left to drop is a record with no time to place it by.
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		rows.sort(inRunOrder);
@@ -322,7 +321,7 @@ export async function runWindow({
 	// record changes when the step ends, so an ended step is a changed record even though it began earlier. Reading
 	// the whole window again to find a few new records is what makes following a long run cost what the run costs.
 	if (since !== undefined) {
-		const [begun, ended] = await Promise.all([read("after", size, since), side(SEQ_PATH_LABEL, SEQ_PATH_FIELD.endedAtTime, since, "after", size, shown)]);
+		const [begun, ended] = await Promise.all([read("after", size, since), side(graph, SEQ_PATH_LABEL, SEQ_PATH_FIELD.endedAtTime, since, "after", size, shown)]);
 		return windowOf(boundToOne(oneEach([...begun, ...ended.map(stepRow)])));
 	}
 	// No moment named is the live edge, which is the newest records and nothing after them.

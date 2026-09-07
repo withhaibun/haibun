@@ -91,6 +91,11 @@ export const SHU_TEST_IDS = {
 		WINDOW_SIZE: "settings-window-size",
 	},
 	/** Moving the shared time cursor on its own: where it IS is the log's scroll rail. */
+	/** The bar a run's shape is read from: its root, and a mark named by the division it draws. */
+	TIME_BAR: {
+		ROOT: "time-bar",
+		MARK: "time-bar-mark-",
+	},
 	PLAYBACK: {
 		PLAY: "playback-play",
 		SPEED: "playback-speed",

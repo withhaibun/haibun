@@ -59,6 +59,8 @@ export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
  * number of buckets, and each bucket says how many records of each group it holds. The answer is that many buckets
  * whatever the span, so reading an hour and reading a decade cost the same and return the same size.
  */
+export const DOMAIN_DENSITY_QUERY = "density-query";
+
 export const DensityQuerySchema = z
 	.object({
 		label: z.string().min(1),

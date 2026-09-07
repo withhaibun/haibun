@@ -76,6 +76,26 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 }
 
 /**
+ * The mark a division of the run earns, given what it holds and how much of each.
+ *
+ * A reader looking at a run of any length is shown its divisions rather than its records, so each division marks as
+ * one thing. It marks as a failure where it holds one, which is what keeps a single failure from being averaged away
+ * by the successes around it; otherwise it marks as whatever it holds most of. What a failure looks like, and which
+ * failures count as one, are `eventMarkerStyle`'s to say, so a division and a row can never disagree.
+ *
+ * Nothing for a division holding nothing, so an empty stretch of the run draws as empty.
+ */
+export function bucketMarkerStyle(held: ReadonlyArray<{ event: unknown; count: number }>): TEventMarkerStyle | undefined {
+	const styled = held.filter(({ count }) => count > 0).map(({ event, count }) => ({ style: eventMarkerStyle(event), count }));
+	if (styled.length === 0) return undefined;
+	const failing = styled.filter(({ style }) => style.color === MARK_COLOUR.fault);
+	const among = failing.length > 0 ? failing : styled;
+	// Most of what it holds, and where two hold as much, the one the run's own rule draws first: the same counts mark
+	// the same way whatever order they were read in.
+	return among.reduce((most, one) => (one.count > most.count || (one.count === most.count && one.style.icon < most.style.icon) ? one : most)).style;
+}
+
+/**
  * The mark an event earns, or nothing where it earns none.
  *
  * This is the one call a surface makes to mark an event: whether it is worth marking and what it looks like are

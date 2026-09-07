@@ -28,6 +28,9 @@ const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SP
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
+/** The bar the run's shape is read from, and the earliest division of it a reader can press. */
+const RUN_SHAPE = SHU_TEST_IDS.TIME_BAR.ROOT;
+const RUN_SHAPE_FIRST_MARK = "run-shape-first-mark";
 /** The globs that cover everything this page reads from its server: every remote call and the event stream. */
 const RPC_GLOB = "**/rpc/**";
 const STREAM_GLOB = "**/sse*";
@@ -275,6 +278,21 @@ export const features: TKirejiExport = {
 		"pause for 6s",
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
 		"not variable eventsCaughtUp is eventsUnheard",
+
+		scenario({ scenario: "The shape of the run is read from counts, and a division of it is where a reader can go" }),
+
+		"The bar across the page shows the run's shape: the run divides into a fixed number of divisions and each one that holds something is marked, so a run of any length draws the same way and reading it costs what the divisions cost rather than what the run does. The store counts; no records are read to draw it. This run has failed a step, so a division of it is marked as a failure, and pressing that division scrubs every view to where it begins.",
+		setAs({ what: RUN_SHAPE, domain: "page-test-id", value: `"${RUN_SHAPE}"` }),
+		setAs({ what: RUN_SHAPE_FIRST_MARK, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.TIME_BAR.MARK}'] >> nth=0"` }),
+		setAs({ what: IDS.CLIENT_CACHE.CURSOR, domain: "page-test-id", value: `"${IDS.CLIENT_CACHE.CURSOR}"` }),
+		waitFor({ target: RUN_SHAPE }),
+
+		"Every view follows the shared cursor, and the client cache says where it is: at the live edge until a reader moves it. Pressing the earliest division of the run moves it there, which is a moment the run has already passed.",
+		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAtEdge`,
+		'variable cursorAtEdge is "live edge"',
+		click({ target: RUN_SHAPE_FIRST_MARK }),
+		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAfterPress`,
+		'not variable cursorAfterPress is "live edge"',
 
 		scenario({ scenario: "A page with no layout of its own starts on the views the run showed" }),
 

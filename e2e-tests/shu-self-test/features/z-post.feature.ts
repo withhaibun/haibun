@@ -14,7 +14,9 @@ export const features: TKirejiExport = {
 	"Verify No Secrets in Shu Standalone Output": [
 		`Scenario: Check the standalone output obscures secrets
     storage entry "/tmp/shu-audit.html" exists
-    file "/tmp/shu-audit.html" is recent within 2 minutes
+
+    The file must be the one this run wrote rather than one left by an earlier run, which is what its age says. The window covers a run rather than a moment: the self-test writes this copy part way through and goes on for several minutes after, so a window measured in seconds would report a growing feature as a stale file.
+    file "/tmp/shu-audit.html" is recent within 10 minutes
 
     The obscured marker must be present first — it proves a secret was found and redacted, so the next check is not passing merely because nothing was there.
     text at "/tmp/shu-audit.html" contains "${OBSCURED_VALUE}"

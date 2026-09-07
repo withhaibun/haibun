@@ -23,6 +23,8 @@ export const SHU_EVENT = {
 	PANE_OPEN: "pane-open",
 	COLUMN_CLOSE: "column-close",
 	PANE_DISMISS: "pane-dismiss",
+	/** A division of the run was pressed on the bar its shape is read from; the detail names which. */
+	TIME_BAR_PRESS: "time-bar-press",
 	STEP_CHOOSE: "step-choose",
 	COLUMN_ACTIVATE: "column-activate",
 	COLUMN_EXPAND: "column-expand",
@@ -104,6 +106,7 @@ export const SHU_TAG = {
 	SPINNER: "shu-spinner",
 	STEP_CALLER: "shu-step-caller",
 	MONITOR_COLUMN: "shu-monitor-column",
+	TIME_BAR: "shu-time-bar",
 	POLYMORPHIC_GRAPH_VIEW: "shu-polymorphic-graph-view",
 	THREAD_COLUMN: "shu-thread-column",
 	STEP_DETAIL: "shu-step-detail",

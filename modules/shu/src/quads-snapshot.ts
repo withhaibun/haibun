@@ -1,4 +1,5 @@
-import { GraphQuerySchema, type TCluster, type TClusteredQuads, type TGraphQueryResult, type TQuad, type IQuadStore } from "@haibun/core/lib/quad-types.js";
+import { GraphQuerySchema, type TCluster, type TClusteredQuads, type TGraphQueryResult, type TQuad, type IQuadStore , type TDensityQuery, type TDensityResult } from "@haibun/core/lib/quad-types.js";
+import type { TRunGraph } from "./client-cache/run-graph.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -305,6 +306,26 @@ export function selectValuesFor(label: string): Promise<Record<string, string[]>
 			for (const field of getSelectFields(label)) values[field] = await cachedGraphStore().distinctPropertyValues(label, field);
 			return values;
 		},
+	);
+}
+
+/**
+ * The run as this page reads it: the site's answer, and what the page holds when nothing answers. The one reading a
+ * live page uses, stated rather than reached for, so what a view reads a run through is visible where the view is made.
+ */
+export function pageRunGraph(): TRunGraph {
+	return { query: (query) => queryGraph(query as unknown as Record<string, unknown>), density: densityOf, declares: (label) => !!getRels(label) };
+}
+
+/**
+ * How many records fall in each division of a span, by how each turned out: what the site answers, and when nothing
+ * answers, the same count over the graph this page caches. The site counts over the whole run it holds; a page with no
+ * site counts over what it has read, which is what a reader with no site has.
+ */
+export function densityOf(query: TDensityQuery): Promise<TDensityResult> {
+	return askElseHeld(
+		() => conduit().follow<TDensityResult>({ method: requireStep("density"), params: { query } }, `the shape of ${query.label}`),
+		async () => (getRels(query.label) ? await cachedGraphStore().density(query) : undefined),
 	);
 }
 
