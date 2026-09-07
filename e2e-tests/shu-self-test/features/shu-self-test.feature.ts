@@ -223,6 +223,30 @@ export const features: TKirejiExport = {
 		"An uncompressed copy carries the same content as plain text, so a reader can confirm secrets are redacted in the output without unpacking it.",
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
 
+		scenario({ scenario: "A page with no stream reads the run and hears nothing" }),
+
+		"The stream announces; the run is read from records. A page that reloads with the stream blocked reads the run it holds and is told nothing after that, which is a reader whose connection dropped rather than one whose server is gone: every other call still works. What the reading holds is what it read on the way in, and it stops there.",
+		setAs({ what: CACHE_LOG_LOADED, domain: "page-test-id", value: `"${CACHE_LOG_LOADED}"` }),
+		`requests matching "${STREAM_GLOB}" are "blocked"`,
+		reloadPage({}),
+		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		waitFor({ target: CACHE_LOG_LOADED }),
+		`save text from ${CACHE_LOG_EVENTS} to eventsUnheard`,
+
+		"The run goes on recording while the page hears none of it: these steps are the records the reading has to catch up on.",
+		"pause for 1s",
+		"pause for 1s",
+		"pause for 1s",
+		"pause for 1s",
+
+		scenario({ scenario: "The stream coming back is what a view catches up on" }),
+
+		"Allowing the stream is the only thing that happens: the page is not reloaded and nothing is clicked. What a stream that comes back delivers first is what the run recorded while nobody was listening, which arrives as any other announcement does, so the reading is no longer what it held while it was deaf. Catching up is not a second path beside following: it is the same one.",
+		`requests matching "${STREAM_GLOB}" are "allowed"`,
+		"pause for 6s",
+		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
+		"not variable eventsCaughtUp is eventsUnheard",
+
 		scenario({ scenario: "A reload with the server unreachable reads the run from the device" }),
 
 		"A page whose calls all fail says the site has not responded to it, and reads the run from what this device holds. Everything this page has read of the run is held there as the records the run wrote, along with the site's registry. Blocking every remote call and the event stream leaves the page with the device alone, which is what a reader has when their network drops. Reloading then must still produce a run: the registry comes from the device, the source at log reads what is held and says so, its spans starting at the run's first row, and the monitor renders rows.",
