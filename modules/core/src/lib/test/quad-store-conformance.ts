@@ -5,6 +5,10 @@
  * cases rather than carrying a suite of its own. Exported from core because the contract is core's; a consumer brings
  * its own store and the types it registers, and is held to the same rule.
  *
+ * A store under test registers types carrying `generatedAtTime`, the instant every persisted type states, and
+ * `status`, a categorising field the density case groups by. A store with a schema only answers for fields its types
+ * declare, so the fixture declares those two.
+ *
  * Two parts of `IQuadStore` are deliberately not specified here. The query surface an engine answers (filtered
  * individual queries, distinct values, clustering) is covered where each store's own reading of it matters. And an
  * individual is identified differently by design: an authoritative store requires the identity field the type declares
@@ -12,7 +16,7 @@
  * its own test.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import type { IQuadStore, TQuad } from "../quad-types.js";
+import type { IQuadStore, TQuad, TSearchCondition } from "../quad-types.js";
 
 /** The two types a store under test registers: the cases keep facts apart by naming two of them. */
 export type TConformanceGraphs = { first: string; second: string };
@@ -86,6 +90,65 @@ export function describeQuadStore(
 			expect((await store.query({ object: "one" })).length).toBe(2);
 			expect((await store.query({ subject: "a", predicate: "author" })).length).toBe(1);
 			expect((await store.query({ namedGraph: OTHER, predicate: "content" })).length).toBe(1);
+		});
+
+		describe("how many records fall in each division of a span", () => {
+			const at = (minute: number): string => new Date(Date.UTC(2026, 0, 1, 0, minute)).toISOString();
+			const span = { label: GRAPH, timeField: "generatedAtTime", groupBy: "status", from: at(0), to: at(60), filters: [] as TSearchCondition[] };
+			const held = async (records: Array<{ id: string; minute: number; status?: string }>): Promise<void> => {
+				for (const r of records) await store.upsertIndividual(GRAPH, { id: r.id, generatedAtTime: at(r.minute), ...(r.status === undefined ? {} : { status: r.status }) });
+			};
+
+			it("answers with the buckets asked for, each counting what it holds by how it turned out", async () => {
+				await held([
+					{ id: "a", minute: 1, status: "passed" },
+					{ id: "b", minute: 2, status: "failed" },
+					{ id: "c", minute: 3, status: "passed" },
+					{ id: "d", minute: 59, status: "passed" },
+				]);
+				const { buckets } = await store.density({ ...span, buckets: 2 });
+				expect(buckets.length).toBe(2);
+				expect(buckets[0]).toEqual({ passed: 2, failed: 1 });
+				expect(buckets[1]).toEqual({ passed: 1 });
+			});
+
+			it("reports a failure among many passes, rather than clustering it away", async () => {
+				await held([...Array.from({ length: 20 }, (_, i) => ({ id: `p${i}`, minute: 1, status: "passed" })), { id: "f", minute: 1, status: "failed" }]);
+				const { buckets } = await store.density({ ...span, buckets: 4 });
+				expect(buckets[0]).toEqual({ passed: 20, failed: 1 });
+			});
+
+			it("answers a span holding nothing with empty buckets, rather than with nothing", async () => {
+				const { buckets } = await store.density({ ...span, buckets: 3 });
+				expect(buckets).toEqual([{}, {}, {}]);
+			});
+
+			it("answers the same size whatever the span, since the size is the bucket count", async () => {
+				await held([{ id: "a", minute: 1, status: "passed" }]);
+				const hour = await store.density({ ...span, buckets: 5 });
+				const decade = await store.density({ ...span, from: new Date(Date.UTC(2020, 0, 1)).toISOString(), to: new Date(Date.UTC(2030, 0, 1)).toISOString(), buckets: 5 });
+				expect(hour.buckets.length).toBe(5);
+				expect(decade.buckets.length).toBe(5);
+			});
+
+			it("counts only what the filters name", async () => {
+				await held([
+					{ id: "a", minute: 1, status: "passed" },
+					{ id: "b", minute: 2, status: "failed" },
+				]);
+				const { buckets } = await store.density({ ...span, buckets: 1, filters: [{ predicate: "status", operator: "eq", value: "failed" }] });
+				expect(buckets[0]).toEqual({ failed: 1 });
+			});
+
+			it("leaves out what falls outside the span", async () => {
+				await held([
+					{ id: "before", minute: -10, status: "passed" },
+					{ id: "inside", minute: 30, status: "passed" },
+					{ id: "after", minute: 120, status: "passed" },
+				]);
+				const { buckets } = await store.density({ ...span, buckets: 1 });
+				expect(buckets[0]).toEqual({ passed: 1 });
+			});
 		});
 
 		it("removes what a pattern names, and nothing else", async () => {

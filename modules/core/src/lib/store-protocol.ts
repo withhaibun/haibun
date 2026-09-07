@@ -6,6 +6,7 @@
  * is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
  * Responses use a `{ result }` envelope so an undefined result survives JSON intact.
  */
+import { DensityQuerySchema } from "./quad-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { IQuadStore } from "./quad-types.js";
@@ -48,6 +49,7 @@ const STORE_METHODS = {
 		}),
 	},
 	distinctPropertyValues: { write: false, params: z.object({ label: z.string(), property: z.string() }) },
+	density: { write: false, params: z.object({ query: DensityQuerySchema }) },
 	getClusteredQuads: {
 		write: false,
 		params: z.object({ perTypeLimit: z.number(), types: z.array(z.string()).optional(), accessLevel: AccessLevelSchema, scope: z.enum(["own", "federated"]).optional() }),
@@ -128,6 +130,10 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 		case "distinctPropertyValues": {
 			const { label, property } = STORE_METHODS.distinctPropertyValues.params.parse(raw);
 			return { result: await store.distinctPropertyValues(label, property) };
+		}
+		case "density": {
+			const { query } = STORE_METHODS.density.params.parse(raw);
+			return { result: await store.density(query) };
 		}
 		case "getClusteredQuads": {
 			const { perTypeLimit, types, accessLevel, scope } = STORE_METHODS.getClusteredQuads.params.parse(raw);

@@ -20,6 +20,8 @@ import {
 	type TQuad,
 	type TQuadPattern,
 	matchesQuadPattern,
+	type TDensityQuery,
+	type TDensityResult,
 } from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
 import { BODY_LABEL } from "./resources.js";
@@ -366,6 +368,10 @@ export class QuadStore implements IQuadStore {
 		return individuals.slice(offset, offset + limit) as T[];
 	}
 
+	density(query: TDensityQuery): Promise<TDensityResult> {
+		return densityOverQuadStore(this, query);
+	}
+
 	async distinctPropertyValues(label: string, property: string): Promise<string[]> {
 		const backing = this.storeFor(label);
 		if (backing) return backing.distinctPropertyValues(label, property);
@@ -399,6 +405,45 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 	}
 	const from = offset ?? 0;
 	return { vertices: vertices.slice(from, from + (limit ?? vertices.length)), total: vertices.length };
+}
+
+/**
+ * Which bucket an instant falls in, over a span divided into a fixed number.
+ *
+ * The division is by the span rather than by a rounded width, so a span that does not divide evenly still answers with
+ * exactly the buckets asked for; the last bucket includes the end, which nothing after it would otherwise hold.
+ */
+export function bucketOf(at: number, from: number, to: number, buckets: number): number {
+	if (at < from || at > to) return -1;
+	if (to === from) return 0;
+	return Math.min(buckets - 1, Math.floor(((at - from) / (to - from)) * buckets));
+}
+
+/**
+ * How many records fall in each division of a span, by how each turned out, over a store that holds its records.
+ *
+ * The one implementation both quad-backed stores answer with: an in-memory store and the store a page holds hold their
+ * records, so counting them is reading what is already there. A store with a query engine counts in the engine.
+ */
+export async function densityOverQuadStore(store: IQuadStore, query: TDensityQuery): Promise<TDensityResult> {
+	const from = Date.parse(query.from);
+	const to = Date.parse(query.to);
+	if (Number.isNaN(from) || Number.isNaN(to)) throw new Error(`a density read spans instants, and this one names ${query.from} to ${query.to}`);
+	if (to < from) throw new Error(`a density read spans forward, and this one names ${query.from} to ${query.to}`);
+	const buckets: Record<string, number>[] = Array.from({ length: query.buckets }, () => ({}));
+	const equality = Object.fromEntries(query.filters.filter((f) => f.operator === "eq").map((f) => [f.predicate, f.value]));
+	const compared = query.filters.filter((f) => f.operator !== "eq");
+	const matched = await store.queryIndividuals<Record<string, unknown>>(query.label, Object.keys(equality).length ? equality : undefined, {});
+	for (const individual of matched) {
+		if (!compared.every((f) => satisfies(individual[f.predicate], f))) continue;
+		const at = Date.parse(String(individual[query.timeField] ?? ""));
+		if (Number.isNaN(at)) continue;
+		const bucket = bucketOf(at, from, to, query.buckets);
+		if (bucket < 0) continue;
+		const group = individual[query.groupBy] === undefined || individual[query.groupBy] === null ? "" : String(individual[query.groupBy]);
+		buckets[bucket][group] = (buckets[bucket][group] ?? 0) + 1;
+	}
+	return { buckets };
 }
 
 /** Two held values in order. Numbers compare as numbers where both are; anything else compares as text, which orders an
