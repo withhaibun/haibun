@@ -11,7 +11,8 @@ import { SEQ_PATH_FIELD, parseRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
-import { cachedGraphStore } from "../quads-snapshot.js";
+import { cachedGraphStore, selectValuesFor } from "../quads-snapshot.js";
+import { componentOfView, declaredViews } from "../rels-cache.js";
 import { pagePinned } from "../page-pinned.js";
 
 /** An execution as this device holds it: what it ran, and the moments its features span. */
@@ -91,4 +92,22 @@ export async function executionsHeld(): Promise<THeldExecution[]> {
 		byExecution.set(execution, held);
 	}
 	return [...byExecution.values()].sort((a, b) => (b.first ?? 0) - (a.first ?? 0));
+}
+
+/**
+ * The views this run has shown, as the elements they are shown in, in the order the site declares them.
+ *
+ * The set comes from the distinct values of the field a step names its view in, which is one answer however many
+ * times a view was shown: a view that refreshes its own data is shown by a step per refresh, and reading records to
+ * find the set would read those instead of the views shown once each.
+ *
+ * This is what a page arriving with no address of its own starts on. A page with an address shows what the address
+ * names, which is what lets two addresses show different views of one run.
+ */
+export async function viewsShown(): Promise<string[]> {
+	const values = await selectValuesFor(SEQ_PATH_LABEL);
+	const shown = new Set(values[SEQ_PATH_FIELD.showed] ?? []);
+	return declaredViews()
+		.filter((view) => shown.has(view))
+		.map(componentOfView);
 }

@@ -5,13 +5,13 @@
  * via `eventStream()`; nothing else touches `EventSource` or `SseSubscriber`.
  *
  * `LiveEventStream` wraps the shared `SseSubscriber` connection. Subscribers
- * registered after connect receive the replay-buffer history before any new
- * events arrive (same contract as the live subscriber).
+ * registered after connect receive what the page received before they
+ * subscribed, then live events.
  *
  * `SerializedEventStream` powers tests and the offline shu.html report. The
  * caller provides events via `emit(event)`; subscribers registered before or
  * after the emit see them in order. Tests drive scripted scenarios by calling
- * `emit` between assertions; the offline boot replays a captured event log.
+ * `emit` between assertions, and `reconnect` to say the stream came back.
  */
 
 import { SseSubscriber } from "@haibun/core/lib/sse-subscriber.js";
@@ -24,6 +24,15 @@ export type TEventFilter = (event: TEvent) => boolean;
 export interface EventStream {
 	/** Register a handler. `filter` (if given) is consulted per-event; only matching events reach the handler. Returns an unsubscribe function. New subscribers immediately receive any buffered history before the next live event arrives. */
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void;
+
+	/** Open the stream now, before any view subscribes. The server announces from the moment a page connects and
+	 *  replays nothing, so a page that connects only when its first view is ready loses what happened while it booted;
+	 *  what arrives before a view subscribes is held for it. */
+	connect(): void;
+
+	/** Be told the stream has come back after a break in it. What happened during the break reaches no handler, so a
+	 *  view following the run reads again on this through the path it already reads on. Returns an unsubscribe. */
+	reconnected(fn: () => void): () => void;
 
 	/** Total events ever recorded (including ones the replay buffer has since dropped). Used by the timeline to label the slider knob `current / count / total`. */
 	totalRecorded(): number;
@@ -42,6 +51,14 @@ export class LiveEventStream implements EventStream {
 
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void {
 		return this.ensure().subscribe(handler, filter);
+	}
+
+	connect(): void {
+		this.ensure();
+	}
+
+	reconnected(fn: () => void): () => void {
+		return this.ensure().reconnected(fn);
 	}
 
 	totalRecorded(): number {
@@ -64,10 +81,11 @@ export class LiveEventStream implements EventStream {
 
 // ─── SerializedEventStream ───────────────────────────────────────────────────
 
-/** `EventStream` backed by an in-memory event log. New subscribers first receive every event already emitted, then new ones — same replay contract as the live subscriber, so consumer code is unaware of the source. */
+/** `EventStream` backed by an in-memory event log. New subscribers first receive every event already emitted, then new ones, the contract the live subscriber has, so consumer code is unaware of the source. */
 export class SerializedEventStream implements EventStream {
 	private readonly history: TEvent[] = [];
 	private readonly subscribers = new Set<{ handler: TEventHandler; filter?: TEventFilter }>();
+	private readonly reconnectListeners = new Set<() => void>();
 	private recorded = 0;
 
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void {
@@ -79,6 +97,21 @@ export class SerializedEventStream implements EventStream {
 		return () => {
 			this.subscribers.delete(entry);
 		};
+	}
+
+	connect(): void {
+		// A log that is all there is open already.
+	}
+
+	reconnected(fn: () => void): () => void {
+		this.reconnectListeners.add(fn);
+		return () => this.reconnectListeners.delete(fn);
+	}
+
+	/** Say the stream broke and came back, so a scripted scenario drives a view's catch-up the way it drives arrivals.
+	 *  An offline reading never calls it: a log that is all there never broke. */
+	reconnect(): void {
+		for (const fn of this.reconnectListeners) fn();
 	}
 
 	/** Append an event to the log and dispatch it to every matching subscriber. */
@@ -133,8 +166,9 @@ export function resetEventStream(): void {
 
 /** Subscribe to the stream, coalescing every event arriving between paints into one `onBatch` call inside an animation
  *  frame. Returns an unsubscribe. The `this`-free form shared by `ShuElement.subscribeBatched` and the data controllers;
- *  no caller constructs `EventSource`/`SseSubscriber` directly. */
-export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter }): () => void {
+ *  no caller constructs `EventSource`/`SseSubscriber` directly. `onReconnect` fires when the stream comes back after a
+ *  break: the same reason to read again as an arrival, on the same path. */
+export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void }): () => void {
 	let pending: TEvent[] = [];
 	let scheduled = false;
 	let active = true;
@@ -145,7 +179,13 @@ export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => vo
 		pending = [];
 		opts.onBatch(batch);
 	};
-	const innerUnsub = eventStream().subscribe((event) => {
+	const stream = eventStream();
+	const stopReconnects = opts.onReconnect
+		? stream.reconnected(() => {
+				if (active) opts.onReconnect?.();
+			})
+		: () => undefined;
+	const innerUnsub = stream.subscribe((event) => {
 		if (!active) return;
 		pending.push(event);
 		if (!scheduled) {
@@ -156,6 +196,7 @@ export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => vo
 	return () => {
 		active = false;
 		pending = [];
+		stopReconnects();
 		innerUnsub();
 	};
 }

@@ -3,7 +3,7 @@
  * Provides rels, edge ranges, and properties for all node types.
  */
 import { propertyVocabulary } from "./graph/ontology-projection.js";
-import { ACTION_BAR_CHAT_SLOT } from "./consts.js";
+import { ACTION_BAR_CHAT_SLOT, isMarkerType } from "./consts.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 /**
@@ -172,6 +172,20 @@ export function getPropertyOrder(label: string): string[] {
 /** Get the UI extension declared by a type's domain (if any). Used by the actions bar / SPA chrome to discover custom components. */
 export function getUiByType(label: string): Record<string, unknown> | undefined {
 	return metadata?.ui?.[label];
+}
+
+/** The views the site declares: every domain whose ui names an element a column can hold. A step's record names the
+ *  view it showed by this name, so this is what a page asks the run's records for. */
+export function declaredViews(): string[] {
+	return Object.entries(metadata?.ui ?? {})
+		.filter(([, ui]) => typeof ui.component === "string" && !isMarkerType(ui.component))
+		.map(([view]) => view);
+}
+
+/** The element a view is shown in: what its domain declares, else the view's own name, which is an element's. */
+export function componentOfView(view: string): string {
+	const component = getUiByType(view)?.component;
+	return typeof component === "string" ? component : view;
 }
 
 /**

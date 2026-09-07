@@ -1,5 +1,5 @@
 /**
- * One path from "RPC response" → "open/close pane".
+ * One path from "RPC response" → "open pane".
  *
  * Both shu-step-caller and shu-affordances-panel call this when a step returns.
  * It parses the response for hypermedia view markers and calls PaneState directly —
@@ -11,11 +11,7 @@ import { PaneState, paneIdOf } from "./pane-state.js";
 
 export function dispatchAffordanceFromResponse(response: unknown): ReturnType<typeof parseAffordanceProduct> {
 	const action = parseAffordanceProduct(response);
-	if (action.kind === "close") {
-		PaneState.dismiss(action.view);
-	} else if (action.kind === "open-component") {
-		PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products });
-	}
+	if (action.kind === "open-component") PaneState.request({ paneType: "component", tag: action.component, label: action.label, data: action.products });
 	return action;
 }
 

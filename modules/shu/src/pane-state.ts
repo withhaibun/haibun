@@ -438,7 +438,7 @@ class PaneStateImpl {
 
 	private writeHash(): void {
 		// Never write before the first fromHash has READ the reloaded URL (see `hydrated`). A reconcile triggered by an
-		// early request — e.g. the event-stream replay re-opening a pane on boot, which can land before fromHash under load
+		// early request — e.g. a step's products re-opening a pane at boot, which can land before fromHash under load
 		// — would otherwise overwrite the reloaded hash with the partial desired set, dropping the col= views still waiting
 		// to be restored. This generalises the setActivePane guard to every writer (the boot-strip regression).
 		if (!this.hydrated) return;

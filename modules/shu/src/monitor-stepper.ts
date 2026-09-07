@@ -344,25 +344,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// itself, so what a reader sees of the graph is what the views would have painted from the site's own answer.
 		const built = await buildGraphSource(this.getWorld());
 		if (!built) logger.warn("[shu writeStandaloneReport] the graph was not captured: this store does not cluster, so a page reading this report has no graph");
-		// Reconstruct view hash from events (view products) and cache (last query label).
-		// `view` is the productsDomain key (e.g. "affordances"); pane-state expects the
-		// component tag (e.g. "shu-affordances-panel"). Resolve via the registered domain's
-		// `ui.component` so the offline file uses the same vocabulary as live runs.
-		const domains = this.getWorld().domains;
-		const cols: string[] = [];
-		// Which columns the reader had open: the views this run's steps showed, in the order they were shown. Read as the
-		// one fact it is, so the cost is the number of steps that showed a view rather than the size of the run.
+		// The address a report opens at names the type the query column was showing, which no record of the run states.
+		// Which views were open it does not name: the page reads those from the records it carries, by the same read a
+		// page with a server makes. What is inlined is the code those views need, so the views are still read for that.
 		const shown = await this.getWorld().shared.getStore().query({ predicate: SEQ_PATH_FIELD.showed, namedGraph: SEQ_PATH_LABEL });
-		for (const quad of [...shown].sort((a, b) => a.timestamp - b.timestamp)) {
-			const view = String(quad.object ?? "");
-			if (!view) continue;
-			const component = (domains[view]?.ui as { component?: string } | undefined)?.component ?? view;
-			if (!cols.includes(component)) cols.push(component);
-		}
-		const hashParts = new URLSearchParams();
-		if (this.queriedLabel) hashParts.set("label", this.queriedLabel);
-		for (const col of cols) hashParts.append("col", col);
-		const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
+		const domains = this.getWorld().domains;
+		const cols = new Set(shown.map((quad) => String((domains[String(quad.object ?? "")]?.ui as { component?: string } | undefined)?.component ?? quad.object ?? "")));
+		const viewHash = this.queriedLabel ? `#?label=${encodeURIComponent(this.queriedLabel)}` : "";
 		const hydration = JSON.stringify({ viewProducts, viewHash, cache: this.cacheForReport(registry, built?.quads ?? []) });
 		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
 		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });

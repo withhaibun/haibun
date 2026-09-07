@@ -2,7 +2,7 @@ import { z } from "zod";
 import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../schema/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
@@ -117,7 +117,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	world.eventLogger.currentSeqPath = currentSeqPathStr;
 	// What is said while this step runs reports no more prominently than the step does, so a call made into a running
 	// instance leaves the caller's own narration out of the run's history rather than among its steps.
-	world.eventLogger.stepReportsAt = featureStep.isSubStep ? "trace" : undefined;
+	world.eventLogger.stepReportsAt = featureStep.isSubStep ? SUBSTEP_LEVEL : undefined;
 	let actionResult: TActionResult;
 	let ok = true;
 	let lastStepResult: TStepResult;
@@ -284,7 +284,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		[SEQ_PATH_FIELD.ranVia]: ran.ranVia,
 		// A call made into a running instance is a step the run records, and reports as its events do: under the run's own
 		// steps, so a reader of the run is not shown the traffic of whoever is reading it.
-		[SEQ_PATH_FIELD.level]: featureStep.isSubStep ? "trace" : "info",
+		[SEQ_PATH_FIELD.level]: stepLevel(featureStep.isSubStep),
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 	};
 	if (authorization) {

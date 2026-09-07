@@ -21,6 +21,14 @@ import { isOffline } from "./rpc-registry.js";
 import { } from "./hypermedia.js";
 
 /** The hash body as URLSearchParams, tolerant of a leading `#` or `#?`. */
+/** The hash that names these columns, in this order: what a page starting on a run's views is given, the same form a
+ *  reader's own layout is written in. */
+export function hashWithColumns(columns: readonly string[]): string {
+	const params = new URLSearchParams();
+	for (const column of columns) params.append("col", column);
+	return `#?${params.toString()}`;
+}
+
 export function hashParams(hash: string): URLSearchParams {
 	const body = hash.startsWith("#?") ? hash.slice(2) : hash.startsWith("#") ? hash.slice(1) : hash;
 	return new URLSearchParams(body);

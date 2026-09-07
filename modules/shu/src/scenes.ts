@@ -10,6 +10,7 @@ import { AccessLevelSchema, SCENE_LABEL } from "@haibun/core/lib/resources.js";
 import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "./rels-cache.js";
 import { callStep, fetchIndividuals } from "./pane-fetch.js";
 import { appAccessLevel } from "./util.js";
+import { SHU_TAG } from "./consts.js";
 import type { ShuElement } from "./components/shu-element.js";
 
 /** The options of every view a scene holds, keyed by element tag. Opaque to the graph; each view validates its own. */
@@ -91,7 +92,7 @@ export function builtInScenes(): TScene[] {
 	// by default visible beside it, and the scene reads as the whole graph with the exchange added to it.
 	const shown = new Set(types);
 	const overrides = Object.fromEntries(getTypes().map((type) => [type, shown.has(type)]));
-	return [{ id: NETWORK_SCENE, state: { "shu-polymorphic-graph-view": { viewType: "sequence" }, "shu-graph-filter": { overrides } } }];
+	return [{ id: NETWORK_SCENE, state: { [SHU_TAG.POLYMORPHIC_GRAPH_VIEW]: { viewType: "sequence" }, "shu-graph-filter": { overrides } } }];
 }
 
 /** The scenes saved here, newest first, for a reader to pick from. */

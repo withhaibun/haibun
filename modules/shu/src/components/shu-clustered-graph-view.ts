@@ -238,6 +238,9 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 					// (graphToSvg), so a repaint issues no RPC to re-observe. Frequent batches are coalesced by the paint debounce.
 					this.syncFromSnapshot();
 				},
+				// What was written while the stream was down arrived in no batch, so the snapshot is read again through the
+				// same commit a visibility change makes, at the scope and budget the view is already reading at.
+				onReconnect: () => this.applyHiddenChange({}),
 			}),
 		);
 		this.autoTeardown(

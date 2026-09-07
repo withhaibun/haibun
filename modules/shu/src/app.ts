@@ -1,7 +1,6 @@
 import { defaultLabel } from "./util.js";
 import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR } from "./consts.js";
-import { hashParams, getHash } from "./view-hash.js";
-import type { TDeliveredEvent } from "@haibun/core/lib/sse-subscriber.js";
+import { getHash, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
@@ -16,9 +15,8 @@ import { conduit, setConduit, LiveConduit, isServerUnreachable } from "./hyperme
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
-import { getUiByType } from "./rels-cache.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
-import { paneOpsFor, createPaneRouteState, recordPaneDismissal, isReplayOnly } from "./pane-event-router.js";
+import { paneOpsFor } from "./pane-event-router.js";
 import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext } from "./quads-snapshot.js";
 import { activePane } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
@@ -31,7 +29,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
-import { hydrateClientCache } from "./client-cache/index.js";
+import { hydrateClientCache, viewsShown } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -104,6 +102,10 @@ function openReaderSession(): void {
 }
 
 const main = async (): Promise<void> => {
+	// What the reader's address says, before anything writes to it. An address naming views is the reader's own
+	// arrangement, which is what lets two addresses show different views of one run; an address saying nothing is a
+	// reader with no arrangement, and the run's own views are what they are shown.
+	const arrivedWithAddress = getHash().length > 1;
 	hydrateFromDom();
 	// One conduit, whatever the page is: a page with a server behind it reaches it, and a page carrying its own run
 	// reaches nothing, which every read already answers from what the page holds. Installed before anything else, since
@@ -116,7 +118,13 @@ const main = async (): Promise<void> => {
 		setEventStream(new SerializedEventStream());
 		await hydrateClientCache(carried);
 		ShuElement.pushHash(getHydratedViewHash());
-	} else setEventStream(new LiveEventStream("/sse"));
+	} else {
+		const live = new LiveEventStream("/sse");
+		setEventStream(live);
+		// Opened before anything reads the run: the server announces from the moment a page connects, so a page that
+		// waited until its first view was ready would lose what the run said while it booted.
+		live.connect();
+	}
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();
 	applyShuPreferences();
@@ -147,30 +155,12 @@ const main = async (): Promise<void> => {
 
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
-	const getIndexPane = () => getStrip()?.panes.find((p) => p.dataset.columnKey === INDEX_PANE_KEY) ?? null;
+	const getIndexPane = () => getStrip()?.panes.find((pane) => pane.dataset.columnKey === INDEX_PANE_KEY) ?? null;
 
-	// What the page starts on is what the statements run so far have opened: the server replays its history on connect,
-	// so a view opened by a REPLAYED event is the view this page is being shown for, and the index gives it the room by
-	// starting minimized to its spine, where it still says which search is behind it. Only what the page starts with
-	// counts. A view a statement opens later, once live events are arriving, is opened beside an index the reader is
-	// already using, and leaves it alone; so does a run that opens no view at all.
-	//
-	// The replay is what ends this, not the first batch of it: batches are one animation frame each, and a history of
-	// any size arrives over several, so the view being replayed can land in the second or the tenth.
-	//
-	// A page whose address already names its columns is not starting on anything: the address IS the view state, so a
-	// reload is the reader's own layout coming back, index included, and the replay that rebuilds it must not narrow
-	// what they had. Only an address with no columns of its own is arriving fresh.
-	const arrivedWithColumns = hashParams(getHash()).getAll("col").length > 0;
-	let startingUp = true;
-	let indexYielded = false;
-	const yieldIndexTo = (tag: string): void => {
-		if (!startingUp || indexYielded || arrivedWithColumns) return;
-		indexYielded = true;
-		const index = getIndexPane();
-		if (!index) throw new Error(`no index pane to minimize when the page started on ${tag} — the app builds one at boot and nothing removes it`);
-		index.setMinimized(true);
-	};
+	// A reader with no arrangement of their own is shown the views this run has shown, read from its records. A page
+	// carrying its own run reads the records it carries, by the same read, so a report needs nothing precomputed.
+	const shown = arrivedWithAddress ? [] : await viewsShown();
+	if (shown.length > 0) ShuElement.pushHash(hashWithColumns(shown));
 
 	const reportBootDiagnostic = (level: TClientLogLevel, msg: string, attrs?: Record<string, unknown>): void => reportToRun(level, "shu-app-boot", msg, attrs);
 	reportBootDiagnostic("debug", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
@@ -234,27 +224,12 @@ const main = async (): Promise<void> => {
 	// (the subsequent panes are stale relative to the new selection). ctrl/shift
 	// click in `detail.addToSelection` opts out and appends instead. Programmatic
 	// dispatches that pass no modifier default to replace.
-	// Closed panes stay closed: the person's dismissal is watermarked at the newest event time seen and persisted, so
-	// no replayed/older event — a reload's history replay, a previous run on a long-lived server — reopens the pane.
-	// A freshly run step (a newer event) reopens it: a new decision. See pane-event-router.
-	const PANE_DISMISSALS_KEY = "shu.paneDismissals";
-	const readDismissals = (): Record<string, number> => {
-		const raw = localStorage.getItem(PANE_DISMISSALS_KEY);
-		if (!raw) return {};
-		const parsed: unknown = JSON.parse(raw);
-		if (!parsed || typeof parsed !== "object") throw new Error(`${PANE_DISMISSALS_KEY} is not an object — clear it`);
-		return parsed as Record<string, number>;
-	};
-	const paneRouteState = createPaneRouteState(readDismissals());
-
 	appRoot.addEventListener(
 		SHU_EVENT.PANE_DISMISS,
 		((e: CustomEvent) => {
 			const paneId = e.detail?.paneId;
-			if (typeof paneId === "string" && paneId !== "query") {
-				PaneState.dismiss(paneId);
-				localStorage.setItem(PANE_DISMISSALS_KEY, JSON.stringify(recordPaneDismissal(paneRouteState, paneId)));
-			}
+			// The close is in the address at once: a reader who has closed a view has an arrangement, so nothing reseeds it.
+			if (typeof paneId === "string" && paneId !== "query") PaneState.dismiss(paneId);
 		}) as EventListener,
 		{ signal },
 	);
@@ -299,23 +274,14 @@ const main = async (): Promise<void> => {
 	const ensureUiComponentLoaded = (childTag: string): Promise<void> => sharedEnsureUiComponentLoaded(childTag, reportExternalComponent);
 
 	// Every person-visible step-end emits hypermedia products; if they carry view markers, route to PaneState — trace
-	// substeps are infrastructure and never open views, each event acts once, and a person's close outlasts the past
-	// (see pane-event-router for the three rules). Batching keeps only the latest op per pane so the connect-time
-	// replay costs one op per pane, not one per replayed step.
+	// substeps are infrastructure and never open views (see pane-event-router). Batching keeps only the latest op per
+	// pane.
 	subscribeBatchedEvents({
 		onBatch: (events) => {
-			const uiComponentByType = (type: string): string | undefined => {
-				const component = getUiByType(type)?.component;
-				return typeof component === "string" ? component : undefined;
-			};
-			for (const op of paneOpsFor(events, paneRouteState, uiComponentByType).values()) {
-				if (op.op === "dismiss") PaneState.dismiss(op.view);
-				else if (op.op === "component") {
-					PaneState.request({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
-					yieldIndexTo(op.tag);
-				} else PaneState.request({ paneType: "views-picker", views: op.views, label: op.label });
+			for (const op of paneOpsFor(events).values()) {
+				if (op.op === "component") PaneState.request({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
+				else PaneState.request({ paneType: "views-picker", views: op.views, label: op.label });
 			}
-			if (!isReplayOnly(events as TDeliveredEvent[])) startingUp = false;
 		},
 	});
 
@@ -409,6 +375,10 @@ const main = async (): Promise<void> => {
 		((e: CustomEvent) => {
 			const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
 			query?.setFilters?.(e.detail || {});
+			// A reader searching is asking to see what it finds, so the index comes back from its spine, whether it
+			// minimized to give the run's views room or the reader put it there. The bar restoring its own search at
+			// load asked for nothing, and leaves the index where it is.
+			if (e.detail?.asked) getIndexPane()?.setMinimized(false);
 		}) as EventListener,
 		{ signal },
 	);
@@ -510,6 +480,14 @@ const main = async (): Promise<void> => {
 		// not leaves the column that is on screen as the active pane rather than none.
 		if (activePane.get() === null) activePane.set("query");
 		PaneState.fromHash();
+		// The index gives the run's views the room: a reader shown them asked for nothing, so the search that is on
+		// screen minimizes to its spine, where it still says which search is behind it. A reader who arrived with an
+		// arrangement of their own keeps the index as they left it.
+		if (shown.length > 0) {
+			const index = getIndexPane();
+			if (!index) throw new Error("no index pane to minimize when the page started on the run's views — the app builds one at boot and nothing removes it");
+			index.setMinimized(true);
+		}
 	}
 };
 

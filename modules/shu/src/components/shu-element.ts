@@ -544,7 +544,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	/** Subscribe to inbound events via the installed `EventStream`, batching all events received between paints into one `onBatch(events)` call inside an animation frame. Delegates to the shared `subscribeBatchedEvents` (the data controllers use the same path). */
-	protected subscribeBatched(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter }): () => void {
+	protected subscribeBatched(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void }): () => void {
 		return subscribeBatchedEvents(opts);
 	}
 }

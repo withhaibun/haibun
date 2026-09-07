@@ -80,6 +80,15 @@ export type TOrigin = keyof typeof Origin;
 
 export type TDebugSignal = "fail" | "step" | "continue" | "retry" | "next";
 
+/** The level a hidden substep reports at. It is below every level a view shows, so what a substep says, produces and
+ *  shows is infrastructure rather than something a reader asked for. */
+export const SUBSTEP_LEVEL: THaibunLogLevel = "trace";
+/** The level an ordinary step reports at. */
+export const STEP_LEVEL: THaibunLogLevel = "info";
+
+/** The level a step reports at. One derivation, so the record of a step, what it says and what it produces all agree. */
+export const stepLevel = (isSubStep: boolean): THaibunLogLevel => (isSubStep ? SUBSTEP_LEVEL : STEP_LEVEL);
+
 export const SCENARIO_START = "scenario";
 export const FEATURE_START = "feature";
 

@@ -24,7 +24,7 @@
  */
 export { runSources, subscribeRunSources, runSpan, atLiveEdge, resetRunSources, type RunSource, type TRunExtent, type TEventRecord } from "./run-source.js";
 export { IndexedDbDeviceStore, MemoryDeviceStore, deviceStore, setDeviceStore, subscribeDeviceWrites, CACHE_SHAPE, resetDeviceStoreIdb, type DeviceStore, type TStoredRegistry } from "./device-store.js";
-export { executionsHeld, currentExecution, readingExecution, noteExecution, readExecution, subscribeExecutionSwitch, resetExecutions, EXECUTIONS_READ, type THeldExecution } from "./executions.js";
+export { executionsHeld, viewsShown, currentExecution, readingExecution, noteExecution, readExecution, subscribeExecutionSwitch, resetExecutions, EXECUTIONS_READ, type THeldExecution } from "./executions.js";
 export { IndexedDbQuadStore, originGraphStore } from "./quad-store.js";
 export { graphRunSource } from "./graph-run-source.js";
 export { runWindow, RUN_WINDOW_SIZE, type TRunRow, type TRunWindow } from "./run-window.js";

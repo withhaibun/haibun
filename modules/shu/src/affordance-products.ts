@@ -34,7 +34,6 @@ export type TAffordanceView = { id: string; description: string; component: stri
 
 export type TAffordanceProductAction =
 	| { kind: "none" }
-	| { kind: "close"; view: string }
 	| { kind: "open-component"; view: string; component: string; label: string; products: Record<string, unknown> }
 	| { kind: "show-views"; views: TAffordanceView[]; label: string };
 
@@ -51,7 +50,7 @@ const requiredString = (value: unknown, message: string): string => {
  *  so a reader could not close what their own view kept re-opening. */
 const hasAffordanceMarkers = (value: Record<string, unknown>): boolean => {
 	const typeStr = value[HYPERMEDIA.TYPE];
-	return typeof value[PRODUCT_KEY.VIEW] === "string" || typeof value[PRODUCT_KEY.COMPONENT] === "string" || typeStr === SHU_TYPE.CLOSE_VIEW || typeStr === SHU_TYPE.VIEW_COLLECTION;
+	return typeof value[PRODUCT_KEY.VIEW] === "string" || typeof value[PRODUCT_KEY.COMPONENT] === "string" || typeStr === SHU_TYPE.VIEW_COLLECTION;
 };
 
 const findAffordanceRecord = (value: unknown, depth = 0): Record<string, unknown> | undefined => {
@@ -66,7 +65,7 @@ const findAffordanceRecord = (value: unknown, depth = 0): Record<string, unknown
 	return undefined;
 };
 
-/** Parse product shapes relevant to affordance open/close actions. */
+/** Parse product shapes relevant to affordance open actions. */
 export function parseAffordanceProduct(product: unknown): TAffordanceProductAction {
 	const envelope = HasProductsWithViewSchema.safeParse(product);
 	const candidate = (envelope.success ? envelope.data[PRODUCT_KEY.PRODUCTS] : findAffordanceRecord(product)) ?? asRecord(product);
@@ -74,9 +73,6 @@ export function parseAffordanceProduct(product: unknown): TAffordanceProductActi
 	const parsed = ProductSchema.parse(candidate);
 	const typeStr = parsed[HYPERMEDIA.TYPE];
 	if (!hasAffordanceMarkers(parsed)) return { kind: "none" };
-	if (typeStr === SHU_TYPE.CLOSE_VIEW) {
-		return { kind: "close", view: requiredString(parsed[PRODUCT_KEY.VIEW], "Affordance close product requires string view") };
-	}
 	if (typeStr === SHU_TYPE.VIEW_COLLECTION) {
 		const rawViews = (candidate as { views?: unknown }).views;
 		if (!Array.isArray(rawViews)) throw new Error("Affordance view-collection product requires array views");

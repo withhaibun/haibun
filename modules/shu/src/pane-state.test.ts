@@ -266,7 +266,7 @@ describe("PaneState", () => {
 		expect(ids).toEqual(["shu-affordances-panel", "shu-monitor-column", "shu-polymorphic-graph-view"]);
 	});
 
-	// Reload restore (the shu-self-test 13.3 affordances flake): on reload the event-stream replays its history and
+	// Reload restore (the shu-self-test 13.3 affordances flake): on reload an early view request (a step's products arriving before the hash is read) and
 	// re-`request()`s the open view-panes (app.ts) BEFORE the boot `fromHash` reads the reloaded URL. The restore must
 	// be deterministic regardless of that interleave — every col= entry in the reloaded hash mounts, none is dropped.
 	const liveIds = () => Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
@@ -295,10 +295,10 @@ describe("PaneState", () => {
 		expect(liveIds()).toContain("shu-affordances-panel");
 	});
 
-	it("reload boot order: event-replay re-requests view-panes BEFORE the boot fromHash — all hash panes still mount, no drop", async () => {
+	it("reload boot order: an early view request re-requests view-panes BEFORE the boot fromHash — all hash panes still mount, no drop", async () => {
 		const reloadedHash = "#?col=shu-monitor-column&col=shu-polymorphic-graph-view&col=shu-affordances-panel&col=shu-domain-chain-view";
 		reloadInto(reloadedHash);
-		// the replay fires first, re-opening the same view-panes (app.ts eventStream handler) while hydrated is still false
+		// the early request fires first, re-opening the same view-panes (app.ts eventStream handler) while hydrated is still false
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
@@ -311,13 +311,13 @@ describe("PaneState", () => {
 		expect(liveIds().filter((i) => i === "shu-affordances-panel")).toHaveLength(1); // exactly one, no dup
 	});
 
-	it("reload re-feed: the replay re-requesting an already-restored pane after fromHash keeps it (no remove/dup)", async () => {
+	it("reload re-feed: an event re-requesting an already-restored pane after fromHash keeps it (no remove/dup)", async () => {
 		const reloadedHash = "#?col=shu-monitor-column&col=shu-affordances-panel";
 		reloadInto(reloadedHash);
 		PaneState.fromHash(); // boot restores from the hash first
 		await flush();
 		expect(liveIds()).toContain("shu-affordances-panel");
-		// the async replay lands afterwards and re-feeds the live pane
+		// the event lands afterwards and re-feeds the live pane
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A", data: { forward: [], goals: [] } });
 		await flush();
 		expect(liveIds().filter((i) => i === "shu-affordances-panel")).toHaveLength(1);

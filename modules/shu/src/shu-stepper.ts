@@ -58,15 +58,11 @@ export async function buildGraphSource(world: TWorld): Promise<
 	return { quads: quads as TQuad[], clusters, nodeMap, edges };
 }
 
-export const DOMAIN_SHU_VIEW_ID = "shu-view-id";
 const DOMAIN_SHU_VIEW_COLLECTION = "shu-view-collection";
-const DOMAIN_SHU_VIEW_CLOSE = "shu-view-close";
-const ShuViewIdSchema = z.string();
 const ShuViewCollectionSchema = z.object({
 	view: z.string().optional(),
 	views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
 });
-const ShuViewCloseSchema = z.object({ view: z.string() });
 const ShuSelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
 
 // Nodes and edges as pipe-delimited tokens — node `graph|subject|label`, edge `source|predicate|target` —
@@ -256,7 +252,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		},
 		getConcerns: () => ({
 			domains: [
-				{ selectors: [DOMAIN_SHU_VIEW_ID], schema: ShuViewIdSchema, description: "Shu view id" },
 				{
 					selectors: [DOMAIN_PRESENTED_KEY],
 					schema: presentedKeySchema,
@@ -267,11 +262,11 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				// via `show views` (the picker iterates domains with `ui.component`).
 				// External steppers register their own view domains the same way.
 				{
-					selectors: ["shu-polymorphic-graph-view"],
+					selectors: [SHU_TAG.POLYMORPHIC_GRAPH_VIEW],
 					schema: z.object({}),
 					description: "The polymorphic graph view: one graph as a force cloud, a layered flow, a gantt or a sequence",
 					ui: {
-						component: "shu-polymorphic-graph-view",
+						component: SHU_TAG.POLYMORPHIC_GRAPH_VIEW,
 						js: POLYMORPHIC_VIEW_JS,
 						jsContent: loadPolymorphicBundle().content,
 						summary: "Graph view",
@@ -303,12 +298,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 					schema: ShuViewCollectionSchema,
 					description: "Catalog of registered views",
 					ui: { component: SHU_TYPE.VIEW_COLLECTION, summary: "Available Views" },
-				},
-				{
-					selectors: [DOMAIN_SHU_VIEW_CLOSE],
-					schema: ShuViewCloseSchema,
-					description: "Request to close a view",
-					ui: { component: SHU_TYPE.CLOSE_VIEW },
 				},
 			],
 		}),
@@ -431,13 +420,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			gwta: "show polymorphic graph view",
 			// Opened through the same affordance path as every other view: the products domain is the view's own, and the
 			// step-hypermedia projection injects what mounts it from the registered declaration.
-			productsDomain: "shu-polymorphic-graph-view",
+			productsDomain: SHU_TAG.POLYMORPHIC_GRAPH_VIEW,
 			action: () => actionOKWithProducts({}),
-		},
-		closeView: {
-			gwta: `close view {id: ${DOMAIN_SHU_VIEW_ID}}`,
-			productsDomain: DOMAIN_SHU_VIEW_CLOSE,
-			action: ({ id }: { id: string }) => actionOKWithProducts({ view: id }),
 		},
 		getGraphLayout: {
 			gwta: "get graph layout",

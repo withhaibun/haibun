@@ -80,8 +80,10 @@ export const AWAITING_DECISION = "awaiting-decision";
 
 export const SHU_TYPE = {
 	VIEW_COLLECTION: "shu-view-collection",
-	CLOSE_VIEW: "shu-close-view",
 } as const;
+
+/** Whether a declared ui component is one of the marker types above rather than an element a column can hold. */
+export const isMarkerType = (component: string): boolean => (Object.values(SHU_TYPE) as string[]).includes(component);
 
 /** The column container every view sits in. Named once: a view asks for its hosting column by this. */
 /** Every built-in shu element, by its tag: what the registry defines, a step opens (`productsDomain`), a domain
@@ -102,6 +104,7 @@ export const SHU_TAG = {
 	SPINNER: "shu-spinner",
 	STEP_CALLER: "shu-step-caller",
 	MONITOR_COLUMN: "shu-monitor-column",
+	POLYMORPHIC_GRAPH_VIEW: "shu-polymorphic-graph-view",
 	THREAD_COLUMN: "shu-thread-column",
 	STEP_DETAIL: "shu-step-detail",
 	INDEX_SUMMARY: "shu-index-summary",
