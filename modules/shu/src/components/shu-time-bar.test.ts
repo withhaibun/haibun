@@ -40,9 +40,17 @@ describe("the bar a run's shape is read from", () => {
 		expect(last).toBeLessThanOrEqual(100);
 	});
 
-	it("names each mark by its division, so a reader waiting for one names which", async () => {
+	it("names each mark by the span it draws and the division it is, so a reader waiting for one names which", async () => {
 		const bar = await barWith([{ division: 7, color: MARK_COLOUR.fault, icon: "x" }], 10);
-		expect(drawn(bar)[0].getAttribute("data-testid")).toBe(`${SHU_TEST_IDS.TIME_BAR.MARK}7`);
+		expect(drawn(bar)[0].getAttribute("data-testid")).toBe(`${SHU_TEST_IDS.TIME_BAR.MARK}run-7`);
+	});
+
+	it("draws the span it is given, so two lines of one run are told apart by what each covers", async () => {
+		const bar = await barWith([{ division: 1, color: MARK_COLOUR.ok, icon: "o" }], 4);
+		bar.setAttribute("span", "detail");
+		await bar.updateComplete;
+		expect(bar.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.TIME_BAR.ROOT}detail']`)).not.toBeNull();
+		expect(drawn(bar)[0].getAttribute("data-testid")).toBe(`${SHU_TEST_IDS.TIME_BAR.MARK}detail-1`);
 	});
 
 	it("says which division was pressed, leaving what that moves to whoever is listening", async () => {
