@@ -195,6 +195,14 @@ async function toppedUp(
 	return [...(await read("before", half + short)).slice(0, short), ...before, ...after];
 }
 
+/** The types a run's records are read from, each with the field that places one in time. What a reader is shown of a
+ *  run and what the shape of a run is drawn from are the same records, so both read this. */
+const RUN_TYPES: ReadonlyArray<{ label: string; timeField: string }> = [
+	{ label: SEQ_PATH_LABEL, timeField: SEQ_PATH_FIELD.generatedAtTime },
+	{ label: LOG_MESSAGE_LABEL, timeField: LOG_MESSAGE_FIELD.generatedAtTime },
+	{ label: RUN_ARTIFACT_LABEL, timeField: RUN_ARTIFACT_FIELD.generatedAtTime },
+];
+
 /** The levels at or above the one a reader asked for, which is what a level filter means. */
 function atOrAbove(minLevel: THaibunLogLevel): THaibunLogLevel[] {
 	return HAIBUN_LOG_LEVELS.slice(HAIBUN_LOG_LEVELS.indexOf(minLevel)) as THaibunLogLevel[];
@@ -210,13 +218,74 @@ const LEVEL = "level";
  * three of them asks for those three. Reading every record of every level to drop most of them is what makes a view of
  * a chatty run read the whole run.
  */
-async function side(label: string, timeField: string, at: number | undefined, direction: "before" | "after", limit: number, levels: readonly THaibunLogLevel[]): Promise<Record<string, unknown>[]> {
+async function side(
+	label: string,
+	timeField: string,
+	at: number | undefined,
+	direction: "before" | "after",
+	limit: number,
+	levels: readonly THaibunLogLevel[],
+	offset = 0,
+	// Which end of the side to read from: the records nearest the moment, or, reading the other way, the furthest. A
+	// side with fewer records than a reader asked for is bounded by its furthest, which is one read rather than a count.
+	order: "nearest" | "furthest" = "nearest",
+): Promise<Record<string, unknown>[]> {
 	// A site that does not declare a type holds none of it, so asking for it would be asking a question with no answer.
 	if (!getRels(label)) return [];
 	const when = at === undefined ? [] : [{ predicate: timeField, operator: direction === "before" ? "lt" : "gte", value: new Date(at).toISOString() }];
 	const shown = { predicate: LEVEL, operator: "in", value: levels[0], values: [...levels] };
-	const { vertices } = await queryGraph({ label, filters: [...when, shown], sortBy: timeField, sortOrder: direction === "before" ? "desc" : "asc", limit, skipCount: true });
+	const nearestFirst = direction === "before" ? "desc" : "asc";
+	const sortOrder = order === "nearest" ? nearestFirst : nearestFirst === "desc" ? "asc" : "desc";
+	const { vertices } = await queryGraph({ label, filters: [...when, shown], sortBy: timeField, sortOrder, limit, offset, skipCount: true });
 	return vertices;
+}
+
+/** How many records a reader is shown in detail to each side of where they are. */
+export const DETAIL_HALF = 5000;
+
+/** The instant of one record on one side of a moment, that many records along, or undefined where the side holds
+ *  fewer. One row read at an offset, so finding it costs the same whatever it is reaching past. */
+async function instantAt(
+	type: { label: string; timeField: string },
+	at: number,
+	direction: "before" | "after",
+	offset: number,
+	levels: readonly THaibunLogLevel[],
+	order: "nearest" | "furthest" = "nearest",
+): Promise<number | undefined> {
+	const [record] = await side(type.label, type.timeField, at, direction, 1, levels, offset, order);
+	if (!record) return undefined;
+	const found = instant(record[type.timeField]);
+	return Number.isNaN(found) ? undefined : found;
+}
+
+/**
+ * The span a reader is shown in detail: the records around where they are, counted rather than measured.
+ *
+ * Detail holds the same number of records however busy the run is, so its span in time narrows over a busy period and
+ * widens over a quiet one, which is what makes it a fisheye rather than a zoom. Where one side holds fewer than its
+ * share, that share goes to the other, so a reader at the live edge is shown the whole region behind them.
+ *
+ * Each bound is one record read at an offset, per type, so finding the span costs the same whatever it spans. The span
+ * reaches as far as any type's own bound, since a type cut short of its share would be missing from what is drawn.
+ */
+export async function detailRegion({ at, half = DETAIL_HALF, minLevel = "info" }: { at: number; half?: number; minLevel?: THaibunLogLevel }): Promise<{ from: number; to: number }> {
+	const shown = atOrAbove(minLevel);
+	const bounds = await Promise.all(
+		RUN_TYPES.map(async (type) => {
+			const [back, forward] = await Promise.all([instantAt(type, at, "before", half - 1, shown), instantAt(type, at, "after", half - 1, shown)]);
+			// A side holding fewer than its share is bounded by its furthest record, and the other side reads on for
+			// what it did not use, so the region holds what was asked for wherever the run has it.
+			const from = back ?? (await instantAt(type, at, "before", 0, shown, "furthest"));
+			const to = forward ?? (await instantAt(type, at, "after", 0, shown, "furthest"));
+			if (back === undefined && to !== undefined) return { from, to: (await instantAt(type, at, "after", 2 * half - 1, shown)) ?? to };
+			if (forward === undefined && from !== undefined) return { from: (await instantAt(type, at, "before", 2 * half - 1, shown)) ?? from, to };
+			return { from, to };
+		}),
+	);
+	const froms = bounds.map((b) => b.from).filter((f): f is number => f !== undefined);
+	const tos = bounds.map((b) => b.to).filter((t): t is number => t !== undefined);
+	return { from: froms.length ? Math.min(...froms) : at, to: tos.length ? Math.max(...tos) : at };
 }
 
 /**
@@ -243,13 +312,9 @@ export async function runWindow({
 	};
 	const read = async (direction: "before" | "after", limit: number, from: number | undefined = at): Promise<TRunRow[]> => {
 		if (limit <= 0) return [];
-		const [steps, said, produced] = await Promise.all([
-			side(SEQ_PATH_LABEL, SEQ_PATH_FIELD.generatedAtTime, from, direction, limit, shown),
-			side(LOG_MESSAGE_LABEL, LOG_MESSAGE_FIELD.generatedAtTime, from, direction, limit, shown),
-			side(RUN_ARTIFACT_LABEL, RUN_ARTIFACT_FIELD.generatedAtTime, from, direction, limit, shown),
-		]);
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(type.label, type.timeField, from, direction, limit, shown)));
 		// The store answered at the levels asked for, so what is left to drop is a record with no time to place it by.
-		const rows = [...steps.map(stepRow), ...said.map(saidRow), ...produced.map(producedRow)].filter((r) => !Number.isNaN(r.at));
+		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		rows.sort(inRunOrder);
 		return direction === "before" ? rows.slice(-limit) : rows.slice(0, limit);
 	};

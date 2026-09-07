@@ -389,13 +389,7 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 	const { label, limit, offset } = query;
 	if (!label) throw new Error("a graph query over quads reads one type at a time, and this one names none");
 	if (query.textQuery) throw new Error("a graph query over quads matches a type and equality filters; text search needs a store with a query engine");
-	// The store matches equality itself; the comparisons are made here over the values it returned, which a store of
-	// quads holds in full. Reading a range of time is a comparison, so answering only equality would have meant either a
-	// wrong answer or no paging by time.
-	const equality = Object.fromEntries(query.filters.filter((f) => f.operator === "eq").map((f) => [f.predicate, f.value]));
-	const compared = query.filters.filter((f) => f.operator !== "eq");
-	const matched = await store.queryIndividuals<Record<string, unknown>>(label, Object.keys(equality).length ? equality : undefined, {});
-	const vertices = matched.filter((individual) => compared.every((f) => satisfies(individual[f.predicate], f)));
+	const vertices = await individualsMatching(store, label, query.filters);
 	// The order a query asks for, applied before the window: a page of the newest is the newest of what matched, not the
 	// first the store happened to return. A query naming no order takes the store's own.
 	if (query.sortBy) {
@@ -405,6 +399,20 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 	}
 	const from = offset ?? 0;
 	return { vertices: vertices.slice(from, from + (limit ?? vertices.length)), total: vertices.length };
+}
+
+/**
+ * The individuals of a type that satisfy every condition, over a store that holds its records.
+ *
+ * The store matches equality itself; the comparisons are made here over the values it returned, which a store of quads
+ * holds in full. Reading a range of time is a comparison, so answering only equality would have meant either a wrong
+ * answer or no reading by time. Every read of such a store narrows this way, so it narrows in one place.
+ */
+async function individualsMatching(store: IQuadStore, label: string, filters: readonly TSearchCondition[]): Promise<Record<string, unknown>[]> {
+	const equality = Object.fromEntries(filters.filter((f) => f.operator === "eq").map((f) => [f.predicate, f.value]));
+	const compared = filters.filter((f) => f.operator !== "eq");
+	const matched = await store.queryIndividuals<Record<string, unknown>>(label, Object.keys(equality).length ? equality : undefined, {});
+	return matched.filter((individual) => compared.every((f) => satisfies(individual[f.predicate], f)));
 }
 
 /**
@@ -431,11 +439,7 @@ export async function densityOverQuadStore(store: IQuadStore, query: TDensityQue
 	if (Number.isNaN(from) || Number.isNaN(to)) throw new Error(`a density read spans instants, and this one names ${query.from} to ${query.to}`);
 	if (to < from) throw new Error(`a density read spans forward, and this one names ${query.from} to ${query.to}`);
 	const buckets: Record<string, number>[] = Array.from({ length: query.buckets }, () => ({}));
-	const equality = Object.fromEntries(query.filters.filter((f) => f.operator === "eq").map((f) => [f.predicate, f.value]));
-	const compared = query.filters.filter((f) => f.operator !== "eq");
-	const matched = await store.queryIndividuals<Record<string, unknown>>(query.label, Object.keys(equality).length ? equality : undefined, {});
-	for (const individual of matched) {
-		if (!compared.every((f) => satisfies(individual[f.predicate], f))) continue;
+	for (const individual of await individualsMatching(store, query.label, query.filters)) {
 		const at = Date.parse(String(individual[query.timeField] ?? ""));
 		if (Number.isNaN(at)) continue;
 		const bucket = bucketOf(at, from, to, query.buckets);

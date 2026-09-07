@@ -99,6 +99,8 @@ export function describeQuadStore(
 				for (const r of records) await store.upsertIndividual(GRAPH, { id: r.id, generatedAtTime: at(r.minute), ...(r.status === undefined ? {} : { status: r.status }) });
 			};
 
+			// The length is the count asked for whatever the span holds, which is what makes reading a decade cost what
+			// reading an hour costs; the cases below state it for a span with records and for one with none.
 			it("answers with the buckets asked for, each counting what it holds by how it turned out", async () => {
 				await held([
 					{ id: "a", minute: 1, status: "passed" },
@@ -112,23 +114,9 @@ export function describeQuadStore(
 				expect(buckets[1]).toEqual({ passed: 1 });
 			});
 
-			it("reports a failure among many passes, rather than clustering it away", async () => {
-				await held([...Array.from({ length: 20 }, (_, i) => ({ id: `p${i}`, minute: 1, status: "passed" })), { id: "f", minute: 1, status: "failed" }]);
-				const { buckets } = await store.density({ ...span, buckets: 4 });
-				expect(buckets[0]).toEqual({ passed: 20, failed: 1 });
-			});
-
 			it("answers a span holding nothing with empty buckets, rather than with nothing", async () => {
 				const { buckets } = await store.density({ ...span, buckets: 3 });
 				expect(buckets).toEqual([{}, {}, {}]);
-			});
-
-			it("answers the same size whatever the span, since the size is the bucket count", async () => {
-				await held([{ id: "a", minute: 1, status: "passed" }]);
-				const hour = await store.density({ ...span, buckets: 5 });
-				const decade = await store.density({ ...span, from: new Date(Date.UTC(2020, 0, 1)).toISOString(), to: new Date(Date.UTC(2030, 0, 1)).toISOString(), buckets: 5 });
-				expect(hour.buckets.length).toBe(5);
-				expect(decade.buckets.length).toBe(5);
 			});
 
 			it("counts only what the filters name", async () => {

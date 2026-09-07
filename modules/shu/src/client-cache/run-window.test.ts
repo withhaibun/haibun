@@ -10,7 +10,7 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { setConduit, LiveConduit } from "../hypermedia.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
-import { runWindow } from "./run-window.js";
+import { detailRegion, runWindow } from "./run-window.js";
 
 const RUN = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
@@ -169,5 +169,53 @@ describe("following a run that is still happening", () => {
 		const first = await runWindow({ size: 10 });
 		const since = await runWindow({ size: 10, since: first.to });
 		expect(since.rows.map((r) => r.text), "only the row at that moment, which the reader already holds").toEqual(["a step"]);
+	});
+});
+
+describe("the span a reader is shown in detail", () => {
+	beforeEach(() => {
+		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		setConduit(new LiveConduit(""));
+		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
+		setSiteMetadata({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+	});
+
+	/** A run of `steps` steps one millisecond apart, starting at 1000. */
+	const aRunOfSteps = async (steps: number): Promise<QuadStore> => {
+		const store = new QuadStore();
+		for (let i = 0; i < steps; i++) {
+			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i) });
+		}
+		return store;
+	};
+
+	it("holds its share to each side, counted in records rather than measured in time", async () => {
+		setGraphStore(await aRunOfSteps(21));
+		const { from, to } = await detailRegion({ at: 1010, half: 2 });
+		// Two behind the cursor and two from it on, which is where the record at the cursor belongs, as it does in
+		// every other read of the run: four records, whatever span they happen to cover.
+		expect([from, to]).toEqual([1008, 1011]);
+	});
+
+	it("gives a side's unused share to the other, so a reader at the live edge is shown the region behind them", async () => {
+		setGraphStore(await aRunOfSteps(21));
+		// At the newest record nothing follows, so all four go behind it: step 20 back to step 16.
+		const { from, to } = await detailRegion({ at: 1020, half: 2 });
+		expect([from, to]).toEqual([1016, 1020]);
+	});
+
+	it("narrows in time over a busy period, holding the same records", async () => {
+		const store = new QuadStore();
+		for (let i = 0; i < 5; i++) await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `quiet ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i * 1000) });
+		for (let i = 0; i < 5; i++) await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.1.${i}`, stepText: `busy ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(10000 + i) });
+		setGraphStore(store);
+		const quiet = await detailRegion({ at: 2000, half: 2 });
+		const busy = await detailRegion({ at: 10002, half: 2 });
+		expect(busy.to - busy.from, "the same count of records spans less time where they are close together").toBeLessThan(quiet.to - quiet.from);
+	});
+
+	it("spans nothing when the run holds nothing, rather than failing", async () => {
+		setGraphStore(new QuadStore());
+		expect(await detailRegion({ at: 1000, half: 2 })).toEqual({ from: 1000, to: 1000 });
 	});
 });
