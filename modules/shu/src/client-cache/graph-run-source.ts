@@ -19,7 +19,7 @@ import { getWindowSize } from "../window-size-setting.js";
 import { pagePinned } from "../page-pinned.js";
 import { cachedGraphStore, pageRunGraph } from "../quads-snapshot.js";
 import { individualAsQuads } from "./quad-store.js";
-import { currentExecution, noteExecution, subscribeExecutionSwitch } from "./executions.js";
+import { currentExecution, holdOnDevice, noteExecution, subscribeExecutionSwitch } from "./executions.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import type { Range } from "../ranges.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
@@ -126,14 +126,11 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		held.set(key, made);
 		return made;
 	};
-	/** Hold what a window read, in one write, and say where it could not be held rather than leaving a reader to find
-	 *  it missing later. */
+	/** Hold what a window read, in one write. Where the device is full, what it holds of another run makes room; where
+	 *  it could not be held at all, that is said rather than left for a reader to find missing later. */
 	const hold = (rows: TRunRow[]): Promise<void> => {
 		if (rows.length === 0) return Promise.resolve();
-		const quads = rows.flatMap((row) => individualAsQuads(row.label, row.record)[1]);
-		return cachedGraphStore()
-			.setMany(quads)
-			.catch((err: unknown) => failFastOrLog("the run's records could not be held on this device", err));
+		return holdOnDevice(rows.flatMap((row) => individualAsQuads(row.label, row.record)[1]));
 	};
 
 	/** The rows the window holds, oldest first, and what they span: what every view of this source reads. */

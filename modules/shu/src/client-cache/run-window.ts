@@ -196,8 +196,9 @@ async function toppedUp(
 }
 
 /** The types a run's records are read from, each with the field that places one in time. What a reader is shown of a
- *  run and what the shape of a run is drawn from are the same records, so both read this. */
-const RUN_TYPES: ReadonlyArray<{ label: string; timeField: string }> = [
+ *  run, what the shape of a run is drawn from and what a device forgets when it forgets a run are the same records, so
+ *  all of them read this. */
+export const RUN_TYPES: ReadonlyArray<{ label: string; timeField: string }> = [
 	{ label: SEQ_PATH_LABEL, timeField: SEQ_PATH_FIELD.generatedAtTime },
 	{ label: LOG_MESSAGE_LABEL, timeField: LOG_MESSAGE_FIELD.generatedAtTime },
 	{ label: RUN_ARTIFACT_LABEL, timeField: RUN_ARTIFACT_FIELD.generatedAtTime },

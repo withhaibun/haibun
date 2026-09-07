@@ -6,12 +6,14 @@
  * query over the records, here the steps that declared a feature, which is what names an execution for a reader and
  * costs one small query however long the run was.
  */
+import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { FEATURE_START, declaredName } from "@haibun/core/schema/protocol.js";
 import { SEQ_PATH_FIELD, parseRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
-import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
+import { GraphQuerySchema, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { cachedGraphStore, selectValuesFor } from "../quads-snapshot.js";
+import { RUN_TYPES } from "./run-window.js";
 import { componentOfView, declaredViews } from "../rels-cache.js";
 import { pagePinned } from "../page-pinned.js";
 
@@ -110,4 +112,66 @@ export async function viewsShown(): Promise<string[]> {
 	return declaredViews()
 		.filter((view) => shown.has(view))
 		.map(componentOfView);
+}
+
+/** How many of a run's records are read at a time while it is forgotten: a run is forgotten in pages so a long one is
+ *  never read at once. */
+const FORGET_PAGE = 1000;
+
+/** Forget every record of one run this device holds, and answer how many went. A record's id names the run it belongs
+ *  to, so what to forget is asked of the records themselves rather than of a second index beside them. */
+export async function forgetExecution(execution: string): Promise<number> {
+	const store = cachedGraphStore();
+	let gone = 0;
+	for (const type of RUN_TYPES) {
+		for (;;) {
+			const { vertices } = await queryQuadStore(
+				store,
+				GraphQuerySchema.parse({
+					label: type.label,
+					filters: [{ predicate: SEQ_PATH_FIELD.id, operator: "contains", value: `${execution}.` }],
+					limit: FORGET_PAGE,
+					skipCount: true,
+				}),
+			);
+			const ids = (vertices as Array<Record<string, unknown>>).map((record) => String(record[SEQ_PATH_FIELD.id] ?? "")).filter((id) => parseRecordName(id)?.execution === execution);
+			for (const id of ids) await store.deleteIndividual(type.label, id);
+			gone += ids.length;
+			if (vertices.length < FORGET_PAGE) break;
+		}
+	}
+	return gone;
+}
+
+/** Whether a write failed because the browser has no room left for what this page holds. */
+function storageIsFull(err: unknown): boolean {
+	return (err as { name?: string } | undefined)?.name === "QuotaExceededError";
+}
+
+/**
+ * Hold what a window read on this device, in one write.
+ *
+ * What a device holds is the runs a reader can come back to, and it holds them until the browser has no room left. At
+ * that point the oldest run the reader is not reading is forgotten and the write is tried once more, so what is kept
+ * is the runs nearest to what a reader is looking at rather than whichever ones were written first. A device with
+ * nothing it can forget says so: reading carries on against the site, and a reader who loses the site loses what this
+ * write would have held.
+ */
+export async function holdOnDevice(quads: TQuad[]): Promise<void> {
+	if (quads.length === 0) return;
+	try {
+		await cachedGraphStore().setMany(quads);
+	} catch (err: unknown) {
+		if (!storageIsFull(err)) return failFastOrLog("the run's records could not be held on this device", err);
+		const held = await executionsHeld();
+		const oldest = held.filter((one) => one.execution !== readingExecution()).pop();
+		if (oldest === undefined) return failFastOrLog("this device is full and holds no run it could forget", err);
+		const gone = await forgetExecution(oldest.execution);
+		// Making room is what a full device does rather than a failure of the page, so it is said rather than thrown:
+		// a reader whose earlier run is no longer here is told why it went.
+		console.warn(`[shu] this device is full, so the run ${oldest.execution} and its ${gone} records were forgotten`);
+		await cachedGraphStore()
+			.setMany(quads)
+			.catch((again: unknown) => failFastOrLog("the run's records could not be held on this device after forgetting a run", again));
+	}
 }
