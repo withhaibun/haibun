@@ -1,4 +1,4 @@
-import { QuadStore, queryQuadStore } from "./quad-store.js";
+import { QuadStore, queryQuadStore , bucketOf } from "./quad-store.js";
 import { GraphQuerySchema } from "./quad-types.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 
@@ -203,5 +203,25 @@ describe("the answer a store of quads gives a graph query", () => {
 	it("says what it cannot answer rather than answering wrongly", async () => {
 		await expect(queryQuadStore(store, GraphQuerySchema.parse({}))).rejects.toThrow(/one type at a time/);
 		await expect(queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", textQuery: "inbox" }))).rejects.toThrow(/query engine/);
+	});
+});
+
+describe("which division of a span an instant falls in", () => {
+	it("divides by the span, so a span that does not divide evenly still answers with the buckets asked for", () => {
+		// 10 units over 3 buckets: no bucket width is a whole number, and every instant still lands in one of the three.
+		expect([0, 1, 3, 4, 6, 7, 9].map((at) => bucketOf(at, 0, 10, 3))).toEqual([0, 0, 0, 1, 1, 2, 2]);
+	});
+
+	it("puts the end of the span in the last bucket, which nothing after it would otherwise hold", () => {
+		expect(bucketOf(10, 0, 10, 3)).toBe(2);
+	});
+
+	it("says an instant outside the span is in none", () => {
+		expect(bucketOf(-1, 0, 10, 3)).toBe(-1);
+		expect(bucketOf(11, 0, 10, 3)).toBe(-1);
+	});
+
+	it("puts everything in the first bucket when the span is one instant", () => {
+		expect(bucketOf(5, 5, 5, 4)).toBe(0);
 	});
 });

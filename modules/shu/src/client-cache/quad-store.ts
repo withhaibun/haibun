@@ -10,8 +10,8 @@
  * rather than nothing. What it holds is what the site already served this reader, so a read of it gates nothing further.
  */
 import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
-import { sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
+import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TDensityQuery, type TDensityResult, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
+import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, withStores as withClientCacheStores } from "./device-store.js";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
@@ -127,6 +127,10 @@ export class IndexedDbQuadStore implements IQuadStore {
 		for (const [predicate, value] of Object.entries(filters ?? {})) individuals = individuals.filter((i) => i[predicate] === value);
 		const offset = options?.offset ?? 0;
 		return individuals.slice(offset, offset + (options?.limit ?? individuals.length)) as T[];
+	}
+
+	density(query: TDensityQuery): Promise<TDensityResult> {
+		return densityOverQuadStore(this, query);
 	}
 
 	async distinctPropertyValues(label: string, property: string): Promise<string[]> {

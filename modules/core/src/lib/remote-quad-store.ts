@@ -9,7 +9,7 @@
 import { discoverInstance, RpcClient, type RpcError } from "./rpc-client.js";
 import { STORE_METHOD_PREFIX } from "./store-protocol.js";
 import type { AccessLevel } from "./resources.js";
-import type { IQuadStore, TClusteredQuads, TClusteredQuadsOpts, TQuad, TQuadPattern } from "./quad-types.js";
+import type { IQuadStore, TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TQuad, TQuadPattern } from "./quad-types.js";
 
 export type TRemoteQuadStoreConfig = { url: string; token: string; graphs: string[]; fetchImpl?: typeof fetch };
 
@@ -92,6 +92,10 @@ export class RemoteQuadStore implements IQuadStore {
 
 	distinctPropertyValues(label: string, property: string): Promise<string[]> {
 		return this.call("distinctPropertyValues", { label, property });
+	}
+
+	density(query: TDensityQuery): Promise<TDensityResult> {
+		return this.call("density", { query });
 	}
 
 	/**

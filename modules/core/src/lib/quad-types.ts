@@ -52,6 +52,40 @@ export const GraphQuerySchema = z
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
 
+/**
+ * How many records fall in each division of a span of time, by how each turned out.
+ *
+ * A reader looking at a run of any length is shown its shape rather than its rows: the span divides into a fixed
+ * number of buckets, and each bucket says how many records of each group it holds. The answer is that many buckets
+ * whatever the span, so reading an hour and reading a decade cost the same and return the same size.
+ */
+export const DensityQuerySchema = z
+	.object({
+		label: z.string().min(1),
+		/** The field whose instant places a record in a bucket. */
+		timeField: z.string().min(1),
+		/** The span, as instants a record's own field compares against. The last bucket includes `to`. */
+		from: z.string().min(1),
+		to: z.string().min(1),
+		/** How many divisions the span has. The answer is this many, whatever the span. */
+		buckets: z.number().int().positive(),
+		/** The field a bucket's counts are grouped by: how a record turned out. A record stating nothing for it counts
+		 *  under the empty group, so a bucket's counts always add up to what it holds. */
+		groupBy: z.string().min(1),
+		filters: z.array(SearchConditionSchema).default([]),
+		accessLevel: z.enum(["private", "public", "opened", "all"]).optional(),
+	})
+	.strict();
+export type TDensityQuery = z.infer<typeof DensityQuerySchema>;
+
+/** One entry per bucket, oldest first, each counting its records by group. A bucket holding none is an empty entry, so
+ *  the answer's length is the bucket count asked for and a reader can draw the gaps. A bucket's own span is the span
+ *  divided by the count, which every reader derives the same way rather than being told it per bucket. */
+export const DensityResultSchema = z.object({
+	buckets: z.array(z.record(z.string(), z.number().int().nonnegative())),
+});
+export type TDensityResult = z.infer<typeof DensityResultSchema>;
+
 /** What a graph query answers with: the rows it matched and how many there are, plus what a store with a query engine
  *  can add about how it answered. One shape, so the site's step and a page reading its own copy agree on the answer. */
 export const GraphQueryResultSchema = z.object({
@@ -183,6 +217,10 @@ export interface IQuadStore {
 	deleteIndividual(label: string, id: string): Promise<void>;
 	queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
 	distinctPropertyValues(label: string, property: string): Promise<string[]>;
+
+	/** How many records fall in each division of a span of time, by how each turned out. What a reader is shown of a run
+	 *  of any length, at a cost that does not grow with it. */
+	density(query: TDensityQuery): Promise<TDensityResult>;
 
 	/**
 	 * Type-bounded snapshot for graph view rendering. For each requested type
