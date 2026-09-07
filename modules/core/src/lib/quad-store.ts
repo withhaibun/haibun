@@ -5,6 +5,12 @@
  * Backing stores can be registered for specific named graphs — writes route to the owning store,
  * reads merge across all stores.
  * Methods return Promises (via Promise.resolve) to satisfy the async IQuadStore interface.
+ *
+ * What it is for: a run held in one process, a report holding a run's records, and tests. Every read of a type reads
+ * every quad of that type and then narrows, so a limit bounds the answer rather than the work: a window, a count and a
+ * read at an offset each cost what the store holds. That is the store's shape rather than a defect of a caller, and it
+ * is why a run too large to hold in memory needs a store with an engine behind it, where the same reads are answered
+ * from an index.
  */
 
 import {

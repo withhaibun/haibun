@@ -28,9 +28,11 @@ const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SP
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
-/** The bar the run's shape is read from, and the earliest division of it a reader can press. */
-const RUN_SHAPE = SHU_TEST_IDS.TIME_BAR.ROOT;
+/** The line the whole run's shape is read from, the line of the region around where a reader is, and the earliest
+ *  division of each that a reader can press. */
+const RUN_SHAPE = `${SHU_TEST_IDS.TIME_BAR.ROOT}run`;
 const RUN_SHAPE_FIRST_MARK = "run-shape-first-mark";
+const DETAIL_SHAPE_FIRST_MARK = "detail-shape-first-mark";
 /** The globs that cover everything this page reads from its server: every remote call and the event stream. */
 const RPC_GLOB = "**/rpc/**";
 const STREAM_GLOB = "**/sse*";
@@ -283,7 +285,8 @@ export const features: TKirejiExport = {
 
 		"The bar across the page shows the run's shape: the run divides into a fixed number of divisions and each one that holds something is marked, so a run of any length draws the same way and reading it costs what the divisions cost rather than what the run does. The store counts; no records are read to draw it. This run has failed a step, so a division of it is marked as a failure, and pressing that division scrubs every view to where it begins.",
 		setAs({ what: RUN_SHAPE, domain: "page-test-id", value: `"${RUN_SHAPE}"` }),
-		setAs({ what: RUN_SHAPE_FIRST_MARK, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.TIME_BAR.MARK}'] >> nth=0"` }),
+		setAs({ what: RUN_SHAPE_FIRST_MARK, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.TIME_BAR.MARK}run-'] >> nth=0"` }),
+		setAs({ what: DETAIL_SHAPE_FIRST_MARK, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.TIME_BAR.MARK}detail-'] >> nth=0"` }),
 		setAs({ what: IDS.CLIENT_CACHE.CURSOR, domain: "page-test-id", value: `"${IDS.CLIENT_CACHE.CURSOR}"` }),
 		setAs({ what: IDS.CLIENT_CACHE.READING_AT, domain: "page-test-id", value: `"${IDS.CLIENT_CACHE.READING_AT}"` }),
 		waitFor({ target: RUN_SHAPE }),
@@ -296,6 +299,11 @@ export const features: TKirejiExport = {
 		click({ target: RUN_SHAPE_FIRST_MARK }),
 		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAfterPress`,
 		'not variable cursorAfterPress is "live edge"',
+
+		"A reader who has moved is shown the region around where they are as its own line, at its own scale. The whole run's line divides a run of any length into the same number of divisions, so a division of a long run covers a stretch a reader cannot read anything from; the region is counted in records rather than measured in time, so it holds the same number of records wherever in the run a reader stands. On a run shorter than the region the two lines cover the same span, which is what the region around a reader is when the whole run is around them. Pressing a division of the region moves the cursor within it, and the reader is still reading the past.",
+		click({ target: DETAIL_SHAPE_FIRST_MARK }),
+		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorInRegion`,
+		'not variable cursorInRegion is "live edge"',
 
 		"Moving the cursor is not enough on its own. A window holds a few thousand records, so a division far from the newest records is a division no window holds, and a reader pressing it would be shown the records they had left. The cursor names the moment the run is read around, so pressing a division reads the run there. The client cache says which it is: the newest records are followed until a reader moves, and after that the run is read around the moment they moved to.",
 		`save text from ${IDS.CLIENT_CACHE.READING_AT} to readingAfterPress`,
