@@ -28,10 +28,12 @@ const COUNTED = [
 /** The levels at or above the one a reader asked for, which is what a level filter means. */
 const atOrAbove = (minLevel: THaibunLogLevel): THaibunLogLevel[] => HAIBUN_LOG_LEVELS.slice(HAIBUN_LOG_LEVELS.indexOf(minLevel)) as THaibunLogLevel[];
 
-/** The run's shape over a span, one mark per division that holds anything, in the order the divisions run. */
-export async function runMarks(graph: TRunGraph, { from, to, divisions, minLevel = "info" }: { from: number; to: number; divisions: number; minLevel?: THaibunLogLevel }): Promise<TRunMark[]> {
+/** How many records of each counted type fall in each division of a span, by how each turned out: one array per type,
+ *  in the order the types are counted, each holding one set of counts per division. What a division holds and what it
+ *  looks like are two rules, so nothing is marked here. */
+export function runCounts(graph: TRunGraph, { from, to, divisions, minLevel = "info" }: { from: number; to: number; divisions: number; minLevel?: THaibunLogLevel }): Promise<Record<string, number>[][]> {
 	const levels = atOrAbove(minLevel);
-	const counted = await Promise.all(
+	return Promise.all(
 		COUNTED.map(async (type) => {
 			// A graph that does not carry a type holds none of it, so asking for it would be asking a question with no answer.
 			if (!graph.declares(type.label)) return [];
@@ -45,12 +47,17 @@ export async function runMarks(graph: TRunGraph, { from, to, divisions, minLevel
 				filters: [{ predicate: "level", operator: "in", value: levels[0], values: levels }],
 			};
 			const { buckets } = await graph.density(query);
-			return buckets.map((counts: Record<string, number>) => Object.entries(counts).map(([group, count]) => ({ event: type.shapeOf(group), count })));
+			return buckets;
 		}),
 	);
+}
+
+/** The mark each division earns from what it holds, over every type counted: one per division that holds anything, in
+ *  the order the divisions run. */
+export function marksOf(counts: Record<string, number>[][], divisions: number): TRunMark[] {
 	const marks: TRunMark[] = [];
 	for (let division = 0; division < divisions; division++) {
-		const held = counted.flatMap((perType) => perType[division] ?? []);
+		const held = counts.flatMap((perType, type) => Object.entries(perType[division] ?? {}).map(([group, count]) => ({ event: COUNTED[type].shapeOf(group), count })));
 		const style = bucketMarkerStyle(held);
 		if (style) marks.push({ ...style, division });
 	}

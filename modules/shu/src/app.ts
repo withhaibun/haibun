@@ -29,7 +29,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
-import { hydrateClientCache, viewsShown, runMarks, runExtent, runSpan, atLiveEdge, readRunAt, subscribeRunSources, type TRunMark } from "./client-cache/index.js";
+import { hydrateClientCache, viewsShown, runShape, runSpan, atLiveEdge, readRunAt, subscribeExecutionSwitch, subscribeRunSources, type TRunMark } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -100,10 +100,6 @@ function openReaderSession(): void {
 	// it, so this is a notice rather than the handling of it.
 	opening.catch((err: unknown) => console.warn(`[shu] this reader has no session: ${errorDetail(err)}`));
 }
-
-/** How many divisions a run's shape is drawn in: what a reader is shown of a run of any length, at a cost fixed by
- *  this rather than by the run. */
-const RUN_SHAPE_DIVISIONS = 120;
 
 /** How long changes to the run are collected before its shape is counted again. */
 const RUN_SHAPE_REDRAW_MS = 15000;
@@ -381,23 +377,27 @@ const main = async (): Promise<void> => {
 	// of any length draws the same way. It is re-read when the run says something changed, on the same schedule a
 	// following view reads on, and pressing a division scrubs every view to where it begins.
 	const timeBar = () => appRoot.querySelector(SHU_TAG.TIME_BAR) as (HTMLElement & { marks: TRunMark[]; divisions: number }) | null;
-	// The run's own reach, read rather than taken from the window a reader holds: a window is a few thousand records
-	// however long the run is, so a bar drawn over it would show a decade as the minutes a reader is looking at.
-	let shapeSpan = { first: 0, last: 0 };
+	// The run counted as it grows: a division is a fixed stretch of time, so what has been counted stays counted and
+	// each count reads only what the run has recorded since the last one. Another execution is another run, and its
+	// shape is its own.
+	let shape = runShape(pageRunGraph());
+	eventsController.signal.addEventListener("abort", subscribeExecutionSwitch(() => (shape = runShape(pageRunGraph()))));
 	const drawRunShape = async (): Promise<void> => {
 		const bar = timeBar();
 		if (!bar) return;
-		const graph = pageRunGraph();
-		shapeSpan = await runExtent(graph);
-		if (shapeSpan.last <= shapeSpan.first) return;
-		bar.divisions = RUN_SHAPE_DIVISIONS;
-		bar.marks = await runMarks(graph, { from: shapeSpan.first, to: shapeSpan.last, divisions: RUN_SHAPE_DIVISIONS });
+		// As far as the run has been read: what a following view has seen of it is what the bar draws to, so counting
+		// and following move together and neither asks the run where it has reached.
+		await shape.update(runSpan().last);
+		bar.divisions = shape.divisions;
+		bar.marks = shape.marks;
 	};
 	appRoot.addEventListener(
 		SHU_EVENT.TIME_BAR_PRESS,
 		((e: CustomEvent<{ division: number }>) => {
-			// Where the division begins on the bar's own span, which is the run's reach rather than what a reader holds.
-			const at = shapeSpan.first + ((shapeSpan.last - shapeSpan.first) * e.detail.division) / RUN_SHAPE_DIVISIONS;
+			// Where the division begins. A division is a stretch of time rather than a share of the run's reach, so a
+			// mark keeps the stretch it stands for while the run grows into the grid, and covers twice as much once the
+			// run outgrows it.
+			const at = shape.beginningOf(e.detail.division);
 			timeCursor.set(atLiveEdge(at) ? null : at);
 		}) as EventListener,
 		{ signal },
@@ -410,19 +410,14 @@ const main = async (): Promise<void> => {
 		"abort",
 		timeCursor.subscribe((at) => void readRunAt(at).catch((err: unknown) => failFastOrLog("the run could not be read at the moment the cursor names", err))),
 	);
-	// Counted again on a throttle, and only where the run has moved since it was last counted: a reader watching a run
-	// would otherwise have its whole shape counted for every record the run wrote, and each count is itself a call the
-	// run records. An overview a few seconds behind is an overview; a run counted per record is a run made slower by
-	// being watched.
-	let countedThrough = 0;
+	// Counted again on a throttle: a reader watching a run would otherwise have it counted for every record it wrote,
+	// and each count is itself a call the run records. An overview a few seconds behind is an overview; a run counted
+	// per record is a run made slower by being watched. A count where the run has not moved reads nothing.
 	let countDue: ReturnType<typeof setTimeout> | undefined;
 	const redrawRunShape = (): void => {
 		if (countDue !== undefined) return;
 		countDue = setTimeout(() => {
 			countDue = undefined;
-			const { last } = runSpan();
-			if (last <= countedThrough) return;
-			countedThrough = last;
 			void drawRunShape().catch((err: unknown) => failFastOrLog("the run's shape could not be read", err));
 		}, RUN_SHAPE_REDRAW_MS);
 	};
