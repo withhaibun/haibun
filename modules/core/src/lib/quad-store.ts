@@ -434,6 +434,8 @@ function satisfies(held: unknown, condition: TSearchCondition): boolean {
 		return text < against ? -1 : text > against ? 1 : 0;
 	};
 	switch (condition.operator) {
+		case "in":
+			return (condition.values ?? [condition.value]).includes(String(held));
 		case "contains":
 			return String(held).includes(condition.value);
 		case "gt":

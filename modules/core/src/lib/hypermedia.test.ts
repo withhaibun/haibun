@@ -188,11 +188,11 @@ describe("buildConcernCatalog vocabulary binding", () => {
 	});
 
 	it("rejects a class named in a vocabulary the type never bound", () => {
-		expect(() => buildConcernCatalog(domain({ type: "did:DIDDocument" }))).toThrow(/"did:" vocabulary is not bound/);
+		expect(() => buildConcernCatalog(domain({ type: "vcard:Individual" }))).toThrow(/"vcard:" vocabulary is not bound/);
 	});
 
 	it("accepts it once the type declares what the prefix binds to", () => {
-		expect(() => buildConcernCatalog(domain({ type: "did:DIDDocument", namespaces: { did: "https://www.w3.org/ns/did#" } }))).not.toThrow();
+		expect(() => buildConcernCatalog(domain({ type: "vcard:Individual", namespaces: { vcard: "http://www.w3.org/2006/vcard/ns#" } }))).not.toThrow();
 	});
 
 	it("accepts a standard core binds for every domain, undeclared", () => {

@@ -244,4 +244,39 @@ describe("EventLogger", () => {
 			}
 		});
 	});
+	describe("how prominently a statement reports", () => {
+		const said = (): Array<Record<string, unknown>> => {
+			const heard: Array<Record<string, unknown>> = [];
+			logger.subscribe((e) => heard.push(e as unknown as Record<string, unknown>), { kinds: ["log"] });
+			return heard;
+		};
+
+		it("reports at its own level while a step reports at its own", () => {
+			const heard = said();
+			logger.info("the run says something");
+			expect(heard[0].level).toBe("info");
+		});
+
+		it("reports no more prominently than the step it is said during, so a call into a running instance stays out of the run's history", () => {
+			const heard = said();
+			logger.stepReportsAt = "trace";
+			logger.info("what the caller's own step said");
+			expect(heard[0].level, "said during a step that reports at trace").toBe("trace");
+		});
+
+		it("leaves a statement quieter than the step where it is", () => {
+			const heard = said();
+			logger.stepReportsAt = "trace";
+			logger.debug("quieter than the step");
+			expect(heard[0].level).toBe("debug");
+		});
+
+		it("reports a warning and a fault as themselves, since a quiet step is no reason to be quiet about a fault", () => {
+			const heard = said();
+			logger.stepReportsAt = "trace";
+			logger.warn("something is wrong");
+			logger.error("something failed");
+			expect(heard.map((e) => e.level)).toEqual(["warn", "error"]);
+		});
+	});
 });

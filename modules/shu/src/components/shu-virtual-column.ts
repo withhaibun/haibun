@@ -135,9 +135,43 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		this.autoListen(this, "scroll", this.#onAnyScroll, { passive: true, capture: true });
 	}
 
+	/**
+	 * The row a reader is on, and where it sits in the view. A virtualizer measures a row when it reaches it, so the
+	 * content above a reader grows as they scroll up into it; a scroll position in pixels then names a different row,
+	 * and the reader arrives somewhere they did not go. Holding the row they are on keeps them there while that settles.
+	 */
+	#held: { row: Element; from: number } | null = null;
+
+	/** The first row the view shows, which is the one a reader is reading. */
+	#topRow(scroller: HTMLElement, top: number): Element | null {
+		const rows = scroller.children;
+		for (let i = 0; i < rows.length; i++) if (rows[i].getBoundingClientRect().bottom > top + 1) return rows[i];
+		return null;
+	}
+
+	/** Hold where the reader is: only while they are reading rather than following, since a followed view is meant to
+	 *  move. One measurement of the view, and one of the row it is holding: this runs on every scroll. */
+	#holdPlace(): void {
+		const scroller = this.#virt.value;
+		if (!scroller || (this.follow && this.#follow.isFollowing)) return void (this.#held = null);
+		const top = scroller.getBoundingClientRect().top;
+		const row = this.#topRow(scroller, top);
+		this.#held = row ? { row, from: row.getBoundingClientRect().top - top } : null;
+	}
+
+	/** Put the held row back where it was, which is what a reader sees as staying where they are. */
+	#keepPlace(): void {
+		const scroller = this.#virt.value;
+		const held = this.#held;
+		if (!scroller || !held || !held.row.isConnected || this.#wantedFirst !== null || (this.follow && this.#follow.isFollowing)) return;
+		const drift = held.row.getBoundingClientRect().top - scroller.getBoundingClientRect().top - held.from;
+		if (Math.abs(drift) >= 1) scroller.scrollTop += drift;
+	}
+
 	#onAnyScroll = (e: Event): void => {
 		const scroller = this.#virt.value;
 		if (!scroller || e.target !== scroller) return;
+		this.#holdPlace();
 		const top = scroller.scrollTop;
 		const delta = this.#lastScrollTop === undefined ? 0 : top - this.#lastScrollTop;
 		this.#lastScrollTop = top;
@@ -290,6 +324,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			this.#measureQueued = false;
 			const scroller = this.#virt.value;
 			if (!scroller) return;
+			this.#keepPlace();
 			const { total, window } = railTotalAndWindow(scroller);
 			// Quantised: the virtualizer revises its total-height estimate continuously while a reader scrolls, and a
 			// revision too small to move the thumb a whole pixel must not re-render the rail (the thumb would twitch).

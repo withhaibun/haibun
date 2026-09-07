@@ -33,7 +33,7 @@ import type { ViewType } from "../polymorphic/polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../polymorphic/polymorphic-views.js";
 import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, isSchemaType, propertyVocabulary } from "../ontology-projection.js";
 import { DesiredPaneSchema } from "../../pane-state.js";
-import { fromActorEdgeLabels, getValidTimeField, roleEdgeLabels, toActorEdgeLabels, roleNounFor } from "../../rels-cache.js";
+import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from "../../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
@@ -2109,21 +2109,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return role && role !== party ? `${role} — ${party}` : party;
 	}
 
-	/** The @types the data's actor edges point at — who the exchange is between, read from the quads rather than named
-	 *  here, so a consumer's own actor vocabulary is what counts. */
-	private actorTypes(): string[] {
-		const from = fromActorEdgeLabels();
-		const to = toActorEdgeLabels();
-		const types = new Set<string>();
-		for (const q of this.model.quads) if ((from.has(q.predicate) || to.has(q.predicate)) && typeof q.objectType === "string" && q.objectType) types.add(q.objectType);
-		return [...types];
-	}
-
 	/** Ask the host to show the actor types, through the same reveal the schema scope uses. A no-op when they are all
 	 *  shown already, so choosing the view repeatedly costs nothing. */
 	private revealActorTypes(): void {
 		const hidden = new Set(this.model.hiddenGraphs);
-		const types = this.actorTypes().filter((t) => hidden.has(t));
+		const showing = [...this.model.knownClusters.keys()].filter((t) => !hidden.has(t));
+		const types = actorTypesFor(showing).filter((t) => hidden.has(t));
 		if (types.length === 0) return;
 		this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCOPE_REVEALED, { detail: { types }, bubbles: true, composed: true }));
 	}

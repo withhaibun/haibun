@@ -13,6 +13,7 @@ import { graphRunSource, resetGraphRunSources } from "./graph-run-source.js";
 
 const iso = (n: number): string => new Date(n).toISOString();
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
+const RUN = "1700000000000-1";
 
 describe("the run a view reads, over the records it wrote", () => {
 	let handle: TShuTestHandle;
@@ -27,10 +28,10 @@ describe("the run a view reads, over the records it wrote", () => {
 		});
 		setSiteMetadata({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 		store = new QuadStore();
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: "0.1", stepText: "a step", actionStatus: "passed", generatedAtTime: iso(1000), endedAtTime: iso(1300) });
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "0.1@said", message: "it said this", level: "warn", generatedAtTime: iso(1100), isPartOf: "0.1" });
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "0.1@detail", message: "the detail of it", level: "debug", generatedAtTime: iso(1200), isPartOf: "0.1" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: "0.2", stepText: "another step", actionStatus: "failed", generatedAtTime: iso(1400), endedAtTime: iso(1500) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1`, stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(1000), endedAtTime: iso(1300) });
+		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.1@0`, message: "it said this", level: "warn", generatedAtTime: iso(1100), isPartOf: `${RUN}.0.1` });
+		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.1@1`, message: "the detail of it", level: "debug", generatedAtTime: iso(1200), isPartOf: `${RUN}.0.1` });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.2`, stepText: "another step", actionStatus: "failed", level: "info", generatedAtTime: iso(1400), endedAtTime: iso(1500) });
 		setGraphStore(store);
 	});
 	afterEach(() => handle.teardown());
@@ -39,9 +40,9 @@ describe("the run a view reads, over the records it wrote", () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.count()).toBe(4);
-		expect(source.rowAt(0)).toMatchObject({ id: "0.1", kind: "lifecycle", type: "step", in: "a step", status: "passed", timestamp: 1000, endedAt: 1300, durationMs: 300 });
-		expect(source.rowAt(1)).toMatchObject({ id: "0.1", kind: "log", level: "warn", message: "it said this", timestamp: 1100 });
-		expect(source.rowAt(3)).toMatchObject({ id: "0.2", status: "failed" });
+		expect(source.rowAt(0)).toMatchObject({ id: `${RUN}.0.1`, kind: "lifecycle", type: "step", in: "a step", status: "passed", timestamp: 1000, endedAt: 1300, durationMs: 300 });
+		expect(source.rowAt(1), "a statement is shown under the step it was said during, which is what names its row").toMatchObject({ id: `${RUN}.0.1`, kind: "log", level: "warn", message: "it said this", timestamp: 1100 });
+		expect(source.rowAt(3)).toMatchObject({ id: `${RUN}.0.2`, status: "failed" });
 	});
 
 	it("says what the run spans, so a view places its rows in time", async () => {
@@ -62,6 +63,33 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.count()).toBe(2);
 		await source.readAt(1000);
 		expect(source.rowAt(0)).toMatchObject({ timestamp: 1000 });
+	});
+
+
+	it("adds what has happened since it last read, rather than reading the run again", async () => {
+		const source = graphRunSource("debug");
+		await source.ready();
+		expect(source.count()).toBe(4);
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "a later step", actionStatus: "passed", level: "info", generatedAtTime: iso(1600) });
+		const first = source.rowAt(0);
+		await source.readAt(undefined);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(source.count(), "the run it held, and what happened since").toBe(5);
+		expect(source.rowAt(4)).toMatchObject({ in: "a later step" });
+		expect(source.rowAt(0), "a row it already held is the same row").toBe(first);
+	});
+
+
+	it("reads a step again while it is still running, so its row says how it went once it ends", async () => {
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "a running step", actionStatus: "running", level: "info", generatedAtTime: iso(1700) });
+		const source = graphRunSource("debug");
+		await source.ready();
+		expect(source.rowAt(4)).toMatchObject({ in: "a running step", status: "running" });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "a running step", actionStatus: "passed", level: "info", generatedAtTime: iso(1700), endedAtTime: iso(1800) });
+		await source.readAt(undefined);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(source.count(), "the step it already held, now ended, rather than a second row for it").toBe(5);
+		expect(source.rowAt(4)).toMatchObject({ in: "a running step", status: "passed", endedAt: 1800 });
 	});
 
 	it("says every row it holds is readable, so a view marks and scrolls without asking for more", async () => {

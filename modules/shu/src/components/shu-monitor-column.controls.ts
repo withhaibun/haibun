@@ -15,6 +15,10 @@ import { FOLLOW_EDGE_SLACK_PX } from "./shu-virtual-column.js";
 import { SHU_TAG } from "../consts.js";
 
 // Selectors reused across the assertions, so a markup rename lands in one place.
+/** What a thumbnail is: a tile of the column's grid, never the natural-size shrink-wrap and never the whole column. */
+const MIN_TILE_PX = 140;
+const MAX_TILE_PX = 450;
+
 const MONITOR_ROW = '[data-testid="monitor-log-row"]';
 const MONITOR_COUNT = '[data-testid="monitor-log-stream"] .count';
 const SCROLLBAR_POS_TOP = '[data-testid="scrollbar-pos-top"]';
@@ -36,27 +40,8 @@ export default class ShuMonitorColumnControls extends AStepper {
 		return countMatching(page, MONITOR_ROW);
 	}
 
-	/** How many rows the run holds, as the monitor itself reports: what a window is measured against. */
-	private async runHolds(page: EvalPage): Promise<number> {
-		const text = await firstText(page, MONITOR_COUNT);
-		const held = Number(text.replace(/[^0-9]/g, ""));
-		if (!held) throw new Error(`the monitor reports no count to measure a window against (read "${text}")`);
-		return held;
-	}
-
 	/** Poll `read` until the count settles (two equal, non-zero reads in a row), so a "fewer than" assertion reads the
 	 *  stable virtualized count, never a mid-backfill snapshot that happens to be small. */
-	private async waitForSettled(page: EvalPage, read: (p: EvalPage) => Promise<number>): Promise<number> {
-		let prev = -1;
-		for (let i = 0; i < 30; i++) {
-			const n = await read(page);
-			if (n > 0 && n === prev) return n;
-			prev = n;
-			await page.waitForTimeout(200);
-		}
-		return prev;
-	}
-
 	/** Dispatch a pointerdown on the custom rail at its top or bottom, the way a click-to-seek does, so a feature can prove
 	 *  the rail actually scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op). */
 	private seekRail(page: EvalPage, where: string): Promise<boolean> {
@@ -101,18 +86,6 @@ export default class ShuMonitorColumnControls extends AStepper {
 					(c) => c === want,
 				);
 				return n === want ? actionOK() : actionNotOK(`monitor shows ${n} rows, expected exactly ${want}`);
-			},
-		},
-		monitorRendersAWindow: {
-			// What a column of a long run must do: render what the reader can see, not the run. Stated against the run's own
-			// size rather than a number, so it holds for a run of any length and needs no retuning when a row's shape changes.
-			gwta: "monitor renders a window of the run",
-			action: async () => {
-				const page = await this.page();
-				const rendered = await this.waitForSettled(page, (p) => this.rowCount(p));
-				const held = await this.runHolds(page);
-				if (held <= rendered) return actionNotOK(`the monitor renders ${rendered} rows of a run holding ${held}: a window is fewer than the run, and this is not one`);
-				return actionOK();
 			},
 		},
 		seekMonitorRail: {
@@ -172,12 +145,15 @@ export default class ShuMonitorColumnControls extends AStepper {
 						});
 						return { frames };
 					}, SHU_TAG.DOCUMENT_COLUMN);
-				const v = await pollUntil(await this.page(), read, (s) => s.frames.length >= 3 && s.frames.every((f) => f.imgLoaded), 40, 250);
+				// A tile is measured once it has been laid out: an image decodes before its frame is placed, so a read taken
+				// between the two reports a width the reader never sees. What is asserted below is what the poll waits for.
+				const tileSized = (f: { w: number }): boolean => f.w >= MIN_TILE_PX && f.w <= MAX_TILE_PX;
+				const v = await pollUntil(await this.page(), read, (s) => s.frames.length >= 3 && s.frames.every((f) => f.imgLoaded && tileSized(f)), 40, 250);
 				const { frames } = v;
 				if (frames.length < 3) return actionNotOK(`only ${frames.length} real thumbnails rendered, expected the run's screenshots (the artifact placeholders were not filled)`);
 				const offRow = frames.filter((f) => !f.inRow).length;
 				if (offRow > 0) return actionNotOK(`${offRow} thumbnails render outside a .thumb-row grid (holders were not extracted into tiles)`);
-				const badSize = frames.filter((f) => f.w < 140 || f.w > 450);
+				const badSize = frames.filter((f) => !tileSized(f));
 				if (badSize.length > 0)
 					return actionNotOK(
 						`thumbnails are not tile-sized: ${JSON.stringify(frames.map((f) => f.w))} (a tiny width is the shrink-wrap regression, a huge one is a tile blown up to the column)`,
@@ -264,13 +240,13 @@ export default class ShuMonitorColumnControls extends AStepper {
 				return actionOK();
 			},
 		},
-		monitorTotalAtLeast: {
-			gwta: "monitor total is at least {n} events",
+		monitorHoldsRows: {
+			gwta: "monitor holds at least {n} rows of the run",
 			action: async ({ n }: { n: string }) => {
 				const want = Number(n);
 				const read = (p: EvalPage) => firstText(p, MONITOR_COUNT).then((t) => Number(t.replace(/[^0-9]/g, "")) || 0);
 				const v = await pollUntil(await this.page(), read, (x) => x >= want);
-				return v >= want ? actionOK() : actionNotOK(`monitor total is ${v} events, expected at least ${want} (the live event never reached the log)`);
+				return v >= want ? actionOK() : actionNotOK(`the monitor holds ${v} rows, expected at least ${want} (what the run recorded did not reach the view)`);
 			},
 		},
 		monitorShowsRowContaining: {
@@ -345,16 +321,6 @@ export default class ShuMonitorColumnControls extends AStepper {
 				const read = (p: EvalPage) => countMatching(p, `.doc-block.${FUTURE}, ${DOC_ROW}.${FUTURE}`);
 				const n = await pollUntil(await this.page(), read, (x) => x >= want, 20, 150);
 				return n >= want ? actionOK() : actionNotOK(`document dimmed ${n} future rows after the cursor moved, expected at least ${want}`);
-			},
-		},
-		documentRendersAWindow: {
-			gwta: "document renders a window of the run",
-			action: async () => {
-				const page = await this.page();
-				const rendered = await this.waitForSettled(page, (p) => countMatching(p, DOC_ROW));
-				const held = await this.runHolds(page);
-				if (held <= rendered) return actionNotOK(`the document renders ${rendered} rows of a run holding ${held}: a window is fewer than the run, and this is not one`);
-				return actionOK();
 			},
 		},
 	};

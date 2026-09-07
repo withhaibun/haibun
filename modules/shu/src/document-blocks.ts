@@ -13,9 +13,6 @@ import { headingAnchor } from "@haibun/core/lib/document-content.js";
  *  (offset from the column's global start) for time-cursor dimming. `id`/`rawTime` are empty/0 for spacers and strips. */
 export type TDocBlock = { html: string; id: string; rawTime: number };
 
-/** An event's id as the document stamps it on its blocks: without the brackets a step id is written in. */
-export const stripId = (id: string): string => id.replace(/^\[|\]$/g, "");
-
 /** Resolve an artifact placeholder's `data-id(s)` to its rendered HTML (an `<shu-artifact-frame>…`), or "" if unknown.
  *  The column supplies this from its event log; a test supplies a stub. */
 export type TArtifactResolver = (id: string) => string;
@@ -147,9 +144,8 @@ export function blocksByEvent(events: readonly { id?: unknown }[], blocks: reado
 	let k = 0;
 	for (const b of blocks) {
 		if (b.id) {
-			const want = stripId(b.id);
 			for (let j = k; j < events.length; j++) {
-				if (stripId(String(events[j].id ?? "")) === want) {
+				if (String(events[j].id ?? "") === b.id) {
 					k = j;
 					break;
 				}

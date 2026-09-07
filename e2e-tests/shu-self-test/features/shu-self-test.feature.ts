@@ -27,7 +27,7 @@ const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SP
 // The client cache view's readings of the run source at log (the document's level): its cached spans and its extent.
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
-const CACHE_LOG_STATE = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-state`;
+const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
 /** The globs that cover everything this page reads from its server: every remote call and the event stream. */
 const RPC_GLOB = "**/rpc/**";
 const STREAM_GLOB = "**/sse*";
@@ -225,18 +225,17 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A reload with the server unreachable reads the run from the device" }),
 
-		"A page whose calls all fail says the server has not responded to it, and reads the run from the device. Everything this page has read of the run is cached there: the events by their index at each level, each level's extent, and the site's registry. Blocking every remote call and the event stream leaves the page with the device alone, which is what a reader has when their network drops. Reloading then must still produce a run: the registry comes from the device, the source at log reports itself loaded with its cached spans starting at the run's first row, and the monitor renders rows.",
+		"A page whose calls all fail says the site has not responded to it, and reads the run from what this device holds. Everything this page has read of the run is held there as the records the run wrote, along with the site's registry. Blocking every remote call and the event stream leaves the page with the device alone, which is what a reader has when their network drops. Reloading then must still produce a run: the registry comes from the device, the source at log reads what is held and says so, its spans starting at the run's first row, and the monitor renders rows.",
 		`requests matching "${RPC_GLOB}" are "blocked"`,
 		`requests matching "${STREAM_GLOB}" are "blocked"`,
 		reloadPage({}),
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		setAs({ what: CACHE_LOG_STATE, domain: "page-test-id", value: `"${CACHE_LOG_STATE}"` }),
+		setAs({ what: CACHE_LOG_LOADED, domain: "page-test-id", value: `"${CACHE_LOG_LOADED}"` }),
 		`save text from ${IDS.CLIENT_CACHE.SERVER} to offlineServer`,
 		'variable offlineServer is "has not responded to this page"',
 		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to offlineRegistry`,
 		'matches offlineRegistry with "from the device*"',
-		`save text from ${CACHE_LOG_STATE} to offlineState`,
-		'variable offlineState is "loaded"',
+		waitFor({ target: CACHE_LOG_LOADED }),
 		`save text from ${CACHE_LOG_CACHED} to offlineCached`,
 		'matches offlineCached with "0..*"',
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
@@ -252,7 +251,6 @@ export const features: TKirejiExport = {
 		'matches onlineServer with "last responded at *"',
 		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to onlineRegistry`,
 		'matches onlineRegistry with "from the server*"',
-		`save text from ${CACHE_LOG_STATE} to onlineState`,
-		'variable onlineState is "loaded"',
+		waitFor({ target: CACHE_LOG_LOADED }),
 	],
 };

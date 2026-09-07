@@ -83,6 +83,16 @@ export type TDebugSignal = "fail" | "step" | "continue" | "retry" | "next";
 export const SCENARIO_START = "scenario";
 export const FEATURE_START = "feature";
 
+/** How a run's own prose declares a feature and a scenario, which is how a reader of it reads their names back. */
+export const DECLARES = { feature: "Feature:", scenario: "Scenario:" } as const;
+
+/** Whether a step declared a feature or a scenario: what it called says which, whichever stepper carried it out. */
+export const declaresFeature = (called: string | undefined): boolean => called?.endsWith(`.${FEATURE_START}`) === true;
+export const declaresScenario = (called: string | undefined): boolean => called?.endsWith(`.${SCENARIO_START}`) === true;
+
+/** The name a declaring step gives, which is its own words without the word that declares them. */
+export const declaredName = (text: string, of: keyof typeof DECLARES): string => text.replace(new RegExp(`^${DECLARES[of]}\\s*`), "").trim();
+
 /** How a lifecycle event says a step, feature or execution ended. */
 export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", skipped: "skipped" } as const;
 export const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.skipped]);
@@ -325,7 +335,9 @@ export class EventFormatter {
 	static formatLine(event: THaibunEvent, lastLevel?: string): string {
 		const { time, emitter, showLevel, icon, id, message } = this.formatLineElements(event, lastLevel);
 		const prefix = showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(40) + ` ｜ `;
-		return prefix + `${icon} ${id} ${message}`;
+		// A step's path is bracketed where a line shows it, which is a way of reading it rather than a second way of
+		// writing it: an id is one form everywhere it is stored or matched.
+		return prefix + `${icon} ${id ? `[${id}] ` : ""}${message}`;
 	}
 }
 
@@ -631,29 +643,6 @@ export const HttpTraceArtifact = BaseArtifact.extend({
 	mimetype: z.string().default("application/json"),
 });
 
-/** What one dispatch of one step records: where it ran, what it required, who invoked it, and what it produced. */
-export const DispatchTraceSchema = z.object({
-	stepName: z.string(),
-	transport: z.enum(["local", "remote", "subprocess"]),
-	remoteHost: z.string().optional(),
-	capabilityRequired: z.string().optional(),
-	capabilityGranted: z.array(z.string()).optional(),
-	/** The principal the invoking capability is controlled by, when the step ran under a bearer token. */
-	invokedBy: z.string().optional(),
-	authorized: z.boolean(),
-	seqPath: z.array(z.number()),
-	durationMs: z.number().optional(),
-	productKeys: z.array(z.string()).optional(),
-	timestamp: z.number().optional(),
-});
-export type TDispatchTrace = z.infer<typeof DispatchTraceSchema>;
-
-export const DispatchTraceArtifact = BaseArtifact.extend({
-	artifactType: z.literal("dispatch-trace"),
-	trace: DispatchTraceSchema,
-	mimetype: z.string().default("application/json"),
-});
-export type TDispatchTraceArtifact = z.infer<typeof DispatchTraceArtifact>;
 
 export const RegisteredOutcomeEntry = z.object({
 	proofStatements: z.array(z.string()).optional(),
@@ -687,7 +676,6 @@ export const ArtifactEvent = z.discriminatedUnion("artifactType", [
 	JsonArtifact,
 	MermaidArtifact,
 	HttpTraceArtifact,
-	DispatchTraceArtifact,
 	ResolvedFeaturesArtifact,
 	FileArtifact,
 ]);

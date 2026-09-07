@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SEQ_PATH_FIELD, SeqPathSchema, compareSeqPath, extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "./seq-path.js";
+import { SEQ_PATH_FIELD, RecordNameSchema, SeqPathSchema, compareSeqPath, extractSeqPathPrefix, formatRecordName, parseRecordName, parseSeqPath, seqPathDomainDefinition } from "./seq-path.js";
 import { LinkRelations } from "./resources.js";
 import { EXECUTION_MODES } from "../schema/protocol.js";
 
@@ -14,11 +14,6 @@ describe("parseSeqPath", () => {
 		expect(parseSeqPath("urn:uuid:abcd")).toBeNull();
 		expect(parseSeqPath("did:web:example.com")).toBeNull();
 		expect(parseSeqPath("")).toBeNull();
-	});
-
-	it("reads the bracketed form a log line shows, since it names the same step", () => {
-		expect(parseSeqPath("[0.1.2]")).toEqual([0, 1, 2]);
-		expect(parseSeqPath("[0]")).toEqual([0]);
 	});
 
 	it("refuses an empty segment rather than reading it as a zero", () => {
@@ -89,5 +84,33 @@ describe("the mode a step ran under", () => {
 
 	it("names speculative among them, since telling it apart is what the filter is for", () => {
 		expect(EXECUTION_MODES).toContain("speculative");
+	});
+});
+
+describe("what names a record of a run", () => {
+	it("is one form: the execution it belongs to, the step path within it, and which of that step's it is", () => {
+		expect(formatRecordName({ execution: "1700000000000-4", path: [0, 1, 2] })).toBe("1700000000000-4.0.1.2");
+		expect(formatRecordName({ execution: "1700000000000-4", path: [0, 1, 2], ordinal: 3 })).toBe("1700000000000-4.0.1.2@3");
+		expect(formatRecordName({ execution: "1700000000000-4", path: [] }), "what a run said outside every step").toBe("1700000000000-4");
+	});
+
+	it("reads back exactly what was written", () => {
+		for (const name of [
+			{ execution: "1700000000000-4", path: [0, 1, 2] },
+			{ execution: "1700000000000-4", path: [0, -1, 5], ordinal: 0 },
+			{ execution: "1700000000000-1", path: [] },
+		])
+			expect(parseRecordName(formatRecordName(name))).toEqual(name);
+	});
+
+	it("names no record where the id is not one, rather than reading it as something else", () => {
+		expect(parseRecordName("0.1.2"), "a step path on its own names no execution").toBeUndefined();
+		expect(parseRecordName("log.1700000000000")).toBeUndefined();
+		expect(parseRecordName("")).toBeUndefined();
+	});
+
+	it("is strict about what a name holds, so a second shape cannot creep in", () => {
+		expect(RecordNameSchema.safeParse({ execution: "1700000000000-4", path: [0], suffix: "x" }).success).toBe(false);
+		expect(RecordNameSchema.safeParse({ execution: "[0.1]", path: [0] }).success).toBe(false);
 	});
 });

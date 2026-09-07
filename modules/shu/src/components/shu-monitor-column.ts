@@ -12,7 +12,7 @@ import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-mark
 import { HAIBUN_LOG_LEVELS, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { atLiveEdge, eventRunSource, type RunSource } from "../client-cache/index.js";
+import { atLiveEdge, graphRunSource, type RunSource } from "../client-cache/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT } from "../consts.js";
@@ -21,13 +21,12 @@ import type { TScrollMarker } from "../scrollbar-model.js";
 import { unavailableOrEmpty } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import type { TDispatchTrace } from "@haibun/core/schema/protocol.js";
+import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
 
 const MonitorColumnSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
 	tail: z.boolean().default(true),
-	hideStart: z.boolean().default(true),
 });
 
 export type TLogRow = {
@@ -37,10 +36,14 @@ export type TLogRow = {
 	step: string;
 	message: string;
 	seqPath?: number[];
-	isStart?: boolean;
-	isAsync?: boolean;
-	hasEnd?: boolean;
-	dispatch?: TDispatchTrace;
+	/** A step's outcome, how long it took, where it ran, and what it had to hold to run: what its own record says. */
+	status?: string;
+	durationMs?: number;
+	ranVia?: string;
+	ranOn?: string;
+	capabilityAction?: string;
+	allowedAction?: string;
+	performedBy?: string;
 	/** How this row marks the rail, for the rows worth marking. Decided from the event when the row is built, by the
 	 *  same two calls the timeline marks its track with, so the rail and the timeline never disagree about which
 	 *  events matter or what they look like. */
@@ -63,6 +66,9 @@ const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
  * moment in time. Indices are into the list passed in, so they address the rows the reader can actually scroll to.
  * Pure, so which rows mark the rail is tested without a virtualizer.
  */
+/** What a row carries beside its words: what its record says of how the step went and where it ran. */
+const ROW_FIELDS = ["status", "durationMs", "ranVia", "ranOn", "capabilityAction", "allowedAction", "performedBy"] as const;
+
 export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[]): TScrollMarker[] {
 	const markers: TScrollMarker[] = [];
 	rows.forEach((row, i) => {
@@ -98,18 +104,16 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		};
 	}
 
-	// The log this view reads is the run at its level, spanning the whole run by index (event-source): the rail is the
-	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
-	// as they arrive. Rows are derived from the cached events as they are painted; what is not cached paints as a
-	// skeleton until its page lands. One source per level, shared across views, swapped when the level changes.
-	#run: RunSource = eventRunSource(this.state.level);
+	// The log this view reads is the run at its level: a window of the records the run wrote, which the rail spans by
+	// index. Rows are derived from those records as they are painted. One source per level, shared across views,
+	// swapped when the level changes.
+	#run: RunSource = graphRunSource(this.state.level);
 	#unsubscribeRun?: () => void;
 	#rowCache = new WeakMap<object, TLogRow>();
 	#source: WindowedSource<TLogRow> = this.#rowsOver(this.#run);
 	#currentIdx = -1;
 	#cursorMark = -1;
-	#endedStarts = new Set<string>(); // the steps whose end is cached, for the hide-start toggle
-	#dispatchBySeq = new Map<string, TDispatchTrace>(); // the dispatch trace of each step whose trace is cached
+	#marks: TScrollMarker[] = []; // the rail's marks, derived when the window changes rather than when the rail draws
 	static styles = [
 		virtualColumnCss,
 		shuBaseStyles,
@@ -120,7 +124,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			background: var(--shu-bg-soft); border-bottom: var(--shu-border-w) solid var(--shu-border); }
 		.toolbar select { font-size: var(--shu-font-sm); padding: 1px var(--shu-space-2); }
 		.toolbar .count { margin-left: auto; color: var(--shu-fg-muted); font-size: var(--shu-font-sm); }
-		.toolbar .hide-start { font-size: var(--shu-font-xs); color: var(--shu-fg-muted); cursor: pointer; display: flex; align-items: center; gap: var(--shu-space-1); }
 		.log-rows { flex: 1; overflow: auto; }
 		.log-row { display: grid; grid-template-columns: 130px 1fr; border-bottom: var(--shu-border-w) solid var(--shu-border); font-size: var(--shu-font-sm); line-height: 1.4; }
 		.log-row:hover { background: var(--shu-bg-hover); }
@@ -149,7 +152,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 
 	constructor() {
-		super(MonitorColumnSchema, { level: "info", tail: true, hideStart: true });
+		super(MonitorColumnSchema, { level: "info", tail: true });
 	}
 
 	protected override onConnected(): void {
@@ -177,14 +180,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	/** Read the run at the level now shown: one source per level, shared across views, swapped when the level changes. */
 	#readRun(): void {
 		this.#unsubscribeRun?.();
-		this.#run = eventRunSource(this.state.level);
+		this.#run = graphRunSource(this.state.level);
 		this.#source = this.#rowsOver(this.#run);
 		this.#unsubscribeRun = this.#run.subscribe(() => this.requestUpdate());
 		void this.#run.ready().then(() => this.requestUpdate());
 	}
 
-	/** A WindowedSource of rows over the run source: the run's extent, each cached event as a row (derived once per event
-	 *  and cached), the rest undefined until their page lands. The rail marks come from the cached rows. */
+	/** A WindowedSource of rows over the run source: the run's extent, each record it holds as a row (derived once per
+	 *  record and held), the rest undefined until the window reaches them. The rail marks come from those rows. */
 	#rowsOver(run: RunSource): WindowedSource<TLogRow> {
 		return {
 			count: () => run.count(),
@@ -194,10 +197,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			},
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
-			markers: () => {
-				const cached = this.#cached();
-				return railMarkers(cached.map(({ row }) => row), cached.map(({ index }) => index));
-			},
+			markers: () => this.#marks,
 		};
 	}
 
@@ -208,27 +208,26 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const ts = (e.timestamp as number) || 0;
 		const first = this.#run.extent().first ?? ts;
 		const level = String(e.level || "info");
-		const step = String(e.in || e.id || "");
-		const isStep = e.kind === "lifecycle" && e.type === "step";
-		const isStart = isStep && e.stage === "start";
-		let message = "";
-		if (e.kind === "log") message = String((e as { message?: string }).message || "");
-		else if (e.kind === "lifecycle" && e.stage === "end") message = `${eventMarkerStyle(e).icon} ${String(e.actionName || "")}`;
-		else if (e.kind === "lifecycle" && e.stage === "start" && !isStart) message = `▸ ${String(e.type || "")}`;
+		// The step's own words. What was said during a step, or produced by one, has none: the path beside it says which
+		// step it belongs to, and a raw id in its place says nothing a reader can read.
+		const step = String(e.in ?? "");
+		// What a row says beside the step it names: what was said, or how the step it names turned out.
+		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : `${eventMarkerStyle(e).icon} ${String(e.called || e.type || "")}`;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
 		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string) ?? undefined;
-		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, isStart, isAsync: isStart && e.isAsync === true, mark: markFor(e) };
+		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e) };
+		for (const field of ROW_FIELDS) if (e[field] !== undefined) (row as Record<string, unknown>)[field] = e[field];
 		this.#rowCache.set(e, row);
 		return row;
 	}
 
 	/** The cached rows in index order, with their indices: what the rail marks, the cursor and the Kihan summary read.
 	 *  Walked from the spans the source caches, never a scan of the run's extent. */
-	#cached(): Array<{ index: number; row: TLogRow; event: Record<string, unknown> }> {
-		const out: Array<{ index: number; row: TLogRow; event: Record<string, unknown> }> = [];
+	#cached(): Array<{ index: number; row: TLogRow }> {
+		const out: Array<{ index: number; row: TLogRow }> = [];
 		for (const { from, to } of this.#run.cachedRanges()) for (let i = from; i < to; i++) {
 			const e = this.#run.rowAt(i) as Record<string, unknown> | undefined;
-			if (e) out.push({ index: i, row: this.#rowOf(e), event: e });
+			if (e) out.push({ index: i, row: this.#rowOf(e) });
 		}
 		return out;
 	}
@@ -240,10 +239,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	private onLevelChange = (e: Event): void => {
 		this.setState({ level: (e.target as HTMLSelectElement).value as z.infer<typeof MonitorColumnSchema>["level"] });
 		this.#readRun(); // another level is another run source: the run at that level
-	};
-
-	private onHideStartChange = (e: Event): void => {
-		this.setState({ hideStart: (e.target as HTMLInputElement).checked });
 	};
 
 	/** Place the shared cursor at a row's instant; the newest row is the live edge, so the cursor there is null (every view follows again). */
@@ -266,29 +261,25 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, addToSelection);
 		};
 
-	// Derive the cached window source before each render: the level/hide-start filter, the rail markers (every event
+	// Derive the window before each render: the rows it holds, the rail markers (every record
 	// the shared vocabulary calls significant, so a failure, an artifact or a feature boundary is visible on the rail
 	// across the whole log), and the time-cursor row. shu-virtual-column reads the source and virtualizes; its
 	// notify-driven follow tails the live edge.
 	protected willUpdate(): void {
-		// Derived per update from what is cached: the rows (for the Kihan summary and the tests), which steps have their
-		// end cached (for the hide-start toggle), and the current row — the last cached row at or before the time
-		// cursor, read ONCE (an accessor over an attribute check and a signal read).
+		// Derived per update from the window: the rows (for the Kihan summary and the tests), the rail's marks, and the
+		// current row — the last row at or before the time cursor, read ONCE (an accessor over an attribute check and a
+		// signal read). The marks are derived here rather than when the rail asks for them, since the rail asks on every
+		// frame a reader scrolls and the window changes only when the run does.
 		const cached = this.#cached();
 		this.rows = cached.map(({ row }) => row);
-		this.#endedStarts = new Set(cached.filter(({ event }) => event.kind === "lifecycle" && event.type === "step" && event.stage === "end").map(({ row }) => row.seqPath?.join(".") ?? ""));
-		this.#dispatchBySeq = new Map();
-		for (const { event } of cached) {
-			const trace = event.kind === "artifact" && event.artifactType === "dispatch-trace" ? (event.trace as TDispatchTrace | undefined) : undefined;
-			if (trace?.seqPath) this.#dispatchBySeq.set(trace.seqPath.join("."), trace);
-		}
+		this.#marks = railMarkers(this.rows, cached.map(({ index }) => index));
 		const cursor = this.timeCursor;
-		this.#currentIdx = currentRowIndex(cached.map(({ index, row }) => ({ index, timestamp: row.timestamp })), cursor);
+		this.#currentIdx = cursor === null ? -1 : currentRowIndex(cached.map(({ index, row }) => ({ index, timestamp: row.timestamp })), cursor);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 
 	render(): TemplateResult {
-		const { level, hideStart } = this.state;
+		const { level } = this.state;
 		const total = this.#source.count();
 		// In the strip there is room for the rail and nothing else: no toolbar, no rows. It is the SAME virtual column in
 		// both, in the same place in this template, so the element survives collapsing rather than being torn down and
@@ -300,8 +291,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 					? nothing
 					: html`<div class="toolbar" data-testid="monitor-log-stream">
 				<select data-action="level" @change=${this.onLevelChange}>${LEVEL_ORDER.map((l) => html`<option value=${l} ?selected=${l === level}>${l}</option>`)}</select>
-				<label class="hide-start"><input type="checkbox" data-action="hide-start" .checked=${hideStart} @change=${this.onHideStartChange}/> hide start</label>
-				<span class="count">${total} events</span>
+				<span class="count">${total} rows</span>
 			</div>`
 			}
 			${
@@ -318,35 +308,21 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	private renderLogRow = (index: number, row: unknown): TemplateResult => {
 		const r = row as TLogRow | undefined;
 		if (!r) return html`<div class="log-row" data-testid="monitor-log-row"></div>`; // its page has not landed yet: a skeleton row
-		// A start row hidden by the hide-start toggle retains its index in the run and paints nothing: the run's extent is
-		// the server's to count, not this toggle's to recount.
-		if (this.state.hideStart && r.isStart && this.#endedStarts.has(r.seqPath?.join(".") ?? "")) return html`<div class="log-row hidden"></div>`;
 		const testId = index === 0 ? SHU_TEST_IDS.MONITOR.FIRST_ROW : "monitor-log-row";
 		let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
 		if (this.timeCursor !== null) {
 			if (this.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
 			if (index === this.#currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
 		}
-		let dispatchText = "";
-		// What a gated step required and whether the caller cached it. A step that requires nothing reports nothing, so the
-		// rows that mention a capability are exactly the acts that were authorized.
-		let capabilityText = "";
-		let capabilityRefused = false;
-		if (!r.isStart && r.seqPath) {
-			const dispatch = this.#dispatchBySeq.get(r.seqPath.join("."));
-			if (dispatch) {
-				const dur = dispatch.durationMs !== undefined ? `${dispatch.durationMs}ms` : "";
-				dispatchText = `${dispatch.transport}${dur ? ` ${dur}` : ""}`;
-				if (dispatch.capabilityRequired) {
-					capabilityRefused = !dispatch.authorized;
-					const by = dispatch.invokedBy ? ` ${dispatch.invokedBy}` : "";
-					capabilityText = `${dispatch.authorized ? "🔓" : "🔒"} ${dispatch.capabilityRequired}${by}`;
-				}
-			}
-		}
+		// Where the step ran, how long it took, and what it had to hold to run: its own record says all of it, so a row
+		// states it rather than being paired with a separate account of the same act. A step requiring nothing states
+		// nothing, so the rows mentioning a capability are exactly the acts that needed one.
+		const dispatchText = r.ranVia ? `${r.ranVia}${r.ranOn ? ` ${r.ranOn}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
+		const capabilityRefused = r.capabilityAction !== undefined && r.allowedAction === undefined;
+		const capabilityText = r.capabilityAction ? `${capabilityRefused ? "🔒" : "🔓"} ${r.capabilityAction}${r.performedBy ? ` ${r.performedBy}` : ""}` : "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
 			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${r.seqPath ? html`<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : ""}<span class="time">${r.time}</span></span>
-			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.isAsync && !r.hasEnd ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}</span>
+			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}</span>
 		</div>`;
 	};
 }

@@ -1,36 +1,51 @@
 // @vitest-environment jsdom
 /**
- * shu-step-detail drives its trace/quads load through a @lit/trequest keyed on the seqPath. These tests confirm the loaded
- * state renders the step's trace and the variables it set, and that switching steps re-keys the trequest so the previous
- * step's data never lingers. RPC is a stubbed fetch behind LiveConduit; the step's own events come from that one request.
+ * shu-step-detail reads one step's record and the quads whose provenance names it, through a @lit/task keyed on the
+ * step, so switching steps cancels the stale read and the previous step's data never lingers. The record is read from
+ * the graph; the quads come from a stubbed RPC behind LiveConduit.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // side-effect import so the module runs (registration is via component-registry in the app)
-import { ShuStepDetail, ofStep, stepEventOf, traceOf } from "./shu-step-detail.js";
+import { ShuStepDetail, stepRecordId } from "./shu-step-detail.js";
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
+import { setGraphStore } from "../quads-snapshot.js";
+import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
+import { noteExecution, resetExecutions } from "../client-cache/index.js";
 
-const OWN_EVENTS = [
-	{ id: "[0.1]", timestamp: 1000, kind: "lifecycle", stage: "start", in: "a step" },
-	{ id: "[0.1]", timestamp: 1500, kind: "lifecycle", stage: "end", status: "completed", in: "a step", actionName: "does", stepperName: "S" },
-	{ id: "dispatch.0.1", timestamp: 1501, kind: "artifact", artifactType: "dispatch-trace", trace: { seqPath: [0, 1], transport: "rpc", durationMs: 5, productKeys: ["p1"] } },
-];
+const EXECUTION = "1700000000000-1";
 const json = (body: unknown): Promise<Response> => Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
 
 describe("shu-step-detail", () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		document.body.innerHTML = "";
 		resetConduit();
 		resetEventStream();
+		resetExecutions();
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());
 		if (!customElements.get("shu-step-detail")) customElements.define("shu-step-detail", ShuStepDetail);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
-		globalThis.fetch = (input: unknown, init?: { body?: unknown }): Promise<Response> => {
+		// One step of the execution being read: what it asked for, what ran, how it went and where.
+		const store = new QuadStore();
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${EXECUTION}.0.1`,
+			stepText: "a step",
+			called: "S.does",
+			actionStatus: "passed",
+			ranVia: "rpc",
+			level: "info",
+			generatedAtTime: new Date(1000).toISOString(),
+			endedAtTime: new Date(1005).toISOString(),
+		});
+		setGraphStore(store);
+		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+		noteExecution(EXECUTION);
+		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin")) return json({ seqPath: [0, -1, 1] }); // conduit().group() opens a batch here
-			// The step's own events, requested by seqPath: its start, its end, and the trace of its dispatch; step 0.1 has them.
-			if (url.includes("getEvents")) return json({ events: String(init?.body ?? "").includes('"seqPath":"0.1"') ? OWN_EVENTS : [] });
+			if (url.endsWith("/rpc/action.begin")) return json({ seqPath: [0, -1, 1] });
 			if (url.includes("getClusteredQuads"))
 				return json({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] });
 			return json({});
@@ -50,32 +65,33 @@ describe("shu-step-detail", () => {
 
 	const text = (el: ShuStepDetail): string => el.shadowRoot?.textContent?.replace(/\s+/g, " ").trim() ?? "";
 
-	it("renders the loaded step's trace and the variables it set", async () => {
+	it("renders the step's record and the variables it set", async () => {
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
 		await el.open([0, 1]);
 		await el.updateComplete;
 		const t = text(el);
 		expect(t).toContain("Step [0.1]");
-		expect(t).toContain("rpc 5ms"); // trace transport + duration
+		expect(t, "what ran, and how it went").toContain("S.does");
+		expect(t, "where it ran and how long it took, which its record states").toContain("rpc 5ms");
 		expect(t).toContain("Data set (1)");
 		expect(t).toContain("myVar");
 	});
 
-	it("re-keys the trequest when the step changes, dropping the previous step's data", async () => {
+	it("re-keys the read when the step changes, dropping the previous step's data", async () => {
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
 		await el.open([0, 1]);
 		await el.updateComplete;
 		expect(text(el)).toContain("myVar");
-		await el.open([0, 2]); // no trace and no quad names 0.2
+		await el.open([0, 2]); // the page holds no record of this step, and there is no site to ask
 		await el.updateComplete;
 		const t = text(el);
-		expect(t).toContain("No data found for step [0.2]");
+		expect(t, "a step the page cannot read reports that, rather than claiming there is no such step").toContain("Failed to load step [0.2]");
 		expect(t).not.toContain("myVar");
 	});
 
-	it("surfaces a load failure instead of spinning forever", async () => {
+	it("surfaces a failed read instead of spinning forever", async () => {
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith("/rpc/action.begin")) return json({ seqPath: [0, -1, 1] });
@@ -89,24 +105,12 @@ describe("shu-step-detail", () => {
 	});
 });
 
-describe("a step's own events", () => {
-	const start = { id: "[0.1]", timestamp: 1000, kind: "lifecycle", stage: "start" };
-	const end = { id: "[0.1]", timestamp: 1500, kind: "lifecycle", stage: "end", status: "completed" };
-	const failedTry = { id: "[0.1]", timestamp: 1400, kind: "lifecycle", stage: "end", status: "failed" };
-	const trace = { id: "dispatch.0.1", kind: "artifact", artifactType: "dispatch-trace", trace: { transport: "rpc" } };
-	it("are the ones carrying its seqPath as their (bracketed) id, and the trace of its dispatch", () => {
-		expect([start, end, trace].every((e) => ofStep(e, "0.1"))).toBe(true);
-		expect(ofStep({ id: "[0.2]" }, "0.1")).toBe(false);
-		expect(ofStep({ id: "dispatch.0.12" }, "0.1")).toBe(false);
+describe("the record that is a step", () => {
+	it("is the step's path under the execution being read", () => {
+		expect(stepRecordId([0, 1], EXECUTION)).toBe(`${EXECUTION}.0.1`);
 	});
-	it("the event shown is the completed end, else any end, else the start", () => {
-		expect(stepEventOf([start, failedTry, end])).toBe(end);
-		expect(stepEventOf([start, failedTry])).toBe(failedTry);
-		expect(stepEventOf([start])).toBe(start);
-		expect(stepEventOf([])).toBeUndefined();
-	});
-	it("the trace is the dispatch trace among them", () => {
-		expect(traceOf([start, trace])).toEqual({ transport: "rpc" });
-		expect(traceOf([start])).toBeUndefined();
+	it("is nothing before an execution has been read, or with no step named", () => {
+		expect(stepRecordId([0, 1], undefined)).toBeUndefined();
+		expect(stepRecordId([], EXECUTION)).toBeUndefined();
 	});
 });

@@ -23,7 +23,7 @@ import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { registryOrigin } from "../rpc-registry.js";
 import { serverLastRespondedAt } from "../hypermedia.js";
 import { emptyOrLoading } from "./empty-state.js";
-import { runSources, deviceStore, subscribeRunSources, subscribeRunSwitch, subscribeDeviceWrites, runsNewestFirst, CACHE_SHAPE, readRun, currentRun, atLiveEdge, RUNS_CACHED, type RunSource, type TEventStoreSummary, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
+import { runSources, deviceStore, subscribeRunSources, subscribeDeviceWrites, CACHE_SHAPE, type TStoredRegistry, atLiveEdge, executionsHeld, currentExecution, readExecution, subscribeExecutionSwitch, EXECUTIONS_READ, type THeldExecution, type RunSource, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
 
 const EmptySchema = z.object({});
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
@@ -32,12 +32,33 @@ const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 export const DEVICE_READ_DELAY_MS = 150;
 
 const at = (t: number | undefined): string => (t === undefined || !Number.isFinite(t) ? "" : new Date(t).toISOString().slice(11, 23));
+/** The feature the run being read declared, from the first rows of it a view has read. A run declares its feature at
+ *  its start, so this reads the first rows rather than the run. */
+function featureBeingRead(sources: RunSource[]): string {
+	for (const source of sources) {
+		for (const { from, to } of source.cachedRanges()) {
+			for (let i = from; i < Math.min(to, from + FEATURE_WITHIN_ROWS); i++) {
+				const row = source.rowAt(i) as { type?: string; featureName?: string } | undefined;
+				if (row?.type === "feature" && row.featureName) return row.featureName;
+			}
+		}
+	}
+	return "";
+}
+
+/** How far into a run its feature declaration is looked for: a run declares it at its start. */
+const FEATURE_WITHIN_ROWS = 20;
+
+/** What a source is doing, as the one word a reader reads it by. It is the cell's own id as well, so what a reader
+ *  waits for is the state itself rather than a cell that may still be about to change. */
+const stateOf = (source: RunSource): string => (source.unavailable ? "unavailable" : source.ended ? "ended" : source.loaded ? "loaded" : "loading");
 const spans = (ranges: Range[]): string => ranges.map((r) => `${r.from}..${r.to - 1}`).join(", ") || "none";
 const cachedRows = (ranges: Range[]): number => ranges.reduce((n, r) => n + (r.to - r.from), 0);
 
 export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	#unsubscribes = new Map<RunSource, () => void>();
-	#store: TEventStoreSummary = { runs: [] };
+	#held: THeldExecution[] = [];
+	#registry: TStoredRegistry | undefined; // the site's registry as the device holds it, for when it was cached
 	#databases: TIdbDatabaseSummary[] = [];
 	#reading = false;
 	#readAgain = false;
@@ -77,7 +98,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			sources: runSources().map((s) => ({ level: s.level, ...s.extent(), cached: spans(s.cachedRanges()), cursorRow: this.#cursorRowIn(s) })),
 			openedAt: this.#openedAt,
 			live: Object.fromEntries(this.#liveByLevel),
-			store: this.#store,
+			executions: this.#held,
 			indexedDb: this.#databases,
 		};
 	}
@@ -89,7 +110,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		// A source made from now on (a view opened at another level) is watched from the moment it exists.
 		this.autoTeardown(subscribeRunSources(() => this.#changed()));
 		// A run the reader chose, or a new one the server began: both change what every view reads.
-		this.autoTeardown(subscribeRunSwitch(() => this.#changed()));
+		this.autoTeardown(subscribeExecutionSwitch(() => this.#changed()));
 		// The sources persist what they read after they report it, so what the device caches is read again when it is written.
 		this.autoTeardown(subscribeDeviceWrites(() => this.#changed()));
 		// Every live batch: counted by level and shown, whether or not any source takes it (a page with no event view open takes none).
@@ -147,9 +168,10 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		}
 		this.#reading = true;
 		try {
-			const [store, databases] = await Promise.all([deviceStore().summary(), indexedDbSummary()]);
-			this.#store = store;
+			const [held, databases, registry] = await Promise.all([executionsHeld(), indexedDbSummary(), deviceStore().registry()]);
+			this.#held = held;
 			this.#databases = databases;
+			this.#registry = registry;
 			this.#deviceRead = true;
 		} finally {
 			this.#reading = false;
@@ -197,17 +219,16 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	render(): TemplateResult {
 		const sources = runSources();
 		const cursor = this.timeCursor;
-		const reading = currentRun() ?? this.#store.lastRun;
-		const earlier = runsNewestFirst(this.#store).find(({ run }) => run !== reading)?.run;
-		const lastRun = reading;
+		// The execution being read: the one a reader chose, else the newest this device holds, which is the one being
+		// recorded while a site is recording one.
+		const reading = currentExecution() ?? this.#held[0]?.execution;
+		const earlier = this.#held.find((e) => e.execution !== reading)?.execution;
 		const registry = registryOrigin();
 		const respondedAt = serverLastRespondedAt();
-		const cached = this.#store.registry;
-		const stored = lastRun === undefined ? undefined : this.#store.runs.find((r) => r.run === lastRun);
-		// A level a view has read the run at: it has an extent. The others carry the same events by the way indexes are
-		// stamped (an event counts at its own level and every level below), and listing them repeats one figure.
-		const read = stored?.levels.filter((l) => l.extent !== undefined) ?? [];
-		const cachedForRun = Math.max(0, ...(stored?.levels.map((l) => l.stored) ?? [0]));
+		const cached = this.#registry;
+		// What the execution being read ran, from the run being read rather than from what the device has been asked for:
+		// a page names what it is reading as soon as it has read it.
+		const named = (execution: string | undefined): string => this.#held.find((e) => e.execution === execution)?.features.join(", ") || featureBeingRead(sources) || execution || "";
 		const cell = (id: string, value: unknown): TemplateResult => html`<td data-testid=${id}>${value}</td>`;
 		return html`<div data-testid=${IDS.ROOT}>
 			<h4>Registry</h4>
@@ -241,43 +262,27 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 							const id = (field: string): string => `${IDS.SOURCE}${s.level}-${field}`;
 							return html`<tr>
 								<td>${s.level}</td>${cell(id("events"), e.total)}${this.#instant(id("first"), e.first)}${this.#instant(id("newest"), e.last)}${cell(id("page"), s.pageSize)}
-								${this.#spans(s, id("cached"))}${cell(id("cached-rows"), cachedRows(cached))}${cell(id("cursor"), row < 0 ? "" : row)}${cell(id("state"), s.unavailable ?? (s.ended ? "ended" : s.loaded ? "loaded" : "loading"))}
+								${this.#spans(s, id("cached"))}${cell(id("cached-rows"), cachedRows(cached))}${cell(id("cursor"), row < 0 ? "" : row)}${cell(id(stateOf(s)), s.unavailable ?? stateOf(s))}
 							</tr>`;
 						})}
 					</table>`
 			}
-			<h4>Runs on this device <small>(the newest ${RUNS_CACHED} are cached, and the one being read)</small></h4>
-			<div>reading <span data-testid=${IDS.READING}>${this.#store.runs.find((r) => r.run === reading)?.features.join(", ") || reading || "no run yet"}</span>
-			${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => void readRun(earlier)}>read the run before it</button>`}</div>
+			<h4>Executions this device holds <small>(named by the features each ran, from the newest ${EXECUTIONS_READ} feature declarations held)</small></h4>
+			<div>reading <span data-testid=${IDS.READING}>${named(reading) || "no execution yet"}</span>
+			${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readExecution(earlier)}>read the execution before it</button>`}</div>
 			${
-				this.#store.runs.length === 0
-					? emptyOrLoading(this.#deviceRead, "No run cached on this device.")
+				this.#held.length === 0
+					? emptyOrLoading(this.#deviceRead, "No execution is held on this device.")
 					: html`<table>
-						<tr><th>run</th><th>features</th><th>reading</th><th>began</th><th>newest</th><th>events</th></tr>
-						${runsNewestFirst(this.#store).map(({ run }) => {
-							const cached = this.#store.runs.find((r) => r.run === run);
-							const levels = cached?.levels ?? [];
-							const span = levels.map((l) => l.extent).find((e) => e?.first !== undefined);
-							const events = Math.max(0, ...levels.map((l) => l.stored));
-							return html`<tr data-testid=${`${IDS.RUN}${run}`} class=${run === reading ? "reading" : ""}>
-								<td>${run === reading ? run || "unnamed" : html`<button class="link" data-testid=${`${IDS.RUN}${run}-read`} title="read this run" @click=${() => void readRun(run)}>${run || "unnamed"}</button>`}</td>
-								${cell(`${IDS.RUN}${run}-features`, cached?.features.join(", ") ?? "")}${cell(`${IDS.RUN}${run}-reading`, run === reading ? "reading" : "")}
-								${this.#instant(`${IDS.RUN}${run}-began`, cached?.first ?? span?.first)}${this.#instant(`${IDS.RUN}${run}-newest`, cached?.last ?? span?.last)}${cell(`${IDS.RUN}${run}-events`, events)}
+						<tr><th>execution</th><th>features</th><th>reading</th><th>began</th><th>newest</th></tr>
+						${this.#held.map((e) => {
+							const id = (field: string): string => `${IDS.RUN}${e.execution}-${field}`;
+							return html`<tr data-testid=${`${IDS.RUN}${e.execution}`} class=${e.execution === reading ? "reading" : ""}>
+								<td>${e.execution === reading ? e.execution : html`<button class="link" data-testid=${id("read")} title="read this execution" @click=${() => readExecution(e.execution)}>${e.execution}</button>`}</td>
+								${cell(id("features"), e.features.join(", "))}${cell(id("reading"), e.execution === reading ? "reading" : "")}
+								${this.#instant(id("began"), e.first)}${this.#instant(id("newest"), e.last)}
 							</tr>`;
 						})}
-					</table>`
-			}
-			<h4>Device store${lastRun !== undefined ? html` <small>(the run being read: ${lastRun || "unnamed"})</small>` : ""}</h4>
-			${
-				!stored || read.length === 0
-					? emptyOrLoading(this.#deviceRead, "Nothing of this run cached on this device.")
-					: html`<div class="note">${cachedForRun} event${cachedForRun === 1 ? "" : "s"} cached for this run. A level appears here once a view has read the run at it. Each level counts the events at that level and every more severe one, so two levels show the same number when nothing was recorded between them.</div>
-						<table>
-						<tr><th>level read</th><th>cached</th><th>extent</th><th>first</th><th>newest</th></tr>
-						${read.map(
-							(l) =>
-								html`<tr><td>${l.level}</td>${cell(`${IDS.STORE}${l.level}-stored`, l.stored)}${cell(`${IDS.STORE}${l.level}-extent`, l.extent?.total ?? "")}${this.#instant(`${IDS.STORE}${l.level}-first`, l.extent?.first ?? stored?.first)}${this.#instant(`${IDS.STORE}${l.level}-newest`, l.extent?.last ?? stored?.last)}</tr>`,
-						)}
 					</table>`
 			}
 			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is forgotten on open)</small></h4>

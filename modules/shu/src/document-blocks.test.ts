@@ -155,16 +155,16 @@ describe("blockIndexForHeading", () => {
 describe("blocksByEvent", () => {
 	const block = (id: string, html = `<div data-id="${id}"></div>`): TDocBlock => ({ html, id, rawTime: 0 });
 	it("gives each block to the event whose id it carries, and a spacer to the event before it", () => {
-		const events = [{ id: "[0.1]" }, { id: "[0.1]" }, { id: "[0.2]" }];
+		const events = [{ id: "0.1" }, { id: "0.1" }, { id: "0.2" }];
 		const blocks = [block("0.1"), block("", '<div class="h-1"></div>'), block("0.2")];
 		expect(blocksByEvent(events, blocks).map((bs) => bs.map((b) => b.id))).toEqual([["0.1", ""], [], ["0.2"]]);
 	});
-	it("a step's blocks go to its start, never to its end, which shares the id and comes later", () => {
-		const events = [{ id: "[0.1]" }, { id: "[0.1]" }]; // start, end
+	it("a step's blocks go to the first row that names it, never to a later one naming it again", () => {
+		const events = [{ id: "0.1" }, { id: "0.1" }]; // one step named twice
 		expect(blocksByEvent(events, [block("0.1"), block("0.1")]).map((bs) => bs.length)).toEqual([2, 0]);
 	});
 	it("a block whose id no later event carries stays with the event last matched (a holder filled for an earlier step)", () => {
-		const events = [{ id: "[0.1]" }, { id: "[0.2]" }];
+		const events = [{ id: "0.1" }, { id: "0.2" }];
 		expect(blocksByEvent(events, [block("0.2"), block("0.1")]).map((bs) => bs.map((b) => b.id))).toEqual([[], ["0.2", "0.1"]]);
 	});
 	it("blocks before any id'd block belong to the first event; no events, no rows", () => {

@@ -13,6 +13,8 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { registerDomains } from "@haibun/core/lib/domains.js";
 import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import MonitorStepper from "./monitor-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import ShuStepper from "./shu-stepper.js";
@@ -64,14 +66,13 @@ async function generateReport(finalView: string | undefined, served?: unknown, w
 		steppers.map((s) => (s as { cycles?: IStepperCycles }).cycles?.getConcerns?.().domains ?? []).filter((d) => d.length > 0),
 	);
 	if (served) world.runtime[DISCOVERY_RESPONSE] = served;
-	// The store + secrets are irrelevant to the component-inclusion rule; stub them so report generation runs.
-	(world.shared as unknown as { getStore: () => unknown }).getStore = () => ({});
+	// The run's records are where the report reads what its views showed; secrets are irrelevant to that rule.
+	const store = new QuadStore();
+	(world.shared as unknown as { getStore: () => unknown }).getStore = () => store;
 	(world.shared as unknown as { getSecrets: () => Promise<Record<string, string>> }).getSecrets = async () => ({});
 	for (const s of steppers) await s.setWorld(world, steppers);
-	if (finalView) {
-		const event = { id: "0.1", timestamp: 0, kind: "lifecycle", stage: "end", level: "info", products: { view: finalView } };
-		await monitor.cycles.onEvent?.(event as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
-	}
+	// The step that showed the view, as the run records it: what the report reads to know which column was open.
+	if (finalView) await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1700000000000-1.0.1", stepText: "show it", actionStatus: "passed", level: "info", generatedAtTime: new Date(1000).toISOString(), showed: finalView });
 	for (const q of queries) await monitor.cycles.onEvent?.(q as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	const out = join(tmpdir(), `polymorphic-report-${process.pid}-${finalView ?? "none"}.html`);
 	for (let i = 0; i < writes; i++) await (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out });

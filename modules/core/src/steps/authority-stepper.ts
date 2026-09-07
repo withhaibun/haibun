@@ -198,7 +198,6 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			productsSchema: sessionGrantsListSchema,
 			action: () => {
 				const grants = this.getAuthority().listSessionGrants().map(shownGrant);
-				this.getWorld().eventLogger.info(JSON.stringify(grants, null, 2));
 				return actionOKWithProducts({ grants });
 			},
 		},

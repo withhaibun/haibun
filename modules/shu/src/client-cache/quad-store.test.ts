@@ -72,7 +72,13 @@ describe("an individual in the page's cache", () => {
 		expect(await store.getIndividual("Comment", "c1")).toBeUndefined();
 	});
 
-	it("refuses a record with no @id rather than caching something no view can ask for again", async () => {
-		await expect(new IndexedDbQuadStore().upsertIndividual("Comment", { content: "no id" })).rejects.toThrow(/@id/);
+	it("refuses a record that states no identity, rather than holding something no view can ask for again", async () => {
+		await expect(new IndexedDbQuadStore().upsertIndividual("Comment", { content: "no id" })).rejects.toThrow(/states no identity/);
+	});
+
+	it("holds a record by the identity it states, whether that is its @id or the id it records", async () => {
+		const store = new IndexedDbQuadStore();
+		expect(await store.upsertIndividual("Comment", { "@id": "c1", content: "served" }), "what a site serves names itself @id").toBe("c1");
+		expect(await store.upsertIndividual("SeqPath", { id: "1700000000000-1.0.1", stepText: "a step" }), "what a run records names itself id").toBe("1700000000000-1.0.1");
 	});
 });

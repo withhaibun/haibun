@@ -5,6 +5,7 @@
  */
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
+import { parseRecordName } from "./seq-path.js";
 
 export type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtifactIds: Set<string> };
 
@@ -125,7 +126,9 @@ export function generateDocumentMarkdown(
 			continue;
 		}
 
-		if (e.kind === "lifecycle" && e.stage === "start") {
+		// A step is rendered once, because a step is one thing that happened. What kind of thing it was decides how it
+		// reads: a feature or a scenario is a heading, a technical step a compact row, anything else the prose it states.
+		if (e.kind === "lifecycle") {
 			const le = e as TLifecycleEvent;
 			const ev = e as Record<string, unknown>;
 			if (le.type === "feature" || le.type === "scenario" || (le.type as string) === "background") {
@@ -159,7 +162,7 @@ export function generateDocumentMarkdown(
 					let isInstigator = false;
 					for (let j = i + 1; j < events.length; j++) {
 						const next = events[j];
-						if (next.id && le.id && next.id.startsWith(le.id + ".") && next.kind === "lifecycle" && (next as TLifecycleEvent).stage === "start") {
+						if (next.id && le.id && next.id.startsWith(le.id + ".") && next.kind === "lifecycle") {
 							isInstigator = true;
 							break;
 						}
@@ -167,7 +170,9 @@ export function generateDocumentMarkdown(
 						if (next.id && le.id && !next.id.startsWith(le.id)) break;
 					}
 
-					const depth = step.id ? step.id.split(".").length : 0;
+					// How deep a step sits is its place in the run, which is its path within the execution: the execution
+					// leading its id names which run it is, not where in that run it sits.
+					const depth = parseRecordName(String(step.id ?? ""))?.path.length ?? 0;
 					const isNested = depth > 3;
 					const time = ((step.timestamp - baseTime) / 1000).toFixed(3);
 					const rawTime = step.timestamp - baseTime;

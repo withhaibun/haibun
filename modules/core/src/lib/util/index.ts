@@ -1,6 +1,6 @@
 import type { TSpecl } from "../execution.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../world.js";
-import { TActionResult, OK, TSeqPath, TDebugSignal } from "../../schema/protocol.js";
+import { TActionResult, OK, TDebugSignal } from "../../schema/protocol.js";
 import { TAnyFixme } from "../fixme.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../astepper.js";
 import { TArtifactEvent, type TJsonArtifact, Timer } from "../../schema/protocol.js";
@@ -393,8 +393,6 @@ export function formattedSteppers(steppers: AStepper[]) {
 	);
 	return a;
 }
-
-export const formatCurrentSeqPath = (seqPath: TSeqPath) => "[" + seqPath.join(".") + "]";
 
 const TRUNCATE_AT = 78;
 const MAX_TRUNCATE_DEPTH = 10;

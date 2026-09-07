@@ -1,11 +1,10 @@
 /**
- * <shu-step-detail> — Shows details for a specific step execution identified by seqPath.
+ * <shu-step-detail> — one step of a run, as its own record states it.
  *
- * Displays: step text, stepper/action, duration, dispatch trace, products, and variables set by this step (quads whose
- * provenance includes this seqPath). Entity references are clickable. The trace/quads load is a @lit/trequest keyed on the
- * seqPath, so switching steps cancels the stale load and renders only the latest — no hand-rolled loading flag, no
- * out-of-order overwrite. The step's own events (its start, its end, the trace of its dispatch) come from one request by its
- * seqPath, served from the run's buffer or its log; a still-running step's end arrives on the live stream.
+ * A step is a record: what was asked for, what ran, how it went and why it failed, how long it took, where it ran, and
+ * what it had to hold to run. This reads that record and the quads whose provenance names the step, so the pane is a
+ * read of the graph rather than a second account of the same act. The read is a @lit/task keyed on the step, so
+ * switching steps cancels the stale read and renders only the latest.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
@@ -14,55 +13,47 @@ import { z } from "zod";
 import { eventMarkerStyle } from "../event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { RPC_METHOD } from "../consts.js";
-import { subscribeBatchedEvents } from "../event-stream.js";
 import { shuBaseStyles } from "./styles.js";
 import { conduit } from "../hypermedia.js";
+import { subscribeBatchedEvents } from "../event-stream.js";
+import { readIndividual } from "../quads-snapshot.js";
 import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
 import { appAccessLevel } from "../util.js";
-import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
+import { formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { readingExecution } from "../client-cache/index.js";
 import { PaneState } from "../pane-state.js";
+
+/** How long a burst of announcements is collected before a still-running step's record is read again. */
+const STEP_RE_READ_AFTER_MS = 400;
 
 const StateSchema = z.object({
 	seqPath: z.array(z.number()).default([]),
-	stepEvent: z.record(z.string(), z.unknown()).optional(),
 });
 
 type TVar = { name: string; value: unknown; graph: string };
-type TStepData = { trace?: Record<string, unknown>; variablesSet: TVar[] };
-type TEvent = Record<string, unknown>;
+type TStepData = { step?: Record<string, unknown>; variablesSet: TVar[] };
 
-/** Whether an event is one step's own: its lifecycle events carry the seqPath as their id, its dispatch trace is named for it. */
-export const ofStep = (e: TEvent, seqKey: string): boolean => e.id === `dispatch.${seqKey}` || parseSeqPath(String(e.id ?? ""))?.join(".") === seqKey;
-
-/** The step's event to show, from its own events: its completed end, else any end, else its start. */
-export function stepEventOf(events: readonly TEvent[]): TEvent | undefined {
-	const ends = events.filter((e) => e.kind === "lifecycle" && e.stage === "end");
-	return ends.find((e) => e.status === "completed") ?? ends[0] ?? events.find((e) => e.kind === "lifecycle" && e.stage === "start");
+/** The record that is this step: the step path a reader navigated to, under the execution being read. */
+export function stepRecordId(path: number[], execution: string | undefined): string | undefined {
+	return execution === undefined || path.length === 0 ? undefined : formatRecordName({ execution, path });
 }
 
-/** The trace of the step's dispatch, from its own events. */
-export const traceOf = (events: readonly TEvent[]): Record<string, unknown> | undefined =>
-	events.find((e) => e.kind === "artifact" && e.artifactType === "dispatch-trace")?.trace as Record<string, unknown> | undefined;
-
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
-	/** A single step execution as a prov:Activity: the step event, its dispatch trace, and the variables it set. */
+	/** One step as a prov:Activity: its record, and the variables it set. */
 	summarizeForKihan(): TLinkedData | null {
-		const { seqPath, stepEvent } = this.state;
-		if (!stepEvent) return null;
 		const data = this.#load.value;
+		if (!data?.step) return null;
 		return {
-			"@id": `view:step-${seqPath.join(".")}`,
+			"@id": `view:step-${formatSeqPath(this.state.seqPath)}`,
 			"@type": "prov:Activity",
 			name: "a step execution detail",
-			step: stepEvent,
-			...(data?.trace ? { dispatch: data.trace } : {}),
-			...(data?.variablesSet.length ? { variablesSet: data.variablesSet } : {}),
+			step: data.step,
+			...(data.variablesSet.length ? { variablesSet: data.variablesSet } : {}),
 		};
 	}
 
-	#own: TEvent[] = []; // the step's own events, as requested and as they arrive live
-	#unsubscribeLive?: () => void;
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -86,63 +77,64 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		super(StateSchema, { seqPath: [] });
 	}
 
-	/** Load this step's own events (its start and end, and the trace of its dispatch, one request by its seqPath) and the quads
-	 *  it set, keyed on the seqPath. The quad query is a fuller per-step provenance fetch (perTypeLimit 1000) — NOT the
-	 *  budgeted display snapshot the graph views share via quads-snapshot, which would drop the very quads whose provenance
-	 *  names this step. */
+	/** The step's record and the quads it set, keyed on the step. The quad query is a fuller per-step provenance read
+	 *  (perTypeLimit 1000), not the budgeted display snapshot the graph views share, which would drop the very quads
+	 *  whose provenance names this step. */
 	#load = new Task(this, {
-		args: () => [this.state.seqPath.join(".")] as const,
-		task: async ([seqKey]): Promise<TStepData> => {
-			if (!seqKey) return { variablesSet: [] };
-			const { own, quadsData } = await conduit().group("step-detail: load one step's events + quads", async (g) => {
-				const own = await g.follow<{ events?: TEvent[] }>({ method: RPC_METHOD.GET_EVENTS, params: { filter: { seqPath: seqKey, limit: 8 } } }, "step-detail: the step's own events");
-				const quadsData = await g.follow<{
-					quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
-				}>({ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } }, "step-detail: clustered quads");
-				return { own, quadsData };
-			});
-			this.#own = own.events ?? [];
-			const trace = traceOf(this.#own);
+		args: () => [formatSeqPath(this.state.seqPath), readingExecution()] as const,
+		task: async ([path, execution]): Promise<TStepData> => {
+			const id = stepRecordId(parseSeqPath(path) ?? [], execution);
+			if (id === undefined) return { variablesSet: [] };
+			const [record, quadsData] = await Promise.all([
+				// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
+				readIndividual(SEQ_PATH_LABEL, id, appAccessLevel()),
+				conduit().follow<{ quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }> }>(
+					{ method: RPC_METHOD.CLUSTERED_QUADS, params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } },
+					"step-detail: clustered quads",
+				),
+			]);
 			const variablesSet: TVar[] = (quadsData.quads ?? [])
 				.filter((q) => {
 					const prov = q.properties?.provenance;
-					return Array.isArray(prov) && prov.some((p: unknown) => Array.isArray(p) && (p as number[]).join(".") === seqKey);
+					return Array.isArray(prov) && prov.some((p: unknown) => Array.isArray(p) && formatSeqPath(p as number[]) === path);
 				})
 				.map((q) => ({ name: q.subject, value: q.object, graph: q.namedGraph }));
-			return { trace: trace ?? undefined, variablesSet };
+			return { step: record.vertex, variablesSet };
 		},
-		onComplete: () => this.refreshStepEvent(),
 	});
 
 	/** Called by the pane afterAttach hook with the step's seqPath; setting the state re-keys the load task. Awaits the
 	 *  settle so the caller's attach sequence still completes after the data lands (an error surfaces in render). */
 	async open(seqPath: number[]): Promise<void> {
-		this.setState({ seqPath, stepEvent: undefined });
+		this.setState({ seqPath });
 		await this.updateComplete;
 		await this.#load.taskComplete.catch(() => undefined);
 	}
 
 	protected override onConnected(): void {
-		// A still-running step's end, or its trace, arrives after the load: the step's own events are taken from the live
-		// stream as they come (no RPC), so the pane does not go stale. In snapshot mode nothing is live.
+		// A step still running reaches its end while this pane is open, and its record then says so. A step that has
+		// ended will not change again, so it is read once: a pane that re-read on every announcement would never settle,
+		// since reading the run is itself something the run announces. In snapshot mode nothing changes.
 		if (this.hasAttribute("data-snapshot-time")) return;
-		this.#unsubscribeLive = subscribeBatchedEvents({
-			onBatch: (events) => {
-				const seqKey = this.state.seqPath.join(".");
-				if (!seqKey) return;
-				const mine = events.filter((e) => ofStep(e as TEvent, seqKey));
-				if (mine.length === 0) return;
-				this.#own = [...this.#own, ...(mine as TEvent[])];
-				if (this.#load.status === TaskStatus.COMPLETE) this.refreshStepEvent();
+		let due: ReturnType<typeof setTimeout> | null = null;
+		const unsubscribe = subscribeBatchedEvents({
+			onBatch: () => {
+				if (due || this.#load.status !== TaskStatus.COMPLETE || this.#ended()) return;
+				due = setTimeout(() => {
+					due = null;
+					void this.#load.run();
+				}, STEP_RE_READ_AFTER_MS);
 			},
 		});
-		this.autoTeardown(() => this.#unsubscribeLive?.());
+		this.autoTeardown(() => {
+			if (due) clearTimeout(due);
+			unsubscribe();
+		});
 	}
 
-	private refreshStepEvent(): void {
-		const stepEvent = stepEventOf(this.#own);
-		if (stepEvent) this.setState({ stepEvent });
-		this.requestUpdate(); // a trace that arrived live shows without a new load
+	/** Whether the step this pane shows has ended, which is when its record stops changing. */
+	#ended(): boolean {
+		return typeof this.#load.value?.step?.[SEQ_PATH_FIELD.endedAtTime] === "string";
 	}
 
 	private onLink = (subject: string, label: string, isVertex: boolean) => (): void => {
@@ -157,7 +149,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	};
 
 	render(): TemplateResult {
-		const key = this.state.seqPath.join(".");
+		const key = formatSeqPath(this.state.seqPath);
 		if (!key) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step…</div>`;
 		return this.#load.render({
 			initial: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,
@@ -168,39 +160,27 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	}
 
 	private renderContent(key: string, data: TStepData): TemplateResult {
-		const { stepEvent } = this.state;
-		const { variablesSet } = data;
-		const trace = traceOf(this.#own) ?? data.trace;
+		const { step, variablesSet } = data;
+		if (!step && variablesSet.length === 0) return html`<div class="empty">No record of step [${key}]</div>`;
+		const field = (name: string): string => (step && typeof step[name] === "string" ? String(step[name]) : "");
 		// The same glyph the log and the rail use, so a speculative try or a handed-out call is not shown as a fault.
-		const status = stepEvent?.status ? eventMarkerStyle({ ...stepEvent, kind: "lifecycle", type: "step" }).icon : "";
-		const stepIn = String(stepEvent?.in ?? "");
-		const actionName = String(stepEvent?.actionName ?? "");
-		const stepperName = String(stepEvent?.stepperName ?? "");
-		const transport = String(trace?.transport ?? "local");
-		const duration = trace?.durationMs ? `${trace.durationMs}ms` : "";
-		const products = Array.isArray(trace?.productKeys) ? (trace.productKeys as string[]).join(", ") : "";
-		const capability = trace?.capabilityRequired ? `cap: ${trace.capabilityRequired}` : "";
-
-		const hasContent = stepEvent || trace || variablesSet.length > 0;
-		if (!hasContent) return html`<div class="empty">No data found for step [${key}]</div>`;
-
+		const status = field(SEQ_PATH_FIELD.actionStatus) ? eventMarkerStyle({ status: field(SEQ_PATH_FIELD.actionStatus), kind: "lifecycle", type: "step" }).icon : "";
+		const began = Date.parse(field(SEQ_PATH_FIELD.generatedAtTime));
+		const ended = Date.parse(field(SEQ_PATH_FIELD.endedAtTime));
+		const took = Number.isNaN(began) || Number.isNaN(ended) ? "" : `${ended - began}ms`;
+		const ranOn = field(SEQ_PATH_FIELD.ranOn);
+		const capability = field(SEQ_PATH_FIELD.capabilityAction);
+		const allowed = field(SEQ_PATH_FIELD.allowedAction);
 		return html`<div class="step-detail">
 			<h4>Step [${key}]</h4>
 			${
-				stepEvent
+				step
 					? html`
-				<div class="field"><span class="label">Step:</span> <span class="value">${stepIn}</span></div>
-				<div class="field"><span class="label">Action:</span> <span class="value">${status} ${stepperName}.${actionName}</span></div>
-				${stepEvent.error ? html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${String(stepEvent.error)}</span></div>` : ""}
-			`
-					: ""
-			}
-			${
-				trace
-					? html`
-				<div class="section"><span class="label">Transport:</span> <span class="value">${transport} ${duration}</span></div>
-				${capability ? html`<div class="field"><span class="label">Capability:</span> <span class="value">${capability}</span></div>` : ""}
-				${products ? html`<div class="field"><span class="label">Products:</span> <span class="value">${products}</span></div>` : ""}
+				<div class="field"><span class="label">Step:</span> <span class="value">${field(SEQ_PATH_FIELD.stepText)}</span></div>
+				<div class="field"><span class="label">Action:</span> <span class="value">${status} ${field(SEQ_PATH_FIELD.called)}</span></div>
+				${field(SEQ_PATH_FIELD.error) ? html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${field(SEQ_PATH_FIELD.error)}</span></div>` : ""}
+				<div class="section"><span class="label">Ran:</span> <span class="value">${field(SEQ_PATH_FIELD.ranVia)}${ranOn ? ` ${ranOn}` : ""}${took ? ` ${took}` : ""}</span></div>
+				${capability ? html`<div class="field"><span class="label">Capability:</span> <span class="value">${capability}${allowed ? ` allowed by ${allowed}` : ""}</span></div>` : ""}
 			`
 					: ""
 			}
@@ -216,7 +196,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			`
 					: ""
 			}
-			${stepEvent ? html`<details class="section"><summary class="label">Raw event</summary><pre>${JSON.stringify(stepEvent, null, 2)}</pre></details>` : ""}
+			${step ? html`<details class="section"><summary class="label">The record</summary><pre>${JSON.stringify(step, null, 2)}</pre></details>` : ""}
 		</div>`;
 	}
 }

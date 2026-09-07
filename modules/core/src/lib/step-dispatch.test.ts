@@ -21,7 +21,7 @@ import { getDefaultWorld } from "./test/lib.js";
 import { registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
-import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
+import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
 
 // --- Test Steppers ---
 
@@ -431,13 +431,13 @@ describe("step-dispatch", () => {
 			expect(result.ok).toBe(true);
 
 			const store = world.shared.getStore();
-			const id = formatSeqPath([0, 3, 5]);
+			const id = formatRecordName({ execution: executionOf(world.tag), path: [0, 3, 5] });
 			const quads = await store.query({ subject: id, namedGraph: SEQ_PATH_LABEL });
 			const byPredicate = Object.fromEntries(quads.map((q) => [q.predicate, q.object]));
 			expect(byPredicate[SEQ_PATH_FIELD.actionStatus]).toBe(SEQ_PATH_STATUS.passed);
 			expect(byPredicate[SEQ_PATH_FIELD.generatedAtTime]).toEqual(expect.any(String));
 			expect(byPredicate[SEQ_PATH_FIELD.endedAtTime]).toEqual(expect.any(String));
-			expect(byPredicate[LinkRelations.PART_OF.rel]).toBe(formatSeqPath([0, 3]));
+			expect(byPredicate[LinkRelations.PART_OF.rel], "a step is part of its parent step of the same execution").toBe(formatRecordName({ execution: executionOf(world.tag), path: [0, 3] }));
 			expect(byPredicate[SEQ_PATH_FIELD.stepText]).toEqual(expect.any(String));
 			// Written even for the ordinary case: a reader asking for the steps that were NOT speculative can only be
 			// answered if an authoritative step says so as well.
@@ -456,7 +456,7 @@ describe("step-dispatch", () => {
 			await dispatchStep({ registry, world, steppers }, featureStep);
 
 			const store = world.shared.getStore();
-			const mode = await store.get(formatSeqPath([0, 4, 1]), SEQ_PATH_FIELD.mode, SEQ_PATH_LABEL);
+			const mode = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 4, 1] }), SEQ_PATH_FIELD.mode, SEQ_PATH_LABEL);
 			expect(mode, "a try whose failure is expected is not the run failing, and its record says which it was").toBe("speculative");
 		});
 
@@ -472,7 +472,7 @@ describe("step-dispatch", () => {
 			expect(result.ok).toBe(false);
 
 			const store = world.shared.getStore();
-			const status = await store.get(formatSeqPath([0, 9]), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
+			const status = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 9] }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
 			expect(status).toBe(SEQ_PATH_STATUS.failed);
 		});
 	});
@@ -521,6 +521,21 @@ describe("step-dispatch", () => {
 					},
 				],
 			]);
+		});
+
+		it("records the view a step showed, by the name the site declares it under", async () => {
+			registerDomains(world, [[{ selectors: ["test-view"], schema: z.object({}), description: "A view", ui: { component: "test-view-element" } }]]);
+			class ShowsAView extends AStepper {
+				steps = { showIt: { gwta: "show the view", productsDomain: "test-view", action: () => actionOKWithProducts({}) } };
+			}
+			const steppers = [new ShowsAView()];
+			const registry = buildStepRegistry(steppers, world);
+			const tool = registry.get("ShowsAView-showIt");
+			if (!tool) throw new Error("Expected ShowsAView-showIt to be registered");
+			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 7, 1]);
+			await dispatchStep({ registry, world, steppers }, featureStep);
+			const showed = await world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path: [0, 7, 1] }), SEQ_PATH_FIELD.showed, SEQ_PATH_LABEL);
+			expect(showed, "what the step showed, which is what a document embeds it by").toBe("test-view");
 		});
 
 		it("registers a step with productsDomain referencing a known domain", () => {

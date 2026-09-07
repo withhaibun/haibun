@@ -113,11 +113,8 @@ export class IndexedDbQuadStore implements IQuadStore {
 	// --- Individual convenience ops: persist + deref-by-@id, the client store's actual job, over the quad primitives. ---
 
 	async upsertIndividual(label: string, data: unknown): Promise<string> {
-		const obj = data as Record<string, unknown>;
-		const id = obj["@id"];
-		if (typeof id !== "string")
-			throw new Error(`IndexedDbQuadStore.upsertIndividual: data has no string @id — the client store caches fetched nodes keyed by @id (got ${JSON.stringify(id)}).`);
-		for (const [predicate, value] of Object.entries(obj)) if (predicate !== "@id") await this.set(id, predicate, value, label);
+		const [id, quads] = individualAsQuads(label, data as Record<string, unknown>);
+		await this.setMany(quads);
 		return id;
 	}
 
@@ -154,6 +151,18 @@ export class IndexedDbQuadStore implements IQuadStore {
 		// reader sets means the same thing whether or not there is a server behind the page.
 		return sliceQuadsPerType(asked.filter((q) => withinAccess(levelOf(asked, q), opts.accessLevel)), opts.perTypeLimit);
 	}
+}
+
+/** One individual as the quads that state it. Exported so what a page holds a window of records by is one write of the
+ *  same quads a single upsert would have written. A record's identity is its `@id`, else the `id` it states: the page holds
+ *  what a site serves and what a site records, and both name themselves. */
+export function individualAsQuads(label: string, individual: Record<string, unknown>): [string, TQuad[]] {
+	const id = individual["@id"] ?? individual.id;
+	if (typeof id !== "string") throw new Error(`IndexedDbQuadStore: this individual states no identity, so there is nothing to hold it by (got ${JSON.stringify(individual["@id"] ?? individual.id)}).`);
+	const quads = Object.entries(individual)
+		.filter(([predicate]) => predicate !== "@id")
+		.map(([predicate, object]) => ({ subject: id, predicate, object, namedGraph: label, timestamp: Date.now() }));
+	return [id, quads];
 }
 
 /** The access level a subject states, from the quads describing it: what it was recorded at, where it says. */

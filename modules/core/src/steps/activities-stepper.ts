@@ -3,7 +3,8 @@ import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TSte
 import type { TFeatures, TStepInput } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
-import { actionOK, actionNotOK, actionOKWithProducts, getActionable, formatCurrentSeqPath, errorDetail } from "../lib/util/index.js";
+import { formatSeqPath } from "../lib/seq-path.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail } from "../lib/util/index.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
@@ -224,7 +225,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				// Emit ensure start for monitors
 				this.getWorld().eventLogger.emit(
 					LifecycleEvent.parse({
-						id: formatCurrentSeqPath(featureStep.seqPath) + ".ensure",
+						id: formatSeqPath(featureStep.seqPath) + ".ensure",
 						timestamp: Date.now(),
 						kind: "lifecycle",
 						type: "ensure",
@@ -470,7 +471,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private emitEnsureEnd(featureStep: TFeatureStep, outcomeKey: string, ok: boolean, error?: string): void {
 		this.getWorld().eventLogger.emit(
 			LifecycleEvent.parse({
-				id: formatCurrentSeqPath(featureStep.seqPath) + ".ensure",
+				id: formatSeqPath(featureStep.seqPath) + ".ensure",
 				timestamp: Date.now(),
 				kind: "lifecycle",
 				type: "ensure",
