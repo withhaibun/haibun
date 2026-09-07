@@ -1,5 +1,5 @@
 import { defaultLabel } from "./util.js";
-import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR } from "./consts.js";
+import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
 import { getHash, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
@@ -17,8 +17,8 @@ import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
-import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext } from "./quads-snapshot.js";
-import { activePane } from "./signals.js";
+import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext, pageRunGraph } from "./quads-snapshot.js";
+import { activePane, timeCursor } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
@@ -29,7 +29,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
-import { hydrateClientCache, viewsShown } from "./client-cache/index.js";
+import { hydrateClientCache, viewsShown, runMarks, runSpan, atLiveEdge, subscribeRunSources, type TRunMark } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -100,6 +100,13 @@ function openReaderSession(): void {
 	// it, so this is a notice rather than the handling of it.
 	opening.catch((err: unknown) => console.warn(`[shu] this reader has no session: ${errorDetail(err)}`));
 }
+
+/** How many divisions a run's shape is drawn in: what a reader is shown of a run of any length, at a cost fixed by
+ *  this rather than by the run. */
+const RUN_SHAPE_DIVISIONS = 120;
+
+/** How long changes to the run are collected before its shape is counted again. */
+const RUN_SHAPE_REDRAW_MS = 15000;
 
 const main = async (): Promise<void> => {
 	// What the reader's address says, before anything writes to it. An address naming views is the reader's own
@@ -206,6 +213,7 @@ const main = async (): Promise<void> => {
 	appRoot.innerHTML = `
 		<div class="app-container">
 			<shu-actions-bar api-base="${apiBase}" testid-prefix="app-"></shu-actions-bar>
+			<shu-time-bar></shu-time-bar>
 			<shu-column-strip>
 				<shu-column-pane label="" column-type="query" closable="false" active data-column-key="${INDEX_PANE_KEY}">
 					<div class="results-target" style="height:100%;overflow:hidden;"></div>
@@ -368,6 +376,51 @@ const main = async (): Promise<void> => {
 		}) as EventListener,
 		{ signal },
 	);
+
+	// The shape of the run, drawn across the page as the cursor is: one bar every view shares, read from counts so a run
+	// of any length draws the same way. It is re-read when the run says something changed, on the same schedule a
+	// following view reads on, and pressing a division scrubs every view to where it begins.
+	const timeBar = () => appRoot.querySelector(SHU_TAG.TIME_BAR) as (HTMLElement & { marks: TRunMark[]; divisions: number }) | null;
+	const drawRunShape = async (): Promise<void> => {
+		const bar = timeBar();
+		const { first, last } = runSpan();
+		if (!bar || last <= first) return;
+		bar.divisions = RUN_SHAPE_DIVISIONS;
+		bar.marks = await runMarks(pageRunGraph(), { from: first, to: last, divisions: RUN_SHAPE_DIVISIONS });
+	};
+	appRoot.addEventListener(
+		SHU_EVENT.TIME_BAR_PRESS,
+		((e: CustomEvent<{ division: number }>) => {
+			const { first, last } = runSpan();
+			const at = first + ((last - first) * e.detail.division) / RUN_SHAPE_DIVISIONS;
+			timeCursor.set(atLiveEdge(at) ? null : at);
+		}) as EventListener,
+		{ signal },
+	);
+	// Counted again on a throttle, and only where the run has moved since it was last counted: a reader watching a run
+	// would otherwise have its whole shape counted for every record the run wrote, and each count is itself a call the
+	// run records. An overview a few seconds behind is an overview; a run counted per record is a run made slower by
+	// being watched.
+	let countedThrough = 0;
+	let countDue: ReturnType<typeof setTimeout> | undefined;
+	const redrawRunShape = (): void => {
+		if (countDue !== undefined) return;
+		countDue = setTimeout(() => {
+			countDue = undefined;
+			const { last } = runSpan();
+			if (last <= countedThrough) return;
+			countedThrough = last;
+			void drawRunShape().catch((err: unknown) => failFastOrLog("the run's shape could not be read", err));
+		}, RUN_SHAPE_REDRAW_MS);
+	};
+	eventsController.signal.addEventListener(
+		"abort",
+		subscribeRunSources((source) => {
+			redrawRunShape();
+			source.subscribe(redrawRunShape);
+		}),
+	);
+	redrawRunShape();
 
 	// Filter change from actions bar
 	appRoot.addEventListener(

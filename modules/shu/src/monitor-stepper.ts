@@ -37,7 +37,7 @@ import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepp
 
 import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
 
-import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TGraphQuery } from "@haibun/core/lib/quad-types.js";
+import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TGraphQuery , DOMAIN_DENSITY_QUERY, DensityResultSchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
 import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -526,6 +526,16 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				return actionOKWithProducts({ site: peer });
 			},
 		},
+		density: {
+			gwta: `run shape {query: ${DOMAIN_DENSITY_QUERY}}`,
+			fallback: true,
+			productsSchema: DensityResultSchema,
+			// The counts are the answer; keeping them on the event too is the per-read bloat.
+			retainProducts: false,
+			// The same answer a page counting over its own copy of the graph gives itself, so the two never drift.
+			action: async ({ query }: { query: TDensityQuery }) => actionOKWithProducts(await this.getWorld().shared.getStore().density(query)),
+		},
+
 		graphQuery: {
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
 			fallback: true,

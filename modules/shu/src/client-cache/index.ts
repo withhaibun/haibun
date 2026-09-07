@@ -28,5 +28,7 @@ export { executionsHeld, viewsShown, currentExecution, readingExecution, noteExe
 export { IndexedDbQuadStore, originGraphStore } from "./quad-store.js";
 export { graphRunSource } from "./graph-run-source.js";
 export { runWindow, detailRegion, RUN_WINDOW_SIZE, DETAIL_HALF, type TRunRow, type TRunWindow } from "./run-window.js";
+export { runMarks, type TRunMark } from "./run-marks.js";
+export { runGraphOf, type TRunGraph } from "./run-graph.js";
 export { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";

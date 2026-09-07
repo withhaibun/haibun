@@ -10,7 +10,7 @@ import { CACHE_SHAPE, deviceStore } from "./device-store.js";
 import { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 import { currentExecution, resetExecutions } from "./executions.js";
 import { runWindow } from "./run-window.js";
-import { cachedGraphStore } from "../quads-snapshot.js";
+import { cachedGraphStore , pageRunGraph } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 
@@ -52,7 +52,8 @@ describe("a run carried in a page", () => {
 
 	it("is read as any run is read: the window over the records the run wrote", async () => {
 		await hydrateClientCache(payload({ registry: undefined }));
-		const window = await runWindow({ execution: EXECUTION });
+		// A page carrying a run reads it through the page's own graph, which is the point of this case.
+		const window = await runWindow(pageRunGraph(), { execution: EXECUTION });
 		expect(window.rows.length, "the run the page carries").toBe(12);
 		expect(window.rows[0].text).toBe("step 0");
 		expect(window.rows[11].text).toBe("step 11");
