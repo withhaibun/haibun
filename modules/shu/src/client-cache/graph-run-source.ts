@@ -8,38 +8,51 @@
  * A step is one row. It began, it ended and it says how it went, all on one record, where a stream of occurrences had
  * to say those separately and a view had to pair them up again.
  *
- * The window re-reads when the run says something changed. A view therefore holds what a reader is looking at rather
- * than everything that has happened, which is what keeps a run of years readable.
+ * The window re-reads when the run says something changed, and a view following the newest asks only for what has
+ * happened since it last read. A view therefore holds what a reader is looking at rather than everything that has
+ * happened, and following costs what has changed rather than what the run holds, which is what keeps a run of years
+ * readable.
  */
-import { FEATURE_START, HAIBUN_LOG_LEVELS, SCENARIO_START, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, declaredName, declaresFeature, declaresScenario, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
 import { getWindowSize } from "../window-size-setting.js";
 import { pagePinned } from "../page-pinned.js";
+import { cachedGraphStore, readIndividual } from "../quads-snapshot.js";
+import { individualAsQuads } from "./quad-store.js";
+import { currentExecution, noteExecution, subscribeExecutionSwitch } from "./executions.js";
+import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import type { Range } from "../ranges.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
-import { RUN_WINDOW_SIZE, runWindow, type TRunRow } from "./run-window.js";
+import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
+import { RUN_WINDOW_SIZE, inRunOrder, rowOfRecord, runWindow, type TRunRow } from "./run-window.js";
+import { appAccessLevel } from "../util.js";
 import { noteRunSpan, readingBy, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
 
 /** How long a burst of changes is collected before the window is read again. */
 export const RE_READ_AFTER_MS = 250;
 
+/** How many still-running steps a following view reads again by name. A run holds a few open at a time: its feature,
+ *  its scenario, and the step now running. */
+const RUNNING_READ_LIMIT = 20;
+
 /** What a step declared, where it declared one: a feature or a scenario is the step that named it, and a view titles it
  *  by the name that step carries rather than by a second announcement of the same thing. */
 function declared(row: TRunRow): Record<string, unknown> {
-	const named = (prefix: string): string => row.text.slice(prefix.length).trim();
-	if (row.called?.endsWith(`.${FEATURE_START}`)) return { type: "feature", featureName: named("Feature:") };
-	if (row.called?.endsWith(`.${SCENARIO_START}`)) return { type: "scenario", scenarioName: named("Scenario:") };
+	if (declaresFeature(row.called)) return { type: "feature", featureName: declaredName(row.text, "feature") };
+	if (declaresScenario(row.called)) return { type: "scenario", scenarioName: declaredName(row.text, "scenario") };
 	return { type: "step" };
 }
 
 /** A row as a view renders it. A step carries how it went and how long it took; what was said carries its own level. */
 function asRendered(row: TRunRow): TEventRecord {
-	const seqPath = row.step ? row.step.split(".").map(Number).filter((n) => !Number.isNaN(n)) : undefined;
+	// The step path a view shows and navigates by is the path within the execution: the execution is how records of
+	// different runs are told apart, not something a reader of one run is shown on every row.
+	const seqPath = row.under?.length ? row.under : undefined;
 	if (row.kind === "said") return { id: row.step, kind: "log", level: row.level, message: row.text, timestamp: row.at, seqPath };
 	// A produced thing is claimed by the step it came from, which a document reads from the identity it carries.
 	if (row.kind === "produced")
 		return {
-			id: row.id ?? row.step,
+			id: row.id,
 			kind: "artifact",
 			artifactType: row.artifactType,
 			level: row.level,
@@ -54,9 +67,12 @@ function asRendered(row: TRunRow): TEventRecord {
 		kind: "lifecycle",
 		...declared(row),
 		level: row.level,
+		// What was asked for, and what ran: a view shows the step's own words and says which action carried them out.
 		in: row.text,
-		actionName: row.text,
+		...(row.called === undefined ? {} : { called: row.called, actionName: row.called }),
 		status: row.status,
+		...(row.error === undefined ? {} : { error: row.error }),
+		...(row.showed === undefined ? {} : { showed: row.showed }),
 		timestamp: row.at,
 		...(row.endedAt === undefined ? {} : { endedAt: row.endedAt, durationMs: row.endedAt - row.at }),
 		...(row.ranVia === undefined ? {} : { ranVia: row.ranVia }),
@@ -105,24 +121,77 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	// A row a re-read finds again is the same row: a view holds its place, and what it built from that row, by the row
 	// being the same object. Re-reading is how a window stays current, so re-reading must not look like every row changing.
 	const held = new Map<string, TEventRecord>();
+	const keyOf = (row: TRunRow): string => `${row.kind}|${row.step}|${row.at}|${row.text}|${row.status ?? ""}|${row.endedAt ?? ""}`;
 	const same = (row: TRunRow): TEventRecord => {
-		const key = `${row.kind}|${row.step}|${row.at}|${row.text}|${row.status ?? ""}|${row.endedAt ?? ""}`;
+		const key = keyOf(row);
 		const carried = held.get(key);
 		if (carried) return carried;
 		const made = asRendered(row);
 		held.set(key, made);
 		return made;
 	};
+	/** Hold what a window read, in one write, and say where it could not be held rather than leaving a reader to find
+	 *  it missing later. */
+	const hold = (rows: TRunRow[]): Promise<void> => {
+		if (rows.length === 0) return Promise.resolve();
+		const quads = rows.flatMap((row) => individualAsQuads(row.label, row.record)[1]);
+		return cachedGraphStore()
+			.setMany(quads)
+			.catch((err: unknown) => failFastOrLog("the run's records could not be held on this device", err));
+	};
 
+	/** The rows the window holds, oldest first, and what they span: what every view of this source reads. */
+	let window: TRunRow[] = [];
+
+	/**
+	 * The steps a following view reads again by name: the ones still running, whose records say how they went once they
+	 * end. They are read by name rather than by time because a run holds steps that stay open for the whole of it (the
+	 * feature, the scenario), and reading from where the oldest of those began is reading the run again.
+	 */
+	const stillRunning = async (): Promise<TRunRow[]> => {
+		const open = window.filter((row) => row.kind === "step" && row.status === SEQ_PATH_STATUS.running).slice(-RUNNING_READ_LIMIT);
+		const read = await Promise.all(open.map((row) => readIndividual(SEQ_PATH_LABEL, row.id, appAccessLevel()).catch(() => undefined)));
+		return read.flatMap((answer) => (answer?.vertex ? [rowOfRecord(SEQ_PATH_LABEL, answer.vertex)] : []));
+	};
+
+	/**
+	 * Read the run. Following the live edge, a view already holding rows asks only for what may have changed since it
+	 * last read: what has happened since its newest row, and from the oldest step still running, whose record says how
+	 * it went once it ends. Reading the whole window again to find a few new records is what makes following a long run
+	 * cost what the run costs. Anywhere else, the window is read around where the reader is.
+	 */
 	const read = async (): Promise<void> => {
-		const window = await runWindow({ at, size, minLevel: level });
-		rows = window.rows.map(same);
+		const execution = currentExecution();
+		const of = { size, minLevel: level, ...(execution === undefined ? {} : { execution }) };
+		const following = at === undefined && window.length > 0;
+		const [answer, reread] = await Promise.all([
+			runWindow(following ? { ...of, since: window[window.length - 1].at } : { ...of, ...(at === undefined ? {} : { at }) }),
+			following ? stillRunning() : Promise.resolve([]),
+		]);
+		if (following) {
+			// A record read again replaces the one held under its name; one not held before is new. Either way the
+			// window is what it held and what has changed, in the order the run put them.
+			const byName = new Map(window.map((row) => [row.id, row]));
+			const changed = [...answer.rows, ...reread].filter((row) => byName.get(row.id) === undefined || keyOf(byName.get(row.id) as TRunRow) !== keyOf(row));
+			if (changed.length === 0) return;
+			for (const row of changed) byName.set(row.id, row);
+			window = [...byName.values()].sort(inRunOrder).slice(-size);
+		} else window = answer.rows;
+		// What a page has read, it holds: the records are what a reader with no site to ask reads them back from, and
+		// what makes an execution one this device can be brought back to. Only what is new to the window is written,
+		// and every new record in one write, so reading a window costs one write rather than one per record.
+		void hold(window.filter((row) => !held.has(keyOf(row))));
+		rows = window.map(same);
 		// What the window no longer holds is not held here either, so a window that moves does not grow this without bound.
 		const shown = new Set(rows);
 		for (const [key, row] of held) if (!shown.has(row)) held.delete(key);
-		extent = { total: rows.length, ...(window.from === undefined ? {} : { first: window.from }), ...(window.to === undefined ? {} : { last: window.to }) };
+		const newest = window[window.length - 1]?.name;
+		if (newest) noteExecution(newest.execution);
+		const from = window[0]?.at;
+		const to = window[window.length - 1]?.at;
+		extent = { total: rows.length, ...(from === undefined ? {} : { first: from }), ...(to === undefined ? {} : { last: to }) };
 		loaded = true;
-		noteRunSpan(window.from, window.to);
+		noteRunSpan(from, to);
 		notify();
 	};
 
@@ -138,6 +207,14 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 				void read();
 			}, reReadAfterMs);
 		},
+	});
+
+	// Another execution is another window over the same records, so the source reads again rather than being remade.
+	const stopWatchingSwitch = subscribeExecutionSwitch(() => {
+		at = undefined;
+		window = [];
+		held.clear();
+		void read();
 	});
 
 	const source: TGraphRunSource = {
@@ -161,6 +238,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		ready: () => (reading ??= read().finally(() => (reading = null))),
 		readAt: (moment?: number) => {
 			at = moment;
+			window = []; // another moment is another window, read as one rather than added to the one being left
 			return read();
 		},
 		subscribe: (fn: () => void) => {
@@ -169,6 +247,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		},
 		close: () => {
 			stopReading();
+			stopWatchingSwitch();
 			unsubscribe();
 			if (due) clearTimeout(due);
 		},

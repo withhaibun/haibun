@@ -1,58 +1,65 @@
 // @vitest-environment jsdom
 /**
- * A run carried in a page: what a standalone report embeds is filled into a memory-backed device store at boot, and the
- * run sources then read it exactly as they read a run cached from a server. A payload written to another rule is refused
- * rather than read wrongly.
+ * A run carried in a page: what a standalone report embeds is the graph the run wrote, filled into a store of the page's
+ * own at boot, and the window then reads that run exactly as it reads one a site is recording. A payload written to
+ * another rule is refused rather than read wrongly.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { CACHE_SHAPE } from "./device-store.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { CACHE_SHAPE, deviceStore } from "./device-store.js";
 import { hydrateClientCache, type TCachePayload } from "./hydrate.js";
-import { deviceStore, eventRunSource, resetRunSources, currentRun } from "./run-source.js";
+import { currentExecution, resetExecutions } from "./executions.js";
+import { runWindow } from "./run-window.js";
 import { cachedGraphStore } from "../quads-snapshot.js";
+import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { windowSizeSetting, DEFAULT_WINDOW_SIZE } from "../window-size-setting.js";
 
-const RUN = "reported-run";
-const events = Array.from({ length: 12 }, (_, i) => ({ id: `[0.${i}]`, timestamp: 2000 + i, kind: "log", level: "info", run: RUN, idx: { debug: i, trace: i, log: i, info: i } }));
+const EXECUTION = "1700000000000-1";
+const iso = (n: number): string => new Date(n).toISOString();
+/** The steps of the reported run, as the quads a report carries them by. */
+const stepQuads = Array.from({ length: 12 }, (_, i) => [
+	{ subject: `${EXECUTION}.0.${i}`, predicate: "id", object: `${EXECUTION}.0.${i}`, namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${EXECUTION}.0.${i}`, predicate: "stepText", object: `step ${i}`, namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${EXECUTION}.0.${i}`, predicate: "generatedAtTime", object: iso(2000 + i), namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${EXECUTION}.0.${i}`, predicate: "level", object: "info", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+]).flat();
+
 const payload = (over: Partial<TCachePayload> = {}): TCachePayload => ({
 	shape: CACHE_SHAPE,
-	run: RUN,
-	events,
-	extents: { log: { total: 12, first: 2000, last: 2011 }, info: { total: 12, first: 2000, last: 2011 } },
+	execution: EXECUTION,
 	registry: { steps: [], domains: {}, concerns: { persisted: {} } },
+	quads: stepQuads,
 	...over,
 });
 
 describe("a run carried in a page", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
-		windowSizeSetting.set("50");
-		// A page with no server: every request fails, as it does for a report opened from a file.
+		// A page with no site: every request fails, as it does for a report opened from a file.
 		handle = setupShuTest({
 			dispatch: () => {
-				throw new Error("this page has no server");
+				throw new Error("this page has no site");
 			},
 		});
+		// What the site declared, which a report carries as its registry: a type the page does not know is one it holds
+		// no records of, so the window would ask a question with no answer.
+		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 	});
 	afterEach(() => {
 		handle.teardown();
-		resetRunSources();
-		windowSizeSetting.set(DEFAULT_WINDOW_SIZE);
+		resetExecutions();
 	});
 
-	it("is read through the same sources as a run cached from a server", async () => {
-		await hydrateClientCache(payload());
-		const source = eventRunSource("info");
-		await source.ready();
-		expect(source.count(), "the run's extent, from what the page carries").toBe(12);
-		await source.ensureRange(0, 12);
-		expect((source.rowAt(0) as { id: string }).id).toBe("[0.0]");
-		expect((source.rowAt(11) as { id: string }).id).toBe("[0.11]");
-		expect(source.unavailable, "nothing is missing, so nothing is reported unavailable").toBeNull();
-		expect(currentRun(), "the run the page carries is the run being read").toBe(RUN);
+	it("is read as any run is read: the window over the records the run wrote", async () => {
+		await hydrateClientCache(payload({ registry: undefined }));
+		const window = await runWindow({ execution: EXECUTION });
+		expect(window.rows.length, "the run the page carries").toBe(12);
+		expect(window.rows[0].text).toBe("step 0");
+		expect(window.rows[11].text).toBe("step 11");
+		expect(currentExecution(), "the execution the page carries is the one being read").toBe(EXECUTION);
 	});
 
-	it("carries the registry, so the page knows the site's declarations with no server to ask", async () => {
+	it("carries the registry, so the page knows the site's declarations with no site to ask", async () => {
 		await hydrateClientCache(payload());
 		expect((await deviceStore().registry())?.response).toEqual({ steps: [], domains: {}, concerns: { persisted: {} } });
 	});

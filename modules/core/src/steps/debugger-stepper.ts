@@ -2,7 +2,8 @@ import { AStepper, IHasCycles, IHasOptions, TStepperSteps, IStepperCycles, TBefo
 import type { TWorld } from "../lib/world.js";
 import { TActionResult, OK, TDebugSignal } from "../schema/protocol.js";
 import { makePrompt } from "../lib/prompter.js";
-import { actionNotOK, actionOK, formatCurrentSeqPath, getStepperOption, stringOrError } from "../lib/util/index.js";
+import { formatSeqPath } from "../lib/seq-path.js";
+import { actionNotOK, actionOK, getStepperOption, stringOrError } from "../lib/util/index.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../phases/Executor.js";
 
@@ -99,7 +100,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		let controlSignal: TDebugSignal | undefined;
 
 		while (continueLoop) {
-			const response = await this.getWorld().prompter.prompt(makePrompt(`${formatCurrentSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts));
+			const response = await this.getWorld().prompter.prompt(makePrompt(`${formatSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts));
 
 			// If response is undefined (no prompter available), default to 'continue'
 			const responseStr = response === undefined ? "continue" : response.toString();

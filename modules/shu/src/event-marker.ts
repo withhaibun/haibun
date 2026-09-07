@@ -1,9 +1,9 @@
 /**
- * Map a haibun event to a slider marker style: an emoji icon plus a colour.
- * The shared vocabulary for marking events on a timeline slider.
+ * How a row of a run marks a timeline: an emoji icon and a colour. The shared vocabulary every view marks by, so a rail
+ * and a timeline never disagree about which rows matter or what they look like.
  *
- * The event shape is the SSE wire form; this helper only reads fields it
- * understands and returns a safe default for anything else.
+ * A row states what the run recorded, so an outcome here is the outcome a step's record states. Only the fields this
+ * understands are read; anything else takes the default.
  */
 import {
 	ICON_FEATURE,
@@ -22,6 +22,7 @@ import {
 	isHandedOutEvent,
 	isSpeculativeEvent,
 } from "@haibun/core/schema/protocol.js";
+import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 
 export type TEventMarkerStyle = { color: string; icon: string };
 
@@ -57,10 +58,10 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 			// A speculative statement's failure is expected and a handed-out call's failure belongs to its caller: the
 			// same rule the log renders by (EventFormatter.getStatusIcon), so a mark never reports the run as failing
 			// where the log does not.
-			if (e.status === "running") return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
-			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === "failed" ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
-			if (e.status === "failed") return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
-			if (e.status === "completed") return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
+			if (e.status === SEQ_PATH_STATUS.running) return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
+			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === SEQ_PATH_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
+			if (e.status === SEQ_PATH_STATUS.failed) return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
+			if (e.status === SEQ_PATH_STATUS.passed) return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
 			return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 		}
 	}
@@ -97,8 +98,9 @@ export function shouldMarkEvent(event: unknown): boolean {
 	if (e.kind === "log" && (e.level === "error" || e.level === "warn")) return true;
 	if (e.kind === "artifact") return true;
 	if (e.kind === "lifecycle" && (e.type === "feature" || e.type === "scenario")) return true;
-	if (e.kind === "lifecycle" && e.status === "failed") return true;
-	if (e.kind === "lifecycle" && e.type === "step" && e.stage === "end") {
+	if (e.kind === "lifecycle" && e.status === SEQ_PATH_STATUS.failed) return true;
+	if (e.kind === "lifecycle" && e.type === "step") {
+		// A step is one row, and a step whose text reads as prose is what a reader is looking for on a rail.
 		const isTechnical = /^[a-z]/.test(e.in ?? "");
 		return !isTechnical;
 	}

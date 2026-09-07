@@ -148,4 +148,4 @@ export const SHU_ATTR = {
 
 /** The methods a view names when it asks the service for a run's events or for the whole graph, grouped and clustered.
  *  Named here, with every other repeated literal, because both the caller and the report writer spell them. */
-export const RPC_METHOD = { GET_EVENTS: "MonitorStepper-getEvents", CLUSTERED_QUADS: "MonitorStepper-getClusteredQuads" } as const;
+export const RPC_METHOD = { CLUSTERED_QUADS: "MonitorStepper-getClusteredQuads" } as const;

@@ -680,6 +680,7 @@ const STANDARD_NAMESPACES: Record<string, string> = {
 	dcterms: "http://purl.org/dc/terms/",
 	prov: "https://www.w3.org/ns/prov#",
 	sec: "https://w3id.org/security#",
+	did: "https://www.w3.org/ns/did#",
 	sosa: "http://www.w3.org/ns/sosa/",
 	schema: "https://schema.org/",
 	oa: "http://www.w3.org/ns/oa#",

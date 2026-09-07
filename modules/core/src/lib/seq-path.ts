@@ -22,19 +22,66 @@ export function formatSeqPath(seqPath: number[]): string {
 	return seqPath.join(".");
 }
 
-/** Parse the canonical dot-joined form back to the number tuple. Returns null when the input is not seqPath-shaped. */
+/** Parse the canonical dot-joined form back to the number tuple. Returns null when the input is not seqPath-shaped:
+ *  an empty segment is not a zero, so `1..2` is not a seqPath. */
 export function parseSeqPath(id: string): number[] | null {
-	// A seqPath is written both bare and in the bracketed form a log line shows (`[0.1.2]`), and both name the same
-	// step. Everything after the brackets is strict: an empty segment is not a zero, so `1..2` is not a seqPath.
-	const bare = id.replace(/^\[|\]$/g, "");
-	if (!/^-?\d+(\.-?\d+)*$/.test(bare)) return null;
-	return bare.split(".").map((p) => Number.parseInt(p, 10));
+	if (!/^-?\d+(\.-?\d+)*$/.test(id)) return null;
+	return id.split(".").map((p) => Number.parseInt(p, 10));
 }
 
-/** Extract the leading dot-joined integer seqPath from an event id, discarding any suffix. Returns null when the id does not start with a seqPath. Examples: "0.1.5.3" → "0.1.5.3"; "0.1.5.3.artifact.0" → "0.1.5.3"; "0.-1.13.1" → "0.-1.13.1"; "foo.bar" → null. */
+/**
+ * The leading dot-joined integer seqPath of an id, discarding any suffix; null where the id does not begin with one.
+ * This reads an id an event carries, which names a step of the run announcing it.
+ *
+ * Examples: "0.1.5.3" → "0.1.5.3"; "0.1.5.3.artifact.0" → "0.1.5.3"; "foo.bar" → null.
+ */
 export function extractSeqPathPrefix(id: string): string | null {
 	const match = id.match(/^-?\d+(?:\.-?\d+)*/);
 	return match ? match[0] : null;
+}
+
+/**
+ * The execution a run of one feature is: when the process began, and which feature of it this is. Two runs of the same
+ * feature walk the same step paths, so a path alone does not name a step; this is what tells one run of it from
+ * another, and what a reader coming back to a run reads by.
+ */
+export function executionOf(tag: { key: string; featureNum: number }): string {
+	return `${tag.key}-${tag.featureNum}`;
+}
+
+/**
+ * What names a record of a run: the execution it belongs to, the step path within it, and, for what a step said or
+ *  produced, which of those it is. One form, wherever a record is named, so reading a name is parsing rather than
+ *  string surgery over several shapes.
+ */
+export const RecordNameSchema = z
+	.object({
+		/** When the process began and which feature of it this run is. */
+		execution: z.string().regex(/^\d+--?\d+$/),
+		/** The step within that execution, empty for what the run said outside every step. */
+		path: z.array(z.number().int()),
+		/** Which of the things one step said or produced this is; absent on the step's own record. */
+		ordinal: z.number().int().nonnegative().optional(),
+	})
+	.strict();
+export type TRecordName = z.infer<typeof RecordNameSchema>;
+
+/** The id a record carries. */
+export function formatRecordName(name: TRecordName): string {
+	const under = [name.execution, ...name.path].join(".");
+	return name.ordinal === undefined ? under : `${under}@${name.ordinal}`;
+}
+
+/** The record a name names, or undefined where the id names no record of a run. */
+export function parseRecordName(id: string): TRecordName | undefined {
+	const [under, ordinal] = id.split("@");
+	const [execution, ...path] = under.split(".");
+	const parsed = RecordNameSchema.safeParse({
+		execution,
+		path: path.map((p) => Number.parseInt(p, 10)),
+		...(ordinal === undefined ? {} : { ordinal: Number.parseInt(ordinal, 10) }),
+	});
+	return parsed.success ? parsed.data : undefined;
 }
 
 /**
@@ -58,6 +105,11 @@ export const SEQ_PATH_FIELD = {
 	/** What the step called: the stepper and the action within it, as `Stepper.action`. The step's TEXT says what was asked for; this says what ran. */
 	called: "called",
 	actionStatus: "actionStatus",
+	/** Why a step failed, written only where one did: what went wrong is a fact about the step, so it is on the step. */
+	error: "error",
+	/** The view this step showed, by the name the site declares it under. How that view looks is the site's
+	 *  declaration, so a record says which view rather than carrying a copy of what the declaration already says. */
+	showed: "showed",
 	/** The capability this step declares, written only where it declares one: what had to be held to run it. */
 	capabilityAction: "capabilityAction",
 	/** What the caller held that allowed it. The actions of the grant, never the token: a bearer token is the
@@ -103,6 +155,8 @@ export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.stepText]: z.string(),
 	[SEQ_PATH_FIELD.called]: z.string().optional(),
 	[SEQ_PATH_FIELD.actionStatus]: z.enum(STATUS_VALUES),
+	[SEQ_PATH_FIELD.error]: z.string().optional(),
+	[SEQ_PATH_FIELD.showed]: z.string().optional(),
 	[SEQ_PATH_FIELD.capabilityAction]: z.string().optional(),
 	accessLevel: AccessLevelSchema.optional(),
 	[SEQ_PATH_FIELD.allowedAction]: z.string().optional(),
@@ -129,6 +183,9 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.stepText]: LinkRelations.CONTENT.rel,
 			[SEQ_PATH_FIELD.called]: LinkRelations.CALLED.rel,
 			[SEQ_PATH_FIELD.actionStatus]: LinkRelations.ACTION_STATUS.rel,
+			[SEQ_PATH_FIELD.error]: LinkRelations.CONTENT.rel,
+			// Grouped-as, so "the steps that showed the graph" is a filter the type offers.
+			[SEQ_PATH_FIELD.showed]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.capabilityAction]: LinkRelations.CAPABILITY_ACTION.rel,
 			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			[SEQ_PATH_FIELD.allowedAction]: LinkRelations.ALLOWED_ACTION.rel,

@@ -24,17 +24,18 @@ import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { atLiveEdge, eventRunSource, type RunSource, type TEventRecord } from "../client-cache/index.js";
+import { atLiveEdge, graphRunSource, type RunSource, type TEventRecord } from "../client-cache/index.js";
 import type { WindowedSource } from "../windowed-source.js";
-import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, stripId, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
 import { currentRowIndex, cursorMark, rowTimeClass } from "../virtual-column-model.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
-import { EventFormatter } from "@haibun/core/schema/protocol.js";
+import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { eventMarkerStyle } from "../event-marker.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
 import { getRels, getUiByType } from "../rels-cache.js";
+import { resolveUi } from "../resolve-ui.js";
 import { artifactUrl } from "../artifact-url.js";
 import { refLinksPlugin } from "../markdown-refs.js";
 
@@ -89,11 +90,12 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	// The run this view reads is the run at its level, spanning the whole run by index (event-source): the rail is the
 	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
-	#run: RunSource = eventRunSource(this.state.level);
+	#run: RunSource = graphRunSource(this.state.level);
 	#unsubscribeRun?: () => void;
 	#source: WindowedSource<TDocRow> = this.#rowsOver(this.#run);
 	#pages = new Map<number, TPageRows>();
-	#cachedRows: TDocRow[] = []; // the rows of what is cached, in index order, derived once per update
+	#windowRows: Array<{ index: number; event: TEventRecord }> = []; // the rows of the window a reader is looking at, read once per update
+	#marks: TScrollMarker[] = []; // the rail's marks, derived when the window changes rather than when the rail draws
 	#productViews = new WeakMap<Element, string>();
 	#currentIdx = -1;
 	#cursorMark = -1;
@@ -151,7 +153,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** The run document as an as:Document, with what is cached rendered to markdown (mirrors what the column shows). */
 	summarizeForKihan(): TLinkedData | null {
-		const events = this.#cachedRows.map((r) => r.event) as unknown as THaibunEvent[];
+		const events = this.#windowRows.map((r) => r.event) as unknown as THaibunEvent[];
 		if (events.length === 0) return null;
 		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, this.state.level as THaibunLogLevel, this.#first);
 		return { "@id": "view:document-log", "@type": "as:Document", name: "the run document shown in this column, as markdown", content: md };
@@ -173,7 +175,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	/** Read the run at the level now shown: one source per level, shared across views, swapped when the level changes. */
 	#readRun(): void {
 		this.#unsubscribeRun?.();
-		this.#run = eventRunSource(this.state.level);
+		this.#run = graphRunSource(this.state.level);
 		this.#pages.clear();
 		this.#source = this.#rowsOver(this.#run);
 		this.#unsubscribeRun = this.#run.subscribe(() => this.requestUpdate());
@@ -188,12 +190,12 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			rowAt: (i) => this.#rowAt(i),
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
-			markers: () => this.#markers(),
-			// An event that produced nothing at this level is a row of no height, known before it renders.
-			rowSize: (i) => {
-				const row = this.#rowAt(i);
-				return row && row.blocks.length === 0 && !row.products ? 0 : undefined;
-			},
+			markers: () => this.#marks,
+			// A row of no height, known before it renders and without building the page it is on: what a step produced is
+			// shown in that step's own row, so an artifact has no row of its own. Every other row is measured when it
+			// renders. A virtualizer told which rows are empty estimates the rest steadily, which is what keeps the rail
+			// thumb from resizing as a reader scrolls.
+			rowSize: (i) => ((this.#run.rowAt(i) as { kind?: string } | undefined)?.kind === "artifact" ? 0 : undefined),
 		};
 	}
 
@@ -248,18 +250,29 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			`${p}:`,
 		);
 		const per = blocksByEvent(events, blocks);
-		const products = this.getProductsByStepId(typed);
-		return events.map((event, i) => ({ index: start + i, event, blocks: per[i], products: products.get(stripId(String(event.id ?? ""))) }));
+		const rows = events.map((event, i) => ({ index: start + i, event, blocks: per[i] })) as TDocRow[];
+		const shown = this.shownByStepId(rows);
+		return rows.map((row) => ({ ...row, products: shown.get(String(row.event.id ?? "")) }));
 	}
 
-	/** The rows of what is cached, in index order: what the rail marks, the cursor, the Kihan summary, jumps and heading links read. */
-	#cached(): TDocRow[] {
-		const out: TDocRow[] = [];
+	/**
+	 * The rows of the window a reader is looking at, in index order: what the rail marks, the cursor and the summary
+	 * read. A row here is the record and where it sits, which is all any of those ask of it. What a row LOOKS like is
+	 * built a page at a time, when a page is rendered, so a window of any length costs one read rather than the whole
+	 * document being written out on every update.
+	 */
+	#window(): Array<{ index: number; event: TEventRecord }> {
+		const out: Array<{ index: number; event: TEventRecord }> = [];
 		for (const { from, to } of this.#run.cachedRanges()) for (let i = from; i < to; i++) {
-			const row = this.#rowAt(i);
-			if (row) out.push(row);
+			const event = this.#run.rowAt(i);
+			if (event) out.push({ index: i, event });
 		}
 		return out;
+	}
+
+	/** The rows already built, which is what a reader can see: what a jump or a heading link searches. */
+	#builtRows(): TDocRow[] {
+		return [...this.#pages.values()].flatMap((page) => page.rows);
 	}
 
 	/** A mark on the rail for every step that failed, so a reader jumps to it in a long run without scrolling for it.
@@ -267,23 +280,23 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	 *  glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
 	 *  they are rather than as the run failing. */
 	#markers(): TScrollMarker[] {
-		const starts = new Map<string, number>();
 		const markers: TScrollMarker[] = [];
-		for (const { index, event } of this.#cachedRows) {
-			if (event.kind !== "lifecycle") continue;
-			const id = stripId(String(event.id ?? ""));
-			if (event.stage === "start") starts.set(id, index);
-			if (event.stage !== "end" || event.status !== "failed") continue;
+		for (const { index, event } of this.#windowRows) {
+			// A step is one row, so a failed step marks the rail where that row is.
+			if (event.kind !== "lifecycle" || event.status !== SEQ_PATH_STATUS.failed) continue;
 			const { icon, color } = eventMarkerStyle(event);
-			markers.push({ index: starts.get(id) ?? index, id, icon, color, label: `${EventFormatter.getIndication(event as unknown as THaibunEvent & { kind: "lifecycle" })} step` });
+			markers.push({ index, id: String(event.id ?? ""), icon, color, label: `${String(event.in ?? "")} failed` });
 		}
 		return markers;
 	}
 
 	protected willUpdate(): void {
-		this.#cachedRows = this.#cached();
+		// The window, its marks and the cursor's row, derived when the run changes rather than when the rail draws: the
+		// rail asks for its marks on every frame a reader scrolls, and a cursor at the live edge sits on no row at all.
+		this.#windowRows = this.#window();
+		this.#marks = this.#markers();
 		const cursor = this.timeCursor;
-		this.#currentIdx = currentRowIndex(this.#cachedRows.map(({ index, event }) => ({ index, timestamp: Number(event.timestamp) || 0 })), cursor);
+		this.#currentIdx = cursor === null ? -1 : currentRowIndex(this.#windowRows.map(({ index, event }) => ({ index, timestamp: Number(event.timestamp) || 0 })), cursor);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 
@@ -309,7 +322,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#goToHeading(anchor: string): boolean {
 		if (anchor === "") return false;
 		const stamp = `data-heading="${anchor}"`;
-		const row = this.#cachedRows.find((r) => r.blocks.some((b) => b.html.includes(stamp)));
+		const row = this.#builtRows().find((r) => r.blocks.some((b) => b.html.includes(stamp)));
 		if (!row) return false;
 		this.#revealRow(row, "start");
 		return true;
@@ -331,7 +344,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	 *  build-time-stamped `data-step-id`; the cached row that rendered that id is scrubbed to and scrolled into view. */
 	private jumpToRow(row: Element): void {
 		const id = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
-		const hit = id === "" ? undefined : this.#cachedRows.find((r) => r.blocks.length > 0 && stripId(String(r.event.id ?? "")) === id);
+		const hit = id === "" ? undefined : this.#builtRows().find((r) => r.blocks.length > 0 && String(r.event.id ?? "") === id);
 		if (hit) this.#revealRow(hit, "center");
 	}
 
@@ -388,7 +401,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#renderRow = (i: number, row: unknown): TemplateResult => {
 		const r = row as TDocRow | undefined;
 		if (!r) return html`<div class="doc-block doc-skeleton" aria-hidden="true"></div>`;
-		const id = stripId(String(r.event.id ?? ""));
+		const id = String(r.event.id ?? "");
 		if (r.blocks.length === 0 && !r.products) return html`<div class="doc-block doc-empty" data-id=${id}></div>`;
 		const ts = Number(r.event.timestamp) || 0;
 		const t = rowTimeClass(ts, i, this.timeCursor, this.#currentIdx);
@@ -426,30 +439,25 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 	}
 
-	/** Build a map of step ID → products from lifecycle end events, only for steps after show document. */
-	private getProductsByStepId(events: THaibunEvent[]): Map<string, Record<string, unknown>> {
-		let documentShowTime = 0;
-		for (const e of events) {
-			if (e.kind !== "lifecycle") continue;
-			const products = (e as Record<string, unknown>).products as Record<string, unknown> | undefined;
-			if (products?._component === SHU_TAG.DOCUMENT_COLUMN) {
-				documentShowTime = e.timestamp;
-				break;
-			}
-		}
+	/** What each row showed, as a product a view renders: a step's record names the view, and how that view looks is the
+	 *  site's declaration of it, read the way every other product is resolved. Only steps after the document itself was
+	 *  shown, so the document does not embed itself. */
+	private shownByStepId(rows: TDocRow[]): Map<string, Record<string, unknown>> {
+		const showedOf = (row: TDocRow): string => String((row.event as Record<string, unknown>).showed ?? "");
+		const productOf = (showed: string): Record<string, unknown> => {
+			const ui = getUiByType(showed);
+			return { _type: showed, ...(typeof ui?.component === "string" ? { _component: ui.component } : {}), _summary: typeof ui?.summary === "string" ? ui.summary : showed };
+		};
 		const map = new Map<string, Record<string, unknown>>();
-		for (const e of events) {
-			if (e.kind !== "lifecycle" || (e as Record<string, unknown>).stage !== "end") continue;
-			if (documentShowTime && e.timestamp < documentShowTime) continue;
-			const products = (e as Record<string, unknown>).products as Record<string, unknown> | undefined;
-			if (!products || (!products._component && !products._type)) continue;
-			const typeStr = products._type as string | undefined;
-			if (typeStr) {
-				const ui = getUiByType(typeStr);
-				if (ui?.pinnedOnly) continue;
-			}
-			if (products._component === SHU_TAG.DOCUMENT_COLUMN) continue;
-			map.set(stripId(e.id), products);
+		let documentShownAt = 0;
+		for (const row of rows) if (showedOf(row) && resolveUi(productOf(showedOf(row))).component === SHU_TAG.DOCUMENT_COLUMN) documentShownAt = Number(row.event.timestamp) || 0;
+		for (const row of rows) {
+			const showed = showedOf(row);
+			if (!showed || (documentShownAt && (Number(row.event.timestamp) || 0) < documentShownAt)) continue;
+			const product = productOf(showed);
+			const { component, pinnedOnly } = resolveUi(product);
+			if (pinnedOnly || component === SHU_TAG.DOCUMENT_COLUMN) continue;
+			map.set(String(row.event.id ?? ""), product);
 		}
 		return map;
 	}

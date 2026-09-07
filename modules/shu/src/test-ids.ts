@@ -121,13 +121,14 @@ export const SHU_TEST_IDS = {
 		SERVER: "client-cache-server",
 		REGISTRY: "client-cache-registry",
 		LIVE: "client-cache-live-",
+		/** One source's row: this prefix and its level, then `-events`, `-first`, `-newest`, `-page`, `-cached`,
+		 *  `-cached-rows`, `-cursor`, or what it is doing (`-loading`, `-loaded`, `-ended`, `-unavailable`). */
 		SOURCE: "client-cache-source-",
-		STORE: "client-cache-store-",
-		/** One cached run's row: this prefix and its id, then `-features`, `-reading`, `-events` or `-read`. */
+		/** One held execution's row: this prefix and its id, then `-features`, `-reading`, `-began`, `-newest` or `-read`. */
 		RUN: "client-cache-run-",
-		/** The run being read, named by what it ran: a run's own id is the server's, so this is how a reader knows which. */
+		/** The execution being read, named by what it ran, which is how a reader knows which one they are looking at. */
 		READING: "client-cache-reading",
-		/** Read the newest run this device caches other than the one being read. */
+		/** Read the newest execution this device holds other than the one being read. */
 		READ_EARLIER: "client-cache-read-earlier",
 		IDB: "client-cache-idb-",
 	},

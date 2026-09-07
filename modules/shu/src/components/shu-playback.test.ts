@@ -10,13 +10,24 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { eventRunSource } from "../client-cache/index.js";
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { graphRunSource } from "../client-cache/index.js";
+import { resetGraphRunSources } from "../client-cache/graph-run-source.js";
+import { setGraphStore } from "../quads-snapshot.js";
+import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { SHU_EVENT } from "../consts.js";
 
 const FIRST = 1_000_000;
 const LAST = 1_000_500;
-/** The server's answer for the run: its two events, newest first (as the extent ask is answered), and its extent. */
-const RUN = { events: [{ id: "b", timestamp: LAST, kind: "log", level: "info", idx: { info: 1 } }, { id: "a", timestamp: FIRST, kind: "log", level: "info", idx: { info: 0 } }], total: 2, first: FIRST };
+/** The run this control plays through: two steps, the first and the last of it. */
+async function aRun(): Promise<void> {
+	const store = new QuadStore();
+	for (const [i, at] of [FIRST, LAST].entries())
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `1700000000000-1.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: new Date(at).toISOString() });
+	setGraphStore(store);
+	setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+}
 
 let shu: TShuTestHandle;
 
@@ -33,7 +44,7 @@ async function playing(): Promise<ShuPlayback> {
 	await el.updateComplete;
 	// The run's span comes from the run sources the open views read: so the run is read at a level (as an open monitor or
 	// document would read it), and its extent is what the control plays between.
-	await eventRunSource("info").ready();
+	await graphRunSource("info").ready();
 	await el.updateComplete;
 	return el;
 }
@@ -74,10 +85,16 @@ const click = async (el: ShuPlayback, testid: string) => {
 };
 
 describe("playing through a run", () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		shu?.teardown();
-		// The shared event log is one store for the page, so a run left in it by the last test is still there for the next.
-		shu = setupShuTest({ dispatch: () => RUN });
+		// The sources are one per page, so a run read by the last test is still being read by the next unless forgotten.
+		resetGraphRunSources();
+		shu = setupShuTest({
+			dispatch: () => {
+				throw new Error("the run is read from its records");
+			},
+		});
+		await aRun();
 		frames.install();
 		timeCursor.set(null);
 	});
@@ -136,9 +153,15 @@ describe("playing through a run", () => {
 describe("going back to now", () => {
 	// A press on a rail is meant to stay where it was put, so nothing takes a reader off a chosen moment by itself. This
 	// is what does: the cursor is released, and any view that tails is asked to return to the live edge and follow again.
-	beforeEach(() => {
+	beforeEach(async () => {
 		shu?.teardown();
-		shu = setupShuTest({ dispatch: () => RUN });
+		resetGraphRunSources();
+		shu = setupShuTest({
+			dispatch: () => {
+				throw new Error("the run is read from its records");
+			},
+		});
+		await aRun();
 		frames.install();
 		timeCursor.set(null);
 	});

@@ -2,14 +2,14 @@ import { z } from "zod";
 import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../schema/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, DispatchTraceArtifact } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { authorizedWith, runAuthorizedWith } from "./capability-context.js";
 import { AccessLevelSchema, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
-import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
+import { SEQ_PATH_FIELD, executionOf, formatRecordName, formatSeqPath } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { getAuthority, SESSION_TOKEN_KEY } from "./session-authority.js";
 import { validateProducts } from "./tool-validation.js";
@@ -111,9 +111,13 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
 	await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport ?? "local", ranOn: tool.remoteHost });
 	const previousSeqPath = world.runtime.currentSeqPath;
+	const previousReportsAt = world.eventLogger.stepReportsAt;
 	const currentSeqPathStr = featureStep.seqPath.join(".");
 	world.runtime.currentSeqPath = currentSeqPathStr;
 	world.eventLogger.currentSeqPath = currentSeqPathStr;
+	// What is said while this step runs reports no more prominently than the step does, so a call made into a running
+	// instance leaves the caller's own narration out of the run's history rather than among its steps.
+	world.eventLogger.stepReportsAt = featureStep.isSubStep ? "trace" : undefined;
 	let actionResult: TActionResult;
 	let ok = true;
 	let lastStepResult: TStepResult;
@@ -161,6 +165,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	} finally {
 		world.runtime.currentSeqPath = previousSeqPath;
 		world.eventLogger.currentSeqPath = previousSeqPath;
+		world.eventLogger.stepReportsAt = previousReportsAt;
 	}
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);
@@ -178,32 +183,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	);
 	lastStepResult.ok = ok;
 
-	const end = Timer.since();
-	await emitSeqPathEnd(world, featureStep, ok);
-	// How the step was dispatched is a diagnostic of the dispatcher, at debug: every RPC a page makes is a dispatch, and
-	// a trace of each at info would put the page's own traffic into every view of the run as rows of their own.
-	world.eventLogger.emit(
-		DispatchTraceArtifact.parse({
-			id: `dispatch.${featureStep.seqPath.join(".")}`,
-			timestamp: Date.now(),
-			kind: "artifact",
-			artifactType: "dispatch-trace",
-			level: "debug",
-			trace: {
-				stepName: tool.name,
-				transport: tool.transport ?? "local",
-				remoteHost: tool.remoteHost,
-				capabilityRequired: tool.capability,
-				capabilityGranted: Array.isArray(grantedCapability) ? grantedCapability : grantedCapability ? [grantedCapability] : undefined,
-				invokedBy: invokingPrincipal(world),
-				authorized: ok || !tool.capability,
-				seqPath: featureStep.seqPath,
-				durationMs: end - start,
-				productKeys: ok && actionResult.products ? Object.keys(actionResult.products).filter((k) => !k.startsWith("_")) : undefined,
-			},
-		}),
-	);
-
+	await emitSeqPathEnd(world, featureStep, ok, ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products as Record<string, unknown> | undefined));
 	return lastStepResult;
 }
 
@@ -286,7 +266,8 @@ type TStepAuthorization = { required: string; held?: string; controller?: string
 
 async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization | undefined, ran: { ranVia: string; ranOn?: string }): Promise<void> {
 	const store = world.shared.getStore();
-	const id = formatSeqPath(featureStep.seqPath);
+	const execution = executionOf(world.tag);
+	const id = formatRecordName({ execution, path: featureStep.seqPath });
 	// Single upsert with all required fields — partial writes via sequential set() let a concurrent
 	// reader (e.g. getClusteredQuads from a polling tick) observe a SeqPath missing its
 	// generatedAtTime and trip the SeqPathSchema invariant.
@@ -313,19 +294,28 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 	}
 	if (featureStep.source?.path) record[SEQ_PATH_FIELD.path] = featureStep.source.path;
 	if (featureStep.seqPath.length > 1) {
-		record[LinkRelations.PART_OF.rel] = formatSeqPath(featureStep.seqPath.slice(0, -1));
+		record[LinkRelations.PART_OF.rel] = formatRecordName({ execution, path: featureStep.seqPath.slice(0, -1) });
 		const lastIndex = featureStep.seqPath[featureStep.seqPath.length - 1];
 		if (lastIndex > 0) {
-			record[LinkRelations.PRECEDED_BY.rel] = formatSeqPath([...featureStep.seqPath.slice(0, -1), lastIndex - 1]);
+			record[LinkRelations.PRECEDED_BY.rel] = formatRecordName({ execution, path: [...featureStep.seqPath.slice(0, -1), lastIndex - 1] });
 		}
 	}
 	await store.upsertIndividual(SEQ_PATH_LABEL, record);
 }
 
-async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, ok: boolean): Promise<void> {
+/** The view a step showed, where it showed one: the name the site declares it under, which is what the step's products
+ *  carry as `view`. What that view looks like is the declaration's to say. */
+function viewShown(products: Record<string, unknown> | undefined): string | undefined {
+	const view = products?.view;
+	return typeof view === "string" ? view : undefined;
+}
+
+async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, ok: boolean, error?: string, showed?: string): Promise<void> {
 	const store = world.shared.getStore();
-	const id = formatSeqPath(featureStep.seqPath);
+	const id = formatRecordName({ execution: executionOf(world.tag), path: featureStep.seqPath });
 	const status = ok ? SEQ_PATH_STATUS.passed : SEQ_PATH_STATUS.failed;
 	await store.set(id, SEQ_PATH_FIELD.actionStatus, status, SEQ_PATH_LABEL);
 	await store.set(id, SEQ_PATH_FIELD.endedAtTime, new Date().toISOString(), SEQ_PATH_LABEL);
+	if (error) await store.set(id, SEQ_PATH_FIELD.error, error, SEQ_PATH_LABEL);
+	if (showed) await store.set(id, SEQ_PATH_FIELD.showed, showed, SEQ_PATH_LABEL);
 }

@@ -171,7 +171,7 @@ export function getPropertyOrder(label: string): string[] {
 
 /** Get the UI extension declared by a type's domain (if any). Used by the actions bar / SPA chrome to discover custom components. */
 export function getUiByType(label: string): Record<string, unknown> | undefined {
-	return metadata?.ui[label];
+	return metadata?.ui?.[label];
 }
 
 /**
@@ -498,6 +498,18 @@ export function roleNounFor(edgeLabel: unknown): string | undefined {
 export function toActorEdgeLabels(): ReadonlySet<string> {
 	cachedToActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.TO_ACTOR.rel, toActorRels()).keys());
 	return cachedToActorEdgeLabels;
+}
+
+/**
+ * The @types the actor edges of these types point at: who an exchange between them is with. Read from the declared
+ * ranges rather than from the quads a reading holds, because a type left out of a reading is not fetched, so the edges
+ * that would name it an actor are not there to be read, which is exactly when a view built on actors has to know.
+ */
+export function actorTypesFor(sourceTypes: Iterable<string>): string[] {
+	const actorEdges = new Set([...fromActorEdgeLabels(), ...toActorEdgeLabels()]);
+	const types = new Set<string>();
+	for (const source of sourceTypes) for (const [edge, target] of Object.entries(metadata?.edgeRanges[source] ?? {})) if (target && actorEdges.has(edge)) types.add(target);
+	return [...types];
 }
 
 /** A concern-declared edge's display phrase (its declared label), else undefined — how a consumer's edge names the

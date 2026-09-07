@@ -47,7 +47,7 @@ export const ComboboxSchema = z.object({
 /** The operator options a filter UI offers, each with its display label. Values come from the condition schema, so the menu cannot offer an operator the query rejects. */
 export const SEARCH_OPERATORS: ReadonlyArray<{ value: TSearchCondition["operator"]; label: string }> = SearchConditionSchema.shape.operator.options.map((value) => ({
 	value,
-	label: { eq: "equals", contains: "contains", gt: "greater than", lt: "less than", gte: "at least", lte: "at most", between: "between" }[value],
+	label: { eq: "equals", contains: "contains", gt: "greater than", lt: "less than", gte: "at least", lte: "at most", between: "between", in: "any of" }[value],
 }));
 
 /** Parse a pipe-delimited filter string (predicate|operator|value[|value2]) into a SearchCondition. */

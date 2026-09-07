@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { addObservedSelectValues, getSelectValues, setSelectValues, siteMetadataFromConcerns } from "./rels-cache.js";
+import { actorTypesFor, addObservedSelectValues, getSelectValues, setConcernCatalog, setSelectValues, siteMetadataFromConcerns } from "./rels-cache.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 
 describe("siteMetadataFromConcerns — propertyDefinitions derivation", () => {
 	it("populates propertyDefinitions from LinkRelations seeds", () => {
@@ -70,5 +71,36 @@ describe("dropdowns learning from the quads a batch carries", () => {
 	it("ignores an object that is not a value a dropdown can offer", () => {
 		expect(addObservedSelectValues("Email", [quad("Email", "folder", 42), quad("Email", "folder", "")])).toBe(false);
 		expect(getSelectValues("Email").folder).toEqual(["INBOX"]);
+	});
+});
+
+describe("the types an exchange is between", () => {
+	// A hidden type is not fetched, so nothing in the quads says its edges point at it. The declaration says so
+	// regardless, which is what lets a view that needs actors bring them back rather than draw bars with nobody on them.
+	it("names a shown type's actor edges' targets, whether or not anything of those types has been read", () => {
+		const catalog = ConcernCatalogSchema.parse({
+			persisted: {
+				Permit: {
+					domainKey: "permit",
+					label: "Permit",
+					idField: "id",
+					jsonSchema: {},
+					properties: {},
+					validTimeField: "generatedAtTime",
+					description: "a permit",
+					edges: {
+						issuedBy: { term: "ex:issuedBy", rel: LinkRelations.FROM_ACTOR.rel, target: "Party" },
+						filedIn: { term: "ex:filedIn", rel: LinkRelations.TO_ACTOR.rel, target: "Registry" },
+						about: { term: "ex:about", rel: LinkRelations.ATTACHMENT.rel, target: "Cargo" },
+					},
+				},
+			},
+		});
+		setConcernCatalog(catalog);
+		expect(actorTypesFor(["Permit"]).sort()).toEqual(["Party", "Registry"]);
+	});
+
+	it("says nothing of a type that is not being shown, so choosing a view brings back only the parties of what is", () => {
+		expect(actorTypesFor([])).toEqual([]);
 	});
 });

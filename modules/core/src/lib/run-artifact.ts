@@ -7,6 +7,7 @@
  * the same way as what a run did.
  */
 import { z } from "zod";
+import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { AccessLevelSchema, LinkRelations, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 export const RUN_ARTIFACT_DOMAIN = "run-artifact";
@@ -22,6 +23,9 @@ export const RUN_ARTIFACT_FIELD = {
 	/** Where it is relative to the feature's own directory, which is how a saved record of the run reaches it. */
 	featureRelativePath: "featureRelativePath",
 	mediaType: "mediaType",
+	/** How prominently it reports: what a run produced as its work is shown where its steps are, a trace of the run's
+	 *  own machinery under them. */
+	level: "level",
 	generatedAtTime: "generatedAtTime",
 } as const;
 
@@ -38,6 +42,7 @@ export const RunArtifactSchema = z.object({
 	[RUN_ARTIFACT_FIELD.path]: z.string().optional(),
 	[RUN_ARTIFACT_FIELD.featureRelativePath]: z.string().optional(),
 	[RUN_ARTIFACT_FIELD.mediaType]: z.string().optional(),
+	[RUN_ARTIFACT_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
 	[RUN_ARTIFACT_FIELD.generatedAtTime]: z.string(),
 	accessLevel: AccessLevelSchema.optional(),
 });
@@ -59,6 +64,7 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 			[RUN_ARTIFACT_FIELD.path]: LinkRelations.SOURCE_PATH.rel,
 			[RUN_ARTIFACT_FIELD.featureRelativePath]: LinkRelations.SOURCE_PATH.rel,
 			[RUN_ARTIFACT_FIELD.mediaType]: LinkRelations.MEDIA_TYPE.rel,
+			[RUN_ARTIFACT_FIELD.level]: LinkRelations.CONTEXT.rel,
 			[RUN_ARTIFACT_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},

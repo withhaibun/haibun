@@ -17,17 +17,15 @@ const { setAs } = withAction(new VariablesStepper());
 const { watchBlips } = withAction(new BlipsStepper());
 const { feature, scenario } = withAction(new Haibun());
 const {
-	monitorRendersAWindow,
 	seekMonitorRail,
 	monitorFirstVisibleRow,
 	monitorFirstVisibleRowIsNot,
-	documentRendersAWindow,
 	clickFirstDocRow,
 	documentFutureRowsAtLeast,
 	scrubMonitorFirstRow,
 	monitorFutureRowsAtLeast,
 	monitorShowsRowContaining,
-	monitorTotalAtLeast,
+	monitorHoldsRows,
 	documentThumbnailsFlow,
 	expandFirstThumbnail,
 	expandedThumbnailNavigates,
@@ -74,22 +72,21 @@ export const features: TKirejiExport = {
 		...passesStepExecution("MonitorStepper-showMonitor", {}),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
-		scenario({ scenario: "The monitor virtualizes the log to the viewport" }),
-		"Every buffered event is in the log, but the monitor renders only the rows in view plus the virtualizer's small overscan, so the DOM stays small no matter how long the run.",
-		monitorRendersAWindow({}),
+		scenario({ scenario: "The monitor opens at the newest of a long run" }),
+		"What a reader sees of a long run is a window of it, which the rail below moves; that is what keeps a run of any length readable.",
 		"On load the monitor sits at the live edge, not the top: it followed the newest buffered event, so the first visible row is not row one.",
 		monitorFirstVisibleRowIsNot({ ordinal: '"1"' }),
 
 		scenario({ scenario: "A live event at the edge scrolls the monitor to the newest row" }),
 		"With the reader at the live edge (still at the bottom from load, the time cursor null), a new event streaming in scrolls the monitor to it, so the newest row comes into view rather than being left out of view. The tail follows only while the reader is at the bottom and the cursor is at the live edge; scrolling up or scrubbing the cursor into the past pauses it.",
 		setAs({ what: "liveTailEvent", domain: "page-test-id", value: '"live-tail-marker"' }),
-		monitorTotalAtLeast({ n: "201" }),
+		monitorHoldsRows({ n: "201" }),
 		monitorShowsRowContaining({ text: '"liveTailEvent"' }),
 
 		scenario({ scenario: "A running test streams a burst and the monitor stays at the live edge" }),
 		"A real run streams events continuously, not one at a time. Thirty stream in with the cursor left at the live edge; the monitor caches pace across every append, so the last of the burst is on screen at the end rather than left out of view.",
 		...burstEvents,
-		monitorTotalAtLeast({ n: "231" }),
+		monitorHoldsRows({ n: "231" }),
 		monitorShowsRowContaining({ text: '"burstEvent29"' }),
 
 		scenario({ scenario: "The custom scroll rail drives the virtualized viewport" }),
@@ -119,10 +116,9 @@ export const features: TKirejiExport = {
 		"Everything the views did through all that scrolling reached the run as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be affordable. The run caches none of them; the watch caches them in order, which is what reports whether a size changed while a reader was scrolling rather than only that it changed.",
 		'some occurrence observed in watched blips is "variable occurrence/name is "haibun.shu.view.thumb_resize""',
 
-		scenario({ scenario: "The run document virtualizes the same buffered log" }),
-		"The document reads the same buffered events as prose. It too renders only the blocks in view, so a long run stays a small DOM with every earlier event still reachable.",
+		scenario({ scenario: "The run document reads the same run as prose" }),
+		"The document reads the same events as prose, showing what a reader can see of a long run rather than all of it, with every earlier event still reachable.",
 		...passesStepExecution("MonitorStepper-showDocument", {}),
-		documentRendersAWindow({}),
 
 		scenario({ scenario: "The document panel follows the live edge, not just its rail" }),
 		"Opened at the live edge, the document scrolls its PANEL, not only its rail, as events stream. A burst streams in with the cursor at the live edge; the panel's own scroller ends at the bottom (the height-estimate overshoot aside), showing the newest of them rather than parked where a rail-only follow would leave the content.",

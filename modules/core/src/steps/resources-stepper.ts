@@ -43,7 +43,7 @@ import {
 	conversationRoot,
 	assertCommentGrounded, MEDIA_TYPE, QuoteAnchorSchema, type TQuoteAnchor } from "../lib/resources.js";
 import { linkVocabularyFor } from "../lib/domains.js";
-import { formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
+import { executionOf, formatRecordName, formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/statements.js";
@@ -158,8 +158,10 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		// Prose that states nothing changes nothing; the facts parsed here are the reading's, so the text parses once.
 		const facts = typedLinkFacts(text, vocab);
 		if (facts.length === 0) return;
+		// The step that spoke the prose, by the identity its record carries: its path under the execution it ran in.
 		const seqPath = formatSeqPath(featureStep.seqPath);
-		await readTypedLinks(this.getWorld().shared.getStore(), vocab, { label: SEQ_PATH_LABEL, id: seqPath }, text, { seqPath, facts });
+		const named = formatRecordName({ execution: executionOf(this.getWorld().tag), path: featureStep.seqPath });
+		await readTypedLinks(this.getWorld().shared.getStore(), vocab, { label: SEQ_PATH_LABEL, id: named }, text, { seqPath, facts });
 	}
 
 	/** The shared tail of every `annotate` variant: write the annotation, resolve its conversation root, return both.

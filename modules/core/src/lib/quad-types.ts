@@ -22,9 +22,12 @@ export const DOMAIN_GRAPH_QUERY = "graph-query";
 export const SearchConditionSchema = z
 	.object({
 		predicate: z.string().min(1),
-		operator: z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between"]),
+		operator: z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between", "in"]),
 		value: z.string(),
 		value2: z.string().optional(),
+		/** What `in` asks for: the values any of which the field may hold. A reader shown three levels asks one
+		 *  question about three values rather than three questions. */
+		values: z.array(z.string()).optional(),
 	})
 	.strict();
 export type TSearchCondition = z.infer<typeof SearchConditionSchema>;

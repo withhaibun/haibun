@@ -353,6 +353,9 @@ export const LinkRelations = {
 	PRESENTATION: { rel: "presentation", uri: "hbn:presentation", range: "literal" },
 	// W3C Security (sec:) — controllers, delegation, key material, proofs (DID + zcap-LD vocabulary)
 	CONTROLLER: { rel: "controller", uri: "sec:controller", range: "iri" },
+	/** An endpoint a principal publishes: what a reader reaches the deployment by, which is how DID Core states the
+	 *  services a controller offers. */
+	SERVICE: { rel: "service", uri: "did:service", range: "iri" },
 	DELEGATED_FROM: { rel: "delegatedFrom", uri: "sec:delegator", range: "iri" },
 	ALLOWED_ACTION: { rel: "allowedAction", uri: "sec:allowedAction", range: "literal", presentation: "governance" as TRelPresentation },
 	CAPABILITY_ACTION: { rel: "capabilityAction", uri: "sec:capabilityAction", range: "literal", presentation: "governance" as TRelPresentation },
@@ -789,6 +792,10 @@ export type TComment = z.infer<typeof CommentSchema>;
  * Topology uses existing LinkRelations for every property; no new rels
  * introduced here.
  */
+/** A registered route as a graph vertex: persisted at mount by the web server, targeted by observed requests and
+ *  published by the principal that serves it. */
+export const ENDPOINT_LABEL = "Endpoint";
+
 export const PRINCIPAL_LABEL = "Principal";
 /** Domain selector — distinct from the runtime "principal" key (see lib/principal.ts) to avoid collision. */
 export const PRINCIPAL_DOMAIN = "principal-individual";
@@ -914,6 +921,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 		},
 		edges: {
 			delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel, range: PRINCIPAL_LABEL },
+			service: { rel: LinkRelations.SERVICE.rel, range: ENDPOINT_LABEL },
 		},
 		sortColumns: { name: "TEXT", controller: "TEXT", generatedAtTime: "TIMESTAMPTZ", revoked: "BOOLEAN" },
 	},

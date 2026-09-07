@@ -8,7 +8,7 @@
 
 import { z } from "zod";
 import type { TWorld } from "./world.js";
-import { LinkRelations, writeEdge, writeReferenceEdge } from "./resources.js";
+import { ENDPOINT_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "./resources.js";
 import { activeSitePrincipal } from "./host-id.js";
 import { declareBlips, recordBlip } from "./blips.js";
 
@@ -20,8 +20,7 @@ export const HTTP_CLIENT_LABEL = "HttpClient";
 /** A serving party: the site itself or an external server. One node per host, carrying `requestCount` — how many
  *  requests reached it, a rollup of its HttpRequests, never tracked separately. */
 export const HTTP_HOST_LABEL = "HttpHost";
-/** A registered route as a graph vertex — persisted at mount by the web server, targeted by observed requests. */
-export const ENDPOINT_LABEL = "Endpoint";
+export { ENDPOINT_LABEL } from "./resources.js";
 const CLIENT_ID = "client";
 /** The endpoint classes: an own page route, the app's service plumbing (/rpc, /sse), or another host. */
 export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;
