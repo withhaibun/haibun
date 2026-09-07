@@ -92,6 +92,17 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.rowAt(4)).toMatchObject({ in: "a running step", status: "passed", endedAt: 1800 });
 	});
 
+	it("reads again when the stream comes back, since what was recorded while it was down arrived in no batch", async () => {
+		const source = graphRunSource("debug", { reReadAfterMs: 0 });
+		await source.ready();
+		expect(source.count()).toBe(4);
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "a step nobody was told about", actionStatus: "passed", level: "info", generatedAtTime: iso(1600) });
+		handle.eventStream.reconnect();
+		await new Promise((r) => setTimeout(r, 5));
+		expect(source.count(), "the run it held, and what happened while it was not being told").toBe(5);
+		expect(source.rowAt(4)).toMatchObject({ in: "a step nobody was told about" });
+	});
+
 	it("says every row it holds is readable, so a view marks and scrolls without asking for more", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();

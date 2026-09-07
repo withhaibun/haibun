@@ -486,7 +486,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// pageerror) — a missing optional extension must not crash the bar.
 		void this.loadUiExtensions().catch((err) => this.reportActionsBar("warn", "optional UI extensions failed to load", { error: errorDetail(err) }));
 		this.requestUpdate();
-		this.dispatchFilterChange();
+		this.dispatchFilterChange(false);
 	}
 
 	private syncSelectedDomainKey(): void {
@@ -521,7 +521,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.requestUpdate();
 	}
 
-	private dispatchFilterChange(): void {
+	/** Announce the search this bar now describes. `asked` says a reader changed it; the bar restoring its own state at
+	 *  load says the same search without anyone having asked for it, which is not a reader looking for results. */
+	private dispatchFilterChange(asked = true): void {
 		this._queryLabel = contextLabel(this._contextPatterns, {
 			label: this._selectedLabel,
 			...this._selectFilters,
@@ -543,6 +545,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.FILTER_CHANGE, {
 				detail: {
+					asked,
 					accessLevel: this._contextAccessLevel,
 					label: this._selectedLabel,
 					conditions: allConditions as TSearchCondition[],

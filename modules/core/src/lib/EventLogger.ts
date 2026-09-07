@@ -1,5 +1,5 @@
 import { errorDetail } from "./util/index.js";
-import { BASE_PREFIX, HAIBUN_LOG_LEVELS, LogEvent, LifecycleEvent, NDJSON } from "../schema/protocol.js";
+import { BASE_PREFIX, HAIBUN_LOG_LEVELS, LogEvent, LifecycleEvent, NDJSON, stepLevel } from "../schema/protocol.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../schema/protocol.js";
 import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
@@ -230,7 +230,7 @@ export class EventLogger implements IEventLogger {
 				lineNumber: featureStep.source?.lineNumber,
 				featurePath: featureStep.source?.path,
 				status: "running",
-				level: featureStep.isSubStep ? "trace" : "info",
+				level: stepLevel(featureStep.isSubStep),
 				intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
 				stepperName,
 				actionName,
@@ -266,7 +266,7 @@ export class EventLogger implements IEventLogger {
 				lineNumber: featureStep.source?.lineNumber,
 				featurePath: featureStep.source?.path,
 				status: ok ? "completed" : "failed",
-				level: featureStep.isSubStep ? "trace" : "info",
+				level: stepLevel(featureStep.isSubStep),
 				error: errorMessage,
 				intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
 				stepperName,

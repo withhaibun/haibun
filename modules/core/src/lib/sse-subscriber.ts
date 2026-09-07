@@ -20,9 +20,13 @@
  * --- Replay buffer (`ReplayBuffer`) ---
  * Every dispatched event is also recorded in a `ReplayBuffer` (a fixed-
  * size FIFO) so that a `subscribe()` call AFTER the connection opened
- * still sees the prior run history. The server replays its own history
- * on /sse connect, but that dispatch fires before any consumer has
- * subscribed — without the buffer those replayed events would be lost.
+ * still sees what this page received before it subscribed.
+ *
+ * --- Reconnection ---
+ * The server replays nothing on connect: what happened is in the graph.
+ * A stream that breaks and re-opens announces the re-open through
+ * `reconnected()`, which is how a consumer following the run knows to
+ * read again for what happened while nothing was heard.
  *
  * The buffer is an explicit, exported class (not a hidden field) so
  * consumers can inspect it (`getReplayBuffer()`) and the contract is
@@ -32,14 +36,8 @@
 import type { THaibunEvent } from "../schema/protocol.js";
 import { failFastOrLog } from "./dev-mode.js";
 
-/** Delivery metadata added at this transport boundary: `replay: true` marks an event that arrived via the server's
- * connect-time history replay (SSE event name `replay`) rather than as a live occurrence. Consumers that treat events
- * as commands (e.g. opening a view for a completed step) must ignore replays — a replayed event is a fact about the
- * past; re-acting on it resurrects state the user has since changed (a closed view popping back open). */
-export type TDeliveredEvent = THaibunEvent & { replay?: true };
-
-type EventHandler = (event: TDeliveredEvent) => void;
-type EventFilter = (event: TDeliveredEvent) => boolean;
+type EventHandler = (event: THaibunEvent) => void;
+type EventFilter = (event: THaibunEvent) => boolean;
 
 // biome-ignore lint/suspicious/noExplicitAny: EventSource is a DOM/Node global that may be polyfilled.
 type EventSourceCtor = new (url: string) => any;
@@ -129,6 +127,10 @@ export class SseSubscriber {
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly listeners: { handler: EventHandler; filter?: EventFilter }[] = [];
 	private closed = false;
+	/** The stream has dropped and not yet re-opened. What happened meanwhile reached no listener, so the re-open is
+	 *  announced to whoever follows the run: that is when they have something to read again for. */
+	private broken = false;
+	private readonly reconnectListeners = new Set<() => void>();
 	private lastEventAt: number | null = null;
 	private connectedAt: number | null = null;
 	/** Replay buffer — see file header and the `ReplayBuffer` class. */
@@ -152,7 +154,18 @@ export class SseSubscriber {
 		if (this.source) return;
 		if (this.connectedAt === null) this.connectedAt = Date.now();
 		this.source = new this.EventSourceCtor(this.url);
-		const decode = (sseEvent: { data: string }, replay: boolean): void => {
+		this.source.onopen = () => {
+			if (!this.broken) return;
+			this.broken = false;
+			for (const fn of this.reconnectListeners) {
+				try {
+					fn();
+				} catch (err) {
+					failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw on reconnection`, err);
+				}
+			}
+		};
+		this.source.onmessage = (sseEvent: { data: string }) => {
 			let msg: Record<string, unknown>;
 			try {
 				msg = JSON.parse(sseEvent.data);
@@ -162,14 +175,10 @@ export class SseSubscriber {
 			}
 			// web-server-hono wraps events as { type: "event", event: {...} };
 			// un-wrap when present, pass through otherwise. Server-side already validated against the schema.
-			const payload = msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent);
-			this.dispatch(replay ? ({ ...payload, replay: true } as TDeliveredEvent) : payload);
+			this.dispatch(msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent));
 		};
-		this.source.onmessage = (sseEvent: { data: string }) => decode(sseEvent, false);
-		// The server sends its connect-time history under the `replay` SSE event name; tag those deliveries so
-		// consumers can tell a fact-about-the-past from a live occurrence (see TDeliveredEvent).
-		this.source.addEventListener?.("replay", (sseEvent: { data: string }) => decode(sseEvent, true));
 		this.source.onerror = () => {
+			this.broken = true;
 			this.source?.close?.();
 			this.source = null;
 			if (this.closed || this.reconnectTimer) return;
@@ -193,6 +202,16 @@ export class SseSubscriber {
 			const idx = this.listeners.indexOf(entry);
 			if (idx >= 0) this.listeners.splice(idx, 1);
 		};
+	}
+
+	/**
+	 * Be told the stream has re-opened after a break in it. What happened during the break arrives in no dispatch, so a
+	 * consumer following the run reads again on this, as it reads again on an arrival. Never fires on the first open,
+	 * which has nothing behind it. Returns an unsubscribe.
+	 */
+	reconnected(fn: () => void): () => void {
+		this.reconnectListeners.add(fn);
+		return () => this.reconnectListeners.delete(fn);
 	}
 
 	/** Tag for log correlation. */

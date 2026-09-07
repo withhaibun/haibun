@@ -33,7 +33,6 @@ export class SSETransport implements ITransport, IStepTransport {
 	public webserver: IWebServer;
 	private eventLogger: IEventLogger;
 	private messageHandlers: TMessageHandler[] = [];
-	private history: string[] = [];
 
 	constructor(webserver: IWebServer, eventLogger: IEventLogger) {
 		this.webserver = webserver;
@@ -45,16 +44,8 @@ export class SSETransport implements ITransport, IStepTransport {
 		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
-				// Replay history under its own SSE event name: a replayed event is a fact about the past, not a live
-				// occurrence, and every (re)connecting client receives the whole history — the client must be able to
-				// tell the two apart (e.g. a closed view must not be resurrected by a reconnect's replay).
-				for (const msg of this.history) {
-					await sseStream.writeSSE({
-						data: msg,
-						event: "replay",
-					});
-				}
-
+				// The stream announces what happens from here on. What happened before is in the graph, which a
+				// connecting page reads; nothing is replayed to it.
 				const handler = (data: string) => {
 					sseStream.writeSSE({ data, event: "message" }).catch((e) => {
 						this.eventLogger.error(`Error writing to SSE stream: ${e}`);
@@ -139,9 +130,6 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	// biome-ignore lint/suspicious/noExplicitAny: event payload
 	public send(data: any) {
-		if (data?.type === "init") {
-			this.history = [];
-		}
 		let payload: string;
 		try {
 			payload = JSON.stringify(data);
@@ -164,7 +152,6 @@ export class SSETransport implements ITransport, IStepTransport {
 			payload = JSON.stringify(fallback);
 			this.eventLogger.error(`SSE event dropped (payload too large to serialize): ${fallback.droppedReason}`);
 		}
-		this.history.push(payload);
 		this.hub.emit("event", payload);
 	}
 

@@ -34,10 +34,6 @@ describe("parseAffordanceProduct", () => {
 		});
 	});
 
-	it("recognises a close-view product", () => {
-		const product = { [HYPERMEDIA.TYPE]: SHU_TYPE.CLOSE_VIEW, view: "graph" };
-		expect(parseAffordanceProduct(product)).toEqual({ kind: "close", view: "graph" });
-	});
 
 	it("recognises a view-collection product (`show views`)", () => {
 		const product = {

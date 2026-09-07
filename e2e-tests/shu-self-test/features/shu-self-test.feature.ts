@@ -275,5 +275,23 @@ export const features: TKirejiExport = {
 		"pause for 6s",
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
 		"not variable eventsCaughtUp is eventsUnheard",
+
+		scenario({ scenario: "A page with no layout of its own starts on the views the run showed" }),
+
+		"An address that names views is a reader's own arrangement, which is what lets two addresses show different views of one run. An address that names none is a reader with no arrangement, and they are shown the views this run has shown, read from its records. Nothing is replayed to the page: it reads the run, as it reads everything else. The address it arrives at then names every view a step of this run showed, the monitor, the graph, the document, the client cache and the affordances panel among them, in the order the site declares them. Which views those are is stated nowhere but the records, so an address naming them was built from the records.",
+		gotoPage({ name: `"${host}/haibun"` }),
+		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		waitFor({ target: IDS.DOCUMENT.ROOT }),
+		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		waitFor({ target: CACHE_LOG_CACHED }),
+		"save URI to freshUri",
+		`matches freshUri with "*col=${SHU_TAG.MONITOR_COLUMN}*"`,
+		`matches freshUri with "*col=${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}*"`,
+		`matches freshUri with "*col=${SHU_TAG.DOCUMENT_COLUMN}*"`,
+		`matches freshUri with "*col=${SHU_TAG.CLIENT_CACHE_COLUMN}*"`,
+		`matches freshUri with "*col=${SHU_TAG.AFFORDANCES_PANEL}*"`,
+
+		"A view no step of this run showed is not among them. The thread column is one this deployment declares and this run never opened, so an address that named it would be naming something other than what the records say.",
+		`not matches freshUri with "*${SHU_TAG.THREAD_COLUMN}*"`,
 	],
 };

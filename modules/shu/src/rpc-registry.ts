@@ -153,11 +153,13 @@ async function getStepList(): Promise<StepListResponse> {
 	}
 }
 
-/** What a record of a run carries in its own page: the run, the views it was left showing, and what those views showed. */
+/** What a record of a run carries in its own page: the run, what its views showed, and the address it opens at. */
 export interface ShuHydration {
 	/** What a view showed, by the step that produces it. A view whose products cannot be read from the run is given
 	 *  what it showed when the record was written, rather than asking a server that is not there. */
 	viewProducts?: Record<string, unknown>;
+	/** The address this run opens at: the type its query column was showing, which no record of the run states. Which
+	 *  views were open it never names, since the page reads those from the records it carries. */
 	viewHash?: string;
 	/** The run this page carries, for a page with no server: filled into the client cache at boot. */
 	cache?: TCachePayload;
@@ -190,6 +192,11 @@ export function hydrateFromDom(): void {
 	cachedHydration().data = readHydration();
 }
 
+/** The address a carried run opens at, or "" for a page with a server. */
+export function getHydratedViewHash(): string {
+	return cachedHydration().data?.viewHash ?? "";
+}
+
 /** What this page carries of a view's products, by the step that produces them; undefined on a page with a server. */
 export function carriedProducts(method: string): unknown | undefined {
 	return cachedHydration().data?.viewProducts?.[method];
@@ -207,11 +214,6 @@ export function isOffline(): boolean {
 /** The run this page carries, when it carries one. */
 export function hydratedCache(): TCachePayload | undefined {
 	return cachedHydration().data?.cache;
-}
-
-/** Get the view hash embedded at export time (offline mode). */
-export function getHydratedViewHash(): string {
-	return cachedHydration().data?.viewHash ?? "";
 }
 
 /** Where the registry the page runs on came from: the server, or the device's copy of it (when the server did not respond),

@@ -179,16 +179,22 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	// this view would show counts: reading the run is itself steps the run records, at a level under any view's, so a
 	// view that re-read for those would re-read for its own reading, without end.
 	const shows = new Set(HAIBUN_LOG_LEVELS.slice(HAIBUN_LOG_LEVELS.indexOf(level)));
+	const readSoon = () => {
+		if (due) return;
+		due = setTimeout(() => {
+			due = null;
+			// A read nothing awaits still says when it failed: a view left showing an older window with no word of
+			// why is a view a reader cannot tell apart from one that is current.
+			read().catch((err: unknown) => failFastOrLog("the run could not be read again", err));
+		}, reReadAfterMs);
+	};
 	const unsubscribe = subscribeBatchedEvents({
 		onBatch: (events) => {
-			if (due || !events.some((e) => shows.has((e as { level?: THaibunLogLevel }).level ?? "info"))) return;
-			due = setTimeout(() => {
-				due = null;
-				// A read nothing awaits still says when it failed: a view left showing an older window with no word of
-				// why is a view a reader cannot tell apart from one that is current.
-				read().catch((err: unknown) => failFastOrLog("the run could not be read again", err));
-			}, reReadAfterMs);
+			if (events.some((e) => shows.has((e as { level?: THaibunLogLevel }).level ?? "info"))) readSoon();
 		},
+		// What the run recorded while the stream was down arrived in no batch: the stream coming back is the same
+		// reason to read again, on the same schedule.
+		onReconnect: readSoon,
 	});
 
 	// Another execution is another window over the same records, so the source reads again rather than being remade.
