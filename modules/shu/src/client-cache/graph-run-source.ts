@@ -138,8 +138,8 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	let window: TRunRow[] = [];
 
 	/**
-	 * Read the run. Following the live edge, a view already holding rows asks only for what has changed since it last
-	 * read: what has happened since its newest row, a step that ended since counting as that. Reading the whole window
+	 * Read the run. Following the live edge, a view already holding rows asks only for what changed after its last
+	 * read: the records that began after its newest row, and the steps that ended after it. Reading the whole window
 	 * again to find a few new records is what makes following a long run cost what the run costs. Anywhere else, the
 	 * window is read around where the reader is.
 	 */
