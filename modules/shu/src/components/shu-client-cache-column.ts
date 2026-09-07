@@ -23,7 +23,7 @@ import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { registryOrigin } from "../rpc-registry.js";
 import { serverLastRespondedAt } from "../hypermedia.js";
 import { emptyOrLoading } from "./empty-state.js";
-import { runSources, deviceStore, subscribeRunSources, subscribeDeviceWrites, CACHE_SHAPE, type TStoredRegistry, atLiveEdge, executionsHeld, currentExecution, readExecution, subscribeExecutionSwitch, EXECUTIONS_READ, type THeldExecution, type RunSource, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
+import { runSources, runReadingAt, deviceStore, subscribeRunSources, subscribeDeviceWrites, CACHE_SHAPE, type TStoredRegistry, atLiveEdge, executionsHeld, currentExecution, readExecution, subscribeExecutionSwitch, EXECUTIONS_READ, type THeldExecution, type RunSource, indexedDbSummary, type TIdbDatabaseSummary } from "../client-cache/index.js";
 
 const EmptySchema = z.object({});
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
@@ -219,6 +219,9 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	render(): TemplateResult {
 		const sources = runSources();
 		const cursor = this.timeCursor;
+		// The moment every source reads around, which is the cursor once a reader has moved it: what is read is what a
+		// reader is looking at, and this says so rather than leaving it to be inferred from the rows.
+		const readingMoment = runReadingAt();
 		// The execution being read: the one a reader chose, else the newest this device holds, which is the one being
 		// recorded while a site is recording one.
 		const reading = currentExecution() ?? this.#held[0]?.execution;
@@ -237,6 +240,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			<div data-testid=${IDS.SERVER}>${respondedAt === undefined ? "has not responded to this page" : `last responded at ${at(respondedAt)}`}</div>
 			<h4>Cursor</h4>
 			<div data-testid=${IDS.CURSOR}>${cursor === null ? "live edge" : html`${at(cursor)} <button class="link" title="back to the live edge" @click=${() => (this.timeCursor = null)}>to the live edge</button>`}</div>
+			<div data-testid=${IDS.READING_AT}>${readingMoment === undefined ? "following the newest records" : `the run is read around ${at(readingMoment)}`}</div>
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>
 			${
 				this.#liveByLevel.size === 0

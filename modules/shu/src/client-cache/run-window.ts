@@ -241,15 +241,40 @@ async function side(
 	return vertices;
 }
 
+/**
+ * How far a run reaches: its first and last instants, over every kind of record it writes.
+ *
+ * Read rather than inferred from the part of it a reader holds. A window is a few thousand records however long the
+ * run is, so a span taken from the window is the window's span; a bar drawn over that would show a decade's run as the
+ * few minutes a reader happens to be looking at. Two records are read per type, each the first or last of its own
+ * order, so the cost does not grow with the run.
+ *
+ * Both zero for a run that has written nothing, which is a run with no span rather than a failure.
+ */
+export async function runExtent(graph: TRunGraph, minLevel: THaibunLogLevel = "info"): Promise<{ first: number; last: number }> {
+	const levels = atOrAbove(minLevel);
+	const ends = await Promise.all(
+		RUN_TYPES.map(async (type) => ({
+			// No moment named is the whole of it: the oldest record read forward, the newest read back.
+			first: await instantAt(graph, type, undefined, "after", 0, levels),
+			last: await instantAt(graph, type, undefined, "before", 0, levels),
+		})),
+	);
+	const firsts = ends.map((e) => e.first).filter((f): f is number => f !== undefined);
+	const lasts = ends.map((e) => e.last).filter((l): l is number => l !== undefined);
+	return firsts.length && lasts.length ? { first: Math.min(...firsts), last: Math.max(...lasts) } : { first: 0, last: 0 };
+}
+
 /** How many records a reader is shown in detail to each side of where they are. */
 export const DETAIL_HALF = 5000;
 
 /** The instant of one record on one side of a moment, that many records along, or undefined where the side holds
- *  fewer. One row read at an offset, so finding it costs the same whatever it is reaching past. */
+ *  fewer. One row read at an offset, so finding it costs the same whatever it is reaching past. With no moment named,
+ *  the whole of the type is the side. */
 async function instantAt(
 	graph: TRunGraph,
 	type: { label: string; timeField: string },
-	at: number,
+	at: number | undefined,
 	direction: "before" | "after",
 	offset: number,
 	levels: readonly THaibunLogLevel[],

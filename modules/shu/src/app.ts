@@ -29,7 +29,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
-import { hydrateClientCache, viewsShown, runMarks, runSpan, atLiveEdge, subscribeRunSources, type TRunMark } from "./client-cache/index.js";
+import { hydrateClientCache, viewsShown, runMarks, runExtent, runSpan, atLiveEdge, readRunAt, subscribeRunSources, type TRunMark } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -381,21 +381,34 @@ const main = async (): Promise<void> => {
 	// of any length draws the same way. It is re-read when the run says something changed, on the same schedule a
 	// following view reads on, and pressing a division scrubs every view to where it begins.
 	const timeBar = () => appRoot.querySelector(SHU_TAG.TIME_BAR) as (HTMLElement & { marks: TRunMark[]; divisions: number }) | null;
+	// The run's own reach, read rather than taken from the window a reader holds: a window is a few thousand records
+	// however long the run is, so a bar drawn over it would show a decade as the minutes a reader is looking at.
+	let shapeSpan = { first: 0, last: 0 };
 	const drawRunShape = async (): Promise<void> => {
 		const bar = timeBar();
-		const { first, last } = runSpan();
-		if (!bar || last <= first) return;
+		if (!bar) return;
+		const graph = pageRunGraph();
+		shapeSpan = await runExtent(graph);
+		if (shapeSpan.last <= shapeSpan.first) return;
 		bar.divisions = RUN_SHAPE_DIVISIONS;
-		bar.marks = await runMarks(pageRunGraph(), { from: first, to: last, divisions: RUN_SHAPE_DIVISIONS });
+		bar.marks = await runMarks(graph, { from: shapeSpan.first, to: shapeSpan.last, divisions: RUN_SHAPE_DIVISIONS });
 	};
 	appRoot.addEventListener(
 		SHU_EVENT.TIME_BAR_PRESS,
 		((e: CustomEvent<{ division: number }>) => {
-			const { first, last } = runSpan();
-			const at = first + ((last - first) * e.detail.division) / RUN_SHAPE_DIVISIONS;
+			// Where the division begins on the bar's own span, which is the run's reach rather than what a reader holds.
+			const at = shapeSpan.first + ((shapeSpan.last - shapeSpan.first) * e.detail.division) / RUN_SHAPE_DIVISIONS;
 			timeCursor.set(atLiveEdge(at) ? null : at);
 		}) as EventListener,
 		{ signal },
+	);
+	// The cursor names the moment the run is read at. A window holds a few thousand records, so a division far from the
+	// newest records is a division no window holds: without this a reader pressing it would be shown the records they
+	// had left. One rule for every way the cursor moves, so pressing a mark, clicking a row and scrubbing all read the
+	// run the same way.
+	eventsController.signal.addEventListener(
+		"abort",
+		timeCursor.subscribe((at) => void readRunAt(at).catch((err: unknown) => failFastOrLog("the run could not be read at the moment the cursor names", err))),
 	);
 	// Counted again on a throttle, and only where the run has moved since it was last counted: a reader watching a run
 	// would otherwise have its whole shape counted for every record the run wrote, and each count is itself a call the
