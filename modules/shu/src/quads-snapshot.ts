@@ -1,4 +1,5 @@
 import { GraphQuerySchema, type TCluster, type TClusteredQuads, type TGraphQueryResult, type TQuad, type IQuadStore , type TDensityQuery, type TDensityResult } from "@haibun/core/lib/quad-types.js";
+import { individualWithEdges, type TIndividualWithEdges, type TQuadEdge } from "@haibun/core/lib/quad-store.js";
 import type { TRunGraph } from "./client-cache/run-graph.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
@@ -244,10 +245,10 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			const steps = await getAvailableSteps();
 			if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
 			const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[]; site?: string }>(
-				{ method: "MonitorStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types, accessLevel } },
+				{ method: "GraphSourceStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types, accessLevel } },
 				"quads-snapshot: fetch clustered quads",
 			);
-			if (!Array.isArray(data.quads)) throw new Error("MonitorStepper-getClusteredQuads returned non-array quads");
+			if (!Array.isArray(data.quads)) throw new Error("GraphSourceStepper-getClusteredQuads returned non-array quads");
 			// The server already clustered (true totals + SQL body labels); the model adopts that snapshot, then live SSE extends it.
 			model.seed({ quads: data.quads, clusters: data.clusters ?? [], site: data.site });
 			if (priorPinned) model.pin(priorPinned);
@@ -390,42 +391,24 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	void cachedGraphStore().setMany(quads); // persist live observations off-heap for the next reload
 }
 
-/** One edge of an individual the page holds: what it is, which way it points, and the record it points at. */
-type TStoredEdge = { type: string; direction: "out" | "in"; target: Record<string, unknown> };
-
-/** An individual as a view reads it: the record, the edges either way, and how many point at it. */
-export type TStoredEntity = { vertex: Record<string, unknown>; edges: TStoredEdge[]; incomingCount: number };
-
-/** The record the page holds for a node, always stamped with the identity it was reached by, so an edge resolves to
- *  something a reader can open even when that node's own fields were never cached. */
-async function storedTarget(label: string, id: string): Promise<Record<string, unknown>> {
-	return { "@id": id, "@type": label, ...((await cachedGraphStore().getIndividual<Record<string, unknown>>(label, id)) ?? {}) };
-}
+/** An individual as a view reads it, and one of its edges: what a store answers with, whichever store it is. */
+export type TStoredEdge = TQuadEdge;
+export type TStoredEntity = TIndividualWithEdges;
 
 /**
- * One individual as the page holds it: its own fields, the edges its quads name in both directions, and how many point
- * at it. Used when the server does not respond, so an individual a reader has seen still opens with its links. An edge
- * quad carries the type of what it points at, which is how a target resolves to a record rather than a bare id.
- * Undefined when nothing of the individual is cached. The shape mirrors a live read, so a caller applies it the same way.
+ * One individual as the page holds it, for when the site does not answer: the same reading the site makes of its own
+ * store, made here of the store this page holds.
  */
-export async function derefStoredEntity(label: string, id: string): Promise<TStoredEntity | undefined> {
-	const quads = await cachedGraphStore().query({ subject: id, namedGraph: label });
-	if (quads.length === 0) return undefined;
-	const vertex: Record<string, unknown> = { "@id": id, "@type": label };
-	const edges: TStoredEdge[] = [];
-	for (const q of quads) {
-		if (!q.objectType) vertex[q.predicate] = q.object;
-		else edges.push({ type: q.predicate, direction: "out", target: await storedTarget(q.objectType, String(q.object)) });
-	}
-	const incoming = await storedIncomingEdges(id);
-	return { vertex, edges: [...edges, ...incoming], incomingCount: incoming.length };
+export function derefStoredEntity(label: string, id: string): Promise<TStoredEntity | undefined> {
+	return individualWithEdges(cachedGraphStore(), label, id);
 }
 
 /** The edges pointing at an individual, as the page holds them: the quads elsewhere whose object is this one, read as
  *  edges from the records that name them. */
 async function storedIncomingEdges(id: string): Promise<TStoredEdge[]> {
-	const quads = (await cachedGraphStore().query({ object: id })).filter((q) => q.objectType);
-	return Promise.all(quads.map(async (q) => ({ type: q.predicate, direction: "in" as const, target: await storedTarget(q.namedGraph, q.subject) })));
+	const quads = (await cachedGraphStore().query({ object: id })).filter((quad) => quad.objectType);
+	const held = async (label: string, subject: string): Promise<Record<string, unknown>> => ({ "@id": subject, "@type": label, ...((await cachedGraphStore().getIndividual<Record<string, unknown>>(label, subject)) ?? {}) });
+	return Promise.all(quads.map(async (quad) => ({ type: quad.predicate, direction: "in" as const, target: await held(quad.namedGraph, quad.subject) })));
 }
 
 /**

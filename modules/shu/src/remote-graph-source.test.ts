@@ -8,7 +8,7 @@ const peerFetch =
 	(input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		const url = String(input);
 		if (url.endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify(beginBody), { status: 200, headers: { "Content-Type": "application/json" } }));
-		if (url.endsWith("/rpc/MonitorStepper-getClusteredQuads")) {
+		if (url.endsWith("/rpc/GraphSourceStepper-getClusteredQuads")) {
 			readRequests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
 			const body = {
 				quads: [

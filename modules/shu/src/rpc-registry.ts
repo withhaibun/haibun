@@ -15,6 +15,8 @@ export type StepDescriptor = {
 	paramDomains?: Record<string, string>;
 	productsDomain?: string;
 	capability?: string;
+	/** True where the site declared this step a fallback: it answers to its name where no other step does. */
+	fallback?: boolean;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
 };
@@ -56,6 +58,7 @@ const StepDescriptorSchema = z
 		paramDomains: z.record(z.string(), z.string()).optional(),
 		productsDomain: z.string().optional(),
 		capability: z.string().optional(),
+		fallback: z.boolean().optional(),
 		inputSchema: z.record(z.string(), z.unknown()).optional(),
 		outputSchema: z.record(z.string(), z.unknown()).optional(),
 	})
@@ -163,7 +166,21 @@ export interface ShuHydration {
 	viewHash?: string;
 	/** The run this page carries, for a page with no server: filled into the client cache at boot. */
 	cache?: TCachePayload;
+	/** What this deployment set for the page, written by the step that serves it. */
+	settings?: TDeploymentSettings;
 }
+
+/**
+ * The timings a page runs on, as the deployment sets them. Both are what a reader waits through, so a deployment that
+ * records fast runs sets them low and one watching a long-running system leaves them where they are. A deployment that
+ * sets neither runs on the values the product carries.
+ */
+export type TDeploymentSettings = {
+	/** How long after the run moves its shape is counted again. */
+	runShapeCountedAfterMs?: number;
+	/** How long after the stream breaks the page opens it again. */
+	streamReconnectAfterMs?: number;
+};
 
 // The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
 // each carry their own copy of this module). The one payload is pinned to the page so every bundle reads the same
@@ -209,6 +226,12 @@ export function carriedProducts(method: string): unknown | undefined {
  */
 export function isOffline(): boolean {
 	return cachedHydration().data?.cache !== undefined;
+}
+
+/** A timing this deployment set, or what the product carries where it set none. */
+export function deploymentMs(name: keyof TDeploymentSettings, carried: number): number {
+	const set = cachedHydration().data?.settings?.[name];
+	return typeof set === "number" && set > 0 ? set : carried;
 }
 
 /** The run this page carries, when it carries one. */
@@ -265,11 +288,14 @@ async function discover(): Promise<StepListResponse> {
 	r.steps = steps;
 	r.domains = domains;
 	// Looked up on every call the page makes, so the registry is indexed once under both names a step responds to. Two
-	// steppers may offer the same friendly name; the first the server listed responds to it, as a scan of the list did.
+	// steppers may offer the same friendly name: the one that is not declared a fallback responds to it, and where both
+	// are alike the first the site listed does. A fallback answers where nothing else does, so a deployment that brings
+	// its own step is read through that step whatever order its steppers were registered in.
 	const byName = new Map<string, StepDescriptor>();
+	const takes = (held: StepDescriptor | undefined, step: StepDescriptor): boolean => held === undefined || (held.fallback === true && step.fallback !== true);
 	for (const step of steps) {
-		if (!byName.has(step.stepName)) byName.set(step.stepName, step);
-		if (!byName.has(step.method)) byName.set(step.method, step);
+		if (takes(byName.get(step.stepName), step)) byName.set(step.stepName, step);
+		if (takes(byName.get(step.method), step)) byName.set(step.method, step);
 	}
 	r.byName = byName;
 	return { steps, domains, concerns };

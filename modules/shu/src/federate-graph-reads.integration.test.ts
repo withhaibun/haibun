@@ -12,6 +12,7 @@ import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import StorageFS from "@haibun/storage-fs/storage-fs.js";
 import InstanceStepper from "@haibun/cli/instance-stepper.js";
 import MonitorStepper from "./monitor-stepper.js";
+import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 
 /**
@@ -54,7 +55,7 @@ federate graph reads from "http://localhost:${port}"
 capture the federated clustered read
 `,
 		};
-		const result = await testWithWorld(world, [feature], [WebServerStepper, ShuStepper, MonitorStepper, AuthorityStepper, ResourcesStepper, StorageFS, FederationVerifyStepper]);
+		const result = await testWithWorld(world, [feature], [WebServerStepper, ShuStepper, MonitorStepper, GraphSourceStepper, AuthorityStepper, ResourcesStepper, StorageFS, FederationVerifyStepper]);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
 		// Both ends booted as did:site:0 — the connecting side asked the peer (over the wire) what it should be called and adopted the answer.
@@ -87,7 +88,7 @@ capture the federated clustered read
 		const result = await testWithWorld(
 			world,
 			[feature],
-			[WebServerStepper, ShuStepper, MonitorStepper, AuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, FederationVerifyStepper],
+			[WebServerStepper, ShuStepper, MonitorStepper, GraphSourceStepper, AuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, FederationVerifyStepper],
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 

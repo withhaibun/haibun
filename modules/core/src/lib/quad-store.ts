@@ -568,3 +568,36 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 	}
 	return { quads: sampledQuads, clusters };
 }
+
+/** One edge of an individual: what it is, which way it points, and the record it points at. */
+export type TQuadEdge = { type: string; direction: "out" | "in"; target: Record<string, unknown> };
+
+/** An individual as a view reads it: the record, the edges either way, and how many point at it. */
+export type TIndividualWithEdges = { vertex: Record<string, unknown>; edges: TQuadEdge[]; incomingCount: number };
+
+/** The record a store holds for a node, stamped with the identity it was reached by, so an edge resolves to something a
+ *  reader can open even where that node's own fields are not held. */
+async function targetOf(store: IQuadStore, label: string, id: string): Promise<Record<string, unknown>> {
+	return { "@id": id, "@type": label, ...((await store.getIndividual<Record<string, unknown>>(label, id)) ?? {}) };
+}
+
+/**
+ * One individual with its edges, over any store: its own fields, the edges its quads name in both directions, and how
+ * many point at it. An edge quad carries the type of what it points at, which is how a target resolves to a record
+ * rather than a bare id. Undefined where the store holds nothing of the individual.
+ *
+ * One reading, so a page reading what it holds and a site answering for its own store give a reader the same shape.
+ */
+export async function individualWithEdges(store: IQuadStore, label: string, id: string): Promise<TIndividualWithEdges | undefined> {
+	const quads = await store.query({ subject: id, namedGraph: label });
+	if (quads.length === 0) return undefined;
+	const vertex: Record<string, unknown> = { "@id": id, "@type": label };
+	const edges: TQuadEdge[] = [];
+	for (const quad of quads) {
+		if (!quad.objectType) vertex[quad.predicate] = quad.object;
+		else edges.push({ type: quad.predicate, direction: "out", target: await targetOf(store, quad.objectType, String(quad.object)) });
+	}
+	const pointing = (await store.query({ object: id })).filter((quad) => quad.objectType);
+	const incoming: TQuadEdge[] = await Promise.all(pointing.map(async (quad) => ({ type: quad.predicate, direction: "in" as const, target: await targetOf(store, quad.namedGraph, quad.subject) })));
+	return { vertex, edges: [...edges, ...incoming], incomingCount: incoming.length };
+}

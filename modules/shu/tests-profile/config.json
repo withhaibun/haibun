@@ -10,6 +10,7 @@
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/shu/shu-stepper",
 		"@haibun/shu/monitor-stepper",
+		"@haibun/shu/graph-source-stepper",
 		"@haibun/shu/client-cache-stepper",
 		"./build/components/shu-scrollbar.controls",
 		"./build/components/shu-monitor-column.controls",
