@@ -31,8 +31,8 @@ const OPTION_SHOW_STEPPERS = "--show-steppers";
 const OPTION_WITH_STEPPERS = "--with-steppers";
 /** Run statements given on the command line instead of collecting feature files. Repeatable; each is one line. */
 const OPTION_STATEMENT = "--statement";
-/** Run once per state of what the features depend on: a group that has passed against its present state is not run
- *  again. Every whole run records how it went against that state; this option is what acts on a recorded pass. */
+/** Run a group only when one of its dependencies changed since the group last passed. Every whole run records how it
+ *  went and the state of its dependencies; this option is what reads that record. */
 const OPTION_ONCE = "--once";
 
 type TEnv = { [name: string]: string | undefined };
@@ -67,8 +67,8 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 				? verificationOf({ configPath: configFileFrom(configBases), specl, bases, cwd: process.cwd(), filter: featureFilter ?? [], options: protoOptions.options, moduleOptions: protoOptions.moduleOptions, policy: policyConfig, withSteppers: parsed.withSteppers })
 				: undefined;
 		if (parsed.once) {
-			if (!verification) console.info(`${OPTION_ONCE}: this run is verified against nothing (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features kept in no repository"}), so it runs`);
-			// A group that passed against this state would pass again. A group that failed runs again: what a person
+			if (!verification) console.info(`${OPTION_ONCE}: this run has no dependencies to record a pass against (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features kept in no repository"}), so it runs`);
+			// A group that passed, with no dependency changed since, would pass again. A group that failed runs again: what a person
 			// does with a failure is retry it, and a run that fails for a reason outside the sources is one they must be
 			// able to retry without changing anything.
 			else if (outcomeAgainst(verification)?.outcome === "passed") return verifiedExit(bases);
@@ -156,9 +156,9 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 	return policyConfig;
 }
 
-/** A run not made, because one has passed against this state: said as the pass it is, and exited as one. */
+/** A run not made, because the group passed and no dependency changed: said as the pass it is, and exited as one. */
 function verifiedExit(bases: TBase): never {
-	console.info(`\n${CHECK_YES} ${bases.join(",")} passed against its present state; not run again. Change what it depends on, or run without ${OPTION_ONCE}, to run it again.\n`);
+	console.info(`\n${CHECK_YES} ${bases.join(",")} passed and no dependency changed since, so it did not run. Run without ${OPTION_ONCE} to run it anyway.\n`);
 	process.exit(0);
 }
 
@@ -261,7 +261,7 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		"",
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (not run again while what it depends on is as it was when it last passed)] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (run only if a dependency changed since the group passed)] <project base[,project base]> <[filter,filter]>`,
 		message || "",
 		"If config.json is not found in project bases, the root directory will be used.\n",
 		"Set these environmental variables to control options:\n",

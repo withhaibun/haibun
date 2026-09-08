@@ -14,15 +14,15 @@
 				"steps": 167
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 1.2,
+				"seconds": 1.1,
 				"steps": 168
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 3.9,
+				"seconds": 3.5,
 				"steps": 159
 			}
 		},
 		"steps": 817,
-		"seconds": 9
+		"seconds": 8.4
 	}
 }

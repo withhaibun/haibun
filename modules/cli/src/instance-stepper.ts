@@ -345,7 +345,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const cwd = from ? path.resolve(from) : process.cwd();
 		if (!existsSync(cwd)) return actionNotOK(`start run: no directory ${cwd} to run from`);
 		const ran = verifiedRun(config, dir, filter, cwd, env);
-		if (ran) return actionNotOK(`start run: ${filter || "every feature"} in ${dir} ${ran} against its present state, so a run would answer what that run answered; change what it depends on, or note that it has changed, to run it again`);
+		if (ran) return actionNotOK(`start run: ${filter || "every feature"} in ${dir} ${ran} and no dependency changed since, so this run would answer what that run answered. Change a dependency, or note that it has changed, to run it again.`);
 		const child = fork(cliEntry, ["-c", config, dir, filter], { cwd, env, silent: true, execArgv: [] });
 		superviseChild(child); // a standing run may outlive its FEATURE, never its owner process
 		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended: null, waiters: [] };

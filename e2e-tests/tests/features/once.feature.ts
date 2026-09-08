@@ -20,7 +20,7 @@ export const features: TKirejiExport = {
 	"A group of features runs once per state of what it depends on": [
 		feature({ feature: "A group of features runs once per state of what it depends on" }),
 
-		"A run of features is verified against the content of what the features depend on: the directory they are read from, and the module of every stepper their configuration names. A group that has passed against the state its dependencies have now is not run again, since that run would answer what the last run answered. Noting that the group has changed forgets the pass, which is how a caller asks for the run regardless.",
+		"A run of features is verified against the content of what the features depend on: the directory they are read from, and the module of every stepper their configuration names. A group runs again only when something it depends on has changed since it passed, since a run over the same sources answers what the last run answered. Noting that the group has changed forgets the pass, which is how a caller asks for the run regardless.",
 
 		scenario({ scenario: "A run of a group passes and records what it passed against" }),
 		issueSessionGrant({ token: TOKEN, action: '"Instance:run"' }),
