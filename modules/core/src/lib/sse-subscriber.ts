@@ -255,6 +255,11 @@ export class SseSubscriber {
 		}
 		this.source?.close?.();
 		this.source = null;
+		// A closed subscriber never opens again, so it holds no listener: a message arriving on the transport it has let
+		// go reaches a consumer that stopped listening otherwise.
+		this.listeners.length = 0;
+		this.reconnectListeners.clear();
+		this.disconnectListeners.clear();
 	}
 
 	/** Wall-clock time of the last successfully-dispatched event, or null if none yet. */

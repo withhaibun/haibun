@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import os from "node:os";
 import { TIMINGS_FILE, machineKey, recordTimings, timingsOf, varianceLine, variancesBetween } from "./timings.js";
 
 const step = (start: number, end: number) => ({ ok: true, in: "a step", start, end, seqPath: [0], stepperName: "S", actionName: "a" });
