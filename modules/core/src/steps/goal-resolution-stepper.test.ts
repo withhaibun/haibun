@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
-import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
+import { passWithDefaults, failWithDefaults, getDefaultWorld } from "../lib/test/lib.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import VariablesStepper from "./variables-stepper.js";
@@ -127,6 +127,35 @@ variable affordances exists`,
 		};
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
+	});
+
+	it("affordances on offer answers what show affordances shows, and is a read: asked of a running instance it shows nothing and is not recorded", async () => {
+		const stepper = new GoalResolutionStepper();
+		expect(stepper.steps.affordancesOnOffer.read).toBe(true);
+		expect(stepper.steps.affordancesOnOfferAsOf.read).toBe(true);
+		expect(stepper.steps.showAffordances.read, "showing the panel is an act of the run").toBeUndefined();
+		const feature = { path: "/features/test.feature", content: `show affordances\naffordances on offer` };
+		const result = await passWithDefaults([feature], steppers);
+		expect(result.ok).toBe(true);
+		const shown = result.featureResults?.[0].stepResults[0].products as { forward: unknown[]; goals: unknown[] };
+		const offered = result.featureResults?.[0].stepResults[1].products as { forward: unknown[]; goals: unknown[] };
+		expect(offered.forward).toEqual(shown.forward);
+		expect(offered.goals).toEqual(shown.goals);
+	});
+
+	it("announces a change after an act and none after a read, since a read changes nothing and the panel's own re-fetch is one", async () => {
+		const stepper = new GoalResolutionStepper();
+		const world = getDefaultWorld();
+		world.runtime.currentSeqPath = "0.1";
+		await stepper.setWorld(world, [stepper]);
+		const announced: string[] = [];
+		world.eventLogger.emit = ((event: { id?: string }) => announced.push(String(event.id))) as typeof world.eventLogger.emit;
+		const after = (step: unknown) => stepper.cycles.afterStep?.({ featureStep: { action: { step } }, actionResult: { ok: true } } as never);
+		await after(stepper.steps.affordancesOnOffer);
+		await after(stepper.steps.affordancesOnOfferAsOf);
+		expect(announced, "a read announces nothing, or the panel reading would announce a change to read again for, without bound").toEqual([]);
+		await after({ gwta: "an act", action: () => Promise.resolve(actionOKWithProducts({})) });
+		expect(announced).toEqual(["affordances.0.1"]);
 	});
 
 	it("show affordances carries waypoint entries contributed by steppers with the ProvidesWaypoints capability — one verb, the whole snapshot", async () => {

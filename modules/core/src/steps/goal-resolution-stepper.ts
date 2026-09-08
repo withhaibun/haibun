@@ -48,9 +48,10 @@ const COMPOSITE_MAX_DEPTH = "COMPOSITE_MAX_DEPTH";
 const COMPOSITE_DECOMPOSITION_DEFAULT = true;
 const COMPOSITE_MAX_DEPTH_DEFAULT = 4;
 
-// Projection-query domains — steps that only READ current memory (show affordances / waypoints / chain-lint). Completing
-// one changes nothing, so afterStep must NOT emit an `affordances.*` change signal for it: the affordances panel's own
-// re-fetch dispatches one of these steps, and announcing a change re-fires that fetch over SSE — an unbounded RPC↔SSE storm.
+// Projection-query domains — steps that only compute a view of current memory (show affordances / waypoints /
+// chain-lint). Completing one changes nothing, so afterStep must NOT emit an `affordances.*` change signal for it. The
+// same holds of every step declared a read, which is what the affordances panel's own re-fetch dispatches: announcing
+// a change for it would re-fire that fetch over SSE without bound.
 const PROJECTION_DOMAINS = new Set([DOMAIN_AFFORDANCES, DOMAIN_GOAL_RESOLUTION, DOMAIN_CHAIN_LINT]);
 
 export class GoalResolutionStepper extends AStepper implements IHasOptions, IHasCycles {
@@ -130,9 +131,10 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			// resolution trees + composite michi), so the affordances panel and the domain-chain view re-fetch the
 			// current snapshot on demand (show affordances) rather than ride every step's event.
 			// Keeps the event log lean by construction — the bulk never denormalizes onto every step.
-			// But a projection-query step itself changed nothing, so it must not announce a change — else the panel's
-			// on-demand re-fetch (which dispatched this very step) re-triggers itself over SSE without bound.
-			if (PROJECTION_DOMAINS.has(after.featureStep.action.step.productsDomain ?? "")) return Promise.resolve({ failed: false });
+			// A step that changed nothing announces no change: a read, or a step that only computes a view of memory.
+			// Otherwise the panel's own re-fetch, which is a read, would re-trigger itself over SSE without bound.
+			const step = after.featureStep.action.step;
+			if (step.read === true || PROJECTION_DOMAINS.has(step.productsDomain ?? "")) return Promise.resolve({ failed: false });
 			const seqPath = this.getWorld().runtime.currentSeqPath;
 			if (!seqPath) {
 				throw new Error("GoalResolutionStepper.afterStep: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking afterStep cycles.");
@@ -343,6 +345,27 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			action: ({ asOf }: { asOf: string }, featureStep) => {
 				const parsed = parseSeqPath(asOf);
 				if (!parsed) return actionNotOK(`show affordances as of: ${asOf} is not a seqPath (expected dot-joined integers, e.g. "0.-1.5.1")`);
+				return this.computeAffordances(parsed, featureStep);
+			},
+		},
+
+		// The same snapshot the showing steps produce, as a read: what a page showing the panel asks for after every
+		// step to stay current. Showing the panel is an act of the run and is recorded as one; asking what is on offer
+		// shows nothing and is not.
+		affordancesOnOffer: {
+			gwta: "affordances on offer",
+			read: true,
+			productsSchema: affordancesSchema,
+			action: async (_args, featureStep) => this.computeAffordances(undefined, featureStep),
+		},
+
+		affordancesOnOfferAsOf: {
+			gwta: "affordances on offer as of {asOf: string}",
+			read: true,
+			productsSchema: affordancesSchema,
+			action: ({ asOf }: { asOf: string }, featureStep) => {
+				const parsed = parseSeqPath(asOf);
+				if (!parsed) return actionNotOK(`affordances on offer as of: ${asOf} is not a seqPath (expected dot-joined integers, e.g. "0.-1.5.1")`);
 				return this.computeAffordances(parsed, featureStep);
 			},
 		},

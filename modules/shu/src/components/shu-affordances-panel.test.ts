@@ -6,6 +6,7 @@ import { TestConduit } from "../test-setup.js";
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "../event-stream.js";
 import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
+import { RPC_METHOD } from "../consts.js";
 
 /** `products` applies synchronously (app.ts coalesces the replay upstream), so just await the lit render. */
 const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<void> => {
@@ -306,11 +307,11 @@ describe("shu-affordances-panel", () => {
 	it("a burst of change signals coalesces to ONE snapshot refetch (no spurious-RPC flood)", async () => {
 		// A run emits one `affordances.` change signal per step, and a new subscriber is replayed the whole history.
 		// Refetching per signal is the RPC flood (hundreds per run); the panel starts one timer per coalesce window
-		// (REFRESH_COALESCE_MS) and the burst rides it — exactly one GoalResolutionStepper-showAffordances RPC.
+		// (REFRESH_COALESCE_MS) and the burst rides it — exactly one read of the affordances on offer.
 		let snapshotCalls = 0;
 		setConduit(
 			new TestConduit((method: string) => {
-				if (method === "GoalResolutionStepper-showAffordances") snapshotCalls++;
+				if (method === RPC_METHOD.AFFORDANCES_ON_OFFER) snapshotCalls++;
 				return { waypoints: [], forward: [], goals: [] };
 			}),
 		);

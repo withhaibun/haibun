@@ -233,6 +233,10 @@ export const features: TKirejiExport = {
 		"An uncompressed copy carries the same content as plain text, so a reader can confirm secrets are redacted in the output without unpacking it.",
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
 
+		"The affordances panel has been open since the reader showed it, and it has read the affordances on offer after every step since, to stay current. Reading is not an act of the run: the run's records name the step that showed the panel, and none of the panel's own reading. The report carries the run's records, so it says which.",
+		'text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.showAffordances"',
+		'not text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.affordancesOnOffer"',
+
 		scenario({ scenario: "A reload with the server unreachable reads the run from the device" }),
 
 		"A page whose calls all fail says the site has not responded to it, and reads the run from what this device holds. Everything this page has read of the run is held there as the records the run wrote, along with the site's registry. Blocking every remote call and the event stream leaves the page with the device alone, which is what a reader has when their network drops. Reloading then must still produce a run: the registry comes from the device, the source at log reads what is held and says so, its spans starting at the run's first row, and the monitor renders rows.",
