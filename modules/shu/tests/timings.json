@@ -6,8 +6,8 @@
 				"steps": 6
 			},
 			"/features/monitor.feature.ts": {
-				"seconds": 6.4,
-				"steps": 510
+				"seconds": 6.3,
+				"steps": 509
 			},
 			"/features/remote-store.feature.ts": {
 				"seconds": 0.3,
@@ -15,10 +15,10 @@
 			},
 			"/features/voice-ui.feature.ts": {
 				"seconds": 0.9,
-				"steps": 154
+				"steps": 155
 			}
 		},
 		"steps": 679,
-		"seconds": 7.9
+		"seconds": 7.8
 	}
 }
