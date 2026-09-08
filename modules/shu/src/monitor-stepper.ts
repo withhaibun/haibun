@@ -325,11 +325,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const registry = this.getWorld().runtime[DISCOVERY_RESPONSE] ?? { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the
-		// last live snapshot is the one that matters. Re-run the parameterless producers
-		// to overwrite with end-of-run forward / goals / waypoints.
+		// last live snapshot is the one that matters. Re-run the read the panel makes
+		// to overwrite with end-of-run forward / goals / waypoints, under the name it asks by.
 		const steppers = (this.getWorld().runtime.steppers as AStepper[] | undefined) ?? [];
 		for (const stepper of steppers) {
-			const refreshable = ["showAffordances"];
+			const refreshable = ["affordancesOnOffer"];
 			for (const name of refreshable) {
 				const step = stepper.steps?.[name];
 				if (!step || typeof (step as { action?: unknown }).action !== "function") continue;

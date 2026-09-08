@@ -25,6 +25,7 @@ import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWa
 import { filterGraph, graphAxes } from "../graph/filter-graph.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX, SHU_TAG } from "../consts.js";
+import { RPC_METHOD } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
@@ -168,7 +169,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	private async fetchInitial(quiet = false): Promise<void> {
 		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the chain never flashes.
 		if (!quiet) this.setState({ loadState: "fetching" });
-		const candidates = ["GoalResolutionStepper-showAffordances"];
+		const candidates = [RPC_METHOD.AFFORDANCES_ON_OFFER];
 		let lastError = "";
 		for (const method of candidates) {
 			try {

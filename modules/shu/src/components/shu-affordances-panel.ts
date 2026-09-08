@@ -22,7 +22,7 @@ import {
 	satisfiedGoalDomains,
 } from "@haibun/core/lib/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { SHU_EVENT, AFFORDANCE_PARAM } from "../consts.js";
+import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
 import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
 import { factIdRef } from "./shu-ref.js";
@@ -196,9 +196,10 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		if (!quiet) this.setState({ loadState: "fetching" });
 		const asOf = this.getAttribute("as-of");
 		const params = asOf ? { asOf } : {};
-		// `show affordances` carries the whole snapshot (forward + goals + waypoints). The as-of replay variant
-		// carries no waypoints: waypoint ensure-state is current run state, so there is no waypoint history to replay.
-		const candidates = asOf ? ["GoalResolutionStepper-showAffordancesAsOf"] : ["GoalResolutionStepper-showAffordances"];
+		// The affordances on offer, read rather than shown: the whole snapshot (forward + goals + waypoints), asked of
+		// the run without being recorded as an act of it. The as-of replay variant carries no waypoints: waypoint
+		// ensure-state is current run state, so there is no waypoint history to replay.
+		const candidates = asOf ? [RPC_METHOD.AFFORDANCES_ON_OFFER_AS_OF] : [RPC_METHOD.AFFORDANCES_ON_OFFER];
 
 		let lastError = "";
 		for (const method of candidates) {
