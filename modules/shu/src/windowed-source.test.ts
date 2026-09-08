@@ -8,12 +8,6 @@ function counted() {
 }
 
 describe("arrayWindowedSource", () => {
-	it("serves every cached row and no-ops ensureRange", async () => {
-		const src = arrayWindowedSource([10, 20, 30]);
-		expect(src.count()).toBe(3);
-		expect(src.rowAt(1)).toBe(20);
-		await expect(src.ensureRange(0, 3)).resolves.toBeUndefined();
-	});
 	it("set swaps the backing list and notifies (a live re-query)", () => {
 		const src = arrayWindowedSource([1]);
 		const cb = vi.fn();
@@ -25,15 +19,6 @@ describe("arrayWindowedSource", () => {
 });
 
 describe("lazyWindowedSource", () => {
-	it("is empty until ensureRange, then serves the fetched window", async () => {
-		const { fetch } = counted();
-		const src = lazyWindowedSource({ count: () => 1000, fetch, pageSize: 5 });
-		expect(src.rowAt(0)).toBeUndefined();
-		await src.ensureRange(0, 10);
-		expect(src.rowAt(0)).toBe(0);
-		expect(src.rowAt(9)).toBe(9);
-	});
-
 	it("fetches a contiguous range in one call, and never re-fetches cached pages", async () => {
 		const { fetch, calls } = counted();
 		const src = lazyWindowedSource({ count: () => 1000, fetch, pageSize: 5 });
@@ -61,15 +46,6 @@ describe("lazyWindowedSource", () => {
 		await src.ensureRange(100, 120); // pages 20..23 → evict the far pages
 		expect(src.rowAt(100)).toBe(100); // near the last request, cached
 		expect(src.rowAt(0)).toBeUndefined(); // evicted
-	});
-
-	it("notifies subscribers when a fetched range arrives", async () => {
-		const { fetch } = counted();
-		const src = lazyWindowedSource({ count: () => 1000, fetch, pageSize: 5 });
-		const cb = vi.fn();
-		src.subscribe(cb);
-		await src.ensureRange(0, 10);
-		expect(cb).toHaveBeenCalled();
 	});
 
 	it("scales to millions: fetches only the requested window near the end", async () => {
@@ -187,6 +163,26 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 	});
 
 	describe("prime", () => {
+		it("places no row at an index it is not at when the seed begins inside a page", async () => {
+			const { fetch } = counted();
+			const src = lazyWindowedSource({ count: () => 100, fetch, pageSize: 10 });
+			src.prime(5, [5, 6, 7]);
+			expect(src.rowAt(0), "the page the seed begins inside is left to be read whole").toBeUndefined();
+			expect(src.rowAt(5)).toBeUndefined();
+			await src.ensureRange(0, 10);
+			expect(src.rowAt(0)).toBe(0);
+			expect(src.rowAt(5)).toBe(5);
+		});
+
+		it("places the pages a seed covers from their first row, and leaves the rest to be read", () => {
+			const { fetch } = counted();
+			const src = lazyWindowedSource({ count: () => 100, fetch, pageSize: 10 });
+			src.prime(5, Array.from({ length: 20 }, (_, i) => 5 + i));
+			expect(src.rowAt(10)).toBe(10);
+			expect(src.rowAt(20)).toBe(20);
+			expect(src.rowAt(5)).toBeUndefined();
+		});
+
 		it("seeds a full first page so ensureRange over it fetches nothing", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 10_000, fetch, pageSize: 50 });

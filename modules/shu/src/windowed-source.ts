@@ -60,7 +60,12 @@ export function lazyWindowedSource<T>(opts: {
 	pageSize?: number;
 	maxResidentPages?: number;
 	markers?: () => TScrollMarker[];
-}): WindowedSource<T> & {
+}): TPagedSource<T> {
+	return makePagedSource(opts);
+}
+
+/** A source that fetches its rows, with what a caller that fetches them itself needs of it. */
+export type TPagedSource<T> = WindowedSource<T> & {
 	/** Re-probe the tail and notify: call after `count()` grows (a live append) or a previously-capped fetch can now
 	 *  return more, so a partial last page is re-fetched and the view re-renders. */
 	notifyCountChanged(): void;
@@ -75,7 +80,9 @@ export function lazyWindowedSource<T>(opts: {
 	/** The index spans cached, in order, as half-open [from, to) ranges: what a view derives marks or a cursor
 	 *  from without scanning the whole extent for the rows it caches. */
 	cachedRanges(): Range[];
-} {
+};
+
+function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] }): TPagedSource<T> {
 	const pageSize = opts.pageSize ?? 200;
 	const maxResidentPages = Math.max(4, opts.maxResidentPages ?? 24);
 	const pages = new Map<number, readonly T[]>();
@@ -213,9 +220,13 @@ export function lazyWindowedSource<T>(opts: {
 			return out;
 		},
 		prime(startRow, rows) {
-			const firstPage = pageOf(startRow); // startRow is page-aligned: the caller fetched from a page boundary
-			for (let p = firstPage; p * pageSize < startRow + rows.length; p++) {
-				const slice = rows.slice(p * pageSize - startRow, (p + 1) * pageSize - startRow);
+			// A seed beginning inside a page covers that page in part, and a part of a page cached as the page would put
+			// its rows at indexes they are not at. Only the pages the seed covers from their first row are cached; the
+			// page it begins inside is left for ensureRange to read whole.
+			for (let p = pageOf(startRow); p * pageSize < startRow + rows.length; p++) {
+				const within = p * pageSize - startRow;
+				if (within < 0) continue;
+				const slice = rows.slice(within, within + pageSize);
 				if (slice.length > 0) pages.set(p, slice);
 			}
 			// If the seed reaches the total, it is the real end of data — record it so the short last page counts as
@@ -224,4 +235,26 @@ export function lazyWindowedSource<T>(opts: {
 			notify();
 		},
 	};
+}
+
+/**
+ * A source over a read that answers a page at a time, with the page the caller has already read placed in it. Every
+ * view that lists what a read answers is built this way: how many rows there are in all, how big a page is, how to
+ * read one, and the page in hand. A view that lists rows holds no paging of its own.
+ */
+export function readWindowedSource<T>(opts: {
+	/** How many rows the read answers in all, read again as it changes (a re-query, a live append). */
+	total: () => number;
+	/** How many rows a page holds, which is the size the first read asked for. */
+	size: number;
+	/** Read the rows for [from, to). */
+	read: TPageFetcher<T>;
+	/** The page already read, and the row it starts at. */
+	held: readonly T[];
+	from?: number;
+	markers?: () => TScrollMarker[];
+}): TPagedSource<T> {
+	const source = makePagedSource<T>({ count: opts.total, fetch: opts.read, pageSize: opts.size, ...(opts.markers === undefined ? {} : { markers: opts.markers }) });
+	source.prime(opts.from ?? 0, opts.held);
+	return source;
 }

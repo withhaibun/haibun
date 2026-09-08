@@ -17,7 +17,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { appAccessLevel, defaultLabel } from "../util.js";
 import { getIdField, getQueryableFields } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
-import { arrayWindowedSource, lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
+import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../windowed-source.js";
 
 type VertexData = Record<string, unknown>;
 
@@ -100,13 +100,13 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		const targets = res.edges.map((e) => e.target as VertexData);
 		this.results = targets;
 		this.#total = res.total ?? targets.length;
-		const src = lazyWindowedSource<VertexData>({
-			count: () => this.#total,
-			fetch: async (start, end) => (await incomingEdges(label, id, { limit: end - start, offset: start })).edges.map((e) => e.target as VertexData),
-			pageSize: limit,
+		this.#source = readWindowedSource<VertexData>({
+			total: () => this.#total,
+			size: limit,
+			read: async (start, end) => (await incomingEdges(label, id, { limit: end - start, offset: start })).edges.map((e) => e.target as VertexData),
+			held: targets,
+			from: offset,
 		});
-		src.prime(offset, targets);
-		this.#source = src;
 		this.setState({ loading: false });
 	}
 
@@ -119,14 +119,13 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		const vertices = (res.vertices ?? []) as VertexData[];
 		this.results = vertices;
 		this.#total = res.total ?? vertices.length;
-		const pageSize = (query.limit as number) || 50;
-		const src = lazyWindowedSource<VertexData>({
-			count: () => this.#total,
-			fetch: async (start, end) => ((await queryGraph({ ...query, limit: end - start, offset: start })).vertices ?? []) as VertexData[],
-			pageSize,
+		this.#source = readWindowedSource<VertexData>({
+			total: () => this.#total,
+			size: (query.limit as number) || 50,
+			read: async (start, end) => ((await queryGraph({ ...query, limit: end - start, offset: start })).vertices ?? []) as VertexData[],
+			held: vertices,
+			from: (query.offset as number) || 0,
 		});
-		src.prime((query.offset as number) || 0, vertices);
-		this.#source = src;
 		this.setState({ loading: false });
 	}
 

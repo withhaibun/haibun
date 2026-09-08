@@ -18,7 +18,7 @@ import type { ShuResultTable } from "./shu-result-table.js";
 import { } from "../hypermedia.js";
 import { getAvailableDomains, isOffline } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
-import { arrayWindowedSource, lazyWindowedSource, type WindowedSource } from "../windowed-source.js";
+import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../windowed-source.js";
 import { getWindowSize } from "../window-size-setting.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 
@@ -369,16 +369,16 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return document.querySelector(selector);
 	}
 
-	/** Build the lazy row source for the current query: it fetches a page at a time via the same graphQuery the first
-	 *  fetch used, primed with the page already in hand so the first paint needs no second round-trip. */
+	/** The rows of the current query, read a page at a time by the same graphQuery the first read used, with that page
+	 *  already in hand so the first paint needs no second read. */
 	#buildSource(payload: Record<string, unknown>, page0: readonly VertexRow[], startRow: number): void {
-		const src = lazyWindowedSource<VertexRow>({
-			count: () => this.total,
-			fetch: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }).then((d) => d.vertices ?? []),
-			pageSize: this.limit,
+		this.#source = readWindowedSource<VertexRow>({
+			total: () => this.total,
+			size: this.limit,
+			read: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }).then((d) => d.vertices ?? []),
+			held: page0,
+			from: startRow,
 		});
-		src.prime(startRow, page0);
-		this.#source = src;
 	}
 
 	render(): TemplateResult {
