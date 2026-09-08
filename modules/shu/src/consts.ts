@@ -107,6 +107,7 @@ export const SHU_TAG = {
 	STEP_CALLER: "shu-step-caller",
 	MONITOR_COLUMN: "shu-monitor-column",
 	TIME_BAR: "shu-time-bar",
+	RUN_FAILURES: "shu-run-failures",
 	POLYMORPHIC_GRAPH_VIEW: "shu-polymorphic-graph-view",
 	THREAD_COLUMN: "shu-thread-column",
 	STEP_DETAIL: "shu-step-detail",
