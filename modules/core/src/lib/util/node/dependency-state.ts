@@ -3,9 +3,10 @@
  *
  * A run's steppers name the modules it exercises, so a group's dependencies are derived from the configuration it
  * already has rather than declared a second time: each stepper resolves to a file, the file to the module holding it,
- * and a module to the modules it depends on in turn. An application's configuration names the framework's modules
- * beside its own, so its dependencies span both without saying so. A group adds paths of its own through `dependsOn`,
- * and names the external environments it uses.
+ * a module to the directory its own build configuration says it is built from, and a module to the modules it depends
+ * on in turn. An application's configuration names the framework's modules beside its own, so its dependencies span
+ * both without saying so. A group adds paths of its own through `dependsOn`, and names the external environments it
+ * uses.
  *
  * The state is a digest of the content of every file under those paths that its repository tracks or would track:
  * ignored files are derived output and are left out. It is read from the working tree, so what is verified is what is
@@ -50,52 +51,72 @@ function whereItIs(location: string): string {
 /** The framework modules a module depends on, each as the directory that holds it: what a change to one of them
  *  reaches. Read from the module's own declaration and resolved through its own node_modules, so the answer is what
  *  the module would load. */
-function dependedModules(moduleDir: string, seen: Set<string>): void {
+function dependedModules(moduleDir: string): string[] {
 	const pkgJson = path.join(moduleDir, "package.json");
-	if (!nodeFS.existsSync(pkgJson)) return;
+	if (!nodeFS.existsSync(pkgJson)) return [];
 	const pkg = JSON.parse(nodeFS.readFileSync(pkgJson, "utf-8")) as { dependencies?: Record<string, string> };
+	const found: string[] = [];
 	for (const name of Object.keys(pkg.dependencies ?? {})) {
 		if (!name.startsWith("@haibun/")) continue;
-		let dir = moduleDir;
-		for (;;) {
+		for (let dir = moduleDir; ; dir = path.dirname(dir)) {
 			const candidate = path.join(dir, "node_modules", name);
 			if (nodeFS.existsSync(candidate)) {
-				const root = whereItIs(candidate);
-				if (!seen.has(root)) {
-					seen.add(root);
-					dependedModules(root, seen);
-				}
+				found.push(whereItIs(candidate));
 				break;
 			}
-			const up = path.dirname(dir);
-			if (up === dir) break;
-			dir = up;
+			if (path.dirname(dir) === dir) break;
 		}
 	}
+	return found;
+}
+
+/** What a module is built from, where its own build configuration says: a change to the module reaches its sources,
+ *  and its tests, its documents and the groups of features it holds are not what a stepper of it runs. A module that
+ *  declares no such directory is depended on whole. */
+function sourcesOf(moduleDir: string): string {
+	const tsconfig = path.join(moduleDir, "tsconfig.json");
+	if (!nodeFS.existsSync(tsconfig)) return moduleDir;
+	let declared: { compilerOptions?: { rootDir?: string } };
+	try {
+		declared = JSON.parse(nodeFS.readFileSync(tsconfig, "utf-8"));
+	} catch (err: unknown) {
+		throw new Error(`${tsconfig} could not be read, so what ${moduleDir} is built from is not known: ${(err as Error).message}`);
+	}
+	const rootDir = declared.compilerOptions?.rootDir;
+	if (!rootDir) return moduleDir;
+	const sources = path.resolve(moduleDir, rootDir);
+	if (!nodeFS.existsSync(sources)) throw new Error(`${tsconfig} says the module is built from ${rootDir}, and there is nothing at ${sources}`);
+	return nodeFS.realpathSync(sources);
 }
 
 /**
- * The directories a group's features depend on: the bases the features are read from, the module of every stepper the
- * configuration names, every framework module those modules depend on, and the paths the configuration adds. Each
- * once, absolute and real, in a stable order. A stepper named by a relative path is resolved from the directory the
- * run is made from, as the run resolves it, so a process deciding for another computes what that other would.
+ * The directories a group's features depend on: the bases the features are read from, the sources of the module of
+ * every stepper the configuration names, the sources of every framework module those modules depend on, and the
+ * paths the configuration adds. Each once, absolute and real, in a stable order. A stepper named by a relative path is
+ * resolved from the directory the run is made from, as the run resolves it, so a process deciding for another
+ * computes what that other would.
  */
 export function dependencyRoots(specl: TSpecl, bases: readonly string[], configDir: string, cwd: string): string[] {
-	const seen = new Set<string>();
-	for (const base of bases) seen.add(whereItIs(path.resolve(cwd, base)));
+	const roots = new Set<string>();
+	for (const base of bases) roots.add(whereItIs(path.resolve(cwd, base)));
+	const modules = new Set<string>();
+	const follow = (moduleDir: string): void => {
+		if (modules.has(moduleDir)) return;
+		modules.add(moduleDir);
+		roots.add(sourcesOf(moduleDir));
+		for (const depended of dependedModules(moduleDir)) follow(depended);
+	};
 	for (const entry of specl.steppers) {
 		if (typeof entry !== "string") continue; // a remote stepper is another instance's, and that instance verifies its own
 		const root = moduleRootOf(whereItIs(entry.startsWith(".") ? path.resolve(cwd, entry) : getModuleLocation(entry)));
-		if (root === undefined || seen.has(root)) continue;
-		seen.add(root);
-		dependedModules(root, seen);
+		if (root !== undefined) follow(root);
 	}
 	for (const dep of specl.dependsOn ?? []) {
 		const at = path.resolve(configDir, dep);
 		if (!nodeFS.existsSync(at)) throw new Error(`dependsOn names ${dep}, and there is nothing at ${at}`);
-		seen.add(nodeFS.realpathSync(at));
+		roots.add(nodeFS.realpathSync(at));
 	}
-	return [...seen].sort();
+	return [...roots].sort();
 }
 
 /** Ask git something in a directory. What it says on failure is kept, since the failure is what is reported. */
