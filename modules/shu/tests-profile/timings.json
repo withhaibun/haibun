@@ -1,22 +1,24 @@
 {
-	"features": {
-		"/features/a-a-run-to-come-back-to.feature.ts": {
-			"seconds": 1.1,
-			"steps": 155
+	"darwin-arm64-12x-apple-m4-pro": {
+		"features": {
+			"/features/a-a-run-to-come-back-to.feature.ts": {
+				"seconds": 1.1,
+				"steps": 155
+			},
+			"/features/b-reading-a-cached-run.feature.ts": {
+				"seconds": 1.3,
+				"steps": 160
+			},
+			"/features/c-reading-a-report.feature.ts": {
+				"seconds": 1.2,
+				"steps": 162
+			},
+			"/features/d-two-origins.feature.ts": {
+				"seconds": 1.1,
+				"steps": 163
+			}
 		},
-		"/features/b-reading-a-cached-run.feature.ts": {
-			"seconds": 1.3,
-			"steps": 160
-		},
-		"/features/c-reading-a-report.feature.ts": {
-			"seconds": 1.2,
-			"steps": 162
-		},
-		"/features/d-two-origins.feature.ts": {
-			"seconds": 1.1,
-			"steps": 163
-		}
-	},
-	"steps": 640,
-	"seconds": 4.7
+		"seconds": 4.7,
+		"steps": 640
+	}
 }

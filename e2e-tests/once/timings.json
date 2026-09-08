@@ -1,10 +1,12 @@
 {
-	"features": {
-		"/features/once.feature": {
-			"seconds": 0,
-			"steps": 1
-		}
-	},
-	"steps": 1,
-	"seconds": 0
+	"darwin-arm64-12x-apple-m4-pro": {
+		"features": {
+			"/features/once.feature": {
+				"seconds": 0,
+				"steps": 1
+			}
+		},
+		"steps": 1,
+		"seconds": 0
+	}
 }

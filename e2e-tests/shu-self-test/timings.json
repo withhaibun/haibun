@@ -1,14 +1,16 @@
 {
-	"features": {
-		"/features/shu-self-test.feature.ts": {
-			"seconds": 36.5,
-			"steps": 603
+	"darwin-arm64-12x-apple-m4-pro": {
+		"features": {
+			"/features/shu-self-test.feature.ts": {
+				"seconds": 36.5,
+				"steps": 603
+			},
+			"/features/z-post.feature.ts": {
+				"seconds": 0,
+				"steps": 8
+			}
 		},
-		"/features/z-post.feature.ts": {
-			"seconds": 0,
-			"steps": 8
-		}
-	},
-	"steps": 611,
-	"seconds": 36.5
+		"seconds": 36.5,
+		"steps": 611
+	}
 }
