@@ -51,7 +51,10 @@ const FEATURE_WITHIN_ROWS = 20;
 
 /** What a source is doing, as the one word a reader reads it by. It is the cell's own id as well, so what a reader
  *  waits for is the state itself rather than a cell that may still be about to change. */
-const stateOf = (source: RunSource): string => (source.unavailable ? "unavailable" : source.ended ? "ended" : source.loaded ? "loaded" : "loading");
+/** What a source is doing, one word a reader waits for: not yet read, cut off from the run, behind what the run has
+ *  announced, or read and current. Each is a fact of the reading, so none is inferred from what happens to arrive. */
+const stateOf = (source: RunSource): string =>
+	source.unavailable ? "unavailable" : source.ended ? "ended" : !source.loaded ? "loading" : source.disconnected ? "disconnected" : source.behind ? "behind" : "loaded";
 const spans = (ranges: Range[]): string => ranges.map((r) => `${r.from}..${r.to - 1}`).join(", ") || "none";
 const cachedRows = (ranges: Range[]): number => ranges.reduce((n, r) => n + (r.to - r.from), 0);
 

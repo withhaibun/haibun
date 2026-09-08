@@ -429,6 +429,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			},
 		},
 		getClusteredQuads: {
+			read: true,
 			gwta: "get clustered quads",
 			productsSchema: ClusteredQuadsSchema,
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
@@ -529,6 +530,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			},
 		},
 		density: {
+			read: true,
 			gwta: `run shape {query: ${DOMAIN_DENSITY_QUERY}}`,
 			fallback: true,
 			productsSchema: DensityResultSchema,
@@ -539,6 +541,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 
 		graphQuery: {
+			read: true,
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
 			fallback: true,
 			productsSchema: GraphQueryResultSchema,
