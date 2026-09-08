@@ -29,7 +29,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
-import { hydrateClientCache, viewsShown, runShape, runCounts, marksOf, detailRegion, ofExecution, readingExecution, RUN_DIVISIONS, runSpan, atLiveEdge, readRunAt, subscribeExecutionSwitch, subscribeRunSources, type TRunMark } from "./client-cache/index.js";
+import { hydrateClientCache, viewsShown, runShape, runCounts, runFailures, marksOf, detailRegion, ofExecution, readingExecution, RUN_DIVISIONS, runSpan, atLiveEdge, readRunAt, subscribeExecutionSwitch, subscribeRunSources, type TRunMark, type TRunRow } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -211,6 +211,7 @@ const main = async (): Promise<void> => {
 			<shu-actions-bar api-base="${apiBase}" testid-prefix="app-"></shu-actions-bar>
 			<shu-time-bar span="run"></shu-time-bar>
 			<shu-time-bar span="detail"></shu-time-bar>
+			<shu-run-failures></shu-run-failures>
 			<shu-column-strip>
 				<shu-column-pane label="" column-type="query" closable="false" active data-column-key="${INDEX_PANE_KEY}">
 					<div class="results-target" style="height:100%;overflow:hidden;"></div>
@@ -387,6 +388,15 @@ const main = async (): Promise<void> => {
 	const runGraph = () => ofExecution(pageRunGraph(), readingExecution());
 	let shape = runShape(runGraph());
 	eventsController.signal.addEventListener("abort", subscribeExecutionSwitch(() => (shape = runShape(runGraph()))));
+	// The failures of the run, beside the line that marks where they fall: the same reading schedule, since a failure
+	// that has just happened is a division that has just been marked. The list is the newest failures at the cap, so a
+	// run of any length costs one read.
+	const failures = () => appRoot.querySelector(SHU_TAG.RUN_FAILURES) as (HTMLElement & { rows: TRunRow[] }) | null;
+	const drawFailures = async (): Promise<void> => {
+		const list = failures();
+		if (!list) return;
+		list.rows = await runFailures(runGraph());
+	};
 	const drawRunShape = async (): Promise<void> => {
 		const bar = timeBar("run");
 		if (!bar) return;
@@ -465,6 +475,7 @@ const main = async (): Promise<void> => {
 		countDue = setTimeout(() => {
 			countDue = undefined;
 			void drawRunShape().catch((err: unknown) => failFastOrLog("the run's shape could not be read", err));
+			void drawFailures().catch((err: unknown) => failFastOrLog("the run's failures could not be read", err));
 		}, RUN_SHAPE_REDRAW_MS);
 	};
 	eventsController.signal.addEventListener(

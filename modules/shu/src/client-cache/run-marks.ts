@@ -10,19 +10,27 @@
 import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { bucketMarkerStyle, type TEventMarkerStyle } from "../event-marker.js";
 import type { TRunGraph } from "./run-graph.js";
 
-/** A division of the run and the mark it earns: where it falls, and what it looks like. */
+/** A division of the run and its mark: where the division falls, and what the mark looks like. */
 export type TRunMark = TEventMarkerStyle & { division: number };
 
-/** What a type of record is counted by, and the event shape that says how one of its groups turned out. A group's
- *  appearance is `eventMarkerStyle`'s to decide, so a division and a row can never disagree about a failure. */
-const COUNTED = [
-	{ label: SEQ_PATH_LABEL, timeField: SEQ_PATH_FIELD.generatedAtTime, groupBy: SEQ_PATH_FIELD.actionStatus, shapeOf: (status: string) => ({ kind: "lifecycle", type: "step", stage: "end", status }) },
-	{ label: LOG_MESSAGE_LABEL, timeField: LOG_MESSAGE_FIELD.generatedAtTime, groupBy: LOG_MESSAGE_FIELD.level, shapeOf: (level: string) => ({ kind: "log", level }) },
+/** What a type of record is counted by, the values that field takes, and the event shape that says how one of its
+ *  groups turned out. A group's appearance is `eventMarkerStyle`'s to decide, so a division and a row can never
+ *  disagree about a failure, and a reading that asks for the failures themselves asks these types for the values whose
+ *  mark is a fault. */
+export const COUNTED = [
+	{
+		label: SEQ_PATH_LABEL,
+		timeField: SEQ_PATH_FIELD.generatedAtTime,
+		groupBy: SEQ_PATH_FIELD.actionStatus,
+		values: Object.values(SEQ_PATH_STATUS) as readonly string[],
+		shapeOf: (status: string) => ({ kind: "lifecycle", type: "step", stage: "end", status }),
+	},
+	{ label: LOG_MESSAGE_LABEL, timeField: LOG_MESSAGE_FIELD.generatedAtTime, groupBy: LOG_MESSAGE_FIELD.level, values: HAIBUN_LOG_LEVELS as readonly string[], shapeOf: (level: string) => ({ kind: "log", level }) },
 ] as const;
 
 /** The levels at or above the one a reader asked for, which is what a level filter means. */
@@ -52,7 +60,7 @@ export function runCounts(graph: TRunGraph, { from, to, divisions, minLevel = "i
 	);
 }
 
-/** The mark each division earns from what it holds, over every type counted: one per division that holds anything, in
+/** The mark each division takes from what it holds, over every type counted: one per division that holds anything, in
  *  the order the divisions run. */
 export function marksOf(counts: Record<string, number>[][], divisions: number): TRunMark[] {
 	const marks: TRunMark[] = [];

@@ -97,6 +97,13 @@ export const SHU_TEST_IDS = {
 		ROOT: 'time-bar-',
 		MARK: 'time-bar-mark-',
 	},
+	/** The failures of the run being read, listed beside the bar: its root, how many there are, and a row named by the
+	 *  record it lists. A run that failed nothing has none of these. */
+	FAILURES: {
+		ROOT: 'run-failures',
+		COUNT: 'run-failures-count',
+		ROW: 'run-failure-',
+	},
 	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
 	VIEWS_PICKER: {
 		ROOT: 'views-picker',

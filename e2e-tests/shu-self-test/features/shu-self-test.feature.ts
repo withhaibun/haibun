@@ -34,6 +34,7 @@ const CACHE_LOG_DISCONNECTED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-disconnec
  *  division of each that a reader can press. */
 const RUN_SHAPE = `${SHU_TEST_IDS.TIME_BAR.ROOT}run`;
 const RUN_SHAPE_FIRST_MARK = "run-shape-first-mark";
+const FAILURES_FIRST_ROW = "failures-first-row";
 const DETAIL_SHAPE_FIRST_MARK = "detail-shape-first-mark";
 /** The globs that cover everything this page reads from its server: every remote call and the event stream. */
 const RPC_GLOB = "**/rpc/**";
@@ -319,6 +320,19 @@ export const features: TKirejiExport = {
 		"Moving the cursor is not enough on its own. A window holds a few thousand records, so a division far from the newest records is a division no window holds, and a reader pressing it would be shown the records they had left. The cursor names the moment the run is read around, so pressing a division reads the run there. The client cache says which it is: the newest records are followed until a reader moves, and after that the run is read around the moment they moved to.",
 		`save text from ${IDS.CLIENT_CACHE.READING_AT} to readingAfterPress`,
 		`matches readingAfterPress with "the run is read around *"`,
+
+		scenario({ scenario: "What the run failed at is listed beside the line that marks where it falls" }),
+
+		"A mark says which division of the run holds a failure, which is where to look; the list beside it says which failures those are. It is the ordinary windowed query with a filter, capped, so a run of any length costs one read to list. A row names what failed and why, and pressing it moves the shared cursor to that moment, so every open view scrubs to the failure a reader chose.",
+		setAs({ what: FAILURES_FIRST_ROW, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.FAILURES.ROW}'] >> nth=0"` }),
+		setAs({ what: IDS.FAILURES.ROOT, domain: "page-test-id", value: `"${IDS.FAILURES.ROOT}"` }),
+		setAs({ what: IDS.FAILURES.COUNT, domain: "page-test-id", value: `"${IDS.FAILURES.COUNT}"` }),
+		waitFor({ target: IDS.FAILURES.ROOT }),
+		`save text from ${IDS.FAILURES.COUNT} to failedCount`,
+		'matches failedCount with "* failed"',
+		click({ target: FAILURES_FIRST_ROW }),
+		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAtFailure`,
+		'not variable cursorAtFailure is "live edge"',
 
 		scenario({ scenario: "A page with no layout of its own starts on the views the run showed" }),
 
