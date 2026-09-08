@@ -361,5 +361,7 @@ export const features: TKirejiExport = {
 		setAs({ what: VIEWS_PICKER_MONITOR, domain: "page-test-id", value: `"${VIEWS_PICKER_MONITOR}"` }),
 		waitFor({ target: VIEWS_PICKER }),
 		waitFor({ target: VIEWS_PICKER_MONITOR }),
+
+		"Each row names one element of this page. The manual the document builds records what a step showed rather than mounting the view again, so the name a row carries belongs to that row alone. What pressing a row does is a rule of the picker, stated where the picker is.",
 	],
 };

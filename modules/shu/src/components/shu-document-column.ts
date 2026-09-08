@@ -15,7 +15,7 @@ import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { SHU_EVENT } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
@@ -34,8 +34,7 @@ import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { eventMarkerStyle } from "../event-marker.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
-import { getRels, getUiByType } from "../rels-cache.js";
-import { resolveUi } from "../resolve-ui.js";
+import { getRels } from "../rels-cache.js";
 import { artifactUrl } from "../artifact-url.js";
 import { refLinksPlugin } from "../markdown-refs.js";
 
@@ -72,8 +71,8 @@ const SANITIZE_OPTS = {
 	ADD_TAGS: ["div", "shu-ref"],
 };
 
-/** One row of the document: an event of the run at its index, the blocks it produced, and the products its step made. */
-export type TDocRow = { index: number; event: TEventRecord; blocks: TDocBlock[]; products?: Record<string, unknown> };
+/** One row of the document: an event of the run at its index, and the blocks it produced. */
+export type TDocRow = { index: number; event: TEventRecord; blocks: TDocBlock[] };
 /** The rows of one page of the run, with what they were built from: how many events of the page were cached, and the first
  *  and last of them, so a page that grew (the live edge) or changed (another run's, fetched again) is built again and an
  *  unchanged one never is, distinguished in constant time. */
@@ -96,7 +95,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#pages = new Map<number, TPageRows>();
 	#windowRows: Array<{ index: number; event: TEventRecord }> = []; // the rows of the window a reader is looking at, read once per update
 	#marks: TScrollMarker[] = []; // the rail's marks, derived when the window changes rather than when the rail draws
-	#productViews = new WeakMap<Element, string>();
 	#currentIdx = -1;
 	#cursorMark = -1;
 
@@ -232,8 +230,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** One page of events as rows: the document markdown of those events (headings, step lines, prose, artifact holders),
 	 *  rendered, sanitized, split into blocks, finalized (artifacts filled, reader classes, thumbnail strips stamped with
-	 *  this page's name), and each block given to the event it came from; the products of each step beside it. Raw times
-	 *  are from the run's start, so rows of every page share one epoch. */
+	 *  this page's name), and each block given to the event it came from. Raw times are from the run's start, so rows of
+	 *  every page share one epoch. */
 	#buildRows(p: number, start: number, events: TEventRecord[]): TDocRow[] {
 		const typed = events as unknown as THaibunEvent[];
 		const { artifactsByStep } = buildArtifactIndex(typed);
@@ -250,9 +248,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			`${p}:`,
 		);
 		const per = blocksByEvent(events, blocks);
-		const rows = events.map((event, i) => ({ index: start + i, event, blocks: per[i] })) as TDocRow[];
-		const shown = this.shownByStepId(rows);
-		return rows.map((row) => ({ ...row, products: shown.get(String(row.event.id ?? "")) }));
+		return events.map((event, i) => ({ index: start + i, event, blocks: per[i] }));
 	}
 
 	/**
@@ -396,71 +392,21 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		`;
 	}
 
-	/** One event's row: its blocks as rendered, its products embedded; a skeleton while its page is not cached; an event that
-	 *  produced nothing at this level (a step's end, a trace) is an empty row, so the run's index space is the column's. */
+	/** One event's row: its blocks as rendered; a skeleton while its page is not cached; an event that produced nothing at
+	 *  this level (a step's end, a trace) is an empty row, so the run's index space is the column's. */
 	#renderRow = (i: number, row: unknown): TemplateResult => {
 		const r = row as TDocRow | undefined;
 		if (!r) return html`<div class="doc-block doc-skeleton" aria-hidden="true"></div>`;
 		const id = String(r.event.id ?? "");
-		if (r.blocks.length === 0 && !r.products) return html`<div class="doc-block doc-empty" data-id=${id}></div>`;
+		if (r.blocks.length === 0) return html`<div class="doc-block doc-empty" data-id=${id}></div>`;
 		const ts = Number(r.event.timestamp) || 0;
 		const t = rowTimeClass(ts, i, this.timeCursor, this.#currentIdx);
 		const cls = `doc-block${t === "future" ? ` ${TIME_SYNC_CLASS.FUTURE}` : t === "current" ? ` ${TIME_SYNC_CLASS.CURRENT}` : ""}`;
 		const rawTime = ts - this.#first;
 		return html`<div class=${cls} data-id=${id} @click=${(e: Event) => this.onBlockClick(e, rawTime)}>
-			${unsafeHTML(r.blocks.map((b) => b.html).join(""))}${r.products ? this.#productViewFor(r.products, rawTime) : ""}
+			${unsafeHTML(r.blocks.map((b) => b.html).join(""))}
 		</div>`;
 	};
-
-	/** A product a step produced, embedded in its block. The ref opens it once per (element, product) so the virtualizer
-	 *  recycling this row for another block does not re-open the previous product. */
-	#productViewFor(products: Record<string, unknown>, rawTime: number): TemplateResult {
-		const snapshotTime = this.#first + rawTime;
-		return html`<shu-artifact-frame caption=${String(products._summary ?? products._type ?? "")}
-			><shu-product-view style="max-height:400px;overflow:auto" ${ref((el) => this.#openProductOnce(el as HTMLElement | undefined, products, snapshotTime))}></shu-product-view
-		></shu-artifact-frame>`;
-	}
-
-	#openProductOnce(el: HTMLElement | undefined, products: Record<string, unknown>, snapshotTime: number): void {
-		if (!el) return;
-		const key = `${String(products._component ?? products._type ?? "")}:${snapshotTime}`;
-		if (this.#productViews.get(el) === key) return;
-		this.#productViews.set(el, key);
-		if (this.showControls) el.setAttribute("data-show-controls", "");
-		(el as HTMLElement & { openProducts?: (p: Record<string, unknown>, t?: number) => void }).openProducts?.(products, snapshotTime);
-	}
-
-	/** Refresh embedded product views' controls state (the pane gear). */
-	override refresh(): void {
-		for (const v of Array.from(this.shadowRoot?.querySelectorAll("shu-artifact-frame shu-product-view") ?? []) as (HTMLElement & { refresh?: () => void })[]) {
-			if (this.showControls) v.setAttribute("data-show-controls", "");
-			else v.removeAttribute("data-show-controls");
-			v.refresh?.();
-		}
-	}
-
-	/** What each row showed, as a product a view renders: a step's record names the view, and how that view looks is the
-	 *  site's declaration of it, read the way every other product is resolved. Only steps after the document itself was
-	 *  shown, so the document does not embed itself. */
-	private shownByStepId(rows: TDocRow[]): Map<string, Record<string, unknown>> {
-		const showedOf = (row: TDocRow): string => String((row.event as Record<string, unknown>).showed ?? "");
-		const productOf = (showed: string): Record<string, unknown> => {
-			const ui = getUiByType(showed);
-			return { _type: showed, ...(typeof ui?.component === "string" ? { _component: ui.component } : {}), _summary: typeof ui?.summary === "string" ? ui.summary : showed };
-		};
-		const map = new Map<string, Record<string, unknown>>();
-		let documentShownAt = 0;
-		for (const row of rows) if (showedOf(row) && resolveUi(productOf(showedOf(row))).component === SHU_TAG.DOCUMENT_COLUMN) documentShownAt = Number(row.event.timestamp) || 0;
-		for (const row of rows) {
-			const showed = showedOf(row);
-			if (!showed || (documentShownAt && (Number(row.event.timestamp) || 0) < documentShownAt)) continue;
-			const product = productOf(showed);
-			const { component, pinnedOnly } = resolveUi(product);
-			if (pinnedOnly || component === SHU_TAG.DOCUMENT_COLUMN) continue;
-			map.set(String(row.event.id ?? ""), product);
-		}
-		return map;
-	}
 
 	private renderArtifact(artifact: TArtifactEvent): string {
 		const type = artifact.artifactType;

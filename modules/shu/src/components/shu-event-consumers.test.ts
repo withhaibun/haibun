@@ -145,7 +145,7 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(headings.some((h) => h.includes("Something happens"))).toBe(true);
 	});
 
-	it("embeds the view a step showed, which the site's declaration of that view says how to render", async () => {
+	it("records the step that showed a view, and opens no copy of that view in the manual", async () => {
 		resetGraphRunSources();
 		await aRun([stepRecord(1), stepRecord(2, { stepText: "show the graph", called: "TestStepper.showGraph", showed: "test-view" })]);
 		setSiteMetadata({
@@ -155,9 +155,8 @@ describe("the views of a run, over the records it wrote", () => {
 			ui: { "test-view": { component: "test-view-element", summary: "the test view" } },
 		} as unknown as SiteMetadata);
 		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
-		const frame = doc.shadowRoot?.querySelector("shu-artifact-frame");
-		expect(frame, "the step that showed a view has that view under it").not.toBeNull();
-		expect(frame?.getAttribute("caption")).toBe("the test view");
+		expect(doc.shadowRoot?.textContent).toContain("show the graph");
+		expect(doc.shadowRoot?.querySelector("shu-product-view"), "a manual records what a step showed; what that view looked like is the run's own screenshot").toBeNull();
 	});
 
 	it("shows no rows when the run has recorded nothing, rather than a false one", async () => {
