@@ -10,7 +10,13 @@
  * belongs to the feature tests.
  */
 import { describe, expect, it } from "vitest";
-import InstanceStepper, { RunTail, runEnvironment } from "./instance-stepper.js";
+import InstanceStepper, { RunTail, runEnvironment, verifiedRun } from "./instance-stepper.js";
+import { execFileSync } from "node:child_process";
+import nodeFS from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
+import { recordOutcome, verificationOf } from "./verified.js";
 import { emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
@@ -163,6 +169,45 @@ describe("restarting an instance", () => {
 		})) as TResult;
 		expect(result.ok).toBe(false);
 		expect(result.errorMessage).toMatch(/no config\.json in .*nonexistent-instance-dir/);
+	});
+});
+
+describe("whether a run would answer what an earlier run answered", () => {
+	/** A group of features in a repository of its own, so its state is its own files. */
+	const aGroup = () => {
+		const dir = nodeFS.realpathSync(nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-verified-run-")));
+		execFileSync("git", ["init", "-q"], { cwd: dir });
+		const config = path.join(dir, "config.json");
+		nodeFS.writeFileSync(config, JSON.stringify({ steppers: [] }));
+		nodeFS.mkdirSync(path.join(dir, "features"));
+		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a\n");
+		return { dir, config };
+	};
+
+	it("starts a run of features that have not run against their present state, and refuses one that has, however it went", () => {
+		const { dir, config } = aGroup();
+		const env = runEnvironment({}, 0, false);
+		expect(verifiedRun(config, dir, "", dir, env)).toBeUndefined();
+		// What the child would record, under the conditions the child computes from the same environment.
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env);
+		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
+		recordOutcome(v(), "failed", 1);
+		expect(verifiedRun(config, dir, "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
+		recordOutcome(v(), "passed", 1);
+		expect(verifiedRun(config, dir, "", dir, env), "the same features, the same state, the same conditions").toBe("passed");
+		expect(verifiedRun(config, dir, "a", dir, env), "a run narrowed to some of them is another run").toBeUndefined();
+		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
+		expect(verifiedRun(config, dir, "", dir, env), "a change to what they depend on is a state no run has run against").toBeUndefined();
+	});
+
+	it("reads the .env of the directory the run is made from, as the run does, so a run given options there is told apart", () => {
+		const { dir, config } = aGroup();
+		const env = runEnvironment({}, 0, false);
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env);
+		recordOutcome(verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never, "passed", 1);
+		expect(verifiedRun(config, dir, "", dir, env)).toBe("passed");
+		nodeFS.writeFileSync(path.join(dir, ".env"), "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
+		expect(verifiedRun(config, dir, "", dir, env), "the run would read that file, so its conditions are other than what was recorded").toBeUndefined();
 	});
 });
 

@@ -125,6 +125,11 @@ describe("processArgs", () => {
 		const { params } = lib.processArgs(s("foo bar"));
 		expect(params).toEqual(["foo", "bar"]);
 	});
+	it("takes --once, which is not a base", () => {
+		const { once, params } = lib.processArgs(s("--once tests"));
+		expect(once).toBe(true);
+		expect(params).toEqual(["tests"]);
+	});
 	it("gets args and parameters", () => {
 		const { showHelp, configLoc, params } = lib.processArgs(s("--config boo --help foo bar"));
 		expect(params).toEqual(["foo", "bar"]);

@@ -13,6 +13,8 @@
 		"logic-stepper",
 		"activities-stepper",
 		"@haibun/core/steps/authority-stepper",
+		"@haibun/cli/instance-stepper",
+		"@haibun/cli/test-runner-stepper",
 		"haibun",
 		"./build-local/test-server",
 		"@haibun/web-server-hono/mcp-stepper"

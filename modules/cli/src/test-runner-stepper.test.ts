@@ -1,6 +1,7 @@
 /**
  * What the test-runner agent will NOT do. The limits are the part that has to hold by construction rather than by
- * the model behaving: one run in flight, no re-run of unchanged features, and a spent budget that says so.
+ * the model behaving: one run in flight, no run of features that have passed against their present state, and a
+ * spent budget that says so.
  *
  * The store is in memory; what is asserted here is the agent's own bookkeeping and the record it writes for a run,
  * not
@@ -18,6 +19,10 @@ import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import nodeFS from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { VERIFIED_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
 
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; endpoint: string } };
 
@@ -128,14 +133,11 @@ describe("the test-runner agent's limits", () => {
 		expect(h.stepper.spend().runs).toBe(1);
 	});
 
-	it("refuses to re-run unchanged features, and allows it once something has been applied", async () => {
-		await h.run("tests", "polymorphic");
-		await h.stepper.finishRun(1);
-		const again = await h.run("tests", "polymorphic");
-		expect(again.ok).toBe(false);
-		expect(again.errorMessage).toMatch(/nothing has been applied since/);
-		h.stepper.noteApplied("polymorphic", "tests");
-		expect((await h.run("tests", "polymorphic")).ok, "after a change, the same features answer something new").toBe(true);
+	it("forgets how a base's features last ran when a change to all of them is noted, so they run again whatever their state", () => {
+		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
+		nodeFS.writeFileSync(path.join(dir, VERIFIED_FILE), "{}\n");
+		h.stepper.noteApplied("", dir);
+		expect(nodeFS.existsSync(path.join(dir, VERIFIED_FILE)), "the record is gone, so the supervisor has nothing to refuse a run on").toBe(false);
 	});
 
 	it("stops at its run budget with a reason, rather than running on", async () => {

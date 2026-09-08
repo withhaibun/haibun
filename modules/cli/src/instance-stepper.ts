@@ -23,7 +23,8 @@ import { fork, type ChildProcess } from "child_process";
 import { createRequire } from "module";
 import { superviseChild, terminate } from "@haibun/core/lib/owned-children.js";
 import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
+import { parseEnv } from "node:util";
 import path from "path";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from "@haibun/core/lib/astepper.js";
@@ -35,6 +36,8 @@ import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { BASE_PREFIX, NDJSON, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
 import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
 import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
+import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
+import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
 
 /** The environment names of the two things a process holds for itself, which core owns: whether it stays up, and
  *  which host it is. Everything else per-process is declared by the option that owns it (see `perProcessOptionNames`). */
@@ -165,6 +168,25 @@ export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, stand
 	// formatted log: what failed, where, and how the whole run ended are on that stream and nowhere else.
 	env[NDJSON_ENV] = "true";
 	return env;
+}
+
+/** The environment a run started in a directory has: what it was given, and what the directory's own .env file adds
+ *  where the run has nothing of that name already, which is how a run reads that file itself. */
+function environmentIn(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+	const dotenv = path.join(cwd, ".env");
+	if (!existsSync(dotenv)) return env;
+	return { ...parseEnv(readFileSync(dotenv, "utf-8")), ...env };
+}
+
+/** How the features a run would carry out last ran against their present state under the conditions the run would be
+ *  given, computed as the run would compute them: from the directory it runs in, with the environment it reads there.
+ *  Undefined where no run has, or where the state cannot be read, in which case the run runs. */
+export function verifiedRun(config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TOutcome | undefined {
+	const specl = getConfigFromBase([dir]);
+	if (!specl) return undefined;
+	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(cwd, env));
+	const v = verificationOf({ configPath: config, specl, bases: [dir], cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
+	return v === undefined ? undefined : outcomeAgainst(v)?.outcome;
 }
 
 /** A supervised run: the child, what it was asked to run, and its output so far. `ended` is null while it runs. */
@@ -315,10 +337,15 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// nothing else; it keeps whatever port its own features declare, which features that assert a default need,
 		// and it ends when they end.
 		const env = runEnvironment(process.env, port, standing, hostId, perProcessOptionNames(this.steppers));
+		// A run that would answer what an earlier run answered is not started. The child records what it passed
+		// against under the conditions it is run with, so those same conditions, computed from the environment it
+		// would be given, are what a pass is looked for under.
 		// Where a run is started from decides what its relative paths mean, so the caller says it rather than inheriting
 		// this process's directory by accident.
 		const cwd = from ? path.resolve(from) : process.cwd();
 		if (!existsSync(cwd)) return actionNotOK(`start run: no directory ${cwd} to run from`);
+		const ran = verifiedRun(config, dir, filter, cwd, env);
+		if (ran) return actionNotOK(`start run: ${filter || "every feature"} in ${dir} ${ran} against its present state, so a run would answer what that run answered; change what it depends on, or note that it has changed, to run it again`);
 		const child = fork(cliEntry, ["-c", config, dir, filter], { cwd, env, silent: true, execArgv: [] });
 		superviseChild(child); // a standing run may outlive its FEATURE, never its owner process
 		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended: null, waiters: [] };
