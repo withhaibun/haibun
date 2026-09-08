@@ -60,6 +60,16 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
  *  hyphen. A feature that lists its own scenarios links to them this way, which is the only handle an author has
  *  before the run exists — the block ids beside it are assigned while running. */
 /** The test id of a heading's block: this prefix and the heading's anchor. */
+/**
+ * Text as text, wherever a run's own words are placed in markup. What a run says is arbitrary: a step's text quotes
+ * markup on purpose, and a failure's report quotes the elements it looked at. Placed unescaped, those words become
+ * elements: one such report put a list item carrying a test id, and three canvases the rendering library then sized,
+ * into the document, where the next run found them and pressed one.
+ */
+export function esc(s: string): string {
+	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export const DOC_HEADING_TEST_ID = "doc-heading-";
 
 export function headingAnchor(title: string): string {
@@ -182,7 +192,7 @@ export function generateDocumentMarkdown(
 					visibleIds.add(nid);
 					const claimed = claimWithHolder(nid, nid);
 
-					md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" data-depth="${depth}" data-nested="${isNested}" data-instigator="${isInstigator}" data-show-symbol="${showSymbol}" data-id="${nid}" data-ids="${claimed.ids}" data-time="${time}" data-raw-time="${rawTime}" data-action="${actionName}" data-has-artifacts="${!!claimed.ids}">${step.in}</div>\n`;
+					md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" data-depth="${depth}" data-nested="${isNested}" data-instigator="${isInstigator}" data-show-symbol="${showSymbol}" data-id="${nid}" data-ids="${claimed.ids}" data-time="${time}" data-raw-time="${rawTime}" data-action="${esc(actionName)}" data-has-artifacts="${!!claimed.ids}">${esc(step.in)}</div>\n`;
 					md += claimed.holder;
 					lastType = "technical";
 					previousRenderedDepth = depth;
@@ -206,7 +216,7 @@ export function generateDocumentMarkdown(
 			const time = (rawTime / 1000).toFixed(3);
 			const nid = normalizeId(logEv.id);
 			visibleIds.add(nid);
-			md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" data-id="${nid}" data-raw-time="${rawTime}" data-time="${time}">${logEv.message}</div>\n`;
+			md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" data-id="${nid}" data-raw-time="${rawTime}" data-time="${time}">${esc(logEv.message)}</div>\n`;
 			lastType = "technical";
 			continue;
 		}

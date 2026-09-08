@@ -1,6 +1,6 @@
-export function esc(s: string): string {
-	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+import { esc } from "@haibun/core/lib/document-content.js";
+
+export { esc };
 
 /** Constrain a number to [min, max]. */
 export const clamp = (x: number, min: number, max: number): number => Math.min(max, Math.max(min, x));
