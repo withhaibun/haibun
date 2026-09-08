@@ -109,6 +109,13 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	let at: number | undefined = runReadingAt();
 	let reading: Promise<void> | null = null;
 	let due: ReturnType<typeof setTimeout> | null = null;
+	// How current the reading is, as facts of the reading rather than inferences from what arrives: each announcement
+	// this source shows (or the stream coming back, which says the same) is numbered, a read that begins has read for
+	// every announcement numbered so far once it finishes, and the stream is down or not. Numbers rather than clocks,
+	// so an announcement and a read in the same instant are still ordered. A view waits on these, never on time.
+	let announced = 0;
+	let settled = 0;
+	let disconnected = false;
 	const subs = new Set<() => void>();
 	const notify = (): void => {
 		for (const fn of subs) fn();
@@ -143,6 +150,13 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	 * window is read around where the reader is.
 	 */
 	const read = async (): Promise<void> => {
+		const readFor = announced;
+		// A read that has finished has read for every announcement made before it began, whether or not it found
+		// anything new; one begun before an announcement leaves that to the read the announcement scheduled.
+		const done = (): void => {
+			settled = Math.max(settled, readFor);
+			notify();
+		};
 		const execution = currentExecution();
 		const of = { size, minLevel: level, ...(execution === undefined ? {} : { execution }) };
 		const following = at === undefined && window.length > 0;
@@ -152,7 +166,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 			// window is what it held and what has changed, in the order the run put them.
 			const byName = new Map(window.map((row) => [row.id, row]));
 			const changed = answer.rows.filter((row) => byName.get(row.id) === undefined || keyOf(byName.get(row.id) as TRunRow) !== keyOf(row));
-			if (changed.length === 0) return;
+			if (changed.length === 0) return done();
 			for (const row of changed) byName.set(row.id, row);
 			window = [...byName.values()].sort(inRunOrder).slice(-size);
 		} else window = answer.rows;
@@ -170,7 +184,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		extent = { total: rows.length, ...(from === undefined ? {} : { first: from }), ...(to === undefined ? {} : { last: to }) };
 		loaded = true;
 		noteRunSpan(from, to);
-		notify();
+		done();
 		// Last of all: saying which run this window is of can be what says the run being read has changed, and what
 		// reads a run again on hearing that is this same source. A read that announced before it had finished would be
 		// answering with the window it was told to leave.
@@ -190,13 +204,25 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 			read().catch((err: unknown) => failFastOrLog("the run could not be read again", err));
 		}, reReadAfterMs);
 	};
+	const announce = (): void => {
+		announced += 1;
+		notify();
+		readSoon();
+	};
 	const unsubscribe = subscribeBatchedEvents({
 		onBatch: (events) => {
-			if (events.some((e) => shows.has((e as { level?: THaibunLogLevel }).level ?? "info"))) readSoon();
+			if (events.some((e) => shows.has((e as { level?: THaibunLogLevel }).level ?? "info"))) announce();
 		},
 		// What the run recorded while the stream was down arrived in no batch: the stream coming back is the same
-		// reason to read again, on the same schedule.
-		onReconnect: readSoon,
+		// reason to read again, on the same schedule, and until that read has finished the reading is behind.
+		onReconnect: () => {
+			disconnected = false;
+			announce();
+		},
+		onDisconnect: () => {
+			disconnected = true;
+			notify();
+		},
 	});
 
 	// Another execution is another window over the same records, so the source reads again rather than being remade.
@@ -218,6 +244,12 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		},
 		get ended() {
 			return false;
+		},
+		get disconnected() {
+			return disconnected;
+		},
+		get behind() {
+			return settled < announced;
 		},
 		extent: () => extent,
 		cachedRanges: (): Range[] => (rows.length ? [{ from: 0, to: rows.length }] : []),

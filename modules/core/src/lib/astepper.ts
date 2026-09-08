@@ -128,6 +128,11 @@ type TStepperStepBase = {
 	precludes?: string[];
 	unique?: boolean;
 	fallback?: boolean;
+	/** A step that answers a question of the run's records and changes nothing. Invoked from outside the run, through
+	 *  a call into a running instance, it is answered and not recorded: no step record, no announcement, no usage
+	 *  count, no result kept. Reading a run is not an act of the run, and an instance read for a year is not made to
+	 *  write a year of records of being read. From within a feature it is a step like any other. */
+	read?: boolean;
 	exposeMCP?: boolean;
 	/** Optional capability label required for external dispatch. */
 	capability?: string;

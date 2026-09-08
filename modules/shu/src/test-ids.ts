@@ -97,6 +97,11 @@ export const SHU_TEST_IDS = {
 		ROOT: "time-bar-",
 		MARK: "time-bar-mark-",
 	},
+	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
+	VIEWS_PICKER: {
+		ROOT: "views-picker",
+		ROW: "views-picker-row-",
+	},
 	PLAYBACK: {
 		PLAY: "playback-play",
 		SPEED: "playback-speed",
@@ -130,7 +135,10 @@ export const SHU_TEST_IDS = {
 		REGISTRY: "client-cache-registry",
 		LIVE: "client-cache-live-",
 		/** One source's row: this prefix and its level, then `-events`, `-first`, `-newest`, `-page`, `-cached`,
-		 *  `-cached-rows`, `-cursor`, or what it is doing (`-loading`, `-loaded`, `-ended`, `-unavailable`). */
+		 *  `-cached-rows`, `-cursor`, or what it is doing: `-loading` before its first read, `-disconnected` while the
+		 *  stream is down, `-behind` from an announcement until a read begun after it has finished, `-loaded` when it has
+		 *  read and nothing announced is unread, `-ended`, `-unavailable`. A feature waits for the state, never for a
+		 *  length of time. */
 		SOURCE: "client-cache-source-",
 		/** One held execution's row: this prefix and its id, then `-features`, `-reading`, `-began`, `-newest` or `-read`. */
 		RUN: "client-cache-run-",

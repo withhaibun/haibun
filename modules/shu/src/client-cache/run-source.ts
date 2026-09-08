@@ -30,6 +30,11 @@ export interface RunSource extends WindowedSource<TEventRecord> {
 	readonly unavailable: string | null;
 	/** Whether the run is finished. */
 	readonly ended: boolean;
+	/** Whether the stream is down, so what the run has done since the last read is not known to this page. */
+	readonly disconnected: boolean;
+	/** Whether the run has announced something this reading has not yet read for: true from the announcement, or from
+	 *  the stream coming back, until a read begun after it has finished. */
+	readonly behind: boolean;
 	/** Learn the extent if not yet known: the first thing a view awaits. */
 	ready(): Promise<void>;
 	/** Read the run around a moment, or follow its newest records where none is named. */

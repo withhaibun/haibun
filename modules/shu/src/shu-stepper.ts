@@ -403,6 +403,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			},
 		},
 		getSelectValues: {
+			read: true,
 			gwta: "get select values for {label: string}",
 			productsSchema: ShuSelectValuesSchema,
 			action: async ({ label }: { label: string }) => {

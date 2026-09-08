@@ -28,9 +28,8 @@ const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SP
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
-/** The client cache's count of what the live stream has delivered at the run's own level since the view opened: what
- *  says the stream is announcing again, as against a page that is still deaf. */
-const CACHE_LIVE_INFO = `${SHU_TEST_IDS.CLIENT_CACHE.LIVE}info`;
+/** The same source cut off from the run: it has read, and the stream is down, so it cannot say it is current. */
+const CACHE_LOG_DISCONNECTED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-disconnected`;
 /** The line the whole run's shape is read from, the line of the region around where a reader is, and the earliest
  *  division of each that a reader can press. */
 const RUN_SHAPE = `${SHU_TEST_IDS.TIME_BAR.ROOT}run`;
@@ -41,6 +40,9 @@ const RPC_GLOB = "**/rpc/**";
 const STREAM_GLOB = "**/sse*";
 /** Every open column carries the same controls, so the log's own column names which one a click is for. */
 const MONITOR_PANE = `shu-column-pane[column-type="${SHU_TAG.MONITOR_COLUMN}"]`;
+/** The list of views the deployment declares, and the row in it that opens the run's own log. */
+const VIEWS_PICKER = SHU_TEST_IDS.VIEWS_PICKER.ROOT;
+const VIEWS_PICKER_MONITOR = `${SHU_TEST_IDS.VIEWS_PICKER.ROW}${SHU_TAG.MONITOR_COLUMN}`;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 // Step-caller test-ids are generated per-invocation by createStepUI's helpers
 // (method + callIndex + param), so there's nothing to pre-register at file scope —
@@ -243,7 +245,8 @@ export const features: TKirejiExport = {
 		'variable offlineServer is "has not responded to this page"',
 		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to offlineRegistry`,
 		'matches offlineRegistry with "from the device*"',
-		waitFor({ target: CACHE_LOG_LOADED }),
+		setAs({ what: CACHE_LOG_DISCONNECTED, domain: "page-test-id", value: `"${CACHE_LOG_DISCONNECTED}"` }),
+		waitFor({ target: CACHE_LOG_DISCONNECTED }),
 		`save text from ${CACHE_LOG_CACHED} to offlineCached`,
 		'matches offlineCached with "0..*"',
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
@@ -263,11 +266,11 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A page with no stream reads the run and hears nothing" }),
 
-		"The stream announces; the run is read from records. A page that reloads with the stream blocked reads the run it holds and is told nothing after that, which is a reader whose connection dropped rather than one whose server is gone: every other call still works. This page has been without its server altogether and holds the whole run on the device, which is the page that once stopped catching up. What the reading holds is what it read on the way in, and it stops there.",
+		"The stream announces; the run is read from records. A page that reloads with the stream blocked reads the run it holds and is told nothing after that, which is a reader whose connection dropped rather than one whose server is gone: every other call still works. This page has been without its server altogether and holds the whole run on the device, which is the page that once stopped catching up. What the reading holds is what it read on the way in, and it stops there. The reading says so itself: a source cut off from the stream cannot claim to be current, and the client cache shows it as cut off rather than as read.",
 		`requests matching "${STREAM_GLOB}" are "blocked"`,
 		reloadPage({}),
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		waitFor({ target: CACHE_LOG_LOADED }),
+		waitFor({ target: CACHE_LOG_DISCONNECTED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsUnheard`,
 
 		"The run goes on recording while the page hears none of it: these steps are the records the reading has to catch up on.",
@@ -278,11 +281,9 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The stream coming back is what a view catches up on" }),
 
-		"Allowing the stream is the only thing that happens: the page is not reloaded and nothing is clicked. What a stream that comes back delivers first is what the run recorded while nobody was listening, which arrives as any other announcement does, so the reading is no longer what it held while it was deaf. Catching up is not a second path beside following: it is the same one. The stream being back is waited for rather than assumed from a length of time, since a page reconnects on its own schedule and reading again follows the announcement rather than the clock.",
+		"Allowing the stream is the only thing that happens: the page is not reloaded and nothing is clicked. The stream coming back is itself the announcement that there is something to read again for, so the reading is behind from that moment until a read begun after it has finished, and current after that. Catching up is not a second path beside following: it is the same one. A feature waits for the reading to say it is current rather than for a length of time, since a page reconnects on its own schedule and reads on its own, and what it then holds is what the run recorded while nobody was listening.",
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
-		setAs({ what: CACHE_LIVE_INFO, domain: "page-test-id", value: `"${CACHE_LIVE_INFO}"` }),
-		waitFor({ target: CACHE_LIVE_INFO }),
-		"pause for 6s",
+		waitFor({ target: CACHE_LOG_LOADED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
 		"not variable eventsCaughtUp is eventsUnheard",
 
@@ -331,5 +332,18 @@ export const features: TKirejiExport = {
 
 		"A view no step of this run showed is not among them. The thread column is one this deployment declares and this run never opened, so an address that named it would be naming something other than what the records say.",
 		`not matches freshUri with "*${SHU_TAG.THREAD_COLUMN}*"`,
+
+		scenario({ scenario: "The views on offer are read from what the deployment declares" }),
+
+		"A type that names a component to show itself is a view, so what a reader can open is read from the declarations rather than from a list kept beside them. Asking for the views shows that list, each row named by the view it opens, and pressing a row opens that view through the same request a step makes when it shows one. The address then names it, since the address is the view state.",
+		"show views",
+		setAs({ what: VIEWS_PICKER, domain: "page-test-id", value: `"${VIEWS_PICKER}"` }),
+		setAs({ what: VIEWS_PICKER_MONITOR, domain: "page-test-id", value: `"${VIEWS_PICKER_MONITOR}"` }),
+		setAs({ what: MONITOR_PANE, domain: "page-locator", value: `"${MONITOR_PANE}"` }),
+		waitFor({ target: VIEWS_PICKER }),
+		click({ target: VIEWS_PICKER_MONITOR }),
+		waitFor({ target: MONITOR_PANE }),
+		"save URI to pickedUri",
+		`matches pickedUri with "*col=${SHU_TAG.MONITOR_COLUMN}*"`,
 	],
 };

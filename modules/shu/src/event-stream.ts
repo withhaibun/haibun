@@ -34,6 +34,12 @@ export interface EventStream {
 	 *  view following the run reads again on this through the path it already reads on. Returns an unsubscribe. */
 	reconnected(fn: () => void): () => void;
 
+	/** Be told the stream has broken: from then until it comes back, a view following the run cannot say its reading
+	 *  is current, since what the run does reaches it no more. A stream already down says so at once, as `subscribe`
+	 *  replays what it holds, so a view that starts listening after the break is not left believing it is current.
+	 *  Returns an unsubscribe. */
+	disconnected(fn: () => void): () => void;
+
 	/** Total events ever recorded (including ones the replay buffer has since dropped). Used by the timeline to label the slider knob `current / count / total`. */
 	totalRecorded(): number;
 
@@ -61,6 +67,10 @@ export class LiveEventStream implements EventStream {
 		return this.ensure().reconnected(fn);
 	}
 
+	disconnected(fn: () => void): () => void {
+		return this.ensure().disconnected(fn);
+	}
+
 	totalRecorded(): number {
 		return this.subscriber?.getReplayBuffer().totalRecorded ?? 0;
 	}
@@ -86,6 +96,8 @@ export class SerializedEventStream implements EventStream {
 	private readonly history: TEvent[] = [];
 	private readonly subscribers = new Set<{ handler: TEventHandler; filter?: TEventFilter }>();
 	private readonly reconnectListeners = new Set<() => void>();
+	private readonly disconnectListeners = new Set<() => void>();
+	private broken = false;
 	private recorded = 0;
 
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void {
@@ -108,9 +120,22 @@ export class SerializedEventStream implements EventStream {
 		return () => this.reconnectListeners.delete(fn);
 	}
 
-	/** Say the stream broke and came back, so a scripted scenario drives a view's catch-up the way it drives arrivals.
-	 *  An offline reading never calls it: a log that is all there never broke. */
+	disconnected(fn: () => void): () => void {
+		this.disconnectListeners.add(fn);
+		if (this.broken) fn();
+		return () => this.disconnectListeners.delete(fn);
+	}
+
+	/** Say the stream broke, so a scripted scenario drives a view's reading the way a break does. An offline reading
+	 *  never calls it: a log that is all there never breaks. */
+	disconnect(): void {
+		this.broken = true;
+		for (const fn of this.disconnectListeners) fn();
+	}
+
+	/** Say the stream came back, so a scripted scenario drives a view's catch-up the way it drives arrivals. */
 	reconnect(): void {
+		this.broken = false;
 		for (const fn of this.reconnectListeners) fn();
 	}
 
@@ -168,7 +193,7 @@ export function resetEventStream(): void {
  *  frame. Returns an unsubscribe. The `this`-free form shared by `ShuElement.subscribeBatched` and the data controllers;
  *  no caller constructs `EventSource`/`SseSubscriber` directly. `onReconnect` fires when the stream comes back after a
  *  break: the same reason to read again as an arrival, on the same path. */
-export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void }): () => void {
+export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void; onDisconnect?: () => void }): () => void {
 	let pending: TEvent[] = [];
 	let scheduled = false;
 	let active = true;
@@ -185,6 +210,11 @@ export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => vo
 				if (active) opts.onReconnect?.();
 			})
 		: () => undefined;
+	const stopDisconnects = opts.onDisconnect
+		? stream.disconnected(() => {
+				if (active) opts.onDisconnect?.();
+			})
+		: () => undefined;
 	const innerUnsub = stream.subscribe((event) => {
 		if (!active) return;
 		pending.push(event);
@@ -197,6 +227,7 @@ export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => vo
 		active = false;
 		pending = [];
 		stopReconnects();
+		stopDisconnects();
 		innerUnsub();
 	};
 }

@@ -131,6 +131,7 @@ export class SseSubscriber {
 	 *  announced to whoever follows the run: that is when they have something to read again for. */
 	private broken = false;
 	private readonly reconnectListeners = new Set<() => void>();
+	private readonly disconnectListeners = new Set<() => void>();
 	private lastEventAt: number | null = null;
 	private connectedAt: number | null = null;
 	/** Replay buffer — see file header and the `ReplayBuffer` class. */
@@ -178,7 +179,19 @@ export class SseSubscriber {
 			this.dispatch(msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent));
 		};
 		this.source.onerror = () => {
+			// The break is announced once, when it happens: a page that cannot hear the run cannot say its reading is
+			// current, and that is a fact of the reading rather than something to infer from the silence.
+			const wasOpen = !this.broken;
 			this.broken = true;
+			if (wasOpen) {
+				for (const fn of this.disconnectListeners) {
+					try {
+						fn();
+					} catch (err) {
+						failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw on disconnection`, err);
+					}
+				}
+			}
 			this.source?.close?.();
 			this.source = null;
 			if (this.closed || this.reconnectTimer) return;
@@ -212,6 +225,15 @@ export class SseSubscriber {
 	reconnected(fn: () => void): () => void {
 		this.reconnectListeners.add(fn);
 		return () => this.reconnectListeners.delete(fn);
+	}
+
+	/** Be told the stream has broken. Until it re-opens, what the run does reaches no listener, so a consumer following
+	 *  the run cannot say its reading is current. Fires once per break, and at once for a stream already down, so a
+	 *  consumer that starts listening after the break is told what it would have heard. Returns an unsubscribe. */
+	disconnected(fn: () => void): () => void {
+		this.disconnectListeners.add(fn);
+		if (this.broken) fn();
+		return () => this.disconnectListeners.delete(fn);
 	}
 
 	/** Tag for log correlation. */

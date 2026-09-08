@@ -419,6 +419,34 @@ describe("step-dispatch", () => {
 			await expect(dispatchStep({ registry, world, steppers }, featureStep)).rejects.toThrow(/capability CapabilityStepper:protected required/);
 		});
 
+		it("answers a read made into a running instance without recording it, and records the same step run as the run's own", async () => {
+			const stepper = new (class extends AStepper {
+				steps = {
+					howMany: { gwta: "how many", read: true, action: async () => actionOKWithProducts({ count: 3 }) },
+				};
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get(`${stepper.constructor.name}-howMany`);
+			if (!tool) throw new Error("Expected the read to be registered");
+			const store = world.shared.getStore();
+			const recordOf = (path: number[]) => store.query({ subject: formatRecordName({ execution: executionOf(world.tag), path }), namedGraph: SEQ_PATH_LABEL });
+			const kept = world.runtime.stepResults?.length ?? 0;
+
+			const fromOutside = buildFeatureStepForTransport(tool, {}, [0, 9, 1]);
+			fromOutside.isSubStep = true;
+			const answered = await dispatchStep({ registry, world, steppers }, fromOutside);
+			expect(answered.ok).toBe(true);
+			expect(answered.products, "the question is answered").toMatchObject({ count: 3 });
+			expect(await recordOf([0, 9, 1]), "no record of the run being read").toEqual([]);
+			expect(world.runtime.stepResults?.length ?? 0, "nothing kept in the process for it").toBe(kept);
+
+			const fromTheRun = buildFeatureStepForTransport(tool, {}, [0, 9, 2]);
+			const run = await dispatchStep({ registry, world, steppers }, fromTheRun);
+			expect(run.ok).toBe(true);
+			expect((await recordOf([0, 9, 2])).length, "the same step in a feature is a step of the run").toBeGreaterThan(0);
+		});
+
 		it("emits SeqPath quads for a passing step", async () => {
 			const stepper = new ProductStepper();
 			const steppers = [stepper];

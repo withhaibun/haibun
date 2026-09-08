@@ -149,6 +149,37 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.rowAt(4)).toMatchObject({ in: "a step nobody was told about" });
 	});
 
+	it("is behind an announcement until it has read for it, and current once it has", async () => {
+		const source = graphRunSource("debug", { reReadAfterMs: 0 });
+		await source.ready();
+		expect(source.behind, "read once and nothing announced since").toBe(false);
+		handle.eventStream.emit({ level: "info", kind: "log", message: "something the run said", timestamp: 1600 } as never);
+		await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+		expect(source.behind, "announced, and the read for it has not finished").toBe(true);
+		await new Promise((r) => setTimeout(r, 5));
+		expect(source.behind, "the read the announcement scheduled has finished").toBe(false);
+	});
+
+	it("says it is cut off while the stream is down, and behind from the stream's return until it has read again", async () => {
+		const source = graphRunSource("debug", { reReadAfterMs: 0 });
+		await source.ready();
+		expect(source.disconnected).toBe(false);
+		handle.eventStream.disconnect();
+		expect(source.disconnected, "what the run does now reaches this page no more").toBe(true);
+		handle.eventStream.reconnect();
+		expect(source.disconnected).toBe(false);
+		expect(source.behind, "the stream coming back says there may be something to read again for").toBe(true);
+		await new Promise((r) => setTimeout(r, 5));
+		expect(source.behind, "read again since the stream came back").toBe(false);
+	});
+
+	it("knows the stream is down when made after it broke, rather than believing it is current", async () => {
+		handle.eventStream.disconnect();
+		const source = graphRunSource("info");
+		await source.ready();
+		expect(source.disconnected).toBe(true);
+	});
+
 	it("says every row it holds is readable, so a view marks and scrolls without asking for more", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();

@@ -6,6 +6,7 @@ import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { PaneState } from "../pane-state.js";
 
@@ -49,9 +50,9 @@ export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
 	};
 
 	render(): TemplateResult {
-		return html`<ul class="views-list">${this.views.map(
+		return html`<ul class="views-list" data-testid=${SHU_TEST_IDS.VIEWS_PICKER.ROOT}>${this.views.map(
 			(v) => html`
-			<li class="view-row" data-view-id=${v.id} data-component=${v.component} @click=${this.onPick(v)}>
+			<li class="view-row" data-testid=${`${SHU_TEST_IDS.VIEWS_PICKER.ROW}${v.component}`} data-view-id=${v.id} data-component=${v.component} @click=${this.onPick(v)}>
 				<span class="view-id">${v.id}</span>
 				<span class="view-desc">${v.description}</span>
 			</li>`,

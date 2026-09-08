@@ -65,8 +65,15 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	if (!world.runtime.stepResults) world.runtime.stepResults = [];
 
+	// A read made into a running instance is answered, not recorded: reading a run is not an act of the run. A page
+	// following a run asks it what it holds on every announcement, and each such call recorded as a step would write a
+	// record, announce it to every page and keep a result in this process for as long as it runs.
+	const recorded = !(featureStep.isSubStep && action.step.read === true);
+	const keep = (result: TStepResult): void => {
+		if (recorded) world.runtime.stepResults.push(result);
+	};
 	const pushAndReturn = (result: TStepResult): TStepResult => {
-		world.runtime.stepResults.push(result);
+		keep(result);
 		return result;
 	};
 
@@ -104,12 +111,13 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 			}
 		: undefined;
 
-	const usageKey = `${action.stepperName}.${action.actionName}`;
-	const priorCount = ((await getFact(world, "count", usageKey, OBSERVATION_GRAPH.STEP_USAGE)) as number | undefined) ?? 0;
-	await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
-
-	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
-	await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport ?? "local", ranOn: tool.remoteHost });
+	if (recorded) {
+		const usageKey = `${action.stepperName}.${action.actionName}`;
+		const priorCount = ((await getFact(world, "count", usageKey, OBSERVATION_GRAPH.STEP_USAGE)) as number | undefined) ?? 0;
+		await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
+		world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
+		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport ?? "local", ranOn: tool.remoteHost });
+	}
 	const previousSeqPath = world.runtime.currentSeqPath;
 	const previousReportsAt = world.eventLogger.stepReportsAt;
 	const currentSeqPathStr = featureStep.seqPath.join(".");
@@ -130,7 +138,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 				if (preconditionError) {
 					actionResult = actionNotOK(preconditionError);
 					lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
-					world.runtime.stepResults.push(lastStepResult);
+					keep(lastStepResult);
 					ok = false;
 					doAction = false;
 					continue;
@@ -152,7 +160,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 					world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
 				}
 				lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
-				world.runtime.stepResults.push(lastStepResult);
+				keep(lastStepResult);
 				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
 				doAction = instructions.some((i) => i?.rerunStep);
 				if (instructions.some((i) => i?.failed)) {
@@ -171,6 +179,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);
 	}
 	ok = ok && actionResult.ok;
+	lastStepResult.ok = ok;
+	if (!recorded) return lastStepResult;
 	world.eventLogger.stepEnd(
 		featureStep,
 		action.stepperName,
@@ -181,8 +191,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		featureStep.action.stepValuesMap,
 		retainedProducts(actionResult.products as Record<string, unknown> | undefined, action.step.retainProducts),
 	);
-	lastStepResult.ok = ok;
-
 	await emitSeqPathEnd(world, featureStep, ok, ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products as Record<string, unknown> | undefined));
 	return lastStepResult;
 }
