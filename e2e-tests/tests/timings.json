@@ -25,7 +25,7 @@
 			"steps": 41
 		},
 		"/features/auth-bearer.feature": {
-			"seconds": 2.5,
+			"seconds": 2.4,
 			"steps": 65
 		},
 		"/features/auth-form.feature": {
@@ -33,11 +33,11 @@
 			"steps": 23
 		},
 		"/features/counter.feature": {
-			"seconds": 1.9,
+			"seconds": 0.4,
 			"steps": 19
 		},
 		"/features/counter.feature.ts": {
-			"seconds": 1.4,
+			"seconds": 0.9,
 			"steps": 19
 		},
 		"/features/counts.feature.ts": {
@@ -105,8 +105,8 @@
 			"steps": 17
 		},
 		"/features/wikipedia.feature.ts": {
-			"seconds": 2.7,
-			"steps": 153
+			"seconds": 2.8,
+			"steps": 109
 		},
 		"/features/workflow.feature.ts": {
 			"seconds": 0,
@@ -117,6 +117,6 @@
 			"steps": 12
 		}
 	},
-	"steps": 1163,
-	"seconds": 20
+	"steps": 1119,
+	"seconds": 18
 }

@@ -23,7 +23,7 @@ import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/ph
 import { withNameType } from "@haibun/core/lib/features.js";
 import type { TFeature } from "@haibun/core/lib/execution.js";
 import { forgetOutcome, outcomeAgainst, recordOutcome, verificationOf } from "./verified.js";
-import { recordTimings } from "./timings.js";
+import { recordTimings, varianceLine } from "./timings.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
@@ -93,7 +93,10 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// What a whole run of features took, kept with the code: the file's history is what each feature costs, change
 		// by change. A measurement rather than a decision, so it is written whether or not the run is verified against
 		// anything.
-		if (parsed.statements.length === 0 && result.featureResults.length > 0) recordTimings(path.dirname(path.resolve(configFileFrom(configBases))), result);
+		if (parsed.statements.length === 0 && result.featureResults.length > 0) {
+			const variances = recordTimings(path.dirname(path.resolve(configFileFrom(configBases))), result);
+			for (const variance of variances) console.info(`timings: ${varianceLine(variance)}`);
+		}
 
 		await reportAndExit(result, world, protoOptions);
 	} catch (error) {
