@@ -58,6 +58,8 @@ export const features: TKirejiExport = {
 		feature({ feature: "Shu SPA Self-Test" }),
 
 		"This feature drives the shu SPA end-to-end as a real user would: open every view, exercise affordances, trigger goal resolution, then reload the page and verify everything reappears. Each scenario narrates why it exists so a reader can follow the system without consulting the implementation.",
+		"Every step's screenshot is what the document view builds its manual of the run from, so the run captures one after each.",
+		"after every WebPlaywright, take a screenshot",
 		...testIdSetup,
 		...stepIdSetup,
 

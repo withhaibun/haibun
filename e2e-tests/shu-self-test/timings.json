@@ -1,14 +1,14 @@
 {
 	"features": {
 		"/features/shu-self-test.feature.ts": {
-			"seconds": 28.6,
-			"steps": 463
+			"seconds": 36.5,
+			"steps": 603
 		},
 		"/features/z-post.feature.ts": {
 			"seconds": 0,
 			"steps": 8
 		}
 	},
-	"steps": 471,
-	"seconds": 28.6
+	"steps": 611,
+	"seconds": 36.5
 }
