@@ -9,7 +9,6 @@ import { z } from "zod";
 import { writeFileSync } from "fs";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { Access, AccessLevelSchema, AccessQueryLevelSchema, storeScopeFor } from "@haibun/core/lib/resources.js";
 import { recordBlip } from "@haibun/core/lib/blips.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
 import "./view-blips.js";
@@ -18,35 +17,26 @@ import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
-import { actionNotOK, actionOKWithProducts, getStepperOption, intOrError, stringOrError, findStepperFromOptionOrKind, errorDetail } from "@haibun/core/lib/util/index.js";
+import { actionOKWithProducts, stringOrError, findStepperFromOptionOrKind, errorDetail } from "@haibun/core/lib/util/index.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
-import { buildConcernCatalog, buildResourceRels } from "@haibun/core/lib/hypermedia.js";
-import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import type { TTag } from "@haibun/core/lib/ttag.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { SHU_TAG, RPC_METHOD } from "./consts.js";
+import { SHU_TAG } from "./consts.js";
 import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 
 import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
 
-import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TGraphQuery, DOMAIN_DENSITY_QUERY, DensityResultSchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
-import { withOntologySchema } from "./graph/ontology-projection.js";
-import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
-import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
-import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
-import { QuadStore, queryQuadStore } from "@haibun/core/lib/quad-store.js";
-import { RemoteGraphSource } from "./remote-graph-source.js";
+import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
-
-/** Result of the inherent `graphQuery` step: matched rows + their count. */
 
 // The in-memory buffers hold a recent WINDOW, never the run: over months, an unbounded buffer is the process's heap
 // death (a first-time index of a large mailbox OOMed the daemon at ~4GB). The store is canonical for graph data and
@@ -271,10 +261,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// view makes of those is answered from what the page holds. What is left is what a view SHOWED and the run does
 		// not say, which is produced here.
 		const viewProducts: Record<string, unknown> = {};
-		// The view toggles: parameterless steps with a `.view` product, run once so the page opens where the reader left
-		// it. getClusteredQuads is excluded: it is a read of the graph, not a view toggle, and it requires an accessLevel
-		// by design, so running it arg-less only ever threw.
-		const candidates = Object.entries(this.steps).filter(([name, step]) => !step.gwta.includes("{") && `MonitorStepper-${name}` !== RPC_METHOD.CLUSTERED_QUADS);
+		// The view toggles: parameterless steps with a `.view` product, run once so the page opens where the reader left it.
+		const candidates = Object.entries(this.steps).filter(([, step]) => !step.gwta.includes("{"));
 		const logger = this.getWorld().eventLogger;
 		await Promise.all(
 			candidates.map(async ([name, step]) => {

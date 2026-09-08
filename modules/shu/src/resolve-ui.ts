@@ -6,8 +6,6 @@ export type ResolvedUi = {
 	component: string;
 	/** Named slot to render into, if the type's UI declares one. */
 	slot?: string;
-	/** Render only when the subject is pinned (the type's UI opts in). */
-	pinnedOnly: boolean;
 };
 
 /** Default component for a single entity when the type declares none. */
@@ -29,5 +27,5 @@ export function resolveUi(product: Record<string, unknown>): ResolvedUi {
 	const isCollection = Array.isArray(product.items) && product.items.length > 0;
 	const component = declared ?? (isCollection ? COLLECTION_COMPONENT : ENTITY_COMPONENT);
 	const uiSlot = ui?.slot;
-	return { component, slot: typeof uiSlot === "string" ? uiSlot : undefined, pinnedOnly: ui?.pinnedOnly === true };
+	return { component, slot: typeof uiSlot === "string" ? uiSlot : undefined };
 }

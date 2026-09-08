@@ -11,7 +11,7 @@ import { openSession } from "./session-key.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
-import { conduit, setConduit, LiveConduit, isServerUnreachable } from "./hypermedia.js";
+import { conduit, setConduit, LiveConduit } from "./hypermedia.js";
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
@@ -21,7 +21,6 @@ import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromConte
 import { activePane, timeCursor } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
-import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
 import type { ShuFilterColumn } from "./components/shu-filter-column.js";
 import type { ShuActionsBar } from "./components/shu-actions-bar.js";
@@ -29,7 +28,25 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
-import { hydrateClientCache, viewsShown, runShape, runCounts, runFailures, marksOf, detailRegion, ofExecution, readingExecution, RUN_DIVISIONS, runSpan, atLiveEdge, readRunAt, subscribeExecutionSwitch, subscribeRunSources, type TRunMark, type TRunRow } from "./client-cache/index.js";
+import {
+	hydrateClientCache,
+	viewsShown,
+	runShape,
+	runCounts,
+	runFailures,
+	marksOf,
+	detailRegion,
+	ofExecution,
+	readingExecution,
+	RUN_DIVISIONS,
+	runSpan,
+	atLiveEdge,
+	readRunAt,
+	subscribeExecutionSwitch,
+	subscribeRunSources,
+	type TRunMark,
+	type TRunRow,
+} from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -387,7 +404,10 @@ const main = async (): Promise<void> => {
 	// the run being read, and its shape is its own, so the shape is made again rather than added to.
 	const runGraph = () => ofExecution(pageRunGraph(), readingExecution());
 	let shape = runShape(runGraph());
-	eventsController.signal.addEventListener("abort", subscribeExecutionSwitch(() => (shape = runShape(runGraph()))));
+	eventsController.signal.addEventListener(
+		"abort",
+		subscribeExecutionSwitch(() => (shape = runShape(runGraph()))),
+	);
 	// The failures of the run, beside the line that marks where they fall: the same reading schedule, since a failure
 	// that has just happened is a division that has just been marked. The list is the newest failures at the cap, so a
 	// run of any length costs one read.
@@ -472,11 +492,14 @@ const main = async (): Promise<void> => {
 	let countDue: ReturnType<typeof setTimeout> | undefined;
 	const redrawRunShape = (): void => {
 		if (countDue !== undefined) return;
-		countDue = setTimeout(() => {
-			countDue = undefined;
-			void drawRunShape().catch((err: unknown) => failFastOrLog("the run's shape could not be read", err));
-			void drawFailures().catch((err: unknown) => failFastOrLog("the run's failures could not be read", err));
-		}, deploymentMs("runShapeCountedAfterMs", RUN_SHAPE_COUNTED_AFTER_MS));
+		countDue = setTimeout(
+			() => {
+				countDue = undefined;
+				void drawRunShape().catch((err: unknown) => failFastOrLog("the run's shape could not be read", err));
+				void drawFailures().catch((err: unknown) => failFastOrLog("the run's failures could not be read", err));
+			},
+			deploymentMs("runShapeCountedAfterMs") ?? RUN_SHAPE_COUNTED_AFTER_MS,
+		);
 	};
 	eventsController.signal.addEventListener(
 		"abort",

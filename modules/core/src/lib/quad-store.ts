@@ -28,6 +28,8 @@ import {
 	matchesQuadPattern,
 	type TDensityQuery,
 	type TDensityResult,
+	type TQuadEdge,
+	type TIndividualWithEdges,
 } from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
 import { BODY_LABEL } from "./resources.js";
@@ -569,22 +571,31 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 	return { quads: sampledQuads, clusters };
 }
 
-/** One edge of an individual: what it is, which way it points, and the record it points at. */
-export type TQuadEdge = { type: string; direction: "out" | "in"; target: Record<string, unknown> };
-
-/** An individual as a view reads it: the record, the edges either way, and how many point at it. */
-export type TIndividualWithEdges = { vertex: Record<string, unknown>; edges: TQuadEdge[]; incomingCount: number };
-
 /** The record a store holds for a node, stamped with the identity it was reached by, so an edge resolves to something a
  *  reader can open even where that node's own fields are not held. */
 async function targetOf(store: IQuadStore, label: string, id: string): Promise<Record<string, unknown>> {
 	return { "@id": id, "@type": label, ...((await store.getIndividual<Record<string, unknown>>(label, id)) ?? {}) };
 }
 
+/** How many edges pointing at one individual are read as records at a time. A hub has more edges than a reader reads,
+ *  and each edge read is a read of the record it names, so a reading takes a page of them and says how many there are. */
+export const INCOMING_EDGE_PAGE = 100;
+
+/** The edges pointing at an individual, over any store: how many there are, and the page of them asked for, each read
+ *  as the record it names. A quad pointing at the individual carries the type of the record it comes from, which is how
+ *  that record resolves rather than a bare id. */
+export async function incomingEdgesOf(store: IQuadStore, id: string, page: { offset?: number; limit?: number } = {}): Promise<{ edges: TQuadEdge[]; total: number }> {
+	const pointing = (await store.query({ object: id })).filter((quad) => quad.objectType);
+	const offset = page.offset ?? 0;
+	const read = pointing.slice(offset, offset + (page.limit ?? INCOMING_EDGE_PAGE));
+	const edges = await Promise.all(read.map(async (quad) => ({ type: quad.predicate, direction: "in" as const, target: await targetOf(store, quad.namedGraph, quad.subject) })));
+	return { edges, total: pointing.length };
+}
+
 /**
  * One individual with its edges, over any store: its own fields, the edges its quads name in both directions, and how
- * many point at it. An edge quad carries the type of what it points at, which is how a target resolves to a record
- * rather than a bare id. Undefined where the store holds nothing of the individual.
+ * many edges point at it. An edge quad carries the type of the record it names. That type is how a target resolves to a
+ * record rather than to a bare id. Undefined where the store holds nothing of the individual.
  *
  * One reading, so a page reading what it holds and a site answering for its own store give a reader the same shape.
  */
@@ -592,12 +603,12 @@ export async function individualWithEdges(store: IQuadStore, label: string, id: 
 	const quads = await store.query({ subject: id, namedGraph: label });
 	if (quads.length === 0) return undefined;
 	const vertex: Record<string, unknown> = { "@id": id, "@type": label };
-	const edges: TQuadEdge[] = [];
-	for (const quad of quads) {
-		if (!quad.objectType) vertex[quad.predicate] = quad.object;
-		else edges.push({ type: quad.predicate, direction: "out", target: await targetOf(store, quad.objectType, String(quad.object)) });
-	}
-	const pointing = (await store.query({ object: id })).filter((quad) => quad.objectType);
-	const incoming: TQuadEdge[] = await Promise.all(pointing.map(async (quad) => ({ type: quad.predicate, direction: "in" as const, target: await targetOf(store, quad.namedGraph, quad.subject) })));
-	return { vertex, edges: [...edges, ...incoming], incomingCount: incoming.length };
+	const named = quads.filter((quad) => quad.objectType);
+	for (const quad of quads) if (!quad.objectType) vertex[quad.predicate] = quad.object;
+	// Every target read at once: a record with many edges is one round of reads rather than one round per edge.
+	const [outgoing, incoming] = await Promise.all([
+		Promise.all(named.map(async (quad) => ({ type: quad.predicate, direction: "out" as const, target: await targetOf(store, String(quad.objectType), String(quad.object)) }))),
+		incomingEdgesOf(store, id),
+	]);
+	return { vertex, edges: [...outgoing, ...incoming.edges], incomingCount: incoming.total };
 }

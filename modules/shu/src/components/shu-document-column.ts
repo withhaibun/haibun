@@ -10,7 +10,6 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { ref } from "lit/directives/ref.js";
 import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
@@ -211,7 +210,13 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const cached = this.#pages.get(p);
 		// Still the page that was built: the same first and last events are cached, and nothing more of the page is (three
 		// reads, not a walk of the page, for every row the virtualizer requests).
-		if (cached && this.#run.rowAt(start) === cached.first && this.#run.rowAt(start + cached.cached - 1) === cached.last && (start + cached.cached >= end || this.#run.rowAt(start + cached.cached) === undefined)) return cached;
+		if (
+			cached &&
+			this.#run.rowAt(start) === cached.first &&
+			this.#run.rowAt(start + cached.cached - 1) === cached.last &&
+			(start + cached.cached >= end || this.#run.rowAt(start + cached.cached) === undefined)
+		)
+			return cached;
 		const events: TEventRecord[] = [];
 		for (let i = start; i < end; i++) {
 			const e = this.#run.rowAt(i);
@@ -224,13 +229,14 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 		const built = { cached: events.length, first: events[0], last: events[events.length - 1], rows: this.#buildRows(p, start, events) };
 		this.#pages.set(p, built);
-		if (this.#pages.size > BUILT_PAGES) for (const q of [...this.#pages.keys()].sort((a, b) => Math.abs(b - p) - Math.abs(a - p)).slice(0, this.#pages.size - BUILT_PAGES)) this.#pages.delete(q);
+		if (this.#pages.size > BUILT_PAGES)
+			for (const q of [...this.#pages.keys()].sort((a, b) => Math.abs(b - p) - Math.abs(a - p)).slice(0, this.#pages.size - BUILT_PAGES)) this.#pages.delete(q);
 		return built;
 	}
 
 	/** One page of events as rows: the document markdown of those events (headings, step lines, prose, artifact holders),
 	 *  rendered, sanitized, split into blocks, finalized (artifacts filled, reader classes, thumbnail strips stamped with
-	 *  this page's name), and each block given to the event it came from. Raw times are from the run's start, so rows of
+	 *  this page's name), and each block given to its own event. Raw times are from the run's start, so rows of
 	 *  every page share one epoch. */
 	#buildRows(p: number, start: number, events: TEventRecord[]): TDocRow[] {
 		const typed = events as unknown as THaibunEvent[];
@@ -259,10 +265,11 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	 */
 	#window(): Array<{ index: number; event: TEventRecord }> {
 		const out: Array<{ index: number; event: TEventRecord }> = [];
-		for (const { from, to } of this.#run.cachedRanges()) for (let i = from; i < to; i++) {
-			const event = this.#run.rowAt(i);
-			if (event) out.push({ index: i, event });
-		}
+		for (const { from, to } of this.#run.cachedRanges())
+			for (let i = from; i < to; i++) {
+				const event = this.#run.rowAt(i);
+				if (event) out.push({ index: i, event });
+			}
 		return out;
 	}
 
@@ -292,7 +299,13 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.#windowRows = this.#window();
 		this.#marks = this.#markers();
 		const cursor = this.timeCursor;
-		this.#currentIdx = cursor === null ? -1 : currentRowIndex(this.#windowRows.map(({ index, event }) => ({ index, timestamp: Number(event.timestamp) || 0 })), cursor);
+		this.#currentIdx =
+			cursor === null
+				? -1
+				: currentRowIndex(
+						this.#windowRows.map(({ index, event }) => ({ index, timestamp: Number(event.timestamp) || 0 })),
+						cursor,
+					);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 

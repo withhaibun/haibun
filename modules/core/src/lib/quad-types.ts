@@ -98,6 +98,15 @@ export const GraphQueryResultSchema = z.object({
 });
 export type TGraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
 
+/** One edge of an individual: what it is, which way it points, and the record it names. */
+export const QuadEdgeSchema = z.object({ type: z.string(), direction: z.enum(["out", "in"]), target: z.record(z.string(), z.unknown()) });
+export type TQuadEdge = z.infer<typeof QuadEdgeSchema>;
+
+/** An individual as a view reads it: the record, the edges either way, and how many edges point at it. One shape, so a
+ *  site answering for its own store and a page reading what it holds answer alike. */
+export const IndividualWithEdgesSchema = z.object({ vertex: z.record(z.string(), z.unknown()), edges: z.array(QuadEdgeSchema), incomingCount: z.number() });
+export type TIndividualWithEdges = z.infer<typeof IndividualWithEdgesSchema>;
+
 export interface TQuad {
 	subject: string;
 	predicate: string;

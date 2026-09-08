@@ -15,7 +15,7 @@ export type StepDescriptor = {
 	paramDomains?: Record<string, string>;
 	productsDomain?: string;
 	capability?: string;
-	/** True where the site declared this step a fallback: it answers to its name where no other step does. */
+	/** True where the site declared this step a fallback (`StepDescriptor.fallback`). */
 	fallback?: boolean;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
@@ -171,9 +171,8 @@ export interface ShuHydration {
 }
 
 /**
- * The timings a page runs on, as the deployment sets them. Both are what a reader waits through, so a deployment that
- * records fast runs sets them low and one watching a long-running system leaves them where they are. A deployment that
- * sets neither runs on the values the product carries.
+ * The timings the page applies, as the deployment sets them. A reader waits out both, so a deployment recording fast
+ * runs sets them low, and one watching a long-running system keeps the values the product carries.
  */
 export type TDeploymentSettings = {
 	/** How long after the run moves its shape is counted again. */
@@ -228,10 +227,13 @@ export function isOffline(): boolean {
 	return cachedHydration().data?.cache !== undefined;
 }
 
-/** A timing this deployment set, or what the product carries where it set none. */
-export function deploymentMs(name: keyof TDeploymentSettings, carried: number): number {
+/** A timing this deployment set, in milliseconds, or undefined where it set none. A value the page cannot apply is a
+ *  deployment stating something it does not mean, so it is refused rather than replaced with the product's own. */
+export function deploymentMs(name: keyof TDeploymentSettings): number | undefined {
 	const set = cachedHydration().data?.settings?.[name];
-	return typeof set === "number" && set > 0 ? set : carried;
+	if (set === undefined) return undefined;
+	if (typeof set !== "number" || !Number.isFinite(set) || set <= 0) throw new Error(`${name}: a deployment sets a count of milliseconds above zero, and this page was served ${JSON.stringify(set)}`);
+	return set;
 }
 
 /** The run this page carries, when it carries one. */
@@ -288,14 +290,13 @@ async function discover(): Promise<StepListResponse> {
 	r.steps = steps;
 	r.domains = domains;
 	// Looked up on every call the page makes, so the registry is indexed once under both names a step responds to. Two
-	// steppers may offer the same friendly name: the one that is not declared a fallback responds to it, and where both
-	// are alike the first the site listed does. A fallback answers where nothing else does, so a deployment that brings
-	// its own step is read through that step whatever order its steppers were registered in.
+	// steppers may offer one step name, and the one that is not a fallback answers to it (`StepDescriptor.fallback`);
+	// where both are alike, the first the site listed answers. A method names its stepper, so it names one step.
 	const byName = new Map<string, StepDescriptor>();
-	const takes = (held: StepDescriptor | undefined, step: StepDescriptor): boolean => held === undefined || (held.fallback === true && step.fallback !== true);
+	const answers = (held: StepDescriptor | undefined, step: StepDescriptor): boolean => held === undefined || (held.fallback === true && step.fallback !== true);
 	for (const step of steps) {
-		if (takes(byName.get(step.stepName), step)) byName.set(step.stepName, step);
-		if (takes(byName.get(step.method), step)) byName.set(step.method, step);
+		if (answers(byName.get(step.stepName), step)) byName.set(step.stepName, step);
+		if (!byName.has(step.method)) byName.set(step.method, step);
 	}
 	r.byName = byName;
 	return { steps, domains, concerns };

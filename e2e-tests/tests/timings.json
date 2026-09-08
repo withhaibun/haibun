@@ -6,7 +6,7 @@
 				"steps": 11
 			},
 			"/features/a11y-pass.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11
 			},
 			"/features/activities.feature": {
@@ -38,7 +38,7 @@
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2.1,
+				"seconds": 0.8,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -58,7 +58,7 @@
 				"steps": 19
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0.3,
+				"seconds": 0.4,
 				"steps": 31
 			},
 			"/features/if-set.feature": {
@@ -70,7 +70,7 @@
 				"steps": 7
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 27
 			},
 			"/features/popup.feature": {
@@ -78,7 +78,7 @@
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.5,
+				"seconds": 2.6,
 				"steps": 18
 			},
 			"/features/recurse.feature": {
@@ -90,7 +90,7 @@
 				"steps": 18
 			},
 			"/features/trauma_center.feature": {
-				"seconds": 0,
+				"seconds": 0.1,
 				"steps": 93
 			},
 			"/features/upload-verify.feature": {
@@ -106,8 +106,8 @@
 				"steps": 17
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.1,
-				"steps": 167
+				"seconds": 1.3,
+				"steps": 158
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
@@ -118,7 +118,7 @@
 				"steps": 12
 			}
 		},
-		"steps": 1177,
-		"seconds": 17.7
+		"steps": 1168,
+		"seconds": 16.8
 	}
 }

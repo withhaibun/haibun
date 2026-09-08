@@ -14,7 +14,7 @@ const META: SiteMetadata = {
 	propertyDefinitions: {},
 	ui: {
 		Affordances: { component: "shu-affordances-panel" },
-		Pinned: { component: "shu-x", pinnedOnly: true },
+		Pinned: { component: "shu-x" },
 		Slotted: { component: "shu-y", slot: "action-bar-chat" },
 	},
 };
@@ -50,10 +50,8 @@ describe("resolveUi", () => {
 		expect(resolveUi({ _component: "shu-y", _type: "Slotted" }).component).toBe("shu-y");
 	});
 
-	it("passes through slot and pinnedOnly from the type's UI", () => {
+	it("passes through the slot the type's UI declares", () => {
 		expect(resolveUi({ _type: "Slotted" }).slot).toBe("action-bar-chat");
-		expect(resolveUi({ _type: "Pinned" }).pinnedOnly).toBe(true);
-		expect(resolveUi({ _type: "Affordances" }).pinnedOnly).toBe(false);
 		expect(resolveUi({ _type: "Affordances" }).slot).toBeUndefined();
 	});
 });

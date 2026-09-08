@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
-import { AccessLevelSchema, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/resources.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
-import { z } from "zod";
-import ShuStepper, { sessionActions } from "./shu-stepper.js";
+import ShuStepper, { buildSpaHtml, sessionActions } from "./shu-stepper.js";
 import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { runWithRequestContext } from "@haibun/core/lib/request-context.js";
 import type { TCredentialRequest } from "@haibun/core/lib/authority-types.js";
-
 
 describe("the app a deployment serves", () => {
 	let stepper: ShuStepper;
@@ -39,6 +35,18 @@ describe("the app a deployment serves", () => {
 		const first = await stepper.steps.serveShuApp.action({ path: "/spa" });
 		expect(first.ok).toBe(true);
 		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" })).toThrow("already mounted");
+	});
+});
+
+describe("the page a deployment serves", () => {
+	it("carries the timings the deployment set, so the page applies them from its first paint", () => {
+		const page = buildSpaHtml("/spa", "/* bundle */", { runShapeCountedAfterMs: 1000 });
+		expect(page).toContain('id="shu-hydration"');
+		expect(page).toContain(JSON.stringify({ settings: { runShapeCountedAfterMs: 1000 } }));
+	});
+
+	it("carries no timing where the deployment set none", () => {
+		expect(buildSpaHtml("/spa", "/* bundle */")).toContain(JSON.stringify({ settings: {} }));
 	});
 });
 

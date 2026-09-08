@@ -8,14 +8,14 @@ import { fileURLToPath } from "url";
 import { gzipSync } from "node:zlib";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { hypermediaDomainMap, objectCoercer } from "@haibun/core/lib/domains.js";
+import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { presentedKeySchema, sessionCredentialSchema, type TPresentedKey } from "./session-schema.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
 import type { TDeploymentSettings } from "./rpc-registry.js";
 import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import { currentRequestBaseIri } from "@haibun/core/lib/request-context.js";
-import { getJsonLdContext, relOf } from "@haibun/core/lib/hypermedia.js";
-import { Access, haibunNsForHost, isPersisted, LinkRelations, type TPropertyDef } from "@haibun/core/lib/resources.js";
+import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
+import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -121,11 +121,10 @@ ${scriptsHtml}
 </html>`;
 }
 
-// The served page's hydration is empty: a live page carries no boot payload. Only the offline report embeds one, and
-// it writes its own hydration element (buildReportHtml). The tag is still served so the SSR shape is one shape.
+// What the served page's hydration carries: the timings this deployment set, and nothing else. A record of a run
+// carries the run itself and writes its own hydration element (buildReportHtml).
 export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploymentSettings = {}): string {
-	const hydration = Object.keys(settings).length > 0 ? JSON.stringify({ settings }) : "{}";
-	const scripts = `  <script type="application/json" id="shu-hydration">${hydration}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
+	const scripts = `  <script type="application/json" id="shu-hydration">${JSON.stringify({ settings })}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
 	return spaDocument(basePath, scripts);
 }
 
@@ -224,10 +223,9 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			const set = getStepperOption(this, option, world.moduleOptions);
 			return set === undefined ? undefined : Number(set);
 		};
-		this.settings = {
-			...(timing("RUN_SHAPE_COUNTED_AFTER_MS") === undefined ? {} : { runShapeCountedAfterMs: timing("RUN_SHAPE_COUNTED_AFTER_MS") }),
-			...(timing("STREAM_RECONNECT_AFTER_MS") === undefined ? {} : { streamReconnectAfterMs: timing("STREAM_RECONNECT_AFTER_MS") }),
-		};
+		const runShapeCountedAfterMs = timing("RUN_SHAPE_COUNTED_AFTER_MS");
+		const streamReconnectAfterMs = timing("STREAM_RECONNECT_AFTER_MS");
+		this.settings = { ...(runShapeCountedAfterMs === undefined ? {} : { runShapeCountedAfterMs }), ...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }) };
 	}
 
 	/**
@@ -279,7 +277,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						js: POLYMORPHIC_VIEW_JS,
 						jsContent: loadPolymorphicBundle().content,
 						summary: "Graph view",
-						pinnedOnly: true,
 						// The site's graph presenter: a view embedding "the graph" finds this through ui.presents rather than
 						// naming a component.
 						presents: "graph",
@@ -295,7 +292,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						js: POLYMORPHIC_VIEW_JS,
 						jsContent: loadPolymorphicBundle().content,
 						summary: "Class browser",
-						pinnedOnly: true,
 						// The site's schema presenter: the type column embeds this for its schema view.
 						presents: "schema",
 					},
@@ -312,21 +308,22 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		}),
 	};
 
-	/**
-	 * What a reader of the served app may do, as actions the deployment declares. A reader is issued a credential
-	 * holding them, bound to a key its own page controls, so whoever can reach the issuing step is given them: this is
-	 * for a deployment that answers to its own readers (a session behind the site's own sign-in), not for an open
-	 * port. Unset, nothing is issued and a reader can do only what needs no authority.
-	 */
+	/** What a deployment sets for the app this stepper serves: the timings its page applies, and what a reader may do. */
 	options = {
 		RUN_SHAPE_COUNTED_AFTER_MS: {
-			desc: "How long after the run moves the page counts its shape again, in milliseconds (default 15000)",
+			desc: "How long after the run moves the page counts its shape again, in milliseconds. Unset, the page counts on the interval it carries",
 			parse: (input: string) => intOrError(input),
 		},
 		STREAM_RECONNECT_AFTER_MS: {
-			desc: "How long after the event stream breaks the page opens it again, in milliseconds (default 2000)",
+			desc: "How long after the event stream breaks the page opens it again, in milliseconds. Unset, the page opens it on the interval the subscriber carries",
 			parse: (input: string) => intOrError(input),
 		},
+		/**
+		 * What a reader of the served app may do, as actions the deployment declares. A reader is issued a credential
+		 * holding them, bound to a key its own page controls, so whoever can reach the issuing step is given them: this is
+		 * for a deployment that answers to its own readers (a session behind the site's own sign-in), not for an open
+		 * port. Unset, nothing is issued and a reader can do only what needs no authority.
+		 */
 		SESSION_CAPABILITY: {
 			// One process's own: a run this one starts serves its own app, from its own authority, and a session this run
 			// issued means nothing there. Inherited, a child that has no authority to issue from failed at boot.
