@@ -293,6 +293,8 @@ export const LinkRelations = {
 	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", subPropertyOf: "ganttEnd" },
 	// When the system generated this entity's representation — the required "when" field on every persisted object (distinct from as:published, which is the content's own time).
 	GENERATED_AT_TIME: { rel: "generatedAtTime", uri: "prov:generatedAtTime", range: "literal" },
+	/** When a record was written, or last written again: what a reader following a run asks for what happened by. */
+	RECORDED_AT_TIME: { rel: "recordedAtTime", uri: "hbn:recordedAtTime", range: "literal" },
 	// SOSA / W3C SSN — observation and sensing
 	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal" },
 	RESULT_TIME: { rel: "resultTime", uri: "sosa:resultTime", range: "literal" },

@@ -140,6 +140,10 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		return holdOnDevice(rows.flatMap((row) => individualAsQuads(row.label, row.record)[1]));
 	};
 
+	/** The newest recording the window holds: what a following read asks for what happened since by. A row that does
+	 *  not say when it was recorded asks for everything recorded since records began to say. */
+	const recordedThrough = (rows: TRunRow[]): number => Math.max(0, ...rows.map((row) => row.recordedAt ?? 0));
+
 	/** The rows the window holds, oldest first, and what they span: what every view of this source reads. */
 	let window: TRunRow[] = [];
 
@@ -160,7 +164,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		const execution = currentExecution();
 		const of = { size, minLevel: level, ...(execution === undefined ? {} : { execution }) };
 		const following = at === undefined && window.length > 0;
-		const answer = await runWindow(pageRunGraph(), following ? { ...of, since: window[window.length - 1].at } : { ...of, ...(at === undefined ? {} : { at }) });
+		const answer = await runWindow(pageRunGraph(), following ? { ...of, since: recordedThrough(window) } : { ...of, ...(at === undefined ? {} : { at }) });
 		if (following) {
 			// A record read again replaces the one held under its name; one not held before is new. Either way the
 			// window is what it held and what has changed, in the order the run put them.

@@ -50,6 +50,12 @@ export function extractSeqPathPrefix(id: string): string | null {
  *  store holds. */
 export const EXECUTION_FIELD = "execution";
 
+/** The field every record of a run states when it was recorded in, set as it is written and again whenever it is
+ *  written again. A record is written after the moment it is of, so a reader following a run asks for what was
+ *  recorded since their last read, which is exact, rather than for what is of a later moment, which a record written
+ *  late is not. */
+export const RECORDED_AT_TIME_FIELD = "recordedAtTime";
+
 export function executionOf(tag: { key: string; featureNum: number }): string {
 	return `${tag.key}-${tag.featureNum}`;
 }
@@ -140,6 +146,8 @@ export const SEQ_PATH_FIELD = {
 	/** The run this step belongs to. Written by every writer; a record without one was written before the field was
 	 *  declared, and is part of no run a reader can ask for by name. */
 	execution: EXECUTION_FIELD,
+	/** When this record was written, and written again at the step's end. */
+	recordedAtTime: RECORDED_AT_TIME_FIELD,
 } as const;
 
 /** SeqPath edge names. */
@@ -176,6 +184,7 @@ export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.ranOn]: z.string().optional(),
 	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS).optional(),
 	[SEQ_PATH_FIELD.execution]: z.string().optional(),
+	[SEQ_PATH_FIELD.recordedAtTime]: z.string().optional(),
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
@@ -209,14 +218,15 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.ranOn]: LinkRelations.RAN_ON.rel,
 			[SEQ_PATH_FIELD.level]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.execution]: LinkRelations.CONTEXT.rel,
+			[SEQ_PATH_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },
 			[SEQ_PATH_EDGE.precededBy]: { rel: LinkRelations.PRECEDED_BY.rel, range: SEQ_PATH_LABEL },
 			[SEQ_PATH_EDGE.performedBy]: { rel: LinkRelations.PERFORMED_BY.rel, range: PRINCIPAL_LABEL },
 		},
-		// A step's record changes when the step ends. A follower asks for the steps that ended after its last read,
-		// instead of reading every open step again by name.
-		sortColumns: { [SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ" },
+		// The step's end beside its start, as a moment a store orders by; and when the record was written, which a
+		// reader following the run asks for what happened since their last read by.
+		sortColumns: { [SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ", [SEQ_PATH_FIELD.recordedAtTime]: "TIMESTAMPTZ" },
 	},
 };

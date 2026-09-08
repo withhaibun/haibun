@@ -15,7 +15,7 @@ import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
-import { SEQ_PATH_FIELD, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
+import { RECORDED_AT_TIME_FIELD, SEQ_PATH_FIELD, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { TRunGraph } from "./run-graph.js";
 
@@ -34,6 +34,9 @@ export type TRunRow = {
 	text: string;
 	/** What the step called: the stepper and the action within it. The text says what was asked for; this says what ran. */
 	called?: string;
+	/** When this record was written, or last written again: what a reader following the run asks for what happened
+	 *  since by. Absent on a record written before it was declared. */
+	recordedAt?: number;
 	/** A step's outcome, why it failed where it did, and when it reached it. */
 	status?: string;
 	error?: string;
@@ -88,6 +91,12 @@ const instant = (value: unknown): number => (typeof value === "string" ? Date.pa
 /** One field of a record, where it holds one, under the name a row carries it by. */
 const text = (record: Record<string, unknown>, field: string, as: string): Record<string, string> => (typeof record[field] === "string" ? { [as]: record[field] } : {});
 
+/** When a record was written, where it says. */
+const recorded = (record: Record<string, unknown>): { recordedAt?: number } => {
+	const at = instant(record[RECORDED_AT_TIME_FIELD]);
+	return Number.isNaN(at) ? {} : { recordedAt: at };
+};
+
 /** A step, as a row. A step's own level is `info`: what a step said carries its own. */
 function stepRow(record: Record<string, unknown>): TRunRow {
 	const ended = instant(record[SEQ_PATH_FIELD.endedAtTime]);
@@ -101,6 +110,7 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 		...(name === undefined ? {} : { name, under: name.path }),
 		step: id,
 		at: instant(record[SEQ_PATH_FIELD.generatedAtTime]),
+		...recorded(record),
 		level: (record[SEQ_PATH_FIELD.level] as THaibunLogLevel) ?? "info",
 		text: String(record[SEQ_PATH_FIELD.stepText] ?? ""),
 		...(record[SEQ_PATH_FIELD.actionStatus] === undefined ? {} : { status: String(record[SEQ_PATH_FIELD.actionStatus]) }),
@@ -130,6 +140,7 @@ function saidRow(record: Record<string, unknown>): TRunRow {
 		...(name === undefined ? {} : { name, under: parseRecordName(step)?.path ?? name.path }),
 		step,
 		at: instant(record[LOG_MESSAGE_FIELD.generatedAtTime]),
+		...recorded(record),
 		level: (record[LOG_MESSAGE_FIELD.level] as THaibunLogLevel) ?? "info",
 		text: String(record[LOG_MESSAGE_FIELD.message] ?? ""),
 	};
@@ -149,6 +160,7 @@ function producedRow(record: Record<string, unknown>): TRunRow {
 		...(name === undefined ? {} : { name, under: parseRecordName(step)?.path ?? name.path }),
 		step,
 		at: instant(record[RUN_ARTIFACT_FIELD.generatedAtTime]),
+		...recorded(record),
 		level: (record[RUN_ARTIFACT_FIELD.level] as THaibunLogLevel) ?? "info",
 		text: String(record[RUN_ARTIFACT_FIELD.artifactType] ?? ""),
 		...text(record, RUN_ARTIFACT_FIELD.artifactType, "artifactType"),
@@ -317,8 +329,9 @@ export async function detailRegion(graph: TRunGraph, { at, half = DETAIL_HALF, m
 }
 
 /**
- * The window around a moment, or the newest records where no moment is given. `size` is how many records the reader is
- * shown; a level narrows what counts as a record, since a reader asking for warnings is not shown everything under them.
+ * The window around a moment, or the newest records where no moment is given, or, with `since`, what was recorded
+ * since that instant. `size` is how many records the reader is shown; a level narrows what counts as a record, since a
+ * reader asking for warnings is not shown everything under them.
  */
 export async function runWindow(
 	graph: TRunGraph,
@@ -343,12 +356,15 @@ export async function runWindow(
 		rows.sort(inRunOrder);
 		return direction === "before" ? rows.slice(-limit) : rows.slice(0, limit);
 	};
-	// What happened after the last read: the records that began after it, and the steps that ended after it. A step's
-	// record changes when the step ends, so an ended step is a changed record even though it began earlier. Reading
-	// the whole window again to find a few new records is what makes following a long run cost what the run costs.
+	// What happened since the last read is what was recorded since it. A record is written after the moment it is of,
+	// and a step's record is written again when the step ends, so asking by when records were written finds a record
+	// of an earlier moment than the newest row held, which asking by the moment records are of would pass over for
+	// good. Reading the whole window again to find a few new records is what makes following a long run cost what the
+	// run costs.
 	if (since !== undefined) {
-		const [begun, ended] = await Promise.all([read("after", size, since), side(graph, SEQ_PATH_LABEL, SEQ_PATH_FIELD.endedAtTime, since, "after", size, shown)]);
-		return windowOf(boundToOne(oneEach([...begun, ...ended.map(stepRow)])));
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, RECORDED_AT_TIME_FIELD, since, "after", size, shown)));
+		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
+		return windowOf(boundToOne(oneEach(rows)));
 	}
 	// No moment named is the live edge, which is the newest records and nothing after them.
 	if (at === undefined) return windowOf(boundToOne(await read("before", size)));
