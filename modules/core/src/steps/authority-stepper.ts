@@ -7,7 +7,7 @@ import type { TWorld } from "../lib/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { AUTHORITY_KEY, SESSION_TOKEN_KEY, SessionAuthority } from "../lib/session-authority.js";
-import type { IAuthority, TSessionGrant, TAuthorityEvidence } from "../lib/authority-types.js";
+import type { IAuthority } from "../lib/authority-types.js";
 import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { currentPrincipal, withPrincipal } from "../lib/principal.js";
@@ -75,7 +75,17 @@ export function grantHandle(named: string): string {
 }
 
 /** What may be said about a grant: everything but the credential itself. */
-export function shownGrant(grant: { id: string; token?: string; controller?: string; allowedAction: string[]; revoked: boolean; created?: number; expires?: number; note?: string; seqPath?: string }): TSessionGrantShown {
+export function shownGrant(grant: {
+	id: string;
+	token?: string;
+	controller?: string;
+	allowedAction: string[];
+	revoked: boolean;
+	created?: number;
+	expires?: number;
+	note?: string;
+	seqPath?: string;
+}): TSessionGrantShown {
 	return {
 		// Named by its token where it has one, else by its id: a grant that arrives signed carries no bearer token, and
 		// is still a grant a reader can see and revoke.

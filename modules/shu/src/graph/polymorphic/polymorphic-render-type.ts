@@ -21,7 +21,7 @@ import { mapGraphToSeq, mapGraphToSeqLayout, type TSeqModel, type SeqNode, type 
 import { layeredPositions, type LayeredDirection, LAYERED_MIN_FLOW_SPAN } from "./layered-solver.js";
 import { truncateLabel } from "./layout-forces.js";
 import type { GanttTarget } from "./polymorphic-data-pipeline.js";
-import { VIEW, VIEW_TYPES, type ViewType, REFRAME, type ReframeMode, FRAME, type FrameMove, asViewType } from "./polymorphic-views.js";
+import { VIEW, type ViewType, REFRAME, type ReframeMode, FRAME, type FrameMove } from "./polymorphic-views.js";
 
 /** Sentinel a render type's `controls()` returns when it adds nothing to the shared control bar (lit's no-render value). */
 export type ControlsFragment = TemplateResult | typeof nothing;

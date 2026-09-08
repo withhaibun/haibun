@@ -4,9 +4,8 @@
 import { describe, it, expect } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { detailRegion, runExtent, runWindow, type TRunRow } from "./run-window.js";
+import { runWindow, type TRunRow } from "./run-window.js";
 import { runGraphOf } from "./run-graph.js";
 
 const RUN = "1700000000000-1";
@@ -16,8 +15,23 @@ const iso = (n: number): string => new Date(n).toISOString();
 async function aRunOf(steps: number, saying: string = "info"): Promise<QuadStore> {
 	const store = new QuadStore();
 	for (let i = 0; i < steps; i++) {
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i * 2), endedAtTime: iso(1001 + i * 2), recordedAtTime: iso(1001 + i * 2) });
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, message: `said ${i}`, level: saying, generatedAtTime: iso(1001 + i * 2), recordedAtTime: iso(1001 + i * 2), isPartOf: `${RUN}.0.${i}` });
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${RUN}.0.${i}`,
+			stepText: `step ${i}`,
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: iso(1000 + i * 2),
+			endedAtTime: iso(1001 + i * 2),
+			recordedAtTime: iso(1001 + i * 2),
+		});
+		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
+			id: `${RUN}.0.${i}@${i}`,
+			message: `said ${i}`,
+			level: saying,
+			generatedAtTime: iso(1001 + i * 2),
+			recordedAtTime: iso(1001 + i * 2),
+			isPartOf: `${RUN}.0.${i}`,
+		});
 	}
 	return store;
 }
@@ -67,7 +81,10 @@ describe("the window of a run a reader is looking at", () => {
 		const everything = await runWindow(graph, { size: 10, minLevel: "debug" });
 		expect(everything.rows).toHaveLength(6);
 		const stepsOnly = await runWindow(graph, { size: 10, minLevel: "info" });
-		expect(stepsOnly.rows.map((r) => r.text), "a step is at info, and what it said was under it").toEqual(["step 0", "step 1", "step 2"]);
+		expect(
+			stepsOnly.rows.map((r) => r.text),
+			"a step is at info, and what it said was under it",
+		).toEqual(["step 0", "step 1", "step 2"]);
 	});
 
 	it("is empty when the run has written nothing, rather than failing", async () => {
@@ -82,16 +99,14 @@ describe("the order a run put its records in", () => {
 	it("puts the records of one instant in the order the run made them", async () => {
 		const store = new QuadStore();
 		// Written newest first, as a store reading the newest of a run returns them, and all within one millisecond.
-		for (const i of [30, 29, 28, 27, 26]) await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
+		for (const i of [30, 29, 28, 27, 26])
+			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
 		const graph = runGraphOf(store);
 		const window = await runWindow(graph, { size: 10 });
-		expect(window.rows.map((r) => r.text), "the newest of them is the last row, which is where a reader following the run is looking").toEqual([
-			"step 26",
-			"step 27",
-			"step 28",
-			"step 29",
-			"step 30",
-		]);
+		expect(
+			window.rows.map((r) => r.text),
+			"the newest of them is the last row, which is where a reader following the run is looking",
+		).toEqual(["step 26", "step 27", "step 28", "step 29", "step 30"]);
 	});
 });
 
@@ -101,11 +116,20 @@ describe("what a run says outside every step", () => {
 	it("keeps the run it is read with, rather than emptying the window", async () => {
 		const store = new QuadStore();
 		const execution = RUN;
-		for (const i of [1, 2, 3]) await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${execution}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i) });
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${execution}.log.1700000009999`, message: "create: \"ee\" is not a declared type", level: "error", generatedAtTime: iso(1010) });
+		for (const i of [1, 2, 3])
+			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${execution}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i) });
+		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
+			id: `${execution}.log.1700000009999`,
+			message: 'create: "ee" is not a declared type',
+			level: "error",
+			generatedAtTime: iso(1010),
+		});
 		const graph = runGraphOf(store);
 		const window = await runWindow(graph, { size: 10 });
-		expect(window.rows.map((r) => r.text), "the run's steps, and what it said about the one that failed").toEqual(["step 1", "step 2", "step 3", 'create: "ee" is not a declared type']);
+		expect(
+			window.rows.map((r) => r.text),
+			"the run's steps, and what it said about the one that failed",
+		).toEqual(["step 1", "step 2", "step 3", 'create: "ee" is not a declared type']);
 	});
 
 	it("is read even when it names no execution at all", async () => {
@@ -122,7 +146,15 @@ describe("following a run that is still happening", () => {
 	// A view holding the window asks only for what was recorded since the newest recording it holds. Reading the whole
 	// window again to find a few new records is what makes following a long run cost what the run costs.
 	const step = (store: QuadStore, i: number, at: number, recordedAt: number, more: Record<string, unknown> = {}) =>
-		store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(at), recordedAtTime: iso(recordedAt), ...more });
+		store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${RUN}.0.${i}`,
+			stepText: `step ${i}`,
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: iso(at),
+			recordedAtTime: iso(recordedAt),
+			...more,
+		});
 	const newestRecording = (rows: TRunRow[]) => Math.max(...rows.map((r) => r.recordedAt ?? 0));
 
 	it("reads what was recorded since the last read, and nothing recorded before it", async () => {
@@ -133,7 +165,10 @@ describe("following a run that is still happening", () => {
 		expect(first.rows.map((r) => r.text)).toEqual(["step 1", "step 2", "step 3"]);
 		for (const i of [4, 5]) await step(store, i, 1000 + i, 1000 + i);
 		const since = await runWindow(graph, { size: 10, since: newestRecording(first.rows) });
-		expect(since.rows.map((r) => r.text), "what was recorded since, and the record at that instant which the reader already holds").toEqual(["step 3", "step 4", "step 5"]);
+		expect(
+			since.rows.map((r) => r.text),
+			"what was recorded since, and the record at that instant which the reader already holds",
+		).toEqual(["step 3", "step 4", "step 5"]);
 	});
 
 	it("finds a record of an earlier moment than the newest row held, when it was recorded after the last read", async () => {
@@ -146,7 +181,14 @@ describe("following a run that is still happening", () => {
 		const graph = runGraphOf(store);
 		const first = await runWindow(graph, { size: 10 });
 		expect(first.rows.map((r) => r.text)).toEqual(["step 1", "step 2"]);
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.1@0`, message: "said during step 1, recorded late", level: "info", generatedAtTime: iso(1002), recordedAtTime: iso(1006), isPartOf: `${RUN}.0.1` });
+		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
+			id: `${RUN}.0.1@0`,
+			message: "said during step 1, recorded late",
+			level: "info",
+			generatedAtTime: iso(1002),
+			recordedAtTime: iso(1006),
+			isPartOf: `${RUN}.0.1`,
+		});
 		const since = await runWindow(graph, { size: 10, since: newestRecording(first.rows) });
 		expect(since.rows.map((r) => r.text)).toEqual(["said during step 1, recorded late", "step 2"]);
 	});
@@ -160,7 +202,10 @@ describe("following a run that is still happening", () => {
 		const first = await runWindow(graph, { size: 10 });
 		await step(store, 3, 1003, 1004, { stepText: "the step now running", actionStatus: "failed", endedAtTime: iso(1004) });
 		const since = await runWindow(graph, { size: 10, since: newestRecording(first.rows) });
-		expect(since.rows.map((r) => [r.text, r.status]), "the step that ended after the last read, with its outcome").toEqual([["the step now running", "failed"]]);
+		expect(
+			since.rows.map((r) => [r.text, r.status]),
+			"the step that ended after the last read, with its outcome",
+		).toEqual([["the step now running", "failed"]]);
 	});
 
 	it("says nothing has happened when nothing was recorded", async () => {
@@ -169,6 +214,9 @@ describe("following a run that is still happening", () => {
 		const graph = runGraphOf(store);
 		const first = await runWindow(graph, { size: 10 });
 		const since = await runWindow(graph, { size: 10, since: newestRecording(first.rows) });
-		expect(since.rows.map((r) => r.text), "only the record at that instant, which the reader already holds").toEqual(["a step"]);
+		expect(
+			since.rows.map((r) => r.text),
+			"only the record at that instant, which the reader already holds",
+		).toEqual(["a step"]);
 	});
 });

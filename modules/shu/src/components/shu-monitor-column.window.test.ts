@@ -3,7 +3,6 @@
 // marks the moment being shown (cursorMark, shared with the document through virtual-column-model).
 import { describe, it, expect } from "vitest";
 import { railMarkers, type TLogRow } from "./shu-monitor-column.js";
-import { cursorMark } from "../virtual-column-model.js";
 import { markFor, MARK_COLOUR } from "../event-marker.js";
 
 /** A log row, with only what the rail reads off it. */
@@ -12,7 +11,10 @@ const row = (over: Partial<TLogRow> = {}): TLogRow => ({ time: "0.0s", timestamp
 describe("what a log marks on its rail", () => {
 	it("marks the rows whose events earned a mark, and no others", () => {
 		const marks = railMarkers([row(), row({ mark: { icon: "✅", color: MARK_COLOUR.ok } }), row()]);
-		expect(marks.map((m) => m.index), "only the middle row earned one").toEqual([1]);
+		expect(
+			marks.map((m) => m.index),
+			"only the middle row earned one",
+		).toEqual([1]);
 		expect(marks[0].icon).toBe("✅");
 		expect(marks[0].color).toBe(MARK_COLOUR.ok);
 	});

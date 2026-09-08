@@ -19,13 +19,12 @@
  * worker (off the main thread) — sync() kicks it off and its callback sizes the background to the measured text bounds.
  */
 import { Text } from "troika-three-text";
-import { GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow, type TBurn } from "../polymorphic/polymorphic-highlight.js";
-import type { NodeVisual, Obj3D, QLike } from "./polymorphic-graph-types.js";
+import { GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../polymorphic/polymorphic-highlight.js";
+import type { NodeVisual, Obj3D } from "./polymorphic-graph-types.js";
 
 /** A scene object this module CONSTRUCTS or parents onto: the structural handle leaves `add` optional because a
  *  mark that parents nothing never needs it. */
 type Group3D = Obj3D & { add(child: unknown): void };
-
 
 /** The uniform handle the view holds for a node's render object (FGNode.__visual). Every subsystem that used to reach
  *  into the concrete object — pick, billboard, focus dim, inspect — goes through this instead, so the object's type

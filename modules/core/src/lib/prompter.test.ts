@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { IPrompter, Prompter, TPromptResponse } from "./prompter.js";
 import { makePrompt } from "./prompter.js";
-import { ReadlinePrompter } from "./readline-prompter.js";
 
 class TestPrompter implements IPrompter {
 	constructor(private answer: TPromptResponse) {

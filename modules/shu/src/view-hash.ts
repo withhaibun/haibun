@@ -1,24 +1,4 @@
 import { isOffline } from "./rpc-registry.js";
-/**
- * View-hash IO — the URL hash is the SPA's canonical view-state encoding. This
- * module owns reading and writing it, with an offline-mode fallback for the
- * standalone HTML snapshot (no window.location to mutate).
- *
- * Lives here, not on ShuElement, so server-side modules can import it without
- * pulling in HTMLElement.
- *
- * Offline is not a flag this module keeps: it is which Conduit the app installed, read from hypermedia. A second flag
- * could disagree with the first, and the one a report was written under is the one that decides whether there is a
- * location to mutate.
- *
- * ARRIVALS are canonicalized here, before any consumer reads them: `open=` is the
- * ADDITIVE link form a static document uses — such a link cannot carry the rest of
- * the live state (label, sort, the other columns), so replacing the fragment with
- * it would drop them. The module-level hashchange listener below registers at
- * import time, ahead of every runtime listener (they all import this module), so
- * by the time pane-state or viewQuery reads the hash it is already canonical.
- */
-import { } from "./hypermedia.js";
 
 /** The hash body as URLSearchParams, tolerant of a leading `#` or `#?`. */
 /** The hash that names these columns, in this order: what a page starting on a run's views is given, the same form a

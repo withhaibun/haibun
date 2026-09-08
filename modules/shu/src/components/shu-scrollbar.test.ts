@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import { ShuScrollbar, SCROLL_TO_INDEX } from "./shu-scrollbar.js";
-import { markerTopPx, thumbHeightPx, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
+import { markerTopPx, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
 
 class StubResizeObserver {
 	observe(): void {

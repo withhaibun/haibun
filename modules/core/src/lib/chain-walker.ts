@@ -1,21 +1,4 @@
-/**
- * Chain walker — advances a chain instance one step at a time.
- *
- * Given an existing `TChainInstance`, `advanceChainInstance` resolves the next
- * step from the instance's michi, dispatches it through the shared dispatcher
- * with a freshly allocated synthetic seqPath, and persists the produced fact
- * id back onto the instance. The walker never auto-advances past one step —
- * the SPA pauses between steps to collect input where the michi
- * declares `kind: "argument"` bindings.
- *
- * The walker treats the dispatcher's `stepIndex === michi.steps.length` as the
- * terminal state: the instance status flips to `completed`. A step failure
- * flips status to `failed` and stops the walk; the SPA can present the error
- * and offer to retry the step or abandon the walk.
- */
-import type { TWorld } from "./world.js";
 import type { StepRegistry } from "./step-registry.js";
-import type { AStepper } from "./astepper.js";
 import type { DispatchContext } from "./step-dispatch.js";
 import { stepMethodName } from "./step-registry.js";
 import { callStepByName } from "./call-step.js";

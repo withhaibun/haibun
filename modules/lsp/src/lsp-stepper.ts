@@ -19,7 +19,7 @@ import {
 } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { AStepper, type TFeatureStep, type TStepAction } from "@haibun/core/lib/astepper.js";
+import { AStepper, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TFeature, TFeatures } from "@haibun/core/lib/execution.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { StepperRegistry, StepDescriptor } from "@haibun/core/lib/stepper-registry.js";

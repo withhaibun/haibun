@@ -10,7 +10,6 @@ import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../windowed-source.js";
 import { html } from "lit";
 import { timeCursor } from "../signals.js";
-import { DEFAULT_WINDOW_SIZE, windowSizeSetting } from "../window-size-setting.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { SHU_TAG } from "../consts.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -95,7 +94,10 @@ describe("the views of a run, over the records it wrote", () => {
 		resetGraphRunSources();
 		await aRun([stepRecord(1), stepRecord(2, { stepText: "graph query", called: "MonitorStepper.graphQuery", level: "trace" })]);
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
-		expect(mon.rows.map((r) => r.step), "a call made into the instance reports under the run's own steps").toEqual(["step 1"]);
+		expect(
+			mon.rows.map((r) => r.step),
+			"a call made into the instance reports under the run's own steps",
+		).toEqual(["step 1"]);
 	});
 
 	it("places the cursor at a row's instant, and at the newest row places it at the live edge so every view follows again", async () => {

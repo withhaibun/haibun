@@ -1,4 +1,3 @@
-import { Origin } from "../schema/protocol.js";
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "./test/lib.js";
 import VariablesStepper from "../steps/variables-stepper.js";

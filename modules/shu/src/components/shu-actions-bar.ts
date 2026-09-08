@@ -26,11 +26,10 @@ import { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 import { PaneState } from "../pane-state.js";
 import { chatMessageStyles } from "./shu-chat-message.js";
-import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
+import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-import { clamp, prettifyGwta, appAccessLevel } from "../util.js";
+import { prettifyGwta, appAccessLevel } from "../util.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
 import { isServerUnreachable } from "../hypermedia.js";
 import { selectValuesFor } from "../quads-snapshot.js";
@@ -53,7 +52,6 @@ import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 import { reportToRun, type TClientLogLevel } from "../client-log.js";
-
 
 /**
  * Build the secondary line shown under a step's gwta in the step picker.
@@ -443,7 +441,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			"haibun.shu.actions-bar.event": "ui-extension",
 			...attributes,
 			...(level === "error"
-				? { "haibun.autonomic.event": "step.failure", "exception.type": "ActionsBarUiExtension", "exception.message": typeof attributes.error === "string" ? attributes.error : message }
+				? {
+						"haibun.autonomic.event": "step.failure",
+						"exception.type": "ActionsBarUiExtension",
+						"exception.message": typeof attributes.error === "string" ? attributes.error : message,
+					}
 				: {}),
 		});
 	}
@@ -575,7 +577,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._timeOffsetLabel = label;
 		this.requestUpdate();
 	}
-
 
 	/** Where in the run the cursor sits. The span is read off the shared event log without registering a window: this
 	 *  bar is mounted for the whole session, so asking for one would page the entire run in at boot and pin it there,

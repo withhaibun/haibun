@@ -3,7 +3,7 @@ import type { TWorld, TRuntime, TModuleOptions } from "../world.js";
 import { TActionResult, OK, TDebugSignal } from "../../schema/protocol.js";
 import { TAnyFixme } from "../fixme.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../astepper.js";
-import { TArtifactEvent, type TJsonArtifact, Timer } from "../../schema/protocol.js";
+import { TArtifactEvent, type TJsonArtifact } from "../../schema/protocol.js";
 
 // Helper to get term from stepValuesMap with null safety
 /** Truncate to at most `max` characters, ellipsizing — so every producer truncates identically. */
@@ -325,8 +325,6 @@ export function slugify(s: string) {
 		.replace(/-+/g, "-")
 		.replace(/^-|-$/g, "");
 }
-import { namedInterpolation } from "../namedVars.js";
-import { Origin } from "../../schema/protocol.js";
 
 export const intOrError = (val: string) => {
 	if (val.match(/[^\d+]/)) {
