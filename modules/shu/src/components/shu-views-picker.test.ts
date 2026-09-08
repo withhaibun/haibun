@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * The list of views a deployment declares. It draws a row per view and opens the one a reader presses; what those views
- * are belongs to whoever gives them.
+ * The list of views a deployment declares. It draws a row per view and opens the one a reader presses; whoever
+ * declares the views decides what they are.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SHU_TEST_IDS } from "../test-ids.js";

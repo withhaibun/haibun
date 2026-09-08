@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { getDefaultWorld } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";

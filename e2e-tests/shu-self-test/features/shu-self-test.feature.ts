@@ -5,7 +5,7 @@ import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { ShuStepper, SHU_TEST_IDS } from "@haibun/shu";
 import { SHU_TAG } from "@haibun/shu/consts.js";
-import { createStepUI, stepTestIds, flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { headingAnchor } from "@haibun/core/lib/document-content.js";
 
@@ -330,6 +330,8 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.FAILURES.ROOT }),
 		`save text from ${IDS.FAILURES.COUNT} to failedCount`,
 		'matches failedCount with "* failed"',
+		"The list holds one line beside the bar until a reader opens it, so the page's top stays the run's. Opening it shows the failures, and pressing one moves the cursor to that moment.",
+		click({ target: IDS.FAILURES.COUNT }),
 		click({ target: FAILURES_FIRST_ROW }),
 		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAtFailure`,
 		'not variable cursorAtFailure is "live edge"',
@@ -352,7 +354,6 @@ export const features: TKirejiExport = {
 		"A view no step of this run showed is not among them. The thread column is one this deployment declares and this run never opened, so an address that named it would be naming something other than what the records say.",
 		`not matches freshUri with "*${SHU_TAG.THREAD_COLUMN}*"`,
 
-
 		scenario({ scenario: "The views on offer are read from what the deployment declares" }),
 
 		"A type that names a component to show itself is a view, so what a reader can open is read from the declarations rather than from a list kept beside them. Asking for the views shows that list, with a row for each, named by the view that row opens. A press is not stated here: the document embeds every view a step of this run showed, so a second copy of this list stands in the manual it builds, and the row's name identifies two elements rather than one.",
@@ -362,6 +363,6 @@ export const features: TKirejiExport = {
 		waitFor({ target: VIEWS_PICKER }),
 		waitFor({ target: VIEWS_PICKER_MONITOR }),
 
-		"Each row names one element of this page. The manual the document builds records what a step showed rather than mounting the view again, so the name a row carries belongs to that row alone. What pressing a row does is a rule of the picker, stated where the picker is.",
+		"Each row names one element of this page. The manual the document builds records what a step showed rather than mounting the view again, so each row carries only its own name. The picker's own unit cases state what pressing a row does.",
 	],
 };

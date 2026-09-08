@@ -1,5 +1,5 @@
-import { GraphQuerySchema, type TCluster, type TClusteredQuads, type TGraphQueryResult, type TQuad, type IQuadStore , type TDensityQuery, type TDensityResult } from "@haibun/core/lib/quad-types.js";
-import { individualWithEdges, type TIndividualWithEdges, type TQuadEdge } from "@haibun/core/lib/quad-store.js";
+import { GraphQuerySchema, type TCluster, type TClusteredQuads, type TGraphQueryResult, type TQuad, type IQuadStore, type TDensityQuery, type TDensityResult, type TQuadEdge, type TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
+import { individualWithEdges, incomingEdgesOf } from "@haibun/core/lib/quad-store.js";
 import type { TRunGraph } from "./client-cache/run-graph.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
@@ -245,10 +245,10 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			const steps = await getAvailableSteps();
 			if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
 			const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[]; site?: string }>(
-				{ method: "GraphSourceStepper-getClusteredQuads", params: { perTypeLimit, types: opts.types, accessLevel } },
+				{ method: requireStep("getClusteredQuads"), params: { perTypeLimit, types: opts.types, accessLevel } },
 				"quads-snapshot: fetch clustered quads",
 			);
-			if (!Array.isArray(data.quads)) throw new Error("GraphSourceStepper-getClusteredQuads returned non-array quads");
+			if (!Array.isArray(data.quads)) throw new Error("getClusteredQuads returned non-array quads");
 			// The server already clustered (true totals + SQL body labels); the model adopts that snapshot, then live SSE extends it.
 			model.seed({ quads: data.quads, clusters: data.clusters ?? [], site: data.site });
 			if (priorPinned) model.pin(priorPinned);
@@ -391,34 +391,14 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	void cachedGraphStore().setMany(quads); // persist live observations off-heap for the next reload
 }
 
-/** An individual as a view reads it, and one of its edges: what a store answers with, whichever store it is. */
-export type TStoredEdge = TQuadEdge;
-export type TStoredEntity = TIndividualWithEdges;
-
-/**
- * One individual as the page holds it, for when the site does not answer: the same reading the site makes of its own
- * store, made here of the store this page holds.
- */
-export function derefStoredEntity(label: string, id: string): Promise<TStoredEntity | undefined> {
-	return individualWithEdges(cachedGraphStore(), label, id);
-}
-
-/** The edges pointing at an individual, as the page holds them: the quads elsewhere whose object is this one, read as
- *  edges from the records that name them. */
-async function storedIncomingEdges(id: string): Promise<TStoredEdge[]> {
-	const quads = (await cachedGraphStore().query({ object: id })).filter((quad) => quad.objectType);
-	const held = async (label: string, subject: string): Promise<Record<string, unknown>> => ({ "@id": subject, "@type": label, ...((await cachedGraphStore().getIndividual<Record<string, unknown>>(label, subject)) ?? {}) });
-	return Promise.all(quads.map(async (quad) => ({ type: quad.predicate, direction: "in" as const, target: await held(quad.namedGraph, quad.subject) })));
-}
-
 /**
  * One individual with its edges: what the site answers, and when nothing answers, the individual as the page holds it.
  * Undefined only when the site answered that there is no such individual; anything else the site said is reported.
  */
-export function readIndividual(label: string, id: string, accessLevel: string): Promise<TStoredEntity> {
+export function readIndividual(label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> {
 	return askElseHeld(
-		() => conduit().follow<TStoredEntity>({ method: requireStep("getIndividualWithEdges"), params: { label, id, accessLevel } }, `read ${label}:${id}`),
-		() => derefStoredEntity(label, id),
+		() => conduit().follow<TIndividualWithEdges>({ method: requireStep("getIndividualWithEdges"), params: { label, id, accessLevel } }, `read ${label}:${id}`),
+		() => individualWithEdges(cachedGraphStore(), label, id),
 	);
 }
 
@@ -426,17 +406,17 @@ export function readIndividual(label: string, id: string, accessLevel: string): 
  * What points at an individual: what the site answers, and when nothing answers, the edges the page holds that point at
  * it, windowed the same way. The count is what the reader can reach, which offline is what they hold.
  */
-export function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<{ edges: TStoredEdge[]; total: number }> {
+export function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<{ edges: TQuadEdge[]; total: number }> {
 	return askElseHeld(
 		() =>
-			conduit().follow<{ edges: TStoredEdge[]; total: number }>(
+			conduit().follow<{ edges: TQuadEdge[]; total: number }>(
 				{ method: requireStep("getIncomingEdges"), params: { label, id, accessLevel: appAccessLevel(), ...window } },
 				`what points at ${label}:${id}`,
 			),
 		async () => {
 			if (!getRels(label)) return undefined;
-			const edges = await storedIncomingEdges(id);
-			return { edges: edges.slice(window.offset, window.offset + window.limit), total: edges.length };
+			// The window is taken before a record is read, so a hub costs the page a window rather than every edge of it.
+			return incomingEdgesOf(cachedGraphStore(), id, window);
 		},
 	);
 }

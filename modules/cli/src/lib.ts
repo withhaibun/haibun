@@ -21,7 +21,6 @@ import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-sch
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/phases/collector.js";
 import { withNameType } from "@haibun/core/lib/features.js";
-import type { TFeature } from "@haibun/core/lib/execution.js";
 import { forgetOutcome, outcomeAgainst, recordOutcome, verificationOf } from "./verified.js";
 import { recordTimings, varianceLine } from "./timings.js";
 
@@ -64,11 +63,24 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// A run that has passed against the state its dependencies have now would answer what that run answered.
 		verification =
 			parsed.statements.length === 0 && !parsed.dryRun
-				? verificationOf({ configPath: configFileFrom(configBases), specl, bases, cwd: process.cwd(), filter: featureFilter ?? [], options: protoOptions.options, moduleOptions: protoOptions.moduleOptions, policy: policyConfig, withSteppers: parsed.withSteppers })
+				? verificationOf({
+						configPath: configFileFrom(configBases),
+						specl,
+						bases,
+						cwd: process.cwd(),
+						filter: featureFilter ?? [],
+						options: protoOptions.options,
+						moduleOptions: protoOptions.moduleOptions,
+						policy: policyConfig,
+						withSteppers: parsed.withSteppers,
+					})
 				: undefined;
 		if (parsed.once) {
-			if (!verification) console.info(`${OPTION_ONCE}: this run has no dependencies to record a pass against (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features kept in no repository"}), so it runs`);
-			// A group that passed, with no dependency changed since, would pass again. A group that failed runs again: what a person
+			if (!verification)
+				console.info(
+					`${OPTION_ONCE}: this run has no dependencies to record a pass against (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features kept in no repository"}), so it runs`,
+				);
+			// A group that passed with no dependency changed since would pass again. A group that failed runs again: what a person
 			// does with a failure is retry it, and a run that fails for a reason outside the sources is one they must be
 			// able to retry without changing anything.
 			else if (outcomeAgainst(verification)?.outcome === "passed") return verifiedExit(bases);
@@ -156,9 +168,9 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 	return policyConfig;
 }
 
-/** A run not made, because the group passed and no dependency changed: said as the pass it is, and exited as one. */
+/** Says the pass and exits as one, for a group that passed with no dependency changed since then. */
 function verifiedExit(bases: TBase): never {
-	console.info(`\n${CHECK_YES} ${bases.join(",")} passed and no dependency changed since, so it did not run. Run without ${OPTION_ONCE} to run it anyway.\n`);
+	console.info(`\n${CHECK_YES} ${bases.join(",")} passed, and no dependency has changed since then, so it did not run. Run without ${OPTION_ONCE} to run it anyway.\n`);
 	process.exit(0);
 }
 

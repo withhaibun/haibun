@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RemoteGraphSource } from "./remote-graph-source.js";
+import { RPC_METHOD } from "./consts.js";
 
 /** A canned peer: action.begin self-reports the site; getClusteredQuads serves one Email cluster with one pre-stamped subject. */
 const readRequests: Record<string, unknown>[] = [];
@@ -8,7 +9,7 @@ const peerFetch =
 	(input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		const url = String(input);
 		if (url.endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify(beginBody), { status: 200, headers: { "Content-Type": "application/json" } }));
-		if (url.endsWith("/rpc/GraphSourceStepper-getClusteredQuads")) {
+		if (url.endsWith(`/rpc/${RPC_METHOD.CLUSTERED_QUADS}`)) {
 			readRequests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
 			const body = {
 				quads: [

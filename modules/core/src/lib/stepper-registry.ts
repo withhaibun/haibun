@@ -21,8 +21,11 @@ export interface StepDescriptor {
 	 */
 	productsDomain?: string;
 	capability?: string;
-	/** True where this step answers only if nothing else answers to its name: a caller naming the step takes the one
-	 *  that is not a fallback, whatever order the steppers were registered in. */
+	/**
+	 * True where this step answers only if no other step answers to its name. A caller that names a step rather than a
+	 * method takes the one that is not a fallback, in any order of stepper registration, so a deployment that brings its
+	 * own step of that name is read through its own step. `Resolver` applies the same rule to a feature's line.
+	 */
 	fallback?: boolean;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;

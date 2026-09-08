@@ -8,7 +8,7 @@
  * it has. These tests pin the rule.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { hydrateFromDom, isOffline, getAvailableSteps, registryOrigin, resetStepRegistry } from "./rpc-registry.js";
+import { deploymentMs, hydrateFromDom, isOffline, getAvailableSteps, registryOrigin, requireStep, resetStepRegistry } from "./rpc-registry.js";
 import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 
@@ -52,6 +52,84 @@ describe("a page that carries its own run has no server behind it", () => {
 		hydrateFromDom();
 		expect(document.getElementById("shu-hydration")?.textContent).toBe("");
 		expect(isOffline()).toBe(true); // decided by the parsed data, not the DOM text
+	});
+});
+
+describe("the timings a deployment sets", () => {
+	beforeEach(() => {
+		document.head.innerHTML = "";
+		document.body.innerHTML = "";
+	});
+
+	it("answers with what the deployment set", () => {
+		setHydration({ settings: { runShapeCountedAfterMs: 1000, streamReconnectAfterMs: 500 } });
+		hydrateFromDom();
+		expect(deploymentMs("runShapeCountedAfterMs")).toBe(1000);
+		expect(deploymentMs("streamReconnectAfterMs")).toBe(500);
+	});
+
+	it("answers with nothing where the deployment set nothing, so the page applies what it carries", () => {
+		setHydration({ settings: {} });
+		hydrateFromDom();
+		expect(deploymentMs("runShapeCountedAfterMs")).toBeUndefined();
+	});
+
+	it("refuses a value the page cannot apply, rather than reading it as unset", () => {
+		setHydration({ settings: { runShapeCountedAfterMs: 0 } });
+		hydrateFromDom();
+		expect(() => deploymentMs("runShapeCountedAfterMs")).toThrow(/above zero/);
+		setHydration({ settings: { streamReconnectAfterMs: "soon" } });
+		hydrateFromDom();
+		expect(() => deploymentMs("streamReconnectAfterMs")).toThrow(/above zero/);
+	});
+});
+
+const aStep = (stepperName: string, stepName: string, fallback: boolean) => ({
+	stepperName,
+	stepName,
+	method: `${stepperName}-${stepName}`,
+	pattern: `${stepName} something`,
+	params: {},
+	...(fallback ? { fallback: true } : {}),
+});
+
+describe("the step a name answers to", () => {
+	// Two steppers may declare one step name: the site says which of them is a fallback, and a page naming the step
+	// takes the one that is not. A deployment that brings its own step is read through its own step.
+	let handle: TShuTestHandle;
+	const listing = (steps: unknown[]) => setupShuTest({ dispatch: (method) => (method === "step.list" ? { steps, domains: {}, concerns: { persisted: {} } } : undefined) });
+	beforeEach(() => {
+		setHydration({});
+		resetStepRegistry();
+		setDeviceStore(new MemoryDeviceStore());
+	});
+	afterEach(() => {
+		handle?.teardown();
+		resetStepRegistry();
+	});
+
+	it("takes the step that is not a fallback, whichever the site listed first", async () => {
+		handle = listing([aStep("GraphSourceStepper", "graphQuery", true), aStep("GraphStepper", "graphQuery", false)]);
+		await getAvailableSteps();
+		expect(requireStep("graphQuery")).toBe("GraphStepper-graphQuery");
+		handle.teardown();
+		resetStepRegistry();
+		setDeviceStore(new MemoryDeviceStore());
+		handle = listing([aStep("GraphStepper", "graphQuery", false), aStep("GraphSourceStepper", "graphQuery", true)]);
+		await getAvailableSteps();
+		expect(requireStep("graphQuery")).toBe("GraphStepper-graphQuery");
+	});
+
+	it("takes the fallback where nothing else answers to the name", async () => {
+		handle = listing([aStep("GraphSourceStepper", "graphQuery", true)]);
+		await getAvailableSteps();
+		expect(requireStep("graphQuery")).toBe("GraphSourceStepper-graphQuery");
+	});
+
+	it("takes the step by its own method, which names one stepper", async () => {
+		handle = listing([aStep("GraphSourceStepper", "graphQuery", true), aStep("GraphStepper", "graphQuery", false)]);
+		await getAvailableSteps();
+		expect(requireStep("GraphSourceStepper-graphQuery")).toBe("GraphSourceStepper-graphQuery");
 	});
 });
 

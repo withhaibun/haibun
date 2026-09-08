@@ -33,13 +33,15 @@ export class ShuRunFailures extends ShuElement<typeof EmptySchema> {
 		shuBaseStyles,
 		css`
 			:host { display: block; }
-			ol { list-style: none; margin: 0; padding: 0; max-height: calc(var(--shu-space-5) * 6); overflow: auto; }
+			/* One line beside the bar until a reader opens it: the page's top belongs to the run, not to a list of what
+			   failed in it. The disclosure is the browser's own, so it opens and closes as a reader expects. */
+			summary { cursor: pointer; padding: 0 var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
+			ol { list-style: none; margin: 0; padding: 0; max-height: 12em; overflow: auto; }
 			li { display: flex; gap: var(--shu-space-2); align-items: baseline; font-size: var(--shu-font-sm); }
 			button { font: inherit; color: inherit; background: none; border: none; padding: 0 var(--shu-space-2); cursor: pointer; text-align: left; display: flex; gap: var(--shu-space-2); width: 100%; }
 			button:hover { background: var(--shu-bg-elevated); }
 			.what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 			.why { color: var(--shu-fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-			.count { color: var(--shu-fg-muted); font-size: var(--shu-font-sm); padding: 0 var(--shu-space-2); }
 		`,
 	];
 
@@ -61,8 +63,8 @@ export class ShuRunFailures extends ShuElement<typeof EmptySchema> {
 
 	render(): TemplateResult {
 		if (this.rows.length === 0) return html``;
-		return html`<div data-testid=${IDS.ROOT}>
-			<span class="count" data-testid=${IDS.COUNT}>${this.rows.length} failed</span>
+		return html`<details data-testid=${IDS.ROOT}>
+			<summary data-testid=${IDS.COUNT}>${this.rows.length} failed</summary>
 			<ol>
 				${this.rows.map((row) => {
 					const mark = markOf(row);
@@ -81,6 +83,6 @@ export class ShuRunFailures extends ShuElement<typeof EmptySchema> {
 					</li>`;
 				})}
 			</ol>
-		</div>`;
+		</details>`;
 	}
 }
