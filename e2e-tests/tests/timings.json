@@ -26,7 +26,7 @@
 				"steps": 41
 			},
 			"/features/auth-bearer.feature": {
-				"seconds": 2.4,
+				"seconds": 2.5,
 				"steps": 65
 			},
 			"/features/auth-form.feature": {
@@ -34,19 +34,19 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 1.2,
+				"seconds": 2.4,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.5,
+				"seconds": 2.2,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 22
 			},
 			"/features/elements.feature": {
-				"seconds": 0.3,
+				"seconds": 0.4,
 				"steps": 6
 			},
 			"/features/executor-rpc.feature.ts": {
@@ -58,7 +58,7 @@
 				"steps": 19
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0.3,
+				"seconds": 0.4,
 				"steps": 31
 			},
 			"/features/if-set.feature": {
@@ -78,7 +78,7 @@
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.5,
+				"seconds": 2.6,
 				"steps": 18
 			},
 			"/features/recurse.feature": {
@@ -106,19 +106,19 @@
 				"steps": 17
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.1,
-				"steps": 158
+				"seconds": 3.1,
+				"steps": 159
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
 				"steps": 64
 			},
 			"/features/xss.feature": {
-				"seconds": 2.5,
+				"seconds": 2.6,
 				"steps": 12
 			}
 		},
-		"steps": 1168,
-		"seconds": 17.9
+		"steps": 1169,
+		"seconds": 22.2
 	}
 }

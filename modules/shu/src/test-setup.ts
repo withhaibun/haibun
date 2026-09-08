@@ -39,8 +39,12 @@ export class TestConduit implements Conduit {
 		const seqPath = [0];
 		opts.onStart?.(seqPath);
 		const result = await this.dispatch(link.method, link.params ?? {});
-		if (Array.isArray(result)) for (const chunk of result) onChunk(chunk as TStreamChunk);
-		else onChunk(result as TStreamChunk);
+		// A chunk carrying an error ends the stream, as it ends one from a service: a caller reads the same failure
+		// whichever conduit is installed.
+		for (const chunk of (Array.isArray(result) ? result : [result]) as TStreamChunk[]) {
+			if (chunk?.error) throw new Error(String(chunk.error));
+			onChunk(chunk);
+		}
 		return { seqPath };
 	}
 
