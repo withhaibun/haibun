@@ -21,6 +21,9 @@ export interface StepDescriptor {
 	 */
 	productsDomain?: string;
 	capability?: string;
+	/** True where this step answers only if nothing else answers to its name: a caller naming the step takes the one
+	 *  that is not a fallback, whatever order the steppers were registered in. */
+	fallback?: boolean;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
 }
@@ -54,7 +57,7 @@ export class StepperRegistry {
 						}
 					}
 					const method = `${stepperName}-${stepName}`;
-					return { stepperName, stepName, method, pattern, params, paramDomains, productsDomain: stepDef.productsDomain, capability: stepDef.capability };
+					return { stepperName, stepName, method, pattern, params, paramDomains, productsDomain: stepDef.productsDomain, capability: stepDef.capability, ...(stepDef.fallback === true ? { fallback: true } : {}) };
 				});
 		});
 	}

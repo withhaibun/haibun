@@ -37,7 +37,7 @@ import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepp
 
 import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
 
-import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TGraphQuery , DOMAIN_DENSITY_QUERY, DensityResultSchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
+import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TGraphQuery, DOMAIN_DENSITY_QUERY, DensityResultSchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
 import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -51,11 +51,6 @@ import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
 // The in-memory buffers hold a recent WINDOW, never the run: over months, an unbounded buffer is the process's heap
 // death (a first-time index of a large mailbox OOMed the daemon at ~4GB). The store is canonical for graph data and
 // the disk log for event history; these buffers only serve live backfill and the live cluster extension.
-
-
-
-
-
 
 /**
  * Component JS to inline in the offline report: a domain's `ui.jsContent`, but only for components whose view is in the
@@ -109,26 +104,6 @@ export const ClientBlipsSchema = z.object({
 });
 export type TClientBlips = z.infer<typeof ClientBlipsSchema>;
 
-
-
-const ClusteredQuadsSchema = z.object({
-	quads: z.array(z.unknown()),
-	clusters: z.array(
-		z.object({
-			type: z.string(),
-			totalCount: z.number(),
-			sampledCount: z.number(),
-			omittedCount: z.number(),
-			sampledSubjects: z.array(z.string()),
-			displayLabels: z.record(z.string(), z.string()).optional(),
-			// Site principal per sampled subject SERVED BY A FEDERATED PEER; a subject without an entry was served by `site` below.
-			sites: z.record(z.string(), z.string()).optional(),
-		}),
-	),
-	// The responding instance's site principal — the serving site of every subject not overridden per-cluster.
-	site: z.string().optional(),
-});
-
 /** The step an event happened in, as the path the run walks: what a run says or produces names itself for that step,
  *  and what is named for no step has none. */
 const stepOf = (e: Record<string, unknown>): number[] => {
@@ -143,8 +118,7 @@ const underStep = (tag: TTag, e: Record<string, unknown>): string => {
 };
 
 /** A record's own name: the execution it belongs to, the step it came from, and which of that step's it is. */
-const recordId = (tag: TTag, e: Record<string, unknown>, ordinal: number): string =>
-	formatRecordName({ execution: executionOf(tag), path: stepOf(e), ordinal });
+const recordId = (tag: TTag, e: Record<string, unknown>, ordinal: number): string => formatRecordName({ execution: executionOf(tag), path: stepOf(e), ordinal });
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Records what a run says and produces, and serves the shu views what it holds";
@@ -155,14 +129,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private clientBlipsReceived = 0;
 	private storage!: AStorage;
 	private outputPath?: string;
-	/** buildResourceRels walks every domain; memoized by domain count so per-RPC calls reuse it while a runtime-declared domain still invalidates. */
-	private relsCache?: { rels: ReturnType<typeof buildResourceRels>; size: number };
-	private resourceRels(): ReturnType<typeof buildResourceRels> {
-		const domains = this.getWorld().domains;
-		const size = Object.keys(domains).length;
-		if (!this.relsCache || this.relsCache.size !== size) this.relsCache = { rels: buildResourceRels(domains), size };
-		return this.relsCache.rels;
-	}
 	cyclesWhen = { startFeature: CycleWhen.LAST };
 
 	options = {
@@ -292,7 +258,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			.upsertIndividual(RUN_ARTIFACT_LABEL, record)
 			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what the run produced was not recorded: ${errorDetail(err)}`));
 	}
-
 
 	/** The run as the page holds it, for a page with no site to read it from: the graph the run wrote, which is the run,
 	 *  and the site's registry as it stood. */
@@ -429,128 +394,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (missed > 0) world.eventLogger.debug(`[shu] ${missed} client occurrence(s) recorded but not delivered; the page's buffer filled between batches`);
 				return actionOKWithProducts({});
 			},
-		},
-		getClusteredQuads: {
-			read: true,
-			gwta: "get clustered quads",
-			productsSchema: ClusteredQuadsSchema,
-			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
-			retainProducts: false,
-			action: async (args: { perTypeLimit?: number | string; types?: string[] | string; accessLevel?: string; scope?: string } = {}) => {
-				const store = this.getWorld().shared.getStore();
-				// RPC params arrive stringified through the synthetic-step plumbing; coerce both back to native shapes.
-				const limitNum = typeof args.perTypeLimit === "string" ? Number(args.perTypeLimit) : args.perTypeLimit;
-				const perTypeLimit = Math.max(1, Math.min(10000, Number.isFinite(limitNum) ? (limitNum as number) : 100));
-				// Required, same as the dereference/query paths — no default ceiling, so the cluster view honors the caller's
-				// access exactly. A caller states a QUERY level: `all` asks for everything it may see, and refusing it left
-				// the graph view with only the quads that happened to stream live.
-				const accessLevel = storeScopeFor(AccessQueryLevelSchema.parse(args.accessLevel));
-				// A federated read asks for "own" — the peer's authoritative data, never its view of the world (see TClusteredQuadsOpts).
-				if (args.scope !== undefined && args.scope !== "own" && args.scope !== "federated")
-					return actionNotOK(`getClusteredQuads: scope must be "own" or "federated", got "${args.scope}"`);
-				const scope = args.scope as "own" | "federated" | undefined;
-				let types: string[] | undefined;
-				if (Array.isArray(args.types)) types = args.types;
-				else if (typeof args.types === "string" && args.types.length > 0) {
-					try {
-						const parsed: unknown = JSON.parse(args.types);
-						if (Array.isArray(parsed)) types = parsed.map(String);
-					} catch (err) {
-						this.getWorld().eventLogger.warn(`getClusteredQuads: ignoring non-JSON 'types' param: ${errorDetail(err)}`);
-					}
-				}
-				if (!store.getClusteredQuads) {
-					return actionNotOK("QuadStore does not support getClusteredQuads");
-				}
-				const result = await store.getClusteredQuads({ perTypeLimit, types, accessLevel, scope });
-				// The store sample is canonical; the live observation buffer only EXTENDS it through the one shared,
-				// budget-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
-				// buffer unbudgeted let every observed subject past the requested limit — the client seeds this
-				// response verbatim, so the response itself must hold the bound.
-				const model = new QuadGraphModel(
-					perTypeLimit,
-					(type) => this.resourceRels().fields(type),
-					(type) => this.resourceRels().displayLabelRel(type),
-				);
-				model.seed({ quads: result.quads as TQuad[], clusters: [...result.clusters] });
-				const quads = model.snapshot.quads.map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({
-					subject,
-					predicate,
-					object,
-					objectType,
-					namedGraph,
-					timestamp,
-					properties,
-				}));
-				// The schema (Class, Property and rdf:type edges) rides in the SAME response, pruned to the terms the data
-				// uses. Its evidence is the response's own quads, which is what the store holds: a fact announced is a
-				// fact written, so there is nothing a second buffer would add. The offline report assembles it the same
-				// way (buildGraphSource).
-				const standardVocab = await enumerateStandardVocab(this.getWorld().domains);
-				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, quads, this.getWorld().domains, standardVocab);
-				return actionOKWithProducts({ ...withSchema, site: activeSitePrincipal(this.getWorld()) });
-			},
-		},
-		clusteredGraphHoldsFromSite: {
-			gwta: "clustered graph holds {type} {subject} from site {site}",
-			productsSchema: z.object({ subject: z.string(), site: z.string() }),
-			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
-			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a
-			// user would see — including that the subject's stamp names the site that actually serves it.
-			action: async ({ type, subject, site }: { type: string; subject: string; site: string }) => {
-				const store = this.getWorld().shared.getStore();
-				if (!store.getClusteredQuads) return actionNotOK("QuadStore does not support getClusteredQuads");
-				const { clusters } = await store.getClusteredQuads({ perTypeLimit: 1000, accessLevel: Access.private });
-				const cluster = clusters.find((c) => c.type === type);
-				if (!cluster?.sampledSubjects.includes(subject)) return actionNotOK(`clustered graph holds no ${type} ${subject}`);
-				const served = cluster.sites?.[subject];
-				return served === site ? actionOKWithProducts({ subject, site }) : actionNotOK(`${subject} is served by ${served ?? "this site (unstamped)"}, not ${site}`);
-			},
-		},
-		federateGraphReads: {
-			gwta: "federate graph reads from {where}",
-			productsSchema: z.object({ site: z.string() }),
-			// Reads-first federation: merge a peer instance's clustered graph reads into this one's view, each of the
-			// peer's subjects stamped with its site principal so the view can group by site. Site principals must be
-			// unique in a federation — when this instance still carries the default (did:site:0 to itself) and collides
-			// with the peer, it asks the peer what it should be called and adopts the answer; an operator-set principal
-			// that collides is a configuration error, surfaced as one.
-			action: async ({ where }: { where: string }) => {
-				const world = this.getWorld();
-				const source = new RemoteGraphSource({ url: where });
-				const peer = await source.connect();
-				if (peer === activeSitePrincipal(world)) {
-					if (!hasDefaultSitePrincipal(world)) return actionNotOK(`federate: site principals collide (${peer}) and this site is operator-named — set HAIBUN_SITE_KEY uniquely`);
-					const assigned = await source.requestName();
-					adoptSitePrincipal(world, assigned);
-					await persistPrincipalIndividual(world, { id: assigned, controller: assigned, generatedAtTime: new Date().toISOString() });
-				}
-				const store = world.shared.getStore();
-				if (!(store instanceof QuadStore)) return actionNotOK("federate: the world store does not support federation");
-				store.federate(source);
-				return actionOKWithProducts({ site: peer });
-			},
-		},
-		density: {
-			read: true,
-			gwta: `run shape {query: ${DOMAIN_DENSITY_QUERY}}`,
-			fallback: true,
-			productsSchema: DensityResultSchema,
-			// The counts are the answer; keeping them on the event too is the per-read bloat.
-			retainProducts: false,
-			// The same answer a page counting over its own copy of the graph gives itself, so the two never drift.
-			action: async ({ query }: { query: TDensityQuery }) => actionOKWithProducts(await this.getWorld().shared.getStore().density(query)),
-		},
-
-		graphQuery: {
-			read: true,
-			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
-			fallback: true,
-			productsSchema: GraphQueryResultSchema,
-			// The vertex rows are the RPC response; keeping them on the event too is the per-query bloat.
-			retainProducts: false,
-			// The same answer a page reading its own copy of the graph gives itself, so the two never drift.
-			action: async ({ query }: { query: TGraphQuery }) => actionOKWithProducts(await queryQuadStore(this.getWorld().shared.getStore(), query)),
 		},
 	} satisfies TStepperSteps;
 }

@@ -3,7 +3,6 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { AccessLevelSchema, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/resources.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
-import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import { z } from "zod";
 import ShuStepper, { sessionActions } from "./shu-stepper.js";
 import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
@@ -11,32 +10,8 @@ import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { runWithRequestContext } from "@haibun/core/lib/request-context.js";
 import type { TCredentialRequest } from "@haibun/core/lib/authority-types.js";
 
-function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
-	return {
-		set: vi.fn(async () => undefined),
-		get: vi.fn(async () => undefined),
-		add: vi.fn(async () => undefined),
-		query: vi.fn(async () => []),
-		clear: vi.fn(async () => undefined),
-		remove: vi.fn(async () => undefined),
-		all: vi.fn(async () => []),
-		upsertIndividual: vi.fn(async () => ""),
-		getIndividual: vi.fn(async () => undefined),
-		deleteIndividual: vi.fn(async () => undefined),
-		queryIndividuals: vi.fn(async () => []),
-		distinctPropertyValues: vi.fn(async () => []),
-		density: vi.fn(async () => ({ buckets: [] })),
-		getClusteredQuads: vi.fn(async () => ({ quads: [], clusters: [] })),
-		...overrides,
-	};
-}
 
-function selectProducts(result: Awaited<ReturnType<ShuStepper["steps"]["getSelectValues"]["action"]>>): { values: Record<string, string[]> } {
-	return result.products as { values: Record<string, string[]> };
-}
-
-
-describe("ShuStepper", () => {
+describe("the app a deployment serves", () => {
 	let stepper: ShuStepper;
 	let addRoute: ReturnType<typeof vi.fn>;
 
@@ -64,54 +39,6 @@ describe("ShuStepper", () => {
 		const first = await stepper.steps.serveShuApp.action({ path: "/spa" });
 		expect(first.ok).toBe(true);
 		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" })).toThrow("already mounted");
-	});
-
-	it("returns no select values for Comment (no enum-backed fields)", async () => {
-		const world = stepper.getWorld();
-		const commentDomain = mapDefinitionsToDomains([commentDomainDefinition])[commentDomainDefinition.selectors.sort().join(" | ")];
-		world.domains = { ...world.domains, comment: commentDomain };
-		world.shared.getStore = vi.fn(() => mockQuadStore());
-
-		const result = await stepper.steps.getSelectValues.action({ label: "Comment" });
-		expect(result.ok).toBe(true);
-		expect(selectProducts(result).values).toEqual({});
-	});
-
-	it("fails when no filter topology is registered for the label", async () => {
-		const result = await stepper.steps.getSelectValues.action({ label: "Missing" });
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error("expected missing filter topology to fail");
-		expect(result.errorMessage).toContain("No filter topology registered for Missing");
-	});
-
-	it("keeps context-rel select discovery in shu", async () => {
-		const world = stepper.getWorld();
-		world.domains = {
-			...world.domains,
-			email: {
-				selectors: ["test-email"],
-				schema: z.object({ id: z.string(), account: z.string(), folder: z.string(), accessLevel: AccessLevelSchema, dateSent: z.date() }),
-				coerce: (proto: { value?: unknown }) => proto.value,
-				description: "An email message.",
-				topology: {
-					persistedAs: "Email",
-					id: "id",
-					properties: {
-						id: LinkRelations.IDENTIFIER.rel,
-						account: LinkRelations.CONTEXT.rel,
-						folder: LinkRelations.CONTEXT.rel,
-						accessLevel: LinkRelations.ACCESS_LEVEL.rel,
-					},
-				},
-			},
-		};
-		const distinctPropertyValues = vi.fn(async (_label: string, property: string) => (property === "account" ? ["primary"] : ["INBOX", "Sent"]));
-		world.shared.getStore = vi.fn(() => mockQuadStore({ distinctPropertyValues }));
-
-		const result = await stepper.steps.getSelectValues.action({ label: "Email" });
-		expect(result.ok).toBe(true);
-		expect(selectProducts(result).values).toEqual({ account: ["primary"], folder: ["INBOX", "Sent"] });
-		expect(distinctPropertyValues).toHaveBeenCalledTimes(2);
 	});
 });
 

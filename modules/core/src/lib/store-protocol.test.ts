@@ -12,7 +12,7 @@ describe("store protocol capability classification", () => {
 	it("recognizes exactly the wire methods", () => {
 		expect(isStoreMethod("store.upsertIndividual")).toBe(true);
 		expect(isStoreMethod("store.dropTables")).toBe(false);
-		expect(isStoreMethod("MonitorStepper-getClusteredQuads")).toBe(false);
+		expect(isStoreMethod("GraphSourceStepper-getClusteredQuads")).toBe(false);
 	});
 });
 

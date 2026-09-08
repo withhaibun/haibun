@@ -10,7 +10,8 @@ import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { hypermediaDomainMap, objectCoercer } from "@haibun/core/lib/domains.js";
 import { presentedKeySchema, sessionCredentialSchema, type TPresentedKey } from "./session-schema.js";
-import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
+import type { TDeploymentSettings } from "./rpc-registry.js";
 import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import { currentRequestBaseIri } from "@haibun/core/lib/request-context.js";
 import { getJsonLdContext, relOf } from "@haibun/core/lib/hypermedia.js";
@@ -63,7 +64,6 @@ const ShuViewCollectionSchema = z.object({
 	view: z.string().optional(),
 	views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
 });
-const ShuSelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
 
 // Nodes and edges as pipe-delimited tokens — node `graph|subject|label`, edge `source|predicate|target` —
 // so a feature can match a relationship without parsing the rendered graph (e.g. `matches g.edges with "*|discloses|*"`).
@@ -123,8 +123,9 @@ ${scriptsHtml}
 
 // The served page's hydration is empty: a live page carries no boot payload. Only the offline report embeds one, and
 // it writes its own hydration element (buildReportHtml). The tag is still served so the SSR shape is one shape.
-export function buildSpaHtml(basePath: string, bundle: string): string {
-	const scripts = `  <script type="application/json" id="shu-hydration">{}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
+export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploymentSettings = {}): string {
+	const hydration = Object.keys(settings).length > 0 ? JSON.stringify({ settings }) : "{}";
+	const scripts = `  <script type="application/json" id="shu-hydration">${hydration}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
 	return spaDocument(basePath, scripts);
 }
 
@@ -158,7 +159,7 @@ export function buildReportHtml(basePath: string, payload: string, compressed: b
 	return spaDocument(basePath, loader);
 }
 
-function createSpaHandler(basePath: string) {
+function createSpaHandler(basePath: string, settings: TDeploymentSettings) {
 	// Read the bundle from disk on every request rather than caching it at
 	// handler construction, so a rebuilt shu-bundle.js is served after
 	// `npm run build` + reload with no service restart. The ~3.7MB readFileSync
@@ -169,7 +170,7 @@ function createSpaHandler(basePath: string) {
 	return (c: Context) => {
 		c.header("Cache-Control", "no-store, must-revalidate");
 		c.header("Pragma", "no-cache");
-		return c.html(buildSpaHtml(basePath, loadBundle()));
+		return c.html(buildSpaHtml(basePath, loadBundle(), settings));
 	};
 }
 
@@ -219,6 +220,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		await super.setWorld(world, steppers);
 		this.sessionCapability = getStepperOption(this, "SESSION_CAPABILITY", world.moduleOptions) as string | undefined;
+		const timing = (option: string): number | undefined => {
+			const set = getStepperOption(this, option, world.moduleOptions);
+			return set === undefined ? undefined : Number(set);
+		};
+		this.settings = {
+			...(timing("RUN_SHAPE_COUNTED_AFTER_MS") === undefined ? {} : { runShapeCountedAfterMs: timing("RUN_SHAPE_COUNTED_AFTER_MS") }),
+			...(timing("STREAM_RECONNECT_AFTER_MS") === undefined ? {} : { streamReconnectAfterMs: timing("STREAM_RECONNECT_AFTER_MS") }),
+		};
 	}
 
 	/**
@@ -310,6 +319,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	 * port. Unset, nothing is issued and a reader can do only what needs no authority.
 	 */
 	options = {
+		RUN_SHAPE_COUNTED_AFTER_MS: {
+			desc: "How long after the run moves the page counts its shape again, in milliseconds (default 15000)",
+			parse: (input: string) => intOrError(input),
+		},
+		STREAM_RECONNECT_AFTER_MS: {
+			desc: "How long after the event stream breaks the page opens it again, in milliseconds (default 2000)",
+			parse: (input: string) => intOrError(input),
+		},
 		SESSION_CAPABILITY: {
 			// One process's own: a run this one starts serves its own app, from its own authority, and a session this run
 			// issued means nothing there. Inherited, a child that has no authority to issue from failed at boot.
@@ -320,6 +337,9 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	};
 	/** SESSION_CAPABILITY as the deployment wrote it; `sessionActions` reads the actions out of it. */
 	private sessionCapability?: string;
+	/** The timings this deployment set, written into every page it serves. A deployment that sets neither serves a page
+	 *  that runs on the values the product carries. */
+	private settings: TDeploymentSettings = {};
 
 	steps = {
 		/**
@@ -347,7 +367,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				if (pathError) return actionNotOK(pathError);
 				// The page boots with an empty payload and no credential: it makes its own key after loading and asks
 				// issueSessionCredential for what this deployment lets a reader act under.
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path));
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, this.settings));
 				const domains = this.getWorld().domains;
 				// The context varies only by serving host, drawn from a tiny set of origins — build it once per host.
 				const byHost = new Map<string, Record<string, unknown>>();
@@ -400,21 +420,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						component: String(d.ui?.component),
 					}));
 				return actionOKWithProducts({ view: "views", views });
-			},
-		},
-		getSelectValues: {
-			read: true,
-			gwta: "get select values for {label: string}",
-			productsSchema: ShuSelectValuesSchema,
-			action: async ({ label }: { label: string }) => {
-				const store = this.getWorld().shared.getStore() as IQuadStore;
-				const domain = hypermediaDomainMap(this.getWorld().domains).get(label);
-				if (!domain?.topology?.properties) return actionNotOK(`No filter topology registered for ${label}`);
-				const values: Record<string, string[]> = {};
-				for (const [property, definition] of Object.entries(domain.topology.properties)) {
-					if (relOf(definition) === LinkRelations.CONTEXT.rel) values[property] = await store.distinctPropertyValues(label, property);
-				}
-				return actionOKWithProducts({ values });
 			},
 		},
 		showPolymorphicGraphView: {

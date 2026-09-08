@@ -393,6 +393,9 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 			stepperName: tool.stepperName,
 			stepName: tool.stepName,
 			method: tool.name,
+			// A step declared as a fallback answers where nothing else does: a caller naming the step rather than the
+			// method takes the one that is not a fallback, whatever order the steppers were registered in.
+			...(tool.stepDef?.fallback === true ? { fallback: true } : {}),
 			pattern: tool.remoteHost ? `${tool.description} (at ${tool.remoteHost})` : tool.description,
 			params: {},
 			capability: tool.capability,

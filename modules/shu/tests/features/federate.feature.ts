@@ -1,11 +1,11 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
-import MonitorStepper from "../../build/monitor-stepper.js";
+import GraphSourceStepper from "../../build/graph-source-stepper.js";
 
 const { feature } = withAction(new Haibun());
 const { issueSessionGrant } = withAction(new AuthorityStepper());
-const { federateGraphReads, clusteredGraphHoldsFromSite } = withAction(new MonitorStepper());
+const { federateGraphReads, clusteredGraphHoldsFromSite } = withAction(new GraphSourceStepper());
 
 const LAUNCHER = '"launcher-token"';
 const PEER_PORT = process.env.HAIBUN_FEDERATE_PEER_PORT ?? "8250";

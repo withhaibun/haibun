@@ -1,7 +1,7 @@
 /**
  * RemoteGraphSource — a federated peer's clustered read surface over RPC (reads-first federation).
  * Implements TFederatedGraphSource against a peer haibun instance: handshake via action.begin (the
- * peer self-reports its site principal), clustered reads via MonitorStepper-getClusteredQuads, every
+ * peer self-reports its site principal), clustered reads via GraphSourceStepper-getClusteredQuads, every
  * sampled subject stamped with the site that served it. Deliberately NOT a routed backing store —
  * no raw pattern queries and no writes; those arrive with capability-gated federation.
  */
@@ -52,7 +52,7 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 			scope: "own",
 			...(opts.types ? { types: JSON.stringify(opts.types) } : {}),
 		};
-		const result = await this.rpc.call<TClusteredQuads>("MonitorStepper-getClusteredQuads", params, []);
+		const result = await this.rpc.call<TClusteredQuads>("GraphSourceStepper-getClusteredQuads", params, []);
 		if (typeof (result as { error?: unknown }).error === "string")
 			throw new Error(`RemoteGraphSource: getClusteredQuads failed at ${this.config.url}: ${(result as { error: string }).error}`);
 		const r = result as TClusteredQuads;
