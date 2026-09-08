@@ -1998,8 +1998,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// z is the time axis — data-owned, never tweened
 		}
 		if (e < 1) return;
-		// Done: settle each node at its target and release the pins so later data merges can nudge it again —
-		// except the selected node, whose pin stays so the user's reference point can't drift afterwards.
+		// Done: settle each node at its target and release the pins so later data merges can nudge it again. A node the
+		// reader dropped keeps its pin, as does the selected node: a placement by hand is a decision, which a layout
+		// that frees the node again rejects, and the reader's reference point must not drift under them.
 		for (const n of this.nodeMap.values()) {
 			const t = this.tween.to.get(n.id);
 			if (t) {
@@ -2007,7 +2008,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				n.y = t.y;
 				// z stays at its current data value — toGraphData() owns it
 			}
-			if (n.id === this.selectedSubject) {
+			if (n.id === this.selectedSubject || this.userPins.has(n.id)) {
 				n.fx = n.x;
 				n.fy = n.y;
 				n.fz = n.z;
