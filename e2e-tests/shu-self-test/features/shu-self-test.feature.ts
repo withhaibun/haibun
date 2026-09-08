@@ -341,7 +341,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The views on offer are read from what the deployment declares" }),
 
-		"A type that names a component to show itself is a view, so what a reader can open is read from the declarations rather than from a list kept beside them. Asking for the views shows that list, with a row for each, named by the view that row opens. Pressing one is not pressed here: with six columns open the graph's canvas lies over its neighbours, which is a defect of the canvas rather than of the list.",
+		"A type that names a component to show itself is a view, so what a reader can open is read from the declarations rather than from a list kept beside them. Asking for the views shows that list, with a row for each, named by the view that row opens. A press is not stated here: the document embeds every view a step of this run showed, so a second copy of this list stands in the manual it builds, and the row's name identifies two elements rather than one.",
 		"show views",
 		setAs({ what: VIEWS_PICKER, domain: "page-test-id", value: `"${VIEWS_PICKER}"` }),
 		setAs({ what: VIEWS_PICKER_MONITOR, domain: "page-test-id", value: `"${VIEWS_PICKER_MONITOR}"` }),
