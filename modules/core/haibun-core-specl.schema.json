@@ -52,6 +52,18 @@
         "type": "string"
       },
       "additionalProperties": {}
+    },
+    "dependsOn": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "environments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [

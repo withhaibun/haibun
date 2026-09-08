@@ -20,6 +20,7 @@
  * WHAT COMES FROM THE ENVIRONMENT, never from source: which model answers, where it is, and what it may spend. The
  * bulky router is one such environment; a hosted API is another. No step, feature or default here names a model.
  */
+import path from "node:path";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, boolOrError, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
@@ -32,6 +33,7 @@ import { RUN_STATUS, FEATURE_EXECUTION_LABEL, FEATURE_EXECUTION_DOMAIN, statusOf
 import { SUPERVISOR_CAPABILITIES, runReadSchema, runStartedSchema } from "./instance-stepper.js";
 import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/step-registry.js";
 import { examineRun } from "./run-outcome.js";
+import { forgetOutcomes } from "./verified.js";
 
 /** The supervisor steps this agent's tools call. A run is started, read and stopped by the instance supervisor; this
  *  stepper decides what may be run and records what came of it, and holds neither a process nor a port.
@@ -109,9 +111,6 @@ export function askParams(params: string, takes: string[] = []): Record<string, 
 	);
 }
 
-/** What "these features, in this base" is keyed by, so a name means the features it named where they ran. */
-const changedKey = (where: string, filter: string) => `${where}\u0000${filter}`;
-
 /** How much of a followed run's output is answered with. The whole of a suite's output is not a reading; its end is
  *  where the outcome is. The supervisor still holds the rest, readable from a cursor. */
 const RUN_ANSWER_CHARS = 8_000;
@@ -188,9 +187,6 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	private lastRun: TTrackedRun | undefined;
 	/** Why the last attempt to start a run failed, so a step that finds no run says what became of it. */
 	private lastFailure = "";
-	/** Which features have had something applied since they last ran, keyed by the base they ran in as well as the
-	 *  filter: the same name means different features in different directories. */
-	private changedSince = new Set<string>();
 	/** Runs given a port, which stand after their features finish and hold that port until they are stopped. */
 	private standing = new Map<string, TTrackedRun>();
 	private principalWritten = new WeakSet<object>();
@@ -207,7 +203,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `run the tests in {where} matching {filter}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
-				"Start a run of the named features and record it, so what happens next can be said to be about it. The products are that record: its id, and its endpoint and host where it stands. One run at a time: asking while a run is live answers with the live run rather than starting a second, and the same features are not re-run unless something was applied since.",
+				"Start a run of the named features and record it, so what happens next can be said to be about it. The products are that record: its id, and its endpoint and host where it stands. One run at a time: asking while a run is live answers with the live run rather than starting a second, and features that have run against the present state of what they depend on are not run again until that state changes or a change is noted.",
 			// The record the run starts as is the products, so `feature-execution` is a GOAL: resolve it and this step
 			// is the michi, and running a remote test is something the resolver can offer rather than only prose can.
 			productsDomain: FEATURE_EXECUTION_DOMAIN,
@@ -216,7 +212,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		runAllTests: {
 			gwta: `run all the tests in {where}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
-			description: "Start a run of every feature in a directory, answering with its record. The same limits as a filtered run: one at a time, and not twice over unchanged features.",
+			description: "Start a run of every feature in a directory, answering with its record. The same limits as a filtered run: one at a time, and not again while what the features depend on is as it was when they last ran.",
 			productsDomain: FEATURE_EXECUTION_DOMAIN,
 			action: async ({ where }: { where: string }) => await this.askedToRun(where, ""),
 		},
@@ -349,7 +345,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		noteSourceChanged: {
 			gwta: `note that {filter} in {where} has changed`,
 			description:
-				"Say that something was applied to the features named, so they may be run again. A re-run of unchanged features answers what the last run already answered, so it is refused until this is said.",
+				"Say that something was applied to the features named, so they run again whatever their dependencies show. A run of features that have run against their present state answers what that run answered, whether it passed or failed, so it is refused until their state changes or this is said.",
 			action: ({ filter, where }: { filter: string; where: string }) => {
 				this.noteApplied(filter, where);
 				return Promise.resolve(actionOK());
@@ -392,9 +388,9 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			return actionNotOK(`${this.standing.size} runs are already standing, which is the limit: stop one of ${[...this.standing.keys()].join(", ")} before starting another`);
 		if (this.runsThisAsk.length >= this.cap("MAX_RUNS", RUNNER_DEFAULTS.maxRuns))
 			return actionNotOK(`the run budget for this ask is spent (${this.runsThisAsk.length} runs); say what was found rather than running again`);
-		const ranBefore = this.runsThisAsk.some((r) => r.filter === filter && r.where === where);
-		if (ranBefore && !this.changedSince.has(changedKey(where, filter)))
-			return actionNotOK(`"${filter || "every feature"}" already ran in this ask and nothing has been applied since; a second run of unchanged features answers nothing`);
+		// A run of features that have passed against their present state is refused where it would be started: the
+		// supervisor keeps the record, so what was applied since is read from the features' own dependencies rather
+		// than remembered here.
 		const run = await this.startRun(where, filter);
 		if ("why" in run) {
 			// What went wrong is kept, so the steps that follow answer with it: a caller told only "no run is in flight"
@@ -515,7 +511,6 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		this.lastRun = tracked;
 		this.runsThisAsk.push(tracked);
 		if (endpoint) this.standing.set(id, tracked);
-		this.changedSince.delete(changedKey(where, filter)); // this run answers for what stands now; a re-run waits for the next change
 		const record = await this.writeRun(tracked);
 		return { ok: true, record };
 	}
@@ -559,9 +554,11 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		});
 	}
 
-	/** Record that something was applied, so the features it touched may be run again. Called by the apply path. */
+	/** Forget how the features named last ran against their state, so they run again whatever it is: what a caller
+	 *  says when something was applied that their dependencies do not show, or when the run is wanted regardless. No
+	 *  features named is every feature of the base. */
 	noteApplied(filter: string, where = ""): void {
-		this.changedSince.add(changedKey(where, filter));
+		forgetOutcomes(path.resolve(where || "."), filter || undefined);
 	}
 
 	/** Close out the run in flight with what its exit code says, and let the next run start. A run ended by the agent

@@ -19,6 +19,14 @@ export const SpeclSchema = zr.looseObject({
 	runPolicy: zr.string().optional(),
 	appParameters: zr.record(zr.string(), zr.record(zr.string(), zr.unknown())).optional(),
 	options: zr.record(zr.string(), zr.unknown()).optional(),
+	/** Paths, relative to this config, whose content the features depend on beyond the modules their steppers name:
+	 *  an application's own sources, fixtures a feature reads. A pass is recorded against their content, so a change
+	 *  to any of them runs the features again and a change elsewhere does not. */
+	dependsOn: zr.array(zr.string()).optional(),
+	/** External environments the features use, by name: a mail server, a model, a network service. A pass is recorded
+	 *  against the declaration, so the features run again when what speaks to the environment changed or on request;
+	 *  the environment's own state is not read. */
+	environments: zr.array(zr.string()).optional(),
 });
 
 export type TSpecl = z.infer<typeof SpeclSchema>;

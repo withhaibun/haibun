@@ -21,6 +21,7 @@ import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/phases/collector.js";
 import { withNameType } from "@haibun/core/lib/features.js";
 import type { TFeature } from "@haibun/core/lib/execution.js";
+import { forgetOutcome, outcomeAgainst, recordOutcome, verificationOf } from "./verified.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
@@ -28,6 +29,9 @@ const OPTION_SHOW_STEPPERS = "--show-steppers";
 const OPTION_WITH_STEPPERS = "--with-steppers";
 /** Run statements given on the command line instead of collecting feature files. Repeatable; each is one line. */
 const OPTION_STATEMENT = "--statement";
+/** Run once per state of what the features depend on: a group that has passed against its present state is not run
+ *  again. Every whole run records how it went against that state; this option is what acts on a recorded pass. */
+const OPTION_ONCE = "--once";
 
 type TEnv = { [name: string]: string | undefined };
 
@@ -35,13 +39,15 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	if (nodeFS.existsSync(".env")) process.loadEnvFile();
 	const parsed = processArgs(args);
 	const bases = basesFrom(parsed.params[0]?.replace(/\/$/, ""));
-	const specl = await getSpeclOrExit(parsed.configLoc ? [parsed.configLoc] : bases);
+	const configBases = parsed.configLoc ? [parsed.configLoc] : bases;
+	const specl = await getSpeclOrExit(configBases);
 
 	if (parsed.showHelp) return await usageThenExit(specl);
 	if (parsed.showSteppers) return await showSteppersAndExit(specl);
 
 	let world: TWorld | undefined;
 	let protoOptions: TProtoOptions | undefined;
+	let verification: ReturnType<typeof verificationOf>;
 
 	try {
 		const pr = new PhaseRunner();
@@ -51,6 +57,20 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		pr.world = world;
 		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, protoOptions, specl);
 		const featureFilter = parsed.params[1] ? parsed.params[1].split(",") : undefined;
+
+		// What this run is verified against, where it is a run of features rather than of statements or a rehearsal.
+		// A run that has passed against the state its dependencies have now would answer what that run answered.
+		verification =
+			parsed.statements.length === 0 && !parsed.dryRun
+				? verificationOf({ configPath: configFileFrom(configBases), specl, bases, cwd: process.cwd(), filter: featureFilter ?? [], options: protoOptions.options, moduleOptions: protoOptions.moduleOptions, policy: policyConfig, withSteppers: parsed.withSteppers })
+				: undefined;
+		if (parsed.once) {
+			if (!verification) console.info(`${OPTION_ONCE}: this run is verified against nothing (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features kept in no repository"}), so it runs`);
+			// A group that passed against this state would pass again. A group that failed runs again: what a person
+			// does with a failure is retry it, and a run that fails for a reason outside the sources is one they must be
+			// able to retry without changing anything.
+			else if (outcomeAgainst(verification)?.outcome === "passed") return verifiedExit(bases);
+		}
 
 		const featuresBackgrounds = await pr.tryPhase("Collector", () => collect(bases, featureFilter, parsed.statements, policyConfig));
 
@@ -65,11 +85,16 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		const runner = new Runner(world);
 		const result = await runner.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
+		// A run that reached none of its features says nothing about them: what stopped it was before them.
+		if (verification && result.featureResults.length === 0) forgetOutcome(verification);
+		else if (verification) recordOutcome(verification, result.ok ? "passed" : "failed", result.featureResults.length);
 
 		await reportAndExit(result, world, protoOptions);
 	} catch (error) {
 		// Final Error "Nothing" Branch
 		if (error instanceof PhaseBailError) {
+			// A run that did not get as far as its features says nothing about the state they depend on.
+			if (verification) forgetOutcome(verification);
 			if (!world || !protoOptions) {
 				const failure = error.result.failure;
 				const stage = failure?.stage ?? "?";
@@ -85,6 +110,9 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// Vitest mocks process.exit as throwing an error. Let it bubble so tests pass.
 		if (message.startsWith("exit with code ")) throw error;
 
+		// A run that ended in an error it did not report as a result says nothing about the state, and what stood
+		// before it is not left standing over it.
+		if (verification) forgetOutcome(verification);
 		console.error(`\n${CHECK_NO} ${message}`);
 		process.exit(1);
 	}
@@ -117,6 +145,12 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 		loadAndValidateRunPolicy(policyConfig, specl.runPolicy);
 	}
 	return policyConfig;
+}
+
+/** A run not made, because one has passed against this state: said as the pass it is, and exited as one. */
+function verifiedExit(bases: TBase): never {
+	console.info(`\n${CHECK_YES} ${bases.join(",")} passed against its present state; not run again. Change what it depends on, or run without ${OPTION_ONCE}, to run it again.\n`);
+	process.exit(0);
 }
 
 function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TRunPolicyConfig, featureFilter?: string[]): never {
@@ -218,7 +252,7 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		"",
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (not run again while what it depends on is as it was when it last passed)] <project base[,project base]> <[filter,filter]>`,
 		message || "",
 		"If config.json is not found in project bases, the root directory will be used.\n",
 		"Set these environmental variables to control options:\n",
@@ -311,6 +345,7 @@ export function processArgs(args: string[]) {
 	let withSteppers: string[] = [];
 	let policyConfig: TRunPolicyConfig | undefined;
 	let dryRun = false;
+	let once = false;
 	const statements: string[] = [];
 	const params = [];
 	let configLoc;
@@ -347,13 +382,23 @@ export function processArgs(args: string[]) {
 			statements.push(statement);
 		} else if (cur === OPTION_DRY_RUN) {
 			dryRun = true;
+		} else if (cur === OPTION_ONCE) {
+			once = true;
 		} else if (cur === "--stdio" || cur === "--node-ipc" || cur?.startsWith("--socket=")) {
 			// Ignore LSP transport arguments (added by vscode-languageclient)
 		} else {
 			params.push(cur);
 		}
 	}
-	return { params, configLoc, showHelp, showSteppers, withSteppers, policyConfig, dryRun, statements };
+	return { params, configLoc, showHelp, showSteppers, withSteppers, policyConfig, dryRun, once, statements };
+}
+
+/** The configuration file a run reads: a base that names the file, else the one whose directory holds config.json,
+ *  else the working directory's. */
+export function configFileFrom(bases: TBase, fs: TFileSystem = nodeFS): string {
+	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
+	const configCandidate = (found && found[0]) || ".";
+	return configCandidate.endsWith("json") ? configCandidate : `${configCandidate}/config.json`;
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
@@ -363,8 +408,7 @@ export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpec
 		console.error(`Found multiple config.json files: ${found.join(", ")}. Use --config to specify one.`);
 		return null;
 	}
-	const configCandidate = (found && found[0]) || ".";
-	const f = configCandidate.endsWith("json") ? configCandidate : `${configCandidate}/config.json`;
+	const f = configFileFrom(bases, fs);
 	try {
 		const speclRaw = JSON.parse(fs.readFileSync(f, "utf-8"));
 		const specl = SpeclSchema.parse(speclRaw);

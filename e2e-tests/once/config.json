@@ -1,0 +1,4 @@
+{
+	"$schema": "../../modules/core/haibun-core-specl.schema.json",
+	"steppers": ["haibun"]
+}
