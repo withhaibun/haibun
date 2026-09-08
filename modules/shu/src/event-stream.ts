@@ -15,6 +15,10 @@
  */
 
 import { SseSubscriber } from "@haibun/core/lib/sse-subscriber.js";
+import { deploymentMs } from "./rpc-registry.js";
+
+/** How long after the stream breaks the page opens it again, where the deployment sets nothing. */
+const STREAM_RECONNECT_AFTER_MS = 2000;
 
 export type TEvent = Record<string, unknown>;
 export type TEventHandler = (event: TEvent) => void;
@@ -82,7 +86,7 @@ export class LiveEventStream implements EventStream {
 
 	private ensure(): SseSubscriber {
 		if (!this.subscriber) {
-			this.subscriber = new SseSubscriber({ url: this.url });
+			this.subscriber = new SseSubscriber({ url: this.url, reconnectDelayMs: deploymentMs("streamReconnectAfterMs", STREAM_RECONNECT_AFTER_MS) });
 			this.subscriber.connect();
 		}
 		return this.subscriber;

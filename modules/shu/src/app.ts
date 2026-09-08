@@ -6,7 +6,7 @@ import { getHash, hashWithColumns } from "./view-hash.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline } from "./rpc-registry.js";
+import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline, deploymentMs } from "./rpc-registry.js";
 import { openSession } from "./session-key.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
@@ -102,7 +102,7 @@ function openReaderSession(): void {
 }
 
 /** How long changes to the run are collected before its shape is counted again. */
-const RUN_SHAPE_REDRAW_MS = 15000;
+const RUN_SHAPE_COUNTED_AFTER_MS = 15000;
 
 const main = async (): Promise<void> => {
 	// What the reader's address says, before anything writes to it. An address naming views is the reader's own
@@ -476,7 +476,7 @@ const main = async (): Promise<void> => {
 			countDue = undefined;
 			void drawRunShape().catch((err: unknown) => failFastOrLog("the run's shape could not be read", err));
 			void drawFailures().catch((err: unknown) => failFastOrLog("the run's failures could not be read", err));
-		}, RUN_SHAPE_REDRAW_MS);
+		}, deploymentMs("runShapeCountedAfterMs", RUN_SHAPE_COUNTED_AFTER_MS));
 	};
 	eventsController.signal.addEventListener(
 		"abort",
