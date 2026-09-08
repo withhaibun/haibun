@@ -250,6 +250,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const record: Record<string, unknown> = {
 			[LOG_MESSAGE_FIELD.id]: recordId(this.getWorld().tag, e, this.saidCount++),
 			[LOG_MESSAGE_FIELD.execution]: executionOf(this.getWorld().tag),
+			[LOG_MESSAGE_FIELD.recordedAtTime]: new Date().toISOString(),
 			[LOG_MESSAGE_FIELD.message]: message,
 			[LOG_MESSAGE_FIELD.level]: e.level,
 			[LOG_MESSAGE_FIELD.generatedAtTime]: new Date(at).toISOString(),
@@ -277,6 +278,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const record: Record<string, unknown> = {
 			[RUN_ARTIFACT_FIELD.id]: recordId(this.getWorld().tag, e, this.producedCount++),
 			[RUN_ARTIFACT_FIELD.execution]: executionOf(this.getWorld().tag),
+			[RUN_ARTIFACT_FIELD.recordedAtTime]: new Date().toISOString(),
 			[RUN_ARTIFACT_FIELD.artifactType]: String(e.artifactType ?? "file"),
 			[RUN_ARTIFACT_FIELD.path]: e.path,
 			...(typeof e.featureRelativePath === "string" ? { [RUN_ARTIFACT_FIELD.featureRelativePath]: e.featureRelativePath } : {}),

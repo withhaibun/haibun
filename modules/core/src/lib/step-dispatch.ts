@@ -284,6 +284,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		// The run this step belongs to, as a field rather than only as the leading part of its id: a store filters on a
 		// field, so a run can be read, counted and spanned as one run.
 		[SEQ_PATH_FIELD.execution]: execution,
+		[SEQ_PATH_FIELD.recordedAtTime]: new Date().toISOString(),
 		[SEQ_PATH_FIELD.stepText]: featureStep.in,
 		// What ran, beside what was asked for: a step's own record otherwise says only the words of the line.
 		[SEQ_PATH_FIELD.called]: `${featureStep.action.stepperName}.${featureStep.action.actionName}`,
@@ -326,7 +327,10 @@ async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, ok: bool
 	const id = formatRecordName({ execution: executionOf(world.tag), path: featureStep.seqPath });
 	const status = ok ? SEQ_PATH_STATUS.passed : SEQ_PATH_STATUS.failed;
 	await store.set(id, SEQ_PATH_FIELD.actionStatus, status, SEQ_PATH_LABEL);
-	await store.set(id, SEQ_PATH_FIELD.endedAtTime, new Date().toISOString(), SEQ_PATH_LABEL);
+	const now = new Date().toISOString();
+	await store.set(id, SEQ_PATH_FIELD.endedAtTime, now, SEQ_PATH_LABEL);
+	// Written again, so a reader asking for what was recorded since their last read is given the step's end.
+	await store.set(id, SEQ_PATH_FIELD.recordedAtTime, now, SEQ_PATH_LABEL);
 	if (error) await store.set(id, SEQ_PATH_FIELD.error, error, SEQ_PATH_LABEL);
 	if (showed) await store.set(id, SEQ_PATH_FIELD.showed, showed, SEQ_PATH_LABEL);
 }
