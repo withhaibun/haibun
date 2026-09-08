@@ -6,11 +6,11 @@
  * reads merge across all stores.
  * Methods return Promises (via Promise.resolve) to satisfy the async IQuadStore interface.
  *
- * What it is for: a run held in one process, a report holding a run's records, and tests. Every read of a type reads
- * every quad of that type and then narrows, so a limit bounds the answer rather than the work: a window, a count and a
- * read at an offset each cost what the store holds. That is the store's shape rather than a defect of a caller, and it
- * is why a run too large to hold in memory needs a store with an engine behind it, where the same reads are answered
- * from an index.
+ * What it is for: a run held in one process, a report holding a run's records, and tests. Every read of a type passes
+ * once over every quad of that type and then narrows, so a limit bounds the answer rather than the work: a window, a
+ * count and a read at an offset each cost the type's quads. That is the store's shape rather than a defect of a
+ * caller, and it is why a run too large to hold in memory needs a store with an engine behind it, where the same reads
+ * are answered from an index.
  */
 
 import {
@@ -357,13 +357,9 @@ export class QuadStore implements IQuadStore {
 	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
 		const backing = this.storeFor(label);
 		if (backing) return backing.queryIndividuals<T>(label, filters, options);
-		const allQuads = await this.query({ namedGraph: label });
-		const subjects = [...new Set(allQuads.map((q) => q.subject))];
-		let individuals: Record<string, unknown>[] = [];
-		for (const subject of subjects) {
-			const k = await this.getIndividual(label, subject);
-			if (k) individuals.push(k);
-		}
+		// The graph's quads once, grouped by subject in one pass: reading each individual back by its own query scanned
+		// every quad the store holds once per individual, so a read of a type cost its individuals times the store.
+		let individuals = individualsFrom(await this.query({ namedGraph: label }));
 		if (filters) {
 			for (const [key, value] of Object.entries(filters)) {
 				individuals = individuals.filter((v) => v[key] === value);
@@ -419,6 +415,21 @@ async function individualsMatching(store: IQuadStore, label: string, filters: re
 	const compared = filters.filter((f) => f.operator !== "eq");
 	const matched = await store.queryIndividuals<Record<string, unknown>>(label, Object.keys(equality).length ? equality : undefined, {});
 	return matched.filter((individual) => compared.every((f) => satisfies(individual[f.predicate], f)));
+}
+
+/** The individuals a set of quads describes, each from its own quads, in the order their subjects first appear: one
+ *  pass over the quads, whatever their number. What every store that holds its records as quads reads a type by. */
+export function individualsFrom(quads: readonly TQuad[]): Record<string, unknown>[] {
+	const bySubject = new Map<string, Record<string, unknown>>();
+	for (const q of quads) {
+		let record = bySubject.get(q.subject);
+		if (!record) {
+			record = {};
+			bySubject.set(q.subject, record);
+		}
+		record[q.predicate] = q.object;
+	}
+	return [...bySubject.values()];
 }
 
 /**

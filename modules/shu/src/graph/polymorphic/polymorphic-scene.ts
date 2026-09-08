@@ -877,7 +877,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				shu-graph-scene #polymorphic-axis-legend .axis-key { color: var(--shu-fg-muted); min-width: 3.5em; }
 				/* Pin the scene/canvas to the column box and clip: A-Frame may size its buffer larger, but it can never overflow or push scrollbars. The rAF loop keeps the buffer+camera matched to this box (no stretch/blur). */
 				shu-graph-scene #polymorphic-canvas { position: absolute; inset: 0; overflow: hidden; }
-				shu-graph-scene #polymorphic-canvas a-scene, shu-graph-scene #polymorphic-canvas canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; display: block; }
+				/* Stacking as well as position: the VR lib treats its scene as fullscreen and gives the canvas a z-index of
+				   its own, which painted it over every control on the page, the graph column's own header among them. */
+				shu-graph-scene #polymorphic-canvas a-scene, shu-graph-scene #polymorphic-canvas canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 0 !important; display: block; }
 				/* The guide: visually hidden until a keyboard reader tabs into it or the head's 🧭 opens it, then a
 				   readable overlay panel — a focused entry must be visible (WCAG focus visible), not
 				   clipped away. Both ways in land on the same shown state, so there is one appearance to maintain. */

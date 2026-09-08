@@ -95,6 +95,11 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 	private promptRejecter: ((reason?: unknown) => void) | null = null;
 	featurePath: string;
 
+	/** Whether there is a terminal to draw on. Piped into a file, a screen redrawn per event is escape codes between
+	 *  the lines and a React render per step; the lines alone are what a file wants, printed as the console monitor
+	 *  prints them. */
+	private readonly terminal = process.stdout.isTTY === true;
+
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		world.prompter.subscribe(this);
@@ -140,6 +145,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 
 	cycles = {
 		startExecution: async () => {
+			if (!this.terminal) return;
 			const onResolve = (val: string) => {
 				if (this.promptResolver) {
 					this.promptResolver(val);
@@ -162,9 +168,14 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 			const minLevel = (process.env.HAIBUN_LOG_LEVEL as unknown as THaibunLogLevel) || "info";
 			if (EventFormatter.shouldDisplay(event, minLevel)) {
 				const line = EventFormatter.formatLine(event, this.lastLevel);
-				this.lines = [...this.lines, line];
 				this.lastLevel = EventFormatter.getDisplayLevel(event);
+				if (!this.terminal) {
+					console.log(line);
+					return;
+				}
+				this.lines = [...this.lines, line];
 			}
+			if (!this.terminal) return;
 
 			if (event.kind === "lifecycle" && event.type === "step") {
 				if (event.stage === "start") {

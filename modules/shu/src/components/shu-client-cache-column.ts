@@ -280,7 +280,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			${
 				this.#held.length === 0
 					? emptyOrLoading(this.#deviceRead, "No execution is held on this device.")
-					: html`<table>
+					: html`<table data-testid=${IDS.HELD}>
 						<tr><th>execution</th><th>features</th><th>reading</th><th>began</th><th>newest</th></tr>
 						${this.#held.map((e) => {
 							const id = (field: string): string => `${IDS.RUN}${e.execution}-${field}`;

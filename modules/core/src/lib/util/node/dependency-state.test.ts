@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { VERIFIED_FILE, dependencyRoots, dependencyState, moduleRootOf } from "./dependency-state.js";
+import { TIMINGS_FILE, VERIFIED_FILE, dependencyRoots, dependencyState, moduleRootOf } from "./dependency-state.js";
 
 /** A repository holding the files given, with nothing committed: the state is read from the working tree. */
 function aRepository(files: Record<string, string>): string {
@@ -44,10 +44,11 @@ describe("the state of what a run depends on", () => {
 		expect(dependencyState([repo])).toBe(before);
 	});
 
-	it("leaves out the record of passes itself, so recording a pass does not change what was passed against", () => {
+	it("leaves out what a run writes about itself, so recording a pass or a timing does not change what was passed against", () => {
 		const repo = aRepository({ "features/a.feature": "Feature: a\n" });
 		const before = dependencyState([repo]);
 		nodeFS.writeFileSync(path.join(repo, VERIFIED_FILE), "{}\n");
+		nodeFS.writeFileSync(path.join(repo, TIMINGS_FILE), "{}\n");
 		expect(dependencyState([repo])).toBe(before);
 	});
 
