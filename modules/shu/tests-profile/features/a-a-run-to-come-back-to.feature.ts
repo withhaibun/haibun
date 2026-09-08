@@ -32,5 +32,10 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		...runEvents,
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
+
+		"What the page read of this run is written to the device after the read, so the run ends only once the device lists this execution among those it holds: a run that ended first would leave nothing to come back to. The client cache marks the row of the execution being read, which is the state waited for.",
+		"show client cache",
+		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		waitFor({ target: IDS.CLIENT_CACHE.HELD }),
 	],
 };

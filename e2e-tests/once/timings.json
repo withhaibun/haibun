@@ -1,0 +1,10 @@
+{
+	"features": {
+		"/features/once.feature": {
+			"seconds": 0,
+			"steps": 1
+		}
+	},
+	"steps": 1,
+	"seconds": 0
+}

@@ -1,0 +1,22 @@
+{
+	"features": {
+		"/features/federate.feature.ts": {
+			"seconds": 0.3,
+			"steps": 6
+		},
+		"/features/monitor.feature.ts": {
+			"seconds": 6.4,
+			"steps": 508
+		},
+		"/features/remote-store.feature.ts": {
+			"seconds": 0.6,
+			"steps": 9
+		},
+		"/features/voice-ui.feature.ts": {
+			"seconds": 0.9,
+			"steps": 154
+		}
+	},
+	"steps": 677,
+	"seconds": 8.3
+}

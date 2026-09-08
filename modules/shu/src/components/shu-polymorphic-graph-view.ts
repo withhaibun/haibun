@@ -40,7 +40,10 @@ const CURSOR_COALESCE_MS = 100;
 // Composed statically and rendered via unsafeHTML: lit leaves bindings inside a <style> element uninterpolated,
 // so the shared view-head rules cannot be interpolated in the template itself.
 const FISHEYE_CSS = `
-	shu-polymorphic-graph-view { display: block; width: 100%; height: 100%; overflow: hidden; background: var(--shu-bg); }
+	/* Positioned, so the scene's canvas (absolute, inset 0) is bounded by this view. Without it the nearest positioned
+	   ancestor is the column, and the canvas covers the column's own header: a reader could not press the controls of
+	   the pane the graph is in. */
+	shu-polymorphic-graph-view { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--shu-bg); }
 	shu-polymorphic-graph-view shu-graph-filter { flex: 0 0 auto; }
 	${viewHeadCss("shu-polymorphic-graph-view")}
 	shu-polymorphic-graph-view #polymorphic-counts { color: var(--shu-fg-muted); }

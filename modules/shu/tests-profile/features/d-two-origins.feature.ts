@@ -32,6 +32,8 @@ export const features: TKirejiExport = {
 		gotoPage({ name: `"${firstAddress}/spa"` }),
 		"show client cache",
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		"The device is read after the view opens, so the row of the run being read is what says the list is there to be read.",
+		waitFor({ target: IDS.CLIENT_CACHE.HELD }),
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to atFirstAddress`,
 		'matches atFirstAddress with "*A run to come back to*"',
 

@@ -106,6 +106,9 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		:host([collapsed]) .pane-controls-group > button.pane-pin { display: inline-flex; }
 		:host([column-type="query"]) { position: sticky; left: 0; z-index: 1; background: var(--shu-bg); }
 		.pane-header {
+			/* Above the content it heads: a view that positions anything (the graph's canvas fills its box) would
+			   otherwise paint over the pane's own controls, and a reader could not press them. */
+			position: relative; z-index: 1;
 			display: flex; align-items: center;
 			min-height: var(--shu-row-h);
 			padding: 0 var(--shu-space-3);

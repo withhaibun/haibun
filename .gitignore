@@ -18,3 +18,5 @@ mcp.sh
 e2e-tests/w
 # how a group of features last ran against the state of what it depends on: evidence about this working tree, so it stays here
 verified.json
+# the CLI's unit tests run real fixtures; a fixture's timings are no measurement anyone reads
+modules/cli/test/**/timings.json

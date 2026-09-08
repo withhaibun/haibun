@@ -122,8 +122,18 @@ export class IndexedDbQuadStore implements IQuadStore {
 	// --- Query surface, answered over the cached quads: the same questions the site answers, asked of what this page holds. ---
 
 	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
-		const quads = await this.query({ namedGraph: label });
-		let individuals = [...new Set(quads.map((q) => q.subject))].map((subject) => individualFrom(label, subject, quads));
+		// The graph's quads once, grouped by subject in one pass: building each individual by scanning the graph's quads
+		// again cost a read of a type its individuals times its quads.
+		const bySubject = new Map<string, Record<string, unknown>>();
+		for (const q of await this.query({ namedGraph: label })) {
+			let individual = bySubject.get(q.subject);
+			if (!individual) {
+				individual = { "@id": q.subject, "@type": label };
+				bySubject.set(q.subject, individual);
+			}
+			individual[q.predicate] = q.object;
+		}
+		let individuals = [...bySubject.values()];
 		for (const [predicate, value] of Object.entries(filters ?? {})) individuals = individuals.filter((i) => i[predicate] === value);
 		const offset = options?.offset ?? 0;
 		return individuals.slice(offset, offset + (options?.limit ?? individuals.length)) as T[];

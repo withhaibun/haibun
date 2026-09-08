@@ -22,6 +22,11 @@ import { getModuleLocation } from "./workspace-lib.js";
 /** The file a group's runs are recorded in. It lives among the group's own files and is left out of the state, since
  *  a record of the state is not part of it. */
 export const VERIFIED_FILE = "verified.json";
+/** The file what a group's runs took is recorded in, beside the same configuration: a measurement of a run, and no
+ *  more part of the state than the record of it. */
+export const TIMINGS_FILE = "timings.json";
+/** What a run writes beside a group's configuration about itself, which the state of the group leaves out. */
+const WRITTEN_BY_A_RUN = new Set([VERIFIED_FILE, TIMINGS_FILE]);
 
 /** The directory of the module a path belongs to: the nearest ancestor holding a package.json. Undefined for a path
  *  that belongs to no module. */
@@ -151,7 +156,7 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 	const files: string[] = [];
 	const links: TRepositoryFile[] = [];
 	for (const listed of git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "."]).split("\0")) {
-		if (listed.length === 0 || path.basename(listed) === VERIFIED_FILE) continue;
+		if (listed.length === 0 || WRITTEN_BY_A_RUN.has(path.basename(listed))) continue;
 		const file = path.join(rel, listed);
 		let stat: nodeFS.Stats;
 		try {

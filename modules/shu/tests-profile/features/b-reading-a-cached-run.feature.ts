@@ -33,6 +33,8 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		"show client cache",
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		"The device is read after the view opens, so the list is waited for by the control that exists only once an earlier execution is held, rather than read the moment the view attaches.",
+		waitFor({ target: IDS.CLIENT_CACHE.READ_EARLIER }),
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to cachedRuns`,
 		'matches cachedRuns with "*A run to come back to*"',
 		`save text from ${IDS.CLIENT_CACHE.READING} to readingNow`,

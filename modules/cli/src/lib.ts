@@ -1,4 +1,5 @@
 import nodeFS from "fs";
+import path from "node:path";
 
 import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
 import type { TBase, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
@@ -22,6 +23,7 @@ import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/ph
 import { withNameType } from "@haibun/core/lib/features.js";
 import type { TFeature } from "@haibun/core/lib/execution.js";
 import { forgetOutcome, outcomeAgainst, recordOutcome, verificationOf } from "./verified.js";
+import { recordTimings } from "./timings.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
@@ -88,6 +90,10 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// A run that reached none of its features says nothing about them: what stopped it was before them.
 		if (verification && result.featureResults.length === 0) forgetOutcome(verification);
 		else if (verification) recordOutcome(verification, result.ok ? "passed" : "failed", result.featureResults.length);
+		// What a whole run of features took, kept with the code: the file's history is what each feature costs, change
+		// by change. A measurement rather than a decision, so it is written whether or not the run is verified against
+		// anything.
+		if (parsed.statements.length === 0 && result.featureResults.length > 0) recordTimings(path.dirname(path.resolve(configFileFrom(configBases))), result);
 
 		await reportAndExit(result, world, protoOptions);
 	} catch (error) {

@@ -142,6 +142,9 @@ export const SHU_TEST_IDS = {
 		SOURCE: "client-cache-source-",
 		/** One held execution's row: this prefix and its id, then `-features`, `-reading`, `-began`, `-newest` or `-read`. */
 		RUN: "client-cache-run-",
+		/** The list of executions this device holds. It is there once the device holds one, so it is what says a run
+		 *  a page read has been written to the device and can be come back to. */
+		HELD: "client-cache-held",
 		/** The execution being read, named by what it ran, which is how a reader knows which one they are looking at. */
 		READING: "client-cache-reading",
 		/** Read the newest execution this device holds other than the one being read. */
