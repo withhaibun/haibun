@@ -7,6 +7,7 @@
  * the whole, so a feature gaining steps is told apart from a feature whose steps got slower.
  */
 import nodeFS from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { TExecutorResult } from "@haibun/core/schema/protocol.js";
 import { TIMINGS_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
@@ -14,6 +15,22 @@ import { TIMINGS_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
 export { TIMINGS_FILE };
 
 export type TTimings = { features: Record<string, { seconds: number; steps: number }>; steps: number; seconds: number };
+
+/** The file holds one set of timings per machine class: a run on other hardware takes other times, and comparing
+ *  across machines reports a difference that no change caused. */
+export type TTimingsFile = Record<string, TTimings>;
+
+/** The class of machine a run was measured on: its processor model, how many cores it has, its architecture and its
+ *  platform. It describes the hardware and names neither the host nor the user. */
+export function machineKey(): string {
+	const cpus = os.cpus();
+	const model = (cpus[0]?.model ?? "unknown")
+		.toLowerCase()
+		.replace(/\((r|tm)\)/g, "")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
+	return `${os.platform()}-${os.arch()}-${cpus.length || 0}x-${model}`;
+}
 
 const tenth = (ms: number): number => Math.round(ms / 100) / 10;
 
@@ -64,26 +81,33 @@ export function varianceLine(v: TVariance): string {
 	return `${v.feature} took ${v.seconds}s, was ${v.was}s${percent}, ${steps}`;
 }
 
-/** The timings the last run recorded here, or undefined where none did or the file cannot be read as timings. */
-function recordedIn(file: string): TTimings | undefined {
-	if (!nodeFS.existsSync(file)) return undefined;
+/** Every machine's timings in the file, or an empty record where the file is absent or holds something else. */
+function recordedIn(file: string): TTimingsFile {
+	if (!nodeFS.existsSync(file)) return {};
 	try {
-		const held = JSON.parse(nodeFS.readFileSync(file, "utf-8")) as TTimings;
-		return held && typeof held === "object" && held.features ? held : undefined;
+		const held = JSON.parse(nodeFS.readFileSync(file, "utf-8")) as TTimingsFile;
+		return held && typeof held === "object" && !Array.isArray(held) ? held : {};
 	} catch {
-		return undefined;
+		return {};
 	}
 }
 
 /**
- * Write what the run took beside its configuration, replacing what the last run wrote, and report every feature whose
- * duration differs from that run. The file's history in git is the series; this reports the newest step in it, so a
- * change that makes a feature slower is named by the run that made it rather than found later in a diff.
+ * Write what the run took beside its configuration, under the class of machine that measured it, and report every
+ * feature whose duration differs from the last run on that same class. The file's history in git is the series; this
+ * reports the newest entry in it, so a change that makes a feature slower is named by the run that made it.
  */
 export function recordTimings(configDir: string, result: TExecutorResult): TVariance[] {
 	const file = path.join(configDir, TIMINGS_FILE);
+	const machine = machineKey();
 	const now = timingsOf(result);
-	const variances = variancesBetween(recordedIn(file), now);
-	nodeFS.writeFileSync(file, `${JSON.stringify(now, null, "\t")}\n`);
+	const held = recordedIn(file);
+	const recorded = held[machine];
+	const variances = variancesBetween(recorded && recorded.features ? recorded : undefined, now);
+	// Only this machine's entry is replaced: what another machine measured stays as that machine measured it. The
+	// machines are written in a stable order, so a file changes when a measurement changes and at no other time.
+	const merged: TTimingsFile = { ...held, [machine]: now };
+	const ordered = Object.fromEntries(Object.keys(merged).sort().map((k) => [k, merged[k]]));
+	nodeFS.writeFileSync(file, `${JSON.stringify(ordered, null, "\t")}\n`);
 	return variances;
 }
