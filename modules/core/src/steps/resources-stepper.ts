@@ -10,7 +10,6 @@
  */
 import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/astepper.js";
-import { type TIndividualResult } from "../lib/execution.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { requirePrincipal } from "../lib/principal.js";
 import {
@@ -18,7 +17,6 @@ import {
 	SEQ_PATH_LABEL,
 	DOMAIN_PERSISTED_TYPE,
 	LinkRelations,
-	isReplyEdge,
 	SPECIFIC_RESOURCE_LABEL,
 	TEXT_QUOTE_SELECTOR_LABEL,
 	ANNOTATION_PLACEMENT_DOMAIN,
@@ -41,7 +39,11 @@ import {
 	writeAnnotation,
 	writeEdge,
 	conversationRoot,
-	assertCommentGrounded, MEDIA_TYPE, QuoteAnchorSchema, type TQuoteAnchor } from "../lib/resources.js";
+	assertCommentGrounded,
+	MEDIA_TYPE,
+	QuoteAnchorSchema,
+	type TQuoteAnchor,
+} from "../lib/resources.js";
 import { linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
@@ -232,15 +234,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			productsSchema: AnnotationCreatedSchema,
 			// The prose gwta binds label/id/exact/text; UI authoring calls this same action over RPC with the extra
 			// prefix/suffix (the selection's context, for a reliable anchor) and an optional link passage.
-			action: async (p: {
-				label: string;
-				id: string;
-				exact: string;
-				text: string;
-				prefix?: string;
-				suffix?: string;
-				links?: Array<TQuoteAnchor>;
-			}) => this.runAnnotate(p),
+			action: async (p: { label: string; id: string; exact: string; text: string; prefix?: string; suffix?: string; links?: Array<TQuoteAnchor> }) => this.runAnnotate(p),
 		},
 		annotateLinking: {
 			// `linking` sits right after the id (before `quoting`) so the plain `annotate … quoting …` gwta cannot also

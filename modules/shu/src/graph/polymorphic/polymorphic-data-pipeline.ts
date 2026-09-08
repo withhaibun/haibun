@@ -11,7 +11,7 @@
 // rather than owning render-type state the rest of the component also reads.
 
 import { groupKeyOf, type GroupKeyMode, type GroupAnchor, type XYZ } from "../grouping.js";
-import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTime, type TSubjectTimes } from "../time-axis.js";
+import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTimes } from "../time-axis.js";
 import { quadsToGanttModel } from "../gantt-model.js";
 import { browserRelOf } from "../paint-select.js";
 import { isSchemaType } from "../ontology-projection.js";

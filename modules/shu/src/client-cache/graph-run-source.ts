@@ -17,7 +17,7 @@ import { HAIBUN_LOG_LEVELS, declaredName, declaresFeature, declaresScenario, typ
 import { subscribeBatchedEvents } from "../event-stream.js";
 import { getWindowSize } from "../window-size-setting.js";
 import { pagePinned } from "../page-pinned.js";
-import { cachedGraphStore, pageRunGraph } from "../quads-snapshot.js";
+import { pageRunGraph } from "../quads-snapshot.js";
 import { individualAsQuads } from "./quad-store.js";
 import { currentExecution, holdOnDevice, noteExecution, subscribeExecutionSwitch } from "./executions.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";

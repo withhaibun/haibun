@@ -15,7 +15,6 @@ import { shuBaseStyles } from "./styles.js";
 import { esc, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
-import { } from "../hypermedia.js";
 import { getAvailableDomains, isOffline } from "../rpc-registry.js";
 import { QueryController } from "../controllers/index.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../windowed-source.js";

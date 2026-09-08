@@ -22,11 +22,9 @@ import type { TLinkedData } from "./shu-element.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
-import { SHU_EVENT } from "../consts.js";
 import { fetchIndividuals } from "../pane-fetch.js";
 import { idOf, instanceLabel } from "../util.js";
 import { renderRef } from "./ref-navigation.js";
-import type { ShuGraphFilter } from "./shu-graph-filter.js";
 import { scopeSchemaToType, scopeSchemaToConnected } from "../graph/ontology-projection.js";
 import { prefixesReferencedBy } from "../graph/jsonld-context-scope.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -287,7 +285,6 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 	protected override onGraphSelection(subject: string | null): void {
 		this.scene?.setSelectedSubject(this.focusType || subject);
 	}
-
 }
 
 if (!customElements.get("shu-class-browser")) {

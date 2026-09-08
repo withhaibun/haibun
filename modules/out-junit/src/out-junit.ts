@@ -6,7 +6,6 @@ import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from "@h
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { TExecutorResult, TStepResult } from "@haibun/core/schema/protocol.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { MEDIA_TYPES, TMediaType } from "@haibun/domain-storage/media-types.js";
 
 type TTestCase = {

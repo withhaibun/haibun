@@ -5,7 +5,6 @@ import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
-import type { ShuGraphFilter } from "./shu-graph-filter.js";
 import { conduit } from "../hypermedia.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene, type TSceneState } from "../scenes.js";
 import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
@@ -24,7 +23,6 @@ import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "../graph/ontology-projection.
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
 
 import {
-	type ShuGraphScene,
 	type FGInstance,
 	GRAPH_SCENE_EVENT,
 	type GraphSceneModel,

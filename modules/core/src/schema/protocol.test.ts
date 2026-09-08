@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { HaibunEvent, LifecycleEvent, LogEvent, ArtifactEvent, ControlEvent } from "./protocol.js";
+import { HaibunEvent } from "./protocol.js";
 
 describe("Haibun Event Schemas", () => {
 	it("validates a correct LifecycleEvent", () => {

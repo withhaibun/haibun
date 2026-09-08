@@ -6,7 +6,6 @@
  * no custom events, no event-bus indirection. PaneState owns the pane lifecycle.
  */
 import { parseAffordanceProduct } from "./affordance-products.js";
-import { getUiByType } from "./rels-cache.js";
 import { PaneState, paneIdOf } from "./pane-state.js";
 
 export function dispatchAffordanceFromResponse(response: unknown): ReturnType<typeof parseAffordanceProduct> {

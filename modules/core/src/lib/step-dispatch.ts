@@ -1,15 +1,14 @@
-import { z } from "zod";
 import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./astepper.js";
 import type { TWorld } from "./world.js";
-import type { TActionResult, TStepResult, TSeqPath } from "../schema/protocol.js";
+import type { TActionResult, TStepResult } from "../schema/protocol.js";
 import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { authorizedWith, runAuthorizedWith } from "./capability-context.js";
-import { AccessLevelSchema, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
-import { SEQ_PATH_FIELD, executionOf, formatRecordName, formatSeqPath } from "./seq-path.js";
+import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { getAuthority, SESSION_TOKEN_KEY } from "./session-authority.js";
 import { validateProducts } from "./tool-validation.js";
@@ -260,7 +259,6 @@ async function autoAssertProducts(world: TWorld, step: TStepperStep, actionResul
 		}
 	}
 }
-
 
 /**
  * Emit a SeqPath individual on step entry so child individuals created during the

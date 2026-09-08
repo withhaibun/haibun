@@ -34,9 +34,7 @@ export function escAttr(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-
 import { AccessQuery } from "@haibun/core/lib/resources.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { STORED_TYPE_PROP } from "./consts.js";
 
 /**
