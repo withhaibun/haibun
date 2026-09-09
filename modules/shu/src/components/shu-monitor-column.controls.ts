@@ -143,7 +143,22 @@ export default class ShuMonitorColumnControls extends AStepper {
 							const img = f.querySelector("img") as HTMLImageElement | null;
 							return { w: f.offsetWidth, inRow: f.parentElement?.classList.contains("thumb-row") ?? false, imgLoaded: (img?.naturalWidth ?? 0) > 0, imgW: img?.offsetWidth ?? 0 };
 						});
-						return { frames };
+						// A row given a height it does not have paints over the row before it, which is what a strip of
+						// screenshots did while every row was estimated. A row is what the virtualizer positions, so the
+						// rows are its own children; the blocks within one row lie side by side and are not compared.
+						const virtualizer = root.querySelector("shu-virtual-column")?.querySelector("lit-virtualizer");
+						// A row is a child the virtualizer positions and that carries a record's identity; the virtualizer's own
+						// hidden sizing element is a child too, and it is not a row.
+						const rows = (Array.from(virtualizer?.children ?? []) as HTMLElement[]).filter((el) => el.hasAttribute("data-id")).map((el) => el.getBoundingClientRect()).filter((r) => r.height > 0);
+						const ordered = rows.sort((a, b) => a.top - b.top);
+						let overlapping = 0;
+						const where: string[] = [];
+						for (let i = 1; i < ordered.length; i++)
+							if (ordered[i].top < ordered[i - 1].bottom - 1) {
+								overlapping++;
+								where.push(`a row ${Math.round(ordered[i].height)}px high over ${Math.round(ordered[i - 1].bottom - ordered[i].top)}px of the row before it`);
+							}
+						return { frames, overlapping, where };
 					}, SHU_TAG.DOCUMENT_COLUMN);
 				// A tile is measured once it has been laid out: an image decodes before its frame is placed, so a read taken
 				// between the two reports a width the reader never sees. What is asserted below is what the poll waits for.
@@ -162,7 +177,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 				if (notLoaded > 0) return actionNotOK(`${notLoaded} thumbnail images failed to load from /artifacts`);
 				const notFilling = frames.filter((f) => f.imgW < f.w * 0.9).length;
 				if (notFilling > 0) return actionNotOK(`${notFilling} thumbnail images do not fill their tile`);
-				if ((v.overlapping ?? 0) > 0) return actionNotOK(`${v.overlapping} rows of the manual paint over the row before them, so a row was given a height it does not have`);
+				if ((v.overlapping ?? 0) > 0) return actionNotOK(`${v.overlapping} rows of the manual paint over the row before them, so a row was given a height it does not have: ${JSON.stringify((v as {where?: string[]}).where)}`);
 				return actionOK();
 			},
 		},

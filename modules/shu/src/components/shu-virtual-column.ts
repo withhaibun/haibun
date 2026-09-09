@@ -404,16 +404,25 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		return this.#window;
 	}
 
+	/** The marks last placed on the source's rail, and what they were placed from. The scrollbar clusters its markers
+	 *  and holds that clustering while the array it was given is the same one, so placing them again for a render that
+	 *  moved no mark would make it sort every mark on every scrolled frame. */
+	#placed: { of: TScrollMarker[]; on: TScrollMarker[]; marks: TScrollMarker[] } | null = null;
+
 	/** What the rail is drawn over: the places the source's rail has, else the rows this column holds. */
 	#rail(total: number): { total: number; window: TWindow; markers: TScrollMarker[] } {
 		const rail = this.source?.rail;
-		if (!rail) return { total, window: this.#railWindow(total), markers: (this.source?.markers() ?? []) as TScrollMarker[] };
+		const own = (this.source?.markers() ?? []) as TScrollMarker[];
+		if (!rail) return { total, window: this.#railWindow(total), markers: own };
 		const shown = this.#railWindow(total);
 		const first = rail.placeOf(shown.first);
 		const last = rail.placeOf(Math.max(shown.first, shown.first + shown.visible - 1));
-		// A row's mark sits where the run has that row, so what this column holds is marked in the run's own places.
-		const held = ((this.source?.markers() ?? []) as TScrollMarker[]).map((mark) => ({ ...mark, index: rail.placeOf(mark.index) }));
-		return { total: rail.places, window: { first, visible: Math.max(1, last - first + 1) }, markers: [...rail.marks(), ...held] };
+		const runs = rail.marks();
+		if (this.#placed?.of !== own || this.#placed.on !== runs) {
+			// A row's mark sits where the run has that row, so what this column holds is marked in the run's own places.
+			this.#placed = { of: own, on: runs, marks: [...runs, ...own.map((mark) => ({ ...mark, index: rail.placeOf(mark.index) }))] };
+		}
+		return { total: rail.places, window: { first, visible: Math.max(1, last - first + 1) }, markers: this.#placed.marks };
 	}
 
 	render(): TemplateResult {

@@ -96,7 +96,6 @@ export const SHU_TEST_IDS = {
 	SETTINGS: {
 		WINDOW_SIZE: 'settings-window-size',
 	},
-	/** Moving the shared time cursor on its own: where it IS is the log's scroll rail. */
 	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
 	VIEWS_PICKER: {
 		ROOT: 'views-picker',

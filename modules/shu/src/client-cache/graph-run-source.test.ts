@@ -30,10 +30,10 @@ describe("the run a view reads, over the records it wrote", () => {
 		});
 		setSiteMetadata({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 		store = new QuadStore();
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1`, stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(1000), endedAtTime: iso(1300), recordedAtTime: iso(1300) });
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.1@0`, message: "it said this", level: "warn", generatedAtTime: iso(1100), recordedAtTime: iso(1100), isPartOf: `${RUN}.0.1` });
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.1@1`, message: "the detail of it", level: "debug", generatedAtTime: iso(1200), recordedAtTime: iso(1200), isPartOf: `${RUN}.0.1` });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.2`, stepText: "another step", actionStatus: "failed", level: "info", generatedAtTime: iso(1400), endedAtTime: iso(1500), recordedAtTime: iso(1500) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { execution: RUN, id: `${RUN}.0.1`, stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(1000), endedAtTime: iso(1300), recordedAtTime: iso(1300) });
+		await store.upsertIndividual(LOG_MESSAGE_LABEL, { execution: RUN, id: `${RUN}.0.1@0`, message: "it said this", level: "warn", generatedAtTime: iso(1100), recordedAtTime: iso(1100), isPartOf: `${RUN}.0.1` });
+		await store.upsertIndividual(LOG_MESSAGE_LABEL, { execution: RUN, id: `${RUN}.0.1@1`, message: "the detail of it", level: "debug", generatedAtTime: iso(1200), recordedAtTime: iso(1200), isPartOf: `${RUN}.0.1` });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { execution: RUN, id: `${RUN}.0.2`, stepText: "another step", actionStatus: "failed", level: "info", generatedAtTime: iso(1400), endedAtTime: iso(1500), recordedAtTime: iso(1500) });
 		setGraphStore(store);
 	});
 	afterEach(() => handle.teardown());
@@ -95,7 +95,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		const began = 10000;
 		const each = 1000;
 		for (let i = 0; i < PAST_THE_WINDOW; i++) {
-			await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.1.${i}@0`, message: `record ${i}`, level: "info", generatedAtTime: iso(began + i * each), recordedAtTime: iso(began + i * each), isPartOf: `${RUN}.0.1` });
+			await store.upsertIndividual(LOG_MESSAGE_LABEL, { execution: RUN, id: `${RUN}.1.${i}@0`, message: `record ${i}`, level: "info", generatedAtTime: iso(began + i * each), recordedAtTime: iso(began + i * each), isPartOf: `${RUN}.0.1` });
 		}
 		const source = graphRunSource("info", { size });
 		await source.ready();
@@ -117,7 +117,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.count()).toBe(4);
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "a later step", actionStatus: "passed", level: "info", generatedAtTime: iso(1600), recordedAtTime: iso(1600) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { execution: RUN, id: `${RUN}.0.3`, stepText: "a later step", actionStatus: "passed", level: "info", generatedAtTime: iso(1600), recordedAtTime: iso(1600) });
 		const first = source.rowAt(0);
 		await source.readAt(undefined);
 		await new Promise((r) => setTimeout(r, 0));
@@ -128,11 +128,11 @@ describe("the run a view reads, over the records it wrote", () => {
 
 
 	it("reads a step again while it is still running, so its row says how it went once it ends", async () => {
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "a running step", actionStatus: "running", level: "info", generatedAtTime: iso(1700), recordedAtTime: iso(1700) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { execution: RUN, id: `${RUN}.0.3`, stepText: "a running step", actionStatus: "running", level: "info", generatedAtTime: iso(1700), recordedAtTime: iso(1700) });
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.rowAt(4)).toMatchObject({ in: "a running step", status: "running" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "a running step", actionStatus: "passed", level: "info", generatedAtTime: iso(1700), endedAtTime: iso(1800), recordedAtTime: iso(1800) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { execution: RUN, id: `${RUN}.0.3`, stepText: "a running step", actionStatus: "passed", level: "info", generatedAtTime: iso(1700), endedAtTime: iso(1800), recordedAtTime: iso(1800) });
 		await source.readAt(undefined);
 		await new Promise((r) => setTimeout(r, 0));
 		expect(source.count(), "the step it already held, now ended, rather than a second row for it").toBe(5);
@@ -143,7 +143,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		const source = graphRunSource("debug", { reReadAfterMs: 0 });
 		await source.ready();
 		expect(source.count()).toBe(4);
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.3`, stepText: "a step nobody was told about", actionStatus: "passed", level: "info", generatedAtTime: iso(1600), recordedAtTime: iso(1600) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { execution: RUN, id: `${RUN}.0.3`, stepText: "a step nobody was told about", actionStatus: "passed", level: "info", generatedAtTime: iso(1600), recordedAtTime: iso(1600) });
 		handle.eventStream.reconnect();
 		await new Promise((r) => setTimeout(r, 5));
 		expect(source.count(), "the run it held, and what happened while it was not being told").toBe(5);
