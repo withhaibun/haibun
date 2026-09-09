@@ -264,6 +264,17 @@ export const features: TKirejiExport = {
 		'matches offlineCached with "0..*"',
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
+		scenario({ scenario: "A site that takes a call and never answers it is a site that has not answered" }),
+
+		"A blocked call fails at once, which a reading falls back from. A site that accepts a call and never answers it is the harder case: nothing fails, so a call waited on would leave a reader with nothing and no word of why. A call the page waits on is bounded, so a site that stops answering is read as a site that has not answered, and the page reads its declarations from the device exactly as it does when the network drops. This deployment sets the bound low, which is a deployment reading a site expected to answer quickly rather than a path that exists for a test.",
+		`requests matching "${RPC_GLOB}" are "unanswered"`,
+		reloadPage({}),
+		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		`save text from ${IDS.CLIENT_CACHE.SERVER} to unansweredServer`,
+		'variable unansweredServer is "has not responded to this page"',
+		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to unansweredRegistry`,
+		'matches unansweredRegistry with "from the device*"',
+
 		scenario({ scenario: "The server responding again returns the page to it" }),
 
 		"A network that comes back is the same page reading the same stores, with the server available again: the registry is the server's once more, and the run source is loaded from it. Nothing about the views changes between the two states, which is the point of reading everything through the one cache.",

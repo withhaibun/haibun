@@ -24,7 +24,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
 import { rpcEnvelope, readNdjson } from "@haibun/core/lib/rpc-wire.js";
-import { findStep } from "./rpc-registry.js";
+import { findStep, siteAnswersWithinMs } from "./rpc-registry.js";
 import { sessionReady, signedHeaders } from "./session-key.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
@@ -203,8 +203,12 @@ export class LiveConduit implements Conduit {
 	private async post(method: string, envelope: Omit<Parameters<typeof rpcEnvelope>[0], "id">, signal?: AbortSignal): Promise<Response> {
 		const url = `${this.basePath}/rpc/${method}`;
 		const body = rpcEnvelope({ id: nextRpcId(), ...envelope });
+		// A call the site accepts and never answers is a site that has not answered, so a call the page waits on is
+		// bounded. A caller that brought its own signal governs its own call, and a stream is held open for as long as
+		// the run keeps writing to it, so it is bounded by nothing.
+		const bounded = signal ?? (envelope.stream === true ? undefined : AbortSignal.timeout(siteAnswersWithinMs()));
 		try {
-			const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal });
+			const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal: bounded });
 			responded().at = Date.now();
 			return res;
 		} catch (err) {

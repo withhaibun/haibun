@@ -224,7 +224,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			return set === undefined ? undefined : Number(set);
 		};
 		const streamReconnectAfterMs = timing("STREAM_RECONNECT_AFTER_MS");
-		this.settings = { ...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }) };
+		const siteAnswersWithinMs = timing("SITE_ANSWERS_WITHIN_MS");
+		this.settings = { ...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }), ...(siteAnswersWithinMs === undefined ? {} : { siteAnswersWithinMs }) };
 	}
 
 	/**
@@ -309,6 +310,10 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 
 	/** What a deployment sets for the app this stepper serves: the timings its page applies, and what a reader may do. */
 	options = {
+		SITE_ANSWERS_WITHIN_MS: {
+			desc: "How long a call to this site may take before the page reads it as not answering and reads what the device holds, in milliseconds. Unset, the page allows what the product carries",
+			parse: (input: string) => intOrError(input),
+		},
 		STREAM_RECONNECT_AFTER_MS: {
 			desc: "How long after the event stream breaks the page opens it again, in milliseconds. Unset, the page opens it on the interval the subscriber carries",
 			parse: (input: string) => intOrError(input),
