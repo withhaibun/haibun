@@ -16,7 +16,7 @@
 	"scripts": {
 		"build": "tsc -b . && npm run bundle:app && npm run bundle:report && npm run bundle:polymorphic",
 		"build:prod": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
-		"test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_TOKEN=rpc-protected-token HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_CAPABILITY=TestServer:protected haibun-cli --once -c ./tests/config.json ./tests && npm run test:e2e:profile",
+		"test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_TOKEN=rpc-protected-token HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_CAPABILITY=TestServer:protected haibun-cli -c ./tests/config.json ./tests && npm run test:e2e:profile",
 		"test": "vitest run",
 		"lint": "biome lint .",
 		"format": "biome format --write .",
@@ -26,7 +26,7 @@
 		"bundle:report": "esbuild src/app.ts --bundle --outfile=build/shu-report-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
 		"bundle:watch": "npm run bundle:app -- --watch=forever & npm run bundle:report -- --watch=forever & wait",
 		"bundle:polymorphic": "esbuild src/components/polymorphic-bundle.ts --bundle --outfile=build/assets/shu-polymorphic-graph-view.js --format=iife --platform=browser --target=es2022 --conditions=development --minify",
-		"test:e2e:profile": "rm -rf /tmp/haibun-shu-reader-profile && HAIBUN_O_WEBSERVERSTEPPER_PORT=8241 HAIBUN_O_WEBPLAYWRIGHT_PERSISTENT_DIRECTORY=/tmp/haibun-shu-reader-profile HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS haibun-cli --once -c ./tests-profile/config.json ./tests-profile"
+		"test:e2e:profile": "rm -rf /tmp/haibun-shu-reader-profile && HAIBUN_O_WEBSERVERSTEPPER_PORT=8241 HAIBUN_O_WEBPLAYWRIGHT_PERSISTENT_DIRECTORY=/tmp/haibun-shu-reader-profile HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS haibun-cli -c ./tests-profile/config.json ./tests-profile"
 	},
 	"dependencies": {
 		"@digitalbazaar/http-signature-zcap-invoke": "^6.1.0",
