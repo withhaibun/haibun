@@ -119,8 +119,7 @@ export class Executor {
 		// The verdict names an accountable feature step. A synthetic dispatch (a negative seqPath segment: a model's
 		// tool call, an RPC) can fail and be recovered from inside its parent step; naming it here reported a recovered
 		// tool call as the run's failure while the step that actually failed the feature went unmentioned.
-		const nonSpeculative = firstFailedFeature.stepResults.filter((sr) => !sr.ok && sr.intent?.mode !== "speculative");
-		const failedStep = nonSpeculative.find((sr) => !sr.seqPath?.some((n) => n < 0)) ?? nonSpeculative[0];
+		const failedStep = firstFailedFeature.steps.failed;
 		if (!failedStep) return undefined;
 
 		const errorMessage = failedStep.errorMessage || "Step execution failed";
@@ -211,7 +210,7 @@ export class Executor {
 			}
 			const thisFeatureOK = featureResult.ok;
 			if (!thisFeatureOK) {
-				const failedStep = featureResult.stepResults.find((s) => !s.ok);
+				const failedStep = featureResult.steps.failed;
 				await doStepperCycle(steppers, "onFailure", { featureResult, failedStep });
 			}
 			okSoFar = okSoFar && thisFeatureOK;
@@ -285,6 +284,7 @@ export class FeatureExecutor {
 		const world = this.world;
 		let ok = true;
 		world.runtime.stepResults = [];
+		world.runtime.steps = { count: 0 };
 		world.runtime.seqPaths = new Map<string, number>();
 
 		let currentScenario = 0;
@@ -359,7 +359,7 @@ export class FeatureExecutor {
 			await doStepperCycle(this.steppers, "endScenario", undefined);
 		}
 
-		return { path: feature.path, ok, stepResults: world.runtime.stepResults };
+		return { path: feature.path, ok, steps: world.runtime.steps ?? { count: 0 }, stepResults: world.runtime.stepResults };
 	}
 }
 

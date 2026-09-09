@@ -3,7 +3,7 @@ import type { TTag } from "./ttag.js";
 import type { FeatureVariables } from "./feature-variables.js";
 import type { Prompter } from "./prompter.js";
 import type { IEventLogger } from "./EventLogger.js";
-import type { TStepResult, Timer } from "../schema/protocol.js";
+import type { TStepResult, Timer, TFeatureSteps } from "../schema/protocol.js";
 import { CONTINUE_AFTER_ERROR } from "../schema/protocol.js";
 import type { TRegisteredDomain } from "./resources.js";
 import type { StepRegistry } from "./step-registry.js";
@@ -31,7 +31,10 @@ export type TRuntime = {
 	feature?: string;
 	/** Current feature file path (for dynamic statement execution) */
 	currentFeaturePath?: string;
+	/** The steps a reader can still read in full: the most recent the feature has run. */
 	stepResults: TStepResult[];
+	/** What the feature's steps have come to so far, folded as they run. */
+	steps?: TFeatureSteps;
 	/** The last index allocated under each parent path, per direction: what the next path under it counts from. */
 	seqPaths?: Map<string, number>;
 	/** Active steppers for this execution. Set by Executor, used by populateActionArgs / domain coercion. */

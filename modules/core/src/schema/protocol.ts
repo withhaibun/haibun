@@ -468,10 +468,35 @@ export type TStepResult = TActionResult & {
 	traces?: TTrace[];
 };
 
+/**
+ * What a feature's steps came to, as a fold over them rather than a list of them.
+ *
+ * A feature that services requests for weeks runs more steps than a process can hold, and what a reader of the result
+ * asks is how many ran, when they began and ended, and which one failed. Each is answered as the feature runs, so the
+ * answer costs the same whether the feature ran ten steps or ten million.
+ */
+export type TFeatureSteps = {
+	/** How many the feature ran. */
+	count: number;
+	/** When the first began, and when the last ended. */
+	firstStart?: number;
+	lastEnd?: number;
+	/**
+	 * The step the run reports as having failed. A synthetic dispatch (a negative seqPath segment: a model's tool call,
+	 * an RPC) can fail and be recovered from inside the step that made it, and a speculative statement's failure is
+	 * expected, so a feature step that failed is reported ahead of either. With nothing else, the first failure is what
+	 * there is to report.
+	 */
+	failed?: TStepResult;
+};
+
 export type TFeatureResult = {
 	skip?: boolean;
 	path: string;
 	ok: boolean;
+	/** What its steps came to. */
+	steps: TFeatureSteps;
+	/** The steps a reader can still read in full: the most recent the feature ran, and no more than that. */
 	stepResults: TStepResult[];
 	failure?: {
 		message: string;

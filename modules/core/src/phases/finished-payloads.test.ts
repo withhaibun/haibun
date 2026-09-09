@@ -9,9 +9,9 @@ import { describe, it, expect } from "vitest";
 import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
-import { RESULTS_READ_IN_FULL } from "../lib/step-dispatch.js";
+import { RESULTS_READ_IN_FULL, foldStep } from "../lib/step-dispatch.js";
 import { releasePayloads } from "./Executor.js";
-import type { TStepResult } from "../schema/protocol.js";
+import type { TFeatureSteps, TStepResult } from "../schema/protocol.js";
 
 class ProducingStepper extends AStepper {
 	steps = {
@@ -34,14 +34,32 @@ describe("what a run keeps of the steps it has finished", () => {
 		expect((kept.products as { big?: string } | undefined)?.big?.length, "the feature's result carries what its steps produced").toBe(10000);
 	});
 
-	it("lets go of what a step further back than that produced, while still counting it", async () => {
-		const many = Array.from({ length: RESULTS_READ_IN_FULL + 20 }, () => "produce a large answer").join("\n");
-		const result = await passWithDefaults([{ path: "/features/test.feature", content: many }], [ProducingStepper]);
-		const kept = result.featureResults?.[0].stepResults ?? [];
-		expect(kept.length, "every step is still counted and read").toBe(RESULTS_READ_IN_FULL + 20);
-		expect(kept[0].in, "and still says what it was").toBe("produce a large answer");
-		expect(kept[0].products, "but the run holds nothing of what the earliest produced").toBeUndefined();
-		expect((kept[kept.length - 1].products as { big?: string } | undefined)?.big?.length, "while the newest is there to be read").toBe(10000);
+	it("counts every step a long feature ran while holding only the most recent of them", async () => {
+		const ran = RESULTS_READ_IN_FULL + 20;
+		const result = await passWithDefaults([{ path: "/features/test.feature", content: Array.from({ length: ran }, () => "produce a large answer").join("\n") }], [ProducingStepper]);
+		const feature = result.featureResults?.[0];
+		expect(feature?.steps.count, "what the feature ran is answered by the fold, which holds no step to answer it").toBe(ran);
+		expect(feature?.steps.firstStart, "as is when it began").toBeDefined();
+		expect(feature?.steps.lastEnd, "and when it ended").toBeDefined();
+		expect(feature?.stepResults.length, "and the steps a reader can still read are the most recent, and no more").toBe(RESULTS_READ_IN_FULL);
+		expect((feature?.stepResults.at(-1)?.products as { big?: string } | undefined)?.big?.length, "the newest is there to be read in full").toBe(10000);
+	});
+
+	it("names a step that failed however many ran after it, since a fold does not forget", () => {
+		const ran = (over: Partial<TStepResult>): TStepResult => ({ name: "s", in: "a step", path: "/f", seqPath: [0, 1, 1], ok: true, ...over }) as TStepResult;
+		const steps: TFeatureSteps = { count: 0 };
+		foldStep(steps, ran({ ok: false, in: "the step that failed" }));
+		for (let i = 0; i < RESULTS_READ_IN_FULL + 5; i++) foldStep(steps, ran({}));
+		expect(steps.count, "every step is counted").toBe(RESULTS_READ_IN_FULL + 6);
+		expect(steps.failed?.in, "and the failure is still what the run reports").toBe("the step that failed");
+	});
+
+	it("reports a feature step that failed ahead of a synthetic dispatch that failed before it", () => {
+		const ran = (over: Partial<TStepResult>): TStepResult => ({ name: "s", in: "a step", path: "/f", seqPath: [0, 1, 1], ok: false, ...over }) as TStepResult;
+		const steps: TFeatureSteps = { count: 0 };
+		foldStep(steps, ran({ in: "a tool call the step recovered from", seqPath: [0, -1, 1] }));
+		foldStep(steps, ran({ in: "the step that failed the feature" }));
+		expect(steps.failed?.in).toBe("the step that failed the feature");
 	});
 
 	it("keeps everything a failed step carried, since that is what the verdict is made of", async () => {
