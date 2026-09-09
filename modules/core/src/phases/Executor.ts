@@ -5,6 +5,7 @@ import { TResolvedFeature, TEndFeature } from "../lib/astepper.js";
 import {
 	TExecutorResult,
 	TFeatureResult,
+	TStepResult,
 	THaibunEvent,
 	STAY,
 	STAY_FAILURE,
@@ -34,13 +35,16 @@ import { basename } from "path";
  * fail. A failed step keeps everything, since the verdict is made of it.
  */
 export function releasePayloads(featureResult: TFeatureResult): void {
-	for (const step of featureResult.stepResults) {
-		if (!step.ok) continue;
-		step.products = undefined;
-		step.artifact = undefined;
-		step.traces = undefined;
-		step.protocol = undefined;
-	}
+	for (const step of featureResult.stepResults) releasePayload(step);
+}
+
+/** Let go of what one finished step produced, unless it failed. */
+export function releasePayload(step: TStepResult): void {
+	if (!step.ok) return;
+	step.products = undefined;
+	step.artifact = undefined;
+	step.traces = undefined;
+	step.protocol = undefined;
 }
 
 export function calculateShouldClose({

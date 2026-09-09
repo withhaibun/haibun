@@ -34,11 +34,11 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 1.9,
+				"seconds": 1.2,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2.1,
+				"seconds": 1.7,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -74,7 +74,7 @@
 				"steps": 27
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
@@ -119,6 +119,6 @@
 			}
 		},
 		"steps": 1156,
-		"seconds": 18.1
+		"seconds": 17
 	}
 }

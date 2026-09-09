@@ -2,6 +2,7 @@ import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type 
 import type { TWorld } from "./world.js";
 import type { TActionResult, TStepResult } from "../schema/protocol.js";
 import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL } from "../schema/protocol.js";
+import { releasePayload } from "../phases/Executor.js";
 import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
@@ -53,6 +54,10 @@ export function invokingPrincipal(world: TWorld): string | undefined {
 	return getAuthority(world.runtime)?.resolveController(token);
 }
 
+/** How many of a feature's finished steps keep what they produced: the steps a reader of the feature's result could
+ *  still be reading. A step further back is counted and read, and what it produced is the run's to let go of. */
+export const RESULTS_READ_IN_FULL = 1000;
+
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
 	const { registry, world, steppers } = ctx;
 	// A caller that states a capability decides; failing that, the capability the calling step was authorized with,
@@ -68,8 +73,17 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// following a run asks it what it holds on every announcement, and each such call recorded as a step would write a
 	// record, announce it to every page and keep a result in this process for as long as it runs.
 	const recorded = !(featureStep.isSubStep && action.step.read === true);
+	// What the run holds of the steps it has finished. A passing step's products, artifacts and traces are read from the
+	// feature's result, so the steps a reader could still be reading keep theirs; a step further back than that has no
+	// reader left, and holding its payload holds every graph slice, response body and rendered document the run has
+	// produced. A feature that services requests for weeks never reaches an end at which to let them go, so they are let
+	// go of as the feature runs. A failed step keeps everything, since the verdict is made of it.
 	const keep = (result: TStepResult): void => {
-		if (recorded) world.runtime.stepResults.push(result);
+		if (!recorded) return;
+		const held = world.runtime.stepResults;
+		held.push(result);
+		const past = held.length - 1 - RESULTS_READ_IN_FULL;
+		if (past >= 0) releasePayload(held[past]);
 	};
 	const pushAndReturn = (result: TStepResult): TStepResult => {
 		keep(result);
