@@ -37,6 +37,12 @@ export type TRunRow = {
 	/** When this record was written, or last written again: what a reader following the run asks for what happened
 	 *  since by. Absent on a record written before it was declared. */
 	recordedAt?: number;
+	/** What this step produced, named on the row a reader sees rather than on rows of its own: a run records a
+	 *  produced thing under the step that made it, and that step can be part of the machinery a reader is not reading. */
+	produced?: TRunRow[];
+	/** The step whose row carries this produced thing, where one in the window claims it. A view showing rows of steps
+	 *  draws it there and gives this row no room; a view reading the run's own document places it by its own reading. */
+	carriedBy?: string;
 	/** A step's outcome, why it failed where it did, and when it reached it. */
 	status?: string;
 	error?: string;
@@ -182,9 +188,43 @@ function oneEach(rows: TRunRow[]): TRunRow[] {
 	return [...new Map(rows.map((r) => [r.id, r])).values()].sort(inRunOrder);
 }
 
+/**
+ * What a step produced, named on the row of the step a reader sees.
+ *
+ * A run records a produced thing under the step that made it, and that step is often part of the machinery: a
+ * screenshot taken after every step is recorded under a step of its own. A reader reads the step they wrote, so the
+ * shot is claimed by the nearest step among the rows of the window, and that step's row says it carries it. The row
+ * itself stays in the window, because a window is one reading that every view reads: a view of the run's steps draws
+ * the shot on the step's row, and the run's document places it where its own reading puts it. A produced thing whose
+ * step is not among the rows is claimed by nothing and is read as the row it is.
+ */
+export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
+	const byPath = new Map<string, TRunRow>();
+	// A row is the same object across reads, and a step's shot can be recorded after the step: each pass says what the
+	// rows of this window hold rather than adding to what an earlier pass over other rows said.
+	for (const row of rows) {
+		if (row.kind === "produced") row.carriedBy = undefined;
+		if (row.kind === "step" && row.name) {
+			row.produced = undefined;
+			byPath.set(row.name.path.join("."), row);
+		}
+	}
+	for (const row of rows) {
+		if (row.kind !== "produced") continue;
+		const under = row.under ?? row.name?.path ?? [];
+		let host: TRunRow | undefined;
+		for (let i = under.length; i > 0 && host === undefined; i--) host = byPath.get(under.slice(0, i).join("."));
+		if (host === undefined) continue;
+		host.produced = [...(host.produced ?? []), row];
+		row.carriedBy = host.step;
+	}
+	return rows;
+}
+
 /** A window and the moments it spans: its first and last row's instants. */
 function windowOf(rows: TRunRow[]): TRunWindow {
-	return { rows, ...(rows.length ? { from: rows[0].at, to: rows[rows.length - 1].at } : {}) };
+	const held = producedUnderSteps(rows);
+	return { rows: held, ...(held.length ? { from: held[0].at, to: held[held.length - 1].at } : {}) };
 }
 
 /** The execution of the newest row that names one, which is the run a window of these rows is of. */
@@ -247,10 +287,12 @@ async function side(
 	// A graph that does not carry a type holds none of it, so asking for it would be asking a question with no answer.
 	if (!graph.declares(label)) return [];
 	const when = at === undefined ? [] : [{ predicate: timeField, operator: direction === "before" ? "lt" : "gte", value: new Date(at).toISOString() }];
-	const shown = { predicate: LEVEL, operator: "in", value: levels[0], values: [...levels] };
+	// A produced thing is read whatever it reports at, because it is shown by the step that produced it: a reader
+	// reading a run's steps is shown what those steps produced, and the level they chose is what they read the steps at.
+	const shown = label === RUN_ARTIFACT_LABEL ? [] : [{ predicate: LEVEL, operator: "in", value: levels[0], values: [...levels] }];
 	const nearestFirst = direction === "before" ? "desc" : "asc";
 	const sortOrder = order === "nearest" ? nearestFirst : nearestFirst === "desc" ? "asc" : "desc";
-	const { vertices } = await graph.query(GraphQuerySchema.parse({ label, filters: [...when, shown], sortBy: timeField, sortOrder, limit, offset, skipCount: true }));
+	const { vertices } = await graph.query(GraphQuerySchema.parse({ label, filters: [...when, ...shown], sortBy: timeField, sortOrder, limit, offset, skipCount: true }));
 	return vertices;
 }
 

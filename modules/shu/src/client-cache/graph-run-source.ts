@@ -23,8 +23,8 @@ import { currentExecution, holdOnDevice, noteExecution, subscribeExecutionSwitch
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import type { Range } from "../ranges.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
-import { RUN_WINDOW_SIZE, inRunOrder, runExtent, runWindow, type TRunRow } from "./run-window.js";
-import { runMarks } from "./run-marks.js";
+import { RUN_WINDOW_SIZE, inRunOrder, producedUnderSteps, runExtent, runWindow, type TRunRow } from "./run-window.js";
+import { runShape } from "./run-shape.js";
 import { railAt, momentAt, type TRunFocus, type TRunSpan } from "../run-scale.js";
 import { timeCursor } from "../signals.js";
 import { atLiveEdge, noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
@@ -35,10 +35,6 @@ export const RE_READ_AFTER_MS = 250;
 /** How many places a rail has: what a mark sits at and what a press names. A rail is a few hundred pixels, so this is
  *  finer than a reader can point at, and the same however long the run is. */
 export const RAIL_PLACES = 1000;
-
-/** How many divisions of the run are counted for the rail's marks. The count is what a rail of any length costs, so it
- *  is the same for a run of an hour and a run of a year. */
-export const RAIL_DIVISIONS = 200;
 
 /** What a step declared, where it declared one: a feature or a scenario is the step that named it, and a view titles it
  *  by the name that step carries rather than by a second announcement of the same thing. */
@@ -55,18 +51,29 @@ function asRendered(row: TRunRow): TEventRecord {
 	const seqPath = row.under?.length ? row.under : undefined;
 	if (row.kind === "said") return { id: row.step, kind: "log", level: row.level, message: row.text, timestamp: row.at, seqPath };
 	// A produced thing is claimed by the step it came from, which a document reads from the identity it carries.
-	if (row.kind === "produced")
-		return {
-			id: row.id,
-			kind: "artifact",
-			artifactType: row.artifactType,
-			level: row.level,
-			timestamp: row.at,
-			...(row.path === undefined ? {} : { path: row.path }),
-			...(row.featureRelativePath === undefined ? {} : { featureRelativePath: row.featureRelativePath }),
-			...(row.mediaType === undefined ? {} : { mimetype: row.mediaType }),
-			seqPath,
-		};
+	if (row.kind === "produced") return producedRecord(row);
+	return stepRecord(row, seqPath);
+}
+
+/** What a step produced, as a view renders it. */
+function producedRecord(row: TRunRow): TEventRecord {
+	const seqPath = row.under?.length ? row.under : undefined;
+	return {
+		id: row.id,
+		kind: "artifact",
+		artifactType: row.artifactType,
+		level: row.level,
+		timestamp: row.at,
+		...(row.path === undefined ? {} : { path: row.path }),
+		...(row.featureRelativePath === undefined ? {} : { featureRelativePath: row.featureRelativePath }),
+		...(row.mediaType === undefined ? {} : { mimetype: row.mediaType }),
+		...(row.carriedBy === undefined ? {} : { carriedBy: row.carriedBy }),
+		seqPath,
+	};
+}
+
+/** A step's own record, as a view renders it, carrying what that step produced. */
+function stepRecord(row: TRunRow, seqPath: number[] | undefined): TEventRecord {
 	return {
 		id: row.step,
 		kind: "lifecycle",
@@ -85,6 +92,8 @@ function asRendered(row: TRunRow): TEventRecord {
 		...(row.capabilityAction === undefined ? {} : { capabilityAction: row.capabilityAction }),
 		...(row.allowedAction === undefined ? {} : { allowedAction: row.allowedAction }),
 		...(row.performedBy === undefined ? {} : { performedBy: row.performedBy }),
+		// What this step produced, shown by the row of the step a reader sees rather than by rows of its own.
+		...(row.produced === undefined ? {} : { produced: row.produced.map(producedRecord) }),
 		seqPath,
 	};
 }
@@ -135,7 +144,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	// A row a re-read finds again is the same row: a view holds its place, and what it built from that row, by the row
 	// being the same object. Re-reading is how a window stays current, so re-reading must not look like every row changing.
 	const held = new Map<string, TEventRecord>();
-	const keyOf = (row: TRunRow): string => `${row.kind}|${row.step}|${row.at}|${row.text}|${row.status ?? ""}|${row.endedAt ?? ""}`;
+	const keyOf = (row: TRunRow): string => `${row.kind}|${row.step}|${row.at}|${row.text}|${row.status ?? ""}|${row.endedAt ?? ""}|${row.produced?.length ?? 0}|${row.carriedBy ?? ""}`;
 	const same = (row: TRunRow): TEventRecord => {
 		const key = keyOf(row);
 		const carried = held.get(key);
@@ -185,6 +194,9 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 			for (const row of changed) byName.set(row.id, row);
 			window = [...byName.values()].sort(inRunOrder).slice(-size);
 		} else window = answer.rows;
+		// What a step produced is claimed over the window as it now stands: a shot is recorded after the step that took
+		// it, so a read that finds the shot alone would leave it claimed by nothing.
+		producedUnderSteps(window);
 		// What a page has read, it holds: the records are what a reader with no site to ask reads them back from, and
 		// what makes an execution one this device can be brought back to. Only what is new to the window is written,
 		// and every new record in one write, so reading a window costs one write rather than one per record.
@@ -248,6 +260,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	// divisions rather than the run. Both are read where the window is read, so they move with it.
 	let reach: TRunSpan = { first: 0, last: 0 };
 	let railMarks: TScrollMarker[] = [];
+	let shape = runShape(pageRunGraph(), { minLevel: level });
 	/** Where the reader is on the rail, and the window held around them: the moment they are reading around, else the
 	 *  newest record read. */
 	const focus = (): TRunFocus => ({ at: at ?? extent.last ?? 0, from: extent.first ?? reach.first, to: extent.last ?? reach.last });
@@ -258,8 +271,11 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 			railMarks = [];
 			return;
 		}
-		const marks = await runMarks(pageRunGraph(), { from: reach.first, to: reach.last, divisions: RAIL_DIVISIONS, minLevel: level });
-		railMarks = marks.map((mark) => ({ color: mark.color, icon: mark.icon, index: placeFor(mark.at), id: `run-${mark.at}` }));
+		// The counting is of the run, so it is held across reads and only the stretch the run has grown by is counted.
+		// Where it is drawn is of the reader, so the places are computed again on every read: a reader who moves changes
+		// the scale under the same marks.
+		await shape.update(reach.last);
+		railMarks = shape.marks.map((mark) => ({ color: mark.color, icon: mark.icon, index: placeFor(mark.at), id: `run-${mark.at}` }));
 	};
 
 	// Another execution is another window over the same records, so the source reads again rather than being remade.
@@ -267,6 +283,8 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		at = undefined;
 		window = [];
 		held.clear();
+		// The counts are of the run that was being read, so another run is counted from nothing rather than added to.
+		shape = runShape(pageRunGraph(), { minLevel: level });
 		void read();
 	});
 

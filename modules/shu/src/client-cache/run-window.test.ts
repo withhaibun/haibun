@@ -4,6 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
+import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { runWindow, type TRunRow } from "./run-window.js";
 import { runGraphOf } from "./run-graph.js";
@@ -206,6 +207,20 @@ describe("following a run that is still happening", () => {
 			since.rows.map((r) => [r.text, r.status]),
 			"the step that ended after the last read, with its outcome",
 		).toEqual([["the step now running", "failed"]]);
+	});
+
+	it("names the step whose row carries what it produced, and keeps the produced row for the views that place it", async () => {
+		const store = new QuadStore();
+		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", actionStatus: "passed", level: "trace", generatedAtTime: iso(1001), recordedAtTime: iso(1001) });
+		await store.upsertIndividual(RUN_ARTIFACT_LABEL, { id: `${RUN}.0.1.-1@0`, isPartOf: `${RUN}.0.1.-1`, artifactType: "image", path: "./image/shot.png", level: "trace", generatedAtTime: iso(1001), recordedAtTime: iso(1001) });
+		const window = await runWindow(runGraphOf(store), { size: 10 });
+		const carried = window.rows.find((r) => r.kind === "produced");
+		expect(carried?.carriedBy, "the step a reader is shown claims the shot the machinery under it took").toBe(`${RUN}.0.1`);
+		expect(
+			window.rows.find((r) => r.kind === "step" && r.text === "a step of the feature")?.produced?.map((one) => one.path),
+			"and that step's row says which shot it carries",
+		).toEqual(["./image/shot.png"]);
 	});
 
 	it("says nothing has happened when nothing was recorded", async () => {

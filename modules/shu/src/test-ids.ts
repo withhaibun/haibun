@@ -73,6 +73,8 @@ export const SHU_TEST_IDS = {
 		FROM_STORE: 'entity-from-store',
 	},
 	MONITOR: {
+		/** What a step produced, shown on its own row: a screenshot taken during it. */
+		PRODUCED: 'monitor-produced',
 		LOG_STREAM: 'monitor-log-stream',
 		LOG_ROW: 'monitor-log-row',
 		/** The run's first row: on the page only once the start of the run has been reached and paged in. */

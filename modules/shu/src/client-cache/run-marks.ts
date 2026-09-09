@@ -72,8 +72,3 @@ export function marksOf(counts: Record<string, number>[][], { from, to, division
 	}
 	return marks;
 }
-
-/** The marks of a run over a span: one bounded count, and a mark for every division of it that holds something. */
-export async function runMarks(graph: TRunGraph, span: { from: number; to: number; divisions: number; minLevel?: THaibunLogLevel }): Promise<TRunMark[]> {
-	return marksOf(await runCounts(graph, span), span);
-}

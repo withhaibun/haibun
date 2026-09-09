@@ -87,6 +87,9 @@ export const features: TKirejiExport = {
 		"show monitor",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
+		"A screenshot taken during a step is shown on that step's own row rather than as a row of its own, so what a step did and what it produced are read together. The run takes a screenshot after every WebPlaywright step, so the navigation that opened this page produced one.",
+		waitFor({ target: IDS.MONITOR.PRODUCED }),
+
 		"The log's own scroll rail is where the shared cursor is shown and picked, so there is no separate range control on the page. The moment being shown is always somewhere on the run, so its mark is on the rail from the start: at the live edge, with nothing scrubbed to.",
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
