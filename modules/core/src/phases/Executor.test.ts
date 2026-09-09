@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { TSeqPath } from "../schema/protocol.js";
-import { Executor, advanceSyntheticSeqPath, featureSyntheticSeqPath, incSeqPath, calculateShouldClose, syntheticBranchSeqPath, syntheticSeqPathDirection } from "./Executor.js";
+import { Executor, advanceSyntheticSeqPath, featureSyntheticSeqPath, nextSeqPath, calculateShouldClose, syntheticBranchSeqPath, syntheticSeqPathDirection } from "./Executor.js";
 import type { TFeatureResult, TStepResult } from "../lib/defs.js";
 
 describe("syntheticSeqPathDirection", () => {
@@ -48,39 +47,42 @@ describe("advanceSyntheticSeqPath", () => {
 	});
 });
 
-describe("incSeqPath", () => {
-	it("increments single depth seqPath", () => {
-		const original: TSeqPath = [1];
-		const withSeqPath = [{ seqPath: [1] }, { seqPath: [2] }];
-		const incremented = incSeqPath(withSeqPath, original);
-		expect(incremented).toEqual([3]);
-	});
-	it("increments multiple depth seqPath", () => {
-		const original: TSeqPath = [1, 2, 3];
-		const withSeqPath = [{ seqPath: [1, 2, 3] }];
-		const incremented = incSeqPath(withSeqPath, original);
-		expect(incremented).toEqual([1, 2, 4]);
-	});
-});
+describe("the path allocated under a parent step", () => {
+	const aWorld = () => ({ runtime: {} }) as unknown as Parameters<typeof nextSeqPath>[0];
 
-describe("decSeqPath", () => {
-	it("decrements single depth seqPath", () => {
-		const original: TSeqPath = [1];
-		const withSeqPath = [{ seqPath: [1] }, { seqPath: [2] }];
-		const incremented = incSeqPath(withSeqPath, original, -1);
-		expect(incremented).toEqual([-1]);
+	it("counts from one under a parent, and on from what it last gave", () => {
+		const world = aWorld();
+		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 1]);
+		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 2]);
+		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 3]);
 	});
-	it("decrements single depth seqPath", () => {
-		const original: TSeqPath = [1];
-		const withSeqPath = [{ seqPath: [-1] }, { seqPath: [2] }];
-		const incremented = incSeqPath(withSeqPath, original, -1);
-		expect(incremented).toEqual([-2]);
+
+	it("counts each parent on its own", () => {
+		const world = aWorld();
+		expect(nextSeqPath(world, [1])).toEqual([1, 1]);
+		expect(nextSeqPath(world, [2])).toEqual([2, 1]);
+		expect(nextSeqPath(world, [1])).toEqual([1, 2]);
 	});
-	it("decrements multiple depth seqPath", () => {
-		const original: TSeqPath = [1, 2, 3];
-		const withSeqPath = [{ seqPath: [1, 2, 3] }];
-		const incremented = incSeqPath(withSeqPath, original, -1);
-		expect(incremented).toEqual([1, 2, -1]);
+
+	it("counts a synthetic step the other way, so what a step ran is told from what a feature asked for", () => {
+		const world = aWorld();
+		expect(nextSeqPath(world, [1, 2], -1)).toEqual([1, 2, -1]);
+		expect(nextSeqPath(world, [1, 2], -1)).toEqual([1, 2, -2]);
+	});
+
+	it("counts the two directions under one parent apart", () => {
+		const world = aWorld();
+		expect(nextSeqPath(world, [3], 1)).toEqual([3, 1]);
+		expect(nextSeqPath(world, [3], -1)).toEqual([3, -1]);
+		expect(nextSeqPath(world, [3], 1)).toEqual([3, 2]);
+	});
+
+	it("costs the same however many steps the feature has run, since it counts rather than searches", () => {
+		const world = aWorld();
+		for (let i = 0; i < 20000; i++) nextSeqPath(world, [1, i % 50]);
+		const began = performance.now();
+		for (let i = 0; i < 1000; i++) nextSeqPath(world, [1, i % 50]);
+		expect(performance.now() - began, "a thousand allocations against twenty thousand already made").toBeLessThan(50);
 	});
 });
 

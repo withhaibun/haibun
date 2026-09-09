@@ -115,18 +115,29 @@ export function resetGraphRunSources(): void {
 
 export type TGraphRunSource = RunSource & { close(): void };
 
+/** Stop reading a run nothing is showing, and forget it, so the next view to read at that level reads afresh. */
+function releaseSource(key: string): void {
+	const held = sources().get(key);
+	if (held === undefined) return;
+	sources().delete(key);
+	held.close();
+}
+
 export function graphRunSource(level: THaibunLogLevel, options: { size?: number; reReadAfterMs?: number; substeps?: boolean } = {}): TGraphRunSource {
 	// A reading is what its level and what it shows of the steps run to carry other steps out: two views asking for the
 	// same reading share one, and a view asking to see substeps reads a run of its own rather than filtering one.
 	const key = options.substeps ? `${level}+substeps` : level;
 	const held = sources().get(key);
 	if (held) return held;
-	const made = makeGraphRunSource(level, options);
+	const made = makeGraphRunSource(level, { ...options, release: () => releaseSource(key) });
 	sources().set(key, made);
 	return made;
 }
 
-function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, reReadAfterMs = RE_READ_AFTER_MS, substeps = false }: { size?: number; reReadAfterMs?: number; substeps?: boolean }): TGraphRunSource {
+function makeGraphRunSource(
+	level: THaibunLogLevel,
+	{ size = RUN_WINDOW_SIZE, reReadAfterMs = RE_READ_AFTER_MS, substeps = false, release = () => undefined }: { size?: number; reReadAfterMs?: number; substeps?: boolean; release?: () => void },
+): TGraphRunSource {
 	let rows: TEventRecord[] = [];
 	let extent: TRunExtent = { total: 0 };
 	let loaded = false;
@@ -354,9 +365,14 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 			window = []; // another moment is another window, read as one rather than added to the one being left
 			return read();
 		},
+		// A view holds the source by subscribing to it, and lets it go by unsubscribing. A source nothing holds is
+		// reading a run nobody is shown: it stops, and the next view to read at this level starts one afresh.
 		subscribe: (fn: () => void) => {
 			subs.add(fn);
-			return () => subs.delete(fn);
+			return () => {
+				subs.delete(fn);
+				if (subs.size === 0) release();
+			};
 		},
 		close: () => {
 			stopReading();
