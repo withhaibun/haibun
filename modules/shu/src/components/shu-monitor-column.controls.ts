@@ -138,7 +138,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 							for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
 						}
 						const root = doc?.shadowRoot;
-						if (!root) return { frames: [] as Array<{ w: number; inRow: boolean; imgLoaded: boolean; imgW: number }> };
+						if (!root) return { frames: [] as Array<{ w: number; inRow: boolean; imgLoaded: boolean; imgW: number }>, overlapping: 0 };
 						const frames = (Array.from(root.querySelectorAll("shu-artifact-frame.thumb")) as HTMLElement[]).map((f) => {
 							const img = f.querySelector("img") as HTMLImageElement | null;
 							return { w: f.offsetWidth, inRow: f.parentElement?.classList.contains("thumb-row") ?? false, imgLoaded: (img?.naturalWidth ?? 0) > 0, imgW: img?.offsetWidth ?? 0 };
@@ -162,6 +162,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 				if (notLoaded > 0) return actionNotOK(`${notLoaded} thumbnail images failed to load from /artifacts`);
 				const notFilling = frames.filter((f) => f.imgW < f.w * 0.9).length;
 				if (notFilling > 0) return actionNotOK(`${notFilling} thumbnail images do not fill their tile`);
+				if ((v.overlapping ?? 0) > 0) return actionNotOK(`${v.overlapping} rows of the manual paint over the row before them, so a row was given a height it does not have`);
 				return actionOK();
 			},
 		},

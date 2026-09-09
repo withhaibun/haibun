@@ -127,12 +127,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		.log-rows { flex: 1; overflow: auto; }
 		.log-row { display: grid; grid-template-columns: 130px 1fr; border-bottom: var(--shu-border-w) solid var(--shu-border); font-size: var(--shu-font-sm); line-height: 1.4; }
 		.log-row:hover { background: var(--shu-bg-hover); }
-		.log-row .time-group { display: flex; gap: var(--shu-space-2); padding: 1px var(--shu-space-2); cursor: pointer; border-right: var(--shu-border-w) solid var(--shu-border); }
+		/* The first column holds its own content: a long step path is shortened to the column's width rather than pushing
+		   the duration out of the column and over the words beside it. */
+		.log-row .time-group { display: flex; gap: var(--shu-space-2); padding: 1px var(--shu-space-2); cursor: pointer; border-right: var(--shu-border-w) solid var(--shu-border); overflow: hidden; }
 		.log-row .time-group:hover { color: var(--shu-accent); }
 		.log-row .row-content { padding: 1px var(--shu-space-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-		.log-row .time { color: var(--shu-fg-muted); margin-left: auto; }
+		.log-row .time { color: var(--shu-fg-muted); margin-left: auto; flex: 0 0 auto; }
 		.log-row .time-group:hover .time { color: var(--shu-accent); }
-		.log-row .seqpath { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); }
+		.log-row .seqpath { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 		.log-row .dispatch { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
 		.log-row .capability { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
 		.log-row .capability.refused { color: var(--shu-error); }
@@ -211,8 +213,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// The step's own words. What was said during a step, or produced by one, has none: the path beside it says which
 		// step it belongs to, and a raw id in its place says nothing a reader can read.
 		const step = String(e.in ?? "");
-		// What a row says beside the step it names: what was said, or how the step it names turned out.
-		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : `${eventMarkerStyle(e).icon} ${String(e.called || e.type || "")}`;
+		// What a row says beside the step it names: what was said, what was produced, or how the step it names turned out.
+		const produced = `${String(e.artifactType ?? "")}${e.featureRelativePath === undefined ? "" : ` ${String(e.featureRelativePath)}`}`.trim();
+		const said = e.kind === "artifact" ? produced : String(e.called || e.type || "");
+		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : `${eventMarkerStyle(e).icon} ${said}`;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
 		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string) ?? undefined;
 		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e) };
