@@ -36,11 +36,25 @@ const stepRecord = (i: number, over: Record<string, unknown> = {}): Record<strin
 	...over,
 });
 
+/** Something a step produced: what it is, where it is, and the step it came from. */
+const producedRecord = (i: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+	id: `0.${i}@0`,
+	isPartOf: `0.${i}`,
+	artifactType: "image",
+	featureRelativePath: `./image/event-0.${i}.png`,
+	path: `/tmp/image/event-0.${i}.png`,
+	mediaType: "image/png",
+	level: "info",
+	generatedAtTime: iso(i),
+	...over,
+});
+
 /** The run in the graph, with nothing to ask a server for: the views read the records. */
-async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<string, unknown>> = []): Promise<void> {
+async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<string, unknown>> = [], produced: Array<Record<string, unknown>> = []): Promise<void> {
 	const store = new QuadStore();
 	for (const record of records) await store.upsertIndividual(SEQ_PATH_LABEL, record);
 	for (const record of said) await store.upsertIndividual(LOG_MESSAGE_LABEL, record);
+	for (const record of produced) await store.upsertIndividual(RUN_ARTIFACT_LABEL, record);
 	setGraphStore(store);
 	setSiteMetadata({
 		types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL],
@@ -72,6 +86,14 @@ describe("the views of a run, over the records it wrote", () => {
 		await flush();
 		return view;
 	};
+
+	it("says what a step produced and where, so a row of the run is never a row of nothing", async () => {
+		resetGraphRunSources();
+		await aRun([stepRecord(1)], [], [producedRecord(1)]);
+		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const produced = mon.rows.find((row) => row.message.includes("image"));
+		expect(produced?.message, "what it is and the file it names").toContain("image ./image/event-0.1.png");
+	});
 
 	it("shows a step as one row, which is what its record is", async () => {
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);

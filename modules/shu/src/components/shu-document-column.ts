@@ -188,11 +188,16 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
 			markers: () => this.#marks,
-			// A row of no height, known before it renders and without building the page it is on: what a step produced is
-			// shown in that step's own row, so an artifact has no row of its own. Every other row is measured when it
-			// renders. A virtualizer told which rows are empty estimates the rest steadily, which is what keeps the rail
-			// thumb from resizing as a reader scrolls.
-			rowSize: (i) => ((this.#run.rowAt(i) as { kind?: string } | undefined)?.kind === "artifact" ? 0 : undefined),
+			// A row of no height, taken from what the row renders rather than from the record behind it: a row with no
+			// blocks draws nothing, and every other row is measured when it renders. A virtualizer told which rows are
+			// empty estimates the rest steadily, which is what keeps the rail thumb from resizing as a reader scrolls.
+			// A page that is not built answers nothing, so no page is built to answer a question about a row's height.
+			rowSize: (i) => {
+				const size = this.#run.pageSize;
+				const p = Math.floor(i / size);
+				const row = this.#pages.get(p)?.rows[i - p * size];
+				return row !== undefined && row.blocks.length === 0 ? 0 : undefined;
+			},
 		};
 	}
 
