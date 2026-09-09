@@ -207,12 +207,19 @@ export class LiveConduit implements Conduit {
 		// bounded. A caller that brought its own signal governs its own call, and a stream is held open for as long as
 		// the run keeps writing to it, so it is bounded by nothing.
 		const bounded = signal ?? (envelope.stream === true ? undefined : AbortSignal.timeout(siteAnswersWithinMs()));
+		// A site found silent a moment ago is not called again yet: the answer is the one the last call got, and a page
+		// with several views open would otherwise wait out the bound once per view.
+		if (signal === undefined && envelope.stream !== true && siteIsSilent()) throw new ServerUnreachable(url, new Error("the site did not answer the call before this one"));
 		try {
 			const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal: bounded });
 			responded().at = Date.now();
+			responded().silentUntil = 0;
 			return res;
 		} catch (err) {
 			if (signal?.aborted) throw err; // the caller stopped this request; the server's reachability is not in question
+			// Only a site that made the page wait is remembered as silent. A call the network refuses fails at once, so
+			// the read that follows it loses nothing by trying, and a site that comes back is found by the next read.
+			if (bounded?.aborted) responded().silentUntil = Date.now() + SITE_TRIED_AGAIN_AFTER_MS;
 			throw new ServerUnreachable(url, err);
 		}
 	}
@@ -235,7 +242,20 @@ export class LiveConduit implements Conduit {
  *  whether it is current; a page that has never reached a server has nothing here. Held by the page, since a request
  *  from any bundle is this page reaching the server. */
 const RESPONDED_KEY = "__SHU_SERVER_RESPONDED__";
-const responded = (): { at: number | undefined } => pagePinned(RESPONDED_KEY, () => ({ at: undefined }));
+const responded = (): { at: number | undefined; silentUntil: number } => pagePinned(RESPONDED_KEY, () => ({ at: undefined, silentUntil: 0 }));
+
+/**
+ * How long a page that has just found the site silent reads what it holds before calling it again.
+ *
+ * A page makes a call per read, and a reader with several views open makes many at once. Were each to wait out the
+ * bound on its own, a site that has stopped answering would cost every one of them that wait, and the page would spend
+ * its time waiting rather than reading what the device holds. One call answers for all of them for this long, and the
+ * site is tried again after it, as the stream is opened again after it breaks.
+ */
+export const SITE_TRIED_AGAIN_AFTER_MS = 2_000;
+
+/** Whether the site is known not to be answering, so a call would only be waited out again. */
+const siteIsSilent = (): boolean => Date.now() < responded().silentUntil;
 
 export function serverLastRespondedAt(): number | undefined {
 	return responded().at;
