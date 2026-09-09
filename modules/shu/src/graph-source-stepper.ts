@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { Access, AccessQueryLevelSchema, LinkRelations, storeScopeFor, type TPropertyDef } from "@haibun/core/lib/resources.js";
+import { Access, AccessQueryLevelSchema, LinkRelations, storeScopeFor, } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/util/index.js";
 import {
 	DOMAIN_GRAPH_QUERY,

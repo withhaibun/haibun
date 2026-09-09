@@ -413,11 +413,8 @@ export function incomingEdges(label: string, id: string, window: { limit: number
 				{ method: requireStep("getIncomingEdges"), params: { label, id, accessLevel: appAccessLevel(), ...window } },
 				`what points at ${label}:${id}`,
 			),
-		async () => {
-			if (!getRels(label)) return undefined;
-			// The window is taken before a record is read, so a hub costs the page a window rather than every edge of it.
-			return incomingEdgesOf(cachedGraphStore(), id, window);
-		},
+		// The window is taken before a record is read, so a hub costs the page a window rather than every edge of it.
+		() => (getRels(label) ? incomingEdgesOf(cachedGraphStore(), id, window) : Promise.resolve(undefined)),
 	);
 }
 

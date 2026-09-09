@@ -30,12 +30,6 @@ const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
 /** The same source cut off from the run: it has read, and the stream is down, so it cannot say it is current. */
 const CACHE_LOG_DISCONNECTED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-disconnected`;
-/** The line the whole run's shape is read from, the line of the region around where a reader is, and the earliest
- *  division of each that a reader can press. */
-const RUN_SHAPE = `${SHU_TEST_IDS.TIME_BAR.ROOT}run`;
-const RUN_SHAPE_FIRST_MARK = "run-shape-first-mark";
-const FAILURES_FIRST_ROW = "failures-first-row";
-const DETAIL_SHAPE_FIRST_MARK = "detail-shape-first-mark";
 /** The globs that cover everything this page reads from its server: every remote call and the event stream. */
 const RPC_GLOB = "**/rpc/**";
 const STREAM_GLOB = "**/sse*";
@@ -292,49 +286,6 @@ export const features: TKirejiExport = {
 		waitFor({ target: CACHE_LOG_LOADED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
 		"not variable eventsCaughtUp is eventsUnheard",
-
-		scenario({ scenario: "The shape of the run is read from counts, and a division of it is where a reader can go" }),
-
-		"The bar across the page shows the run's shape: the run divides into a fixed number of divisions and each one that holds something is marked, so a run of any length draws the same way and reading it costs what the divisions cost rather than what the run does. The store counts; no records are read to draw it. This run has failed a step, so a division of it is marked as a failure, and pressing that division scrubs every view to where it begins.",
-		setAs({ what: RUN_SHAPE, domain: "page-test-id", value: `"${RUN_SHAPE}"` }),
-		setAs({ what: RUN_SHAPE_FIRST_MARK, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.TIME_BAR.MARK}run-'] >> nth=0"` }),
-		setAs({ what: DETAIL_SHAPE_FIRST_MARK, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.TIME_BAR.MARK}detail-'] >> nth=0"` }),
-		setAs({ what: IDS.CLIENT_CACHE.CURSOR, domain: "page-test-id", value: `"${IDS.CLIENT_CACHE.CURSOR}"` }),
-		setAs({ what: IDS.CLIENT_CACHE.READING_AT, domain: "page-test-id", value: `"${IDS.CLIENT_CACHE.READING_AT}"` }),
-		waitFor({ target: RUN_SHAPE }),
-
-		"Every view follows the shared cursor, and the client cache says where it is: at the live edge until a reader moves it. Pressing the earliest division of the run moves it there, which is a moment the run has already passed.",
-		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAtEdge`,
-		'variable cursorAtEdge is "live edge"',
-		`save text from ${IDS.CLIENT_CACHE.READING_AT} to readingAtEdge`,
-		'variable readingAtEdge is "following the newest records"',
-		click({ target: RUN_SHAPE_FIRST_MARK }),
-		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAfterPress`,
-		'not variable cursorAfterPress is "live edge"',
-
-		"A reader who has moved is shown the region around where they are as its own line, at its own scale. The whole run's line divides a run of any length into the same number of divisions, so a division of a long run covers a stretch a reader cannot read anything from; the region is counted in records rather than measured in time, so it holds the same number of records wherever in the run a reader stands. On a run shorter than the region the two lines cover the same span, which is what the region around a reader is when the whole run is around them. Pressing a division of the region moves the cursor within it, and the reader is still reading the past.",
-		click({ target: DETAIL_SHAPE_FIRST_MARK }),
-		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorInRegion`,
-		'not variable cursorInRegion is "live edge"',
-
-		"Moving the cursor is not enough on its own. A window holds a few thousand records, so a division far from the newest records is a division no window holds, and a reader pressing it would be shown the records they had left. The cursor names the moment the run is read around, so pressing a division reads the run there. The client cache says which it is: the newest records are followed until a reader moves, and after that the run is read around the moment they moved to.",
-		`save text from ${IDS.CLIENT_CACHE.READING_AT} to readingAfterPress`,
-		`matches readingAfterPress with "the run is read around *"`,
-
-		scenario({ scenario: "What the run failed at is listed beside the line that marks where it falls" }),
-
-		"A mark says which division of the run holds a failure, which is where to look; the list beside it says which failures those are. It is the ordinary windowed query with a filter, capped, so a run of any length costs one read to list. A row names what failed and why, and pressing it moves the shared cursor to that moment, so every open view scrubs to the failure a reader chose.",
-		setAs({ what: FAILURES_FIRST_ROW, domain: "page-locator", value: `"[data-testid^='${SHU_TEST_IDS.FAILURES.ROW}'] >> nth=0"` }),
-		setAs({ what: IDS.FAILURES.ROOT, domain: "page-test-id", value: `"${IDS.FAILURES.ROOT}"` }),
-		setAs({ what: IDS.FAILURES.COUNT, domain: "page-test-id", value: `"${IDS.FAILURES.COUNT}"` }),
-		waitFor({ target: IDS.FAILURES.ROOT }),
-		`save text from ${IDS.FAILURES.COUNT} to failedCount`,
-		'matches failedCount with "* failed"',
-		"The list holds one line beside the bar until a reader opens it, so the page's top stays the run's. Opening it shows the failures, and pressing one moves the cursor to that moment.",
-		click({ target: IDS.FAILURES.COUNT }),
-		click({ target: FAILURES_FIRST_ROW }),
-		`save text from ${IDS.CLIENT_CACHE.CURSOR} to cursorAtFailure`,
-		'not variable cursorAtFailure is "live edge"',
 
 		scenario({ scenario: "A page with no layout of its own starts on the views the run showed" }),
 

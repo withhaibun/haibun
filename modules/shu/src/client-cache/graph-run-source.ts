@@ -23,11 +23,22 @@ import { currentExecution, holdOnDevice, noteExecution, subscribeExecutionSwitch
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import type { Range } from "../ranges.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
-import { RUN_WINDOW_SIZE, inRunOrder, runWindow, type TRunRow } from "./run-window.js";
-import { noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
+import { RUN_WINDOW_SIZE, inRunOrder, runExtent, runWindow, type TRunRow } from "./run-window.js";
+import { runMarks } from "./run-marks.js";
+import { railAt, momentAt, type TRunFocus, type TRunSpan } from "../run-scale.js";
+import { timeCursor } from "../signals.js";
+import { atLiveEdge, noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
 
 /** How long a burst of changes is collected before the window is read again. */
 export const RE_READ_AFTER_MS = 250;
+
+/** How many places a rail has: what a mark sits at and what a press names. A rail is a few hundred pixels, so this is
+ *  finer than a reader can point at, and the same however long the run is. */
+export const RAIL_PLACES = 1000;
+
+/** How many divisions of the run are counted for the rail's marks. The count is what a rail of any length costs, so it
+ *  is the same for a run of an hour and a run of a year. */
+export const RAIL_DIVISIONS = 200;
 
 /** What a step declared, where it declared one: a feature or a scenario is the step that named it, and a view titles it
  *  by the name that step carries rather than by a second announcement of the same thing. */
@@ -192,6 +203,10 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		// Last of all: saying which run this window is of can be what says the run being read has changed, and what
 		// reads a run again on hearing that is this same source. A read that announced before it had finished would be
 		// answering with the window it was told to leave.
+		// The rail carries the whole run, so it is read where the window is: what the run reaches, and what its divisions
+		// hold. A rail read that fails leaves the rail as it was rather than emptying it under a reader.
+		await readRail().catch((err: unknown) => failFastOrLog("the run's rail could not be read", err));
+		notify();
 		if (newest) noteExecution(newest.execution);
 	};
 
@@ -229,6 +244,24 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		},
 	});
 
+	// What the run reaches, and what it holds along the way, counted rather than read: a rail carrying a year costs its
+	// divisions rather than the run. Both are read where the window is read, so they move with it.
+	let reach: TRunSpan = { first: 0, last: 0 };
+	let railMarks: TScrollMarker[] = [];
+	/** Where the reader is on the rail, and the window held around them: the moment they are reading around, else the
+	 *  newest record read. */
+	const focus = (): TRunFocus => ({ at: at ?? extent.last ?? 0, from: extent.first ?? reach.first, to: extent.last ?? reach.last });
+	const placeFor = (moment: number): number => Math.round(railAt(moment, reach, focus()) * Math.max(1, RAIL_PLACES - 1));
+	const readRail = async (): Promise<void> => {
+		reach = await runExtent(pageRunGraph(), level);
+		if (reach.last <= reach.first) {
+			railMarks = [];
+			return;
+		}
+		const marks = await runMarks(pageRunGraph(), { from: reach.first, to: reach.last, divisions: RAIL_DIVISIONS, minLevel: level });
+		railMarks = marks.map((mark) => ({ color: mark.color, icon: mark.icon, index: placeFor(mark.at), id: `run-${mark.at}` }));
+	};
+
 	// Another execution is another window over the same records, so the source reads again rather than being remade.
 	const stopWatchingSwitch = subscribeExecutionSwitch(() => {
 		at = undefined;
@@ -239,6 +272,19 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 
 	const source: TGraphRunSource = {
 		level,
+		// The rail this window's rows sit on: the run's whole reach, focused where the reader is reading. A window holds
+		// a few thousand records and a run can hold a year of them, so a rail spread over the window alone would say
+		// nothing about the rest of the run. The reach and the marks are read where the window is read, so a rail of a
+		// year costs the counts its divisions cost rather than what the run did.
+		rail: {
+			places: RAIL_PLACES,
+			placeOf: (index: number) => placeFor(Number(rows[index]?.timestamp) || reach.first),
+			marks: () => railMarks,
+			goTo: (place: number) => {
+				const moment = momentAt(place / Math.max(1, RAIL_PLACES - 1), reach, focus());
+				timeCursor.set(atLiveEdge(moment) ? null : moment);
+			},
+		},
 		pageSize: getWindowSize(),
 		get loaded() {
 			return loaded;

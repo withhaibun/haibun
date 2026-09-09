@@ -27,10 +27,7 @@ export { IndexedDbDeviceStore, MemoryDeviceStore, deviceStore, setDeviceStore, s
 export { executionsHeld, forgetExecution, holdOnDevice, viewsShown, currentExecution, readingExecution, noteExecution, readExecution, subscribeExecutionSwitch, resetExecutions, EXECUTIONS_READ, type THeldExecution } from "./executions.js";
 export { IndexedDbQuadStore, originGraphStore } from "./quad-store.js";
 export { graphRunSource } from "./graph-run-source.js";
-export { runWindow, detailRegion, runExtent, RUN_WINDOW_SIZE, DETAIL_HALF, type TRunRow, type TRunWindow } from "./run-window.js";
-export { runCounts, marksOf, type TRunMark } from "./run-marks.js";
-export { runFailures, FAILURES_SHOWN } from "./run-failures.js";
-export { runShape, RUN_DIVISIONS, type TRunShape } from "./run-shape.js";
+export { runWindow, runExtent, RUN_WINDOW_SIZE, type TRunRow, type TRunWindow } from "./run-window.js";
 export { runGraphOf, ofExecution, type TRunGraph } from "./run-graph.js";
 export { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";

@@ -1,12 +1,12 @@
 import { defaultLabel } from "./util.js";
-import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
+import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, } from "./consts.js";
 import { getHash, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline, deploymentMs } from "./rpc-registry.js";
+import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline, } from "./rpc-registry.js";
 import { openSession } from "./session-key.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
@@ -17,7 +17,7 @@ import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
-import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext, pageRunGraph } from "./quads-snapshot.js";
+import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext, } from "./quads-snapshot.js";
 import { activePane, timeCursor } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
@@ -31,21 +31,7 @@ import { reportToRun, type TClientLogLevel } from "./client-log.js";
 import {
 	hydrateClientCache,
 	viewsShown,
-	runShape,
-	runCounts,
-	runFailures,
-	marksOf,
-	detailRegion,
-	ofExecution,
-	readingExecution,
-	RUN_DIVISIONS,
-	runSpan,
-	atLiveEdge,
 	readRunAt,
-	subscribeExecutionSwitch,
-	subscribeRunSources,
-	type TRunMark,
-	type TRunRow,
 } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
@@ -119,7 +105,6 @@ function openReaderSession(): void {
 }
 
 /** How long changes to the run are collected before its shape is counted again. */
-const RUN_SHAPE_COUNTED_AFTER_MS = 15000;
 
 const main = async (): Promise<void> => {
 	// What the reader's address says, before anything writes to it. An address naming views is the reader's own
@@ -226,9 +211,6 @@ const main = async (): Promise<void> => {
 	appRoot.innerHTML = `
 		<div class="app-container">
 			<shu-actions-bar api-base="${apiBase}" testid-prefix="app-"></shu-actions-bar>
-			<shu-time-bar span="run"></shu-time-bar>
-			<shu-time-bar span="detail"></shu-time-bar>
-			<shu-run-failures></shu-run-failures>
 			<shu-column-strip>
 				<shu-column-pane label="" column-type="query" closable="false" active data-column-key="${INDEX_PANE_KEY}">
 					<div class="results-target" style="height:100%;overflow:hidden;"></div>
@@ -392,124 +374,16 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// The shape of the run, drawn across the page as the cursor is: one bar every view shares, read from counts so a run
-	// of any length draws the same way. It is re-read when the run says something changed, on the same schedule a
-	// following view reads on, and pressing a division scrubs every view to where it begins.
-	const timeBar = (span: "run" | "detail") => appRoot.querySelector(`${SHU_TAG.TIME_BAR}[span="${span}"]`) as (HTMLElement & { marks: TRunMark[]; divisions: number }) | null;
-	// The run counted as it grows: a division is a fixed stretch of time, so what has been counted stays counted and
-	// each count reads only what the run has recorded since the last one. Another execution is another run, and its
-	// shape is its own.
-	// The run being read, which is the run drawn: a store holds every run written to it, so a shape counted over the
-	// store would be the shape of all of them. A run that starts while the page is following the one before it becomes
-	// the run being read, and its shape is its own, so the shape is made again rather than added to.
-	const runGraph = () => ofExecution(pageRunGraph(), readingExecution());
-	let shape = runShape(runGraph());
-	eventsController.signal.addEventListener(
-		"abort",
-		subscribeExecutionSwitch(() => (shape = runShape(runGraph()))),
-	);
-	// The failures of the run, beside the line that marks where they fall: the same reading schedule, since a failure
-	// that has just happened is a division that has just been marked. The list is the newest failures at the cap, so a
-	// run of any length costs one read.
-	const failures = () => appRoot.querySelector(SHU_TAG.RUN_FAILURES) as (HTMLElement & { rows: TRunRow[] }) | null;
-	const drawFailures = async (): Promise<void> => {
-		const list = failures();
-		if (!list) return;
-		list.rows = await runFailures(runGraph());
-	};
-	const drawRunShape = async (): Promise<void> => {
-		const bar = timeBar("run");
-		if (!bar) return;
-		// As far as the run has been read: what a following view has seen of it is what the bar draws to, so counting
-		// and following move together and neither asks the run where it has reached.
-		await shape.update(runSpan().last);
-		bar.divisions = shape.divisions;
-		bar.marks = shape.marks;
-	};
-	// The region around where a reader is, drawn as its own line at its own scale: the whole run's line divides a run of
-	// years into months, so a reader who has moved to a moment would otherwise have no way to see what is around it.
-	// The region is a span counted in records rather than measured in time, so it holds the same number of records
-	// wherever in the run a reader stands, and it is counted only when a reader moves out of the one being drawn. A
-	// reader following the newest records has the rows themselves, so no region is drawn and the count costs nothing.
-	let detailSpan: { from: number; to: number } | undefined;
-	// One region is read at a time. Playback publishes the cursor on every animation frame, so a moment asked for while
-	// a region is being read is held and read once the one in flight is drawn, rather than each frame starting a read
-	// of its own before any of them has said what the region is.
-	let readingRegion = false;
-	let regionAsked: number | undefined;
-	const drawDetail = async (at: number | null): Promise<void> => {
-		const bar = timeBar("detail");
-		if (!bar) return;
-		if (at === null) {
-			detailSpan = undefined;
-			bar.marks = [];
-			return;
-		}
-		if (readingRegion) {
-			regionAsked = at;
-			return;
-		}
-		if (detailSpan && at >= detailSpan.from && at <= detailSpan.to) return;
-		readingRegion = true;
-		try {
-			const graph = runGraph();
-			detailSpan = await detailRegion(graph, { at });
-			bar.divisions = RUN_DIVISIONS;
-			bar.marks = marksOf(await runCounts(graph, { from: detailSpan.from, to: detailSpan.to, divisions: RUN_DIVISIONS }), RUN_DIVISIONS);
-		} finally {
-			readingRegion = false;
-		}
-		const asked = regionAsked;
-		regionAsked = undefined;
-		if (asked !== undefined) await drawDetail(asked);
-	};
-	appRoot.addEventListener(
-		SHU_EVENT.TIME_BAR_PRESS,
-		((e: CustomEvent<{ division: number }>) => {
-			// Where the division begins, on the line it was pressed on. On the run's line a division is a stretch of time,
-			// so a mark keeps the stretch it stands for while the run grows into the grid and covers twice as much once
-			// the run outgrows it; on the region's line a division is that share of the region being drawn.
-			const of = (e.target as HTMLElement | null)?.getAttribute("span");
-			const at = of === "detail" && detailSpan ? detailSpan.from + ((detailSpan.to - detailSpan.from) * e.detail.division) / RUN_DIVISIONS : shape.beginningOf(e.detail.division);
-			timeCursor.set(atLiveEdge(at) ? null : at);
-		}) as EventListener,
-		{ signal },
-	);
-	// The cursor names the moment the run is read at. A window holds a few thousand records, so a division far from the
-	// newest records is a division no window holds: without this a reader pressing it would be shown the records they
-	// had left. One rule for every way the cursor moves, so pressing a mark, clicking a row and scrubbing all read the
-	// run the same way.
+	// The cursor names the moment the run is read at. A window holds a few thousand records, so a moment far from the
+	// newest records is a moment no window holds: without this a reader who moved there would be shown the records they
+	// had left. One rule for every way the cursor moves, so a press on the rail, a click on a row and scrubbing all read
+	// the run the same way.
 	eventsController.signal.addEventListener(
 		"abort",
 		timeCursor.subscribe((at) => {
 			void readRunAt(at).catch((err: unknown) => failFastOrLog("the run could not be read at the moment the cursor names", err));
-			void drawDetail(at).catch((err: unknown) => failFastOrLog("the region around where the reader is could not be read", err));
 		}),
 	);
-	// Counted again on a throttle: a reader watching a run would otherwise have it counted for every record it wrote,
-	// and each count is itself a call the run records. An overview a few seconds behind is an overview; a run counted
-	// per record is a run made slower by being watched. A count where the run has not moved reads nothing.
-	let countDue: ReturnType<typeof setTimeout> | undefined;
-	const redrawRunShape = (): void => {
-		if (countDue !== undefined) return;
-		countDue = setTimeout(
-			() => {
-				countDue = undefined;
-				void drawRunShape().catch((err: unknown) => failFastOrLog("the run's shape could not be read", err));
-				void drawFailures().catch((err: unknown) => failFastOrLog("the run's failures could not be read", err));
-			},
-			deploymentMs("runShapeCountedAfterMs") ?? RUN_SHAPE_COUNTED_AFTER_MS,
-		);
-	};
-	eventsController.signal.addEventListener(
-		"abort",
-		subscribeRunSources((source) => {
-			redrawRunShape();
-			source.subscribe(redrawRunShape);
-		}),
-	);
-	redrawRunShape();
-
 	// Filter change from actions bar
 	appRoot.addEventListener(
 		SHU_EVENT.FILTER_CHANGE,

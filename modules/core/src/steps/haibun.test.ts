@@ -137,6 +137,17 @@ describe("afterEvery", () => {
 			[0, 1, 1, 4],
 		]);
 	});
+
+	it("runs after a step of the feature, once, and not after the substeps of carrying it out", async () => {
+		const feature = {
+			path: "/features/test.feature",
+			content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "not fails"].join("\n"),
+		};
+		const result = await passWithDefaults([feature], [Haibun, TestSteps, LogicStepper]);
+		expect(result.ok).toBe(true);
+		const said = (result.featureResults?.[0].stepResults ?? []).filter((r) => r.in === "Noodles, man.").length;
+		expect(said, "one statement for the step the feature holds, and none for the substep another step ran").toBe(1);
+	});
 });
 
 describe("prose", () => {

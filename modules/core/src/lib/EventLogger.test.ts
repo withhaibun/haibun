@@ -280,3 +280,16 @@ describe("EventLogger", () => {
 		});
 	});
 });
+
+describe("what a produced thing reports at", () => {
+	it("reports at the level of the step that produced it, so a screenshot after every step is a substep's", () => {
+		const emitted: Array<{ level?: string }> = [];
+		const logger = new EventLogger();
+		logger.suppressConsole = true;
+		logger.subscribe((event) => emitted.push(event as { level?: string }), { kinds: ["artifact"] });
+		const step = (isSubStep: boolean): TFeatureStep => ({ in: "take a screenshot", seqPath: [0, 1, 2], action: { stepperName: "S", actionName: "a", stepValuesMap: {} }, isSubStep }) as unknown as TFeatureStep;
+		logger.artifact(step(true), { kind: "artifact", artifactType: "image", path: "a.png", id: "x", timestamp: 1 } as never);
+		logger.artifact(step(false), { kind: "artifact", artifactType: "image", path: "b.png", id: "y", timestamp: 2 } as never);
+		expect(emitted.map((e) => (e as { level?: string }).level)).toEqual(["trace", "info"]);
+	});
+});

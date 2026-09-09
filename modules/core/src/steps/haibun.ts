@@ -39,7 +39,9 @@ class Haibun extends AStepper implements IHasCycles {
 			return Promise.resolve();
 		},
 		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
-			if (featureStep.isAfterEveryStep) {
+			// A step of the feature is what the statement runs after. A substep is part of carrying one out, so running
+			// after each of them would run the statement several times for one step a reader reads.
+			if (featureStep.isAfterEveryStep || featureStep.isSubStep) {
 				return Promise.resolve({ failed: false });
 			}
 			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];

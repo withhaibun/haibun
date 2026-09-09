@@ -431,7 +431,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const a = artifact as Record<string, unknown>;
 		const artifactPath = artifactUrl(a);
 		if (type === "image") {
-			return `<shu-artifact-frame class="thumb"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
+			// Decoded off the thread that draws the page: a strip holds many tiles, and each is a screenshot of a whole page.
+			return `<shu-artifact-frame class="thumb"><img src="${esc(String(artifactPath))}" loading="lazy" decoding="async" /></shu-artifact-frame>`;
 		}
 		if (type === "html")
 			return `<shu-artifact-frame><iframe src="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
