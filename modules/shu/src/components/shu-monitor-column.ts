@@ -18,6 +18,7 @@ import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT } from "../consts.js";
 import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
+import { artifactUrl } from "../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
 import { PaneState } from "../pane-state.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
@@ -44,6 +45,12 @@ export type TLogRow = {
 	capabilityAction?: string;
 	allowedAction?: string;
 	performedBy?: string;
+	/** What this step produced, as the images a reader sees beside its words: a screenshot taken after a step belongs to
+	 *  the step a reader was reading, so the row of that step shows it. */
+	produced?: Array<{ url: string; what: string }>;
+	/** Whether the row of the step that produced this carries it, which is where a reader is shown it. Such a row is
+	 *  read by the run's document, which places it by its own reading, and is given no room here. */
+	carried?: boolean;
 	/** How this row marks the rail, for the rows worth marking. Decided from the event when the row is built, by the
 	 *  same two calls the timeline marks its track with, so the rail and the timeline never disagree about which
 	 *  events matter or what they look like. */
@@ -135,6 +142,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		.log-row .time { color: var(--shu-fg-muted); margin-left: auto; flex: 0 0 auto; }
 		.log-row .time-group:hover .time { color: var(--shu-accent); }
 		.log-row .seqpath { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		/* What a step produced, at the height of its own row: a reader reading the run's steps sees what each one made,
+		   and follows the image itself to see it whole. */
+		.carried { display: none; }
+		.log-row .produced { display: inline-flex; gap: var(--shu-space-1); vertical-align: middle; margin-left: var(--shu-space-2); }
+		.log-row .produced img { height: 1.4em; width: auto; border: var(--shu-border-w) solid var(--shu-border); border-radius: 2px; display: block; }
 		.log-row .dispatch { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
 		.log-row .capability { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
 		.log-row .capability.refused { color: var(--shu-error); }
@@ -200,6 +212,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
 			markers: () => this.#marks,
+			// A shot drawn on the row of the step that took it is not a row of its own here, so it takes no room.
+			rowSize: (i) => {
+				const e = run.rowAt(i) as Record<string, unknown> | undefined;
+				return e !== undefined && e.carriedBy !== undefined ? 0 : undefined;
+			},
 		};
 	}
 
@@ -214,12 +231,19 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// step it belongs to, and a raw id in its place says nothing a reader can read.
 		const step = String(e.in ?? "");
 		// What a row says beside the step it names: what was said, what was produced, or how the step it names turned out.
-		const produced = `${String(e.artifactType ?? "")}${e.featureRelativePath === undefined ? "" : ` ${String(e.featureRelativePath)}`}`.trim();
-		const said = e.kind === "artifact" ? produced : String(e.called || e.type || "");
+		const isOf = `${String(e.artifactType ?? "")}${e.featureRelativePath === undefined ? "" : ` ${String(e.featureRelativePath)}`}`.trim();
+		const said = e.kind === "artifact" ? isOf : String(e.called || e.type || "");
 		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : `${eventMarkerStyle(e).icon} ${said}`;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
 		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string) ?? undefined;
-		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e) };
+		// What the step produced, as images a reader can see: a produced thing that is not an image is named by the run's
+		// own document rather than drawn here.
+		const made = Array.isArray(e.produced) ? (e.produced as Array<Record<string, unknown>>) : [];
+		const produced = made
+			.filter((one) => one.artifactType === "image")
+			.map((one) => ({ url: artifactUrl(one) ?? "", what: `${String(one.artifactType ?? "")} ${String(one.featureRelativePath ?? one.path ?? "")}`.trim() }))
+			.filter((one) => one.url !== "");
+		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e), ...(produced.length ? { produced } : {}), ...(e.carriedBy === undefined ? {} : { carried: true }) };
 		for (const field of ROW_FIELDS) if (e[field] !== undefined) (row as Record<string, unknown>)[field] = e[field];
 		this.#rowCache.set(e, row);
 		return row;
@@ -231,7 +255,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const out: Array<{ index: number; row: TLogRow }> = [];
 		for (const { from, to } of this.#run.cachedRanges()) for (let i = from; i < to; i++) {
 			const e = this.#run.rowAt(i) as Record<string, unknown> | undefined;
-			if (e) out.push({ index: i, row: this.#rowOf(e) });
+			// A shot the step's own row carries is read there, so it marks the rail there rather than twice.
+			if (e && e.carriedBy === undefined) out.push({ index: i, row: this.#rowOf(e) });
 		}
 		return out;
 	}
@@ -312,6 +337,9 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	private renderLogRow = (index: number, row: unknown): TemplateResult => {
 		const r = row as TLogRow | undefined;
 		if (!r) return html`<div class="log-row" data-testid="monitor-log-row"></div>`; // its page has not landed yet: a skeleton row
+		// Drawn on the row of the step that produced it, so this row renders nothing. It is still an element, because the
+		// virtualizer positions and scrolls to one element per row.
+		if (r.carried) return html`<div class="carried"></div>`;
 		const testId = index === 0 ? SHU_TEST_IDS.MONITOR.FIRST_ROW : "monitor-log-row";
 		let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
 		if (this.timeCursor !== null) {
@@ -324,9 +352,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const dispatchText = r.ranVia ? `${r.ranVia}${r.ranOn ? ` ${r.ranOn}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
 		const capabilityRefused = r.capabilityAction !== undefined && r.allowedAction === undefined;
 		const capabilityText = r.capabilityAction ? `${capabilityRefused ? "🔒" : "🔓"} ${r.capabilityAction}${r.performedBy ? ` ${r.performedBy}` : ""}` : "";
+		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it
+		// is shown, and pressing one opens the image itself.
+		const produced = r.produced?.length
+			? html`<span class="produced" data-testid=${SHU_TEST_IDS.MONITOR.PRODUCED}>${r.produced.map((one) => html`<a href=${one.url} target="_blank" rel="noreferrer" title=${one.what}><img src=${one.url} alt=${one.what} loading="lazy" decoding="async" /></a>`)}</span>`
+			: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
 			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${r.seqPath ? html`<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : ""}<span class="time">${r.time}</span></span>
-			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}</span>
+			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}${produced}</span>
 		</div>`;
 	};
 }

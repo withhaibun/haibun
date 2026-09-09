@@ -87,12 +87,20 @@ describe("the views of a run, over the records it wrote", () => {
 		return view;
 	};
 
-	it("says what a step produced and where, so a row of the run is never a row of nothing", async () => {
+	it("shows what a step produced on that step's own row, rather than as a row of its own", async () => {
 		resetGraphRunSources();
-		await aRun([stepRecord(1)], [], [producedRecord(1)]);
+		// The shot was taken by a step of the machinery, under the step a reader is reading. A record names its run, which
+		// is how a row knows its own place in it.
+		const RUN = "1700000000000-1";
+		await aRun(
+			[stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })],
+			[],
+			[producedRecord(1, { id: `${RUN}.0.1.-1@0`, isPartOf: `${RUN}.0.1.-1` })],
+		);
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
-		const produced = mon.rows.find((row) => row.message.includes("image"));
-		expect(produced?.message, "what it is and the file it names").toContain("image ./image/event-0.1.png");
+		expect(mon.rows.map((row) => row.step), "the run's steps, and no row for what one of them produced").toEqual(["step 1"]);
+		const shown = mon.rows[0].produced ?? [];
+		expect(shown.map((one) => one.what), "the step a reader sees shows the shot taken during it").toEqual(["image ./image/event-0.1.png"]);
 	});
 
 	it("shows a step as one row, which is what its record is", async () => {
