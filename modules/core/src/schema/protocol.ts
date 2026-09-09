@@ -584,8 +584,8 @@ export const LogEvent = BaseEvent.extend({
 // Artifact Events - Base
 const BaseArtifact = BaseEvent.extend({
 	kind: z.literal("artifact"),
-	/** How prominently the run reports it, which is the level of the step that produced it: a screenshot taken after
-	 *  every step is a substep's, so a reader reading the run's steps is not shown one per step. */
+	/** How prominently the run reports it. What a run produced is read at every level, since the row of the step that
+	 *  produced it is what shows it, so this says where it reports rather than whether a reader is shown it. */
 	level: HaibunLogLevel.default("info"),
 	// Path relative to the feature dir (e.g. "./image/x.png"). The serialized report's shu.html lives in that dir, so it
 	// references artifacts by this short relative path; `path` carries the base-relative form for the live /artifacts route.

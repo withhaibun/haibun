@@ -111,6 +111,43 @@ const placementDeps = (over: Partial<DataPipelineDeps>): DataPipelineDeps =>
 		...over,
 	}) as DataPipelineDeps;
 
+describe("the depth a graph arriving in pieces places its nodes at", () => {
+	const twoEmails = (): TQuad[] => [quad("e1", "Email", "dateReceived", YEAR_AGO), quad("e1", "Email", GENERATED, TODAY), quad("e2", "Email", "dateReceived", TODAY), quad("e2", "Email", GENERATED, TODAY)];
+
+	/** A graph that grows between builds, the way a stream delivers one: the deps read what has arrived so far. */
+	const growing = (): { pipeline: DataPipeline; arrive(quads: TQuad[], subjects: string[]): void } => {
+		let held: TQuad[] = [];
+		let subjects: string[] = [];
+		const pipeline = new DataPipeline(
+			placementDeps({
+				quads: () => held,
+				visibleModel: () => ({ nodes: subjects.map((id) => ({ id, type: "Email" })), edges: [] }) as unknown as ReturnType<DataPipelineDeps["visibleModel"]>,
+			}),
+		);
+		return { pipeline, arrive: (quads, ids) => ((held = quads), (subjects = ids)) };
+	};
+
+	it("spreads them once the times spread, rather than holding the flat scale the first arrival gave it", () => {
+		// The first build sees one email, so every age is that one age and the scale it derives places everything at one
+		// depth. The rest arrives on the stream; a held flat scale would leave the whole reading on that plane.
+		const { pipeline, arrive } = growing();
+		arrive(twoEmails().slice(0, 2), ["e1"]);
+		expect(pipeline.toGraphData().nodes.map((n) => n.z), "one node, one age: nothing to spread").toEqual([0]);
+		arrive(twoEmails(), ["e1", "e2"]);
+		const z = pipeline.toGraphData().nodes.map((n) => n.z as number);
+		expect(z[0] > z[1], `the older email is deeper than the newer one, at ${z.join(" and ")}`).toBe(true);
+	});
+
+	it("keeps a scale that already spreads them, so a node that has settled is not moved by what arrives next", () => {
+		const { pipeline, arrive } = growing();
+		arrive(twoEmails(), ["e1", "e2"]);
+		const first = pipeline.toGraphData().nodes.map((n) => n.z as number);
+		arrive([...twoEmails(), quad("e3", "Email", "dateReceived", LAST_WEEK), quad("e3", "Email", GENERATED, TODAY)], ["e1", "e2", "e3"]);
+		const later = pipeline.toGraphData().nodes.map((n) => n.z as number);
+		expect(later.slice(0, 2), "the two already placed stay where they were").toEqual(first);
+	});
+});
+
 describe("where a node the user dropped is placed", () => {
 	it("keeps the dropped position, so a drag is accepted rather than undone by the next repaint", () => {
 		const pipeline = new DataPipeline(placementDeps({ userPinXY: () => ({ x: 40, y: -25 }) }));

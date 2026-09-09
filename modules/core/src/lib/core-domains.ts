@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOMAIN_GRAPH_QUERY, GraphQuerySchema , DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
+import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { objectCoercer } from "./domains.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
@@ -7,7 +7,8 @@ import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";
 import {
 	DOMAIN_AFFORDANCES,
-	DOMAIN_CHAIN_LINT, DOMAIN_CHAIN_WALK,
+	DOMAIN_CHAIN_LINT,
+	DOMAIN_CHAIN_WALK,
 	DOMAIN_DATE,
 	DOMAIN_GOAL_RESOLUTION,
 	DOMAIN_MICHI,
@@ -29,25 +30,28 @@ const dateSchema = z.coerce.date({ error: "invalid date" });
 /**
  * Per-field binding inside a composite binding. Mirrors `TFieldBinding` in
  * `goal-resolver.ts`. Recursive: a field that ranges over another composite
- * domain emits a nested `kind: "composite"` field-binding. Defined as a
- * lazy function so the discriminated union can reference itself.
+ * domain emits a nested `kind: "composite"` field-binding, reached through a
+ * lazy reference so the union can name itself.
+ *
+ * One value, built once. Built per caller instead, every run registered a
+ * schema of its own, and converting one to JSON Schema walks the recursion,
+ * so the answer could never be held: one measurement put that walk at most of
+ * a second per run of a feature.
  */
-function fieldBindingSchema(): z.ZodType {
-	return z.discriminatedUnion("kind", [
-		z.object({ kind: z.literal("fact"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean(), factId: z.string() }).strict(),
-		z.object({ kind: z.literal("argument"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean() }).strict(),
-		z
-			.object({
-				kind: z.literal("composite"),
-				fieldName: z.string(),
-				fieldDomain: z.string(),
-				fieldType: z.string(),
-				optional: z.boolean(),
-				fields: z.array(z.lazy(fieldBindingSchema)),
-			})
-			.strict(),
-	]);
-}
+const fieldBindingSchema: z.ZodType = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal("fact"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean(), factId: z.string() }).strict(),
+	z.object({ kind: z.literal("argument"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean() }).strict(),
+	z
+		.object({
+			kind: z.literal("composite"),
+			fieldName: z.string(),
+			fieldDomain: z.string(),
+			fieldType: z.string(),
+			optional: z.boolean(),
+			fields: z.array(z.lazy(() => fieldBindingSchema)),
+		})
+		.strict(),
+]);
 
 /**
  * One resolved michi (path) shape used by both `DOMAIN_MICHI` and the
@@ -55,25 +59,23 @@ function fieldBindingSchema(): z.ZodType {
  * variant lets a single input domain decompose into per-field sub-bindings
  * (haibun's sh:node / rdfs:range channel via `topology.ranges`).
  */
-function michiSchema(): z.ZodType {
-	return z
-		.object({
-			steps: z.array(z.object({ stepperName: z.string(), stepName: z.string(), gwta: z.string().optional(), productsDomain: z.string() }).strict()),
-			bindings: z.array(
-				z.discriminatedUnion("kind", [
-					z.object({ kind: z.literal("fact"), domain: z.string(), factId: z.string() }).strict(),
-					z.object({ kind: z.literal("argument"), domain: z.string() }).strict(),
-					z.object({ kind: z.literal("composite"), domain: z.string(), fields: z.array(fieldBindingSchema()) }).strict(),
-				]),
-			),
-		})
-		.strict();
-}
+const michiSchema: z.ZodType = z
+	.object({
+		steps: z.array(z.object({ stepperName: z.string(), stepName: z.string(), gwta: z.string().optional(), productsDomain: z.string() }).strict()),
+		bindings: z.array(
+			z.discriminatedUnion("kind", [
+				z.object({ kind: z.literal("fact"), domain: z.string(), factId: z.string() }).strict(),
+				z.object({ kind: z.literal("argument"), domain: z.string() }).strict(),
+				z.object({ kind: z.literal("composite"), domain: z.string(), fields: z.array(fieldBindingSchema) }).strict(),
+			]),
+		),
+	})
+	.strict();
 
 /** DOMAIN_GOAL_RESOLUTION product shape — the resolver's four findings. Exported so GoalResolutionStepper validates its products against the same schema the domain registers. */
 export const goalResolutionSchema = z.discriminatedUnion("finding", [
-	z.object({ finding: z.literal("satisfied"), goal: z.string(), factIds: z.array(z.string()), michi: z.array(michiSchema()), truncated: z.boolean() }),
-	z.object({ finding: z.literal("michi"), goal: z.string(), michi: z.array(michiSchema()), truncated: z.boolean() }),
+	z.object({ finding: z.literal("satisfied"), goal: z.string(), factIds: z.array(z.string()), michi: z.array(michiSchema), truncated: z.boolean() }),
+	z.object({ finding: z.literal("michi"), goal: z.string(), michi: z.array(michiSchema), truncated: z.boolean() }),
 	z.object({ finding: z.literal("unreachable"), goal: z.string(), missing: z.array(z.string()) }),
 	z.object({ finding: z.literal("refused"), goal: z.string(), refusalReason: z.enum(["anonymous-outputs-present", "capability-context-required"]), detail: z.string() }),
 ]);
@@ -211,7 +213,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	// after all other domains are collected, so its enum reflects the live registry.
 	{
 		selectors: [DOMAIN_MICHI],
-		schema: michiSchema(),
+		schema: michiSchema,
 		description: "One concrete path the resolver found from working memory to a goal: ordered steps plus per-input bindings.",
 	},
 	{

@@ -2,11 +2,11 @@
 	"darwin-arm64-12x-apple-m4-pro": {
 		"features": {
 			"/features/a11y-fail.feature": {
-				"seconds": 0.5,
+				"seconds": 0.8,
 				"steps": 11
 			},
 			"/features/a11y-pass.feature": {
-				"seconds": 0.4,
+				"seconds": 0.8,
 				"steps": 11
 			},
 			"/features/activities.feature": {
@@ -18,19 +18,19 @@
 				"steps": 9
 			},
 			"/features/agents-examples.feature": {
-				"seconds": 0.5,
+				"seconds": 1.3,
 				"steps": 344
 			},
 			"/features/auth-basic.feature": {
-				"seconds": 0.6,
+				"seconds": 0.8,
 				"steps": 41
 			},
 			"/features/auth-bearer.feature": {
-				"seconds": 2.4,
+				"seconds": 2.7,
 				"steps": 65
 			},
 			"/features/auth-form.feature": {
-				"seconds": 0.7,
+				"seconds": 1,
 				"steps": 23
 			},
 			"/features/counter.feature": {
@@ -38,7 +38,7 @@
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.6,
+				"seconds": 2.5,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -46,7 +46,7 @@
 				"steps": 22
 			},
 			"/features/elements.feature": {
-				"seconds": 0.3,
+				"seconds": 0.5,
 				"steps": 6
 			},
 			"/features/executor-rpc.feature.ts": {
@@ -58,7 +58,7 @@
 				"steps": 19
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0.4,
+				"seconds": 0.1,
 				"steps": 31
 			},
 			"/features/if-set.feature": {
@@ -66,19 +66,19 @@
 				"steps": 13
 			},
 			"/features/not.feature": {
-				"seconds": 0.4,
+				"seconds": 0.6,
 				"steps": 7
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.5,
+				"seconds": 1.2,
 				"steps": 27
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.6,
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.6,
+				"seconds": 2.8,
 				"steps": 18
 			},
 			"/features/recurse.feature": {
@@ -86,7 +86,7 @@
 				"steps": 48
 			},
 			"/features/rpc-capability.feature.ts": {
-				"seconds": 0.3,
+				"seconds": 0,
 				"steps": 18
 			},
 			"/features/trauma_center.feature": {
@@ -94,31 +94,31 @@
 				"steps": 93
 			},
 			"/features/upload-verify.feature": {
-				"seconds": 0.4,
+				"seconds": 0.6,
 				"steps": 18
 			},
 			"/features/visited-pages.feature": {
-				"seconds": 0.4,
+				"seconds": 0.6,
 				"steps": 29
 			},
 			"/features/walk-toward-a-goal.feature": {
-				"seconds": 0.3,
+				"seconds": 0,
 				"steps": 17
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.2,
-				"steps": 146
+				"seconds": 1.7,
+				"steps": 147
 			},
 			"/features/workflow.feature.ts": {
-				"seconds": 0,
+				"seconds": 0.1,
 				"steps": 64
 			},
 			"/features/xss.feature": {
-				"seconds": 2.5,
+				"seconds": 2.7,
 				"steps": 12
 			}
 		},
-		"steps": 1156,
-		"seconds": 19
+		"steps": 1157,
+		"seconds": 24.1
 	}
 }

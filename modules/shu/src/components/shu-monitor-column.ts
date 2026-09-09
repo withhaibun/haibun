@@ -26,8 +26,11 @@ import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
 
 const MonitorColumnSchema = z.object({
-	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
+	level: z.enum(HAIBUN_LOG_LEVELS).default("info"),
 	tail: z.boolean().default(true),
+	/** Whether the steps run to carry other steps out are shown. They report under the steps a reader wrote, so a
+	 *  reader reading what a feature did is not shown them, and a reader asking how it was done is. */
+	substeps: z.boolean().default(false),
 });
 
 export type TLogRow = {
@@ -51,6 +54,8 @@ export type TLogRow = {
 	/** Whether the row of the step that produced this carries it, which is where a reader is shown it. Such a row is
 	 *  read by the run's document, which places it by its own reading, and is given no room here. */
 	carried?: boolean;
+	/** On a substep, the step it was run to carry out: the step that established it, which a reader reads from its row. */
+	partOf?: number[];
 	/** How this row marks the rail, for the rows worth marking. Decided from the event when the row is built, by the
 	 *  same two calls the timeline marks its track with, so the rail and the timeline never disagree about which
 	 *  events matter or what they look like. */
@@ -114,7 +119,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	// The log this view reads is the run at its level: a window of the records the run wrote, which the rail spans by
 	// index. Rows are derived from those records as they are painted. One source per level, shared across views,
 	// swapped when the level changes.
-	#run: RunSource = graphRunSource(this.state.level);
+	#run: RunSource = graphRunSource(this.state.level, { substeps: this.state.substeps });
 	#unsubscribeRun?: () => void;
 	#rowCache = new WeakMap<object, TLogRow>();
 	#source: WindowedSource<TLogRow> = this.#rowsOver(this.#run);
@@ -142,6 +147,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		.log-row .time { color: var(--shu-fg-muted); margin-left: auto; flex: 0 0 auto; }
 		.log-row .time-group:hover .time { color: var(--shu-accent); }
 		.log-row .seqpath { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.log-row .established-by { color: var(--shu-link, #0a58ca); cursor: pointer; }
 		/* What a step produced, at the height of its own row: a reader reading the run's steps sees what each one made,
 		   and follows the image itself to see it whole. */
 		.carried { display: none; }
@@ -165,8 +171,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	@property({ attribute: false }) accessor rows: TLogRow[] = [];
 
 
+	/** The reader's own choice of what to show, remembered across reloads. */
+	static persistFields = ["substeps"] as const;
+
 	constructor() {
-		super(MonitorColumnSchema, { level: "info", tail: true });
+		super(MonitorColumnSchema, { level: "info", tail: true, substeps: false });
 	}
 
 	protected override onConnected(): void {
@@ -191,10 +200,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (event) this.#cursorTo((event.timestamp as number) || 0); // a cached row is a moment; a page not yet landed lands first
 	};
 
-	/** Read the run at the level now shown: one source per level, shared across views, swapped when the level changes. */
+	/** Read the run as it is now shown: one source per reading, shared across views, swapped when the reader changes
+	 *  the level or asks for the steps run to carry other steps out. */
 	#readRun(): void {
 		this.#unsubscribeRun?.();
-		this.#run = graphRunSource(this.state.level);
+		this.#run = graphRunSource(this.state.level, { substeps: this.state.substeps });
 		this.#source = this.#rowsOver(this.#run);
 		this.#unsubscribeRun = this.#run.subscribe(() => this.requestUpdate());
 		void this.#run.ready().then(() => this.requestUpdate());
@@ -243,7 +253,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			.filter((one) => one.artifactType === "image")
 			.map((one) => ({ url: artifactUrl(one) ?? "", what: `${String(one.artifactType ?? "")} ${String(one.featureRelativePath ?? one.path ?? "")}`.trim() }))
 			.filter((one) => one.url !== "");
-		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e), ...(produced.length ? { produced } : {}), ...(e.carriedBy === undefined ? {} : { carried: true }) };
+		const partOf = Array.isArray(e.partOf) ? (e.partOf as number[]) : undefined;
+		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e), ...(produced.length ? { produced } : {}), ...(partOf === undefined ? {} : { partOf }), ...(e.carriedBy === undefined ? {} : { carried: true }) };
 		for (const field of ROW_FIELDS) if (e[field] !== undefined) (row as Record<string, unknown>)[field] = e[field];
 		this.#rowCache.set(e, row);
 		return row;
@@ -265,6 +276,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		this.requestUpdate();
 	}
 
+	private onSubstepsChange = (e: Event): void => {
+		this.setState({ substeps: (e.target as HTMLInputElement).checked });
+		this.#readRun(); // another reading of the run: what it holds of the steps run to carry other steps out
+	};
+
 	private onLevelChange = (e: Event): void => {
 		this.setState({ level: (e.target as HTMLSelectElement).value as z.infer<typeof MonitorColumnSchema>["level"] });
 		this.#readRun(); // another level is another run source: the run at that level
@@ -280,6 +296,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		(e: Event): void => {
 			e.stopPropagation();
 			this.#cursorTo(ts);
+		};
+
+	/** Read the step a substep was run to carry out, which is what pressing that step's own row does. */
+	private onEstablishedByClick =
+		(seqPath: number[]) =>
+		(e: Event): void => {
+			e.stopPropagation();
+			PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, Boolean((e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey));
 		};
 
 	private onRowClick =
@@ -320,6 +344,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 					? nothing
 					: html`<div class="toolbar" data-testid="monitor-log-stream">
 				<select data-action="level" @change=${this.onLevelChange}>${LEVEL_ORDER.map((l) => html`<option value=${l} ?selected=${l === level}>${l}</option>`)}</select>
+				<label><input type="checkbox" data-testid=${SHU_TEST_IDS.MONITOR.SUBSTEPS} ?checked=${this.state.substeps} @change=${this.onSubstepsChange} /> substeps</label>
 				<span class="count">${total} rows</span>
 			</div>`
 			}
@@ -357,8 +382,15 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const produced = r.produced?.length
 			? html`<span class="produced" data-testid=${SHU_TEST_IDS.MONITOR.PRODUCED}>${r.produced.map((one) => html`<a href=${one.url} target="_blank" rel="noreferrer" title=${one.what}><img src=${one.url} alt=${one.what} loading="lazy" decoding="async" /></a>`)}</span>`
 			: "";
+		// A substep says which step it was run to carry out, and reading that step from here is the same act as reading
+		// its own row: a reader shown a step of the machinery is one press from the step of the feature that ran it.
+		const seqPath = r.partOf
+			? html`<span class="seqpath">[<span class="established-by" data-testid=${SHU_TEST_IDS.MONITOR.ESTABLISHED_BY} title="the step this was run to carry out" @click=${this.onEstablishedByClick(r.partOf)}>${r.partOf.join(".")}</span>${(r.seqPath ?? []).slice(r.partOf.length).map((n) => `.${n}`)}] </span>`
+			: r.seqPath
+				? html`<span class="seqpath">[${r.seqPath.join(".")}] </span>`
+				: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
-			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${r.seqPath ? html`<span class="seqpath">[${r.seqPath.join(".")}]</span> ` : ""}<span class="time">${r.time}</span></span>
+			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${seqPath}<span class="time">${r.time}</span></span>
 			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}${produced}</span>
 		</div>`;
 	};

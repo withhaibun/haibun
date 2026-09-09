@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { EventLogger } from "./EventLogger.js";
 import { TFeatureStep } from "./astepper.js";
 import { OBSCURED_VALUE } from "./feature-variables.js";
-import { BlipEvent } from "../schema/protocol.js";
+import { BlipEvent, ImageArtifact } from "../schema/protocol.js";
 
 const OK = { ok: true as const };
 
@@ -282,14 +282,15 @@ describe("EventLogger", () => {
 });
 
 describe("what a produced thing reports at", () => {
-	it("reports at the level of the step that produced it, so a screenshot after every step is a substep's", () => {
+	it("reports at the level its producer parsed it at, whether the step that produced it is a substep or not", () => {
 		const emitted: Array<{ level?: string }> = [];
 		const logger = new EventLogger();
 		logger.suppressConsole = true;
 		logger.subscribe((event) => emitted.push(event as { level?: string }), { kinds: ["artifact"] });
 		const step = (isSubStep: boolean): TFeatureStep => ({ in: "take a screenshot", seqPath: [0, 1, 2], action: { stepperName: "S", actionName: "a", stepValuesMap: {} }, isSubStep }) as unknown as TFeatureStep;
-		logger.artifact(step(true), { kind: "artifact", artifactType: "image", path: "a.png", id: "x", timestamp: 1 } as never);
-		logger.artifact(step(false), { kind: "artifact", artifactType: "image", path: "b.png", id: "y", timestamp: 2 } as never);
-		expect(emitted.map((e) => (e as { level?: string }).level)).toEqual(["trace", "info"]);
+		// Parsed the way every producer parses one, which is what decides the level a produced thing carries.
+		logger.artifact(step(true), ImageArtifact.parse({ kind: "artifact", artifactType: "image", path: "a.png", id: "x", timestamp: 1 }) as never);
+		logger.artifact(step(false), ImageArtifact.parse({ kind: "artifact", artifactType: "image", path: "b.png", id: "y", timestamp: 2 }) as never);
+		expect(emitted.map((e) => (e as { level?: string }).level), "what a run produced is read at every level, so the step's own level does not decide this").toEqual(["info", "info"]);
 	});
 });
