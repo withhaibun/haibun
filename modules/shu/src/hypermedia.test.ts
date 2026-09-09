@@ -15,6 +15,18 @@ beforeEach(() => {
 	resetConduit();
 });
 
+/** The page's own hydration, as a deployment serves it. */
+function setHydration(payload: unknown): void {
+	document.head.innerHTML = "";
+	const script = document.createElement("script");
+	script.type = "application/json";
+	script.id = "shu-hydration";
+	script.textContent = JSON.stringify(payload);
+	document.head.appendChild(script);
+}
+
+import { hydrateFromDom } from "./rpc-registry.js";
+
 describe("hasLink", () => {
 	const rep: TRepresentation = {
 		_type: "Email",
@@ -118,6 +130,76 @@ describe("a server that does not respond", () => {
 		} finally {
 			globalThis.fetch = fetchWas;
 			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+		}
+	});
+
+	it("reads a site that takes a call and never answers it as a site that has not answered", async () => {
+		// The failure this bounds: a call neither answered nor refused left the view that made it reading nothing, with
+		// no word of why, so the reading never fell back to what the device holds.
+		const fetchWas = globalThis.fetch;
+		setHydration({ settings: { siteAnswersWithinMs: 40 } });
+		hydrateFromDom();
+		let taken = 0;
+		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
+			taken += 1;
+			// Taken and left, as a site that has stopped answering leaves it: it settles only when the bound aborts it.
+			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "TimeoutError")), { once: true }));
+		}) as unknown as typeof globalThis.fetch;
+		try {
+			const began = Date.now();
+			const err = await new LiveConduit("").follow({ method: "step.list" }, "test").then(() => undefined, (e: unknown) => e);
+			expect(taken, "the call was made").toBeGreaterThan(0);
+			expect(err, "and reported as the site not answering, which is what a reading falls back on").toBeInstanceOf(ServerUnreachable);
+			expect(Date.now() - began, "within the bound the deployment set, rather than never").toBeLessThan(4000);
+		} finally {
+			globalThis.fetch = fetchWas;
+			document.head.innerHTML = "";
+		}
+	});
+
+	it("bounds a call the page waits on and leaves a stream bounded by nothing, since a run writes to one for as long as it runs", async () => {
+		const fetchWas = globalThis.fetch;
+		setHydration({ settings: { siteAnswersWithinMs: 30 } });
+		hydrateFromDom();
+		const bounds: Array<boolean> = [];
+		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal; body?: string }) => {
+			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			bounds.push(init?.signal !== undefined);
+			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
+		}) as unknown as typeof globalThis.fetch;
+		try {
+			await new LiveConduit("").follow({ method: "step.list" }, "a read the page waits on").catch(() => undefined);
+			expect(bounds.at(-1), "a read the page waits on carries a bound").toBe(true);
+			const streaming = new LiveConduit("").followStream({ method: "step.list" }, () => undefined, { why: "the run's own stream" }).catch(() => undefined);
+			await new Promise((r) => setTimeout(r, 60));
+			expect(bounds.at(-1), "and a stream carries none, so it is not closed under a run still writing to it").toBe(false);
+			void streaming;
+		} finally {
+			globalThis.fetch = fetchWas;
+			document.head.innerHTML = "";
+		}
+	});
+
+	it("leaves a call the caller stopped as the caller's own, rather than reporting the site", async () => {
+		const fetchWas = globalThis.fetch;
+		setHydration({ settings: {} });
+		hydrateFromDom();
+		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
+			// The site answers the call that opens an action, and takes the streamed read without answering it, so what
+			// settles that read is the reader stopping it.
+			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("stopped", "AbortError")), { once: true }));
+		}) as unknown as typeof globalThis.fetch;
+		try {
+			const stopping = new AbortController();
+			const following = new LiveConduit("").followStream({ method: "step.list" }, () => undefined, { why: "a reader reading", signal: stopping.signal }).then(() => undefined, (e: unknown) => e);
+			await new Promise((r) => setTimeout(r, 5));
+			stopping.abort();
+			const err = await following;
+			expect(err, "a reader who stopped reading says nothing about whether the site answers").not.toBeInstanceOf(ServerUnreachable);
+		} finally {
+			globalThis.fetch = fetchWas;
+			document.head.innerHTML = "";
 		}
 	});
 

@@ -20,7 +20,9 @@ const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}
 
 /** Whether the requests a page makes to a URL glob reach the network. `unroute` drops the handler added under the same glob. */
 const BLOCKED = "blocked";
-const REQUEST_STATES = [BLOCKED, "allowed"] as const;
+/** A request the site accepts and never answers, which is a site that has not answered rather than one that refused. */
+const UNANSWERED = "unanswered";
+const REQUEST_STATES = [BLOCKED, UNANSWERED, "allowed"] as const;
 
 export const interactionSteps = (wp: WebPlaywright) =>
 	({
@@ -652,7 +654,13 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				if (!(REQUEST_STATES as readonly string[]).includes(state)) return actionNotOK(`requests are ${REQUEST_STATES.join(" or ")}, not "${state}"`);
 				// On the page, not the context: every page carries the tracer's own `**/*` route, which takes precedence over a
 				// context route and continues what it records. Page routes run newest first, so this one is consulted before it.
-				await wp.withPage(async (page: Page) => (state === BLOCKED ? page.route(pattern, (route) => route.abort()) : page.unroute(pattern)));
+				await wp.withPage(async (page: Page) => {
+					if (state === BLOCKED) await page.route(pattern, (route) => route.abort());
+					// Neither answered nor refused: the request is taken and left, which is what a page reading a site that
+					// has stopped answering is given.
+					else if (state === UNANSWERED) await page.route(pattern, () => undefined);
+					else await page.unroute(pattern);
+				});
 				return OK;
 			},
 		},

@@ -177,6 +177,8 @@ export interface ShuHydration {
 export type TDeploymentSettings = {
 	/** How long after the stream breaks the page opens it again. */
 	streamReconnectAfterMs?: number;
+	/** How long a call to the site may take before the page reads it as not answering. */
+	siteAnswersWithinMs?: number;
 };
 
 // The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
@@ -232,6 +234,27 @@ export function deploymentMs(name: keyof TDeploymentSettings): number | undefine
 	if (set === undefined) return undefined;
 	if (typeof set !== "number" || !Number.isFinite(set) || set <= 0) throw new Error(`${name}: a deployment sets a count of milliseconds above zero, and this page was served ${JSON.stringify(set)}`);
 	return set;
+}
+
+/**
+ * How long a call to the site may take before the page reads it as not answering.
+ *
+ * A site that accepts a call and never answers it leaves the view that made it reading nothing, with no word of why:
+ * the reading never fails, so it never falls back to what the device holds. The bound is what turns that into an
+ * answer a reader can act on.
+ *
+ * Calibrated against what a read costs. Over a corpus of eight thousand messages the consumer's engine answers a page
+ * read in 10ms on average and 64ms at the ninety-fifth, its own benchmark holds queries to 200ms and 600ms, the
+ * heaviest read either repository measures is 727ms, and the clustered graph a page opens with answers in 151ms. This
+ * is twenty seconds: some twenty-seven times the heaviest read measured, and three times what the ninety-fifth would
+ * come to over a corpus a hundred times that size were it to grow in step with it. A deployment reading a store slower
+ * than that raises it.
+ */
+export const SITE_ANSWERS_WITHIN_MS = 20_000;
+
+/** The bound this page applies to a call, which the deployment may set. */
+export function siteAnswersWithinMs(): number {
+	return deploymentMs("siteAnswersWithinMs") ?? SITE_ANSWERS_WITHIN_MS;
 }
 
 /** The run this page carries, when it carries one. */

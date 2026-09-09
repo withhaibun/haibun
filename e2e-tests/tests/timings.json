@@ -34,7 +34,7 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 0.9,
+				"seconds": 0.5,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
@@ -74,7 +74,7 @@
 				"steps": 27
 			},
 			"/features/popup.feature": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
@@ -106,7 +106,7 @@
 				"steps": 17
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.1,
+				"seconds": 1,
 				"steps": 146
 			},
 			"/features/workflow.feature.ts": {
@@ -119,6 +119,6 @@
 			}
 		},
 		"steps": 1156,
-		"seconds": 16.2
+		"seconds": 15.6
 	}
 }
