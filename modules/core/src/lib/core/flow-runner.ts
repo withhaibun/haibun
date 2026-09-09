@@ -4,7 +4,7 @@ import { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from "../../sch
 import { AStepper, TFeatureStep } from "../astepper.js";
 import { actionNotOK, errorDetail } from "../util/index.js";
 import { Resolver } from "../../phases/Resolver.js";
-import { incSeqPath, syntheticSeqPathDirection } from "../../phases/Executor.js";
+import { nextSeqPath, syntheticSeqPathDirection } from "../../phases/Executor.js";
 import { dispatchStep } from "../step-dispatch.js";
 import { StepRegistry } from "../step-registry.js";
 
@@ -75,7 +75,7 @@ export class FlowRunner {
 		let seqPath = options.seqPath;
 		if (!seqPath) {
 			if (options.parentStep) {
-				seqPath = incSeqPath(this.world.runtime.stepResults, [...options.parentStep.seqPath, 1], 1);
+				seqPath = nextSeqPath(this.world, options.parentStep.seqPath, 1);
 			} else {
 				throw new Error(`runStatement requires seqPath or parentStep. Statement: ${stmtText}`);
 			}
@@ -130,10 +130,9 @@ export class FlowRunner {
 				targetHostId: targetHostId ?? step.targetHostId,
 			};
 			if (parentStep) {
-				const baseSeqPath = [...parentStep.seqPath, 1];
 				const isAfterEvery = parentStep.isAfterEveryStep || mappedStep.isAfterEveryStep;
 				const dir = syntheticSeqPathDirection(intent.mode === "speculative" || isAfterEvery);
-				const seqPath = incSeqPath(this.world.runtime.stepResults, baseSeqPath, dir);
+				const seqPath = nextSeqPath(this.world, parentStep.seqPath, dir);
 				mappedStep = { ...mappedStep, seqPath, isSubStep: true, isAfterEveryStep: isAfterEvery };
 			}
 

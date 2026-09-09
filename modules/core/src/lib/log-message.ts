@@ -69,6 +69,6 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 		edges: {
 			[LOG_MESSAGE_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },
 		},
-		sortColumns: { [LOG_MESSAGE_FIELD.recordedAtTime]: "TIMESTAMPTZ" },
+		sortColumns: { [LOG_MESSAGE_FIELD.recordedAtTime]: "TIMESTAMPTZ", [LOG_MESSAGE_FIELD.execution]: "TEXT" },
 	},
 };

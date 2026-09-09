@@ -281,6 +281,7 @@ export class FeatureExecutor {
 		const world = this.world;
 		let ok = true;
 		world.runtime.stepResults = [];
+		world.runtime.seqPaths = new Map<string, number>();
 
 		let currentScenario = 0;
 		let scopedVars = new FeatureVariables(world, {});
@@ -411,17 +412,23 @@ export function advanceSyntheticSeqPath(seqPath: TSeqPath, dir: 1 | -1 = 1): TSe
 	return [...seqPath.slice(0, -1), seqPath[seqPath.length - 1] + dir];
 }
 
-export function incSeqPath(withSeqPath: { seqPath: TSeqPath }[], seqPath: TSeqPath, dir = 1): TSeqPath {
-	const prefix = seqPath.slice(0, -1);
-	let last = dir === -1 ? -1 : seqPath[seqPath.length - 1];
-	let candidate = [...prefix, last];
-	let found = true;
-	while (found) {
-		found = withSeqPath.some((r) => JSON.stringify(r.seqPath) === JSON.stringify(candidate));
-		if (found) {
-			last += dir;
-			candidate = [...prefix, last];
-		}
-	}
-	return candidate;
+/**
+ * The next path under a parent step, in the direction the parent's steps are numbered in.
+ *
+ * A path is allocated from a count held per parent rather than searched for among the results a feature has produced.
+ * Searching costs the feature so far on every step, and the feature so far grows: a run that services requests for
+ * weeks allocates every path by reading every result it has ever produced. The count answers in constant time and
+ * holds only the parents allocated under.
+ *
+ * The count only advances, so a path this hands out is never handed out again, and an allocation nothing goes on to
+ * use leaves a gap in the numbering. Nothing reads the numbering for anything but order and identity, both of which a
+ * gap preserves.
+ */
+export function nextSeqPath(world: TWorld, parent: TSeqPath, dir = 1): TSeqPath {
+	const held = (world.runtime.seqPaths ??= new Map<string, number>());
+	const key = `${parent.join(".")}|${dir}`;
+	const taken = held.get(key);
+	const index = taken === undefined ? dir : taken + dir;
+	held.set(key, index);
+	return [...parent, index];
 }

@@ -127,6 +127,20 @@ describe("the run a view reads, over the records it wrote", () => {
 	});
 
 
+	it("stops reading a run nothing is showing, and reads afresh for the next view", async () => {
+		const source = graphRunSource("debug");
+		await source.ready();
+		const held = source.count();
+		expect(held, "the run it read").toBeGreaterThan(0);
+		const release = source.subscribe(() => undefined);
+		release();
+		// A source nothing holds is reading a run nobody is shown. The next view at this level is given a new one.
+		const next = graphRunSource("debug");
+		expect(next, "a source nothing held was let go rather than left reading").not.toBe(source);
+		await next.ready();
+		expect(next.count(), "and the run reads the same either way").toBe(held);
+	});
+
 	it("reads a step again while it is still running, so its row says how it went once it ends", async () => {
 		await store.upsertIndividual(SEQ_PATH_LABEL, { execution: RUN, id: `${RUN}.0.3`, stepText: "a running step", actionStatus: "running", level: "info", generatedAtTime: iso(1700), recordedAtTime: iso(1700) });
 		const source = graphRunSource("debug");

@@ -227,6 +227,6 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 		},
 		// The step's end beside its start, as a moment a store orders by; and when the record was written, which a
 		// reader following the run asks for what happened since their last read by.
-		sortColumns: { [SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ", [SEQ_PATH_FIELD.recordedAtTime]: "TIMESTAMPTZ" },
+		sortColumns: { [SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ", [SEQ_PATH_FIELD.recordedAtTime]: "TIMESTAMPTZ", [SEQ_PATH_FIELD.execution]: "TEXT" },
 	},
 };

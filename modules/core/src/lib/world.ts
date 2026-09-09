@@ -32,6 +32,8 @@ export type TRuntime = {
 	/** Current feature file path (for dynamic statement execution) */
 	currentFeaturePath?: string;
 	stepResults: TStepResult[];
+	/** The last index allocated under each parent path, per direction: what the next path under it counts from. */
+	seqPaths?: Map<string, number>;
 	/** Active steppers for this execution. Set by Executor, used by populateActionArgs / domain coercion. */
 	steppers?: AStepper[];
 	/** Shared step registry. Set by Executor, used for dynamic step registration. */
