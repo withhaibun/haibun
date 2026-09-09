@@ -21,6 +21,7 @@ import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { resetGraphRunSources } from "../client-cache/graph-run-source.js";
 import { forgetElementPrefs } from "../element-prefs.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { ICON_LOG_INFO, ICON_LOG_WARN, ICON_STEP_COMPLETED } from "@haibun/core/schema/protocol.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
 const iso = (n: number): string => new Date(n).toISOString();
@@ -122,6 +123,17 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(mon.rows[1].partOf, "the substep's row names the step it was run to carry out").toEqual([0, 1]);
 		expect(mon.rows[0].partOf, "a step of the feature names none").toBeUndefined();
 		expect(mon.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.MONITOR.ESTABLISHED_BY}"]`), "which a reader reads that step from").toBeTruthy();
+	});
+
+	it("carries one glyph per row: how a step went, and the level a message reports at", async () => {
+		resetGraphRunSources();
+		await aRun([stepRecord(1), stepRecord(2, { actionStatus: "failed" })], [{ id: "0.1@0", isPartOf: "0.1", message: "something to note", level: "warn", generatedAtTime: iso(1) }]);
+		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const glyphs = new Map(mon.rows.map((row) => [row.step || row.message, row.icon]));
+		expect(glyphs.get("step 1"), "a step that passed").toBe(ICON_STEP_COMPLETED);
+		expect(glyphs.get("step 2"), "a step that failed says so rather than repeating the level every step reports at").not.toBe(ICON_LOG_INFO);
+		expect(glyphs.get("something to note"), "a message carries the level it reports at").toBe(ICON_LOG_WARN);
+		expect(mon.rows.every((row) => !row.message.startsWith(row.icon)), "and the row does not say it twice").toBe(true);
 	});
 
 	it("shows a step as one row, which is what its record is", async () => {
