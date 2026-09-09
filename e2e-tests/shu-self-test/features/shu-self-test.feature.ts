@@ -90,13 +90,15 @@ export const features: TKirejiExport = {
 		"A screenshot taken during a step is shown on that step's own row rather than as a row of its own, so what a step did and what it produced are read together. The run takes a screenshot after every WebPlaywright step, so the navigation that opened this page produced one.",
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
 
-		"The log states what it is showing and lets a reader change it: the level it reads at, and whether the steps run to carry other steps out are shown. A step run to carry another one out reports under it, so a reader reading what the feature did is not shown the machinery. Asking for those steps shows them, and each names the step it was run to carry out, which a reader reads that step from. The screenshot this run takes after every browser step is such a step, so asking for them shows it.",
+		"A column's settings are its own, and the pane shows them when a reader asks for them. They carry what the log reads: the level it reads at, and whether the steps run to carry other steps out are shown. A step run to carry another one out reports under it, so a reader reading what the feature did is not shown the machinery. Asking for those steps shows them, and each names the step it was run to carry out, which a reader reads that step from. The screenshot this run takes after every browser step is such a step, so asking for them shows it.",
+		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}` }),
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
 		waitFor({ target: IDS.MONITOR.ESTABLISHED_BY }),
 
 		"A reader who stops asking reads the run again as the feature ran it, with what its steps produced still on their rows.",
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
+		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}` }),
 
 		"The log's own scroll rail is where the shared cursor is shown and picked, so there is no separate range control on the page. The moment being shown is always somewhere on the run, so its mark is on the rail from the start: at the live edge, with nothing scrubbed to.",
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
