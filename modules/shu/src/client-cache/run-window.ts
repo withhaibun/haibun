@@ -15,7 +15,7 @@ import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { HAIBUN_LOG_LEVELS, SUBSTEP_LEVEL, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
-import { RECORDED_AT_TIME_FIELD, SEQ_PATH_EDGE, SEQ_PATH_FIELD, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
+import { RECORDED_AT_TIME_FIELD, SEQ_PATH_FIELD, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { TRunGraph } from "./run-graph.js";
 
@@ -112,9 +112,10 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 	const id = String(record[SEQ_PATH_FIELD.id] ?? "");
 	const name = parseRecordName(id);
 	const level = (record[SEQ_PATH_FIELD.level] as THaibunLogLevel) ?? "info";
-	// A step run to carry another one out reports at the level substeps report at, which is what SUBSTEP_LEVEL is: the
-	// record says a step is a substep by the level it reports at, so which step established it is read for those alone.
-	const partOf = level === SUBSTEP_LEVEL ? parseRecordName(String(record[SEQ_PATH_EDGE.isPartOf] ?? ""))?.path : undefined;
+	// A step run to carry another one out reports at the level substeps report at, which is what SUBSTEP_LEVEL is, and
+	// its path is the path of the step that ran it with its own index after: the step that established it is read off
+	// the path rather than by parsing the edge again.
+	const partOf = level === SUBSTEP_LEVEL && name !== undefined && name.path.length > 1 ? name.path.slice(0, -1) : undefined;
 	return {
 		kind: "step",
 		record,
@@ -223,16 +224,16 @@ export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
 		let host: TRunRow | undefined;
 		for (let i = under.length; i > 0 && host === undefined; i--) host = byPath.get(under.slice(0, i).join("."));
 		if (host === undefined) continue;
-		host.produced = [...(host.produced ?? []), row];
+		(host.produced ??= []).push(row);
 		row.carriedBy = host.step;
 	}
 	return rows;
 }
 
-/** A window and the moments it spans: its first and last row's instants. */
+/** A window and the moments it spans: its first and last row's instants. What a step produced is claimed where the
+ *  window is assembled, since one read answers with part of it. */
 function windowOf(rows: TRunRow[]): TRunWindow {
-	const held = producedUnderSteps(rows);
-	return { rows: held, ...(held.length ? { from: held[0].at, to: held[held.length - 1].at } : {}) };
+	return { rows, ...(rows.length ? { from: rows[0].at, to: rows[rows.length - 1].at } : {}) };
 }
 
 /** The execution of the newest row that names one, which is the run a window of these rows is of. */
@@ -258,10 +259,20 @@ async function toppedUp(
 /** The types a run's records are read from, each with the field that places one in time. What a reader is shown of a
  *  run, what the shape of a run is drawn from and what a device forgets when it forgets a run are the same records, so
  *  all of them read this. */
-export const RUN_TYPES: ReadonlyArray<{ label: string; timeField: string }> = [
-	{ label: SEQ_PATH_LABEL, timeField: SEQ_PATH_FIELD.generatedAtTime },
+export type TRunType = {
+	label: string;
+	timeField: string;
+	/** Read whatever it reports at: the row of the step that produced it is what shows it, so the level a reader chose
+	 *  decides whether that step is shown rather than whether this is read. */
+	atEveryLevel?: boolean;
+	/** Read at the level substeps report at as well, where a reader asked for the steps run to carry other steps out. */
+	widensBySubsteps?: boolean;
+};
+
+export const RUN_TYPES: ReadonlyArray<TRunType> = [
+	{ label: SEQ_PATH_LABEL, timeField: SEQ_PATH_FIELD.generatedAtTime, widensBySubsteps: true },
 	{ label: LOG_MESSAGE_LABEL, timeField: LOG_MESSAGE_FIELD.generatedAtTime },
-	{ label: RUN_ARTIFACT_LABEL, timeField: RUN_ARTIFACT_FIELD.generatedAtTime },
+	{ label: RUN_ARTIFACT_LABEL, timeField: RUN_ARTIFACT_FIELD.generatedAtTime, atEveryLevel: true },
 ];
 
 /** The levels at or above the one a reader asked for, which is what a level filter means. */
@@ -281,32 +292,24 @@ const LEVEL = "level";
  */
 async function side(
 	graph: TRunGraph,
-	label: string,
-	timeField: string,
+	type: TRunType,
 	at: number | undefined,
 	direction: "before" | "after",
 	limit: number,
 	levels: readonly THaibunLogLevel[],
-	offset = 0,
-	// Which end of the side to read from: the records nearest the moment, or, reading the other way, the furthest. A
-	// side with fewer records than a reader asked for is bounded by its furthest, which is one read rather than a count.
-	order: "nearest" | "furthest" = "nearest",
-	// Whether the reader asked for the steps run to carry other steps out.
+	// Whether the reader asked for the steps run to carry other steps out. Each type says whether that widens it.
 	substeps = false,
 ): Promise<Record<string, unknown>[]> {
+	const { label, timeField } = type;
 	// A graph that does not carry a type holds none of it, so asking for it would be asking a question with no answer.
 	if (!graph.declares(label)) return [];
 	const when = at === undefined ? [] : [{ predicate: timeField, operator: direction === "before" ? "lt" : "gte", value: new Date(at).toISOString() }];
-	// Which levels this type is read at, which is not always the levels the reader chose. A produced thing is read
-	// whatever it reports at, because the row of the step that produced it is what shows it. A reader asking for the
-	// steps run to carry other steps out reads the level those report at as well, for the steps alone: what a substep
-	// said carries its own level and is read at the level the reader chose. Every read of a type comes through here, so
-	// the rule is stated once and the extent, the region and the window cannot read a type differently.
-	const read = label === SEQ_PATH_LABEL && substeps && !levels.includes(SUBSTEP_LEVEL) ? [...levels, SUBSTEP_LEVEL] : levels;
-	const shown = label === RUN_ARTIFACT_LABEL ? [] : [{ predicate: LEVEL, operator: "in", value: read[0], values: [...read] }];
-	const nearestFirst = direction === "before" ? "desc" : "asc";
-	const sortOrder = order === "nearest" ? nearestFirst : nearestFirst === "desc" ? "asc" : "desc";
-	const { vertices } = await graph.query(GraphQuerySchema.parse({ label, filters: [...when, ...shown], sortBy: timeField, sortOrder, limit, offset, skipCount: true }));
+	// The levels this type is read at, which the type states: every read of it comes through here, so the window, the
+	// extent and the counting cannot read one type differently.
+	const read = type.widensBySubsteps && substeps && !levels.includes(SUBSTEP_LEVEL) ? [...levels, SUBSTEP_LEVEL] : levels;
+	const shown = type.atEveryLevel ? [] : [{ predicate: LEVEL, operator: "in", value: read[0], values: [...read] }];
+	const sortOrder = direction === "before" ? "desc" : "asc";
+	const { vertices } = await graph.query(GraphQuerySchema.parse({ label, filters: [...when, ...shown], sortBy: timeField, sortOrder, limit, skipCount: true }));
 	return vertices;
 }
 
@@ -323,65 +326,25 @@ async function side(
 export async function runExtent(graph: TRunGraph, minLevel: THaibunLogLevel = "info"): Promise<{ first: number; last: number }> {
 	const levels = atOrAbove(minLevel);
 	const ends = await Promise.all(
-		RUN_TYPES.map(async (type) => ({
-			// No moment named is the whole of it: the oldest record read forward, the newest read back.
-			first: await instantAt(graph, type, undefined, "after", 0, levels),
-			last: await instantAt(graph, type, undefined, "before", 0, levels),
-		})),
+		RUN_TYPES.map(async (type) => {
+			// No moment named is the whole of it: the oldest record read forward, the newest read back. Neither read
+			// waits on the other.
+			const [first, last] = await Promise.all([instantAt(graph, type, undefined, "after", levels), instantAt(graph, type, undefined, "before", levels)]);
+			return { first, last };
+		}),
 	);
 	const firsts = ends.map((e) => e.first).filter((f): f is number => f !== undefined);
 	const lasts = ends.map((e) => e.last).filter((l): l is number => l !== undefined);
 	return firsts.length && lasts.length ? { first: Math.min(...firsts), last: Math.max(...lasts) } : { first: 0, last: 0 };
 }
 
-/** How many records a reader is shown in detail to each side of where they are. */
-export const DETAIL_HALF = 5000;
-
-/** The instant of one record on one side of a moment, that many records along, or undefined where the side holds
- *  fewer. One row read at an offset, so finding it costs the same whatever it is reaching past. With no moment named,
+/** The instant of one record on one side of a moment, or undefined where the side holds none. With no moment named,
  *  the whole of the type is the side. */
-async function instantAt(
-	graph: TRunGraph,
-	type: { label: string; timeField: string },
-	at: number | undefined,
-	direction: "before" | "after",
-	offset: number,
-	levels: readonly THaibunLogLevel[],
-	order: "nearest" | "furthest" = "nearest",
-): Promise<number | undefined> {
-	const [record] = await side(graph, type.label, type.timeField, at, direction, 1, levels, offset, order);
+async function instantAt(graph: TRunGraph, type: TRunType, at: number | undefined, direction: "before" | "after", levels: readonly THaibunLogLevel[]): Promise<number | undefined> {
+	const [record] = await side(graph, type, at, direction, 1, levels);
 	if (!record) return undefined;
 	const found = instant(record[type.timeField]);
 	return Number.isNaN(found) ? undefined : found;
-}
-
-/**
- * The span a reader is shown in detail: the records around where they are, counted rather than measured.
- *
- * Detail holds the same number of records however busy the run is, so its span in time narrows over a busy period and
- * widens over a quiet one, which is what makes it a fisheye rather than a zoom. Where one side holds fewer than its
- * share, that share goes to the other, so a reader at the live edge is shown the whole region behind them.
- *
- * Each bound is one record read at an offset, per type, so finding the span costs the same whatever it spans. The span
- * reaches as far as any type's own bound, since a type cut short of its share would be missing from what is drawn.
- */
-export async function detailRegion(graph: TRunGraph, { at, half = DETAIL_HALF, minLevel = "info" }: { at: number; half?: number; minLevel?: THaibunLogLevel }): Promise<{ from: number; to: number }> {
-	const shown = atOrAbove(minLevel);
-	const bounds = await Promise.all(
-		RUN_TYPES.map(async (type) => {
-			const [back, forward] = await Promise.all([instantAt(graph, type, at, "before", half - 1, shown), instantAt(graph, type, at, "after", half - 1, shown)]);
-			// A side holding fewer than its share is bounded by its furthest record, and the other side reads on for
-			// what it did not use, so the region holds what was asked for wherever the run has it.
-			const from = back ?? (await instantAt(graph, type, at, "before", 0, shown, "furthest"));
-			const to = forward ?? (await instantAt(graph, type, at, "after", 0, shown, "furthest"));
-			if (back === undefined && to !== undefined) return { from, to: (await instantAt(graph, type, at, "after", 2 * half - 1, shown)) ?? to };
-			if (forward === undefined && from !== undefined) return { from: (await instantAt(graph, type, at, "before", 2 * half - 1, shown)) ?? from, to };
-			return { from, to };
-		}),
-	);
-	const froms = bounds.map((b) => b.from).filter((f): f is number => f !== undefined);
-	const tos = bounds.map((b) => b.to).filter((t): t is number => t !== undefined);
-	return { from: froms.length ? Math.min(...froms) : at, to: tos.length ? Math.max(...tos) : at };
 }
 
 /**
@@ -406,7 +369,7 @@ export async function runWindow(
 	};
 	const read = async (direction: "before" | "after", limit: number, from: number | undefined = at): Promise<TRunRow[]> => {
 		if (limit <= 0) return [];
-		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, type.timeField, from, direction, limit, shown, 0, "nearest", substeps)));
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type, from, direction, limit, shown, substeps)));
 		// The store answered at the levels asked for, so what is left to drop is a record with no time to place it by.
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		rows.sort(inRunOrder);
@@ -418,7 +381,7 @@ export async function runWindow(
 	// good. Reading the whole window again to find a few new records is what makes following a long run cost what the
 	// run costs.
 	if (since !== undefined) {
-		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, RECORDED_AT_TIME_FIELD, since, "after", size, shown, 0, "nearest", substeps)));
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, { ...type, timeField: RECORDED_AT_TIME_FIELD }, since, "after", size, shown, substeps)));
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		return windowOf(boundToOne(oneEach(rows)));
 	}

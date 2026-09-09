@@ -172,14 +172,9 @@ export class DataPipeline {
 		const nowRef = cursor ?? Date.now(); // clock — comparing the resolved clock would re-fit every live frame (the bug).
 		const cached = this.zScaleCache;
 		const cursorMoved = cached !== undefined && cached.cursor !== cursor; // a scrub set/move/clear is a deliberate re-place
-		// A scale over one age, or none, places every node at one depth, which is no scale at all: the first build of a
-		// graph that arrives in pieces holds whatever landed first, and keeping that flat scale left every node on the
-		// z=0 plane for the rest of the reading. Keeping a scale protects settled nodes from being teleported, and a
-		// graph placed at one depth has nothing to protect, so a flat scale is re-derived until the data spreads it.
-		const flat = cached !== undefined && cached.scale.range === 0;
 		// !cached IS the first-load/post-reset case (zScaleCache and the graph reset together)
 		const current =
-			!cached || refreshScale || cursorMoved || flat
+			!cached || refreshScale || cursorMoved
 				? {
 						scale: timeZScale(
 							[...times.values()].map((t) => t.ms),
@@ -190,7 +185,11 @@ export class DataPipeline {
 						cursor,
 					}
 				: cached;
-		this.zScaleCache = current;
+		// A scale over one age, or none, places every node at one depth, which is no scale at all: the first build of a
+		// graph that arrives in pieces holds whatever landed first, and holding that scale left every node on the z=0
+		// plane for the rest of the reading. Holding a scale protects settled nodes from being placed again, and a graph
+		// at one depth has none to protect, so only a scale that spreads them is held.
+		if (current.scale.range > 0) this.zScaleCache = current;
 		const { scale: zScale, cursorMs } = current;
 		// The "# connections" z basis: depth is node degree, not time. Its scale is derived FRESH each build (unlike the
 		// time scale) — degree changes only when edges do, i.e. only on a data change that already repaints, so there is

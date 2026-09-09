@@ -33,10 +33,9 @@ const dateSchema = z.coerce.date({ error: "invalid date" });
  * domain emits a nested `kind: "composite"` field-binding, reached through a
  * lazy reference so the union can name itself.
  *
- * One value, built once. Built per caller instead, every run registered a
- * schema of its own, and converting one to JSON Schema walks the recursion,
- * so the answer could never be held: one measurement put that walk at most of
- * a second per run of a feature.
+ * One value, built once. A function called per caller registers a schema of
+ * its own for every run, and converting one to JSON Schema walks the
+ * recursion, so no conversion of it could ever be held.
  */
 const fieldBindingSchema: z.ZodType = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("fact"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean(), factId: z.string() }).strict(),

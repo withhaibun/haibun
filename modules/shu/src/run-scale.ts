@@ -13,6 +13,7 @@
  * Pure: the reading that counts a run and the element that draws a rail both read these, and neither states a scale of
  * its own.
  */
+import { clamp } from "./util.js";
 
 /** What the run spans: the instants of its first and last records. */
 export type TRunSpan = { first: number; last: number };
@@ -23,7 +24,9 @@ export type TRunFocus = { at: number; from: number; to: number };
 /** The share of the rail the held window takes. The rest carries what the run did outside it, at both ends. */
 export const FOCUS_SHARE = 0.6;
 
-const clamp = (n: number): number => Math.min(1, Math.max(0, n));
+/** A fraction of the rail, which is what a place on it is. */
+const onRail = (n: number): number => clamp(n, 0, 1);
+
 
 /** How the shares outside the window divide between the two ends: by the logarithm of what each holds, so an end with
  *  nothing beyond it takes nothing and the other takes it all. */
@@ -43,19 +46,19 @@ const holdsItAll = (span: TRunSpan, focus: TRunFocus): boolean => focus.from <= 
 export function railAt(moment: number, span: TRunSpan, focus: TRunFocus): number {
 	const reach = span.last - span.first;
 	if (reach <= 0) return 0;
-	if (holdsItAll(span, focus)) return clamp((moment - span.first) / reach);
+	if (holdsItAll(span, focus)) return onRail((moment - span.first) / reach);
 	const { before, after, beforeLen, afterLen } = ends(span, focus);
-	if (moment <= focus.from) return beforeLen === 0 ? 0 : clamp(before * (1 - Math.log1p(focus.from - moment) / Math.log1p(beforeLen)));
-	if (moment >= focus.to) return afterLen === 0 ? 1 : clamp(before + FOCUS_SHARE + after * (Math.log1p(moment - focus.to) / Math.log1p(afterLen)));
+	if (moment <= focus.from) return beforeLen === 0 ? 0 : onRail(before * (1 - Math.log1p(focus.from - moment) / Math.log1p(beforeLen)));
+	if (moment >= focus.to) return afterLen === 0 ? 1 : onRail(before + FOCUS_SHARE + after * (Math.log1p(moment - focus.to) / Math.log1p(afterLen)));
 	const held = focus.to - focus.from;
-	return clamp(before + (held <= 0 ? 0 : (FOCUS_SHARE * (moment - focus.from)) / held));
+	return onRail(before + (held <= 0 ? 0 : (FOCUS_SHARE * (moment - focus.from)) / held));
 }
 
 /** The moment a fraction of the rail names, which is what a press on the rail asks the run for. */
 export function momentAt(fraction: number, span: TRunSpan, focus: TRunFocus): number {
 	const reach = span.last - span.first;
 	if (reach <= 0) return span.first;
-	const f = clamp(fraction);
+	const f = onRail(fraction);
 	if (holdsItAll(span, focus)) return span.first + f * reach;
 	const { before, after, beforeLen, afterLen } = ends(span, focus);
 	if (f <= before) return beforeLen === 0 ? span.first : focus.from - (Math.expm1(((before - f) / before) * Math.log1p(beforeLen)) || 0);

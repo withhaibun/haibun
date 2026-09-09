@@ -2,9 +2,9 @@
  * One memo for turning a Zod schema into JSON Schema.
  *
  * A conversion walks the whole schema and allocates as it goes, and the same schemas are converted again on every
- * registry build: registering a run's steppers converted every typed parameter's domain afresh, which one measurement
- * put at a second per run, most of it collecting what the walk allocated. A schema is a module-level constant and a
- * conversion of one is a function of the schema, so it is computed once per process and read back after.
+ * registry build: registering a run's steppers converts every typed parameter's domain, and the walk allocates as it
+ * goes. A schema is a module-level constant and a conversion of one is a function of the schema, so it is computed
+ * once per process and read back after.
  *
  * A caller names its conversion, since one schema converts differently for what a caller must supply than for what a
  * step answers with. A conversion that throws holds nothing, so the next caller is told the same thing.

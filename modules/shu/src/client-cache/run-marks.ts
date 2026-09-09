@@ -61,14 +61,14 @@ export function runCounts(graph: TRunGraph, { from, to, divisions, minLevel = "i
 }
 
 /** The mark each division takes from what it holds, over every type counted, at the moment its division begins: one
- *  mark per division that holds anything, in the order the run reached them. */
-export function marksOf(counts: Record<string, number>[][], { from, to, divisions }: { from: number; to: number; divisions: number }): TRunMark[] {
+ *  mark per division that holds anything, in the order the run reached them. The caller states where a division
+ *  begins, since it is the caller that laid the grid out. */
+export function marksOf(counts: Record<string, number>[][], { divisions, beginningOf }: { divisions: number; beginningOf: (division: number) => number }): TRunMark[] {
 	const marks: TRunMark[] = [];
-	const each = divisions > 0 ? (to - from) / divisions : 0;
 	for (let division = 0; division < divisions; division++) {
 		const held = counts.flatMap((perType, type) => Object.entries(perType[division] ?? {}).map(([group, count]) => ({ event: COUNTED[type].shapeOf(group), count })));
 		const style = bucketMarkerStyle(held);
-		if (style) marks.push({ ...style, at: from + division * each });
+		if (style) marks.push({ ...style, at: beginningOf(division) });
 	}
 	return marks;
 }

@@ -50,11 +50,12 @@ export function runShape(graph: TRunGraph, { divisions = RUN_DIVISIONS, minLevel
 	let held: Record<string, number>[][] = [];
 	let marks: TRunMark[] = [];
 	const divisionOf = (at: number): number => Math.floor((at - (first as number)) / divisionMs);
+	const beginningOf = (division: number): number => (first ?? 0) + division * divisionMs;
 	return {
 		get marks() {
 			return marks;
 		},
-		beginningOf: (division: number) => (first ?? 0) + division * divisionMs,
+		beginningOf,
 		update: async (to: number): Promise<void> => {
 			if (countedThrough !== undefined && to <= countedThrough) return;
 			if (first === undefined) {
@@ -86,7 +87,7 @@ export function runShape(graph: TRunGraph, { divisions = RUN_DIVISIONS, minLevel
 				perType.forEach((counts, division) => (held[type][from + division] = counts));
 			});
 			countedThrough = to;
-			marks = marksOf(held, { from: first, to: first + divisions * divisionMs, divisions });
+			marks = marksOf(held, { divisions, beginningOf });
 		},
 	};
 }

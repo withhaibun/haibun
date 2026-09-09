@@ -51,9 +51,6 @@ export type TLogRow = {
 	/** What this step produced, as the images a reader sees beside its words: a screenshot taken after a step belongs to
 	 *  the step a reader was reading, so the row of that step shows it. */
 	produced?: Array<{ url: string; what: string }>;
-	/** Whether the row of the step that produced this carries it, which is where a reader is shown it. Such a row is
-	 *  read by the run's document, which places it by its own reading, and is given no room here. */
-	carried?: boolean;
 	/** On a substep, the step it was run to carry out: the step that established it, which a reader reads from its row. */
 	partOf?: number[];
 	/** How this row marks the rail, for the rows worth marking. Decided from the event when the row is built, by the
@@ -61,6 +58,14 @@ export type TLogRow = {
 	 *  events matter or what they look like. */
 	mark?: TEventMarkerStyle;
 };
+
+/** What a produced thing is called: what kind it is and where it is, as the run recorded it. */
+/** Whether the row of the step that produced this carries it, which is where a reader is shown it. Such a row is read
+ *  by the run's document, which places it by its own reading, and is given no room here. */
+const carried = (e: Record<string, unknown> | undefined): boolean => e?.carriedBy !== undefined;
+
+/** What a produced thing is called: what kind it is and where it is, as the run recorded it. */
+const producedName = (e: Record<string, unknown>): string => `${String(e.artifactType ?? "")} ${String(e.featureRelativePath ?? e.path ?? "")}`.trim();
 
 const LEVEL_ICONS: Record<string, string> = { error: ICON_LOG_ERROR, warn: ICON_LOG_WARN, info: ICON_LOG_INFO, debug: "💬", trace: "🔍" };
 const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
@@ -172,7 +177,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 
 	/** The reader's own choice of what to show, remembered across reloads. */
-	static persistFields = ["substeps"] as const;
+	static persistFields = ["level", "substeps"] as const;
 
 	constructor() {
 		super(MonitorColumnSchema, { level: "info", tail: true, substeps: false });
@@ -223,10 +228,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			subscribe: (cb) => run.subscribe(cb),
 			markers: () => this.#marks,
 			// A shot drawn on the row of the step that took it is not a row of its own here, so it takes no room.
-			rowSize: (i) => {
-				const e = run.rowAt(i) as Record<string, unknown> | undefined;
-				return e !== undefined && e.carriedBy !== undefined ? 0 : undefined;
-			},
+			rowSize: (i) => (carried(run.rowAt(i) as Record<string, unknown> | undefined) ? 0 : undefined),
 		};
 	}
 
@@ -241,7 +243,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// step it belongs to, and a raw id in its place says nothing a reader can read.
 		const step = String(e.in ?? "");
 		// What a row says beside the step it names: what was said, what was produced, or how the step it names turned out.
-		const isOf = `${String(e.artifactType ?? "")}${e.featureRelativePath === undefined ? "" : ` ${String(e.featureRelativePath)}`}`.trim();
+		const isOf = producedName(e);
 		const said = e.kind === "artifact" ? isOf : String(e.called || e.type || "");
 		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : `${eventMarkerStyle(e).icon} ${said}`;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
@@ -251,10 +253,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const made = Array.isArray(e.produced) ? (e.produced as Array<Record<string, unknown>>) : [];
 		const produced = made
 			.filter((one) => one.artifactType === "image")
-			.map((one) => ({ url: artifactUrl(one) ?? "", what: `${String(one.artifactType ?? "")} ${String(one.featureRelativePath ?? one.path ?? "")}`.trim() }))
+			.map((one) => ({ url: artifactUrl(one) ?? "", what: producedName(one) }))
 			.filter((one) => one.url !== "");
 		const partOf = Array.isArray(e.partOf) ? (e.partOf as number[]) : undefined;
-		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e), ...(produced.length ? { produced } : {}), ...(partOf === undefined ? {} : { partOf }), ...(e.carriedBy === undefined ? {} : { carried: true }) };
+		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e), ...(produced.length ? { produced } : {}), ...(partOf === undefined ? {} : { partOf }) };
 		for (const field of ROW_FIELDS) if (e[field] !== undefined) (row as Record<string, unknown>)[field] = e[field];
 		this.#rowCache.set(e, row);
 		return row;
@@ -267,7 +269,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		for (const { from, to } of this.#run.cachedRanges()) for (let i = from; i < to; i++) {
 			const e = this.#run.rowAt(i) as Record<string, unknown> | undefined;
 			// A shot the step's own row carries is read there, so it marks the rail there rather than twice.
-			if (e && e.carriedBy === undefined) out.push({ index: i, row: this.#rowOf(e) });
+			if (e && !carried(e)) out.push({ index: i, row: this.#rowOf(e) });
 		}
 		return out;
 	}
@@ -364,7 +366,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (!r) return html`<div class="log-row" data-testid="monitor-log-row"></div>`; // its page has not landed yet: a skeleton row
 		// Drawn on the row of the step that produced it, so this row renders nothing. It is still an element, because the
 		// virtualizer positions and scrolls to one element per row.
-		if (r.carried) return html`<div class="carried"></div>`;
+		if (carried(this.#run.rowAt(index) as Record<string, unknown> | undefined)) return html`<div class="carried"></div>`;
 		const testId = index === 0 ? SHU_TEST_IDS.MONITOR.FIRST_ROW : "monitor-log-row";
 		let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
 		if (this.timeCursor !== null) {

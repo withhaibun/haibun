@@ -11,15 +11,9 @@ function makeRegistry(onError = noOpErrorHandler) {
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Wait for what a case is about rather than for a length of time: a loaded machine ticks later, not never, so a case
- *  that waited a fixed span asserted how fast the machine was. The bound turns a tick that never comes into a failure
- *  naming what was waited for. */
-async function until(what: string, holds: () => boolean | Promise<boolean>, withinMs = 5000): Promise<void> {
-	const by = Date.now() + withinMs;
-	while (!(await holds())) {
-		if (Date.now() > by) throw new Error(`waited ${withinMs}ms for ${what}, which did not happen`);
-		await sleep(1);
-	}
-}
+ *  that waited a fixed span asserted how fast the machine was. `vi.waitFor` retries until the assertion holds and
+ *  reports the assertion itself when it never does. */
+const until = (holds: () => unknown): Promise<unknown> => vi.waitFor(holds, { timeout: 5000, interval: 1 });
 
 describe("UrakataRegistry", () => {
 	it("allocates a synthetic seqPath per registration and increments tickIndex per tick", async () => {
@@ -36,7 +30,7 @@ describe("UrakataRegistry", () => {
 		const u = registry.register(ticker);
 		expect(u.stoppedAt).toBeUndefined();
 		const rootLen = u.seqPath.length;
-		await until("the ticker to tick more than once", () => seen.length > 1);
+		await until(() => expect(seen.length > 1).toBe(true));
 		await registry.stop(u.id);
 		expect(seen.length).toBeGreaterThan(0);
 		const tickRoot = seen[0].slice(0, rootLen);
@@ -66,7 +60,7 @@ describe("UrakataRegistry", () => {
 			},
 		};
 		const u = registry.register(ticker);
-		await until("the slow tick to have been entered twice, which is where an overlap would show", () => started > 1);
+		await until(() => expect(started > 1).toBe(true));
 		await registry.stop(u.id);
 		expect(maxInFlight).toBe(1);
 	});
@@ -85,7 +79,7 @@ describe("UrakataRegistry", () => {
 			},
 		};
 		const u = registry.register(ticker);
-		await until("the failing ticker to tick again after its first error", () => calls > 1);
+		await until(() => expect(calls > 1).toBe(true));
 		await registry.stop(u.id);
 		expect(calls).toBeGreaterThan(1);
 		expect(registry.get(u.id).errorCount).toBe(calls);
@@ -124,7 +118,7 @@ describe("UrakataRegistry", () => {
 			},
 		};
 		const u = registry.register(ticker);
-		await until("a tick to be aborted and the next one to start", () => calls > 1 && sawAbort);
+		await until(() => expect(calls > 1 && sawAbort).toBe(true));
 		await registry.stop(u.id);
 		expect(calls).toBeGreaterThan(1);
 		expect(sawAbort).toBe(true);
@@ -188,7 +182,7 @@ describe("UrakataRegistry", () => {
 		const ticks = vi.fn();
 		registry.register({ id: "a", description: "", intervalMs: 5, tick: ticks });
 		registry.register({ id: "b", description: "", intervalMs: 5, tick: ticks });
-		await until("both tickers to have ticked", () => ticks.mock.calls.length > 1);
+		await until(() => expect(ticks.mock.calls.length > 1).toBe(true));
 		await registry.stopAll();
 		const ticksAtStop = ticks.mock.calls.length;
 		// A quiet span after the stop, which is the one thing a clock states: nothing more happened.
@@ -218,7 +212,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 		expect(atStart?.stoppedAt).toBeUndefined();
 		expect(atStart?.errorCount).toBe(0);
 
-		await until("a failing tick to be recorded against the task", async () => Number((await readTask(world, u.id))?.errorCount) > 0);
+		await until(async () => expect(Number((await readTask(world, u.id))?.errorCount)).toBeGreaterThan(0));
 		fail = false;
 		const afterError = await readTask(world, u.id);
 		expect(Number(afterError?.errorCount)).toBeGreaterThan(0);

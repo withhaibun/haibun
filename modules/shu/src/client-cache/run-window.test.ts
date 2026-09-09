@@ -6,7 +6,7 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { runWindow, type TRunRow } from "./run-window.js";
+import { producedUnderSteps, runWindow, type TRunRow } from "./run-window.js";
 import { runGraphOf } from "./run-graph.js";
 
 const RUN = "1700000000000-1";
@@ -214,7 +214,9 @@ describe("following a run that is still happening", () => {
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", actionStatus: "passed", level: "trace", generatedAtTime: iso(1001), recordedAtTime: iso(1001) });
 		await store.upsertIndividual(RUN_ARTIFACT_LABEL, { id: `${RUN}.0.1.-1@0`, isPartOf: `${RUN}.0.1.-1`, artifactType: "image", path: "./image/shot.png", level: "trace", generatedAtTime: iso(1001), recordedAtTime: iso(1001) });
+		// The claim is made where a window is assembled from what more than one read answered, so it is asked for here.
 		const window = await runWindow(runGraphOf(store), { size: 10 });
+		producedUnderSteps(window.rows);
 		const carried = window.rows.find((r) => r.kind === "produced");
 		expect(carried?.carriedBy, "the step a reader is shown claims the shot the machinery under it took").toBe(`${RUN}.0.1`);
 		expect(

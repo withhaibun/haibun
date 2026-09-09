@@ -1,12 +1,12 @@
 import { defaultLabel } from "./util.js";
-import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, } from "./consts.js";
+import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR } from "./consts.js";
 import { getHash, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline, } from "./rpc-registry.js";
+import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline } from "./rpc-registry.js";
 import { openSession } from "./session-key.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
@@ -17,7 +17,7 @@ import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
-import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext, } from "./quads-snapshot.js";
+import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext } from "./quads-snapshot.js";
 import { activePane, timeCursor } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
@@ -28,11 +28,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
-import {
-	hydrateClientCache,
-	viewsShown,
-	readRunAt,
-} from "./client-cache/index.js";
+import { hydrateClientCache, viewsShown, readRunAt } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -103,8 +99,6 @@ function openReaderSession(): void {
 	// it, so this is a notice rather than the handling of it.
 	opening.catch((err: unknown) => console.warn(`[shu] this reader has no session: ${errorDetail(err)}`));
 }
-
-/** How long changes to the run are collected before its shape is counted again. */
 
 const main = async (): Promise<void> => {
 	// What the reader's address says, before anything writes to it. An address naming views is the reader's own

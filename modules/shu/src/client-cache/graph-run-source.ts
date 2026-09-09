@@ -18,8 +18,9 @@ import { subscribeBatchedEvents } from "../event-stream.js";
 import { getWindowSize } from "../window-size-setting.js";
 import { pagePinned } from "../page-pinned.js";
 import { pageRunGraph } from "../quads-snapshot.js";
+import { ofExecution, type TRunGraph } from "./run-graph.js";
 import { individualAsQuads } from "./quad-store.js";
-import { currentExecution, holdOnDevice, noteExecution, subscribeExecutionSwitch } from "./executions.js";
+import { currentExecution, holdOnDevice, noteExecution, readingExecution, subscribeExecutionSwitch } from "./executions.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import type { Range } from "../ranges.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
@@ -149,9 +150,12 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	// A row a re-read finds again is the same row: a view holds its place, and what it built from that row, by the row
 	// being the same object. Re-reading is how a window stays current, so re-reading must not look like every row changing.
 	const held = new Map<string, TEventRecord>();
-	const keyOf = (row: TRunRow): string => `${row.kind}|${row.step}|${row.at}|${row.text}|${row.status ?? ""}|${row.endedAt ?? ""}|${row.produced?.length ?? 0}|${row.carriedBy ?? ""}`;
+	/** What the store said about a row: what a re-read compares, so a row read again is the same row. */
+	const keyOf = (row: TRunRow): string => `${row.kind}|${row.step}|${row.at}|${row.text}|${row.status ?? ""}|${row.endedAt ?? ""}`;
+	/** What a view renders from a row, which is what the store said and what the window claims it carries. */
+	const renderKey = (row: TRunRow): string => `${keyOf(row)}|${row.produced?.length ?? 0}|${row.carriedBy ?? ""}`;
 	const same = (row: TRunRow): TEventRecord => {
-		const key = keyOf(row);
+		const key = renderKey(row);
 		const carried = held.get(key);
 		if (carried) return carried;
 		const made = asRendered(row);
@@ -182,9 +186,10 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		const readFor = announced;
 		// A read that has finished has read for every announcement made before it began, whether or not it found
 		// anything new; one begun before an announcement leaves that to the read the announcement scheduled.
+		// A read that has finished has read for every announcement made before it began; what it read is announced once,
+		// where the reading is complete.
 		const done = (): void => {
 			settled = Math.max(settled, readFor);
-			notify();
 		};
 		const execution = currentExecution();
 		const of = { size, minLevel: level, substeps, ...(execution === undefined ? {} : { execution }) };
@@ -195,7 +200,10 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 			// window is what it held and what has changed, in the order the run put them.
 			const byName = new Map(window.map((row) => [row.id, row]));
 			const changed = answer.rows.filter((row) => byName.get(row.id) === undefined || keyOf(byName.get(row.id) as TRunRow) !== keyOf(row));
-			if (changed.length === 0) return done();
+			if (changed.length === 0) {
+				done();
+				return notify();
+			}
 			for (const row of changed) byName.set(row.id, row);
 			window = [...byName.values()].sort(inRunOrder).slice(-size);
 		} else window = answer.rows;
@@ -205,7 +213,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		// What a page has read, it holds: the records are what a reader with no site to ask reads them back from, and
 		// what makes an execution one this device can be brought back to. Only what is new to the window is written,
 		// and every new record in one write, so reading a window costs one write rather than one per record.
-		void hold(window.filter((row) => !held.has(keyOf(row))));
+		void hold(window.filter((row) => !held.has(renderKey(row))));
 		rows = window.map(same);
 		// What the window no longer holds is not held here either, so a window that moves does not grow this without bound.
 		const shown = new Set(rows);
@@ -217,13 +225,13 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		loaded = true;
 		noteRunSpan(from, to);
 		done();
-		// Last of all: saying which run this window is of can be what says the run being read has changed, and what
-		// reads a run again on hearing that is this same source. A read that announced before it had finished would be
-		// answering with the window it was told to leave.
 		// The rail carries the whole run, so it is read where the window is: what the run reaches, and what its divisions
 		// hold. A rail read that fails leaves the rail as it was rather than emptying it under a reader.
 		await readRail().catch((err: unknown) => failFastOrLog("the run's rail could not be read", err));
 		notify();
+		// Last of all: saying which run this window is of can be what says the run being read has changed, and what
+		// reads a run again on hearing that is this same source. A read that announced before it had finished would be
+		// answering with the window it was told to leave.
 		if (newest) noteExecution(newest.execution);
 	};
 
@@ -265,17 +273,25 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	// divisions rather than the run. Both are read where the window is read, so they move with it.
 	let reach: TRunSpan = { first: 0, last: 0 };
 	let railMarks: TScrollMarker[] = [];
-	let shape = runShape(pageRunGraph(), { minLevel: level });
+	/** The graph of the run being read. A device holds more than one run, so a rail over every record it holds would
+	 *  span runs the reader is not reading. */
+	const runGraph = (): TRunGraph => ofExecution(pageRunGraph(), readingExecution());
+	let shape = runShape(runGraph(), { minLevel: level });
 	/** Where the reader is on the rail, and the window held around them: the moment they are reading around, else the
 	 *  newest record read. */
 	const focus = (): TRunFocus => ({ at: at ?? extent.last ?? 0, from: extent.first ?? reach.first, to: extent.last ?? reach.last });
 	const placeFor = (moment: number): number => Math.round(railAt(moment, reach, focus()) * Math.max(1, RAIL_PLACES - 1));
 	const readRail = async (): Promise<void> => {
-		reach = await runExtent(pageRunGraph(), level);
+		// Where a run begins does not change while it runs, so it is read once; where it reaches is the newest record
+		// the window just read, except where the reader is reading the past and the window is not at the live edge.
+		const newest = at === undefined ? extent.last : undefined;
+		reach = reach.first > 0 && newest !== undefined ? { first: reach.first, last: Math.max(reach.last, newest) } : await runExtent(runGraph(), level);
 		if (reach.last <= reach.first) {
 			railMarks = [];
 			return;
 		}
+		// The rail spans the whole run, so what it reaches is what every view scrubbing the run reads.
+		noteRunSpan(reach.first, reach.last);
 		// The counting is of the run, so it is held across reads and only the stretch the run has grown by is counted.
 		// Where it is drawn is of the reader, so the places are computed again on every read: a reader who moves changes
 		// the scale under the same marks.
@@ -289,7 +305,8 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 		window = [];
 		held.clear();
 		// The counts are of the run that was being read, so another run is counted from nothing rather than added to.
-		shape = runShape(pageRunGraph(), { minLevel: level });
+		shape = runShape(runGraph(), { minLevel: level });
+		reach = { first: 0, last: 0 };
 		void read();
 	});
 
