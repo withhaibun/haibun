@@ -18,7 +18,7 @@
 				"steps": 9
 			},
 			"/features/agents-examples.feature": {
-				"seconds": 0.5,
+				"seconds": 0.6,
 				"steps": 344
 			},
 			"/features/auth-basic.feature": {
@@ -34,11 +34,11 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 1.1,
+				"seconds": 1.6,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 0.9,
+				"seconds": 1.6,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -46,7 +46,7 @@
 				"steps": 22
 			},
 			"/features/elements.feature": {
-				"seconds": 0.4,
+				"seconds": 0.3,
 				"steps": 6
 			},
 			"/features/executor-rpc.feature.ts": {
@@ -78,7 +78,7 @@
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.6,
+				"seconds": 2.5,
 				"steps": 18
 			},
 			"/features/recurse.feature": {
@@ -106,8 +106,8 @@
 				"steps": 17
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.1,
-				"steps": 146
+				"seconds": 1.2,
+				"steps": 143
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
@@ -118,7 +118,7 @@
 				"steps": 12
 			}
 		},
-		"steps": 1156,
-		"seconds": 16.6
+		"steps": 1153,
+		"seconds": 17.8
 	}
 }

@@ -6,7 +6,7 @@ import { railMarkers, type TLogRow } from "./shu-monitor-column.js";
 import { markFor, MARK_COLOUR } from "../event-marker.js";
 
 /** A log row, with only what the rail reads off it. */
-const row = (over: Partial<TLogRow> = {}): TLogRow => ({ time: "0.0s", timestamp: 0, level: "info", step: "a-step", message: "", ...over });
+const row = (over: Partial<TLogRow> = {}): TLogRow => ({ time: "0.0s", timestamp: 0, level: "info", step: "a-step", message: "", icon: "", ...over });
 
 describe("what a log marks on its rail", () => {
 	it("marks the rows whose events earned a mark, and no others", () => {

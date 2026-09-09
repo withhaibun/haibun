@@ -9,7 +9,7 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../event-marker.js";
-import { HAIBUN_LOG_LEVELS, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, graphRunSource, type RunSource } from "../client-cache/index.js";
@@ -39,6 +39,8 @@ export type TLogRow = {
 	level: string;
 	step: string;
 	message: string;
+	/** The one glyph the row carries: how the step went, or the level a message reports at. */
+	icon: string;
 	seqPath?: number[];
 	/** A step's outcome, how long it took, where it ran, and what it had to hold to run: what its own record says. */
 	status?: string;
@@ -245,7 +247,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// What a row says beside the step it names: what was said, what was produced, or how the step it names turned out.
 		const isOf = producedName(e);
 		const said = e.kind === "artifact" ? isOf : String(e.called || e.type || "");
-		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : `${eventMarkerStyle(e).icon} ${said}`;
+		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : said;
+		// One glyph per row, and the one that says something: how a step went, and the level a message reports at. Every
+		// step of a run reports at the same level, so a level glyph on a step row separates nothing.
+		const icon = e.kind === "log" ? (LEVEL_ICONS[level] ?? ICON_DEFAULT) : eventMarkerStyle(e).icon;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
 		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string) ?? undefined;
 		// What the step produced, as images a reader can see: a produced thing that is not an image is named by the run's
@@ -256,7 +261,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			.map((one) => ({ url: artifactUrl(one) ?? "", what: producedName(one) }))
 			.filter((one) => one.url !== "");
 		const partOf = Array.isArray(e.partOf) ? (e.partOf as number[]) : undefined;
-		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, seqPath, mark: markFor(e), ...(produced.length ? { produced } : {}), ...(partOf === undefined ? {} : { partOf }) };
+		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, icon, seqPath, mark: markFor(e), ...(produced.length ? { produced } : {}), ...(partOf === undefined ? {} : { partOf }) };
 		for (const field of ROW_FIELDS) if (e[field] !== undefined) (row as Record<string, unknown>)[field] = e[field];
 		this.#rowCache.set(e, row);
 		return row;
@@ -393,7 +398,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
 			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${seqPath}<span class="time">${r.time}</span></span>
-			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${LEVEL_ICONS[r.level] ?? "❓"}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}${produced}</span>
+			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}${produced}</span>
 		</div>`;
 	};
 }
