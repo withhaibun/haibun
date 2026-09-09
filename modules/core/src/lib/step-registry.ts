@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jsonSchemaOf } from "./json-schema-of.js";
 import { AStepper, type TStepperStep, type TFeatureStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import { buildConcernCatalog, type TConcernCatalog } from "./hypermedia.js";
@@ -155,7 +156,7 @@ export function createStepTool(stepperName: string, stepName: string, stepDef: T
 	let outputSchema: Record<string, unknown> | undefined;
 	if (resolvedOutputSchema) {
 		try {
-			outputSchema = z.toJSONSchema(resolvedOutputSchema) as Record<string, unknown>;
+			outputSchema = jsonSchemaOf(resolvedOutputSchema, "output", () => z.toJSONSchema(resolvedOutputSchema) as Record<string, unknown>);
 		} catch {
 			/* skip if schema can't be converted */
 		}
@@ -286,7 +287,7 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 					// Date fields (z.date / z.coerce.date) surface as string/date-time: their input is an ISO string.
 					// Every other type with no JSON Schema representation throws right here, at registration, naming
 					// the domain and the type.
-					const jsonSchema = z.toJSONSchema(domain.schema, {
+					const jsonSchema = jsonSchemaOf(domain.schema, "input", () => z.toJSONSchema(domain.schema, {
 						io: "input",
 						unrepresentable: "any",
 						override: (ctx) => {
@@ -300,7 +301,7 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 								throw new Error(`step.list: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation — declare a representable input type`);
 							}
 						},
-					}) as Record<string, unknown>;
+					}) as Record<string, unknown>);
 					const prop: Record<string, unknown> = { ...jsonSchema };
 					if (domain.description && !prop.description) {
 						prop.description = domain.description;
@@ -407,7 +408,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 		let values = domain.values;
 		if (!values && domain.schema) {
 			try {
-				const jsonSchema = z.toJSONSchema(domain.schema) as Record<string, unknown>;
+				const jsonSchema = jsonSchemaOf(domain.schema, "values", () => z.toJSONSchema(domain.schema) as Record<string, unknown>);
 				if (Array.isArray(jsonSchema.enum)) {
 					values = jsonSchema.enum as string[];
 				}

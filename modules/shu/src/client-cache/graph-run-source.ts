@@ -92,6 +92,8 @@ function stepRecord(row: TRunRow, seqPath: number[] | undefined): TEventRecord {
 		...(row.capabilityAction === undefined ? {} : { capabilityAction: row.capabilityAction }),
 		...(row.allowedAction === undefined ? {} : { allowedAction: row.allowedAction }),
 		...(row.performedBy === undefined ? {} : { performedBy: row.performedBy }),
+		// The step a substep was run to carry out, so a reader shown one reads the step that established it.
+		...(row.partOf === undefined ? {} : { partOf: row.partOf }),
 		// What this step produced, shown by the row of the step a reader sees rather than by rows of its own.
 		...(row.produced === undefined ? {} : { produced: row.produced.map(producedRecord) }),
 		seqPath,
@@ -112,15 +114,18 @@ export function resetGraphRunSources(): void {
 
 export type TGraphRunSource = RunSource & { close(): void };
 
-export function graphRunSource(level: THaibunLogLevel, options: { size?: number; reReadAfterMs?: number } = {}): TGraphRunSource {
-	const held = sources().get(level);
+export function graphRunSource(level: THaibunLogLevel, options: { size?: number; reReadAfterMs?: number; substeps?: boolean } = {}): TGraphRunSource {
+	// A reading is what its level and what it shows of the steps run to carry other steps out: two views asking for the
+	// same reading share one, and a view asking to see substeps reads a run of its own rather than filtering one.
+	const key = options.substeps ? `${level}+substeps` : level;
+	const held = sources().get(key);
 	if (held) return held;
 	const made = makeGraphRunSource(level, options);
-	sources().set(level, made);
+	sources().set(key, made);
 	return made;
 }
 
-function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, reReadAfterMs = RE_READ_AFTER_MS }: { size?: number; reReadAfterMs?: number }): TGraphRunSource {
+function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, reReadAfterMs = RE_READ_AFTER_MS, substeps = false }: { size?: number; reReadAfterMs?: number; substeps?: boolean }): TGraphRunSource {
 	let rows: TEventRecord[] = [];
 	let extent: TRunExtent = { total: 0 };
 	let loaded = false;
@@ -182,7 +187,7 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 			notify();
 		};
 		const execution = currentExecution();
-		const of = { size, minLevel: level, ...(execution === undefined ? {} : { execution }) };
+		const of = { size, minLevel: level, substeps, ...(execution === undefined ? {} : { execution }) };
 		const following = at === undefined && window.length > 0;
 		const answer = await runWindow(pageRunGraph(), following ? { ...of, since: recordedThrough(window) } : { ...of, ...(at === undefined ? {} : { at }) });
 		if (following) {

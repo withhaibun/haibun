@@ -12,10 +12,10 @@
  * run holds that many.
  */
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
-import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, SUBSTEP_LEVEL, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
-import { RECORDED_AT_TIME_FIELD, SEQ_PATH_FIELD, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
+import { RECORDED_AT_TIME_FIELD, SEQ_PATH_EDGE, SEQ_PATH_FIELD, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { TRunGraph } from "./run-graph.js";
 
@@ -43,6 +43,9 @@ export type TRunRow = {
 	/** The step whose row carries this produced thing, where one in the window claims it. A view showing rows of steps
 	 *  draws it there and gives this row no room; a view reading the run's own document places it by its own reading. */
 	carriedBy?: string;
+	/** The step this one was run to carry out, on a substep: the step that established it, as its path within the
+	 *  execution. A reader shown a substep is shown which step ran it, and reads that step from here. */
+	partOf?: number[];
 	/** A step's outcome, why it failed where it did, and when it reached it. */
 	status?: string;
 	error?: string;
@@ -108,6 +111,10 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 	const ended = instant(record[SEQ_PATH_FIELD.endedAtTime]);
 	const id = String(record[SEQ_PATH_FIELD.id] ?? "");
 	const name = parseRecordName(id);
+	const level = (record[SEQ_PATH_FIELD.level] as THaibunLogLevel) ?? "info";
+	// A step run to carry another one out reports at the level substeps report at, which is what SUBSTEP_LEVEL is: the
+	// record says a step is a substep by the level it reports at, so which step established it is read for those alone.
+	const partOf = level === SUBSTEP_LEVEL ? parseRecordName(String(record[SEQ_PATH_EDGE.isPartOf] ?? ""))?.path : undefined;
 	return {
 		kind: "step",
 		record,
@@ -117,7 +124,8 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 		step: id,
 		at: instant(record[SEQ_PATH_FIELD.generatedAtTime]),
 		...recorded(record),
-		level: (record[SEQ_PATH_FIELD.level] as THaibunLogLevel) ?? "info",
+		level,
+		...(partOf === undefined ? {} : { partOf }),
 		text: String(record[SEQ_PATH_FIELD.stepText] ?? ""),
 		...(record[SEQ_PATH_FIELD.actionStatus] === undefined ? {} : { status: String(record[SEQ_PATH_FIELD.actionStatus]) }),
 		...(Number.isNaN(ended) ? {} : { endedAt: ended }),
@@ -377,9 +385,13 @@ export async function detailRegion(graph: TRunGraph, { at, half = DETAIL_HALF, m
  */
 export async function runWindow(
 	graph: TRunGraph,
-	{ at, since, size = RUN_WINDOW_SIZE, minLevel = "info", execution }: { at?: number; since?: number; size?: number; minLevel?: THaibunLogLevel; execution?: string } = {},
+	{ at, since, size = RUN_WINDOW_SIZE, minLevel = "info", execution, substeps = false }: { at?: number; since?: number; size?: number; minLevel?: THaibunLogLevel; execution?: string; substeps?: boolean } = {},
 ): Promise<TRunWindow> {
 	const shown = atOrAbove(minLevel);
+	// A reader asking to see the steps run to carry other steps out asks the store for the level those report at, for
+	// the steps alone: what a substep said carries its own level and is read at the level the reader chose.
+	const showsSubsteps = substeps && !shown.includes(SUBSTEP_LEVEL);
+	const shownFor = (label: string): readonly THaibunLogLevel[] => (showsSubsteps && label === SEQ_PATH_LABEL ? [...shown, SUBSTEP_LEVEL] : shown);
 	// A window is of one execution. Records are read by time, and a device holds the records of more than one run, so
 	// what makes a window one run is the execution its ids name: the one asked for, else the one the newest record read
 	// belongs to, which is the run a reader following the newest is following. A row that names no execution is a row of
@@ -392,7 +404,7 @@ export async function runWindow(
 	};
 	const read = async (direction: "before" | "after", limit: number, from: number | undefined = at): Promise<TRunRow[]> => {
 		if (limit <= 0) return [];
-		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, type.timeField, from, direction, limit, shown)));
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, type.timeField, from, direction, limit, shownFor(type.label))));
 		// The store answered at the levels asked for, so what is left to drop is a record with no time to place it by.
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		rows.sort(inRunOrder);
@@ -404,7 +416,7 @@ export async function runWindow(
 	// good. Reading the whole window again to find a few new records is what makes following a long run cost what the
 	// run costs.
 	if (since !== undefined) {
-		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, RECORDED_AT_TIME_FIELD, since, "after", size, shown)));
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, RECORDED_AT_TIME_FIELD, since, "after", size, shownFor(type.label))));
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		return windowOf(boundToOne(oneEach(rows)));
 	}

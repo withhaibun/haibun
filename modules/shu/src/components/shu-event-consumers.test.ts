@@ -19,6 +19,8 @@ import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { resetGraphRunSources } from "../client-cache/graph-run-source.js";
+import { forgetElementPrefs } from "../element-prefs.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
 const iso = (n: number): string => new Date(n).toISOString();
@@ -69,6 +71,8 @@ describe("the views of a run, over the records it wrote", () => {
 		if (!customElements.get(SHU_TAG.MONITOR_COLUMN)) customElements.define(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);
 		if (!customElements.get(SHU_TAG.DOCUMENT_COLUMN)) customElements.define(SHU_TAG.DOCUMENT_COLUMN, ShuDocumentColumn);
 		delete (globalThis as unknown as Record<string, unknown>)["__SHU_QUADS_SNAPSHOT_STORE__"];
+		// What a reader chose of a view is remembered across reloads, so each case starts from a view nobody has set.
+		forgetElementPrefs(SHU_TAG.MONITOR_COLUMN, "");
 		resetGraphRunSources();
 		handle = setupShuTest({
 			dispatch: () => {
@@ -101,6 +105,23 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(mon.rows.map((row) => row.step), "the run's steps, and no row for what one of them produced").toEqual(["step 1"]);
 		const shown = mon.rows[0].produced ?? [];
 		expect(shown.map((one) => one.what), "the step a reader sees shows the shot taken during it").toEqual(["image ./image/event-0.1.png"]);
+	});
+
+	it("shows the steps run to carry other steps out when a reader asks for them, each naming the step that established it", async () => {
+		resetGraphRunSources();
+		const RUN = "1700000000000-1";
+		await aRun([stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })]);
+		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		expect(mon.rows.map((row) => row.step), "a reader reading what the feature did is not shown the machinery").toEqual(["step 1"]);
+		const asked = mon.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.MONITOR.SUBSTEPS}"]`) as HTMLInputElement;
+		asked.checked = true;
+		asked.dispatchEvent(new Event("change"));
+		await flush();
+		await flush();
+		expect(mon.rows.map((row) => row.step), "and a reader asking for it is").toEqual(["step 1", "take a screenshot"]);
+		expect(mon.rows[1].partOf, "the substep's row names the step it was run to carry out").toEqual([0, 1]);
+		expect(mon.rows[0].partOf, "a step of the feature names none").toBeUndefined();
+		expect(mon.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.MONITOR.ESTABLISHED_BY}"]`), "which a reader reads that step from").toBeTruthy();
 	});
 
 	it("shows a step as one row, which is what its record is", async () => {

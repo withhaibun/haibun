@@ -58,24 +58,20 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	return undefined;
 }
 import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
+import { jsonSchemaOf } from "./json-schema-of.js";
 import { unwrap } from "./zod-unwrap.js";
 import { ellipsize } from "./util/index.js";
 
-/** Per-schema JSON-Schema memoization. `step.list` RPC calls buildConcernCatalog repeatedly; each
- *  domain's `z.toJSONSchema` traversal is stable per schema instance, so cache by identity. */
-const jsonSchemaCache = new WeakMap<z.ZodType, Record<string, unknown>>();
+/** A domain's JSON Schema for the catalog. `step.list` builds the catalog on every call, and the conversion is held
+ *  for the process by `jsonSchemaOf`; a schema that cannot be converted has no shape to report, and says so once. */
 function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
-	const hit = jsonSchemaCache.get(schema);
-	if (hit) return hit;
-	try {
-		const js = z.toJSONSchema(schema) as Record<string, unknown>;
-		jsonSchemaCache.set(schema, js);
-		return js;
-	} catch {
-		const empty: Record<string, unknown> = {};
-		jsonSchemaCache.set(schema, empty);
-		return empty;
-	}
+	return jsonSchemaOf(schema, "concern", () => {
+		try {
+			return z.toJSONSchema(schema) as Record<string, unknown>;
+		} catch {
+			return {};
+		}
+	});
 }
 
 // ============================================================================
