@@ -40,9 +40,9 @@ describe("the app a deployment serves", () => {
 
 describe("the page a deployment serves", () => {
 	it("carries the timings the deployment set, so the page applies them from its first paint", () => {
-		const page = buildSpaHtml("/spa", "/* bundle */", { runShapeCountedAfterMs: 1000 });
+		const page = buildSpaHtml("/spa", "/* bundle */", { streamReconnectAfterMs: 500 });
 		expect(page).toContain('id="shu-hydration"');
-		expect(page).toContain(JSON.stringify({ settings: { runShapeCountedAfterMs: 1000 } }));
+		expect(page).toContain(JSON.stringify({ settings: { streamReconnectAfterMs: 500 } }));
 	});
 
 	it("carries no timing where the deployment set none", () => {

@@ -11,6 +11,7 @@ import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { graphRunSource, resetGraphRunSources } from "./graph-run-source.js";
 import { readRunAt, runReadingAt } from "./run-source.js";
+import { timeCursor } from "../signals.js";
 
 const iso = (n: number): string => new Date(n).toISOString();
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
@@ -186,5 +187,37 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.cachedRanges()).toEqual([{ from: 0, to: 4 }]);
 		expect(source.loaded).toBe(true);
 		expect(source.unavailable).toBeNull();
+	});
+});
+
+describe("the rail the run's rows sit on", () => {
+	it("carries the whole run, so a place on it names a moment the window does not hold", async () => {
+		const source = graphRunSource("debug");
+		await source.ready();
+		const rail = source.rail;
+		expect(rail, "a run source states the rail its rows sit on").toBeDefined();
+		expect(rail?.places).toBeGreaterThan(1);
+		const first = rail?.placeOf(0) ?? -1;
+		const last = rail?.placeOf(source.count() - 1) ?? -1;
+		expect(first).toBeGreaterThanOrEqual(0);
+		expect(last).toBeGreaterThanOrEqual(first);
+	});
+
+	it("marks what the run holds, counted rather than read, so a rail of any length costs the same", async () => {
+		const source = graphRunSource("debug");
+		await source.ready();
+		const marks = source.rail?.marks() ?? [];
+		expect(marks.length, "the run's divisions that hold something").toBeGreaterThan(0);
+		for (const mark of marks) {
+			expect(mark.index).toBeGreaterThanOrEqual(0);
+			expect(mark.index).toBeLessThan(source.rail?.places ?? 0);
+		}
+	});
+
+	it("reads the run around the moment a press names, and says so through the shared cursor", async () => {
+		const source = graphRunSource("debug");
+		await source.ready();
+		source.rail?.goTo(0);
+		expect(timeCursor.get(), "the earliest place names the run's first moment, which is not the live edge").not.toBeNull();
 	});
 });

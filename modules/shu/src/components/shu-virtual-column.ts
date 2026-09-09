@@ -372,6 +372,14 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		if (this.follow) this.#follow.setAtBottom(false);
 		this.#pressedAway = true;
 		const index = (e as CustomEvent<{ index: number }>).detail.index;
+		// A source whose rows are a window of something longer states the rail: a press names a place in the whole of it,
+		// which is the source's to answer (a run reads itself around the moment that place names, and every view of it
+		// follows). Scrolling this column to a row of the window it holds would leave a reader where they were.
+		const rail = this.source?.rail;
+		if (rail) {
+			rail.goTo(index);
+			return;
+		}
 		// In the strip there are no rows to scroll, so the rail moves the window itself. That is what makes the strip a
 		// control rather than a picture: the reader drags it to a place in the run, and expanding puts the rows there.
 		if (this.spine) {
@@ -396,9 +404,22 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		return this.#window;
 	}
 
+	/** What the rail is drawn over: the places the source's rail has, else the rows this column holds. */
+	#rail(total: number): { total: number; window: TWindow; markers: TScrollMarker[] } {
+		const rail = this.source?.rail;
+		if (!rail) return { total, window: this.#railWindow(total), markers: (this.source?.markers() ?? []) as TScrollMarker[] };
+		const shown = this.#railWindow(total);
+		const first = rail.placeOf(shown.first);
+		const last = rail.placeOf(Math.max(shown.first, shown.first + shown.visible - 1));
+		// A row's mark sits where the run has that row, so what this column holds is marked in the run's own places.
+		const held = ((this.source?.markers() ?? []) as TScrollMarker[]).map((mark) => ({ ...mark, index: rail.placeOf(mark.index) }));
+		return { total: rail.places, window: { first, visible: Math.max(1, last - first + 1) }, markers: [...rail.marks(), ...held] };
+	}
+
 	render(): TemplateResult {
 		const total = this.source?.count() ?? 0;
-		const rail = html`<shu-scrollbar .total=${total} .window=${this.#railWindow(total)} .viewportFraction=${this.#viewportFraction} .markers=${(this.source?.markers() ?? []) as TScrollMarker[]} .cursor=${this.cursor}></shu-scrollbar>`;
+		const drawn = this.#rail(total);
+		const rail = html`<shu-scrollbar .total=${drawn.total} .window=${drawn.window} .viewportFraction=${this.#viewportFraction} .markers=${drawn.markers} .cursor=${this.cursor}></shu-scrollbar>`;
 		// Serving as a column's spine: the strip has room for the rail and nothing else. The rows are not rendered, and
 		// the rail caches the same window over the same source, so collapsing does not move the reader.
 		if (this.spine) return html`<div class="spine-rail">${rail}</div>`;

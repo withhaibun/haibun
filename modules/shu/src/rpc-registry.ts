@@ -175,8 +175,6 @@ export interface ShuHydration {
  * runs sets them low, and one watching a long-running system keeps the values the product carries.
  */
 export type TDeploymentSettings = {
-	/** How long after the run moves its shape is counted again. */
-	runShapeCountedAfterMs?: number;
 	/** How long after the stream breaks the page opens it again. */
 	streamReconnectAfterMs?: number;
 };

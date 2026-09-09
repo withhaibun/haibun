@@ -62,22 +62,21 @@ describe("the timings a deployment sets", () => {
 	});
 
 	it("answers with what the deployment set", () => {
-		setHydration({ settings: { runShapeCountedAfterMs: 1000, streamReconnectAfterMs: 500 } });
+		setHydration({ settings: { streamReconnectAfterMs: 500 } });
 		hydrateFromDom();
-		expect(deploymentMs("runShapeCountedAfterMs")).toBe(1000);
 		expect(deploymentMs("streamReconnectAfterMs")).toBe(500);
 	});
 
 	it("answers with nothing where the deployment set nothing, so the page applies what it carries", () => {
 		setHydration({ settings: {} });
 		hydrateFromDom();
-		expect(deploymentMs("runShapeCountedAfterMs")).toBeUndefined();
+		expect(deploymentMs("streamReconnectAfterMs")).toBeUndefined();
 	});
 
 	it("refuses a value the page cannot apply, rather than reading it as unset", () => {
-		setHydration({ settings: { runShapeCountedAfterMs: 0 } });
+		setHydration({ settings: { streamReconnectAfterMs: 0 } });
 		hydrateFromDom();
-		expect(() => deploymentMs("runShapeCountedAfterMs")).toThrow(/above zero/);
+		expect(() => deploymentMs("streamReconnectAfterMs")).toThrow(/above zero/);
 		setHydration({ settings: { streamReconnectAfterMs: "soon" } });
 		hydrateFromDom();
 		expect(() => deploymentMs("streamReconnectAfterMs")).toThrow(/above zero/);

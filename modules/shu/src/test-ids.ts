@@ -91,19 +91,6 @@ export const SHU_TEST_IDS = {
 		WINDOW_SIZE: 'settings-window-size',
 	},
 	/** Moving the shared time cursor on its own: where it IS is the log's scroll rail. */
-	/** A bar a run's shape is read from, one per span drawn: its root and each mark carry the span's name (`run` for
-	 *  the whole run, `detail` for the region around where a reader is) and a mark also carries its division. */
-	TIME_BAR: {
-		ROOT: 'time-bar-',
-		MARK: 'time-bar-mark-',
-	},
-	/** The failures of the run being read, listed beside the bar: its root, how many there are, and a row named by the
-	 *  record it lists. A run that failed nothing has none of these. */
-	FAILURES: {
-		ROOT: 'run-failures',
-		COUNT: 'run-failures-count',
-		ROW: 'run-failure-',
-	},
 	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
 	VIEWS_PICKER: {
 		ROOT: 'views-picker',

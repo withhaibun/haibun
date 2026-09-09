@@ -282,11 +282,13 @@ export class EventLogger implements IEventLogger {
 	 * (parsed via the appropriate Zod schema like ImageArtifact.parse()).
 	 */
 	artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void {
-		// Ensure the event has proper id and timestamp
+		// A produced thing reports at the level of the step that produced it: a screenshot taken after every step is a
+		// substep's, so a reader reading the run's steps is not shown one per step, and a reader reading its detail is.
 		const event: TArtifactEvent = {
 			...artifact,
 			id: artifact.id || `${formatSeqPath(featureStep.seqPath)}.artifact`,
 			timestamp: artifact.timestamp || Date.now(),
+			level: artifact.level ?? stepLevel(featureStep.isSubStep),
 		};
 		this.emit(event);
 	}

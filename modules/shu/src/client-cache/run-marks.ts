@@ -1,11 +1,10 @@
 /**
- * The shape of a run, by division: what a reader is shown of a run of any length.
+ * What a run holds, counted rather than read: one mark per division of a span that holds something.
  *
- * A division is marked rather than its records listed, so the answer's size is the divisions asked for and reading a
- * decade costs what reading an hour costs. The store counts; nothing here reads a row.
- *
- * Each type a run records is counted by the field that says how its records turned out, and the divisions are merged,
- * so a step that failed and a message reporting an error both mark their division as a failure.
+ * A division is counted, so a rail carrying a year costs what its divisions cost rather than what the run did. The
+ * store counts; nothing here reads a row. Each type a run records is counted by the field that says how its records
+ * turned out, and the divisions are merged, so a step that failed and a message reporting an error both mark their
+ * division as a failure.
  */
 import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
@@ -15,8 +14,9 @@ import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { bucketMarkerStyle, type TEventMarkerStyle } from "../event-marker.js";
 import type { TRunGraph } from "./run-graph.js";
 
-/** A division of the run and its mark: where the division falls, and what the mark looks like. */
-export type TRunMark = TEventMarkerStyle & { division: number };
+/** A mark of the run: what it looks like, and the moment it stands for. A rail places it by that moment, so the same
+ *  marks draw on a rail of any scale. */
+export type TRunMark = TEventMarkerStyle & { at: number };
 
 /** What a type of record is counted by, the values that field takes, and the event shape that says how one of its
  *  groups turned out. A group's appearance is `eventMarkerStyle`'s to decide, so a division and a row can never
@@ -60,14 +60,20 @@ export function runCounts(graph: TRunGraph, { from, to, divisions, minLevel = "i
 	);
 }
 
-/** The mark each division takes from what it holds, over every type counted: one per division that holds anything, in
- *  the order the divisions run. */
-export function marksOf(counts: Record<string, number>[][], divisions: number): TRunMark[] {
+/** The mark each division takes from what it holds, over every type counted, at the moment its division begins: one
+ *  mark per division that holds anything, in the order the run reached them. */
+export function marksOf(counts: Record<string, number>[][], { from, to, divisions }: { from: number; to: number; divisions: number }): TRunMark[] {
 	const marks: TRunMark[] = [];
+	const each = divisions > 0 ? (to - from) / divisions : 0;
 	for (let division = 0; division < divisions; division++) {
 		const held = counts.flatMap((perType, type) => Object.entries(perType[division] ?? {}).map(([group, count]) => ({ event: COUNTED[type].shapeOf(group), count })));
 		const style = bucketMarkerStyle(held);
-		if (style) marks.push({ ...style, division });
+		if (style) marks.push({ ...style, at: from + division * each });
 	}
 	return marks;
+}
+
+/** The marks of a run over a span: one bounded count, and a mark for every division of it that holds something. */
+export async function runMarks(graph: TRunGraph, span: { from: number; to: number; divisions: number; minLevel?: THaibunLogLevel }): Promise<TRunMark[]> {
+	return marksOf(await runCounts(graph, span), span);
 }

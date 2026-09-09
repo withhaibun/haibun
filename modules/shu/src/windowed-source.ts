@@ -21,7 +21,29 @@ export interface WindowedSource<T> {
 	/** The size of a row known without rendering it: 0 for a cached row that renders nothing, so the renderer gives it
 	 *  no room and does not let it drag its estimate of the rows it has not measured; undefined to measure and estimate. */
 	rowSize?(index: number): number | undefined;
+	/** The rail this source's rows sit on, where the rows are a window of something longer. A source that offers none
+	 *  has a rail of its own rows, spread evenly. */
+	rail?: TSourceRail;
 }
+
+/**
+ * A rail over the whole of what a source is a window of.
+ *
+ * A window holds a few thousand rows and the set can be a year of them, so a rail that spread the window evenly would
+ * say nothing about the rest. The source states the rail instead: how many places it has, where each row it holds sits
+ * among them, what marks the whole set puts on it, and what a press on a place asks the set for. The renderer draws
+ * places and knows nothing of what they mean.
+ */
+export type TSourceRail = {
+	/** How many places the rail has. A place is what a mark sits at and what a press names. */
+	readonly places: number;
+	/** Where the row at `index` sits among those places. */
+	placeOf(index: number): number;
+	/** What the whole set marks on the rail, at their places. */
+	marks(): TScrollMarker[];
+	/** A reader pressed a place: what the set does about it (a run reads itself around the moment that place names). */
+	goTo(place: number): void;
+};
 
 /** A source over data already cached in memory (a fetched page of query results, a finite in-memory list): every row
  *  is available and ensureRange is a no-op. `set` swaps the backing list and notifies (a live re-query). */

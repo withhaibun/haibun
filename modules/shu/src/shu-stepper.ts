@@ -223,9 +223,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			const set = getStepperOption(this, option, world.moduleOptions);
 			return set === undefined ? undefined : Number(set);
 		};
-		const runShapeCountedAfterMs = timing("RUN_SHAPE_COUNTED_AFTER_MS");
 		const streamReconnectAfterMs = timing("STREAM_RECONNECT_AFTER_MS");
-		this.settings = { ...(runShapeCountedAfterMs === undefined ? {} : { runShapeCountedAfterMs }), ...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }) };
+		this.settings = { ...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }) };
 	}
 
 	/**
@@ -310,10 +309,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 
 	/** What a deployment sets for the app this stepper serves: the timings its page applies, and what a reader may do. */
 	options = {
-		RUN_SHAPE_COUNTED_AFTER_MS: {
-			desc: "How long after the run moves the page counts its shape again, in milliseconds. Unset, the page counts on the interval it carries",
-			parse: (input: string) => intOrError(input),
-		},
 		STREAM_RECONNECT_AFTER_MS: {
 			desc: "How long after the event stream breaks the page opens it again, in milliseconds. Unset, the page opens it on the interval the subscriber carries",
 			parse: (input: string) => intOrError(input),
