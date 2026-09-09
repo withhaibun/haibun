@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { foldStep } from "../lib/step-dispatch.js";
+import type { TFeatureSteps } from "../schema/protocol.js";
 import { Executor, advanceSyntheticSeqPath, featureSyntheticSeqPath, nextSeqPath, calculateShouldClose, syntheticBranchSeqPath, syntheticSeqPathDirection } from "./Executor.js";
 import type { TFeatureResult, TStepResult } from "../lib/defs.js";
 
@@ -159,7 +161,12 @@ describe("calculateShouldClose", () => {
 
 describe("createExecutionFailure", () => {
 	const step = (seqPath: number[], ok: boolean, errorMessage?: string) => ({ ok, errorMessage, in: `step ${seqPath.join(".")}`, seqPath }) as unknown as TStepResult;
-	const feature = (stepResults: TStepResult[]) => [{ path: "/features/test.feature", ok: false, stepResults }] as unknown as TFeatureResult[];
+	// A feature's steps come to a verdict as they run, which is how the run itself arrives at one.
+	const feature = (stepResults: TStepResult[]) => {
+		const steps: TFeatureSteps = { count: 0 };
+		for (const result of stepResults) foldStep(steps, result);
+		return [{ path: "/features/test.feature", ok: false, steps, stepResults }] as unknown as TFeatureResult[];
+	};
 
 	it("names the feature step that failed, not a synthetic dispatch the step recovered from", () => {
 		// A model's tool call and an RPC dispatch carry a negative seqPath segment; either can fail and be handled
