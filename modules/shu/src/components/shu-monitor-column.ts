@@ -138,7 +138,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		shuBaseStyles,
 		css`
 		:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: var(--shu-font-family); font-size: var(--shu-font-md); }
-		:host(:not([data-show-controls])) .toolbar { display: none; }
 		.toolbar { display: flex; gap: var(--shu-space-3); align-items: center; padding: var(--shu-space-2) var(--shu-space-4); flex: 0 0 auto;
 			background: var(--shu-bg-soft); border-bottom: var(--shu-border-w) solid var(--shu-border); }
 		.toolbar select { font-size: var(--shu-font-sm); padding: 1px var(--shu-space-2); }
@@ -350,7 +349,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				spine
 					? nothing
 					: html`<div class="toolbar" data-testid="monitor-log-stream">
-				<select data-action="level" @change=${this.onLevelChange}>${LEVEL_ORDER.map((l) => html`<option value=${l} ?selected=${l === level}>${l}</option>`)}</select>
+				<label>level <select data-action="level" @change=${this.onLevelChange}>${LEVEL_ORDER.map((l) => html`<option value=${l} ?selected=${l === level}>${l}</option>`)}</select></label>
 				<label><input type="checkbox" data-testid=${SHU_TEST_IDS.MONITOR.SUBSTEPS} ?checked=${this.state.substeps} @change=${this.onSubstepsChange} /> substeps</label>
 				<span class="count">${total} rows</span>
 			</div>`

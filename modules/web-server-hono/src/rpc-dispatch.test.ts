@@ -162,7 +162,37 @@ function makeOptions(port: number) {
 	};
 }
 
-const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper];
+/** What the run narrated about the calls it served, so a case can state which of them it narrates. */
+const narrated: string[] = [];
+
+class ReadStepper extends AStepper {
+	override async setWorld(world: Parameters<AStepper["setWorld"]>[0], steppers: Parameters<AStepper["setWorld"]>[1]) {
+		await super.setWorld(world, steppers);
+		narrated.length = 0;
+		world.eventLogger.subscribe((event) => {
+			const said = (event as { message?: unknown }).message;
+			if (typeof said === "string" && said.startsWith("RPC: ")) narrated.push(said);
+		}, { kinds: ["log"] });
+	}
+
+	steps = {
+		asked: {
+			gwta: "run is asked what it holds",
+			read: true,
+			action: () => Promise.resolve(actionOKWithProducts({ holds: 1 })),
+		},
+		narratedCalls: {
+			gwta: "run narrated the call that acted on it and not the call that read it",
+			action: () => {
+				const named = (method: string) => narrated.filter((line) => line.includes(method)).length;
+				if (named("ReadStepper-asked") > 0) return Promise.resolve(actionNotOK(`serving a read was narrated: ${JSON.stringify(narrated)}`));
+				return Promise.resolve(named("PingStepper-ping") > 0 ? OK : actionNotOK(`serving an act was not narrated: ${JSON.stringify(narrated)}`));
+			},
+		},
+	};
+}
+
+const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper];
 
 describe("RPC dispatch via WebServerStepper", () => {
 	it("step.list includes PingStepper-ping", async () => {
@@ -173,6 +203,22 @@ describe("RPC dispatch via WebServerStepper", () => {
 enable rpc
 webserver is listening for "rpc-step-list"
 rpc step list at "http://localhost:${port}/rpc/step.list" includes "PingStepper-ping"
+`,
+		};
+		const result = await passWithDefaults([feature], steppers, makeOptions(port));
+		expect(result.ok).toBe(true);
+	});
+
+	it("does not narrate serving a read, since a page reading the run would read again for its own reading", async () => {
+		const port = 8244;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-read-narration"
+rpc call to "http://localhost:${port}/rpc/ReadStepper-asked" with method "ReadStepper-asked" succeeds
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
+run narrated the call that acted on it and not the call that read it
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));
