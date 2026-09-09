@@ -10,7 +10,7 @@
 				"steps": 162
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 1.1,
+				"seconds": 1.3,
 				"steps": 165
 			},
 			"/features/d-two-origins.feature.ts": {
@@ -18,11 +18,11 @@
 				"steps": 165
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 2.7,
+				"seconds": 3.8,
 				"steps": 157
 			}
 		},
 		"steps": 806,
-		"seconds": 7
+		"seconds": 8.3
 	}
 }

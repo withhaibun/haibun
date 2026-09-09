@@ -34,6 +34,9 @@ export class SSETransport implements ITransport, IStepTransport {
 	private eventLogger: IEventLogger;
 	private messageHandlers: TMessageHandler[] = [];
 
+	/** The registry this transport dispatches through, which says which methods are reads. */
+	private registry?: StepRegistry;
+
 	constructor(webserver: IWebServer, eventLogger: IEventLogger) {
 		this.webserver = webserver;
 		this.eventLogger = eventLogger;
@@ -108,7 +111,7 @@ export class SSETransport implements ITransport, IStepTransport {
 				});
 			}
 
-			this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
+			if (!this.servesARead(data)) this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
 			const result = await this.handleMessage(data, requestInfo);
 			if (result === undefined) {
 				const method = (data as Record<string, unknown>).method ?? "unknown";
@@ -159,9 +162,23 @@ export class SSETransport implements ITransport, IStepTransport {
 		this.messageHandlers.push(handler);
 	}
 
-	/** IStepTransport: register the step registry (routes already set up at construction). */
-	attach(_registry: StepRegistry, _webserver: IWebServer): void {
-		// Routes set up in constructor; registry is provided via WebServerStepper's enableRpc step
+	/** IStepTransport: register the step registry (routes already set up at construction). What the registry answers is
+	 *  which methods are reads, so serving one is not narrated as an act of the run. */
+	attach(registry: StepRegistry, _webserver: IWebServer): void {
+		this.registry = registry;
+	}
+
+	/**
+	 * Whether a call asks the run a question rather than acting on it.
+	 *
+	 * Reading a run is not an act of the run, which is why a read invoked into a running instance writes no record and
+	 * announces no step. Narrating that a read was served is the same fact by another route: a view reading at a level
+	 * that carried the line would read the run again for its own reading, and each such read would be served, narrated
+	 * and read again without end.
+	 */
+	private servesARead(data: unknown): boolean {
+		const method = (data as { method?: unknown } | undefined)?.method;
+		return typeof method === "string" && this.registry?.get(method)?.stepDef?.read === true;
 	}
 
 	/** IStepTransport: clear handlers on teardown. */

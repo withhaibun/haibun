@@ -236,8 +236,9 @@ function makeGraphRunSource(level: THaibunLogLevel, { size = RUN_WINDOW_SIZE, re
 	};
 
 	// What the run says has changed is what makes the window stale, and a burst of changes reads it once. Only a change
-	// this view would show counts: reading the run is itself steps the run records, at a level under any view's, so a
-	// view that re-read for those would re-read for its own reading, without end.
+	// this view would show counts. What keeps a view from reading for its own reading is that serving a read is not
+	// announced at all, which is stated where a call is served: a view reading at the lowest level would otherwise
+	// announce, read, be served, and announce again without end.
 	const shows = new Set(HAIBUN_LOG_LEVELS.slice(HAIBUN_LOG_LEVELS.indexOf(level)));
 	const readSoon = () => {
 		if (due) return;

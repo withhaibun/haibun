@@ -22,6 +22,7 @@ import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./cap
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import { attachTransportsToRegistry } from "@haibun/core/phases/Executor.js";
+import type { IStepTransport } from "./step-transport.js";
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	getConcerns: () => ({
@@ -235,6 +236,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				attachTransportsToRegistry(this.steppers, this.stepRegistry, this.getWorld().runtime[WEBSERVER]);
 
 				const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
+				// What the registry answers is which methods are reads, which the transport asks before narrating that it
+				// served a call: reading a run is not an act of the run, so serving a read is not announced as one.
+				(transport as Partial<IStepTransport>).attach?.(this.stepRegistry, this.getWorld().runtime[WEBSERVER] as IWebServer);
 				const logger = this.getWorld().eventLogger;
 
 				transport.onMessage(async (raw: unknown, requestInfo) => {
