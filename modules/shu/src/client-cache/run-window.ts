@@ -291,13 +291,19 @@ async function side(
 	// Which end of the side to read from: the records nearest the moment, or, reading the other way, the furthest. A
 	// side with fewer records than a reader asked for is bounded by its furthest, which is one read rather than a count.
 	order: "nearest" | "furthest" = "nearest",
+	// Whether the reader asked for the steps run to carry other steps out.
+	substeps = false,
 ): Promise<Record<string, unknown>[]> {
 	// A graph that does not carry a type holds none of it, so asking for it would be asking a question with no answer.
 	if (!graph.declares(label)) return [];
 	const when = at === undefined ? [] : [{ predicate: timeField, operator: direction === "before" ? "lt" : "gte", value: new Date(at).toISOString() }];
-	// A produced thing is read whatever it reports at, because it is shown by the step that produced it: a reader
-	// reading a run's steps is shown what those steps produced, and the level they chose is what they read the steps at.
-	const shown = label === RUN_ARTIFACT_LABEL ? [] : [{ predicate: LEVEL, operator: "in", value: levels[0], values: [...levels] }];
+	// Which levels this type is read at, which is not always the levels the reader chose. A produced thing is read
+	// whatever it reports at, because the row of the step that produced it is what shows it. A reader asking for the
+	// steps run to carry other steps out reads the level those report at as well, for the steps alone: what a substep
+	// said carries its own level and is read at the level the reader chose. Every read of a type comes through here, so
+	// the rule is stated once and the extent, the region and the window cannot read a type differently.
+	const read = label === SEQ_PATH_LABEL && substeps && !levels.includes(SUBSTEP_LEVEL) ? [...levels, SUBSTEP_LEVEL] : levels;
+	const shown = label === RUN_ARTIFACT_LABEL ? [] : [{ predicate: LEVEL, operator: "in", value: read[0], values: [...read] }];
 	const nearestFirst = direction === "before" ? "desc" : "asc";
 	const sortOrder = order === "nearest" ? nearestFirst : nearestFirst === "desc" ? "asc" : "desc";
 	const { vertices } = await graph.query(GraphQuerySchema.parse({ label, filters: [...when, ...shown], sortBy: timeField, sortOrder, limit, offset, skipCount: true }));
@@ -388,10 +394,6 @@ export async function runWindow(
 	{ at, since, size = RUN_WINDOW_SIZE, minLevel = "info", execution, substeps = false }: { at?: number; since?: number; size?: number; minLevel?: THaibunLogLevel; execution?: string; substeps?: boolean } = {},
 ): Promise<TRunWindow> {
 	const shown = atOrAbove(minLevel);
-	// A reader asking to see the steps run to carry other steps out asks the store for the level those report at, for
-	// the steps alone: what a substep said carries its own level and is read at the level the reader chose.
-	const showsSubsteps = substeps && !shown.includes(SUBSTEP_LEVEL);
-	const shownFor = (label: string): readonly THaibunLogLevel[] => (showsSubsteps && label === SEQ_PATH_LABEL ? [...shown, SUBSTEP_LEVEL] : shown);
 	// A window is of one execution. Records are read by time, and a device holds the records of more than one run, so
 	// what makes a window one run is the execution its ids name: the one asked for, else the one the newest record read
 	// belongs to, which is the run a reader following the newest is following. A row that names no execution is a row of
@@ -404,7 +406,7 @@ export async function runWindow(
 	};
 	const read = async (direction: "before" | "after", limit: number, from: number | undefined = at): Promise<TRunRow[]> => {
 		if (limit <= 0) return [];
-		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, type.timeField, from, direction, limit, shownFor(type.label))));
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, type.timeField, from, direction, limit, shown, 0, "nearest", substeps)));
 		// The store answered at the levels asked for, so what is left to drop is a record with no time to place it by.
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		rows.sort(inRunOrder);
@@ -416,7 +418,7 @@ export async function runWindow(
 	// good. Reading the whole window again to find a few new records is what makes following a long run cost what the
 	// run costs.
 	if (since !== undefined) {
-		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, RECORDED_AT_TIME_FIELD, since, "after", size, shownFor(type.label))));
+		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type.label, RECORDED_AT_TIME_FIELD, since, "after", size, shown, 0, "nearest", substeps)));
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		return windowOf(boundToOne(oneEach(rows)));
 	}
