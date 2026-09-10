@@ -2,12 +2,12 @@
 /**
  * Bedrock proof: lit-html's diff preserves a focused input across re-renders
  * with a changed sibling. Locks the claim the production migration is built on
- * — that switching the component render bodies from innerHTML blasts to
+ * that switching the component render bodies from innerHTML blasts to
  * lit-html eliminates the focus-loss bug structurally, without per-component
  * preserve/restore scaffolding.
  *
  * If this ever fails, every component that depends on the property has lost
- * its safety net — fail loud.
+ * its safety net, fail loud.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { html, render } from "lit-html";
@@ -43,7 +43,7 @@ describe("lit-html focus preservation", () => {
 		renderWithStatus("loaded 12 emails", "haibun");
 
 		const afterInput = host.querySelector("#search") as HTMLInputElement;
-		// Same DOM node — lit didn't recreate it.
+		// Same DOM node, lit didn't recreate it.
 		expect(afterInput).toBe(input);
 		// Focus survived.
 		expect(document.activeElement).toBe(afterInput);
@@ -82,7 +82,7 @@ describe("lit-html focus preservation", () => {
 	it("does NOT clobber user typed-ahead text when re-rendering with an unchanged binding", () => {
 		// Documents the safe contract: if a render fires for reasons unrelated to the
 		// input (incoming SSE event, sibling status change), and the input's bound value
-		// hasn't actually changed in the parent state, lit's diff sees no change for the
+		// hasn't changed in the parent state, lit's diff sees no change for the
 		// `.value` binding and leaves the live `<input>` untouched. The user's typed-ahead
 		// text and cursor survive.
 		renderWithStatus("idle", "hello");

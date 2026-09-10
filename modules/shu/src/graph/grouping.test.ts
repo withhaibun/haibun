@@ -15,11 +15,11 @@ describe("groupKeyOf", () => {
 		expect(groupKeyOf({ type: "Email" }, "role")).toBe(UNATTRIBUTED_ROLE);
 	});
 
-	it("ignores a folded role under the type axis (stays byte-identical)", () => {
+	it("ignores a merged role under the type axis (stays byte-identical)", () => {
 		expect(groupKeyOf({ type: "Email", properties: { [HYPERMEDIA_ROLE_KEY]: "did:web:x" } })).toBe("Email");
 	});
 
-	it("keys by the agent at ANY actor predicate — the axis string IS the predicate, nothing enumerates it", () => {
+	it("keys by the agent at ANY actor predicate: the axis string IS the predicate, nothing enumerates it", () => {
 		const vc = { type: "Record", properties: { maker: "did:web:maker", keeper: "did:web:keeper" } };
 		expect(groupKeyOf(vc, "maker")).toBe("did:web:maker"); // group by a SPECIFIC actor, not the winner
 		expect(groupKeyOf(vc, "keeper")).toBe("did:web:keeper");
@@ -68,9 +68,9 @@ describe("ringAnchors", () => {
 	});
 });
 
-describe("shelfPack — compact rectangle packing on real {w,h} (no isotropic blow-up)", () => {
+describe("shelfPack, compact rectangle packing on real {w,h} (no isotropic blow-up)", () => {
 	const GAP = 80;
-	// A mix of tall-thin, square, tiny — and C: one VERY WIDE, SHORT container (the long-base64-id case).
+	// A mix of tall-thin, square, tiny, and C: one VERY WIDE, SHORT container (the long-base64-id case).
 	const sizes = new Map([
 		["A", { w: 40, h: 40 }],
 		["B", { w: 30, h: 90 }],
@@ -105,14 +105,14 @@ describe("shelfPack — compact rectangle packing on real {w,h} (no isotropic bl
 			}
 	});
 
-	it("a wide-SHORT container does NOT leak its width into the layout HEIGHT — the disc-model bug", () => {
+	it("a wide-SHORT container does NOT leak its width into the layout HEIGHT: the disc-model bug", () => {
 		const totalH = span((b) => b.maxY, false) - span((b) => b.minY, true);
 		const sumCellH = [...sizes.values()].reduce((s, v) => s + v.h + GAP, 0);
 		expect(totalH).toBeLessThanOrEqual(sumCellH);
 		expect(totalH, "the 300-wide C must not make the layout ~300 tall").toBeLessThan(300);
 	});
 
-	it("packs compactly — bounding-box area within 4× the summed cell areas", () => {
+	it("packs compactly, bounding-box area within 4× the summed cell areas", () => {
 		const totalW = span((b) => b.maxX, false) - span((b) => b.minX, true);
 		const totalH = span((b) => b.maxY, false) - span((b) => b.minY, true);
 		const sumArea = [...sizes.values()].reduce((s, v) => s + (v.w + GAP) * (v.h + GAP), 0);
@@ -124,7 +124,7 @@ describe("shelfPack — compact rectangle packing on real {w,h} (no isotropic bl
 		expect(Math.abs((span((b) => b.minY, true) + span((b) => b.maxY, false)) / 2)).toBeLessThan(1e-6);
 	});
 
-	it("is a pure function of the map CONTENT — insertion order does not change the result, and key order is the sort order", () => {
+	it("is a pure function of the map CONTENT, insertion order does not change the result, and key order is the sort order", () => {
 		const reversed = new Map([...sizes.entries()].reverse());
 		expect(shelfPack(reversed, GAP)).toEqual(pack);
 		expect([...pack.keys()]).toEqual(["B", "D", "A", "E", "C"]); // ch desc, then cw desc, then key asc

@@ -2,8 +2,8 @@
  * The one walk through zod's wrapper types.
  *
  * `optional`, `nullable` and `default` each wrap the type they qualify, and every reader that wants the underlying
- * type has to walk through them. Written three times, two of them reached different private zod internals — `_zod.def`
- * and `_def.innerType` — so a zod version that moves one leaves the other returning an unpeeled type and saying
+ * type has to walk through them. Written three times, two of them reached different private zod internals, `_zod.def`
+ * and `_def.innerType`, so a zod version that moves one leaves the other returning an unpeeled type and saying
  * nothing about it. One walk, one place to correct when the library moves.
  */
 import type { z } from "zod";

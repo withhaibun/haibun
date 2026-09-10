@@ -1,8 +1,8 @@
 /**
- * store-protocol — the delegated store surface, shared by server (web-server transport) and client
+ * store-protocol: the delegated store surface, shared by server (web-server transport) and client
  * (RemoteQuadStore). Serves the IQuadStore methods as `store.<method>` protocol calls so a sibling
  * instance can keep its records in this instance's store. DELEGATED, never public: every call requires
- * a capability (`store.read` or `store.write` by method; a `store.*` grant covers both) — this surface
+ * a capability (`store.read` or `store.write` by method; a `store.*` grant covers both): this surface
  * is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
  * Responses use a `{ result }` envelope so an undefined result survives JSON intact.
  */
@@ -27,7 +27,7 @@ const QuadInputSchema = z.object({
 
 const PatternSchema = z.object({ subject: z.string().optional(), predicate: z.string().optional(), object: z.unknown().optional(), namedGraph: z.string().optional() });
 
-/** Param schema + read/write classification per method — the single wire contract. */
+/** Param schema + read/write classification per method: the single wire contract. */
 const STORE_METHODS = {
 	set: { write: true, params: QuadInputSchema },
 	add: { write: true, params: z.object({ quad: QuadInputSchema }) },
@@ -62,7 +62,7 @@ export function isStoreMethod(method: string): boolean {
 	return method.startsWith(STORE_METHOD_PREFIX) && method.slice(STORE_METHOD_PREFIX.length) in STORE_METHODS;
 }
 
-/** The capability a caller must hold for a store call — store.write for anything that changes the store, store.read otherwise. */
+/** The capability a caller must hold for a store call, store.write for anything that changes the store, store.read otherwise. */
 export function requiredStoreCapability(method: string): string {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
 	const def = STORE_METHODS[name];

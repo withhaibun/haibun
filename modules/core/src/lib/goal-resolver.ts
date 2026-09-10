@@ -1,10 +1,10 @@
 /**
- * Goal resolver — backward-chaining over the domain-chain graph.
+ * Goal resolver, backward-chaining over the domain-chain graph.
  *
  * Given a goal domain and the current working memory, find a sequence of steps
  * whose forward firings would assert a fact of that domain. Returns one of four
  * findings: satisfied (already in memory), plan (here is the chain), unreachable
- * (no producer chain), refused (resolver declined to operate honestly).
+ * (no producer chain), refused (the resolver declined to operate without an accurate result).
  *
  * Anti-drift invariants:
  *   - Single source of truth: consumes the same TDomainChainGraph dispatch traverses.
@@ -12,7 +12,7 @@
  *     filters producer steps by it. No optimistic assumptions.
  *   - Cycle protection mandatory: visited set + depth limit; cycles return unreachable.
  *   - Plans are advisory, never auto-executed: this module is pure search; a separate
- *     "run plan" step actually runs the chain.
+ *     "run plan" step runs the chain.
  */
 import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./domain-chain.js";
 import type { TQuad } from "./quad-types.js";
@@ -46,7 +46,7 @@ export type TBinding = { domain: string } & ({ kind: "fact"; factId: string } | 
 
 /**
  * One field within a composite binding. `fieldDomain` is empty when the field
- * has no declared `topology.ranges` entry — in that case the field is treated
+ * has no declared `topology.ranges` entry, in that case the field is treated
  * as a primitive argument. `fieldType` is the Zod type label (`"string"`,
  * `"number"`, `"date"`, `"array"`, etc.) so consumers can show what shape
  * to supply.
@@ -59,7 +59,7 @@ export type TFieldBinding = {
 } & ({ kind: "fact"; factId: string } | { kind: "argument" } | { kind: "composite"; fields: TFieldBinding[] });
 
 /**
- * One path from current working memory to the goal — an ordered sequence of steps
+ * One path from current working memory to the goal: an ordered sequence of steps
  * with every input accounted for (binding to a fact or an argument). Multiple michi
  * may resolve the same goal; the resolver returns up to MAX_MICHI of them.
  */
@@ -137,14 +137,14 @@ const MAX_MICHI = 64;
 const COMPOSITE_DEFAULT_DEPTH = 4;
 
 /**
- * Resolve a goal. The honest contract: if the resolver cannot produce an accurate
+ * Resolve a goal. The contract: if the resolver cannot produce an accurate
  * answer (because the graph is incomplete or capabilities are unknown), it returns
  * `refused` rather than guessing.
  */
 /** Hard ceiling on enumerate() invocations per resolveGoal call. Even with depthLimit +
  * maxMichi, cartesian fanout across composite fields can push the recursion count into
  * the millions before truncating. This counter throws fast so a runaway resolve doesn't
- * hang the test (or the live RPC) — typical resolves finish in well under 10k calls. */
+ * hang the test (or the live RPC), typical resolves finish in well under 10k calls. */
 const ENUMERATE_BUDGET = 200_000;
 let enumerateCallCount = 0;
 
@@ -154,7 +154,7 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 
 	const matchingFacts = inputs.facts.filter((q) => q.predicate === goal && factMatchesWhere(q, inputs.where));
 	const hasProducerEdge = inputs.graph.edges.some((e) => e.to === goal);
-	// Enumerate producer paths even when satisfied — `satisfied` doesn't mean
+	// Enumerate producer paths even when satisfied, `satisfied` doesn't mean
 	// "cannot be run again", just that at least one fact already exists. The
 	// user may want to produce another instance.
 	const depthLimit = inputs.depthLimit ?? DEFAULT_DEPTH_LIMIT;
@@ -185,7 +185,7 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 
 /**
  * Check the structural preconditions before searching. Returns a refusal when the
- * resolver cannot honestly operate; undefined when it's safe to proceed.
+ * resolver cannot operate with an accurate result; undefined when it's safe to proceed.
  */
 function checkResolverInvariants(inputs: TResolverInputs, goal: string): TGoalResolution | undefined {
 	if (!inputs.capabilities) {
@@ -214,7 +214,7 @@ function checkResolverInvariants(inputs: TResolverInputs, goal: string): TGoalRe
 /**
  * A step is treated as "producing anything" in the resolver graph when it declares
  * productsDomain or productsDomains. Steps that declare only productsSchema (inline
- * Zod, no domain registration) are silent to the resolver — their products are typed
+ * Zod, no domain registration) are silent to the resolver, their products are typed
  * data, not graph nodes.
  */
 function producesAnything(_step: TDomainChainStep): boolean {
@@ -373,7 +373,7 @@ function tryComposite(
 		const options = resolveFieldOptions(field, inputs, visited, missing, depthLimit, depth, maxMichi, path);
 		if (options.truncated) truncated = true;
 		if (options.options.length === 0) {
-			// A required field with no resolution kills the composite as a whole.
+			// A required field with no resolution fails the composite as a whole.
 			if (!field.optional) return null;
 			// Optional field with no resolution: skip it.
 			continue;
@@ -428,7 +428,7 @@ function resolveFieldOptions(
 		const leaf = m.bindings[0];
 		// `leaf` is absent when the producer chain takes no graph-level inputs
 		// (e.g. a step whose gwta args are all primitive). In that case the
-		// chain still produces the field's value — the field carries no
+		// chain still produces the field's value: the field carries no
 		// upstream binding, but `m.steps` runs to satisfy it. Represent it as
 		// an `argument`-kind field-binding so the consumer surfaces "you
 		// supply" semantics for the field as a whole, while the outer michi's

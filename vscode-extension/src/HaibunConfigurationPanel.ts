@@ -155,7 +155,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			});
 
 			if (!response.ok) {
-				// Only update if we were expecting running, or to show error
+				// Update only when running was expected, or to show an error
 				if (this._mcpStatus !== "starting") this.setMcpStatus("error", `HTTP ${response.status}`);
 				return;
 			}
@@ -169,8 +169,8 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			}
 		} catch (_e) {
 			// connection refused etc
-			// If we are already 'error' or 'starting', leave it?
-			// Let's set to starting or stopped?
+			// Already 'error' or 'starting': leave it as is.
+			// Set to starting or stopped.
 			if (this._mcpStatus === "running") this.setMcpStatus("error", "Connection lost");
 		}
 	}
@@ -389,7 +389,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 		this._backgroundCount = 0;
 
 		// User steppers are now set via setSteppers() from extension.ts
-		// We don't load them here anymore.
+		// They are not loaded here any more.
 
 		for (const base of userBases) {
 			const baseDir = path.isAbsolute(base) ? base : path.resolve(effectiveCwd, base);
@@ -774,7 +774,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 		const cached = this._nodesByPath.get(filePath);
 		if (cached) return cached;
 
-		// Not in cache - might be a file we don't know about
+		// Not in cache - might be an unknown file
 		return null;
 	}
 }
@@ -997,5 +997,5 @@ export function registerConfigCommands(context: vscode.ExtensionContext, treePro
 	watcher.onDidCreate(() => treeProvider.refresh());
 	watcher.onDidDelete(() => treeProvider.refresh());
 	// onDidChange is handled by onDidSaveTextDocument/onDidChangeTextDocument for active files,
-	// but we can add it for external changes if needed. For now, Create/Delete covers the "missing file" issue.
+	// but it can be added for external changes if needed. For now, Create/Delete covers the "missing file" issue.
 }

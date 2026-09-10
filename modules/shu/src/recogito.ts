@@ -1,8 +1,8 @@
 /**
- * Typed access to `@recogito/text-annotator` — the W3C-compliant text annotator.
+ * Typed access to `@recogito/text-annotator`: the W3C-compliant text annotator.
  *
  * The package's shipped `.d.ts` files use extensionless relative specifiers that this project's `node16` module
- * resolution rejects, so its own exports do not surface as types (the runtime resolves fine — esbuild bundles the
+ * resolution rejects, so its own exports do not surface as types (the runtime resolves fine, esbuild bundles the
  * ES module). This one file re-declares the minimal surface the annotation display uses, so the workaround lives in
  * a single place instead of at every call site.
  */
@@ -26,5 +26,5 @@ export interface TextAnnotatorOptions {
 
 export const createTextAnnotator = _createTextAnnotator as <E>(container: HTMLElement, options?: TextAnnotatorOptions) => TextAnnotator<E>;
 
-/** The W3C Web Annotation format adapter — anchors each annotation's TextQuoteSelector against `container` for `source`. */
+/** The W3C Web Annotation format adapter, anchors each annotation's TextQuoteSelector against `container` for `source`. */
 export const W3CTextFormat = _W3CTextFormat as (source: string, container?: HTMLElement) => unknown;

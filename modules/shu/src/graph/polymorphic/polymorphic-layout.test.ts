@@ -29,8 +29,8 @@ describe("where a layout puts the nodes", () => {
 		for (const n of nodes) expect([n.x, n.y].every((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
 		for (const a of nodes) for (const b of nodes) if (a !== b) expect(gap(a, b)).toBeGreaterThan(0);
 		// z is the time axis, data-owned: the placement must leave it EXACTLY as given, not merely keep the differences.
-		// d3-force-3d's forceCenter recentred z by the cloud's mean even at numDimensions(2) — a uniform shift the
-		// relative check missed — so the camera framed a shifted cloud and the next merge's data z snapped it off frame.
+		// d3-force-3d's forceCenter recentred z by the cloud's mean even at numDimensions(2): a uniform shift the
+		// relative check missed, so the camera framed a shifted cloud and the next merge's data z snapped it off frame.
 		expect(nodes.map((n) => n.z)).toEqual([0, 10, 20, 30]);
 	});
 

@@ -27,7 +27,7 @@ import { VERIFIED_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; endpoint: string } };
 
 /** Stands in for the CLI's run supervisor, under the name the agent calls: the agent reaches it by dispatching a step,
- *  so what is exercised here is the call the real supervisor answers, not a seam opened for the test. It answers a
+ *  so what is exercised here is the call the real supervisor answers, not an opening made for the test. It answers a
  *  fixed tail so a read is deterministic. */
 class InstanceStepper extends AStepper {
 	calls: Array<{ step: string; input: Record<string, unknown> }> = [];
@@ -200,7 +200,12 @@ describe("watching a run", () => {
 	it("starts the run through the supervisor rather than holding a process itself", async () => {
 		const started = await h.run("tests", "polymorphic");
 		const call = h.supervisor.calls.find((c) => c.step === "startRun");
-		expect(call?.input, "the agent decides what may run; the supervisor forks it").toMatchObject({ where: "tests", filter: "polymorphic", from: "tests", port: RUNNER_DEFAULTS.port });
+		expect(call?.input, "the agent decides what may run; the supervisor forks it").toMatchObject({
+			where: "tests",
+			filter: "polymorphic",
+			from: "tests",
+			port: RUNNER_DEFAULTS.port,
+		});
 		expect(RUNNER_DEFAULTS.port, "by default a run keeps the ports its own features declare").toBe(0);
 		expect(started.products?.endpoint, "and a run that was given no port answers nowhere afterwards, which its record states by carrying no endpoint").toBeUndefined();
 	});
@@ -352,7 +357,7 @@ describe("what a finished run's record says about it", () => {
 	describe("running a test as a GOAL", () => {
 		it("resolves feature-execution to the run steps, so the resolver can offer running a test rather than only prose", async () => {
 			// The run's record is the step's declared product, so the goal graph carries a producer edge to it: resolve
-			// `feature-execution` and the michi is runTest (or runAllTests) — an affordance, not a convention.
+			// `feature-execution` and the michi is runTest (or runAllTests): an affordance, not a convention.
 			const { buildDomainChain } = await import("@haibun/core/lib/domain-chain.js");
 			const { resolveGoal, GOAL_FINDING } = await import("@haibun/core/lib/goal-resolver.js");
 			const stepper = new TestRunnerStepper();

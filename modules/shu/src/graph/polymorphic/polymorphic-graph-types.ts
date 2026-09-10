@@ -4,7 +4,7 @@
 import type { TBurn } from "./polymorphic-highlight.js";
 
 /** A scene object as this view drives it: position, scale, draw order and (where the mark has one) a material to dim
- *  through. Declared structurally so the layout, focus and pick subsystems never import a 3D library — the concrete
+ *  through. Declared structurally so the layout, focus and pick subsystems never import a 3D library: the concrete
  *  chip and sprite implementations satisfy it. */
 type V3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 export type Obj3D = {
@@ -28,11 +28,11 @@ export type QLike = { x: number; y: number; z: number; w: number };
 export interface NodeVisual {
 	readonly object: Obj3D; // the scene object the lib renders + the magnifier scales
 	readonly pickTarget: Obj3D; // the raycast target (a chip's background quad; a sprite is itself)
-	readonly hasHighlight: boolean; // wearing the active-node glow right now — the one observable tests read
+	readonly hasHighlight: boolean; // wearing the active-node glow right now: the one observable tests read
 	/** Wear or drop the glow that marks the ACTIVE node, `glow` carrying how it burns right now (strength and colour,
 	 *  driven per frame). `hasHighlight` tracks `on` alone, so it stays true through the dimmest part of the breath. */
 	setHighlighted(on: boolean, glow?: TBurn): void;
-	opacity: number; // effective opacity — get for the readback, set for the focus dim
+	opacity: number; // effective opacity, get for the readback, set for the focus dim
 	faceCamera(q: QLike): void; // orient to the camera (a chip group; a native-billboard sprite / fixed bar is a no-op)
 }
 
@@ -64,21 +64,21 @@ export type FGNode = {
 	vx?: number;
 	vy?: number;
 	vz?: number;
-	fx?: number; // d3 fixed-position pins — set during a layout tween to drive each node along its eased path
+	fx?: number; // d3 fixed-position pins, set during a layout tween to drive each node along its eased path
 	fy?: number;
 	fz?: number;
-	__t?: number; // the z-basis time (epoch ms; see __tField for its source) — depth is the time axis: z maps to when the object happened
-	/** The field __t came from (the valid-time field, or generatedAtTime on fallback/indexed basis) — the hover's unit label. */
+	__t?: number; // the z-basis time (epoch ms; see __tField for its source), depth is the time axis: z maps to when the object happened
+	/** The field __t came from (the valid-time field, or generatedAtTime on fallback/indexed basis): the hover's unit label. */
 	__tField?: string;
-	/** When the record was made (generatedAtTime, epoch ms), whatever places depth — what a reading in the order things happened follows. */
+	/** When the record was made (generatedAtTime, epoch ms), whatever places depth: what a reading in the order things happened follows. */
 	__created?: number;
-	__degree?: number; // number of incident visible links — the depth value under the "# connections" z basis
-	__visual?: NodeVisual; // the uniform handle for pick/billboard/focus/opacity — the one place the render object's type is known
+	__degree?: number; // number of incident visible links: the depth value under the "# connections" z basis
+	__visual?: NodeVisual; // the uniform handle for pick/billboard/focus/opacity: the one place the render object's type is known
 	__sprite?: TSprite; // === __visual.object; kept typed for the magnifier, which drives scale/renderOrder/fontSize directly
 	__baseScale?: { x: number; y: number }; // the sprite's intrinsic scale (SpriteText derives it from textHeight); magnify multiplies it
 	__k?: number; // current magnify multiplier
-	__chipText?: string; // what the chip the factory built actually says — the label-as-depth read, and the observable inspect reports
-	properties?: Record<string, unknown>; // carried from the model node — incl the folded HypermediaRole that groupKeyOf(n, "role") reads
+	__chipText?: string; // what the chip the factory built says: the label-as-depth read, and the observable inspect reports
+	properties?: Record<string, unknown>; // carried from the model node, including the merged HypermediaRole that groupKeyOf(n, "role") reads
 };
 
 export type FGLink = {
@@ -87,7 +87,7 @@ export type FGLink = {
 	predicate: string;
 	// Read-only handle to the lib's current line mesh, refreshed every tick in linkPositionUpdate (never cached-once,
 	// so it can't go stale). The line's colour AND opacity are owned by the lib via linkColor (see lineRgbaFor); this
-	// is only read — by inspect() and the behaviour tests — never mutated.
+	// is only read, by inspect() and the behaviour tests, never mutated.
 	__lineObj?: ThreeObj;
 	__labelSprite?: TSprite;
 	__curve?: { getPoint(t: number): { x: number; y: number; z: number } };
@@ -95,7 +95,7 @@ export type FGLink = {
 
 export const linkEndId = (e: string | FGNode): string => (typeof e === "string" ? e : e.id);
 
-/** The id-set of a node plus its 1-hop neighbours (the node itself included) — every node one link away. One linear pass
+/** The id-set of a node plus its 1-hop neighbours (the node itself included): every node one link away. One linear pass
  *  over the links; frames or focuses a node's local context. */
 export const neighboursOf = (nodeId: string, links: Iterable<FGLink>): Set<string> => {
 	const ids = new Set<string>([nodeId]);

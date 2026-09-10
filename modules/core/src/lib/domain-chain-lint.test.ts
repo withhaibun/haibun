@@ -44,10 +44,10 @@ class ArchiveEmail extends AStepper {
 	};
 }
 
-class StarvedConsumer extends AStepper {
+class UnsuppliedConsumer extends AStepper {
 	steps: TStepperSteps = {
-		nourish: {
-			gwta: `nourish {who: ${PERSON}}`,
+		consume: {
+			gwta: `consume {who: ${PERSON}}`,
 			inputDomains: { who: PERSON },
 			productsDomain: ORPHAN_OUTPUT,
 			action: () => actionOKWithProducts({}),
@@ -63,9 +63,9 @@ class StubStepper extends AStepper {
 
 describe("lintDomainChain", () => {
 	it("reports orphan-step for a step whose output domain no other step consumes", () => {
-		const graph = buildDomainChain([new EmailFromPerson(), new StarvedConsumer()], domains());
+		const graph = buildDomainChain([new EmailFromPerson(), new UnsuppliedConsumer()], domains());
 		// EmailFromPerson.issueEmail produces EMAIL, consumed by no step here.
-		// StarvedConsumer.nourish produces ORPHAN_OUTPUT, consumed by no step.
+		// UnsuppliedConsumer.consume produces ORPHAN_OUTPUT, consumed by no step.
 		const report = lintDomainChain(graph, domains());
 		const orphans = report.findings.filter((f) => f.kind === "orphan-step");
 		const orphanOutputs = orphans.map((o) => (o.kind === "orphan-step" ? o.outputDomain : ""));
@@ -80,14 +80,14 @@ describe("lintDomainChain", () => {
 		expect(orphans).toHaveLength(0);
 	});
 
-	it("reports starved-step for a step whose input domain no other step produces", () => {
+	it("reports unsupplied-step for a step whose input domain no other step produces", () => {
 		// Only EmailFromPerson is loaded. It consumes PERSON but nothing produces PERSON.
 		const graph = buildDomainChain([new EmailFromPerson()], domains());
 		const report = lintDomainChain(graph, domains());
-		const starved = report.findings.filter((f) => f.kind === "starved-step");
-		expect(starved).toHaveLength(1);
-		const first = starved[0];
-		if (first.kind === "starved-step") expect(first.inputDomain).toBe(PERSON);
+		const unsupplied = report.findings.filter((f) => f.kind === "unsupplied-step");
+		expect(unsupplied).toHaveLength(1);
+		const first = unsupplied[0];
+		if (first.kind === "unsupplied-step") expect(first.inputDomain).toBe(PERSON);
 	});
 
 	it("reports unreachable-domain for a registered domain neither consumed nor produced", () => {
@@ -107,15 +107,15 @@ describe("lintDomainChain", () => {
 	it("summary counts match findings counts", () => {
 		const graph = buildDomainChain([new EmailFromPerson(), new ArchiveEmail()], domains());
 		const report = lintDomainChain(graph, domains());
-		const calculated = { "orphan-step": 0, "starved-step": 0, "unreachable-domain": 0, "unproduced-domain": 0 } as Record<string, number>;
+		const calculated = { "orphan-step": 0, "unsupplied-step": 0, "unreachable-domain": 0, "unproduced-domain": 0 } as Record<string, number>;
 		for (const f of report.findings) calculated[f.kind]++;
 		expect(report.summary).toEqual(calculated);
 	});
 
-	it("empty stepper set produces no orphan/starved findings", () => {
+	it("empty stepper set produces no orphan/unsupplied findings", () => {
 		const graph = buildDomainChain([new StubStepper()], domains());
 		const report = lintDomainChain(graph, domains());
-		const stepKinds = report.findings.filter((f) => f.kind === "orphan-step" || f.kind === "starved-step");
+		const stepKinds = report.findings.filter((f) => f.kind === "orphan-step" || f.kind === "unsupplied-step");
 		expect(stepKinds).toHaveLength(0);
 	});
 });

@@ -1,5 +1,5 @@
 /**
- * ShuGraph — generic graph visualization web component.
+ * ShuGraph: generic graph visualization web component.
  *
  * Takes a renderer-agnostic `TGraph` via its `products` setter and paints it
  * using an injected `IGraphRenderer`. The default renderer is `SvgGraphRenderer`;
@@ -12,7 +12,7 @@
  *
  * Stability invariants:
  *  - Zoom is a CSS-only transform on the diagram container. Updating zoom never
- *    triggers a re-layout — the rendered SVG stays put.
+ *    triggers a re-layout: the rendered SVG stays put.
  *  - `repaint()` skips `renderer.render()` when the projected graph source is
  *    byte-identical to the previous one, so live updates that don't change the
  *    graph shape don't re-lay it out.

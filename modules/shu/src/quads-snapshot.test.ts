@@ -81,7 +81,7 @@ describe("quads-snapshot store singleton", () => {
 		expect(count).toBe(1);
 	});
 
-	it("two listeners registered before any change both fire on a single update — proving the listener Set is one identity, not duplicated", () => {
+	it("two listeners registered before any change both fire on a single update, proving the listener Set is one identity, not duplicated", () => {
 		const a: Array<string | null> = [];
 		const b: Array<string | null> = [];
 		const ua = subscribeSnapshot((_s, ctx) => a.push(ctx.selectedSubject));
@@ -160,7 +160,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the budget (the OOM fix)", () => 
 	});
 });
 
-describe("per-scope snapshots — independent data sources over one store", () => {
+describe("per-scope snapshots, independent data sources over one store", () => {
 	beforeEach(() => {
 		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
 	});
@@ -192,7 +192,7 @@ describe("per-scope snapshots — independent data sources over one store", () =
 	});
 });
 
-describe("selectionFromContext — only a context that ADDRESSES selection moves it", () => {
+describe("selectionFromContext, only a context that ADDRESSES selection moves it", () => {
 	it("a subject pattern selects", () => {
 		expect(selectionFromContext({ patterns: [{ s: "Issuer" }], label: "Issuer" })).toEqual({ action: "select", subject: "Issuer", label: "Issuer" });
 	});
@@ -242,7 +242,7 @@ describe("the graph a page caches, with no server to ask", () => {
 
 describe("the dropdown values a reader is offered, with no server to ask", () => {
 	// The site derives them from the fields a type declares as context; a page with no server derives them the same way
-	// over the graph it caches, so the reader is offered the same fields narrowed to the values actually there.
+	// over the graph it caches, so the reader is offered the same fields narrowed to the values there.
 	beforeEach(() => {
 		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
 		setConduit(new LiveConduit(""));

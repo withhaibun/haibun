@@ -1,8 +1,8 @@
 /**
  * The client cache: what a page holds of a run, and the ONE path a view reads it by. Every view reads the run through a
  * run source over the device's store, the graph through the store the page caches it in, and the site's declarations
- * through the registry this cache holds. Where the cache was filled from — a server, this device from an earlier visit,
- * or a run the page carries because it is a report — is settled once at boot and never asked again by a view.
+ * through the registry this cache holds. Where the cache was filled from: a server, this device from an earlier visit,
+ * or a run the page carries because it is a report, is settled once at boot and never asked again by a view.
  *
  * A change that needs data a view does not have extends this library: a new read on the store, a new source, a value on
  * the cache view. It does not add a fetch beside it, a second store, or a branch on what kind of page this is;

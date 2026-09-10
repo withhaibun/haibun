@@ -1,7 +1,7 @@
 /**
- * ShuAffordancesPanel — list of runnable steps and per-goal verdicts.
+ * ShuAffordancesPanel: list of runnable steps and per-goal verdicts.
  *
- * Clicking a step hands the method to the actions-bar step input via STEP_CHOOSE —
+ * Clicking a step hands the method to the actions-bar step input via STEP_CHOOSE:
  * the same flow as picking a step from the combo. The panel never invokes RPCs
  * itself; the step-caller in the actions-bar runs the step.
  */
@@ -54,7 +54,7 @@ const ShuAffordancesPanelSchema = z.object({
 
 const AFF_GOAL_PARAM = AFFORDANCE_PARAM.GOAL;
 const AFF_WAYPOINT_PARAM = AFFORDANCE_PARAM.WAYPOINT;
-/** Coalesce the per-step change signals into at most one snapshot refetch per window — a run emits one signal per
+/** Coalesce the per-step change signals into at most one snapshot refetch per window: a run emits one signal per
  * step, and refetching per signal is the RPC flood (hundreds per run). */
 const REFRESH_COALESCE_MS = 400;
 
@@ -74,7 +74,7 @@ function normalizeSelection(goalInUrl: string, waypointInUrl: string, priorGoal:
 export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSchema> {
 	private affordances: TAffordances | null = null;
 
-	/** The discovery surface as linked data: every forward step (the deployment's callable verbs) and each goal's verdict — the core affordance shapes, uninvented. No served vocabulary term types this composite, so it carries none. */
+	/** The discovery surface as linked data: every forward step (the deployment's callable verbs) and each goal's verdict: the core affordance shapes, uninvented. No served vocabulary term types this composite, so it carries none. */
 	summarizeForKihan(): TLinkedData | null {
 		if (!this.affordances) return null;
 		return {
@@ -109,9 +109,9 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// stepper's afterStep cycle. Subscribing keeps the panel current; the snapshot/restore
 		// helper preserves scroll, focus, and details-open state across re-renders.
 		try {
-			// afterStep emits a lean `affordances.<seqPath>` change signal (no payload) — re-fetch the current snapshot.
+			// afterStep emits a lean `affordances.<seqPath>` change signal (no payload), re-fetch the current snapshot.
 			// Batched (rAF), so the connect-time history replay (one event per past step) collapses to ONE re-fetch per
-			// frame rather than one RPC per replayed event — the spurious-RPC flood. Same batching primitive as the
+			// frame rather than one RPC per replayed event: the spurious-RPC flood. Same batching primitive as the
 			// timeline, the graph, and the app's pane router.
 			this.autoTeardown(
 				this.subscribeBatched({
@@ -138,7 +138,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	private _refreshTimer: ReturnType<typeof setTimeout> | undefined;
-	/** One refetch per coalesce window, no matter how many change signals arrive — the first signal starts the timer, and the rest fall inside it. */
+	/** One refetch per coalesce window, no matter how many change signals arrive: the first signal starts the timer, and the rest fall inside it. */
 	private scheduleRefresh(): void {
 		if (this._refreshTimer !== undefined) return;
 		this._refreshTimer = setTimeout(() => {
@@ -155,7 +155,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	/**
 	 * View-open contract: `pane-opener` assigns this property with the products
-	 * `show affordances` produced. The forward/goals shape is required — fail fast
+	 * `show affordances` produced. The forward/goals shape is required, fail fast
 	 * if either is missing, no fallbacks.
 	 */
 	set products(p: Record<string, unknown>) {
@@ -165,7 +165,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			);
 		}
 		// app.ts coalesces the connect-time replay (one PaneState.request per pane per frame), so a burst never reaches
-		// here — apply the latest synchronously. The products carry the whole snapshot, waypoints included.
+		// here: apply the latest synchronously. The products carry the whole snapshot, waypoints included.
 		this.applyAffordances({
 			forward: p.forward as TAffordances["forward"],
 			goals: p.goals as TAffordances["goals"],
@@ -175,7 +175,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	private applyAffordances(a: TAffordances): void {
 		// Live affordance events emitted by the goal-resolver after every step include
-		// `forward` and `goals` but not `waypoints` — preserve the last known waypoints
+		// `forward` and `goals` but not `waypoints`, preserve the last known waypoints
 		// across those updates so the section doesn't flicker out between explicit refreshes.
 		const waypoints = a.waypoints ?? this.affordances?.waypoints;
 		this.affordances = { ...a, waypoints };
@@ -185,7 +185,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	private async fetchInitial(quiet = false): Promise<void> {
 		// With no Conduit installed (standalone HTML pre-boot) there is no server to fetch
-		// from. Stay on the actionable empty state rather than the spinner — the "invoke show
+		// from. Stay on the actionable empty state rather than the spinner: the "invoke show
 		// affordances" prompt shows, and the panel becomes useful once a snapshot arrives.
 		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the panel never flashes.
 		try {
@@ -218,13 +218,13 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				lastError = `${method} returned an unrecognised shape. Expected {forward[], goals[]}; got keys [${keys}]. Full response: ${JSON.stringify(response).slice(0, 500)}`;
 			} catch (err) {
 				lastError = `RPC ${method} failed: ${errorDetail(err)}`;
-				// Try the next candidate — typical reason is that the stepper providing the method is not loaded.
+				// Try the next candidate, typical reason is that the stepper providing the method is not loaded.
 			}
 		}
 		if (!quiet)
 			this.setState({
 				loadState: "loaded",
-				fetchError: `${lastError}. The affordances panel cannot proceed without a snapshot — check the server log, confirm at least one of [${candidates.join(", ")}] is loaded, and confirm /rpc/<method> is reachable from this origin.`,
+				fetchError: `${lastError}. The affordances panel cannot proceed without a snapshot, check the server log, confirm at least one of [${candidates.join(", ")}] is loaded, and confirm /rpc/<method> is reachable from this origin.`,
 			});
 	}
 
@@ -285,10 +285,10 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const r = g.resolution;
 		if (r.finding === GOAL_FINDING.SATISFIED) {
 			if (!Array.isArray(r.factIds)) throw new Error(`shu-affordances-panel: satisfied resolution for ${g.domain} has no factIds[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			// Build the static prefix as one string so lit-html doesn't insert a `<!--?lit-->` part marker between "as" and "fact(s)" — readers (and tests) match the natural sentence "asserted as facts <id list>".
+			// Build the static prefix as one string so lit-html doesn't insert a `<!--?lit-->` part marker between "as" and "fact(s)", readers (and tests) match the natural sentence "asserted as facts <id list>".
 			const prefix = `already asserted as ${r.factIds.length === 1 ? "fact" : "facts"} `;
 			const factsTpl = html`<div class="resolution-detail">${prefix}${r.factIds.map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>`;
-			// Satisfied is not terminal — render the run-again paths to produce another instance.
+			// Satisfied is not terminal, render the run-again paths to produce another instance.
 			if (Array.isArray(r.michi) && r.michi.length > 0) return html`${factsTpl}${this.renderMichiSectionTpl(r.michi, r.truncated, goalIdx, true)}`;
 			return factsTpl;
 		}
@@ -303,7 +303,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		if (r.finding === GOAL_FINDING.REFUSED) {
 			if (typeof r.refusalReason !== "string" || typeof r.detail !== "string")
 				throw new Error(`shu-affordances-panel: refused resolution for ${g.domain} is missing refusalReason or detail. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			return html`<span class="resolution-detail">refused: ${r.refusalReason} — ${r.detail}</span>`;
+			return html`<span class="resolution-detail">refused: ${r.refusalReason}, ${r.detail}</span>`;
 		}
 		throw new Error(
 			`shu-affordances-panel: unrecognised goal-resolution finding for ${g.domain}. Expected one of [${Object.values(GOAL_FINDING).join(", ")}]; got: ${JSON.stringify(r).slice(0, 200)}.`,
@@ -336,7 +336,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<span class="path-label">Path ${pathIdx + 1}</span>
 				<button class="start-path" data-testid=${`start-path-${goalIdx}-${pathIdx}`} data-goal-idx=${goalIdx} data-path-idx=${pathIdx} title=${`Open the first step (${firstStepLabel}) in the actions bar`} @click=${(): void => this.startPath(path)}>Start this path</button>
 			</div>
-			<ol class="plan-steps">${path.steps.map((s) => html`<li><code>${s.stepperName}.${s.stepName}</code>${s.gwta ? html` — ${s.gwta}` : ""}</li>`)}</ol>
+			<ol class="plan-steps">${path.steps.map((s) => html`<li><code>${s.stepperName}.${s.stepName}</code>${s.gwta ? html`, ${s.gwta}` : ""}</li>`)}</ol>
 			${path.bindings.length > 0 ? this.renderBindingsTpl(path.bindings) : ""}
 		</div>`;
 	}
@@ -357,10 +357,10 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private renderAsOfBannerTpl(): TemplateResult | "" {
 		const asOf = this.getAttribute("as-of");
 		if (!asOf) return "";
-		return html`<div class="as-of-banner" data-testid="affordances-as-of">replay as of <code>${asOf}</code> — facts asserted after this seqPath are hidden. <button class="as-of-clear" data-testid="affordances-as-of-clear" @click=${(): void => this.removeAttribute("as-of")}>back to live</button></div>`;
+		return html`<div class="as-of-banner" data-testid="affordances-as-of">replay as of <code>${asOf}</code>, facts asserted after this seqPath are hidden. <button class="as-of-clear" data-testid="affordances-as-of-clear" @click=${(): void => this.removeAttribute("as-of")}>back to live</button></div>`;
 	}
 
-	/** Render a composite binding as a nested tree of per-field bindings. Field bindings can recurse into further composites (via topology.ranges chains). Fact / argument leaves render with the same vocabulary as flat bindings — "✓ existing fact" vs "(you supply)" at every level. */
+	/** Render a composite binding as a nested tree of per-field bindings. Field bindings can recurse into further composites (via topology.ranges chains). Fact / argument leaves render with the same vocabulary as flat bindings, "✓ existing fact" vs "(you supply)" at every level. */
 	private renderCompositeBindingTpl(domain: string, fields: TFieldBinding[]): TemplateResult {
 		const detailsKey = `composite:${domain}`;
 		return html`<details class="composite-binding" open data-key=${detailsKey}><summary><code class="binding-composite">${domain}</code></summary><ul class="composite-fields">${fields.map(
@@ -393,7 +393,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		</div>`;
 	}
 
-	/** Layout-only — colours, badges, state borders all come from SHU_BASE token primitives. */
+	/** Layout-only: colours, badges, state borders all come from SHU_BASE token primitives. */
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -490,7 +490,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<div class="explanation-body">
 					<p>This view is a projection over the loaded steppers, registered domains, and the current working memory.</p>
 					<ul>
-						<li><strong>Goals</strong> are the domains some step can produce. For each, the resolver reports one of: <em>satisfied</em> (a fact already exists), <em>reachable</em> (one or more paths exist from the current state — pick one to start), <em>unreachable</em> (no producer chain), or <em>refused</em> (resolver cannot decide without more information).</li>
+						<li><strong>Goals</strong> are the domains some step can produce. For each, the resolver reports one of: <em>satisfied</em> (a fact already exists), <em>reachable</em> (one or more paths exist from the current state, pick one to start), <em>unreachable</em> (no producer chain), or <em>refused</em> (resolver cannot decide without more information).</li>
 						<li>Clicking a step or <em>Start this path</em> opens the first step in the actions bar so you can supply any inputs and run it. Subsequent steps in a path become reachable through normal affordances after each step asserts its fact.</li>
 					</ul>
 				</div>
@@ -498,7 +498,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			${this.renderAsOfBannerTpl()}
 			${this.state.fetchError ? html`<div class="banner error">${this.state.fetchError}</div>` : ""}
 			${loading ? html`<shu-spinner visible status="Loading affordances…"></shu-spinner>` : ""}
-			${empty ? html`<div class="empty" data-testid="affordances-empty">No affordances yet. Invoke <code>show affordances</code> from the actions bar (Step mode) to populate this view, or run any step — every step end announces a change this panel follows.</div>` : ""}
+			${empty ? html`<div class="empty" data-testid="affordances-empty">No affordances yet. Invoke <code>show affordances</code> from the actions bar (Step mode) to populate this view, or run any step: every step end announces a change this panel follows.</div>` : ""}
 			${
 				!loading && !empty && waypoints.length > 0
 					? html`
@@ -521,7 +521,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private renderGoalTpl(g: TGoalAffordance, idx: number, openGoal: string): TemplateResult {
 		if (typeof g.description !== "string")
 			throw new Error(
-				`shu-affordances-panel: goal "${g.domain}" is missing a description. The goal-domain registry must declare one — see TRegisteredDomain.description. Got: ${JSON.stringify(g).slice(0, 200)}.`,
+				`shu-affordances-panel: goal "${g.domain}" is missing a description. The goal-domain registry must declare one, see TRegisteredDomain.description. Got: ${JSON.stringify(g).slice(0, 200)}.`,
 			);
 		const isOpen = openGoal === g.domain;
 		const cls = `goal goal-${g.resolution.finding}${isOpen ? " goal-open" : ""}`;
@@ -562,7 +562,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			const graph: TGraph = projectGoalPaths({ goal: goal.domain, finding: r.finding, michi, factIds });
 			this.goalGraphs.set(goalIdx, graph);
 			(graphEl as HTMLElement & { products: Record<string, unknown> }).products = { graph, options: {} };
-			// One-shot click handler per mount — Lit reuses the same `<shu-graph>` instance across updates, so adding the listener once per `updated()` would stack handlers. Set a sentinel via dataset to bind exactly once per element.
+			// One-shot click handler per mount, Lit reuses the same `<shu-graph>` instance across updates, so adding the listener once per `updated()` would stack handlers. Set a sentinel via dataset to bind exactly once per element.
 			if (!graphEl.dataset.boundClick) {
 				graphEl.dataset.boundClick = "1";
 				graphEl.addEventListener(SHU_EVENT.GRAPH_NODE_CLICK as string, (e: Event) => {

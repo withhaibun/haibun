@@ -25,7 +25,7 @@ function harness(over: Partial<TA11yRendererDeps> = {}) {
 	return { renderer: new A11yRenderer(deps), region, onActivate, onFocus };
 }
 
-describe("A11yRenderer — the graph as an accessible document", () => {
+describe("A11yRenderer: the graph as an accessible document", () => {
 	it("reads as one script, in the order things were made, each line saying who it belongs to", () => {
 		// A reading is a script, not a filing: the same events grouped into piles left a reader to reassemble them, and
 		// what a reader wants is what happened, in order.
@@ -100,7 +100,7 @@ describe("A11yRenderer — the graph as an accessible document", () => {
 		expect(region.querySelector("[data-testid='polymorphic-a11y-copy']"), "nothing else to press: the text is copied by selecting it").toBeNull();
 	});
 
-	it("activating an entry opens the node and focusing one highlights it — the pointer's own paths", () => {
+	it("activating an entry opens the node and focusing one highlights it: the pointer's own paths", () => {
 		const { renderer, region, onActivate, onFocus } = harness();
 		renderer.draw({ nodes, links });
 		const button = region.querySelector<HTMLElement>('[data-node-id="c1"]');
@@ -116,7 +116,7 @@ describe("A11yRenderer — the graph as an accessible document", () => {
 		const status = region.querySelector('[role="status"]');
 		expect(status?.textContent).toBe("3 nodes (2 Comment, 1 Principal) and 1 links");
 		renderer.draw({ nodes: [...nodes, { id: "p2", name: "a second agent", type: "Principal", z: 10 }], links });
-		expect(status?.textContent).toBe("1 added, 0 removed — 4 nodes (2 Comment, 2 Principal) and 1 links");
+		expect(status?.textContent).toBe("1 added, 0 removed, 4 nodes (2 Comment, 2 Principal) and 1 links");
 	});
 
 	it("a repaint keeps the reader's place: the focused entry is focused again on the new document", () => {

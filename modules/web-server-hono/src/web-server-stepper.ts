@@ -31,7 +31,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 				selectors: [DOMAIN_ENDPOINT],
 				schema: EndpointSchema,
 				coerce: objectCoercer(EndpointSchema),
-				description: "HTTP endpoint — route registered on the web server",
+				description: "HTTP endpoint, route registered on the web server",
 				topology: {
 					persistedAs: EndpointLabels.Endpoint,
 					type: "as:Service",
@@ -43,7 +43,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 						endpointClass: LinkRelations.TAG.rel,
 						generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 					},
-					// url is the endpoint's identity — the natural lookup filter (strings are queryable only by manual opt-in).
+					// url is the endpoint's identity: the natural lookup filter (strings are queryable only by manual opt-in).
 					sortColumns: { url: "TEXT" },
 				},
 			},
@@ -250,11 +250,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// by clients that have no caller seqPath (e.g. a fresh SPA session
 					// asking for the stepper catalog). State-changing dispatches MUST
 					// carry the caller's seqPath so observations link back to the
-					// invoking context — no synthetic [0, N] roots.
+					// invoking context: no synthetic [0, N] roots.
 					if (method === "step.list") {
 						// Capability-filter the manifest: an LLM or other scoped
-						// caller should see only the tools it can actually
-						// invoke. An absent capability header means unscoped — the full manifest.
+						// caller should see only the tools it can
+						// invoke. An absent capability header means unscoped: the full manifest.
 						const { granted: grantedCapability } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
@@ -276,7 +276,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// seqPath[0] is the hostId; returning it explicitly saves remote
 						// callers from having to reach into the seqPath to learn which
 						// host they're talking to. `site` is this instance's site
-						// principal — the federation handshake reads it to stamp and
+						// principal: the federation handshake reads it to stamp and
 						// de-collide merged reads.
 						// `serving` reports whether this instance's feature has finished setting up (see the SERVING runtime key), so a
 						// caller can wait for the instance rather than for its port.
@@ -284,7 +284,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					}
 
 					// The delegated store surface (store.*): a sibling instance keeping its records in THIS instance's
-					// store. Always capability-gated — store.read/store.write by method, no ungated default — because it
+					// store. Always capability-gated, store.read/store.write by method, no ungated default, because it
 					// is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
 					if (isStoreMethod(method)) {
 						const { granted: grantedCapability } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {

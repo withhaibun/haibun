@@ -1,5 +1,5 @@
 /**
- * <shu-actions-bar> — reusable actions bar with Ask (chat) and Step modes.
+ * <shu-actions-bar>: reusable actions bar with Ask (chat) and Step modes.
  *
  * Ask mode: streams LLM chat responses using server-side context resolution.
  * Step mode: executes a haibun step via RPC and collects log events.
@@ -20,7 +20,7 @@ import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
-// bundle — esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
+// bundle: esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
 // customElements.define side effect and leaving un-upgraded elements at runtime.
 import { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
@@ -75,8 +75,8 @@ function stepSecondary(s: StepDescriptor): string {
  */
 function stepDetails(s: StepDescriptor): string {
 	// The label already shows the gwta pattern; don't repeat it. Details
-	// carries only the structured metadata — per-param domains, products,
-	// capability — that the label can't convey.
+	// carries only the structured metadata, per-param domains, products,
+	// capability: that the label can't convey.
 	const lines: string[] = [];
 	if (s.paramDomains && Object.keys(s.paramDomains).length > 0) {
 		lines.push("inputs:");
@@ -96,7 +96,7 @@ type TCorner = "settings" | "playback" | "access" | "status";
 const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", playback: "panel", status: "click-away" };
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -109,7 +109,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  so the bar and the snapshot cannot open at different levels. */
 	private _contextAccessLevel: string = appAccessLevel();
 	private _statusMessage = "";
-	/** What this reader holds and how many grants stand behind them — the indicator says both beside the level, so a
+	/** What this reader holds and how many grants stand behind them: the indicator says both beside the level, so a
 	 *  reader sees at a glance that there is authority here to look at. */
 	#authority = new AuthorityController(this);
 	private _summary: TPermissionsSummary = { holds: 0, principals: 0, grants: 0 };
@@ -134,20 +134,20 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** The shared output region: one node for the bar's lifetime, so accumulated activity survives mode switches
 	 *  and collapse/expand. */
 	private _history = new ShuActivityHistory();
-	/** Monotonic search-entry sequence for test ids — never reused, so a removal can't leave two entries sharing one id. */
+	/** Monotonic search-entry sequence for test ids, never reused, so a removal can't leave two entries sharing one id. */
 	private _searchEntrySeq = 0;
 	private _steps: StepDescriptor[] = [];
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
-	/** Which lower-right corner popover is open — the gear's settings, playback (over the current-time display), or the access control. At most one. */
+	/** Which lower-right corner popover is open: the gear's settings, playback (over the current-time display), or the access control. At most one. */
 	private _openCorner: TCorner | null = null;
 	private _onDocumentClick = (e: Event): void => {
 		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
 		const inside = path.includes(this);
 		if (this._openCorner && CORNER_DISMISS[this._openCorner] === "click-away" && !inside) this.closeCornerPopover();
 		if (!this.state.askExpanded) return;
-		if (this.state.pinned) return; // a pinned bar stays open — that is what the pin is for
+		if (this.state.pinned) return; // a pinned bar stays open: that is what the pin is for
 		if (inside) return;
 		const target = e.target instanceof Element ? e.target : null;
 		// Combobox popups are rendered into document.body, so suggestion picks are
@@ -189,7 +189,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	): void {
 		this._contextPatterns = patterns;
 		this._contextAccessLevel = accessLevel;
-		// A schema label (Class/Property — a type column's selection context) is not a queryable concern: it has no
+		// A schema label (Class/Property: a type column's selection context) is not a queryable concern: it has no
 		// domain option, properties, or select values, so the query surface keeps its current label.
 		if (extra?.label !== undefined && extra.label !== this._selectedLabel && !isSchemaType(extra.label ?? "")) {
 			this._selectedLabel = extra.label || "";
@@ -252,7 +252,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *     stay unique across repeated invocations
 	 */
 	private openStepCaller(output: HTMLElement, method: string, args?: Record<string, unknown>, auto?: boolean): void {
-		// Whether a caller is added or the last empty one is retargeted, keep the newest in view — the shared history is
+		// Whether a caller is added or the last empty one is retargeted, keep the newest in view: the shared history is
 		// the one output every producer pins (ShuActivityHistory.scrollToBottom); an affordance pick lands here too.
 		const pin = () => (output as Partial<ShuActivityHistory>).scrollToBottom?.();
 		const countOthers = () => output.querySelectorAll(`shu-step-caller[method="${method}"]`).length;
@@ -344,7 +344,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			.catch(() => undefined);
 		this.addEventListener(PERMISSIONS_SUMMARY, this._onPermissionsSummary);
 		// An extension in the permissions area reports what awaits from anywhere in the page, so the mark shows before
-		// the popover has ever been opened — a notification a reader has to go looking for is not one.
+		// the popover has ever been opened: a notification a reader has to go looking for is not one.
 		this.autoListen(document, AWAITING_DECISION, this._onAwaitingDecision);
 
 		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
@@ -409,7 +409,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private async loadUiExtensions(): Promise<void> {
 		// Wait for the concern catalog to populate site metadata before reading
-		// `ui` extensions — connectedCallback can fire before the catalog RPC
+		// `ui` extensions, connectedCallback can fire before the catalog RPC
 		// completes, so synchronous reads at mount time miss every extension.
 		const meta = await whenSiteMetadataReady();
 		const errors: string[] = [];
@@ -485,7 +485,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.triggerSelectValuesLoad(this._selectedLabel);
 		// Optional action-bar slot extensions: a missing/un-served one is logged per-extension inside, but the
 		// aggregate throw on this fire-and-forget call would otherwise become an unhandled rejection (a browser
-		// pageerror) — a missing optional extension must not crash the bar.
+		// pageerror): a missing optional extension must not crash the bar.
 		void this.loadUiExtensions().catch((err) => this.reportActionsBar("warn", "optional UI extensions failed to load", { error: errorDetail(err) }));
 		this.requestUpdate();
 		this.dispatchFilterChange(false);
@@ -515,7 +515,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private async loadSelectValues(label?: string, force = false): Promise<void> {
 		const target = label || this._selectedLabel;
 		if (!target) return;
-		// Refetch unless we already hold usable (non-empty) values: a fetch made before the label's data
+		// Refetch unless the bar already holds usable (non-empty) values: a fetch made before the label's data
 		// was indexed returns empty dropdowns, and caching that as "loaded" would freeze them until a full
 		// page reload. `force` lets an explicit type selection always pull the current values.
 		if (!force && hasUsableSelectValues(target)) return;
@@ -592,18 +592,18 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	render(): TemplateResult {
 		const hasAsk = this._hasAskCapableStep;
 		// Expanded: a definite, proportionate height (the dragged fraction, remembered in the cookie, or a default) so the
-		// overlay never balloons to fit its content — the body scrolls inside instead. Collapsed: just the summary bar.
+		// overlay never balloons to fit its content: the body scrolls inside instead. Collapsed: just the summary bar.
 		this.applyHeight();
 		return this.template(hasAsk);
 	}
 
-	/** Set the host height from the current open/proportion state — shared by render() and the end of a resize drag. */
+	/** Set the host height from the current open/proportion state, shared by render() and the end of a resize drag. */
 	private applyHeight(): void {
 		this.style.height = this.state.askExpanded ? `${(this.expandedProportion() * 100).toFixed(2)}%` : "";
 	}
 
 	/** The remembered expanded height as a fraction of the container (drag-set, cookie-persisted), or the default.
-	 * Cached so a render — which runs on every reactive update — does not re-scan document.cookie each time. */
+	 * Cached so a render, which runs on every reactive update, does not re-scan document.cookie each time. */
 	private expandedProportion(): number {
 		if (this._proportion === null) this._proportion = openAtProportion(this.state.heightProportion);
 		return this._proportion;
@@ -617,7 +617,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _footprintHost: HTMLElement | null = null;
 	private _lastFootprint = -1;
 	/**
-	 * Publish the COLLAPSED footprint — the always-present summary strip plus the bar's top border — as
+	 * Publish the COLLAPSED footprint, the always-present summary strip plus the bar's top border, as
 	 * `--shu-actions-bar-h` on the positioning host, so the host can reserve that space (`padding-bottom`) and content
 	 * never sits behind the closed bar. The expanded body floats over content above transiently and is NOT reserved.
 	 */
@@ -646,8 +646,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.publishFootprint();
 	}
 
-	/** The search input is uncontrolled (the user types freely); reflect the store's q into it on render — e.g. a
-	 *  reloaded or step-set query — but never while it is focused, so a render can't stomp an in-progress search. */
+	/** The search input is uncontrolled (the user types freely); reflect the store's q into it on render, e.g. a
+	 *  reloaded or step-set query, but never while it is focused, so a render can't stomp an in-progress search. */
 	private syncSearchInput(): void {
 		const input = this.shadowRoot?.querySelector(".text-search") as HTMLInputElement | null;
 		if (!input || this.shadowRoot?.activeElement === input) return;
@@ -656,19 +656,19 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private template(hasAsk: boolean): TemplateResult {
-		// Single outer template so lit preserves the `.actions-bar` host across collapse/expand. The expanded-only children (filter bar, body) are returned conditionally so the `app-mode-select` test id genuinely disappears when collapsed — feature tests use `has test id app-mode-select` as the proxy for "bar is expanded" and that check counts elements regardless of CSS visibility.
+		// Single outer template so lit preserves the `.actions-bar` host across collapse/expand. The expanded-only children (filter bar, body) are returned conditionally so the `app-mode-select` test id disappears when collapsed, feature tests use `has test id app-mode-select` as the proxy for "bar is expanded" and that check counts elements regardless of CSS visibility.
 		const expanded = this.state.askExpanded;
 		// Every mode shares ONE output region (this._history, the same node every render) with the mode's input line
-		// beneath — switching modes changes only the input line. Ask is only reachable when hasAsk, so a persisted
+		// beneath: switching modes changes only the input line. Ask is only reachable when hasAsk, so a persisted
 		// "ask" with no ask-capable step falls back to search below.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
 		const inputLine = mode === "ask" ? this.askModeTemplate(hasAsk) : mode === "step" ? this.stepModeTemplate(hasAsk) : this.filterBarTemplate(hasAsk);
 		// The slot's extensions are part of the bar, not of a mode: in ask mode the chat element renders them beside its
 		// input; every other mode renders them here, so an extension (a notification among them) is present whichever
-		// mode the bar opened in — rendered only under step mode, the default search mode never showed them at all.
+		// mode the bar opened in, rendered only under step mode, the default search mode never showed them at all.
 		const body = expanded ? html`${this._history}${mode === "ask" ? nothing : this.uiExtensionsTemplate()}${inputLine}` : nothing;
 		// The resize grip sits at the TOP edge of the open overlay (the bar grows up from the bottom, so the top edge is
-		// where it meets the content) — drag it to resize. Only present when expanded; there is nothing to resize collapsed.
+		// where it meets the content), drag it to resize. Only present when expanded; there is nothing to resize collapsed.
 		const resizeHandle = expanded
 			? html`<div class="resize-handle" data-testid=${`${this.testIdPrefix}resize-handle`} title="Drag to resize" @pointerdown=${this.onResizeDown}></div>`
 			: nothing;
@@ -681,7 +681,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	/** The one corner-popover surface: each corner control (the current time, the access level, the gear) toggles its
 	 *  panel just above itself. A native `popover` renders in the top layer, so it floats over whatever is behind it
-	 *  without opening the actions bar — the element stays in this shadow tree, so the bar's styles still apply. */
+	 *  without opening the actions bar: the element stays in this shadow tree, so the bar's styles still apply. */
 	private cornerPopoverTemplate(): TemplateResult {
 		const content =
 			this._openCorner === "settings"
@@ -703,7 +703,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const testid = this._openCorner ? `${this.testIdPrefix}${this._openCorner}-popover` : nothing;
 		// stopPropagation: clicks must not bubble to the summary strip's expand handler. MANUAL popover deliberately:
 		// these panels are used alongside the page (set the run playing, then click a node to see it at that time), so
-		// they stay put on outside clicks — only their own control puts them away. Never over the bar's own controls:
+		// they stay put on outside clicks, only their own control puts them away. Never over the bar's own controls:
 		// showCornerPopover anchors above the whole bar.
 		// The permissions extensions are mounted whether or not the popover is open: an extension that only exists once
 		// a reader opens the panel cannot tell them there is something in it to open it for. They are shown with the
@@ -762,7 +762,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	};
 
 	/** Toggle one of the corner popovers; opening one replaces any other (a single surface). Top-layer, so it never
-	 *  needs the actions bar opened — it floats above the collapsed strip and the open panel alike. */
+	 *  needs the actions bar opened: it floats above the collapsed strip and the open panel alike. */
 	private onCornerToggle(kind: TCorner): (e: Event) => void {
 		return (e: Event) => {
 			e.stopPropagation();
@@ -942,7 +942,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (next) requestAnimationFrame(() => (this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus());
 	}
 
-	/** The pin pins the bar open (a latch against click-away dismissal) — it does NOT open/close it. Pinning also opens it
+	/** The pin pins the bar open (a latch against click-away dismissal): it does NOT open/close it. Pinning also opens it
 	 * if needed; unpinning leaves it open but now dismissible by clicking away. */
 	private onPinToggle = (e: Event): void => {
 		e.stopPropagation();
@@ -950,7 +950,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.setState({ pinned, askExpanded: pinned || this.state.askExpanded });
 	};
 
-	/** Clicking the summary strip toggles the bar open/closed (the bottom bar IS the toggle). Open is transient — it
+	/** Clicking the summary strip toggles the bar open/closed (the bottom bar IS the toggle). Open is transient: it
 	 *  dismisses on click-away unless pinned. The strip's own controls (twisty, corner toggles, pin) stopPropagation,
 	 *  so they act without collapsing the bar. */
 	private onSummaryClick = (): void => {
@@ -987,16 +987,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.applyHeight();
 	}
 
-	/** Populate combobox options after each render. The combobox elements themselves persist (lit's diff), so setOptions just refreshes their data without recreating the element — typed-ahead filter text, focus, and open dropdown state survive. */
+	/** Populate combobox options after each render. The combobox elements themselves persist (lit's diff), so setOptions just refreshes their data without recreating the element, typed-ahead filter text, focus, and open dropdown state survive. */
 	private populateComboboxes(): void {
 		const labelCombo = this.shadowRoot?.querySelector(".label-select") as ShuCombobox | null;
 		if (labelCombo) {
 			// Value is the domain key (what onLabelChange and the hash use); the
 			// visible label is the queryLabel. `group` drives the Declared/Built-in
-			// section headers — buildDomainOptions already orders declared-first.
+			// section headers, buildDomainOptions already orders declared-first.
 			labelCombo.setOptions(this._domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group })));
 			// Re-sync the closed display to the selected key, but never while the user has the dropdown open and is
-			// filtering — setValue closes the dropdown, and a render-driven close would fight an in-progress selection
+			// filtering: setValue closes the dropdown, and a render-driven close would interrupt an in-progress selection
 			// (deterministically so in step mode, where the event stream churns renders on every keystroke).
 			if (this._selectedDomainKey && labelCombo.value !== this._selectedDomainKey && !labelCombo.isOpen) labelCombo.setValue(this._selectedDomainKey);
 		}
@@ -1005,7 +1005,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const contextSteps = this._selectedLabel ? stepsForContext(this._selectedLabel) : [];
 			const contextMethods = new Set(contextSteps.map((s) => s.method));
 			const otherSteps = this._steps.filter((s) => !contextMethods.has(s.method));
-			// Option value is the fully-qualified method (StepperName-stepName) — stepName
+			// Option value is the fully-qualified method (StepperName-stepName), stepName
 			// alone collides when multiple steppers expose the same key.
 			const toOption = (s: StepDescriptor, contextMark: boolean) => ({
 				value: s.method,
@@ -1063,7 +1063,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	/** Commit the search text: write it to the viewQuery store (the source of truth for the hash and restore) and
 	 *  fire the filter-change that re-runs the query. The FILTER_CHANGE → setFilters → executeQuery path is the
-	 *  reliable re-query trigger — executeQuery reads q back from the store, so a live search doesn't depend on a
+	 *  reliable re-query trigger, executeQuery reads q back from the store, so a live search doesn't depend on a
 	 *  signal-effect firing. All three entry points (typing, blur, Go) commit the same way. */
 	private commitSearch(value: string): void {
 		viewQuery.set({ q: value || null });
@@ -1092,8 +1092,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	};
 
 	/** Record the committed search as a clickable, restorable entry in the shared activity history. Only a search
-	 *  that actually searches (text or field conditions) is history-worthy, and a commit identical to the newest
-	 *  recorded entry records nothing — blur without change stays silent. Deduping against the live history (not a
+	 *  that searches (text or field conditions) is history-worthy, and a commit identical to the newest
+	 *  recorded entry records nothing, blur without change stays silent. Deduping against the live history (not a
 	 *  remembered key) means removing an entry lets the same search be recorded again. */
 	private recordSearch(): void {
 		const query = viewQuery.current;
@@ -1103,7 +1103,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (newest?.query && serializeViewQuery(newest.query) === serializeViewQuery(query)) return;
 		const entry = new ShuSearchSummary();
 		entry.query = query;
-		// Sequenced test id — entries repeat and can be removed, and a Playwright locator is strict (a duplicate id fails the click), the same reason step callers carry call-index.
+		// Sequenced test id, entries repeat and can be removed, and a Playwright locator is strict (a duplicate id fails the click), the same reason step callers carry call-index.
 		entry.setAttribute("data-testid", `${this.testIdPrefix}search-summary-${this._searchEntrySeq++}`);
 		this._history.append(entry);
 	}
@@ -1148,7 +1148,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 const STYLES = `
 	/* A bottom-anchored, translucent overlay: it floats up over the content from the bottom edge instead of taking
-	   layout space, so the rows behind it never resize. Self-positioning — drop it into any position:relative host
+	   layout space, so the rows behind it never resize. Self-positioning, drop it into any position:relative host
 	   (the app shell or a column view) and it pins to that host's bottom. */
 	:host {
 		/* Sits above column content and in-column overlays, below a fullscreen modal. */
@@ -1162,7 +1162,7 @@ const STYLES = `
 		border-top: var(--shu-border-w) solid var(--shu-border);
 		box-shadow: 0 -2px 10px var(--shu-shadow);
 	}
-	/* The resize grip — a thin bar with a centred grab pill at the TOP edge of the open overlay. */
+	/* The resize grip: a thin bar with a centred grab pill at the TOP edge of the open overlay. */
 	.resize-handle {
 		flex-shrink: 0; height: 10px; cursor: ns-resize; user-select: none; touch-action: none;
 		display: flex; align-items: center; justify-content: center;
@@ -1184,7 +1184,7 @@ const STYLES = `
 		font-size: var(--shu-font-md); color: var(--shu-fg); border-radius: var(--shu-radius);
 	}
 	.bar-twisty:hover { background: var(--shu-bg-hover); }
-	/* One line in the bar, since the bar is one line — and a control, because a message a reader cannot read in full is
+	/* One line in the bar, since the bar is one line, and a control, because a message a reader cannot read in full is
 	   a message they cannot act on: it opens the whole of it, which they can select and copy. */
 	.status-area {
 		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
@@ -1192,20 +1192,20 @@ const STYLES = `
 		background: none; border: 0; font-family: inherit; text-align: left;
 	}
 	.status-full { margin: 0; max-width: 32rem; max-height: 40vh; overflow: auto; user-select: text; white-space: pre-wrap; display: flex; gap: var(--shu-space-2); align-items: flex-start; }
-	/* Corner controls are shared pane-icon chips — same box + accent-inverse-when-open as an active column view control.
+	/* Corner controls are shared pane-icon chips, same box + accent-inverse-when-open as an active column view control.
 	   The text toggles (now / access) size to their label instead of the icon's square; the gear keeps the square. */
 	/* The one corner-popover surface (a native top-layer popover): floats just above its corner toggle without
 	   opening the actions bar. Position (bottom, right edge over its control) is set at show time. */
 	.corner-popover {
 		width: auto; cursor: default;
-		/* display only in the open state — an unconditional display would override the UA's [popover] hidden rule
+		/* display only in the open state: an unconditional display would override the UA's [popover] hidden rule
 		   (author origin beats UA origin), leaving a closed popover centred over the page intercepting clicks. */
 		display: none;
 		padding: var(--shu-space-2) var(--shu-space-3);
 		background: var(--shu-bg-elevated); color: var(--shu-fg);
 		border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius);
 		box-shadow: 0 1px 4px var(--shu-shadow);
-		/* a floating panel sizes to its content and never scrolls it — without this the UA's [popover]
+		/* a floating panel sizes to its content and never scrolls it, without this the UA's [popover]
 		   overflow:auto turns a control's few px of spill into scrollbars */
 		overflow: hidden;
 	}
@@ -1257,7 +1257,7 @@ const STYLES = `
 		background: var(--shu-bg-elevated); border-radius: var(--shu-radius); border: var(--shu-border-w) solid var(--shu-border);
 	}
 	.mode-select { flex-shrink: 0; width: auto; min-width: 5em; }
-	/* THE shared output region — every mode's activity records scroll here; the input line beneath is what changes. */
+	/* THE shared output region: every mode's activity records scroll here; the input line beneath is what changes. */
 	/* The output region fills from the BOTTOM: a lone entry sits at the bottom edge, new entries land beneath the last,
 	   older ones scroll up. margin-top:auto on the first entry claims the free space above when the content is short,
 	   and collapses to 0 once it overflows so the scroll (pinned to the newest by scrollToBottom) reaches every entry. */
@@ -1267,7 +1267,7 @@ const STYLES = `
 	shu-search-summary { display: block; cursor: pointer; padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
 	shu-search-summary:hover { background: var(--shu-bg-elevated); }
 	shu-search-summary .search-summary-text::before { content: "\\1F50D\\00A0"; }
-	/* The same x affordance a step result carries (shu-step-caller .dismiss-btn) — the entry is light DOM, so its host scope styles it. */
+	/* The same x affordance a step result carries (shu-step-caller .dismiss-btn): the entry is light DOM, so its host scope styles it. */
 	shu-search-summary .dismiss-btn {
 		float: right; background: none; border: none; color: var(--shu-fg-faded);
 		cursor: pointer; font-size: var(--shu-font-sm);

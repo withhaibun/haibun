@@ -38,7 +38,7 @@ describe("workspace-discovery", () => {
 		it("finds workspace from feature file in features/ folder", () => {
 			createDirs(["project/features", "project/backgrounds"]);
 			createFiles(["project/config.json"]);
-			// File doesn't strictly need to exist for this function normally, but let's be consistent
+			// File doesn't strictly need to exist for this function normally, but this stays consistent
 			createFiles(["project/features/test.feature"]);
 
 			const featurePath = path.join(tmpDir, "project/features/test.feature");

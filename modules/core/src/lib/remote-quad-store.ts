@@ -1,8 +1,8 @@
 /**
- * RemoteQuadStore — the full IQuadStore served by ANOTHER instance's store, over the capability-gated
+ * RemoteQuadStore: the full IQuadStore served by ANOTHER instance's store, over the capability-gated
  * `store.*` protocol (store-protocol.ts). Registered as a backing store (QuadStore.registerStore) for the
  * graphs it is mounted for, so a satellite instance keeps those records in the main instance's store
- * instead of its own: writes route through, reads come back — one store, one custodian. Every call
+ * instead of its own: writes route through, reads come back: one store, one custodian. Every call
  * presents the delegated capability token; a peer without the grant is refused by the serving side.
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
@@ -22,7 +22,7 @@ export class RemoteQuadStore implements IQuadStore {
 		this.rpc = new RpcClient({ baseUrl: config.url, capabilityToken: config.token, fetchImpl: config.fetchImpl });
 	}
 
-	/** Handshake before use: the serving instance self-reports its site principal — the custodian of everything mounted here. */
+	/** Handshake before use: the serving instance self-reports its site principal: the custodian of everything mounted here. */
 	async connect(): Promise<string> {
 		const { site } = await discoverInstance(this.rpc, this.config.url);
 		this.remoteSite = site;
@@ -30,7 +30,7 @@ export class RemoteQuadStore implements IQuadStore {
 	}
 
 	get site(): string {
-		if (!this.remoteSite) throw new Error("RemoteQuadStore: connect() has not completed — no site principal");
+		if (!this.remoteSite) throw new Error("RemoteQuadStore: connect() has not completed: no site principal");
 		return this.remoteSite;
 	}
 
@@ -68,7 +68,7 @@ export class RemoteQuadStore implements IQuadStore {
 		return this.call("remove", { pattern });
 	}
 
-	/** Mount-scoped: the mounted graphs' quads, not the peer's whole store — one bounded query per mounted graph. */
+	/** Mount-scoped: the mounted graphs' quads, not the peer's whole store: one bounded query per mounted graph. */
 	async all(): Promise<TQuad[]> {
 		const perGraph = await Promise.all(this.config.graphs.map((namedGraph) => this.query({ namedGraph })));
 		return perGraph.flat();
@@ -100,7 +100,7 @@ export class RemoteQuadStore implements IQuadStore {
 
 	/**
 	 * Mount-scoped: a caller's type filter intersects the mounted graphs; no filter means exactly the mounted graphs.
-	 * Every subject is stamped with the serving site — a mounted record's location IS the serving instance's store (a
+	 * Every subject is stamped with the serving site: a mounted record's location IS the serving instance's store (a
 	 * read-time store fact), so this instance's own view already shows it under the site that holds it, no federation
 	 * needed. A subject the peer itself stamped (transitive mount) keeps that deeper stamp.
 	 */

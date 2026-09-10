@@ -64,7 +64,7 @@ describe("finalizeBlocks", () => {
 		tpl.innerHTML = out[0].html;
 		const row = tpl.content.firstElementChild as Element;
 		expect(row.className).toBe("thumb-row");
-		// A holder as the grid child would nest a step's frames into ONE cell, wrecking the flow — every child must be a frame.
+		// A holder as the grid child would nest a step's frames into ONE cell, wrecking the flow: every child must be a frame.
 		expect(Array.from(row.children).map((c) => c.tagName.toLowerCase())).toEqual(["shu-artifact-frame", "shu-artifact-frame", "shu-artifact-frame"]);
 	});
 	it("spreads a multi-artifact holder (one step, several screenshots) into one tile per frame", () => {
@@ -92,7 +92,7 @@ describe("finalizeBlocks", () => {
 	it("does not merge thumbnails separated by a non-thumbnail block", () => {
 		const html = `<div class="feature-artifacts" data-ids="img1"></div><div class="log-row" data-id="s">step</div><div class="feature-artifacts" data-ids="img2"></div>`;
 		const out = finalizeBlocks(splitDocumentBlocks(html), resolver);
-		expect(out).toHaveLength(3); // thumb-row(img1), step, thumb-row(img2) — separate rows, never merged across the step
+		expect(out).toHaveLength(3); // thumb-row(img1), step, thumb-row(img2), separate rows, never merged across the step
 		expect(out.some((b) => b.html.includes("img1.png") && b.html.includes("img2.png"))).toBe(false);
 	});
 	it("keeps a non-image artifact (json/html/file) out of a thumbnail strip", () => {
@@ -107,7 +107,7 @@ describe("finalizeBlocks", () => {
 		expect(out[0].html).toContain("feature-artifacts");
 	});
 	it("drops an artifact block that renders nothing, so it cannot split a run of screenshots", () => {
-		// A dispatch trace (or any artifact resolving to "") sat between two screenshots as an invisible block — the run
+		// A dispatch trace (or any artifact resolving to "") sat between two screenshots as an invisible block: the run
 		// broke there and every tile stacked alone instead of flowing. Empty artifact blocks must not exist at all.
 		const silent: TArtifactResolver = (id) => (id.startsWith("img") ? thumb(id) : "");
 		const html = `<div class="standalone-artifact" data-id="img1"></div><div class="standalone-artifact" data-id="dispatch.1"></div><div class="standalone-artifact" data-id="img2"></div>`;

@@ -5,7 +5,7 @@ import { timeCursor } from "./signals.js";
 const LIVE = null; // timeCursor at the live edge
 const PAST = 42; // a scrubbed cutoff
 
-describe("FollowController — the follow decision, wired to a host jump-to-edge and the timeCursor signal", () => {
+describe("FollowController: the follow decision, wired to a host jump-to-edge and the timeCursor signal", () => {
 	beforeEach(() => timeCursor.set(LIVE));
 	afterEach(() => timeCursor.set(LIVE));
 
@@ -46,7 +46,7 @@ describe("FollowController — the follow decision, wired to a host jump-to-edge
 		expect(jumps()).toBe(0);
 	});
 
-	it("returning to the bottom while scrubbed does NOT auto-scroll — only going live does (the two pauses have distinct resumes)", () => {
+	it("returning to the bottom while scrubbed does NOT auto-scroll, only going live does (the two pauses have distinct resumes)", () => {
 		const { c, jumps } = mount();
 		c.setAtBottom(false);
 		c.setAtBottom(true); // back at the end...

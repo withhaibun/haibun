@@ -4,7 +4,7 @@
  * Parent-side subprocess transport. Forks a child process running runSubprocess(),
  * reads its step list via IPC, and injects proxy StepTools into the parent's StepRegistry.
  *
- * Uses Node.js fork() IPC (structured-clone messages) — no framing, no seq IDs, no readline.
+ * Uses Node.js fork() IPC (structured-clone messages): no framing, no seq IDs, no readline.
  * The child signals readiness with { type: "ready", steps }, then serves
  * { type: "call", method, params, seqPath } → { type: "result", ok, products|error }.
  *

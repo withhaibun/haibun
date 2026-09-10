@@ -328,7 +328,7 @@ describe("FeatureVariables", () => {
 		it("does not resolve invalid paths as variables", async () => {
 			await variables.setJSON("data", { vertex: { subject: "Hello" } }, Origin.var, mockFeatureStep);
 			const resolved = await variables.resolveVariable({ term: "data.vertex.missing", origin: Origin.defined }, mockFeatureStep);
-			// Invalid dot-path falls through to literal fallback — origin is not Origin.var
+			// Invalid dot-path falls through to literal fallback, origin is not Origin.var
 			expect(resolved.origin).not.toBe(Origin.var);
 		});
 

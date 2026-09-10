@@ -104,7 +104,7 @@ export class PlaywrightEvents {
 
 			// fire-and-forget: persist the page as a VisitedPage record, one per navigation (a synthetic id, not the URL,
 			// so the node never collides with shu's URL-keyed column routing). The name is the page's URL WITHOUT its SPA
-			// view-hash — the page's own identity, not the transient in-app view-state (whose labels would carry type names).
+			// view-hash: the page's own identity, not the transient in-app view-state (whose labels would carry type names).
 			void this.world.shared
 				.getStore()
 				.upsertIndividual(VISITED_PAGE_LABEL, { id: `visit-${this.navigateCount}`, name: url.split("#")[0], generatedAtTime: new Date().toISOString() });

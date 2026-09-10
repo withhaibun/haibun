@@ -38,10 +38,10 @@ type TPlaceholderEntry<P extends string> = P extends `${infer Name}:${infer Doma
 
 type TNestedArgValue = string | number | boolean | null | TActionExecutor<string> | TNestedArgValue[] | { [key: string]: TNestedArgValue };
 
-// A slot's input type matches what `resolveArgValue` actually accepts at runtime:
+// A slot's input type matches what `resolveArgValue` accepts at runtime:
 // strings (the common case), nested objects/arrays (encoded as JSON), and action
 // executors (statement slots resolve to the executed step's gwta). Keeping the
-// type in sync with the runtime — rather than narrowing to `string` — lets feature
+// type in sync with the runtime, rather than narrowing to `string`, lets feature
 // files pass JS literals (`{ did, name }`) for fields whose stepper takes a
 // composite, without forcing manual `JSON.stringify` at every call site.
 type TPlaceholderValueType<Name extends string, Domain extends string | undefined> = Domain extends "statement"
@@ -100,7 +100,7 @@ const resolveArgValue = (value: TNestedArgValue): string => {
 		return value.map(resolveArgValue).join(" ");
 	}
 
-	// JSON, not haibun composite-literal form — Zod-validated step inputs expect JSON.
+	// JSON, not haibun composite-literal form, Zod-validated step inputs expect JSON.
 	if (typeof value === "object") return JSON.stringify(value);
 
 	// Escape newlines in string values for BDD format

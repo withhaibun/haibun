@@ -17,7 +17,7 @@ import ShuStepper from "./shu-stepper.js";
 
 /**
  * Live federation over real RPC, in the rpc-dispatch.test pattern: one world serves the web server and
- * federates to its own endpoint. Degenerate as a topology, complete as a mechanism — the handshake, the
+ * federates to its own endpoint. Degenerate as a topology, complete as a mechanism: the handshake, the
  * site-principal collision, the naming call over the wire, the adoption, the registration, and the merged
  * stamped read all run against a real HTTP server; scope "own" is what keeps the cycle from recursing.
  */
@@ -62,7 +62,7 @@ capture the federated clustered read
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
-		// Both ends booted as did:site:0 — the connecting side asked the peer (over the wire) what it should be called and adopted the answer.
+		// Both ends booted as did:site:0: the connecting side asked the peer (over the wire) what it should be called and adopted the answer.
 		expect(adoptedDuringRun).toBe("did:site:0.1");
 		// The namer durably recorded the assignment as a Principal individual.
 		const store = world.shared.getStore();
@@ -73,7 +73,7 @@ capture the federated clustered read
 		for (const s of principals?.sampledSubjects ?? []) expect(principals?.sites?.[s]).toBe("did:site:0.1");
 	});
 
-	it("federates a genuinely separate instance — started the haibun way — and the merged view carries BOTH sites", { timeout: 60_000 }, async () => {
+	it("federates a separate instance, started the haibun way, and the merged view carries BOTH sites", { timeout: 60_000 }, async () => {
 		resetCaptures();
 		const port = 8248;
 		const peerPort = 8249;
@@ -99,7 +99,7 @@ capture the federated clustered read
 		// Distinct hostIds → distinct site principals → no collision, nothing adopted: this instance stays did:site:0.
 		expect(adoptedDuringRun).toBe("did:site:0");
 		// The peer's own Principals (its serve feature ran `name a connecting site`, persisting did:site:7 + did:site:7.1)
-		// arrive in the merged view, every subject stamped with the SERVING site — the data group-by-site separates on.
+		// arrive in the merged view, every subject stamped with the SERVING site: the data group-by-site separates on.
 		const principals = captured?.clusters.find((c) => c.type === PRINCIPAL_LABEL);
 		expect(principals?.sampledSubjects).toContain("did:site:7");
 		expect(principals?.sampledSubjects).toContain("did:site:7.1");

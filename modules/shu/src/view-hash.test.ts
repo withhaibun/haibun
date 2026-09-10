@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Arrival canonicalization: `open=` is the ADDITIVE link form a static document uses — it cannot
+ * Arrival canonicalization: `open=` is the ADDITIVE link form a static document uses: it cannot
  * carry the live state, so it merges into the last canonical hash instead of replacing it. These
  * pin the merge (state kept, panes added, last named pane active) and its edges (flag suffix on
  * the active id, the boot self-base, non-open passthrough).

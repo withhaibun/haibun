@@ -179,7 +179,7 @@ describe("DebuggerStepper sequence integration", () => {
 describe("DebuggerStepper RPC dispatch", () => {
 	// buildFeatureStepForTransport stamps source.path === "rpc" on every transport-
 	// driven dispatch. Those callers have no human at the prompter, so the
-	// debugger's before/afterStep hooks must not enter debugLoop — otherwise
+	// debugger's before/afterStep hooks must not enter debugLoop, otherwise
 	// prompter.prompt() awaits forever, stepEnd never fires, and the caller hangs.
 	// Regression for the "fetching forever" symptom of a missing-node RPC.
 
@@ -197,7 +197,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 		world.prompter.unsubscribe(new ReadlinePrompter());
 		const trap: IPrompter = {
 			prompt: () => {
-				throw new Error("Debugger entered debugLoop on RPC dispatch — prompter must not be called for source.path === 'rpc'");
+				throw new Error("Debugger entered debugLoop on RPC dispatch, prompter must not be called for source.path === 'rpc'");
 			},
 			cancel: () => undefined,
 			resolve: () => undefined,

@@ -1,5 +1,5 @@
 /**
- * graph-expansion — reveal a node's bounded neighborhood in the shared graph
+ * graph-expansion: reveal a node's bounded neighborhood in the shared graph
  * snapshot when the user selects it. Generic: the overview and any external
  * viewer call it the same way; it knows nothing about which view it serves.
  *
@@ -21,7 +21,7 @@ const INCOMING_LIMIT = 100;
 type ProjectedVertex = Record<string, unknown>;
 type EdgeRow = { type: string; target: ProjectedVertex };
 
-/** A projected vertex's scalar properties as quads (no edges) — so a revealed neighbor renders as a node. */
+/** A projected vertex's scalar properties as quads (no edges), so a revealed neighbor renders as a node. */
 function vertexPropsToQuads(label: string, vertex: ProjectedVertex, timestamp: number): TQuad[] {
 	const subject = idOf(vertex);
 	if (!subject) return [];

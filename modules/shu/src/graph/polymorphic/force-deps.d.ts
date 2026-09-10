@@ -2,7 +2,7 @@
 declare module "d3-force-3d" {
 	type CollideForce = { radius(r: (node: unknown) => number): CollideForce; strength(s: number): CollideForce };
 	export function forceCollide(radius?: number): CollideForce;
-	// Per-axis positioning forces pull each node toward a target coordinate — used to anchor a group's members so
+	// Per-axis positioning forces pull each node toward a target coordinate, used to anchor a group's members so
 	// the group settles into its own region. Accessor and strength each take a constant or a per-node function.
 	type Accessor = (node: unknown) => number;
 	type AxisForce<K extends string> = { [P in K]: (a: Accessor | number) => AxisForce<K> } & { strength(s: Accessor | number): AxisForce<K> };

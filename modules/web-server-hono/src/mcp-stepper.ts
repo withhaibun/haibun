@@ -340,7 +340,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	}
 
 	private async notifyToolListChanged(sessionId: string | ConnectionId) {
-		// Basic check if we can notify
+		// Basic check that notification is possible
 		if (sessionId && typeof sessionId !== "string" && "send" in sessionId && typeof (sessionId as { send?: unknown }).send === "function") {
 			if (this.mcpServer) {
 				await this.mcpServer.server.notification({
@@ -384,7 +384,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	private populateToolRegistries(registry?: StepRegistry) {
 		if (registry) this.currentRegistry = registry;
-		// Build schema map — use provided registry if available (live refresh), otherwise build fresh
+		// Build schema map, use provided registry if available (live refresh), otherwise build fresh
 		const schemaMap = this.currentRegistry ? new Map(this.currentRegistry.list().map((t) => [t.name, t])) : buildStepRegistry(this.steppers, this.world);
 
 		this.globalToolRegistry.clear();
@@ -490,9 +490,9 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			}
 
 			// 1. CLONE OR PROXY THE RAW REQUEST
-			// For GET requests, we manually construct a new Request object.
-			// For non-GET (POST), we MUST avoid the Request constructor as it doesn't reuse the body.
-			// Instead, we proxy the raw request to intercept header access.
+			// For GET requests, this constructs a new Request object.
+			// For non-GET (POST), this MUST avoid the Request constructor as it doesn't reuse the body.
+			// Instead, the raw request is proxied to intercept header access.
 			const cleanRawRequest =
 				c.req.method === "GET"
 					? new Request(c.req.raw, { headers: newHeaders } as RequestInit)
@@ -504,8 +504,8 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 							},
 						});
 
-			// 2. CREATE A ROBUST PROXY FOR THE CONTEXT
-			// We must bind all functions to the original target to avoid
+			// 2. CREATE A PROXY FOR THE CONTEXT
+			// All functions must be bound to the original target to avoid
 			// TypeError: Cannot read private member #cachedBody
 			const proxyContext = new Proxy(c, {
 				get(target, prop) {

@@ -73,8 +73,8 @@ use this command to see available options:
 
 Every Haibun feature is the living specification for a behavior: prose describes it, executable steps prove it. The identity and authorization model is documented this way, end to end:
 
-* [Identity and capability authorization](e2e-tests/tests/features/identity-and-capability.feature.ts) — the instance's self-issued site identity, subkey delegation, and the single capability gate that authorizes every protected action identically whether it arrives in-process, over RPC, or over MCP (the bearer path the core owns; the signed path is delegated to a consumer-supplied verifier).
-* [RPC capability dispatch](e2e-tests/tests/features/rpc-capability.feature.ts) — the bearer-token capability gate layered on the shared RPC dispatch path, including a statically configured access token.
+* [Identity and capability authorization](e2e-tests/tests/features/identity-and-capability.feature.ts): the instance's self-issued site identity, subkey delegation, and the single capability gate that authorizes every protected action identically whether it arrives in-process, over RPC, or over MCP (the bearer path the core owns; the signed path is delegated to a consumer-supplied verifier).
+* [RPC capability dispatch](e2e-tests/tests/features/rpc-capability.feature.ts): the bearer-token capability gate layered on the shared RPC dispatch path, including a statically configured access token.
 
 # Development & Debugging help
 

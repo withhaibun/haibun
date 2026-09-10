@@ -35,7 +35,7 @@ describe("what a mark says about a step", () => {
 	});
 });
 
-describe("the mark a division of the run earns", () => {
+describe("the mark a division of the run gets", () => {
 	const step = (status: string) => ({ kind: "lifecycle", type: "step", stage: "end", status });
 	const said = (level: string) => ({ kind: "log", level });
 

@@ -1,5 +1,5 @@
 /**
- * ShuStepper — serves the @haibun/shu hypermedia SPA.
+ * ShuStepper: serves the @haibun/shu hypermedia SPA.
  * Any application that loads this stepper gets a UI driven entirely by stepper concerns.
  */
 import { readFileSync, statSync } from "fs";
@@ -31,7 +31,7 @@ import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 /**
  * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
  * builds client-side. The one place the server reproduces it: `get graph layout` reads the node/edge sets back, and the
- * offline report serializes the quad snapshot. The FULL snapshot is serialized — instrumentation included — exactly like
+ * offline report serializes the quad snapshot. The FULL snapshot is serialized, instrumentation included, exactly like
  * the live getClusteredQuads RPC; the view hides instrumentation by default (toggleable) via effectiveHiddenTypes, so the
  * offline report behaves identically to live.
  */
@@ -46,11 +46,11 @@ export async function buildGraphSource(world: TWorld): Promise<
 > {
 	const store = world.shared.getStore();
 	if (!store.getClusteredQuads) return undefined;
-	// Scope "own": the standalone report is this site's own record — a shutdown-time capture must not depend on
+	// Scope "own": the standalone report is this site's own record: a shutdown-time capture must not depend on
 	// federated peers still being reachable, and each peer's record is its own report.
 	const raw = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private, scope: "own" });
 	// Include the schema exactly as the live getClusteredQuads does, so the offline report's ontology/class-browser view
-	// matches live — pruned against the serialized graph itself (the report IS the full data). The one assembler, no drift.
+	// matches live, pruned against the serialized graph itself (the report IS the full data). The one assembler, no drift.
 	const standardVocab = await enumerateStandardVocab(world.domains);
 	const { quads, clusters } = withOntologySchema({ quads: raw.quads as TQuad[], clusters: raw.clusters }, raw.quads as TQuad[], world.domains, standardVocab);
 	const model = buildGraphModelFromQuads(quads as TQuad[]);
@@ -65,7 +65,7 @@ const ShuViewCollectionSchema = z.object({
 	views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
 });
 
-// Nodes and edges as pipe-delimited tokens — node `graph|subject|label`, edge `source|predicate|target` —
+// Nodes and edges as pipe-delimited tokens, node `graph|subject|label`, edge `source|predicate|target`:
 // so a feature can match a relationship without parsing the rendered graph (e.g. `matches g.edges with "*|discloses|*"`).
 const GraphLayoutSchema = z.object({
 	nodes: z.array(z.string()),
@@ -132,7 +132,7 @@ export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploy
  * Offline report: a `{bundle, hydration, scripts}` payload plus a tiny loader that recreates the `#shu-hydration` script
  * the bundle reads, injects the in-view component scripts, then the bundle (which boots via app.ts's readyState check).
  * `compressed` embeds the payload as gzip+base64 to keep shared files small (base64 needs no `</` escaping); uncompressed
- * embeds plain JSON (only `</` escaped) so the redacted text can be read and audited directly in the file — the
+ * embeds plain JSON (only `</` escaped) so the redacted text can be read and audited directly in the file: the
  * secret-obscuring check greps it.
  */
 export function buildReportHtml(basePath: string, payload: string, compressed: boolean): string {
@@ -235,7 +235,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	 *
 	 * What comes back is a proof, not a secret: the keyId names the reader's key so its signatures resolve, and is not
 	 * kept anywhere it could be presented as authority in its own right. The session is not filed as a bearer grant,
-	 * because the grants listing is what a bearer token resolves through, and the keyId is public — it rides every
+	 * because the grants listing is what a bearer token resolves through, and the keyId is public: it rides every
 	 * signed request and is written into the credential's own record. A reader's authority is the key it holds, proven
 	 * per request, and nothing a third party can read stands in for it.
 	 */
@@ -265,7 +265,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 					coerce: objectCoercer(presentedKeySchema),
 					description: "The public half of a key a reader's page controls, as a JSON Web Key",
 				},
-				// Built-in shu views — registering them as domains makes them discoverable
+				// Built-in shu views, registering them as domains makes them discoverable
 				// via `show views` (the picker iterates domains with `ui.component`).
 				// External steppers register their own view domains the same way.
 				{
@@ -288,7 +288,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 					description: "Schema (class/property) browser over the live graph",
 					ui: {
 						component: "shu-class-browser",
-						// Defined in the SAME bundle as the graph view — one served asset registers both.
+						// Defined in the SAME bundle as the graph view: one served asset registers both.
 						js: POLYMORPHIC_VIEW_JS,
 						jsContent: loadPolymorphicBundle().content,
 						summary: "Class browser",
@@ -359,14 +359,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			gwta: "serve shu app at {path: string}",
 			action: ({ path }: { path: string }) => {
 				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
-				if (!webserver) return actionNotOK("webserver not available — load web-server-stepper before shu");
+				if (!webserver) return actionNotOK("webserver not available, load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
 				// The page boots with an empty payload and no credential: it makes its own key after loading and asks
 				// issueSessionCredential for what this deployment lets a reader act under.
 				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, this.settings));
 				const domains = this.getWorld().domains;
-				// The context varies only by serving host, drawn from a tiny set of origins — build it once per host.
+				// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.
 				const byHost = new Map<string, Record<string, unknown>>();
 				const jsonLdHandler = (c: Context) => {
 					const ns = haibunNsForHost(requestBaseIri(c.req.header()));

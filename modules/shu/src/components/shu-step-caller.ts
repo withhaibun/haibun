@@ -20,7 +20,7 @@ type InputProperty = {
 };
 
 /**
- * Recognise a composite (z.object) input property — render one field per
+ * Recognise a composite (z.object) input property, render one field per
  * sub-property instead of a single stringified-JSON text input. A single input
  * would require hand-typed valid JSON and crash silently on anything else.
  */
@@ -33,9 +33,9 @@ function isCompositeProperty(prop: InputProperty | undefined): prop is InputProp
  * calls the step via RPC, and renders output from outputSchema.
  *
  * Attributes:
- *   step     — step name (looked up via findStep)
- *   auto     — call on mount without showing input form
- *   params   — JSON string of fixed params, merged with form values
+ *   step: step name (looked up via findStep)
+ *   auto: call on mount without showing input form
+ *   params: JSON string of fixed params, merged with form values
  */
 export class StepCaller extends HTMLElement {
 	private descriptor: StepDescriptor | undefined;
@@ -52,7 +52,7 @@ export class StepCaller extends HTMLElement {
 
 	connectedCallback(): void {
 		if (!this.shadowRoot) this.attachShadow({ mode: "open" });
-		if (this.descriptor) return; // Already initialized — just re-attached
+		if (this.descriptor) return; // Already initialized, just re-attached
 		void this.init();
 	}
 
@@ -190,7 +190,7 @@ export class StepCaller extends HTMLElement {
 
 	private idPrefix(): string {
 		// Derive the slug from the qualified method so test selectors can build
-		// the same id from either side of the wire — `normalizeStepKey` strips
+		// the same id from either side of the wire, `normalizeStepKey` strips
 		// the stepper prefix and camelCase-splits the action name, producing a
 		// stable kebab-case slug. gwta-derived slugs vary with optional words
 		// between params (e.g. "check record X against Y") and diverge from the
@@ -281,7 +281,7 @@ export class StepCaller extends HTMLElement {
 						const requiredMark = required.has(subName) ? "" : "?";
 						// `format` (e.g. "uri", "email", "date-time") wins over the base
 						// `type` so a `z.url()` field shows "uri" rather than "string".
-						// A field with neither is a schema bug — the JSON Schema producer
+						// A field with neither is a schema bug: the JSON Schema producer
 						// must declare one or the other.
 						const format = (subProp as { format?: string }).format;
 						const typeLabel = format ?? subProp.type;
@@ -419,7 +419,7 @@ export class StepCaller extends HTMLElement {
 					});
 					// An id can be typed directly without picking an option. Mirror the
 					// typed text into the hidden input so the submit handler always
-					// carries something — `combo-change` overwrites it on a dropdown pick.
+					// carries something, `combo-change` overwrites it on a dropdown pick.
 					// `await updateComplete` waits for lit's first render of the
 					// combobox's inner `<input>`; without this the `querySelector`
 					// returns null because lit's render is scheduled in the next

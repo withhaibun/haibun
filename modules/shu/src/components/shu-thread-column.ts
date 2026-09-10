@@ -1,5 +1,5 @@
 /**
- * <shu-thread-column> — Displays a conversation thread for any individual type with inReplyTo edges.
+ * <shu-thread-column>: Displays a conversation thread for any individual type with inReplyTo edges.
  * Fetches thread via getRelated RPC, renders flat (chronological) or tree (indented reply structure).
  */
 import { html, css, type TemplateResult } from "lit";
@@ -31,7 +31,7 @@ const ThreadColumnSchema = z.object({
 type ThreadEdge = { type: string; targetId: string };
 type ThreadVertex = Record<string, unknown> & { _edges?: ThreadEdge[] };
 
-/** Fold a product item's `_links` affordances into `_edges` so the tree/graph render reply structure. */
+/** Merge a product item's `_links` affordances into `_edges` so the tree/graph render reply structure. */
 function normalizeItem(item: Record<string, unknown>): ThreadVertex {
 	const existingEdges = (item._edges ?? []) as ThreadEdge[];
 	const links = item._links as Record<string, { params?: Record<string, unknown> }> | undefined;
@@ -76,7 +76,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			.thread-card:hover { background: var(--shu-bg-hover); border-color: var(--shu-border-strong); }
 			.thread-card.current { background: var(--shu-accent-soft); border-color: var(--shu-accent); }
 			/* The item's @type, so a mixed thread (a Comment replying to a File, etc.) reads its kinds at a glance. */
-			/* The badge's background is a THEME surface, not a type-colour swatch, so its text is the ordinary foreground —
+			/* The badge's background is a THEME surface, not a type-colour swatch, so its text is the ordinary foreground:
 			   the swatch colour is dark in both themes and would be dark-on-dark here. */
 			.thread-card .type-badge { display: inline-block; font-size: var(--shu-font-sm); color: var(--shu-fg); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: 0 var(--shu-space-2); margin-bottom: var(--shu-space-1); }
 			.thread-card .meta { display: flex; gap: var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
@@ -116,7 +116,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		this.setState({ label, individualId: "", loading: false });
 	}
 
-	/** Render a collection product: its `items` become thread vertices (links folded into edges), no RPC fetch. */
+	/** Render a collection product: its `items` become thread vertices (links merged into edges), no RPC fetch. */
 	openProducts(products: Record<string, unknown>): void {
 		const items = Array.isArray(products.items) ? (products.items as Record<string, unknown>[]) : [];
 		this.openItems(items.map(normalizeItem), String(products._type || "Result"));

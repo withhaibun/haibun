@@ -117,7 +117,7 @@ describe("watching a run", () => {
 		expect(result.errorMessage).toMatch(/already running/);
 	});
 
-	it("refuses a held port by naming what answers there, before a child is forked to die on it", async () => {
+	it("refuses a held port by naming what answers there, before a child is forked to fail on it", async () => {
 		// The situation an operator meets after a session ends without its children: something answers on the run's
 		// port, and "address in use" deep in a dead child's output names neither the occupant nor the recourse.
 		const { createServer } = await import("node:http");
@@ -204,7 +204,11 @@ describe("whether a run would answer what an earlier run answered", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
 		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env);
-		recordOutcome(verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never, "passed", 1);
+		recordOutcome(
+			verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
+			"passed",
+			1,
+		);
 		expect(verifiedRun(config, dir, "", dir, env)).toBe("passed");
 		nodeFS.writeFileSync(path.join(dir, ".env"), "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
 		expect(verifiedRun(config, dir, "", dir, env), "the run would read that file, so its conditions are other than what was recorded").toBeUndefined();

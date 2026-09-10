@@ -1,5 +1,5 @@
 /**
- * <shu-column-strip> — Horizontal scrolling container for column panes.
+ * <shu-column-strip>: Horizontal scrolling container for column panes.
  * Manages pane insertion/removal via DOM API (NOT innerHTML).
  * Dispatches columns-changed, column-activated events.
  * Pane open-state and the URL hash are owned by PaneState; per-pane width/minimize
@@ -21,7 +21,7 @@ const paneKeyOf = (pane: PaneEl): string => pane.dataset.columnKey ?? pane.getAt
 type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -30,10 +30,10 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		shuBaseStyles,
 		css`
 		/* The strip uses the browser's default scrollbar behaviour: the horizontal scrollbar only appears when the panes
-		   genuinely overflow (rare — the accordion flex-shares them to fit). No reserved gutter, so there is never a
+ overflow (rare: the accordion flex-shares them to fit). No reserved gutter, so there is never a
 		   scrollbar track spanning the columns when nothing overflows. */
 		/* isolation: column content must never paint above app chrome (the actions-bar overlay) no matter its internal
-		   z-indexes — e.g. an embedded 3D scene's injected enter-VR button (z-index 9999) would otherwise intercept
+		   z-indexes: e.g. an embedded 3D scene's injected enter-VR button (z-index 9999) would otherwise intercept
 		   clicks aimed at the expanded bar's bottom controls. */
 		:host { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; background: var(--shu-border); isolation: isolate; }
 		::slotted(shu-column-pane) { background: var(--shu-bg); }
@@ -71,7 +71,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		return Array.from(this.querySelectorAll("shu-column-pane")) as PaneEl[];
 	}
 
-	/** Add a new pane (appends at end). A pane arriving minimized — pre-marked by PaneState or restored from its persisted state on attach — never takes activation or scroll. */
+	/** Add a new pane (appends at end). A pane arriving minimized, pre-marked by PaneState or restored from its persisted state on attach, never takes activation or scroll. */
 	addPane(pane: PaneEl): void {
 		this.appendChild(pane);
 		const minimized = pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
@@ -82,7 +82,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.emitColumnsChanged();
 		if (!minimized) requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
 		// A maximized column is the ONLY one visible. A column opened while one is maximized ends the maximize rather
-		// than arriving hidden — it was opened to be read. The strip owns this because it owns which panes exist; a pane
+		// than arriving hidden: it was opened to be read. The strip owns this because it owns which panes exist; a pane
 		// never arrives already maximized (the flag applies once the whole desired set is attached, via setMaximized).
 		this.endMaximize();
 	}
@@ -132,7 +132,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	 * While panes are open, one of them is the pane you are on. The strip owns that invariant because it owns which
 	 * panes exist: a pane can be added by a restore, a reconcile, or a step, and not every path names one.
 	 *
-	 * Only a signal naming NOTHING is repaired. A signal naming a pane that is not open yet is a restore in flight —
+	 * Only a signal naming NOTHING is repaired. A signal naming a pane that is not open yet is a restore in flight:
 	 * it names the pane it is about to attach, and applyActive lands it the moment it does; claiming the first pane
 	 * there would steal activation from the pane being restored.
 	 */
@@ -164,15 +164,15 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	}
 
 	/**
-	 * Keep every column open, flex-sharing the strip — collapse one only when the columns that share the remaining
-	 * width would each fall below a usable minimum (i.e. the strip is genuinely too narrow). Then collapse the
+	 * Keep every column open, flex-sharing the strip, collapse one only when the columns that share the remaining
+	 * width would each fall below a usable minimum (i.e. the strip is too narrow). Then collapse the
 	 * FEWEST leftmost columns needed so the rest clear that minimum; never the query, active, user-minimized, or
 	 * user-resized panes. A purposeful minimize is the user's; the accordion only touches auto-collapse.
 	 */
 	updateAccordion(): void {
 		if (this.isMaximized) return;
 		const COLLAPSED_WIDTH = 32;
-		const MIN_USABLE_WIDTH = 150; // below this a flex-shared column is too thin to read — collapse instead of showing a sliver
+		const MIN_USABLE_WIDTH = 150; // below this a flex-shared column is too thin to read, collapse instead of showing a sliver
 		const panes = this.panes;
 		const stripWidth = this.clientWidth;
 		// In portrait/wrap mode the flex-wrap CSS handles layout; accordion math assumes a single row.
@@ -194,7 +194,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		}
 
 		// Collapse leftmost flex panes (never query/active/minimized/resized) only while the remaining flex panes
-		// can't each clear MIN_USABLE_WIDTH — and stop the moment they can, so the minimum number collapse.
+		// can't each clear MIN_USABLE_WIDTH, and stop the moment they can, so the minimum number collapse.
 		let avail = stripWidth - fixed;
 		for (let i = 0; i < panes.length; i++) {
 			if (flexCount <= 1 || avail / flexCount >= MIN_USABLE_WIDTH) break;
@@ -213,7 +213,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	}
 
 	/** End any maximize, through the pane that holds it, so the strip restores the hidden panes and the view hash drops
-	 *  the flag — the one path, whether the user clicked the control or opened another column. */
+	 *  the flag: the one path, whether the user clicked the control or opened another column. */
 	private endMaximize(): void {
 		this.panes.find((p) => p.hasAttribute(SHU_ATTR.DATA_MAXIMIZED))?.setMaximized(false);
 	}
@@ -223,7 +223,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.applyMaximize(pane, pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED));
 	};
 
-	/** Maximize layout: every other pane is fully removed from layout (display:none), not just collapsed —
+	/** Maximize layout: every other pane is fully removed from layout (display:none), not just collapsed:
 	 * the maximizing pane takes the entire strip width including the query pane area. The snapshot guard makes
 	 * this idempotent: a re-application while already maximized (e.g. a PaneState reconcile re-affirming the
 	 * flag) can never re-snapshot the hidden layout and corrupt the restore. The pane's flex is derived from
@@ -270,7 +270,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	private handlePaneClose = (e: Event): void => {
 		// Close requests route through PaneState (via app.ts), which owns the desired
-		// set and the URL hash. The strip never removes panes on its own — reconcile does.
+		// set and the URL hash. The strip never removes panes on its own, reconcile does.
 		const pane = (e as CustomEvent).target as PaneEl;
 		const paneId = pane.dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
 		if (!paneId) return;

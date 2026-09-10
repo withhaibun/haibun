@@ -1,11 +1,11 @@
 /**
- * Resolve the property vocabulary a type conforms to but does not itself model — the terms a standards-conforming
+ * Resolve the property vocabulary a type conforms to but does not itself model: the terms a standards-conforming
  * instance MAY carry beyond the fields haibun's topology declares. There is ONE source of a type's vocabulary: its
- * assembled JSON-LD @context (produced by getJsonLdContext — the single topology→context bridge). This module CONSUMES
+ * assembled JSON-LD @context (produced by getJsonLdContext: the single topology→context bridge). This module CONSUMES
  * that context with the jsonld processor (the single resolver): it reads the type's declared field names from the scoped
  * context and resolves each referenced standardContext's type-scoped terms to genuine IRIs, returning the terms the
  * standard declares that the type does NOT model (deduped by name against the type's own fields). No hand-rolled context
- * walking, no IRI-local-name matching — jsonld handles prefix expansion, keyword aliases, and string/array contexts, so a
+ * walking, no IRI-local-name matching, jsonld handles prefix expansion, keyword aliases, and string/array contexts, so a
  * context shape this code cannot resolve yields no terms rather than fabricating any.
  *
  * Server-side only (Node): a consumer registers the context documents + a resolver into core's loader; this reads
@@ -27,7 +27,7 @@ const mapEntries = (m: Map<string, { "@id"?: string }> | Record<string, { "@id"?
 	m instanceof Map ? [...m.entries()] : Object.entries(m);
 
 // One base active context per prefix set (haibun's top-level prefixes), so a standardContext using CURIEs resolves; and
-// one resolved term list per (context url, class) — the context documents are static.
+// one resolved term list per (context url, class): the context documents are static.
 const baseCache = new Map<string, Promise<unknown>>();
 const scopedCache = new Map<string, Promise<TStandardTerm[]>>();
 

@@ -1,5 +1,5 @@
 /**
- * Test stepper that registers a UI-extension domain (no persistedAs — it is not
+ * Test stepper that registers a UI-extension domain (no persistedAs: it is not
  * serialized in the graph DB) with a `ui` extension declaring a custom-element
  * component to slot into the actions bar's chat row.
  *
@@ -47,8 +47,8 @@ export default class VoiceUITestStepper extends AStepper implements IHasCycles {
 		}),
 		// The ui concern is declared in every feature that loads this stepper (it is
 		// in the shared config.json), so every SPA tries to import the component JS.
-		// Serve the asset in every feature — not only the one that calls
-		// `serveTestComponent` — so the other features don't log a failed import.
+		// Serve the asset in every feature, not only the one that calls
+		// `serveTestComponent`: so the other features don't log a failed import.
 		// `clearMounted()` (web-server startFeature, runs first) drops the prior
 		// feature's routes, so re-registering here each feature is correct.
 		startFeature: () => this.serveTestComponentRoute(),

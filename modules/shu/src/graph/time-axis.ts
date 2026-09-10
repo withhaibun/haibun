@@ -1,7 +1,7 @@
 /**
  * Time→depth (z) math: maps each node's age (now − recorded time) onto [0, zMax] on an adaptive sqrt scale normalized
  * to the data's own min..max age, so the axis fills the full range whatever the span (minutes or years) AND a long gap
- * reads clearly deeper than a short one — sqrt keeps a big elapsed gap visibly bigger than a small one (a plain log
+ * reads clearly deeper than a short one, sqrt keeps a big elapsed gap visibly bigger than a small one (a plain log
  * flattens the old end; a plain linear packs dense recent clusters). Older = deeper. The consuming paint owns when
  * "now" advances (a coarse global tick); this owns the deterministic mapping.
  */
@@ -9,12 +9,12 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 export type TimeZScale = { base: number; range: number; zMax: number };
 
-/** A subject's time and the FIELD it came from — the one record every consumer (depth, hover label) reads, so the
+/** A subject's time and the FIELD it came from: the one record every consumer (depth, hover label) reads, so the
  *  fallback decision can never be re-derived differently elsewhere. */
 export type TSubjectTime = { ms: number; field: string };
 
 /**
- * Each subject's valid time, from the field its type declares (the hypermedia catalog's validTimeField — where the
+ * Each subject's valid time, from the field its type declares (the hypermedia catalog's validTimeField, where the
  * term is defined). A subject whose declared field is absent from its quads falls back to its generatedAtTime
  * (indexed-time) quad, so an individual always places by its own time and only by indexing time when it carries
  * nothing else. The field lookup is memoized per type, so the resolver runs O(types), not O(quads).
@@ -30,7 +30,7 @@ export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: stri
 			field = validTimeFieldFor(q.namedGraph);
 			fieldByType.set(q.namedGraph, field);
 		}
-		// Two independent questions, not one routing: a quad can be a subject's valid time AND its written-down time —
+		// Two independent questions, not one routing: a quad can be a subject's valid time AND its written-down time:
 		// most types declare no valid field of their own, so generatedAtTime is both. Routed to one map only, every
 		// such type came out of `indexed` empty, and a reading ordered by creation fell back to name order.
 		if (q.predicate !== field && q.predicate !== indexedTimeField) continue;

@@ -5,7 +5,7 @@ import { toRegisteredDomain, objectCoercer } from "./domains.js";
 
 const iri = (rel: string) => REL_CONTEXT[rel];
 
-describe("hypermediaDomainFromContext — declare a hypermedia domain from a JSON-LD @context", () => {
+describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-LD @context", () => {
 	it("builds the Ingredient topology + raw schema (recipe model)", () => {
 		const { topology, schema } = hypermediaDomainFromContext("Ingredient", {
 			"@context": {
@@ -39,7 +39,7 @@ describe("hypermediaDomainFromContext — declare a hypermedia domain from a JSO
 		expect(cat.persisted.Ingredient.edges.usedIn.target).toBe("Recipe");
 	});
 
-	it("requires an @id field — a type is invalid without an identifier", () => {
+	it("requires an @id field: a type is invalid without an identifier", () => {
 		expect(() => hypermediaDomainFromContext("Bad", { "@context": { name: iri(LinkRelations.NAME.rel) } })).toThrow(/@id/);
 	});
 

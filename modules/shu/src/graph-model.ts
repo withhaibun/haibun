@@ -4,13 +4,13 @@ export type GraphNode = { id: string; type: string; isCluster?: boolean; omitted
 export type GraphEdge = { from: string; to: string; predicate: string; graph: string };
 export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 
-/** Node property carrying the resolved HypermediaRole — the id of the party (a `prov:Agent`/Principal) the node is attributed to. Folded from the node's role edges (see `roleRels`); the polymorphic view's role grouping axis reads it. */
+/** Node property carrying the resolved HypermediaRole: the id of the party (a `prov:Agent`/Principal) the node is attributed to. Reduced from the node's role edges (see `roleRels`); the polymorphic view's role grouping axis reads it. */
 export const HYPERMEDIA_ROLE_KEY = "hypermediaRole";
 
-/** Node property carrying a party's own role predicate — the highest-priority role rel (a `fromActor`/`toActor`, see `roleRels`) by which other nodes attribute to it. A party is one node; the role it plays is relational (it is the target of a role edge), so this reads from the incoming role edges, not the node's `@type`. A display site maps this predicate to the party's role designation. */
+/** Node property carrying a party's own role predicate: the highest-priority role rel (a `fromActor`/`toActor`, see `roleRels`) by which other nodes attribute to it. A party is one node; the role it plays is relational (it is the target of a role edge), so this reads from the incoming role edges, not the node's `@type`. A display site maps this predicate to the party's role designation. */
 export const HYPERMEDIA_ROLE_REL_KEY = "hypermediaRoleRel";
 
-/** Node property carrying the site principal of the instance whose store SERVED the node — a read-time store fact stamped at the federation merge, never persisted data (and distinct from HAIBUN_SITE_KEY, the env override for this instance's OWN principal). The polymorphic's site grouping axis reads it. */
+/** Node property carrying the site principal of the instance whose store SERVED the node: a read-time store fact stamped at the federation merge, never persisted data (and distinct from HAIBUN_SITE_KEY, the env override for this instance's OWN principal). The polymorphic's site grouping axis reads it. */
 export const SITE_KEY = "site";
 
 type BuildGraphModelOptions = {
@@ -18,9 +18,9 @@ type BuildGraphModelOptions = {
 	requireObjectSubject?: boolean;
 	requireObjectType?: boolean;
 	clusters?: TCluster[];
-	/** Predicates (priority order) whose target is the node's HypermediaRole. When set, each node's role is folded onto `properties[HYPERMEDIA_ROLE_KEY]` so a pure group-key selector can read it without re-walking edges. */
+	/** Predicates (priority order) whose target is the node's HypermediaRole. When set, each node's role is merged onto `properties[HYPERMEDIA_ROLE_KEY]` so a pure group-key selector can read it without re-walking edges. */
 	roleRels?: readonly string[];
-	/** The responding instance's site principal — the serving site of every node a cluster's `sites` doesn't override. When set, each node's serving site is folded onto `properties[SITE_KEY]`. */
+	/** The responding instance's site principal: the serving site of every node a cluster's `sites` doesn't override. When set, each node's serving site is merged onto `properties[SITE_KEY]`. */
 	site?: string;
 };
 
@@ -43,7 +43,7 @@ export function clusterId(type: string): string {
  * cluster sits inside its type's neighborhood under force layout.
  */
 /** Whether a quad DRAWS as an edge, independent of which nodes are in hand. An edge is a TYPED reference: the quad
- *  carries `objectType` — the JSON-LD range of its target. A plain-string property (no objectType) is never an edge,
+ *  carries `objectType`: the JSON-LD range of its target. A plain-string property (no objectType) is never an edge,
  *  even if its value coincidentally matches a node id. This is the same rule the overview's property classifier applies
  *  ("declared by the range, never guessed from the id"); guessing is what mis-linked string properties like `account`
  *  onto whatever node shared their value. THE rule, so a chip legend offers exactly the predicates the graph draws. */
@@ -90,7 +90,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 			for (const [subject, label] of Object.entries(c.displayLabels)) {
 				const node = nodeMap.get(subject);
 				if (!node) continue;
-				// `label === subject` is composeDisplayLabel's id-fallback (the cluster @type has no NAME/CONTENT/body/weak rel — e.g. a name-less Principal sharing a named node's @id). Never let it clobber a real headline already set by another cluster for the same collapsed node. Order-independent: a real name beats the bare id regardless of cluster iteration order.
+				// `label === subject` is composeDisplayLabel's id-fallback (the cluster @type has no NAME/CONTENT/body/weak rel, e.g. a name-less Principal sharing a named node's @id). Never let it clobber a real headline already set by another cluster for the same collapsed node. Order-independent: a real name beats the bare id regardless of cluster iteration order.
 				if (label === subject && node.displayLabel !== undefined && node.displayLabel !== subject) continue;
 				node.displayLabel = label;
 			}
@@ -107,18 +107,18 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 	}
 
 	if (opts.site !== undefined) {
-		// Fold each node's SERVING site (read-time store fact): a federated subject keeps the stamp its peer set
+		// Merge each node's SERVING site (read-time store fact): a federated subject keeps the stamp its peer set
 		// (cluster.sites), everything else was served by this response's own site. Overwrites a same-named literal
-		// property, same as the role fold — the stamp is authoritative for the axis.
+		// property, same as the role merge: the stamp is authoritative for the axis.
 		const siteBySubject = new Map<string, string>();
 		for (const c of options.clusters ?? []) if (c.sites) for (const [s, v] of Object.entries(c.sites)) siteBySubject.set(s, v);
 		for (const node of nodeMap.values()) (node.properties ??= {})[SITE_KEY] = siteBySubject.get(node.id) ?? opts.site;
 	}
 
 	if (opts.roleRels?.length) {
-		// Fold each node's HypermediaRole onto the node so the role grouping axis is a pure node read (single-source).
-		// A node's role is the target of its highest-priority role edge; a node that IS a party — something is attributed
-		// to it, i.e. it is a role-edge target — is its own role, so it lands in its own container, not "unattributed".
+		// Merge each node's HypermediaRole onto the node so the role grouping axis is a pure node read (single-source).
+		// A node's role is the target of its highest-priority role edge; a node that IS a party, something is attributed
+		// to it, i.e. it is a role-edge target, is its own role, so it lands in its own container, not "unattributed".
 		const roleRelSet = new Set(opts.roleRels);
 		const roleRank = new Map(opts.roleRels.map((r, i) => [r, i]));
 		const outByFrom = new Map<string, GraphEdge[]>();
@@ -139,7 +139,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		for (const node of nodeMap.values()) {
 			const out = outByFrom.get(node.id);
 			// Record the agent at EACH actor predicate on the node, so a "group by <predicate>" axis reads a plain property
-			// (properties[predicate]) with nothing enumerating the predicates — a rel declared subPropertyOf inRoleOf is
+			// (properties[predicate]) with nothing enumerating the predicates: a rel declared subPropertyOf inRoleOf is
 			// groupable the moment it appears.
 			if (out) for (const e of out) if (roleRelSet.has(e.predicate)) (node.properties ??= {})[e.predicate] = e.to;
 			// The "role" axis: the single highest-priority actor (ROLE_PRIORITY order, via opts.roleRels).

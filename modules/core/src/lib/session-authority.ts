@@ -1,11 +1,11 @@
 /**
- * SessionAuthority — single capability authority for haibun.
+ * SessionAuthority: single capability authority for haibun.
  *
  * Two paths in one class:
  *   - Bearer presentation (built in): unsigned grants resolved by token. Used
  *     for in-process step-dispatch gating.
  *   - Signed ZCAP-LD (consumer-supplied): verifySigned delegates to a
- *     registered IAuthorityVerifier — typically an adapter wrapping a ZCAP-LD
+ *     registered IAuthorityVerifier, typically an adapter wrapping a ZCAP-LD
  *     library. haibun-core stays crypto-free.
  *
  * Field/method naming tracks the ZCAP-LD spec (controller, allowedAction,

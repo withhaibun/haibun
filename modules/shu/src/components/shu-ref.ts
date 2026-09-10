@@ -1,5 +1,5 @@
 /**
- * <shu-ref> — a clickable reference to a navigable pane. Every panel that
+ * <shu-ref>: a clickable reference to a navigable pane. Every panel that
  * surfaces a structured identifier (seqPath, entity id, domain key, step
  * descriptor) uses this component for click-through to the referenced view.
  * Centralising the click → PaneState routing here
@@ -7,13 +7,13 @@
  * markup and never wire their own click handlers.
  *
  * Attributes:
- *   kind        — "seqPath" | "entity" | "domain" | "step"
- *   linkTarget  — JSON describing the target. Shape varies by kind:
+ *   kind: "seqPath" | "entity" | "domain" | "step"
+ *   linkTarget: JSON describing the target. Shape varies by kind:
  *                 seqPath → `{ "seqPath": [0,1,2] }`
  *                 entity  → `{ "persistedAs": "Issuer", "id": "..." }`
  *                 step    → `{ "stepperName": "...", "stepName": "..." }`
- *                 domain  — `{ "domain": "..." }`
- *   text        — display label (defaults to a derived label per kind)
+ *                 domain: `{ "domain": "..." }`
+ *   text: display label (defaults to a derived label per kind)
  *
  * Click opens the corresponding pane via the shared `PaneState` so the
  * referenced view appears in the column strip, mirroring every other
@@ -56,7 +56,7 @@ export class ShuRef extends HTMLElement {
 			return;
 		}
 		// Pass the click event as the source so the open routes through PaneState.requestFrom (Miller-column: replaces
-		// the unpinned column to the source's right) — the one path every column open uses, not a second implementation.
+		// the unpinned column to the source's right): the one path every column open uses, not a second implementation.
 		openRef(e, kind, target);
 	};
 
@@ -64,7 +64,7 @@ export class ShuRef extends HTMLElement {
 		if (!this.shadowRoot) return;
 		const kind = this.getAttribute("kind") ?? "";
 		const text = this.getAttribute("text") ?? defaultLabel(kind, this.getAttribute("linkTarget"));
-		// A real href — the address of the thing itself. An anchor without one is not a link: it takes role/tabindex to
+		// A real href: the address of the thing itself. An anchor without one is not a link: it takes role/tabindex to
 		// imitate one, and the browser can neither open it in a tab, copy its address, nor preview it. Clicking still
 		// routes through openRef, which opens the pane beside this one rather than navigating.
 		const href = this.hrefForRef();
@@ -101,7 +101,7 @@ export const refTpl = (kind: TRefKind, linkTarget: Record<string, unknown>, text
 };
 
 /**
- * Convenience wrappers — each panel typically calls just one or two of these.
+ * Convenience wrappers: each panel typically calls just one or two of these.
  */
 export const refSeqPath = (seqPath: number[], text?: string): string => renderRef("seqPath", { seqPath }, text ?? seqPath.join("."));
 

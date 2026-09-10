@@ -12,7 +12,7 @@
  * standing when its features finish so what it produced can still be asked about.
  *
  * A run's own events are read here as it produces them: its output arrives as NDJSON, and each chunk accrues into the
- * outcome a caller reads — which features ran, how many steps, what failed first, and whether the run says it is
+ * outcome a caller reads, which features ran, how many steps, what failed first, and whether the run says it is
  * finished. Beside that outcome the child's PROCESS output is kept as a bounded tail read from a cursor, since a run
  * that fails before it serves says nothing else, and a long run cannot be allowed to grow without limit.
  * `SseSubscriber` subscribes to a serving run this process did not fork.
@@ -325,11 +325,11 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const dir = path.resolve(String(where));
 		const config = path.join(dir, "config.json");
 		if (!existsSync(config)) return actionNotOK(`start run: no config.json in ${dir}`);
-		// A run given a held port would die at boot with EADDRINUSE deep in its own output. Refusing here instead names
+		// A run given a held port would fail at boot with EADDRINUSE deep in its own output. Refusing here instead names
 		// what is answering and the recourse, so the operator is told the situation rather than left to excavate it.
 		if (port > 0) {
 			const answering = await describePortOccupant(port);
-			if (answering) return actionNotOK(`start run: port ${port} is already answering — ${answering}; stop what answers there, or start this run on another port`);
+			if (answering) return actionNotOK(`start run: port ${port} is already answering, ${answering}; stop what answers there, or start this run on another port`);
 		}
 		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
 		// A pinned port is what makes a run addressable, so it is also what leaves the run standing after its features
@@ -345,7 +345,10 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const cwd = from ? path.resolve(from) : process.cwd();
 		if (!existsSync(cwd)) return actionNotOK(`start run: no directory ${cwd} to run from`);
 		const ran = verifiedRun(config, dir, filter, cwd, env);
-		if (ran) return actionNotOK(`start run: ${filter || "every feature"} in ${dir} ${ran}, and no dependency has changed since then, so this run would answer what that run answered. Change a dependency to run it again, or note that the group has changed.`);
+		if (ran)
+			return actionNotOK(
+				`start run: ${filter || "every feature"} in ${dir} ${ran}, and no dependency has changed since then, so this run would answer what that run answered. Change a dependency to run it again, or note that the group has changed.`,
+			);
 		const child = fork(cliEntry, ["-c", config, dir, filter], { cwd, env, silent: true, execArgv: [] });
 		superviseChild(child); // a standing run may outlive its FEATURE, never its owner process
 		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended: null, waiters: [] };
@@ -388,7 +391,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	}
 
 	/** Wait until a child answers the handshake every remote surface begins with, or until it is over. `giveUp` is asked
-	 *  between attempts, so a child that dies while starting is not waited out. */
+	 *  between attempts, so a child that exits while starting is not waited out. */
 	private async awaitBegin(url: string, giveUp: () => boolean): Promise<boolean> {
 		const rpc = new RpcClient({ baseUrl: url, timeoutMs: BEGIN_TIMEOUT_MS, retry: { maxAttempts: 1 } });
 		const deadline = Date.now() + READY_DEADLINE_MS;

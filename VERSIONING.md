@@ -4,14 +4,14 @@ Releases are automated by [semantic-release](https://semantic-release.gitbook.io
 
 ## How to ship a change
 
-1. Work on a feature branch. Commit messages on the branch can say anything — they're squashed at merge.
+1. Work on a feature branch. Commit messages on the branch can say anything: they're squashed at merge.
 2. Open a PR targeting the right release branch:
    - `main` for stable 3.x (patches + minor features)
    - `alpha` for 4.x previews
 3. Write the **PR title** in conventional-commits format. Examples:
-   - `feat: add retry logic to http stepper` — triggers a minor bump
-   - `fix: monitor crashes on empty trace` — triggers a patch bump
-   - `chore: clean up imports` — no release
+   - `feat: add retry logic to http stepper`: triggers a minor bump
+   - `fix: monitor crashes on empty trace`: triggers a patch bump
+   - `chore: clean up imports`: no release
 4. Put bullets in the PR **body** for granular changelog entries.
 5. For a breaking change, add a footer to the body:
    ```
@@ -30,7 +30,7 @@ Releases are automated by [semantic-release](https://semantic-release.gitbook.io
 
 `npm install @haibun/core` gets stable 3.x. 4.x previews require an explicit tag: `npm install @haibun/core@alpha`.
 
-`main` is pinned to the `3.x` range in [.releaserc.json](.releaserc.json) — it will not accidentally jump to 4.x. When 4.x is ready to ship as stable, change the `main` range (e.g. to `4.x`) and demote the old line to a maintenance branch.
+`main` is pinned to the `3.x` range in [.releaserc.json](.releaserc.json): it will not accidentally jump to 4.x. When 4.x is ready to ship as stable, change the `main` range (e.g. to `4.x`) and demote the old line to a maintenance branch.
 
 ## One version for all modules
 
@@ -42,7 +42,7 @@ Modules that should never publish (e.g. `recorder`, `e2e-tests`) are marked `"pr
 
 ## Local escape hatches
 
-The `version-*` and `publish-all*` npm scripts still exist for emergencies (CI down, hotfix, etc.). They do exactly what they say — read [scripts/sync-versions.mjs](scripts/sync-versions.mjs) and [scripts/publish-all.mjs](scripts/publish-all.mjs). Prefer the CI flow.
+The `version-*` and `publish-all*` npm scripts still exist for emergencies (CI down, hotfix, etc.). They do exactly what they say, read [scripts/sync-versions.mjs](scripts/sync-versions.mjs) and [scripts/publish-all.mjs](scripts/publish-all.mjs). Prefer the CI flow.
 
 ## Checking the current version
 

@@ -1,5 +1,5 @@
 /**
- * <shu-graph-filter> — type checkbox legend + per-type sample-limit slider
+ * <shu-graph-filter>: type checkbox legend + per-type sample-limit slider
  * shared by every graph view. Hosts publish their raw data via `setSource`;
  * on change, the component dispatches `graph-filter-change` with
  * `{ overrides, perTypeLimit }` (the user's explicit per-type show/hide choices;
@@ -12,7 +12,7 @@
  * call `setSource` whenever the data changes; the filter handles cursor moves
  * on its own. The shared projection lives in `graph-filter-projection.ts`.
  *
- * Visible only when the host carries `show-controls` — the column-pane's
+ * Visible only when the host carries `show-controls`: the column-pane's
  * settings toggle is the single switch for revealing every settings surface.
  */
 import { html, css, unsafeCSS, type TemplateResult } from "lit";
@@ -35,7 +35,7 @@ import type { TChip } from "./shu-chip-group.js";
 const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the
 	// instrumentation-default predicate. Persisted, and combined with that default via effectiveHiddenTypes.
-	// Storing only deliberate choices — never a seeded default — is what lets a default change re-apply and prevents
+	// Storing only deliberate choices, never a seeded default, is what lets a default change re-apply and prevents
 	// writing the default irreversibly into the user's cookie.
 	overrides: z.record(z.string(), z.boolean()).default({}),
 	// The user's explicit per-PREDICATE visibility choices (false = the edges drawn for that predicate are hidden).
@@ -63,7 +63,7 @@ function writeAxisCookie(key: string, value: Record<string, string[]>): void {
 }
 
 export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -99,7 +99,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 
 	/** Hosts read this before their first fetch so the persisted overrides apply on initial load (no double round-trip).
 	 * Reads the same persistFields store the instance restores from (per `scope`, matching `data-persist-scope`). Hosts
-	 * combine these overrides with the instrumentation-default predicate via `effectiveHiddenTypes` — the default is
+	 * combine these overrides with the instrumentation-default predicate via `effectiveHiddenTypes`: the default is
 	 * never persisted here. */
 	static getPersistedFilter(scope = ""): { overrides: Record<string, boolean>; hiddenPredicates: string[]; perTypeLimit: number } {
 		const saved = readElementPrefs("shu-graph-filter", scope);
@@ -116,7 +116,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	// where the data is `TGraph`-shaped, not quad-shaped.
 	private axisSource: { axes: Record<string, string[]>; hidden: Record<string, Set<string>> } | null = null;
 	private axisCookieKey: string | null = null;
-	// Transient UI for the 1️⃣ tool: while it waits, the next chip press — a type or a property — shows ONLY that one
+	// Transient UI for the 1️⃣ tool: while it waits, the next chip press, a type or a property, shows ONLY that one
 	// instead of toggling it. One press's worth of state, not a durable choice, so it is kept off persistFields.
 	private soloWaiting = false;
 
@@ -137,7 +137,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.requestUpdate();
 	}
 
-	/** Show ONLY these types (the rest hidden), driving the SAME change path a legend click takes — so the legend,
+	/** Show ONLY these types (the rest hidden), driving the SAME change path a legend click takes, so the legend,
 	 * the host's data refetch, and persistence all stay in sync. For graph-control steps that scope the view. */
 	setVisibleTypes(types: string[]): void {
 		const keep = new Set(types);
@@ -147,7 +147,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	}
 
-	/** Show or hide the edges of the named predicates — the same change path the properties chips take. */
+	/** Show or hide the edges of the named predicates: the same change path the properties chips take. */
 	setPredicateVisibility(predicates: string[], visible: boolean): void {
 		const predicateOverrides = { ...this.state.predicateOverrides };
 		for (const pr of predicates) predicateOverrides[pr] = visible;
@@ -155,8 +155,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	}
 
-	/** Reveal or hide SPECIFIC types without touching the others' visibility — the additive counterpart to setVisibleTypes
-	 *  (which is show-only). Ticking a default-hidden type (the folded schema's Class/Property) reveals it ALONGSIDE the
+	/** Reveal or hide SPECIFIC types without touching the others' visibility: the additive counterpart to setVisibleTypes
+	 *  (which is show-only). Ticking a default-hidden type (the merged schema's Class/Property) reveals it ALONGSIDE the
 	 *  live data, exactly as ticking its chip does. */
 	setTypeVisibility(types: string[], visible: boolean): void {
 		const overrides = { ...this.state.overrides };
@@ -222,12 +222,12 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		);
 	}
 
-	/** Hovering a type label previews it — broadcast so the graph views dim the other types. null ends the preview. */
+	/** Hovering a type label previews it, broadcast so the graph views dim the other types. null ends the preview. */
 	private previewType(type: string | null): void {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_TYPE_PREVIEW, { detail: { type }, bubbles: true, composed: true }));
 	}
 
-	/** The predicates whose edges are hidden — the explicit unticks; everything else shows. */
+	/** The predicates whose edges are hidden: the explicit unticks; everything else shows. */
 	private hiddenPredicates(): string[] {
 		return explicitlyHidden(this.state.predicateOverrides);
 	}
@@ -235,7 +235,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	private onPredicateToggle = (predicate: string, checked: boolean): void => {
 		if (this.soloWaiting) {
 			this.endSoloWait();
-			this.setVisiblePredicates([predicate]); // show only this predicate's edges — the same gesture a type takes
+			this.setVisiblePredicates([predicate]); // show only this predicate's edges: the same gesture a type takes
 			return;
 		}
 		this.setPredicateVisibility([predicate], checked);
@@ -266,7 +266,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		return clamp(Math.round(parseInt(raw, 10)), 1, MAX_PER_TYPE_LIMIT);
 	}
 
-	/** A host slotting its options after this filter first rendered — re-render, so the settings row appears with them.
+	/** A host slotting its options after this filter first rendered, re-render, so the settings row appears with them.
 	 *  A CSS-only gate cannot stand in: `:host(:has([slot="view-settings"]))` does not match here, and the row then stays
 	 *  hidden with every option rendered inside it. */
 	private onViewSettingsSlotChange = (): void => this.requestUpdate();
@@ -298,8 +298,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 
 	render(): TemplateResult {
 		// A filter serves ONE source. An axis host (setAxes) offers the values of each grouping axis; a quad host
-		// (setSource) offers the data's types and properties. The controls that belong to quads — the per-type limit,
-		// the solo tool, the quad count — go with that source, never to a host with no quads to count.
+		// (setSource) offers the data's types and properties. The controls that belong to quads: the per-type limit,
+		// the solo tool, the quad count, go with that source, never to a host with no quads to count.
 		if (this.axisSource) return this.rows(Object.entries(this.axisSource.axes).map(([axis, values]) => this.axisRow(axis, values)));
 		const visibleQuads = this.filterByTime(this.quads); // ONE time-filtered pass, shared by the clusters, the predicates and the count
 		const clusters = this.deriveClusters(visibleQuads)
@@ -320,7 +320,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			...(c.totalCount > 0 ? { count: c.totalCount } : {}),
 		});
 		// A schema-scoped host (`data-schema-only`, the class browser) filters the vocabulary itself: the legend carries
-		// only the Class + Property chips. The instance-data controls are absent — they have no subject when no instance
+		// only the Class + Property chips. The instance-data controls are absent: they have no subject when no instance
 		// type is offered.
 		if (this.dataset.schemaOnly !== undefined)
 			return this.rows([
@@ -347,7 +347,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		]);
 	}
 
-	/** The rows a mode offers, each on its own line, with the host's view-settings slot last — the one page shape every
+	/** The rows a mode offers, each on its own line, with the host's view-settings slot last: the one page shape every
 	 *  mode renders, so a mode decides only WHAT it offers. */
 	private rows(rows: TemplateResult[]): TemplateResult {
 		return html`${rows.map((row) => html`<div class="row">${row}</div>`)}

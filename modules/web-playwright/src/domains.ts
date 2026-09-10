@@ -36,7 +36,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{
 		selectors: [HTTP_REQUEST_LABEL],
 		schema: httpRequestSchema,
-		description: "An HTTP request observed on the network — one record of a client, the site, or an external host exchanging a message.",
+		description: "An HTTP request observed on the network: one record of a client, the site, or an external host exchanging a message.",
 		topology: {
 			persistedAs: HTTP_REQUEST_LABEL,
 			type: "http:Request",
@@ -61,7 +61,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{
 		selectors: [HTTP_CLIENT_LABEL],
 		schema: httpClientSchema,
-		description: "The requesting party — the browser (user agent) that calls the site's routes and external resources.",
+		description: "The requesting party: the browser (user agent) that calls the site's routes and external resources.",
 		topology: {
 			persistedAs: HTTP_CLIENT_LABEL,
 			type: "as:Application",

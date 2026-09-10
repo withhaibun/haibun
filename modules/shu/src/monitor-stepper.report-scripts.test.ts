@@ -1,6 +1,6 @@
 // A serialized report inlines a component's JS only when that component's view is in the final report (the columns
-// shown at endFeature). A heavy external-component bundle is embedded when its view is shown, and omitted otherwise —
-// keeping ordinary reports small while never dropping a component the report actually displays.
+// shown at endFeature). A heavy external-component bundle is embedded when its view is shown, and omitted otherwise:
+// keeping ordinary reports small while never dropping a component the report displays.
 import { describe, it, expect } from "vitest";
 import { inlineScriptsForView } from "./monitor-stepper.js";
 

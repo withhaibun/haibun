@@ -1,5 +1,5 @@
 /**
- * Working memory — typed fact assertions backed by the world's quad store.
+ * Working memory, typed fact assertions backed by the world's quad store.
  *
  * One fact carrier for the runtime. Every fact lives in the quad store under a
  * named graph; the predicate field types it. `assertFact` writes; `queryFacts` reads.
@@ -46,7 +46,7 @@ export async function assertFact(world: TWorld, domain: string, identity: string
 
 /**
  * Query facts of a domain. Returns the matching quads. Pass an explicit `pattern`
- * to narrow further (subject prefix, etc.) — forwarded to the underlying store.
+ * to narrow further (subject prefix, etc.), forwarded to the underlying store.
  */
 export function queryFacts(world: TWorld, domain: string, namedGraph: string, pattern?: Omit<TQuadPattern, "predicate" | "namedGraph">): Promise<TQuad[]> {
 	const store: IQuadStore = world.shared.getStore();

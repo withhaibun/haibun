@@ -19,7 +19,7 @@ beforeAll(() => {
 	define("shu-product-view", ShuProductView);
 });
 
-describe("summarizeForKihan — enriched view projections", () => {
+describe("summarizeForKihan, enriched view projections", () => {
 	it("thread-column: an ordered collection of items with internal keys stripped and the reply surfaced", () => {
 		const el = document.createElement("shu-thread-column") as ShuThreadColumn;
 		expect(el.summarizeForKihan()).toBeNull(); // empty thread

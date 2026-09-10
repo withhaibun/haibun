@@ -2,12 +2,12 @@ import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { openEntity, refreshAnnotations, requestBody, annotateIndividual, getEntityView, subscribeEntities, type TEntityView, type TAnnotationDraft } from "../entity-store.js";
 
 /**
- * EntityController — the per-view handle to ONE individual's data: its entity, the annotations anchored in it, and how
+ * EntityController: the per-view handle to ONE individual's data: its entity, the annotations anchored in it, and how
  * it resolved (live fetch / session cache / persisted browser store when offline). A view HOLDS one and calls
  * `open(label, id, accessLevel)`; it never calls the fetch / offline / annotation primitives itself.
  *
  * Resolution and freshness live once, in the shared entity-store: one cache and one SSE subscription for every view of
- * the same individual. The controller relays the store's `TEntityView` to the host — the initial resolve, a live field
+ * the same individual. The controller relays the store's `TEntityView` to the host: the initial resolve, a live field
  * update over SSE, and a newly-anchored annotation all arrive by the same path, so the entity and its annotations are
  * never stitched from two uncoordinated fetches. See ./index.ts for the pattern; data-access.test.ts enforces it.
  */
@@ -52,7 +52,7 @@ export class EntityController implements ReactiveController {
 		if (this.id) void refreshAnnotations(this.label, this.id);
 	}
 
-	/** Read one of this individual's bodies — the intentional call that fetches a document's text. The view names its
+	/** Read one of this individual's bodies: the intentional call that fetches a document's text. The view names its
 	 *  bodies from the open; their text arrives only through this, and lands in `view.bodies` by id. */
 	requestBody(bodyId: string): void {
 		if (this.id && bodyId) void requestBody(this.label, this.id, bodyId);
@@ -65,7 +65,7 @@ export class EntityController implements ReactiveController {
 	}
 
 	/** Stop tracking the opened individual. A host that shows something else (arbitrary products rather than a resolved
-	 *  individual) takes no further updates for it — otherwise a live change to the individual it last opened would
+	 *  individual) takes no further updates for it, otherwise a live change to the individual it last opened would
 	 *  replace what the host is showing. */
 	release(): void {
 		this.label = "";

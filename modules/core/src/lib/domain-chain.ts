@@ -1,12 +1,12 @@
 /**
- * Domain chain — the typed step graph.
+ * Domain chain: the typed step graph.
  *
  * Pure projection over registered steppers and registered domains. Returns nodes
  * (domains), steps (rules with their declared in/out domains), and edges (one per
  * input-domain → output-domain transition labeled by step name).
  *
  * Forward dispatch and goal resolution traverse the same graph the executor builds
- * here — that is the anti-drift property of this design.
+ * here: that is the anti-drift property of this design.
  */
 import type { AStepper, TStepperStep } from "./astepper.js";
 import type { TRegisteredDomain } from "./resources.js";
@@ -75,7 +75,7 @@ export function buildDomainChain(steppers: AStepper[], domains: Record<string, T
 			});
 			if (outputDomains.length === 0) continue;
 			if (inputDomains.length === 0) {
-				// Terminal producer — has no domain preconditions but still produces.
+				// Terminal producer, has no domain preconditions but still produces.
 				// Represent as edges from a sentinel "∅" source so producers are
 				// reachable from goal resolution's backward search.
 				for (const to of outputDomains) edges.push({ from: SOURCE_DOMAIN, to, stepperName, stepName });

@@ -6,7 +6,7 @@ The reasoner takes input from two streams: typed-data documents (like JSON-LD, w
 
 A working application has three artefacts that ordinarily live apart: a specification, an implementation, and a test suite. The lines in a logical description serve all three. The lines that state what holds are the lines the reasoner checks for truth. The reasoner that runs the application is the same one that derives its conclusions. Instructions a person can follow to use the system, an explanation of why a particular result occurred, and the criterion the tests check against all read from the same description.
 
-Outside-world steps — network calls, signing, storage, user-agent interaction — stay imperative. Their results enter the reasoner as facts whose predicate they declare. The boundary between imperative action and logical derivation is explicit.
+Outside-world steps, network calls, signing, storage, user-agent interaction, stay imperative. Their results enter the reasoner as facts whose predicate they declare. The boundary between imperative action and logical derivation is explicit.
 
 ## Vocabulary
 
@@ -16,13 +16,13 @@ An **individual** is a particular thing the system reasons about. It is referred
 
 A **domain** (FOL: *sort*) is a named category. `set of meal is ["dinner", "lunch", "breakfast"]` declares one. A reference is read under a domain to fix which facets the rules speak about. The domain does not claim to capture the referent in full; it declares the properties, relationships, and states the rules attend to.
 
-A **predicate** is a named relationship with typed parts. `signed_by(VerifiableCredential, Issuer)` has two parts; `Ready(Meal)` has one. Each part has a declared domain that says what kind of individual can go there. Predicate names are themselves references — IRIs in JSON-LD, declared names in haibun that map to IRIs. A predicate becomes a **fact** when its parts are specific individuals: `signed_by(credential-7, did:web:tethys.osf)`. A fact is a triple of references — subject, predicate, object — each of which can be looked up.
+A **predicate** is a named relationship with typed parts. `signed_by(VerifiableCredential, Issuer)` has two parts; `Ready(Meal)` has one. Each part has a declared domain that says what kind of individual can go there. Predicate names are themselves references, IRIs in JSON-LD, declared names in haibun that map to IRIs. A predicate becomes a **fact** when its parts are specific individuals: `signed_by(credential-7, did:web:tethys.osf)`. A fact is a triple of references, subject, predicate, object, each of which can be looked up.
 
 A **variable** stands for any individual: `x`, `y`. In haibun a variable is a step placeholder `{x}`. Variables allow a single statement to speak about every individual without naming each.
 
 The set of asserted facts is the **ABox** (assertion box, from Description Logic). In haibun it is the working memory stored in `FACT_GRAPH`.
 
-The declared vocabulary — domains, predicates, rules — is the **TBox** (terminological box) or *signature*. Haibun has no native term for the whole TBox; the closest published form is the `ConcernCatalog` returned by `step.list`.
+The declared vocabulary, domains, predicates, rules, is the **TBox** (terminological box) or *signature*. Haibun has no native term for the whole TBox; the closest published form is the `ConcernCatalog` returned by `step.list`.
 
 A **rule** has a head and a body. The body's facts together let the head be derived: `Ready(m) ← Cooked(m) ∧ Plated(m)`. In haibun, a rule is a `waypoint` with a goal-shaped proof inside an `Activity:` block.
 
@@ -104,7 +104,7 @@ some {x:meal} is "ready"
 every {x:meal} where {x} is "cooked", {x} is "edible"
 ```
 
-`ensure` is backward chaining combined with the option of running an activity body to make a failed proof succeed on retry. `resolve` is backward chaining as a query and returns a tree. `some` and `every` quantify, either as bounded iteration or — when the head is a fact-shaped statement — as a rule the reasoner uses in both directions.
+`ensure` is backward chaining combined with the option of running an activity body to make a failed proof succeed on retry. `resolve` is backward chaining as a query and returns a tree. `some` and `every` quantify, either as bounded iteration or, when the head is a fact-shaped statement, as a rule the reasoner uses in both directions.
 
 A proof tree renders as:
 
@@ -127,7 +127,7 @@ The monitor renders the same tree. An RPC `derive "{goal}"` returns it.
 
 `not {statement}` is negation as failure: if the statement fails to prove, the negation succeeds.
 
-`absent {statement}` is the closed-world counterpart: an authored assertion that the statement is known to be false. Used where "we have no proof" must be distinguished from "we have a proof of falsity".
+`absent {statement}` is the closed-world counterpart: an authored assertion that the statement is known to be false. Used where "no proof exists" must be distinguished from "a proof of falsity".
 
 `{a} is the same as {b}` declares equality between two individuals; the reasoner treats them as one. A DID alias whose two strings resolve to the same key is the common case.
 
@@ -178,7 +178,7 @@ Every line follows haibun's step format. No additional bracket convention or too
 
 The system is delivered in phases. Each phase keeps the surface authored before it functional.
 
-### Phase 0 — Per-subject facts
+### Phase 0, Per-subject facts
 
 Two steps for direct ABox assertion and query:
 
@@ -187,9 +187,9 @@ assert {subject:string} {predicate:string} {value:string}
 fact {subject:string} {predicate:string} {value:string}
 ```
 
-The first writes a `(subject, predicate, value)` quad into `FACT_GRAPH`. The second succeeds if the quad exists. Provenance — the asserting `seqPath` — is a property on the quad. Later phases read and write here.
+The first writes a `(subject, predicate, value)` quad into `FACT_GRAPH`. The second succeeds if the quad exists. Provenance, the asserting `seqPath`, is a property on the quad. Later phases read and write here.
 
-### Phase 1 — Predicates as first-class declarations
+### Phase 1, Predicates as declarations
 
 A declarative line registers a predicate with named, domain-typed parts:
 
@@ -199,29 +199,29 @@ predicate {subject:meal} is {state:meal-state}
 
 The parser builds a predicate descriptor `(name, arg-domains)`. The verb in a using line decides assert versus query. `step.list`'s catalog gains a `predicates` section.
 
-### Phase 2 — Unification in the resolver
+### Phase 2, Unification in the resolver
 
 Goals and rule heads become predicate applications possibly containing variables. The resolver finds a most-general unifier between goal and head; the unifier propagates through the body's conjuncts.
 
 `ensure dinner is "ready"` finds the rule `{m} is "ready" with …` by binding `m ↦ dinner`. The body's `{m}` references resolve to `dinner`.
 
-### Phase 3 — Rule chaining
+### Phase 3, Rule chaining
 
 `ensure`'s proof check re-solves goal-shaped proofs recursively. A predicate application that matches another rule's head triggers a sub-derivation. Recursion is bounded by a depth limit and a cycle guard.
 
-### Phase 4 — Proof objects
+### Phase 4, Proof objects
 
 Every successful `ensure` and `resolve` returns a proof tree. Failures return a partial tree marking the first unprovable sub-goal. The monitor renders trees. The affordances panel surfaces a `show derivation` action per reachable goal. The RPC surface exposes `derive` for external callers.
 
-### Phase 5 — Universals as rules
+### Phase 5, Universals as rules
 
 `for every {x} where {x} is "raw", {x} is "uncooked"` registers the rule `Uncooked(x) ← Raw(x)`. The forward chainer runs on each new `raw` fact and adds the corresponding `uncooked` fact. The backward chainer uses the rule to prove `uncooked` goals from `raw` facts.
 
-### Phase 6 — Equality and classical negation
+### Phase 6, Equality and classical negation
 
 `{a} is the same as {b}` registers equality with congruence; queries normalise to canonical representatives. `absent {statement}` adds a closed-world falsity assertion separate from negation as failure.
 
-### Phase 7 — Functions
+### Phase 7, Functions
 
 `function {name}({args}) → D` registers a domain-typed projection. Function applications evaluate during proof search.
 
@@ -303,15 +303,15 @@ The system targets multi-step plans, capability checks, declarative validation, 
 
 ## Open questions
 
-How a predicate's per-subject key is derived from a `productsDomain` payload — fall back to `seqPath` when no `idField` is declared.
+How a predicate's per-subject key is derived from a `productsDomain` payload, fall back to `seqPath` when no `idField` is declared.
 
-How higher-arity predicates store in a quad store — reify into anonymous individuals carrying the tuple, with the relation as type.
+How higher-arity predicates store in a quad store, reify into anonymous individuals carrying the tuple, with the relation as type.
 
-Where the reasoner runs — in-process per feature first, with a `derive` RPC for clients; an out-of-process inference service later if needed.
+Where the reasoner runs, in-process per feature first, with a `derive` RPC for clients; an out-of-process inference service later if needed.
 
 Whether `signature.list` and `derive` belong on the existing `step.list` RPC surface or a new namespace.
 
-How existing `productsDomain` declarations migrate — auto-derive a one-part predicate per declaration; let authors opt into richer signatures over time.
+How existing `productsDomain` declarations migrate, auto-derive a one-part predicate per declaration; let authors opt into richer signatures over time.
 
 ## Summary
 

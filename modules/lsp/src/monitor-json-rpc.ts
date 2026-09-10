@@ -9,13 +9,13 @@ export default class MonitorJsonRpc extends AStepper {
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 
-		// Ensure console is suppressed so we don't pollute stdout with raw JSON
+		// Ensure console is suppressed so stdout is not polluted with raw JSON
 		world.eventLogger.suppressConsole = true;
 
 		world.eventLogger.subscribe((event) => {
 			// Format as LSP window/logMessage notification
 			// type 3 = Info, 1 = Error, 2 = Warning, 4 = Log
-			// We'll wrap the whole event JSON in the message for parsing by the client
+			// The whole event JSON is wrapped in the message for parsing by the client
 			// or just log a friendly string.
 
 			const message = `[Haibun] ${JSON.stringify(event)}`;

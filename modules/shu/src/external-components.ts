@@ -1,7 +1,7 @@
 /**
- * external-components — load a site-declared component bundle by its custom-element tag. A concern that ships its own
+ * external-components: load a site-declared component bundle by its custom-element tag. A concern that ships its own
  * element declares `ui: { component, js }`; this resolves the tag through the ui catalog (getUiByComponent), imports the
- * script, and verifies the element registered. The ONE loader for every mount path — a column pane (app.ts) and an
+ * script, and verifies the element registered. The ONE loader for every mount path: a column pane (app.ts) and an
  * embedded product view (shu-product-view) load a component identically, so an embed can never depend on some column
  * having loaded the bundle first. Callers pass a reporter to route lifecycle phases to their diagnostic channel.
  */
@@ -22,7 +22,7 @@ export async function ensureUiComponentLoaded(childTag: string, report: TExterna
 	const ui = getUiByComponent(childTag);
 	if (!ui) {
 		report("error", "missing-ui", childTag);
-		throw new Error(`[shu] no concern declares ui.component "${childTag}" — register a domain with ui:{component,js}`);
+		throw new Error(`[shu] no concern declares ui.component "${childTag}", register a domain with ui:{component,js}`);
 	}
 	const js = typeof ui.js === "string" ? ui.js : "";
 	if (!js) {
@@ -40,7 +40,7 @@ export async function ensureUiComponentLoaded(childTag: string, report: TExterna
 	}
 	if (!customElements.get(childTag)) {
 		report("error", "register-failed", childTag, { "haibun.shu.external-component.url": src });
-		throw new Error(`[shu] ${childTag} loaded from ${src} but customElements.get(${JSON.stringify(childTag)}) is undefined — bundle did not register the element`);
+		throw new Error(`[shu] ${childTag} loaded from ${src} but customElements.get(${JSON.stringify(childTag)}) is undefined, bundle did not register the element`);
 	}
 	report("debug", "mounted", childTag, { "haibun.shu.external-component.url": src });
 }

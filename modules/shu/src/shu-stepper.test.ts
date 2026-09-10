@@ -83,7 +83,7 @@ describe("the credential a reader acts under", () => {
 		expect(new Date(String(asked?.expires)).getTime(), "and lapsing, since a session is a sitting").toBeGreaterThan(Date.now());
 		expect(issued.products?.allowedAction).toEqual(["Instance:read", "comment.grant"]);
 		expect(issued.products?.keyId, "and the reader is told what its signatures are made as").toBe("did:key:zHolder#zHolder");
-		// The keyId is public — it rides every signed request and is written into the credential's own record — so it
+		// The keyId is public, it rides every signed request and is written into the credential's own record, so it
 		// must not resolve as authority in its own right. A session is the key a reader holds, proven per request, not a
 		// value a listing hands out: nothing a third party can read may stand in for it.
 		expect(authority.resolveSession("did:key:zHolder#zHolder"), "the public keyId is not a bearer token").toEqual([]);

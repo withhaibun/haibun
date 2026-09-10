@@ -47,7 +47,7 @@ describe("RemoteGraphSource", () => {
 		await expect(source.connect()).rejects.toThrow(/did not report a site principal/);
 	});
 
-	it("asks for the peer's OWN data (scope own — a federation cycle cannot recurse) and stamps EVERY sampled subject, keeping stamps the peer set itself", async () => {
+	it("asks for the peer's OWN data (scope own: a federation cycle cannot recurse) and stamps EVERY sampled subject, keeping stamps the peer set itself", async () => {
 		const source = new RemoteGraphSource({ url: "http://peer:1", fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:imap" }) as typeof fetch });
 		await source.connect();
 		const result = await source.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });

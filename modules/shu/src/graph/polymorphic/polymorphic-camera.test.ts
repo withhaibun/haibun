@@ -94,11 +94,11 @@ describe("PolymorphicCamera.zoomBy: no limit on how near or far the camera goes"
 	});
 });
 
-describe("PolymorphicCamera.frame(fit) — time-deep framing", () => {
+describe("PolymorphicCamera.frame(fit), time-deep framing", () => {
 	it("frames a z-deep, XY-clustered graph by its XY extent + z depth, not the loose 3D sphere", () => {
 		// Tiny in XY (±1), deep in z ([0,400]): a wide date range. Centre z = 200, so the fit must back off past the
 		// z half-depth (200) to keep the nearest-z node in front, but far LESS than the sphere fit (radius/sin(40°)+20 ≈
-		// 331) — which is what left the graph a thin ribbon.
+		// 331): which is what left the graph a thin ribbon.
 		const { cam, getCameraZ } = harness([
 			{ x: -1, y: 0, z: 0 },
 			{ x: 1, y: 0, z: 400 },
@@ -112,7 +112,7 @@ describe("PolymorphicCamera.frame(fit) — time-deep framing", () => {
 	});
 
 	it("a flat, XY-spread graph frames on its XY extent (no spurious z push)", () => {
-		// No z depth (halfD = 0): the distance is just the XY reach + breathing room + floor — the graph fills the view.
+		// No z depth (halfD = 0): the distance is just the XY reach + breathing room + floor: the graph fills the view.
 		const { cam, getCameraZ } = harness([
 			{ x: -100, y: -100, z: 0 },
 			{ x: 100, y: -100, z: 0 },
@@ -168,7 +168,7 @@ function orbitedHarness(
 	return { cam: new PolymorphicCamera(deps), target, position, up, viewDir };
 }
 
-describe("PolymorphicCamera.frame — fit keeps the user's orbit, the view aims reset it", () => {
+describe("PolymorphicCamera.frame, fit keeps the user's orbit, the view aims reset it", () => {
 	const nodes = [
 		{ x: -100, y: -50, z: 0 },
 		{ x: 100, y: 50, z: 400 },
@@ -200,7 +200,7 @@ describe("PolymorphicCamera.frame — fit keeps the user's orbit, the view aims 
 	it("the sequence frame restores the canonical lane plane from any orbit, over the PLACED extent", () => {
 		// The user orbited away from the lane plane; a lane view has ONE canonical frame (fitMove routes its fit here):
 		// look along +x with time reading DOWN, over the extent the view placed UNIONED WITH the node bounds on
-		// the plane's own axes — the nodes are pinned to the plane, so y/z agree, while x (the axis the camera looks
+		// the plane's own axes: the nodes are pinned to the plane, so y/z agree, while x (the axis the camera looks
 		// along) is never unioned: depth would inflate the frame and shrink the diagram to a speck.
 		// extent y [-70,0] ∪ nodes y [-50,50] → [-70,50]; extent z [0,240] ∪ nodes z [0,400] → [0,400].
 		const { cam, target, position, up } = orbitedHarness(nodes, { x: 80, y: 200, z: 500 }, { mode: REFRAME.sequence, extent: { cy: -35, cz: 120, halfW: 120, halfH: 35 } });
@@ -214,7 +214,7 @@ describe("PolymorphicCamera.frame — fit keeps the user's orbit, the view aims 
 
 	it("an orbited fit backs off far enough that the whole box fits the frustum from that angle", () => {
 		// Viewed from +x, the z depth (±200) is the LATERAL screen extent and the x spread (±100) is the depth.
-		// Required distance ≈ (200/tan(40°) + 100) * 1.1 + 20 ≈ 392 — past the front fit's ≈371, since the long axis
+		// Required distance ≈ (200/tan(40°) + 100) * 1.1 + 20 ≈ 392, past the front fit's ≈371, since the long axis
 		// now spans the screen.
 		const { cam, position, viewDir } = orbitedHarness(nodes, { x: 300, y: 0, z: 0 });
 		cam.frame(FRAME.fit);
@@ -224,11 +224,11 @@ describe("PolymorphicCamera.frame — fit keeps the user's orbit, the view aims 
 	});
 });
 
-describe("clearStripOffset — where a framing aims when an overlay covers the canvas centre", () => {
+describe("clearStripOffset, where a framing aims when an overlay covers the canvas centre", () => {
 	const canvas = { left: 0, top: 0, right: 1000, bottom: 600 };
 
 	it("aims at the strip right of a guide that covers the centre, at the canvas's vertical middle", () => {
-		// The guide as it opens: top-left, 70% wide, 80% tall — the canvas centre (500, 300) is under it.
+		// The guide as it opens: top-left, 70% wide, 80% tall: the canvas centre (500, 300) is under it.
 		const offset = clearStripOffset(canvas, { left: 20, top: 20, right: 700, bottom: 500 });
 		expect(offset).toEqual({ dxPx: (700 + 1000) / 2 - 500, dyPx: 0 });
 	});
@@ -243,12 +243,12 @@ describe("clearStripOffset — where a framing aims when an overlay covers the c
 		expect(clearStripOffset(canvas, { left: 1200, top: 0, right: 1400, bottom: 600 }), "an overlay elsewhere on the page").toBeNull();
 	});
 
-	it("gives up when the overlay covers the whole canvas — nowhere clearer exists", () => {
+	it("gives up when the overlay covers the whole canvas, nowhere clearer exists", () => {
 		expect(clearStripOffset(canvas, { left: -10, top: -10, right: 1010, bottom: 610 })).toBeNull();
 	});
 });
 
-describe("PolymorphicCamera.centerOn with an aim offset — the followed node lands in the clear strip", () => {
+describe("PolymorphicCamera.centerOn with an aim offset: the followed node lands in the clear strip", () => {
 	/** A live orbit + an identity matrixWorld (camera on +z looking down -z: screen right = +x, screen up = +y). */
 	function centreHarness() {
 		const vec = (x: number, y: number, z: number) => ({

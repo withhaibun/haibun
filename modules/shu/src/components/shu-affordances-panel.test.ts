@@ -14,12 +14,12 @@ const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<voi
 };
 
 /**
- * The panel always reaches a terminal display state — rendering the forward/goals lists when
+ * The panel always reaches a terminal display state, rendering the forward/goals lists when
  * products arrive, or showing a clear "no data yet, trigger X" message when no products have
  * been supplied. A persistent spinner is a defect.
  *
  * Tests use `await el.updateComplete` after every mutation because the component is a
- * `LitElement` subclass — `setState` / `products` mutations schedule a microtask-bound
+ * `LitElement` subclass, `setState` / `products` mutations schedule a microtask-bound
  * update, so synchronous shadowRoot reads would race the render.
  */
 
@@ -293,7 +293,7 @@ describe("shu-affordances-panel", () => {
 		expect(!!emptyState || !!goalsList || !!waypointsList).toBe(true);
 	});
 
-	it("waypoints carried by `show affordances` products render the waypoint section — the ONE verb brings the whole snapshot", async () => {
+	it("waypoints carried by `show affordances` products render the waypoint section: the ONE verb brings the whole snapshot", async () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
 		setConduit(new TestConduit(async () => ({})));
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
@@ -307,7 +307,7 @@ describe("shu-affordances-panel", () => {
 	it("a burst of change signals coalesces to ONE snapshot refetch (no spurious-RPC flood)", async () => {
 		// A run emits one `affordances.` change signal per step, and a new subscriber is replayed the whole history.
 		// Refetching per signal is the RPC flood (hundreds per run); the panel starts one timer per coalesce window
-		// (REFRESH_COALESCE_MS) and the burst rides it — exactly one read of the affordances on offer.
+		// (REFRESH_COALESCE_MS) and the burst rides it, exactly one read of the affordances on offer.
 		let snapshotCalls = 0;
 		setConduit(
 			new TestConduit((method: string) => {

@@ -59,7 +59,7 @@ describe("lazyWindowedSource", () => {
 	});
 });
 
-describe("lazyWindowedSource — hardening (adversarial review)", () => {
+describe("lazyWindowedSource, hardening (adversarial review)", () => {
 	it("recovers from a rejected fetch: pages are re-fetchable, not bricked, and no unhandled rejection (B1)", async () => {
 		let n = 0;
 		const fetch = vi.fn((s: number, e: number) => (++n === 1 ? Promise.reject(new Error("net")) : Promise.resolve(Array.from({ length: e - s }, (_, k) => s + k))));
@@ -263,7 +263,7 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 	});
 });
 
-describe("lazyWindowedSource — the live edge under a stream", () => {
+describe("lazyWindowedSource: the live edge under a stream", () => {
 	/** A fetcher responded by hand, so a live row can arrive while its page is in flight. */
 	function deferred() {
 		const pending: Array<{ start: number; end: number; resolve: (rows: number[]) => void }> = [];

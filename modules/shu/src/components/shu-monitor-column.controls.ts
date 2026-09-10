@@ -5,7 +5,7 @@
  * since the backfill and re-render land asynchronously. The page-providing stepper is duck-typed, so shu keeps no
  * dependency on it.
  *
- * Steps never lead with the article "the" — haibun treats such lines as narrative prose, not matchable steps.
+ * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
@@ -43,7 +43,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 	/** Poll `read` until the count settles (two equal, non-zero reads in a row), so a "fewer than" assertion reads the
 	 *  stable virtualized count, never a mid-backfill snapshot that happens to be small. */
 	/** Dispatch a pointerdown on the custom rail at its top or bottom, the way a click-to-seek does, so a feature can prove
-	 *  the rail actually scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op). */
+	 *  the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op). */
 	private seekRail(page: EvalPage, where: string): Promise<boolean> {
 		return page.evaluate((w: string) => {
 			let rail: Element | null = null;
@@ -124,7 +124,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 		documentThumbnailsFlow: {
 			// Measure the run's REAL screenshot thumbnails (frames the document built from its own artifact events, images
 			// served from /artifacts): every frame sits in a .thumb-row grid, sized as a TILE (a track's width, never the tiny
-			// natural-size shrink-wrap and never the whole column), and its image actually loaded and fills the frame.
+			// natural-size shrink-wrap and never the whole column), and its image loaded and fills the frame.
 			gwta: "document thumbnails flow as tiles sized to the column grid",
 			action: async () => {
 				const read = (p: EvalPage) =>
@@ -188,7 +188,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 			},
 		},
 		expandFirstThumbnail: {
-			// Click the first real thumbnail's image: the frame expands fullscreen and shows the stamped step caption — the
+			// Click the first real thumbnail's image: the frame expands fullscreen and shows the stamped step caption: the
 			// caption and the cursor scrub both ride the build-time data-step-label/id stamp, not DOM sibling walking (which
 			// virtualization broke).
 			gwta: "expanding the first thumbnail shows its step caption",
@@ -207,7 +207,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 						const f = doc?.shadowRoot?.querySelector("shu-artifact-frame.fullscreen");
 						const fr = f?.getBoundingClientRect();
 						const cr = doc?.getBoundingClientRect();
-						// The top-most element at the overlay's centre must belong to the expanded frame — inside a virtualized
+						// The top-most element at the overlay's centre must belong to the expanded frame, inside a virtualized
 						// column the rows are stacking contexts, and without the top layer a later row's tiles paint over it.
 						let onTop = false;
 						if (f && fr) {
@@ -237,7 +237,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 				const v = await pollUntil(await this.page(), read, (s) => s.open && s.caption.length > 0, 20, 150);
 				if (!v.open) return actionNotOK("clicking the thumbnail did not expand it fullscreen");
 				if (!v.caption) return actionNotOK("the expanded thumbnail shows no step caption (the data-step-label stamp is missing)");
-				// The overlay must take the WHOLE column box, from its left edge — inside a virtualizer, fixed-position
+				// The overlay must take the WHOLE column box, from its left edge, inside a virtualizer, fixed-position
 				// coordinates resolve against the transformed row, so uncorrected values leave it askew beside the tiles.
 				if (v.dLeft > 2 || v.widthRatio < 0.98)
 					return actionNotOK(`the expanded thumbnail does not cover the column (left off by ${Math.round(v.dLeft)}px, width ${Math.round(v.widthRatio * 100)}% of the column)`);
@@ -247,8 +247,8 @@ export default class ShuMonitorColumnControls extends AStepper {
 			},
 		},
 		expandedThumbnailNavigates: {
-			// ←/→ on the expanded thumbnail must reach the run's OTHER screenshots — the document column navigates its block
-			// list (a frame cannot see off-window siblings under virtualization). Asserts the expanded image actually changes.
+			// ←/→ on the expanded thumbnail must reach the run's OTHER screenshots: the document column navigates its block
+			// list (a frame cannot see off-window siblings under virtualization). Asserts the expanded image changes.
 			gwta: "arrow keys move the expanded thumbnail to the next screenshot",
 			action: async () => {
 				const srcOf = (p: EvalPage) => firstAttr(p, "shu-artifact-frame.fullscreen img", "src");
@@ -286,7 +286,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 			// The document panel (not just its rail) is scrolled to the live edge: measure the virtualizer's own remaining
 			// scroll below the viewport. At the edge this is only the height-estimate overshoot below the last row (tens of px);
 			// a follow that stalled short of the newest events leaves the newest hundreds/thousands of px out of view. Reading
-			// the real scroller geometry is the ground truth for "did the panel actually scroll", not whether a block merely
+			// the real scroller geometry is the ground truth for "did the panel scroll", not whether a block merely
 			// rendered in the virtualizer's overscan.
 			gwta: "document panel is scrolled to the live edge",
 			action: async () => {
@@ -307,13 +307,13 @@ export default class ShuMonitorColumnControls extends AStepper {
 				return dist < DOC_LIVE_EDGE_PX
 					? actionOK()
 					: actionNotOK(
-							`document panel is ${Math.round(dist)}px above its live edge (the newest events are scrolled out of view — the panel followed its rail but not its content)`,
+							`document panel is ${Math.round(dist)}px above its live edge (the newest events are scrolled out of view: the panel followed its rail but not its content)`,
 						);
 			},
 		},
 		scrubMonitorFirstRow: {
 			// Click the first monitor row's time (onTimeClick sets the GLOBAL cursor with no local requestUpdate), so this drives
-			// the cursor EXTERNALLY — the way the timeline or another view would — isolating whether onTimeSync updates a view.
+			// the cursor EXTERNALLY, the way the timeline or another view would, isolating whether onTimeSync updates a view.
 			gwta: "scrub the cursor from the monitor's first row",
 			action: async () => {
 				const ok = await clickFirst(await this.page(), `${MONITOR_ROW} .time-group`);

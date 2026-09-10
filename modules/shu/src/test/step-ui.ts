@@ -9,12 +9,12 @@ const { setAs } = withAction(new VariablesStepper());
 /**
  * The origin a browser-driving feature navigates to.
  *
- * Default: the feature's own webserver at `http://localhost:<port>` — the port from
+ * Default: the feature's own webserver at `http://localhost:<port>`: the port from
  * `HAIBUN_O_WEBSERVERSTEPPER_PORT`, else `defaultPort`. A self-contained feature serves its own app and seeds its
  * own store, so the browser must reach that loopback server. On a host that also fronts a deployed instance through
  * a reverse proxy, localhost stays off the proxy path, so any proxy authentication is not involved.
  *
- * Override — `HAIBUN_TEST_HOST`: point a run at a separate, already-running instance instead of the feature's own
+ * Override: `HAIBUN_TEST_HOST`: point a run at a separate, already-running instance instead of the feature's own
  * server. Accepts a full origin (`https://demo.example.com`, `http://10.0.0.5:8728`) or a bare hostname, taken as
  * `https://<host>`. For a deliberate read-only run only: a feature that seeds its own store fails against a remote
  * instance that lacks that data, and a target behind basic auth also needs browser credentials (Playwright
@@ -38,7 +38,7 @@ function collectTestIds(idSets: Array<Record<string, unknown> | ReadonlyArray<st
 /** Wrap steps as an activity: they run as hidden substeps, surfaced as the single line `as` (a lowercase declarative outcome like "the recipe is created", unique per feature, shown after the steps run). Spread `setup` before the scenarios, `call` at the point of use. */
 export function activity(as: string, ...steps: TKirejiStep[]): { setup: TKirejiStep[]; call: TKirejiStep[] } {
 	// The resolver de-polites an actionable (strips a leading "the"/"a"/…) before matching, so the
-	// outcome is registered de-polited — otherwise a natural label like "the root recipe is created"
+	// outcome is registered de-polited, otherwise a natural label like "the root recipe is created"
 	// never matches its invocation. The displayed lines keep the natural wording.
 	return { setup: [`Activity: ${as}`, ...steps, `waypoint ${dePolite(as).trim()}`], call: [as] };
 }
@@ -83,7 +83,7 @@ export function stepTestIds(method: string, callIndex: number, inputParams: stri
 
 /**
  * Encode a JS-literal composite sub-field value for the gwta form-input
- * argument. Always emits a literal — never a variable reference — because
+ * argument. Always emits a literal, never a variable reference, because
  * callers pass JS scalars/arrays/objects, not haibun variable names. Plain
  * strings without embedded `"` use the quoted-arg form (haibun strips the
  * outer quotes); any value with inner `"` (JSON objects/arrays, strings
@@ -91,7 +91,7 @@ export function stepTestIds(method: string, callIndex: number, inputParams: stri
  * placeholder's `(?:[^"]|"[^"]*")+?` branch and reaches `setValue.fill()`
  * byte-for-byte.
  *
- * Variable references — e.g. `id: "recordId"` — must be passed at the
+ * Variable references, e.g. `id: "recordId"`, must be passed at the
  * top level of `params`, not nested inside a composite, since composite
  * sub-fields here are always literal.
  */
@@ -109,23 +109,23 @@ export function createStepUI(wp: WebPlaywright) {
 		return collectTestIds(idSets).map(registerTestIdStep);
 	}
 
-	/** Ensure the actions-bar is expanded. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent — the click is skipped when MODE_SELECT is already on the page. */
+	/** Ensure the actions-bar is expanded. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent: the click is skipped when MODE_SELECT is already on the page. */
 	const expandActionsBar: TKirejiStep[] = [`where not has test id ${IDS.APP.MODE_SELECT}, click ${IDS.APP.TWISTY}`, waitFor({ target: IDS.APP.MODE_SELECT })];
 
-	/** Collapse the actions-bar if it is open — the inverse of expandActionsBar (MODE_SELECT present ⇒ click the twisty to close). Idempotent: skipped when already collapsed. The expanded panel floats over lower content (e.g. a graph), so close it before interacting with what sits beneath. */
+	/** Collapse the actions-bar if it is open: the inverse of expandActionsBar (MODE_SELECT present ⇒ click the twisty to close). Idempotent: skipped when already collapsed. The expanded panel floats over lower content (e.g. a graph), so close it before interacting with what sits beneath. */
 	const collapseActionsBar: TKirejiStep[] = [`where has test id ${IDS.APP.MODE_SELECT}, click ${IDS.APP.TWISTY}`];
 
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
 
-	/** Expand the actions-bar and switch to Search mode — the filter/query UI (type, text search, filters) is the search-mode body, so this is the entry to any of those controls. Search is the default mode, so a fresh bar is already here. */
+	/** Expand the actions-bar and switch to Search mode: the filter/query UI (type, text search, filters) is the search-mode body, so this is the entry to any of those controls. Search is the default mode, so a fresh bar is already here. */
 	const enterSearchMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Search"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.TYPE_SELECT })];
 
 	/** Expand the actions-bar and switch to Ask mode. Symmetric to enterStepMode. */
 	const enterAskMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Ask"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.CHAT_INPUT })];
 
 	/** Type a prompt into the Ask area's chat-input and submit. Keep curly braces out of the prompt when the reply
-	 *  feeds `matches` — its `{var}` interpolation breaks on a model echoing braces back. */
-	// The turn must FULLY complete (cookie written + server-side recordChatComments persisted) before later steps re-mount the chat, or the turn is lost. The session combo (app-session-select) only renders after handleChat's post-stream block runs refreshSessionList, so waiting for it blocks until completion — far more reliable than network-idle on a long-lived stream.
+	 *  feeds `matches`: its `{var}` interpolation breaks on a model echoing braces back. */
+	// The turn must FULLY complete (cookie written + server-side recordChatComments persisted) before later steps re-mount the chat, or the turn is lost. The session combo (app-session-select) only renders after handleChat's post-stream block runs refreshSessionList, so waiting for it blocks until completion, far more reliable than network-idle on a long-lived stream.
 	function askExchange(prompt: string): TKirejiStep[] {
 		return [
 			click({ target: IDS.APP.CHAT_INPUT }),
@@ -160,7 +160,7 @@ export function createStepUI(wp: WebPlaywright) {
 			// Composite params (plain objects) decompose into one entry per
 			// sub-field. Scalars in the composite are JSON-quoted (haibun
 			// strips quotes, setValue.fill types the value). Arrays/objects
-			// are passed as bare JSON text — the bare-literal branch of the
+			// are passed as bare JSON text: the bare-literal branch of the
 			// gwta placeholder accepts non-`"` chars and `"…"` pairs, so
 			// `["A","B"]` captures cleanly.
 			const isComposite = rawValue !== null && typeof rawValue === "object" && !Array.isArray(rawValue);
@@ -182,7 +182,7 @@ export function createStepUI(wp: WebPlaywright) {
 		const branchTarget = passes ? resultTarget : errorTarget;
 		// The step-caller emits `step-done` once execution settles (success or
 		// error). Waiting for `step-done` returns as soon as the outcome lands;
-		// `has test id <branchTarget>` then asserts which branch actually fired,
+		// `has test id <branchTarget>` then asserts which branch fired,
 		// failing fast with the on-screen error text when the wrong one shows.
 		const body: TKirejiStep[] = [
 			...[runTarget, doneTarget, resultTarget, errorTarget, ...inputTargets].map(registerTestIdStep),
@@ -229,7 +229,7 @@ export function createStepUI(wp: WebPlaywright) {
 	}
 
 	/**
-	 * Pick a value from a <shu-combobox> by test id. Assumes the control is on screen — compose with
+	 * Pick a value from a <shu-combobox> by test id. Assumes the control is on screen, compose with
 	 * `expandActionsBar` when starting from a collapsed actions bar. Waits for the control to advertise that its
 	 * options have loaded (`-ready`, a stable shadow-attached marker), focuses it, types the value to filter, then
 	 * Enter to pick.
@@ -251,7 +251,7 @@ export function createStepUI(wp: WebPlaywright) {
 		];
 	}
 
-	/** Pick a node type from the type combobox — the graph-wide instance of the combobox pick. */
+	/** Pick a node type from the type combobox: the graph-wide instance of the combobox pick. */
 	function selectGraphLabel(label: string): TKirejiStep[] {
 		return pickFromCombobox(IDS.APP.TYPE_SELECT, label);
 	}

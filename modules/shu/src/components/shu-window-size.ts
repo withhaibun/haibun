@@ -1,5 +1,5 @@
 /**
- * <shu-window-size> — the window-size picker, bound to the ONE global `windowSizeSetting` (window-size-setting.ts, the
+ * <shu-window-size>: the window-size picker, bound to the ONE global `windowSizeSetting` (window-size-setting.ts, the
  * setting's home, read by the run sources and the graph query). The current value is read reactively from the shared
  * signal, so every mounted picker stays in step.
  */
@@ -13,7 +13,7 @@ import { WINDOW_SIZES, windowSizeSetting } from "../window-size-setting.js";
 const EmptySchema = z.object({});
 
 export class ShuWindowSize extends ShuElement<typeof EmptySchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

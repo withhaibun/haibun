@@ -10,7 +10,7 @@ import { appAccessLevel } from "./util.js";
 import { readIndividual } from "./quads-snapshot.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";
 
-/** The client's copy of one entity — the `getIndividualWithEdges` result, kept current by SSE. */
+/** The client's copy of one entity: the `getIndividualWithEdges` result, kept current by SSE. */
 export type TEntityResult = { vertex: Record<string, unknown>; edges: unknown[]; incomingCount: number };
 
 /** Where a served copy came from: a live fetch, the in-memory session cache, or the persisted browser store (offline). */
@@ -18,7 +18,7 @@ export type TProvenance = "live" | "cache" | "offline";
 export type TEntityStatus = "loading" | "ready" | "error";
 
 /** The whole client-side view of one individual: its entity, the annotations anchored in it, and how it resolved. One
- *  shape for every consumer — the entity fetch, the offline fallback, and every SSE refresh land here, so a view holds
+ *  shape for every consumer: the entity fetch, the offline fallback, and every SSE refresh land here, so a view holds
  *  one handle (EntityController) and renders this, never stitching the entity and its annotations from two paths. */
 export type TEntityView = {
 	status: TEntityStatus;
@@ -27,7 +27,7 @@ export type TEntityView = {
 	annotations: AnnotationView[];
 	error?: string;
 	/** The text of the bodies that have been ASKED for, by body id. A record names the bodies it links (id + media type)
-	 *  but never carries their text — a body is a whole document and travels only when a reader opens it. Absent here
+	 *  but never carries their text: a body is a whole document and travels only when a reader opens it. Absent here
 	 *  means "not asked for yet", which is why a body area shows as loading rather than empty. */
 	bodies: Record<string, string>;
 };
@@ -43,7 +43,7 @@ type Store = {
 	unsubscribe: (() => void) | null;
 };
 
-// One instance across the separately-built bundles — see quads-snapshot for the rationale.
+// One instance across the separately-built bundles, see quads-snapshot for the rationale.
 const STORE_KEY = "__SHU_ENTITY_STORE__";
 
 function getStore(): Store {
@@ -82,7 +82,7 @@ function notify(s: Store, subject: string): void {
 	}
 }
 
-/** Apply observed quads: a scalar change updates the cached copy in place (e.g. a rescheduled time — no refetch); an
+/** Apply observed quads: a scalar change updates the cached copy in place (e.g. a rescheduled time: no refetch); an
  *  `oa:hasSource` anchor landing on a held individual re-resolves that individual's annotations (a note written here or
  *  anywhere). Edge (structure) quads are left to a full reopen. */
 function onQuads(quads: TQuad[]): void {
@@ -111,7 +111,7 @@ function ensureFreshness(s: Store): void {
 
 /** Resolve the annotations for a held individual by the path its entity took: a copy served from the persisted browser
  *  store walks that same snapshot, a live copy resolves live. A live resolve that cannot reach the server keeps the
- *  annotations already held — the snapshot is not the live graph, so answering from it would report a transient failure
+ *  annotations already held: the snapshot is not the live graph, so answering from it would report a transient failure
  *  as "no annotations". Only the newest resolve for an entry writes, so a slower earlier one cannot land a stale set
  *  over it (an authored note re-resolves while the open's own resolve may still be in flight). */
 async function loadAnnotationsInto(entry: Entry): Promise<void> {
@@ -149,7 +149,7 @@ export async function openEntity(label: string, id: string, accessLevel: string)
 	notify(s, id);
 }
 
-/** Read one body's text into a held individual's view — the intentional call a reader's open of that body makes. A
+/** Read one body's text into a held individual's view: the intentional call a reader's open of that body makes. A
  *  record names its bodies but never carries their text, so nothing streams a document until this asks for it. Already
  *  read (or not a held individual) is a no-op, so re-rendering never refetches. */
 export async function requestBody(label: string, id: string, bodyId: string): Promise<void> {
@@ -180,7 +180,7 @@ export async function annotateIndividual(label: string, id: string, draft: TAnno
 	return { ok: true };
 }
 
-/** Re-resolve just a held individual's annotations (a note was authored here) and notify — leaves the entity untouched. */
+/** Re-resolve just a held individual's annotations (a note was authored here) and notify, leaves the entity untouched. */
 export async function refreshAnnotations(label: string, id: string): Promise<void> {
 	const s = getStore();
 	const entry = s.entries.get(keyOf(label, id));
@@ -189,7 +189,7 @@ export async function refreshAnnotations(label: string, id: string): Promise<voi
 	notify(s, id);
 }
 
-/** The whole current view of an individual (status/provenance/entity/annotations) — a loading stub until first opened. */
+/** The whole current view of an individual (status/provenance/entity/annotations): a loading stub until first opened. */
 export function getEntityView(label: string, id: string): TEntityView {
 	return getStore().entries.get(keyOf(label, id))?.view ?? loadingView();
 }

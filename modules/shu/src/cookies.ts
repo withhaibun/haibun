@@ -1,7 +1,7 @@
 /**
  * Cookie helpers for SPA-side persistence. One-year max-age, path=/, encoded
  * values. JSON variants take a default for parse failures so a corrupt cookie
- * doesn't break the call site — bad JSON falls back instead of throwing.
+ * doesn't break the call site, bad JSON falls back instead of throwing.
  */
 
 const ONE_YEAR = 60 * 60 * 24 * 365;

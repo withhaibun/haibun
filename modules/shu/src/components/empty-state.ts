@@ -2,7 +2,7 @@ import { html, type TemplateResult } from "lit";
 
 /**
  * The one waiting-versus-empty pathway every data control uses for an empty region. While the data is still being read
- * (`loaded` is false) it reports that it is waiting — NEVER a false "no data". Once read, it shows the empty message. So
+ * (`loaded` is false) it reports that it is waiting, NEVER a false "no data". Once read, it shows the empty message. So
  * no control states that there is no data before its data has been read.
  *
  * Each control supplies its own `loaded` (e.g. a run source's `loaded`, the clustered base's snapshot-loaded, or a

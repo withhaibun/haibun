@@ -133,7 +133,7 @@ describe("shu-step-caller", () => {
 
 	it("server-side validation errors (HTTP 200 body with `error`) render in the step-error div, not a silent step-result", async () => {
 		// Pattern: dispatchStep returns actionNotOK, web-server returns
-		// `{ error: "<method>: <message>" }` body with HTTP 200 — so the
+		// `{ error: "<method>: <message>" }` body with HTTP 200, so the
 		// SSE client throws and the step-caller catches. The error div
 		// must include the server message verbatim to surface what the
 		// schema rejected. This pins the contract.
@@ -142,12 +142,12 @@ describe("shu-step-caller", () => {
 			pattern: "issue credential {credential}",
 			inputSchema: { properties: { credential: { type: "object" } }, required: ["credential"] },
 		};
-		// jsdom doesn't ship an EventSource — stub one so the shared SseSubscriber
+		// jsdom doesn't ship an EventSource, stub one so the shared SseSubscriber
 		// constructor (called lazily by SseClient.for) doesn't throw before fetch
 		// can be intercepted.
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
 			addEventListener(): void {
-				/* stub — no real SSE in jsdom */
+				/* stub: no real SSE in jsdom */
 			}
 			removeEventListener(): void {
 				/* stub */
@@ -209,7 +209,7 @@ describe("shu-step-caller", () => {
 		};
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
 			addEventListener(): void {
-				/* stub — no real SSE in jsdom */
+				/* stub: no real SSE in jsdom */
 			}
 			removeEventListener(): void {
 				/* stub */

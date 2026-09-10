@@ -128,7 +128,7 @@ describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {
 		const header = boxShape(boxMark(40), { ...harness().deps, headerLabel: true }) as unknown as RecBox;
 		expect(header.children[0].center.x).toBe(0.5); // bottom-centre anchor → the upright name caps the lifeline
 		expect(header.children[0].center.y).toBe(0);
-		expect(header.children[0].position.z).toBe(-20); // exactly at the start (earliest-z) face — the lifeline's top on screen
+		expect(header.children[0].position.z).toBe(-20); // exactly at the start (earliest-z) face: the lifeline's top on screen
 	});
 
 	it("boxShape falls back to a chip with no THREE (headless)", () => {

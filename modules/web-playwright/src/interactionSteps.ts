@@ -111,7 +111,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `wait for {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 				try {
-					// Check if we're being called from within inElement with a shadow DOM context
+					// Check whether this is called from within inElement with a shadow DOM context
 					if (wp.inContainerSelector) {
 						try {
 							// Get the actual Page object (not through withPage which might return a Locator)
@@ -155,7 +155,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 						}
 					}
 
-					// Regular wait — use page.waitForFunction to traverse shadow DOMs for dynamic elements
+					// Regular wait, use page.waitForFunction to traverse shadow DOMs for dynamic elements
 					const { value: resolvedValue, domain: resolvedDomain } = await wp.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.target, featureStep);
 					const domainParts = resolvedDomain?.split(" | ").map((d: string) => d.trim()) ?? [];
 					const effectiveDomain = domainParts.length === 1 ? domainParts[0] : pickLocatorDomain(domainParts);
@@ -578,9 +578,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 						json: (snapshot as Record<string, unknown>) || {},
 						mimetype: "application/json",
 					});
-					// We don't have featureStep here?
-					// The action has featureStep in signature if we added it.
-					// But we can use emit() directly or ignore featureStep association if not critical.
+					// featureStep is not available here.
+					// The action has featureStep in signature if it were added.
+					// emit() can be used directly or ignore featureStep association if not critical.
 					// Better: add featureStep to action signature. But typings?
 					wp.getWorld().eventLogger.emit(artifactEvent);
 				}
@@ -619,7 +619,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				const text = await wp.withPage<string>(async (page: Page) => {
 					const locator = await wp.locateByDomain(page, featureStep, "element");
 					const content = await locator.textContent();
-					// Empty `<div>` returns "" (not null); falling through to `inputValue()` on a non-form node throws. Trust `textContent` for any non-null return and only reach for `inputValue` when the element exposes no text node at all (rare — implies the locator hit a void element or shadow-rooted custom element with no light-DOM text).
+					// Empty `<div>` returns "" (not null); falling through to `inputValue()` on a non-form node throws. Trust `textContent` for any non-null return and only reach for `inputValue` when the element exposes no text node at all (rare, implies the locator hit a void element or shadow-rooted custom element with no light-DOM text).
 					if (content !== null) return content.trim();
 					return await locator.inputValue();
 				});

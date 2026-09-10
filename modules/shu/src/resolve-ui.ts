@@ -15,7 +15,7 @@ export const COLLECTION_COMPONENT = "shu-thread-column";
 
 /**
  * Resolve how to render a product: its `_component` (stamped from the type's domain UI), else the type's registered
- * UI component, else a shape default — a collection (carrying `items`) → the thread column, a single entity → the
+ * UI component, else a shape default: a collection (carrying `items`) → the thread column, a single entity → the
  * entity column. This makes the type→component registry total: every product resolves to exactly one component, the
  * single dispatch rule the unified renderer uses instead of sniffing the product's shape.
  */

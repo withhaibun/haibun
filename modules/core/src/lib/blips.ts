@@ -87,7 +87,7 @@ export function declareBlips(...decls: TBlipDeclaration[]): void {
 	for (const d of decls) {
 		const held = declarations.get(d.name);
 		if (held && (shapeOf(held) !== shapeOf(d) || !sameAttributes(held.attributes, d.attributes)))
-			throw new Error(`declareBlips: "${d.name}" is already declared with a different shape — record under a different name, or reconcile the two declarations`);
+			throw new Error(`declareBlips: "${d.name}" is already declared with a different shape, record under a different name, or reconcile the two declarations`);
 		// The same declaration again keeps what is held, including where it was first declared.
 		if (!held) declarations.set(d.name, d.origin ? { ...d, declaredAt } : d);
 	}
@@ -212,14 +212,14 @@ export class BlipWatch {
 export const blipWatch = new BlipWatch();
 
 /**
- * Record an occurrence onto the event bus. With nothing subscribed to this name this is one check and a return —
+ * Record an occurrence onto the event bus. With nothing subscribed to this name this is one check and a return:
  * the reason a hot path can record unconditionally. With a matching subscriber, the name must be declared and the
  * attributes must match the declared shape.
  */
 export function recordBlip(world: TWorld, name: string, value?: number, attributes?: Record<string, unknown>): void {
 	if (!world.eventLogger.hasSubscribers("blip", name)) return;
 	const declared = declarations.get(name);
-	if (!declared) throw new Error(`recordBlip: "${name}" is not declared — declare it with declareBlips before recording it`);
+	if (!declared) throw new Error(`recordBlip: "${name}" is not declared, declare it with declareBlips before recording it`);
 	// What the declaration validated is what is emitted, so a key it does not name cannot ride along to an exporter, and
 	// omitting attributes a declaration requires is caught here rather than downstream.
 	const declaredAttributes = declared.attributes ? (declared.attributes.parse(attributes ?? {}) as Record<string, unknown>) : attributes;

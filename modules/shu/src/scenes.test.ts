@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Capture and apply — a scene holds exactly what a view remembers across a reload, and returning to one sets those
+ * Capture and apply: a scene holds exactly what a view remembers across a reload, and returning to one sets those
  * choices back through the view's ordinary state path.
  */
 import { describe, it, expect } from "vitest";

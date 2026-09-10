@@ -33,7 +33,7 @@ export type TRuntime = {
 	currentFeaturePath?: string;
 	/** The steps a reader can still read in full: the most recent the feature has run. */
 	stepResults: TStepResult[];
-	/** What the feature's steps have come to so far, folded as they run. */
+	/** What the feature's steps have come to so far, reduced as they run. */
 	steps?: TFeatureSteps;
 	/** The last index allocated under each parent path, per direction: what the next path under it counts from. */
 	seqPaths?: Map<string, number>;
@@ -54,7 +54,7 @@ export type TRuntime = {
 	/**
 	 * Monotonic counter for synthetic seqPaths produced by external-protocol
 	 * entry points (MCP) that have no caller seqPath to thread. See
-	 * `syntheticSeqPath(hostId, adHocSeq)` in host-id.ts — synthetic paths
+	 * `syntheticSeqPath(hostId, adHocSeq)` in host-id.ts, synthetic paths
 	 * are [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] so they sort distinctly
 	 * from any feature path. Internal dispatches (RPC, subprocess) now
 	 * require the caller's seqPath instead of producing a synthetic.

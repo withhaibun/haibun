@@ -230,7 +230,7 @@ describe("step-dispatch", () => {
 			const registry = buildStepRegistry([stepper], w);
 			const tool = registry.get(`${stepper.constructor.name}-doIt`);
 			if (!tool) throw new Error("Expected tool to be registered");
-			// Without world, no coercion — returns Zod-parsed value as-is
+			// Without world, no coercion, returns Zod-parsed value as-is
 			const result = validateToolInput([], tool, { val: "hello" });
 			expect(result.val).toBe("hello");
 		});
@@ -325,7 +325,7 @@ describe("step-dispatch", () => {
 		const synth = (tool: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
 			buildFeatureStepForTransport({ ...tool, name: stepMethodName(tool.stepperName, tool.stepName) } as StepTool, input, seqPath);
 
-		it("returns ok with products exactly as the action returned them — framework metadata (_seqPath etc.) is injected by dispatchStep, not the handler", async () => {
+		it("returns ok with products exactly as the action returned them, framework metadata (_seqPath etc.) is injected by dispatchStep, not the handler", async () => {
 			const stepper = new ProductStepper();
 			const handler = createStepHandler("ProductStepper", "getCount", stepper.steps.getCount);
 			const result = await handler(synth({ stepperName: "ProductStepper", stepName: "getCount", description: "" }, {}), world);
@@ -623,7 +623,7 @@ describe("step-dispatch", () => {
 		});
 	});
 
-	describe("_links derivation — H1 next-action affordances from paramDomains", () => {
+	describe("_links derivation, H1 next-action affordances from paramDomains", () => {
 		const VcSchema = z.object({ id: z.string(), subject: z.string() }).describe("A signed claim about a subject.");
 		const VcRefSchema = z.object({ id: z.string() }).describe("Reference to a credential by id.");
 
@@ -674,7 +674,7 @@ describe("step-dispatch", () => {
 			const products = result.products as Record<string, unknown>;
 			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
 			expect(links).toBeDefined();
-			// Two follow-on verbs accept demo-vc as input — revoke and suspend. The issue step itself accepts no demo-vc input so it is NOT listed.
+			// Two follow-on verbs accept demo-vc as input, revoke and suspend. The issue step itself accepts no demo-vc input so it is NOT listed.
 			expect(Object.keys(links ?? {}).sort()).toEqual(["revokeDemo", "suspendDemo"]);
 			// Method is the canonical fully-qualified dispatch address; params skeleton is populated from the product's `id`.
 			expect(links?.revokeDemo).toEqual({ method: "IssuerStepper-revokeDemo", params: { credential: { id: "vc-1" } } });
@@ -703,12 +703,12 @@ describe("step-dispatch", () => {
 			expect(result.ok).toBe(true);
 
 			const products = result.products as Record<string, unknown>;
-			// No follow-on verbs accept lone-domain — the `_links` marker must be absent, not an empty object, so consumers can rely on `_links` always being a non-empty Record when present.
+			// No follow-on verbs accept lone-domain: the `_links` marker must be absent, not an empty object, so consumers can rely on `_links` always being a non-empty Record when present.
 			expect(products._links).toBeUndefined();
 		});
 
-		it("follows topology.ranges.id from a ref domain to the persisted domain — `revoke {credential: vc-ref}` links from a `vc-vertex` product", async () => {
-			// individualRef pattern: a step accepts a ref domain whose schema is `{id}` and whose topology.ranges.id points to the produce-side persisted domain. The affordance derivation must walk this indirection — the SAME pattern @haibun/core's individualRefDomain establishes for every CRUD verb in the credentials / imap-graph / file-stepper / person-stepper steppers.
+		it("follows topology.ranges.id from a ref domain to the persisted domain, `revoke {credential: vc-ref}` links from a `vc-vertex` product", async () => {
+			// individualRef pattern: a step accepts a ref domain whose schema is `{id}` and whose topology.ranges.id points to the produce-side persisted domain. The affordance derivation must walk this indirection: the SAME pattern @haibun/core's individualRefDomain establishes for every CRUD verb in the credentials / imap-graph / file-stepper / person-stepper steppers.
 			class VertexRefStepper extends AStepper {
 				steps = {
 					produceVc: {
@@ -747,7 +747,7 @@ describe("step-dispatch", () => {
 			expect(links?.revokeVc).toEqual({ method: "VertexRefStepper-revokeVc", params: { credential: { id: "vc-1" } } });
 		});
 
-		it("omits params skeleton when the product has no `id` — the consumer fills params from step.list", async () => {
+		it("omits params skeleton when the product has no `id`: the consumer fills params from step.list", async () => {
 			class IdlessStepper extends AStepper {
 				steps = {
 					produce: {
@@ -789,7 +789,7 @@ describe("retainedProducts", () => {
 	it("keeps none when false", () => {
 		expect(retainedProducts(p, false)).toBeUndefined();
 	});
-	it("keeps the filter's subset — descriptor kept, payload dropped", () => {
+	it("keeps the filter's subset, descriptor kept, payload dropped", () => {
 		const keepDescriptor = (x: Record<string, unknown>) => ({ _component: x._component, id: x.id });
 		expect(retainedProducts(p, keepDescriptor)).toEqual({ _component: "shu-thread-column", id: "x" });
 	});

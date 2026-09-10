@@ -16,7 +16,6 @@ const IDS = SHU_TEST_IDS;
 const SOURCE_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}info-loaded`;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 
-
 export const features: TKirejiExport = {
 	"Reading an execution this device holds": [
 		feature({ feature: "Reading an execution this device holds" }),

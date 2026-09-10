@@ -1,7 +1,7 @@
 /**
  * The pick/projection invariant, proved without a browser: aiming at a node and identifying it back are one mapping
  * read in two directions, so they must round-trip exactly. Drift between them is the "N nodes, none pickable at centre"
- * failure — a node that cannot be picked where it is drawn.
+ * failure: a node that cannot be picked where it is drawn.
  *
  * The raycast itself needs a real browser (a feature test covers it); this is the arithmetic under it.
  */
@@ -29,23 +29,23 @@ describe("polymorphic node projection", () => {
 	for (const [name, rect] of RECTS) {
 		const centre: TClientPoint = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 
-		it(`centres the middle of the NDC box in the canvas — ${name}`, () => {
+		it(`centres the middle of the NDC box in the canvas, ${name}`, () => {
 			expect(ndcToClient({ x: 0, y: 0 }, rect)).toEqual(centre);
 		});
 
-		it(`reads NDC y up against client y down — ${name}`, () => {
+		it(`reads NDC y up against client y down, ${name}`, () => {
 			expect(ndcToClient({ x: 0, y: NDC_EDGE }, rect).y).toBe(rect.top);
 			expect(ndcToClient({ x: 0, y: -NDC_EDGE }, rect).y).toBe(rect.top + rect.height);
 		});
 
-		it(`maps the NDC corners to the canvas corners — ${name}`, () => {
+		it(`maps the NDC corners to the canvas corners, ${name}`, () => {
 			expect(ndcToClient({ x: -NDC_EDGE, y: NDC_EDGE }, rect)).toEqual({ x: rect.left, y: rect.top });
 			expect(ndcToClient({ x: NDC_EDGE, y: -NDC_EDGE }, rect)).toEqual({ x: rect.left + rect.width, y: rect.top + rect.height });
 		});
 
 		// The invariant the drag rests on: project a node to a pixel, pick that pixel, and the ray reads back the
-		// coordinates the node was projected from — so the node picks where it is drawn.
-		it(`picks back the NDC it projected — ${name}`, () => {
+		// coordinates the node was projected from, so the node picks where it is drawn.
+		it(`picks back the NDC it projected, ${name}`, () => {
 			for (const ndc of NDC_SAMPLES) {
 				const back = clientToNdc(ndcToClient(ndc, rect), rect);
 				expect(back.x).toBeCloseTo(ndc.x, EXACT_DIGITS);
@@ -53,7 +53,7 @@ describe("polymorphic node projection", () => {
 			}
 		});
 
-		it(`projects back the pixel it picked — ${name}`, () => {
+		it(`projects back the pixel it picked, ${name}`, () => {
 			const points: TClientPoint[] = [{ x: rect.left, y: rect.top }, centre, { x: rect.left + rect.width, y: rect.top + rect.height }, { x: rect.left + 123, y: rect.top + 45 }];
 			for (const point of points) {
 				const back = ndcToClient(clientToNdc(point, rect), rect);

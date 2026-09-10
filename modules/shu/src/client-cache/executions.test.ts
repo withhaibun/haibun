@@ -115,7 +115,7 @@ describe("what a device holds of the runs it has read", () => {
 			level: "info",
 			generatedAtTime: iso(30000),
 		});
-		// The failure is reported rather than swallowed: a development build throws it, a built page says it and reads on.
+		// The failure is reported rather than discarded: a development build throws it, a built page says it and reads on.
 		await expect(holdOnDevice(quads)).rejects.toThrow("the device is full");
 	});
 });

@@ -1,5 +1,5 @@
 /**
- * RPC response cache key format — the single source of truth shared by the live server (which writes the cache)
+ * RPC response cache key format: the single source of truth shared by the live server (which writes the cache)
  * and the offline browser cache (which reads it), so the two must agree byte-for-byte. Pure: safe in the browser bundle.
  */
 

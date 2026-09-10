@@ -18,7 +18,7 @@ function searching(hash: string): void {
 	viewQuery.hydrate(hash);
 }
 
-/** The index reporting how many it found, from where the index actually sits: outside the pane, not under it. */
+/** The index reporting how many it found, from where the index sits: outside the pane, not under it. */
 function publish(from: string, detail: Record<string, unknown>): void {
 	const source = document.createElement(from);
 	document.body.appendChild(source);

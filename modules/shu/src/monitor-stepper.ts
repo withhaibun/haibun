@@ -1,5 +1,5 @@
 /**
- * MonitorStepper — Buffers execution events and forwards them via SSE transport.
+ * MonitorStepper: Buffers execution events and forwards them via SSE transport.
  * Works with any config that has @haibun/web-server-hono (shared transport).
  * The shu frontend receives events via SSE for live updates and fetches history via RPC.
  * At endFeature, writes a standalone HTML file with embedded events, quads, and concerns.
@@ -46,7 +46,7 @@ import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
 /**
  * Component JS to inline in the offline report: a domain's `ui.jsContent`, but only for components whose view is in the
  * final report (the columns shown at endFeature). A heavy external-component bundle is embedded only when its view is
- * actually shown, and never paid for otherwise. Pure + exported so the inclusion rule is unit-tested.
+ * shown, and never built otherwise. Pure + exported so the inclusion rule is unit-tested.
  */
 export function inlineScriptsForView(domains: Record<string, unknown>, finalViewComponents: Set<string>): string[] {
 	return Object.values(domains)
@@ -87,7 +87,7 @@ export type TLogEvent = z.infer<typeof LogEventSchema>;
 export const DOMAIN_CLIENT_BLIPS = "shu-client-blips";
 
 /** A batch of fine-grained occurrences the SPA recorded and handed over together, since one request each is not
- *  affordable at the rate they happen. `recorded` is everything the page has recorded, so a batch a full buffer
+ *  sustainable at the rate they happen. `recorded` is everything the page has recorded, so a batch a full buffer
  *  truncated says so rather than reading as the whole. */
 export const ClientBlipsSchema = z.object({
 	blips: z.array(z.object({ name: z.string(), value: z.number().optional(), attributes: z.record(z.string(), z.unknown()).optional(), at: z.number() })),
@@ -189,7 +189,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	/**
 	 * Build the standalone HTML report from the live event/quad buffers and write it.
 	 * Callable any time during a feature so a feature can capture a snapshot at a
-	 * chosen point — `saves shu to <path>` triggers a write, and `endFeature` writes
+	 * chosen point, `saves shu to <path>` triggers a write, and `endFeature` writes
 	 * once more so the final state always reflects the full run.
 	 */
 	/**
@@ -361,7 +361,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		savesShuUncompressedTo: {
 			gwta: "saves shu uncompressed to {where: string}",
 			description:
-				"Write the standalone shu report with an uncompressed plain-JSON payload, so the redacted text can be read and audited directly — same content as the compressed report, just larger. A one-off write that does not become the feature's canonical output.",
+				"Write the standalone shu report with an uncompressed plain-JSON payload, so the redacted text can be read and audited directly, same content as the compressed report, just larger. A one-off write that does not become the feature's canonical output.",
 			action: async ({ where }: { where: string }) => {
 				const written = await this.writeStandaloneReport({ fixedPath: where, compressed: false });
 				return actionOKWithProducts({ path: written });

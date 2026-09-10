@@ -18,7 +18,7 @@ export function hashParams(hash: string): URLSearchParams {
  * Merge an `open=` arrival into `base` (the last canonical hash): each `open=` entry becomes a
  * `col=` entry and the last one becomes the active pane. Only the open entries are taken from the
  * arrival; everything else comes from the base. A hash without `open=` is already canonical.
- * The `~min`/`~max` strip is the pane flag suffix — grammar owned by pane-state's parseColEntry.
+ * The `~min`/`~max` strip is the pane flag suffix, grammar owned by pane-state's parseColEntry.
  */
 export function canonicalizeArrival(hash: string, base: string): string {
 	const params = hashParams(hash);
@@ -40,7 +40,7 @@ function replaceLocationHash(newHash: string): void {
 	}
 }
 
-// The last canonical hash — the offline store, the merge base for `open=` arrivals, and (seeded at
+// The last canonical hash: the offline store, the merge base for `open=` arrivals, and (seeded at
 // import, updated on every arrival and push) a mirror of location.hash.
 let _storedHash = "";
 
@@ -107,7 +107,7 @@ export function mergeHashParams(values: Record<string, string>): void {
 	announce();
 }
 
-/** The page's own address without the hash — what an embedded body's `<base>` re-roots against.
+/** The page's own address without the hash: what an embedded body's `<base>` re-roots against.
  * An offline snapshot has no servable address, so none is offered. */
 export function pageAddress(): string {
 	if (isOffline() || typeof location === "undefined") return "";

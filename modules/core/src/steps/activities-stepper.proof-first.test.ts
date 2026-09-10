@@ -38,11 +38,11 @@ The activity body should have run and set the variable.
 
 Scenario: Proof passes so activity body should not run
 
-We set the variable to match the proof value.
+The variable is set to match the proof value.
 
     set myVariable to "initialValue"
 
-We call ensure and the proof will pass immediately, so the activity body should NOT run.
+Ensure is called and the proof passes at once, so the activity body must NOT run.
 The bug would cause myVariable to change to "fromActivity".
 
     ensure Knows about data

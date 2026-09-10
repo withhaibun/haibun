@@ -14,7 +14,7 @@ describe("describeSearch", () => {
 		expect(describeSearch(q)).toBe('Email · "INBOX" · folder eq INBOX · public');
 	});
 
-	it("omits absent parts — a text-only search reads as just its text; default access is not stated", () => {
+	it("omits absent parts: a text-only search reads as just its text; default access is not stated", () => {
 		expect(describeSearch(query({ q: "hydration" }))).toBe('"hydration"');
 	});
 
@@ -43,14 +43,14 @@ describe("shu-search-summary restore", () => {
 		expect(restored).toEqual(snapshot);
 	});
 
-	it("restoring an entry with no snapshot throws — a recorder must set .query before appending", async () => {
+	it("restoring an entry with no snapshot throws: a recorder must set .query before appending", async () => {
 		const el = document.createElement("shu-search-summary") as ShuSearchSummary;
 		document.body.appendChild(el);
 		await el.updateComplete;
 		expect(() => el.restore()).toThrow(/no query snapshot/);
 	});
 
-	it("the x removes the entry without restoring it — the same affordance a step result carries", async () => {
+	it("the x removes the entry without restoring it: the same affordance a step result carries", async () => {
 		const el = document.createElement("shu-search-summary") as ShuSearchSummary;
 		el.query = query({ label: "Email", q: "INBOX" });
 		document.body.appendChild(el);

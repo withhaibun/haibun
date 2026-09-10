@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
- * Rendering a body inline blocks the thread — markdown, sanitizing, and anchoring all run synchronously, and lit paints
+ * Rendering a body inline blocks the thread, markdown, sanitizing, and anchoring all run synchronously, and lit paints
  * only once they return. A large body therefore renders behind a "preparing" indicator painted a frame earlier, in place
  * of the blank view a reader would otherwise sit in front of; a small body renders inline with no indicator to flash.
  *
  * jsdom does no layout, so this covers the lifecycle (what is shown, what is deferred, what is cancelled), not the
- * placement of highlights or cards — those need a real browser and are covered by the e2e suites.
+ * placement of highlights or cards: those need a real browser and are covered by the e2e suites.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAnnotatedBody } from "./shu-annotated-body.js";
@@ -23,7 +23,7 @@ class StubResizeObserver {
 	}
 }
 
-const HEAVY = "a passage of prose. ".repeat(1200); // over the size that earns the indicator
+const HEAVY = "a passage of prose. ".repeat(1200); // over the size that shows the indicator
 const frames = (): Promise<void> => new Promise((r) => setTimeout(r, 80)); // past both deferred frames
 
 const preparing = (el: ShuAnnotatedBody): boolean => !!el.querySelector('[data-testid="annotation-preparing"]');

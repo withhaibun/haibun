@@ -15,7 +15,7 @@ export const StepperKinds = {
 	BROWSER: "BROWSER",
 	SERVER: "SERVER",
 	TEST: "TEST",
-	/** Taiwa-bridge — exposes `ask(prompt, opts?): Promise<string>`. */
+	/** Taiwa-bridge: exposes `ask(prompt, opts?): Promise<string>`. */
 	TAIWA: "TAIWA",
 } as const;
 
@@ -100,12 +100,12 @@ export type TFeatureStep = {
 	runtimeArgs?: Record<string, string>;
 	/**
 	 * Routing hint: when set, dispatch resolves the tool via the
-	 * hostId-prefixed registry key (`${targetHostId}:${method}`) — the
+	 * hostId-prefixed registry key (`${targetHostId}:${method}`): the
 	 * step runs against that remote host. Set by composition verbs like
 	 * `on host {hostId} {statement}` in haibun.ts.
 	 */
 	targetHostId?: number;
-	/** True for dispatches that did not run a feature for a human — RPC, MCP, subprocess. Lifecycle hooks that would otherwise call `world.prompter.prompt()` skip when this is set. */
+	/** True for dispatches that did not run a feature for a human, RPC, MCP, subprocess. Lifecycle hooks that would otherwise call `world.prompter.prompt()` skip when this is set. */
 	programmatic?: boolean;
 };
 
@@ -137,7 +137,7 @@ type TStepperStepBase = {
 	/** Optional capability label required for external dispatch. */
 	capability?: string;
 	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that no
-	 *  request pays for the whole manifest; a step marked here joins that set, because the question it answers is one
+	 *  request carries the whole manifest; a step marked here joins that set, because the question it answers is one
 	 *  an operator can open with. Reserve it for steps that are the only way to do what they do. A predicate says
 	 *  whether there is anything for it to answer right now: a step offered when it can only refuse is among the few a
 	 *  model can see, so it is what the model reaches for, and the turn goes on refusing. */
@@ -178,14 +178,14 @@ type TStepperStepBase = {
 	 * Inline Zod schema for the step's products. The dispatcher validates against this
 	 * schema and exposes the derived JSON Schema for discovery, but does NOT register a
 	 * producer edge in the resolver graph and does NOT auto-assert facts. Use this for
-	 * typed step outputs that are local to the step — handles, identifiers, or readouts
+	 * typed step outputs that are local to the step, handles, identifiers, or readouts
 	 * with no shared semantics. Mutually exclusive with `productsDomain` and `productsDomains`.
 	 */
 	productsSchema?: z.ZodType;
 	/**
-	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: none — for a step
+	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: none, for a step
 	 * whose products are bulk payload consumed via the action result or a separate fetch (a query's rows, a captured page's
-	 * HTML), which would otherwise bloat the in-memory event stream. A function: the subset it returns — for a product that
+	 * HTML), which would otherwise bloat the in-memory event stream. A function: the subset it returns, for a product that
 	 * mixes a small render descriptor (keep, so a view re-mounts on replay) with bulk payload (drop, retrieved live via the
 	 * reference); return undefined to keep none.
 	 */

@@ -29,7 +29,7 @@ const overlapArea = (a: Placed, b: Placed): number => {
 	return ox > 0 && oy > 0 ? ox * oy : 0;
 };
 
-// A root with four wide-label siblings in one rank (the trust-triangle parties + a long did:key) — the case the live
+// A root with four wide-label siblings in one rank (the trust-triangle parties + a long did:key): the case the live
 // td/lr view flings across the canvas.
 const fan = {
 	nodes: [

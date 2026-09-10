@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * shu-graph-query owns the query via the hash-backed viewQuery store. This reproduces, in jsdom, the
- * exact flow the graph-frontend e2e drives — the actions bar's FILTER_CHANGE → setFilters — and asserts
+ * exact flow the graph-frontend e2e drives, the actions bar's FILTER_CHANGE → setFilters, and asserts
  * the search lands in BOTH the store and the URL hash. It exists because that path can only fail in the
  * browser (a fail-fast schema throw inside viewQuery.set), where the e2e can't see the console; here the
  * throw is a visible test failure.
@@ -21,10 +21,10 @@ describe("shu-graph-query → viewQuery", () => {
 
 	it("setFilters from a type selection then a text search writes q to the store and the URL hash", () => {
 		const el = make();
-		// chooseGraphLabel("Email") — the FILTER_CHANGE the actions bar emits on a type pick.
+		// chooseGraphLabel("Email"): the FILTER_CHANGE the actions bar emits on a type pick.
 		el.setFilters({ accessLevel: "private", label: "Email", textQuery: undefined, conditions: [] });
 		expect(viewQuery.current.label).toBe("Email");
-		// type "INBOX" into the search box — the FILTER_CHANGE on the debounced input.
+		// type "INBOX" into the search box: the FILTER_CHANGE on the debounced input.
 		el.setFilters({ accessLevel: "private", label: "Email", textQuery: "INBOX", conditions: [] });
 		expect(viewQuery.current.q).toBe("INBOX");
 		expect(window.location.hash).toContain("q=INBOX");

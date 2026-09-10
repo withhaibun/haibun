@@ -92,7 +92,7 @@ describe("getLink", () => {
 		expect(link.params).toEqual({ seqPath: "0.1.2.3" });
 	});
 
-	it("throws with a precise message when the rel isn't in _links — listing the rels that are", () => {
+	it("throws with a precise message when the rel isn't in _links, listing the rels that are", () => {
 		expect(() => getLink(rep, "unknown-rel")).toThrow(/rel not in _links \(have: trace\)/);
 	});
 
@@ -100,7 +100,7 @@ describe("getLink", () => {
 		expect(() => getLink({ _type: "Email" }, "trace")).toThrow(/Representation has no _links/);
 	});
 
-	it("throws on malformed link entries (missing method) — callers never get a half-formed link", () => {
+	it("throws on malformed link entries (missing method), callers never get a half-formed link", () => {
 		const bad: TRepresentation = { _links: { x: { params: {} } as unknown as TLink } };
 		expect(() => getLink(bad, "x")).toThrow(/rel not in _links/);
 	});

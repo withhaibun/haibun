@@ -68,7 +68,7 @@ Recordings are saved to `./output/` which is persisted on your host.
 
 ## Process Management
 
-All services are managed by **supervisor** for robustness:
+All services are managed by **supervisor** for reliability:
 - Services auto-restart on failure
 - Logs available in `./output/*.log`
 - Check status: `docker compose exec haibun-recorder supervisorctl status`

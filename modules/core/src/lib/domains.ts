@@ -119,7 +119,7 @@ export function objectCoercer<T extends z.ZodType>(schema: T) {
 }
 
 /**
- * Schema for an individual reference — a single-field composite that carries just
+ * Schema for an individual reference: a single-field composite that carries just
  * the referenced individual's id. Steps whose action only needs the id of an
  * existing individual use this so the resolver can chain through that individual's
  * producers (or fact-bind an existing instance) without forcing the full
@@ -134,7 +134,7 @@ export type TIndividualRef = z.infer<typeof individualRefSchema>;
  * feature-file dispatch path resolves a bare-name variable through that
  * variable's STORED domain (typically `string`), so the action receives the
  * raw id string rather than the `{id}` object the RPC path produces. Calling
- * `asIndividualRef` is idempotent — accepts an id string, a full individual (extracts
+ * `asIndividualRef` is idempotent, accepts an id string, a full individual (extracts
  * `id`), or an already-normalised `{id}` ref.
  */
 export function asIndividualRef(value: unknown): TIndividualRef {
@@ -235,9 +235,9 @@ export function getPersistedDomains(domains: Record<string, TRegisteredDomain>):
 }
 
 /** (Re)register the `persisted-type` domain used by the generic graph steps' `{label: persisted-type}` argument.
- * Validation is OPEN — any non-empty type name is accepted — because the store, not a compiled enum, is the source of
+ * Validation is OPEN, any non-empty type name is accepted, because the store, not a compiled enum, is the source of
  * truth for what exists: persisted data of a type declared in an earlier session (the `set of …` declaration is
- * session-only, its data is not) must stay explorable, and a truly absent type resolves to "not found" at the store
+ * session-only, its data is not) must stay explorable, and a absent type resolves to "not found" at the store
  * rather than a validation error. Known types reach autocomplete through the concern catalog / site metadata, so the
  * generalized graph/column views never need every type enumerated here. */
 export const refreshHypermediaTypeDomain = (world: TWorld) => {

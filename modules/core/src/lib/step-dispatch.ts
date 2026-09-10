@@ -35,8 +35,8 @@ export type DispatchContext = {
 };
 
 /**
- * Unified step dispatch. Every step invocation — feature execution, FlowRunner,
- * RPC, MCP, subprocess — enters through here. Applies capability auth, lifecycle
+ * Unified step dispatch. Every step invocation, feature execution, FlowRunner,
+ * RPC, MCP, subprocess, enters through here. Applies capability auth, lifecycle
  * cycles (beforeStep/afterStep), event logging, and result tracking uniformly.
  */
 /** What the run's active bearer token grants, if one is set and an authority can resolve it. */
@@ -55,7 +55,7 @@ export function invokingPrincipal(world: TWorld): string | undefined {
 }
 
 /** How many of a feature's finished steps a reader can still read in full: the most recent it ran. What every step
- *  came to is answered by the fold, which holds no step to answer it. */
+ *  came to is answered by the reduction, which holds no step to answer it. */
 export const RESULTS_READ_IN_FULL = 1000;
 
 /** Add one finished step to what its feature's steps have come to. */
@@ -307,7 +307,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 	const store = world.shared.getStore();
 	const execution = executionOf(world.tag);
 	const id = formatRecordName({ execution, path: featureStep.seqPath });
-	// Single upsert with all required fields — partial writes via sequential set() let a concurrent
+	// Single upsert with all required fields, partial writes via sequential set() let a concurrent
 	// reader (e.g. getClusteredQuads from a polling tick) observe a SeqPath missing its
 	// generatedAtTime and trip the SeqPathSchema invariant.
 	const record: Record<string, unknown> = {

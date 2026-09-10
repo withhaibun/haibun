@@ -22,7 +22,7 @@ export const RUN_ACCESS_LEVELS = ["r", "a", "w"] as const;
 export const ACCESS_PREFIXES = ["r_", "a_", "w_"] as const;
 
 // ============================================================================
-// Zod Schemas — types are inferred, parsing via transforms
+// Zod Schemas, types are inferred, parsing via transforms
 // ============================================================================
 
 // Basic types
@@ -74,7 +74,7 @@ export const RunPolicyConfigSchema = z
 	});
 
 // ============================================================================
-// Parsing — thin wrappers delegating to Zod
+// Parsing: thin wrappers delegating to Zod
 // ============================================================================
 
 /** Parse --run-policy arguments: place dir:access[,dir:access] */
@@ -100,7 +100,7 @@ export function parseRunPolicyEnv(envVar: string): TRunPolicyConfig {
 }
 
 // ============================================================================
-// Access Level Logic — minimal procedural (pure domain logic)
+// Access Level Logic, minimal procedural (pure domain logic)
 // ============================================================================
 
 /** Numeric rank for hierarchy comparison: r=0, a=1, w=2 */
@@ -120,7 +120,7 @@ export function getFeatureAccessPrefix(filename: string): TRunAccess | undefined
 }
 
 // ============================================================================
-// Feature Matching — runtime matching (must be procedural)
+// Feature Matching, runtime matching (must be procedural)
 // ============================================================================
 
 /**

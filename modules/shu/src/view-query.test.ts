@@ -1,7 +1,7 @@
 /**
  * The viewQuery store is the single hash-backed source of truth for the query params, so a reload must
- * restore the exact view. These pin the two invariants that guarantee it: (1) object round-trip —
- * parse(serialize(q)) deep-equals q for any valid query; (2) canonical string round-trip —
+ * restore the exact view. These pin the two invariants that guarantee it: (1) object round-trip:
+ * parse(serialize(q)) deep-equals q for any valid query; (2) canonical string round-trip:
  * serialize(parse(h)) === h for a canonical hash. Plus fail-fast: a malformed param throws, never
  * silently resets (no `|| default`, no `parseInt || 0`).
  */
@@ -79,7 +79,7 @@ describe("viewQuery store", () => {
 		viewQuery.hydrate(live);
 		expect(viewQuery.current.label).toBe("File");
 		// The link's fragment carries only the pane request; view-hash canonicalizes it against the live
-		// address at its ingress, so what hydrate reads keeps label and sort — assigning from the raw
+		// address at its ingress, so what hydrate reads keeps label and sort, assigning from the raw
 		// fragment would drop them, and every SSE retrigger would then re-issue a query the server
 		// rejects (one 422 per event).
 		viewQuery.hydrate(canonicalizeArrival("#?open=shu-polymorphic-graph-view", live));

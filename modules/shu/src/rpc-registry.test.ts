@@ -55,7 +55,7 @@ describe("a page that carries its own run has no server behind it", () => {
 		expect(isOffline()).toBe(false);
 	});
 
-	// The embedded payload carries the whole run — every event — as one string. Parsing it is its only reader, so the
+	// The embedded payload carries the whole run, every event, as one string. Parsing it is its only reader, so the
 	// text goes: left in the DOM it would cache a second copy of the run beside the objects parsed out of it.
 	it("does not keep the embedded run in the DOM once it has been parsed", () => {
 		setHydration({ cache: { shape: "run-indexed-events/1", run: "r1", events: [{ id: "0.1", message: "x" }], extents: {} }, viewHash: "" });

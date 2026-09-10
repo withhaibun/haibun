@@ -42,7 +42,7 @@ function makeDomains(): Record<string, TRegisteredDomain> {
 
 function graphIssuingCredential(): TDomainChainGraph {
 	// One step that produces verifiable-credential from vc.
-	// vc has no producer — it's a composite leaf the resolver should decompose.
+	// vc has no producer: it's a composite leaf the resolver should decompose.
 	return {
 		domains: [
 			{ key: "vc", hasTopology: true },
@@ -65,7 +65,7 @@ function withComposite(inputs: TResolverInputs): TResolverInputs {
 	return { ...inputs, domains: makeDomains(), compositeDecomposition: true };
 }
 
-describe("resolveGoal — composite decomposition", () => {
+describe("resolveGoal, composite decomposition", () => {
 	it("emits a flat `argument` binding for the composite when decomposition is disabled (back-compat)", () => {
 		const graph = graphIssuingCredential();
 		const result = resolveGoal("verifiable-credential", { graph, facts: [], capabilities: new Set() });
@@ -101,7 +101,7 @@ describe("resolveGoal — composite decomposition", () => {
 		expect(issuer).toMatchObject({ kind: "fact", factId: "fact-issuer-1", fieldDomain: "issuer" });
 	});
 
-	it("respects compositeMaxDepth — a deep recursion is cut off so the resolver stays bounded", () => {
+	it("respects compositeMaxDepth: a deep recursion is cut off so the resolver stays bounded", () => {
 		// Self-referential composite: deep.next ranges over deep itself.
 		const SelfSchema = z.object({ next: z.string() });
 		const domains: Record<string, TRegisteredDomain> = {

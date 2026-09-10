@@ -20,7 +20,7 @@ setSiteMetadata({
 			bodyMarkdown: "content",
 			accessLevel: "accessLevel",
 		},
-		// A SeqPath's stepText carries the `content` rel (body presentation) — the literal-body case extractBodyLiterals covers.
+		// A SeqPath's stepText carries the `content` rel (body presentation): the literal-body case extractBodyLiterals covers.
 		SeqPath: { id: "identifier", stepText: "content", actionStatus: "actionStatus", generatedAtTime: "generatedAtTime" },
 	},
 	edgeRanges: { Email: { hasBody: "Body", inReplyTo: "Email" } },
@@ -81,7 +81,7 @@ describe("isVisibleKey", () => {
 		expect(isVisibleKey("from", "Email")).toBe(true);
 	});
 
-	it("shows unknown keys when label is unknown — fail open, not closed", () => {
+	it("shows unknown keys when label is unknown, fail open, not closed", () => {
 		expect(isVisibleKey("subject")).toBe(true);
 		expect(isVisibleKey("subject", "UnknownLabel")).toBe(true);
 	});
@@ -118,7 +118,7 @@ describe("extractFieldEntries", () => {
 		hasBody: [{ "@id": "ex:body/body-abc-default-text-plain", "@type": "Body", id: "body-abc-default-text-plain", content: "moocoo", mediaType: "text/plain" }],
 	};
 
-	it("does NOT include hasBody as a field entry — even when it leaks back as a string", () => {
+	it("does NOT include hasBody as a field entry, even when it leaks back as a string", () => {
 		const fields = extractFieldEntries(emailWithInlinedBodies, "Email");
 		expect(fields.hasBody).toBeUndefined();
 	});
@@ -129,12 +129,12 @@ describe("extractFieldEntries", () => {
 		expect(fields.hasBody).toBeUndefined();
 	});
 
-	it("does NOT include accessLevel — governance bucket is rendered elsewhere", () => {
+	it("does NOT include accessLevel, governance bucket is rendered elsewhere", () => {
 		const fields = extractFieldEntries(emailWithInlinedBodies, "Email");
 		expect(fields.accessLevel).toBeUndefined();
 	});
 
-	it("does NOT include body / bodyHtml / bodyMarkdown — content rels render in the iframe", () => {
+	it("does NOT include body / bodyHtml / bodyMarkdown, content rels render in the iframe", () => {
 		const cursed = { ...emailWithInlinedBodies, body: "plain text", bodyHtml: "<p>html</p>", bodyMarkdown: "*md*" };
 		const fields = extractFieldEntries(cursed, "Email");
 		expect(fields.body).toBeUndefined();

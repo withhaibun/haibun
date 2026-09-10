@@ -88,7 +88,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			const requestInfo: TTransportRequestInfo = { headers: c.req.header(), method: c.req.method, url: c.req.url, body };
 			const isStream = (data as Record<string, unknown>).stream === true;
 
-			// Streaming requests open an NDJSON response and run the same dispatcher inside `streamContext`. Step actions read the per-request emit callback from AsyncLocalStorage and push chunks during execution; the final dispatchStep result (success or refusal) lands on the seqPath via stepStart/stepEnd lifecycle events. No dual handler path — one dispatcher, one error contract.
+			// Streaming requests open an NDJSON response and run the same dispatcher inside `streamContext`. Step actions read the per-request emit callback from AsyncLocalStorage and push chunks during execution; the final dispatchStep result (success or refusal) lands on the seqPath via stepStart/stepEnd lifecycle events. No dual handler path: one dispatcher, one error contract.
 			if (isStream) {
 				c.header("Content-Type", "application/x-ndjson");
 				return stream(c, async (s) => {
@@ -109,7 +109,7 @@ export class SSETransport implements ITransport, IStepTransport {
 							return;
 						}
 						const response = result as Record<string, unknown>;
-						// Successful dispatch already pushed its content via streamContext.emit; emitting the products again would duplicate the stream. On refusal, emit the error as a terminating record so the client surfaces it. The lifecycle stepEnd event already fired on the seqPath via dispatchStep — seq-bound consumers see the canonical record there.
+						// Successful dispatch already pushed its content via streamContext.emit; emitting the products again would duplicate the stream. On refusal, emit the error as a terminating record so the client surfaces it. The lifecycle stepEnd event already fired on the seqPath via dispatchStep, seq-bound consumers see the canonical record there.
 						if (response.error) await writeChunk({ error: response.error });
 					});
 				});
@@ -159,7 +159,7 @@ export class SSETransport implements ITransport, IStepTransport {
 		} catch (err) {
 			// Payload too large to serialize (V8 raises RangeError around 512MB) or
 			// otherwise unstringifiable. Emit a replacement event so the SSE stream
-			// stays alive — losing one oversized broadcast is acceptable; losing
+			// stays alive, losing one oversized broadcast is acceptable; losing
 			// every subsequent event because the transport silently throws is not.
 			const fallback = {
 				id: data?.id,

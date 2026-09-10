@@ -29,7 +29,7 @@ export const features: TKirejiExport = {
 		ensure({ outcome: "Navigate to haibunUrl" }),
 
 		ensure({ outcome: "Navigate to haibunUrl" }),
-		`↑ Re-ensures haibunUrl - since we're already there, proof passes without navigation.`,
+		`↑ Re-ensures haibunUrl - since the page is already there, proof passes without navigation.`,
 
 		is({ what: pagesVisited, value: "2" }),
 		`↑ Verify three actual page visits (fourth ensure was already satisfied).`,

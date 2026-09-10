@@ -46,7 +46,7 @@ describe("derived helpers", () => {
 
 	it("an entity pane of a type whose panel is slotted opens the generic entity column", () => {
 		// The petitions panel is declared on Proposal with a slot: it mounts in the permissions area and is about the
-		// type. Opening one proposal must not mount that panel as the record's column — it has no `open` to call.
+		// type. Opening one proposal must not mount that panel as the record's column: it has no `open` to call.
 		setSiteMetadata(emptyMeta({ Proposal: { component: "shu-petitions", slot: "permissions" }, Report: { component: "shu-report-column" } }));
 		expect(tagOf({ paneType: "entity", id: "p-1", persistedAs: "Proposal" })).toBe("shu-entity-column");
 		expect(tagOf({ paneType: "entity", id: "r-1", persistedAs: "Report" })).toBe("shu-report-column");
@@ -169,7 +169,7 @@ describe("PaneState", () => {
 
 		const strip = document.createElement("shu-column-strip");
 		document.body.appendChild(strip);
-		// biome-ignore lint/suspicious/noExplicitAny: test-only — strip facade is narrower than real ShuColumnStrip.
+		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
 		PaneState.init(strip as any);
 	});
 
@@ -206,7 +206,7 @@ describe("PaneState", () => {
 		// A reloaded URL carries two restored views and a remembered active pane.
 		ShuElement.pushHash("#?col=shu-polymorphic-graph-view&col=shu-affordances-panel&active=shu-affordances-panel");
 		// The app activates the query column on start (app.ts), which fires setActivePane BEFORE the first fromHash.
-		// That write must be suppressed — writing a still-empty `desired` would delete every col= entry.
+		// That write must be suppressed, writing a still-empty `desired` would delete every col= entry.
 		PaneState.setActivePane("query");
 		expect(new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col").sort()).toEqual(["shu-affordances-panel", "shu-polymorphic-graph-view"]);
 		// fromHash then restores both panes (and the remembered active pane), col= intact.
@@ -238,7 +238,7 @@ describe("PaneState", () => {
 	});
 
 	it("dismiss after open rewrites the hash so the closed pane's col= entry is gone", async () => {
-		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
+		PaneState.fromHash(); // hydrate, production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
 		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		await flush();
@@ -273,7 +273,7 @@ describe("PaneState", () => {
 
 	// Reload restore (the shu-self-test 13.3 affordances flake): on reload an early view request (a step's products arriving before the hash is read) and
 	// re-`request()`s the open view-panes (app.ts) BEFORE the boot `fromHash` reads the reloaded URL. The restore must
-	// be deterministic regardless of that interleave — every col= entry in the reloaded hash mounts, none is dropped.
+	// be deterministic regardless of that interleave: every col= entry in the reloaded hash mounts, none is dropped.
 	const liveIds = () => Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
 	const reloadInto = (hash: string): HTMLElement => {
 		PaneState.__resetForTests();
@@ -300,7 +300,7 @@ describe("PaneState", () => {
 		expect(liveIds()).toContain("shu-affordances-panel");
 	});
 
-	it("reload boot order: an early view request re-requests view-panes BEFORE the boot fromHash — all hash panes still mount, no drop", async () => {
+	it("reload boot order: an early view request re-requests view-panes BEFORE the boot fromHash: all hash panes still mount, no drop", async () => {
 		const reloadedHash = "#?col=shu-monitor-column&col=shu-polymorphic-graph-view&col=shu-affordances-panel&col=shu-domain-chain-view";
 		reloadInto(reloadedHash);
 		// the early request fires first, re-opening the same view-panes (app.ts eventStream handler) while hydrated is still false
@@ -330,7 +330,7 @@ describe("PaneState", () => {
 
 	it("entity pane request → derived id, fires afterAttach hook", async () => {
 		let opened: { id: string; label: string } | null = null;
-		// biome-ignore lint/suspicious/noExplicitAny: test-only — strip facade is narrower than real ShuColumnStrip.
+		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
 		PaneState.init(document.querySelector("shu-column-strip") as any, {
 			afterAttach: {
 				entity: (d) => {
@@ -346,14 +346,14 @@ describe("PaneState", () => {
 	});
 
 	it("requestFrom prunes every non-pinned pane to the right of the source (pane tracked + hash updated)", async () => {
-		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
+		PaneState.fromHash(); // hydrate, production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
 		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
 		await flush();
 		expect(document.querySelectorAll("shu-column-pane")).toHaveLength(3);
 		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-polymorphic-graph-view") as HTMLElement;
-		// Pass the source pane element directly. This is the path the app uses when it can hand the originating row/button to PaneState — closest("shu-column-pane") resolves synchronously without depending on Event.composedPath validity.
+		// Pass the source pane element directly. This is the path the app uses when it can hand the originating row/button to PaneState, closest("shu-column-pane") resolves synchronously without depending on Event.composedPath validity.
 		PaneState.requestFrom(graphPane, { paneType: "entity", persistedAs: "Email", id: "msg-1" });
 		await flush();
 		const ids = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
@@ -377,7 +377,7 @@ describe("PaneState", () => {
 	});
 
 	it("requestFrom honours pinned panes and addToSelection skips the prune (hash kept in sync)", async () => {
-		PaneState.fromHash(); // hydrate — production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
+		PaneState.fromHash(); // hydrate, production reads the reloaded hash on boot before any runtime open (writeHash is gated until then)
 		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
 		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });

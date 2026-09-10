@@ -1,5 +1,5 @@
 // The polymorphic's data-flow subsystem: it turns the (time-filtered, type-gated) quad model into the {nodes, links}
-// the force engine renders, and owns the layout-stable bookkeeping that flow needs — the per-id FGNode map (reused
+// the force engine renders, and owns the layout-stable bookkeeping that flow needs: the per-id FGNode map (reused
 // across repaints so a node's three.js sprite/scale refs survive), the FGLink map (reused so __lineObj/__labelSprite
 // refs are never orphaned), the parked positions of nodes that left the visible set, and the one-per-lifetime sqrt-age
 // depth scale (re-derived only at the coarse-tick moments, never on a plain streaming merge). The component calls
@@ -23,7 +23,7 @@ import { buildGraphModelFromQuads, type GraphModel } from "../../graph-model.js"
 import { type FGNode, type FGLink, linkEndId } from "./polymorphic-graph-types.js";
 
 const NEWCOMER_SEED_SPREAD = 40; // a streamed node spawns within this radius of its neighbour/type so it eases in instead of flying from the origin
-const TIME_DEPTH_MAX = 700; // depth range in world units — full span of the visible dates fills this. The auto-fit frames the 3D bounds, so more depth mostly backs the camera off (it reads as separation only up to ~the x/y layout spread) and pushes the deepest nodes small enough that the focus magnifier pops them harder — a moderate range. The sqrt scale (time-axis) does the real work of making long gaps read deeper than short ones.
+const TIME_DEPTH_MAX = 700; // depth range in world units, full span of the visible dates fills this. The auto-fit frames the 3D bounds, so more depth mostly backs the camera off (it reads as separation only up to ~the x/y layout spread) and pushes the deepest nodes small enough that the focus magnifier pops them harder: a moderate range. The sqrt scale (time-axis) does the real work of making long gaps read deeper than short ones.
 
 import type { ViewType } from "./polymorphic-views.js";
 import { VIEW } from "./polymorphic-views.js";
@@ -53,7 +53,7 @@ export type DataPipelineDeps = {
 	setGanttScale: (scale: GanttScale | undefined) => void;
 	setGanttAdornment: (adornment: Adornment) => void;
 	setGanttShapeSig: (sig: string) => void;
-	laneZ: (id: string) => number | undefined; // the node's z on a lane view's time axis — the SAME RenderType.lanePlacement source the force lane-y reads, so force target and node-z can't diverge mid-settle
+	laneZ: (id: string) => number | undefined; // the node's z on a lane view's time axis: the SAME RenderType.lanePlacement source the force lane-y reads, so force target and node-z can't diverge mid-settle
 	lanePinXY: (id: string) => { x: number; y: number } | undefined; // the layered (td/lr) view's EXACT Sugiyama {x,y}, seeded into the data on a re-place so the deterministic layout isn't force-approximated (and compressed); undefined off td/lr
 	userPinXY: (id: string) => { x: number; y: number } | undefined; // where the user dropped this node (persisted across reloads). It outranks every deterministic pin: a placement by hand is a decision, and a layout that puts the node back rejects it
 	startNewcomerPop: (n: FGNode) => void; // register the cartoon grow-in for a streamed node (the magnify subsystem owns the easing)
@@ -71,11 +71,11 @@ export class DataPipeline {
 	parkedPositions = new Map<string, { x: number; y: number }>();
 	// The sqrt-age depth scale, cached so a streaming merge does NOT re-derive it: re-deriving from the new min/max ages
 	// would shift every settled node's z (its camera distance, hence its perspective size + magnify), reading as the whole
-	// graph rescaling. The scale is the documented "coarse now tick" — it advances only on first load, a scrub-cursor
+	// graph rescaling. The scale is the documented "coarse now tick": it advances only on first load, a scrub-cursor
 	// change, or a deliberate relayout, never on a plain data arrival. Null until the first scale is built.
 	zScaleCache?: { scale: TimeZScale; cursorMs: number; cursor: number | null };
 
-	/** The quads that actually render as nodes: the time-filtered slice minus any type the user hid — the SAME gate as
+	/** The quads that render as nodes: the time-filtered slice minus any type the user hid: the SAME gate as
 	 *  visibleModel, so gantt and the force view never disagree about which graphs are shown. The gantt model MUST build
 	 *  from these (not raw visibleQuads) so the time scale and lanes match exactly what's on screen. Instrumentation
 	 *  graphs are hidden by default (the host derives hiddenGraphs via effectiveHiddenTypes), so they stay out of the
@@ -87,8 +87,8 @@ export class DataPipeline {
 
 	/** Hash the visible model for the unchanged-model skip. Gantt counts the time z in the hash (a reschedule moves bars
 	 *  without touching nodes/links); the scrub cursor counts too (a scrub re-places every node's depth without touching
-	 *  the node/link set, so a cursor-only move must still register as a change — else the skip swallows it and the view
-	 *  refreshes only on an incidental resize). Both rules live HERE, not at each call site — repaint and repaintLayout
+	 *  the node/link set, so a cursor-only move must still register as a change, else the skip drops it and the view
+	 *  refreshes only on an incidental resize). Both rules live HERE, not at each call site, repaint and repaintLayout
 	 *  share it and can't silently diverge. */
 	hashCurrentModel(nodes: FGNode[], links: FGLink[]): number {
 		return hashModel(nodes, links, this.deps.viewType() === VIEW.gantt, this.deps.timeCursor());
@@ -100,8 +100,8 @@ export class DataPipeline {
 		return m;
 	}
 
-	/** Depth times per subject — the object's valid time under the valid basis, generatedAtTime under the indexed
-	 *  basis (see time-axis subjectValidTimes) — each carrying the FIELD it came from for the hover label. */
+	/** Depth times per subject: the object's valid time under the valid basis, generatedAtTime under the indexed
+	 *  basis (see time-axis subjectValidTimes): each carrying the FIELD it came from for the hover label. */
 	extractTimes(): TSubjectTimes {
 		const indexed = LinkRelations.GENERATED_AT_TIME.rel;
 		// Always compute a time (for the hover + the "label as date" toggle); only the "indexed" basis reads generatedAtTime,
@@ -112,7 +112,7 @@ export class DataPipeline {
 		return subjectValidTimes(this.deps.quads(), fieldFor, indexed);
 	}
 
-	/** Incident visible-link count per node — the depth value under the "# connections" z basis. Counts only edges whose
+	/** Incident visible-link count per node: the depth value under the "# connections" z basis. Counts only edges whose
 	 *  BOTH ends are in the visible node set (the same set that becomes links), so a node's degree matches what is drawn. */
 	private degrees(nodeIds: Set<string>, edges: ReadonlyArray<{ from: string; to: string }>): Map<string, number> {
 		const d = new Map<string, number>();
@@ -124,7 +124,7 @@ export class DataPipeline {
 		return d;
 	}
 
-	/** Calendar placement per task, via the pure tested layout pass (computeLayout over the tasks' time roles — the one
+	/** Calendar placement per task, via the pure tested layout pass (computeLayout over the tasks' time roles: the one
 	 *  source of the scale/lane/z/zExtent/ruler math, shared with the SVG paint). Cached in ganttTargets, which the
 	 *  forces/z/paint/ghost/drag read. Only populated in "gantt" view-type; non-task nodes get no entry. */
 	private recomputeGanttTargets(): void {
@@ -155,7 +155,7 @@ export class DataPipeline {
 			}),
 		);
 		this.deps.setGanttTargets(targets);
-		// Bar widths (zLen, ∝ duration / span) are global — any change resizes every box, which the lib only honours on a
+		// Bar widths (zLen, ∝ duration / span) are global: any change resizes every box, which the lib only honours on a
 		// rebuild. Fingerprint the widths (full precision) so a span/duration/task-set change flags the next feed.
 		this.deps.setGanttShapeSig([...targets].map(([id, t]) => `${id}:${t.zLen}`).join("|"));
 	}
@@ -165,11 +165,11 @@ export class DataPipeline {
 		this.recomputeGanttTargets(); // before the node loop reads ganttTargets for each node's z (the gantt time axis)
 		const { times, indexed: created } = this.extractTimes();
 		// Depth (z) is the pure, headless-tested time→z math (@haibun/shu/graph/time-axis.ts), referenced to "now" (a scrub
-		// cursor when set). The scale is CACHED and re-derived only at the coarse-tick moments — first load, a scrub-cursor
-		// move, or a deliberate relayout — NOT on a streaming merge, whose new min/max ages would otherwise reshape it and
+		// cursor when set). The scale is CACHED and re-derived only at the coarse-tick moments: first load, a scrub-cursor
+		// move, or a deliberate relayout, NOT on a streaming merge, whose new min/max ages would otherwise reshape it and
 		// teleport every settled node's depth (its camera distance → perspective size + magnify, i.e. the graph "rescaling").
 		const cursor = this.deps.timeCursor(); // the cursor (null = live): the cache keys off this, never off the resolved nowRef
-		const nowRef = cursor ?? Date.now(); // clock — comparing the resolved clock would re-fit every live frame (the bug).
+		const nowRef = cursor ?? Date.now(); // clock, comparing the resolved clock would re-fit every live frame (the bug).
 		const cached = this.zScaleCache;
 		const cursorMoved = cached !== undefined && cached.cursor !== cursor; // a scrub set/move/clear is a deliberate re-place
 		// !cached IS the first-load/post-reset case (zScaleCache and the graph reset together)
@@ -192,7 +192,7 @@ export class DataPipeline {
 		if (current.scale.range > 0) this.zScaleCache = current;
 		const { scale: zScale, cursorMs } = current;
 		// The "# connections" z basis: depth is node degree, not time. Its scale is derived FRESH each build (unlike the
-		// time scale) — degree changes only when edges do, i.e. only on a data change that already repaints, so there is
+		// time scale), degree changes only when edges do, i.e. only on a data change that already repaints, so there is
 		// no per-frame teleport to guard against. HIGH degree sits toward the FRONT (small z) so hubs come forward.
 		const zBasis = this.deps.zBasis();
 		const degrees = zBasis === "connections" ? this.degrees(new Set(nodes.map((n) => n.id)), edges) : undefined;
@@ -203,12 +203,12 @@ export class DataPipeline {
 		const groupBy = this.deps.groupBy();
 		const groupAnchors = this.deps.groupAnchors();
 		const groupSizes = this.deps.groupSizes();
-		// Before the first paint (or after a relayout reset) everything is "new" — announce arrivals only for live additions.
+		// Before the first paint (or after a relayout reset) everything is "new", announce arrivals only for live additions.
 		const isInitial = this.deps.lastModelHash() === undefined;
 		const nextMap = new Map<string, FGNode>();
 		const fgNodes: FGNode[] = [];
-		const unseeded: FGNode[] = []; // newcomers with no position yet (ungrouped, or grouped with no anchor) — seeded from neighbours below
-		// Per grouped node, its stable index within its group + the group size — the deterministic in-cell grid seed reads
+		const unseeded: FGNode[] = []; // newcomers with no position yet (ungrouped, or grouped with no anchor), seeded from neighbours below
+		// Per grouped node, its stable index within its group + the group size: the deterministic in-cell grid seed reads
 		// these so members land on a fixed √count grid (no Math.random), and the cohesion + collide then only refine.
 		const groupIndex = new Map<string, { i: number; c: number }>();
 		if (grouped) {
@@ -229,8 +229,8 @@ export class DataPipeline {
 			const name = n.isCluster && n.omittedCount ? `+${n.omittedCount} more` : label;
 			const existing = this.nodeMap.get(n.id);
 			// The deterministic PIN target. Grouped: the container cell (groupPin) wins in every view, so the member sits in
-			// its shelf-packed cell and the box stays exclusive. Ungrouped: the lane pin wins — the td/lr Sugiyama {x,y} or the
-			// gantt/sequence lane. Both fixed via fx/fy. The key reads n.properties so the folded role resolves here (fgNode
+			// its shelf-packed cell and the box stays exclusive. Ungrouped: the lane pin wins: the td/lr Sugiyama {x,y} or the
+			// gantt/sequence lane. Both fixed via fx/fy. The key reads n.properties so the merged role resolves here (fgNode
 			// carries them below). A node with no pin keeps its parked place or seeds from a neighbour.
 			const groupKey = groupKeyOf({ type: n.type, properties: n.properties }, groupBy);
 			const anchor = grouped ? groupAnchors.get(groupKey) : undefined;
@@ -238,14 +238,14 @@ export class DataPipeline {
 			const gi = anchor ? groupIndex.get(n.id) : undefined;
 			const groupPin = anchor && size && gi ? gridSlot(anchor, size, gi.i, gi.c) : undefined;
 			// A node the user dragged stays where they dropped it, in every view: a placement by hand is a decision, and a
-			// layout that puts it back rejects it. Every other node keeps the view's own deterministic pin — grouped: the
+			// layout that puts it back rejects it. Every other node keeps the view's own deterministic pin, grouped: the
 			// container cell; ungrouped: the lane.
 			const pin = this.deps.userPinXY(n.id) ?? (grouped ? (groupPin ?? this.deps.lanePinXY(n.id)) : (this.deps.lanePinXY(n.id) ?? groupPin));
 			const pinAt = (node: FGNode): void => {
 				if (!pin) return;
 				node.x = pin.x;
 				node.y = pin.y;
-				node.fx = pin.x; // FIX the node at its deterministic position — the force can't spread (and so overlap) a pinned node
+				node.fx = pin.x; // FIX the node at its deterministic position: the force can't spread (and so overlap) a pinned node
 				node.fy = pin.y;
 				node.vx = 0;
 				node.vy = 0;
@@ -274,8 +274,8 @@ export class DataPipeline {
 					this.deps.startNewcomerPop(fgNode);
 				}
 			}
-			fgNode.properties = n.properties; // carry the model node's properties (incl the folded HypermediaRole) so groupKeyOf(fgNode, "role") resolves
-			const subjectTime = times.get(n.id); // the node's time — surfaced on hover + the "label as date" toggle, and the depth value under a time basis
+			fgNode.properties = n.properties; // carry the model node's properties (including the merged HypermediaRole) so groupKeyOf(fgNode, "role") resolves
+			const subjectTime = times.get(n.id); // the node's time, surfaced on hover + the "label as date" toggle, and the depth value under a time basis
 			fgNode.__t = subjectTime?.ms;
 			fgNode.__tField = subjectTime?.field;
 			fgNode.__created = created.get(n.id)?.ms;
@@ -302,7 +302,7 @@ export class DataPipeline {
 		}
 		this.nodeMap = nextMap;
 		const ids = new Set(fgNodes.map((n) => n.id));
-		// Reuse existing FGLink objects so __lineObj / __labelSprite are never orphaned by a repaint — losing
+		// Reuse existing FGLink objects so __lineObj / __labelSprite are never orphaned by a repaint, losing
 		// those refs forces applyFocus to retry 30 frames before it can highlight incident edges.
 		// Fresh = absent from the previous linkMap; detecting here avoids a second pass.
 		const prevLinkMap = this.linkMap;
@@ -365,7 +365,7 @@ export class DataPipeline {
 				const c = typeCentroids.get(n.type);
 				if (c) base = { x: c.x / c.n, y: c.y / c.n };
 			}
-			if (!base) continue; // truly isolated first-of-its-kind — the lib's default placement is fine
+			if (!base) continue; // isolated first-of-its-kind: the lib's default placement is fine
 			n.x = base.x + jitter();
 			n.y = base.y + jitter();
 		}

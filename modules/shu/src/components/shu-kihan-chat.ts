@@ -1,6 +1,6 @@
 /**
  * Chat surface for talking to a Kihan. Threads via AS:context + discourse
- * sub-properties of inReplyTo — the first turn's prompt is the session root;
+ * sub-properties of inReplyTo: the first turn's prompt is the session root;
  * every subsequent turn carries `as:context → root` and a `question` edge
  * from the new prompt → the prior reply. Both are forwarded in the envelope
  * so the server writes the edges on receipt.
@@ -32,7 +32,7 @@ const TOOL_LIMIT_DEFAULT = 5;
 const TOOL_LIMIT_MIN = 0;
 const TOOL_LIMIT_MAX = 99;
 /** Cookie holding the active chat session's root seqPath. Turns are persisted as threaded Comment pairs, so on connect
- * (after a collapse/expand or a full page reload) the chat re-hydrates from the graph via loadChatSession — surviving reloads, unlike a per-page DOM snapshot. */
+ * (after a collapse/expand or a full page reload) the chat re-hydrates from the graph via loadChatSession, surviving reloads, unlike a per-page DOM snapshot. */
 
 type TChatSession = { sessionSeqPath: string; label: string; generatedAtTime: string };
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
@@ -51,7 +51,7 @@ const ChatSchema = z.object({
 });
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -106,7 +106,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private _sessionSeqPath: string | null = null;
 	private _lastReplySeqPath: string | null = null;
 	private _sessions: TChatSession[] = [];
-	/** The single source of truth for the rendered conversation — fed identically by the live stream (handleChat) and a hydrated session (loadAndRenderSession), rendered once via keyed repeat. */
+	/** The single source of truth for the rendered conversation, fed identically by the live stream (handleChat) and a hydrated session (loadAndRenderSession), rendered once via keyed repeat. */
 	private _messages: TChatMessage[] = [];
 	private _msgCounter = 0;
 	private _streaming = false;
@@ -115,7 +115,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private _flushId: string | null = null;
 	private _flushGet: (() => string) | null = null;
 	private _flushRaf: number | null = null;
-	/** Last-applied (models|selectedModel|sessions|sessionSeqPath) signature — wireListeners skips re-applying combo options when unchanged. */
+	/** Last-applied (models|selectedModel|sessions|sessionSeqPath) signature, wireListeners skips re-applying combo options when unchanged. */
 	private _comboSig = "";
 
 	private _contextPatterns: TContextPattern[] = [];
@@ -139,7 +139,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return this.#outputTarget;
 	}
 
-	/** Reconcile _messages onto the external target: patch by id, append new, remove departed — including any
+	/** Reconcile _messages onto the external target: patch by id, append new, remove departed, including any
 	 *  chat message a previous chat instance left behind (one conversation surface, so this instance owns them all). */
 	#syncExternalOutput(): void {
 		const target = this.#outputTarget;
@@ -199,7 +199,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return data.sessions;
 	}
 
-	/** Populate the session selector and, on connect, restore the active session (cookie) so the conversation survives a collapse/expand or full reload — rebuilt from the persisted Comment pairs, not a DOM snapshot. */
+	/** Populate the session selector and, on connect, restore the active session (cookie) so the conversation survives a collapse/expand or full reload, rebuilt from the persisted Comment pairs, not a DOM snapshot. */
 	private async loadSessions(): Promise<void> {
 		this._sessions = await this.listSessions();
 		this.requestUpdate();
@@ -326,7 +326,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 	}
 
-	/** Combo options are imperative props (not lit-bound); all event handlers are declarative (@event) so lit wires them once. Re-applying is idempotent but churns the combos, so we skip when neither the model nor session data changed — the parent re-renders every streamed-text frame and the combos must not be reset 60×/s. */
+	/** Combo options are imperative props (not lit-bound); all event handlers are declarative (@event) so lit wires them once. Re-applying is idempotent but churns the combos, so the update is skipped when neither the model nor session data changed: the parent re-renders every streamed-text frame and the combos must not be reset 60×/s. */
 	private wireListeners(): void {
 		const sig = `${this._models.map((m) => m.id).join(",")}|${this.state.model}|${this._sessions.map((s) => s.sessionSeqPath).join(",")}|${this._sessionSeqPath ?? ""}`;
 		if (sig === this._comboSig) return;

@@ -1,6 +1,6 @@
 /**
- * The named graphs the engine emits to record its own execution — the `observation/*` family plus the persisted
- * instrumentation types (SeqPath, Endpoint, the HTTP observation records, visited pages, facts and variables) — as
+ * The named graphs the engine emits to record its own execution: the `observation/*` family plus the persisted
+ * instrumentation types (SeqPath, Endpoint, the HTTP observation records, visited pages, facts and variables), as
  * opposed to a feature's domain data. What a run did, said and produced is all of that kind: a reader looking at a
  * feature's data is not looking for the run's own record of itself. `isInstrumentationGraph` matches the open-ended `observation/*` prefix plus the
  * named entries; `INSTRUMENTATION_GRAPHS` is the one concrete list (a store's other types are runtime-discovered).

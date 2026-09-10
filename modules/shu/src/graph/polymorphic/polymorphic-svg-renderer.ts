@@ -1,7 +1,7 @@
 /**
  * The graph as markup: an IGraphRenderer whose medium is SVG, for a report or a still image. It is given the same
- * placed nodes and links every renderer is given, so a still shows exactly what the WebGL view shows — same positions,
- * same type colours — with nothing computed twice.
+ * placed nodes and links every renderer is given, so a still shows exactly what the WebGL view shows, same positions,
+ * same type colours, with nothing computed twice.
  *
  * The markup is self-contained (concrete colours, no CSS variables), since a still leaves the app: it is embedded in a
  * report, printed, or opened on its own.
@@ -28,7 +28,7 @@ const LINE = "#9aa0a6";
 const round = (n: number): number => Math.round(n * 10) / 10;
 
 export class SvgRenderer implements IGraphRenderer {
-	/** The markup of the most recent draw — empty until one happens. */
+	/** The markup of the most recent draw, empty until one happens. */
 	markup = "";
 
 	constructor(private readonly deps: TSvgRendererDeps) {}
@@ -42,8 +42,8 @@ export class SvgRenderer implements IGraphRenderer {
 	}
 
 	draw({ nodes, links }: TDrawn): void {
-		// The still is 2D: the vertical axis is y (flipped — SVG y grows downward), and the horizontal axis is x, except
-		// in the lane views where z carries the calendar and the camera faces the lane plane — the still faces it too.
+		// The still is 2D: the vertical axis is y (flipped, SVG y grows downward), and the horizontal axis is x, except
+		// in the lane views where z carries the calendar and the camera faces the lane plane: the still faces it too.
 		const h = this.deps.timeIsHorizontal() ? (n: FGNode): number => n.z ?? 0 : (n: FGNode): number => n.x ?? 0;
 		const v = (n: FGNode): number => -(n.y ?? 0);
 		const xs = nodes.map(h);

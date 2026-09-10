@@ -1,6 +1,6 @@
 /**
  * Shared plumbing for the *.controls.ts inspection steppers: the duck-typed page handle and the shadow-walking readers
- * every controls file uses. Each helper embeds its own walk because evaluate() serializes the passed function — a walker
+ * every controls file uses. Each helper embeds its own walk because evaluate() serializes the passed function: a walker
  * cannot be shared ACROSS evaluate bodies, so it is shared at the helper level instead: one helper per read shape,
  * selector-parameterized, reused by every stepper.
  */

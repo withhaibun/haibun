@@ -1,7 +1,7 @@
 /**
- * <shu-search-summary> — one committed search, recorded into the shared activity history. It holds the exact
+ * <shu-search-summary>: one committed search, recorded into the shared activity history. It holds the exact
  * `viewQuery` snapshot that produced the results; clicking it dispatches SEARCH_RESTORE and the app re-applies
- * that snapshot through shu-graph-query's `products` entry — restoring the search precisely (type, text,
+ * that snapshot through shu-graph-query's `products` entry, restoring the search exactly (type, text,
  * filters, sort, access), the same round-trip the URL hash already proves out.
  *
  * Light DOM (an activity-history entry must be visible to test-id walks and text capture).
@@ -27,7 +27,7 @@ export function describeSearch(q: TViewQuery): string {
 }
 
 export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -52,11 +52,11 @@ export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
 
 	/** Dispatch the restore of this entry's exact snapshot. Fail-fast: an entry without a snapshot is a recorder bug. */
 	restore(): void {
-		if (!this.query) throw new Error("shu-search-summary: restore with no query snapshot — the recorder must set .query before appending");
+		if (!this.query) throw new Error("shu-search-summary: restore with no query snapshot: the recorder must set .query before appending");
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.SEARCH_RESTORE, { detail: { query: this.query }, bubbles: true, composed: true }));
 	}
 
-	/** Take this record out of the history — the same x affordance a step result carries. Removal is purely local:
+	/** Take this record out of the history: the same x affordance a step result carries. Removal is purely local:
 	 *  the recorder dedups against the live history, so removing an entry lets the same search be recorded again. */
 	private onDismiss = (e: Event): void => {
 		e.stopPropagation();

@@ -3,7 +3,7 @@ import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import type { IWebServer } from "./defs.js";
 
 /**
- * A single RPC dispatch request — the universal unit of step execution.
+ * A single RPC dispatch request: the universal unit of step execution.
  * seqPath is always required; capability is checked before dispatch.
  * All execution paths (in-process, subprocess, SPA, MCP) use this shape.
  */

@@ -46,7 +46,7 @@ function declared(row: TRunRow): Record<string, unknown> {
 }
 
 /** Which record a rendered row is: its type and its own name. A row shows a step's path, and what was said under a step
- *  shows that step's, so without this a row of what a run said cannot be told from the step it was said during — and a
+ *  shows that step's, so without this a row of what a run said cannot be told from the step it was said during, and a
  *  reader pressing it has nothing to open. */
 const recordOf = (row: TRunRow): { persistedAs: string; id: string } => ({ persistedAs: row.label, id: row.id });
 

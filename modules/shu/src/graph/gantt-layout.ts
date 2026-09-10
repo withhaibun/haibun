@@ -1,13 +1,13 @@
 /**
  * Gantt calendar-axis mapping: time ⇄ world-x, in one place so the forward placement (recomputeGanttTargets) and the
- * inverse a drag relies on (a dropped bar's new x → its rescheduled time) can't drift. Pure arithmetic — unit-tested
+ * inverse a drag relies on (a dropped bar's new x → its rescheduled time) can't drift. Pure arithmetic, unit-tested
  * without a scene.
  */
 // Gantt sizing/layout constants (the gantt module owns them; the 3D paint + view import these from here).
 export const GANTT_WORLD_W = 220; // world-units the calendar time axis spans
 export const GANTT_ROW_H = 14; // world-units between task rows
 export const GANTT_BAR_H = 8; // duration-bar height (< GANTT_ROW_H so rows stay distinct)
-export const GANTT_BAR_D = 6; // duration-bar depth — a genuine 3D box (orbits to real volume), not a flat slab
+export const GANTT_BAR_D = 6; // duration-bar depth: a genuine 3D box (orbits to real volume), not a flat slab
 export const GANTT_MIN_BAR_W = 4; // floor so a zero/short-duration task still shows a clickable bar
 export const GANTT_LABEL_INSET = 2; // nudge the label in from the bar's start edge so text sits inside the box
 export const GANTT_GHOST_PAD = 1.5; // drag-outline grows the bar dims by this so the wireframe reads around (not on) the bar

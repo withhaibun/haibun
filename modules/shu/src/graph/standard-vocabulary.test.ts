@@ -27,7 +27,7 @@ const withInstance = (type: string): { response: TClusteredQuads; evidence: TQua
 	};
 };
 
-describe("standard-vocabulary — the type's declared standard context resolved via jsonld, one source", () => {
+describe("standard-vocabulary: the type's declared standard context resolved via jsonld, one source", () => {
 	beforeEach(() => {
 		resetStandardVocabCache();
 		clearKeyDocuments();
@@ -35,7 +35,7 @@ describe("standard-vocabulary — the type's declared standard context resolved 
 		registerContext(CTX_URL, CTX_DOC);
 	});
 
-	it("returns the standard terms the type does NOT model — deduped by name against the type's own fields", async () => {
+	it("returns the standard terms the type does NOT model, deduped by name against the type's own fields", async () => {
 		// color is declared by the context but not a Widget field → declared-not-present; size IS a Widget field → excluded.
 		expect((await enumerateStandardVocab({ w: domain("Widget", [CTX_URL]) })).get("Widget")).toEqual([{ term: "color", iri: "http://example.org/color" }]);
 		expect(await enumerateStandardVocab({ w: domain("Widget") })).toEqual(new Map());
@@ -45,7 +45,7 @@ describe("standard-vocabulary — the type's declared standard context resolved 
 		expect((await enumerateStandardVocab({ w: domain("Widget", ["urn:test:unresolvable"]) })).size).toBe(0);
 	});
 
-	it("does not fabricate terms from a non-object (string) type-scoped context — jsonld yields nothing, no character-walk", async () => {
+	it("does not fabricate terms from a non-object (string) type-scoped context, jsonld yields nothing, no character-walk", async () => {
 		resetStandardVocabCache();
 		registerContext("urn:test:string-scoped", { "@context": { Widget: { "@context": "urn:test:unresolvable-inner" } } });
 		expect((await enumerateStandardVocab({ w: domain("Widget", ["urn:test:string-scoped"]) })).size).toBe(0);

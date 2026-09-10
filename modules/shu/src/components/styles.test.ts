@@ -9,13 +9,13 @@ describe("design-token cascade", () => {
 		expect(SHU_TOKENS).toMatch(/:root\[data-theme="dark"\]/);
 	});
 
-	test("SHU_BASE is consumers only — no `--shu-…:` declarations that would block inheritance from a shadow root", () => {
+	test("SHU_BASE is consumers only: no `--shu-…:` declarations that would block inheritance from a shadow root", () => {
 		expect(SHU_BASE).not.toMatch(/--shu-[a-z0-9-]+:\s*#/);
 		expect(SHU_BASE).toMatch(/var\(--shu-bg-/);
 		expect(SHU_BASE).toMatch(/var\(--shu-fg/);
 	});
 
-	test("shuBaseStyles — the CSSResult components adopt into their shadow root — must NOT re-declare tokens. A `:host { --shu-bg: <default> }` rule inside a shadow tree dams the document-level theme cascade.", () => {
+	test("shuBaseStyles, the CSSResult components adopt into their shadow root, must NOT re-declare tokens. A `:host { --shu-bg: <default> }` rule inside a shadow tree dams the document-level theme cascade.", () => {
 		const cssText = shuBaseStyles.cssText;
 		expect(cssText).not.toMatch(/--shu-bg:\s*#/);
 		expect(cssText).not.toMatch(/:root\[data-theme=/);

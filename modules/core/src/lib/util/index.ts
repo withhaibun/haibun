@@ -6,7 +6,7 @@ import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../astepper.js";
 import { TArtifactEvent, type TJsonArtifact } from "../../schema/protocol.js";
 
 // Helper to get term from stepValuesMap with null safety
-/** Truncate to at most `max` characters, ellipsizing — so every producer truncates identically. */
+/** Truncate to at most `max` characters, ellipsizing, so every producer truncates identically. */
 export function ellipsize(s: string, max: number): string {
 	return s.length > max ? `${s.slice(0, max - 1)}\u2026` : s;
 }
@@ -131,7 +131,7 @@ export function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CS
 		const foundStepperParseResult = getStepperOptionValue(option, value, csteppers);
 
 		if (foundStepperParseResult === undefined) {
-			console.warn(`ignoring option ${option} — stepper not found`);
+			console.warn(`ignoring option ${option}, stepper not found`);
 			delete moduleOptions[option];
 			return;
 		} else if (foundStepperParseResult.parseError) {

@@ -4,7 +4,7 @@
  *   - a minimized column never stays active: activation shifts to the nearest expanded column to its
  *     right, falling back to the left when none remain on the right
  *   - minimize persists via the pane's own persistFields, so a re-added pane with the same column key
- *     restores minimized — without stealing activation
+ *     restores minimized, without stealing activation
  *   - the strip's width is always fully used: the pane that grows into the leftover is the rightmost one that CAN
  *     grow, which is not the rightmost pane when that one is collapsed
  */
@@ -91,7 +91,7 @@ describe("shu-column-strip minimize", () => {
  * The invariant the harvest depends on: while panes are open, one of them is active.
  *
  * removePane already repairs activation when the active pane goes away. Nothing repaired it when a pane arrived while
- * the signal named nothing, so a strip could hold panes with `activePane` null — which is what made the Ask pane
+ * the signal named nothing, so a strip could hold panes with `activePane` null, which is what made the Ask pane
  * report that nothing was selected while a column was plainly on screen.
  */
 describe("shu-column-strip activation invariant", () => {

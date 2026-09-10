@@ -238,7 +238,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 					);
 
 					// An observation source's metrics for this item, keyed by the BINDER name (`request/status`, not the item
-					// value) — a binder is an identifier, so a metric term never carries an item's dots or slashes. Rebound
+					// value): a binder is an identifier, so a metric term never carries an item's dots or slashes. Rebound
 					// each iteration exactly like the item variable.
 					if (metrics?.[val]) {
 						for (const [metricKey, metricValue] of Object.entries(metrics[val])) {
@@ -287,7 +287,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 					);
 
 					// An observation source's metrics for this item, keyed by the BINDER name (`request/status`, not the item
-					// value) — a binder is an identifier, so a metric term never carries an item's dots or slashes. Rebound
+					// value): a binder is an identifier, so a metric term never carries an item's dots or slashes. Rebound
 					// each iteration exactly like the item variable.
 					if (metrics?.[val]) {
 						for (const [metricKey, metricValue] of Object.entries(metrics[val])) {

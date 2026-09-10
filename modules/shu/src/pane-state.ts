@@ -1,8 +1,8 @@
 /**
  * Single source of truth for which panes are open.
  *
- * All pane-creation paths — URL-hash restoration, step invocation, toolbar, hash
- * navigation — call `request()` / `dismiss()`. The reconciler is the only thing
+ * All pane-creation paths, URL-hash restoration, step invocation, toolbar, hash
+ * navigation: call `request()` / `dismiss()`. The reconciler is the only thing
  * that creates or destroys panes, so duplicates can't enter the system.
  *
  *   URL hash         ──┐
@@ -85,7 +85,7 @@ export function tagOf(d: DesiredPane): string {
 		case "component":
 			return d.tag;
 		case "entity":
-			// A node's @type can declare its own column component (via the per-@type presentation facade — domain.ui.component);
+			// A node's @type can declare its own column component (via the per-@type presentation facade, domain.ui.component);
 			// otherwise the generic entity column. So a typed node opens its type-specific column on a graph/row click.
 			return presentationForType(d.persistedAs).columnComponent() ?? "shu-entity-column";
 		case "type":
@@ -128,7 +128,7 @@ export function labelOf(d: DesiredPane): string {
 /**
  * Per-paneType post-attach hook. Each parametric pane (entity, filter, ...) needs
  * to call `.open(...)` on its freshly-created child. Keyed by `paneType` so a new
- * variant means one schema entry + one hook — no central switch.
+ * variant means one schema entry + one hook: no central switch.
  *
  * `paneType: "component"` needs no hook (data flows via `data`). External component
  * loading also lives here so pane-state has no direct registry dependency.
@@ -142,7 +142,7 @@ class PaneStateImpl {
 	private desired = new Map<string, DesiredPane>();
 	private strip: ShuColumnStrip | null = null;
 	private hooks: PaneHooks = {};
-	// The active pane is the global `activePane` signal — the one source of truth every reader (strip styling, harvest,
+	// The active pane is the global `activePane` signal: the one source of truth every reader (strip styling, harvest,
 	// isActiveView, dimming) derives from. PaneState is its writer on restore/open/dismiss; the strip subscribes and
 	// paints the DOM `active` state, so activation is never a side effect of appending a pane.
 	private get activePaneId(): string | null {
@@ -151,14 +151,14 @@ class PaneStateImpl {
 	private set activePaneId(id: string | null) {
 		activePane.set(id);
 	}
-	// The last hash WE pushed. The resulting `hashchange` echoes back into fromHash, which rebuilds `desired` from the
-	// hash — but a self-write's hash already matches `desired`, and re-reading it mid-mutation (e.g. an activation that
-	// fires while a column is opening) clobbers the in-flight pane. So fromHash ignores our own writes and reacts only
+	// The last hash this pushed. The resulting `hashchange` echoes back into fromHash, which rebuilds `desired` from the
+	// hash: but a self-write's hash already matches `desired`, and re-reading it mid-mutation (e.g. an activation that
+	// fires while a column is opening) clobbers the in-flight pane. So fromHash ignores its own writes and reacts only
 	// to EXTERNAL hash changes (back/forward, a shared link).
 	private lastWrittenHash: string | null = null;
 	// PaneState must READ the hash (fromHash) before it WRITES it. At boot the app activates the query column
 	// (app.ts) before the first fromHash; the resulting setActivePane would writeHash a still-empty `desired` and
-	// delete the col= entries the reloaded URL carries — dropping every restored component-pane view. This flag, set
+	// delete the col= entries the reloaded URL carries, dropping every restored component-pane view. This flag, set
 	// once fromHash has parsed the hash, gates writes until that read has happened.
 	private hydrated = false;
 
@@ -205,8 +205,8 @@ class PaneStateImpl {
 
 	/** Parse the URL hash into desired panes and reconcile. */
 	fromHash(): void {
-		if (ViewHash.getHash() === this.lastWrittenHash) return; // our own echo — desired already matches; don't rebuild (would clobber an in-flight open)
-		this.hydrated = true; // we have now read the hash at least once — writes are safe (see `hydrated`)
+		if (ViewHash.getHash() === this.lastWrittenHash) return; // its own echo, desired already matches; don't rebuild (would clobber an in-flight open)
+		this.hydrated = true; // the hash has now been read at least once, writes are safe (see `hydrated`)
 		// `open=` arrivals never reach here: view-hash canonicalizes them into col= entries at its ingress.
 		const params = ViewHash.hashParams(ViewHash.getHash());
 		const active = params.get("active");
@@ -223,8 +223,8 @@ class PaneStateImpl {
 			if (d) next.set(paneIdOf(d), withPersistedFlag(d));
 		}
 		// Only name an active pane when the hash describes one. A hash with no col= entries describes no panes, and
-		// writing its empty answer here unset the activation of a pane that is on screen but not in the hash — the boot
-		// query column — leaving panes open with nothing active.
+		// writing its empty answer here unset the activation of a pane that is on screen but not in the hash: the boot
+		// query column, leaving panes open with nothing active.
 		const named = active && next.has(active) ? active : firstKeyOf(next);
 		if (named) this.activePaneId = named;
 		this.desired = next;
@@ -245,7 +245,7 @@ class PaneStateImpl {
 			if (live) (live as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		}
 		// Re-request of an open individual with a passage selector: the pane already shows the document, so hand the
-		// selector to the live column to reveal — attach hooks only fire for new panes.
+		// selector to the live column to reveal, attach hooks only fire for new panes.
 		if (existing && d.paneType === "entity" && d.selector) {
 			const live = this.findLiveChild(id) as (HTMLElement & { revealPassage?: (s: TQuoteAnchor) => void }) | undefined;
 			live?.revealPassage?.(d.selector);
@@ -257,7 +257,7 @@ class PaneStateImpl {
 
 	/** Record an externally-chosen active pane (e.g. a column-strip click or breadcrumb) so the MODEL agrees with the
 	 * strip. Without this the model's activePaneId stays stale and the next reconcile re-asserts it, snapping the active
-	 * column back off the one just clicked. Writes the hash in the paneId form `fromHash` reads — callers must NOT
+	 * column back off the one just clicked. Writes the hash in the paneId form `fromHash` reads, callers must NOT
 	 * write a numeric `active` (which fromHash can't resolve, so it falls back to the leftmost pane). */
 	setActivePane(paneId: string): void {
 		if (this.activePaneId === paneId) return;
@@ -290,7 +290,7 @@ class PaneStateImpl {
 		if (source instanceof Element) {
 			return (source.closest("shu-column-pane") as HTMLElement | null) ?? undefined;
 		}
-		// Event path: try composedPath first (only populated mid-dispatch). Fall back to target ancestry, then currentTarget — each is valid in different bubbling phases.
+		// Event path: try composedPath first (only populated mid-dispatch). Fall back to target ancestry, then currentTarget: each is valid in different bubbling phases.
 		const path = typeof source.composedPath === "function" ? source.composedPath() : [];
 		const fromPath = path.find((el): el is HTMLElement => el instanceof HTMLElement && el.tagName === "SHU-COLUMN-PANE");
 		if (fromPath) return fromPath;
@@ -366,10 +366,10 @@ class PaneStateImpl {
 		}
 		// The address IS the view state, so it is written from the desired set BEFORE the panes catch up to it. Opening
 		// a pane awaits its component module and then its data; an address written only once that finished would lag
-		// the view it names — a reader copying the address (or reloading) mid-open would miss the column.
+		// the view it names: a reader copying the address (or reloading) mid-open would miss the column.
 		this.writeHash();
 		// Iterate a SNAPSHOT, not the live `desired.values()` iterator: opening a pane awaits, and a request landing during
-		// that await can `dismiss`+`request` the same key (a prune-then-reopen), which a live iterator would re-yield —
+		// that await can `dismiss`+`request` the same key (a prune-then-reopen), which a live iterator would re-yield:
 		// reopening a pane still being opened. The snapshot is this pass's target; the request scheduled its own reconcile.
 		for (const d of [...this.desired.values()]) {
 			const id = paneIdOf(d);
@@ -424,7 +424,7 @@ class PaneStateImpl {
 		pane.setMinimized(d.flag === "min");
 		// An afterAttach hook calls the child's own methods, which exist only once this element has been upgraded to its
 		// definition. `ensureLoaded` starts the module; the definition it registers arrives on a later task, and an
-		// element created before it is a plain element until upgraded — waiting for the definition alone still met one,
+		// element created before it is a plain element until upgraded, waiting for the definition alone still met one,
 		// since the upgrade of an existing instance is a reaction that has not necessarily run when the wait resolves.
 		await customElements.whenDefined(tag);
 		customElements.upgrade(child);
@@ -438,8 +438,8 @@ class PaneStateImpl {
 
 	private writeHash(): void {
 		// Never write before the first fromHash has READ the reloaded URL (see `hydrated`). A reconcile triggered by an
-		// early request — e.g. a step's products re-opening a pane at boot, which can land before fromHash under load
-		// — would otherwise overwrite the reloaded hash with the partial desired set, dropping the col= views still waiting
+		// early request, e.g. a step's products re-opening a pane at boot, which can land before fromHash under load
+		// would otherwise overwrite the reloaded hash with the partial desired set, dropping the col= views still waiting
 		// to be restored. This generalises the setActivePane guard to every writer (the boot-strip regression).
 		if (!this.hydrated) return;
 		const base = ViewHash.getHash();
@@ -452,7 +452,7 @@ class PaneStateImpl {
 		if (this.activePaneId) params.set("active", this.activePaneId);
 		else params.delete("active");
 		const next = `#?${params.toString()}`;
-		this.lastWrittenHash = next; // mark as ours so the echoed hashchange doesn't re-enter fromHash and clobber desired
+		this.lastWrittenHash = next; // mark as this instance's so the echoed hashchange doesn't re-enter fromHash and clobber desired
 		if (next !== base) ViewHash.pushHash(next);
 	}
 
@@ -476,7 +476,7 @@ function columnTypeFor(d: DesiredPane): string {
 
 /** A column the user last minimized reopens minimized: its pane persists `minimized` (ShuElement.persistFields),
  * and that remembered state becomes the default flag when the hash or caller doesn't specify one. Only `min` is
- * defaulted — re-applying a remembered maximize would unexpectedly hide the rest of the workspace. */
+ * defaulted: re-applying a remembered maximize would unexpectedly hide the rest of the workspace. */
 function withPersistedFlag(d: DesiredPane): DesiredPane {
 	if (d.flag) return d;
 	const saved = readElementPrefs("shu-column-pane", paneIdOf(d));
@@ -485,7 +485,7 @@ function withPersistedFlag(d: DesiredPane): DesiredPane {
 
 /**
  * Parse one `col=` URL entry into a DesiredPane. Returns null for malformed
- * entries — `fromHash` skips nulls so a stale hash never crashes the boot.
+ * entries: `fromHash` skips nulls so a stale hash never crashes the boot.
  *
  * Each prefix maps to one paneType: `e:` entity, `type:` type, `f:` filter-eq, `p:` filter-prop,
  * `i:` filter-incoming, `t:` thread, `step:` step-detail. Anything else is a component tag.
@@ -519,7 +519,7 @@ export function parseColEntry(raw: string): DesiredPane | null {
 		if (!split) return null;
 		return safe({ paneType: "filter-incoming", persistedAs: split[0], subject: split[1], flag });
 	}
-	if (body.startsWith("type:")) return safe({ paneType: "type", persistedAs: body.slice(5), flag }); // before `t:` — a type ref has no second colon
+	if (body.startsWith("type:")) return safe({ paneType: "type", persistedAs: body.slice(5), flag }); // before `t:`: a type ref has no second colon
 	if (body.startsWith("t:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;

@@ -43,7 +43,7 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 
 		const nextCharAfterBrace = inp.substring(be + 1, be + 2);
 
-		// Bare literals may contain whitespace but a quoted span inside is atomic —
+		// Bare literals may contain whitespace but a quoted span inside is atomic:
 		// `"foo with bar"` does not contribute its internal ` ` or `"` as a split point.
 		let placeholderRegex = `(?:[^"]|"[^"]*")+?`;
 

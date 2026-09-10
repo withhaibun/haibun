@@ -1,8 +1,8 @@
 /**
- * What a change actually drew, read from the renderer the scene draws through.
+ * What a change drew, read from the renderer the scene draws through.
  *
  * "It did not redraw after changing the view" was a question only a browser could answer: drive a page, switch a view,
- * compare pixels, wait for the layout to settle. A renderer that records what it was given answers it here — a view
+ * compare pixels, wait for the layout to settle. A renderer that records what it was given answers it here: a view
  * change places the nodes differently, a repaint that changes nothing places them identically, and a shape rebuild has
  * its place in the order.
  */
@@ -74,7 +74,7 @@ describe("what a renderer was given", () => {
 
 	it("hands the graph library a fresh node factory per rebuild, which is the only way it re-runs one it already cached", () => {
 		// The library caches each node's object and re-runs the factory only when the accessor is a different function.
-		// Passing the same one leaves every node wearing the shape it had — a pin that never gets its frame.
+		// Passing the same one leaves every node wearing the shape it had: a pin that never gets its frame.
 		const given: Array<(n: FGNode) => unknown> = [];
 		const graph = {
 			graphData: () => undefined,
@@ -110,7 +110,7 @@ describe("what a renderer was given", () => {
 		}
 	});
 
-	it("describes a drawn graph in one sentence with per-type counts — the text every medium shares", () => {
+	it("describes a drawn graph in one sentence with per-type counts: the text every medium shares", () => {
 		expect(graphSummary({ nodes: nodes([["a", 0, 0, 0]]), links: [] })).toBe("1 nodes (1 Comment) and 0 links");
 		expect(graphSummary({ nodes: [], links: [] })).toBe("0 nodes and 0 links");
 	});

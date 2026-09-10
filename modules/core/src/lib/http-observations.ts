@@ -17,7 +17,7 @@ import { declareBlips, recordBlip } from "./blips.js";
 export const HTTP_REQUEST_LABEL = "HttpRequest";
 /** The requesting party: the browser / user agent. A singleton lifeline with id `client`. */
 export const HTTP_CLIENT_LABEL = "HttpClient";
-/** A serving party: the site itself or an external server. One node per host, carrying `requestCount` — how many
+/** A serving party: the site itself or an external server. One node per host, carrying `requestCount`: how many
  *  requests reached it, a rollup of its HttpRequests, never tracked separately. */
 export const HTTP_HOST_LABEL = "HttpHost";
 export { ENDPOINT_LABEL } from "./resources.js";
@@ -86,7 +86,7 @@ const trackCache = new WeakMap<object, { ensured: Set<string>; counts: Map<strin
  * HttpHost. Every endpoint links `isPartOf` to the site's host node, so the graph connects the whole exchange:
  * client → request → endpoint → site, or client/site → request → host.
  */
-/** An outbound request the instance itself makes — no route table, origin "site". The one call shape for every
+/** An outbound request the instance itself makes: no route table, origin "site". The one call shape for every
  *  outbound observer (the undici channels, a subprocess transport), so the convention is stated once. */
 export function trackOutboundRequest(world: TWorld, observation: THttpRequestObservation): Promise<void> {
 	return trackHttpRequest(world, observation, NO_ROUTES, "site");
@@ -148,7 +148,7 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 				// request to it is observed: a reference holds the observation until it does, rather than losing the request.
 				writeReferenceEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, ENDPOINT_LABEL, endpointPath).then(() =>
 					once(`endpoint:${endpointPath}`, async () => {
-						// The link may already exist from an earlier scenario's carried quads — check the store, once per endpoint.
+						// The link may already exist from an earlier scenario's carried quads, check the store, once per endpoint.
 						const linked = await store.query({ subject: endpointPath, predicate: LinkRelations.PART_OF.rel, namedGraph: ENDPOINT_LABEL });
 						if (linked.length === 0) await writeEdge(store, ENDPOINT_LABEL, endpointPath, LinkRelations.PART_OF.rel, HTTP_HOST_LABEL, site);
 					}),

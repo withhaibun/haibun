@@ -1,8 +1,8 @@
 /**
  * QuadStore Types for Core
  *
- * Property graph quad model — each quad can carry optional properties,
- * aligning with a property-graph backing store's vertex properties for seamless persistence.
+ * Property graph quad model: each quad can carry optional properties,
+ * aligning with a property-graph backing store's vertex properties for direct persistence.
  * All methods are async to support both in-memory and database-backed stores.
  */
 import { z } from "zod";
@@ -41,7 +41,7 @@ export const GraphQuerySchema = z
 		sortOrder: z.enum(["asc", "desc"]).default("desc"),
 		limit: z.number().int().positive().default(50),
 		offset: z.number().int().nonnegative().default(0),
-		// No default: what an unstated level means belongs to the read that answers it — a graph query reads every
+		// No default: what an unstated level means belongs to the read that answers it: a graph query reads every
 		// level it may see, a shape query samples public. A default here decided it for both, and decided it wrong.
 		accessLevel: z.enum(["private", "public", "opened", "all"]).optional(),
 		fields: z.array(z.string()).optional(),
@@ -114,7 +114,7 @@ export interface TQuad {
 	predicate: string;
 	object: unknown;
 	namedGraph: string;
-	/** For edge quads: the declared type (range) of the target node. Lets a renderer resolve an edge to the exact (type, id) node instead of guessing by id — necessary when one id exists under several types (e.g. a DID that is both a Principal and an Issuer). */
+	/** For edge quads: the declared type (range) of the target node. Lets a renderer resolve an edge to the exact (type, id) node instead of guessing by id, necessary when one id exists under several types (e.g. a DID that is both a Principal and an Issuer). */
 	objectType?: string;
 	timestamp: number;
 	properties?: Record<string, unknown>;
@@ -146,9 +146,9 @@ export function matchesQuadPattern(q: TQuad, p: TQuadPattern): boolean {
 export const OBSERVATION_VALUE_MAX = 512;
 
 /** Emit a quadObservation event via an event logger. Canonical envelope for all quad emissions; string values are
- *  bounded to OBSERVATION_VALUE_MAX and marked `preview: true` (the store holds the payload — a consumer that needs
+ *  bounded to OBSERVATION_VALUE_MAX and marked `preview: true` (the store holds the payload: a consumer that needs
  *  it dereferences deliberately, and a merge can prefer a full value over a preview). Untruncated quads pass by
- *  reference — no per-emission clone on the write path. */
+ *  reference: no per-emission clone on the write path. */
 export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>) => void }, id: string, quad: TQuad): void {
 	const bounded = typeof quad.object === "string" && quad.object.length > OBSERVATION_VALUE_MAX;
 	const observed = bounded ? { ...quad, object: ellipsize(quad.object as string, OBSERVATION_VALUE_MAX), properties: { ...quad.properties, preview: true } } : quad;
@@ -187,7 +187,7 @@ export function extractQuadsFromEvents(events: Record<string, unknown>[]): TQuad
 }
 
 /**
- * Whether a batch of events carries a data change relevant to a view scoped to `label` — the single relevance test a
+ * Whether a batch of events carries a data change relevant to a view scoped to `label`: the single relevance test a
  * live view applies before re-deriving itself from the graph. True when the batch yields at least one quad and, if a
  * `label` is given, at least one quad in that named graph; with no `label` any quad is relevant (an unscoped view).
  * A caller that only refreshes when scoped (e.g. label-specific filter values) guards the no-label case itself.
@@ -200,7 +200,7 @@ export function eventsAffectLabel(events: Record<string, unknown>[], label?: str
 
 export interface IQuadStore {
 	/** True for a store served by ANOTHER instance (RemoteQuadStore). A read scoped `"own"` (what this instance is
-	 *  authoritative for) skips it — its records are the serving instance's own, held in the serving instance's report. */
+	 *  authoritative for) skips it: its records are the serving instance's own, held in the serving instance's report. */
 	readonly isRemote?: boolean;
 
 	/** Set a value (upserts: replaces existing quad with same subject+predicate+namedGraph) */
@@ -224,7 +224,7 @@ export interface IQuadStore {
 	/** Get all quads */
 	all(): Promise<TQuad[]>;
 
-	/** Individual operations — convenience over quads. namedGraph = persisted label. */
+	/** Individual operations, convenience over quads. namedGraph = persisted label. */
 	upsertIndividual(label: string, data: unknown): Promise<string>;
 	getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
 	deleteIndividual(label: string, id: string): Promise<void>;
@@ -240,7 +240,7 @@ export interface IQuadStore {
 	 * (or every known type if `types` is omitted), returns up to `perTypeLimit`
 	 * individual's quads plus a sidecar cluster summary so the view can render an
 	 * `+N more` cluster node when sampling truncates. Required: every quad store
-	 * owns its bounded clustered query — there is no unbounded `all()`-then-slice
+	 * owns its bounded clustered query: there is no unbounded `all()`-then-slice
 	 * fallback. At scale this must sample at the source, not load every row.
 	 * `accessLevel` is the visibility ceiling, identical to every other read path:
 	 * the sample, its edges, body-preview labels and the `+N more` totals are all
@@ -250,7 +250,7 @@ export interface IQuadStore {
 
 	/**
 	 * Create a single navigable edge between two individuals (graph-native stores only).
-	 * Backing stores that materialize edges as first-class entities (a property-graph engine) implement
+	 * Backing stores that materialize edges as entities of their own (a property-graph engine) implement
 	 * this so a topology edge becomes a real, walkable relationship rather than a property
 	 * column. The in-memory QuadStore models edges as quads, so callers fall back to `add`
 	 * when this is absent. Idempotent per (from, edge, to) in implementations.
@@ -260,8 +260,8 @@ export interface IQuadStore {
 
 /**
  * Options for the clustered read. `scope` decides whether federated peers join the merge: `"federated"`
- * (the default) is an instance's OWN view — local + backing stores + every federated peer; `"own"` is
- * what it serves TO a peer — local + backing only. A federated read always asks for `"own"`: a peer is
+ * (the default) is an instance's OWN view, local + backing stores + every federated peer; `"own"` is
+ * what it serves TO a peer, local + backing only. A federated read always asks for `"own"`: a peer is
  * authoritative for what it hosts, and serving views-of-views would recurse on any federation cycle.
  */
 export type TClusteredQuadsOpts = { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel; scope?: "own" | "federated" };
@@ -278,7 +278,7 @@ export interface TCluster {
 	/** Subjects for which quads are present, in sample order. */
 	sampledSubjects: string[];
 	/**
-	 * Display label for every sampled subject — the single source of a node's title.
+	 * Display label for every sampled subject: the single source of a node's title.
 	 * Required and total: each producer fills one entry per `sampledSubjects` via the
 	 * shared `composeDisplayLabel` (name/content rel → shortest linked-body preview →
 	 * id), so views render straight from it and never compute their own label.
@@ -287,7 +287,7 @@ export interface TCluster {
 	/**
 	 * Site principal (did:site DID) per sampled subject, for subjects served by a FEDERATED peer. A read-time
 	 * store fact, never persisted on the data: which site's store served the subject. Absent for a subject
-	 * served by the responding site itself — the response-level `TClusteredQuads.site` is its principal.
+	 * served by the responding site itself: the response-level `TClusteredQuads.site` is its principal.
 	 */
 	sites?: Record<string, string>;
 }
@@ -295,14 +295,14 @@ export interface TCluster {
 export interface TClusteredQuads {
 	quads: TQuad[];
 	clusters: TCluster[];
-	/** Site principal of the responding instance — the serving site of every sampled subject not overridden in `TCluster.sites`. */
+	/** Site principal of the responding instance: the serving site of every sampled subject not overridden in `TCluster.sites`. */
 	site?: string;
 }
 
 /**
- * A federated peer's clustered read surface — the reads-first federation contract. A peer serves its
+ * A federated peer's clustered read surface: the reads-first federation contract. A peer serves its
  * bounded, accessLevel-gated clustered snapshot; it is NOT a routed backing store (no raw pattern
- * queries, no writes — those arrive with capability-gated federation). `site` is the peer's unique
+ * queries, no writes: those arrive with capability-gated federation). `site` is the peer's unique
  * site principal, the per-subject stamp for everything it serves.
  */
 export interface TFederatedGraphSource {

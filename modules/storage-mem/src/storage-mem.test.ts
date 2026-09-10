@@ -9,7 +9,7 @@ import { describeStorage } from "@haibun/domain-storage/test/storage-conformance
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
 // The capture key is the WORLD's own tag.key (getCaptureLocation reads loc.tag.key); assert against that, never a
-// separately-imported Timer.key — a different value when the module loads twice under vitest (its own static startTime).
+// separately-imported Timer.key: a different value when the module loads twice under vitest (its own static startTime).
 
 vi.spyOn(process, "cwd").mockReturnValue("/");
 

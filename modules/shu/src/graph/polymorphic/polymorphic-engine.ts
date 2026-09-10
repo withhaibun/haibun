@@ -1,6 +1,6 @@
 /**
  * The engine governor: the ONLY code that touches the library engine's pacing. The library's forces are removed
- * (the scene places nodes itself, see polymorphic-layout.ts), so its ticks only move sprites — a pinned node tracks its
+ * (the scene places nodes itself, see polymorphic-layout.ts), so its ticks only move sprites: a pinned node tracks its
  * pin, an unpinned one has no velocity and stays put. Every consumer states INTENT: settle after a data feed (tick
  * briefly so the sprites reach their placed positions), hold for a tween or drag (tick continuously; pins move each
  * frame), freeze at rest. "Who controls the engine" has one answer, and the mode is observable.
@@ -22,10 +22,10 @@ export class EngineGovernor {
 	mode: TEngineMode = "idle";
 
 	/**
-	 * Attach the object whose pacing props apply SYNCHRONOUSLY — the inner three-forcegraph instance, not the VR
+	 * Attach the object whose pacing props apply SYNCHRONOUSLY: the inner three-forcegraph instance, not the VR
 	 * wrapper (the wrapper forwards props through two debounced digests, so a cooldown set mid-stop lands frames
 	 * late and the engine re-stops on the stale value). The lib also stops the engine on a 15s WALL CLOCK
-	 * (cooldownTime) independent of tick budgets — disable it so this governor's tick budgets are the only stop.
+	 * (cooldownTime) independent of tick budgets, disable it so this governor's tick budgets are the only stop.
 	 */
 	attach(graph: TPacedGraph): void {
 		this.graph = graph;
@@ -45,7 +45,7 @@ export class EngineGovernor {
 		this.mode = "holding";
 	}
 
-	/** Stop ticking now — positions are where they should be. */
+	/** Stop ticking now, positions are where they should be. */
 	freeze(): void {
 		this.graph?.cooldownTicks(0);
 		this.mode = "frozen";

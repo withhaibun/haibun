@@ -3,10 +3,10 @@
  * the server exposes through `findStep().inputSchema`. Single source of
  * truth is the server's Zod schema (run through `z.toJSONSchema()`); the
  * browser receives the same schema in the step descriptor and validates
- * locally before submit. No duplicate logic — the browser just walks
+ * locally before submit. No duplicate logic: the browser just walks
  * the same shape the server already emits.
  *
- * Covers the JSON-Schema features step inputs actually use: `type`,
+ * Covers the JSON-Schema features step inputs use: `type`,
  * `format` (uri / email / date-time), `enum`, `required`, `minLength`,
  * `minimum`, and nested object/array structures. Anything else passes
  * through; the server still validates strictly and returns 422 on edge
@@ -56,9 +56,9 @@ export function validateAgainstSchema(value: unknown, schema: TJsonSchema, field
 			if (schema.minLength !== undefined && value.length < schema.minLength)
 				errors.push({ field: fieldPath, message: `must be at least ${schema.minLength} character${schema.minLength === 1 ? "" : "s"}` });
 			if (schema.format === "uri" || schema.format === "url") {
-				if (!URI_PATTERN.test(value)) errors.push({ field: fieldPath, message: `must be a uri (e.g. did:web:example.com or https://…) — got "${value}"` });
+				if (!URI_PATTERN.test(value)) errors.push({ field: fieldPath, message: `must be a uri (e.g. did:web:example.com or https://…), got "${value}"` });
 			} else if (schema.format === "email") {
-				if (!EMAIL_PATTERN.test(value)) errors.push({ field: fieldPath, message: `must be an email address — got "${value}"` });
+				if (!EMAIL_PATTERN.test(value)) errors.push({ field: fieldPath, message: `must be an email address, got "${value}"` });
 			} else if (schema.format === "date-time") {
 				if (!DATE_TIME_PATTERN.test(value)) errors.push({ field: fieldPath, message: "must be an ISO 8601 date-time" });
 			}

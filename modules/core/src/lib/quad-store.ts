@@ -2,7 +2,7 @@
  * QuadStore - In-memory quad store with optional backing store routing
  *
  * Stores quads as Subject-Predicate-Object-namedGraph with timestamps and optional properties.
- * Backing stores can be registered for specific named graphs — writes route to the owning store,
+ * Backing stores can be registered for specific named graphs, writes route to the owning store,
  * reads merge across all stores.
  * Methods return Promises (via Promise.resolve) to satisfy the async IQuadStore interface.
  *
@@ -44,7 +44,7 @@ export class QuadStore implements IQuadStore {
 	 */
 	private routing: Map<string, IQuadStore>;
 	/**
-	 * Federated peers, consulted ONLY by getClusteredQuads — reads-first federation joins at the one read
+	 * Federated peers, consulted ONLY by getClusteredQuads, reads-first federation joins at the one read
 	 * surface a peer serves (bounded, accessLevel-gated), never the routing map (which owns writes and raw
 	 * queries). Shared by reference along the store chain for the same reason as `routing`.
 	 */
@@ -78,7 +78,7 @@ export class QuadStore implements IQuadStore {
 	}
 
 	/**
-	 * Drop every connection to another instance — federated read sources and remote backing stores. Their lifetime is
+	 * Drop every connection to another instance, federated read sources and remote backing stores. Their lifetime is
 	 * the connection's, never longer: a peer torn down at feature end must not leave a registration that the next
 	 * feature's reads chase to a dead port. Local backing stores (an owned engine) are untouched.
 	 */
@@ -115,7 +115,7 @@ export class QuadStore implements IQuadStore {
 
 	/**
 	 * The inverse of registerStore: remove every graph routed to `store`. A backing's registration must not outlive
-	 * it — the owner calls this when it closes its engine, and because the routing map is shared along the store
+	 * it: the owner calls this when it closes its engine, and because the routing map is shared along the store
 	 * chain, the registration disappears from every carried store at once.
 	 */
 	unregisterStore(store: IQuadStore): void {
@@ -129,7 +129,7 @@ export class QuadStore implements IQuadStore {
 	 * store. Variables (SHARED_GRAPH) are re-projected by FeatureVariables from `world.shared.all()` with provenance
 	 * properties rebuilt, so they're carried separately. Facts and observations live only in this in-memory store and
 	 * would be lost when FeatureVariables creates a fresh QuadStore for the next scenario. Backing registrations are
-	 * NOT copied — the routing map is shared by reference via the constructor.
+	 * NOT copied: the routing map is shared by reference via the constructor.
 	 */
 	carryNonVariableQuadsTo(target: QuadStore): void {
 		for (const q of this.quads) {
@@ -223,7 +223,7 @@ export class QuadStore implements IQuadStore {
 			if (backing) return backing.query(pattern);
 			return this.localQuery(pattern);
 		}
-		// No namedGraph filter — merge local + all backing stores
+		// No namedGraph filter, merge local + all backing stores
 		const local = this.localQuery(pattern);
 		const backingResults = await Promise.all(this.allStores.map((s) => s.query(pattern)));
 		return [...local, ...backingResults.flat()].sort((a, b) => a.timestamp - b.timestamp);
@@ -235,7 +235,7 @@ export class QuadStore implements IQuadStore {
 
 	clear(namedGraph?: string): Promise<void> {
 		if (namedGraph) {
-			// Don't clear persistent backing stores — only clear ephemeral (local) data
+			// Don't clear persistent backing stores, only clear ephemeral (local) data
 			if (this.routing.has(namedGraph)) return Promise.resolve();
 			this.quads = this.quads.filter((q) => q.namedGraph !== namedGraph);
 		} else {
@@ -262,7 +262,7 @@ export class QuadStore implements IQuadStore {
 
 	/**
 	 * Type-bounded snapshot. Every backing store owns its bounded clustered query
-	 * (queried directly — the efficient SQL/Cypher path). Local quads held by this
+	 * (queried directly: the efficient SQL/Cypher path). Local quads held by this
 	 * store are sampled per type in memory. No `all()`-then-slice fallback exists:
 	 * a store that can't sample at the source is a bug, not a degraded mode.
 	 */
@@ -288,7 +288,7 @@ export class QuadStore implements IQuadStore {
 
 		// Federated peers and REMOTE backing stores merge alongside local backing stores; each stamps its subjects with
 		// its own site principal (TCluster.sites), so a merged cluster still says which site served each subject. Under
-		// scope "own" (this instance's authoritative record) both are skipped — their records are the serving site's own.
+		// scope "own" (this instance's authoritative record) both are skipped, their records are the serving site's own.
 		const own = opts.scope === "own";
 		const backing = own ? this.allStores.filter((s) => !s.isRemote) : this.allStores;
 		const peers = own ? [] : [...this.federated];
@@ -524,7 +524,7 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 		if (!sampledByType.has(q.namedGraph)) sampledByType.set(q.namedGraph, new Set());
 		sampledByType.get(q.namedGraph)?.add(q.subject);
 	}
-	// Index local quads by subject, plus each Body's content — so labels compose the
+	// Index local quads by subject, plus each Body's content, so labels compose the
 	// same way every producer does (shortest linked-body preview, else id). The
 	// in-memory path has no rels registry, so name/content resolution is unavailable
 	// here; body-backed and id labels still come out identical to other producers.
@@ -552,7 +552,7 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 		for (const q of quads) {
 			if (q.namedGraph === type && keep.has(q.subject)) sampledQuads.push(q);
 		}
-		// Label only subjects this store actually holds — a subject sampled by another
+		// Label only subjects this store holds: a subject sampled by another
 		// store labels itself, and merging local labels over it would clobber its name.
 		const displayLabels: Record<string, string> = {};
 		for (const subject of keep) {

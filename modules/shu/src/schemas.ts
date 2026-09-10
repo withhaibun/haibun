@@ -11,7 +11,7 @@ export const ComboboxOptionSchema = z.object({
 	label: z.string(),
 	/**
 	 * Optional secondary line shown below the label as smaller, dimmer text.
-	 * Carries the "what does this represent" detail — input/output domain
+	 * Carries the "what does this represent" detail, input/output domain
 	 * summary for a step option, the type or distinguishing field for a
 	 * persisted-ref option. Filter matches on label OR secondary so either the
 	 * visible label or a contextual hint can be typed.
@@ -19,7 +19,7 @@ export const ComboboxOptionSchema = z.object({
 	secondary: z.string().optional(),
 	/**
 	 * Optional expanded-detail block shown when the option is focused
-	 * (keyboard) or hovered (mouse). Multiple lines welcome — full step gwta
+	 * (keyboard) or hovered (mouse). Multiple lines welcome, full step gwta
 	 * with inputs / outputs, or every persisted field of a node. Rendered in a
 	 * panel adjacent to the dropdown to show what an option holds before it is
 	 * picked.
@@ -27,7 +27,7 @@ export const ComboboxOptionSchema = z.object({
 	details: z.string().optional(),
 	/**
 	 * Optional section heading. Consecutive options sharing a `group` are
-	 * rendered under one non-selectable header in the dropdown — e.g.
+	 * rendered under one non-selectable header in the dropdown, e.g.
 	 * "Declared" vs "Built-in" types in the type selector.
 	 */
 	group: z.string().optional(),
@@ -87,7 +87,7 @@ export const ColumnPaneSchema = z.object({
 	// The pane's share of the strip (0..1), not pixels: a width kept from one window restores sensibly into another, and
 	// can never exceed the strip. A stored pixel width fails this and is dropped on restore.
 	width: z.number().gt(0).lte(1).optional(),
-	// User-minimized — a persisted choice, distinct from the strip's transient accordion auto-collapse.
+	// User-minimized: a persisted choice, distinct from the strip's transient accordion auto-collapse.
 	minimized: z.boolean().default(false),
 	closable: z.boolean().default(true),
 	pinned: z.boolean().default(false),

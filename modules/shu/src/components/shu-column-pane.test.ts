@@ -119,7 +119,7 @@ describe("shu-column-pane buttons", () => {
 		expect(btn.getAttribute("aria-pressed")).toBe("false");
 	});
 
-	it("close button dispatches column-close (no DOM removal on its own — PaneState owns that)", async () => {
+	it("close button dispatches column-close (no DOM removal on its own, PaneState owns that)", async () => {
 		let closed = false;
 		pane.addEventListener(SHU_EVENT.COLUMN_CLOSE, () => {
 			closed = true;
@@ -192,7 +192,7 @@ describe("shu-column-pane buttons", () => {
 		expect(again.hasAttribute("pinned")).toBe(true); // pin survives reload and re-asserts the attribute pane-state's prune reads
 	});
 
-	it("forgets a closed column's width, minimize and pin — reopening one is a new column, not the dismissed one", async () => {
+	it("forgets a closed column's width, minimize and pin, reopening one is a new column, not the dismissed one", async () => {
 		await click(".pane-pin");
 		pane.setWidth(280);
 		pane.setMinimized(true);
@@ -285,7 +285,7 @@ describe("shu-column-strip maximize + is-last", () => {
 
 	it("opening a column while another is maximized ends the maximize, so both are visible", async () => {
 		// A maximized column is the only one visible: the panes present at the moment of maximize are hidden. A column
-		// opened afterwards — a second col= in the hash, a column opened from a view — was left on screen beside the
+		// opened afterwards, a second col= in the hash, a column opened from a view, was left on screen beside the
 		// maximized one, which is neither state. It was opened to be read, so the maximize ends.
 		const a = await addPane("A");
 		a.setMaximized(true);
@@ -388,7 +388,7 @@ describe("what a pane renders when it collapses", () => {
 });
 
 describe("a column whose spine is a narrow form of itself", () => {
-	// Its strip is the column's own control surface — the log's rail is dragged and clicked to move through the run — so
+	// Its strip is the column's own control surface, the log's rail is dragged and clicked to move through the run, so
 	// a click there is the reader using it, not asking for the rows back.
 	beforeAll(() => {
 		if (!customElements.get("shu-self-spine-column"))
@@ -415,7 +415,7 @@ describe("a column whose spine is a narrow form of itself", () => {
 	it("keeps rendering the column, so the part it shows in the strip stays where it is", async () => {
 		const pane = await spined();
 		const slots = Array.from(pane.shadowRoot?.querySelectorAll("slot") ?? []).map((sl) => sl.name);
-		expect(slots, "the default slot, inside the strip — not the spine slot").toEqual([""]);
+		expect(slots, "the default slot, inside the strip, not the spine slot").toEqual([""]);
 		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE), "and the strip is sized for a spine").toBe(true);
 	});
 

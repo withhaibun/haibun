@@ -3,7 +3,7 @@ import { html, css, type TemplateResult } from "lit";
 import { defaultLabel } from "../util.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 /**
- * <shu-graph-query> — Query component for the graph store.
+ * <shu-graph-query>: Query component for the graph store.
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -63,7 +63,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 	private error = "";
 
-	// The query (type, search, sort, page, access, filters) IS the hash-backed viewQuery store — the single,
+	// The query (type, search, sort, page, access, filters) IS the hash-backed viewQuery store: the single,
 	// schema-validated, reload-safe source of truth. These getters read it; writes go through viewQuery.set().
 	private get qLabel(): string | undefined {
 		return viewQuery.signals.label.get() ?? undefined;
@@ -87,9 +87,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return viewQuery.signals.offset.get();
 	}
 	private lastQueryKey = "";
-	/** The `label` of the most recently *started* query. A change means the node type switched, so the previous type's rows are dropped before the new query lands — a stale-row click would otherwise open the wrong entity. */
+	/** The `label` of the most recently *started* query. A change means the node type switched, so the previous type's rows are dropped before the new query lands: a stale-row click would otherwise open the wrong entity. */
 	private lastQueriedLabel: string | undefined;
-	/** In-flight promise — coalesces concurrent identical `executeQuery` calls. The key is `lastQueryKey` (set immediately after the dedup check). */
+	/** In-flight promise, coalesces concurrent identical `executeQuery` calls. The key is `lastQueryKey` (set immediately after the dedup check). */
 	private inflightPromise: Promise<void> | null = null;
 	private selectedIds = new Set<string>();
 
@@ -107,13 +107,13 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		viewQuery.hydrate(); // store ← URL hash (fail-fast); defaults when empty
 		if (!this.hasHash()) this.seedFromAttributes(); // alternate input when the URL carries no query
 		this.autoListen(window, "hashchange", () => {
-			if (viewQuery.wroteHash(ShuElement.getHash())) return; // our own writes use replaceState (no event); this catches back/forward
+			if (viewQuery.wroteHash(ShuElement.getHash())) return; // the component's own writes use replaceState (no event); this catches back/forward
 			viewQuery.hydrate();
 			void this.executeQuery();
 		});
 		void this.loadMetadata().then(() => this.executeQuery());
 
-		// Re-query when the global data window size changes — it sets the server-side limit, so the result set resizes.
+		// Re-query when the global data window size changes: it sets the server-side limit, so the result set resizes.
 		let firstWindow = true;
 		this.updateEffect(() => {
 			getWindowSize(); // subscribe to the window-size setting
@@ -126,7 +126,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		// Re-query when the text search changes in the store. The actions-bar search box writes viewQuery
 		// directly (not through this component's lifecycle), so a store write is the single, lifecycle-proof
-		// trigger — no debounce-cleared-on-disconnect or setContext-reset fragility. Subscribes to `q` only,
+		// trigger: no debounce-cleared-on-disconnect or setContext-reset fragility. Subscribes to `q` only,
 		// so the server-default-sort reflection (which writes `sort`) can't re-trigger it.
 		let firstSearch = true;
 		this.updateEffect(() => {
@@ -153,7 +153,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		if (filters.accessLevel !== undefined) patch.access = filters.accessLevel as TViewQuery["access"];
 		if (filters.label !== undefined) {
 			patch.label = filters.label || null;
-			// Sort columns are label-specific — the server rejects a sortBy not in the new label's topology.sortColumns —
+			// Sort columns are label-specific: the server rejects a sortBy not in the new label's topology.sortColumns:
 			// so switching type drops any sort carried over from the previous type (the new label sorts by its default).
 			if ((filters.label || null) !== (this.qLabel ?? null)) patch.sort = null;
 		}
@@ -289,7 +289,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		if (label !== this.lastQueriedLabel) {
 			// The node type changed: drop the previous type's rows now so they are never left
-			// clickable while the new query is in flight — a stale-row click would open the wrong
+			// clickable while the new query is in flight: a stale-row click would open the wrong
 			// entity (its id is a different type). The new rows render when `work` resolves.
 			this.lastQueriedLabel = label;
 			this.results = [];
@@ -312,8 +312,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					offset: this.qOffset,
 				};
 				const data = await this.#query.run(payload);
-				// Out-of-order guard: a newer query (e.g. a type switch) replaced our queryKey while this
-				// RPC was in flight, so this response is stale. Ignore it — applying it would overwrite the
+				// Out-of-order guard: a newer query (e.g. a type switch) replaced this queryKey while this
+				// RPC was in flight, so this response is stale. Ignore it, applying it would overwrite the
 				// current type's rows with the previous type's, leaving the wrong type's rows clickable. The
 				// current query renders its own response when it resolves.
 				if (this.lastQueryKey !== queryKey) return;
@@ -321,7 +321,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				this.total = data.total ?? this.results.length;
 				this.#buildSource(payload, this.results, this.qOffset);
 				this.sortableFields = data.sort?.fields ?? [];
-				// Reflect the server's resolved sort — including the per-type default the client didn't explicitly pick — so the result-table indicator highlights the active column.
+				// Reflect the server's resolved sort, including the per-type default the client didn't explicitly pick, so the result-table indicator highlights the active column.
 				if (data.sort?.current?.field && !this.qSort) viewQuery.set({ sort: data.sort.current.field, order: data.sort.current.order });
 				if (data.cypher) {
 					const pane = this.closest("shu-column-pane");

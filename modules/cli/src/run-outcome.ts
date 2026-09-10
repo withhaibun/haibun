@@ -66,7 +66,7 @@ export type TRunFeature = { id: string; name: string; path: string; steps: numbe
  * are its `step` end events that did not complete, each carrying the seqPath it failed at. The report is the HTML
  * artifact it wrote, named by the event that wrote it.
  */
-/** What a run has said about itself so far. Folded from its output as that arrives, since a long run's earliest
+/** What a run has said about itself so far. Reduced from its output as that arrives, since a long run's earliest
  *  lines fall out of the tail before it ends, and a count taken at the end would be a count of what was left. */
 export type TRunOutcome = {
 	features: Map<string, TRunFeature>;
@@ -95,7 +95,7 @@ export const emptyOutcome = (): TRunOutcome => ({
 });
 
 /**
- * Fold a stretch of a run's output into what it has said so far.
+ * Reduce a stretch of a run's output into what it has said so far.
  *
  * A read ends wherever the run had got to, which is usually mid-line, so the unfinished line is held and joined to
  * the next read. Without that, every event straddling a read boundary is lost, and what is lost is invisible.

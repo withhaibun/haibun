@@ -22,7 +22,7 @@ export async function callStep<T>(step: string, params: Record<string, unknown> 
 	}
 }
 
-/** A bounded slice of a type's individuals, at the caller's app access level — the query a type view and the class
+/** A bounded slice of a type's individuals, at the caller's app access level: the query a type view and the class
  *  browser both list from, through the one graph query, so with no server it lists what the page caches. Callers own
  *  their loading/error UI. */
 export async function fetchIndividuals(label: string, why: string): Promise<FetchOutcome<{ vertices: Record<string, unknown>[] }>> {

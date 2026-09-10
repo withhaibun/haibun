@@ -1,5 +1,5 @@
 /**
- * WindowedSource — the data behind a virtualized column, in index space. The renderer requests the total row count and
+ * WindowedSource: the data behind a virtualized column, in index space. The renderer requests the total row count and
  * for the ranges it can see; the source pages windows in and out of a bounded cached cache on demand, so every row of
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
@@ -185,7 +185,7 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 			const waits: Promise<void>[] = [];
 			for (const [a, b] of runs) {
 				// A failed fetch clears its in-flight marks so the next ensureRange retries; the pages stay skeletons, never
-				// bricked, and the rejection is swallowed here (best-effort paging) rather than surfacing unhandled.
+				// bricked, and the rejection is discarded here (best-effort paging) rather than surfacing unhandled.
 				const promise = fetchSpan(a, b)
 					.then(() => {
 						for (let p = a; p <= b; p++) inflight.delete(p);
@@ -219,7 +219,7 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 			const within = index - p * pageSize;
 			if (inflight.has(p)) {
 				// Its page is being fetched: cached for when the fetch lands, so the page is whole then rather than short and
-				// fetched again — under a steady stream that would never settle.
+				// fetched again, under a steady stream that would never settle.
 				if (!arrived.has(p)) arrived.set(p, new Map());
 				arrived.get(p)?.set(within, row);
 			} else if (within === 0 || (have && have.length === within)) {
@@ -251,7 +251,7 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 				const slice = rows.slice(within, within + pageSize);
 				if (slice.length > 0) pages.set(p, slice);
 			}
-			// If the seed reaches the total, it is the real end of data — record it so the short last page counts as
+			// If the seed reaches the total, it is the real end of data, record it so the short last page counts as
 			// cached instead of being re-fetched.
 			if (startRow + rows.length >= opts.count()) dataEnd = startRow + rows.length;
 			notify();

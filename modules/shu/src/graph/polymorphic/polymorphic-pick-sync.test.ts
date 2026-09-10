@@ -1,7 +1,7 @@
 /**
  * The rule the drag rests on: a pick re-derives its target's matrix EVERY time, because the raycast reads the matrix
  * and the fields it is derived from are written by the layout a frame earlier. A node whose position field already
- * equals the engine's is the dangerous case, not the safe one — its matrix is the stale one, and skipping the update
+ * equals the engine's is the dangerous case, not the safe one: its matrix is the stale one, and skipping the update
  * there is the "N nodes, none pickable at centre" failure: every sprite visible, sitting at the node's own
  * coordinates, and picking nothing.
  */
@@ -41,7 +41,7 @@ function fakeObject(
 }
 
 describe("polymorphic pick target sync", () => {
-	it("re-derives the matrix even when the target already sits at the node — the stale-matrix case that misses", () => {
+	it("re-derives the matrix even when the target already sits at the node: the stale-matrix case that misses", () => {
 		const o = fakeObject({ x: 10, y: -44, z: 532 });
 		syncPickTarget(o, { x: 10, y: -44, z: 532, baseScale: RESTING }); // nothing to write: fields already match
 		expect(o.matrixUpdates).toBe(1); // ...and the matrix is still re-derived, because that is what the raycast reads

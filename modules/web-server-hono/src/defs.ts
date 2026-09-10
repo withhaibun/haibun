@@ -19,14 +19,14 @@ export type TStaticFolderOptions = z.infer<typeof StaticFolderOptionsSchema>;
 export type TRouteMap = { [K in TRouteTypes]: { [path: string]: string } };
 export type TRequestHandler = (c: Context) => Response | Promise<Response>;
 
-/** Per-route purpose, required at mount time. Endpoints without a purpose cannot be mounted —
+/** Per-route purpose, required at mount time. Endpoints without a purpose cannot be mounted:
  *  this is what the endpoint-vertex graph and "show endpoints" UI render from. */
 export type TRoutePurpose = {
 	/** Human-readable purpose, e.g. "OID4VCI issuer metadata" */
 	description: string;
 };
 
-/** Endpoint graph-vertex type — registered HTTP routes as first-class graph vertices, persisted at mount so an
+/** Endpoint graph-vertex type, registered HTTP routes as graph vertices, persisted at mount so an
  *  observed HttpRequest can edge to the endpoint it hit. `endpointClass` distinguishes a page route from service
  *  plumbing (/rpc, /sse). */
 export const EndpointSchema = z.object({

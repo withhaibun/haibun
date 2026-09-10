@@ -9,8 +9,8 @@ export type XYZ = { x: number; y: number; z: number };
 
 /** A grouping/container axis. `"type"` groups by `@type`; `"role"` by the highest-priority actor a node is attributed to
  *  (rels-cache `roleEdgeLabels()`: ontology + concern-catalog derived, ordered by each rel's / consumer edge's DECLARED
- *  rolePriority — never a hand-kept list, and no consumer vocabulary named here); ANY other value is a folded
- *  node-property key — an actor predicate, or the read-time SITE_KEY stamp (the site whose store served the node, set at
+ *  rolePriority: never a hand-kept list, and no consumer vocabulary named here); ANY other value is a merged
+ *  node-property key: an actor predicate, or the read-time SITE_KEY stamp (the site whose store served the node, set at
  *  the federation merge). */
 export type GroupKeyMode = "type" | "role" | (string & {});
 
@@ -19,7 +19,7 @@ export const UNATTRIBUTED_ROLE = "(unattributed)";
 
 /** The group/container key for a node under `axis`: its `@type`, its highest-priority actor (`"role"`), or the agent at a
  *  specific actor predicate. buildGraphModelFromQuads records each actor edge on `properties[predicate]` and the winner on
- *  `properties[HYPERMEDIA_ROLE_KEY]`, so this reads a plain property either way — no edge walking, no predicate enumerated
+ *  `properties[HYPERMEDIA_ROLE_KEY]`, so this reads a plain property either way: no edge walking, no predicate enumerated
  *  here (the axis string IS the predicate). */
 export const groupKeyOf = (n: { type: string; properties?: Record<string, unknown> }, axis: GroupKeyMode = "type"): string => {
 	if (axis === "type") return n.type;
@@ -33,9 +33,9 @@ export const groupKeyOf = (n: { type: string; properties?: Record<string, unknow
 export const containerLabelOf = (key: string, axis: GroupKeyMode, labelById?: ReadonlyMap<string, string>): string => (axis === "type" ? key : (labelById?.get(key) ?? key));
 
 // Cohesion: how hard a group's members are pulled toward their ring anchor in XY (the "exclusive area" comes from
-// this, not the border alone). Depth is not cohesion's to control — z maps to each object's generatedAtTime.
+// this, not the border alone). Depth is not cohesion's to control, z maps to each object's generatedAtTime.
 export const COHESION_STRENGTH = 0.6;
-/** Estimated per-node XY footprint (chip + breathing room) — sizes each group's expected radius as √(count) discs. */
+/** Estimated per-node XY footprint (chip + breathing room), sizes each group's expected radius as √(count) discs. */
 export const GROUP_SPREAD = 24;
 /** Clear space between adjacent groups' estimated footprints on the ring. */
 export const GROUP_GAP = 80;
@@ -54,12 +54,12 @@ export function ringAnchors(keys: string[], radius: number): Map<string, GroupAn
 	return anchors;
 }
 
-/** Clear space between members inside a container's cell — the in-cell grid pitch's breathing room. */
+/** Clear space between members inside a container's cell: the in-cell grid pitch's breathing room. */
 export const IN_CELL_GAP = 12;
 
 /**
- * Compact deterministic placement for the grouped view's enclosures: each container is a RECTANGLE {w,h} — the real
- * chip-sized footprint of its members — shelf-packed (next-fit, decreasing height) into rows that wrap near a square
+ * Compact deterministic placement for the grouped view's enclosures: each container is a RECTANGLE {w,h}: the real
+ * chip-sized footprint of its members, shelf-packed (next-fit, decreasing height) into rows that wrap near a square
  * target width, then centred on the origin with `gap` clear space between adjacent cells. A container holding one wide
  * node becomes a wide-SHORT cell; its small HEIGHT keeps the row pitch (and so the whole layout) tight, and because the
  * sort is by height that cell sinks to a late short row instead of dominating. This replaces an isotropic-disc model
@@ -109,7 +109,7 @@ export function shelfPack(sizes: ReadonlyMap<string, { w: number; h: number }>, 
 export type GroupBox = { cx: number; cy: number; cz: number; sx: number; sy: number; sz: number };
 
 /** Padded axis-aligned bounding box (centre + size) of a set of positioned members; null when the set is empty.
- * `extentOf` supplies each member's own half-extents (a node CHIP is a wide billboard, not a point — bounds over
+ * `extentOf` supplies each member's own half-extents (a node CHIP is a wide billboard, not a point, bounds over
  * bare positions leave chips poking outside their box). */
 export function groupBounds(
 	members: ReadonlyArray<{ x?: number; y?: number; z?: number }>,
@@ -145,5 +145,5 @@ export function groupBounds(
 	};
 }
 
-/** easeInOutCubic: slow-in, slow-out — a calm transition that's easy to follow. */
+/** easeInOutCubic: slow-in, slow-out: a calm transition that's easy to follow. */
 export const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);

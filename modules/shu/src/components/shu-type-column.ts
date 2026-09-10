@@ -1,5 +1,5 @@
 /**
- * <shu-type-column> — the column a `#Type` reference opens. Shows the type's description, a graph of its schema, and
+ * <shu-type-column>: the column a `#Type` reference opens. Shows the type's description, a graph of its schema, and
  * its individuals in the shared result table, so a type's records read with their own fields and sort by the same
  * columns the query and filter views offer. When the site declares a
  * schema presenter (ui.presents === "schema", falling back to its general "graph" presenter), that presenter IS the
@@ -25,7 +25,7 @@ import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "..
  *  as a reader reaches it, rather than the first page with nothing to say the rest are there. */
 const INSTANCES_PAGE = 100;
 
-/** A `#Type` link resolves against the site's own declared types — the same test every ref surface uses. */
+/** A `#Type` link resolves against the site's own declared types: the same test every ref surface uses. */
 const isKnownType = (name: string): boolean => getRels(name) !== undefined;
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SHU_EVENT } from "../consts.js";
@@ -43,8 +43,8 @@ const TypeColumnSchema = z.object({
 type VertexData = Record<string, unknown>;
 
 /** Add one type's schema to a graph under construction: an outgoing edge per referenced type (getEdgeRanges) and a leaf
- *  per literal property (a rel that is not an edge). Property nodes are shared across types (`prop:` id) — a rel IS one
- *  Property, so two types declaring `name` point at the same node. Pure — derived entirely from concern metadata. */
+ *  per literal property (a rel that is not an edge). Property nodes are shared across types (`prop:` id): a rel IS one
+ *  Property, so two types declaring `name` point at the same node. Pure, derived entirely from concern metadata. */
 function addTypeSchema(nodes: Map<string, TGraph["nodes"][number]>, edges: TGraph["edges"], persistedAs: string): void {
 	const ranges = getEdgeRanges(persistedAs) ?? {};
 	for (const [field, target] of Object.entries(ranges)) {
@@ -52,7 +52,7 @@ function addTypeSchema(nodes: Map<string, TGraph["nodes"][number]>, edges: TGrap
 		edges.push({ from: persistedAs, to: target, label: field, rel: field });
 	}
 	for (const field of Object.keys(getRels(persistedAs) ?? {})) {
-		if (field in ranges) continue; // an edge to another type — already drawn
+		if (field in ranges) continue; // an edge to another type, already drawn
 		const pid = `prop:${field}`;
 		if (!nodes.has(pid)) nodes.set(pid, { id: pid, label: field, kind: "argument" });
 		edges.push({ from: persistedAs, to: pid, label: field });
@@ -67,7 +67,7 @@ export function buildTypeSchemaGraph(persistedAs: string): TGraph {
 	return { nodes: [...nodes.values()], edges };
 }
 
-/** The ENTIRE schema — every declared type with its edges and properties — with the viewed type highlighted, so a
+/** The ENTIRE schema, every declared type with its edges and properties, with the viewed type highlighted, so a
  *  reader sees where this type sits in the whole vocabulary. The same per-type builder as the local graph. */
 export function buildFullSchemaGraph(current: string): TGraph {
 	const nodes = new Map<string, TGraph["nodes"][number]>();
@@ -128,7 +128,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// persistedAs, so every graph view (the embedded presenter and any open graph column) highlights this type's Class.
 		this.setAttribute("data-subject", persistedAs);
 		this.setState({ persistedAs, loading: true, error: undefined });
-		// label is the SELECTED NODE'S graph — the type's Class node lives in the Class cluster, and a schema label
+		// label is the SELECTED NODE'S graph: the type's Class node lives in the Class cluster, and a schema label
 		// tells every consumer this subject is a schema term, not an individual to fetch.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
@@ -189,7 +189,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	}
 
 	/** Mount the embedded schema presenter once per type, as a LIGHT-DOM child projected through the shadow slot: the
-	 *  presenter (an A-Frame scene) resolves its camera via document.querySelector, which a shadow root would hide —
+	 *  presenter (an A-Frame scene) resolves its camera via document.querySelector, which a shadow root would hide:
 	 *  mounted in shadow its scene boots but its graph never attaches. updated(): the slot exists only after render.
 	 *  The pane's controls toggle (data-show-controls) propagates through the product view to the presenter, so the
 	 *  presenter's own view settings gate on the same pane gear as every view's. */
@@ -225,7 +225,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		const type = this.state.persistedAs;
 		const desc = getTypeDescription(type);
 		// The site's declared schema presenter (scoped by focusType), projected from light DOM through the slot;
-		// standalone falls back to the static SVG, rebuilt per render — a cheap pure projection of the metadata cache,
+		// standalone falls back to the static SVG, rebuilt per render: a light pure projection of the metadata cache,
 		// so no stored copy to fall stale.
 		const hasPresenter = ShuTypeColumn.schemaPresenter() !== undefined;
 		const graphView = hasPresenter
@@ -235,7 +235,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 				<shu-graph data-testid="type-schema-graph" .products=${{ graph: this.state.fullSchema ? buildFullSchemaGraph(type) : buildTypeSchemaGraph(type) }}></shu-graph>`;
 		return html`
 			${desc ? html`<p class="type-desc" data-testid="type-description">${unsafeHTML(renderRefProse(desc, isKnownType))}</p>` : ""}
-			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid="type-system-schema">A system schema — defined in haibun's own vocabulary.</p>` : ""}
+			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid="type-system-schema">A system schema, defined in haibun's own vocabulary.</p>` : ""}
 			${graphView}
 			${
 				hasPresenter

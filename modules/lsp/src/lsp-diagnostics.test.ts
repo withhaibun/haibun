@@ -128,7 +128,7 @@ describe("LspStepper diagnostics", () => {
 			didOpenHandler = handler;
 		});
 
-		// We need to use real steppers to trigger real expand() behavior
+		// Real steppers are needed to trigger real expand() behavior
 		const { default: HaibunStepper } = await import("@haibun/core/steps/haibun.js");
 		const actualSteppers = [new HaibunStepper()];
 

@@ -288,11 +288,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 							return actionOK();
 						}
 						this.emitEnsureEnd(featureStep, outcomeKey, false, `goal ${metadata.resolvesDomain} not asserted after activity`);
-						return actionNotOK(`ensure: waypoint "${outcomeKey}" — activity ran but goal "${metadata.resolvesDomain}" was not asserted as a fact.`);
+						return actionNotOK(`ensure: waypoint "${outcomeKey}", activity ran but goal "${metadata.resolvesDomain}" was not asserted as a fact.`);
 					} else {
 						// No imperative activity body. Try running the resolver's plan as a
 						// fallback (with the limitations on parameter binding noted in the
-						// resolver — this works for parameterless producers).
+						// resolver: this works for parameterless producers).
 						const planOutcome = await this.runDeclarativeEnsure(metadata.resolvesDomain, featureStep);
 						this.emitEnsureEnd(featureStep, outcomeKey, planOutcome.ok, planOutcome.errorMessage);
 						this.ensureAttempts.delete(attemptKey);
@@ -353,7 +353,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	/** Contribute the registered waypoints to the affordances snapshot (the ProvidesWaypoints capability).
 	 *  A declarative waypoint is ensured when its goal domain is satisfied; an imperative one re-verifies its proof
-	 *  speculatively only after it has actually been ensured — a speculative re-run for waypoints that never executed
+	 *  speculatively only after it has been ensured: a speculative re-run for waypoints that never executed
 	 *  has no variable bindings in scope and produces cryptic "<term> is not set" errors. */
 	async waypointEntries(featureStep: TFeatureStep, satisfiedDomains: Set<string>): Promise<TWaypointEntry[]> {
 		const waypoints: TWaypointEntry[] = [];
@@ -423,7 +423,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	/**
 	 * Run a declarative-ensure via the goal resolver: invoke the resolver, and if it
 	 * returns a plan, dispatch each plan step. Used only when no imperative activity
-	 * body exists for the waypoint. Limited utility — plan steps run with empty
+	 * body exists for the waypoint. Limited utility, plan steps run with empty
 	 * stepValuesMap (no parameter binding from facts to step args). Useful for
 	 * parameterless producers; for parameterized ones, declare an imperative activity.
 	 */

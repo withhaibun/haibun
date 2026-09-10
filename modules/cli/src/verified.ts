@@ -47,12 +47,23 @@ export type TRunConditions = {
 const PER_RUN_OPTIONS = new Set(["KEY", "DESCRIPTION", "STAY"]);
 
 /** A stable serialization: the same conditions give the same text whatever order their keys were written in. */
-const stable = (value: unknown): string => JSON.stringify(value, (_, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
+const stable = (value: unknown): string =>
+	JSON.stringify(value, (_, v) =>
+		v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1))) : v,
+	);
 
 /** What distinguishes one way of running a group from another, as a key. */
 export function runConditions(c: TRunConditions): string {
 	const options = Object.fromEntries(Object.entries(c.options).filter(([k]) => !PER_RUN_OPTIONS.has(k)));
-	const keyed = { configPath: path.resolve(c.configPath), specl: c.specl, filter: [...c.filter], options, moduleOptions: c.moduleOptions, policy: c.policy ?? null, withSteppers: [...(c.withSteppers ?? [])] };
+	const keyed = {
+		configPath: path.resolve(c.configPath),
+		specl: c.specl,
+		filter: [...c.filter],
+		options,
+		moduleOptions: c.moduleOptions,
+		policy: c.policy ?? null,
+		withSteppers: [...(c.withSteppers ?? [])],
+	};
 	return createHash("sha256").update(stable(keyed)).digest("hex").slice(0, 16);
 }
 

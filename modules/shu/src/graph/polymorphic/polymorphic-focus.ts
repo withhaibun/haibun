@@ -2,8 +2,8 @@
 // focused (the open column's node, else the hovered node), dims every node/edge/label except the focus neighbourhood,
 // re-pools the lib's per-link colours so a line's rgba carries its focus-state opacity, and animates the focus node's
 // chip up to a readable on-screen size with the cartoon easeOutBack overshoot. Nothing here moves the layout: at rest
-// it pins still-free nodes first (via the injected pin sink) so the lib's colour re-pool tick can't spring an
-// under-converged force layout — the engine-settle guard. SELECT/hover-only focus, never a viewType branch.
+// it pins still-free nodes first (via the injected pin sink) so the lib's colour re-pool tick cannot jump an
+// under-converged force layout: the engine-settle guard. SELECT/hover-only focus, never a viewType branch.
 //
 // Wired like PolymorphicCamera/DataPipeline: constructor-injected accessor deps read at CALL time, so a late-bound graph
 // instance, a per-repaint-refreshed nodeMap, or a theme-recoloured colour field is always current; the component still
@@ -18,12 +18,12 @@ import { NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "./pol
 export const NODE_RENDER_ORDER = 20;
 export const FOCUS_RENDER_ORDER = 21; // the magnified chip is never occluded by its peers
 
-// Focus magnifier: a focused chip pops UP TO a readable on-screen text size — and ONLY when that's a MODEST step.
+// Focus magnifier: a focused chip pops UP TO a readable on-screen text size, and ONLY when that's a MODEST step.
 // readableK wants `targetPx·worldPerPx/textHeight`: on a zoomed-out graph that's a big multiplier, which would blow the
 // connected nodes up to dominate the whole graph ("the hover pops everything huge"). So the pop is bounded to MAX_MAGNIFY:
 // a node already at/above readable is left alone, a node a modest step below pops to readable, and a node so small it
 // would need MORE than MAX_MAGNIFY to read is LEFT AS-IS (zoom in to read it) rather than enlarged into a huge blob.
-const MAX_MAGNIFY = 1.4; // the focus pop never enlarges a chip beyond this — kept low so that, on a z-deep graph (camera backed off, so readableK wants a large multiplier), the focus set pops only gently rather than dominating the view; a chip needing more is left small (zoom in to read it). Tune here.
+const MAX_MAGNIFY = 1.4; // the focus pop never enlarges a chip beyond this, kept low so that, on a z-deep graph (camera backed off, so readableK wants a large multiplier), the focus set pops only gently rather than dominating the view; a chip needing more is left small (zoom in to read it). Tune here.
 const MAGNIFY_MS = 500;
 export const NODE_FONT_SIZE = 96;
 const MAX_FONT_SIZE = 384;
@@ -74,23 +74,23 @@ const setOpacityDeep = (obj: ThreeObj | undefined, opacity: number): void => {
 	if (obj.children) for (const c of obj.children) setOpacityDeep(c, opacity);
 };
 
-/** A group enclosure's adjustable materials + label — the focus dim touches these exactly as it dims a node. */
+/** A group enclosure's adjustable materials + label: the focus dim touches these exactly as it dims a node. */
 type FocusEnclosure = { boxMat: { opacity: number }; edgeMat: { opacity: number }; label: TSprite };
 
 /** The graph-lib slice the focus re-pools through (per-link colour + arrow colour). */
 type FocusGraph = { linkColor(fn: (l: FGLink) => string): unknown; linkDirectionalArrowColor(fn: (l: FGLink) => string): unknown };
 
 /** Accessors the component supplies; every getter is read at CALL time so a late-bound graph ref, a per-repaint
- *  nodeMap, or a theme-recoloured colour field is always current — never copied. */
+ *  nodeMap, or a theme-recoloured colour field is always current, never copied. */
 export type FocusDeps = {
 	focusId: () => string | null; // selected (sticky, column open) else hover (transient)
-	selectedId: () => string | null; // the ACTIVE node alone (never a hover) — the one that wears the glow
+	selectedId: () => string | null; // the ACTIVE node alone (never a hover): the one that wears the glow
 	previewType: () => string | null; // a type hovered in the filter legend: dim every other type
 	nodeMap: () => Map<string, FGNode>;
 	currentLinks: () => FGLink[];
 	enclosures: () => Map<string, FocusEnclosure>;
 	graph: () => FocusGraph | undefined;
-	engineFrozen: () => boolean; // at REST: pin still-free nodes before the colour re-pool tick so it can't spring an under-converged layout
+	engineFrozen: () => boolean; // at REST: pin still-free nodes before the colour re-pool tick so it cannot jump an under-converged layout
 	pinNode: (n: FGNode) => void; // record the rest-time focus pin (rides the data-feed pin set; released at the next engine stop)
 	worldPerPxAt: (pos: { x?: number; y?: number; z?: number }) => number | null; // the zoom signal readableK scales from
 	focusEdgeColor: () => string; // full-contrast foreground a focused edge/label brightens to
@@ -109,7 +109,7 @@ export type FocusDeps = {
 };
 
 export class PolymorphicFocus {
-	private lastMagnifiedFocus: string | null = null; // the node whose chip last popped — a re-assert with the same focus must not re-fire the attention pop
+	private lastMagnifiedFocus: string | null = null; // the node whose chip last popped: a re-assert with the same focus must not re-fire the attention pop
 	private magnifyAnims = new Map<FGNode, { from: number; to: number; start: number; pulse?: boolean }>();
 	private freshGlows = new Map<FGNode, number>(); // freshly-streamed node → when it arrived; it wears the glow until NEWCOMER_GLOW_MS
 	private heldGlows: Set<FGNode> | undefined; // the glows drawn once and held while the breath rests; undefined while it breathes
@@ -145,7 +145,7 @@ export class PolymorphicFocus {
 
 	/**
 	 * Dim every node/edge/label except the focus node and its immediate neighbours, which stay lit. Sizing is scoped
-	 * tightly: ONLY the focus node's chip pops — to a readable on-screen size, with an attention-getting overshoot —
+	 * tightly: ONLY the focus node's chip pops, to a readable on-screen size, with an attention-getting overshoot:
 	 * while neighbour chips and every edge label keep their natural size. So pointing at a hub dims the rest but never
 	 * rescales the neighbourhood. With no focus, everything returns to full opacity and unit scale.
 	 */
@@ -154,12 +154,12 @@ export class PolymorphicFocus {
 		const nodeMap = this.deps.nodeMap();
 		const previewType = this.deps.previewType();
 		// A purely-visual focus must NOT move the layout. Re-pooling linkColor (below) makes the lib tick the sim once,
-		// and a force layout that froze before full convergence (a big graph capped by the warmup budget — so it happens
-		// only ~half the time, when the random layout didn't settle in budget) SPRINGS on that one tick: "the graph
-		// rescales/moves on hover". So at REST, pin every still-free node where it sits first — the reheat then moves
+		// and a force layout that froze before full convergence (a big graph capped by the warmup budget, so it happens
+		// only ~half the time, when the random layout didn't settle in budget) JUMPS on that one tick: "the graph
+		// rescales/moves on hover". So at REST, pin every still-free node where it sits first: the reheat then moves
 		// the COLOUR only, never the positions. These pins ride the data-feed pin set, so the same engine-stop that ends
 		// the reheat releases them (no permanent freeze); already-pinned nodes (the selection) are left as they are. Only
-		// at rest — during a genuine settle the engine owns the layout (and the hover is guarded then anyway).
+		// at rest, during a genuine settle the engine owns the layout (and the hover is guarded then anyway).
 		if (this.deps.engineFrozen()) {
 			for (const n of nodeMap.values()) {
 				if (n.fx === undefined && n.x !== undefined && n.y !== undefined) {
@@ -221,7 +221,7 @@ export class PolymorphicFocus {
 		}
 	}
 
-	/** Only the focus node's chip pops — to a readable on-screen size (readableK never shrinks, so an already-readable
+	/** Only the focus node's chip pops, to a readable on-screen size (readableK never shrinks, so an already-readable
 	 *  chip stays put) with the attention overshoot in setMagnifyTarget; every other node resolves to natural size. */
 	private aimMagnify(n: FGNode, isFocus: boolean, freshlyFocused = false): void {
 		const to = isFocus ? this.readableK(n, chipTextHeight(n), this.deps.focusTextPx()) : 1;
@@ -232,7 +232,7 @@ export class PolymorphicFocus {
 	 * distance at `pos` (via the camera's worldPerPxAt). Never below natural size, so an already-readable chip stays put. */
 	private readableK(pos: { x?: number; y?: number; z?: number }, baseTextHeight: number, targetPx: number): number {
 		const worldPerPx = this.deps.worldPerPxAt(pos);
-		if (worldPerPx === null) return 1; // camera not ready — no pop (never a blind enlargement)
+		if (worldPerPx === null) return 1; // camera not ready: no pop (never a blind enlargement)
 		return Math.min(Math.max((targetPx * worldPerPx) / baseTextHeight, 1), MAX_MAGNIFY);
 	}
 
@@ -300,7 +300,7 @@ export class PolymorphicFocus {
 		return true;
 	}
 
-	/** Animate magnify multipliers each frame: easeOutBack overshoots past the target and settles — the cartoon pop. */
+	/** Animate magnify multipliers each frame: easeOutBack overshoots past the target and settles: the cartoon pop. */
 	updateMagnify(): void {
 		if (this.magnifyAnims.size === 0) return;
 		const now = performance.now();
@@ -308,13 +308,13 @@ export class PolymorphicFocus {
 			const sprite = n.__sprite;
 			const base = n.__baseScale;
 			if (!sprite || !base) {
-				// A grow-in is seeded before the lib builds the sprite — wait briefly; drop only if it never appears.
+				// A grow-in is seeded before the lib builds the sprite, wait briefly; drop only if it never appears.
 				if (now - a.start > 2000) this.magnifyAnims.delete(n);
 				continue;
 			}
 			const t = Math.min((now - a.start) / MAGNIFY_MS, 1);
 			let k = a.from + (a.to - a.from) * easeOutBack(t);
-			if (a.pulse) k += PULSE_AMP * Math.sin(Math.PI * t); // up and back — acknowledgement without a resize
+			if (a.pulse) k += PULSE_AMP * Math.sin(Math.PI * t); // up and back, acknowledgement without a resize
 			n.__k = k;
 			sprite.scale.set(base.x * k, base.y * k, 1);
 			if (t >= 1) {

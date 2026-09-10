@@ -69,7 +69,7 @@ describe("SubprocessTransport", () => {
 		const world = getDefaultWorld();
 		transport = await SubprocessTransport.spawn(FIXTURE_PATH, world);
 
-		// Two sequential calls — seqPath should pass through via _seqPath in products
+		// Two sequential calls, seqPath should pass through via _seqPath in products
 		const r1 = await transport.call("EchoStepper-echo", { message: "a" }, [0, 1]);
 		const r2 = await transport.call("EchoStepper-echo", { message: "b" }, [0, 2]);
 		expect(r1.ok).toBe(true);

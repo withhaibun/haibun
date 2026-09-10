@@ -140,7 +140,7 @@ describe("entity-store annotations", () => {
 		expect(getEntityView("Email", "e1").annotations.map((a) => a.body)).toEqual(["first note"]);
 	});
 
-	it("does nothing for an individual that has not resolved — there is nothing to anchor against", async () => {
+	it("does nothing for an individual that has not resolved: there is nothing to anchor against", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await refreshAnnotations("Email", "never-opened");
@@ -153,7 +153,7 @@ describe("entity-store freshness", () => {
 	afterEach(() => handle.teardown());
 	beforeEach(() => resetEntityStore());
 
-	it("applies a live property change in place, and notifies — no refetch", async () => {
+	it("applies a live property change in place, and notifies: no refetch", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await openEntity("Email", "e1", "private");

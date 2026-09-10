@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 
 describe("setupShuTest", () => {
-	it("installs a Conduit and EventStream — conduit() and eventStream() no longer throw", () => {
+	it("installs a Conduit and EventStream, conduit() and eventStream() no longer throw", () => {
 		setupShuTest();
 		expect(conduit()).toBeDefined();
 		expect(eventStream()).toBeDefined();
@@ -41,7 +41,7 @@ describe("setupShuTest", () => {
 		expect(seen).toEqual([1, 2]);
 	});
 
-	it("teardown un-installs both services — subsequent accessor calls throw", () => {
+	it("teardown un-installs both services, subsequent accessor calls throw", () => {
 		const h = setupShuTest();
 		h.teardown();
 		expect(() => conduit()).toThrow(/no Conduit installed/);

@@ -41,7 +41,7 @@ export interface RunSource extends WindowedSource<TEventRecord> {
 	readAt(at?: number): Promise<void>;
 }
 
-/** The sources a view is reading the run by, so a view of what this page holds lists what is actually being read. */
+/** The sources a view is reading the run by, so a view of what this page holds lists what is being read. */
 const READING_KEY = "__SHU_RUN_SOURCES_READING__";
 const reading = (): Set<RunSource> => pagePinned(READING_KEY, () => new Set<RunSource>());
 const MADE_KEY = "__SHU_RUN_SOURCES_MADE__";

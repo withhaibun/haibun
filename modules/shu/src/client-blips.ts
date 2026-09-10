@@ -7,7 +7,7 @@ import { isOffline } from "./rpc-registry.js";
  * however long the page stays open. What the ring drops is counted, so a batch never presents a truncation as the whole.
  *
  * Occurrences leave in batches over the one bridge that exists, `MonitorStepper`, rather than one request each, which
- * is the only way a per-frame recording is affordable. A batch is sent only when there is something to send, so a page
+ * is the only way a per-frame recording is sustainable. A batch is sent only when there is something to send, so a page
  * where nothing happens costs nothing. On the run's side each occurrence lands in the same channel a server-side
  * recording does, where it costs one check when nothing is watching.
  */
@@ -29,7 +29,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 
 /**
  * Record one occurrence. This is the hot path: it holds the occurrence and returns, and is meant to be called
- * unconditionally from wherever the thing being observed actually happens.
+ * unconditionally from wherever the thing being observed happens.
  */
 export function recordClientBlip(name: string, value?: number, attributes?: Record<string, unknown>): void {
 	recorded++;

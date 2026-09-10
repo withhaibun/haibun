@@ -24,7 +24,7 @@ const modules = tsconfig.references.map((ref) => {
 
 const drift = modules.filter((m) => m.pkg.version !== rootVersion);
 if (drift.length > 0) {
-	console.error(`Version drift — root is ${rootVersion} but these modules differ:`);
+	console.error(`Version drift, root is ${rootVersion} but these modules differ:`);
 	for (const m of drift) console.error(`  ${m.pkg.name}: ${m.pkg.version}`);
 	console.error(`\nRun a version bump (e.g. npm run version-alpha) before publishing.`);
 	process.exit(1);

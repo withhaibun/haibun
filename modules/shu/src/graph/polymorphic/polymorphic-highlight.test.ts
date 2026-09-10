@@ -13,7 +13,7 @@ describe("the active-node glow breathes", () => {
 		expect(Math.max(...over)).toBeLessThanOrEqual(1);
 	});
 
-	it("actually moves — a glow that sat at one intensity would not read as alive", () => {
+	it("moves: a glow that sat at one intensity would not read as alive", () => {
 		const over = Array.from({ length: 240 }, (_, i) => pulseAt(i * 25));
 		expect(Math.max(...over) - Math.min(...over)).toBeGreaterThan(0.3);
 	});
@@ -28,7 +28,7 @@ describe("the active-node glow breathes", () => {
 
 	it("swells as it brightens, so the glow breathes in size as well as in light", () => {
 		expect(swellAt(1)).toBeGreaterThan(swellAt(0));
-		expect(swellAt(0)).toBe(1); // dimmest is the mark's own size — the glow grows outward, never shrinks inward
+		expect(swellAt(0)).toBe(1); // dimmest is the mark's own size: the glow grows outward, never shrinks inward
 	});
 });
 
@@ -63,7 +63,7 @@ describe("the glow burns through a warm ramp", () => {
 		for (const ms of [0, 137, 400, 900, 3000]) expect(glowColorAt(pulseAt(ms), GLOW_RAMP.light)).toMatch(/^#[0-9a-f]{6}$/);
 	});
 
-	it("the light theme starts warm, never white — white on a white page is nothing to see", () => {
+	it("the light theme starts warm, never white, white on a white page is nothing to see", () => {
 		expect(GLOW_RAMP.light).not.toContain("#ffffff");
 		expect(GLOW_RAMP.dark[0]).toBe("#ffffff");
 	});

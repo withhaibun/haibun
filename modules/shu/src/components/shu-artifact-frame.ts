@@ -1,16 +1,16 @@
 /**
- * <shu-artifact-frame> — Displays an artifact with caption bar and fullscreen toggle.
- * Uses a slot for content — wrap any artifact (img, iframe, pre, shu-product-view) inside.
+ * <shu-artifact-frame>: Displays an artifact with caption bar and fullscreen toggle.
+ * Uses a slot for content, wrap any artifact (img, iframe, pre, shu-product-view) inside.
  * Attributes: caption (display text).
  */
 import { SHU_EVENT } from "../consts.js";
 
 const STYLES = `
 :host { display: block; margin: var(--shu-space-6) 0 var(--shu-space-6) 32px; border: var(--shu-border-w) solid var(--shu-border); border-radius: 6px; overflow: hidden; }
-/* Expanded view is pinned to the DOCUMENT COLUMN's on-screen box (its rect, captured in pinToColumn) — not the whole
-   viewport — so it expands within the column rather than floating centred over the entire screen. While expanded the
+/* Expanded view is pinned to the DOCUMENT COLUMN's on-screen box (its rect, captured in pinToColumn), not the whole
+   viewport: so it expands within the column rather than floating centred over the entire screen. While expanded the
    frame is a POPOVER in the top layer: inside a virtualized column every row is a transform-positioned stacking context,
-   so no z-index can lift the overlay above later sibling rows' tiles — the top layer is the platform's way out. The
+   so no z-index can lift the overlay above later sibling rows' tiles: the top layer is the platform's way out. The
    right:auto/bottom:auto/padding/border/overflow lines override the UA's [popover] centering defaults, which this
    pinned overlay replaces. */
 :host(.fullscreen) { position: fixed; top: var(--fs-top, 0); left: var(--fs-left, 0); right: auto; bottom: auto; width: var(--fs-width, 100vw); height: var(--fs-height, 100vh); margin: 0;
@@ -21,7 +21,7 @@ const STYLES = `
 /* No caption text (e.g. images): keep the fullscreen control but drop the bar's background/border so it reads as a bare toolbar. */
 .caption.bare { background: none; border-bottom: none; padding: var(--shu-space-1) var(--shu-space-2); justify-content: flex-end; }
 /* The step immediately preceding this thumbnail, shown reverse-video (same treatment as the polymorphic view #polymorphic-step caption)
-   as a fixed strip at the BOTTOM of the screen, over the expanded image, ONLY while fullscreen — so the step context holds
+   as a fixed strip at the BOTTOM of the screen, over the expanded image, ONLY while fullscreen, so the step context holds
    in a consistent place as ←/→ moves between frames and the document behind is covered. */
 .step-caption { display: none; }
 :host(.fullscreen) .step-caption:not(:empty) { display: block; position: absolute; left: 50%; bottom: var(--shu-space-5); transform: translateX(-50%); max-width: 90%; z-index: 1; pointer-events: none;
@@ -35,8 +35,8 @@ const STYLES = `
 /* Expanded image fills the column-width overlay keeping its aspect ratio; max-height keeps a tall image fully in view. */
 :host(.fullscreen) ::slotted(img) { width: 100%; max-width: 100%; max-height: 100%; height: auto; object-fit: contain; cursor: zoom-out; }
 /* Thumbnail: an auxiliary screenshot that TAKES the column width. display:block (an inline-block would shrink-wrap to the
-   image and never fill its cell) so the frame stretches to its .thumb-row grid track — or, ungrouped, to the whole reading
-   column — and the slotted image fills the frame (width 100%). Height is capped and cover-cropped so a row of them is a
+   image and never fill its cell) so the frame stretches to its .thumb-row grid track, or, ungrouped, to the whole reading
+   column: and the slotted image fills the frame (width 100%). Height is capped and cover-cropped so a row of them is a
    tidy band of equal tiles. A fixed pixel width, and inline-block + width auto, were the regression (each stayed small). */
 :host(.thumb:not(.fullscreen)) { display: block; margin: var(--shu-space-2) 0; }
 /* A fixed aspect-ratio RESERVES the tile's height before the image loads, so the block does not grow on load and shove the
@@ -70,7 +70,7 @@ export class ShuArtifactFrame extends HTMLElement {
 
 	/** Size + place the fullscreen overlay to the document column's on-screen box, so it expands WITHIN the column instead
 	 *  of floating over the whole viewport. Viewport coordinates are exact here: while expanded the frame is a showing
-	 *  popover, and a top-layer element's fixed containing block is the viewport — never a transformed virtualizer row. */
+	 *  popover, and a top-layer element's fixed containing block is the viewport, never a transformed virtualizer row. */
 	private pinToColumn(): void {
 		const r = this.column()?.getBoundingClientRect();
 		if (!r) return;
@@ -80,7 +80,7 @@ export class ShuArtifactFrame extends HTMLElement {
 		this.style.setProperty("--fs-height", `${r.height}px`);
 	}
 
-	/** While expanded, track the column itself resizing — a pane maximize / divider drag fires no window resize, so the
+	/** While expanded, track the column itself resizing: a pane maximize / divider drag fires no window resize, so the
 	 *  expanded thumbnail must follow the column's new size. Only the active fullscreen frame observes. */
 	private observeColumn(on: boolean): void {
 		if (!on) {
@@ -98,7 +98,7 @@ export class ShuArtifactFrame extends HTMLElement {
 
 	/** When fullscreen, ←/→ asks the document column for the previous/next thumbnail in the whole run. The column owns the
 	 *  move: under virtualization only the visible window's frames exist in the DOM, so this frame cannot find an off-screen
-	 *  sibling itself — the column knows every block, scrolls the target into existence and expands it. */
+	 *  sibling itself: the column knows every block, scrolls the target into existence and expands it. */
 	private requestSibling(dir: number): void {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.FRAME_NAV, { detail: { dir, from: this }, bubbles: true, composed: true }));
 	}
@@ -134,7 +134,7 @@ export class ShuArtifactFrame extends HTMLElement {
 		this.classList.toggle("fullscreen", on);
 		// The expanded overlay renders in the TOP LAYER (popover): the frame sits inside a transform-positioned virtualizer
 		// row, a stacking context no z-index escapes, so without this the tiles of later rows paint over the enlargement.
-		// "manual" keeps light-dismiss off — Escape and the fullscreen button own closing. Guarded for jsdom (no popover).
+		// "manual" keeps light-dismiss off, Escape and the fullscreen button own closing. Guarded for jsdom (no popover).
 		if (on && typeof this.showPopover === "function") {
 			this.setAttribute("popover", "manual");
 			this.showPopover();

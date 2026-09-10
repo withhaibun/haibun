@@ -174,7 +174,7 @@ class RpcVerifyStepper extends AStepper {
 				const data = await res.json();
 				// Old format is not parsed as a valid JSON-RPC 2.0 request, so no handler processes it.
 				// Transport returns { ok: true } as default (no handler matched).
-				if (Array.isArray(data)) return actionNotOK("Got step.list response — old format should not be dispatched");
+				if (Array.isArray(data)) return actionNotOK("Got step.list response, old format should not be dispatched");
 				return OK;
 			},
 		},
@@ -472,7 +472,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		expect(result.ok).toBe(true);
 	});
 
-	it("stream:true routes through dispatchStep — chunks flow via streamContext, errors land on seqPath", async () => {
+	it("stream:true routes through dispatchStep, chunks flow via streamContext, errors land on seqPath", async () => {
 		const port = 8242;
 		const collectedChunks: TStreamChunk[] = [];
 

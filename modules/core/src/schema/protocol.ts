@@ -50,7 +50,7 @@ export function isSpeculativeEvent(event: { intent?: { mode?: string } }): boole
 	return event.intent?.mode === "speculative";
 }
 
-/** A call the run handed out — a model's tool call, an RPC — carried by a negative seqPath segment. Its failure is
+/** A call the run handed out, a model's tool call, an RPC, carried by a negative seqPath segment. Its failure is
  *  returned to that caller, which is expected to act on it, so it is not the run failing. */
 export function isHandedOutEvent(event: { id?: string }): boolean {
 	return String(event.id ?? "")
@@ -391,7 +391,7 @@ export const HYPERMEDIA = {
 	DESCRIPTION: "_description",
 	/** Web component tag that renders this product (e.g. "shu-monitor-column") */
 	COMPONENT: "_component",
-	/** HATEOAS affordances — what can be done next, keyed by rel */
+	/** HATEOAS affordances: what can be done next, keyed by rel */
 	LINKS: "_links",
 	/** For destructive operations: condition to check reversibility, apply to execute undo */
 	UNDO: "_undo",
@@ -469,7 +469,7 @@ export type TStepResult = TActionResult & {
 };
 
 /**
- * What a feature's steps came to, as a fold over them rather than a list of them.
+ * What a feature's steps came to, as a reduction over them rather than a list of them.
  *
  * A feature that services requests for weeks runs more steps than a process can hold, and what a reader of the result
  * asks is how many ran, when they began and ended, and which one failed. Each is answered as the feature runs, so the

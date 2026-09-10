@@ -4,12 +4,12 @@
  * (mapGraphToSeqLayout: participant agents become lifelines, messages become arrows between them along the shared z time
  * axis). Both are fed from the GRAPH, not from traces.
  *
- * A classic sequence diagram is AGENTS + MESSAGES. The participants (lifelines) are the agent NODES themselves — the
- * parties an artifact points to through a directional actor edge — never a role-grouping container. The messages are
+ * A classic sequence diagram is AGENTS + MESSAGES. The participants (lifelines) are the agent NODES themselves: the
+ * parties an artifact points to through a directional actor edge, never a role-grouping container. The messages are
  * ARTIFACT-MEDIATED and fully general (no per-type knowledge): an entity carrying a `fromActor` edge (its SOURCE
  * agent) AND a `toActor` edge (its DESTINATION agent) reads as one message source → destination, at the entity's time,
  * labelled by the entity. The artifact itself is the message, not a lifeline. Both edge-label sets are derived from
- * the ontology + concern catalog (rels-cache fromActorEdgeLabels/toActorEdgeLabels — core rels `subPropertyOf`
+ * the ontology + concern catalog (rels-cache fromActorEdgeLabels/toActorEdgeLabels, core rels `subPropertyOf`
  * fromActor/toActor plus every consumer edge declared with those upper pointers), so a new actor predicate needs
  * nothing here.
  *
@@ -27,7 +27,7 @@ export type SeqNode = { id: string; type: string; displayLabel?: string; propert
 /** A graph edge: subject → object under a predicate. An actor edge points from an artifact TO an agent. */
 export type SeqEdge = { from: string; to: string; predicate: string };
 
-/** Options the host injects: the display label for a participant id (defaults to the id) — lets the live view resolve a
+/** Options the host injects: the display label for a participant id (defaults to the id), lets the live view resolve a
  *  DID → "Coastal Fisheries Authority". A message is labelled by its mediating artifact's @type, never an edge predicate,
  *  so no predicate resolver is needed here. */
 export type SeqMapOptions = {
@@ -35,7 +35,7 @@ export type SeqMapOptions = {
 };
 
 /** The label for an artifact-mediated message: the mediating entity's @type (e.g. "VerifiablePresentation"), never a
- *  predicate and never its displayLabel (which for a credential is its raw claims) — the artifact's TYPE is the message. */
+ *  predicate and never its displayLabel (which for a credential is its raw claims): the artifact's TYPE is the message. */
 const artifactLabel = (n: SeqNode): string => n.type || n.id;
 
 const finiteTime = (t: number | undefined): number => (typeof t === "number" && Number.isFinite(t) ? t : Number.POSITIVE_INFINITY);
@@ -103,7 +103,7 @@ function deriveSeq(
 
 	// Which bar each object belongs to. ONE actor link is enough: an object attributed to an agent belongs against that
 	// agent's bar whether or not it also addresses a second one. Requiring both (a message) left everything that names a
-	// single actor — most of a discourse graph — with nowhere to go.
+	// single actor, most of a discourse graph, with nowhere to go.
 	const isActor = new Set(actorIds);
 	const barOf = new Map<string, string>();
 	const claim = (objectId: string, actorId: string) => {
@@ -133,7 +133,7 @@ export function mapGraphToSeq(nodes: ReadonlyArray<SeqNode>, edges: ReadonlyArra
 
 // --- 3D layout (the classic sequence in polymorphic space) ---
 // Lifelines are LANES across y, one per actor, standing left to right in order of first appearance; time is the Z axis
-// (the SAME z gantt uses), read DOWN. An actor renders as a GANTT DURATION BAR — the very primitive gantt uses — spanning
+// (the SAME z gantt uses), read DOWN. An actor renders as a GANTT DURATION BAR, the very primitive gantt uses, spanning
 // the rows of its own objects, and each object stands on the lifeline it names at its own row, so reading down a lifeline
 // is that actor's objects in order. An object naming two actors also draws the arrow between their lifelines.
 
@@ -142,7 +142,7 @@ export const SEQ_LANE_SPACING = 70;
 /** z length of the time axis when nothing places on it (no messages). */
 export const SEQ_TIME_LEN = 240;
 /** z between consecutive message rows. A sequence diagram is ORDINAL: one row per message, evenly spaced in time
- *  order — wall-clock gaps carry no length, so a burst within one second reads as its rows, not as a pile. */
+ *  order: wall-clock gaps carry no length, so a burst within one second reads as its rows, not as a pile. */
 export const SEQ_ROW_GAP = 12;
 /** Clear space between one lifeline and the next, on top of the widest chip standing against each. */
 const SEQ_LANE_GAP = 24;
@@ -152,7 +152,7 @@ export type SeqPlacement = { y: number; z: number };
 /** A message arrow: the source/destination lifeline ys and the time-z it is drawn at, plus its label. */
 export type SeqArrow = { from: string; to: string; label: string; fromY: number; toY: number; z: number };
 /** A participant's lifeline extent along the time axis: the z of its first (z0) and last (z1) involvement. The lifeline
- *  is a gantt duration bar spanning [z0,z1] — the actor renders as a box mark of that length, centred at (z0+z1)/2. */
+ *  is a gantt duration bar spanning [z0,z1]: the actor renders as a box mark of that length, centred at (z0+z1)/2. */
 export type SeqSpan = { z0: number; z1: number };
 /** The full 3D sequence layout: the ordered participant actors, each actor's lane y (the lifeline source), each placed
  *  node's position (agents centre on their active-window lifeline; artifacts ride their arrow), each actor's lifeline
@@ -172,7 +172,7 @@ export type SeqLayout = {
 /**
  * Place the graph as a 3D classic sequence: agents become lifelines centred on y (mapGraphToSeq's first-involvement
  * order), each at z=0; each artifact that mediates a message rides the midpoint between its source/destination lifelines
- * at the message's time-z; messages become arrows between the lifelines at that z. Pure + GPU-free (unit-tested) — the
+ * at the message's time-z; messages become arrows between the lifelines at that z. Pure + GPU-free (unit-tested): the
  * render type caches it and reads placement(id) for the force lane + node-z, and arrows for the drawn message lines.
  */
 export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: ReadonlyArray<SeqEdge>, opts: SeqMapOptions = {}): SeqLayout {
@@ -185,7 +185,7 @@ export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: Readon
 	const halfWidth = (n: SeqNode) => collideRadius({ name: opts.labelOf?.(n.id) || artifactLabel(n), isCluster: false });
 
 	// ONE time axis for every object, bar or no bar: each takes a ROW of its own, in order of appearance, and time reads
-	// DOWN — the way a sequence diagram is read. Rows are ordinal, so two acts in one second are two rows and a long
+	// DOWN: the way a sequence diagram is read. Rows are ordinal, so two acts in one second are two rows and a long
 	// pause is no taller than a short one.
 	const isActor = new Set(actors.map((a) => a.id));
 	const objects = nodes.filter((n) => !isActor.has(n.id)).sort((a, b) => finiteTime(a.__t) - finiteTime(b.__t) || a.id.localeCompare(b.id));
@@ -227,7 +227,7 @@ export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: Readon
 	}
 
 	// An object stands on the lifeline it names, at its own row; one that names no VISIBLE actor keeps its row on a lane
-	// of its own, outside them — the graph's own order, still read down, rather than a heap at the axis start.
+	// of its own, outside them: the graph's own order, still read down, rather than a heap at the axis start.
 	for (const n of objects) {
 		const lane = laneY.get(barOf.get(n.id) ?? "");
 		placement.set(n.id, { y: lane ?? marginY, z: rowOf.get(n.id) ?? 0 });

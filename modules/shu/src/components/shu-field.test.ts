@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * A field NAMES its control: assistive tech announces the two together, and pressing the name acts on the control, as
- * pressing a label does. The control is slotted from the light DOM, so a <label for> cannot reach it — these pin the
+ * pressing a label does. The control is slotted from the light DOM, so a <label for> cannot reach it: these pin the
  * association that does work.
  */
 import { describe, it, expect, beforeEach } from "vitest";

@@ -53,7 +53,7 @@ describe("resolveGoal", () => {
 	});
 
 	it("returns unreachable when no producer exists and goal isn't its own argument leaf", () => {
-		// "z" is the goal itself, not an input — and the empty graph has no edges into it.
+		// "z" is the goal itself, not an input, and the empty graph has no edges into it.
 		const result = resolveGoal("z", inputs(emptyGraph()));
 		expect(result.finding).toBe(GOAL_FINDING.UNREACHABLE);
 		if (result.finding === GOAL_FINDING.UNREACHABLE) expect(result.missing).toContain("z");
@@ -103,7 +103,7 @@ describe("resolveGoal", () => {
 	});
 
 	it("a step input with no producer is treated as a user-supplied argument binding", () => {
-		// "a" has no producer in the graph — chase treats it as an argument leaf.
+		// "a" has no producer in the graph, chase treats it as an argument leaf.
 		const graph: TDomainChainGraph = {
 			domains: [
 				{ key: "a", hasTopology: false },

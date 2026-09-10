@@ -1,5 +1,5 @@
 /**
- * <shu-column-pane> — Resizable column container. Uses <slot> for content
+ * <shu-column-pane>: Resizable column container. Uses <slot> for content
  * projection. Active state via attribute (no re-render). Resize drag handle
  * on right edge. Dispatches column-close, column-resize, column-minimize,
  * column-maximize, column-activate, column-expand events.
@@ -10,8 +10,8 @@
  * declares no spine view collapses to the rotated label alone, as before.
  *
  * A column can instead declare that its spine is a narrow form of ITSELF (`rendersOwnSpine`). Then the default slot is
- * what the strip renders and the column is marked as serving as the spine, so a part it already owns — the log's scroll
- * rail — stays where it is rather than being copied into a second element that would have to be kept in step.
+ * what the strip renders and the column is marked as serving as the spine, so a part it already owns: the log's scroll
+ * rail: stays where it is rather than being copied into a second element that would have to be kept in step.
  *
  * The visual chrome is built entirely from `--shu-…` tokens (defined in styles.ts);
  * theme/scale/responsive shifts happen there, never inside this component.
@@ -55,7 +55,7 @@ const TEST_ID = {
 const MIN_RESIZED_WIDTH = 120;
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -147,7 +147,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		.pane-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 		.pane-content ::slotted(*) { flex: 1; min-height: 0; overflow: auto; }
 		/* A spine is the width of the strip and no wider: its view sizes to that rather than scrolling inside it, or a
-		   few pixels of spill — a slider knob's label, say — become native scrollbars in a strip too narrow to use them. */
+		   few pixels of spill, a slider knob's label, say, become native scrollbars in a strip too narrow to use them. */
 		.pane-spine ::slotted(*) { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 		/* A declared spine view is a line down the strip, so it keeps its own width and the box centres it. A column
 		   serving as its OWN spine keeps the stretch above: its rail must stay exactly where it is when the column is
@@ -183,7 +183,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	static attributeFields = { label: "label", active: "active", closable: "closable", pinned: "pinned", "column-type": "columnType" };
 
-	/** Width, user-minimize, and pin are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute pane-state's prune reads. Maximize is deliberately not remembered — it lives in the URL hash only. */
+	/** Width, user-minimize, and pin are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute pane-state's prune reads. Maximize is deliberately not remembered: it lives in the URL hash only. */
 	static persistFields = ["width", "minimized", "pinned"] as const;
 
 	/** A pane's persistence identity is its column key (assigned before attach by PaneState; "query" for the root pane). A pane without one doesn't persist. */
@@ -199,7 +199,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	protected override onConnected(): void {
-		this.#reflectLayout(); // persisted width/minimized restored just before this — reflect synchronously so the strip's addPane sees the attributes
+		this.#reflectLayout(); // persisted width/minimized restored just before this, reflect synchronously so the strip's addPane sees the attributes
 		this.addEventListener("pointerdown", this.onPaneActivate, { capture: true });
 	}
 
@@ -221,7 +221,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.requestUpdate(); // the template renders either the default slot or the spine slot, so it follows this
 	}
 
-	/** Inline flex computed from full state — one writer, so no path strands a stale width. Maximized fills the
+	/** Inline flex computed from full state: one writer, so no path strands a stale width. Maximized fills the
 	 * strip; collapsed defers to the :host([collapsed]) CSS; the pane the strip marked as growing takes the remaining
 	 * width (its stored width stays put and reapplies when it stops growing); otherwise an explicit user width is
 	 * fixed; default shares the strip via :host { flex: 1 }. */
@@ -284,7 +284,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return this.hasAttribute(SHU_ATTR.COLLAPSED);
 	}
 
-	/** User-minimize (persisted). The one path that owns the minimize state — clicks, hash flags, and restores all land here. */
+	/** User-minimize (persisted). The one path that owns the minimize state, clicks, hash flags, and restores all land here. */
 	setMinimized(minimized: boolean): void {
 		if (this.state.minimized === minimized) return;
 		this.setState({ minimized });
@@ -298,7 +298,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { detail: { minimized: minimize }, bubbles: true, composed: true }));
 	};
 
-	/** The one path that owns the maximize state — the button and a resize both land here, so the strip always hears
+	/** The one path that owns the maximize state: the button and a resize both land here, so the strip always hears
 	 *  the change and no caller can set the attribute without announcing it. Maximize lives in the URL hash, not the
 	 *  persisted prefs. */
 	setMaximized(maximized: boolean): void {
@@ -332,7 +332,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	/** Closing is the reader dismissing this column, so its remembered width, minimize and pin go with it: a column
 	 *  opened again at the same identity is a new one, and would otherwise arrive still pinned (or still minimized) from
-	 *  a column the reader had closed. A pane removed by a prune or a reload keeps its memory — that is what it is for. */
+	 *  a column the reader had closed. A pane removed by a prune or a reload keeps its memory: that is what it is for. */
 	private onClose = (e: Event): void => {
 		e.stopPropagation();
 		this.forgetPersisted();
@@ -340,7 +340,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	};
 
 	// Activate on a press ANYWHERE in the pane, in the CAPTURE phase (bound in onConnected) so it fires before any
-	// slotted content (entity links, graph nodes) can stopPropagation and swallow the activation — clicking the column
+	// slotted content (entity links, graph nodes) can stopPropagation and stop the activation, clicking the column
 	// body focuses it, not just the empty chrome.
 	private onPaneActivate = (): void => {
 		if (!this.state.active) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_ACTIVATE, { bubbles: true, composed: true }));
@@ -353,11 +353,11 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	/** A control a spine view offers, which takes its own clicks. The rest of the strip opens the column. */
 	private static readonly SPINE_CONTROL = "button, input, select, textarea, a[href], [role='button'], [contenteditable]";
 
-	/** The strip opens the column, anywhere on it — a spine that says what is behind it is asking to be opened.
+	/** The strip opens the column, anywhere on it: a spine that says what is behind it is asking to be opened.
 	 *
 	 *  Two things are not: a control the spine view offers (a button pressed in the strip is being used, not asking for
 	 *  the column), and the whole strip of a column rendering a narrow form of ITSELF. That strip is the column's own
-	 *  control surface — the log's rail is dragged and clicked to move through the run — so opening it on a click would
+	 *  control surface, the log's rail is dragged and clicked to move through the run, so opening it on a click would
 	 *  put the rows back the moment the reader used it. Such a column is opened from its label instead. */
 	private onSpineClick = (e: Event): void => {
 		if (!this.isCollapsed) return;
@@ -376,7 +376,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	};
 
 	/** The widest this pane can render: the strip minus the minimum footprint the other panes need. Past this the strip
-	 *  would overflow and the stored width would outrun what's actually shown — the drag keeps "growing" a width the
+	 *  would overflow and the stored width would outrun what's shown: the drag keeps "growing" a width the
 	 *  layout can't display, then feels dead on the way back until the excess unwinds. Clamping here keeps the handle
 	 *  tracking the cursor. A collapsed/minimized sibling only needs its current sliver; any other needs a usable min. */
 	#maxResizeWidth(): number {

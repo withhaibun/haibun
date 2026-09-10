@@ -1,5 +1,5 @@
 /**
- * sse-subscriber — EventSource client shared by every consumer of a
+ * sse-subscriber: EventSource client shared by every consumer of a
  * haibun host's /sse event stream.
  *
  * Browser SPAs connect to their own origin's /sse; Node-side peers
@@ -53,7 +53,7 @@ export const REPLAY_BUFFER_LIMIT_DEFAULT = 5000;
  *
  * Public methods are intentionally narrow: callers `record` an event,
  * `replay` to a handler, or read `size` / `limit`. The buffer never
- * filters — that's a per-subscriber decision in `replay()`.
+ * filters: that's a per-subscriber decision in `replay()`.
  */
 export class ReplayBuffer {
 	private readonly events: THaibunEvent[] = [];
@@ -83,7 +83,7 @@ export class ReplayBuffer {
 
 	/**
 	 * Total events ever recorded, including ones the buffer has since dropped.
-	 * Exceeds `size` only after the buffer has wrapped — that difference is what
+	 * Exceeds `size` only after the buffer has wrapped: that difference is what
 	 * tells a UI it's looking at a truncated tail.
 	 */
 	get totalRecorded(): number {
@@ -102,7 +102,7 @@ export class ReplayBuffer {
 }
 
 export type SseSubscriberConfig = {
-	/** Full URL of the SSE endpoint — absolute for remote hosts, relative for same-origin. */
+	/** Full URL of the SSE endpoint, absolute for remote hosts, relative for same-origin. */
 	url: string;
 	/** Reconnect delay on error, in ms. Default 2000. */
 	reconnectDelayMs?: number;
@@ -134,7 +134,7 @@ export class SseSubscriber {
 	private readonly disconnectListeners = new Set<() => void>();
 	private lastEventAt: number | null = null;
 	private connectedAt: number | null = null;
-	/** Replay buffer — see file header and the `ReplayBuffer` class. */
+	/** Replay buffer, see file header and the `ReplayBuffer` class. */
 	private readonly replayBuffer: ReplayBuffer;
 
 	constructor(config: SseSubscriberConfig) {
@@ -289,7 +289,7 @@ export class SseSubscriber {
 			// Live-dispatch isolation across listeners: a thrown handler must not
 			// silence its siblings. `failFastOrLog` re-throws in DEV so the
 			// developer sees the failure immediately; in PROD it logs and the
-			// loop continues. Replay (in `subscribe`) stays fail-fast — a
+			// loop continues. Replay (in `subscribe`) stays fail-fast: a
 			// listener that can't process a buffered event is a bug to surface.
 			try {
 				handler(event);

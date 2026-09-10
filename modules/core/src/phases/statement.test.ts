@@ -95,7 +95,7 @@ describe("statement type", () => {
 		const alphaDirect = steps.find((s) => s.in === "alpha" && s.seqPath.length === 4);
 		if (!alphaDirect) throw new Error("Missing alpha direct step");
 		expect(alphaDirect.seqPath[3]).toBe(2);
-		// Scenario 2: "beta" resets — first real step is stepSeq 1
+		// Scenario 2: "beta" resets: first real step is stepSeq 1
 		const beta = steps.find((s) => s.in === "beta");
 		if (!beta) throw new Error("Missing beta step");
 		expect(beta.seqPath[3]).toBe(1);

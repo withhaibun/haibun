@@ -5,7 +5,7 @@ import { ComboboxSchema, type TComboboxOption } from "../schemas.js";
 import { shuBaseStyles } from "./styles.js";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -68,7 +68,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (name === "testid" && this._input) this._input.setAttribute("data-testid", val || "");
 	}
 
-	/** Set the list of options. The imperative entry point — shu-step-caller builds the element from an HTML
+	/** Set the list of options. The imperative entry point, shu-step-caller builds the element from an HTML
 	 *  string and pushes options post-attach, so this must stay public. The reactive `.options` property
 	 *  funnels here too. Reconciles the closed display in case the held value only became resolvable now its
 	 *  options arrived. */
@@ -78,7 +78,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (this.state.open) this.renderList();
 		else this.reconcileClosedDisplay();
 		// The readiness marker lives in the lit template; the dropdown is managed imperatively, so a plain options
-		// change never re-renders the template. Ask lit to re-render only when readiness flips (rare — catalog load or
+		// change never re-renders the template. Ask lit to re-render only when readiness flips (rare, catalog load or
 		// clear), which keeps the marker current without re-rendering the input during typing churn.
 		if (options.length > 0 !== wasReady) this.requestUpdate();
 	}
@@ -91,13 +91,13 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		return this.state.options;
 	}
 
-	/** Set the selected value AND close the dropdown — the imperative entry point. */
+	/** Set the selected value AND close the dropdown: the imperative entry point. */
 	setValue(value: string): void {
 		this.applyValue(value, true);
 	}
 
-	/** Reactive property: a parent binds `.value=${...}`. A parent re-binds every render — including while
-	 *  the user has the dropdown open mid-selection — so the controlled path never closes or stomps an open
+	/** Reactive property: a parent binds `.value=${...}`. A parent re-binds every render, including while
+	 *  the user has the dropdown open mid-selection, so the controlled path never closes or stomps an open
 	 *  dropdown: while open it updates only state.value (keeping the ✓ correct) and leaves the typed
 	 *  filterText alone. The old parent-side `!isOpen` guard lives here now. */
 	set value(value: string) {
@@ -109,7 +109,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	}
 
 	/** Update the selected value. `close` shuts the dropdown (imperative setValue); the controlled setter
-	 *  passes false. An unknown value is shown as-is (honest display, not a silent default-to-first). */
+	 *  passes false. An unknown value is shown as-is (shown as given, not defaulted to the first). */
 	private applyValue(value: string, close: boolean): void {
 		const match = this.state.options.find((o) => o.value === value);
 		const keepOpen = this.state.open && !close;
@@ -126,7 +126,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (this._input) this._input.value = match.label;
 	}
 
-	/** True while the dropdown is open — i.e. the user is mid-selection. Retained for imperative callers;
+	/** True while the dropdown is open, i.e. the user is mid-selection. Retained for imperative callers;
 	 *  the controlled `.value` setter now handles the don't-stomp-open-dropdown reconcile internally. */
 	get isOpen(): boolean {
 		return this.state.open;

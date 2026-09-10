@@ -6,7 +6,7 @@ import { actionOK } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TStepperStep } from "./astepper.js";
 
-/** A domain with date fields and a defaulted field — the shape every persisted type carries (generatedAtTime etc.). */
+/** A domain with date fields and a defaulted field: the shape every persisted type carries (generatedAtTime etc.). */
 const RecordSchema = z
 	.object({
 		subject: z.string(),

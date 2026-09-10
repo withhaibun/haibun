@@ -1,5 +1,5 @@
 /**
- * <shu-scrollbar> — the custom vertical scroll rail for a virtualized column: a thumb sized to the viewport's share of the column, a
+ * <shu-scrollbar>: the custom vertical scroll rail for a virtualized column: a thumb sized to the viewport's share of the column, a
  * position glyph at each end (first visible row ordinal, total), and marker glyphs on the rail for significant rows
  * anywhere in the full data set (annotations, failed steps, feature boundaries) so a reader sees them across the whole
  * column and can jump to one even when it is far outside the rendered window. It is the only usable scroll affordance in
@@ -25,11 +25,11 @@ const EmptySchema = z.object({});
 export const SCROLL_TO_INDEX = "scroll-to-index";
 
 /** How the reader asked. A press or a drag on the rail is someone saying where they want to be; a wheel over it is
- *  reading, the same as wheeling the rows. A view that acts on more than scrolling — moving the shared time cursor,
- *  say — cares which, and would otherwise drag every other view along with a scroll gesture. */
+ *  reading, the same as wheeling the rows. A view that acts on more than scrolling, moving the shared time cursor,
+ *  say: cares which, and would otherwise drag every other view along with a scroll gesture. */
 export type TSeekBy = "press" | "wheel";
 /** A press on one of the rail's position glyphs: the top one asks for the START of the run, the bottom one for its live
- *  END — beyond what the rail's rows hold, which a host that pages its data answers by loading to that edge. */
+ *  END: beyond what the rail's rows hold, which a host that pages its data answers by loading to that edge. */
 export type TSeekEdge = "start" | "end";
 
 export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
@@ -37,7 +37,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		super(EmptySchema, {});
 	}
 
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -64,7 +64,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			.pos-bottom { margin-top: auto; }
 			/* The rail takes the WHOLE width of the control, because that is the target a reader aims at: a 14px track asks
 			   for a precision nobody should need, least of all in a collapsed column where this is the only control there
-			   is. What is drawn stays narrow — the track below is the visible band — while every pixel across is live. */
+			   is. What is drawn stays narrow, the track below is the visible band, while every pixel across is live. */
 			.rail { position: relative; flex: 1; width: 100%; cursor: pointer; }
 			.track {
 				position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
@@ -73,7 +73,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			/* The in-view thumb wants clear contrast against the rail track so the reader sees where they are at a glance. */
 			/* Above the marks, so a press on the thumb is a drag: the marks come after it in the DOM and would otherwise take
 			   it, which on a densely marked rail means the thumb can barely be grabbed at all. Translucent so the marks it
-			   covers still show through — they are the rows on screen, and the reader should still see what is among them. */
+			   covers still show through: they are the rows on screen, and the reader should still see what is among them. */
 			.thumb {
 				position: absolute; left: 50%; transform: translateX(-50%); width: var(--shu-rail-track-w);
 				background: var(--shu-fg-muted); min-height: 16px; border-radius: var(--shu-radius); cursor: grab;
@@ -81,8 +81,8 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			}
 			.thumb:hover { background: var(--shu-fg); opacity: 0.8; }
 			.thumb:active { cursor: grabbing; }
-			/* A LINE ACROSS the rail, not a block on it. Everything else here is a block — the thumb is a bar down the
-			   track, every event is a chip on it — so a cursor drawn as one more block reads as one more of them however
+			/* A LINE ACROSS the rail, not a block on it. Everything else here is a block: the thumb is a bar down the
+			   track, every event is a chip on it, so a cursor drawn as one more block reads as one more of them however
 			   it is coloured. Crossing the rail is a shape nothing else uses, which is what makes it findable at a glance
 			   down a dense rail, and it sits above the marks so a chip can never hide it. The caret at the left end gives
 			   the line a definite anchor, and the shadow keeps both readable where they cross a bright chip. */
@@ -140,7 +140,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		return this.viewportFraction ?? (this.total > 0 ? this.window.visible / this.total : 1);
 	}
 
-	/** This element's thumb height, from the one model definition — the rail geometry and the pointer mapping share it. */
+	/** This element's thumb height, from the one model definition: the rail geometry and the pointer mapping share it. */
 	#thumbPx(railPx: number): number {
 		return thumbHeightPx(this.#fraction(), railPx);
 	}
@@ -156,7 +156,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 				<div class="track"></div>
 				${
 					// A thumb says how much of the column is on screen. In a collapsed column nothing is, and before the first
-					// window is reported nothing is known — in both cases a thumb would be a claim nobody has made, and in a
+					// window is reported nothing is known, in both cases a thumb would be a claim nobody has made, and in a
 					// strip a large one sits over the marks a reader is trying to point at. It appears when there is a
 					// viewport for it to be the size of.
 					this.window.visible > 0 && !this.columnCollapsed
@@ -181,7 +181,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	}
 
 	/** Say which row the reader picked. A ROW, not a window start: the last `visible` rows begin no window, and clamping
-	 *  here would make them unpickable — which is a scroller's limit, not a reader's. What to show is the scroller's to
+	 *  here would make them unpickable, which is a scroller's limit, not a reader's. What to show is the scroller's to
 	 *  work out from this. */
 	#emit(index: number, by: TSeekBy, edge?: TSeekEdge): void {
 		const row = Math.max(0, Math.min(index, Math.max(0, this.total - 1)));
@@ -190,7 +190,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 
 	/**
 	 * The row a pointer at `clientY` means. `snapToMarks` is what separates the two ways of pointing: a press on the
-	 * rail may mean the mark it landed on, while a thumb drag is a position and nothing else — a drag that snapped to
+	 * rail may mean the mark it landed on, while a thumb drag is a position and nothing else: a drag that snapped to
 	 * marks would stick to them as it passed.
 	 */
 	#pointerToIndex(clientY: number, snapToMarks = false): number {
@@ -204,7 +204,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		return pressTarget(at, this.#marks(rect.height), this.total, rect.height);
 	}
 
-	/** The marks as drawn, held so a render and a press cannot cluster the same marks twice — the clustering maps and
+	/** The marks as drawn, held so a render and a press cannot cluster the same marks twice: the clustering maps and
 	 *  sorts every marker, a long run supplies thousands, and the rail re-renders whenever the cursor moves. Keyed on the
 	 *  marker array ITSELF, not its length: a host that re-derives its marks hands over a new array, while a filter that
 	 *  swapped which rows are marked without changing how many would slip past a count. */
@@ -231,7 +231,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		if (this.#dragId !== null) return; // a drag is already in flight; a second finger must not hijack it (mirrors #onRailDown)
 		e.stopPropagation();
 		this.#dragId = e.pointerId;
-		// A press that never moves is a click, and a click on the rail goes to where it landed — the same as pressing the
+		// A press that never moves is a click, and a click on the rail goes to where it landed: the same as pressing the
 		// track beside the thumb. Without this, a press the pointer never carries anywhere does nothing at all, which is
 		// what a tap is on a touch screen and what a click is on anything the thumb happens to be covering.
 		const pressedAt = e.clientY;
@@ -242,7 +242,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 				this.#emit(this.#pointerToIndex(ev.clientY), "press");
 			},
 			onEnd: () => {
-				// A click means the row at that height — the same as a click anywhere else on the rail. Only the DRAG above
+				// A click means the row at that height: the same as a click anywhere else on the rail. Only the DRAG above
 				// uses the window scale, and only because a thumb has to stay under the pointer dragging it. Answering a
 				// click that way put every press inside the thumb at the thumb's own top row, which is most of the rail
 				// once a viewport holds a good share of the log, and sits over exactly the later moments.

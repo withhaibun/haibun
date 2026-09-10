@@ -1,5 +1,5 @@
 /**
- * markdown-refs — a markdown-it plugin that turns an in-app reference link into a <shu-ref>, so a link in prose
+ * markdown-refs: a markdown-it plugin that turns an in-app reference link into a <shu-ref>, so a link in prose
  * or a document opens the referenced type or individual in a column (via PaneState) instead of navigating the
  * page. Reuses shu-ref's renderRef + routing; the markdown author only writes a link.
  *
@@ -46,7 +46,7 @@ export function refLinksPlugin(md: MarkdownIt, isType: (name: string) => boolean
 				for (; j < children.length && children[j].type !== "link_close"; j++) {
 					if (children[j].type === "text" || children[j].type === "code_inline") text += children[j].content;
 				}
-				if (j >= children.length) continue; // unbalanced — leave the link as-is
+				if (j >= children.length) continue; // unbalanced, leave the link as-is
 				const tok = new state.Token("html_inline", "", 0);
 				tok.content = renderRef(ref.kind, ref.target, text ? displayForLinkText(text) : undefined);
 				children.splice(i, j - i + 1, tok);
@@ -85,9 +85,9 @@ export function renderRefBody(markdown: string, isType: (name: string) => boolea
 export const refSanitizeOptions = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "linktarget", "text"] };
 
 /**
- * Render a SHORT piece of prose — a type's description, a step's — with its `#Type` / `#Type:id` links live, so a
+ * Render a SHORT piece of prose, a type's description, a step's, with its `#Type` / `#Type:id` links live, so a
  * description names another type by linking to it rather than re-explaining it wherever it comes up. Inline-only: a
- * description is a sentence, so it gets no paragraphs, headings or lists, and no raw HTML — unlike a document body,
+ * description is a sentence, so it gets no paragraphs, headings or lists, and no raw HTML, unlike a document body,
  * whose author is the run. Sanitized, because a description travels from the served concern catalog.
  */
 export function renderRefProse(text: string, isType: (name: string) => boolean): string {

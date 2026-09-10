@@ -1,6 +1,6 @@
 # Run-Policy Feature
 
-The `run-policy` feature in Haibun provides a robust way to control feature execution and manage environment-specific parameters. It enables a clear separation between **where** a test is running and **what** permissions or parameters are applicable to that environment.
+The `run-policy` feature in Haibun provides a way to control feature execution and manage environment-specific parameters. It enables a clear separation between **where** a test is running and **what** permissions or parameters are applicable to that environment.
 
 ## Overview
 

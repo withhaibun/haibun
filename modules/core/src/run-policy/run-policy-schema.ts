@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { RUN_ACCESS_LEVELS, type TRunPolicyConfig } from "./run-policy-types.js";
 
 // ============================================================================
-// Policy File Schema — Hierarchical JSON Schema
+// Policy File Schema, Hierarchical JSON Schema
 // ============================================================================
 
 const DenyRuleSchema = z.object({
@@ -80,7 +80,7 @@ function evaluateCondition(
 			ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Unresolvable schema reference: ${conditionObj.$ref}`, path: [] });
 			ok = false;
 		}
-		return ok; // If it's a $ref, JSON schema typically ignores siblings, but we'll stop here.
+		return ok; // If it's a $ref, JSON schema typically ignores siblings, but this stops here.
 	}
 
 	// 2. process allOf

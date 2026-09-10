@@ -1,5 +1,5 @@
 /**
- * The device's store — the client cache's persistence: the graph this page holds and the site's registry (the step list
+ * The device's store: the client cache's persistence: the graph this page holds and the site's registry (the step list
  * with its concerns and domains), off the JS heap and surviving a reload. A run is records in that graph, so a device
  * that read a run holds the run, and a tab with no server still reads what it holds and still knows the site's
  * declarations.

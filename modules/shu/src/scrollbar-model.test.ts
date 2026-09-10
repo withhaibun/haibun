@@ -37,7 +37,7 @@ describe("thumb size and position", () => {
 	});
 
 	it("places a mark by the rows and the rail alone, never by how much happens to be on screen", () => {
-		// A mark says where a row sits in the run. The thumb says how much of the run is on screen — a different question,
+		// A mark says where a row sits in the run. The thumb says how much of the run is on screen: a different question,
 		// and once it was allowed into this answer a viewport holding a third of a short log squeezed every mark into the
 		// middle third of the rail and left its ends dead. Both ends stay reachable whatever the thumb is doing.
 		const total = 300;
@@ -70,7 +70,7 @@ describe("firstAtPointer is the inverse of thumb positioning", () => {
 
 describe("markerTopPx (spread, inset into the thumb's reach)", () => {
 	it("spreads marks across the whole rail: the first at its head, the last at its foot", () => {
-		// Inset only by half a glyph, so the end marks are drawn whole rather than clipped — not by half the thumb, which
+		// Inset only by half a glyph, so the end marks are drawn whole rather than clipped, not by half the thumb, which
 		// would hand the ends of the rail to whatever the viewport happens to be showing.
 		const total = 1000;
 		expect(markerTopPx(0, total, RAIL)).toBe(MARK_INSET_PX);
@@ -169,7 +169,7 @@ describe("hardening (adversarial review)", () => {
 
 describe("what a press on the rail means", () => {
 	// Every answer is a ROW, on the scale the marks are drawn at, so a press means the same row whether or not a mark
-	// happens to sit there — and so that every row can be pointed at. The rail's other scale spans the WINDOWS there
+	// happens to sit there, and so that every row can be pointed at. The rail's other scale spans the WINDOWS there
 	// are, whose last `visible` rows begin none, and that is what made the bottom of a strip unpickable.
 	const RAIL = 200;
 	const THUMB = 20;
@@ -216,7 +216,7 @@ describe("what a press on the rail means", () => {
 
 	it("gives the head and foot of the rail to the start and end of the run, whatever is drawn there", () => {
 		// A mark sits at each end of the rail now. If it took these presses, the first and last rows could be reached
-		// only when nothing happened to be marked near them — the ends going missing again, by another route.
+		// only when nothing happened to be marked near them: the ends going missing again, by another route.
 		const marks = [
 			{ index: 7, topPx: markerTopPx(7, 100, RAIL) },
 			{ index: 92, topPx: markerTopPx(92, 100, RAIL) },

@@ -4,7 +4,7 @@ import { RpcClient, type RpcError } from "./rpc-client.js";
 /**
  * Build a fake fetch that records calls and returns scripted responses.
  * Responses is an array; each call pops the next one. If exhausted, the
- * fake throws — that surfaces unexpected extra calls as a clear failure.
+ * fake throws: that surfaces unexpected extra calls as a clear failure.
  */
 type Scripted = Partial<Response> & { bodyText?: string; bodyStream?: string[]; throwError?: Error };
 

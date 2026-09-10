@@ -3,7 +3,7 @@
  *
  * Consumed by view-specific projection functions (chain-lint, affordance paths,
  * monitor traces, quad-store visualisations) and rendered by an `IGraphRenderer`
- * implementation. The shape carries no layout information — laying out is the
+ * implementation. The shape carries no layout information, laying out is the
  * renderer's job.
  *
  * Each node belongs to at most one group. Groups can nest via `groups[g].parent`.
@@ -28,12 +28,12 @@ export type TGraphNode = {
 	/** Optional click target for the consumer to handle. */
 	link?: { method?: string; href?: string };
 	/**
-	 * `hbn:invoke` — this node represents a runnable step. The consumer of
+	 * `hbn:invoke`: this node represents a runnable step. The consumer of
 	 * GRAPH_NODE_CLICK opens the actions-bar for the step.
 	 */
 	invokes?: { stepperName: string; stepName: string; pathIndex?: number; stepIndex?: number };
 	/**
-	 * `prov:wasGeneratedBy` — this node represents a fact produced by a
+	 * `prov:wasGeneratedBy`: this node represents a fact produced by a
 	 * step. `factId` is the producing seqPath (string form). The
 	 * consumer opens the step-detail pane for that seqPath.
 	 */

@@ -40,7 +40,7 @@ export function moduleRootOf(location: string): string | undefined {
 	}
 }
 
-/** The nearest existing ancestor of a path, resolved through links to where it really is. A stepper resolves to a
+/** The nearest existing ancestor of a path, resolved through links to where it is. A stepper resolves to a
  *  file named without its extension, so the file may not exist while its directory does; a linked module resolves to
  *  the repository that holds its sources. */
 function whereItIs(location: string): string {

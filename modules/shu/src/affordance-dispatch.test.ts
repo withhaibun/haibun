@@ -58,7 +58,7 @@ describe("dispatchAffordanceFromResponse", () => {
 		if (!customElements.get("shu-affordances-panel")) customElements.define("shu-affordances-panel", class extends HTMLElement {});
 		const strip = document.createElement("shu-column-strip");
 		document.body.appendChild(strip);
-		// biome-ignore lint/suspicious/noExplicitAny: test-only — strip facade is narrower than real ShuColumnStrip.
+		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
 		PaneState.init(strip as any);
 	});
 

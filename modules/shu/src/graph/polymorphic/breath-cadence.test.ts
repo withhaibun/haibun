@@ -3,7 +3,7 @@
  *
  * The scene draws only while something asks it to, and a frame job's countdown advances only on the frames it draws.
  * A breath sampled that way stalls whenever the scene settles and jumps when something else wakes it. It is sampled
- * on wall frames instead — the rAF runs whether or not the scene draws — and each sample asks for the one frame it
+ * on wall frames instead, the rAF runs whether or not the scene draws, and each sample asks for the one frame it
  * needs, so the cadence is even and the scene still idles between breaths.
  */
 import { describe, expect, it } from "vitest";

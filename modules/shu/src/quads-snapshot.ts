@@ -24,7 +24,7 @@ import { pagePinned } from "./page-pinned.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
-/** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand) — so no path can silently inflate the budget past what the slider expresses. */
+/** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so no path can silently inflate the budget past what the slider expresses. */
 export const MAX_PER_TYPE_LIMIT = 1000;
 
 /** Off-heap persistent backing for the client graph: live merges + each backfill are written here, and a reload seeds
@@ -46,7 +46,7 @@ export function cachedGraphStore(): TCachedGraphStore {
 	return graphStoreSlot().store;
 }
 
-/** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site) — one type, no drift. */
+/** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site): one type, no drift. */
 export type TGraphSnapshot = TClusteredQuads;
 
 /**
@@ -78,7 +78,7 @@ type ScopeState = {
 };
 
 /** Underlying store: the per-scope caches, global view context, and listener set live here so a single instance is
- *  reachable from every bundle that imports this module via `globalThis.__SHU_QUADS_SNAPSHOT_STORE__` — see getStore(). */
+ *  reachable from every bundle that imports this module via `globalThis.__SHU_QUADS_SNAPSHOT_STORE__`, see getStore(). */
 type Store = {
 	scopes: Map<string, ScopeState>;
 	viewContext: TViewContext;
@@ -117,7 +117,7 @@ export function getViewContext(): TViewContext {
 
 // activeViewId (which column has keyboard/actions focus) and selectedSubject (which subject every view dims around)
 // are ORTHOGONAL axes on one context: each setter writes only its own axis and never derives or clears the other.
-// A body click legitimately does both (clears selection AND activates the column) precisely because they don't conflict.
+// A body click legitimately does both (clears selection AND activates the column) because they don't conflict.
 export function setActiveViewId(id: string | null): void {
 	const s = getStore();
 	if (s.viewContext.activeViewId === id) return;
@@ -133,8 +133,8 @@ export function setSelectedSubject(subject: string | null, label: string | null)
 }
 
 /** What a CONTEXT_CHANGE means for the selection axis. A context publish addresses selection only when it names a
- *  subject (select it) or carries an explicitly EMPTY patterns array (the empty-space click — clear it). A query
- *  context (label/predicate/object patterns, no subject) says nothing about selection and must leave it untouched —
+ *  subject (select it) or carries an explicitly EMPTY patterns array (the empty-space click, clear it). A query
+ *  context (label/predicate/object patterns, no subject) says nothing about selection and must leave it untouched:
  *  e.g. the graph view publishing its query at boot must not clear the selection a just-opened column published. */
 export function selectionFromContext(detail: {
 	patterns?: Array<Record<string, unknown>>;
@@ -149,17 +149,17 @@ export function selectionFromContext(detail: {
 /**
  * Subscribe to changes in the shared clustered data and view context. Listeners
  * fire on initial fetch, incremental SSE merges, active-view changes, and
- * selection changes — receiving the current snapshot plus a `TViewContext`
+ * selection changes, receiving the current snapshot plus a `TViewContext`
  * carrying `activeViewId` + `selectedSubject` + `selectedLabel`.
  *
- * Implementors should gate expensive re-renders on whether their view is the
+ * Implementors should gate slow re-renders on whether their view is the
  * strip's active pane (`isActiveView` from ShuElement). Inactive viewers can
- * defer the work — the snapshot stays cached and they will pick up the latest
+ * defer the work: the snapshot stays cached and they will pick up the latest
  * state on next activation, while burning no cycles updating a hidden surface.
  * They can still react to context changes (e.g. zoom to selected subject) since
- * those are cheap relative to a full re-layout.
+ * those are fast relative to a full re-layout.
  *
- * Returns an unsubscribe function — call from disconnectedCallback.
+ * Returns an unsubscribe function, call from disconnectedCallback.
  */
 export function subscribeSnapshot(listener: SnapshotListener, scope = ""): () => void {
 	const s = getStore();
@@ -214,7 +214,7 @@ function scopeState(s: Store, scope: string): ScopeState {
 }
 
 /** Fire listeners with THEIR scope's snapshot: a data change names its scope (only that scope's listeners fire); a
- *  context change (selection/active view) passes undefined and reaches every listener — context is global. */
+ *  context change (selection/active view) passes undefined and reaches every listener, context is global. */
 function notify(s: Store, changedScope?: string): void {
 	for (const { scope, fn } of s.listeners) {
 		if (changedScope !== undefined && scope !== changedScope) continue;
@@ -254,7 +254,7 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 		const model = new QuadGraphModel(perTypeLimit, getRels, getDisplayLabelRel);
 		try {
 			const steps = await getAvailableSteps();
-			if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
+			if (!steps?.length) throw new Error("getAvailableSteps() returned empty, step registry not yet populated");
 			const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[]; site?: string }>(
 				reads(requireStep("getClusteredQuads"), { perTypeLimit, types: opts.types, accessLevel }),
 				"quads-snapshot: fetch clustered quads",
@@ -383,7 +383,7 @@ export function pinSubjects(subjects: Iterable<string>, scope = ""): void {
 }
 
 /**
- * Merge newly observed quads into the shared model — bounded by the cached per-type budget plus pinned
+ * Merge newly observed quads into the shared model, bounded by the cached per-type budget plus pinned
  * subjects (see QuadGraphModel). SSE may arrive before (or without) a getClusteredQuads RPC, so start a
  * cache for the merge to land in.
  */
@@ -391,7 +391,7 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	if (quads.length === 0) return;
 	const s = getStore();
 	// Live observations extend EVERY scope's model, each bounded by its own budget (merge dedups by fact, so a batch
-	// delivered through two views' subscriptions lands once per scope). The default scope always exists — SSE may
+	// delivered through two views' subscriptions lands once per scope). The default scope always exists, SSE may
 	// arrive before any fetch.
 	ensureCache(scopeState(s, ""));
 	for (const [scope, st] of getStore().scopes) {
@@ -429,7 +429,7 @@ export function incomingEdges(label: string, id: string, window: { limit: number
 	);
 }
 
-/** Query the off-heap snapshot store (the serialized-report / offline backing). The reverse walks a display needs — an
+/** Query the off-heap snapshot store (the serialized-report / offline backing). The reverse walks a display needs: an
  *  annotation's SpecificResource points AT its source, so finding a subject's annotations reads incoming edges the IDB
  *  store indexes only by subject/namedGraph. Callers scan a namedGraph and filter, since object is not an IDB index. */
 export function queryStoredQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<TQuad[]> {

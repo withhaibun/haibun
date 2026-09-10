@@ -1,5 +1,5 @@
 /**
- * <shu-result-table> — the shared sortable, clickable individual table for the main query pane and filter columns. It
+ * <shu-result-table>: the shared sortable, clickable individual table for the main query pane and filter columns. It
  * renders a fixed header row plus a virtualized body: the rows live in a WindowedSource and are painted through
  * <shu-virtual-column>, so a result set of millions renders only the rows in view (with the custom glyph scrollbar for
  * position and jump), never a full DOM table. The parent owns the RPC and the source; this element owns the header,
@@ -10,7 +10,7 @@
  * `setSource(source)` for a paged/lazy set fetched a window at a time. Both drive the same render.
  *
  * Events dispatched:
- *   row-click: { individualId, label, ctrlKey } — or { individualId: null, deselect: true } on an empty-area click
+ *   row-click: { individualId, label, ctrlKey }, or { individualId: null, deselect: true } on an empty-area click
  *   sort-change: { field, order }
  */
 import { html, css, type TemplateResult } from "lit";
@@ -117,12 +117,12 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		this.#unsub = null;
 	}
 
-	/** Public state update — allows parent components to configure sort, display mode, etc. */
+	/** Public state update, allows parent components to configure sort, display mode, etc. */
 	updateState(partial: Partial<z.infer<typeof ResultTableSchema>>): void {
 		this.setState(partial);
 	}
 
-	/** Set the server-advertised sortable surface for the current label. Only headers whose field is in this set render as clickable sort triggers — others render as plain text. Empty set means no sorting offered (a text search across mixed types where no single label's sort applies). */
+	/** Set the server-advertised sortable surface for the current label. Only headers whose field is in this set render as clickable sort triggers, others render as plain text. Empty set means no sorting offered (a text search across mixed types where no single label's sort applies). */
 	setSortableFields(fields: ReadonlyArray<string>): void {
 		this.sortableFields = new Set(fields);
 	}
@@ -198,7 +198,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 
 	private getVisibleProperties(displayMode: string, fixedProperty?: string): string[] {
 		if (displayMode === "objects") {
-			// Show only the individual identity — all rows share the fixed property value.
+			// Show only the individual identity: all rows share the fixed property value.
 			return this.allProperties.filter((p) => p !== fixedProperty).slice(0, 1);
 		}
 		if (displayMode === "pairs") {
@@ -207,7 +207,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			if (!idProp) return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
 			return fixedProperty ? [idProp, fixedProperty] : this.allProperties.slice(0, 2);
 		}
-		// Full mode — show all properties, hide the fixed one (redundant in filtered results).
+		// Full mode, show all properties, hide the fixed one (redundant in filtered results).
 		return fixedProperty ? this.allProperties.filter((p) => p !== fixedProperty) : this.allProperties;
 	}
 
@@ -244,7 +244,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		const vid = idOf(v);
 		const vlabel = persistedTypeOf(v);
 		const prev = this.#source.rowAt(index - 1);
-		// Group header when the @type changes from the previous row — only in a multi-type set, and skipped at a not-yet-fetched
+		// Group header when the @type changes from the previous row, only in a multi-type set, and skipped at a not-yet-fetched
 		// window boundary (prev undefined), where it self-corrects once that page loads.
 		const groupHeader = this.#multiType && index > 0 && prev !== undefined && v["@type"] !== prev["@type"] ? html`<div class="group-header">${String(v["@type"] ?? "")}</div>` : "";
 		const dim = this.#isFutureRow(v) ? TIME_SYNC_CLASS.FUTURE : "";

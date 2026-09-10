@@ -1,13 +1,13 @@
 /**
  * Shared lit signals for cross-component reactive state.
  *
- * SCOPE — signals are NOT a cross-bundle transport. Two things must be shared for
+ * SCOPE: signals are NOT a cross-bundle transport. Two things must be shared for
  * a signal to work across the app's separate IIFE bundles (main app vs an external viewer
- * viewer), and the library gives neither for free:
- *   1. The signal INSTANCE — a `Signal.State` is a per-module object, so each bundle
+ * viewer), and the library gives neither by default:
+ *   1. The signal INSTANCE: a `Signal.State` is a per-module object, so each bundle
  *      gets its own unless the singleton is pinned on `globalThis` (the same trick
  *      `quads-snapshot.ts` uses). `getSignals()` below does that pinning.
- *   2. The polyfill's dependency-tracking context — `signal-polyfill` keeps its
+ *   2. The polyfill's dependency-tracking context, `signal-polyfill` keeps its
  *      "current consumer" in a module-level variable with no globalThis pinning, so
  *      a `SignalWatcher` in one bundle does NOT reactively track a signal read whose
  *      getter runs in another bundle's copy of the library.
@@ -22,8 +22,8 @@ const SHARED_SIGNALS_KEY = "__SHU_SHARED_SIGNALS__";
 
 type SharedCell<T> = { signal: Signal.State<T>; subs: Set<(v: T) => void> };
 
-/** Resolve (creating once) the globalThis-pinned cell backing a key, so every importer in this realm — including a
- *  separately-bundled IIFE viewer — shares one signal instance AND one subscriber set. */
+/** Resolve (creating once) the globalThis-pinned cell backing a key, so every importer in this realm, including a
+ *  separately-bundled IIFE viewer, shares one signal instance AND one subscriber set. */
 function getSharedCell<T>(key: string, initial: T): SharedCell<T> {
 	const g = globalThis as unknown as Record<string, Map<string, SharedCell<unknown>> | undefined>;
 	const map = (g[SHARED_SIGNALS_KEY] ??= new Map<string, SharedCell<unknown>>());
@@ -37,11 +37,11 @@ function getSharedCell<T>(key: string, initial: T): SharedCell<T> {
 
 /**
  * A reactive cell shared across every component AND every bundle. It pairs a globalThis-pinned `Signal.State` (the
- * in-(main)-bundle reactive layer — reading `get()` inside a lit render() auto-subscribes a SignalWatcher) with a
+ * in-(main)-bundle reactive layer, reading `get()` inside a lit render() auto-subscribes a SignalWatcher) with a
  * globalThis-pinned subscriber set (the ONLY channel that crosses an esbuild IIFE boundary, since the signal
- * polyfill's dependency-tracking context is module-level and unpinned — see the SCOPE note above). `set()` always
+ * polyfill's dependency-tracking context is module-level and unpinned, see the SCOPE note above). `set()` always
  * co-fires both, so a writer can never update one channel and silently skip the other. Every component reacts the
- * same way in any bundle via `ShuElement.watchSignal` (which calls `subscribe` here) — cross-bundle views must NOT
+ * same way in any bundle via `ShuElement.watchSignal` (which calls `subscribe` here), cross-bundle views must NOT
  * rely on reading `get()` in render() for reactivity; only `subscribe` reaches them.
  */
 export class SharedSignal<T> {
@@ -55,7 +55,7 @@ export class SharedSignal<T> {
 	get(): T {
 		return this.#signal.get();
 	}
-	/** Set the value and notify every subscriber. An unchanged value is a no-op — every notify repaints all views, so a
+	/** Set the value and notify every subscriber. An unchanged value is a no-op: every notify repaints all views, so a
 	 * re-publish of the same cursor would cause the live "wiggle" when streamed events re-emit the same at-end value. */
 	set(v: T): void {
 		if (this.#signal.get() === v) return;
@@ -73,16 +73,16 @@ export class SharedSignal<T> {
 export const timeCursor = new SharedSignal<number | null>("timeCursor", null);
 
 /** Global active pane: the `columnKey` of the column with actions/keyboard focus (null = none / the query pane). THE one
- *  source of truth for "which column you are on" — the chat harvest, every view's `isActiveView`, the strip's active
+ *  source of truth for "which column you are on": the chat harvest, every view's `isActiveView`, the strip's active
  *  styling, and the graph dimming all read it, and the pane router is its only writer. Replaces the old split between a
  *  DOM `active` attribute, a `VIEW_ACTIVE` event, and a separate `activeViewId`, which could disagree. */
 export const activePane = new SharedSignal<string | null>("activePane", null);
 
 // --- Persisted reactive settings -------------------------------------------------------------------------------------
 // One mechanism for every global UI setting (data window size, …) so they can't drift into bespoke per-setting wiring.
-// localStorage is the durable store; a globalThis-pinned signal is the in-bundle reactive mirror — reading get() in a
+// localStorage is the durable store; a globalThis-pinned signal is the in-bundle reactive mirror, reading get() in a
 // lit render() auto-subscribes the view, so changing a setting in the UI re-renders every view that reads it. (A
-// cross-bundle view — a separate IIFE like the polymorphic view — does not track signals across the boundary; a setting that
+// cross-bundle view, a separate IIFE like the polymorphic view, does not track signals across the boundary; a setting that
 // must reach one would keep an explicit subscribe, as timeCursor does. Settings consumed in-bundle need none.)
 
 const SETTING_SIGNALS_KEY = "__SHU_SETTING_SIGNALS__";
@@ -103,7 +103,7 @@ export type PersistedSetting = { get(): string; set(value: string): void };
 
 /** Define a persisted, cross-view reactive setting. `fallback` applies when nothing valid is stored; `isValid` rejects a
  *  stale/foreign stored value. get() reads reactively (auto-subscribes a lit render); set() persists then notifies all. */
-/** localStorage may be absent or unusable — a non-DOM test env, or a browser with storage disabled (private mode). */
+/** localStorage may be absent or unusable: a non-DOM test env, or a browser with storage disabled (private mode). */
 const canStore = (): boolean => typeof localStorage !== "undefined" && typeof localStorage.getItem === "function";
 
 export function persistedSetting(storageKey: string, fallback: string, isValid: (value: string) => boolean): PersistedSetting {

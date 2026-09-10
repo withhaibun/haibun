@@ -19,7 +19,7 @@
  *     sub-composite field whose domain is `B` and a step in the chain that
  *     produces `B` end up structurally connected: the sub-fields go into the
  *     `B`-producing step, and that step's output becomes the slot's value.
- *   - Edges are labelled with the slot or domain they carry — field name on
+ *   - Edges are labelled with the slot or domain they carry, field name on
  *     value-into-slot edges, produced domain on producer-step output edges,
  *     binding domain on binding-to-goal-step edges. The renderer draws the
  *     labels alongside each arrow so the reader sees which argument fills
@@ -32,11 +32,11 @@
  * name) render as `argument`-kind nodes so the path's entry points stand out
  * from intermediate composite slots. A typed-composite argument whose domain
  * has no producer chain still emits a separate `argument`-kind node carrying
- * the domain name — the field slot itself stays a structural `field` node
+ * the domain name: the field slot itself stays a structural `field` node
  * because the typed value, not the slot, is supplied as an argument.
  *
  * `pathId(i)` is the stable id used in `TGraphEdge.paths` and in the
- * `TGraphRenderOptions.highlightedPath` option — the consumer chooses which
+ * `TGraphRenderOptions.highlightedPath` option: the consumer chooses which
  * path to emphasise by passing the same id back.
  */
 import type { TBinding, TFieldBinding, TMichi } from "@haibun/core/lib/goal-resolver.js";
@@ -131,7 +131,7 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 	const fieldLabel = field.fieldDomain ? `${field.fieldName} : ${field.fieldDomain}` : field.fieldName;
 	// Primitive arguments (no typed domain) render as yellow `argument` nodes
 	// so the chain's entry points are visible. Typed slots and intermediate
-	// composite fields stay purple — the incoming edge from the producer step
+	// composite fields stay purple: the incoming edge from the producer step
 	// or typed-argument node tells the reader where the value comes from.
 	const isPrimitiveArgument = field.kind === "argument" && (!field.fieldDomain || field.fieldDomain === field.fieldName);
 	ctx.nodes.set(fieldId, { id: fieldId, label: fieldLabel, kind: isPrimitiveArgument ? "argument" : "field" });
@@ -155,7 +155,7 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 		ctx.edges.add({ from: factId, to: fieldId, kind: "ready", paths: [ctx.pid], label: field.fieldName });
 	} else {
 		// Composite field. If a step in this michi produces the field's
-		// domain, the field is satisfied by that step — route the sub-fields
+		// domain, the field is satisfied by that step, route the sub-fields
 		// into the producer step and connect the step's output to the field
 		// slot. Otherwise the sub-fields attach directly to the slot
 		// (primitive composite or pure user-supplied aggregate).

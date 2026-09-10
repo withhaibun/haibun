@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * What a reader is told about their own authority: the actions they hold, who this deployment knows, and the grants
- * behind them. A grant reads by its controller and what it allows, and never by its token — a bearer token is the
+ * behind them. A grant reads by its controller and what it allows, and never by its token: a bearer token is the
  * credential, so a view that printed one would hand it to whoever was looking.
  */
 import { describe, it, expect, vi } from "vitest";

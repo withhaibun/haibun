@@ -36,7 +36,7 @@ describe("cli executable", () => {
       `.replace(/\n/g, "");
 
 			await execAsync(`node --eval "${evalScript}"`);
-			// If we reach here, execAsync didn't throw, meaning exit code was 0
+			// Reaching here means execAsync did not throw, meaning exit code was 0
 			expect.fail("execAsync should have thrown an error with code 1");
 		} catch (e: unknown) {
 			const error = e as { code?: number; stderr?: string; name?: string };
