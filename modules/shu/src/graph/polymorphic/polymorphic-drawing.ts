@@ -43,19 +43,43 @@ export class Drawing {
 
 /**
  * The loop an A-Frame scene draws with. Starting plays the components and hands the scene's own bound render back to
- * the renderer. Stopping pauses the components and takes the render away, so no frame is drawn until something moves.
- * The last frame drawn stays on the canvas.
+ * the renderer, followed by `afterDraw` when given, so a frame's cost can be measured right after it. Stopping pauses
+ * the components and takes the render away, so no frame is drawn until something moves. The last frame drawn stays on
+ * the canvas.
+ *
+ * A-Frame installs its own loop when the scene starts rendering. With something to do after each draw, this loop
+ * replaces that one as soon as it has been installed, so every drawn frame is followed, the first ones included.
  */
-export function aframeLoop(scene: {
+export type TAframeScene = {
 	pause?(): void;
 	play?(): void;
 	render?: (time: number, frame: unknown) => void;
 	renderer?: { setAnimationLoop(loop: ((time: number, frame: unknown) => void) | null): void };
-}): TDrawingLoop {
+	renderStarted?: boolean;
+	addEventListener?(type: string, listener: () => void, options?: { once: boolean }): void;
+};
+
+export function aframeLoop(scene: TAframeScene, afterDraw?: () => void): TDrawingLoop {
+	const install = () => {
+		const render = scene.render;
+		if (!render) return;
+		scene.renderer?.setAnimationLoop(
+			afterDraw
+				? (time, frame) => {
+						render(time, frame);
+						afterDraw();
+					}
+				: render,
+		);
+	};
+	if (afterDraw) {
+		if (scene.renderStarted) install();
+		else scene.addEventListener?.("renderstart", install, { once: true });
+	}
 	return {
 		start: () => {
 			scene.play?.();
-			if (scene.render) scene.renderer?.setAnimationLoop(scene.render);
+			install();
 		},
 		stop: () => {
 			scene.pause?.();

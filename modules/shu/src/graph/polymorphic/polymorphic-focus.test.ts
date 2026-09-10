@@ -44,13 +44,14 @@ describe("the glow a newcomer wears", () => {
 		expect(visual.burns).toBeGreaterThan(0);
 	});
 
-	it("ends with the welcome: after its first moments the glow is off and nothing keeps drawing for it", () => {
+	it("ends with the welcome: after its first moments the glow is taken off in one drawn frame, then nothing keeps drawing for it", () => {
 		const { focus, n, visual } = harness();
 		focus.seedNewcomerPop(n);
 		focus.updateHighlight();
 		vi.advanceTimersByTime(NEWCOMER_GLOW_MS + 100);
-		expect(focus.updateHighlight(), "an expired welcome breathes nothing").toBe(false);
+		expect(focus.updateHighlight(), "the beat that ends the welcome draws the glow off").toBe(true);
 		expect(visual.hasHighlight).toBe(false);
+		expect(focus.updateHighlight(), "an expired welcome breathes nothing").toBe(false);
 	});
 
 	it("hands the glow to the selection where the reader chose the newcomer: expiry never strips the active node", () => {
@@ -60,5 +61,51 @@ describe("the glow a newcomer wears", () => {
 		vi.advanceTimersByTime(NEWCOMER_GLOW_MS + 100);
 		expect(focus.updateHighlight(), "the active node's breath goes on").toBe(true);
 		expect(visual.hasHighlight).toBe(true);
+	});
+});
+
+describe("the breath at rest", () => {
+	beforeEach(() => vi.useFakeTimers({ toFake: ["performance"] }));
+	afterEach(() => vi.useRealTimers());
+
+	function active() {
+		const h = harness("n1");
+		h.visual.setHighlighted(true); // applyFocus gave the active node its glow
+		h.visual.burns = 0;
+		return h;
+	}
+
+	it("draws the active node's glow once, held at its fullest, and asks for no further frames", () => {
+		const { focus, visual } = active();
+		expect(focus.updateHighlight(false), "the beat that holds the glow draws it").toBe(true);
+		expect(visual.burns).toBe(1);
+		for (let beat = 0; beat < 20; beat++) {
+			vi.advanceTimersByTime(100);
+			expect(focus.updateHighlight(false), "a held glow costs no frame").toBe(false);
+		}
+		expect(visual.burns, "written once").toBe(1);
+	});
+
+	it("breathes again when the pulse returns, and holds again when it rests", () => {
+		const { focus, visual } = active();
+		focus.updateHighlight(false);
+		expect(focus.updateHighlight(true), "breathing asks for a frame each beat").toBe(true);
+		expect(focus.updateHighlight(true)).toBe(true);
+		expect(visual.burns).toBe(3);
+		expect(focus.updateHighlight(false), "resting again draws the held glow once").toBe(true);
+		expect(focus.updateHighlight(false)).toBe(false);
+	});
+
+	it("at rest, a newcomer's glow is drawn when it arrives and drawn off when its welcome ends, and nothing between", () => {
+		const { focus, n, visual } = harness();
+		focus.seedNewcomerPop(n);
+		expect(focus.updateHighlight(false), "the arrival draws the glow").toBe(true);
+		expect(visual.burns).toBe(1);
+		vi.advanceTimersByTime(NEWCOMER_GLOW_MS / 2);
+		expect(focus.updateHighlight(false), "held").toBe(false);
+		vi.advanceTimersByTime(NEWCOMER_GLOW_MS);
+		expect(focus.updateHighlight(false), "the welcome's end draws the glow off").toBe(true);
+		expect(visual.hasHighlight).toBe(false);
+		expect(focus.updateHighlight(false)).toBe(false);
 	});
 });

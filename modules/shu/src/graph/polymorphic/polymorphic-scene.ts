@@ -13,7 +13,7 @@ import { FrameScheduler } from "../polymorphic/polymorphic-frame.js";
 import { EngineGovernor, type TPacedGraph } from "../polymorphic/polymorphic-engine.js";
 import { PolymorphicProfiler } from "../polymorphic/polymorphic-profiler.js";
 import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troika-label.js";
-import { GLOW_RAMP, type GlowThree } from "../polymorphic/polymorphic-highlight.js";
+import { GLOW_RAMP, type GlowThree, BREATH_MS } from "../polymorphic/polymorphic-highlight.js";
 import { typeAvatar } from "../polymorphic/polymorphic-type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { isSubPropertyOf } from "@haibun/core/lib/resources.js";
@@ -37,7 +37,10 @@ import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from ".
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
-import { Drawing, aframeLoop } from "./polymorphic-drawing.js";
+import { Drawing, aframeLoop, type TAframeScene } from "./polymorphic-drawing.js";
+import { FrameCost, type TFenceGl } from "./polymorphic-frame-cost.js";
+import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameCost } from "./polymorphic-regulator.js";
+import { GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP } from "../../graph-blips.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../polymorphic/sequence-model.js";
 import { type FGNode, type FGLink, type TSprite, linkEndId, neighboursOf } from "../polymorphic/polymorphic-graph-types.js";
 import { forceLayout, type IGraphLayout } from "../polymorphic/polymorphic-layout.js";
@@ -176,7 +179,6 @@ const DATA_DEBOUNCE_MS = 500;
 // The scene renders on demand: after a discrete change (data, selection, resize, theme) it keeps drawing for this many
 // frames so the change and any short ease land, then it idles. Continuous motion (layout settle, tween, drag, camera
 // damping) and the pointer being over the canvas keep it awake on their own.
-const BREATH_EVERY = 6; // wall frames between breaths of the active node's glow — see the rAF loop
 const DIRTY_GRACE_FRAMES = 30;
 // Cadence for the canvas-geometry wake detector (mouse-pick bounds + viewport aspect watchdog), sampled even when idle.
 const CANVAS_GEOMETRY_EVERY = 15;
@@ -340,6 +342,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private rafFrame = 0;
 	private dirtyUntilFrame = 0;
 	private scenePaused = false;
+	private lastBreathAt = 0; // when the active node's glow was last redrawn; the breath runs on BREATH_MS, not on frames
+	private regulation = newRegulationState(); // the scene's own regulator of decorative motion, on what a frame costs
 	/** Set by the per-frame highlight job: an active node's glow is breathing, so the loop must keep drawing. Cleared
 	 *  the frame the selection goes away, which lets the scene idle again. */
 
@@ -751,6 +755,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// Render-on-demand state: the scene pauses when nothing is moving and no recent discrete change is pending.
 			// A reader whose focus/highlight assertion depends on a redraw can tell a paused scene from a live one.
 			render: { paused: this.scenePaused },
+			// What a drawn frame costs the renderer (the median of the last few, null before the first measurement) and
+			// whether the breath rests on it: a reader can tell a scene that regulated itself from one that has not measured.
+			regulation: {
+				resting: this.regulation.resting,
+				frameCostMs: this.regulation.frameCosts.length > 0 ? medianOf(this.regulation.frameCosts) : null,
+				samples: this.regulation.frameCosts.length,
+			},
 			// A data or layout repaint is debounced and still to run: the scene shows the PREVIOUS feed's placement, so a
 			// reader of this snapshot has not yet seen the effect of the change that scheduled it (a z-basis switch, a
 			// grouping toggle). The engine is idle in that window, so engineMode alone would call it settled.
@@ -1475,6 +1486,18 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.markDirty();
 	}
 
+	/** One measured frame cost: recorded for the run, kept in the window, and evaluated against the breath's budget.
+	 *  A signal is acted on here (the next beat holds or breathes) and recorded, so the run sees the page regulate
+	 *  itself and on what. */
+	private regulate(costMs: number, now: number, drew?: { calls: number; triangles: number }): void {
+		recordFrameCost(this.regulation, costMs, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
+		this.recordBlip(GRAPH_FRAME_BLIP, costMs, { drawCalls: drew?.calls ?? 0, triangles: drew?.triangles ?? 0, nodes: this.nodeMap.size });
+		const signal = evaluateRegulation(this.regulation, DEFAULT_REGULATION_THRESHOLDS, now);
+		if (!signal) return;
+		this.recordBlip(GRAPH_REGULATION_BLIP, signal.frameCostMs, { signal: signal.kind, share: signal.share });
+		this.lastBreathAt = 0; // the next tick redraws the glow in its new state
+	}
+
 	/** True while an animation is still in motion: the force layout settling, a layout tween, or a node drag. Camera
 	 *  damping, discrete changes and the active node's breathing glow wake the loop through `markDirty`; the pointer
 	 *  over the canvas keeps it awake for hover. */
@@ -1564,17 +1587,27 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// within its grace window, or a focus is pending. Otherwise `Drawing` pauses the components and stops the
 		// renderer's loop, so an idle graph draws nothing. The rAF loop below keeps running as a cheap per-frame gate, so
 		// a change wakes the scene within one frame.
-		const drawing = new Drawing(aframeLoop(scene as unknown as Parameters<typeof aframeLoop>[0]));
+		// What a drawn frame costs is measured after the draw (see `FrameCost`) and read in the gate below, where the
+		// regulator decides whether the breath may keep asking for frames.
+		const sceneEl = scene as unknown as TAframeScene & { renderer?: { getContext?(): unknown; info?: { render?: { calls: number; triangles: number } } } };
+		const frameCost = new FrameCost(() => sceneEl.renderer?.getContext?.() as TFenceGl | undefined);
+		const drawing = new Drawing(aframeLoop(sceneEl, () => frameCost.drew()));
 		const tick = () => {
 			this.rafFrame++;
+			const now = performance.now();
 			// A wake detector, not a render job: the canvas can MOVE (strip scroll, column shift) without resizing, which no
 			// observer catches, so this cheap poll runs even while the scene is paused and marks dirty on any geometry change.
 			if (this.rafFrame % CANVAS_GEOMETRY_EVERY === 0) this.checkCanvasGeometry();
-			// The active node's breath, sampled on WALL frames like the geometry poll rather than as a frame job: a job's
-			// countdown only advances while the scene is drawing, so a throttled breath stalled whenever the scene
-			// settled and then jumped. One node's colour and scale, ten times a second, and the frame it asks for is the
-			// only one it costs — the scene still idles between them.
-			if (this.rafFrame % BREATH_EVERY === 0 && this.focusCtl.updateHighlight()) this.markDirty(1);
+			const cost = frameCost.poll();
+			if (cost !== undefined) this.regulate(cost, now, sceneEl.renderer?.info?.render);
+			// The active node's breath, on wall time like the geometry poll rather than as a frame job: a job's countdown
+			// only advances while the scene is drawing, so a throttled breath stalled whenever the scene settled and then
+			// jumped. One node's colour and scale, ten times a second, and the frame it asks for is the only one it costs;
+			// the scene idles between them. While the regulator has the breath resting, the glow is drawn once and held.
+			if (now - this.lastBreathAt >= BREATH_MS) {
+				this.lastBreathAt = now;
+				if (this.focusCtl.updateHighlight(!this.regulation.resting)) this.markDirty(1);
+			}
 			// A pending focus keeps the scene awake until it can be applied: applyFocus needs the layout at rest (its pin +
 			// sim tick would spring an under-converged graph) and the node visuals built (it skips a node with no visual
 			// yet), and either can lag a selection made mid-build. Sleeping before then would leave the dim undrawn.
@@ -1594,6 +1627,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.autoTeardown(() => {
 			if (this.rafHandle !== undefined) cancelAnimationFrame(this.rafHandle);
 			drawing.end();
+			frameCost.end();
 			controls.dispose();
 		});
 

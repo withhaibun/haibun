@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 
 const follow = vi.fn((_request: unknown, _label?: string) => Promise.resolve({}));
 let offline = false;
+let conduitInstalled = true;
 vi.mock("./hypermedia.js", () => ({
 	conduit: () => ({ follow }),
+	hasConduit: () => conduitInstalled,
 	reads: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "read" }),
 	acts: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "act" }),
 }));
@@ -23,6 +25,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		vi.useFakeTimers();
 		follow.mockClear();
 		offline = false;
+		conduitInstalled = true;
 		resetClientBlips();
 	});
 	afterEach(() => vi.useRealTimers());
@@ -70,6 +73,14 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 
 	it("holds without sending when there is no run to send to", async () => {
 		offline = true;
+		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
+		await vi.runAllTimersAsync();
+		expect(follow).not.toHaveBeenCalled();
+		expect(clientBlipsRecorded()).toBe(1);
+	});
+
+	it("holds without sending on a page mounted without a conduit, such as a bundle under test or a still", async () => {
+		conduitInstalled = false;
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
 		expect(follow).not.toHaveBeenCalled();

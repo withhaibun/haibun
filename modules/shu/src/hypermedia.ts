@@ -303,6 +303,12 @@ export function conduit(): Conduit {
 	return active;
 }
 
+/** Whether boot has installed a Conduit. A page mounted without one (a bundle under test, a still) has no run to hand
+ *  anything to, and a channel that can ask first need never throw for it. */
+export function hasConduit(): boolean {
+	return Boolean(conduitGlobal[CONDUIT_SLOT]);
+}
+
 /** Test-only: clear the active conduit so subsequent setConduit calls are clean. */
 export function resetConduit(): void {
 	conduitGlobal[CONDUIT_SLOT] = null;

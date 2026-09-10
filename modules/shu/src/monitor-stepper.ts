@@ -12,6 +12,7 @@ import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, Steppe
 import { recordBlip } from "@haibun/core/lib/blips.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
 import "./view-blips.js";
+import "./graph-blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 

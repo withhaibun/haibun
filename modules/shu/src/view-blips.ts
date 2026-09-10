@@ -26,7 +26,7 @@ export const READER_INPUT_WINDOW_MS = 150;
 
 /** The view a recording came from: the hosting column's tag, so the document column and the monitor column read apart.
  *  Bounded, one per component tag on the page. */
-const viewAttributes = z.object({ view: z.string(), at: z.number().optional() });
+export const viewAttributes = z.object({ view: z.string(), at: z.number().optional() });
 
 /** The virtualizer reported which rows are visible. `value` is how many rows the window is short of the last; the
  *  attributes carry the raw report and the follow's belief, which is what settles whether a follow that ended short
