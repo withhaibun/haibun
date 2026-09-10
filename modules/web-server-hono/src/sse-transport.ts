@@ -119,8 +119,9 @@ export class SSETransport implements ITransport, IStepTransport {
 			// step that does not declare itself a read, it refuses rather than answering and recording the reading as
 			// something the run did. A step declared a read is answered without a line of its own here, since a page
 			// following a run reads it on every announcement.
+			const servesARead = this.servesARead(data);
 			const asksToRead = (data as { asks?: unknown } | undefined)?.asks === "read";
-			if (asksToRead && !this.servesARead(data)) {
+			if (asksToRead && !servesARead) {
 				const method = (data as Record<string, unknown>).method ?? "unknown";
 				return c.json(
 					{
@@ -130,7 +131,7 @@ export class SSETransport implements ITransport, IStepTransport {
 					422,
 				);
 			}
-			if (!this.servesARead(data)) this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
+			if (!servesARead) this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
 			const result = await this.handleMessage(data, requestInfo);
 			if (result === undefined) {
 				const method = (data as Record<string, unknown>).method ?? "unknown";
