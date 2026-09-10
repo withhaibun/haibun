@@ -2,7 +2,7 @@
 // What the log marks on its rail: the rows whose events earned a mark, at the place a reader can scroll to; and where it
 // marks the moment being shown (cursorMark, shared with the document through virtual-column-model).
 import { describe, it, expect } from "vitest";
-import { railMarkers, type TLogRow } from "./shu-monitor-column.js";
+import { opens, railMarkers, type TLogRow } from "./shu-monitor-column.js";
 import { markFor, MARK_COLOUR } from "../event-marker.js";
 
 /** A log row, with only what the rail reads off it. */
@@ -69,5 +69,30 @@ describe("the rail marks what the timeline marks", () => {
 	it("carries nothing for the noise neither surface marks", () => {
 		expect(markFor(debugLog)).toBeUndefined();
 		expect(railMarkers([row({ mark: markFor(debugLog) })])).toEqual([]);
+	});
+});
+
+describe("what pressing a row of the log opens", () => {
+	// Every row is a record of the run, so every row answers a press with the record it is. Pressed only where a row
+	// carried a step, a reader met rows that did nothing — what a run said over a connection among them — with nothing
+	// on the row to tell which would answer.
+	it("opens a step at its own place in the run", () => {
+		expect(opens(row({ seqPath: [0, 1, 2], record: { persistedAs: "SeqPath", id: "a-step" } }))).toEqual({ paneType: "step-detail", seqPath: [0, 1, 2] });
+	});
+
+	it("opens what the run said as the record it is, which a step row is not the only kind of", () => {
+		expect(opens(row({ record: { persistedAs: "LogMessage", id: "0.1.2#3" }, message: 'RPC: {"jsonrpc":"2.0"}' }))).toEqual({
+			paneType: "entity",
+			persistedAs: "LogMessage",
+			id: "0.1.2#3",
+		});
+	});
+
+	it("opens what the run produced the same way", () => {
+		expect(opens(row({ record: { persistedAs: "RunArtifact", id: "0.1.2#0" } }))).toEqual({ paneType: "entity", persistedAs: "RunArtifact", id: "0.1.2#0" });
+	});
+
+	it("opens nothing for a row naming no record, which is a row of what the run never wrote down", () => {
+		expect(opens(row())).toBeUndefined();
 	});
 });

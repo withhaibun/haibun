@@ -45,12 +45,17 @@ function declared(row: TRunRow): Record<string, unknown> {
 	return { type: "step" };
 }
 
+/** Which record a rendered row is: its type and its own name. A row shows a step's path, and what was said under a step
+ *  shows that step's, so without this a row of what a run said cannot be told from the step it was said during — and a
+ *  reader pressing it has nothing to open. */
+const recordOf = (row: TRunRow): { persistedAs: string; id: string } => ({ persistedAs: row.label, id: row.id });
+
 /** A row as a view renders it. A step carries how it went and how long it took; what was said carries its own level. */
 function asRendered(row: TRunRow): TEventRecord {
 	// The step path a view shows and navigates by is the path within the execution: the execution is how records of
 	// different runs are told apart, not something a reader of one run is shown on every row.
 	const seqPath = row.under?.length ? row.under : undefined;
-	if (row.kind === "said") return { id: row.step, kind: "log", level: row.level, message: row.text, timestamp: row.at, seqPath };
+	if (row.kind === "said") return { id: row.step, kind: "log", level: row.level, message: row.text, timestamp: row.at, seqPath, record: recordOf(row) };
 	// A produced thing is claimed by the step it came from, which a document reads from the identity it carries.
 	if (row.kind === "produced") return producedRecord(row);
 	return stepRecord(row, seqPath);
@@ -70,6 +75,7 @@ function producedRecord(row: TRunRow): TEventRecord {
 		...(row.mediaType === undefined ? {} : { mimetype: row.mediaType }),
 		...(row.carriedBy === undefined ? {} : { carriedBy: row.carriedBy }),
 		seqPath,
+		record: recordOf(row),
 	};
 }
 
@@ -98,6 +104,7 @@ function stepRecord(row: TRunRow, seqPath: number[] | undefined): TEventRecord {
 		// What this step produced, shown by the row of the step a reader sees rather than by rows of its own.
 		...(row.produced === undefined ? {} : { produced: row.produced.map(producedRecord) }),
 		seqPath,
+		record: recordOf(row),
 	};
 }
 

@@ -24,6 +24,7 @@ import {
 } from "../util.js";
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH } from "../consts.js";
@@ -590,7 +591,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private renderBodyLiterals(persistedAs: string): string {
 		if (!this.vertex) return "";
 		return Object.entries(extractBodyLiterals(this.vertex, persistedAs))
-			.map(([k, v]) => `<div class="literal-body" data-testid="entity-body-${escAttr(k)}">${esc(v)}</div>`)
+			.map(([k, v]) => `<div class="literal-body" data-testid="entity-body-${escAttr(k)}">${literalWithJson(v)}</div>`)
 			.join("");
 	}
 
@@ -603,13 +604,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *   - everything else → plain display-only text (no navigation).
 	 * Edge-valued fields are handled inside clickableValue via the "item" rel.
 	 */
-	/** A field's value formatted for the visible field table: an object/array value is pretty-printed as JSON; everything
-	 *  else falls through to fieldValueHtml (its navigation affordance + escaping). */
+	/** A field's value formatted for the visible field table: an object or array is shown as disclosures a reader opens;
+	 *  everything else falls through to fieldValueHtml (its navigation affordance + escaping). */
 	private formatFieldValue(value: string, propertyName: string): string {
 		const trimmed = value.trim();
 		if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
 			try {
-				return `<pre class="field-json" data-testid="field-json-${escAttr(propertyName)}">${esc(JSON.stringify(JSON.parse(trimmed), null, 2))}</pre>`;
+				return `<div class="field-json" data-testid="field-json-${escAttr(propertyName)}">${jsonDisclosure(JSON.parse(trimmed))}</div>`;
 			} catch {
 				// not valid JSON — render as an ordinary scalar
 			}
