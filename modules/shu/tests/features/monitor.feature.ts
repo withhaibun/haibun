@@ -93,7 +93,7 @@ export const features: TKirejiExport = {
 		"Ask to be informed what the views do, before touching the rail. A view records its own scroll geometry as it changes, at whatever rate it changes, and the run caches none of it: asking is what makes it readable at all.",
 		watchBlips({ names: '"haibun.shu.view"' }),
 
-		"The rail is not decoration: seeking it moves the window. Seek to the bottom and the first visible row is no longer row one; seek back to the top and it is row one again — proving a drag or click on the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op).",
+		"The rail is not decoration: seeking it moves the window. Seek to the bottom and the first visible row is no longer row one; seek back to the top and it is row one again, proving a drag or click on the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op).",
 		seekMonitorRail({ where: '"bottom"' }),
 		monitorFirstVisibleRowIsNot({ ordinal: '"1"' }),
 		seekMonitorRail({ where: '"top"' }),
@@ -103,7 +103,7 @@ export const features: TKirejiExport = {
 		railThumbTakesAPress({ host: `"${SHU_TAG.MONITOR_COLUMN}"` }),
 
 		scenario({ scenario: "A manual scroll up pauses the tail; returning to the bottom resumes it" }),
-		"A reader scrolling back through the log must not be yanked to the newest row every time an event streams in. Scrolled to the top, a streamed event leaves the view where it is — the tail is paused because the reader is no longer at the bottom, not because any cursor was scrubbed. Scroll back to the bottom and the tail re-engages, so the next event is followed again.",
+		"A reader scrolling back through the log must not be yanked to the newest row every time an event streams in. Scrolled to the top, a streamed event leaves the view where it is: the tail is paused because the reader is no longer at the bottom, not because any cursor was scrubbed. Scroll back to the bottom and the tail re-engages, so the next event is followed again.",
 		setAs({ what: "scrollPausedEvent", domain: "page-test-id", value: '"scroll-paused-marker"' }),
 		monitorFirstVisibleRow({ ordinal: '"1"' }),
 		seekMonitorRail({ where: '"bottom"' }),
@@ -113,7 +113,7 @@ export const features: TKirejiExport = {
 		"The rail thumb states how much of the column is on screen, so it caches its size as the reader scrolls and travels with them. Rows here are uniform lines of log.",
 		railThumbHoldsSize({ host: `"${SHU_TAG.MONITOR_COLUMN}"` }),
 
-		"Everything the views did through all that scrolling reached the run as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be affordable. The run caches none of them; the watch caches them in order, which is what reports whether a size changed while a reader was scrolling rather than only that it changed.",
+		"Everything the views did through all that scrolling reached the run as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be sustainable. The run caches none of them; the watch caches them in order, which is what reports whether a size changed while a reader was scrolling rather than only that it changed.",
 		'some occurrence observed in watched blips is "variable occurrence/name is "haibun.shu.view.thumb_resize""',
 
 		scenario({ scenario: "The run document reads the same run as prose" }),

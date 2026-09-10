@@ -1,5 +1,5 @@
 /**
- * UrakataStepper — owns the world-singleton Urakata registry and exposes the
+ * UrakataStepper: owns the world-singleton Urakata registry and exposes the
  * lifecycle steps. Other steppers retrieve the registry via
  * `world.runtime[URAKATA]` and register their tickers there.
  */
@@ -15,7 +15,7 @@ const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema) });
 /**
  * The persisted Urakata type: a task's lifecycle facts, queryable like any other individual. `execution` is a CONTEXT
  * facet so "what ran in instance E" is a stored query; the numeric counts derive their own columns. Nothing stores or
- * serves a "running" claim — a reader concludes it from the facts (no stoppedAt, execution is the current instance).
+ * serves a "running" claim: a reader concludes it from the facts (no stoppedAt, execution is the current instance).
  */
 const DOMAIN_URAKATA_TASK = "urakata-task";
 const urakataTaskDomainDefinition = {

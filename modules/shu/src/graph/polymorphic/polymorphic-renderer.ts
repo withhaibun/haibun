@@ -4,7 +4,7 @@
 
 import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
 
-/** What the scene displays each repaint — the pipeline's own output. */
+/** What the scene displays each repaint: the pipeline's own output. */
 export type TDrawn = { nodes: FGNode[]; links: FGLink[] };
 
 /**
@@ -18,7 +18,7 @@ export interface IGraphRenderer {
 	rebuildNodes(): void;
 }
 
-/** Where each node was placed, by node id — what "it did not redraw" compares. */
+/** Where each node was placed, by node id: what "it did not redraw" compares. */
 export type TPlacement = Map<string, string>;
 
 const placementOf = (nodes: FGNode[]): TPlacement => new Map(nodes.map((n) => [n.id, `${Math.round(n.x ?? 0)},${Math.round(n.y ?? 0)},${Math.round(n.z ?? 0)}`]));
@@ -30,7 +30,7 @@ export function samePlacement(a: TPlacement | undefined, b: TPlacement | undefin
 	return true;
 }
 
-/** One sentence describing a drawn graph, with per-type counts — the shared text the SVG still's `<desc>` and the
+/** One sentence describing a drawn graph, with per-type counts: the shared text the SVG still's `<desc>` and the
  *  accessible document's status line both use, so every medium describes the graph in the same words. */
 export function graphSummary({ nodes, links }: TDrawn): string {
 	const counts = new Map<string, number>();
@@ -59,8 +59,8 @@ export function compositeRenderer(...media: IGraphRenderer[]): IGraphRenderer {
 }
 
 /**
- * A renderer that keeps what it was given, so a test can ask what a change displayed — did a view change place the nodes
- * differently, did a merge that changed nothing display at all — without a browser.
+ * A renderer that keeps what it was given, so a test can ask what a change displayed, did a view change place the nodes
+ * differently, did a merge that changed nothing display at all, without a browser.
  */
 export class RecordingRenderer implements IGraphRenderer {
 	readonly placements: TPlacement[] = [];
@@ -97,7 +97,7 @@ type TGraphLib = {
 
 /**
  * The library-backed renderer: the graph is shown in WebGL. The library caches each node's object and re-runs the factory
- * only when the accessor it is given is a different function, so a rebuild passes a new one — passing the same function
+ * only when the accessor it is given is a different function, so a rebuild passes a new one, passing the same function
  * leaves every node with the shape it already had, which is a pinned node that never gets its frame.
  */
 export function threeRenderer(graph: TGraphLib, nodeObject: (n: FGNode) => unknown): IGraphRenderer {

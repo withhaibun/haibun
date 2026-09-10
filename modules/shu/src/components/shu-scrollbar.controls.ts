@@ -4,11 +4,11 @@
  * steps therefore take the HOST as an argument and find its rail, so one step covers every view that has one rather
  * than each view growing its own copy.
  *
- * They measure the RENDERED thumb — its box on screen, not a computed value — because what a reader complains about is
+ * They measure the RENDERED thumb, its box on screen, not a computed value, because what a reader complains about is
  * the thumb they see. The page-providing stepper (web-playwright) is found by duck-typing getPage, so shu keeps no
  * dependency on it (mirrors shu-column-strip.controls). Pierces shadow roots to find the host.
  *
- * Steps never lead with the article "the" — haibun treats such lines as narrative prose, not matchable steps.
+ * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
@@ -22,7 +22,7 @@ const SAMPLES = [0, 0.25, 0.5, 0.75, 1];
 /** Settling time after each scroll: past the virtualizer's own measuring pass and the rail's re-render. */
 const SETTLE_MS = 300;
 /** A thumb whose height varies by more than this across a scroll is resizing as the content goes by. Some drift is
- *  honest — a virtualizer refines its total-height estimate as rows are measured — so the bar is the CONTENT swing
+ *  approximate: a virtualizer refines its total-height estimate as rows are measured, so the bar is the CONTENT swing
  *  (a screen of prose against a screen of images differs manyfold), not estimate noise. */
 const STEADY_SPREAD = (maxPx: number) => Math.max(4, Math.round(0.25 * maxPx));
 
@@ -73,7 +73,7 @@ export default class ShuScrollbarControls extends AStepper {
 				if (!hostEl) return [];
 				const rail = within(hostEl, (el) => el.tagName.toLowerCase() === "shu-scrollbar");
 				const thumb = rail?.shadowRoot?.querySelector(`[data-testid="${arg.thumbId}"]`) as HTMLElement | null;
-				// The scrolling region driving the rail: whichever element under the host actually has somewhere to scroll.
+				// The scrolling region driving the rail: whichever element under the host has somewhere to scroll.
 				let scroller: HTMLElement | null = null;
 				let most = 0;
 				const stack: Array<Element | ShadowRoot> = rootsOf(hostEl);
@@ -103,7 +103,7 @@ export default class ShuScrollbarControls extends AStepper {
 		);
 	}
 
-	/** What a press at the middle of the host's rail thumb actually reaches: the thumb's own test id when it can be
+	/** What a press at the middle of the host's rail thumb reaches: the thumb's own test id when it can be
 	 *  grabbed, otherwise whatever covers it. Read inside the rail's shadow root, which is where both are drawn. */
 	private thumbPressReaches(page: EvalPage, host: string): Promise<string | null> {
 		return page.evaluate<string | null, { host: string; thumbId: string }>(
@@ -157,8 +157,8 @@ export default class ShuScrollbarControls extends AStepper {
 		},
 		railThumbHoldsSize: {
 			// The thumb states how much of the column is on screen, so it must not resize as the reader scrolls past
-			// content of differing heights — a run document holds both a line of prose and a screenshot. It must also
-			// actually travel, or a steady thumb would pass by simply being stuck.
+			// content of differing heights: a run document holds both a line of prose and a screenshot. It must also
+			// travel, or a steady thumb would pass by being stuck.
 			gwta: "rail thumb in {host} holds its size and travels while scrolling",
 			action: async ({ host }: { host: string }) => {
 				const readings = await this.thumbAcrossScroll(await this.page(), host);
@@ -171,7 +171,7 @@ export default class ShuScrollbarControls extends AStepper {
 						`rail thumb in ${host} resizes as the reader scrolls: heights ${JSON.stringify(heights)} spread ${spread}px, over the ${allowed}px an estimate settling explains`,
 					);
 				const tops = readings.map((r) => r.topPx);
-				if (Math.max(...tops) - Math.min(...tops) <= 0) return actionNotOK(`rail thumb in ${host} never moved: tops ${JSON.stringify(tops)} — the rail is not tracking the scroll`);
+				if (Math.max(...tops) - Math.min(...tops) <= 0) return actionNotOK(`rail thumb in ${host} never moved: tops ${JSON.stringify(tops)}: the rail is not tracking the scroll`);
 				return actionOK();
 			},
 		},

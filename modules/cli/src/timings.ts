@@ -107,7 +107,11 @@ export function recordTimings(configDir: string, result: TExecutorResult): TVari
 	// Only this machine's entry is replaced: what another machine measured stays as that machine measured it. The
 	// machines are written in a stable order, so a file changes when a measurement changes and at no other time.
 	const merged: TTimingsFile = { ...held, [machine]: now };
-	const ordered = Object.fromEntries(Object.keys(merged).sort().map((k) => [k, merged[k]]));
+	const ordered = Object.fromEntries(
+		Object.keys(merged)
+			.sort()
+			.map((k) => [k, merged[k]]),
+	);
 	nodeFS.writeFileSync(file, `${JSON.stringify(ordered, null, "\t")}\n`);
 	return variances;
 }

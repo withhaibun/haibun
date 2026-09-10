@@ -1,5 +1,5 @@
 /**
- * Composite-domain introspection — bridge between Zod schemas, registered
+ * Composite-domain introspection, bridge between Zod schemas, registered
  * domains, and the goal resolver's backward-chaining recursion.
  *
  * A domain whose Zod schema is a `z.object(...)` is called *composite*. Each
@@ -14,7 +14,7 @@
  *
  * The link from a Zod field to another domain is *declarative*: it lives in
  * `topology.ranges` (the haibun equivalent of SHACL's `sh:node` / RDFS's
- * `rdfs:range`). Zod-instance identity is NOT used as a domain match — it's
+ * `rdfs:range`). Zod-instance identity is NOT used as a domain match: it's
  * brittle across module copies and silently breaks when a schema is cloned.
  * `ranges` is the explicit channel; everything that isn't declared there is
  * treated as a primitive (resolves to a `kind: "argument"` binding).
@@ -48,7 +48,7 @@ export function isPrimitiveZodType(zodType: z.ZodType): boolean {
 	return def.type === "string" || def.type === "number" || def.type === "boolean" || def.type === "literal" || def.type === "enum" || def.type === "bigint" || def.type === "date";
 }
 
-/** Short display label for a Zod type — "string", "number", "date", "array", "object", "enum", etc. Empty when
+/** Short display label for a Zod type, "string", "number", "date", "array", "object", "enum", etc. Empty when
  *  undetectable. Accepts unknown so zod-core values (e.g. a toJSONSchema override's ctx.zodSchema) probe without casts. */
 export function zodTypeLabel(zodType: unknown): string {
 	const def = (zodType as { _zod?: { def?: { type?: string } } })?._zod?.def;

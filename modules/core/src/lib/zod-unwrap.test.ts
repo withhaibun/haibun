@@ -2,7 +2,7 @@
  * The wrapper walk, over the nestings that occur: a default over an optional over an object, and the object itself.
  * Written three times, one copy reached zod's older `_def.innerType` while the others reached `_zod.def`, so on the
  * installed zod that copy returned the wrapper it was asked to remove and reported nothing. These assert the walk
- * against the library actually installed, which is what makes a version move a failing test rather than a silence.
+ * against the library installed, which is what makes a version move a failing test rather than a silence.
  */
 import { describe, it, expect } from "vitest";
 import { z } from "zod";

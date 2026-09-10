@@ -45,7 +45,7 @@ const requiredString = (value: unknown, message: string): string => {
 };
 
 /** What makes a product an instruction to open something: it names the view or the component to open, or it is one of
- *  the declared affordance types. A record's own `@type` is what the record IS, never an instruction about it — read
+ *  the declared affordance types. A record's own `@type` is what the record IS, never an instruction about it, read
  *  as one, every step that answered with a record opened a column, including the reads a view makes to render itself,
  *  so a reader could not close what their own view kept re-opening. */
 const hasAffordanceMarkers = (value: Record<string, unknown>): boolean => {
@@ -91,7 +91,7 @@ export function parseAffordanceProduct(product: unknown): TAffordanceProductActi
 		const component = requiredString(parsed[PRODUCT_KEY.COMPONENT], "Affordance component product requires string _component");
 		// `id` carries a per-instance identity for multi-pane components (e.g. a clustered viewer uses
 		// `<component>:<uuid>`). Singleton views (graph, monitor, sequence) only set `view`.
-		// Either form is sufficient — prefer `id`, fall back to `view`.
+		// Either form is sufficient, prefer `id`, fall back to `view`.
 		const idOrView = parsed[PRODUCT_KEY.ID] ?? parsed[PRODUCT_KEY.VIEW];
 		const view = requiredString(idOrView, "Affordance component product requires string id or view");
 		const summary = parsed[HYPERMEDIA.SUMMARY];

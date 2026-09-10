@@ -3,8 +3,8 @@
  * one builder per mark kind, dispatched by paintMarkScene. The SVG paint shares the SAME per-@type presenter, so a
  * data node's COLOUR can't drift between the two renders; the per-kind shape geometry (chip/box/image) is 3D-only today.
  * The mark carries the semantics (kind, label, colour, box length); the deps carry only the medium config (the THREE
- * namespace, a label factory, the theme text colours, the rendering constants), all injected so the geometry —
- * positions + dimensions, which are just numbers — is unit-tested with a recording stub, not a GPU.
+ * namespace, a label factory, the theme text colours, the rendering constants), all injected so the geometry:
+ * positions + dimensions, which are just numbers, is unit-tested with a recording stub, not a GPU.
  */
 import type { NodeMark } from "../graph-scene.js";
 import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../gantt-layout.js";
@@ -14,7 +14,7 @@ type V3 = { x: number; y: number; z: number; set(x: number, y: number, z: number
 type Obj3D = { position: V3; scale: V3; renderOrder: number; add(o: Obj3D): void };
 type Mat = { depthTest: boolean; depthWrite: boolean };
 type SpriteObj = Obj3D & { center: { set(x: number, y: number): void }; material: Mat };
-/** The label surface this factory drives — the slice of a SpriteText (or its test stub) the shapes set. */
+/** The label surface this factory drives: the slice of a SpriteText (or its test stub) the shapes set. */
 export type ShapeLabel = Obj3D & {
 	material: Mat;
 	/** The billboard anchor, readable as well as settable: a sprite's center is a vector, and a caller checking where a chip sits reads it. */
@@ -36,15 +36,15 @@ export type ShapeThree = {
 export type NodeShapeDeps = {
 	three: ShapeThree | undefined; // undefined off-GPU (headless) → chip fallback
 	makeLabel: (text: string, height: number, color: string) => ShapeLabel;
-	textColor: string; // text ON a chip (over the light type-colour fill) — dark in both themes
-	sceneTextColor: string; // text OFF a chip, on the scene background (the box label) — foreground colour
+	textColor: string; // text ON a chip (over the light type-colour fill), dark in both themes
+	sceneTextColor: string; // text OFF a chip, on the scene background (the box label), foreground colour
 	borderColor: string;
 	fontSize: number;
 	renderOrder: number;
-	headerLabel?: boolean; // a box mark's label sits upright, centred above the bar's start face — a sequence participant's name over its vertical lifeline
+	headerLabel?: boolean; // a box mark's label sits upright, centred above the bar's start face: a sequence participant's name over its vertical lifeline
 };
 
-/** A type-coloured label chip billboard, CENTRED on the node position — the shared builder for the default instance chip
+/** A type-coloured label chip billboard, CENTRED on the node position: the shared builder for the default instance chip
  *  and the square schema-Class token (`radius` = corner rounding, `bold` = weight). Centring (not left-anchoring) is
  *  deliberate: the focus magnifier scales the sprite about its anchor, so a centred chip grows IN PLACE instead of
  *  ballooning sideways out of a clump; it also makes collideRadius (a node-centred circle) an accurate half-width. */
@@ -69,7 +69,7 @@ export function chipShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	return labelChip(mark, d, mark.isCluster ? 50 : 2, mark.isCluster ?? false);
 }
 
-/** The folded ontology's Class token: a solid SQUARE chip (sharp corners + bold), set apart from the rounded instances. */
+/** The merged ontology's Class token: a solid SQUARE chip (sharp corners + bold), set apart from the rounded instances. */
 export function squareShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	return labelChip(mark, d, 0, true);
 }
@@ -82,7 +82,7 @@ export function boxShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	// Time is the z axis: the box spans z by its duration (thin on x = depth, GANTT_BAR_H tall on y = its lane).
 	const box = new d.three.Mesh(new d.three.BoxGeometry(GANTT_BAR_D, GANTT_BAR_H, zLen), new d.three.MeshBasicMaterial({ color: mark.color, transparent: true, depthWrite: false }));
 	box.renderOrder = d.renderOrder;
-	// The bar label is plain text that overflows a short bar onto the dark scene — use the scene foreground, not the
+	// The bar label is plain text that overflows a short bar onto the dark scene, use the scene foreground, not the
 	// on-chip dark text, so it reads (white on black in dark mode) instead of vanishing black-on-black.
 	const label = d.makeLabel(mark.label, chipTextHeight(mark), d.sceneTextColor);
 	label.fontSize = d.fontSize;
@@ -90,11 +90,11 @@ export function boxShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	label.material.depthTest = false;
 	label.material.depthWrite = false;
 	// A sequence participant's name is an upright HEADER centred above its vertical lifeline (screen-up is earliest-z
-	// there), as a sequence diagram reads. A billboard sprite never rotates, so the name stays legible from any orbit —
+	// there), as a sequence diagram reads. A billboard sprite never rotates, so the name stays legible from any orbit:
 	// the old screen-space quarter-turn only lined up with the bars at the canonical aim and read down the bar besides.
 	if (d.headerLabel) {
 		label.center.set(0.5, 0); // bottom-centre anchor → the text caps the bar
-		label.position.set(0, 0, -zLen / 2); // at the bar's start (earliest-z) face — the lifeline's top on screen
+		label.position.set(0, 0, -zLen / 2); // at the bar's start (earliest-z) face: the lifeline's top on screen
 	} else {
 		label.center.set(0, 0.5); // read along the bar from its start face (a gantt row)
 		label.position.set(0, 0, -zLen / 2 + GANTT_LABEL_INSET);
@@ -103,8 +103,8 @@ export function boxShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	return box;
 }
 
-/** The folded ontology's Property (predicate) as an elongated diamond / lozenge: a solid token, the name centred, the
- *  ends drawn to points — a relation reads as a distinct SHAPE, not a chip. A canvas-textured billboard (always faces the
+/** The merged ontology's Property (predicate) as an elongated diamond / lozenge: a solid token, the name centred, the
+ *  ends drawn to points: a relation reads as a distinct SHAPE, not a chip. A canvas-textured billboard (always faces the
  *  camera, sized so the name matches a chip's text height); off-GPU (headless) it falls back to a chip. */
 export function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	const T = d.three as unknown as
@@ -119,7 +119,7 @@ export function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 		padY = font * 0.22;
 	const rectW = ctx.measureText(mark.label).width + 2 * padX; // the flat middle that holds the name
 	const h = font + 2 * padY;
-	const cap = h * 0.55; // the pointed left/right ends — the "diamond"
+	const cap = h * 0.55; // the pointed left/right ends: the "diamond"
 	const w = rectW + 2 * cap;
 	canvas.width = Math.ceil(w);
 	canvas.height = Math.ceil(h);
@@ -151,7 +151,7 @@ export function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	return sprite;
 }
 
-/** Translate a backend-neutral NodeMark into a polymorphic three.js object — one builder per kind. Unimplemented kinds
+/** Translate a backend-neutral NodeMark into a polymorphic three.js object: one builder per kind. Unimplemented kinds
  *  throw (fail-fast) rather than rendering nothing; the SVG paint mirrors this dispatch for the same marks. */
 export function paintMarkScene(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	switch (mark.kind) {

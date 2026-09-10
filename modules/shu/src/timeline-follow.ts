@@ -1,5 +1,5 @@
 /**
- * timeline-follow — the one shared live-edge follow behaviour for every timeline-following ShuElement (the document,
+ * timeline-follow: the one shared live-edge follow behaviour for every timeline-following ShuElement (the document,
  * the monitor log, any future live-scrolling view). The system-wide control is the `timeCursor` signal: `null` is the
  * live edge ("now"), a number is a scrubbed cutoff. The timeline bar drives it (play / scrub); the views here follow it.
  *
@@ -32,7 +32,7 @@ export class FollowController implements ReactiveController {
 
 	constructor(
 		host: ReactiveControllerHost & Element,
-		/** Jump to the live edge (the bottom) — the host's own scroll to its last row. For a virtualizer this is
+		/** Jump to the live edge (the bottom): the host's own scroll to its last row. For a virtualizer this is
 		 *  `scrollToIndex(last, "end")`, re-driven by the host until its window reaches the last row. */
 		private jumpToEdge: () => void,
 	) {

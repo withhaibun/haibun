@@ -16,7 +16,16 @@ function aGroup(): { dir: string; config: string } {
 	return { dir, config: path.join(dir, "config.json") };
 }
 const specl = { steppers: [] };
-const conditions = (dir: string, config: string, more: Partial<Parameters<typeof verificationOf>[0]> = {}) => ({ configPath: config, specl, bases: [dir], cwd: dir, filter: [], options: {}, moduleOptions: {}, ...more });
+const conditions = (dir: string, config: string, more: Partial<Parameters<typeof verificationOf>[0]> = {}) => ({
+	configPath: config,
+	specl,
+	bases: [dir],
+	cwd: dir,
+	filter: [],
+	options: {},
+	moduleOptions: {},
+	...more,
+});
 
 describe("how a group last ran against its state", () => {
 	it("has no run until one is recorded, has one against the state it was recorded for, and loses it when a dependency changes", () => {

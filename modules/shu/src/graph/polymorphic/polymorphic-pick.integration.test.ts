@@ -1,11 +1,11 @@
 /**
  * Real-browser pick/projection agreement for shu-polymorphic-graph-view (jsdom proves nothing about THREE picking).
  *
- * The invariant: pickAt(projectedCentre(node)) === node — the pick and the projection must agree AT ANY INSTANT,
+ * The invariant: pickAt(projectedCentre(node)) === node: the pick and the projection must agree AT ANY INSTANT,
  * including between an engine tick and the next render frame. The camera side of this held after pointerRay began
  * forcing a fresh camera matrix; this test pins the OBJECT side: when the engine's node coordinates have moved and
  * no frame has rendered yet, every sprite's transform is one frame stale, and a pick raycast against those stale
- * transforms misses at the freshly-projected centre — the e2e drag flake's exact "N nodes, none pickable at centre"
+ * transforms misses at the freshly-projected centre: the e2e drag flake's exact "N nodes, none pickable at centre"
  * signature. The moved-coordinates state is created and picked inside ONE page.evaluate, so no render frame can
  * re-sync the sprites in between: the intermittent between-frames window, made deterministic.
  */
@@ -44,7 +44,7 @@ const pageErrors: string[] = [];
 const unexpectedErrors = () => pageErrors.filter((m) => !m.includes("no EventStream installed"));
 
 /** In-page: ask the view where it draws each node, then probe the production pick at that pixel. Both sides are the
- * production pair — a copy of the projection here could only ever agree with itself, never catch the two drifting.
+ * production pair: a copy of the projection here could only ever agree with itself, never catch the two drifting.
  * Runs synchronously, so no frame can re-sync the sprites between the projection and the pick. */
 const PICK_ALL = `(() => {
 	const el = document.querySelector("shu-polymorphic-graph-view");
@@ -55,7 +55,7 @@ const PICK_ALL = `(() => {
 })()`;
 
 beforeAll(async () => {
-	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built — run `npm run bundle:polymorphic` first
+	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built, run `npm run bundle:polymorphic` first
 	server = createServer((req, res) => {
 		if (req.url === "/") {
 			res.writeHead(200, { "Content-Type": "text/html" }).end(PAGE);
@@ -80,7 +80,7 @@ beforeAll(async () => {
 		undefined,
 		{ timeout: 30_000 },
 	);
-	// Feed pinned nodes straight into the force-graph and frame them — the pick geometry under test is independent
+	// Feed pinned nodes straight into the force-graph and frame them: the pick geometry under test is independent
 	// of the store pipeline. fx/fy/fz pin each node so the engine holds it exactly at its coordinates. The lib
 	// decorates these SAME objects (nodeThreeObject → __sprite/__baseScale), so pointing the pipeline's nodeMap at
 	// them gives pickNodeAt its real node set without the store.
@@ -123,7 +123,7 @@ test("baseline: with rendered frames in sync, every node picks at its projected 
 });
 
 test("between frames: after the engine moves nodes and before any render, the pick still finds each node at its freshly-projected centre", { timeout: 30_000 }, async () => {
-	// Move every node's engine coordinates and pick in the SAME synchronous evaluate — the state a pick sees when it
+	// Move every node's engine coordinates and pick in the SAME synchronous evaluate: the state a pick sees when it
 	// runs between an engine tick and the next render frame, when sprite transforms are one frame stale.
 	const rows = (await page.evaluate(`(() => {
 		const el = document.querySelector("shu-polymorphic-graph-view");
@@ -131,5 +131,5 @@ test("between frames: after the engine moves nodes and before any render, the pi
 		return ${PICK_ALL};
 	})()`)) as PickRow[];
 	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
-	for (const row of rows) expect(row.picked, `${row.id} at (${row.x.toFixed(0)},${row.y.toFixed(0)}) — stale sprite transform?`).toBe(row.id);
+	for (const row of rows) expect(row.picked, `${row.id} at (${row.x.toFixed(0)},${row.y.toFixed(0)}), stale sprite transform?`).toBe(row.id);
 });

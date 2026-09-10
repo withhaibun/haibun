@@ -12,7 +12,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const EventSourceRaw = require("eventsource");
 
-// Robust polyfill extraction
+// Polyfill extraction
 let EventSourcePolyfill = EventSourceRaw.default || EventSourceRaw;
 if (typeof EventSourcePolyfill !== "function" && EventSourcePolyfill.EventSource) {
 	EventSourcePolyfill = EventSourcePolyfill.EventSource;

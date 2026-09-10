@@ -4,7 +4,7 @@ import type { TStepperOption } from "./astepper.js";
 
 /**
  * Declarative bound on a tunable option. The four kinds are deliberately
- * narrow — richer validation belongs in the option's own `parse`, not here.
+ * narrow: richer validation belongs in the option's own `parse`, not here.
  */
 export type TTunableRange =
 	| { kind: "number"; min?: number; max?: number }
@@ -18,12 +18,12 @@ export type TTunableRange =
  */
 export type TTunableRateLimit = {
 	maxChangesPerDay: number;
-	/** Optional minimum relative step size — e.g. 0.1 for "at least 10% change". */
+	/** Optional minimum relative step size, e.g. 0.1 for "at least 10% change". */
 	minStepPct?: number;
 };
 
 /**
- * One tunable option declaration. A superset of TStepperOption — same
+ * One tunable option declaration. A superset of TStepperOption, same
  * desc / parse / etc. plus range bounds, an optional rate limit, and an
  * optional capability gate.
  *
@@ -50,10 +50,10 @@ export function requiredCapabilityFor(stepperName: string, key: string): string 
 }
 
 /**
- * Discovery contract: steppers that expose tunable options — options a
- * caller may propose changes to within their declared bounds — declare
+ * Discovery contract: steppers that expose tunable options, options a
+ * caller may propose changes to within their declared bounds, declare
  * them in a `tunables` map parallel to `options`. Non-tunable steppers
- * simply omit the property.
+ * omit the property.
  */
 export interface IHasTunables {
 	tunables?: {

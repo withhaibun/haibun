@@ -91,7 +91,7 @@ export function getModuleLocation(name: string) {
 		const exports = (pkg as Record<string, unknown>).exports as Record<string, string | Record<string, string>> | undefined;
 		if (!exports) throw new Error(`package ${pkgName} has no exports map; subpath ${subpath} not resolvable`);
 		// A conditional export (e.g. "./*": { development: "./src/*", default: "./build/*" }) is an object, not a string.
-		// The Node-side stepper loader runs compiled output, so resolve to the `default` (build) branch — mirroring plain
+		// The Node-side stepper loader runs compiled output, so resolve to the `default` (build) branch, mirroring plain
 		// Node resolution where the custom `development` condition is inactive unless --conditions=development is passed.
 		const condTarget = (t: string | Record<string, string>): string => (typeof t === "string" ? t : (t.default ?? t.node ?? t.require ?? t.import ?? Object.values(t)[0]));
 		const exact = exports[subpath] || exports[`${subpath}.js`];

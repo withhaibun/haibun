@@ -16,7 +16,11 @@ const result = {
 
 describe("what a run took", () => {
 	it("says how long each feature took from its steps' own start and end, to a tenth of a second, with its step count", () => {
-		expect(timingsOf(result)).toEqual({ features: { "/features/quick.feature": { seconds: 0.1, steps: 2 }, "/features/slow.feature": { seconds: 2.3, steps: 1 } }, steps: 3, seconds: 2.4 });
+		expect(timingsOf(result)).toEqual({
+			features: { "/features/quick.feature": { seconds: 0.1, steps: 2 }, "/features/slow.feature": { seconds: 2.3, steps: 1 } },
+			steps: 3,
+			seconds: 2.4,
+		});
 	});
 
 	it("writes it beside the configuration under this machine's key, replacing what that machine last recorded", () => {
@@ -28,10 +32,21 @@ describe("what a run took", () => {
 	});
 
 	it("reports a feature whose duration differs from the recorded run, by both a fifth and a second", () => {
-		const recorded = { features: { "/a.feature": { seconds: 10, steps: 5 }, "/b.feature": { seconds: 10, steps: 5 }, "/c.feature": { seconds: 0.5, steps: 1 } }, steps: 11, seconds: 20.5 };
-		const now = { features: { "/a.feature": { seconds: 20, steps: 5 }, "/b.feature": { seconds: 11, steps: 5 }, "/c.feature": { seconds: 1.2, steps: 1 } }, steps: 11, seconds: 32.2 };
+		const recorded = {
+			features: { "/a.feature": { seconds: 10, steps: 5 }, "/b.feature": { seconds: 10, steps: 5 }, "/c.feature": { seconds: 0.5, steps: 1 } },
+			steps: 11,
+			seconds: 20.5,
+		};
+		const now = {
+			features: { "/a.feature": { seconds: 20, steps: 5 }, "/b.feature": { seconds: 11, steps: 5 }, "/c.feature": { seconds: 1.2, steps: 1 } },
+			steps: 11,
+			seconds: 32.2,
+		};
 		const changed = variancesBetween(recorded, now);
-		expect(changed.map((v) => v.feature), "a fifth longer and a second longer; eleven against ten is neither, and a short feature is under the second").toEqual(["/a.feature"]);
+		expect(
+			changed.map((v) => v.feature),
+			"a fifth longer and a second longer; eleven against ten is neither, and a short feature is under the second",
+		).toEqual(["/a.feature"]);
 	});
 
 	it("reports nothing where no run was recorded, and leaves out a feature only one run holds", () => {

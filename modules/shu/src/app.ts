@@ -2,7 +2,7 @@ import { defaultLabel } from "./util.js";
 import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR } from "./consts.js";
 import { getHash, hashWithColumns } from "./view-hash.js";
 /**
- * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
+ * Main SPA entry point, uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
@@ -170,7 +170,7 @@ const main = async (): Promise<void> => {
 	 * Structured-event channel for external-component lifecycle phases. Error-level
 	 * emissions also carry `haibun.autonomic.event: "step.failure"` + exception
 	 * attributes so the autonomic agent picks them up via the same peer-failure
-	 * channel it uses for IMAP skips and lifecycle step failures — no per-source plumbing.
+	 * channel it uses for IMAP skips and lifecycle step failures: no per-source plumbing.
 	 */
 	const reportExternalComponent = (
 		level: "debug" | "error" | "info" | "warn" | "error",
@@ -178,7 +178,7 @@ const main = async (): Promise<void> => {
 		component: string,
 		extra: Record<string, unknown> = {},
 	) => {
-		const message = `external-component ${component}: ${phase}${extra.error ? ` — ${String(extra.error)}` : ""}`;
+		const message = `external-component ${component}: ${phase}${extra.error ? `, ${String(extra.error)}` : ""}`;
 		const attributes: Record<string, unknown> = {
 			"haibun.shu.external-component.phase": phase,
 			"haibun.shu.external-component.name": component,
@@ -192,7 +192,7 @@ const main = async (): Promise<void> => {
 		reportClientLog(level, message, attributes);
 	};
 
-	// Activate the pane at `index` through PaneState — the single owner of the active pane + the hash `active` (a
+	// Activate the pane at `index` through PaneState: the single owner of the active pane + the hash `active` (a
 	// paneId). Writing a numeric index here (the old behaviour) desynced PaneState and corrupted the hash: a later
 	// fromHash could not resolve the numeric and fell back to the leftmost pane, so active "didn't switch".
 	const activatePaneByIndex = (index: number) => {
@@ -200,7 +200,7 @@ const main = async (): Promise<void> => {
 		if (paneId) PaneState.setActivePane(paneId);
 	};
 
-	// Build DOM — strip with query pane, then query component after (so .results-target exists first).
+	// Build DOM, strip with query pane, then query component after (so .results-target exists first).
 	// All other pane creation goes through PaneState (initialized further down).
 	appRoot.innerHTML = `
 		<div class="app-container">
@@ -258,7 +258,7 @@ const main = async (): Promise<void> => {
 
 	// Generic pane open: a view hands a fully-formed DesiredPane and it goes through the same PaneState path as
 	// COLUMN_OPEN. The polymorphic uses this to open the windowed instances column (filter-prop) for an ontology Class/Property,
-	// which COLUMN_OPEN (entity-only) can't express. Fail fast on a malformed request — no silent default pane.
+	// which COLUMN_OPEN (entity-only) can't express. Fail fast on a malformed request: no silent default pane.
 	appRoot.addEventListener(
 		SHU_EVENT.PANE_OPEN,
 		((e: CustomEvent) => {
@@ -272,7 +272,7 @@ const main = async (): Promise<void> => {
 	// The shared loader (external-components.ts) with this app's diagnostic reporter bound.
 	const ensureUiComponentLoaded = (childTag: string): Promise<void> => sharedEnsureUiComponentLoaded(childTag, reportExternalComponent);
 
-	// Every person-visible step-end emits hypermedia products; if they carry view markers, route to PaneState — trace
+	// Every person-visible step-end emits hypermedia products; if they carry view markers, route to PaneState, trace
 	// substeps are infrastructure and never open views (see pane-event-router). Batching keeps only the latest op per
 	// pane.
 	subscribeBatchedEvents({
@@ -285,10 +285,10 @@ const main = async (): Promise<void> => {
 	});
 
 	// Panes are removed only by an explicit close (PaneState.dismiss) or a Miller-column prune at the click origin
-	// (PaneState.requestFrom). Results changing — a query re-run, or the initial query on a reload — must NOT remove
+	// (PaneState.requestFrom). Results changing, a query re-run, or the initial query on a reload, must NOT remove
 	// panes: that would drop component-pane views restored from the URL the moment those first results arrive.
 
-	// Column widths persist via the pane's own ShuElement.persistFields (keyed by data-column-key) — no listener here.
+	// Column widths persist via the pane's own ShuElement.persistFields (keyed by data-column-key): no listener here.
 
 	// Context change → forward to actions bar + publish selected subject onto the shared view-context store.
 	appRoot.addEventListener(
@@ -299,7 +299,7 @@ const main = async (): Promise<void> => {
 			if (actionsBar?.setContext && detail.patterns) {
 				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
 			}
-			// The selection axis moves only when the context addresses it (see selectionFromContext) — a query-context
+			// The selection axis moves only when the context addresses it (see selectionFromContext): a query-context
 			// publish never clears a selection another column just made.
 			const sel = selectionFromContext(detail);
 			if (sel.action === "select") setSelectedSubject(sel.subject, sel.label);
@@ -308,9 +308,9 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// A selection only holds while some un-minimized column actually shows it. Whenever the column set changes
+	// A selection only holds while some un-minimized column shows it. Whenever the column set changes
 	// (close, Miller-prune, minimize, expand), a selection whose column is gone or minimized is cleared so every
-	// view undims — otherwise viewers stay focus-locked on a subject with no live column. Views surface their
+	// view undims, otherwise viewers stay focus-locked on a subject with no live column. Views surface their
 	// subject via `data-subject`, so the contract is the attribute, not the protected `state` field.
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMNS_CHANGED,
@@ -325,7 +325,7 @@ const main = async (): Promise<void> => {
 
 	// The actions bar owns its own resize now (it overlays the bottom and grows upward); see shu-actions-bar.ts.
 
-	// Sync notifications — buffer rapid events into one consolidated message
+	// Sync notifications, buffer rapid events into one consolidated message
 	let syncDebounce: ReturnType<typeof setTimeout> | null = null;
 	const syncBuffer: Map<string, number> = new Map(); // source → total indexed
 	const SYNC_DEBOUNCE_MS = 2000;
@@ -393,7 +393,7 @@ const main = async (): Promise<void> => {
 	);
 
 	// A recorded search summary was clicked: re-apply its exact viewQuery snapshot through the query's
-	// scriptable `products` entry — the same validated path a control step uses, so the restore is precise
+	// scriptable `products` entry: the same validated path a control step uses, so the restore is precise
 	// (type, text, filters, sort, access) and the bar's controls re-sync via the resulting context change.
 	appRoot.addEventListener(
 		SHU_EVENT.SEARCH_RESTORE,
@@ -494,7 +494,7 @@ const main = async (): Promise<void> => {
 		// arrangement of their own keeps the index as they left it.
 		if (shown.length > 0) {
 			const index = getIndexPane();
-			if (!index) throw new Error("no index pane to minimize when the page started on the run's views — the app builds one at boot and nothing removes it");
+			if (!index) throw new Error("no index pane to minimize when the page started on the run's views: the app builds one at boot and nothing removes it");
 			index.setMinimized(true);
 		}
 	}

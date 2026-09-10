@@ -2,7 +2,7 @@
  * What a view may record, declared once for both sides of the bridge: the browser records under these names and the
  * run accepts them under the same ones. A name written in two places is a name that can drift.
  *
- * These are per-frame occurrences. They exist because the alternative is what actually happened: a rail thumb that
+ * These are per-frame occurrences. They exist because the alternative is what happened: a rail thumb that
  * resized while a reader scrolled was diagnosed four times from descriptions, and every guess made it worse, because
  * nothing recorded what the view did between one frame and the next.
  */
@@ -11,7 +11,7 @@ import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/blips.js";
 
 /** A view measured its own scroll geometry and the raw answer moved, before any quantisation. `value` is the thumb's
  *  size as a fraction of the rail; `rendered` says whether the change was big enough to redraw the thumb, so the
- *  revisions quantisation absorbs are visible too, which is exactly the micro-movement a smoothness problem is made of. */
+ *  revisions quantisation absorbs are visible too, which is the micro-movement a smoothness problem is made of. */
 export const VIEW_THUMB_BLIP = "haibun.shu.view.thumb_resize";
 
 /** A view's scroll position changed. `value` is the distance in pixels, signed, so a correction reads as one. */

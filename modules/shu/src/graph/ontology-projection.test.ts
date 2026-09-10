@@ -19,12 +19,12 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: string, from: string, to: string): boolean =>
 	quads.some((q) => q.predicate === predicate && q.subject === from && q.object === to && q.objectType !== undefined);
 
-describe("ontologyToQuads — the schema rendered as a graph", () => {
+describe("ontologyToQuads: the schema rendered as a graph", () => {
 	it("emits the directional role hierarchy as subPropertyOf edges (performedBy → fromActor → inRoleOf)", () => {
 		const { quads, clusters } = ontologyToQuads();
 		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "performedBy", "fromActor")).toBe(true);
 		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "fromActor", "inRoleOf")).toBe(true);
-		// toActor has no concrete CORE rel — consumers declare theirs against it; the upper pointer itself is projected
+		// toActor has no concrete CORE rel, consumers declare theirs against it; the upper pointer itself is projected
 		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "toActor", "inRoleOf")).toBe(true);
 		// the abstract super-properties are nodes in the Property cluster (the interesting structure)
 		const props = clusters.find((c) => c.type === ONTOLOGY_PROPERTY);
@@ -36,7 +36,7 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 		const abstractOf = (rel: string): boolean => quads.some((q) => q.subject === rel && q.predicate === ONTOLOGY_PRED.abstract && q.object === true);
 		expect(abstractOf("inRoleOf")).toBe(true);
 		expect(abstractOf("fromActor")).toBe(true);
-		expect(abstractOf("performedBy")).toBe(false); // concrete — a real written edge label
+		expect(abstractOf("performedBy")).toBe(false); // concrete: a real written edge label
 	});
 
 	it("emits a class node per persisted type with its subClassOf superclass (Principal → prov:Agent)", () => {
@@ -54,7 +54,7 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 		expect(clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledCount).toBe(0);
 	});
 
-	it("carries a domain (rdfs:domain) on a property a type declares — the instances-drill routing (and none for an abstract super-property)", () => {
+	it("carries a domain (rdfs:domain) on a property a type declares: the instances-drill routing (and none for an abstract super-property)", () => {
 		const domains = { p: principalDomainDefinition as unknown as TRegisteredDomain };
 		// delegatedFrom is an edge Principal declares, so its rdfs:domain includes Principal.
 		expect(typesDeclaringRel(domains, LinkRelations.DELEGATED_FROM.rel)).toContain("Principal");
@@ -66,7 +66,7 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 		expect(typesDeclaringRel(domains, LinkRelations.IN_ROLE_OF.rel)).toEqual([]);
 	});
 
-	it("carries a range (rdfs:range) on each edge — the class it points at, so the ontology reads class→property→class", () => {
+	it("carries a range (rdfs:range) on each edge: the class it points at, so the ontology reads class→property→class", () => {
 		const domains = {
 			w: {
 				topology: {
@@ -85,7 +85,7 @@ describe("ontologyToQuads — the schema rendered as a graph", () => {
 	});
 });
 
-describe("pruneOntologyToUse — the served schema is the part the data exercises", () => {
+describe("pruneOntologyToUse: the served schema is the part the data exercises", () => {
 	const schemaTerm: TQuad = { subject: "VerifiableCredential", predicate: ONTOLOGY_PRED.name, object: "VerifiableCredential", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
 	const superTerm: TQuad = {
 		subject: "VerifiableCredential",
@@ -107,7 +107,7 @@ describe("pruneOntologyToUse — the served schema is the part the data exercise
 		],
 	};
 
-	it("keeps a used Class (and its superclass) plus a used Property; drops a never-instantiated term — the evidence is the full data, so a types-narrowed request still receives the pruned schema", () => {
+	it("keeps a used Class (and its superclass) plus a used Property; drops a never-instantiated term: the evidence is the full data, so a types-narrowed request still receives the pruned schema", () => {
 		const pruned = pruneOntologyToUse(ontology, [instance]);
 		const subjects = pruned.quads.map((q) => q.subject);
 		expect(subjects).toContain("VerifiableCredential"); // its instance exercises it
@@ -125,7 +125,7 @@ describe("pruneOntologyToUse — the served schema is the part the data exercise
 	});
 });
 
-describe("withOntologySchema — the schema travels with the response (live and offline alike)", () => {
+describe("withOntologySchema: the schema travels with the response (live and offline alike)", () => {
 	const domains = { p: principalDomainDefinition as unknown as TRegisteredDomain };
 	const instance: TQuad = { subject: "did:x", predicate: "delegatedFrom", object: "did:y", namedGraph: "Principal", timestamp: 5 };
 	const response = { quads: [instance], clusters: [{ type: "Principal", totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["did:x"], displayLabels: {} }] };
@@ -152,7 +152,7 @@ describe("withOntologySchema — the schema travels with the response (live and 
 	});
 });
 
-describe("scopeSchemaToType — one type's own vocabulary", () => {
+describe("scopeSchemaToType: one type's own vocabulary", () => {
 	const q = (subject: string, predicate: string, object: string, graph: string, objectType?: string): TQuad => ({
 		subject,
 		predicate,
@@ -185,17 +185,17 @@ describe("scopeSchemaToType — one type's own vocabulary", () => {
 	});
 });
 
-describe("propertyVocabulary — a property's provenance from its IRI", () => {
+describe("propertyVocabulary: a property's provenance from its IRI", () => {
 	it("classifies haibun's own prefixes and namespace as haibun", () => {
 		expect(propertyVocabulary("hbn:accessLevel")).toEqual({ source: "haibun", prefix: "haibun" });
 		expect(propertyVocabulary(`${HAIBUN_NS}seqPath`)).toEqual({ source: "haibun", prefix: "haibun" });
 		expect(isHaibunTerm("hbn:accessLevel")).toBe(true);
 	});
-	it("classifies every other vocabulary by its own prefix — standards and consumer vocabularies alike, no closed set", () => {
+	it("classifies every other vocabulary by its own prefix, standards and consumer vocabularies alike, no closed set", () => {
 		expect(propertyVocabulary("cred:issuer")).toEqual({ source: "standard", prefix: "cred" });
 		expect(propertyVocabulary("prov:generatedAtTime")).toEqual({ source: "standard", prefix: "prov" });
 		expect(propertyVocabulary("as:name").source).toBe("standard");
-		// a consumer's own sub-vocabulary is NOT haibun's — it is identified by its own prefix, not hardcoded anywhere.
+		// a consumer's own sub-vocabulary is NOT haibun's: it is identified by its own prefix, not hardcoded anywhere.
 		expect(propertyVocabulary("ex:SomeType")).toEqual({ source: "standard", prefix: "ex" });
 		expect(isHaibunTerm("sec:proof")).toBe(false);
 	});
@@ -207,7 +207,7 @@ const catDomain = (persistedAs: string, subClassOf?: string): TRegisteredDomain 
 		schema: { parse: (v: unknown) => v },
 	}) as unknown as TRegisteredDomain;
 
-describe("category designation — read off the standard subClassOf axioms", () => {
+describe("category designation, read off the standard subClassOf axioms", () => {
 	it("stamps each class with its PROV/SOSA anchor category, defaulting to artifact, and the meta class carries its own", () => {
 		const { quads } = ontologyToQuads({ a: catDomain("Party", "prov:Agent"), b: catDomain("Verification", "prov:Activity"), c: catDomain("Credential") });
 		const cat = (cls: string): unknown => quads.find((q) => q.subject === cls && q.predicate === ONTOLOGY_PRED.category)?.object;

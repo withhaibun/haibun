@@ -69,8 +69,8 @@ describe("LspStepper Background Updates", () => {
 		(activitiesStepper as any).setWorld(mockWorld, steppers);
 
 		// Pass empty backgrounds initially (as if loading from scratch)
-		// or pass one if we simulate startup.
-		// LspStepper should detect it regardless due to our fixes.
+		// or pass one when simulating startup.
+		// LspStepper should detect it regardless after the fix.
 		const backgrounds: TFeature[] = [];
 
 		const lsp = new LspStepper(mockConnection, steppers, backgrounds);
@@ -78,7 +78,7 @@ describe("LspStepper Background Updates", () => {
 		// 1. Process initial background
 		const doc1 = TextDocument.create(bgUri, "haibun", 1, bgContent1);
 
-		// We can access private `processDocument` using casting
+		// The private `processDocument` is reached by casting
 		// biome-ignore lint/suspicious/noExplicitAny: access private
 		await (lsp as any).processDocument(doc1);
 

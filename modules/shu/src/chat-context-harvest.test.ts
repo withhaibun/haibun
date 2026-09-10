@@ -13,7 +13,7 @@ function view(tag: string, summary: unknown | null): TView {
 }
 
 /** A pane whose `label` doubles as its columnKey (its identity in the `activePane` signal), so a test marks it active
- *  by `activePane.set(label)` — the one source of truth the harvester reads, mirroring the real strip. */
+ *  by `activePane.set(label)`: the one source of truth the harvester reads, mirroring the real strip. */
 function pane(label: string | null, ...children: Element[]): HTMLElement {
 	const p = document.createElement("shu-column-pane");
 	if (label) {
@@ -24,7 +24,7 @@ function pane(label: string | null, ...children: Element[]): HTMLElement {
 	return p;
 }
 
-describe("harvestChatViewLd — the active pane's linked data plus the pane manifest", () => {
+describe("harvestChatViewLd: the active pane's linked data plus the pane manifest", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		activePane.set(null);
@@ -36,7 +36,7 @@ describe("harvestChatViewLd — the active pane's linked data plus the pane mani
 		document.body.appendChild(strip);
 	}
 
-	it("harvests the pane marked [active] — never a positional index — and appends the manifest of every pane", () => {
+	it("harvests the pane marked [active], never a positional index, and appends the manifest of every pane", () => {
 		const a = pane("first", view("shu-entity-column", { "@id": "e1" }));
 		const b = pane("second", view("shu-document-column", { "@id": "d1" }));
 		activePane.set("second");
@@ -62,7 +62,7 @@ describe("harvestChatViewLd — the active pane's linked data plus the pane mani
 		activePane.set("graph");
 		mount(p);
 		const blocks = harvestChatViewLd();
-		// The host's summary only — the nested scene is the host's own concern.
+		// The host's summary only: the nested scene is the host's own concern.
 		expect(blocks.filter((b) => (b as { "@id"?: string })["@id"] === "graph")).toHaveLength(1);
 		expect(blocks.filter((b) => (b as { "@id"?: string })["@id"] === "scene")).toHaveLength(0);
 	});
@@ -85,12 +85,12 @@ describe("harvestChatViewLd — the active pane's linked data plus the pane mani
  * Reported: the Ask pane says nothing is selected while a column view is plainly selected on screen.
  *
  * The harvester resolves the active pane by matching `activePane` against each pane's key. When the signal holds a key
- * no open pane has — never set for this strip, or naming a pane that has since closed — nothing matches. Harvesting
+ * no open pane has, never set for this strip, or naming a pane that has since closed, nothing matches. Harvesting
  * anyway produced a manifest with every pane inactive and no content, which is what the model reported. With panes
  * open one of them is the pane you are on, so this is a fault in the signal and it says so, naming what it holds and
  * what was open.
  */
-describe("harvestChatViewLd — an active pane the signal cannot resolve", () => {
+describe("harvestChatViewLd: an active pane the signal cannot resolve", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		activePane.set(null);

@@ -1,5 +1,5 @@
 /**
- * Urakata — out-of-band step execution that lives outside the feature flow.
+ * Urakata: out-of-band step execution that lives outside the feature flow.
  *
  * Tickers register here instead of each stepper rolling its own setInterval /
  * AbortController. The registry:
@@ -12,7 +12,7 @@
  *   - stops everything on endFeature(shouldClose) and process signals.
  *
  * Implementing steppers expose IUrakataTicker classes that carry their own state
- * and a tick method — the registry composes them. A long-lived task is a ticker
+ * and a tick method: the registry composes them. A long-lived task is a ticker
  * whose tick blocks (honouring the signal) until there is work or the signal fires.
  *
  * State is derived, never stored as a claim about the present: a live entry with
@@ -32,7 +32,7 @@ export const URAKATA = "urakata";
 export const URAKATA_ID_DOMAIN = "urakata-id";
 /** Persisted label for a task's transition record. Individuals are upserted by id, so one row reflects the latest transition; history lives in the event stream. */
 export const URAKATA_LABEL = "Urakata";
-/** A persistently failing ticker persists its first error, then every Nth — errorCount stays exact in memory and is persisted precisely at stop. */
+/** A persistently failing ticker persists its first error, then every Nth, errorCount stays exact in memory and is persisted exactly at stop. */
 export const URAKATA_ERROR_PERSIST_EVERY = 10;
 
 export const UrakataSchema = z.object({
@@ -45,14 +45,14 @@ export const UrakataSchema = z.object({
 	lastTickAt: z.string().optional(),
 	tickIndex: z.number(),
 	errorCount: z.number(),
-	/** Set once, when the task is cleanly stopped. Its absence is what "running" means; a killed process leaves it absent, which reads as "ran, not cleanly stopped" — never as a false "running". */
+	/** Set once, when the task is cleanly stopped. Its absence is what "running" means; a killed process leaves it absent, which reads as "ran, not cleanly stopped", never as a false "running". */
 	stoppedAt: z.string().optional(),
 	/** The universal record-time field every persisted type carries. */
 	generatedAtTime: z.coerce.date().default(() => new Date()),
 });
 export type TUrakata = z.infer<typeof UrakataSchema>;
 
-/** Runtime-valued domain — SPA pulls current ids via getSelectValues so step parameters get a dropdown. */
+/** Runtime-valued domain, SPA pulls current ids via getSelectValues so step parameters get a dropdown. */
 export const urakataIdDomainDefinition: TDomainDefinition = {
 	selectors: [URAKATA_ID_DOMAIN],
 	schema: z.string().min(1),
@@ -114,10 +114,10 @@ export class UrakataRegistry implements IUrakataRegistry {
 	}
 
 	/**
-	 * Materialize a task's current state as a persisted individual (upsert by id). Transitions only — registration, a
-	 * stop, an error-count change — never per tick. Writes through the store behind world.shared, so the built-in
+	 * Materialize a task's current state as a persisted individual (upsert by id). Transitions only, registration, a
+	 * stop, an error-count change, never per tick. Writes through the store behind world.shared, so the built-in
 	 * in-memory store works for tests and a registered backing makes it durable. A persistence failure is surfaced,
-	 * not swallowed, and never breaks the task.
+	 * not discarded, and never breaks the task.
 	 */
 	private persist(urakata: TUrakata): void {
 		const store = this.world.shared?.getStore();
@@ -166,7 +166,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 					this.onTickError(spec.id, tickSeqPath, new Error(`urakata "${spec.id}" tick exceeded ${spec.tickTimeoutMs}ms`));
 					if (urakata.errorCount === 1 || urakata.errorCount % URAKATA_ERROR_PERSIST_EVERY === 0) this.persist(urakata);
 					controller.abort();
-					// Await the tick's actual settlement (settled never rejects — its body is fully caught; the abort ends as
+					// Await the tick's actual settlement (settled never rejects: its body is fully caught; the abort ends as
 					// a normal settle) so the next tick never overlaps the aborted one. The single error above is the tick's
 					// one recorded outcome.
 					await settled;

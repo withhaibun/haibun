@@ -130,7 +130,7 @@ export function buildGraphTopology(quads: TQuad[], opts: TGraphViewOpts, classif
 		if (collapsed) {
 			const id = `${graph}${SUMMARY_SUFFIX}`;
 			nodeIds.add(id);
-			nodes.push({ id, label: graph, hint: `${total} items — click to expand`, kind: graph, group: graph });
+			nodes.push({ id, label: graph, hint: `${total} items, click to expand`, kind: graph, group: graph });
 			for (const [subject, sq] of subjects)
 				for (const q of sq) {
 					const to = resolveTarget(q, subject);

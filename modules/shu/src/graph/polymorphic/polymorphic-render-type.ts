@@ -1,17 +1,17 @@
-// The polymorphic's render-type subsystem: the view's `viewType` union promoted into a pluggable RenderType — one object per
+// The polymorphic's render-type subsystem: the view's `viewType` union promoted into a pluggable RenderType: one object per
 // layout (force/td/lr, gantt, sequence) that owns BOTH sides of every layout-mode dispatch, so the force config and the
 // node placement can never disagree about where a node goes. The component holds a Map<id, RenderType> + the active one;
 // switching type swaps the active object, re-layouts, re-frames.
 //
-// THE CRUX (3D views): a node's force lane target (the groupX/groupY pull) and its data-assigned z BOTH read ONE method —
-// lanePlacement(id) — so the two cannot diverge mid-settle (the "node teleports while the layout is still settling"
+// THE CRUX (3D views): a node's force lane target (the groupX/groupY pull) and its data-assigned z BOTH read ONE method:
+// lanePlacement(id): so the two cannot diverge mid-settle (the "node teleports while the layout is still settling"
 // failure). A gantt RenderType returns {y, z} from its placement cache; the force-family RenderTypes return undefined (no
 // lane: the layout owns x/y, z is the recorded-time depth). polymorphic-render-type.test.ts pins this.
 //
-// THE SEQUENCE: a sequence diagram is gantt rotated 90° — participants are lanes, time is the SAME z axis gantt uses, and
+// THE SEQUENCE: a sequence diagram is gantt rotated 90°, participants are lanes, time is the SAME z axis gantt uses, and
 // each participant is a lifeline (a pillar along z). So SequenceRenderType is a 3D peer of gantt: it returns its {y,z}
 // lanePlacement from a cached pure layout (mapGraphToSeqLayout) and suppresses the generic grouping (its lifelines ARE the
-// grouping). It also exposes seqModel()/seqLayout() — the actors + messages and the lane placement — for inspect()/tests.
+// grouping). It also exposes seqModel()/seqLayout(), the actors + messages and the lane placement, for inspect()/tests.
 //
 // Wired the same way as PolymorphicCamera / DataPipeline: each RenderType is constructed with accessor deps read at CALL
 // time, so the component's per-repaint layout-target caches (ganttTargets) stay current behind a getter.
@@ -27,7 +27,7 @@ import { VIEW, type ViewType, REFRAME, type ReframeMode, FRAME, type FrameMove }
 export type ControlsFragment = TemplateResult | typeof nothing;
 
 /** Context a render type's `controls()` reads to build its OWN control fragment. No view today adds controls of its own
- *  (a sequence is actors + messages — nothing to toggle), so this is empty; kept as the extension point. */
+ *  (a sequence is actors + messages: nothing to toggle), so this is empty; kept as the extension point. */
 export type RenderTypeControlsCtx = Record<string, never>;
 
 /** A node's pinned target: the {x,y} the groupX/groupY force pulls it to, plus the z it is placed on when the view sets
@@ -47,7 +47,7 @@ export type RenderTypeDeps = {
 };
 
 /** The data the SequenceRenderType reads to derive its actors/messages + lane layout: the visible graph (nodes + edges,
- *  with each node's folded role + recorded time), the human form of an edge predicate, and the display label for a
+ *  with each node's merged role + recorded time), the human form of an edge predicate, and the display label for a
  *  participant id. Read at CALL time so the layout reflects the current model. */
 export type SeqRenderDeps = {
 	seqNodes: () => ReadonlyArray<SeqNode>;
@@ -58,7 +58,7 @@ export type SeqRenderDeps = {
 /** The layout options a view overrides while active. */
 export type TViewForces = { grouped?: boolean; flatten?: boolean; labelAsZ?: boolean };
 
-/** What a LANE view (gantt, sequence) settles: its bars are its grouping, its axis is time — so grouping into container
+/** What a LANE view (gantt, sequence) settles: its bars are its grouping, its axis is time, so grouping into container
  *  cells, flattening that axis, and labelling a chip with its depth all belong to the free views, not here. */
 const LANE_FORCES: TViewForces = { grouped: false, flatten: false, labelAsZ: false };
 
@@ -67,7 +67,7 @@ export interface RenderType {
 	readonly viewType: ViewType;
 	/** The camera aim queued on entering this view-type. */
 	reframeMode(): ReframeMode;
-	/** The framing the fit button re-establishes while this view is active — view-relative fit. */
+	/** The framing the fit button re-establishes while this view is active, view-relative fit. */
 	fitMove(): FrameMove;
 	/** THE shared source: the force lane target AND the node-z come from this one call, so they can't diverge. */
 	lanePlacement(id: string): LanePlacement | undefined;
@@ -75,15 +75,15 @@ export interface RenderType {
 	markTime(id: string): MarkTime | undefined;
 	/** Does a node drag reschedule along the time z (gantt), or move the node in the x/y plane (everything else)? */
 	readonly dragReschedules: boolean;
-	/** Time reads left to right in this view — z is the calendar axis and the camera faces the lane plane, so any
+	/** Time reads left to right in this view, z is the calendar axis and the camera faces the lane plane, so any
 	 *  other medium showing this view (the SVG still) faces it too. */
 	readonly timeIsHorizontal: boolean;
-	/** Gantt folds the time z into the model hash (a reschedule moves bars without touching nodes/links). */
+	/** Gantt mixes the time z into the model hash (a reschedule moves bars without touching nodes/links). */
 	readonly hashFoldsZ: boolean;
 	/** This view is built on ACTORS: it draws a bar per actor, so the actor types must be shown for it to read at all. */
 	readonly needsActors: boolean;
 	/** The layout options this view OVERRIDES while it is active. A lane view draws on a time axis and its bars are its
-	 *  grouping, so a remembered "grouped" or "flatten" choice does not apply — it would place nodes in container cells
+	 *  grouping, so a remembered "grouped" or "flatten" choice does not apply: it would place nodes in container cells
 	 *  or collapse the very axis the view reads along. Declared here so choosing the view settles the conflict once,
 	 *  rather than each consumer remembering which options a view can't honour. */
 	readonly forces: TViewForces;
@@ -101,7 +101,7 @@ export interface RenderType {
 	/** The structural flow this view lays out along, for inspect() and its tests: which way the ranks read and which
 	 *  axis they advance on. null = the view is not a layered flow. */
 	layeredFlow(): { direction: "td" | "lr"; flowAxis: "x" | "y" } | null;
-	/** A LANE view (gantt) IS its own grouping — the lanes are the axis — so the generic group/group-by controls and the
+	/** A LANE view (gantt) IS its own grouping, the lanes are the axis, so the generic group/group-by controls and the
 	 *  role/type enclosure boxes don't apply: true suppresses them while this view is active. The 2D sequence likewise
 	 *  suppresses them (it has no 3D enclosures at all). */
 	readonly suppressesGrouping: boolean;
@@ -109,7 +109,7 @@ export interface RenderType {
 	controls(ctx: RenderTypeControlsCtx): ControlsFragment;
 	/** The actors + messages model for inspect()/tests (the sequence's protocol read). Present only on the sequence view. */
 	seqModel?(): TSeqModel;
-	/** The 3D sequence layout (participant lanes + per-node placement) — the pillars, framing extent, and inspect read it.
+	/** The 3D sequence layout (participant lanes + per-node placement): the pillars, framing extent, and inspect read it.
 	 *  Present only on the sequence view. */
 	seqLayout?(): SeqLayout;
 }
@@ -121,7 +121,7 @@ abstract class BaseRenderType implements RenderType {
 		return REFRAME.front;
 	}
 	/** A lane view has ONE canonical frame, so its aim IS its fit; the force family has no canonical aim, so fit keeps
-	 *  the user's orbit and re-frames the bounds. Derived from `reframeMode` — the rule is stated once, for every view. */
+	 *  the user's orbit and re-frames the bounds. Derived from `reframeMode`: the rule is stated once, for every view. */
 	fitMove(): FrameMove {
 		const aim = this.reframeMode();
 		return aim === REFRAME.front ? FRAME.fit : aim;
@@ -146,7 +146,7 @@ abstract class BaseRenderType implements RenderType {
 	readonly dragReschedules: boolean = false;
 	readonly timeIsHorizontal: boolean = false;
 	readonly hashFoldsZ: boolean = false;
-	/** Grouping controls are offered unless the view forces grouping off — the same declaration, read for the controls. */
+	/** Grouping controls are offered unless the view forces grouping off: the same declaration, read for the controls. */
 	get suppressesGrouping(): boolean {
 		return this.forces.grouped === false;
 	}
@@ -166,8 +166,8 @@ export class ForceRenderType extends BaseRenderType {
 }
 
 /** td / lr: a layered (Sugiyama) structural flow. The pure layeredPositions over the visible model gives each node a
- *  pinned {x,y} the cohesion force holds it at — recomputed only when the visible-node array reference changes (a repaint
- *  hands a fresh array), the same caching the sequence uses — so per-node lanePlacement reads are cheap. z stays the
+ *  pinned {x,y} the cohesion force holds it at, recomputed only when the visible-node array reference changes (a repaint
+ *  hands a fresh array), the same caching the sequence uses, so per-node lanePlacement reads are fast. z stays the
  *  recorded-time depth, so the flow reads structurally in x/y while time reads in depth (the option can still flatten it). */
 export class LayeredRenderType extends BaseRenderType {
 	constructor(
@@ -188,7 +188,7 @@ export class LayeredRenderType extends BaseRenderType {
 			const direction: LayeredDirection = this.viewType === VIEW.td ? "TB" : "LR";
 			const named = nodes.map((n) => ({ id: n.id, label: truncateLabel(n.displayLabel ?? n.id) })); // bound the label so nodeWidth can't fan a layer out
 			const raw = layeredPositions(named, this.modelDeps.seqEdges(), direction);
-			// Stretch the rank axis UP TO LAYERED_MIN_FLOW_SPAN so the hierarchy clears the time-depth — but only upward: a
+			// Stretch the rank axis UP TO LAYERED_MIN_FLOW_SPAN so the hierarchy clears the time-depth, but only upward: a
 			// DAG already taller than that keeps its natural spacing, and a wide left-right flow isn't blown up.
 			const flowOf = (p: { x: number; y: number }): number => (direction === "TB" ? p.y : p.x);
 			const flows = [...raw.values()].map(flowOf);
@@ -209,7 +209,7 @@ export class LayeredRenderType extends BaseRenderType {
 	}
 }
 
-/** gantt: tasks placed on the calendar — y = lane row, z = bar centre on the linear time axis; a drag reschedules. */
+/** gantt: tasks placed on the calendar, y = lane row, z = bar centre on the linear time axis; a drag reschedules. */
 export class GanttRenderType extends BaseRenderType {
 	readonly viewType = VIEW.gantt;
 	override reframeMode(): ReframeMode {
@@ -236,7 +236,7 @@ export class GanttRenderType extends BaseRenderType {
 	}
 }
 
-/** sequence: a 3D sequence diagram aligned with gantt — participants are lanes on y, time is the SHARED z axis (the same
+/** sequence: a 3D sequence diagram aligned with gantt, participants are lanes on y, time is the SHARED z axis (the same
  *  z=time gantt uses), each participant a vertical lifeline (pillar along z) with its events on it at their time and
  *  cross-participant edges as the messages. Reuses gantt's {y,z} placement (so the force lane-y and the node-z agree)
  *  and the lane-plane framing, rolled 90° so participants read across the top and time reads downward. The pure
@@ -260,7 +260,7 @@ export class SequenceRenderType extends BaseRenderType {
 	private cacheRef?: ReadonlyArray<SeqNode>;
 	private cached?: SeqLayout;
 	/** The 3D layout (participants→lanes, events→time on z), recomputed only when the visible-node array reference changes
-	 *  (a repaint hands a fresh array), so per-node lanePlacement reads are cheap. */
+	 *  (a repaint hands a fresh array), so per-node lanePlacement reads are fast. */
 	seqLayout(): SeqLayout {
 		const nodes = this.seqDeps.seqNodes();
 		if (this.cacheRef !== nodes || !this.cached) {
@@ -273,7 +273,7 @@ export class SequenceRenderType extends BaseRenderType {
 		return this.seqLayout().placement.get(id);
 	}
 	/** A participant's lifeline IS a gantt duration bar: its active-window span drives the SAME box mark gantt uses (zExtent
-	 *  = window length), so markFor emits a box for a participant and a point-in-time chip for an artifact — no bespoke shape. */
+	 *  = window length), so markFor emits a box for a participant and a point-in-time chip for an artifact: no bespoke shape. */
 	override markTime(id: string): MarkTime | undefined {
 		const s = this.seqLayout().spans.get(id);
 		return s ? { start: s.z0, end: s.z1, zExtent: Math.abs(s.z1 - s.z0) } : undefined;

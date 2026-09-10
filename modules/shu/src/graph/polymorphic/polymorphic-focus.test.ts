@@ -1,6 +1,6 @@
 /**
  * The glow a freshly-streamed node wears: seeded at arrival, breathing on the shared rhythm, gone after its first
- * moments — unless the reader made the newcomer the active node, whose glow the selection owns for as long as it is
+ * moments: unless the reader made the newcomer the active node, whose glow the selection owns for as long as it is
  * active. Driven through updateHighlight, the same per-frame pass the active node's breath rides.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";

@@ -26,7 +26,7 @@ export function configureForces(graph: ForceConfigurable, ctx: ForceContext): vo
 	const { grouped } = ctx;
 	const charge = graph.d3Force("charge");
 	// Grouped: softer repulsion, so each group settles into a compact disc the ring layout's footprint estimate
-	// matches — full-strength charge inflates the discs ~3× and the enclosure boxes overlap.
+	// matches: full-strength charge inflates the discs ~3× and the enclosure boxes overlap.
 	if (charge && typeof charge === "object" && "strength" in charge) (charge as { strength: (fn: () => number) => unknown }).strength(() => (grouped ? GROUPED_CHARGE : CHARGE));
 	graph.d3Force("collide", collideForce());
 	// Grouping wins over the wiring: cross-group links (hundreds of seqPath/audience edges) would otherwise drag whole
@@ -40,7 +40,7 @@ export function configureForces(graph: ForceConfigurable, ctx: ForceContext): vo
 		const defaultLinkStrength = linkForce.strength();
 		linkForce.strength((l, i, all) => (grouped || ctx.suppressesGrouping ? GROUPED_LINK_STRENGTH : defaultLinkStrength(l, i, all)));
 		// Rest length sized to clear both endpoints' labels (collide half-widths) plus a pad, so the spring's target
-		// matches collision instead of fighting it — connected nodes settle close and edges read short, not stretched.
+		// matches collision instead of opposing it, connected nodes settle close and edges read short, not stretched.
 		const endRadius = (e: FGLink["source"]): number => {
 			const n = ctx.nodeMap.get(linkEndId(e));
 			return n ? collideRadius(n) : 0;

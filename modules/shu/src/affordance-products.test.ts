@@ -54,7 +54,7 @@ describe("parseAffordanceProduct", () => {
 
 	it("is not an affordance just because it is a record: a bare individual states what it is, not what to open", () => {
 		// Every projected record carries a type and an identifier, so reading those as an instruction made every step
-		// that answered with a record open a column — including the reads a view makes to render itself.
+		// that answered with a record open a column, including the reads a view makes to render itself.
 		const product = { [HYPERMEDIA.TYPE]: "Email", id: "email-42", [HYPERMEDIA.SUMMARY]: "Inbox: Subject" };
 		expect(parseAffordanceProduct(product)).toEqual({ kind: "none" });
 	});
@@ -79,7 +79,7 @@ describe("parseAffordanceProduct", () => {
  *
  * If a future change adds a `show*` step with a different product shape, this
  * test fails until the new shape is either fixed or the contract is broadened
- * with a new action kind. That's the point — these are the SPA's view-opening
+ * with a new action kind. That's the point: these are the SPA's view-opening
  * affordances, and any drift here means the SPA can't open them.
  */
 describe("show* steps declare a productsDomain whose ui.component opens the view consistently", () => {

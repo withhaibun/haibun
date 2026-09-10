@@ -1,12 +1,12 @@
 /**
- * Backend-neutral graph-scene vocabulary — the hand-off between per-@type presenters (which decide a node's SEMANTICS:
+ * Backend-neutral graph-scene vocabulary: the hand-off between per-@type presenters (which decide a node's SEMANTICS:
  * what mark, what colour/label, where it sits) and the paints (3D, SVG) that draw it in their own medium. One
  * vocabulary so the two renders cannot drift, so a new type is a new presenter (one method) and a new backend is a new
  * paint (one translator). Pure + fail-fast validated: a malformed mark/role throws at this boundary rather than letting
- * a paint render garbage. No THREE, no DOM — unit-tested headlessly.
+ * a paint render garbage. No THREE, no DOM, unit-tested headlessly.
  */
 
-/** The visual marks a node can be drawn as. EVERY paint must handle each kind it's given, or throw — never skip silently. */
+/** The visual marks a node can be drawn as. EVERY paint must handle each kind it's given, or throw, never skip silently. */
 export const MARK_KINDS = ["chip", "square", "lozenge", "box", "image", "mesh", "marker"] as const;
 export type MarkKind = (typeof MARK_KINDS)[number];
 
@@ -20,8 +20,8 @@ export type LayoutRole =
 	| { kind: "xyz"; x: number; y: number; z: number }; // explicit 3D coordinates
 
 /** A node's presentation, medium-agnostic: the mark + its colour/label + its layout role. `zExtent` is the mark's
- *  length along the layout axis (a calendar bar's duration, in world units) — required for, and only used by, "box".
- *  `image` is the source URL — required for, and only used by, "image". */
+ *  length along the layout axis (a calendar bar's duration, in world units), required for, and only used by, "box".
+ *  `image` is the source URL, required for, and only used by, "image". */
 export type NodeMark = {
 	id: string;
 	type: string;
@@ -32,14 +32,14 @@ export type NodeMark = {
 	isCluster?: boolean;
 	zExtent?: number;
 	image?: string;
-	/** Drawn ghosted (reduced opacity) — a schema Property a standard vocabulary declares but the type's data never uses,
+	/** Drawn ghosted (reduced opacity): a schema Property a standard vocabulary declares but the type's data never uses,
 	 *  so the full vocabulary reads as present-vs-declared at a glance, not only on hover. */
 	faint?: boolean;
 };
 
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 
-/** Fail-fast validation of a layout role — a bad role is a programming error in a presenter, surfaced here. */
+/** Fail-fast validation of a layout role: a bad role is a programming error in a presenter, surfaced here. */
 export function assertLayoutRole(r: LayoutRole, id: string): LayoutRole {
 	switch (r.kind) {
 		case "free":
@@ -59,7 +59,7 @@ export function assertLayoutRole(r: LayoutRole, id: string): LayoutRole {
 	return r;
 }
 
-/** Fail-fast validation of a presenter's mark — returns it so a presenter can `return assertNodeMark({...})`. */
+/** Fail-fast validation of a presenter's mark, returns it so a presenter can `return assertNodeMark({...})`. */
 export function assertNodeMark(m: NodeMark): NodeMark {
 	if (!MARK_KINDS.includes(m.kind)) throw new Error(`NodeMark ${m.id}: unknown kind "${m.kind}"`);
 	if (!m.color) throw new Error(`NodeMark ${m.id}: missing color`);

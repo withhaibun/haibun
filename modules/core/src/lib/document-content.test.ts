@@ -177,7 +177,7 @@ describe("generateDocumentMarkdown", () => {
 		};
 		const parsedFeature = LifecycleEvent.parse(featureInput);
 		const parsedScenario = LifecycleEvent.parse(scenarioInput);
-		// Simulate getEvents serialization — only specific fields are passed through
+		// Simulate getEvents serialization, only specific fields are passed through
 		const serialized = [parsedFeature, parsedScenario].map(({ kind, level, timestamp, id, ...rest }) => {
 			const r = rest as Record<string, unknown>;
 			return { kind, level, timestamp, id, type: r.type, stage: r.stage, featurePath: r.featurePath, featureName: r.featureName, scenarioName: r.scenarioName };
@@ -224,7 +224,7 @@ describe("generateDocumentMarkdown", () => {
 
 	it("emits a fillable holder for a technical step's artifacts regardless of event order", () => {
 		// The step claims its artifacts; without a holder div an artifact event that arrives AFTER the step's end would be
-		// claimed and then rendered nowhere (the standalone branch skips claimed ids) — visibility must not depend on order.
+		// claimed and then rendered nowhere (the standalone branch skips claimed ids), visibility must not depend on order.
 		const step = (stage: string, ts: number) =>
 			({ id: "0.1.2", timestamp: ts, source: "h", level: "log", kind: "lifecycle", stage, type: "step", status: "passed", in: "take a screenshot" }) as unknown as THaibunEvent;
 		const image = (ts: number) =>

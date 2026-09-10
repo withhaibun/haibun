@@ -1,5 +1,5 @@
 /**
- * ResourcesStepper — generic graph-resource steps.
+ * ResourcesStepper: generic graph-resource steps.
  *
  * Owns the discourse acts over any graph resource: `comment on …`, the `annotate …` family (quoting a passage, linking
  * one passage to another, or anchoring with surrounding context) and the `get annotations for …` read.
@@ -238,7 +238,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		annotateLinking: {
 			// `linking` sits right after the id (before `quoting`) so the plain `annotate … quoting …` gwta cannot also
-			// match this prose — the two steps stay unambiguous.
+			// match this prose: the two steps stay unambiguous.
 			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} linking {exact: string} to {linkExact: string} with {text: string}`,
 			productsSchema: AnnotationCreatedSchema,
 			action: async ({ label, id, exact, linkExact, text }: { label: string; id: string; exact: string; linkExact: string; text: string }) =>
@@ -246,7 +246,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		annotateAnchored: {
 			// The quote's surrounding text as one TextQuoteSelector context, its side given by {placement}: "preceded by"
-			// makes the context the prefix, "followed by" makes it the suffix — so a short or repeated quote resolves to the
+			// makes the context the prefix, "followed by" makes it the suffix, so a short or repeated quote resolves to the
 			// intended occurrence. `anchoring` sits right after the id (a distinct keyword from `quoting`/`linking`) to keep
 			// the three annotate prose forms unambiguous.
 			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} anchoring {exact: string} {placement: ${ANNOTATION_PLACEMENT_DOMAIN}} {context: string} with {text: string}`,
@@ -268,7 +268,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			}) => this.runAnnotate({ label, id, exact, ...(placement === "preceded by" ? { prefix: context } : { suffix: context }), text }),
 		},
 		annotateNote: {
-			// The composite form: passage, note, meaningful time, and cross-reference links in one value — for notes the
+			// The composite form: passage, note, meaningful time, and cross-reference links in one value, for notes the
 			// prose forms cannot express (a dated milestone that also links the other clauses it touches). `at` dates the
 			// note at the time it is ABOUT, so time-placed views (gantt) show it there; each link renders as a followable
 			// cross-reference in the document.
@@ -284,9 +284,9 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const store = this.getWorld().shared.getStore();
 				// Reverse-walk the W3C Web Annotation chain from the annotated individual with LABEL-SCOPED bulk reads, then
 				// join them in memory. An unscoped or per-note quad query on a property-graph store reloads every type and
-				// every body — including this document's own — so the naive walk costs note-count × document-size; this is a
-				// fixed handful of scoped reads instead. SpecificResource —hasSource→ id, —hasSelector→ TextQuoteSelector;
-				// Comment —hasTarget→ SpecificResource, optionally —linksTo→ another SpecificResource.
+				// every body, including this document's own, so the naive walk costs note-count × document-size; this is a
+				// fixed handful of scoped reads instead. SpecificResource, hasSource→ id,, hasSelector→ TextQuoteSelector;
+				// Comment: hasTarget→ SpecificResource, optionally, linksTo→ another SpecificResource.
 				const srIds = new Set((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map((q) => String(q.subject)));
 				if (srIds.size === 0) return actionOKWithProducts({ annotations: [], total: 0 });
 				const selectorOfSr = new Map<string, string>();

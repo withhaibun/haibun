@@ -1,10 +1,10 @@
 /**
  * Assertions for the column browser (the Miller-column strip), kept beside the element (the the polymorphic view's controls
- * pattern). WHICH column is focused is the browser's concern — deliberately NOT on any graph/view stepper. Reads the
+ * pattern). WHICH column is focused is the browser's concern, deliberately NOT on any graph/view stepper. Reads the
  * live [active] pane from the page; the page-providing stepper (web-playwright) is found by duck-typing getPage, so
  * shu keeps no runtime dependency on it (mirrors how src/test/step-ui.ts injects it).
  *
- * Steps never lead with the article "the" — haibun treats such lines as narrative prose, not matchable steps.
+ * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
@@ -46,7 +46,7 @@ export default class ShuColumnStripControls extends AStepper {
 		},
 		activateColumn: {
 			// Activate a column the production way: a pointerdown anywhere in the pane (shu-column-pane's capture-phase
-			// handler → COLUMN_ACTIVATE), so it works even where slotted content stops propagation. NOT "click column …" —
+			// handler → COLUMN_ACTIVATE), so it works even where slotted content stops propagation. NOT "click column …":
 			// that collides with web-playwright's generic "click {target}".
 			gwta: "activate column {match}",
 			action: async ({ match }: { match: string }) => {
@@ -61,7 +61,7 @@ export default class ShuColumnStripControls extends AStepper {
 		},
 		closeColumn: {
 			// Close a column the production way: press its own close control, which is what a reader presses. Asserting
-			// the column is gone afterwards is the point — a close that leaves the pane in place is the failure this
+			// the column is gone afterwards is the point: a close that leaves the pane in place is the failure this
 			// drives out, and it cannot be seen by dispatching the event directly.
 			gwta: "close column {match}",
 			action: async ({ match }: { match: string }) => {
@@ -94,7 +94,7 @@ export default class ShuColumnStripControls extends AStepper {
 			},
 		},
 		activeColumnMatches: {
-			// {match} is a substring of the active pane's column key — e.g. an entity column's key is `e:${type}:${id}`,
+			// {match} is a substring of the active pane's column key, e.g. an entity column's key is `e:${type}:${id}`,
 			// so "e:Email:" proves a node click opened AND activated an Email column (open ⟹ active is unconditional).
 			gwta: "active column matches {match}",
 			action: async ({ match }: { match: string }) => {

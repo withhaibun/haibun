@@ -93,7 +93,7 @@ describe("RemoteStepperProxy", () => {
 		// local tools or other hosts' tools of the same method name.
 		const tool = registry.get("host7_EchoStepper-echo");
 		if (!tool) throw new Error("Expected prefixed tool to be registered");
-		// Bare name (local form) must NOT be registered — prefixing is total.
+		// Bare name (local form) must NOT be registered, prefixing is total.
 		expect(registry.get("EchoStepper-echo")).toBeUndefined();
 
 		const { buildFeatureStepForTransport } = await import("./step-registry.js");

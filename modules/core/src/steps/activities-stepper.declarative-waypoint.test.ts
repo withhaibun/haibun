@@ -64,7 +64,7 @@ class AuthStepper extends AStepper implements IHasCycles {
 	};
 }
 
-describe("ActivitiesStepper — declarative waypoint with goal resolution", () => {
+describe("ActivitiesStepper, declarative waypoint with goal resolution", () => {
 	const steppers = [VariablesStepper, ActivitiesStepper, Haibun, AuthStepper];
 
 	// (1a) Without any prior fact, `ensure Logged in` runs the activity (resolver returns
@@ -135,7 +135,7 @@ ensure Logged in`,
 
 	// (1d) Capability gating: when the producer step requires a capability the caller
 	//      doesn't have, the resolver filters it from the producer set. With no other
-	//      producers, the goal becomes unreachable — the step lacking capability cannot
+	//      producers, the goal becomes unreachable: the step lacking capability cannot
 	//      be invoked, so it cannot satisfy the waypoint.
 	it("(1d) capability gating: producer requiring an unheld capability is filtered, goal becomes unreachable", async () => {
 		class GatedAuthStepper extends AStepper implements IHasCycles {

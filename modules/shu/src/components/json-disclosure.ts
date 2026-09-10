@@ -55,7 +55,7 @@ export function jsonDisclosure(value: unknown, name = ""): string {
 /**
  * A literal that carries JSON, shown as what it is: the words before it as words, and the JSON as disclosures.
  *
- * A run says things like `RPC: {"jsonrpc":"2.0",…}` — a few words naming what happened, then the thing itself. Shown as
+ * A run says things like `RPC: {"jsonrpc":"2.0",…}`: a few words naming what happened, then the thing itself. Shown as
  * one string it is a line a reader scrolls past; shown this way the words stay readable and what they carry is opened.
  * A literal carrying no JSON is returned as it reads.
  */

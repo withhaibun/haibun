@@ -1,12 +1,12 @@
 /**
- * shu-polymorphic-settings — the controls of ONE settings group (`group`: layout or scenes), rendered inside the
+ * shu-polymorphic-settings: the controls of ONE settings group (`group`: layout or scenes), rendered inside the
  * head's open settings row. The head's group icons decide which group is open; this element renders that group's
  * controls. The surface is a property of the polymorphic view component, not of one embedding: every instance gets the same
  * options in the same place because they come from the same element.
  *
  * It owns NO state. The host owns the options (a Zod schema + setState + persistFields) and pushes them to the scene;
  * this element renders what it is given and reports the reader's intent back through `onChange`. Data it needs to render
- * an option (the group-by axes) arrives as a property — a component never reaches the RPC for it.
+ * an option (the group-by axes) arrives as a property: a component never reaches the RPC for it.
  *
  * `fit` and `copy graph` are NOT here: they are actions, not options, and stay directly reachable on the view head.
  * The orientation group holds only actions (the two head-on aims), so the host renders it directly.
@@ -24,19 +24,19 @@ import "@haibun/shu/components/shu-field.js";
 
 const IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 
-/** The options a reader sets — the scene's own config, which is what every one of them ends up setting. */
+/** The options a reader sets: the scene's own config, which is what every one of them ends up setting. */
 export type TPolymorphicOptions = GraphSceneConfig;
 
-/** Reported when a control changes: the one option the reader touched, for the host to fold into its own state. */
+/** Reported when a control changes: the one option the reader touched, for the host to merge into its own state. */
 export type TPolymorphicOptionChange = Partial<TPolymorphicOptions>;
 
 export class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 
-	/** Reactive, so the host re-rendering with new options re-renders these controls — a plain field would leave the
+	/** Reactive, so the host re-rendering with new options re-renders these controls: a plain field would leave the
 	 *  first render standing (a lane view's group/group-by would keep showing). Never attributes: they are objects and a
 	 *  callback, handed down by property binding. */
 	static properties = {
@@ -55,7 +55,7 @@ export class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 	// host handing down new options would never re-render these controls (lit.dev/msg/class-field-shadowing).
 	/** Which settings group this instance renders. */
 	declare group: "layout" | "scenes";
-	/** The host's current options — rendered, never stored. Set by the host that owns them. */
+	/** The host's current options, rendered, never stored. Set by the host that owns them. */
 	declare options: TPolymorphicOptions;
 	/** The axes the scene derives from its data, handed down by the host. */
 	declare groupByAxes: string[];
@@ -127,7 +127,7 @@ export class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 		`;
 	}
 
-	/** ⧗ depth: everything about the z axis — whether it exists (flatten), what places it, whether chips are labelled by it. */
+	/** ⧗ depth: everything about the z axis, whether it exists (flatten), what places it, whether chips are labelled by it. */
 	private renderDepth(): TemplateResult {
 		const o = this.options;
 		return html`
@@ -156,7 +156,7 @@ export class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 	}
 
 	/** Whether the active view leaves this option to the reader. A view that FORCES a value settles it, so offering the
-	 *  control would offer a choice that cannot be made — one test, used by every option that a view can settle. */
+	 *  control would offer a choice that cannot be made: one test, used by every option that a view can settle. */
 	private offers(option: keyof TViewForces): boolean {
 		return this.forces[option] === undefined;
 	}

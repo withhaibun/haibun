@@ -74,9 +74,9 @@ function initExecutionRuntime(_world: TWorld): void {
 
 async function initFeatureRuntime(world: TWorld): Promise<void> {
 	// Clear transient graphs between features so cross-feature state doesn't leak:
-	//   - observation/* — runtime metrics and counters
-	//   - facts        — step-product assertions (auto-asserted by dispatchStep)
-	// Variables (SHARED_GRAPH) survive intentionally — features can carry named
+	//   - observation/*, runtime metrics and counters
+	//   - facts, step-product assertions (auto-asserted by dispatchStep)
+	// Variables (SHARED_GRAPH) survive intentionally, features can carry named
 	// state forward through the feature-variables layer.
 	const store = world.shared.getStore();
 	const allQuads = await store.all();
@@ -118,7 +118,7 @@ export class Executor {
 
 		// The verdict names an accountable feature step. A synthetic dispatch (a negative seqPath segment: a model's
 		// tool call, an RPC) can fail and be recovered from inside its parent step; naming it here reported a recovered
-		// tool call as the run's failure while the step that actually failed the feature went unmentioned.
+		// tool call as the run's failure while the step that failed the feature went unmentioned.
 		const failedStep = firstFailedFeature.steps.failed;
 		if (!failedStep) return undefined;
 
@@ -388,7 +388,7 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 				{
 					selectors: [DOMAIN_DOMAIN_KEY],
 					schema: z.enum(domainKeys as [string, ...string[]]),
-					description: "A registered domain identifier — referenced by goal-resolution and meta-introspection steps.",
+					description: "A registered domain identifier, referenced by goal-resolution and meta-introspection steps.",
 				},
 			],
 		]);

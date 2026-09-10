@@ -191,7 +191,7 @@ export const SHU_TEST_IDS = {
 		FOLLOW: "polymorphic-follow",
 		PRUNE: "polymorphic-prune",
 		READ: "polymorphic-read",
-		/** Each settings group's head icon, keyed by the group it opens (see view-head's SETTINGS_GROUPS) — the component
+		/** Each settings group's head icon, keyed by the group it opens (see view-head's SETTINGS_GROUPS): the component
 		 *  renders from this map and a driver presses from it, so the two cannot name different controls. */
 		SETTINGS: {
 			layout: "polymorphic-settings-layout",

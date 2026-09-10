@@ -1,5 +1,5 @@
 /**
- * <shu-views-picker> — Lists available views (id, description) and opens one
+ * <shu-views-picker>: Lists available views (id, description) and opens one
  * on click via PaneState. Populated by the host via setViews().
  */
 import { html, css, type TemplateResult } from "lit";
@@ -15,7 +15,7 @@ const ViewsPickerSchema = z.object({});
 type TView = { id: string; description: string; component: string };
 
 export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

@@ -1,8 +1,8 @@
 /**
  * Pure geometry and marker model for the custom scroll rail. POSITION is INDEX space (rows): the rail knows the total
  * row count, the visible window (first index + how many), and markers at absolute indices, which is exact regardless of
- * row height, robust at millions of rows, and reusable by both the DOM rail and a future 3D chip-mesh rail. SIZE is the
- * viewport's share of the column, which the host measures in pixels where rows differ in height — a rendered row count
+ * row height, reliable at millions of rows, and reusable by both the DOM rail and a future 3D chip-mesh rail. SIZE is the
+ * viewport's share of the column, which the host measures in pixels where rows differ in height: a rendered row count
  * swings with the content on screen, which would resize the thumb and shift every mark as a reader scrolls.
  * Every function is pure and unit-tested; the element wiring lives in shu-scrollbar.ts.
  */
@@ -51,7 +51,7 @@ export const MARK_INSET_PX = 8;
  * The centre pixel on a `railPx` rail for a mark at absolute `index`: the row's position spread across the WHOLE rail.
  *
  * The scale is the rows and the rail, and nothing else. It used to be inset by half the THUMB, so that a press on a
- * mark would land inside the window the thumb would then show — but a press picks a row directly now, and the scroller
+ * mark would land inside the window the thumb would then show, but a press picks a row directly now, and the scroller
  * works out what to show from it. The inset only did harm: a viewport holding a third of a short log makes a thumb a
  * third of the rail, which squeezed every mark into the middle two thirds and left the ends of the rail dead. What the
  * viewport happens to be showing is no business of where a row sits in the run.
@@ -79,7 +79,7 @@ export function clusterMarkers(markers: TScrollMarker[], total: number, railPx: 
 /** How near a mark a press must land to be taken as meaning that mark: about the height of the glyph drawn there. */
 export const MARK_SNAP_PX = 8;
 
-/** The row a pointer at `pointerPx` picks out, on the scale the marks are DRAWN at — the inverse of markerTopPx.
+/** The row a pointer at `pointerPx` picks out, on the scale the marks are DRAWN at: the inverse of markerTopPx.
  *
  *  Every row is reachable, which is what picking needs: the rail's other scale spans the WINDOWS there are rather than
  *  the rows, so its last `visible` rows have no window that starts at them and cannot be pointed at at all. */
@@ -94,17 +94,17 @@ export function indexAtMarkerPx(pointerPx: number, total: number, railPx: number
  * The ROW a press on the rail means: the mark it landed on if it landed on one, else the row at that height.
  *
  * Both answers are on the marks' own scale, so a press means the same row whether or not a mark happens to be drawn
- * there. Answering on the scale a press SCROLLS by instead would leave the last `visible` rows unreachable — no window
- * starts at them — and flatten the ends of the rail, where half a thumb's worth of travel maps to one row. What to
+ * there. Answering on the scale a press SCROLLS by instead would leave the last `visible` rows unreachable: no window
+ * starts at them, and flatten the ends of the rail, where half a thumb's worth of travel maps to one row. What to
  * scroll to is a separate question, and the scroller answers it from this row.
  *
- * Marks take no press of their own: drawn across the middle of a narrow rail, a mark that did would swallow most
+ * Marks take no press of their own: drawn across the middle of a narrow rail, a mark that did would take most
  * attempts to point anywhere near it.
  */
 export function pressTarget(pressedPx: number, marks: ReadonlyArray<{ index: number; topPx: number }>, total: number, railPx: number): number {
 	// The head and foot of the rail are the start and end of the run, whatever is drawn there. A mark now sits at each
 	// end, and letting it take these presses would mean the first and last rows could only be reached when nothing
-	// happened to be marked near them — the ends going missing again, by a different route.
+	// happened to be marked near them: the ends going missing again, by a different route.
 	if (pressedPx <= MARK_INSET_PX) return 0;
 	if (pressedPx >= railPx - MARK_INSET_PX) return Math.max(0, total - 1);
 	let nearest: { index: number; away: number } | null = null;

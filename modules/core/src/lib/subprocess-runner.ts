@@ -49,7 +49,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 			process.send?.({
 				type: "result",
 				ok: false,
-				error: `Method ${msg.method}: missing seqPath — subprocess dispatches must thread the caller's seqPath`,
+				error: `Method ${msg.method}: missing seqPath, subprocess dispatches must thread the caller's seqPath`,
 			} satisfies SubprocessResultMessage);
 			return;
 		}

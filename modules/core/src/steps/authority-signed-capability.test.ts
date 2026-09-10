@@ -1,7 +1,7 @@
 /**
  * Signed-capability path of AuthorityStepper: `as subkey holding capability {cap} at {target}, {what}`.
  * Mirrors the bearer `as subkey` attribution test, but the principal is proven by a *signed* capability
- * verified through a registered IAuthorityVerifier (a test double here — haibun-core stays crypto-free; the
+ * verified through a registered IAuthorityVerifier (a test double here, haibun-core stays crypto-free; the
  * ZCAP-LD verifier lives in the consumer). On verified, the capability's controller becomes the
  * principal so authored writes are attributed to it.
  */
@@ -77,7 +77,7 @@ as subkey holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}"
 
 		const result = await testWithWorld(world, [feature], STEPPERS);
 		if (!result.ok) {
-			const steps = result.featureResults?.flatMap((fr) => fr.stepResults.map((sr) => `${sr.in}: ${sr.ok}${sr.ok ? "" : ` — ${JSON.stringify(sr.actionResults)}`}`)) ?? [];
+			const steps = result.featureResults?.flatMap((fr) => fr.stepResults.map((sr) => `${sr.in}: ${sr.ok}${sr.ok ? "" : `, ${JSON.stringify(sr.actionResults)}`}`)) ?? [];
 			throw new Error(`failure: ${result.failure?.error?.message ?? "none"}\n${steps.join("\n")}`);
 		}
 		expect(result.ok).toBe(true);

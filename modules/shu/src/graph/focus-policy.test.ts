@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { focusStateFor, opacityFor, isFullContrast, type FocusState, type KindTiers } from "./focus-policy.js";
 
-describe("focusStateFor — the one focus/dim decision", () => {
+describe("focusStateFor: the one focus/dim decision", () => {
 	// Exhaustive truth table over the 4 booleans. previewActive wins; then focus; then resting.
 	const cases: Array<[boolean, boolean, boolean, boolean, FocusState]> = [
 		// previewActive=false
@@ -28,7 +28,7 @@ describe("focusStateFor — the one focus/dim decision", () => {
 	});
 });
 
-describe("opacityFor / isFullContrast — per-kind mapping", () => {
+describe("opacityFor / isFullContrast, per-kind mapping", () => {
 	const LINE: KindTiers = { full: 1, dimmed: 0.04, resting: 0.55 };
 	const NODE: KindTiers = { full: 1, dimmed: 0.04, resting: 1 };
 

@@ -2,7 +2,7 @@
 /**
  * Runtime contract for the domain-chain view.
  *
- * Must reach a terminal display state — either the SVG graph when products
+ * Must reach a terminal display state: either the SVG graph when products
  * are supplied, or an actionable empty-state message. A spinner that never
  * disappears is a bug.
  */
@@ -42,7 +42,7 @@ describe("shu-domain-chain-view", () => {
 		expect(hasEmptyState || hasGraph || hasSpinner).toBe(true);
 	});
 
-	it("the view-controls block (zoom + layout + axis filter) is gated as one group by data-show-controls — no per-control gating", async () => {
+	it("the view-controls block (zoom + layout + axis filter) is gated as one group by data-show-controls: no per-control gating", async () => {
 		// Zoom, layout, and the filter axis gate as one group. The gating is a single CSS rule
 		// on :host(:not([data-show-controls])) .view-controls; everything inside hides together.
 		if (!customElements.get("shu-graph-filter")) {
@@ -93,7 +93,7 @@ describe("shu-domain-chain-view", () => {
 		if (!customElements.get("shu-graph-filter")) {
 			class FakeFilter extends HTMLElement {
 				setAxes(_axes: unknown): void {
-					/* test stub — chain view writes to the filter; the filter's behavior isn't under test here */
+					/* test stub, chain view writes to the filter; the filter's behavior isn't under test here */
 				}
 				setSource(_clusters: unknown, _quads: unknown): void {
 					/* test stub */
@@ -119,7 +119,7 @@ describe("shu-domain-chain-view", () => {
 			applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean;
 		};
 		document.body.appendChild(view);
-		// Populate affordances so render() actually mounts the shu-graph.
+		// Populate affordances so render() mounts the shu-graph.
 		view.applySseSnapshot({
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
@@ -147,7 +147,7 @@ describe("shu-domain-chain-view", () => {
 		if (!customElements.get("shu-graph-filter")) {
 			class FakeFilter extends HTMLElement {
 				setAxes(_axes: unknown): void {
-					/* test stub — chain view writes to the filter; the filter's behavior isn't under test here */
+					/* test stub, chain view writes to the filter; the filter's behavior isn't under test here */
 				}
 				setSource(_clusters: unknown, _quads: unknown): void {
 					/* test stub */
@@ -219,7 +219,7 @@ describe("shu-domain-chain-view", () => {
 		it("drops identical snapshots (fingerprint dedup)", () => {
 			const view = mount();
 			expect(view.applySseSnapshot(mkSnap(5))).toBe(true);
-			// Exact same shape — should not re-apply.
+			// Exact same shape, should not re-apply.
 			expect(view.applySseSnapshot(mkSnap(5))).toBe(false);
 		});
 
@@ -231,7 +231,7 @@ describe("shu-domain-chain-view", () => {
 			expect(view.getAffordances()?.forward?.length).toBe(10);
 		});
 
-		it("drops a downgrade — a snapshot with strictly fewer forward entries does not clobber the richer one", () => {
+		it("drops a downgrade: a snapshot with strictly fewer forward entries does not clobber the richer one", () => {
 			// Regression: a partial-context emitter (e.g. subprocess) was sending an affordances
 			// snapshot with ~10 entries, wiping the richer ~60-entry snapshot.
 			const view = mount();
@@ -272,7 +272,7 @@ describe("shu-domain-chain-view", () => {
 		});
 
 		it("syncs selectedNodeId from the goal deep link without going through setState", () => {
-			// Selection is a UI-only field outside StateSchema — toggling it must not
+			// Selection is a UI-only field outside StateSchema, toggling it must not
 			// trigger a full re-render (relayout shifts the graph).
 			const view = mount();
 			view.applySseSnapshot(mkSnap(2));
@@ -307,7 +307,7 @@ describe("shu-domain-chain-view", () => {
 		});
 
 		it("accepts an equal-size snapshot whose goals differ", () => {
-			// Equal forward.length must not be treated as a downgrade — graph-state changes (a
+			// Equal forward.length must not be treated as a downgrade, graph-state changes (a
 			// new fact, a new goal) happen without changing the forward set.
 			const view = mount();
 			view.applySseSnapshot(mkSnap(5));

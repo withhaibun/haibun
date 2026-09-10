@@ -1,11 +1,11 @@
 /**
  * Harvest the chat-context view payload on demand: the ACTIVE pane's `summarizeForKihan()` linked data plus a
  * manifest of every open column, so the model sees what the person is looking at and knows what else is on
- * screen. One shared primitive — the chat dispatch and the context-status badge must see the identical envelope.
+ * screen. One shared primitive: the chat dispatch and the context-status badge must see the identical envelope.
  *
  * The active pane is found by the shared `activePane` signal (its columnKey), the one source of truth the strip also
- * paints from — never by a DOM `active` attribute or a positional index, which could lag or go stale when a pane
- * earlier in the strip closes. Views are recognised by the presence of `summarizeForKihan` (duck-typed, not instanceof —
+ * paints from, never by a DOM `active` attribute or a positional index, which could lag or go stale when a pane
+ * earlier in the strip closes. Views are recognised by the presence of `summarizeForKihan` (duck-typed, not instanceof:
  * the polymorphic view lives in a separately-built bundle whose ShuElement class identity differs).
  */
 import { activePane } from "./signals.js";
@@ -59,7 +59,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 }
 
 /** Top-most summarizers in a pane's light DOM: a view may sit inside a wrapper (the query pane's does), and a
- *  composite view (the polymorphic view host over its scene) summarizes for its whole subtree — nested summarizers are its own. */
+ *  composite view (the polymorphic view host over its scene) summarizes for its whole subtree, nested summarizers are its own. */
 function topSummarizers(pane: Element | undefined): TSummarizes[] {
 	if (!pane) return [];
 	const candidates = Array.from(pane.querySelectorAll("*")).filter(summarizes);

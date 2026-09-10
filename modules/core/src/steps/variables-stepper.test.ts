@@ -396,7 +396,7 @@ describe("matches with brace-bearing text", () => {
 		const content = 'set who to "Ada"\nset reply to "hello Ada"\nmatches reply with hello {who}';
 		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
 	});
-	it("a genuinely wrong match still fails", async () => {
+	it("a wrong match still fails", async () => {
 		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with totally different';
 		expect((await failWithDefaults(content, steppers)).ok).toBe(false);
 	});

@@ -47,10 +47,10 @@ export class ServerHono implements IWebServer {
 				this.eventLogger.warn("/stop refused: missing reason");
 				return c.json({ stopped: false, error: "missing required 'reason' (query param or JSON body)" }, 400);
 			}
-			this.eventLogger.info(`Received /stop — shutting down. Reason: ${reason}`);
+			this.eventLogger.info(`Received /stop, shutting down. Reason: ${reason}`);
 			// Defer the signal so the response is fully flushed first. Emitting
 			// SIGTERM to self lets every installed shutdown handler run (e.g. a
-			// persistent graph store flushing WAL) — `process.exit` would skip them
+			// persistent graph store flushing WAL), `process.exit` would skip them
 			// and risk on-disk corruption.
 			setTimeout(() => process.kill(process.pid, "SIGTERM"), 100);
 			return c.json({ stopped: true, reason });
@@ -92,7 +92,7 @@ export class ServerHono implements IWebServer {
 					// A failed bind names the occupant where it can: "EADDRINUSE" alone reads as a dead server, when the
 					// situation is a held port and the recourse is to stop what holds it or serve elsewhere.
 					void describePortOccupant(port).then((answering) =>
-						reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${e.message}${answering ? ` — ${answering}` : ""}`)),
+						reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${e.message}${answering ? `, ${answering}` : ""}`)),
 					);
 				});
 			} catch (e) {
@@ -103,7 +103,7 @@ export class ServerHono implements IWebServer {
 
 	clearMounted(): void {
 		if (this.servers.size > 0) {
-			throw new Error("ServerHono.clearMounted: cannot clear while server is listening — close() first");
+			throw new Error("ServerHono.clearMounted: cannot clear while server is listening, close() first");
 		}
 		this._mounted = DEFAULT_MOUNTED();
 		this.createApp();
@@ -235,7 +235,7 @@ export class ServerHono implements IWebServer {
 		this._mounted[type][path] = what;
 	}
 
-	/** Persist the mounted route as an Endpoint vertex — the existing object an observed HttpRequest edges to. `id`
+	/** Persist the mounted route as an Endpoint vertex: the existing object an observed HttpRequest edges to. `id`
 	 *  satisfies the transitory store's default identity field; `url` is the topology's. */
 	private persistEndpoint(type: TRouteTypes, path: string, purpose: TRoutePurpose): void {
 		const isService = isServicePath(path);

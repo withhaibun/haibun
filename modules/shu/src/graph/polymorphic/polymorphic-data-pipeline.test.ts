@@ -1,9 +1,9 @@
 /**
  * Valid time through the polymorphic view's own data path: extractTimes is fed snapshot-shaped quads (one property quad per
  * field, exactly what getClusteredQuads delivers) and its output is what toGraphData maps to depth. These assert the
- * user-visible rule — an object places by its OWN time (an email's received time, a file's date) under the valid
+ * user-visible rule: an object places by its OWN time (an email's received time, a file's date) under the valid
  * basis, by generatedAtTime under the indexed basis, and by generatedAtTime as the fallback when a type declares
- * nothing else — and that the depth ordering the renderer derives from those times actually flips between the bases.
+ * nothing else, and that the depth ordering the renderer derives from those times flips between the bases.
  */
 import { describe, expect, it } from "vitest";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -51,8 +51,8 @@ describe("polymorphic valid-time placement from snapshot quads", () => {
 	});
 
 	it("says when EVERY subject was written down, including one whose valid field is generatedAtTime itself", () => {
-		// The guide reads in creation order from this map. A comment's one time quad answers both questions — its valid
-		// time and its written-down time — and dropping it from `indexed` left the reading with no order but the names.
+		// The guide reads in creation order from this map. A comment's one time quad answers both questions: its valid
+		// time and its written-down time, and dropping it from `indexed` left the reading with no order but the names.
 		const { indexed } = pipelineWith("valid").extractTimes();
 		expect(indexed.get("c1"), "the comment is in the creation order").toEqual({ ms: Date.parse(TODAY), field: GENERATED });
 		expect(indexed.get("e1"), "alongside the types with a valid field of their own").toEqual({ ms: Date.parse(TODAY), field: GENERATED });

@@ -25,7 +25,7 @@ beforeAll(() => setSiteMetadata(META));
 
 const node = (g: { nodes: Array<{ id: string; kind?: string }> }, id: string) => g.nodes.find((n) => n.id === id);
 
-describe("buildTypeSchemaGraph — one type's schema", () => {
+describe("buildTypeSchemaGraph: one type's schema", () => {
 	it("centres the type (highlighted), draws an edge per referenced type and a leaf per literal property", () => {
 		const g = buildTypeSchemaGraph("Issuer");
 		expect(node(g, "Issuer")?.kind).toBe("current");
@@ -36,7 +36,7 @@ describe("buildTypeSchemaGraph — one type's schema", () => {
 	});
 });
 
-describe("buildFullSchemaGraph — the entire vocabulary with the viewed type highlighted", () => {
+describe("buildFullSchemaGraph: the entire vocabulary with the viewed type highlighted", () => {
 	it("includes every declared type, highlights only the viewed one", () => {
 		const g = buildFullSchemaGraph("Issuer");
 		expect(node(g, "Issuer")?.kind).toBe("current");
@@ -52,7 +52,7 @@ describe("buildFullSchemaGraph — the entire vocabulary with the viewed type hi
 	});
 });
 
-describe("getUiPresenting — discovering the site's presenter for a capability", () => {
+describe("getUiPresenting, discovering the site's presenter for a capability", () => {
 	it("finds the concern whose ui declares presents, and returns undefined for an undeclared capability", () => {
 		expect(getUiPresenting("graph")).toEqual({ type: "the-graph-view", ui: { component: "site-graph-view", js: "/assets/site-graph-view.js", presents: "graph" } });
 		expect(getUiPresenting("timeline")).toBeUndefined();
@@ -60,7 +60,7 @@ describe("getUiPresenting — discovering the site's presenter for a capability"
 
 	it("the type column prefers a dedicated schema presenter over the general graph presenter", () => {
 		// The fixture declares only "graph": the schema lookup falls back to it. A site that also declares
-		// presents:"schema" (the class browser) is chosen first — same accessor, keyed lookup.
+		// presents:"schema" (the class browser) is chosen first, same accessor, keyed lookup.
 		expect(getUiPresenting("schema") ?? getUiPresenting("graph")).toEqual(getUiPresenting("graph"));
 	});
 

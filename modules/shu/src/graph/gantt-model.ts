@@ -1,7 +1,7 @@
 /**
  * Project quads into the renderer-agnostic Gantt model. A node is a task when it carries a `ganttStart` property; its
  * fields are recognised by their declared upper concept (isSubPropertyOf), so ANY concrete vocabulary that sits under
- * `ganttStart`/`ganttEnd`/`ganttDuration`/`ganttEffort`/`ganttDepends` is picked up — not a fixed predicate list.
+ * `ganttStart`/`ganttEnd`/`ganttDuration`/`ganttEffort`/`ganttDepends` is picked up, not a fixed predicate list.
  */
 import { LinkRelations, isSubPropertyOf } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -62,7 +62,7 @@ export function quadsToGanttModel(quads: TQuad[], opts: GanttModelOpts = {}): TG
 		const start = Math.min(...starts.filter((t) => !Number.isNaN(t)));
 		if (!Number.isFinite(start)) continue;
 		const endCandidates = ends.filter((t) => !Number.isNaN(t));
-		// No end-kind time and no duration: the subject is a dated instant (a milestone note, a generated record) —
+		// No end-kind time and no duration: the subject is a dated instant (a milestone note, a generated record):
 		// a zero-length task placed at its moment, so every dated record shows in the calendar, point or bar.
 		const end = endCandidates.length > 0 ? Math.max(...endCandidates) : duration !== undefined ? start + duration : start;
 		tasks.push({ id: subject, label: opts.displayLabel?.(sq[0].namedGraph, subject) ?? subject, start, end, effort, dependsOn: dependsOn.length > 0 ? dependsOn : undefined });
@@ -71,13 +71,13 @@ export function quadsToGanttModel(quads: TQuad[], opts: GanttModelOpts = {}): TG
 	return { tasks };
 }
 
-/** True when any subject carries a `ganttStart`-kind property — the cue an ontology paint-picker uses to choose the Gantt view. */
+/** True when any subject carries a `ganttStart`-kind property: the cue an ontology paint-picker uses to choose the Gantt view. */
 export function isGanttable(quads: TQuad[], relOf: RelOf = identityRel): boolean {
 	return quads.some((q) => isSubPropertyOf(relOf(q.predicate, q.namedGraph), G_START));
 }
 
 /** Rigid dependency shift for a dragged task: moving `draggedId` by `deltaMs` moves it and every task that transitively
- *  depends on it by the same delta — a dependent can't precede the task it waits on, so the whole downstream chain slides
+ *  depends on it by the same delta: a dependent can't precede the task it waits on, so the whole downstream chain slides
  *  with it. Returns each affected task's new {start, end}; tasks not downstream of the drag are absent (unchanged). */
 export function cascadeReschedule(draggedId: string, deltaMs: number, tasks: TGanttTask[]): Map<string, { start: number; end: number }> {
 	const byId = new Map(tasks.map((t) => [t.id, t]));

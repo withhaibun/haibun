@@ -3,7 +3,7 @@
 /**
  * Per-row property name that the consumer's graph store stamps with the stored
  * vertex-label handle, then `project()` converts to `@type`. The value is the
- * store's literal label handle and must not change — existing rows are filtered by it.
+ * store's literal label handle and must not change, existing rows are filtered by it.
  * Shared across the consumer → @haibun/shu boundary so neither side spells it inline.
  */
 export const STORED_TYPE_PROP = "vertexLabel";
@@ -18,7 +18,7 @@ export const DEEP_LINK_PREFIX = "#?";
 
 export const SHU_EVENT = {
 	COLUMN_OPEN: "column-open",
-	// Open an arbitrary pane (a validated DesiredPane in the detail) — the generic bridge an external view (e.g. the
+	// Open an arbitrary pane (a validated DesiredPane in the detail): the generic bridge an external view (e.g. the
 	// polymorphic graph, a separate bundle) uses to reach PaneState, where COLUMN_OPEN only opens an entity pane for a subject.
 	PANE_OPEN: "pane-open",
 	COLUMN_CLOSE: "column-close",
@@ -49,7 +49,7 @@ export const SHU_EVENT = {
 	// the start-time → absolute-time mapping). Composed so it crosses the column's shadow boundary from the framed artifact.
 	CURSOR_TO_ROW: "cursor-to-row",
 	// ←/→ from an expanded thumbnail asks its document column for the previous/next thumbnail IN THE WHOLE RUN. The column
-	// owns navigation because under virtualization only the visible window's frames exist in the DOM — a frame cannot find
+	// owns navigation because under virtualization only the visible window's frames exist in the DOM: a frame cannot find
 	// its off-screen siblings itself.
 	FRAME_NAV: "frame-nav",
 	// An annotation was authored from a body view (select text → annotate); the host reloads so it appears anchored.
@@ -59,7 +59,7 @@ export const SHU_EVENT = {
 	SYNC_AVAILABLE: "sync-available",
 } as const;
 
-/** The one glyph marking annotation everywhere it appears — the gutter toggle, the rail markers. A text glyph (the
+/** The one glyph marking annotation everywhere it appears: the gutter toggle, the rail markers. A text glyph (the
  *  flipped pencil), not an emoji, so CSS `color` tints it (the has-annotations grey-vs-colour treatment). */
 export const ANNOTATION_GLYPH = "✎";
 
@@ -75,7 +75,7 @@ export const PERMISSIONS_SLOT = "permissions";
 /** An extension in the permissions area says how many items await the reader's decision, and where to read them, so
  *  the access indicator can mark that something is waiting without knowing what kind of thing it is. The mark is a
  *  reference, since a notification that does not lead to its cause leaves the reader to go looking.
- *  Detail: `{ count, kind, target }` — the reference kind and link target a `shu-ref` takes. */
+ *  Detail: `{ count, kind, target }`: the reference kind and link target a `shu-ref` takes. */
 export const AWAITING_DECISION = "awaiting-decision";
 
 export const SHU_TYPE = {

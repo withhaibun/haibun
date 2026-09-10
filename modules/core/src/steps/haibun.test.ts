@@ -184,7 +184,7 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		if (rfzs === undefined) {
 			return;
 		}
-		expect(rfzs[n++]).toBeDefined(); // sanity
+		expect(rfzs[n++]).toBeDefined(); // present
 		expect(rfzs[0]).toBeDefined();
 	});
 });

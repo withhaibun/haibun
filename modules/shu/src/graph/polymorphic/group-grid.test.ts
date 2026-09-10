@@ -5,7 +5,7 @@ import { collideRadius, chipTextHeight } from "./layout-forces.js";
 
 // The end-to-end geometry the live grouped view must satisfy: size each group's cell (groupCellSize), shelf-pack the
 // cells (shelfPack), pin members to their slots (gridSlot), draw each box (groupBounds with the SAME rx/ry the renderer
-// uses) — then assert NO two boxes overlap. This runs the exact functions the renderer runs, so a green test means the
+// uses): then assert NO two boxes overlap. This runs the exact functions the renderer runs, so a green test means the
 // live view cannot overlap by construction; if the live view DOES overlap, the bundle being served is stale.
 const member = (id: string, label: string) => ({ id, name: label, x: 0, y: 0, z: 0, isCluster: false });
 // The extent of a member as the renderer measures it: its collision half-width and its chip height.

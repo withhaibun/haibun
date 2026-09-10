@@ -5,7 +5,7 @@ export { esc };
 /** Constrain a number to [min, max]. */
 export const clamp = (x: number, min: number, max: number): number => Math.min(max, Math.max(min, x));
 
-/** Must stay byte-identical with the same call in shu-step-caller's idPrefix() —
+/** Must stay byte-identical with the same call in shu-step-caller's idPrefix():
  * feature-test selectors converge on this slug regardless of which form (gwta or
  * qualified method) the test typed into the step picker. */
 export function normalizeStepKey(input: string): string {
@@ -39,7 +39,7 @@ import { STORED_TYPE_PROP } from "./consts.js";
 
 /**
  * The SPA's current access level. Single source of truth for every RPC caller
- * that reads/writes data — read from the URL hash (`#?access=...`), defaulting
+ * that reads/writes data, read from the URL hash (`#?access=...`), defaulting
  * to `private` when no override is set. The hash is also where
  * `shu-graph-query` writes an access change from the actions-bar dropdown, so
  * the value round-trips through the URL rather than being held in component
@@ -82,7 +82,7 @@ export function renderContentHtml(raw: string, mimeType: string): string {
 		try {
 			return preBlock(JSON.stringify(JSON.parse(raw), null, 2));
 		} catch {
-			return preBlock(raw); // not valid JSON — show it verbatim rather than throw
+			return preBlock(raw); // not valid JSON, show it verbatim rather than throw
 		}
 	}
 	return preBlock(raw);
@@ -121,18 +121,18 @@ export function instanceLabel(v: Record<string, unknown>): string {
 	return String(v.name ?? v.subject ?? v.email ?? v.filename ?? idOf(v));
 }
 
-/** Get the persisted type label — the JSON-LD `@type`. Records reaching the frontend are projected, so `@type` is always present; a record without it is a projection bug and fails naturally downstream. */
+/** Get the persisted type label: the JSON-LD `@type`. Records reaching the frontend are projected, so `@type` is always present; a record without it is a projection bug and fails naturally downstream. */
 export function persistedTypeOf(v: Record<string, unknown>): string {
 	return v["@type"] as string;
 }
 
 /**
- * SPA-only artifact keys — projection or storage internals that have no domain
+ * SPA-only artifact keys, projection or storage internals that have no domain
  * meaning (no rel) and should not appear in field tables.
  * Anything domain-meaningful (body, hasBody, accessLevel, …) lives in
  * `LinkRelations` with a `presentation` hint instead.
  * `STORED_TYPE_PROP` is the literal storage property the consumer's graph store
- * stamps on parsed graph rows — a storage internal, not the wire `persistedAs` field.
+ * stamps on parsed graph rows: a storage internal, not the wire `persistedAs` field.
  */
 export const SPA_PROPS = new Set([STORED_TYPE_PROP]);
 
@@ -205,7 +205,7 @@ export function extractFieldEntries(vertex: Record<string, unknown>, label?: str
 /**
  * Literal body-presentation fields: an inline scalar whose rel has presentation `body` (e.g. a SeqPath's `stepText`,
  * mapped to `content`). extractFieldEntries routes body-presentation fields out of the field table on the assumption
- * the body path renders them — but that path only handles LINKED `hasBody` sub-resources, so a literal `content`
+ * the body path renders them, but that path only handles LINKED `hasBody` sub-resources, so a literal `content`
  * scalar would otherwise render nowhere. Linked bodies (arrays of Body objects) are excluded here by the string test.
  */
 export function extractBodyLiterals(vertex: Record<string, unknown>, label?: string): Record<string, string> {
@@ -220,7 +220,7 @@ export function extractBodyLiterals(vertex: Record<string, unknown>, label?: str
 
 /**
  * Pick the preferred Body sub-resource to display. Order of preference is
- * declarative — readers want markdown when present, plain text when not,
+ * declarative: readers want markdown when present, plain text when not,
  * HTML last (it's bulky and often noisy after extraction).
  */
 export const BODY_PREFERENCE: readonly string[] = ["text/markdown", "text/plain", "text/html"];

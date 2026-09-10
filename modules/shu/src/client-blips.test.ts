@@ -30,7 +30,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 	});
 	afterEach(() => vi.useRealTimers());
 
-	it("does not send a request per occurrence, which is what makes a per-frame recording affordable", async () => {
+	it("does not send a request per occurrence, which is what makes a per-frame recording sustainable", async () => {
 		for (let i = 0; i < 60; i++) recordClientBlip("haibun.shu.view.thumb_resize", i, { view: "shu-virtual-column" });
 		expect(follow).not.toHaveBeenCalled();
 		await vi.runAllTimersAsync();

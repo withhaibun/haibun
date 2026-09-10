@@ -1,14 +1,14 @@
 /**
- * The shared view head both graph hosts render — one pattern, one look: ONE row of icons above the graph, in three
+ * The shared view head both graph hosts render: one pattern, one look: ONE row of icons above the graph, in three
  * kinds. Actions act at once (fit, copy). State toggles hold a state and show it pressed (follow, prune, the 🧭
  * guide). Settings groups are exclusive disclosure: pressing one opens its row of controls under the head, pressing
- * another moves the row there, pressing the open one closes it — so the head stays one row and every option is one
+ * another moves the row there, pressing the open one closes it, so the head stays one row and every option is one
  * press away. The glyphs are monochrome technical characters, never coloured emoji, so the row reads as instrument
  * controls rather than decoration.
  *
  * The hosts are light-DOM (their A-Frame scene resolves the camera through document), so the CSS is emitted per
- * host tag rather than shadow-scoped. The flex column rides an inner .view-root wrapper, not the host tag itself —
- * a mount may set the host's display inline (e.g. display:block), which would silently kill a tag-level flex.
+ * host tag rather than shadow-scoped. The flex column rides an inner .view-root wrapper, not the host tag itself:
+ * a mount may set the host's display inline (e.g. display:block), which would disable a tag-level flex.
  */
 import { html, type TemplateResult } from "lit";
 import { ref } from "lit/directives/ref.js";
@@ -36,7 +36,7 @@ export function viewHeadCss(host: string): string {
 	${host} .view-controls button, ${host} .view-controls select, ${host} .settings-row button, ${host} .settings-row select { background: var(--shu-bg-soft); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); font: inherit; font-size: var(--shu-font-sm); padding: var(--shu-space-1) var(--shu-space-3); cursor: pointer; }
 	/* A control that carries a word keeps the row's own button face; its pressed state is the shared accent fill. */
 	${host} .view-controls button[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); }
-	/* A control whose face is a GLYPH is the shu icon button — the same square, hover and pressed fill the pane's own
+	/* A control whose face is a GLYPH is the shu icon button: the same square, hover and pressed fill the pane's own
 	   min/max/settings controls use, so an active control looks the same wherever it is. */
 	${SHU_ICON_BUTTON}
 	${host} .view-controls label, ${host} .settings-row label { display: inline-flex; align-items: center; gap: var(--shu-space-1); }
@@ -51,17 +51,17 @@ export function viewHeadCss(host: string): string {
 }
 
 /**
- * The one icon row. Every host gets the actions (⛶ fit, ⧉ copy — a graph never frames itself, and the copy source is
- * provided lazily so the graph serializes only when the person actually copies). A host with persisted layout choices
+ * The one icon row. Every host gets the actions (⛶ fit, ⧉ copy: a graph never frames itself, and the copy source is
+ * provided lazily so the graph serializes only when the person copies). A host with persisted layout choices
  * (the polymorphic view) also passes its state toggles and its settings groups; the class browser's layout is fixed, so it
- * passes `rotate` instead — its two head-on aims stay on its head, since it has no orientation row to hold them.
+ * passes `rotate` instead: its two head-on aims stay on its head, since it has no orientation row to hold them.
  *
  * Each host passes its own ids: both hosts can be on the page at once, and one shared id would make a query ambiguous.
  */
 /** One head toggle: what it is called, how it shows, and what pressing it means. */
 export type TViewToggle = { id: string; glyph: string; label?: string; title: string; on: boolean; onToggle: (on: boolean) => void };
 
-/** THE pressed-state button of the head — one shape for a settings group and a view toggle alike. A glyph-only face is
+/** THE pressed-state button of the head: one shape for a settings group and a view toggle alike. A glyph-only face is
  *  the shared icon button; a face with a word keeps the row's button look. */
 function iconToggle(b: { id: string; glyph: string; label?: string; title: string; on: boolean; press: () => void }): TemplateResult {
 	return html`<button type="button" class=${b.label ? "" : "pane-icon"} data-testid=${b.id} title=${b.title} aria-pressed=${b.on} @click=${b.press}>
@@ -81,7 +81,7 @@ export function viewActions(o: {
 	copyId: string;
 	onFit: () => void;
 	getCopyText: () => string;
-	/** The head-on rotations on the head itself — for a host without an orientation settings group. */
+	/** The head-on rotations on the head itself, for a host without an orientation settings group. */
 	rotate?: { xyId: string; zId: string; onRotate: (aim: "xy" | "z") => void };
 	/** The stateful view toggles, in row order: each holds a state and shows it pressed. A glyph-only face reads as an
 	 *  icon button; a face with a word keeps the row's button look. */

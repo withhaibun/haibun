@@ -1,5 +1,5 @@
 /**
- * Scenes — saving a way of looking at the graph, and returning to it.
+ * Scenes: saving a way of looking at the graph, and returning to it.
  *
  * A scene is a named record of the durable options of one or more views, keyed by element tag. Capture and apply are
  * the ShuElement primitives (`captureSceneState` / `applySceneState`), so a scene holds exactly what a view already
@@ -19,7 +19,7 @@ export type TSceneState = Record<string, Record<string, unknown>>;
 /** A saved scene as the graph holds it. */
 export type TScene = { id: string; state: TSceneState };
 
-/** Read the durable options of the given views, keyed by tag — what a scene saves. */
+/** Read the durable options of the given views, keyed by tag: what a scene saves. */
 export function captureScene(views: Array<ShuElement<never> | (Element & { captureSceneState(): Record<string, unknown> })>): TSceneState {
 	const state: TSceneState = {};
 	for (const view of views) state[view.tagName.toLowerCase()] = view.captureSceneState();
@@ -64,8 +64,8 @@ const EXCHANGE_IRIS = (iri: string): boolean => iri.startsWith("sec:") || iri ==
  *
  * The seed is every type declaring a rel of the exchange vocabulary: a request naming who performed it, a step naming
  * what it required and what allowed it, a principal naming its keys, a capability naming its controller. Then one hop
- * along those types' ACTOR edges only — who a thing came from and what it was directed at, the same edges the sequence
- * view reads as lifelines — so where a request went and who held a capability come with it, while what a record merely
+ * along those types' ACTOR edges only, who a thing came from and what it was directed at, the same edges the sequence
+ * view reads as lifelines, so where a request went and who held a capability come with it, while what a record merely
  * carries (its bodies, its selectors) does not. No type is named here: a deployment's own vocabulary decides.
  */
 export function networkSceneTypes(): string[] {

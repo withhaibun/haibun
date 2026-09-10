@@ -80,7 +80,7 @@ export const interactionToStep = (interaction: TInteraction): string => {
 			return `press the "${interaction.key}" key`;
 
 		default: {
-			// Exhaustive check - TypeScript will error if we miss a case
+			// Exhaustive check - TypeScript will error if a case is missed
 			const _exhaustive: never = interaction;
 			return `# Unknown interaction type`;
 		}

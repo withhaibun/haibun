@@ -1,5 +1,5 @@
 /**
- * SeqPath — the hierarchical step identifier reified as a graph individual.
+ * SeqPath: the hierarchical step identifier reified as a graph individual.
  *
  * Every dispatched step writes a SeqPath individual into the shared quad store
  * via dispatchStep. Individuals form a tree via the `isPartOf` edge: a step
@@ -109,7 +109,7 @@ export function compareSeqPath(a: number[], b: number[]): number {
 	return 0;
 }
 
-/** SeqPath individual field names — single source of truth shared by schema, topology, and emission. */
+/** SeqPath individual field names, single source of truth shared by schema, topology, and emission. */
 export const SEQ_PATH_FIELD = {
 	id: "id",
 	stepText: "stepText",
@@ -130,7 +130,7 @@ export const SEQ_PATH_FIELD = {
 	endedAtTime: "endedAtTime",
 	path: "path",
 	/** How the statement's outcome is to be taken. A speculative step's failure is expected, so a reader looking for
-	 *  what actually went wrong wants the authoritative ones, and that is a distinction they can draw only if each step
+	 *  what went wrong wants the authoritative ones, and that is a distinction they can draw only if each step
 	 *  says which it was. Written for every step, the ordinary case included, since "not speculative" is only
 	 *  answerable when an authoritative step says so too. */
 	mode: "mode",
@@ -164,7 +164,7 @@ const STATUS_VALUES = Object.values(SEQ_PATH_STATUS) as [string, ...string[]];
 // Non-strict: emitSeqPathStart writes isPartOf/precededBy into the same
 // upsert as the individual properties (declared as edges in topology, but
 // inlined for the start record). Strict mode would reject those keys
-// before upsertIndividual can route them — same passthrough constraint as
+// before upsertIndividual can route them, same passthrough constraint as
 // CommentSchema and BodySchema.
 export const SeqPathSchema = z.object({
 	[SEQ_PATH_FIELD.id]: z.string(),

@@ -3,7 +3,7 @@ import { readingAt } from "./capability-context.js";
 import { rpcEnvelope, readNdjson } from "./rpc-wire.js";
 
 /**
- * rpc-client — capability-scoped client for a haibun host's RPC
+ * rpc-client: capability-scoped client for a haibun host's RPC
  * transport (modules/web-server-hono/sse-transport.ts).
  *
  * Centralises Bearer-token auth, seqPath threading, timeout, retry
@@ -106,13 +106,13 @@ export class RpcClient {
 			});
 			if (!res.ok || !res.body) {
 				const text = res.body ? await res.text().catch(() => "") : "";
-				throw new Error(`stream ${method}: HTTP ${res.status}${text ? ` — ${text}` : ""}`);
+				throw new Error(`stream ${method}: HTTP ${res.status}${text ? `, ${text}` : ""}`);
 			}
 			yield* readNdjson<TChunk>(res.body);
 		} finally {
 			clearTimeout(timeoutHandle);
 			// If the consumer didn't already abort, do so now to ensure
-			// no dangling connection — this is a no-op if already closed.
+			// no dangling connection: this is a no-op if already closed.
 			controller.abort();
 		}
 	}
@@ -127,7 +127,7 @@ export class RpcClient {
 	 * Retry `operation` with exponential backoff + jitter. Returns the
 	 * last error as an RpcError when `maxAttempts` is exhausted. Retries
 	 * on fetch network errors; does NOT retry on application errors
-	 * (RpcError with `error` string) — those are the server's answer.
+	 * (RpcError with `error` string): those are the server's answer.
 	 */
 	private async withRetry<T>(operation: (signal: AbortSignal) => Promise<T | RpcError>, outerSignal?: AbortSignal): Promise<T | RpcError> {
 		let lastErr: unknown;
@@ -170,6 +170,6 @@ export async function discoverInstance(rpc: RpcClient, url: string): Promise<{ h
 	if (typeof (result as { error?: unknown }).error === "string") throw new Error(`discoverInstance: action.begin failed at ${url}: ${(result as { error: string }).error}`);
 	const { hostId, site } = result as { hostId?: number; site?: string };
 	if (typeof hostId !== "number") throw new Error(`discoverInstance: ${url} did not report a hostId`);
-	if (typeof site !== "string" || site.length === 0) throw new Error(`discoverInstance: ${url} did not report a site principal — the peer predates federation`);
+	if (typeof site !== "string" || site.length === 0) throw new Error(`discoverInstance: ${url} did not report a site principal: the peer predates federation`);
 	return { hostId, site };
 }

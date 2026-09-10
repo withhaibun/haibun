@@ -1,11 +1,11 @@
 /**
  * The graph as an accessible document: an IGraphRenderer whose medium is semantic HTML. It is given the same placed
- * nodes and links every renderer is given — a node arrives typed and titled, a link as a directed predicate-labelled
- * statement — so the accessible reading and the WebGL view can't drift.
+ * nodes and links every renderer is given: a node arrives typed and titled, a link as a directed predicate-labelled
+ * statement: so the accessible reading and the WebGL view can't drift.
  *
  * Two-way: every draw rewrites the document and a status line announces what changed (a live region assistive tech
- * reads without moving focus), while the entries drive the graph through the host's own entries — activating an entry
- * opens the node, focusing one highlights it — the same paths a pointer takes.
+ * reads without moving focus), while the entries drive the graph through the host's own entries, activating an entry
+ * opens the node, focusing one highlights it: the same paths a pointer takes.
  *
  * The reading is a script: one list in the order records were made, each line saying who it belongs to where it
  * belongs to anyone, with what it points at beneath it and a way to each of those. It states a stretch at a time and
@@ -18,15 +18,15 @@ import { SHU_TEST_IDS } from "../../test-ids.js";
 
 /** What the medium needs from its host. */
 export type TA11yRendererDeps = {
-	/** The DOM region this renderer owns — it manages the region's whole subtree. */
+	/** The DOM region this renderer owns: it manages the region's whole subtree. */
 	region(): HTMLElement | null | undefined;
-	/** Time reads along z in the lane views (gantt, sequence): entries sort into one ordered list — the story order. */
-	/** The actor bars the active view draws, each with the nodes attached to it in appearance order — null when the
+	/** Time reads along z in the lane views (gantt, sequence): entries sort into one ordered list: the story order. */
+	/** The actor bars the active view draws, each with the nodes attached to it in appearance order, null when the
 	 *  view is not built on actors. The document then reads as the picture does: one section per bar. */
 	bars(): Array<{ id: string; label: string; nodeIds: string[] }> | null;
-	/** Open the node — the same entry a pointer click drives. */
+	/** Open the node: the same entry a pointer click drives. */
 	onActivate(id: string): void;
-	/** Highlight the node in the visual media — the same entry a pointer hover drives. */
+	/** Highlight the node in the visual media: the same entry a pointer hover drives. */
 	onFocus(id: string): void;
 };
 
@@ -61,7 +61,7 @@ const byCreated = (group: FGNode[]): FGNode[] => [...group].sort((a, b) => creat
 
 export class A11yRenderer implements IGraphRenderer {
 	private lastIds = new Set<string>();
-	/** How much of the reading is stated now, and the draw it was stated from — a reader asks for more of the same
+	/** How much of the reading is stated now, and the draw it was stated from: a reader asks for more of the same
 	 *  reading, which is the last one drawn rather than a new one. */
 	private reading = READING_LINES;
 	private lastDrawn?: TDrawn;
@@ -79,7 +79,7 @@ export class A11yRenderer implements IGraphRenderer {
 		// node shapes are a visual concern; the document rebuilds whole at every draw
 	}
 
-	/** The persistent frame inside the region: ONE status live region (recreating a live region misses announcements —
+	/** The persistent frame inside the region: ONE status live region (recreating a live region misses announcements:
 	 *  assistive tech watches an existing element for changes) and one content holder, wired with delegated listeners
 	 *  once per region element. */
 	private frame(region: HTMLElement): { status: HTMLElement; content: HTMLElement } {
@@ -116,7 +116,7 @@ export class A11yRenderer implements IGraphRenderer {
 			const s = byId.get(linkEndId(l.source));
 			const t = byId.get(linkEndId(l.target));
 			if (!s || !t) throw new Error(`A11yRenderer: link ${l.predicate} names a node that was not drawn`);
-			// An arrow, not a colon: a colon reads as "this field holds that value", and these are edges — this record
+			// An arrow, not a colon: a colon reads as "this field holds that value", and these are edges: this record
 			// points at that one. The reading says which way, since the picture does.
 			const lines = edgesOf.get(s.id) ?? new Map<string, TEdgeLine>();
 			const key = `${l.predicate} → ${t.id}`;
@@ -132,7 +132,7 @@ export class A11yRenderer implements IGraphRenderer {
 		let removed = 0;
 		for (const id of this.lastIds) if (!ids.has(id)) removed++;
 		const summary = graphSummary({ nodes, links });
-		status.textContent = this.lastIds.size && (added || removed) ? `${added} added, ${removed} removed — ${summary}` : summary;
+		status.textContent = this.lastIds.size && (added || removed) ? `${added} added, ${removed} removed, ${summary}` : summary;
 		this.lastIds = ids;
 
 		// A repaint must not throw the reader out: remember which entry holds focus and restore it on the new document.

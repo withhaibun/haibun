@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Body sub-resources MUST always render when present. Selecting an email, file, comment, credential, etc. shows its
-// content (one iframe per active type, a switcher when several types exist) — even when the entity has few scalar
+// content (one iframe per active type, a switcher when several types exist), even when the entity has few scalar
 // fields, which previously misclassified it as a "stub" and dropped the content. Regression guard for that.
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
@@ -69,7 +69,7 @@ describe("entity body content renders for every type and view that should show i
 });
 
 // The annotate toggle uses the pane-icon toggle system (aria-pressed = active), and colours its glyph only when
-// annotations exist — so a reader tells at a glance whether a document carries notes, before opening the gutter.
+// annotations exist, so a reader tells at a glance whether a document carries notes, before opening the gutter.
 describe("annotate toggle button", () => {
 	beforeEach(() => {
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);

@@ -1,7 +1,7 @@
 /**
  * Shared document content generation for academic-paper-style rendering.
  * Used by @haibun/shu (vanilla web components) to render the run document.
- * Pure functions — no DOM imports.
+ * Pure functions: no DOM imports.
  */
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
@@ -58,7 +58,7 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
  * start, so a per-slice base would scrub every clicked row to a wrong, earlier instant. */
 /** The name of a heading as it can be written in a link: lower case, with every run of anything else as a single
  *  hyphen. A feature that lists its own scenarios links to them this way, which is the only handle an author has
- *  before the run exists — the block ids beside it are assigned while running. */
+ *  before the run exists: the block ids beside it are assigned while running. */
 /** The test id of a heading's block: this prefix and the heading's anchor. */
 /**
  * Text as text, wherever a run's own words are placed in markup. What a run says is arbitrary: a step's text quotes
@@ -154,7 +154,7 @@ export function generateDocumentMarkdown(
 				const nid = normalizeId(le.id);
 				visibleIds.add(nid);
 				// Named by its own heading twice over: `data-heading` is what a link in the document resolves to, and the test id is
-				// what a feature waits for to know its heading is on the page — the one handle an author has before the run exists.
+				// what a feature waits for to know its heading is on the page: the one handle an author has before the run exists.
 				md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${nid}" data-heading="${headingAnchor(named)}" data-testid="${DOC_HEADING_TEST_ID}${headingAnchor(named)}">\n\n${"#".repeat(headingLevel)} ${title}\n\n</div>\n`;
 				const header = claimWithHolder(le.id, nid);
 				if (header.holder) md += `\n${header.holder}`;

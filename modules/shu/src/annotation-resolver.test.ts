@@ -3,7 +3,7 @@ import { toW3CAnnotations, type AnnotationView } from "./annotation-resolver.js"
 
 const view = (over: Partial<AnnotationView>): AnnotationView => ({ commentId: "c1", specificResourceId: "sr1", exact: "the quote", ...over });
 
-describe("toW3CAnnotations — anchoring shape for the annotator library", () => {
+describe("toW3CAnnotations, anchoring shape for the annotator library", () => {
 	it("emits BOTH a TextQuoteSelector and a computed TextPositionSelector (the library requires both to anchor)", () => {
 		const text = "Anyone up for hiking this weekend?";
 		const [a] = toW3CAnnotations([view({ exact: "hiking this weekend", body: "note" })], "urn:msg", text);
@@ -14,7 +14,7 @@ describe("toW3CAnnotations — anchoring shape for the annotator library", () =>
 		expect(a.body).toEqual([{ type: "TextualBody", value: "note", format: "text/markdown" }]);
 	});
 
-	it("omits an annotation whose quote is absent from the rendered text — it cannot be highlighted, only listed", () => {
+	it("omits an annotation whose quote is absent from the rendered text: it cannot be highlighted, only listed", () => {
 		expect(toW3CAnnotations([view({ exact: "not present here" })], "urn:msg", "some other text")).toEqual([]);
 	});
 

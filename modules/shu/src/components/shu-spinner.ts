@@ -1,5 +1,5 @@
 /**
- * <shu-spinner> — reusable spinner with status text for async UI operations.
+ * <shu-spinner>: reusable spinner with status text for async UI operations.
  * Pulses on each status update to show aliveness.
  *
  * Usage:

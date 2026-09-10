@@ -1,5 +1,5 @@
 /**
- * Affordances — "what can I do next?" projection.
+ * Affordances: "what can I do next?" projection.
  *
  * Pure function over the loaded stepper set, registered domains, current working-memory
  * fact set, and the caller's capability set. Returns:
@@ -39,7 +39,7 @@ export function isArgumentDomain(domain: string, forward: ReadonlyArray<{ output
 }
 
 export type TForwardAffordance = {
-	/** RPC name `StepperName-stepName` — directly callable via the existing transport. */
+	/** RPC name `StepperName-stepName`, directly callable via the existing transport. */
 	method: string;
 	stepperName: string;
 	stepName: string;
@@ -97,7 +97,7 @@ export type TAffordances = {
 	composites?: TCompositeRanges;
 	/**
 	 * Every domain that currently has at least one asserted fact in working memory.
-	 * Distinct from `goals[].resolution.finding === satisfied` — that list is filtered
+	 * Distinct from `goals[].resolution.finding === satisfied`: that list is filtered
 	 * to drop trivial single-step goals, whereas this set captures all asserted
 	 * domains (including ones produced by argument-only single-step paths). Used by
 	 * the chain view to color every node by actual state rather than the
@@ -107,7 +107,7 @@ export type TAffordances = {
 	/**
 	 * Per-domain map of asserted fact identifiers (the producing seqPath, in string
 	 * form). The chain view uses this to render individual fact-instance nodes
-	 * attached to their domain — renders "an issuer was created at 0.1.3.2"
+	 * attached to their domain, renders "an issuer was created at 0.1.3.2"
 	 * rather than just "the issuer domain is satisfied". Keyed by domain name.
 	 */
 	satisfiedFacts: Record<string, string[]>;
@@ -124,7 +124,7 @@ export interface TAffordancesInputs {
 	compositeMaxDepth?: number;
 	/**
 	 * Replay the affordances at a historical point. When set, only typed facts
-	 * whose seqPath subject is `≤ asOfSeqPath` enter the projection — facts
+	 * whose seqPath subject is `≤ asOfSeqPath` enter the projection, facts
 	 * asserted later in the run are dropped. Lets the panel reconstruct
 	 * mid-flight state from any prior seqPath.
 	 */
@@ -155,7 +155,7 @@ export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 /**
  * Keep only facts whose seqPath subject is at or before the cursor. Non-
  * seqPath subjects (rare, but possible for hand-asserted facts) are kept
- * unconditionally — they have no temporal ordering against seqPaths.
+ * unconditionally: they have no temporal ordering against seqPaths.
  */
 function filterFactsAsOf(facts: TQuad[], asOf: number[]): TQuad[] {
 	return facts.filter((q) => {
@@ -217,7 +217,7 @@ function buildGoalFrontier(
 	for (const domain of producibleDomains) {
 		const resolution = resolveGoal(domain, { graph, facts, capabilities, domains, compositeDecomposition, compositeMaxDepth });
 		// Trivial goals duplicate the forward frontier: a single producer step
-		// whose inputs are all arguments — no upstream facts, no composite
+		// whose inputs are all arguments: no upstream facts, no composite
 		// decomposition with fact-bindings. Skip those. Paths that exercise
 		// composite ranges (fact-bindings, recursive decomposition) stay visible
 		// even when they collapse to one step late in a chain.
@@ -226,7 +226,7 @@ function buildGoalFrontier(
 		// Every goal-producing domain must declare a human description so the goal
 		// index reads as prose, not a wall of codenames. Two sources, in order:
 		//   1. `description` on the domain definition (explicit override).
-		//   2. The schema's Zod `.describe(...)` metadata — the canonical place
+		//   2. The schema's Zod `.describe(...)` metadata: the canonical place
 		//      because the description travels with the schema wherever it is
 		//      reused (other steppers, downstream consumers).
 		// Fail loud when neither is set, naming both fix points so the omission
@@ -235,7 +235,7 @@ function buildGoalFrontier(
 		const description = def?.description ?? (typeof def?.schema?.description === "string" ? def.schema.description : "");
 		if (description.length === 0) {
 			throw new Error(
-				`buildGoalFrontier: domain "${domain}" is goal-producing but has no description. Either add \`.describe("…")\` to its Zod schema (preferred — travels with the schema) or set \`description\` on its TDomainDefinition in the stepper's getConcerns().domains entry. Descriptions render in the goal index where users pick which goal to expand.`,
+				`buildGoalFrontier: domain "${domain}" is goal-producing but has no description. Either add \`.describe("…")\` to its Zod schema (preferred, travels with the schema) or set \`description\` on its TDomainDefinition in the stepper's getConcerns().domains entry. Descriptions render in the goal index where users pick which goal to expand.`,
 			);
 		}
 		out.push({ domain, description, resolution });
@@ -266,7 +266,7 @@ function isArgumentBinding(b: unknown): boolean {
 	return false;
 }
 
-/** The domains whose goals the snapshot finds satisfied — the one derivation both the server's waypoint pass and the client panel read. */
+/** The domains whose goals the snapshot finds satisfied: the one derivation both the server's waypoint pass and the client panel read. */
 export function satisfiedGoalDomains(goals: ReadonlyArray<{ domain: string; resolution: { finding: string } }>, satisfiedFinding: string): Set<string> {
 	return new Set(goals.filter((g) => g.resolution.finding === satisfiedFinding).map((g) => g.domain));
 }

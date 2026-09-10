@@ -31,7 +31,7 @@ class EmailFromPerson extends AStepper {
 	};
 }
 
-/** A registered producer of Person — turns Person into a typed-fact domain (not an argument). */
+/** A registered producer of Person, turns Person into a typed-fact domain (not an argument). */
 class PersonSource extends AStepper {
 	steps: TStepperSteps = {
 		registerPerson: {
@@ -97,7 +97,7 @@ describe("buildAffordances", () => {
 		expect(issue?.readyToRun).toBe(true);
 	});
 
-	it("marks steps with no producer for an input as readyToRun — that input is supplied as an argument, not chained", () => {
+	it("marks steps with no producer for an input as readyToRun: that input is supplied as an argument, not chained", () => {
 		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [], capabilities: new Set() });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
 		expect(issue?.readyToRun).toBe(true);
@@ -120,7 +120,7 @@ describe("buildAffordances", () => {
 		expect(result.forward.find((f) => f.stepName === "ping")).toBeUndefined();
 	});
 
-	it("filters out trivial single-step goals — those duplicate the forward frontier and add no chaining context", () => {
+	it("filters out trivial single-step goals: those duplicate the forward frontier and add no chaining context", () => {
 		const result = buildAffordances({ steppers: [new SessionTerminal(), new EmailFromPerson()], domains: fixedDomains(), facts: [], capabilities: new Set() });
 		expect(result.goals.find((g) => g.domain === SESSION)).toBeUndefined();
 		expect(result.goals.find((g) => g.domain === EMAIL)).toBeUndefined();
@@ -132,7 +132,7 @@ describe("buildAffordances", () => {
 		expect(emailGoal?.resolution.finding).toBe("michi");
 	});
 
-	it("filters out satisfied single-step goals — the asserted fact alone conveys the verdict, no chaining context to show", () => {
+	it("filters out satisfied single-step goals: the asserted fact alone conveys the verdict, no chaining context to show", () => {
 		const fact: TQuad = { subject: "s:1", predicate: SESSION, object: { id: "s1" }, namedGraph: "facts", timestamp: 1 };
 		const result = buildAffordances({ steppers: [new SessionTerminal()], domains: fixedDomains(), facts: [fact], capabilities: new Set() });
 		expect(result.goals.find((g) => g.domain === SESSION)).toBeUndefined();

@@ -1,9 +1,9 @@
 /**
  * Project the ONTOLOGY (the schema / T-Box) as quads, so the same graph view that renders the instance data (the A-Box)
- * renders the model that drives it — no separate visualization engine. The ontology is already RDFS/OWL triples:
- * `sec:Issuer rdfs:subClassOf prov:Agent`, `issuer rdfs:subPropertyOf fromActor rdfs:subPropertyOf inRoleOf`. We emit
+ * renders the model that drives it: no separate visualization engine. The ontology is already RDFS/OWL triples:
+ * `sec:Issuer rdfs:subClassOf prov:Agent`, `issuer rdfs:subPropertyOf fromActor rdfs:subPropertyOf inRoleOf`\. The projection emits
  * them as the same TQuad shape the store emits for individuals, so buildGraphModelFromQuads / the polymorphic view treat the
- * ontology as just another graph: two clusters — Class and Property — with the subClassOf / subPropertyOf hierarchies as
+ * ontology as just another graph: two clusters, Class and Property, with the subClassOf / subPropertyOf hierarchies as
  * edges. Pure + GPU-free (unit-tested). Reusable: any consumer that has the registered domains + LinkRelations can show
  * its own ontology; nothing here is consumer- or credential-specific.
  */
@@ -14,13 +14,13 @@ import type { TStandardTerm } from "./standard-vocabulary.js";
 /** The two ontology clusters (the polymorphic view shows each as its own container, coloured by type). */
 export const ONTOLOGY_CLASS = "Class";
 export const ONTOLOGY_PROPERTY = "Property";
-/** Whether a @type is one of the two schema clusters — the ONE predicate every schema-aware surface reuses: the filter
+/** Whether a @type is one of the two schema clusters: the ONE predicate every schema-aware surface reuses: the filter
  *  (default-hide), the paint (distinct shape), and the layout (timeless, so pinned to the front z=0 plane, not the age axis). */
 export const isSchemaType = (type: string): boolean => type === ONTOLOGY_CLASS || type === ONTOLOGY_PROPERTY;
 
-/** A property's provenance, keyed off its IRI. `haibun` when the term is haibun's own vocabulary — a CURIE under one of
+/** A property's provenance, keyed off its IRI. `haibun` when the term is haibun's own vocabulary: a CURIE under one of
  *  haibun's own prefixes, or an IRI under HAIBUN_NS. Otherwise the term belongs to a separate vocabulary (a standard, or a
- *  consumer's own) and is identified by that vocabulary's own prefix — no closed assumption about which non-haibun
+ *  consumer's own) and is identified by that vocabulary's own prefix: no closed assumption about which non-haibun
  *  vocabularies exist. Lets a view mark haibun-added fields distinctly and group a type's properties by their vocabulary. */
 export function propertyVocabulary(iri: string): { source: "haibun" | "standard"; prefix: string } {
 	const colon = iri.indexOf(":");
@@ -31,7 +31,7 @@ export function propertyVocabulary(iri: string): { source: "haibun" | "standard"
 
 /** True when a property's IRI is haibun's own vocabulary (not a standard term). */
 export const isHaibunTerm = (iri: string): boolean => propertyVocabulary(iri).source === "haibun";
-/** The predicates the projection emits — ONE source so the projector (writer) and the polymorphic view (reader of `domain`)
+/** The predicates the projection emits: ONE source so the projector (writer) and the polymorphic view (reader of `domain`)
  *  never drift on a string. `domain` is the genuine rdfs:domain term and the only one read outside this module (the
  *  Property routing); it shares the bare-local-name convention of subClassOf / subPropertyOf. */
 export const ONTOLOGY_PRED = {
@@ -42,13 +42,13 @@ export const ONTOLOGY_PRED = {
 	subClassOf: "subClassOf",
 	subPropertyOf: "subPropertyOf",
 	domain: "domain",
-	/** rdfs:range — the class an edge points at. With `domain` (the source classes) it makes the ontology fully
-	 *  navigable: a Property links the classes it connects, so the whole schema reads as "class —property→ class". */
+	/** rdfs:range: the class an edge points at. With `domain` (the source classes) it makes the ontology fully
+	 *  navigable: a Property links the classes it connects, so the whole schema reads as "class, property→ class". */
 	range: "range",
 	/** Whether a property is exercised by the type's data. Stamped `false` on a term a declared standard vocabulary defines
 	 *  but the type does not model (declared-not-present), so a view can render it distinctly from a property in the data. */
 	inData: "inData",
-	/** The class's ontological designation — agent / activity / observation / artifact — derived from its subClassOf chain
+	/** The class's ontological designation, agent / activity / observation / artifact, derived from its subClassOf chain
 	 *  to a PROV/SOSA anchor. The one value node shape, the filter grouping and the type description all read. */
 	category: "category",
 } as const;
@@ -66,7 +66,7 @@ function ancestorsWith(term: string, supers: Map<string, string[]>): Set<string>
 	return out;
 }
 
-/** Immediate subClassOf/subPropertyOf parents of every term in a projected ontology — the input to ancestorsWith. */
+/** Immediate subClassOf/subPropertyOf parents of every term in a projected ontology: the input to ancestorsWith. */
 function superMap(quads: TQuad[]): Map<string, string[]> {
 	const supers = new Map<string, string[]>();
 	for (const q of quads)
@@ -74,7 +74,7 @@ function superMap(quads: TQuad[]): Map<string, string[]> {
 	return supers;
 }
 
-/** The category label for each PROV/SOSA anchor class — the friendly presentation of the standard upper class the type
+/** The category label for each PROV/SOSA anchor class: the friendly presentation of the standard upper class the type
  *  is `rdfs:subClassOf`. `sosa:Observation ⊑ prov:Activity`, so it wins over Activity; Entity is the default (unstated). */
 const CATEGORY_ANCHOR: Record<string, string> = { "prov:Agent": "agent", "sosa:Observation": "observation", "prov:Activity": "activity", "prov:Entity": "artifact" };
 const CATEGORY_PRECEDENCE = ["agent", "observation", "activity", "artifact"] as const;
@@ -85,12 +85,12 @@ export function categoryOf(cls: string, supers: Map<string, string[]>): string {
 	for (const a of ancestorsWith(cls, supers)) if (CATEGORY_ANCHOR[a]) reached.add(CATEGORY_ANCHOR[a]);
 	return CATEGORY_PRECEDENCE.find((cat) => reached.has(cat)) ?? "artifact";
 }
-/** The ontology is timeless — a fixed timestamp so the time axis / cursor treat every term as one age. */
+/** The ontology is timeless: a fixed timestamp so the time axis / cursor treat every term as one age. */
 const ONTOLOGY_TS = 0;
 
-/** The rdfs:domain of a rel — the persisted type labels that declare it (as an edge or a property), in registration
+/** The rdfs:domain of a rel: the persisted type labels that declare it (as an edge or a property), in registration
  *  order. Empty for an abstract super-property (inRoleOf/fromActor/toActor) or a rel no registered type uses. Lets a
- *  click on a Property node open the windowed instances of a type that actually carries it. */
+ *  click on a Property node open the windowed instances of a type that carries it. */
 export function typesDeclaringRel(domains: Record<string, TRegisteredDomain>, rel: string): string[] {
 	const labels: string[] = [];
 	for (const d of Object.values(domains)) {
@@ -115,7 +115,7 @@ const cluster = (type: string, subjects: string[], displayLabels: Record<string,
 /**
  * Build the ontology graph: a Class node per persisted type plus the superclasses it `subClassOf` (e.g. Principal →
  * prov:Agent), and a Property node per LinkRelations rel with its `subPropertyOf` hierarchy (issuer → fromActor →
- * inRoleOf). Abstract super-properties (inRoleOf/fromActor/toActor) ARE shown — they are the interesting structure. The
+ * inRoleOf). Abstract super-properties (inRoleOf/fromActor/toActor) ARE shown: they are the interesting structure. The
  * `domains` give the classes; LinkRelations gives the properties, so the relation hierarchy renders even with no domains.
  */
 export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {}): TClusteredQuads {
@@ -155,7 +155,7 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		quads.push({ subject: rel, predicate: ONTOLOGY_PRED.uri, object: entry.uri, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
 		if ((entry as { abstract?: boolean }).abstract)
 			quads.push({ subject: rel, predicate: ONTOLOGY_PRED.abstract, object: true, namedGraph: ONTOLOGY_PROPERTY, timestamp: ONTOLOGY_TS });
-		// rdfs:domain — the persisted types that declare this rel, each a drawn Property→Class edge (objectType Class): the
+		// rdfs:domain: the persisted types that declare this rel, each a drawn Property→Class edge (objectType Class): the
 		// schema's structure, a Property pointing at the classes that carry it. The first also routes a click on the
 		// Property to that type's windowed instances.
 		for (const domain of typesDeclaringRel(domains, rel))
@@ -168,7 +168,7 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		}
 	}
 
-	// rdfs:range — each edge's declared target class, a drawn Property→Class edge (objectType Class). Together with `domain`
+	// rdfs:range: each edge's declared target class, a drawn Property→Class edge (objectType Class). Together with `domain`
 	// the ontology is fully connected: every relation shows the classes it links, so the whole schema can be viewed.
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
@@ -181,7 +181,7 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		}
 	}
 
-	// Each class's designation, read off the standard subClassOf axioms built above — one derived value the node shape,
+	// Each class's designation, read off the standard subClassOf axioms built above: one derived value the node shape,
 	// the filter grouping and the type description all read (the meta classes carry their own: prov:Agent → agent).
 	const supers = superMap(quads);
 	for (const cls of classSubjects)
@@ -190,11 +190,11 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 	return { quads, clusters: [cluster(ONTOLOGY_CLASS, classSubjects, classLabels), cluster(ONTOLOGY_PROPERTY, propSubjects, propLabels)] };
 }
 
-/** Prune a projected ontology to the terms the data exercises — a Class with an instance, a Property in use — plus the
+/** Prune a projected ontology to the terms the data exercises, a Class with an instance, a Property in use, plus the
  *  ancestors of each used term (subClassOf/subPropertyOf: an abstract super like inRoleOf or prov:Agent IS the
  *  interesting structure, so a used leaf pulls in its whole hierarchy). getClusteredQuads calls this with the FULL
  *  observation set as evidence when it assembles its response, so the served schema and its cluster counts stay correct
- *  however the request narrowed its types — a schema-only fetch (Class + Property alone) still reflects what the whole
+ *  however the request narrowed its types: a schema-only fetch (Class + Property alone) still reflects what the whole
  *  data uses. Edges to a pruned term fall away on their own (buildGraphModelFromQuads needs both endpoints). */
 export function pruneOntologyToUse(ontology: TClusteredQuads, evidence: TQuad[]): TClusteredQuads {
 	const used = new Set<string>(); // instance types + used predicates
@@ -218,8 +218,8 @@ export function pruneOntologyToUse(ontology: TClusteredQuads, evidence: TQuad[])
 /** Scope schema quads to ONE type's own vocabulary: the type's Class, every schema term connected to it in either
  *  direction (its properties via their rdfs:domain edges, its superclass via subClassOf, any subclass pointing at it),
  *  and those kept terms' own scalar quads (name, uri, abstract) so they render labelled. Non-schema quads pass through
- *  untouched — instance visibility stays the type filter's concern. The class browser's single-type scope. */
-/** The schema terms directly connected to `type` in either edge direction — the shared core of the type-scoped views. */
+ *  untouched: instance visibility stays the type filter's concern. The class browser's single-type scope. */
+/** The schema terms directly connected to `type` in either edge direction: the shared core of the type-scoped views. */
 function keepConnectedToType(quads: TQuad[], type: string): Set<string> {
 	const keep = new Set<string>([type]);
 	for (const q of quads) {
@@ -240,11 +240,11 @@ export function scopeSchemaToType(quads: TQuad[], type: string): TQuad[] {
 }
 
 /** The focus type plus its immediate connections: its own schema (properties, superclass) AND the types those properties
- *  range over — one hop out in type space, so a reader sees what the type relates to without the whole vocabulary. The
+ *  range over: one hop out in type space, so a reader sees what the type relates to without the whole vocabulary. The
  *  connected types show as nodes without their own properties (their domain edges are left out). */
 export function scopeSchemaToConnected(quads: TQuad[], type: string): TQuad[] {
 	const keep = keepConnectedToType(quads, type);
-	// The range types of the kept properties — the type's immediate connections in type space.
+	// The range types of the kept properties: the type's immediate connections in type space.
 	for (const q of quads) {
 		if (isSchemaType(q.namedGraph) && q.predicate === ONTOLOGY_PRED.range && keep.has(q.subject) && q.objectType !== undefined) keep.add(String(q.object));
 	}
@@ -253,11 +253,11 @@ export function scopeSchemaToConnected(quads: TQuad[], type: string): TQuad[] {
 
 /** Include the pruned ontology (the schema the `evidence` data exercises) in an instance-graph response, so one response
  *  carries both the data and the model that drives it: the two Class + Property clusters at t=0 (default-hidden on the
- *  client, revealed via their filter chip) plus one rdf:type (`a`) edge per instance to its Class — the edge lives in the
+ *  client, revealed via their filter chip) plus one rdf:type (`a`) edge per instance to its Class: the edge lives in the
  *  instance's own graph so buildGraphModelFromQuads drops it until the Class chip is revealed, and it never inflates the
  *  Class count. The ONE assembler both the live getClusteredQuads and the offline report use, so a served report's
  *  schema view matches a live one. `evidence` is the full data (live: the observation buffer; offline: the serialized
- *  graph), never a type-narrowed subset — that keeps the pruning correct however the request scoped its types. */
+ *  graph), never a type-narrowed subset: that keeps the pruning correct however the request scoped its types. */
 export function withOntologySchema(
 	response: TClusteredQuads,
 	evidence: TQuad[],
@@ -265,7 +265,7 @@ export function withOntologySchema(
 	standardVocab?: Map<string, TStandardTerm[]>,
 ): TClusteredQuads {
 	const ontology = pruneOntologyToUse(ontologyToQuads(domains), evidence);
-	// Fold in each type's declared standard vocabulary AFTER pruning — these terms are declared-not-present (no instance
+	// Merge in each type's declared standard vocabulary AFTER pruning: these terms are declared-not-present (no instance
 	// uses them), so the evidence-only prune would drop them; they must survive so a type view shows a standard's whole
 	// vocabulary. Each carries an rdfs:domain edge to its type so scopeSchemaToType keeps it for the viewed type.
 	if (standardVocab) injectStandardVocab(ontology, standardVocab);
@@ -288,7 +288,7 @@ export function withOntologySchema(
 	return { quads: [...response.quads, ...typeEdges, ...ontology.quads], clusters: [...response.clusters, ...ontology.clusters] };
 }
 
-/** Add each type's declared standard-vocabulary terms to the (already-pruned) ontology as Property nodes — but only the
+/** Add each type's declared standard-vocabulary terms to the (already-pruned) ontology as Property nodes, but only the
  *  terms NOT already present as a haibun rel (compared by IRI local name, so a compact term and its full IRI form are
  *  one term). Each injected term is stamped inData=false and given an rdfs:domain edge to its type's Class (added if the
  *  type has no instances), so it renders attached to the type and survives scopeSchemaToType. */
@@ -306,7 +306,7 @@ function injectStandardVocab(ontology: TClusteredQuads, standardVocab: Map<strin
 		ontology.quads.push({ subject: label, predicate: ONTOLOGY_PRED.name, object: label, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 	};
 	// The terms are already the declared-not-present set (enumerateStandardVocab deduped by name against the type's own
-	// fields), so no dedup here — only skip a name that is already an ontology Property node (a global rel), then attach
+	// fields), so no dedup here, only skip a name that is already an ontology Property node (a global rel), then attach
 	// each to its type via an rdfs:domain edge.
 	for (const [typeLabel, terms] of standardVocab) {
 		for (const { term, iri } of terms) {

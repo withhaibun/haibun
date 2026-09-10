@@ -5,7 +5,7 @@
  * lit computes `elementStyles` lazily the first time its `static observedAttributes`
  * getter runs (`customElements.define` reads it). A subclass that overrode the getter
  * with a raw `return [...]` never called `super`, so `finalize()` never ran and the
- * component inherited the base class's empty `elementStyles` — every `static styles`
+ * component inherited the base class's empty `elementStyles`: every `static styles`
  * rule was silently dropped from the shadow root (no layout, no sizing, no resize
  * handle, no aria-pressed highlight). jsdom applies no CSS, so attribute-reflection
  * tests stayed green while the live UI was unstyled. This test pins the mechanism that
@@ -62,7 +62,7 @@ class SealedOverrideProbe extends ShuElement<typeof S> {
 	constructor() {
 		super(S, { x: "" });
 	}
-	connectedCallback(): void {} // raw override of a sealed method — must throw at construction
+	connectedCallback(): void {} // raw override of a sealed method, must throw at construction
 	render(): TemplateResult {
 		return html`<div></div>`;
 	}
@@ -71,7 +71,7 @@ customElements.define("shu-sealed-override-probe", SealedOverrideProbe);
 
 describe("ShuElement sealed-lifecycle guard", () => {
 	it("throws at construction if a subclass overrides a sealed lifecycle method instead of the hook", () => {
-		expect(() => new SealedOverrideProbe()).toThrow(/overrides sealed ShuElement\.connectedCallback\(\) — override protected onConnected/);
+		expect(() => new SealedOverrideProbe()).toThrow(/overrides sealed ShuElement\.connectedCallback\(\), override protected onConnected/);
 	});
 });
 
@@ -190,7 +190,7 @@ describe("ShuElement persistFields", () => {
 
 /**
  * An invalid state write is a caller error, and the console is where it lands. A bare ZodError names the failing field
- * and nothing else — not the element, not the write, not the attribute that drove it — and setState is re-entrant
+ * and nothing else, not the element, not the write, not the attribute that drove it, and setState is re-entrant
  * (state → attribute → attributeChangedCallback → setState), so the stack does not say either.
  */
 describe("ShuElement invalid state reporting", () => {
@@ -201,7 +201,7 @@ describe("ShuElement invalid state reporting", () => {
 			return null;
 		}
 
-		// A number-bound attribute: a non-numeric attribute value coerces to NaN, which the schema rejects — the one way to
+		// A number-bound attribute: a non-numeric attribute value coerces to NaN, which the schema rejects: the one way to
 		// drive a rejected write in through attributeChangedCallback.
 		static attributeFields = { "data-count": "count", "data-label": "label" };
 		constructor() {
@@ -221,7 +221,7 @@ describe("ShuElement invalid state reporting", () => {
 
 	const probe = (): ReportProbe => document.createElement("shu-report-probe") as ReportProbe;
 
-	it("names the element, the write, and the offending value — and keeps the original error as the cause", () => {
+	it("names the element, the write, and the offending value, and keeps the original error as the cause", () => {
 		let thrown: Error | undefined;
 		try {
 			probe().write({ label: undefined as unknown as string });
@@ -249,7 +249,7 @@ describe("ShuElement invalid state reporting", () => {
 		expect(thrown?.message.length).toBeLessThan(300);
 	});
 
-	// Driven through attributeChangedCallback — the reaction the browser invokes on an attribute write. jsdom does not
+	// Driven through attributeChangedCallback: the reaction the browser invokes on an attribute write. jsdom does not
 	// enqueue custom-element reactions for setAttribute, so calling it is what a real attribute change does here.
 	it("names the attribute that drove a rejected write, since setState only sees the state it was handed", () => {
 		let thrown: Error | undefined;

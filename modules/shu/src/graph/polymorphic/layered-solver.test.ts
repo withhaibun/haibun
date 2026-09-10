@@ -5,7 +5,7 @@ import { truncateLabel, MAX_LABEL_CHARS } from "./layout-forces.js";
 
 const N = (id: string) => ({ id, label: id.toUpperCase() });
 
-/** Every input node gets a box, so a miss is a solver bug — fail fast rather than reach through an optional. */
+/** Every input node gets a box, so a miss is a solver bug, fail fast rather than reach through an optional. */
 const at = (p: Map<string, { x: number; y: number }>, id: string): { x: number; y: number } => {
 	const v = p.get(id);
 	if (!v) throw new Error(`no layered position for ${id}`);
@@ -58,20 +58,20 @@ describe("layered solver: compact + bounded ranks (no unbounded fan-out)", () =>
 		{ from: "c", to: "d" },
 	];
 
-	it("ranks are DISJOINT bands — consecutive layers sit more than a node-height (30) apart", () => {
+	it("ranks are DISJOINT bands, consecutive layers sit more than a node-height (30) apart", () => {
 		const p = layeredPositions(chain.map(N), chainEdges, "TB");
 		expect(at(p, "b").y - at(p, "a").y).toBeGreaterThan(30);
 		expect(at(p, "c").y - at(p, "b").y).toBeGreaterThan(30);
 	});
 
-	it("a chain is COMPACT — its rank axis (y) spans more than its cross axis (x); a single node doesn't fan its layer out", () => {
+	it("a chain is COMPACT: its rank axis (y) spans more than its cross axis (x); a single node doesn't fan its layer out", () => {
 		const p = layeredPositions(chain.map(N), chainEdges, "TB");
 		const xs = chain.map((id) => at(p, id).x);
 		const ys = chain.map((id) => at(p, id).y);
 		expect(Math.max(...xs) - Math.min(...xs)).toBeLessThanOrEqual(Math.max(...ys) - Math.min(...ys));
 	});
 
-	it("a long id truncated at the caller yields the SAME bounded width as a max-length node — the unbounded-nodeWidth lever is pinned", () => {
+	it("a long id truncated at the caller yields the SAME bounded width as a max-length node: the unbounded-nodeWidth lever is pinned", () => {
 		const longId = `u${"A".repeat(200)}`;
 		expect(nodeWidth(truncateLabel(longId))).toBe(nodeWidth("x".repeat(MAX_LABEL_CHARS)));
 	});

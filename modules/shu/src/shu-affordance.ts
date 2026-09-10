@@ -1,8 +1,8 @@
 /**
- * `<shu-affordance>` — Lit element that renders one `TAffordance` as a button
+ * `<shu-affordance>`: Lit element that renders one `TAffordance` as a button
  * and routes the click through shu's existing browser-routing layer. Every
- * clickable user action in shu — server-emitted `_links` follows, SPA-side
- * step pickers, and view navigations — goes through this component.
+ * clickable user action in shu, server-emitted `_links` follows, SPA-side
+ * step pickers, and view navigations, goes through this component.
  *
  *   follow    → invokes the link via `conduit().follow(...)` and hands the
  *               result to `dispatchAffordanceFromResponse`, the same path the

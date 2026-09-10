@@ -34,13 +34,13 @@ function nodeStyle(kind: string | undefined, overrides: TGraph["styles"]): { fil
 	const o = overrides?.[k];
 	const base = NODE_DEFAULTS[k];
 	// A built-in workflow kind (satisfied/reachable/…) or an explicit override keeps its styling. Otherwise `kind` is a
-	// data @type (buildGraphTopology sets node.kind = the namedGraph): take its fill from the per-@type presenter — the
-	// SAME source the 3D paint uses — so SVG and 3D data nodes share colours (one presenter feeds both paints).
+	// data @type (buildGraphTopology sets node.kind = the namedGraph): take its fill from the per-@type presenter: the
+	// SAME source the 3D paint uses, so SVG and 3D data nodes share colours (one presenter feeds both paints).
 	const fill = o?.fill ?? base?.fill ?? presentationForType(k).mark({ id: k, name: k, type: k }, {}).color;
 	return { fill, stroke: o?.stroke ?? base?.stroke ?? NODE_DEFAULTS.default.stroke, strokeWidth: o?.strokeWidth ?? base?.strokeWidth ?? 1.5 };
 }
 
-/** The point on a box's border on the ray from its centre toward `toward` — so an edge meets the node edge, not its centre. */
+/** The point on a box's border on the ray from its centre toward `toward`, so an edge meets the node edge, not its centre. */
 function borderPoint(box: NodeBox, toward: { x: number; y: number }): { x: number; y: number } {
 	const cx = box.x + box.w / 2;
 	const cy = box.y + box.h / 2;

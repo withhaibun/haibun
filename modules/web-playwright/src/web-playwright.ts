@@ -228,7 +228,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			this.bf.registerPopup(tag, this.tab, popup);
 		});
 		if (!this.#errorBoundPages.has(page)) {
-			this.#errorBoundPages.add(page); // attach once per page — getPage is called per action
+			this.#errorBoundPages.add(page); // attach once per page, getPage is called per action
 			page.on("pageerror", (err: Error) => this.browserErrors.push(err?.message ?? String(err)));
 		}
 		return page;

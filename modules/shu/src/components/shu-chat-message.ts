@@ -1,8 +1,8 @@
 /**
- * <shu-chat-message> — one user prompt or one LLM response in the chat column.
+ * <shu-chat-message>: one user prompt or one LLM response in the chat column.
  * Purely prop-driven: the parent (shu-kihan-chat) owns the single conversation
  * state and passes one TChatMessage; this element renders it. No imperative
- * mutators — both the live stream and a hydrated session write the same parent
+ * mutators: both the live stream and a hydrated session write the same parent
  * state, so there is one render path. Lives in light DOM so the parent column's
  * selection/scroll styles cascade through.
  */
@@ -15,7 +15,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 
 /** Styles for a light-DOM chat message, exported for every shadow scope that hosts one (shu-kihan-chat's own
- * transcript, and the actions bar's shared activity history) — the message renders in light DOM, so the rules
+ * transcript, and the actions bar's shared activity history): the message renders in light DOM, so the rules
  * must live in whichever scope contains it, and this single export keeps the two scopes from drifting. */
 export const chatMessageStyles = css`
 	shu-chat-message { display: block; }
@@ -45,7 +45,7 @@ export type TChatRole = z.infer<typeof ChatRoleSchema>;
 export const ChatStatusSchema = z.enum(["running", "completed", "failed", "aborted"]);
 export type TChatStatus = z.infer<typeof ChatStatusSchema>;
 
-/** One half of a conversation turn. `seqPath` is the graph identity — cmt-ask/cmt-say-<seqPath> — so a rendered message links back to its Comment quads / run trace. `id` is the keyed-render identity (never reused). Spinner/status/error are llm-only UI state. */
+/** One half of a conversation turn. `seqPath` is the graph identity, cmt-ask/cmt-say-<seqPath>, so a rendered message links back to its Comment quads / run trace. `id` is the keyed-render identity (never reused). Spinner/status/error are llm-only UI state. */
 export const ChatMessageSchema = z.object({
 	id: z.string(),
 	role: ChatRoleSchema,
@@ -64,7 +64,7 @@ const ROLE_LABEL: Record<TChatRole, string> = { user: "🧘", llm: "🤖" };
 const md = new MarkdownIt();
 
 export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -81,7 +81,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 	}
 
 	protected updated(): void {
-		// Spinner is a sibling custom element; sync its imperative props from the message. Only assign on change — the status setter re-pulses, and the parent re-renders every streamed-text frame, so unconditional assignment would restart the pulse animation ~60×/s.
+		// Spinner is a sibling custom element; sync its imperative props from the message. Only assign on change: the status setter re-pulses, and the parent re-renders every streamed-text frame, so unconditional assignment would restart the pulse animation ~60×/s.
 		const spinner = this.querySelector(":scope > .msg > .msg-content > shu-spinner") as ShuSpinner | null;
 		if (!spinner) return;
 		const m = this.message;

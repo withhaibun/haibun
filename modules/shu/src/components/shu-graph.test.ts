@@ -115,7 +115,7 @@ describe("shu-graph", () => {
 
 	it("repaint skips renderer.render when the projected graph source is byte-identical to the previous paint", async () => {
 		// Regression: live affordance pings that don't change the graph shape must not
-		// retrigger layout — preserves scroll position and stops the diagram jumping.
+		// retrigger layout, preserves scroll position and stops the diagram jumping.
 		const el = document.createElement("shu-graph") as ShuGraph;
 		const renderer = new RecordingRenderer();
 		el.setRenderer(renderer);

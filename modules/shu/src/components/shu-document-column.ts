@@ -1,5 +1,5 @@
 /**
- * <shu-document-column> — the run as an academic-paper document: execution events rendered as headings, step lines,
+ * <shu-document-column>: the run as an academic-paper document: execution events rendered as headings, step lines,
  * prose, and embedded artifacts. It reads the run the way every event view does (event-source): one source per level,
  * spanning the whole run by index, paged in as the reader reaches for a region, bounded in what it caches, live events
  * taking their place at the edge. One row per event. An event's blocks (document-blocks) are generated a page at a time
@@ -131,7 +131,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			/* A run of per-step screenshots flows as a grid of TILE-SIZED thumbnails across the column width: fixed ~160px
 			   minimum tracks (auto-fill caches the unused tracks, so a lone screenshot stays a tile instead of blowing up to
 			   the whole column), each frame stretching only to its track, wrapping to new rows. The strip spans the column;
-			   the tiles stay thumbnails — expanding is what the fullscreen click is for. */
+			   the tiles stay thumbnails, expanding is what the fullscreen click is for. */
 			.thumb-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: var(--shu-space-2); margin-left: 32px; }
 			.thumb-row > * { margin: 0; }
 			shu-artifact-frame { margin: var(--shu-space-3) 0; }
@@ -163,7 +163,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.autoTeardown(() => this.#unsubscribeRun?.());
 		// A framed row a reader clicked in another view requests the document to scroll to that instant and reveal the row.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.jumpToRow((e as CustomEvent<{ row: Element }>).detail.row));
-		// ←/→ from an expanded thumbnail: only this column can navigate the whole run — the off-screen frames are not in the DOM.
+		// ←/→ from an expanded thumbnail: only this column can navigate the whole run: the off-screen frames are not in the DOM.
 		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => void this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
 	}
 
@@ -317,7 +317,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	/** Scrub the global time cursor to a row's instant and highlight it here; never scrolls (a click lands on a row in
-	 *  view). The newest instant is the live edge — the cursor there is null, every view following, like the slider at its end. */
+	 *  view). The newest instant is the live edge: the cursor there is null, every view following, like the slider at its end. */
 	private cursorToRow(rawTime: number): void {
 		const absTime = this.#first + rawTime;
 		this.timeCursor = atLiveEdge(absTime) ? null : absTime; // the setter fires onTimeSync → requestUpdate
@@ -383,7 +383,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		let frames = this.#framesOf(p);
 		for (let hops = 0; (n < 0 || n >= frames.length) && hops < MAX_FRAME_HOPS; hops++) {
 			p += dir;
-			if (p < 0 || p * size >= this.#run.count()) return; // at the run's first/last thumbnail — nothing to move to
+			if (p < 0 || p * size >= this.#run.count()) return; // at the run's first/last thumbnail: nothing to move to
 			await this.#run.ensureRange(p * size, Math.min((p + 1) * size, this.#run.count()));
 			frames = this.#framesOf(p);
 			n = dir < 0 ? frames.length - 1 : 0;

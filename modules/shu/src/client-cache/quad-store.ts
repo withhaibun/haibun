@@ -95,7 +95,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 		return rows ?? [];
 	}
 
-	/** Batch upsert in one transaction — each quad replaces any prior quad with the same subject+predicate+namedGraph,
+	/** Batch upsert in one transaction: each quad replaces any prior quad with the same subject+predicate+namedGraph,
 	 *  so persisting a live merge batch keeps the stored graph bounded (one row per fact) rather than appending. */
 	async setMany(quads: TQuad[]): Promise<void> {
 		if (quads.length === 0) return;

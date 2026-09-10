@@ -8,7 +8,7 @@ import { persistedSetting } from "./signals.js";
 
 const STORAGE_WINDOW_SIZE = "shu.windowSize";
 
-/** First-run fallback rows per windowed view — a named const (never a bare literal), and a member of WINDOW_SIZES. */
+/** First-run fallback rows per windowed view: a named const (never a bare literal), and a member of WINDOW_SIZES. */
 export const DEFAULT_WINDOW_SIZE = "500";
 
 /** Rows fetched per windowed query (the graph query's page size). One global setting. `∞` (9e9) is effectively unlimited. */

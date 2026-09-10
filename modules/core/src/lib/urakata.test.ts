@@ -123,7 +123,7 @@ describe("UrakataRegistry", () => {
 		expect(calls).toBeGreaterThan(1);
 		expect(sawAbort).toBe(true);
 		expect(maxInFlight).toBe(1);
-		// One error per timed-out tick — the abort's own settlement is not a second count.
+		// One error per timed-out tick: the abort's own settlement is not a second count.
 		expect(registry.get(u.id).errorCount).toBe(reported.length);
 		expect(reported.every((m) => m.includes("exceeded 10ms"))).toBe(true);
 	});
@@ -194,7 +194,7 @@ describe("UrakataRegistry", () => {
 describe("UrakataRegistry persistence of transitions", () => {
 	const readTask = async (world: ReturnType<typeof getDefaultWorld>, id: string) => world.shared.getStore().getIndividual<Record<string, unknown>>(URAKATA_LABEL, id);
 
-	it("persists the individual on registration, on an error, and on stop — one row per id, reflecting the latest transition", async () => {
+	it("persists the individual on registration, on an error, and on stop: one row per id, reflecting the latest transition", async () => {
 		const world = getDefaultWorld();
 		const registry = new UrakataRegistry(world, () => undefined);
 		let fail = true;
@@ -225,7 +225,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 
 	it("leaves a prior instance's row untouched (it already tells the truth); re-registering the id overwrites it with the current instance", async () => {
 		const world = getDefaultWorld();
-		// A row from another run instance, never cleanly stopped — the abrupt-stop reading.
+		// A row from another run instance, never cleanly stopped: the abrupt-stop reading.
 		await world.shared.getStore().upsertIndividual(URAKATA_LABEL, {
 			id: "imap.idle.acct/INBOX",
 			description: "from a prior instance",

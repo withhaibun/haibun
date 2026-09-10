@@ -1,7 +1,7 @@
 /**
  * A graph's focus/dim decision: one pure function every element kind (node, edge line, edge label, group
  * enclosure) runs, mapping the resulting tier to its own opacity/colour constants. Preview (a type hovered in the
- * filter legend) takes precedence over node focus — while a preview is active only the previewed type stays full.
+ * filter legend) takes precedence over node focus, while a preview is active only the previewed type stays full.
  */
 export type FocusState = "full" | "dimmed" | "resting";
 
@@ -18,7 +18,7 @@ export function focusStateFor(i: FocusPolicyInput): FocusState {
 	return i.isInFocus ? "full" : "dimmed";
 }
 
-/** Per-kind opacity for each tier — the resting tier differs by kind (lines rest at LINK_OPACITY, others at full). */
+/** Per-kind opacity for each tier: the resting tier differs by kind (lines rest at LINK_OPACITY, others at full). */
 export interface KindTiers {
 	full: number;
 	dimmed: number;

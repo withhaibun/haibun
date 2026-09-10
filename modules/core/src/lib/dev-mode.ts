@@ -1,9 +1,9 @@
 /**
- * dev-mode — runtime DEV vs PROD switch and the `failFastOrLog` helper that
+ * dev-mode: runtime DEV vs PROD switch and the `failFastOrLog` helper that
  * sits on top of it.
  *
  * Some code paths must catch errors that would otherwise interrupt unrelated
- * work — a thrown listener cannot be allowed to silence its siblings, for
+ * work: a thrown listener cannot be allowed to silence its siblings, for
  * example. Logging that caught error to the console is the prod-time fallback,
  * but the browser console is easy to miss and silent failures hide bugs.
  *
@@ -48,7 +48,7 @@ export function resetDevModeCache(): void {
 /**
  * Inside a catch: re-throw in DEV (surface the bug), log + continue in PROD
  * (one bad caller must not silence the rest). Always pass `err` from the
- * surrounding catch — the throw needs to carry the original failure.
+ * surrounding catch: the throw needs to carry the original failure.
  */
 export function failFastOrLog(label: string, err: unknown): void {
 	if (isDev()) throw err;

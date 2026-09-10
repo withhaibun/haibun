@@ -105,7 +105,7 @@ describe("getTunableOptions", () => {
 		expect(tunables.map((t) => t.key)).toEqual(["QUIET"]);
 	});
 
-	it("type-system sanity: TTunableOption has a required range field", () => {
+	it("type-system check: TTunableOption has a required range field", () => {
 		const t: TTunableOption = {
 			desc: "",
 			parse: (s) => ({ result: s }),

@@ -1,6 +1,6 @@
 /**
  * The backend-neutral LAYOUT pass: resolve marks' declared LayoutRoles into placements (where each node sits) + any
- * axis adornment, sharing one scale across all nodes of a role. Pure — same marks in, same scene out — so the 3D
+ * axis adornment, sharing one scale across all nodes of a role. Pure, same marks in, same scene out, so the 3D
  * and SVG paints place marks identically and can't drift. Position + size live HERE (in the placement), not on the
  * mark: the presenter declares a node's role (e.g. its time span); this pass turns the whole set into coordinates.
  *
@@ -14,7 +14,7 @@ import type { LayoutRole } from "./graph-scene.js";
 import { timeToGanttX, ganttAxisTicks, type GanttTick } from "./gantt-layout.js";
 import { GANTT_ROW_H, GANTT_WORLD_W } from "./gantt-layout.js";
 
-/** The slice of a node the layout needs — its identity + declared role. A NodeMark satisfies this. */
+/** The slice of a node the layout needs: its identity + declared role. A NodeMark satisfies this. */
 export type LayoutItem = { id: string; role: LayoutRole };
 
 /** Where a node is placed. Undefined dims fall back to the view's default (force x/y, recorded-time z). `zExtent` is the

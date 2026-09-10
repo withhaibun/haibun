@@ -1,8 +1,8 @@
 /**
- * Persist a Principal individual — the public, durable descriptor a DID resolves to (site principal, subkey,
+ * Persist a Principal individual: the public, durable descriptor a DID resolves to (site principal, subkey,
  * or VC issuer). Crypto-free: writes through the abstract store, public material only (publicKeyMultibase,
  * never a private key). Shared by AuthorityStepper (subkey delegation) and any consumer issuing stepper
- * (shared-DID alignment) so one DID is one Principal node — its VC-issuance and capability roles converge.
+ * (shared-DID alignment) so one DID is one Principal node: its VC-issuance and capability roles converge.
  */
 import type { TWorld } from "./world.js";
 import { LinkRelations, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL, type TPrincipal } from "./resources.js";
@@ -11,7 +11,7 @@ import { LinkRelations, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL, type TPrincipal } fro
  * Idempotent + best-effort: runs only when the Principal label is registered and a store is available
  * (e.g. after `create graph store`); the runtime grant stays the dispatch source of truth.
  *
- * Delegation is a single navigable `delegatedFrom` (sec:delegator) edge, never a Principal property —
+ * Delegation is a single navigable `delegatedFrom` (sec:delegator) edge, never a Principal property:
  * so it is written AFTER the upsert (which replaces the subject's quads) and via the store's edge
  * primitive when available: a graph-native store gets one real, walkable edge through `createEdge`;
  * the in-memory quad store models edges as quads, so it falls back to `add`. Either way: exactly one edge.

@@ -1,12 +1,12 @@
 /**
- * <shu-permissions> — what this reader may do here, and the authority behind it.
+ * <shu-permissions>: what this reader may do here, and the authority behind it.
  *
  * A reader who is refused something needs to see why, and an operator deciding on an agent's request needs to see what
  * they themselves hold. Three things say that: the actions this page's own credential holds, the principals this
  * deployment knows, and the grants its authority stands on. The grant rows carry no token: a bearer token is the
  * credential, so a listing carrying one hands it over.
  *
- * Shown from the access indicator, beside the level a read is bounded by — a capability decides whether a question may
+ * Shown from the access indicator, beside the level a read is bounded by: a capability decides whether a question may
  * be put, the level decides how much of the answer comes back, and a reader is looking at both in one place.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -195,7 +195,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 					? html`<ul>
 						${grants.map(
 							(g) => html`<li class=${g.revoked ? "revoked" : ""}>
-								${g.allowedAction.join(", ")} — granted by
+								${g.allowedAction.join(", ")}, granted by
 								${g.controller ? refTpl("entity", { persistedAs: PRINCIPAL_LABEL, id: g.controller }, g.controller) : "nobody named"}
 								${g.seqPath ? html` at ${refTpl("seqPath", { seqPath: g.seqPath.split(".").map(Number) }, g.seqPath)}` : ""}
 								${g.note ? html` <span class="none">(${g.note})</span>` : ""}

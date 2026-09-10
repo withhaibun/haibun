@@ -1,7 +1,7 @@
 import { copyText } from "../copy-util.js";
 
 /**
- * <shu-copy-button> — Standard "copy to clipboard" button used across shu views.
+ * <shu-copy-button>: Standard "copy to clipboard" button used across shu views.
  *
  * Usage:
  *   <shu-copy-button label="Copy" .source=${someText}></shu-copy-button>
@@ -44,7 +44,7 @@ export class ShuCopyButton extends HTMLElement {
 		this._source = value;
 	}
 
-	/** Lazy source: computed at click time, for content that is expensive to serialize (a graph view) — never per render. */
+	/** Lazy source: computed at click time, for content that is slow to serialize (a graph view), never per render. */
 	sourceProvider: (() => string) | null = null;
 
 	private async copy(): Promise<void> {

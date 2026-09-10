@@ -34,7 +34,7 @@ Steps can also be written as Typescript modules, analogous to kireji, identified
 
 Code comments are supported like this:
 
-    set max_retries to "5" ;; allows robust retry logic
+    set max_retries to "5" ;; allows retry logic
 
 ## Variables & Domains
 

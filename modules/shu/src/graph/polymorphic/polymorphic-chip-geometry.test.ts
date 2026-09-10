@@ -37,7 +37,7 @@ describe("chipGeometry", () => {
 		if (!badge) throw new Error("a chip built with an avatar lead has a badge");
 		const badgeLeft = badge.cx - badge.w / 2;
 		const badgeRight = badge.cx + badge.w / 2;
-		expect(badgeLeft).toBeCloseTo(g.cx - g.w / 2); // flush with the chip's leading edge — no sliver of body before it
+		expect(badgeLeft).toBeCloseTo(g.cx - g.w / 2); // flush with the chip's leading edge: no sliver of body before it
 		expect(badgeRight).toBeLessThan(leadX); // stops short of where the label starts
 		expect(badgeRight).toBeGreaterThan(0);
 	});
@@ -60,7 +60,7 @@ describe("chipGeometry", () => {
 		expect(g.border.w - g.w, "a hairline, not a frame").toBeLessThan(FONT * 0.2);
 	});
 
-	it("reaches the active glow past the chip on every side, by the chip's HEIGHT — so a long label glows as thickly as a short one", () => {
+	it("reaches the active glow past the chip on every side, by the chip's HEIGHT, so a long label glows as thickly as a short one", () => {
 		const short = chipGeometry([0, -8, 20, 0], 0, FONT);
 		const long = chipGeometry([0, -8, 200, 0], 0, FONT);
 		expect(short.glow.w).toBeGreaterThan(short.w);

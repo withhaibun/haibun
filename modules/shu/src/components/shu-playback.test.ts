@@ -3,7 +3,7 @@
  * Moving the shared time cursor on its own.
  *
  * Where the cursor IS is the log's scroll rail; this is the part a rail cannot do. What matters here is what it
- * publishes: a concrete time while it is playing through the past, and null at the end — "now, no upper bound" — so a
+ * publishes: a concrete time while it is playing through the past, and null at the end, "now, no upper bound", so a
  * record written after the newest event this page has seen is not read as future before its own event arrives.
  */
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";

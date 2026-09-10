@@ -41,14 +41,14 @@ describe("what a run keeps of the steps it has finished", () => {
 			[ProducingStepper],
 		);
 		const feature = result.featureResults?.[0];
-		expect(feature?.steps.count, "what the feature ran is answered by the fold, which holds no step to answer it").toBe(ran);
+		expect(feature?.steps.count, "what the feature ran is answered by the reduction, which holds no step to answer it").toBe(ran);
 		expect(feature?.steps.firstStart, "as is when it began").toBeDefined();
 		expect(feature?.steps.lastEnd, "and when it ended").toBeDefined();
 		expect(feature?.stepResults.length, "and the steps a reader can still read are the most recent, and no more").toBe(RESULTS_READ_IN_FULL);
 		expect((feature?.stepResults.at(-1)?.products as { big?: string } | undefined)?.big?.length, "the newest is there to be read in full").toBe(10000);
 	});
 
-	it("names a step that failed however many ran after it, since a fold does not forget", () => {
+	it("names a step that failed however many ran after it, since a reduction does not forget", () => {
 		const ran = (over: Partial<TStepResult>): TStepResult => ({ name: "s", in: "a step", path: "/f", seqPath: [0, 1, 1], ok: true, ...over }) as TStepResult;
 		const steps: TFeatureSteps = { count: 0 };
 		foldStep(steps, ran({ ok: false, in: "the step that failed" }));

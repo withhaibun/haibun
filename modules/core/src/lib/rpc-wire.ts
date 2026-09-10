@@ -61,7 +61,7 @@ export function rpcEnvelope(e: Omit<TRpcRequest, "jsonrpc" | "params"> & { param
 }
 
 /**
- * Read an NDJSON body — one JSON object per line, a partial line held until its rest arrives, the last line yielded
+ * Read an NDJSON body: one JSON object per line, a partial line held until its rest arrives, the last line yielded
  * whether or not it ends in a newline.
  *
  * A malformed line throws. Every line on this wire is written by JSON.stringify, so a line that will not parse is

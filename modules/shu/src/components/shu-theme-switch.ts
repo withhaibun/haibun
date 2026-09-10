@@ -1,5 +1,5 @@
 /**
- * <shu-theme-switch> — Theme + scale control cluster, shown in the actions bar's settings popover.
+ * <shu-theme-switch>: Theme + scale control cluster, shown in the actions bar's settings popover.
  *
  * Sets `data-theme` on documentElement (resolved by SHU_TOKENS via :root[data-theme="…"])
  * and writes `--shu-scale` as a custom property on the root, which every SHU component
@@ -15,7 +15,7 @@ import "./shu-window-size.js";
 const STORAGE_THEME = "shu.theme";
 const STORAGE_SCALE = "shu.scale";
 
-/** First-run fallback theme / UI scale — named consts (never bare literals), each a member of THEMES / SCALES. */
+/** First-run fallback theme / UI scale, named consts (never bare literals), each a member of THEMES / SCALES. */
 const DEFAULT_THEME = "auto";
 const DEFAULT_SCALE = "1";
 
@@ -57,7 +57,7 @@ export function applyShuPreferences(): void {
 }
 
 export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

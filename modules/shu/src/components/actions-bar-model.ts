@@ -61,7 +61,7 @@ const spanLabel = (ms: number): { n: number; unit: "s" | "m" } => {
 };
 
 /**
- * How far along a run the time cursor sits: the moment it is at, out of how long the run is — "11/40s". A bare "11s"
+ * How far along a run the time cursor sits: the moment it is at, out of how long the run is, "11/40s". A bare "11s"
  * says nothing about whether that is near the beginning or the end, which is the thing a reader wants from a readout
  * this small. "now" at the latest moment seen, since there is no upper bound to be a fraction of.
  */

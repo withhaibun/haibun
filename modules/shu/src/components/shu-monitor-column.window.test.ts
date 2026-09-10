@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// What the log marks on its rail: the rows whose events earned a mark, at the place a reader can scroll to; and where it
+// What the log marks on its rail: the rows whose events have a mark, at the place a reader can scroll to; and where it
 // marks the moment being shown (cursorMark, shared with the document through virtual-column-model).
 import { describe, it, expect } from "vitest";
 import { opens, railMarkers, type TLogRow } from "./shu-monitor-column.js";
@@ -9,11 +9,11 @@ import { markFor, MARK_COLOUR } from "../event-marker.js";
 const row = (over: Partial<TLogRow> = {}): TLogRow => ({ time: "0.0s", timestamp: 0, level: "info", step: "a-step", message: "", icon: "", ...over });
 
 describe("what a log marks on its rail", () => {
-	it("marks the rows whose events earned a mark, and no others", () => {
+	it("marks the rows whose events have a mark, and no others", () => {
 		const marks = railMarkers([row(), row({ mark: { icon: "✅", color: MARK_COLOUR.ok } }), row()]);
 		expect(
 			marks.map((m) => m.index),
-			"only the middle row earned one",
+			"only the middle row has one",
 		).toEqual([1]);
 		expect(marks[0].icon).toBe("✅");
 		expect(marks[0].color).toBe(MARK_COLOUR.ok);
@@ -74,7 +74,7 @@ describe("the rail marks what the timeline marks", () => {
 
 describe("what pressing a row of the log opens", () => {
 	// Every row is a record of the run, so every row answers a press with the record it is. Pressed only where a row
-	// carried a step, a reader met rows that did nothing — what a run said over a connection among them — with nothing
+	// carried a step, a reader met rows that did nothing, what a run said over a connection among them, with nothing
 	// on the row to tell which would answer.
 	it("opens a step at its own place in the run", () => {
 		expect(opens(row({ seqPath: [0, 1, 2], record: { persistedAs: "SeqPath", id: "a-step" } }))).toEqual({ paneType: "step-detail", seqPath: [0, 1, 2] });

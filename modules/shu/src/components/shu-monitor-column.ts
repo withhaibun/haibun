@@ -1,5 +1,5 @@
 /**
- * <shu-monitor-column> — Live execution log stream in a miller column.
+ * <shu-monitor-column>: Live execution log stream in a miller column.
  * A ShuEventConsumer: the base owns the shared event log (one backfill + live merge + dedup); this view only derives
  * its rows from it. Clickable time values dispatch TIME_SYNC for cross-view synchronization.
  */
@@ -36,7 +36,7 @@ const MonitorColumnSchema = z.object({
 /**
  * What pressing a row opens: the record that row is.
  *
- * Every row of the log is a record of the run — a step, something the run said, or something it produced. A step has a
+ * Every row of the log is a record of the run: a step, something the run said, or something it produced. A step has a
  * view of its own; every other record is opened the way any record of the graph is. Opened only where a row carried a
  * step, a reader learned that some rows answer a press and others do nothing, with nothing on the row to tell them
  * which: what a run said over a connection is as much a record as the step it was said during.
@@ -96,11 +96,11 @@ const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
 // reader who scrolls further (follow pauses) gets the full history back until they return to the edge. Tunable.
 
 /**
- * The marks a filtered log puts on its rail: every row whose event earned one, at its place in that log.
+ * The marks a filtered log puts on its rail: every row whose event has one, at its place in that log.
  *
- * The rail carries what the timeline carries — the same events, in the same colours and glyphs, since both take their
+ * The rail carries what the timeline carries: the same events, in the same colours and glyphs, since both take their
  * mark from `markFor`. All this decides is WHERE each mark goes, which on a log is the row's index rather than a
- * moment in time. Indices are into the list passed in, so they address the rows the reader can actually scroll to.
+ * moment in time. Indices are into the list passed in, so they address the rows the reader can scroll to.
  * Pure, so which rows mark the rail is tested without a virtualizer.
  */
 /** What a row carries beside its words: what its record says of how the step went and where it ran. */
@@ -111,7 +111,7 @@ export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[
 	rows.forEach((row, i) => {
 		// A mark sits at the row's index in the RUN (`indices`, when the rows are the cached part of a longer run), so it
 		// is placed on the rail where the run has it, not where the cached list does. Both halves of what the row reports:
-		// what it is about and what happened to it. Either alone leaves marks a reader cannot tell apart — every feature
+		// what it is about and what happened to it. Either alone leaves marks a reader cannot tell apart: every feature
 		// boundary reads "▸ feature" without the first, and a log line names no step without the second.
 		const index = indices?.[i] ?? i;
 		if (row.mark) markers.push({ ...row.mark, index, id: `${row.step}-${index}`, label: [row.step, row.message].filter(Boolean).join(" ") });
@@ -208,10 +208,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		this.#readRun();
 		this.autoTeardown(() => this.#unsubscribeRun?.());
 		// A press or drag on the rail is the reader saying WHEN, not just where: the row it lands on carries a time, so
-		// the cursor every other view reads moves with it. Wheeling does not, over the rail or over the rows — that is
+		// the cursor every other view reads moves with it. Wheeling does not, over the rail or over the rows: that is
 		// reading, and a reader scrolling their own log should not drag every other view along. The rail reports which.
 		this.autoListen(this, SCROLL_TO_INDEX, this.#onRailSeek as EventListener);
-		// Asked from anywhere on the page — the playback control sits in the actions bar, not in this column.
+		// Asked from anywhere on the page: the playback control sits in the actions bar, not in this column.
 		this.autoListen(document, SHU_EVENT.GO_LIVE, this.#onGoLive);
 	}
 
@@ -359,7 +359,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	// notify-driven follow tails the live edge.
 	protected willUpdate(): void {
 		// Derived per update from the window: the rows (for the Kihan summary and the tests), the rail's marks, and the
-		// current row — the last row at or before the time cursor, read ONCE (an accessor over an attribute check and a
+		// current row: the last row at or before the time cursor, read ONCE (an accessor over an attribute check and a
 		// signal read). The marks are derived here rather than when the rail asks for them, since the rail asks on every
 		// frame a reader scrolls and the window changes only when the run does.
 		const cached = this.#cached();
@@ -384,7 +384,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const total = this.#source.count();
 		// In the strip there is room for the rail and nothing else: no toolbar, no rows. It is the SAME virtual column in
 		// both, in the same place in this template, so the element survives collapsing rather than being torn down and
-		// built again — and with it the window it is showing, which is where the reader was.
+		// built again, and with it the window it is showing, which is where the reader was.
 		const spine = this.spine;
 		return html`
 			${

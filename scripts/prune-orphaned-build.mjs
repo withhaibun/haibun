@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // Delete compiler output that shouldn't be in the tree. Two cases, both keyed off the source<->output pairing:
 //
-//  1. Orphaned BUILD output — a build/<rel>.{js,d.ts,map} whose src/<rel> source is gone. Without this a removed-from-
+//  1. Orphaned BUILD output: a build/<rel>.{js,d.ts,map} whose src/<rel> source is gone. Without this a removed-from-
 //     source module resolves to a stale artifact through the package "./*" -> "./build/*" exports map instead of failing
 //     loudly (a deleted stepper survived its own deletion this way and loaded pre-rename code).
 //
-//  2. Stray output IN THE SOURCE TREE — a .js/.d.ts/.map sitting next to its .ts/.tsx source ANYWHERE outside build/
+//  2. Stray output IN THE SOURCE TREE: a .js/.d.ts/.map sitting next to its .ts/.tsx source ANYWHERE outside build/
 //     (src/, test fixtures, root config like vite.config.ts), where a misfired `tsc` (run with no outDir, e.g. from the
 //     wrong cwd) emitted compiled output into the tree. esbuild's development condition ("./*" -> "./src/*") then resolves
 //     a `.js` import to that stale compiled file instead of the source and breaks the bundle ("No matching export … for
-//     import 'TActionResult'" — it value-imports types the source elides). Build output belongs only in build/.
+//     import 'TActionResult'": it value-imports types the source elides). Build output belongs only in build/.
 //
 // A file is compiler output iff a same-basename TS source sibling exists, so bundles (build/shu-bundle.js, build/assets/*),
 // hand-written .d.ts (no .ts sibling), and pure-JS modules are never touched.
@@ -21,7 +21,7 @@ import { join, relative } from "node:path";
 
 const SOURCE_EXTS = [".ts", ".tsx", ".mts", ".cts"];
 const OUTPUT_EXTS = [".js", ".js.map", ".d.ts", ".d.ts.map"];
-// Dirs that legitimately hold compiled output or aren't ours — never scanned for stray output.
+// Dirs that legitimately hold compiled output or are not this repository's, never scanned for stray output.
 const STRAY_SKIP = new Set(["node_modules", "build", "dist", "coverage", ".git", ".vscode"]);
 
 function walk(dir, skip, out = []) {
@@ -39,7 +39,7 @@ function hasSource(base) {
 	return SOURCE_EXTS.some((ext) => existsSync(base + ext));
 }
 
-/** Case 1 — build/<rel> output whose source no longer exists. Keyed off the .d.ts (one per compiled source). */
+/** Case 1, build/<rel> output whose source no longer exists. Keyed off the .d.ts (one per compiled source). */
 function pruneOrphanedBuild(moduleDir, dryRun) {
 	const buildDir = join(moduleDir, "build");
 	const srcDir = join(moduleDir, "src");
@@ -60,7 +60,7 @@ function pruneOrphanedBuild(moduleDir, dryRun) {
 	return removed;
 }
 
-/** Case 2 — compiler output (.js/.d.ts/.map) sitting next to its TS source, anywhere under `rootDir` except build/. */
+/** Case 2, compiler output (.js/.d.ts/.map) sitting next to its TS source, anywhere under `rootDir` except build/. */
 function pruneStrayOutput(rootDir, dryRun) {
 	if (!existsSync(rootDir)) return [];
 	const removed = [];
@@ -103,4 +103,4 @@ if (targets.length) {
 		}
 	}
 }
-console.log(`[prune-orphaned-build] ${dryRun ? "dry run — " : ""}${total} stray/orphaned artifact(s)${dryRun ? " would be removed" : " removed"}.`);
+console.log(`[prune-orphaned-build] ${dryRun ? "dry run, " : ""}${total} stray/orphaned artifact(s)${dryRun ? " would be removed" : " removed"}.`);

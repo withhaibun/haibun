@@ -22,10 +22,10 @@ import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
 import type { TGraph, TGraphEdge, TGraphNode } from "./types.js";
 
-/** The chain projection consumes the waypoint fields it renders — a subset of the core panel entry. */
+/** The chain projection consumes the waypoint fields it renders: a subset of the core panel entry. */
 export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "kind" | "method" | "resolvesDomain" | "ensured">;
 
-/** Forward affordance as the chain reads it — without the RPC `method`, which it doesn't route on (it uses stepperName/stepName). */
+/** Forward affordance as the chain reads it, without the RPC `method`, which it doesn't route on (it uses stepperName/stepName). */
 type TForwardEdge = Omit<TForwardAffordance, "method">;
 
 /** Minimal goal-resolver path shape the projection consumes. The full TMichi
@@ -45,11 +45,11 @@ export type TAffordancesSnapshot = {
 	 * structural relationships the resolver decomposes.
 	 */
 	composites?: TCompositeRanges;
-	/** Registered ActivitiesStepper waypoints — folded into the graph as nodes. */
+	/** Registered ActivitiesStepper waypoints, merged into the graph as nodes. */
 	waypoints?: TWaypointSnapshot[];
 	/**
 	 * Every domain that currently has at least one asserted fact. Sourced
-	 * unfiltered from working memory — distinct from `goals[]` which the
+	 * unfiltered from working memory, distinct from `goals[]` which the
 	 * affordances panel filters down to non-trivial entries. Used by the chain
 	 * view to color satisfied domains even when their only producer is a
 	 * single-step argument-only path.
@@ -219,7 +219,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		}
 	}
 
-	// APG annotation pass — tag every schema edge with the goal-resolver paths it
+	// APG annotation pass, tag every schema edge with the goal-resolver paths it
 	// participates in. The renderer reads `edge.paths` to style active edges
 	// (traversed by some goal-path) distinctly from potential edges (a runnable
 	// step with no current goal-path through it). One edge per step in the

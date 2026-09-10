@@ -205,7 +205,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				error: SeverityNumber.ERROR,
 			};
 
-			// Forward structured event.attributes verbatim — emitters
+			// Forward structured event.attributes verbatim, emitters
 			// supply OTel-aligned keys (haibun.* namespace, exception.* for error data) and
 			// expect them to reach the OTel backend as log record attributes.
 			const passthrough = (event.attributes ?? {}) as Record<string, unknown>;
@@ -245,7 +245,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		}
 	}
 
-	/** A blip as a span event on the step it happened under — the run's own seqPath is the trace context, so nothing at
+	/** A blip as a span event on the step it happened under: the run's own seqPath is the trace context, so nothing at
 	 *  the recording site threads a span. Falls back to the feature span, and is dropped when neither is open. */
 	private recordBlip(blip: TBlipEvent): void {
 		const span = (blip.seqPath ? this.getParentSpanForId(`${blip.seqPath}.`) : undefined) ?? this.featureSpan;

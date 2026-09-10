@@ -1,14 +1,14 @@
 /**
  * Cross-SHU design tokens + shared base styles.
  *
- * Every visible SHU component is required to express colour, spacing, sizing, and font through these CSS custom properties — no hard-coded colours, no ad-hoc magic numbers. The tokens cascade from `:root` (the document), so:
+ * Every visible SHU component is required to express colour, spacing, sizing, and font through these CSS custom properties: no hard-coded colours, no ad-hoc magic numbers. The tokens cascade from `:root` (the document), so:
  *   - light/dark themes flip with a single attribute / media query, never per-component edits
  *   - user-overridable scale (`--shu-scale`) multiplies all sizing without re-rendering
  *   - portrait/narrow breakpoints adjust spacing tokens, not individual rules
  *
- * Two-layer contract — the part that makes theming actually work across shadow DOM:
+ * Two-layer contract: the part that makes theming work across shadow DOM:
  *   1. TOKENS are declared ONCE, at the document level, via `installShuTokens()` → `<style>` in `document.head`. CSS custom properties inherit through every shadow boundary, so a `data-theme` flip on `<html>` reaches every component for free.
- *   2. Components NEVER re-declare tokens in their own shadow root. A `:host { --shu-bg: <default> }` rule inside a shadow tree overrides the inherited value on the host and dams the cascade — the component is then stranded on the default palette regardless of the document theme. Components consume only: `static styles = [shuBaseStyles, css\`…component layout with var(--shu-…)…\`]`. The shared `shuBaseStyles` CSSResult is one constructable stylesheet lit adopts by reference into every shadow root (parsed once, not per-component).
+ *   2. Components NEVER re-declare tokens in their own shadow root. A `:host { --shu-bg: <default> }` rule inside a shadow tree overrides the inherited value on the host and dams the cascade: the component is then stranded on the default palette regardless of the document theme. Components consume only: `static styles = [shuBaseStyles, css\`…component layout with var(--shu-…)…\`]`. The shared `shuBaseStyles` CSSResult is one constructable stylesheet lit adopts by reference into every shadow root (parsed once, not per-component).
  */
 
 import { css, unsafeCSS, type CSSResult } from "lit";
@@ -62,7 +62,7 @@ export const SHU_TOKENS = `
 		--shu-fg-muted: #555555;
 		--shu-fg-faded: #767676;
 		/* Text sitting ON a type-colour swatch/chip (graph node chips, filter type labels). The palette is always light
-		   pastels, so this stays dark in BOTH themes — declared only here; the dark blocks intentionally don't override it.
+		   pastels, so this stays dark in BOTH themes, declared only here; the dark blocks intentionally don't override it.
 		   ONLY for text whose own background is a swatch: on any themed background it is dark-on-dark in the dark theme. */
 		--shu-fg-on-swatch: #1a1a1a;
 		--shu-border: #d0d0d0;
@@ -254,7 +254,7 @@ export const SHU_BASE = `
 	button.icon:hover { background: var(--shu-bg-hover); color: var(--shu-fg); }
 	button.icon[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); }
 	button.icon[aria-pressed="true"]:hover { filter: brightness(1.1); background: var(--shu-accent); }
-	/* Text-like inputs only. checkbox/radio/range render natively — they must NOT get appearance:none + box styling, or the control becomes an empty box that never shows its checked/value state. */
+	/* Text-like inputs only. checkbox/radio/range render natively: they must NOT get appearance:none + box styling, or the control becomes an empty box that never shows its checked/value state. */
 	input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, .text-input {
 		font: inherit;
 		font-size: var(--shu-font-md);
@@ -334,10 +334,10 @@ export const SHU_BASE = `
 	.time-current { background: var(--shu-accent-soft); border-left: calc(var(--shu-border-w) * 3) solid var(--shu-accent); }
 `;
 
-/** The shared base sheet as a lit `CSSResult`, for `static styles = [shuBaseStyles, css\`…\`]`. One object across all components → lit builds the constructable `CSSStyleSheet` once and adopts it by reference into every shadow root (one parse, N cheap adoptions). Consumers only — no token declarations — so it never dams the document-level theme cascade. String-injecting shadow roots (manual `innerHTML`, template `<style>`) use the `SHU_BASE` string form instead. */
+/** The shared base sheet as a lit `CSSResult`, for `static styles = [shuBaseStyles, css\`…\`]`. One object across all components → lit builds the constructable `CSSStyleSheet` once and adopts it by reference into every shadow root (one parse, N light adoptions). Consumers only, no token declarations, so it never dams the document-level theme cascade. String-injecting shadow roots (manual `innerHTML`, template `<style>`) use the `SHU_BASE` string form instead. */
 export const shuBaseStyles: CSSResult = css`${unsafeCSS(SHU_BASE)}`;
 
-/** The standard small icon button — the column pane's min/max/gear/pin/close controls, and any other control that
+/** The standard small icon button: the column pane's min/max/gear/pin/close controls, and any other control that
  * should look like them (e.g. the actions bar's pin and corner toggles). A square scaled button, bordered, muted;
  * `aria-pressed="true"` (a toggle) or `aria-expanded="true"` (a disclosure/popover control) renders the active accent
  * fill. Shared so an active control shows identically everywhere. */
@@ -378,10 +378,10 @@ export const shuIconButtonStyles: CSSResult = css`${unsafeCSS(SHU_ICON_BUTTON)}`
 
 /** A row whose children are each a distinct control: a rule between them, so the row reads as separate settings rather
  *  than a run of words. Takes the row's selector, since a light-DOM host scopes its rules by tag and a shadow-DOM
- *  component does not — one declaration either way. */
+ *  component does not: one declaration either way. */
 export const shuRowSeparated = (selector: string): string => `${selector} > * + * { border-left: var(--shu-border-w) solid var(--shu-border); padding-left: var(--shu-space-3); }`;
 
-/** Inject the token sheet into `document.head` so detached overlays (combobox dropdowns, tooltips, modals rendered into document.body) and any plain page chrome can read the same `--shu-…` variables that shadow-DOM components inherit via :host. Idempotent — repeat calls are no-ops. The SPA boot calls this once before any component mounts. */
+/** Inject the token sheet into `document.head` so detached overlays (combobox dropdowns, tooltips, modals rendered into document.body) and any plain page chrome can read the same `--shu-…` variables that shadow-DOM components inherit via :host. Idempotent, repeat calls are no-ops. The SPA boot calls this once before any component mounts. */
 export function installShuTokens(): void {
 	if (typeof document === "undefined") return;
 	const ID = "shu-tokens-root";

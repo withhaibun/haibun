@@ -1,5 +1,5 @@
 /**
- * `ShuElement<T>` — base for every Shu web component. Extends `LitElement`
+ * `ShuElement<T>`: base for every Shu web component. Extends `LitElement`
  * so each component gets DOM diffing, focus preservation, and batched
  * update scheduling natively. The Zod schema acts as both the wire
  * contract and the runtime guard for `setState`.
@@ -17,7 +17,7 @@
  * `innerHTML` directly.
  *
  * `setState(partial)` validates the merged state against the schema and
- * assigns it to the reactive `state` property — Lit batches the re-render
+ * assigns it to the reactive `state` property, Lit batches the re-render
  * into the next microtask. State mutations are whole-object replacements
  * so Lit's change detection (===) fires correctly.
  *
@@ -57,7 +57,7 @@ import { readElementPrefs, schedulePersistWrite, forgetElementPrefs } from "../e
 import { recordClientBlip } from "../client-blips.js";
 
 export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
-	/** Get the current view hash — from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
+	/** Get the current view hash, from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
 	static getHash(): string {
 		return ViewHash.getHash();
 	}
@@ -67,11 +67,11 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		ViewHash.pushHash(newHash);
 	}
 
-	/** Extra HTML attributes a subclass wants observed, beyond lit's reactive-property attributes. Declare this static array instead of overriding `observedAttributes` directly: lit computes `elementStyles` lazily inside its `observedAttributes` getter, so a raw override that skips `super` never triggers `finalize()` and the component silently inherits the base's empty styles — every `static styles` rule is dropped from the shadow root. */
+	/** Extra HTML attributes a subclass wants observed, beyond lit's reactive-property attributes. Declare this static array instead of overriding `observedAttributes` directly: lit computes `elementStyles` lazily inside its `observedAttributes` getter, so a raw override that skips `super` never triggers `finalize()` and the component silently inherits the base's empty styles: every `static styles` rule is dropped from the shadow root. */
 	static observedHtmlAttributes: string[] = [];
 
 	/** Map of observed HTML attribute → state field. The base reflects each into `state` through the Zod schema:
-	 * coerced by the field's type (string / boolean-by-presence / number / enum), validated by setState — an invalid
+	 * coerced by the field's type (string / boolean-by-presence / number / enum), validated by setState: an invalid
 	 * value throws, it never silently defaults. Declare this instead of a hand-written attributeChangedCallback
 	 * if-chain. The attribute stays the source of truth; state mirrors it one-way (no reflect → no loops; CSS
 	 * `:host([attr])` keeps working). Use onAttributeChanged only for side effects beyond state (e.g. syncing a child DOM node). */
@@ -81,16 +81,16 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return [...super.observedAttributes, ...Object.keys(this.attributeFields), ...this.observedHtmlAttributes];
 	}
 
-	/** State fields remembered across reloads — THE mechanism for any persisted UI option, declared like
+	/** State fields remembered across reloads: THE mechanism for any persisted UI option, declared like
 	 * `attributeFields` and wired by the base: `setState` write-through-persists them (debounced, via
 	 * element-prefs) and the sealed connect path restores them before `onConnected`. A field set explicitly
 	 * via setState earlier in this element's lifetime (e.g. a URL-hash flag applied before attach) is never
-	 * overwritten by the remembered value. Do not hand-roll component cookies — declare the field here. */
+	 * overwritten by the remembered value. Do not hand-roll component cookies, declare the field here. */
 	static persistFields: readonly string[] = [];
 
 	/** Set by a column whose spine is a narrow form of ITSELF rather than a separate view the pane mounts. The pane keeps
 	 *  rendering such a column while it is collapsed and marks it as serving as the spine; the column renders only what
-	 *  fits the strip. This is for a column whose strip is a part it already owns — the log's own scroll rail, which is
+	 *  fits the strip. This is for a column whose strip is a part it already owns: the log's own scroll rail, which is
 	 *  already the right shape and already drives the scroll a separate copy would have to be kept in step with. */
 	static rendersOwnSpine = false;
 
@@ -103,7 +103,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	protected override shouldUpdate(changed: Map<PropertyKey, unknown>): boolean {
 		// Only a view MOUNTED into the pane's spine slot holds off: assigned to no slot, it is the one the pane is not
 		// showing. A column rendering its own spine is marked `spine` without being slotted at all, and it is on screen,
-		// so it renders — which is why this asks about the slot rather than about serving as a spine.
+		// so it renders, which is why this asks about the slot rather than about serving as a spine.
 		if (this.getAttribute("slot") === SPINE_SLOT && !this.assignedSlot) return false;
 		return super.shouldUpdate(changed);
 	}
@@ -130,8 +130,8 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * Current time cursor (absolute epoch ms; null = show all). ONE cursor system, two sources: live
 	 * views read the shared global `timeCursor` SharedSignal (scrubbing one view syncs them all); snapshot-pinned
 	 * views replay the frozen instant carried by `data-snapshot-time` (set by shu-product-view when a view
-	 * is opened "as of" a point in history). The attribute is the single store for a pinned time — it is
-	 * declarative, serializable, and already the marker other views check — so there is no parallel field.
+	 * is opened "as of" a point in history). The attribute is the single store for a pinned time: it is
+	 * declarative, serializable, and already the marker other views check, so there is no parallel field.
 	 * Reading this during an update auto-subscribes an in-bundle component via SignalWatcher; cross-bundle views
 	 * react through `watchSignal(timeCursor, …)` (wired here by #installTimeSync for any onTimeSync overrider).
 	 * Setting it publishes app-wide for a live view; a pinned view is frozen, so set is a no-op.
@@ -164,7 +164,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * Whether the column hosting this view is collapsed to its strip, rather than open.
 	 *
 	 * Ambient, and true at any depth: a view nested inside another view's shadow root gets the same answer as the column
-	 * itself, without each layer between passing it down. That threading is what it replaces — the pane told the column,
+	 * itself, without each layer between passing it down. That threading is what it replaces: the pane told the column,
 	 * the column told the scroller, and anything below that could not be told at all.
 	 *
 	 * Distinct from the `spine` attribute, which is an INSTRUCTION to one column ("you are the strip now, render
@@ -175,7 +175,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return this.#collapsedColumn;
 	}
 
-	/** The column-pane hosting this view, across shadow boundaries — `closest` stops at the first shadow root, and most
+	/** The column-pane hosting this view, across shadow boundaries, `closest` stops at the first shadow root, and most
 	 *  views are nested inside one. */
 	#hostingColumn(): HTMLElement | null {
 		let node: Element | null = this;
@@ -210,7 +210,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	/** Whether this view is the strip's active pane: its containing column-pane's key equals the global `activePane`
-	 *  signal. Derived, never stored — the signal is the one source of truth (reading it here auto-subscribes an in-bundle
+	 *  signal. Derived, never stored: the signal is the one source of truth (reading it here auto-subscribes an in-bundle
 	 *  render; a cross-bundle view reacts via #installActiveView). */
 	protected get isActiveView(): boolean {
 		const pane = this.closest("shu-column-pane") as HTMLElement | null;
@@ -224,7 +224,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		super();
 		this._schema = schema;
 		this.state = schema.parse(defaults);
-		// Fail fast on a typo'd persistFields entry — a name absent from the schema would otherwise silently never persist.
+		// Fail fast on a typo'd persistFields entry: a name absent from the schema would otherwise silently never persist.
 		const persisted = (this.constructor as typeof ShuElement).persistFields;
 		if (persisted.length > 0) {
 			const shape = (schema as unknown as { shape?: Record<string, unknown> }).shape;
@@ -241,7 +241,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		for (const m of ["connectedCallback", "disconnectedCallback", "attributeChangedCallback"] as const) {
 			if (self[m] !== proto[m]) {
 				const hook = m === "connectedCallback" ? "onConnected" : m === "disconnectedCallback" ? "onDisconnected" : "onAttributeChanged";
-				throw new Error(`${this.constructor.name} overrides sealed ShuElement.${m}() — override protected ${hook}() instead.`);
+				throw new Error(`${this.constructor.name} overrides sealed ShuElement.${m}(), override protected ${hook}() instead.`);
 			}
 		}
 	}
@@ -250,12 +250,12 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return this._schema;
 	}
 
-	/** Shallow-merge a partial into state, validate against the schema, and assign it. The `@property accessor state` setter schedules the re-render off the new (Zod-parsed) reference; this also emits `SHU_EVENT.STATE_CHANGE` so external listeners (e.g. test harnesses) observe transitions. Throws if the merged shape fails schema validation — by contract a caller error. Merge is shallow by design (state is treated as a whole-object replacement so `===` change detection fires); pass the full sub-object to update a nested field. */
+	/** Shallow-merge a partial into state, validate against the schema, and assign it. The `@property accessor state` setter schedules the re-render off the new (Zod-parsed) reference; this also emits `SHU_EVENT.STATE_CHANGE` so external listeners (e.g. test harnesses) observe transitions. Throws if the merged shape fails schema validation, by contract a caller error. Merge is shallow by design (state is treated as a whole-object replacement so `===` change detection fires); pass the full sub-object to update a nested field. */
 	protected setState(partial: Partial<z.infer<T>>): void {
 		try {
 			this.state = this._schema.parse({ ...(this.state as object), ...partial });
 		} catch (error) {
-			// A raw ZodError names the field and nothing else — not which element, which write, or what value. setState is
+			// A raw ZodError names the field and nothing else, not which element, which write, or what value. setState is
 			// re-entrant (state → attribute → attributeChangedCallback → setState), so the stack alone does not say either.
 			throw new Error(`<${this.tagName.toLowerCase()}> setState ${describeStateWrite(partial)}: ${error instanceof z.ZodError ? z.prettifyError(error) : String(error)}`, {
 				cause: error,
@@ -265,8 +265,8 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 			for (const k of Object.keys(partial)) this.#dirtyFields.add(k);
 			this.#persistChanged(Object.keys(partial));
 		}
-		// Reflect any changed attributeFields back onto their attributes (inverse of #reflectAttribute) — including during
-		// a restore — so a bound attribute a subclass declared (e.g. a pane's `pinned`) stays in sync without per-caller code.
+		// Reflect any changed attributeFields back onto their attributes (inverse of #reflectAttribute), including during
+		// a restore, so a bound attribute a subclass declared (e.g. a pane's `pinned`) stays in sync without per-caller code.
 		this.#reflectFieldsToAttributes(Object.keys(partial));
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.STATE_CHANGE, { detail: this.state, bubbles: true, composed: true }));
 	}
@@ -298,7 +298,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	/** Forget this instance's remembered `persistFields`. For a view being DISMISSED, not merely removed: its options
 	 *  describe the view the reader closed, so the next instance under the same identity opens with the defaults. A view
-	 *  that is removed and expected back (a prune, a reload) must not call this — that is what the memory is for. */
+	 *  that is removed and expected back (a prune, a reload) must not call this: that is what the memory is for. */
 	protected forgetPersisted(): void {
 		const key = this.persistKey;
 		if (key === null) return;
@@ -319,7 +319,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		});
 	}
 
-	/** Restore persisted fields on first connect (persistKey is settled by then — e.g. a pane's columnKey is
+	/** Restore persisted fields on first connect (persistKey is settled by then, e.g. a pane's columnKey is
 	 * assigned before attach). Fields the element already set explicitly stay; a stale or invalid remembered
 	 * value is dropped by schema validation rather than crashing the boot. */
 	#restorePersisted(): void {
@@ -352,7 +352,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
 	}
 
-	// SEALED — do not override in a subclass. Override the protected onConnected/onDisconnected/onAttributeChanged
+	// SEALED: do not override in a subclass. Override the protected onConnected/onDisconnected/onAttributeChanged
 	// hooks instead; the base owns the super-call chain so SignalWatcher cleanup and lit attribute reflection
 	// can never be silently skipped. A subclass that overrides any of these throws at construction (see #assertSealed).
 	connectedCallback(): void {
@@ -372,7 +372,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
 		super.attributeChangedCallback(name, oldValue, newValue);
-		if (!this.#reflectingToAttr) this.#reflectAttribute(name, newValue); // skip the echo of our own state→attribute write
+		if (!this.#reflectingToAttr) this.#reflectAttribute(name, newValue); // skip the echo of its own state→attribute write
 		this.onAttributeChanged(name, oldValue, newValue);
 	}
 
@@ -414,7 +414,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	// One wiring for every cursor-watching component, in any bundle: the cross-bundle cursor bus runs onTimeSync on each
-	// change. The bus (a globalThis subscriber set), not signal tracking — the polyfill's reactive context is module-level
+	// change. The bus (a globalThis subscriber set), not signal tracking: the polyfill's reactive context is module-level
 	// and does not cross esbuild bundle boundaries, so an external view (the separately-bundled polymorphic) reacts through
 	// this same interface instead of hand-rolling its own subscribe. Views that only dim auto-rerender by reading
 	// this.timeCursor in render(); snapshot-pinned views replay a fixed point and opt out.
@@ -438,15 +438,15 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		});
 	}
 
-	/** Lit's render contract — return a TemplateResult. */
+	/** Lit's render contract, return a TemplateResult. */
 	abstract render(): TemplateResult;
 
 	/**
 	 * What this view presents, summarized for a Kihan as linked data: a JSON-LD node (`@id`, `@type`, and the
 	 * view's content or a faithful digest of it). Called ON DEMAND by the chat-context harvester when the person
-	 * asks — never on render — so a large summary costs nothing until it is actually sent. A view on screen the
+	 * asks: never on render, so a large summary costs nothing until it is sent. A view on screen the
 	 * model cannot read is a broken ask; return null only for a pure control that presents no data (a picker, a
-	 * button strip) — the decision is required of every view, never implicit.
+	 * button strip): the decision is required of every view, never implicit.
 	 */
 	abstract summarizeForKihan(): TLinkedData | null;
 
@@ -476,7 +476,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	/** addEventListener that auto-removes on disconnect. Register in onConnected; the sealed disconnect path tears it
-	 * down — so a component needs no onDisconnected body and can never leak a forgotten removeEventListener. */
+	 * down: so a component needs no onDisconnected body and can never leak a forgotten removeEventListener. */
 	protected autoListen(target: EventTarget, type: string, handler: EventListenerOrEventListenerObject, opts?: boolean | AddEventListenerOptions): void {
 		target.addEventListener(type, handler, opts);
 		this.#teardowns.push(() => target.removeEventListener(type, handler, opts));
@@ -487,7 +487,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		this.#teardowns.push(cleanup);
 	}
 
-	/** React to a {@link SharedSignal} for this element's lifetime — THE one way a component tracks shared reactive
+	/** React to a {@link SharedSignal} for this element's lifetime: THE one way a component tracks shared reactive
 	 * state RELIABLY regardless of which bundle it lives in. A SignalWatcher's auto-tracking does not cross an esbuild
 	 * IIFE boundary, so an external view (a separately-bundled viewer) would silently never re-render on a `get()` read;
 	 * the SharedSignal bus this subscribes does cross it. Auto-torn-down on disconnect. Default handler re-renders. */
@@ -500,7 +500,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		return this.hasAttribute("data-show-controls");
 	}
 
-	/** Force a re-render. Most callers should not need this — mutate state via `setState` instead. Kept as an explicit escape hatch for callers that need to refresh after side-channel state change. */
+	/** Force a re-render. Most callers should not need this, mutate state via `setState` instead. Kept as an explicit escape hatch for callers that need to refresh after side-channel state change. */
 	refresh(): void {
 		this.requestUpdate();
 	}
@@ -549,10 +549,10 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 }
 
-/** Longest a single value runs in a state-write description before it is cut — enough to recognize, short of a whole graph. */
+/** Longest a single value runs in a state-write description before it is cut, enough to recognize, short of a whole graph. */
 const DESCRIBE_VALUE_MAX = 60;
 
-/** The write a setState was asked to make, as `{field: value, …}` — the field names alone leave "received undefined"
+/** The write a setState was asked to make, as `{field: value, …}`: the field names alone leave "received undefined"
  *  ambiguous between "the caller passed undefined" and "the caller omitted a field the merge needed". */
 function describeStateWrite(partial: object): string {
 	const fields = Object.entries(partial).map(([field, value]) => {
@@ -570,7 +570,7 @@ function describeStateWrite(partial: object): string {
 /** Coerce an HTML attribute string into the value its state field's Zod type expects: presence-based boolean,
  * numeric parse, else the raw string. A removed attribute (null) yields undefined so setState applies the schema default. */
 function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown {
-	// A removed attribute (null) yields undefined so setState falls back to the field's schema default — this is
+	// A removed attribute (null) yields undefined so setState falls back to the field's schema default: this is
 	// what makes a default-true boolean (e.g. `closable`) reset to true when absent, not to presence-semantics false.
 	if (val === null) return undefined;
 	const { inner } = unwrapWrappers(fieldSchema);
@@ -579,7 +579,7 @@ function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown
 	return val;
 }
 
-/** Serialize a state value onto its bound attribute — the inverse of coerceAttribute. A boolean is presence-based (true =
+/** Serialize a state value onto its bound attribute: the inverse of coerceAttribute. A boolean is presence-based (true =
  * present, false = absent), matching coerceAttribute's presence read; an undefined/null/empty value removes the attribute
  * so it never lingers stale; anything else writes its string form. */
 function reflectAttributeValue(el: HTMLElement, attr: string, fieldSchema: z.ZodTypeAny | undefined, value: unknown): void {

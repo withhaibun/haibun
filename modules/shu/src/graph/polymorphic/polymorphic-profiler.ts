@@ -5,8 +5,8 @@
  *   - compute: toGraphData (time extraction + model build)
  *   - force:   the synchronous force warmup the library runs when graphData is set (derived: set − labels)
  *   - labels:  the per-node object build (each node's canvas raster + GPU texture upload), accrued whenever the
- *              library builds a node object — synchronous within the set or deferred to a later digest
- * Always on (performance.now is cheap); `profile` is the running total, surfaced through the view's inspect().
+ *              library builds a node object, synchronous within the set or deferred to a later digest
+ * Always on (performance.now is fast); `profile` is the running total, surfaced through the view's inspect().
  */
 export type TRenderProfile = { nodes: number; repaints: number; computeMs: number; setMs: number; labelsMs: number };
 
@@ -31,7 +31,7 @@ export class PolymorphicProfiler {
 		return result;
 	}
 
-	/** Time the graphData set — the synchronous force warmup (and any node builds the library runs inline) — for a feed of `nodes`. */
+	/** Time the graphData set, the synchronous force warmup (and any node builds the library runs inline), for a feed of `nodes`. */
 	set(nodes: number, fn: () => void): void {
 		const t = performance.now();
 		fn();

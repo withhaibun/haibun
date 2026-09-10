@@ -4,11 +4,11 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 
-describe("siteMetadataFromConcerns — propertyDefinitions derivation", () => {
+describe("siteMetadataFromConcerns, propertyDefinitions derivation", () => {
 	it("populates propertyDefinitions from LinkRelations seeds", () => {
 		const emptyCatalog: TConcernCatalog = { persisted: {}, references: {} };
 		const meta = siteMetadataFromConcerns(emptyCatalog);
-		// Sanity: the seed includes the canonical body/governance/summary rels.
+		// The seed includes the canonical body/governance/summary rels.
 		expect(meta.propertyDefinitions.hasBody?.presentation).toBe("body");
 		expect(meta.propertyDefinitions.accessLevel?.presentation).toBe("governance");
 		expect(meta.propertyDefinitions.name?.presentation).toBe("summary");
@@ -35,7 +35,7 @@ const quad = (namedGraph: string, predicate: string, object: unknown): TQuad => 
 
 describe("dropdowns learning from the quads a batch carries", () => {
 	// A value that has newly appeared is IN the quad that announced it. Taking it from there is what lets a view stay
-	// current without asking the server again — and asking again is what made a view of the run's own records feed
+	// current without asking the server again, and asking again is what made a view of the run's own records feed
 	// itself, since the question is dispatched as a step and the step is recorded as another change to answer.
 	beforeEach(() => setSelectValues("Email", { folder: ["INBOX"], status: [] }));
 

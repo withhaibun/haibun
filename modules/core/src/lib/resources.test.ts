@@ -128,7 +128,7 @@ describe("LinkRelations extensions", () => {
 	});
 });
 
-describe("LinkRelations self-consistency — a class can never render as a super-property (§1b)", () => {
+describe("LinkRelations self-consistency: a class can never render as a super-property (§1b)", () => {
 	const entries = Object.values(LinkRelations);
 	const declaredRels = new Set(entries.map((e) => e.rel));
 
@@ -139,7 +139,7 @@ describe("LinkRelations self-consistency — a class can never render as a super
 		}
 	});
 
-	it("every rel's URI is a PROPERTY, not a class (lowercase local name) — the temporalInstant category error stays out", () => {
+	it("every rel's URI is a PROPERTY, not a class (lowercase local name): the temporalInstant category error stays out", () => {
 		for (const e of entries) {
 			const local = e.uri.split(/[:#/]/).pop() ?? "";
 			if (local) expect(local, `${e.rel} → ${e.uri} must be a property (lowercase local name), never a class`).toBe(local[0].toLowerCase() + local.slice(1));
@@ -186,7 +186,7 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect((getJsonLdContext({})["@context"] as Record<string, unknown>).hbn).toBe(HAIBUN_NS);
 	});
 
-	it("declares NO consumer vocabulary — a consumer's prefixes (e.g. a credentials suite's) arrive via topology.namespaces", () => {
+	it("declares NO consumer vocabulary: a consumer's prefixes (e.g. a credentials suite's) arrive via topology.namespaces", () => {
 		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
 		const ctx = out["@context"];
 		expect(ctx.cred).toBeUndefined();
@@ -231,7 +231,7 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.ex).toBe(`${HAIBUN_NS}ex#`);
 	});
 
-	it("keeps the validity-window rels general (hbn:) — a consumer overrides the served IRI per field", () => {
+	it("keeps the validity-window rels general (hbn:): a consumer overrides the served IRI per field", () => {
 		expect(LinkRelations.VALID_UNTIL.rel).toBe("validUntil");
 		expect(LinkRelations.VALID_UNTIL.uri).toBe("hbn:validUntil");
 		expect(REL_CONTEXT.validUntil).toBe("hbn:validUntil");
@@ -270,7 +270,7 @@ describe("getJsonLdContext top-level term fallback", () => {
 	});
 });
 
-describe("getJsonLdContext ontology @graph — rdfs:subClassOf as a real RDF statement, not a @context keyword", () => {
+describe("getJsonLdContext ontology @graph, rdfs:subClassOf as a real RDF statement, not a @context keyword", () => {
 	it("states the type's subclass on its class node in @graph; the @context term stays a pure IRI mapping", () => {
 		const domains = {
 			p: {
@@ -296,7 +296,7 @@ describe("getJsonLdContext ontology @graph — rdfs:subClassOf as a real RDF sta
 		expect(classNode).not.toHaveProperty("rdfs:subClassOf");
 	});
 
-	it("the Principal (sec:Controller) class node is declared a prov:Agent — the wasAttributedTo target is well-formed", () => {
+	it("the Principal (sec:Controller) class node is declared a prov:Agent: the wasAttributedTo target is well-formed", () => {
 		const domains = mapDefinitionsToDomains([principalDomainDefinition]);
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@id": string }>; "@graph": Array<Record<string, unknown>> };
 		expect(out["@context"][PRINCIPAL_LABEL]["@id"]).toBe("sec:Controller");
@@ -304,7 +304,7 @@ describe("getJsonLdContext ontology @graph — rdfs:subClassOf as a real RDF sta
 	});
 });
 
-describe("roleRels — the ontology-derived role-attribution predicate set", () => {
+describe("roleRels: the ontology-derived role-attribution predicate set", () => {
 	it("derives every rel declared subPropertyOf inRoleOf (and excludes the super-property itself)", () => {
 		const set = roleRels();
 		for (const rel of [LinkRelations.PERFORMED_BY.rel, LinkRelations.AUTHOR.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.ATTRIBUTED_TO.rel]) {
@@ -314,7 +314,7 @@ describe("roleRels — the ontology-derived role-attribution predicate set", () 
 		expect(set.has(LinkRelations.IN_REPLY_TO.rel)).toBe(false); // a reply rel is not a role attribution
 	});
 
-	it("names NO consumer vocabulary — consumer actor edges classify via their declared upper-ontology rel, not entries here", () => {
+	it("names NO consumer vocabulary, consumer actor edges classify via their declared upper-ontology rel, not entries here", () => {
 		for (const rel of ["issuer", "holder", "credentialSubject", "verifier", "registeredIn", "presentedTo", "resolvedIssuer", "verifiableCredential"]) {
 			expect(getRelRange(rel)).toBeUndefined();
 		}
@@ -326,7 +326,7 @@ describe("roleRels — the ontology-derived role-attribution predicate set", () 
 	});
 });
 
-describe("fromActor / toActor — the directional actor split under inRoleOf", () => {
+describe("fromActor / toActor: the directional actor split under inRoleOf", () => {
 	it("a concrete actor rel reaches inRoleOf TRANSITIVELY through its direction (performedBy → fromActor → inRoleOf)", () => {
 		expect(isSubPropertyOf(LinkRelations.PERFORMED_BY.rel, LinkRelations.FROM_ACTOR.rel)).toBe(true);
 		expect(isSubPropertyOf(LinkRelations.FROM_ACTOR.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
@@ -334,7 +334,7 @@ describe("fromActor / toActor — the directional actor split under inRoleOf", (
 		expect(isSubPropertyOf(LinkRelations.TO_ACTOR.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
 	});
 
-	it("the split only ADDS direction — roleRels membership is unchanged (every actor rel is still a role)", () => {
+	it("the split only ADDS direction, roleRels membership is unchanged (every actor rel is still a role)", () => {
 		const roles = roleRels();
 		for (const r of [...fromActorRels(), ...toActorRels()]) expect(roles.has(r)).toBe(true);
 	});
@@ -355,7 +355,7 @@ describe("fromActor / toActor — the directional actor split under inRoleOf", (
 	});
 });
 
-describe("getJsonLdContext ontology @graph — rdfs:subPropertyOf as a real RDF statement, not a @context keyword", () => {
+describe("getJsonLdContext ontology @graph, rdfs:subPropertyOf as a real RDF statement, not a @context keyword", () => {
 	it("states a role edge's super-property on its property node in @graph; the scoped @context term stays a pure IRI mapping", () => {
 		const domains = {
 			c: {
@@ -460,7 +460,7 @@ describe("CommentSchema", () => {
 		expect(parsed.author).toBe("stepper:llm");
 	});
 
-	it("requires an author — every Comment is attributed", () => {
+	it("requires an author: every Comment is attributed", () => {
 		expect(() => CommentSchema.parse({ id: "c1", generatedAtTime: new Date().toISOString() })).toThrow();
 	});
 });
@@ -481,7 +481,7 @@ describe("commentDomainDefinition", () => {
 		expect(cat.persisted[COMMENT_LABEL]).toBeDefined();
 	});
 
-	it("declares Comment a subclass of oa:Annotation — it carries oa:hasBody and oa:hasTarget", () => {
+	it("declares Comment a subclass of oa:Annotation: it carries oa:hasBody and oa:hasTarget", () => {
 		const domains = mapDefinitionsToDomains([commentDomainDefinition]);
 		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
 		const classNode = out["@graph"].find((n) => n["rdfs:subClassOf"] !== undefined && JSON.stringify(n).includes("oa:Annotation"));
@@ -582,7 +582,7 @@ describe("isSubPropertyOf", () => {
 	});
 });
 
-describe("isReplyEdge — generic chain walk", () => {
+describe("isReplyEdge, generic chain walk", () => {
 	it("recognises inReplyTo and its declared sub-properties", () => {
 		expect(isReplyEdge("inReplyTo")).toBe(true);
 		expect(isReplyEdge("wasInformedBy")).toBe(true);
@@ -717,7 +717,7 @@ function memStore() {
 	return { store, quads, nodes };
 }
 
-describe("assertCommentGrounded — no floating comments", () => {
+describe("assertCommentGrounded: no floating comments", () => {
 	const withEdges = (predicates: string[]) =>
 		({ query: () => Promise.resolve(predicates.map((predicate) => ({ subject: "c1", predicate, object: "x" }))) }) as unknown as TDiscourseStore;
 	it("passes for an oa:hasTarget edge (about a subject)", async () => {
@@ -729,13 +729,13 @@ describe("assertCommentGrounded — no floating comments", () => {
 	it("passes for an attachment edge", async () => {
 		await expect(assertCommentGrounded(withEdges([LinkRelations.ATTACHMENT.rel]), "c1")).resolves.toBeUndefined();
 	});
-	it("throws when only hasBody/seqPath are present — content + position do not make a comment about anything", async () => {
+	it("throws when only hasBody/seqPath are present, content + position do not make a comment about anything", async () => {
 		await expect(assertCommentGrounded(withEdges([LinkRelations.HAS_BODY.rel, LinkRelations.SEQ_PATH.rel]), "c1")).rejects.toThrow(/not grounded/);
 	});
 });
 
-describe("writeAnnotation — self-contained on a plain quad store (no createEdge)", () => {
-	it("builds Comment —hasTarget→ SpecificResource —hasSource→ doc / —hasSelector→ TextQuoteSelector, grounded, without editing the doc", async () => {
+describe("writeAnnotation, self-contained on a plain quad store (no createEdge)", () => {
+	it("builds Comment, hasTarget→ SpecificResource, hasSource→ doc /, hasSelector→ TextQuoteSelector, grounded, without editing the doc", async () => {
 		const { store, quads, nodes } = memStore();
 		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", {
 			label: "File",

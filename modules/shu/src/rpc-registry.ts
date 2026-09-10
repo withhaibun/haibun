@@ -196,7 +196,7 @@ export type TDeploymentSettings = {
 const HYDRATION_KEY = "__SHU_HYDRATION__";
 const cachedHydration = (): { data: ShuHydration | null } => pagePinned(HYDRATION_KEY, () => ({ data: null }));
 
-/** Parse the embedded hydration and drop the text it was parsed from: the element caches the whole run — every event —
+/** Parse the embedded hydration and drop the text it was parsed from: the element caches the whole run: every event:
  *  as one string, which would sit in the DOM for the life of the page beside the objects parsed out of it. Read once
  *  (`hydrateFromDom`, at boot), so nothing reads it again. */
 function readHydration(): ShuHydration | null {
@@ -334,15 +334,15 @@ async function discover(): Promise<StepListResponse> {
 /**
  * A link to a step named at run time, asking what that step declares itself to answer.
  *
- * A caller that chooses a method as it runs — a person picking a step, a panel following an affordance it was offered
- * — cannot state what the step is, so the step states it: the registry the page loaded carries each step's own
+ * A caller that chooses a method as it runs: a person picking a step, a panel following an affordance it was offered
+ * cannot state what the step is, so the step states it: the registry the page loaded carries each step's own
  * declaration. A method no loaded stepper provides asks the run to act, which is what naming an unknown step is.
  */
 export function linkTo(method: string, params?: Record<string, unknown>, summary?: string): TLink {
 	return findStep(method)?.read === true ? reads(method, params, summary) : acts(method, params, summary);
 }
 
-/** Look up a registered step by either its friendly name (e.g. `"graphQuery"`) or its full `Stepper-method` form. The name is the wire contract — resolution, and any "unknown step" outcome, happen at runtime against the loaded registry. */
+/** Look up a registered step by either its friendly name (e.g. `"graphQuery"`) or its full `Stepper-method` form. The name is the wire contract, resolution, and any "unknown step" outcome, happen at runtime against the loaded registry. */
 export function findStep(name: string): StepDescriptor | undefined {
 	return registry().byName?.get(name);
 }

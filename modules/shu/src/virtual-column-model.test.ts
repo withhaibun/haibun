@@ -11,7 +11,7 @@ describe("visibleWindow", () => {
 	});
 });
 
-describe("convergeTarget — the two-gait jump-to-live-edge target", () => {
+describe("convergeTarget: the two-gait jump-to-live-edge target", () => {
 	it("goes coarse (straight to the last row) while the gap is beyond COARSE_GAP", () => {
 		expect(convergeTarget({ first: 0, visible: 20 }, 20 + COARSE_GAP + 1)).toBe(20 + COARSE_GAP);
 	});

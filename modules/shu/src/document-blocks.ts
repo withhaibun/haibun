@@ -39,14 +39,14 @@ const STEP_ROW_SELECTOR = ".header-block, .prose-block, .log-row";
 const ARTIFACT_HOLDER_SELECTOR = ".feature-artifacts, .standalone-artifact";
 
 /** The thumbnail frames of a filled block, when the block is PURELY thumbnails (every frame in it carries the `thumb`
- *  class and there is at least one) — those flow as grid tiles. A block mixing a thumbnail with another artifact frame
+ *  class and there is at least one): those flow as grid tiles. A block mixing a thumbnail with another artifact frame
  *  (a step that saved an image and a json) caches its own layout. */
 function thumbFrames(blockEl: Element): Element[] {
 	const frames = Array.from(blockEl.querySelectorAll("shu-artifact-frame"));
 	return frames.length > 0 && frames.every((f) => f.classList.contains("thumb")) ? frames : [];
 }
 
-/** Fill artifact placeholders, add the reader classes, and group consecutive thumbnails — the pure equivalent of what the
+/** Fill artifact placeholders, add the reader classes, and group consecutive thumbnails: the pure equivalent of what the
  *  column's imperative post-process and thumbnail grouping used to do (artifact filling, reader classes, thumbnail strips).
  *  Product-view embedding stays in the
  *  column (it needs live event products and a mounted element); it is not a block-HTML concern. */
@@ -77,12 +77,12 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 		.filter((b): b is TFilled => b !== null);
 
 	// Collect every run of consecutive thumbnail blocks into one `.thumb-row` grid whose children are the FRAMES themselves
-	// (extracted from their placeholder holders — a holder as the grid child would nest a step's several frames into one
+	// (extracted from their placeholder holders: a holder as the grid child would nest a step's several frames into one
 	// cell), so per-step screenshots flow as equal tiles that take the column width. A lone thumbnail is wrapped too (a
 	// single full-width tile); a run ends at the next non-thumbnail block, so thumbnails split by a step never share a row.
 	// Each frame is stamped with the step it belongs to (the nearest preceding step/prose/header block) and its ordinal
 	// among these blocks, under the caller's prefix (the document generates a page of the run at a time, and names the
-	// page) — the expanded view's caption, cursor scrub, and ←/→ navigation read these, since under virtualization a frame
+	// page): the expanded view's caption, cursor scrub, and ←/→ navigation read these, since under virtualization a frame
 	// can neither walk to its step's block nor see its off-window siblings.
 	const out: TDocBlock[] = [];
 	let run: { frames: Element[]; id: string; rawTime: number }[] = [];

@@ -85,11 +85,11 @@ describe("renderRefProse", () => {
 		expect(renderRefProse("see [that](#Nonesuch)", isType)).not.toContain("shu-ref");
 	});
 
-	it("renders a description as one sentence — no paragraph wrapper to break the line it sits on", () => {
+	it("renders a description as one sentence: no paragraph wrapper to break the line it sits on", () => {
 		expect(renderRefProse("A plain description.", isType)).toBe("A plain description.");
 	});
 
-	it("renders markup a description carries as text — a description is prose, not a document body", () => {
+	it("renders markup a description carries as text: a description is prose, not a document body", () => {
 		const html = renderRefProse('<img src=x onerror="alert(1)"> plain', isType);
 		expect(html).not.toContain("<img"); // escaped, so nothing of it is live
 		expect(html).toContain("&lt;img");

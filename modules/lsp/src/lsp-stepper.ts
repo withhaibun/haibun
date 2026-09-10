@@ -133,12 +133,12 @@ export default class LspStepper extends AStepper {
 
 			const lineNum = params.position.line;
 			// Use s.step to access the TFeatureStep
-			// For .feature.ts files, we might need to check column range too?
+			// For .feature.ts files, the column range may need checking too.
 			// For now, if multiple steps on line, picking first match for line is consistent with .feature behavior
-			// But for better UX we should check column.
+			// The column is checked for a better result.
 			const stepItem = cached.featureSteps.find((s) => {
 				if (s.step.source.lineNumber !== lineNum + 1) return false;
-				// Optimistic: if we have range info, check it
+				// Optimistic: if range info is present, check it
 				if (s.startOffset !== undefined && s.length !== undefined) {
 					const char = params.position.character;
 					return char >= s.startOffset && char <= s.startOffset + s.length;
@@ -253,7 +253,7 @@ export default class LspStepper extends AStepper {
 		// Check if it's a background file by matching ActivitiesStepper logic (folder-based)
 		const isBgFile = normUri.includes("/backgrounds/");
 
-		// Check if we have any matching existing entry
+		// Check for a matching existing entry
 		// match normalized paths
 		const existingIndex = this.backgrounds.findIndex((b) => this.normalizePath(b.path) === normUri || b.path.endsWith(normUri) || normUri.endsWith(b.path));
 
@@ -283,7 +283,7 @@ export default class LspStepper extends AStepper {
 			}
 
 			// Re-parse ALL backgrounds to ensure consistency
-			// We process them sequentially to ensure dependency order (if any) or just deterministic registration
+			// They are processed sequentially to ensure dependency order (if any) or just deterministic registration
 			const resolver = new Resolver(this.steppers, []);
 			for (const bg of this.backgrounds) {
 				try {
@@ -323,11 +323,11 @@ export default class LspStepper extends AStepper {
 		}
 
 		// Always update status with discovered workspace info
-		// Even if we don't find backgrounds/config, we should report the base
+		// Even without backgrounds or config, the base is reported
 		this.currentWorkspace = {
 			base: workspace.base,
 			config: workspace.configPath,
-			backgroundCount: 0, // Will update if we load them
+			backgroundCount: 0, // Updated if they load
 		};
 
 		// If no backgrounds path, just return default backgrounds but keep workspace info
@@ -433,7 +433,7 @@ export default class LspStepper extends AStepper {
 		const isBg = await this.updateBackgrounds(doc, uri);
 		if (isBg) {
 			// If background changed, revalidate all other open documents
-			// We use setTimeout to avoid blocking the current processing or creating infinite loops if logic is flawed
+			// setTimeout avoids blocking the current processing or creating infinite loops if logic is flawed
 			setTimeout(() => {
 				this.documents.all().forEach((d) => {
 					if (this.normalizePath(d.uri) !== uri) {
@@ -451,7 +451,7 @@ export default class LspStepper extends AStepper {
 			content,
 		};
 
-		// If we are processing a background file, do not apply backgrounds to it
+		// If a background file is being processed, do not apply backgrounds to it
 		// This prevents recursive application (applying a background to itself) which causes "Duplicate definition" errors
 		// and shifts line numbers. Backgrounds should be parsed as standalone lists of steps.
 		// For non-background files, use workspace-relative backgrounds discovered from the file's location
@@ -488,11 +488,11 @@ export default class LspStepper extends AStepper {
 				source: "haibun",
 			});
 
-			// Retry without backgrounds so we can still process the steps we know about
+			// Retry without backgrounds so the known steps can still be processed
 			try {
 				expandedFeatures = await expand({ features: [feature], backgrounds: [] });
 			} catch (e2) {
-				// If even that fails, we can't do anything
+				// If even that fails, nothing can be done
 				const errorMessage2 = errorDetail(e2);
 				const diagnostics: Diagnostic[] = [
 					{

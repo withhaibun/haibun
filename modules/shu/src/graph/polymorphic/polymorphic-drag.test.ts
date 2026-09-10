@@ -8,7 +8,7 @@ const evt = (x: number, y: number): PointerEvent => ({ clientX: x, clientY: y })
 function setup(over: Partial<NodeDragDeps> = {}) {
 	const nodes = [node("X", 10, 20), node("Y", 5, 5), node("Z", -3, 8)];
 	const calls = { held: false, frozen: false, controls: true, droppedPin: "", ghost: 0, cleared: 0, committed: "" };
-	// planeHit stub: the pointer's client coords ARE the world hit — the test drives the geometry directly, no THREE.
+	// planeHit stub: the pointer's client coords ARE the world hit: the test drives the geometry directly, no THREE.
 	const deps: NodeDragDeps = {
 		pick: () => nodes[0],
 		makePlane: () => ({}),

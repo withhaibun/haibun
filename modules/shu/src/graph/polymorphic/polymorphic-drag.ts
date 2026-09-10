@@ -1,5 +1,5 @@
 // The node-drag state machine, lifted out of the polymorphic view component so its geometry + pin behaviour is unit-tested with
-// stubs — no GPU, no raycaster, no rendered scene. The flake it replaces lived ENTIRELY in picking a pixel out of an
+// stubs: no GPU, no raycaster, no rendered scene. The flake it replaces lived ENTIRELY in picking a pixel out of an
 // occluded WebGL scene, never in this logic, which is pure number-shuffling once a node is picked. The component owns the
 // DOM events + the THREE projection; this owns the state transitions: a press that stays put is a click; one that crosses
 // the threshold pins the whole layout and drags a node; release leaves that node pinned while freeing the rest.
@@ -8,7 +8,7 @@ import type { FGNode } from "./polymorphic-graph-types.js";
 
 export const DRAG_THRESHOLD_PX = 5; // a press that moves less than this is a click, not a drag
 
-/** The interfaces the drag needs from its host — the pick + projection (THREE-backed in the component, stubbed in tests), the
+/** The interfaces the drag needs from its host: the pick + projection (THREE-backed in the component, stubbed in tests), the
  *  node set, the engine hold/freeze, the camera-controls toggle, and the gantt reschedule hooks. A `plane` is opaque here:
  *  the component derives the camera-facing plane through the node; this only holds it and passes it back to `planeHit`. */
 export type NodeDragDeps = {
@@ -24,7 +24,7 @@ export type NodeDragDeps = {
 	clearGhost: () => void;
 	commit: (node: FGNode) => void; // gantt: rewrite the dragged bar's scheduled time
 	selectedId: () => string | null; // the selected node stays pinned while selected
-	dropDataPin: (id: string) => void; // the dragged node becomes a PERSISTENT pin — out of the transient data-feed set
+	dropDataPin: (id: string) => void; // the dragged node becomes a PERSISTENT pin, out of the transient data-feed set
 };
 
 export class NodeDrag {
@@ -32,11 +32,11 @@ export class NodeDrag {
 	private activeState?: { node: FGNode; plane: unknown; off: XYZ };
 	constructor(private readonly d: NodeDragDeps) {}
 
-	/** The press crossed the threshold — the layout is held and a node follows the pointer. */
+	/** The press crossed the threshold: the layout is held and a node follows the pointer. */
 	get dragging(): boolean {
 		return !!this.activeState;
 	}
-	/** The id of the node currently being dragged, or null — for the host's inspect/paint. */
+	/** The id of the node currently being dragged, or null, for the host's inspect/paint. */
 	get draggedId(): string | null {
 		return this.activeState?.node.id ?? null;
 	}
@@ -51,7 +51,7 @@ export class NodeDrag {
 		const plane = this.d.makePlane(node);
 		const hit = this.d.planeHit(e, plane);
 		if (!hit) return;
-		// Disable controls now, but do NOT pin/hold yet — a press that stays put is a CLICK (it opens the node's column).
+		// Disable controls now, but do NOT pin/hold yet: a press that stays put is a CLICK (it opens the node's column).
 		// The drag begins only once the pointer crosses the threshold (see move), so a click never reheats the layout.
 		this.d.setControlsEnabled(false);
 		this.pendingState = { node, plane, off: { x: (node.x ?? 0) - hit.x, y: (node.y ?? 0) - hit.y, z: (node.z ?? 0) - hit.z }, downX: e.clientX, downY: e.clientY };
@@ -75,7 +75,7 @@ export class NodeDrag {
 		if (!hit) return;
 		const n = this.activeState.node;
 		if (this.d.dragReschedules()) {
-			n.z = hit.z + this.activeState.off.z; // gantt: z IS time — set z directly so the bar follows live (the 2D sim ignores fz)
+			n.z = hit.z + this.activeState.off.z; // gantt: z IS time, set z directly so the bar follows live (the 2D sim ignores fz)
 			this.d.updateGhost(n);
 		} else {
 			n.fx = hit.x + this.activeState.off.x;
@@ -98,7 +98,7 @@ export class NodeDrag {
 			n.fy = undefined;
 			n.fz = undefined;
 		}
-		this.d.dropDataPin(dragged.id); // the dragged node is now a persistent pin — the next engine-stop release can't clobber it
+		this.d.dropDataPin(dragged.id); // the dragged node is now a persistent pin: the next engine-stop release can't clobber it
 		this.d.freeze();
 		this.d.setControlsEnabled(true);
 		this.activeState = undefined;

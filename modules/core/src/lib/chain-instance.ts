@@ -1,5 +1,5 @@
 /**
- * Chain instances — durable per-walk state for the chain-walker.
+ * Chain instances, durable per-walk state for the chain-walker.
  *
  * A chain instance records one user's walk through a resolver michi: which
  * goal it targets, which michi (path) was chosen, the current step index,
@@ -133,7 +133,7 @@ export async function createChainInstance(world: TWorld, goal: string, michi: TM
 
 /**
  * Load a chain instance by id. Returns `undefined` if the instance doesn't exist.
- * Throws if the instance is partially written — a missing predicate other than
+ * Throws if the instance is partially written: a missing predicate other than
  * the optional ones indicates corrupted store state, not a missing instance.
  */
 export async function getChainInstance(world: TWorld, id: string): Promise<TChainInstance | undefined> {

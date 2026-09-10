@@ -1,6 +1,6 @@
 # Haibun Improvements Plan
 
-This document outlines the strategic roadmap for the next phase of Haibun development. The core philosophy is to create a **transparent, self-revealing system** where a single stream of structured events serves all stakeholders, and where the architecture is simplified by adopting standard interfaces and a robust upper ontology.
+This document outlines the strategic roadmap for the next phase of Haibun development. The core philosophy is to create a **transparent, self-revealing system** where a single stream of structured events serves all stakeholders, and where the architecture is simplified by adopting standard interfaces and a reliable upper ontology.
 
 ## 1. Unified Observability & Message System
 **Goal:** Create a transparent, self-revealing system where all "views" are derived from a single, immutable stream of structured messages using generalized `is-a` relationships.
@@ -41,7 +41,7 @@ Instead of hardcoded "Developer" or "User" logs, views are projections based on 
 **Goal:** Enable sophisticated reasoning using `is-a` relationships defined via idiomatic Haibun syntax.
 
 ### 3.1. Schema-Driven Variables
-We define types using Haibun compound statements and sets, rather than raw JSON.
+Types are defined using Haibun compound statements and sets, rather than raw JSON.
 -   **Definition:**
     ```gherkin
     Define type Sentient Being with property name

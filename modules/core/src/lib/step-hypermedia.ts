@@ -13,11 +13,11 @@ import { normalizeDomainKey } from "./domains.js";
  * `id`, `view`) into a step's products. The single source of truth is the registered
  * domain: every step with a `productsDomain` gets markers; their values come from the
  * domain's `ui` configuration. Steps with `productsSchema` (no domain registration) get
- * no markers — they are local typed outputs, not domain-scoped resources. Actions never
+ * no markers: they are local typed outputs, not domain-scoped resources. Actions never
  * emit `_type` / `_summary` themselves.
  *
  * - `_type` is the registered `ui.component` if set, else the domain key.
- * - `_summary` is `ui.summary` — either a string template or a function taking the
+ * - `_summary` is `ui.summary`: either a string template or a function taking the
  *   products object. Falls back to the domain key.
  * - `_component`, `id`, `view` are injected only when the domain has `ui.component`,
  *   because those markers exist for the SPA's pane-opener and are meaningless for
@@ -45,7 +45,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 		[HYPERMEDIA.SUMMARY]: summary,
 	};
 	// The producing domain's own description, surfaced inline so a consumer (human, LLM, agent) can interpret the result
-	// without a round-trip to `step.list` — the description travels with the data. It is the SAME text the type's view
+	// without a round-trip to `step.list`: the description travels with the data. It is the SAME text the type's view
 	// shows (buildConcernCatalog reads this field too): a domain describes itself once, and a second description on its
 	// schema would be a second answer to one question, free to drift from the one a reader is shown.
 	if (domain?.description) markers[HYPERMEDIA.DESCRIPTION] = domain.description;
@@ -67,8 +67,8 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
  * affordance is named by intent, not by method address.
  *
  * Matching is in two layers:
- *   1. direct — a step's param domain equals the product's domain.
- *   2. ref→individual — a step's param domain is a ref domain whose
+ *   1. direct: a step's param domain equals the product's domain.
+ *   2. ref→individual: a step's param domain is a ref domain whose
  *      `topology.ranges.id` points at the product's domain. This is how
  *      `individualRefDomain(refKey, targetKey)` declares "this ref's id ranges
  *      over a targetKey individual"; the affordance derivation follows that
@@ -77,8 +77,8 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
  *
  * The params skeleton: if the product carries a top-level `id`, populate the
  * matching parameter with `{ id: <product.id> }` (the convention every individual
- * ref domain uses today — `{record: {id}}`, `{label, id}` for getIndividual,
- * etc.). Otherwise pass an empty object — the consumer fills the rest from the
+ * ref domain uses today, `{record: {id}}`, `{label, id}` for getIndividual,
+ * etc.). Otherwise pass an empty object: the consumer fills the rest from the
  * step's own inputSchema (already in step.list).
  *
  * H1: a single derivation; no per-step authoring needed.
@@ -93,7 +93,7 @@ function deriveActionLinks(
 	const productId = typeof products.id === "string" ? products.id : undefined;
 	const matchesProduct = (paramDomain: string): boolean => {
 		if (paramDomain === productsDomain) return true;
-		// Some gwta params declare a union domain (e.g. `string | page-locator`) — those carry no single-domain topology to follow, so skip them. normalizeDomainKey throws on misordered unions; guard with try/catch so a single quirky param doesn't break affordance derivation for every product the step produces.
+		// Some gwta params declare a union domain (e.g. `string | page-locator`): those carry no single-domain topology to follow, so skip them. normalizeDomainKey throws on misordered unions; guard with try/catch so a single quirky param doesn't break affordance derivation for every product the step produces.
 		let refDomain: { topology?: { ranges?: { id?: string } } } | undefined;
 		try {
 			refDomain = world.domains?.[normalizeDomainKey(paramDomain)];
@@ -138,7 +138,7 @@ function deriveActionLinks(
 export function isViewOnlyDomain(world: TWorld, domainKey: string): boolean {
 	const domain = world.domains[normalizeDomainKey(domainKey)];
 	if (!domain?.ui?.component || typeof domain.ui.component !== "string") return false;
-	// unrepresentable:"any" keeps the presence check working for a schema carrying a date (z.coerce.date has no JSON Schema form) — we only need to know whether it has fields, not to represent them.
+	// unrepresentable:"any" keeps the presence check working for a schema carrying a date (z.coerce.date has no JSON Schema form), only whether it has fields matters, not to represent them.
 	const jsonSchema = jsonSchemaOf(domain.schema, "fields", () => z.toJSONSchema(domain.schema, { unrepresentable: "any" }) as Record<string, unknown>) as {
 		properties?: Record<string, unknown>;
 		type?: string;

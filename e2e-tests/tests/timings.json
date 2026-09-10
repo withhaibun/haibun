@@ -30,15 +30,15 @@
 				"steps": 65
 			},
 			"/features/auth-form.feature": {
-				"seconds": 0.7,
+				"seconds": 0.6,
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 1.1,
+				"seconds": 0.9,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2.3,
+				"seconds": 1,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -70,11 +70,11 @@
 				"steps": 7
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 27
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
@@ -107,7 +107,7 @@
 			},
 			"/features/wikipedia.feature.ts": {
 				"seconds": 1.1,
-				"steps": 144
+				"steps": 143
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
@@ -118,7 +118,7 @@
 				"steps": 12
 			}
 		},
-		"steps": 1154,
-		"seconds": 17.8
+		"steps": 1153,
+		"seconds": 15.8
 	}
 }

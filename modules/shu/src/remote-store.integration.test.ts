@@ -68,9 +68,9 @@ probe the delegated store surface
 
 		// The satellite's naming persisted THROUGH the mounted store, and reading back through its own world store (routed to the main) finds it.
 		expect(readBack?.controller).toBe("did:site:0.1");
-		// The main itself holds the record — asked directly with the delegated token.
+		// The main itself holds the record, asked directly with the delegated token.
 		expect(heldByMain).toHaveLength(1);
-		// No grant, no access — reads and writes are both refused without the delegated capability.
+		// No grant, no access, reads and writes are both refused without the delegated capability.
 		expect(deniedRead).toContain("capability store.read required");
 		expect(deniedWrite).toContain("capability store.write required");
 	});

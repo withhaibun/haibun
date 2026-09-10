@@ -30,13 +30,13 @@ describe("3D time→z (headless layout math, no browser)", () => {
 		expect(b).toEqual(a); // this is exactly why a stable referenceNow keeps the graph from sliding between repaints
 	});
 
-	it("z-drift from a `now` advance is NEGLIGIBLE on the sqrt scale — so a per-repaint clock is NOT the select-jump", () => {
+	it("z-drift from a `now` advance is NEGLIGIBLE on the sqrt scale, so a per-repaint clock is NOT the select-jump", () => {
 		// A 5s advance (a couple of repaints' worth of fresh Date.now()) over a 30s..1y span.
 		const s0 = timeZScale(times, NOW, Z_MAX);
 		const s1 = timeZScale(times, NOW + 5_000, Z_MAX);
 		let maxDrift = 0;
 		for (const t of times) maxDrift = Math.max(maxDrift, Math.abs(timeZ(t, NOW + 5_000, s1) - timeZ(t, NOW, s0)));
-		expect(maxDrift, `max z-drift over 5s = ${maxDrift.toFixed(3)} of ${Z_MAX}`).toBeLessThan(3); // tiny vs the 320-unit depth — disproves the z-drift theory of the jump
+		expect(maxDrift, `max z-drift over 5s = ${maxDrift.toFixed(3)} of ${Z_MAX}`).toBeLessThan(3); // tiny vs the 320-unit depth, disproves the z-drift theory of the jump
 	});
 
 	it("a single record (zero age span) places it at z=0, no NaN", () => {

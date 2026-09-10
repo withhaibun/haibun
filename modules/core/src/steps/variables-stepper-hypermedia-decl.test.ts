@@ -6,7 +6,7 @@ type Products = { topology?: { persistedAs?: string; id?: string; edges?: Record
 const showProducts = (res: Awaited<ReturnType<typeof passWithDefaults>>, line: string): Products =>
 	((res.featureResults?.[0]?.stepResults ?? []).find((s) => s.in === line)?.products ?? {}) as Products;
 
-describe("set of {domain} by — declare a hypermedia domain", () => {
+describe("set of {domain} by, declare a hypermedia domain", () => {
 	it("prose form registers a domain with vertex topology", async () => {
 		const res = await passWithDefaults(
 			`set of Recipe by id, with name

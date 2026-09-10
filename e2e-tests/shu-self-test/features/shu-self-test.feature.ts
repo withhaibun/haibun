@@ -40,7 +40,7 @@ const VIEWS_PICKER = SHU_TEST_IDS.VIEWS_PICKER.ROOT;
 const VIEWS_PICKER_MONITOR = `${SHU_TEST_IDS.VIEWS_PICKER.ROW}${SHU_TAG.MONITOR_COLUMN}`;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 // Step-caller test-ids are generated per-invocation by createStepUI's helpers
-// (method + callIndex + param), so there's nothing to pre-register at file scope —
+// (method + callIndex + param), so there's nothing to pre-register at file scope:
 // each invocation does its own setAs via the helper. The empty list is here so the
 // `...stepIdSetup` spread below remains a stable extension point.
 const stepIdSetup: ReturnType<typeof setAs>[] = [];
@@ -60,7 +60,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Bootstrap server and seed representative data" }),
 
-		"A live haibun server hosts the SPA and exposes every stepper step as an RPC method. Seeding variables and comments here gives the views something to render — without it, the affordances panel would show only goals and forward steps but no asserted facts.",
+		"A live haibun server hosts the SPA and exposes every stepper step as an RPC method. Seeding variables and comments here gives the views something to render, without it, the affordances panel would show only goals and forward steps but no asserted facts.",
 		"enable rpc",
 		'saves shu to "/tmp/shu.html"',
 		serveShuApp({ path: '"/haibun"' }),
@@ -76,7 +76,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Open the SPA in a browser and confirm it loads" }),
 
-		"The SPA is a single-page app served at /haibun. Navigating here boots the shu app shell, which connects to /sse for live events and to /rpc for step invocations. If the bundle fails to register web components or the SSE handshake fails, subsequent waitFor calls will time out — which is the signal we want.",
+		"The SPA is a single-page app served at /haibun. Navigating here boots the shu app shell, which connects to /sse for live events and to /rpc for step invocations. If the bundle fails to register web components or the SSE handshake fails, subsequent waitFor calls will time out, which is the signal this feature waits for.",
 		gotoPage({ name: `"${host}/haibun"` }),
 
 		scenario({ scenario: "Open the monitor column" }),
@@ -150,7 +150,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Invoke `show chain lint` and verify the domain-chain Mermaid graph renders" }),
 
-		"The chain-lint step returns both the lint findings (orphan steps, starved steps, unreachable domains) and the graph data (forward edges, goal verdicts). The bound view consumes the graph data to render the Mermaid flowchart — opening the pane without a graph would indicate the producer step or the view-open data-threading is broken.",
+		"The chain-lint step returns both the lint findings (orphan steps, unsupplied steps, unreachable domains) and the graph data (forward edges, goal verdicts). The bound view consumes the graph data to render the Mermaid flowchart, opening the pane without a graph would indicate the producer step or the view-open data-threading is broken.",
 		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
@@ -163,12 +163,12 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
 
-		"Each view-open product is a one-shot signal to mount the pane, not a fact to chain on. Running the same show-X step twice must reuse the existing pane — without that, every refresh of the affordances stream would accumulate new mermaid panes. The dispatcher skips auto-assert for view-only domains; this scenario verifies the no-duplication outcome.",
+		"Each view-open product is a one-shot signal to mount the pane, not a fact to chain on. Running the same show-X step twice must reuse the existing pane, without that, every refresh of the affordances stream would accumulate new mermaid panes. The dispatcher skips auto-assert for view-only domains; this scenario verifies the no-duplication outcome.",
 		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 
-		scenario({ scenario: "Reload while affordances and domain-chain panes are open — both must restore" }),
+		scenario({ scenario: "Reload while affordances and domain-chain panes are open: both must restore" }),
 
 		"After the affordances panel and chain-lint pane have been opened via step invocation, reloading the page must restore them from the URL hash. This is the regression check for the view-open data-threading path: if products aren't preserved through hash-restore, the chain-lint view will mount empty and waitFor on the graph will time out.",
 		reloadPage({}),
@@ -210,19 +210,19 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Variable inspection: `show vars` should produce an entry per seeded variable" }),
 
-		"`show vars` returns the current variable bag with secrets obscured. Stashing from this step lets us assert the output domain shape works end-to-end.",
+		"`show vars` returns the current variable bag with secrets obscured. Stashing from this step lets the feature assert the output domain shape works end-to-end.",
 		setFromStatement({ what: "varsSnapshot", statement: "show vars" }),
 		exists({ what: "varsSnapshot" }),
 
 		scenario({ scenario: "Domain inspection: `show domains` lists every registered domain" }),
 
-		"Domain registration is dynamic — every stepper concern can register more domains at boot. Reading the registry confirms domains the test depends on are actually present (Comment, page-test-id, the show* view domains).",
+		"Domain registration is dynamic: every stepper concern can register more domains at boot. Reading the registry confirms domains the test depends on are present (Comment, page-test-id, the show* view domains).",
 		setFromStatement({ what: "domainsSnapshot", statement: "show domains" }),
 		exists({ what: "domainsSnapshot" }),
 
 		scenario({ scenario: "View settings reveals every chain-view control as one group" }),
 
-		"View settings (the gear in the column-pane header) is the single switch for every per-view control: zoom, layout, axis filter. Toggling it on the chain pane reveals the whole controls block at once — this scenario pins the unified-gate invariant so that zoom doesn't drift back into its own toolbar.",
+		"View settings (the gear in the column-pane header) is the single switch for every per-view control: zoom, layout, axis filter. Toggling it on the chain pane reveals the whole controls block at once: this scenario pins the unified-gate invariant so that zoom doesn't drift back into its own toolbar.",
 		"in shu-column-pane:has(shu-domain-chain-view), click pane-controls-toggle",
 		waitFor({ target: IDS.DOMAIN_CHAIN.CONTROLS }),
 
@@ -234,7 +234,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Write the standalone HTML report mid-feature" }),
 
-		"`saves shu to` writes a self-contained HTML report — the SPA bundle plus a snapshot of every RPC response and SSE event captured during the run. Running it mid-feature verifies the writer doesn't depend on endFeature timing.",
+		"`saves shu to` writes a self-contained HTML report: the SPA bundle plus a snapshot of every RPC response and SSE event captured during the run. Running it mid-feature verifies the writer doesn't depend on endFeature timing.",
 		'saves shu to "/tmp/shu.html"',
 		"An uncompressed copy carries the same content as plain text, so a reader can confirm secrets are redacted in the output without unpacking it.",
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
@@ -263,7 +263,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The server responding again returns the page to it" }),
 
-		"A network that comes back is the same page reading the same stores, with the server available again: the registry is the server's once more, and the run source is loaded from it. Nothing about the views changes between the two states, which is the point of reading everything through the one cache.",
+		"A network that comes back is the same page reading the same stores, with the server available again: the registry is the server's once more, and the run source is loaded from it. Nothing about the views changes between the two states, which is the reason for reading everything through the one cache.",
 		`requests matching "${RPC_GLOB}" are "allowed"`,
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		reloadPage({}),

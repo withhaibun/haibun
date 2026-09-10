@@ -4,7 +4,7 @@
 
 Transform Haibun's monitoring into an **open-ended, pluggable event system** with:
 1. **OpenTelemetry-aligned schemas** for industry compatibility
-2. **Monitors as steppers** — configured in config.json like any stepper
+2. **Monitors as steppers**: configured in config.json like any stepper
 3. **Built-in implementations**: Console (CI), Ink TUI, Browser, OTel exporter
 4. **Default output**: NDJSON to stdout
 
@@ -125,7 +125,7 @@ if (!steppers.some(s => s.onEvent)) {
 Events use standard OTel fields:
 - `trace_id`, `span_id`, `parent_span_id`, `status`, `links`
 - **Speculative steps** use OTel `links` to connect to decision spans
-- Only `haibun.*` namespace for genuinely unique concepts
+- Only `haibun.*` namespace for unique concepts
 
 ---
 
@@ -665,11 +665,11 @@ The TUI subscribes to both:
 
 ### 0. Unified Event Model with Levels
 
-All events should have a `level` field — not just logs. This simplifies the schema:
+All events should have a `level` field, not just logs. This simplifies the schema:
 
 ```typescript
 // ─── OTel-Aligned Event Schema ───
-// Uses OTel terminology, haibun.* namespace only for genuinely unique concepts
+// Uses OTel terminology, haibun.* namespace only for unique concepts
 
 const HaibunEvent = z.object({
   // ─── Standard OTel span fields ───
@@ -733,7 +733,7 @@ Compound statement:  some                    span_id: "1.1"
   Speculative step:  email matches C        span_id: "1.1.3", links: [{ span_id: "1.1" }]
 ```
 
-The `links` field is standard OTel — speculative steps link to their "decision span" (the compound statement). OTel tools can:
+The `links` field is standard OTel, speculative steps link to their "decision span" (the compound statement). OTel tools can:
 - Filter by "spans with links" = speculative
 - Follow links to see the decision context
 - Group related spans visually
@@ -745,8 +745,8 @@ The `links` field is standard OTel — speculative steps link to their "decision
 | `id` (seqPath) | `span_id` | seqPath IS the span_id |
 | `traceId` | `trace_id` | Standard OTel term |
 | `parentId` | `parent_span_id` | Standard OTel term |
-| `speculative` | `links` present | OTel native — linked to decision span |
-| `authoritative` | No `links` | OTel native — standalone span |
+| `speculative` | `links` present | OTel native, linked to decision span |
+| `authoritative` | No `links` | OTel native, standalone span |
 | `lifecycle.status` | `status.code` | Standard OTel span status |
 | `lifecycle.kind` | `attributes['haibun.scope']` | Haibun-specific hierarchy |
 | `control` | `haibun.control` | Debugger-specific extension |
@@ -762,10 +762,10 @@ The `links` field is standard OTel — speculative steps link to their "decision
 | Nested logs | `events[]` |
 | Custom metadata | `attributes{}` |
 
-**Only truly Haibun-specific concepts remain namespaced:**
-- `haibun.scope` — feature/scenario/step hierarchy
-- `haibun.control` — debugger prompting
-- `haibun.artifacts` — screenshots/videos
+**Only Haibun-specific concepts remain namespaced:**
+- `haibun.scope`: feature/scenario/step hierarchy
+- `haibun.control`: debugger prompting
+- `haibun.artifacts`: screenshots/videos
 
 ### 0.3 Shared Monitor Core Library (`@haibun/monitor-core`)
 
@@ -775,10 +775,10 @@ The `links` field is standard OTel — speculative steps link to their "decision
 
 All monitors share a common library that provides:
 
-1. **Event Processing** — Parse, validate, filter events
-2. **State Management** — Build tree from span hierarchy, track speculative blocks
-3. **Display Logic** — Consistent speculative handling, variable tracking
-4. **Formatters** — Common rendering utilities (timestamps, paths, status icons)
+1. **Event Processing**: Parse, validate, filter events
+2. **State Management**: Build tree from span hierarchy, track speculative blocks
+3. **Display Logic**: Consistent speculative handling, variable tracking
+4. **Formatters**: Common rendering utilities (timestamps, paths, status icons)
 
 ```
 @haibun/monitor-core/
@@ -979,8 +979,8 @@ For efficiency, use an **interleaved Just-In-Time schema** approach. Schemas are
 ```
 
 **Wire format:**
-- `{"_meta": "schema", ...}` — schema definition (sent once per type)
-- `{"s": "<schema-id>", "d": [...]}` — data row referencing schema
+- `{"_meta": "schema", ...}`: schema definition (sent once per type)
+- `{"s": "<schema-id>", "d": [...]}`: data row referencing schema
 
 **Benefits:**
 - ~60% smaller than full JSON objects
@@ -1008,7 +1008,7 @@ class SchemaRegistry {
       return null; // Schema line, not an event
     }
     
-    // Data line — expand to full object
+    // Data line, expand to full object
     const schema = this.schemas.get(obj.s);
     if (!schema) throw new Error(`Unknown schema: ${obj.s}`);
     
@@ -1325,7 +1325,7 @@ world.logger.debug('Step resolved',
 );
 ```
 
-Monitors display payload content progressively — collapsed by default, expandable on demand.
+Monitors display payload content progressively, collapsed by default, expandable on demand.
 
 ### 0.2 Storage Efficiency via References
 
@@ -1350,9 +1350,9 @@ const HaibunEvent = z.object({
 ```
 
 **Broadcast sets** (written once, referenced many times):
-- `steppers[]` — registered steppers with their step patterns
-- `artifacts[]` — artifact metadata with paths
-- `features[]` — resolved feature structure
+- `steppers[]`: registered steppers with their step patterns
+- `artifacts[]`: artifact metadata with paths
+- `features[]`: resolved feature structure
 
 Events reference these by name/id rather than embedding full objects:
 
@@ -1365,7 +1365,7 @@ Events reference these by name/id rather than embedding full objects:
 }
 ```
 
-This matches how MCP resources work — catalog of resources, then fetch by URI.
+This matches how MCP resources work, catalog of resources, then fetch by URI.
 
 
 ### 1. Level-First API (No `.emit()` Required)
@@ -1398,11 +1398,11 @@ world.logger.log(control(seqPath).resume());
 **Key insight**: `world.logger.<level>(content...)` - level is the method, content is varargs.
 
 **Content can be:**
-- `string` — plain message
-- `object` — payload (like `{ name, value }`)
-- `lifecycle(...)` — lifecycle event builder
-- `control(...)` — control event builder  
-- `artifact(...)` — artifact attachment
+- `string`: plain message
+- `object`: payload (like `{ name, value }`)
+- `lifecycle(...)`: lifecycle event builder
+- `control(...)`: control event builder  
+- `artifact(...)`: artifact attachment
 
 **Implementation:**
 
@@ -1458,11 +1458,11 @@ class Logger {
 
 ### 2. IStepperCycle Integration for Monitors
 
-Monitors integrate via the `IStepperCycles` interface — see [Core Concepts](#1-monitors-are-steppers) for the full interface definition.
+Monitors integrate via the `IStepperCycles` interface, see [Core Concepts](#1-monitors-are-steppers) for the full interface definition.
 
 Key hooks for monitors:
-- `onEvent(event: THaibunEvent)` — receive all events
-- `onControl(event: TControlEvent)` — for interactive debugging
+- `onEvent(event: THaibunEvent)`: receive all events
+- `onControl(event: TControlEvent)`: for interactive debugging
 
 This means:
 - `MonitorHandler` becomes a stepper with `onEvent` cycle
@@ -1584,7 +1584,7 @@ while (world.runtime.commandQueue.length > 0) {
 
 ### 5. Monitor Steppers with IStepperCycles
 
-Monitors implement `IStepperCycles.onEvent()` — see [monitor-core API](#monitor-core-api-surface) for the `EventView` class and [ConsoleMonitorStepper example](#3-console-monitor-in-haibunmonitor-console).
+Monitors implement `IStepperCycles.onEvent()`, see [monitor-core API](#monitor-core-api-surface) for the `EventView` class and [ConsoleMonitorStepper example](#3-console-monitor-in-haibunmonitor-console).
 
 **Built-in monitor steppers:**
 
@@ -1696,7 +1696,7 @@ export class OTelExporterStepper extends AStepper implements IStepperCycles {
 - Optionally streams to `haibun.ndjson` as they arrive
 - At `onEnd()`, embeds events into HTML monitor template
 
-This is not a physical class yet — it's a design for how persistence fits into the architecture.
+This is not a physical class yet: it's a design for how persistence fits into the architecture.
 
 ### 6. Event Persistence Strategy
 
@@ -1785,7 +1785,7 @@ This allows incremental migration while keeping monitors working.
    - Auto-registered if no other monitor stepper configured
    - Outputs NDJSON to stdout for piping
 
-4. **Deprecate `EventLogger`** – fold its functionality into `Logger`
+4. **Deprecate `EventLogger`** – merge its functionality into `Logger`
 
 ### Phase 2: Migrate TMessageContext Usage
 
@@ -1840,7 +1840,7 @@ This allows incremental migration while keeping monitors working.
 
 ## 2. Schema Redesign: `TMessageContext` -> Zod
 
-We will transition to strict **Zod** schemas designed for **External Consistency**.
+The transition is to strict **Zod** schemas designed for **External Consistency**.
 
 ### Key Design Principles
 1.  **`seqPath` as Identity**: The deterministic path (e.g., `"1.2.1"`) is the primary key.

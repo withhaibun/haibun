@@ -1,6 +1,6 @@
 // The polymorphic's group-enclosure subsystem: the translucent type-coloured box + wire border + area title drawn around each
 // group's members (the 3D read of the SVG group box), plus the per-group ring anchors + footprint radii that drive the
-// cohesion force. The boxes only ever TRACK the settled members — they never trigger a relayout, so the layout the user
+// cohesion force. The boxes only ever TRACK the settled members: they never trigger a relayout, so the layout the user
 // got is the layout that stays; geometry is drawn once after a data settle, not every frame.
 //
 // Wired like PolymorphicCamera/PolymorphicFocus: constructor-injected accessor deps read at CALL time, so a per-repaint-refreshed
@@ -19,11 +19,11 @@ import { groupCellSize } from "../polymorphic/group-grid.js";
 import { FOCUS_RENDER_ORDER } from "../polymorphic/polymorphic-focus.js";
 
 // Group enclosures: each group's members cohere toward a ring anchor (pure math in @haibun/shu/graph/grouping.ts), then a
-// translucent type-coloured box with a wire border is drawn around them — the 3D read of the SVG group box.
+// translucent type-coloured box with a wire border is drawn around them: the 3D read of the SVG group box.
 export const ENCLOSURE_FILL_OPACITY = 0.07;
 export const ENCLOSURE_EDGE_OPACITY = 0.55;
 export const ENCLOSURE_RENDER_ORDER = -1; // behind nodes/edges; depthWrite is off so it never occludes them
-// Group titles render above everything except the focus pop — an area heading shouldn't be occluded by chips
+// Group titles render above everything except the focus pop: an area heading shouldn't be occluded by chips
 // or edges, but the one thing the user is actively reading stays on top of it.
 export const ENCLOSURE_LABEL_RENDER_ORDER = FOCUS_RENDER_ORDER - 0.5;
 export const ENCLOSURE_LABEL_HEIGHT = 5;
@@ -56,9 +56,9 @@ export interface EnclosureThree {
 export type Enclosure = { box: Obj3D; boxMat: EnclMaterial; edges: Obj3D; edgeMat: EnclMaterial; label: TSprite };
 
 /** Live refs + queries the component exposes; every getter is read at CALL time so a per-repaint nodeMap or a
- *  theme-recoloured colour is always current — never copied. */
+ *  theme-recoloured colour is always current, never copied. */
 export type EnclosureDeps = {
-	three: () => EnclosureThree | undefined; // the scene's OWN bundled THREE (AFRAME.THREE) — null until the scene loads
+	three: () => EnclosureThree | undefined; // the scene's OWN bundled THREE (AFRAME.THREE), null until the scene loads
 	nodeMap: () => Map<string, FGNode>;
 	groupBy: () => GroupKeyMode;
 	grouped: () => boolean;
@@ -77,7 +77,7 @@ export class EnclosureController {
 
 	constructor(private deps: EnclosureDeps) {}
 
-	/** Live views for inspect()/the cohesion force/the focus subsystem — the controller owns the maps, callers only read. */
+	/** Live views for inspect()/the cohesion force/the focus subsystem: the controller owns the maps, callers only read. */
 	get anchors(): Map<string, GroupAnchor> {
 		return this.groupAnchorsMap;
 	}
@@ -97,8 +97,8 @@ export class EnclosureController {
 
 	/** Each group's enclosure is placed by a RECTANGLE shelf-pack over its real {w,h} footprint, so the boxes can't
 	 * overlap AND one wide chip can't shove the others away (the old √Σradius² disc squared a wide member into a giant
-	 * square in both axes). The footprint is a √count grid of the members' ACTUAL collide size — bounded by
-	 * MAX_LABEL_CHARS, so one long id can't inflate it — so the FIRST packing is the final one: no correction round. */
+	 * square in both axes). The footprint is a √count grid of the members' ACTUAL collide size, bounded by
+	 * MAX_LABEL_CHARS, so one long id can't inflate it, so the FIRST packing is the final one: no correction round. */
 	recomputeGroupAnchors(nodes: FGNode[]): void {
 		const groupBy = this.deps.groupBy();
 		const byGroup = new Map<string, FGNode[]>();
@@ -145,7 +145,7 @@ export class EnclosureController {
 		const edgeMat = new T.LineBasicMaterial({ color, transparent: true, opacity: ENCLOSURE_EDGE_OPACITY, depthWrite: false });
 		const edges = new T.LineSegments(this.unitEdgesGeo, edgeMat);
 		// The group title is distinct from node chips by typography alone: larger BOLD text in the theme's label
-		// colour, no fill or border — an area heading, quiet enough not to compete with the nodes.
+		// colour, no fill or border: an area heading, quiet enough not to compete with the nodes.
 		const label = new SpriteText(labelText, ENCLOSURE_LABEL_HEIGHT, this.deps.edgeLabelColor()) as unknown as TSprite & { fontWeight: string };
 		label.fontWeight = "bold";
 		// Box + border sit behind the graph; the title reads above the box but under node chips, and never depth-hides.
@@ -173,7 +173,7 @@ export class EnclosureController {
 	}
 
 	/** Box geometry per group (sampled, not every frame): bounds, mesh placement, title at the box's world
-	 * upper-left, lifecycle. The boxes only ever TRACK the members — they never trigger relayouts, so the layout
+	 * upper-left, lifecycle. The boxes only ever TRACK the members: they never trigger relayouts, so the layout
 	 * the user got is the layout that stays. */
 	updateEnclosureGeometry(): void {
 		if (!this.deps.grouped()) {
@@ -195,18 +195,18 @@ export class EnclosureController {
 			if (n.type) typeById.set(n.id, n.type);
 			if (n.properties?.[HYPERMEDIA_ROLE_REL_KEY] !== undefined) roleRelById.set(n.id, n.properties[HYPERMEDIA_ROLE_REL_KEY]);
 		}
-		// Under the role axis a container reads "<role> — <party>" (e.g. "Issuer — Coastal Fisheries Authority"). The role
-		// is the party's role designation — named from the role rel by which nodes attribute to it, not the party's vertex
+		// Under the role axis a container reads "<role>, <party>" (e.g. "Issuer, Coastal Fisheries Authority"). The role
+		// is the party's role designation, named from the role rel by which nodes attribute to it, not the party's vertex
 		// type (one Principal per DID). Under the type axis the plain type key (containerLabelOf) stands.
 		const containerLabel = (k: string): string => {
 			if (groupBy !== "role") return containerLabelOf(k, groupBy, labelById);
 			const party = labelById.get(k) ?? k;
 			const role = roleNounFor(roleRelById.get(k)) ?? typeById.get(k);
-			return role && role !== party ? `${role} — ${party}` : party;
+			return role && role !== party ? `${role}, ${party}` : party;
 		};
 		for (const [key, members] of byKey) {
 			// Chips are centred on the node (sprite.center = (0.5, 0.5)), so the footprint is symmetric (± rx about node.x)
-			// — groupBounds' own ± rx computation covers it directly, no per-member x shift needed.
+			// groupBounds' own ± rx computation covers it directly, no per-member x shift needed.
 			const b = groupBounds(members, ENCLOSURE_PAD, (m) => {
 				const n = m as FGNode;
 				return { rx: collideRadius(n), ry: chipTextHeight(n) };
@@ -222,7 +222,7 @@ export class EnclosureController {
 			e.box.scale.set(b.sx, b.sy, b.sz);
 			e.edges.position.set(b.cx, b.cy, b.cz);
 			e.edges.scale.set(b.sx, b.sy, b.sz);
-			// The title sits at the box's WORLD upper-left corner — a fixed point ON the box, so orbiting moves it
+			// The title sits at the box's WORLD upper-left corner: a fixed point ON the box, so orbiting moves it
 			// exactly with its group (the sprite billboards, so the text always reads). Centre-anchored sprite:
 			// inset by half its width so its LEFT edge starts at the corner; a title wider than its box clamps.
 			const inset = Math.min(e.label.scale.x / 2, b.sx / 2);
@@ -236,7 +236,7 @@ export class EnclosureController {
 		this.deps.applyEnclosureFocus(); // enclosures created this pass adopt the active dim state
 	}
 
-	/** Recolour the area titles in place under a theme change — a graphData re-feed would reheat the layout. */
+	/** Recolour the area titles in place under a theme change: a graphData re-feed would reheat the layout. */
 	recolorLabels(color: string): void {
 		for (const e of this.enclosuresMap.values()) e.label.color = color;
 	}

@@ -2,7 +2,7 @@
  * Single source of truth for node-type colors. Both the SVG render (group
  * fills) and the 3D scene (plate colors) call
  * `colorForType(typeName)` so the same node type gets the same colour
- * across views — important for cross-view pattern-matching (an Email is the
+ * across views, important for cross-view pattern-matching (an Email is the
  * same colour everywhere).
  *
  * Mapping is deterministic per type *name*: a hash of the string indexes into
@@ -10,7 +10,7 @@
  * colours, and a type's colour is stable across page reloads.
  */
 
-/** 24-colour palette — broad enough that a typical schema (under ~20 node types) gets distinct colours, with collision-resistant spacing across the wheel. */
+/** 24-colour palette, broad enough that a typical schema (under ~20 node types) gets distinct colours, with collision-resistant spacing across the wheel. */
 export const TYPE_PALETTE: ReadonlyArray<string> = [
 	"#8ecae6", // pale blue
 	"#ffb703", // amber
@@ -39,7 +39,7 @@ export const TYPE_PALETTE: ReadonlyArray<string> = [
 ];
 
 function hashString(s: string): number {
-	// Small djb2 — sufficient distribution for an 8-colour palette and stable
+	// Small djb2, sufficient distribution for an 8-colour palette and stable
 	// across runs (no Math.random, no Date).
 	let h = 5381;
 	for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i);

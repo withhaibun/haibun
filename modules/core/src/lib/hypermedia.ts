@@ -1,5 +1,5 @@
 /**
- * Hypermedia concern catalog — canonical contract between server and SPA.
+ * Hypermedia concern catalog, canonical contract between server and SPA.
  *
  * Grounded in ActivityStreams / JSON-LD.  Derived entirely from getConcerns domains
  * with TDomainTopology: one declaration drives CRUD, JSON-LD context, and UI behaviour.
@@ -16,13 +16,13 @@ export function relOf(def: TPropertyDef): TRel {
 	return typeof def === "string" ? def : (def.rel as TRel);
 }
 
-/** Schema field kinds that are queryable by their nature — bounded values a store can index and compare.
+/** Schema field kinds that are queryable by their nature, bounded values a store can index and compare.
  *  A string is queryable only as a CONTEXT facet, never from its type. */
 const BOUNDED_PRIMITIVE_KINDS = new Set(["number", "int", "boolean", "date", "enum", "literal"] as const);
 export type TBoundedPrimitiveKind = typeof BOUNDED_PRIMITIVE_KINDS extends Set<infer K> ? K : never;
 
 /** THE classification of a schema field's queryable kind (wrapper-unwrapped; a safe-int number reports "int").
- *  Consumers that must agree — the offered surface here, a store's column mapping — all read this one function. */
+ *  Consumers that must agree, the offered surface here, a store's column mapping, all read this one function. */
 export function boundedPrimitiveKind(field: z.ZodType): TBoundedPrimitiveKind | undefined {
 	const { inner } = unwrap(field);
 	const def = (inner as { _zod?: { def?: { type?: string; format?: string } } })._zod?.def;
@@ -31,7 +31,7 @@ export function boundedPrimitiveKind(field: z.ZodType): TBoundedPrimitiveKind | 
 }
 
 /** The queryable surface of a persisted type, from its declaration alone: declared sortColumns, CONTEXT facets,
- *  the GENERATED_AT_TIME field, and bounded primitive schema fields. The identifier is excluded — an id
+ *  the GENERATED_AT_TIME field, and bounded primitive schema fields. The identifier is excluded: an id
  *  dereferences, it is not searched. Every layer that offers or accepts field queries reads this one derivation,
  *  so what a client is offered is what a store accepts. */
 export function queryableFields(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): string[] {
@@ -49,7 +49,7 @@ export function queryableFields(domain: { schema: z.ZodType | undefined; topolog
 }
 
 /** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
- *  strings; undefined when the rel declares none. Mirrors the `subClassOf` lookup the type node emits — so a served
+ *  strings; undefined when the rel declares none. Mirrors the `subClassOf` lookup the type node emits, so a served
  *  JSON-LD context carries the genuine rel hierarchy (e.g. `schema:author rdfs:subPropertyOf hbn:inRoleOf`). */
 function subPropertyOfRel(rel: string): string | string[] | undefined {
 	for (const entry of Object.values(LinkRelations)) {
@@ -75,7 +75,7 @@ function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
 }
 
 // ============================================================================
-// Schemas  (Zod → TypeScript, Zod → JSON Schema — single source of truth)
+// Schemas  (Zod → TypeScript, Zod → JSON Schema, single source of truth)
 // ============================================================================
 
 const relValues = Object.values(LinkRelations).map((lr) => lr.rel) as [string, ...string[]];
@@ -116,11 +116,11 @@ const HypermediaConcernSchema = z.object({
 	edges: z.record(z.string(), EdgeConcernSchema).default({}),
 	/** Fields the server will accept as query filters (the topology's sortColumns). */
 	queryable: z.array(z.string()).default([]),
-	/** The field carrying the type's VALID time — when the thing happened in the world (an email's received time, a
+	/** The field carrying the type's VALID time, when the thing happened in the world (an email's received time, a
 	 *  file's own date; the declared defaultSort), as distinct from generatedAtTime, its INDEXED time. Every time-aware
 	 *  consumer reads this one derivation, so an individual places by its own time unless indexed time is asked for. */
 	validTimeField: z.string(),
-	/** The property type (rel) whose value titles this type — the vocabulary's own labeling property
+	/** The property type (rel) whose value titles this type: the vocabulary's own labeling property
 	 *  (`topology.displayLabel`), resolved through the rel when its range is iri. Absent for a type titled by the
 	 *  cross-domain rdfs:label / as:name / content. */
 	displayLabel: z.string().optional(),
@@ -134,7 +134,7 @@ const HypermediaConcernSchema = z.object({
 type THypermediaConcern = z.infer<typeof HypermediaConcernSchema>;
 
 /**
- * Reference-domain concern — a non-persisted composite whose `topology.ranges.id`
+ * Reference-domain concern: a non-persisted composite whose `topology.ranges.id`
  * points at a persisted domain. The client uses this to recognise inputs that
  * should render as a persisted-individual picker instead of a typed-from-scratch composite.
  * Built by `individualRefDomain(refKey, targetKey)` in `domains.ts`.
@@ -196,7 +196,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			if (!fieldSchema) throw new Error(`persisted domain "${label}" (${domainKey}) maps generatedAtTime rel to "${generatedField}" but the schema has no such field`);
 			const probe = fieldSchema.safeParse(undefined);
 			if (probe.success && probe.data === undefined)
-				throw new Error(`persisted domain "${label}" (${domainKey}) generatedAtTime field "${generatedField}" is .optional() — must be required or have a default`);
+				throw new Error(`persisted domain "${label}" (${domainKey}) generatedAtTime field "${generatedField}" is .optional(), must be required or have a default`);
 		}
 
 		const properties: Record<string, TPropertyConcern> = {};
@@ -209,7 +209,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const edges: Record<string, TEdgeConcern> = {};
 		for (const [edgeField, edgeDef] of Object.entries(topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edgeField);
-			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" has no rel — add to EdgePredicates or provide explicit rel`);
+			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" has no rel, add to EdgePredicates or provide explicit rel`);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
 			edges[edgeField] = {
 				term: edgeDef.iri ?? REL_CONTEXT[rel],
@@ -229,8 +229,8 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 				throw new Error(`persisted domain "${label}" (${domainKey}) declares displayLabel "${topology.displayLabel}" but has no property or edge with that rel`);
 		}
 
-		// The domain's own description, carried onto its served schema: a type describes itself ONCE, and every surface —
-		// the type's view, a product's `_description`, a step's tool schema — reads that one text. A `.describe()` on the
+		// The domain's own description, carried onto its served schema: a type describes itself ONCE, and every surface:
+		// the type's view, a product's `_description`, a step's tool schema, reads that one text. A `.describe()` on the
 		// schema would be a second answer to the same question, free to drift from the one a reader is shown. Spread, never
 		// mutated: toJsonSchemaCached memoizes by schema identity, and schemas are shared.
 		const jsonSchema = { ...toJsonSchemaCached(domain.schema), description: domain.description };
@@ -282,8 +282,8 @@ type TContextEntry = string | { "@id": string; "@type"?: string; range?: string 
 export type THypermediaContext = { "@context": Record<string, TContextEntry>; "@queryable"?: string[] };
 
 /** A JSON-LD node object: an optional `@context`, an optional `@id`/`@type`, and any number of term→value entries. THE
- *  one shape every linked-data projection in the system produces — a served vertex, a view's `summarizeForKihan`, the
- *  chat pane manifest, the graph export — so they share this contract instead of each being `unknown`. The `@context`
+ *  one shape every linked-data projection in the system produces: a served vertex, a view's `summarizeForKihan`, the
+ *  chat pane manifest, the graph export, so they share this contract instead of each being `unknown`. The `@context`
  *  form reuses {@link THypermediaContext}'s, plus the string-URL and array forms a 1.1 processor accepts. */
 export type TLinkedData = {
 	"@context"?: THypermediaContext["@context"] | string | ReadonlyArray<THypermediaContext["@context"] | string>;
@@ -305,7 +305,7 @@ const kindOf = (typeHint?: string) => (typeHint && TYPE_KINDS[typeHint]) || { zo
 
 /**
  * Build a persisted domain's topology + schema from a JSON-LD `@context` (inverse of the emission above).
- * The field mapped to `@id` is the identifier (required — a persisted type is invalid without one);
+ * The field mapped to `@id` is the identifier (required: a persisted type is invalid without one);
  * entries with a `range` are edges; others are properties whose rel comes from the IRI (canonical
  * REL_CONTEXT vocabulary). `published` (structural timeline field) is auto-injected if absent;
  * `@queryable` fields become typed sortColumns.
@@ -336,10 +336,10 @@ export function hypermediaDomainFromContext(domainName: string, doc: THypermedia
 		fields[field] = kind.zod();
 		sqlKinds[field] = kind.sql;
 	}
-	if (!idField) throw new Error(`set of ${domainName}: declaration needs an @id field — a type is invalid without an identifier`);
+	if (!idField) throw new Error(`set of ${domainName}: declaration needs an @id field: a type is invalid without an identifier`);
 	if (!Object.values(properties).includes(LinkRelations.GENERATED_AT_TIME.rel)) {
 		properties.generatedAtTime = LinkRelations.GENERATED_AT_TIME.rel;
-		// A real ISO timestamp, not "" — the quad/timeline path parses this field and rejects empty.
+		// A real ISO timestamp, not "": the quad/timeline path parses this field and rejects empty.
 		fields.generatedAtTime = z.string().default(() => new Date().toISOString());
 		sqlKinds.generatedAtTime = "TIMESTAMP";
 	}
@@ -356,7 +356,7 @@ export function hypermediaDomainFromContext(domainName: string, doc: THypermedia
 }
 
 // ============================================================================
-// Resource rels — rel-to-field lookups per persisted type
+// Resource rels, rel-to-field lookups per persisted type
 // ============================================================================
 
 /** Rel-to-field lookup for resource types. Derived from topology at runtime. */
@@ -394,7 +394,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 			rels[field] = relOf(def);
 		}
 		// Universal rdfs:label: every persisted type may carry a `label` that titles it (the explicit, type-agnostic
-		// display label — the affordance for naming a name-less instance, e.g. a Principal/DID). Injected only when the
+		// display label: the affordance for naming a name-less instance, e.g. a Principal/DID). Injected only when the
 		// type neither declares a `label` field nor already maps another field to rdfs:label; inert until a vertex sets it.
 		if (rels.label === undefined && !Object.values(rels).includes(LinkRelations.LABEL.rel)) rels.label = LinkRelations.LABEL.rel;
 		relMaps.set(type, rels);
@@ -438,15 +438,15 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
  * Property rels searched to derive an individual's display label, split by strength.
  * HEADLINE rels (LABEL, NAME, CONTENT) are the node's own title, returned bare. LABEL
  * (rdfs:label) is first: the explicit, type-agnostic display label any resource may carry
- * — it applies where the AS `name` doesn't (a Principal/DID, a cross-vocab node) and an
+ * it applies where the AS `name` doesn't (a Principal/DID, a cross-vocab node) and an
  * explicit label deliberately overrides the entity's name. WEAK rels (seqPath, schemaObject,
  * context) are provenance pointers, returned prefixed (`field: value`) since the value alone
- * isn't self-describing — they only label a node that has nothing better. `composeDisplayLabel`
+ * isn't self-describing: they only label a node that has nothing better. `composeDisplayLabel`
  * slots the linked-body preview BETWEEN them: a body-backed node (e.g. a Comment with a
  * seqPath) is titled by its body, never by its seqPath. Shared by every cluster producer so
  * priorities can't drift.
  */
-/** rdfs:label alone — the reader's explicit display label, which outranks even the type's own declared labeling property. */
+/** rdfs:label alone: the reader's explicit display label, which outranks even the type's own declared labeling property. */
 const DISPLAY_LABEL_EXPLICIT: ReadonlyArray<{ rel: string; bare: boolean }> = [{ rel: LinkRelations.LABEL.rel, bare: true }];
 /** The cross-domain title rels every domain shares, resolved when a type designates no labeling property of its own. */
 const DISPLAY_LABEL_SHARED: ReadonlyArray<{ rel: string; bare: boolean }> = [
@@ -459,7 +459,7 @@ const DISPLAY_LABEL_WEAK: ReadonlyArray<{ rel: string; bare: boolean }> = [
 	{ rel: LinkRelations.SCHEMA_OBJECT.rel, bare: false },
 	{ rel: LinkRelations.CONTEXT.rel, bare: false },
 ];
-/** Full priority (headline then weak) — the legacy single-list resolution order. */
+/** Full priority (headline then weak): the legacy single-list resolution order. */
 export const DISPLAY_LABEL_REL_PRIORITY: ReadonlyArray<{ rel: string; bare: boolean }> = [...DISPLAY_LABEL_HEADLINE, ...DISPLAY_LABEL_WEAK];
 
 /**
@@ -502,12 +502,12 @@ export function resolveDisplayLabel(rels: Record<string, string> | undefined, ge
 	return resolveFromCandidates(rels, getProperty, DISPLAY_LABEL_REL_PRIORITY);
 }
 
-/** Clamp a label to MAX_DISPLAY_LABEL_LEN — the one `ellipsize` every producer shares, after trimming. */
+/** Clamp a label to MAX_DISPLAY_LABEL_LEN: the one `ellipsize` every producer shares, after trimming. */
 export function clampDisplayLabel(s: string): string {
 	return ellipsize(s.trim(), MAX_DISPLAY_LABEL_LEN);
 }
 
-/** Shortest non-empty trimmed string — the concise linked-body summary, not a large signed or encoded blob. */
+/** Shortest non-empty trimmed string: the concise linked-body summary, not a large signed or encoded blob. */
 function shortestBody(values: ReadonlyArray<string | null | undefined>): string | undefined {
 	let best: string | undefined;
 	for (const v of values) {
@@ -528,7 +528,7 @@ function shortestBody(values: ReadonlyArray<string | null | undefined>): string 
  * length-bounded string.
  *
  * `displayLabel` is the type's declaration resolved for THIS node: `linkedLabel` for an
- * iri-ranged rel (the label of the individual it points at, which the caller reads — a
+ * iri-ranged rel (the label of the individual it points at, which the caller reads: a
  * proxy is titled by what it stands for), otherwise the rel's own value off this node.
  * A type that declares none is unaffected; nothing here knows any type by name.
  */
@@ -583,10 +583,10 @@ export function linkedBodyContents(
 type LabelQuad = { predicate: string; object: unknown; objectType?: string };
 
 /**
- * Display label for a subject from quads alone — the one quad-based label builder shared by every
+ * Display label for a subject from quads alone: the one quad-based label builder shared by every
  * quad-holding producer (the in-memory store and the live-snapshot merge), so they can't drift.
  * `bodyContentOf` resolves a linked Body subject to its content; `rels` is the field→rel map (absent
- * where no concern catalog is loaded — then only the body preview and id apply).
+ * where no concern catalog is loaded, then only the body preview and id apply).
  */
 export function displayLabelForQuads(
 	type: string,
@@ -612,7 +612,7 @@ export function parseTimestampValue(val: unknown): number | null {
 }
 
 // ============================================================================
-// JSON-LD context — derived from domain topology
+// JSON-LD context, derived from domain topology
 // ============================================================================
 
 /**
@@ -621,7 +621,7 @@ export function parseTimestampValue(val: unknown): number | null {
  *   container → "select"  (multi-valued structure; select-like control)
  *   literal   → "filter"  (scalar value; filter/text control)
  *
- * Unknown rels default to "filter" — the safest neutral rendering.
+ * Unknown rels default to "filter": the safest neutral rendering.
  */
 function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
 	const range = getRelRange(rel);
@@ -638,11 +638,11 @@ function curiePrefix(term: string): string {
 }
 
 /**
- * A type may not claim a term in a vocabulary it has not bound. Every CURIE a topology uses — its class (`type`), the
- * classes it says it is a kind of (`subClassOf`), and the genuine IRIs its properties/edges declare — must resolve
+ * A type may not claim a term in a vocabulary it has not bound. Every CURIE a topology uses: its class (`type`), the
+ * classes it says it is a kind of (`subClassOf`), and the genuine IRIs its properties/edges declare, must resolve
  * through a prefix core binds (STANDARD_NAMESPACES + hbn) or one the type declares itself (`topology.namespaces`).
  *
- * Unbound, the prefix still serves: `getJsonLdContext` emits the term and the reader's JSON-LD resolves it to nothing —
+ * Unbound, the prefix still serves: `getJsonLdContext` emits the term and the reader's JSON-LD resolves it to nothing:
  * a claim about a standard that no processor can follow, and nothing says so. The rel checks beside this one already
  * hold a type to its own vocabulary; this holds it to the standards it names.
  */
@@ -662,13 +662,13 @@ function assertBoundPrefixes(label: string, domainKey: string, topology: THyperm
 		const prefix = curiePrefix(term);
 		if (prefix && !bound.has(prefix))
 			throw new Error(
-				`persisted domain "${label}" (${domainKey}) ${where} names "${term}", but the "${prefix}:" vocabulary is not bound — declare it in topology.namespaces so the served @context resolves it`,
+				`persisted domain "${label}" (${domainKey}) ${where} names "${term}", but the "${prefix}:" vocabulary is not bound, declare it in topology.namespaces so the served @context resolves it`,
 			);
 	}
 }
 
 /** The vocabularies core itself binds: the standards every domain may name, without declaring them. A consumer's own
- *  prefixes are NOT here — each domain declares those in `topology.namespaces`. ONE source, so what is served and what
+ *  prefixes are NOT here: each domain declares those in `topology.namespaces`. ONE source, so what is served and what
  *  `assertBoundPrefixes` accepts cannot drift: a prefix that resolves in the context is exactly one a type may use. */
 const STANDARD_NAMESPACES: Record<string, string> = {
 	as: "https://www.w3.org/ns/activitystreams#",
@@ -696,7 +696,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 	};
 	// JSON-LD 1.1 type-scoped context. Each @type carries a nested @context mapping ITS field/edge terms to the genuine
 	// IRIs its own rels declare, so a field name reused across domains (e.g. "expires", "author", "type") resolves to the
-	// CORRECT IRI under each type — honoring the per-domain rel (which also drives column-view presentation: filter via
+	// CORRECT IRI under each type, honoring the per-domain rel (which also drives column-view presentation: filter via
 	// CONTEXT, id via IDENTIFIER, item/select via linkRelFromSemantic) without a flat global collision.
 	//
 	// A term is ALSO emitted at the top level as a fallback for a type-less reference, but ONLY when every domain that
@@ -705,8 +705,8 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 	// non-deterministic (registration order decides the winner) and could give a type-less reference the wrong IRI. Such
 	// a term is still resolved correctly under each type's scoped @context, which is what a 1.1 processor applies.
 	// The @context holds ONLY JSON-LD term definitions (a term → its IRI, `@type: @id` for links, a type-scoped @context).
-	// The ontology it describes — the rdfs:subClassOf / rdfs:subPropertyOf axioms and haibun's own `hbn:rel` presentation
-	// hint — are NOT term-definition keywords, so they are emitted as real RDF nodes in a sibling `@graph`, keeping the
+	// The ontology it describes: the rdfs:subClassOf / rdfs:subPropertyOf axioms and haibun's own `hbn:rel` presentation
+	// hint: are NOT term-definition keywords, so they are emitted as real RDF nodes in a sibling `@graph`, keeping the
 	// context a valid JSON-LD 1.1 context while the same document still carries the vocabulary's ontology.
 	const topTerm = new Map<string, { node: Record<string, string>; consistent: boolean }>();
 	const offerTopTerm = (key: string, node: Record<string, string>): void => {
@@ -742,7 +742,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		};
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
-			// A property's genuine vocabulary IRI wins over its rel's default — so a standards field carries its real term
+			// A property's genuine vocabulary IRI wins over its rel's default, so a standards field carries its real term
 			// (a consumer-declared iri) rather than the placeholder a catch-all rel (CONTEXT/TAG) would give it.
 			const uri = propertyIriOf(def) ?? REL_CONTEXT[rel] ?? `hbn:${prop}`;
 			const linkRel = linkRelFromSemantic(rel);
@@ -755,8 +755,8 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 			const rel = edgeDef.rel ?? edgeRel(edge);
 			const uri = edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `hbn:${edge}`;
 			put(edge, { "@id": uri, "@type": "@id" });
-			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do — subPropertyOf inReplyTo)
-			// OR the rel itself declares it in LinkRelations (the role rels — subPropertyOf inRoleOf). Either is a genuine axiom.
+			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do, subPropertyOf inReplyTo)
+			// OR the rel itself declares it in LinkRelations (the role rels, subPropertyOf inRoleOf). Either is a genuine axiom.
 			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? subPropertyAxiom(rel);
 			declareProp(uri, "item", declared);
 		}
@@ -768,7 +768,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		const typeContext = topology.standardContexts?.length ? [scoped, ...topology.standardContexts] : scoped;
 		const typeIri = topology.type ?? `hbn:${topology.persistedAs}`;
 		context[topology.persistedAs] = { "@id": typeIri, "@context": typeContext };
-		// The class node in @graph carries the rdfs:subClassOf axiom — a REAL ontology statement, not a context term keyword —
+		// The class node in @graph carries the rdfs:subClassOf axiom: a REAL ontology statement, not a context term keyword:
 		// so e.g. `sec:Controller rdfs:subClassOf prov:Agent` makes attribution (prov:wasAttributedTo, range prov:Agent) into it well-formed.
 		const classNode: Record<string, unknown> = { "@id": typeIri, "@type": "rdfs:Class" };
 		if (topology.subClassOf) classNode["rdfs:subClassOf"] = iriRef(topology.subClassOf);

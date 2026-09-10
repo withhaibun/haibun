@@ -74,7 +74,7 @@ class Haibun extends AStepper implements IHasCycles {
 			productsSchema: z.object({ site: z.string(), types: z.array(z.string()) }),
 			// Mount another instance's store for the given types: writes route through and reads come back over the
 			// capability-gated store surface, so this instance keeps those records in the serving site's store instead
-			// of its own — one store, one custodian. The token is the delegated capability the serving site granted.
+			// of its own: one store, one custodian. The token is the delegated capability the serving site granted.
 			action: async ({ where, types, token }: { where: string; types: string; token: string }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");
@@ -117,7 +117,7 @@ class Haibun extends AStepper implements IHasCycles {
 			exact: "this feature runs as a service until stopped",
 			action: () => {
 				// Service-style features (agent, daemon) end with this step so the
-				// process keeps doing whatever it was doing — receiving SSE events,
+				// process keeps doing whatever it was doing, receiving SSE events,
 				// holding open server sockets, polling. The action's promise never
 				// resolves; the process exits via signal.
 				// Reaching this step is what makes the instance ready: everything its feature sets up has run. A caller

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildGraphModelFromQuads, HYPERMEDIA_ROLE_KEY, SITE_KEY } from "./graph-model.js";
-// An injected, ordered role list — consumers derive theirs from rels-cache roleEdgeLabels() (declared rolePriority);
-// the fold itself is generic, so the fixture names no consumer vocabulary.
+// An injected, ordered role list, consumers derive theirs from rels-cache roleEdgeLabels() (declared rolePriority);
+// the merge itself is generic, so the fixture names no consumer vocabulary.
 const TEST_ROLE_ORDER: readonly string[] = ["archive", "keeper", "maker", "subjectOf", "performedBy", "author", "wasAttributedTo", "attributedTo"];
 import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
 
@@ -30,8 +30,8 @@ describe("buildGraphModelFromQuads", () => {
 			q("e1", "name", "Meeting", "Email"),
 			q("e1", "image", "https://x/p.png", "Email"),
 			q("e1", "startDate", "2026-01-02", "Email"),
-			q("e1", "attributedTo", "p1", "Email", "Person"), // a typed edge — NOT a property
-			q("e1", "_seqPath", "0.1", "Email"), // internal — excluded
+			q("e1", "attributedTo", "p1", "Email", "Person"), // a typed edge, NOT a property
+			q("e1", "_seqPath", "0.1", "Email"), // internal, excluded
 			q("p1", "name", "Alice", "Person"),
 		]);
 		const e1 = model.nodes.find((n) => n.id === "e1");
@@ -69,16 +69,16 @@ describe("displayLabel merge (shared-@id collapse)", () => {
 		expect(model.nodes.find((n) => n.id === vid)?.displayLabel).toBe("Site Inspector");
 	});
 
-	it("a node with no name anywhere falls back to its id (honest fallback unchanged)", () => {
+	it("a node with no name anywhere falls back to its id (plain fallback unchanged)", () => {
 		const lone = "did:lone";
 		const model = buildGraphModelFromQuads([q(lone, "controller", lone, "Principal")], { clusters: [cluster("Principal", { [lone]: lone })] });
 		expect(model.nodes.find((n) => n.id === lone)?.displayLabel).toBe(lone);
 	});
 });
 
-describe("HypermediaRole fold (roleRels)", () => {
+describe("HypermediaRole merge (roleRels)", () => {
 	const principals = [q("did:maker", "name", "Authority", "Principal"), q("did:keeper", "name", "Importer", "Principal")];
-	it("folds the highest-priority role edge's target onto the node", () => {
+	it("merges the highest-priority role edge's target onto the node", () => {
 		const model = buildGraphModelFromQuads(
 			[q("vc1", "name", "Permit", "Record"), q("vc1", "subject", "did:keeper", "Record", "Principal"), q("vc1", "maker", "did:maker", "Record", "Principal"), ...principals],
 			{ roleRels: ["maker", "subject"] },
@@ -98,17 +98,17 @@ describe("HypermediaRole fold (roleRels)", () => {
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined();
 	});
 
-	it("records EACH actor edge on properties[predicate], so any predicate is a groupable axis — not just the winner", () => {
+	it("records EACH actor edge on properties[predicate], so any predicate is a groupable axis, not just the winner", () => {
 		const model = buildGraphModelFromQuads(
 			[q("vc1", "name", "Permit", "Record"), q("vc1", "maker", "did:maker", "Record", "Principal"), q("vc1", "keeper", "did:keeper", "Record", "Principal"), ...principals],
 			{ roleRels: ["maker", "keeper"] },
 		);
 		const vc = model.nodes.find((n) => n.id === "vc1");
 		expect(vc?.properties?.maker).toBe("did:maker"); // group by "maker" specifically…
-		expect(vc?.properties?.keeper).toBe("did:keeper"); // …AND by "keeper" — both kept, so both actor roles stay expressible
+		expect(vc?.properties?.keeper).toBe("did:keeper"); // …AND by "keeper": both kept, so both actor roles stay expressible
 	});
 
-	it("does not fold when roleRels is absent (backward-compatible)", () => {
+	it("does not merge when roleRels is absent (backward-compatible)", () => {
 		const model = buildGraphModelFromQuads([q("vc1", "name", "Permit", "Record"), q("vc1", "maker", "did:maker", "Record", "Principal"), ...principals]);
 		expect(model.nodes.find((n) => n.id === "vc1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined();
 	});
@@ -128,7 +128,7 @@ describe("role placement honours the injected priority order", () => {
 		expect(model.nodes.find((n) => n.id === "r1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("p:keeper");
 	});
 
-	it("the SOURCE actor outranks the record's subject — the subject is a relation, not the container", () => {
+	it("the SOURCE actor outranks the record's subject: the subject is a relation, not the container", () => {
 		const model = buildGraphModelFromQuads(
 			[
 				q("r1", "name", "Permit", "Record"),
@@ -165,8 +165,8 @@ describe("role placement honours the injected priority order", () => {
 	});
 });
 
-describe("serving-site fold (SITE_KEY)", () => {
-	it("folds the response site onto every node, a federated per-subject stamp winning over it", () => {
+describe("serving-site merge (SITE_KEY)", () => {
+	it("merges the response site onto every node, a federated per-subject stamp winning over it", () => {
 		const clusters: TCluster[] = [
 			{ type: "Email", totalCount: 2, sampledCount: 2, omittedCount: 0, sampledSubjects: ["e1", "r1"], displayLabels: { e1: "E1", r1: "R1" }, sites: { r1: "did:site:imap.1" } },
 		];
@@ -175,7 +175,7 @@ describe("serving-site fold (SITE_KEY)", () => {
 		expect(model.nodes.find((n) => n.id === "r1")?.properties?.[SITE_KEY]).toBe("did:site:imap.1");
 	});
 
-	it("folds nothing when the response carries no site (offline snapshots, plain quad tests)", () => {
+	it("merges nothing when the response carries no site (offline snapshots, plain quad tests)", () => {
 		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Email")]);
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[SITE_KEY]).toBeUndefined();
 	});

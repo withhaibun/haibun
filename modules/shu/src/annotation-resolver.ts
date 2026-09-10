@@ -1,9 +1,9 @@
 /**
- * Annotation resolver — the read side of W3C Web Annotations for a viewed individual.
+ * Annotation resolver: the read side of W3C Web Annotations for a viewed individual.
  *
  * Given an annotated individual (label + id), returns the notes anchored inside it: each is a Comment whose
  * `oa:hasTarget` is a SpecificResource pointing back at the individual (`oa:hasSource`) through a TextQuoteSelector
- * (`oa:hasSelector`). Two backings, one shape — live via the `annotations` RPC step (authoritative), and offline
+ * (`oa:hasSelector`). Two backings, one shape, live via the `annotations` RPC step (authoritative), and offline
  * (`file://` serialized report) via the same reverse walk over the off-heap quad snapshot. `toW3CAnnotations` shapes
  * the result for the annotator library, which anchors each TextQuoteSelector against the rendered body.
  */
@@ -31,7 +31,7 @@ export type AnnotationView = {
 
 /** The W3C Web Annotation the annotator library consumes: a TextualBody plus a target carrying BOTH a TextQuoteSelector
  *  (the durable, content-anchored form persisted in the graph) and a TextPositionSelector (start/end offsets computed
- *  against the rendered text — the annotator library requires both to anchor). `source` is the annotated content's IRI. */
+ *  against the rendered text: the annotator library requires both to anchor). `source` is the annotated content's IRI. */
 type TextQuoteSelector = { type: "TextQuoteSelector"; exact: string; prefix?: string; suffix?: string };
 type TextPositionSelector = { type: "TextPositionSelector"; start: number; end: number };
 export type W3CTextAnnotation = {
@@ -48,7 +48,7 @@ export type W3CTextAnnotation = {
 type Quad = { subject: string; predicate: string; object: unknown; objectType?: string };
 
 /** Resolve the annotations anchored in (label, id) live, via the `annotations` RPC step. Null when the step is
- *  unavailable (offline, or the registry is momentarily unready) — the caller then chooses the offline walk. The entity
+ *  unavailable (offline, or the registry is momentarily unready): the caller then chooses the offline walk. The entity
  *  store pairs this with the entity's own resolution: if the entity fetch reached the server, so will this, so there is
  *  no registry race to retry around. */
 export async function resolveAnnotationsLive(label: string, id: string): Promise<AnnotationView[] | null> {
@@ -105,7 +105,7 @@ async function bodyMarkdownOf(commentQuads: Quad[]): Promise<{ body?: string }> 
 	return content !== undefined ? { body: content } : {};
 }
 
-/** The quotes of the sections a linking Comment points at: Comment —linksTo→ SpecificResource → its TextQuoteSelector, per edge. */
+/** The quotes of the sections a linking Comment points at: Comment, linksTo→ SpecificResource → its TextQuoteSelector, per edge. */
 async function linkQuotesOf(commentQuads: Quad[]): Promise<TQuoteAnchor[]> {
 	const out: TQuoteAnchor[] = [];
 	for (const q of commentQuads.filter((x) => x.predicate === LinkRelations.LINKS_TO.rel && x.objectType !== undefined)) {
@@ -132,7 +132,7 @@ function groupBySubject(quads: Quad[]): Map<string, Quad[]> {
 	return map;
 }
 
-/** The edge object for a predicate (an objectType-bearing quad — a reference to another individual). */
+/** The edge object for a predicate (an objectType-bearing quad: a reference to another individual). */
 function objectOf(quads: Quad[], predicate: string): string | undefined {
 	const q = quads.find((x) => x.predicate === predicate && x.objectType !== undefined);
 	return q ? String(q.object) : undefined;
@@ -145,7 +145,7 @@ function literalOf(quads: Quad[], predicate: string): string | undefined {
 }
 
 /** Locate a quote within the rendered text, honouring an optional prefix/suffix to pick the right occurrence when the
- *  quote repeats. Null when the quote is not present — the annotator anchors against the text it can see, so a quote
+ *  quote repeats. Null when the quote is not present: the annotator anchors against the text it can see, so a quote
  *  that does not appear in this rendering cannot be highlighted (its note is not shown against the text). */
 export function locateQuoteOffsets(text: string, exact: string, prefix?: string, suffix?: string): { start: number; end: number } | null {
 	let from = 0;

@@ -13,13 +13,13 @@ export const DOMAIN_SEARCH_TEXT = "search-text";
 export const DOMAIN_SORT_FIELD = "sort-field";
 
 const viewQueryDomains: TDomainDefinition[] = [
-	{ selectors: [VIEW_QUERY], schema: ViewQueryControlSchema, description: "A change to the graph query view — type, text search, or sort", ui: { component: "shu-graph-query" } },
+	{ selectors: [VIEW_QUERY], schema: ViewQueryControlSchema, description: "A change to the graph query view, type, text search, or sort", ui: { component: "shu-graph-query" } },
 	{ selectors: [DOMAIN_SEARCH_TEXT], schema: z.string().min(1), description: "Free-text search over the current type's indexed fields" },
 	{ selectors: [DOMAIN_SORT_FIELD], schema: z.string().min(1), description: "A sortable field of the current type" },
 ];
 
 /**
- * Each step produces a `view-query` control product — a partial query — that shu-graph-query's `set products()`
+ * Each step produces a `view-query` control product, a partial query, that shu-graph-query's `set products()`
  * applies to the viewQuery store. The gwta is natural and reusable, and composes with `set {what} from
  * {statement}`: because each step produces a product, a feature can capture or chain it
  * (e.g. `set saved from [search for "INBOX"]`).

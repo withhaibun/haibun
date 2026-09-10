@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { registerContext, registerKeyDocument, clearKeyDocuments, setNetworkResolver, documentLoader } from "./jsonld-loader.js";
 
-describe("jsonld-loader — local registry with opt-in network", () => {
+describe("jsonld-loader, local registry with opt-in network", () => {
 	beforeEach(() => {
 		clearKeyDocuments();
 		setNetworkResolver(undefined);

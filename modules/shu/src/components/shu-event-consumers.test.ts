@@ -252,7 +252,7 @@ describe("the views of a run, over the records it wrote", () => {
 
 describe("the virtual column over a paged source", () => {
 	// A source that pages the run in is requested the rows the column shows: every row in the headless fallback (which
-	// renders them all), and, as a strip, the rows the rail is dragged to — and the strip reports where its window went.
+	// renders them all), and, as a strip, the rows the rail is dragged to, and the strip reports where its window went.
 	type TSpy = WindowedSource<number> & { requested: Array<[number, number]> };
 	const spy = (total: number): TSpy => {
 		const requested: Array<[number, number]> = [];

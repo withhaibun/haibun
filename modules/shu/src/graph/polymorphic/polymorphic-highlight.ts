@@ -7,7 +7,7 @@
  * scales it.
  *
  * The texture is shared: one canvas, built once, tinted per node through the material's colour. Blending is normal,
- * not additive — an additive glow disappears against the light theme's background.
+ * not additive: an additive glow disappears against the light theme's background.
  */
 type GlowObj = {
 	position: { set(x: number, y: number, z: number): void };
@@ -17,7 +17,7 @@ type GlowObj = {
 	visible: boolean;
 };
 
-/** The slice of the scene's THREE a glow needs — passed in, never separately imported. */
+/** The slice of the scene's THREE a glow needs, passed in, never separately imported. */
 export type GlowThree = {
 	Sprite: new (material: unknown) => GlowObj;
 	SpriteMaterial: new (params: Record<string, unknown>) => unknown;
@@ -50,7 +50,7 @@ export const RESTING_INTENSITY = 1;
  *  busy stream does not read as a field of alarms. After this, only the active node glows. */
 export const NEWCOMER_GLOW_MS = 2000;
 
-/** The breath's intensity (PULSE_MIN..1) at time `nowMs` — a sine, so it has no corners to catch the eye. */
+/** The breath's intensity (PULSE_MIN..1) at time `nowMs`: a sine, so it has no corners to catch the eye. */
 export const pulseAt = (nowMs: number): number => PULSE_MIN + (1 - PULSE_MIN) * (0.5 + 0.5 * Math.sin((nowMs / PULSE_MS) * Math.PI * 2));
 
 /** How much the glow's size swells at a given intensity: full breath is `PULSE_SWELL` larger than the dimmest. */
@@ -131,7 +131,7 @@ function glowTexture(three: GlowThree): unknown {
 /** How a mark's glow burns right now: its strength (0..1) and its colour, both driven per frame by the focus pass. */
 export type TBurn = { intensity: number; color?: string };
 
-/** The glow a mark carries, built on FIRST activation and kept — one node is active at a time, so a graph pays for the
+/** The glow a mark carries, built on FIRST activation and kept: one node is active at a time, so a graph builds the
  *  few marks ever opened rather than a sprite per node. `size` is the mark's own sizing rule: a chip sizes its glow to
  *  its measured box, a sprite to a share of its own scale (a child's scale multiplies its parent's). */
 export class MarkGlow {

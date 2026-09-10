@@ -6,7 +6,7 @@ import { SECRETS } from "./shu-self-test.feature.ts";
 // than the bare fragment (SECRETS.FRAGMENT) because haibun loads every feature source
 // up front and includes it in standalone-report events. The redaction pass replaces
 // every occurrence of each known secret value with OBSCURED_VALUE everywhere in the
-// rendered HTML — so the full secret string ALSO disappears from this assertion's own
+// rendered HTML, so the full secret string ALSO disappears from this assertion's own
 // step text once redacted, but the bare fragment ("ISECRET_") would remain literal
 // here and trigger a false-positive leak. Checking the full value is the right level
 // of strictness: a real leak would surface as the value, not as the fragment alone.
@@ -18,7 +18,7 @@ export const features: TKirejiExport = {
     The file must be the one this run wrote rather than one left by an earlier run, which is what its age says. The window covers a run rather than a moment: the self-test writes this copy part way through and goes on for several minutes after, so a window measured in seconds would report a growing feature as a stale file.
     file "/tmp/shu-audit.html" is recent within 10 minutes
 
-    The obscured marker must be present first — it proves a secret was found and redacted, so the next check is not passing merely because nothing was there.
+    The obscured marker must be present first: it proves a secret was found and redacted, so the next check is not passing merely because nothing was there.
     text at "/tmp/shu-audit.html" contains "${OBSCURED_VALUE}"
     And the raw secret value must be absent from the output.
     not text at "/tmp/shu-audit.html" contains "${SECRETS.TEST_PASSWORD}"

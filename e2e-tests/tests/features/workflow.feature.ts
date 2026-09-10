@@ -22,19 +22,19 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Promote to dev using Do work" }),
 
 		ensure({ outcome: `${Release_at} "dev"` }),
-		"After promoting from concept -> plan -> dev we expect two effort increments.",
+		"After promoting from concept -> plan -> dev two effort increments are expected.",
 		is({ what: effort, value: '"2"' }),
 
 		`Check a previous phase, which should result in no new effort.`,
 		scenario({ scenario: "Went through plan using Do work" }),
 		ensure({ outcome: `${Release_at} "plan"` }),
-		`After checking plan we expect an unchanged work effort.`,
+		`After checking plan the work effort is unchanged.`,
 		is({ what: effort, value: '"2"' }),
 
 		"Reach 'prod' by ensuring release is at prod.",
 		scenario({ scenario: "Promote to prod using Do work" }),
 		ensure({ outcome: `${Release_at} "prod"` }),
-		"After promoting to prod we expect effort of 3.",
+		"After promoting to prod the effort is 3.",
 		is({ what: effort, value: '"3"' }),
 
 		scenario({ scenario: "Check final phase variable" }),

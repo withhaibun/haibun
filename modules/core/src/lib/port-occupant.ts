@@ -1,8 +1,8 @@
 /**
- * What already answers on a port, in words an operator can act on — or nothing, when the port is free to take.
+ * What already answers on a port, in words an operator can act on, or nothing, when the port is free to take.
  *
- * Raw fetch rather than the RPC client: a refused connection means the port is free, while ANY answer — the handshake
- * every remote surface begins with, or something that cannot even speak JSON — means it is held, and the client's
+ * Raw fetch rather than the RPC client: a refused connection means the port is free, while ANY answer: the handshake
+ * every remote surface begins with, or something that cannot even speak JSON, means it is held, and the client's
  * retry layer reads the second case as the first. One home for the probe, so a supervisor refusing a run's port and a
  * web server explaining a failed bind describe the occupant the same way.
  */

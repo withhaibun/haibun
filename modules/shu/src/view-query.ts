@@ -1,10 +1,10 @@
 /**
- * viewQuery — the single, schema-validated source of truth for the URL-hash view/query state: the
+ * viewQuery: the single, schema-validated source of truth for the URL-hash view/query state: the
  * type, text search, sort, pagination, access level, and compound filters that shu-graph-query and
  * the actions bar share. One signal per param, globalThis-pinned (so every importer in this realm
  * shares one instance); reading `.get()` inside a lit render() auto-subscribes the view via the
  * SignalWatcher base. The URL hash is the durable store: `hydrate()` reads it at boot and on
- * back/forward, `set()` writes it back — so a reload restores the view.
+ * back/forward, `set()` writes it back, so a reload restores the view.
  *
  * FAIL-FAST: every param is validated by {@link ViewQuerySchema}. A malformed enum / non-integer
  * offset / bad filter operator throws rather than silently resetting (no `|| default`, no
@@ -53,7 +53,7 @@ export function parseViewQuery(hash: string): TViewQuery {
 	});
 }
 
-/** The query params as a URLSearchParams — defaults omitted so the round-trip is canonical. */
+/** The query params as a URLSearchParams, defaults omitted so the round-trip is canonical. */
 function queryParams(q: TViewQuery): URLSearchParams {
 	const p = new URLSearchParams();
 	if (q.label) p.set("label", q.label);
@@ -124,7 +124,7 @@ function assign(q: TViewQuery): void {
 }
 
 export const viewQuery = {
-	/** The signal set — read `viewQuery.signals.q.get()` inside a render() to subscribe reactively. */
+	/** The signal set, read `viewQuery.signals.q.get()` inside a render() to subscribe reactively. */
 	get signals(): ViewQueryStore {
 		return store();
 	},
@@ -134,7 +134,7 @@ export const viewQuery = {
 		return snapshot();
 	},
 
-	/** True when `hash` is the one we last wrote — lets a hashchange listener skip a self-write echo. */
+	/** True when `hash` is the one last written, lets a hashchange listener skip a self-write echo. */
 	wroteHash(hash: string): boolean {
 		return store().lastWrittenHash === hash;
 	},

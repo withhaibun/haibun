@@ -1,6 +1,6 @@
 /**
  * The one path an image artifact takes into a run: saved through storage, then announced on the artifact stream the
- * report and the live /artifacts route both read. Every producer of an image — a screenshot, a graph still — uses
+ * report and the live /artifacts route both read. Every producer of an image, a screenshot, a graph still, uses
  * this, so the artifact id scheme and field set exist once.
  */
 import type { TWorld } from "@haibun/core/lib/world.js";

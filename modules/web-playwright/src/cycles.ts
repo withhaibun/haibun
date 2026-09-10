@@ -38,7 +38,7 @@ const httpTraceSources: IObservationSource[] = [
 	{
 		name: "http-trace",
 		observe: async (world) => {
-			// Each persisted http-request record with its full fields (status, durationMs, url, …) — the same nodes the
+			// Each persisted http-request record with its full fields (status, durationMs, url, …): the same nodes the
 			// polymorphic network sequence reads, so a quantifier can assert e.g. `request/status is less than 400`.
 			const quads = await world.shared.getStore().query({ namedGraph: HTTP_REQUEST_LABEL });
 			const metrics: Record<string, Record<string, unknown>> = {};
@@ -74,7 +74,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	afterStep({ featureStep }: TAfterStep): Promise<TAfterStepResult> {
 		const newErrors = wp.browserErrors.slice(wp.errorMark);
 		if (newErrors.length === 0) return Promise.resolve({ failed: false });
-		// A browser-side uncaught exception during this step is a real failure — surface it loudly instead of
+		// A browser-side uncaught exception during this step is a real failure, surface it loudly instead of
 		// letting a later wait time out with no explanation.
 		wp.getWorld().eventLogger.log(featureStep, "error", `uncaught browser error during step: ${newErrors.join(" | ")}`);
 		return Promise.resolve({ failed: true });

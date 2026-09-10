@@ -1,5 +1,5 @@
 /**
- * <shu-breadcrumb> — breadcrumb trail showing query context and open columns.
+ * <shu-breadcrumb>: breadcrumb trail showing query context and open columns.
  *
  * Trail: [query label] › [column 1] › [column 2] › ...
  * Clicking a crumb dispatches `breadcrumb-nav` with { index, subject }.
@@ -11,7 +11,7 @@ import { shuBaseStyles } from "./styles.js";
 import { BreadcrumbSchema } from "../schemas.js";
 
 export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -78,6 +78,6 @@ export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	render(): TemplateResult {
 		const { queryLabel, columns, activeIndex, hasSync } = this.state;
 		const crumbs = [queryLabel, ...columns.map((c) => c.replace(/^Email:/, ""))];
-		return html`${crumbs.map((label, i) => html`${i > 0 ? html`<span class="crumb-sep">›</span>` : ""}<span class=${i === activeIndex ? "crumb active" : "crumb"} data-index=${i} title=${label} @click=${this.onCrumb(i)}>${i === 0 && hasSync ? html`<button class="sync-btn" title="New data available — click to refresh" @click=${this.onSync}>⟳</button>` : ""}${label}</span>`)}`;
+		return html`${crumbs.map((label, i) => html`${i > 0 ? html`<span class="crumb-sep">›</span>` : ""}<span class=${i === activeIndex ? "crumb active" : "crumb"} data-index=${i} title=${label} @click=${this.onCrumb(i)}>${i === 0 && hasSync ? html`<button class="sync-btn" title="New data available, click to refresh" @click=${this.onSync}>⟳</button>` : ""}${label}</span>`)}`;
 	}
 }

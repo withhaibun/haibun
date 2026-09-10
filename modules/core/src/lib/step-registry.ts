@@ -14,7 +14,7 @@ import { isPersisted } from "./resources.js";
 import { resolveOutputSchema } from "./tool-validation.js";
 
 /**
- * A registered step tool — the unit of dispatch for any transport (MCP, SSE, etc.).
+ * A registered step tool: the unit of dispatch for any transport (MCP, SSE, etc.).
  */
 export type StepTool = {
 	name: string;
@@ -36,9 +36,9 @@ export type StepTool = {
 	 * Transports check this before dispatching. e.g. "GraphStepper:read", "LlmStepper:*"
 	 */
 	capability?: string;
-	/** Transport type — set by proxy transports (remote, subprocess). Defaults to "local". */
+	/** Transport type, set by proxy transports (remote, subprocess). Defaults to "local". */
 	transport?: "local" | "remote" | "subprocess";
-	/** Remote host URL — set by RemoteStepperProxy for dispatch tracing. */
+	/** Remote host URL, set by RemoteStepperProxy for dispatch tracing. */
 	remoteHost?: string;
 	/** True if the step action is an async function (observable execution time). */
 	isAsync: boolean;
@@ -58,7 +58,7 @@ export type StepToolInputSchema = {
  */
 export class StepRegistry {
 	private tools = new Map<string, StepTool>();
-	/** Names injected via set() — survive refresh() so transports (RemoteStepperProxy, subprocess) register once and stay live across per-feature rebuilds. */
+	/** Names injected via set(), survive refresh() so transports (RemoteStepperProxy, subprocess) register once and stay live across per-feature rebuilds. */
 	private injectedNames = new Set<string>();
 
 	constructor(steppers: AStepper[], world: TWorld) {
@@ -238,7 +238,7 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 
 /**
  * Cross-check a step's declared `inputDomains` against the gwta-derived param-domain
- * bindings. Mismatch is a registration error — better to fail at boot than to leave
+ * bindings. Mismatch is a registration error, better to fail at boot than to leave
  * the goal-resolver with a graph that disagrees with dispatch.
  */
 function validateInputDomains(stepperName: string, stepName: string, stepDef: TStepperStep, paramDomainKeys: Map<string, string>): void {
@@ -254,7 +254,7 @@ function validateInputDomains(stepperName: string, stepName: string, stepDef: TS
 	}
 }
 
-/** Zod types with no JSON Schema representation (dates excepted — they surface as string/date-time). A domain
+/** Zod types with no JSON Schema representation (dates excepted: they surface as string/date-time). A domain
  * declaring one of these has no form and no client-side validation surface, so registration throws. */
 const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "void", "never", "function", "map", "set", "promise", "custom", "file"]);
 
@@ -302,9 +302,7 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 										return;
 									}
 									if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
-										throw new Error(
-											`step.list: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation — declare a representable input type`,
-										);
+										throw new Error(`step.list: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation, declare a representable input type`);
 									}
 								},
 							}) as Record<string, unknown>,
@@ -352,7 +350,7 @@ export type DomainDiscoveryInfo = {
 	stepperName?: string;
 	persistedAs?: string;
 	/** How a domain presents itself: the component that renders it, the URL its source is served from, and its labels.
-	 *  Never the component's source itself — a client loads that from the URL, and a standalone report inlines it from
+	 *  Never the component's source itself: a client loads that from the URL, and a standalone report inlines it from
 	 *  the domains in memory, so a manifest that carried it would send a bundle to every caller. */
 	ui?: Record<string, unknown>;
 };
@@ -361,7 +359,7 @@ export type StepDiscovery = {
 	steps: StepDescriptor[];
 	/** Domain definitions from world.domains, serializable for SPA/RPC consumers. */
 	domains: Record<string, DomainDiscoveryInfo>;
-	/** Hypermedia concern catalog — persisted types with ActivityStreams/JSON-LD metadata. */
+	/** Hypermedia concern catalog, persisted types with ActivityStreams/JSON-LD metadata. */
 	concerns: TConcernCatalog;
 };
 
@@ -379,7 +377,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 	// When a capability context is supplied, drop steps that require a
 	// capability the caller wasn't granted. Steps with no capability stay
 	// visible to everyone. When no context is supplied, return everything
-	// (unchanged behaviour — existing callers keep the full manifest).
+	// (unchanged behaviour, existing callers keep the full manifest).
 	const steps = options?.grantedCapability !== undefined ? all.filter((s) => !s.capability || capabilityAllows(options.grantedCapability, s.capability)) : all;
 	for (const step of steps) {
 		const tool = registry.get(step.method);
@@ -420,7 +418,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 					values = jsonSchema.enum as string[];
 				}
 			} catch {
-				// schema not convertible — leave values undefined
+				// schema not convertible, leave values undefined
 			}
 		}
 		const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui as Record<string, unknown> & { jsContent?: string }) : undefined;

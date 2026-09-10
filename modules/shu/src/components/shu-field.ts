@@ -1,8 +1,8 @@
 /**
- * <shu-field> — one named control: a name and the control it names, on one line, centred against each other.
+ * <shu-field>: one named control: a name and the control it names, on one line, centred against each other.
  *
  * Every settings row is a run of these, so a select, a checkbox and a text box sit on the same centre line whatever
- * their intrinsic heights are — the alignment is decided once here rather than by each row's own markup. `trailing`
+ * their intrinsic heights are: the alignment is decided once here rather than by each row's own markup. `trailing`
  * puts the name after the control, which is where a checkbox's name belongs.
  *
  * It owns nothing: the control is the host's, slotted in, keeping its own id, value and events.
@@ -13,7 +13,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 
 export class ShuField extends ShuElement<z.ZodType> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -25,7 +25,7 @@ export class ShuField extends ShuElement<z.ZodType> {
 
 	/** What the control is called. */
 	declare label: string;
-	/** Put the name after the control — the reading a checkbox takes. */
+	/** Put the name after the control: the reading a checkbox takes. */
 	declare trailing: boolean;
 
 	static styles = [
@@ -34,7 +34,7 @@ export class ShuField extends ShuElement<z.ZodType> {
 			:host { display: inline-flex; align-items: center; gap: var(--shu-space-1); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 			.name { color: var(--shu-fg-muted); white-space: nowrap; }
 			/* The slot carries no box of its own, so several slotted controls are each a flex item here and take the gap
-			   between them — a name, its box and its button read as three things, not one run. */
+			   between them: a name, its box and its button read as three things, not one run. */
 			slot { display: contents; }
 			/* The control keeps its own look; only its alignment is decided here, so a row of fields shares one centre line. */
 			::slotted(*) { vertical-align: middle; margin: 0; }
@@ -50,7 +50,7 @@ export class ShuField extends ShuElement<z.ZodType> {
 	render(): TemplateResult {
 		// The name is a real label for its control: pressing it acts on the control, and assistive tech announces the two
 		// together. A <label for> cannot reach across the shadow boundary to a slotted control, so the association is made
-		// the way that does work — the control carries the name as its accessible name, and the name forwards a press.
+		// the way that does work: the control carries the name as its accessible name, and the name forwards a press.
 		const name = html`<span class="name" @click=${this.pressControl}>${this.label}</span>`;
 		return html`${this.trailing ? html`<slot @slotchange=${this.nameControl}></slot>${name}` : html`${name}<slot @slotchange=${this.nameControl}></slot>`}`;
 	}

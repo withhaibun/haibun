@@ -1,5 +1,5 @@
 /**
- * Storage engine for `ShuElement.persistFields` — THE one mechanism for remembering per-component
+ * Storage engine for `ShuElement.persistFields`: THE one mechanism for remembering per-component
  * UI options across reloads. Components never touch cookies directly: they declare the state fields
  * to persist (see ShuElement) and this module owns the medium. One cookie per component tag holding
  * `Record<instanceKey, persistedFields>`, so a tag's instances share one entry budget and a swap of
@@ -10,7 +10,7 @@ import { getJsonCookie, setJsonCookie } from "./cookies.js";
 const COOKIE_PREFIX = "shu-prefs-";
 /** Per-tag instance cap: oldest-written entries are evicted so per-instance keys (e.g. one per opened column) can't grow a cookie past its ~4KB budget. */
 const MAX_INSTANCES = 24;
-/** Trailing debounce for writes — absorbs per-frame bursts (a resize drag) into one cookie write. */
+/** Trailing debounce for writes, absorbs per-frame bursts (a resize drag) into one cookie write. */
 const PERSIST_DEBOUNCE_MS = 150;
 
 type TPrefs = Record<string, Record<string, unknown>>;
@@ -44,7 +44,7 @@ export function schedulePersistWrite(tag: string, key: string, compute: () => Re
 	pending.set(id, { timer: setTimeout(write, PERSIST_DEBOUNCE_MS), write });
 }
 
-/** Forget one instance's remembered options, dropping any write still owed for it — a pending write would otherwise
+/** Forget one instance's remembered options, dropping any write still owed for it: a pending write would otherwise
  *  land afterwards and restore them. For a view the reader has CLOSED: the options describe that view, so a later
  *  instance under the same identity opens with the defaults instead of inheriting them. */
 export function forgetElementPrefs(tag: string, key: string): void {

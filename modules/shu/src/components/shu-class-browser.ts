@@ -1,11 +1,11 @@
 /**
- * shu-class-browser — the schema (T-Box) host for <shu-graph-scene>: the class/property vocabulary as a live 3D graph,
+ * shu-class-browser: the schema (T-Box) host for <shu-graph-scene>: the class/property vocabulary as a live 3D graph,
  * the view a #Type reference's column embeds. A second, minimal host beside shu-polymorphic-graph-view over the same scene:
  *
  *  - Three always-visible tabs pick the view: `type only` = the focus type's OWN vocabulary (its class, properties,
- *    superclass — scopeSchemaToType), the default; `all types` = every class and property, where the focus type stays
+ *    superclass: scopeSchemaToType), the default; `all types` = every class and property, where the focus type stays
  *    highlighted (its own focus, independent of the app-wide selection) while the rest dims; `context` = the focus type's
- *    JSON-LD @context, dereferenced from the served context document. The schema chips (Class, Property — each toggleable)
+ *    JSON-LD @context, dereferenced from the served context document. The schema chips (Class, Property: each toggleable)
  *    stay behind the pane's view-settings control, persisted under an independent scope. It never reads or writes the
  *    main graph's choices, over a fixed layout (force view, grouped into the Class and Property containers).
  *  - Clicking a Class node opens its type column (its CLASS view); a Property node opens the windowed instances of a type
@@ -46,7 +46,7 @@ const MODES: readonly ViewMode[] = ["type", "connected", "all", "context", "indi
 const MODE_LABELS: Record<ViewMode, string> = { type: "type only", connected: "connected", all: "all types", context: "vocabulary", individuals: "individuals" };
 type VertexData = Record<string, unknown>;
 
-/** The browser's fixed layout: the schema is a small, timeless graph — one force layout, grouped by @type so the
+/** The browser's fixed layout: the schema is a small, timeless graph: one force layout, grouped by @type so the
  *  vocabulary reads as its two containers. No persisted layout choices; the only persisted state is the chip scope. */
 const BROWSER_CONFIG = { viewType: VIEW.force, flatten: false, grouped: true, groupBy: "type", zBasis: "valid", labelAsZ: false } as const;
 
@@ -69,7 +69,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 	/** The chosen view mode is remembered across reloads, like every persisted view option. */
 	static persistFields = ["viewMode"] as const;
 
-	/** The visible graph as JSON-LD — the scene's one representation, shared with the copy-graph button. */
+	/** The visible graph as JSON-LD: the scene's one representation, shared with the copy-graph button. */
 	summarizeForKihan(): TLinkedData | null {
 		return this.scene?.graphJsonLd() ?? null;
 	}
@@ -84,19 +84,19 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 	/** The scene is only in the DOM on a graph tab; this tracks the mounted element so each fresh mount is configured once. */
 	private configuredSceneEl: ShuGraphScene | null = null;
 
-	/** The focus type last applied to the scene — re-scope when it changes (focus arrives after the scene first mounts). */
+	/** The focus type last applied to the scene, re-scope when it changes (focus arrives after the scene first mounts). */
 	private configuredFocus = "";
 
 	static override observedHtmlAttributes = ["data-show-controls"];
 
-	/** The type this embed was opened for — the single-schema scope and the camera fit centre. */
+	/** The type this embed was opened for: the single-schema scope and the camera fit centre. */
 	private focusType = "";
 
 	constructor() {
 		super(BrowserStateSchema, {});
 	}
 
-	/** The browser's chip choices persist under their own scope — never the main graph's shared filter store. */
+	/** The browser's chip choices persist under their own scope, never the main graph's shared filter store. */
 	protected override get filterPersistScope(): string {
 		return FILTER_SCOPE;
 	}
@@ -114,7 +114,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 	}
 
 	/** Embedded mount (shu-product-view hands the product here): fit the schema around the focus type's Class node.
-	 *  The scene stages it — it emits graph-scope-revealed once the clusters are known (showing only the schema chips),
+	 *  The scene stages it: it emits graph-scope-revealed once the clusters are known (showing only the schema chips),
 	 *  then fits when the node is built. */
 	openProducts(products: Record<string, unknown>): void {
 		const focusType = typeof products.focusType === "string" ? products.focusType : undefined;
@@ -141,8 +141,8 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		else this.pushSceneModel(); // type/all change the scene's scope
 	}
 
-	/** Dereference the served JSON-LD context document (the usual way a JSON-LD context is fetched — by URL) and keep the
-	 *  focus type's scoped node plus ONLY the prefixes its own terms reference — a self-contained @context for this one
+	/** Dereference the served JSON-LD context document (the usual way a JSON-LD context is fetched, by URL) and keep the
+	 *  focus type's scoped node plus ONLY the prefixes its own terms reference: a self-contained @context for this one
 	 *  type, without the whole store's vocabulary (a credential does not use sosa/foaf/otel/wallet/…). */
 	private async loadContext(): Promise<void> {
 		try {
@@ -158,7 +158,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		this.requestUpdate();
 	}
 
-	/** The focus type's individuals for the individuals view — the same bounded slice the type column lists. */
+	/** The focus type's individuals for the individuals view: the same bounded slice the type column lists. */
 	private async loadIndividuals(): Promise<void> {
 		if (!this.focusType || this.individualsFocus === this.focusType) return; // already loaded (or loading) for this focus
 		this.individualsFocus = this.focusType;
@@ -181,7 +181,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 						</select>
 					</label>
 					${
-						// The browser's layout is fixed (BROWSER_CONFIG), so it has no options to settle behind the ⚙ — only the
+						// The browser's layout is fixed (BROWSER_CONFIG), so it has no options to settle behind the ⚙, only the
 						// two actions every graph host offers, and only while a graph is on screen to act on.
 						graphHidden
 							? html``
@@ -216,7 +216,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		if (name === "data-show-controls") this.requestUpdate();
 	}
 
-	/** The filter row shows only while the column's view-settings toggle (the pane gear, data-show-controls) is on —
+	/** The filter row shows only while the column's view-settings toggle (the pane gear, data-show-controls) is on:
 	 *  the same gate every view's filter uses. The scene is only in the DOM on a graph tab; configure it on each mount. */
 	protected updated(): void {
 		const f = this.filterEl;
@@ -258,7 +258,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		}) as EventListener);
 	}
 
-	/** The browser's data slice: the full vocabulary, or — in single-type scope — the focus type's own schema. */
+	/** The browser's data slice: the full vocabulary, or, in single-type scope, the focus type's own schema. */
 	private scopedQuads(quads: TQuad[]): TQuad[] {
 		if (this.state.viewMode === "all" || !this.focusType) return quads;
 		if (this.state.viewMode === "connected") return scopeSchemaToConnected(quads, this.focusType);
@@ -279,7 +279,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		};
 	}
 
-	/** Each type view highlights ITS OWN focus type — its Class, with its properties and superclass lit through the focus
+	/** Each type view highlights ITS OWN focus type: its Class, with its properties and superclass lit through the focus
 	 *  policy. The app-wide selection is global, so another type view opening (publishing a different type) must NOT switch
 	 *  this one: pin the highlight to the focus type. Only a scope with no focus (unusual) follows the shared selection. */
 	protected override onGraphSelection(subject: string | null): void {

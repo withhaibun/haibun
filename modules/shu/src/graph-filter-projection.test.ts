@@ -92,7 +92,7 @@ describe("projectFilterClusters", () => {
 		expect(result[0].totalCount).toBe(2);
 	});
 
-	it("passes schema chip counts through unchanged — getClusteredQuads serves the schema already pruned to the terms the data uses (pruneOntologyToUse), so the counts arrive correct", () => {
+	it("passes schema chip counts through unchanged, getClusteredQuads serves the schema already pruned to the terms the data uses (pruneOntologyToUse), so the counts arrive correct", () => {
 		const result = projectFilterClusters({
 			knownClusters: new Map([
 				["Class", cluster("Class", 2)],
@@ -153,7 +153,7 @@ describe("declared labeling property (topology.displayLabel) reaches the browser
 		expect(getDisplayLabelRel(PRINCIPAL_LABEL)).toBeUndefined();
 	});
 
-	it("hides no domain type for being hard to title — a declared type draws like any other", () => {
+	it("hides no domain type for being hard to title: a declared type draws like any other", () => {
 		expect(effectiveHiddenTypes(types, {})).toEqual([]);
 	});
 });

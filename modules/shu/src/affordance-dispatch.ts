@@ -2,7 +2,7 @@
  * One path from "RPC response" → "open pane".
  *
  * Both shu-step-caller and shu-affordances-panel call this when a step returns.
- * It parses the response for hypermedia view markers and calls PaneState directly —
+ * It parses the response for hypermedia view markers and calls PaneState directly:
  * no custom events, no event-bus indirection. PaneState owns the pane lifecycle.
  */
 import { parseAffordanceProduct } from "./affordance-products.js";

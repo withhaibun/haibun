@@ -1,5 +1,5 @@
 /**
- * <shu-filter-column> — Query results column. Uses lit-html for the stable
+ * <shu-filter-column>: Query results column. Uses lit-html for the stable
  * structure (spinner, error banner, result table) and reactive `state` for
  * loading/error transitions. The contained `<shu-result-table>` keeps its
  * identity across updates via the `data-key` attribute so its inner DOM
@@ -56,7 +56,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	async openFiltered(property: string, value: string, label: string = defaultLabel()): Promise<void> {
 		// The idField is never a query filter (queryIndividuals rejects predicates not
-		// in sortColumns). A filter request keyed on it is really an open-by-id, so
+		// in sortColumns). A filter request keyed on it is an open-by-id, so
 		// redirect to the entity column instead of issuing a doomed graphQuery.
 		if (property === getIdField(label)) {
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: value, label }, bubbles: true, composed: true }));
@@ -79,7 +79,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		this.setState({ property, persistedAs: label, loading: true, error: undefined });
 		this.spinnerStatus = "Fetching...";
 		// Sort by the clicked property only when the topology declares it sortable; otherwise (the idField, or any field
-		// not in sortColumns — e.g. a SeqPath's id) fall back to the default sort so browsing all of this type still works
+		// not in sortColumns, e.g. a SeqPath's id) fall back to the default sort so browsing all of this type still works
 		// instead of the store rejecting an undeclared sortBy.
 		const sortBy = getQueryableFields(label).includes(property) ? property : "";
 		await this.fetchResults({ label, filters: [], sortBy, sortOrder: "asc", limit: 50, offset: 0, accessLevel: appAccessLevel() });

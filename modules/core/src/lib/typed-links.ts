@@ -125,7 +125,7 @@ export function classifyLinkText(text: string, vocab: TLinkVocabulary): { rel: s
 	return { rel, ...(groups.linkText ? { linkText: groups.linkText } : {}) };
 }
 
-/** One markdown-it instance for every parse: linkify is OFF, so a bare URL in prose is prose — only a written link is data. */
+/** One markdown-it instance for every parse: linkify is OFF, so a bare URL in prose is prose, only a written link is data. */
 let linkParser: MarkdownIt | undefined;
 
 /** Every explicit link in the markdown, in document order. Code fences and inline code never tokenize as links, so they are immune by construction. */

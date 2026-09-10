@@ -9,7 +9,7 @@
  * Matching is on IMPORTS, not call syntax: a component can only reach a primitive by importing it, and an import
  * match catches what a call-shape regex misses (aliasing, a wrapped reference) without tripping on a comment or
  * string that mentions a name. The plumbing modules also export benign helpers (isOffline, the step catalogues), so
- * only the primitive NAMES are banned — plus a namespace import of a plumbing module, which would hide a primitive
+ * only the primitive NAMES are banned, plus a namespace import of a plumbing module, which would hide a primitive
  * behind a qualifier.
  */
 import { readdirSync, readFileSync } from "node:fs";

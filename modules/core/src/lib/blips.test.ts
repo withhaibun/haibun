@@ -22,7 +22,7 @@ const SCROLL = {
 describe("blips: fine-grained occurrences, never retained", () => {
 	beforeEach(resetBlips);
 
-	it("costs nothing when nothing is subscribed to the kind — a hot path can record unconditionally", () => {
+	it("costs nothing when nothing is subscribed to the kind: a hot path can record unconditionally", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make("0.1.2");
 		const narrated: THaibunEvent[] = [];

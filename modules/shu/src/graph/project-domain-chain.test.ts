@@ -132,7 +132,7 @@ describe("projectDomainChain", () => {
 		expect(edge).toBeTruthy();
 	});
 
-	it("does NOT write the selected node into the projection — selection is a UI overlay handled in the view", () => {
+	it("does NOT write the selected node into the projection, selection is a UI overlay handled in the view", () => {
 		// Selection is a CSS class applied to the rendered SVG by the view, not written
 		// into the projection: the projection returns the same kinds regardless of which
 		// node is open, preserving each node's base resolver verdict colour.
@@ -146,7 +146,7 @@ describe("projectDomainChain", () => {
 		expect(b?.kind).not.toBe("current");
 	});
 
-	it("folds waypoints into nodes with ensures edges from their resolvesDomain", () => {
+	it("merges waypoints into nodes with ensures edges from their resolvesDomain", () => {
 		const snap: TAffordancesSnapshot = {
 			forward: [{ stepperName: "Cred", stepName: "issue", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],

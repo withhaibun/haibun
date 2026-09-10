@@ -6,7 +6,7 @@ import { SHU_EVENT } from "../consts.js";
 const STEP = "the import authority's signing identity is created";
 const stepCaption = (frame: Element) => (frame.shadowRoot as ShadowRoot).querySelector(".step-caption")?.textContent;
 const toggleFullscreen = (frame: Element) => (frame.shadowRoot as ShadowRoot).querySelector<HTMLButtonElement>(".fullscreen-btn")?.click();
-// The document build (finalizeBlocks) stamps every thumbnail with its step; the frame reads only the stamp — under
+// The document build (finalizeBlocks) stamps every thumbnail with its step; the frame reads only the stamp, under
 // virtualization the step's block may not exist in the DOM, so nothing is derived from siblings.
 const frameIn = (html: string) => {
 	document.body.innerHTML = html;
@@ -41,7 +41,7 @@ describe("shu-artifact-frame cursor and navigation events", () => {
 		toggleFullscreen(frame); // open
 		expect(onCursorToRow).toHaveBeenCalledTimes(1);
 		expect((onCursorToRow.mock.calls[0][0] as CustomEvent).detail.row).toBe(frame); // the column reads its data-step-id
-		toggleFullscreen(frame); // exit — must not re-navigate
+		toggleFullscreen(frame); // exit, must not re-navigate
 		expect(onCursorToRow).toHaveBeenCalledTimes(1);
 		document.removeEventListener(SHU_EVENT.CURSOR_TO_ROW, onCursorToRow);
 	});

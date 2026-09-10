@@ -1,5 +1,5 @@
 /**
- * ClientCacheStepper — the client cache's stepper: declares the client cache view (so `show views` lists it) and opens it
+ * ClientCacheStepper: the client cache's stepper: declares the client cache view (so `show views` lists it) and opens it
  * (`show client cache`). The cache itself is the library beside this file (index.ts), read by the view; facts about it
  * are read from the view's test ids with the generic steps (`save text from … to …`, `variable … is …`, `matches`),
  * so no step here repeats what the view shows.

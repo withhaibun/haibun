@@ -1,22 +1,22 @@
 /**
- * A node's render object behind ONE uniform handle — NodeVisual — so pick, billboard, focus dimming and the opacity
+ * A node's render object behind ONE uniform handle, NodeVisual, so pick, billboard, focus dimming and the opacity
  * readback never branch on the object's concrete type. Two implementations:
  *
- *  - makeTroikaChip: an SDF glyph-atlas chip (troika-three-text) — a small group of a solid type-coloured background
+ *  - makeTroikaChip: an SDF glyph-atlas chip (troika-three-text): a small group of a solid type-coloured background
  *    quad, an SDF text label, and a leading avatar badge carrying the type's initials. Every label shares ONE glyph
  *    atlas texture and every background shares ONE unit plane,
- *    so a chip costs a couple of cheap objects (a per-node material, a bit of glyph geometry against the shared atlas)
- *    instead of the per-node canvas raster + GPU texture upload three-spritetext pays (the cost the profiler attributes
+ *    so a chip takes a couple of small objects (a per-node material, a bit of glyph geometry against the shared atlas)
+ *    instead of the per-node canvas raster + GPU texture upload three-spritetext takes (the cost the profiler attributes
  *    to the per-type-limit stall). troika's Text is a Mesh (not a billboard) and its glyph alpha rides fillOpacity (a
  *    shared material.opacity does nothing), so the chip carries its own faceCamera + opacity; the geometry-less group
  *    can't be raycast, so pickTarget is the background quad.
  *  - spriteVisual: the plain sprite/mesh the other marks paint to (box, lozenge, square). It billboards natively (or is
- *    a fixed 3D bar), raycasts as itself, and dims through its material — so faceCamera is a no-op and opacity is the
+ *    a fixed 3D bar), raycasts as itself, and dims through its material, so faceCamera is a no-op and opacity is the
  *    material's.
  *
  * troika imports its own `three`; esbuild dedupes it to the scene's single super-three instance (the same way
- * three-spritetext resolves), so a chip is a first-class object in the A-Frame scene. The text builds async on troika's
- * worker (off the main thread) — sync() kicks it off and its callback sizes the background to the measured text bounds.
+ * three-spritetext resolves), so a chip is an object in the A-Frame scene. The text builds async on troika's
+ * worker (off the main thread), sync() kicks it off and its callback sizes the background to the measured text bounds.
  */
 import { Text } from "troika-three-text";
 import { GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../polymorphic/polymorphic-highlight.js";
@@ -27,9 +27,9 @@ import type { NodeVisual, Obj3D } from "./polymorphic-graph-types.js";
 type Group3D = Obj3D & { add(child: unknown): void };
 
 /** The uniform handle the view holds for a node's render object (FGNode.__visual). Every subsystem that used to reach
- *  into the concrete object — pick, billboard, focus dim, inspect — goes through this instead, so the object's type
+ *  into the concrete object, pick, billboard, focus dim, inspect, goes through this instead, so the object's type
  *  (a troika chip group vs a sprite/mesh) is known in exactly one place: whichever factory built it. */
-/** The slice of the scene's THREE a chip's background + highlight need — passed in (never a separately imported three). */
+/** The slice of the scene's THREE a chip's background + highlight need, passed in (never a separately imported three). */
 export type ChipThree = GlowThree & {
 	Group: new () => Obj3D;
 	Mesh: new (geometry: unknown, material: unknown) => Obj3D;
@@ -51,7 +51,7 @@ const PAD_Y = 0.32;
 /** Avatar badge: padding either side of the initials, and the gap between the badge and the label, in fontSize units. */
 const AVATAR_PAD_X = 0.3;
 const AVATAR_GAP = 0.22;
-/** Black on white — the badge is painted as a pair, so it holds its contrast against any type colour and under either
+/** Black on white: the badge is painted as a pair, so it holds its contrast against any type colour and under either
  *  theme (every light token flips dark in the dark theme). */
 const AVATAR_BG_COLOR = "#ffffff";
 const AVATAR_TEXT_COLOR = "#000000";
@@ -85,10 +85,10 @@ export function chipGeometry(textBounds: readonly [number, number, number, numbe
 		cy: margin - h / 2,
 		...(badgeW !== undefined ? { badge: { w: badgeW, cx: -margin + badgeW / 2 } } : {}),
 		// The chip's edge: a hairline beyond the background on every side. A type colour is a light pastel, so on the
-		// light theme a chip and the page are near the same value — without an edge the chip has no shape at all.
+		// light theme a chip and the page are near the same value, without an edge the chip has no shape at all.
 		border: { w: w + fontSize * BORDER_WIDTH * 2, h: h + fontSize * BORDER_WIDTH * 2 },
 		// The glow reaches past the chip by a share of its HEIGHT on every side (not its width), so a long label glows
-		// as thickly as a short one — a width-proportional reach would smear a wide chip and pinch a narrow one.
+		// as thickly as a short one: a width-proportional reach would smear a wide chip and pinch a narrow one.
 		glow: { w: w + h * GLOW_SPREAD, h: h * (1 + GLOW_SPREAD) },
 	};
 }
@@ -128,7 +128,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		t.text = content;
 		t.fontSize = d.fontSize;
 		t.color = color;
-		t.anchorX = "left"; // the node's exact point is the chip's TOP-LEFT corner — content flows right and down, so the
+		t.anchorX = "left"; // the node's exact point is the chip's TOP-LEFT corner, content flows right and down, so the
 		t.anchorY = "top"; //  point stays eyeball-able against the axes; centring (either way) buries it mid-chip
 		t.renderOrder = renderOrder;
 		const mat = t.material as { depthTest?: boolean; depthWrite?: boolean };
@@ -139,7 +139,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 
 	const text = makeText(label, d.textColor, d.renderOrder + 2);
 
-	// The badge sets itself apart by its surface alone — a plain block beside the type-coloured body — so the initials keep
+	// The badge sets itself apart by its surface alone, a plain block beside the type-coloured body, so the initials keep
 	// the label's own dark colour and need no second colour per type.
 	const avatarText = d.avatar ? makeText(d.avatar, AVATAR_TEXT_COLOR, d.renderOrder + 3) : undefined;
 	let avatarBg: Obj3D | undefined;
@@ -158,7 +158,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 	const boundsOf = (t: Text): [number, number, number, number] | undefined =>
 		(t as unknown as { textRenderInfo?: { blockBounds: [number, number, number, number] } }).textRenderInfo?.blockBounds;
 
-	// The chip's TOP-LEFT corner sits (all but exactly) at the node's point — a hair of pick margin up-and-left so the
+	// The chip's TOP-LEFT corner sits (all but exactly) at the node's point: a hair of pick margin up-and-left so the
 	// anchor point is pickable, real padding on the right and bottom. The chip extends right + down, never straddling
 	// the point; its leading content starts exactly on it, so the visible date is the top-left.
 	//
@@ -211,13 +211,13 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 			}
 		},
 		faceCamera(q) {
-			group.quaternion?.copy(q); // a Mesh group does not billboard on its own — orient it each frame
+			group.quaternion?.copy(q); // a Mesh group does not billboard on its own, orient it each frame
 		},
 	};
 }
 
 /** Wrap a plain sprite/mesh (the non-chip marks) as a NodeVisual: it raycasts as itself, dims through its material, and
- *  billboards natively (a sprite) or is a fixed 3D bar — so faceCamera is a no-op. `highlight` supplies the THREE slice
+ *  billboards natively (a sprite) or is a fixed 3D bar, so faceCamera is a no-op. `highlight` supplies the THREE slice
  *  and colour the active-node glow is built from; the glow rides as a child of the mark, so it sizes with it (the focus
  *  magnifier scales the parent) and works for a painted mark exactly as for a chip. */
 export function spriteVisual(obj: Obj3D, highlight: { three: GlowThree; color: string; renderOrder: number }): NodeVisual {
@@ -254,7 +254,7 @@ export function spriteVisual(obj: Obj3D, highlight: { three: GlowThree; color: s
 			}
 		},
 		faceCamera() {
-			/* a native-billboard sprite / fixed bar orients itself — nothing to do */
+			/* a native-billboard sprite / fixed bar orients itself: nothing to do */
 		},
 	};
 }

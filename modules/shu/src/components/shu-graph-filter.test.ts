@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// The filter's two host modes: the main graph's legend — its groups of chips (types, properties) plus the instance-data
-// controls — and a schema-scoped host (data-schema-only, the class browser) carrying only the Class + Property chips
+// The filter's two host modes: the main graph's legend: its groups of chips (types, properties) plus the instance-data
+// controls: and a schema-scoped host (data-schema-only, the class browser) carrying only the Class + Property chips
 // with an independent persistence scope. Chips are rendered by <shu-chip-group>, so a chip lives one shadow deeper.
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
@@ -24,7 +24,7 @@ const QUADS: TQuad[] = [
 	{ subject: "Email-2", predicate: "references", object: "Email-1", objectType: "Email", namedGraph: "Email", timestamp: 1 },
 ];
 
-/** Every chip the filter shows, across its groups — the chips render inside <shu-chip-group>'s own shadow root. */
+/** Every chip the filter shows, across its groups: the chips render inside <shu-chip-group>'s own shadow root. */
 function chipsOf(el: ShuGraphFilter, group?: string): string[] {
 	const groups = Array.from(el.shadowRoot?.querySelectorAll("shu-chip-group") ?? []).filter((g) => group === undefined || g.getAttribute("name") === group);
 	return groups.flatMap((g) => Array.from(g.shadowRoot?.querySelectorAll("label.chip") ?? []).map((c) => c.textContent?.trim().split(" ")[0] ?? ""));
@@ -55,7 +55,7 @@ describe("shu-graph-filter host modes", () => {
 		// The schema terms are not type chips: they reveal through the one classes & predicates toggle.
 		expect(chipsOf(el, "types")).not.toContain(ONTOLOGY_CLASS);
 		expect(el.shadowRoot?.querySelector("[data-testid='graph-filter-schema']")).not.toBeNull();
-		// A property chip stands for the edges of one predicate — the typed references in the data.
+		// A property chip stands for the edges of one predicate: the typed references in the data.
 		expect(chipsOf(el, "properties")).toEqual(["inReplyTo", "references"]);
 		expect(el.shadowRoot?.querySelector("[data-testid='graph-filter-limit-value']")).not.toBeNull();
 		expect(el.shadowRoot?.querySelector("[data-testid='graph-filter-solo']")).not.toBeNull();
@@ -82,7 +82,7 @@ describe("shu-graph-filter host modes", () => {
 			if (!box) throw new Error("no Email type chip to solo");
 			return box as HTMLInputElement;
 		};
-		expect(emailBox().checked).toBe(true); // shown to begin with — the case that broke
+		expect(emailBox().checked).toBe(true); // shown to begin with: the case that broke
 		const solo = el.shadowRoot?.querySelector("[data-testid='graph-filter-solo']") as HTMLButtonElement | null;
 		if (!solo) throw new Error("no solo tool to arm");
 		solo.click();

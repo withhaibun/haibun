@@ -1,12 +1,12 @@
 /**
- * Hypermedia — the SPA-side core of shu's wire layer. One file holds the wire
+ * Hypermedia: the SPA-side core of shu's wire layer. One file holds the wire
  * types, link helpers, the affordance union, the `Conduit` interface, both
  * implementations, and the module accessor. Components and infrastructure
  * import from this one path; tests use `setupShuTest` to install a
  * `LiveConduit`. Nothing else talks to `/rpc/*`, and nothing else owns
  * the active conduit reference.
  *
- * A Resource (linked-data sense — an Email node, a Comment, any consumer
+ * A Resource (linked-data sense: an Email node, a Comment, any consumer
  * record) becomes a `TRepresentation` on the wire: the domain fields plus
  * optional hypermedia markers (`_type`, `_summary`, `_description`, `_links`,
  * `_seqPath`). A `TLink` in `_links` is a named follow-up call; `TAffordance`
@@ -19,7 +19,7 @@
  * `action.begin`.
  */
 
-// Type-only import — erased from the browser bundle (never pulls core's node:async_hooks runtime).
+// Type-only import, erased from the browser bundle (never pulls core's node:async_hooks runtime).
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
@@ -29,7 +29,7 @@ import { sessionReady, signedHeaders } from "./session-key.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
 
-/** Wire link: a named action the consumer can invoke next. The shape every haibun step emits in `_links`. `method` is the full `Stepper-methodName` the server dispatches — the wire contract; each call site names the method it follows, the server rejects unknown methods at runtime. */
+/** Wire link: a named action the consumer can invoke next. The shape every haibun step emits in `_links`. `method` is the full `Stepper-methodName` the server dispatches: the wire contract; each call site names the method it follows, the server rejects unknown methods at runtime. */
 /**
  * What a call asks of a run: to be answered, or to act.
  *
@@ -49,7 +49,7 @@ export const reads = (method: string, params?: Record<string, unknown>, summary?
 /** A link that asks a run to act. What it does is the run's own activity, and is recorded as such. */
 export const acts = (method: string, params?: Record<string, unknown>, summary?: string): TLink => ({ method, params, summary, asks: "act" });
 
-/** Wire-format Representation of a Resource. Hypermedia markers are optional — a bare projection without `_links` is still a Representation; the type is the wire shape, not a promise of affordances. */
+/** Wire-format Representation of a Resource. Hypermedia markers are optional: a bare projection without `_links` is still a Representation; the type is the wire shape, not a promise of affordances. */
 export type TRepresentation = {
 	_type?: string;
 	_summary?: string;
@@ -59,7 +59,7 @@ export type TRepresentation = {
 	[key: string]: unknown;
 };
 
-/** One streaming chunk delivered to `followStream`'s `onChunk` callback — re-exported from core so the server emitter and this consumer share one definition. */
+/** One streaming chunk delivered to `followStream`'s `onChunk` callback, re-exported from core so the server emitter and this consumer share one definition. */
 export type { TStreamChunk };
 
 /** SPA-side clickable user action. Three kinds cover every existing pattern: `follow` invokes an RPC and surfaces its Representation; `pick-step` pre-fills the step-caller with a method (no RPC); `open-view` opens a column for a subject. Server-emitted `_links` rels become `kind: "follow"` affordances. */
@@ -76,7 +76,7 @@ export function hasLink(rep: TRepresentation, rel: string): boolean {
 	return !!link && typeof link === "object" && typeof (link as TLink).method === "string";
 }
 
-/** Resolve one named affordance. Throws if absent or malformed — every unexpected path throws; callers use `hasLink` when the rel is genuinely optional. */
+/** Resolve one named affordance. Throws if absent or malformed: every unexpected path throws; callers use `hasLink` when the rel is optional. */
 export function getLink(rep: TRepresentation, rel: string): TLink {
 	const links = rep._links;
 	if (!links || typeof links !== "object") {
@@ -104,7 +104,7 @@ export interface Conduit {
 		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
 	): Promise<{ seqPath: number[] }>;
 
-	/** Group a set of follows into one tracked action. Every `follow` made via the `g` passed to `fn` is a child of one parent seqPath; siblings of each other in the trace. Concurrent `group` invocations are independent because each receives its own `g` — there is no module-level scope to share accidentally. */
+	/** Group a set of follows into one tracked action. Every `follow` made via the `g` passed to `fn` is a child of one parent seqPath; siblings of each other in the trace. Concurrent `group` invocations are independent because each receives its own `g`: there is no module-level scope to share accidentally. */
 	group<T>(why: string, fn: (g: Conduit) => Promise<T>): Promise<T>;
 }
 
@@ -142,7 +142,7 @@ async function rpcHeaders(url: string, method: string, body: string): Promise<Re
 	// Only a call that needs authority waits for the session: the page opens one while it renders, and a reader doing
 	// something that needs nothing never waits for it, nor is stopped by a deployment that gives readers nothing.
 	await sessionReady();
-	// What is signed is the address the request is actually made to: a proof over a relative path proves nothing about
+	// What is signed is the address the request is made to: a proof over a relative path proves nothing about
 	// where it was sent, and the boundary checks the absolute one it received. The body is signed as the string it is
 	// sent as, so the digest the proof carries is over those bytes.
 	const asked = new URL(url, location.href);
@@ -150,7 +150,7 @@ async function rpcHeaders(url: string, method: string, body: string): Promise<Re
 	return signed ?? base;
 }
 
-/** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path — wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */
+/** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path, wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */
 /** The server could not be reached: the request never got a response, so nothing is known about what it asked. A
  *  deployment state a view reports (the reader is offline, the server is stopped), not a fault to fail on; every other
  *  failure, including an error the server itself returns, stays a fault. */
@@ -294,7 +294,7 @@ export function setConduit(c: Conduit): void {
 	conduitGlobal[CONDUIT_SLOT] = c;
 }
 
-/** Returns the active Conduit. Throws if boot didn't install one — the only way this happens in production is a programming error in `app.ts`; in tests every `beforeEach` calls `setupShuTest({...})`, so a forgotten setup throws with a precise message naming the missing instance. */
+/** Returns the active Conduit. Throws if boot didn't install one: the only way this happens in production is a programming error in `app.ts`; in tests every `beforeEach` calls `setupShuTest({...})`, so a forgotten setup throws with a precise message naming the missing instance. */
 export function conduit(): Conduit {
 	const active = conduitGlobal[CONDUIT_SLOT];
 	if (!active) {

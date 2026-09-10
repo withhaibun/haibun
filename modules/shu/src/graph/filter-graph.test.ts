@@ -37,7 +37,7 @@ describe("buildNeighbors", () => {
 		expect(n.get("c")?.has("b")).toBe(true);
 		expect(n.get("c")?.has("waypoint:W")).toBe(true);
 		expect(n.get("waypoint:W")?.has("c")).toBe(true);
-		// a should NOT neighbour c — they don't share an edge.
+		// a should NOT neighbour c: they don't share an edge.
 		expect(n.get("a")?.has("c")).toBe(false);
 	});
 

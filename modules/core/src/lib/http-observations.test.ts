@@ -100,7 +100,7 @@ describe("trackHttpRequest: one connected network-interaction record per request
 		expect(propOf(req, id, "durationMs")).toBeUndefined(); // no duration field when unknown
 	});
 
-	it("a host's requestCount rolls up from the requests that reached it — no separate host tracking", async () => {
+	it("a host's requestCount rolls up from the requests that reached it: no separate host tracking", async () => {
 		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://fonts.google.com/a", status: 200, durationMs: 1, method: "GET" }, PATHS);
 		await trackHttpRequest(world, { url: "http://fonts.google.com/b", status: 200, durationMs: 1, method: "GET" }, PATHS);

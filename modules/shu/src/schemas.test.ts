@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ActionsBarSchema } from "./schemas.js";
 
 describe("ActionsBarSchema mode", () => {
-	it("defaults to search — browsing/filtering is the primary activity, so a fresh bar opens in Search mode", () => {
+	it("defaults to search, browsing/filtering is the primary activity, so a fresh bar opens in Search mode", () => {
 		expect(ActionsBarSchema.parse({}).mode).toBe("search");
 	});
 

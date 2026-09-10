@@ -59,7 +59,7 @@ const measureFit = (): Promise<Fit> =>
 	});
 
 const expectFitted = (fit: Fit, w: number, h: number) => {
-	// The canvas fills the view's graph area — the box below the in-flow view head + filter rows, whose height is
+	// The canvas fills the view's graph area: the box below the in-flow view head + filter rows, whose height is
 	// the container's minus that chrome. Width spans the container; height is asserted against the measured area.
 	expect(Math.abs(fit.rect.w - w), `canvas display width ${fit.rect.w} should be ${w}`).toBeLessThanOrEqual(2);
 	expect(fit.area.h, `graph area height must be most of the ${h} container (chrome only above)`).toBeGreaterThan(h * 0.7);
@@ -72,7 +72,7 @@ const expectFitted = (fit: Fit, w: number, h: number) => {
 };
 
 beforeAll(async () => {
-	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built — run `npm run bundle:polymorphic` first
+	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built, run `npm run bundle:polymorphic` first
 	server = createServer((req, res) => {
 		if (req.url === "/") {
 			res.writeHead(200, { "Content-Type": "text/html" }).end(PAGE);

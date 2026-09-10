@@ -84,7 +84,7 @@ class CompositeStepper extends AStepper implements IHasCycles {
 	};
 }
 
-describe("GoalResolutionStepper — integration via passWithDefaults", () => {
+describe("GoalResolutionStepper, integration via passWithDefaults", () => {
 	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper, LogicStepper];
 
 	it("resolve returns unreachable for a goal no producer can derive", async () => {
@@ -158,7 +158,7 @@ variable affordances exists`,
 		expect(announced).toEqual(["affordances.0.1"]);
 	});
 
-	it("show affordances carries waypoint entries contributed by steppers with the ProvidesWaypoints capability — one verb, the whole snapshot", async () => {
+	it("show affordances carries waypoint entries contributed by steppers with the ProvidesWaypoints capability: one verb, the whole snapshot", async () => {
 		const feature = {
 			path: "/features/show-affordances-waypoints.feature",
 			content: `Activity: Sign in
@@ -173,7 +173,7 @@ variable affordances.waypoints.0.outcome is "Logged in"`,
 		expect(result.ok).toBe(true);
 	});
 
-	describe("pursue {goal} — A1 idempotent goal-driven execution", () => {
+	describe("pursue {goal}, A1 idempotent goal-driven execution", () => {
 		it("pursue on a satisfied goal is a no-op: returns finding=satisfied, no execution side-effect", async () => {
 			const feature = {
 				path: "/features/pursue-satisfied.feature",
@@ -187,8 +187,8 @@ variable second.finding is "satisfied"`,
 			expect(result.ok).toBe(true);
 		});
 
-		it("pursue refuses when the michi has argument bindings the caller hasn't supplied — naming what's needed", async () => {
-			// AuthSession's producer (`sign in as {subject}`) takes a string argument with no fact backing — so a fresh world has finding=michi and pursue must refuse rather than guess.
+		it("pursue refuses when the michi has argument bindings the caller hasn't supplied, naming what's needed", async () => {
+			// AuthSession's producer (`sign in as {subject}`) takes a string argument with no fact backing, so a fresh world has finding=michi and pursue must refuse rather than guess.
 			const feature = {
 				path: "/features/pursue-needs-arg.feature",
 				content: `not pursue "${DOMAIN_AUTH_SESSION}"`,
@@ -225,7 +225,7 @@ variable after.finding is "satisfied"`,
 		});
 
 		it("pursue refuses (overall fails) when the goal can't be reached", async () => {
-			// Same goal as above but WITHOUT the `not` wrapper — the bare pursue must propagate the refusal so callers can branch on it.
+			// Same goal as above but WITHOUT the `not` wrapper: the bare pursue must propagate the refusal so callers can branch on it.
 			const feature = {
 				path: "/features/pursue-bare-unreachable.feature",
 				content: `pursue "test-scratch"`,
@@ -236,7 +236,7 @@ variable after.finding is "satisfied"`,
 	});
 });
 
-describe("GoalResolutionStepper — composite decomposition end-to-end", () => {
+describe("GoalResolutionStepper, composite decomposition end-to-end", () => {
 	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper, CompositeStepper];
 
 	it("show affordances carries the composites map for any domain that declares topology.ranges", async () => {
@@ -281,7 +281,7 @@ matches \`goalResolution.michi.0.bindings.0.kind\` with "argument"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("resolve still works for a non-composite goal (auth-session) — composite mode is additive, not disruptive", async () => {
+	it("resolve still works for a non-composite goal (auth-session), composite mode is additive, not disruptive", async () => {
 		const feature = {
 			path: "/features/composite-non-disruptive.feature",
 			content: `set goalResolution from resolve "${DOMAIN_AUTH_SESSION}"

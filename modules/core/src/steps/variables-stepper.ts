@@ -600,7 +600,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		featureStep?: TFeatureStep,
 		options?: { lenient?: boolean },
 	): Promise<{ value?: string; error?: string; secret?: boolean }> {
-		if (template === undefined) return { error: "no variable name to resolve — the step received an empty term" };
+		if (template === undefined) return { error: "no variable name to resolve: the step received an empty term" };
 		const placeholderRegex = /\{([^}]+)\}/g;
 		let result = template;
 		let match: RegExpExecArray | null;
@@ -753,7 +753,7 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 		if (withM) {
 			const [, field, type] = withM;
 			const iri = REL_CONTEXT[field as TRel];
-			if (!iri) throw new Error(`set of ${domain}: field "${field}" is not a known relation — use the JSON-LD form with an explicit @id`);
+			if (!iri) throw new Error(`set of ${domain}: field "${field}" is not a known relation, use the JSON-LD form with an explicit @id`);
 			const xsd = type ? XSD_FOR[type.toLowerCase()] : "";
 			if (type && xsd === undefined) throw new Error(`set of ${domain}: unknown field type "${type}"`);
 			context[field] = xsd ? { "@id": iri, "@type": xsd } : iri;

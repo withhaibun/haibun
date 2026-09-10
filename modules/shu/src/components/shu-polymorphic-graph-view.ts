@@ -31,7 +31,7 @@ import {
 	type RescheduleUpdate,
 } from "../graph/polymorphic/polymorphic-scene.js";
 
-// A cursor move re-styles (depth re-place, positions pinned) — cheap, so it paints promptly. NOT the streamed-data
+// A cursor move re-styles (depth re-place, positions pinned), fast, so it paints promptly. NOT the streamed-data
 // window (which would stack to ~1s); the base coalesces continuous scrubbing to this before it reaches onTimeCursorPaint.
 const CURSOR_COALESCE_MS = 100;
 
@@ -61,7 +61,7 @@ const PolymorphicStateSchema = z.object({
 	groupBy: z.string().default("type"), // axis: "type" (@type), "role" (highest-priority actor), or an actor predicate (a rel)
 	/** What places depth (z): the object's valid time (the catalog's validTimeField), its indexed time (generatedAtTime), or its number of connections. */
 	zBasis: z.enum(["valid", "indexed", "connections"]).default("valid"),
-	/** Label chips with each node's z factor (the date under a time basis, the connection count under connections) instead of its usual name/subject — to read the depth value straight off the graph. */
+	/** Label chips with each node's z factor (the date under a time basis, the connection count under connections) instead of its usual name/subject, to read the depth value straight off the graph. */
 	labelAsZ: z.boolean().default(false),
 	/** Positions the user pinned by dragging, id → [x,y]. Persisted so a dragged layout survives a reload (a page-wide layout choice). */
 	pins: z.record(z.string(), z.tuple([z.number(), z.number()])).default({}),
@@ -71,13 +71,13 @@ const PolymorphicStateSchema = z.object({
 	prune: z.boolean().default(false),
 	/** Hold the accessible reading of the graph open beside the scene. */
 	readAsDocument: z.boolean().default(false),
-	/** Which settings group's row is open under the head — exclusive; null keeps the head to one row. Transient
+	/** Which settings group's row is open under the head, exclusive; null keeps the head to one row. Transient
 	 *  disclosure: not persisted, a reload starts with the head alone. */
 	openSettings: z.enum(SETTINGS_GROUP_NAMES).nullable().default(null),
 });
 
 /**
- * shu-polymorphic-graph-view — the data-feeding host for the extracted <shu-graph-scene>. It owns the ONE data pathway
+ * shu-polymorphic-graph-view: the data-feeding host for the extracted <shu-graph-scene>. It owns the ONE data pathway
  * (fetch, live SSE merge, type filter, cluster/neighborhood expansion, selection, time cursor) inherited from
  * ShuClusteredGraphView, plus the persisted layout choices and the view head (the fixed view tabs + controls shared
  * with the class browser, and the embedded shu-graph-filter). It builds a GraphSceneModel from the base state and pushes it to the scene, forwards the persisted
@@ -95,7 +95,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	/** Layout choices are remembered across reloads (ShuElement.persistFields; singleton key). */
 	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument"] as const;
 
-	// Control-bar inputs the scene derives from its data/layout (via graph-scene-changed) — the axes that vary with the
+	// Control-bar inputs the scene derives from its data/layout (via graph-scene-changed): the axes that vary with the
 	// data. type + role are always offered, so they seed the pre-data render; suppressesGrouping is false in the force view.
 	private groupByAxes: string[] = ["type", "role"];
 	private forces: TViewForces = {};
@@ -112,7 +112,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.buildSceneConfig();
 	}
 
-	/** External-data mode (`data-external` attribute): no RPC/SSE/selection wiring — the caller feeds quads via setQuads. */
+	/** External-data mode (`data-external` attribute): no RPC/SSE/selection wiring: the caller feeds quads via setQuads. */
 	protected override get usesExternalData(): boolean {
 		return this.hasAttribute("data-external");
 	}
@@ -123,12 +123,12 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.onGraphData();
 	}
 
-	/** The visible graph as JSON-LD — the scene's one representation, shared with the copy-graph button. */
+	/** The visible graph as JSON-LD: the scene's one representation, shared with the copy-graph button. */
 	summarizeForKihan(): TLinkedData | null {
 		return this.scene?.graphJsonLd() ?? null;
 	}
 
-	/* Delegation surface — the tests read the scene's live objects off THIS element; forward each 1:1 (same object). */
+	/* Delegation surface: the tests read the scene's live objects off THIS element; forward each 1:1 (same object). */
 	get nodeMap() {
 		return this.scene?.nodeMap;
 	}
@@ -144,7 +144,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	inspect(): Record<string, unknown> {
 		return this.scene?.inspect() ?? {};
 	}
-	/** The current graph as a self-contained SVG still — the report and still-image medium. */
+	/** The current graph as a self-contained SVG still: the report and still-image medium. */
 	still(): string {
 		return this.scene?.still() ?? "";
 	}
@@ -198,7 +198,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.timeCursor = ms;
 	}
 
-	/** Reveal or hide the included ontology SCHEMA (Class + Property) via the filter, exactly as ticking their chips does —
+	/** Reveal or hide the included ontology SCHEMA (Class + Property) via the filter, exactly as ticking their chips does:
 	 *  the schema is default-hidden and revealed ALONGSIDE the instance data. A real capability + the interface a control step drives. */
 	revealSchema(visible: boolean): void {
 		this.filterEl?.setTypeVisibility([ONTOLOGY_CLASS, ONTOLOGY_PROPERTY], visible);
@@ -315,7 +315,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	}
 
 	/** The open group's controls, on their own row under the head. Rendered only while open: what a reader can reach
-	 *  and what a step can drive are the same thing. The filters group shows the filter element instead (see updated —
+	 *  and what a step can drive are the same thing. The filters group shows the filter element instead (see updated:
 	 *  the filter stays mounted so its live chip feed and persistence run whether or not it is on screen). */
 	private renderSettingsRow(open: TSettingsGroup | null): TemplateResult {
 		if (!open || open === "filters") return html``;
@@ -337,7 +337,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		</div>`;
 	}
 
-	/** Open a settings group's row (closing any other — the groups are exclusive), or close the open one. */
+	/** Open a settings group's row (closing any other: the groups are exclusive), or close the open one. */
 	private openGroup(group: TSettingsGroup | null): void {
 		this.setState({ openSettings: group });
 		// The scenes on offer are read when a reader OPENS the group, which is when they look at them. Reading them once
@@ -362,7 +362,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 
 	protected override async onGraphConnected(): Promise<void> {
 		await super.onGraphConnected();
-		// Devtools handle for the layout query: `shuPolymorphic.inspect()` — the method name alone collides with the console's
+		// Devtools handle for the layout query: `shuPolymorphic.inspect()`: the method name alone collides with the console's
 		// built-in inspect(). Last connected view wins; cleared on disconnect if still this instance.
 		(globalThis as { shuPolymorphic?: ShuPolymorphicGraphView }).shuPolymorphic = this;
 		this.autoTeardown(() => {
@@ -400,7 +400,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		const edgePart = `${c.edges} edges (${c.relTypes} ${c.relTypes === 1 ? "type" : "types"})`;
 		this.countsText = `${c.nodes} nodes · ${edgePart}${c.omitted ? ` · ${c.omitted} omitted` : ""}`;
 		this.latestStep = d.latestStep;
-		// Persist the user's drag-pins (a page-wide layout choice) whenever they change — a dragged layout then survives a reload.
+		// Persist the user's drag-pins (a page-wide layout choice) whenever they change: a dragged layout then survives a reload.
 		if (JSON.stringify(d.pins) !== JSON.stringify(this.state.pins)) this.setState({ pins: d.pins });
 		this.requestUpdate();
 	}
@@ -423,7 +423,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	/**
 	 * The layout choices as the scene takes them, rebuilt ONLY when one of them changes. The settings element holds this
 	 * same object and dirty-checks it by identity, so a fresh literal per render would re-render every control on every
-	 * scene repaint — ten times a second under a time-cursor scrub, re-committing selects the reader may have open.
+	 * scene repaint, ten times a second under a time-cursor scrub, re-committing selects the reader may have open.
 	 */
 	private buildSceneConfig(): GraphSceneConfig {
 		const s = this.state;
@@ -456,7 +456,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		if (live.some((name) => !this.sceneNames.includes(name))) void this.loadScenes();
 	}
 
-	/** A cursor move re-styles cheaply (depth re-place; positions pinned): paint promptly through the scene's cursor path,
+	/** A cursor move re-styles quickly (depth re-place; positions pinned): paint promptly through the scene's cursor path,
 	 *  not the streamed-data window. The fresh time-filtered slice goes down first, then the prompt re-style fires. */
 	protected override get timeSyncCoalesceMs(): number {
 		return CURSOR_COALESCE_MS;
@@ -464,7 +464,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 
 	/** Persist each gantt-bar reschedule the scene emitted, refetch, then have the scene repaint at once. */
 	private async applyReschedule(updates: RescheduleUpdate[]): Promise<void> {
-		// Fail-fast: a reschedule that didn't persist must not pass silently as a moved-but-unsaved bar — surface it.
+		// Fail-fast: a reschedule that didn't persist must not pass silently as a moved-but-unsaved bar, surface it.
 		for (const u of updates) {
 			await conduit().follow(acts("GraphStepper-updateVertex", { label: u.label, id: u.id, data: u.data }), "polymorphic: drag gantt bar → reschedule task and its dependents");
 		}
@@ -472,7 +472,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.scene?.flushRepaint();
 	}
 
-	/** ONE path for every layout/view option — the settings element's changes and the head toggles alike: the host holds
+	/** ONE path for every layout/view option: the settings element's changes and the head toggles alike: the host holds
 	 *  the (persisted) state and pushes the whole config to the scene. */
 	private setOption(change: Partial<z.infer<typeof PolymorphicStateSchema>>): void {
 		this.setState(change);

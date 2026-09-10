@@ -1,5 +1,5 @@
 /**
- * Statements — reading the graph as the statements it holds, with where each one came from.
+ * Statements: reading the graph as the statements it holds, with where each one came from.
  *
  * A statement is a subject, a predicate, and an object. This reads them back for a given predicate and answers, for
  * each, which reading asserted it, in which run step, and how that step ended. Every party in a row is a REFERENCE
@@ -7,8 +7,8 @@
  * the passage, the reading, the run.
  *
  * Nothing here is stored: this is a projection of what the store already holds, shaped as RDF reification
- * (`rdf:Statement`, subject / predicate / object) plus provenance. A coverage table — which requirements a run
- * evidenced, and whether it passed — is this read with the citation predicate, not a report of its own.
+ * (`rdf:Statement`, subject / predicate / object) plus provenance. A coverage table, which requirements a run
+ * evidenced, and whether it passed, is this read with the citation predicate, not a report of its own.
  */
 import { READING_LABEL, LinkRelations, SEQ_PATH_LABEL, type TDiscourseStore } from "./resources.js";
 import { SEQ_PATH_FIELD, SEQ_PATH_EDGE, type TSeqPath } from "./seq-path.js";
@@ -35,7 +35,7 @@ type TStatementStore = Pick<TDiscourseStore, "query" | "getIndividual"> & {
 /** A quad as the stores return it: the subject's type is its named graph, and an edge names its target's type. */
 type TEdgeQuad = { subject: string; predicate: string; object: unknown; namedGraph?: string; objectType?: string };
 
-/** Which reading asserted which statement, keyed by what the statement says — the readings' own record, read back. */
+/** Which reading asserted which statement, keyed by what the statement says: the readings' own record, read back. */
 async function readingsByStatement(store: TStatementStore): Promise<Map<string, string>> {
 	const byStatement = new Map<string, string>();
 	for (const reading of await store.queryIndividuals<{ id: string; stated?: unknown }>(READING_LABEL)) {
@@ -62,7 +62,7 @@ async function runOf(store: TStatementStore, seqPathId: string): Promise<TSeqPat
 
 /**
  * Every statement made with `predicate`, newest reading first, each with the reading that asserted it and how that
- * run ended. A statement no reading claims (asserted by hand) is still a row: it simply names no reading.
+ * run ended. A statement no reading claims (asserted by hand) is still a row: it names no reading.
  */
 export async function statementsWith(store: TStatementStore, predicate: string): Promise<TStatementRow[]> {
 	const quads = (await store.query({ predicate })) as TEdgeQuad[];

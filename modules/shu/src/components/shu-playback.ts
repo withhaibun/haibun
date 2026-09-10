@@ -1,8 +1,8 @@
 /**
- * <shu-playback> — restart, play/pause and speed for the shared time cursor.
+ * <shu-playback>: restart, play/pause and speed for the shared time cursor.
  *
  * Where the cursor IS is the log's own scroll rail: a reader drags the strip to a moment and every view follows. What a
- * rail cannot do is move on its own, so that is what this is — the part of the old timeline that was not a position.
+ * rail cannot do is move on its own, so that is what this is: the part of the old timeline that was not a position.
  *
  * Playing advances the cursor from the first event to the last at `speed`, and stops on arrival. At the last event the
  * cursor is published as null rather than as that timestamp: null means "now, no upper bound", so a record written
@@ -17,7 +17,7 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { runSpan } from "../client-cache/index.js";
 
-/** Playback rates. The two below 1 run slower than the run did, for a dense burst worth watching unfold. */
+/** Playback rates. The two below 1 run slower than the run did, for a dense burst worth watching as it plays. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 const formatSpeed = (s: number): string => (s < 1 ? `-${Math.round(1 / s)}×` : `${s}×`);
 
@@ -27,7 +27,7 @@ const StateSchema = z.object({
 });
 
 export class ShuPlayback extends ShuElement<typeof StateSchema> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -70,15 +70,15 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 		return this.#currentTime >= this.#span.last;
 	}
 
-	/** The cursor moved somewhere else — a rail seek, a row click. Playing from here means playing from there. Its own
-	 *  publishes come back through here, and re-reading them would fight the frame that is mid-flight. */
+	/** The cursor moved somewhere else: a rail seek, a row click. Playing from here means playing from there. Its own
+	 *  publishes come back through here, and re-reading them would conflict with the frame that is mid-flight. */
 	protected override onTimeSync(cursor: number | null): void {
 		const at = cursor ?? this.#span.last;
 		if (at === this.#currentTime) return;
 		this.#currentTime = at;
 	}
 
-	/** Publish where playback has reached. At the end that is null — "now" — so live records are not read as future. */
+	/** Publish where playback has reached. At the end that is null, "now", so live records are not read as future. */
 	#publish(): void {
 		this.timeCursor = this.#atEnd ? null : this.#currentTime;
 	}

@@ -1,8 +1,8 @@
 /**
- * RemoteGraphSource — a federated peer's clustered read surface over RPC (reads-first federation).
+ * RemoteGraphSource: a federated peer's clustered read surface over RPC (reads-first federation).
  * Implements TFederatedGraphSource against a peer haibun instance: handshake via action.begin (the
  * peer self-reports its site principal), clustered reads via RPC_METHOD.CLUSTERED_QUADS, every
- * sampled subject stamped with the site that served it. Deliberately NOT a routed backing store —
+ * sampled subject stamped with the site that served it. Deliberately NOT a routed backing store:
  * no raw pattern queries and no writes; those arrive with capability-gated federation.
  */
 import { discoverInstance, RpcClient } from "@haibun/core/lib/rpc-client.js";
@@ -28,7 +28,7 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 	}
 
 	get site(): string {
-		if (!this.remoteSite) throw new Error("RemoteGraphSource: connect() has not completed — no site principal");
+		if (!this.remoteSite) throw new Error("RemoteGraphSource: connect() has not completed: no site principal");
 		return this.remoteSite;
 	}
 
@@ -43,7 +43,7 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 	}
 
 	/** Clustered reads from the peer, every sampled subject stamped with the site that served it. Asks for scope
-	 *  "own" — the peer's authoritative data, never its view of the world, so a federation cycle cannot recurse;
+	 *  "own": the peer's authoritative data, never its view of the world, so a federation cycle cannot recurse;
 	 *  each consumer federates the peers it wants directly. */
 	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads> {
 		const remote = this.site;
@@ -59,7 +59,7 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 		const r = result as TClusteredQuads;
 		const defaultSite = r.site ?? remote;
 		// Stamp EVERY sampled subject explicitly: merged into another instance's response (whose own default
-		// applies to unstamped subjects) these must keep the site that actually served them — and a peer that
+		// applies to unstamped subjects) these must keep the site that served them, and a peer that
 		// stamped per-subject sites itself keeps its stamps.
 		const clusters: TCluster[] = r.clusters.map((c) => ({ ...c, sites: Object.fromEntries(c.sampledSubjects.map((s) => [s, c.sites?.[s] ?? defaultSite])) }));
 		return { quads: r.quads as TQuad[], clusters, site: remote };

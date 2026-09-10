@@ -1,25 +1,25 @@
 /**
- * QuadGraphModel — the in-memory clustered quad graph, shared by every consumer.
+ * QuadGraphModel: the in-memory clustered quad graph, shared by every consumer.
  *
  * One implementation of the graph operations: dedup-indexed quads + per-type cluster summaries
  * (sampled/omitted counts, display labels), bounded by a per-type budget plus pinned subjects.
  * The SERVER builds a snapshot by feeding it quads sampled from the site's store (injecting the true per-type totals
  * and SQL-fetched body previews); the CLIENT holds the live snapshot, feeding it the RPC backfill
  * and live SSE quads (reading body previews from its own in-memory body quads). Same merge, same
- * relabel — the only differences are the injected providers, never the logic.
+ * relabel: the only differences are the injected providers, never the logic.
  *
  * No persistence lives here: the backing store (the site's graph store server-side, IndexedDB client-side) is the
  * `IQuadStore` behind the model. Consumer-specific identity (e.g. the `@id` IRI prefix) is also
- * never hardcoded here — it is injected, so core names no downstream.
+ * never hardcoded here: it is injected, so core names no downstream.
  */
 import type { TCluster, TClusteredQuads, TQuad } from "./quad-types.js";
 import { displayLabelForQuads, displayLabelResolvesThrough } from "./hypermedia.js";
 import { BODY_LABEL } from "./resources.js";
 
-// A scalar PROPERTY (no objectType) keys by subject+predicate, so a later value for the same fact REPLACES in place —
+// A scalar PROPERTY (no objectType) keys by subject+predicate, so a later value for the same fact REPLACES in place:
 // an updated `subject`, a rescheduled gantt `startedAtTime`, an `accessLevel` change. An EDGE quad (objectType set) keys
-// by object too: one subject can legitimately reference MANY objects under the same predicate — the federation case where
-// a shared node is `wasAttributedTo` several principals (issuer/holder/verifier) across a union — so every distinct edge
+// by object too: one subject can legitimately reference MANY objects under the same predicate: the federation case where
+// a shared node is `wasAttributedTo` several principals (issuer/holder/verifier) across a union, so every distinct edge
 // survives the merge instead of the last one clobbering the rest (§7-2). An edge re-arriving with the same object still
 // keys identically, so the property-quad/edge-quad dedup is unaffected.
 const quadKey = (q: TQuad): string =>
@@ -40,7 +40,7 @@ export type MergeOptions = {
 	totalCounts?: Map<string, number>;
 	/** Where body preview text comes from for the display-label rule. Defaults to the model's own in-memory body quads. */
 	bodyContentFor?: BodyContentProvider;
-	/** Skip the in-memory relabel — the consumer sets `displayLabels` itself (e.g. the server, from subject-keyed SQL previews). Omitted = relabel. */
+	/** Skip the in-memory relabel: the consumer sets `displayLabels` itself (e.g. the server, from subject-keyed SQL previews). Omitted = relabel. */
 	skipRelabel?: boolean;
 };
 
@@ -49,7 +49,7 @@ export class QuadGraphModel {
 	readonly clusters: TCluster[] = [];
 	private readonly quadIndex = new Map<string, number>();
 	private readonly pinned = new Set<string>();
-	/** Stable wrapper over the live arrays — its identity never changes across merges, so a consumer that diffs the snapshot by reference isn't tricked into re-laying-out (which re-spreads the graph off-frame). */
+	/** Stable wrapper over the live arrays: its identity never changes across merges, so a consumer that diffs the snapshot by reference isn't tricked into re-laying-out (which re-spreads the graph off-frame). */
 	private readonly stableSnapshot: TClusteredQuads = { quads: this.quads, clusters: this.clusters };
 
 	constructor(
@@ -62,7 +62,7 @@ export class QuadGraphModel {
 		return this.stableSnapshot;
 	}
 
-	/** Subjects pinned into the working set — read-only, for carrying the set across a re-seed. */
+	/** Subjects pinned into the working set, read-only, for carrying the set across a re-seed. */
 	get pinnedSubjects(): ReadonlySet<string> {
 		return this.pinned;
 	}
@@ -100,7 +100,7 @@ export class QuadGraphModel {
 			clusterByType.set(c.type, c);
 			sampledByType.set(c.type, new Set(c.sampledSubjects));
 		}
-		// Count each genuinely-new subject once per call, even when it arrives as many quads — its later
+		// Count each new subject once per call, even when it arrives as many quads: its later
 		// (omitted, unindexed) quads would otherwise re-inflate totalCount.
 		const countedThisCall = new Set<string>();
 		for (const q of quads) {
@@ -133,7 +133,7 @@ export class QuadGraphModel {
 					cluster.sampledSubjects.push(q.subject);
 					cluster.sampledCount = sampled.size;
 				} else {
-					// Type at budget and subject unpinned — omit it: count it, drop its quad.
+					// Type at budget and subject unpinned, omit it: count it, drop its quad.
 					cluster.omittedCount = Math.max(0, cluster.totalCount - cluster.sampledCount);
 					continue;
 				}
@@ -161,7 +161,7 @@ export class QuadGraphModel {
 	 *  when that target wasn't itself touched this merge.
 	 *
 	 *  A subject a seeded snapshot already titled keeps that title: the seed reads the record itself, its body included,
-	 *  while a merge sees only the quads in hand — a request narrowed to some types carries no body quads, and titling from
+	 *  while a merge sees only the quads in hand: a request narrowed to some types carries no body quads, and titling from
 	 *  what remains would replace a record's own words with a weak pointer like its seqPath. Only an untitled subject, or
 	 *  one carrying the bare-id fallback, is titled here. */
 	private relabel(touched: Set<string>, bodyContentFor?: BodyContentProvider): void {
@@ -200,7 +200,7 @@ export class QuadGraphModel {
 	/**
 	 * The type's declared labeling property (topology.displayLabel) resolved for this node, or undefined when it declares
 	 * none: its own value for a literal-ranged rel (read from the node's quads by composeDisplayLabel), else the label of
-	 * the individual its iri-ranged rel points at — one hop, from the same quads, mirroring the server's batchLinkedLabels.
+	 * the individual its iri-ranged rel points at: one hop, from the same quads, mirroring the server's batchLinkedLabels.
 	 */
 	private declaredLabelFor(type: string, subject: string, quadsBySubject: Map<string, TQuad[]>, bodyFor: BodyContentProvider): { rel: string; linkedLabel?: string } | undefined {
 		const rel = this.displayLabelRelFor(type);
@@ -211,7 +211,7 @@ export class QuadGraphModel {
 		const targetType = String(edge.objectType);
 		const targetId = String(edge.object);
 		// One hop only: the target is titled from its own literal-ranged labeling property, so a chain of proxies resolves
-		// no further and the last falls back to its id — the bound that keeps a cycle from spinning.
+		// no further and the last falls back to its id: the bound that keeps a cycle from spinning.
 		const targetRel = this.displayLabelRelFor(targetType);
 		const targetDeclared = targetRel && !displayLabelResolvesThrough(targetRel) ? { rel: targetRel } : undefined;
 		const linkedLabel = displayLabelForQuads(targetType, targetId, quadsBySubject.get(targetId) ?? [], bodyFor, this.relsFor(targetType), targetDeclared);

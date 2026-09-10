@@ -1,5 +1,5 @@
 /**
- * The principal — the identity acting now (a comment's author, an artifact's creator). Read from
+ * The principal: the identity acting now (a comment's author, an artifact's creator). Read from
  * the active context, never passed by callers. Established by the credential/delegation layer
  * (which calls `withPrincipal`); core stays crypto-free.
  */
@@ -17,10 +17,10 @@ export function currentPrincipal(world: TWorld): string | undefined {
 	return typeof p === "string" && p.length > 0 ? p : undefined;
 }
 
-/** The active principal, or throw — an authored action requires an acting principal. */
+/** The active principal, or throw: an authored action requires an acting principal. */
 export function requirePrincipal(world: TWorld): string {
 	const p = currentPrincipal(world);
-	if (!p) throw new Error("no principal established — an authored action requires an acting principal");
+	if (!p) throw new Error("no principal established: an authored action requires an acting principal");
 	return p;
 }
 

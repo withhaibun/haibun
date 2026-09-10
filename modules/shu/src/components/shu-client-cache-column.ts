@@ -1,11 +1,11 @@
 /**
- * <shu-client-cache-column> — what this page caches of the run, as it stands: each run source (one per level read) with
+ * <shu-client-cache-column>: what this page caches of the run, as it stands: each run source (one per level read) with
  * its extent, the index spans it caches and the row the shared cursor sits on in it; what the live stream has
  * delivered since the view opened, by level; what the device's event store caches of the last run, by level; and every
  * IndexedDB database of the origin with its stores and their counts. It requests nothing of the server: a source is
  * listed once a view has read its level, and the store is read as it is. A reader makes one change here, which is to
- * forget a run this device holds. It watches everything that moves —
- * each source as it is made and as it changes, every live batch, the cursor — and shows the change at once; the device
+ * forget a run this device holds. It watches everything that moves:
+ * each source as it is made and as it changes, every live batch, the cursor, and shows the change at once; the device
  * is re-read after changes at a bounded cadence, since reading it is slower than the stream. Every value carries its own
  * test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is what a feature reads cache facts from. It also reports where
  * the server's registry the page runs on came from: the server, or the device's copy when the server did not respond.

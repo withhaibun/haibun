@@ -1,10 +1,10 @@
 /**
- * GoalResolutionStepper — exposes the goal resolver as steps.
+ * GoalResolutionStepper: exposes the goal resolver as steps.
  *
  *   resolve {goal: domain-key}                          → DOMAIN_GOAL_RESOLUTION
  *   resolve {goal: domain-key} where {constraint: json} → DOMAIN_GOAL_RESOLUTION (constraint accepted; resolution runs on the goal)
  *   show affordances                                    → DOMAIN_AFFORDANCES (forward edges + goal verdicts)
- *   show chain lint                                     → DOMAIN_CHAIN_LINT (orphan/starved/unreachable findings + affordance overlay)
+ *   show chain lint                                     → DOMAIN_CHAIN_LINT (orphan/unsupplied/unreachable findings + affordance overlay)
  *
  * The resolver is pure search; it never auto-runs anything. A resolved path gets run in one of two ways: `pursue`
  * runs it straight through, which it can only do where no step needs anything supplied, and `walk toward` holds it
@@ -48,7 +48,7 @@ const COMPOSITE_MAX_DEPTH = "COMPOSITE_MAX_DEPTH";
 const COMPOSITE_DECOMPOSITION_DEFAULT = true;
 const COMPOSITE_MAX_DEPTH_DEFAULT = 4;
 
-// Projection-query domains — steps that only compute a view of current memory (show affordances / waypoints /
+// Projection-query domains, steps that only compute a view of current memory (show affordances / waypoints /
 // chain-lint). Completing one changes nothing, so afterStep must NOT emit an `affordances.*` change signal for it. The
 // same holds of every step declared a read, which is what the affordances panel's own re-fetch dispatches: announcing
 // a change for it would re-fire that fetch over SSE without bound.
@@ -86,7 +86,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	cycles: IStepperCycles = {
 		startExecution: async () => {
 			// Emit a one-time domain-chain lint report at startup so monitors and the
-			// shu UI can surface orphan/starved/unreachable findings before any step runs.
+			// shu UI can surface orphan/unsupplied/unreachable findings before any step runs.
 			const world = this.getWorld();
 			const graph = buildDomainChain(this.steppers, world.domains);
 			const lint = lintDomainChain(graph, world.domains);
@@ -130,7 +130,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			// Lean event: emit only a change signal. The affordances snapshot is large (forward + goals + their
 			// resolution trees + composite michi), so the affordances panel and the domain-chain view re-fetch the
 			// current snapshot on demand (show affordances) rather than ride every step's event.
-			// Keeps the event log lean by construction — the bulk never denormalizes onto every step.
+			// Keeps the event log lean by construction: the bulk never denormalizes onto every step.
 			// A step that changed nothing announces no change: a read, or a step that only computes a view of memory.
 			// Otherwise the panel's own re-fetch, which is a read, would re-trigger itself over SSE without bound.
 			const step = after.featureStep.action.step;
@@ -208,7 +208,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	 * panel reconstructs the run state at that point.
 	 *
 	 * Every registered stepper with the ProvidesWaypoints capability contributes waypoint entries to the same
-	 * snapshot. Live only — waypoint ensure-state is current run state, so an as-of projection carries none.
+	 * snapshot. Live only, waypoint ensure-state is current run state, so an as-of projection carries none.
 	 */
 	private async computeAffordances(asOf: number[] | undefined, featureStep: TFeatureStep) {
 		const world = this.getWorld();
@@ -243,7 +243,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 
 		/**
-		 * A1 · `pursue {goal}` — close the goal-resolution loop with idempotent execution.
+		 * A1 · `pursue {goal}`, close the goal-resolution loop with idempotent execution.
 		 *
 		 *  satisfied   → no-op, returns the satisfying factIds (matches activities/waypoints' `ensure` skip-when-proven contract)
 		 *  michi (fact-only bindings) → execute each step in the first michi sequentially via dispatchStep; returns the produced factIds
@@ -251,7 +251,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		 *  unreachable → refuses with the list of missing producers
 		 *  refused     → refuses with the resolver's reason
 		 *
-		 *  The shape mirrors the architecture's activities pattern: check the world, act only if necessary, surface what's needed when stuck. Same primitives a Kihan reading affordances would follow — codified in one verb.
+		 *  The shape mirrors the architecture's activities pattern: check the world, act only if necessary, surface what's needed when stuck. Same primitives a Kihan reading affordances would follow, codified in one verb.
 		 */
 		pursue: {
 			gwta: `pursue {goal: ${DOMAIN_DOMAIN_KEY}}`,
@@ -268,13 +268,13 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				if (resolution.finding === GOAL_FINDING.REFUSED) {
 					return actionNotOK(`pursue ${goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
 				}
-				// finding === MICHI — take the first path
+				// finding === MICHI, take the first path
 				const michi: TMichi = resolution.michi[0];
 				if (!michi) return actionNotOK(`pursue ${goal}: no michi returned`);
 				const argBindings = collectArgumentBindings(michi.bindings);
 				if (argBindings.length > 0) {
 					return actionNotOK(
-						`pursue ${goal}: ${argBindings.length} argument binding(s) need supplying — domains: ${argBindings.join(", ")}. Use the SPA's path-card or extend pursue with explicit args.`,
+						`pursue ${goal}: ${argBindings.length} argument binding(s) need supplying, domains: ${argBindings.join(", ")}. Use the SPA's path-card or extend pursue with explicit args.`,
 					);
 				}
 				return await this.executeMichi(goal, michi);
@@ -380,7 +380,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				// The bound view (`shu-domain-chain-view`) renders the chain as a Mermaid
 				// graph from affordance data (forward edges + goal verdicts). Include both
 				// shapes so opening the lint pane shows the graph immediately, with lint
-				// findings available for overlaying orphan/starved/unreachable nodes.
+				// findings available for overlaying orphan/unsupplied/unreachable nodes.
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 				const affordances = buildAffordances({
 					steppers: this.steppers,

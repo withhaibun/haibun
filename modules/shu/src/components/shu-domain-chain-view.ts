@@ -1,11 +1,11 @@
 /**
- * ShuDomainChainView — domain-chain visualization.
+ * ShuDomainChainView: domain-chain visualization.
  *
  * Renders the affordances snapshot through the shared `shu-graph` component:
  * domains as nodes coloured by fact presence and goal-resolver verdict, steps
  * as labeled edges. Schema edges that participate in at least one goal-resolver
  * path are tagged with the path id in the projection (`annotateGoalPaths`) and
- * the renderer paints them as "active" — a distinct stroke colour over the
+ * the renderer paints them as "active": a distinct stroke colour over the
  * default thin / dashed style. Potential edges (invokable steps that no current
  * goal-path runs through) keep the kind-based style.
  *
@@ -107,7 +107,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	}
 
 	/** UI-only zoom percentage. Lives outside Zod state so changing it never triggers
-	 * a chain-view re-render — the shu-graph element receives setZoom() directly and
+	 * a chain-view re-render: the shu-graph element receives setZoom() directly and
 	 * applies a CSS transform to its container without re-running the layout. */
 	private zoomPercent = 100;
 
@@ -123,15 +123,15 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		// Subscribe to the goal-resolver's `affordances.<seqPath>` events so the chain
 		// repaints as the graph state changes. Each step's afterStep emits an event
 		// regardless of whether it changed anything, so dedup against a fingerprint of
-		// the rendered fields — otherwise every step kicks a full re-render
+		// the rendered fields, otherwise every step kicks a full re-render
 		// even when the snapshot is byte-identical.
 		// Batch the subscription: on reload the stream replays the whole `affordances.` history at once (thousands of
-		// events). Per-event this re-fetched + re-rendered the mermaid graph once per replayed step — the reload-jank that
+		// events). Per-event this re-fetched + re-rendered the mermaid graph once per replayed step: the reload-jank that
 		// pins the page for tens of seconds. subscribeBatchedEvents collapses the replay to one re-fetch per frame.
 		try {
 			this.autoTeardown(
 				this.subscribeBatched({
-					// afterStep emits a lean change signal (no payload) — quietly re-fetch the current snapshot, once per batch.
+					// afterStep emits a lean change signal (no payload), quietly re-fetch the current snapshot, once per batch.
 					onBatch: () => void this.fetchInitial(true),
 					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
 				}),
@@ -149,7 +149,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		);
 	}
 
-	/** View-open contract — pane-opener assigns producer products on mount. */
+	/** View-open contract, pane-opener assigns producer products on mount. */
 	set products(p: Record<string, unknown>) {
 		if (!Array.isArray(p.forward) || !Array.isArray(p.goals)) {
 			throw new Error(
@@ -210,8 +210,8 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			<details class="explanation">
 				<summary>How to read this</summary>
 				<p>Attributed property graph of the schemas. Nodes: domains, waypoints, fact instances. Edges: steps from input domains to output domain.</p>
-				<p><strong>Node colour</strong> — green: fact exists; blue: reachable; amber: blocked. Unreachable nodes are hidden by default; open view settings to unhide them.</p>
-				<p><strong>Edge style</strong> — solid bold: ready; dashed: blocked. Edges traversed by a goal-resolver path render in amber to mark which steps the resolver currently routes through. A ⚷ on the label means the step needs a capability that has not been granted.</p>
+				<p><strong>Node colour</strong>, green: fact exists; blue: reachable; amber: blocked. Unreachable nodes are hidden by default; open view settings to unhide them.</p>
+				<p><strong>Edge style</strong>, solid bold: ready; dashed: blocked. Edges traversed by a goal-resolver path render in amber to mark which steps the resolver currently routes through. A ⚷ on the label means the step needs a capability that has not been granted.</p>
 				<p>Click a domain or waypoint to open it in the affordances panel. Click a fact instance to open its producing step.</p>
 			</details>
 			<div class="view-controls" data-testid="domain-chain-toolbar">
@@ -319,9 +319,9 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	 * SSE-snapshot reducer. Public for testability.
 	 *
 	 * Three invariants enforced:
-	 *  - Identical snapshots are dropped (cheap fingerprint diff) — every step's afterStep
+	 *  - Identical snapshots are dropped (a fast fingerprint diff): every step's afterStep
 	 *    emits an event regardless of whether the graph changed, so most snapshots are no-ops.
-	 *  - A "downgrade" (incoming forward strictly shorter than current) is dropped — some
+	 *  - A "downgrade" (incoming forward strictly shorter than current) is dropped: some
 	 *    emit contexts publish a partial view (subprocess, scoped resolver). Keeping the
 	 *    richer snapshot prevents most of the graph from disappearing mid-session.
 	 *  - Accepted snapshots merge over the previous so fields that only some snapshots
@@ -370,7 +370,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		}
 		// Every node in the chain projection carries `link.href` (deep-link to the
 		// affordances panel) or is a fact-instance handled above. A node reaching this
-		// point has neither — surface it so the projection bug is visible.
+		// point has neither, surface it so the projection bug is visible.
 		console.log("[chain] routeNodeClick: node has no link.href to open; check the projection emitted a deep-link", node);
 	}
 }

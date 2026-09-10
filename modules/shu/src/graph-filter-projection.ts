@@ -1,18 +1,18 @@
 /**
- * graph-filter-projection — shared cluster derivation used by every graph
+ * graph-filter-projection: shared cluster derivation used by every graph
  * view that hosts a `<shu-graph-filter>`.
  *
  * The filter chips show one entry per node type with a count. Two regimes
  * matter:
  *
- *   - No time cursor — the server snapshot's `TCluster` records are
+ *   - No time cursor: the server snapshot's `TCluster` records are
  *     authoritative: each carries `totalCount`, `sampledCount`, and
  *     `omittedCount` so the legend can show `(sampled/total)` when the server
  *     truncated. Any namedGraph that appears only in live (post-snapshot)
  *     quads is appended with zero counts so the legend matches what the
- *     diagram actually renders.
+ *     diagram renders.
  *
- *   - Time cursor pinned — the snapshot counts diverge from what the view
+ *   - Time cursor pinned: the snapshot counts diverge from what the view
  *     shows. Derive clusters directly from `visibleQuads` (already filtered
  *     by `ShuElement.filterByTime`): one cluster per `namedGraph`, count =
  *     unique subjects seen at or before the cursor. Types with no visible
@@ -67,10 +67,10 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 
 /**
  * The effective hidden-type set: the user's explicit override wins; absent an override, the engine's own instrumentation
- * graphs (SeqPath, observation/*, facts, variables — `isInstrumentationGraph`) default hidden and everything else visible.
+ * graphs (SeqPath, observation/*, facts, variables, `isInstrumentationGraph`) default hidden and everything else visible.
  * `overrides[type]`: true = shown, false = hidden, absent = the predicate decides. The ONE place the default and the
- * overrides combine — shared by the filter (chip state), the host views (which graphs render), and the offline-report
- * serialization — so the rule is identical everywhere AND robust to types that arrive only via the live stream: there is
+ * overrides combine, shared by the filter (chip state), the host views (which graphs render), and the offline-report
+ * serialization: so the rule is identical everywhere AND stable for types that arrive only via the live stream: there is
  * no per-cluster flag to lose, just the stable predicate over the type name. The persisted overrides hold only the user's
  * deliberate choices, never a fixed default, so a change to what counts as instrumentation re-applies on the next load.
  *
@@ -89,7 +89,7 @@ export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<
 	return [...hidden];
 }
 
-/** The edge predicates in `quads`, with the number of edges each draws — counted by the graph model's OWN rule
+/** The edge predicates in `quads`, with the number of edges each draws, counted by the graph model's OWN rule
  *  (`isEdgeQuad`), so the property chips offer exactly the predicates the graph draws and never a predicate whose
  *  unticking would change nothing. */
 export function derivePredicates(quads: Iterable<TQuad>): Array<{ predicate: string; count: number }> {
@@ -102,7 +102,7 @@ export function derivePredicates(quads: Iterable<TQuad>): Array<{ predicate: str
 }
 
 /** The facets a reader explicitly turned OFF: the entries whose override says "hidden". The counterpart of
- *  `effectiveHiddenTypes` for facets with no declared default — a predicate is shown unless it was unticked. */
+ *  `effectiveHiddenTypes` for facets with no declared default: a predicate is shown unless it was unticked. */
 export function explicitlyHidden(overrides: Record<string, boolean>): string[] {
 	return Object.entries(overrides)
 		.filter(([, shown]) => !shown)

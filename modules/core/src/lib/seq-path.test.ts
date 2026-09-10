@@ -28,7 +28,7 @@ describe("parseSeqPath", () => {
 	});
 
 	it("refuses an empty segment rather than reading it as a zero", () => {
-		// A second reader treated `1..2` as [1, 0, 2], because Number("") is 0 — a step that does not exist, named
+		// A second reader treated `1..2` as [1, 0, 2], because Number("") is 0: a step that does not exist, named
 		// confidently. An absent segment is not a step number.
 		expect(parseSeqPath("1..2")).toBeNull();
 		expect(parseSeqPath(".1")).toBeNull();
@@ -79,7 +79,7 @@ describe("extractSeqPathPrefix", () => {
 });
 
 describe("the mode a step ran under", () => {
-	// A speculative step's failure is expected and a prose step runs nothing, so a reader looking for what actually went
+	// A speculative step's failure is expected and a prose step runs nothing, so a reader looking for what went
 	// wrong wants the authoritative ones. That is a distinction they can draw only if the mode is on the record, and
 	// only offered as a choice beside the type if it is declared as something the type is grouped by.
 	it("is offered as a sub-filter, which is what grouped-as declares", () => {

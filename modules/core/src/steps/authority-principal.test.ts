@@ -52,14 +52,14 @@ as subkey "alice", comment on "${TEST_NODE_LABEL}" node-1 with "scratch comment"
 		expect(typeof root?.generatedAtTime).toBe("string");
 
 		// Subkey Principal: controller === id, allowedAction includes the delegated action.
-		// Delegation is an edge, not a Principal property — so it never appears on the individual.
+		// Delegation is an edge, not a Principal property, so it never appears on the individual.
 		const subkey = await store.getIndividual<TPrincipal>(PRINCIPAL_LABEL, subkeyDid);
 		expect(subkey).toBeTruthy();
 		expect(subkey?.id).toBe(subkeyDid);
 		expect(subkey?.controller).toBe(subkeyDid);
 		expect(String(subkey?.allowedAction)).toContain(ACTION);
 
-		// Exactly two Principals persisted — `as subkey` (ephemeral activation) added none.
+		// Exactly two Principals persisted, `as subkey` (ephemeral activation) added none.
 		const principals = await store.queryIndividuals<TPrincipal>(PRINCIPAL_LABEL);
 		expect(principals.length).toBe(2);
 
@@ -68,7 +68,7 @@ as subkey "alice", comment on "${TEST_NODE_LABEL}" node-1 with "scratch comment"
 		expect(subkeyDelegation.length).toBe(1);
 		expect(String(subkeyDelegation[0].object)).toBe(sitePrincipal);
 
-		// The root has no delegatedFrom edge — it is self-issued, delegated from no one.
+		// The root has no delegatedFrom edge: it is self-issued, delegated from no one.
 		const rootDelegation = await store.query({ subject: sitePrincipal, predicate: LinkRelations.DELEGATED_FROM.rel, namedGraph: PRINCIPAL_LABEL });
 		expect(rootDelegation.length).toBe(0);
 

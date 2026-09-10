@@ -29,7 +29,15 @@ import { invokingPrincipal } from "@haibun/core/lib/step-dispatch.js";
 import { askedIn } from "@haibun/core/lib/capability-context.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { RUN_STATUS, FEATURE_EXECUTION_LABEL, FEATURE_EXECUTION_DOMAIN, statusOfExit, featureExecutionDomainDefinition, type TFeatureExecution, type TRunStatus } from "./feature-execution.js";
+import {
+	RUN_STATUS,
+	FEATURE_EXECUTION_LABEL,
+	FEATURE_EXECUTION_DOMAIN,
+	statusOfExit,
+	featureExecutionDomainDefinition,
+	type TFeatureExecution,
+	type TRunStatus,
+} from "./feature-execution.js";
 import { SUPERVISOR_CAPABILITIES, runReadSchema, runStartedSchema } from "./instance-stepper.js";
 import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/step-registry.js";
 import { examineRun } from "./run-outcome.js";
@@ -76,7 +84,7 @@ export function stepAtRun(atRun: TRunStep[], host: number, method: string): TRun
 
 /** What a caller with a wrong name is reaching for, read from what the run itself declares: a list of everything it
  *  answers is a menu, while the steps that LIST what it holds are what "how many" wants. Which those are is the far
- *  side's own business — a step naming them here would be this process deciding what another one offers. */
+ *  side's own business: a step naming them here would be this process deciding what another one offers. */
 function recipeAtRun(atRun: TRunStep[]): string {
 	const listing = atRun.filter((step) => LISTS_WHAT_IT_HOLDS.test(step.description ?? "")).map((step) => bareMethodName(step.name));
 	return listing.length > 0 ? `To count or list what it holds of a type, ask ${listing.slice(0, 3).join(" or ")}. ` : "";
@@ -212,7 +220,8 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		runAllTests: {
 			gwta: `run all the tests in {where}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
-			description: "Start a run of every feature in a directory, answering with its record. The same limits as a filtered run: one at a time, and not again while what the features depend on is as it was when they last ran.",
+			description:
+				"Start a run of every feature in a directory, answering with its record. The same limits as a filtered run: one at a time, and not again while what the features depend on is as it was when they last ran.",
 			productsDomain: FEATURE_EXECUTION_DOMAIN,
 			action: async ({ where }: { where: string }) => await this.askedToRun(where, ""),
 		},
@@ -400,7 +409,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		}
 		this.lastFailure = "";
 		// The record IS the products: the run as its individual stands, which is what the goal resolver asserts as the
-		// satisfied `feature-execution` and what a caller reads the id, endpoint and host from — the host being how a
+		// satisfied `feature-execution` and what a caller reads the id, endpoint and host from: the host being how a
 		// standing run is addressed afterwards (`on host {host}, <step>`); a run that ends with its features carries none.
 		return actionOKWithProducts(run.record as unknown as Record<string, unknown>);
 	}
@@ -408,12 +417,12 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	/**
 	 * One call of a supervisor step, answered by the schema that step declares, so the products are parsed rather than
 	 * asserted and a wrong shape fails here. The missing-supervisor case is named: the agent cannot run a test in a
-	 * process where run supervision was never registered, and saying so is more use than a step that is simply absent.
+	 * process where run supervision was never registered, and saying so is more use than a step that is absent.
 	 */
 	/** Why there is no run to work with: the failure that stopped the last one from starting, where there was one, so a
 	 *  caller is answered with what happened rather than with its consequence. */
 	private nothingToRead(what: string): string {
-		return this.lastFailure ? `there is no run to ${what}: the last one did not start — ${this.lastFailure}` : `no run has been started in this ask, so there is nothing to ${what}`;
+		return this.lastFailure ? `there is no run to ${what}: the last one did not start, ${this.lastFailure}` : `no run has been started in this ask, so there is nothing to ${what}`;
 	}
 
 	/** Whether this agent has a run to be asked about at all: one in flight, one standing, or one it started earlier
@@ -516,7 +525,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	}
 
 	/** The run's record as it stands, with whatever this write adds to it. One shape, so a field added to a TestRun is
-	 *  added once. Returned as written, so the step that started the run can answer with the record itself — which is
+	 *  added once. Returned as written, so the step that started the run can answer with the record itself, which is
 	 *  what lets `feature-execution` stand as a goal the resolver reaches through runTest. */
 	private async writeRun(run: TTrackedRun, extra: Record<string, unknown> = {}): Promise<TFeatureExecution> {
 		const record = {

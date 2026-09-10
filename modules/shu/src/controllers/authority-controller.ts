@@ -16,7 +16,7 @@ export type TAuthority = { holds: string[]; heldAs?: { persistedAs: string; id: 
 const WHY = "authority: what this reader may do";
 
 /**
- * AuthorityController — the per-view handle to what authority stands here. A view that shows permissions HOLDS one and
+ * AuthorityController: the per-view handle to what authority stands here. A view that shows permissions HOLDS one and
  * calls `read()`; it never assembles the RPC itself.
  *
  * The grants come back without their tokens: what names a grant is not itself authority, since acting takes the key

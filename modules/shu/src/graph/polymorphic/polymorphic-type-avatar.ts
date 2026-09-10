@@ -2,7 +2,7 @@
  * A node's type avatar: the initials of its @type, so a reader tells a Principal from a Person, or a SpecificResource
  * from its selector, without reading the label or learning the colours.
  *
- * Derived from the type name — the initial of each word, taking CamelCase segments and separator-delimited parts alike
+ * Derived from the type name: the initial of each word, taking CamelCase segments and separator-delimited parts alike
  * (SpecificResource → SR, Principal → P, observation/http-request → OHR). A new type needs no registration: there is no
  * list to append to and nothing to keep in step with the schema.
  */

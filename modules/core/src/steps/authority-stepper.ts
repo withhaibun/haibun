@@ -55,7 +55,7 @@ const sessionGrantRevokedSchema = z.object({
  * reads the listing.
  */
 export const sessionGrantShownSchema = z.object({
-	handle: z.string().describe("A name for this grant that is not its credential — what a reader revokes it by"),
+	handle: z.string().describe("A name for this grant that is not its credential: what a reader revokes it by"),
 	seqPath: z.string().optional().describe("The step it was granted at, which a reader can open"),
 	controller: z.string().optional().describe("The principal the grant is held by, where it names one"),
 	allowedAction: z.array(authorityActionSchema).describe("What the holder may do"),
@@ -160,7 +160,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			gwta: `issue session grant for token {token: ${SESSION_TOKEN_DOMAIN}} with action {action: ${AUTHORITY_ACTION_DOMAIN}}`,
 			productsSchema: sessionGrantIssuedSchema,
 			action: ({ token, action }: { token: string; action: string }, featureStep: TFeatureStep) => {
-				// The controller is the principal issuing the grant — this instance's own — so an act authorized by the
+				// The controller is the principal issuing the grant, this instance's own, so an act authorized by the
 				// token is attributable to an agent. A step name is how it was issued, which the note carries.
 				const grant = this.getAuthority().issueSessionGrant({
 					token,
@@ -206,7 +206,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			read: true,
 			exact: "show session grants",
 			description:
-				"Who holds authority here and what it allows them: each grant's controller, its allowed actions, whether it still stands, and what it was issued for. The tokens themselves are never reported — a bearer token is the credential, so anything that reports one hands it over.",
+				"Who holds authority here and what it allows them: each grant's controller, its allowed actions, whether it still stands, and what it was issued for. The tokens themselves are never reported: a bearer token is the credential, so anything that reports one hands it over.",
 			productsSchema: sessionGrantsListSchema,
 			action: () => {
 				const grants = this.getAuthority().listSessionGrants().map(shownGrant);
@@ -219,7 +219,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				const world = this.getWorld();
 				const sitePrincipal = currentPrincipal(world);
 				if (!sitePrincipal) {
-					return actionNotOK("no site principal established — cannot delegate a subkey");
+					return actionNotOK("no site principal established, cannot delegate a subkey");
 				}
 				const controller = subkeyDid(sitePrincipal, subkey);
 				const grant = this.getAuthority().issueSessionGrant({ token: subkey, allowedAction: [action], controller, note: featureStep.in });
@@ -235,14 +235,14 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			exact: "name a connecting site",
 			productsSchema: siteNamedSchema,
 			// Site principals must be unique within a federation. A default-identified instance (did:site:0 to itself)
-			// asks the site it connects to what it should be called; this end assigns `did:site:<mine>.<n>` — unique
-			// under this site's own principal — and durably records the assignment as a Principal individual, so `n`
+			// asks the site it connects to what it should be called; this end assigns `did:site:<mine>.<n>`, unique
+			// under this site's own principal, and durably records the assignment as a Principal individual, so `n`
 			// never repeats. Called over RPC by the connecting site (see the federate step's collision handling).
 			action: async () => {
 				const world = this.getWorld();
 				const store = world.shared?.getStore();
 				if (!world.domains[PRINCIPAL_DOMAIN] || !store) {
-					return actionNotOK("naming a connecting site requires the Principal domain and a store — a namer must durably record the principals it assigns");
+					return actionNotOK("naming a connecting site requires the Principal domain and a store: a namer must durably record the principals it assigns");
 				}
 				const myId = activeSitePrincipal(world);
 				const local = myId.startsWith(SITE_DID_PREFIX) ? myId.slice(SITE_DID_PREFIX.length) : myId.replace(/^did:/, "").replace(/:/g, ".");
@@ -279,7 +279,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	private async runUnderCapability(cap: unknown, target: string, what: TFeatureStep[], featureStep: TFeatureStep) {
 		const parsed = signedCapabilitySchema.safeParse(cap);
 		if (!parsed.success) {
-			return actionNotOK(`as subkey holding capability: invalid signed capability — ${parsed.error.issues.map((i) => i.message).join("; ")}`);
+			return actionNotOK(`as subkey holding capability: invalid signed capability, ${parsed.error.issues.map((i) => i.message).join("; ")}`);
 		}
 		const capability = parsed.data;
 		const actions = capability.allowedAction === undefined ? ["*"] : Array.isArray(capability.allowedAction) ? capability.allowedAction : [capability.allowedAction];
@@ -288,7 +288,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		// reads inside it: the framework holds no key and knows no specification.
 		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability as Record<string, unknown>, action, target });
 		if (!verified.ok) {
-			return actionNotOK(`as subkey holding capability: the evidence was refused — ${verified.error ?? "no reason given"}`);
+			return actionNotOK(`as subkey holding capability: the evidence was refused, ${verified.error ?? "no reason given"}`);
 		}
 		const runner = new FlowRunner(this.getWorld(), this.steppers);
 		const run = () => runner.runSteps(what, { parentStep: featureStep });

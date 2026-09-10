@@ -19,7 +19,7 @@ export class FlowRunner {
 	}
 
 	private get registry(): StepRegistry {
-		// Read at dispatch time — Executor assigns this after steppers' setWorld.
+		// Read at dispatch time, Executor assigns this after steppers' setWorld.
 		const reg = this.world.runtime?.stepRegistry as StepRegistry | undefined;
 		if (!reg) throw new Error("FlowRunner: world.runtime.stepRegistry not set; run inside Executor");
 		return reg;

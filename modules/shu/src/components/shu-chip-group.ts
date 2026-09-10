@@ -1,7 +1,7 @@
 /**
- * <shu-chip-group> — one labelled row of toggle chips: a name, then a checkbox chip per member, each optionally
- * counted and swatch-coloured. The graph filter renders every one of its groups through this — the data types, the
- * edge properties, and each group-by-reference axis — so a chip behaves the same wherever it appears: tick to show,
+ * <shu-chip-group>: one labelled row of toggle chips: a name, then a checkbox chip per member, each optionally
+ * counted and swatch-coloured. The graph filter renders every one of its groups through this: the data types, the
+ * edge properties, and each group-by-reference axis, so a chip behaves the same wherever it appears: tick to show,
  * untick to hide, hover to preview.
  *
  * It owns NO state. The host supplies the chips and hears intent back through `onToggle`/`onPreview`; what a chip's
@@ -16,7 +16,7 @@ import { shuBaseStyles } from "./styles.js";
 export type TChip = { id: string; label: string; checked: boolean; count?: number; color?: string };
 
 export class ShuChipGroup extends ShuElement<z.ZodType> {
-	/** A control, not a view of data — contributes nothing to the Kihan's context. */
+	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

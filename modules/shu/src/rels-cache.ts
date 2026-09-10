@@ -1,5 +1,5 @@
 /**
- * Schema metadata cache — populated once from getSiteMetadata RPC call.
+ * Schema metadata cache, populated once from getSiteMetadata RPC call.
  * Provides rels, edge ranges, and properties for all node types.
  */
 import { propertyVocabulary } from "./graph/ontology-projection.js";
@@ -7,14 +7,14 @@ import { ACTION_BAR_CHAT_SLOT, isMarkerType } from "./consts.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 /**
- * Per-rel runtime metadata — the Property node projection.
+ * Per-rel runtime metadata: the Property node projection.
  * Keyed by rel name (e.g. "hasBody"), one entry per RDF Property.
- *   iri            — RDFS URI for the rel (rdfs:Property's @id).
- *   range          — RDF range: "iri" | "literal" | "container".
- *   label          — display name for renderers (rdfs:label).
- *   icon           — visual badge for the rel.
- *   subPropertyOf  — parent rel (rdfs:subPropertyOf) for ancestry walks.
- *   presentation   — rendering bucket: "summary" | "body" | "governance".
+ *   iri: RDFS URI for the rel (rdfs:Property's @id).
+ *   range: RDF range: "iri" | "literal" | "container".
+ *   label: display name for renderers (rdfs:label).
+ *   icon: visual badge for the rel.
+ *   subPropertyOf: parent rel (rdfs:subPropertyOf) for ancestry walks.
+ *   presentation: rendering bucket: "summary" | "body" | "governance".
  */
 export interface PropertyDefinition {
 	iri: string;
@@ -33,16 +33,16 @@ export interface SiteMetadata {
 	properties: Record<string, string[]>;
 	/** Fields the server accepts as query filters (the topology's sortColumns), per label. */
 	queryable: Record<string, string[]>;
-	/** Per label, the field carrying the type's valid time (the catalog's validTimeField — where the term is defined). */
+	/** Per label, the field carrying the type's valid time (the catalog's validTimeField, where the term is defined). */
 	validTimeFields: Record<string, string>;
 	summary: Record<string, string[]>;
 	ui: Record<string, Record<string, unknown>>;
 	/** Per-rel metadata (label, icon, subPropertyOf, presentation, range, iri). */
 	propertyDefinitions: Record<string, PropertyDefinition>;
-	/** Per label, the type's class IRI (topology.type / the concern's asType), when it declares one — lets a view tell a
+	/** Per label, the type's class IRI (topology.type / the concern's asType), when it declares one, lets a view tell a
 	 *  haibun-namespace (system) type from a standard/consumer one. The builder always sets it; optional for partial fixtures. */
 	classIris?: Record<string, string>;
-	/** Per label, the property type (rel) whose value titles it — `topology.displayLabel`, where declared. */
+	/** Per label, the property type (rel) whose value titles it, `topology.displayLabel`, where declared. */
 	displayLabelRels?: Record<string, string>;
 }
 
@@ -81,7 +81,7 @@ export function getRels(label: string): Record<string, string> | undefined {
 	return metadata?.rels[label];
 }
 
-/** Every persisted type label the site declares — the whole schema vocabulary. Empty until metadata lands. */
+/** Every persisted type label the site declares: the whole schema vocabulary. Empty until metadata lands. */
 export function getTypes(): string[] {
 	return metadata?.types ?? [];
 }
@@ -93,12 +93,12 @@ export function getUiPresenting(kind: string): { type: string; ui: Record<string
 	return undefined;
 }
 
-/** Sync lookup — returns cached rel for a property. */
+/** Sync lookup, returns cached rel for a property. */
 export function getRelSync(label: string, property: string): string | undefined {
 	return metadata?.rels[label]?.[property];
 }
 
-/** Whether a type is a SYSTEM schema — its class IRI is haibun's own vocabulary (a haibun-namespace prefix), as opposed
+/** Whether a type is a SYSTEM schema: its class IRI is haibun's own vocabulary (a haibun-namespace prefix), as opposed
  *  to a standard's (prov:/sosa:/…) or a consumer's coined one. A consumer-standard type is not a system schema; a
  *  haibun-defined type (e.g. hbn:SeqPath) is. False when the type declares no class IRI. */
 export function isSystemSchemaType(label: string): boolean {
@@ -121,7 +121,7 @@ export function getEdgeRanges(label: string): Record<string, string> | undefined
 	return metadata?.edgeRanges[label];
 }
 
-/** Sync lookup — returns target label for an edge type from a source node label. Falls back to global index. */
+/** Sync lookup, returns target label for an edge type from a source node label. Falls back to global index. */
 export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): string | undefined {
 	if (sourceLabel) {
 		const target = metadata?.edgeRanges[sourceLabel]?.[edgeType];
@@ -191,7 +191,7 @@ export function componentOfView(view: string): string {
 /**
  * The component a RECORD of this type opens or renders as, or undefined for the generic view.
  *
- * A declaration carrying a `slot` mounts a panel into that slot — the petitions panel sits in the permissions area
+ * A declaration carrying a `slot` mounts a panel into that slot: the petitions panel sits in the permissions area
  * for every proposal there is, and is about the type rather than about one record of it. Such a panel has none of a
  * record view's methods, so opening a record with it fails at the first call it receives. Only a slotless
  * declaration names a type's own view.
@@ -242,7 +242,7 @@ export function getSelectValues(label: string): Record<string, string[]> {
  * Only predicates the label already offers gain values. Which predicates are dropdowns at all is the type's own
  * declaration, established by the fetch that built this entry; a quad about any other predicate is not one of them,
  * and a label with no entry yet has not been fetched, so there is nothing to add to. Returns whether anything was
- * added, so a caller re-renders only when the dropdowns actually changed.
+ * added, so a caller re-renders only when the dropdowns changed.
  */
 export function addObservedSelectValues(label: string, quads: readonly TQuad[]): boolean {
 	const held = selectCache.get(label);
@@ -289,7 +289,7 @@ export function hasSelectValues(label: string): boolean {
 	return selectCache.has(label);
 }
 
-/** Check if a label holds at least one non-empty select-value list — usable dropdown options, as opposed to a cached-empty result fetched before the data existed. */
+/** Check if a label holds at least one non-empty select-value list, usable dropdown options, as opposed to a cached-empty result fetched before the data existed. */
 export function hasUsableSelectValues(label: string): boolean {
 	return Object.values(getSelectValues(label)).some((v) => v.length > 0);
 }
@@ -408,7 +408,7 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		for (const [domainKey, info] of Object.entries(domains)) {
 			if (!info?.ui || ui[domainKey]) continue;
 			// A single concern that declares both `topology.persistedAs` and a `selector`
-			// arrives twice — once via catalog.persisted (keyed by label), once via
+			// arrives twice, once via catalog.persisted (keyed by label), once via
 			// `domains` (keyed by selector). Dedup by component so one declaration
 			// produces one rendered element, not two.
 			const component = typeof info.ui.component === "string" ? info.ui.component : null;
@@ -442,11 +442,11 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 	};
 }
 
-// --- Actor-edge classification (role fold / sequence orientation) ---
+// --- Actor-edge classification (role merge / sequence orientation) ---
 
 /**
  * Actor edge labels classified under `upper`, with ordering weights: core's concrete rels declared subPropertyOf
- * `upper` (each carrying its declared rolePriority), plus every concern edge whose rel classifies under `upper` —
+ * `upper` (each carrying its declared rolePriority), plus every concern edge whose rel classifies under `upper`:
  * a consumer edge declares an upper-ontology pointer (fromActor/toActor/…) as its rel and carries its own
  * rolePriority in its domain declaration. Unranked labels weigh 0. No consumer vocabulary is named anywhere here.
  */
@@ -471,7 +471,7 @@ let cachedToActorEdgeLabels: ReadonlySet<string> | null = null;
 let cachedRoleNouns: ReadonlyMap<string, string> | null = null;
 
 /** Role-attribution edge labels, highest declared rolePriority first (ties by name): when a node carries several role
- *  edges, the first present names its container/lane. Ontology + catalog derived — never a hand-kept list. */
+ *  edges, the first present names its container/lane. Ontology + catalog derived, never a hand-kept list. */
 export function roleEdgeLabels(): readonly string[] {
 	if (!cachedRoleEdgeLabels) {
 		const weights = actorEdgeWeights(LinkRelations.IN_ROLE_OF.rel, roleRels());
@@ -486,7 +486,7 @@ export function roleEdgeLabelSet(): ReadonlySet<string> {
 	return cachedRoleEdgeLabelSet;
 }
 
-/** The SOURCE-side actor edge labels — a sequence reads these as the lifeline an entity originates from. */
+/** The SOURCE-side actor edge labels: a sequence reads these as the lifeline an entity originates from. */
 export function fromActorEdgeLabels(): ReadonlySet<string> {
 	cachedFromActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.FROM_ACTOR.rel, fromActorRels()).keys());
 	return cachedFromActorEdgeLabels;
@@ -494,7 +494,7 @@ export function fromActorEdgeLabels(): ReadonlySet<string> {
 
 /**
  * The noun a party displays under, given the edge by which others attribute to it: `X issuer→ P` makes P an
- * "Issuer". Read from the declarations, so a view names no vocabulary of its own — a deployment that declares no
+ * "Issuer". Read from the declarations, so a view names no vocabulary of its own: a deployment that declares no
  * role nouns gets none, and one that declares them gets exactly what it declared.
  */
 export function roleNounFor(edgeLabel: unknown): string | undefined {
@@ -508,7 +508,7 @@ export function roleNounFor(edgeLabel: unknown): string | undefined {
 	return typeof edgeLabel === "string" ? cachedRoleNouns.get(edgeLabel) : undefined;
 }
 
-/** The TARGET-side actor edge labels — a sequence reads these as the lifeline a message is directed to. */
+/** The TARGET-side actor edge labels: a sequence reads these as the lifeline a message is directed to. */
 export function toActorEdgeLabels(): ReadonlySet<string> {
 	cachedToActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.TO_ACTOR.rel, toActorRels()).keys());
 	return cachedToActorEdgeLabels;
@@ -517,7 +517,7 @@ export function toActorEdgeLabels(): ReadonlySet<string> {
 /**
  * The @types the actor edges of these types point at: who an exchange between them is with. Read from the declared
  * ranges rather than from the quads a reading holds, because a type left out of a reading is not fetched, so the edges
- * that would name it an actor are not there to be read, which is exactly when a view built on actors has to know.
+ * that would name it an actor are not there to be read, which is when a view built on actors has to know.
  */
 export function actorTypesFor(sourceTypes: Iterable<string>): string[] {
 	const actorEdges = new Set([...fromActorEdgeLabels(), ...toActorEdgeLabels()]);
@@ -526,7 +526,7 @@ export function actorTypesFor(sourceTypes: Iterable<string>): string[] {
 	return [...types];
 }
 
-/** A concern-declared edge's display phrase (its declared label), else undefined — how a consumer's edge names the
+/** A concern-declared edge's display phrase (its declared label), else undefined: how a consumer's edge names the
  *  role a linked party plays without that vocabulary appearing in any component. First declaration wins. */
 export function getDeclaredEdgeLabel(edgeName: string): string | undefined {
 	for (const concern of Object.values(declared().catalog?.persisted ?? {})) {

@@ -4,7 +4,7 @@ import type { TQuad } from "./quad-types.js";
 import { LinkRelations, TEXT_QUOTE_SELECTOR_LABEL, SPECIFIC_RESOURCE_LABEL } from "./resources.js";
 
 const q = (subject: string, predicate: string, object: unknown, namedGraph: string, timestamp = 1): TQuad => ({ subject, predicate, object, namedGraph, timestamp });
-/** An EDGE quad — carries objectType (the target's range), the marker that distinguishes a typed reference from a scalar property. */
+/** An EDGE quad, carries objectType (the target's range), the marker that distinguishes a typed reference from a scalar property. */
 const qe = (subject: string, predicate: string, object: string, objectType: string, namedGraph: string, timestamp = 1): TQuad => ({
 	subject,
 	predicate,
@@ -26,7 +26,7 @@ describe("QuadGraphModel", () => {
 		expect(m.quads).toHaveLength(2);
 	});
 
-	it("omits a new subject once its type is at budget — counts it, drops its quad", () => {
+	it("omits a new subject once its type is at budget, counts it, drops its quad", () => {
 		const m = new QuadGraphModel(1, noRels);
 		m.merge([q("a", "name", "A", "Email"), q("b", "name", "B", "Email")]);
 		const c = m.clusters.find((c) => c.type === "Email");
@@ -70,8 +70,8 @@ describe("QuadGraphModel", () => {
 		expect(m.quads[0].object).toBe("A2");
 	});
 
-	it("preserves every distinct edge object for one (subject,predicate) — the multi-valued attribution (§7-2)", () => {
-		// A shared record attributed to three principals across a federated union — all three edges must survive.
+	it("preserves every distinct edge object for one (subject,predicate): the multi-valued attribution (§7-2)", () => {
+		// A shared record attributed to three principals across a federated union: all three edges must survive.
 		const m = new QuadGraphModel(10, noRels);
 		m.merge([
 			qe("rec", "wasAttributedTo", "did:alpha", "Principal", "FieldReport"),
@@ -106,7 +106,7 @@ describe("QuadGraphModel", () => {
 	});
 
 	// A type whose vocabulary designates a literal-ranged labeling property (topology.displayLabel) must be titled by that
-	// property's value in the quad path too — the same rule the server applies — never by the id its store had to generate.
+	// property's value in the quad path too, the same rule the server applies, never by the id its store had to generate.
 	it("titles a declared-label type by its property value, not its id (literal rel)", () => {
 		const rels = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? { exact: LinkRelations.EXACT.rel } : undefined);
 		const declaredRel = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? LinkRelations.EXACT.rel : undefined);
@@ -116,9 +116,9 @@ describe("QuadGraphModel", () => {
 		expect(c?.displayLabels["sel-uuid"]).toBe("12.1.1 the exact passage");
 	});
 
-	// A proxy whose labeling property is iri-ranged (oa:hasSelector) is titled ONE hop through it — by the passage its
-	// selector locates — resolving the target's quads even though only the proxy was the direct merge subject.
-	it("titles a proxy through its iri-ranged declared rel — one hop to what it points at", () => {
+	// A proxy whose labeling property is iri-ranged (oa:hasSelector) is titled ONE hop through it, by the passage its
+	// selector locates, resolving the target's quads even though only the proxy was the direct merge subject.
+	it("titles a proxy through its iri-ranged declared rel: one hop to what it points at", () => {
 		const rels = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? { exact: LinkRelations.EXACT.rel } : undefined);
 		const declaredRel = (type: string) =>
 			type === TEXT_QUOTE_SELECTOR_LABEL ? LinkRelations.EXACT.rel : type === SPECIFIC_RESOURCE_LABEL ? LinkRelations.HAS_SELECTOR.rel : undefined;

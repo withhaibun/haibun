@@ -2,7 +2,7 @@
  * Property classifier + graph-view options for the quad → graph projection.
  *
  * `classify` sorts a quad's predicate into name / identifier / edge / content / internal / scalar by its declared
- * hypermedia rel — never guessed from the value. The browser builds a classifier from rels-cache; the server can build
+ * hypermedia rel, never guessed from the value. The browser builds a classifier from rels-cache; the server can build
  * one from world.domains. Consumed by the SVG render and the topology projector (graph-topology).
  */
 import { LinkRelations, edgeRel as coreEdgeRel, getRelRange } from "@haibun/core/lib/resources.js";
@@ -10,7 +10,7 @@ import { STORED_TYPE_PROP } from "./consts.js";
 
 export type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
 
-/** Dependency-injected property classification — browser uses rels-cache, server uses world.domains. */
+/** Dependency-injected property classification, browser uses rels-cache, server uses world.domains. */
 export interface PropertyClassifier {
 	classify(graph: string, predicate: string): TPropKind;
 	/** Return the link relation for an edge predicate (e.g., "attributedTo", "inReplyTo"). */
@@ -20,7 +20,7 @@ export interface PropertyClassifier {
 	stepperForType?(persistedAs: string): string | undefined;
 }
 
-/** Permissive classifier for thread/product views — treats all non-internal predicates as edges except "name". */
+/** Permissive classifier for thread/product views, treats all non-internal predicates as edges except "name". */
 export const THREAD_CLASSIFIER: PropertyClassifier = {
 	classify: (_graph, predicate) => {
 		if (predicate.startsWith("_")) return "internal";
@@ -37,7 +37,7 @@ export type TGraphViewOpts = {
 	hiddenRels?: Set<string>;
 	/**
 	 * The sole source of a node's title: the server-computed `displayLabels` keyed by
-	 * (graph, subject). Required — the view never derives a label from quads. Returns
+	 * (graph, subject). Required: the view never derives a label from quads. Returns
 	 * undefined only for a referenced node not in the displayed sample (e.g. an author);
 	 * the caller uses the id in that case, the same terminal rule the server applies.
 	 */
@@ -46,7 +46,7 @@ export type TGraphViewOpts = {
 
 export const DEFAULT_MAX_PER_SUBGRAPH = 20;
 
-/** Properties that are opaque blobs or graph-store internals — excluded from graph rendering. */
+/** Properties that are opaque blobs or graph-store internals, excluded from graph rendering. */
 export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel", STORED_TYPE_PROP]);
 
 /** URL is the only literal-ranged rel treated as an edge (URI-string targets are conventionally navigable). */

@@ -1,5 +1,5 @@
 /**
- * EventStream — shu's single contract for inbound server-pushed events
+ * EventStream: shu's single contract for inbound server-pushed events
  * (lifecycle, log, time-sync). One file holds the interface, both
  * implementations, and the accessor. Components and infrastructure subscribe
  * via `eventStream()`; nothing else touches `EventSource` or `SseSubscriber`.
@@ -173,12 +173,12 @@ export function setEventStream(s: EventStream): void {
 }
 
 /** Whether a live EventStream is installed. A static context (offline report bundle, a unit test that doesn't drive
- *  live events) legitimately has none — a component checks this before subscribing rather than forcing a stream. */
+ *  live events) legitimately has none: a component checks this before subscribing rather than forcing a stream. */
 export function hasEventStream(): boolean {
 	return eventStreamGlobal[EVENT_STREAM_SLOT] != null;
 }
 
-/** Returns the active EventStream. Throws if boot didn't install one — the only way this happens in production is a programming error in `app.ts`; in tests every `beforeEach` calls `setupShuTest`, so a forgotten setup throws with a precise message. */
+/** Returns the active EventStream. Throws if boot didn't install one: the only way this happens in production is a programming error in `app.ts`; in tests every `beforeEach` calls `setupShuTest`, so a forgotten setup throws with a precise message. */
 export function eventStream(): EventStream {
 	const active = eventStreamGlobal[EVENT_STREAM_SLOT];
 	if (!active) {

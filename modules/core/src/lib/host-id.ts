@@ -1,5 +1,5 @@
 /**
- * hostId — a stable non-negative integer identifying the haibun instance
+ * hostId: a stable non-negative integer identifying the haibun instance
  * within a deployment. Prepended to every seqPath root so observations from
  * different hosts cannot collide even when running identical features.
  *
@@ -7,7 +7,7 @@
  * Multi-host deployments set HAIBUN_HOST_ID per instance; assigning ids is
  * an operator concern (config, supervisor, orchestration).
  *
- * Aligns with OpenTelemetry's `service.instance.id` convention — a haibun
+ * Aligns with OpenTelemetry's `service.instance.id` convention: a haibun
  * instance is a service instance.
  */
 export const HAIBUN_HOST_ID_ENV = "HAIBUN_HOST_ID";
@@ -18,7 +18,7 @@ export const SYNTHETIC_FEATURE_NUM = -1;
 
 /**
  * Resolve hostId from environment. Returns DEFAULT_HOST_ID when the env var
- * is absent. Throws on non-integer or negative values — a misconfigured
+ * is absent. Throws on non-integer or negative values: a misconfigured
  * hostId would silently break global uniqueness, so fail fast at startup.
  */
 export function resolveHostId(env: Record<string, string | undefined> = process.env): number {
@@ -42,14 +42,14 @@ export function resolveSitePrincipal(env: Record<string, string | undefined> = p
 	return `${SITE_DID_PREFIX}${resolveHostId(env)}`;
 }
 
-/** Runtime key holding an ADOPTED site principal — assigned by a peer at federation time (see adoptSitePrincipal). */
+/** Runtime key holding an ADOPTED site principal, assigned by a peer at federation time (see adoptSitePrincipal). */
 const ADOPTED_SITE_PRINCIPAL = "sitePrincipal";
 
 type TSitePrincipalWorld = { runtime: { keys?: Record<string, unknown> } };
 
 /**
  * This instance's site principal (its identity DID) as seen by a federation: an adopted one when a peer has
- * named it, else the env-resolved default. Distinct from the acting principal (principal.ts) — `as subkey`
+ * named it, else the env-resolved default. Distinct from the acting principal (principal.ts), `as subkey`
  * changes who is ACTING; the site a store fact is served by never changes mid-run.
  */
 export function activeSitePrincipal(world: TSitePrincipalWorld, env: Record<string, string | undefined> = process.env): string {
@@ -64,7 +64,7 @@ export function hasDefaultSitePrincipal(world: TSitePrincipalWorld, env: Record<
 
 /**
  * Adopt a peer-assigned site principal: site principals must be unique within a federation, and the default
- * `did:site:0` is valid only in isolation — a default-identified instance asks the site it connects to what
+ * `did:site:0` is valid only in isolation: a default-identified instance asks the site it connects to what
  * it should be called, and adopts the answer for this run. An operator-set principal is never overwritten.
  */
 export function adoptSitePrincipal(world: TSitePrincipalWorld, principal: string): void {
@@ -73,7 +73,7 @@ export function adoptSitePrincipal(world: TSitePrincipalWorld, principal: string
 }
 
 /**
- * Synthetic seqPath for calls not tied to a feature step — ad-hoc RPC,
+ * Synthetic seqPath for calls not tied to a feature step, ad-hoc RPC,
  * MCP tool invocations, subprocess transport. Uses SYNTHETIC_FEATURE_NUM
  * (-1) in the featureNum slot so these paths sort distinctly from any
  * feature path and cannot collide with a running feature.

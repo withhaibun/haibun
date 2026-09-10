@@ -66,7 +66,7 @@ describe("shu-entity-column type description", () => {
 		expect(html).toContain('data-testid="field-json-meta"');
 	});
 
-	it("marks field provenance from the served @context — the genuine vocabulary, not a rel guess", async () => {
+	it("marks field provenance from the served @context: the genuine vocabulary, not a rel guess", async () => {
 		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
 		document.body.appendChild(el);
 		el.openProducts({

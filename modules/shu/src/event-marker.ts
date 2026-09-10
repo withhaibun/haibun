@@ -37,7 +37,7 @@ type TPartialEvent = {
 };
 
 /** The mark palette, named by what a mark says rather than by its hue, so every surface that marks an event reads from
- *  one place. UNDECIDED is neither fault nor success — a speculative try, or a call the run handed out. */
+ *  one place. UNDECIDED is neither fault nor success: a speculative try, or a call the run handed out. */
 export const MARK_COLOUR = {
 	feature: "#c084fc",
 	scenario: "#60a5fa",
@@ -77,11 +77,11 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 }
 
 /**
- * The mark an event earns, or nothing where it earns none.
+ * The mark an event gets, or nothing where it gets none.
  *
  * This is the one call a surface makes to mark an event: whether it is worth marking and what it looks like are
  * decided together, in one place, so a rail, a track and anything else that marks events cannot disagree about which
- * events matter or how they are drawn. What a surface decides for itself is only WHERE the mark goes — a moment along
+ * events matter or how they are drawn. What a surface decides for itself is only WHERE the mark goes: a moment along
  * a time axis, a row's place in a log.
  */
 export function markFor(event: unknown): TEventMarkerStyle | undefined {
@@ -109,7 +109,7 @@ export function shouldMarkEvent(event: unknown): boolean {
 }
 
 /**
- * The mark a division of the run earns, given what it holds and how much of each.
+ * The mark a division of the run gets, given what it holds and how much of each.
  *
  * A reader looking at a run of any length is shown its divisions rather than its records, so each division marks as
  * one thing. It marks as a failure where it holds one, which is what keeps a single failure from being averaged away

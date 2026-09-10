@@ -87,7 +87,7 @@ export type TIndividualResult = Record<string, unknown> & {
 // Route registry (tiny cross-concern contract)
 // ============================================================================
 
-/** Minimal route registry interface — implemented by IWebServer, consumed by http-observations. */
+/** Minimal route registry interface, implemented by IWebServer, consumed by http-observations. */
 export interface IRouteRegistry {
 	readonly mounted: Record<string, Record<string, string>>;
 }

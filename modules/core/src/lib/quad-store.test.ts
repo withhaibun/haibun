@@ -83,7 +83,7 @@ describe("backing routing is shared along the store chain, and a registration ne
 		const second = new QuadStore(first.backingRouting());
 		first.carryNonVariableQuadsTo(second);
 		expect(await second.query({ namedGraph: "Email" })).toHaveLength(1);
-		// A registration made on the LATER store is visible to the earlier one — one table, not copies.
+		// A registration made on the LATER store is visible to the earlier one: one table, not copies.
 		const { backing: other } = fakeBacking();
 		await second.registerStore(other, ["Person"]);
 		expect(await first.query({ namedGraph: "Person" })).toHaveLength(1);
@@ -123,14 +123,14 @@ describe("federated clustered reads (reads-first federation)", () => {
 		expect(email?.sites).toEqual({ "remote-1": "did:site:imap.1" });
 	});
 
-	it("touches only getClusteredQuads — a federated peer never appears in raw queries or all()", async () => {
+	it("touches only getClusteredQuads: a federated peer never appears in raw queries or all()", async () => {
 		const store = new QuadStore();
 		store.federate(peer("did:site:imap.1", "Email", "remote-1"));
 		expect(await store.query({ namedGraph: "Email" })).toHaveLength(0);
 		expect(await store.all()).toHaveLength(0);
 	});
 
-	it('serves scope "own" without consulting peers — what a federated read asks for, so a federation cycle cannot recurse', async () => {
+	it('serves scope "own" without consulting peers: what a federated read asks for, so a federation cycle cannot recurse', async () => {
 		const store = new QuadStore();
 		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Email" });
 		store.federate(peer("did:site:imap.1", "Email", "remote-1"));
@@ -138,7 +138,7 @@ describe("federated clustered reads (reads-first federation)", () => {
 		expect(own.clusters.find((c) => c.type === "Email")?.sampledSubjects).toEqual(["local-1"]);
 	});
 
-	it("refuses a second source for the same site — site principals must be unique in a federation", () => {
+	it("refuses a second source for the same site, site principals must be unique in a federation", () => {
 		const store = new QuadStore();
 		store.federate(peer("did:site:imap.1", "Email", "a"));
 		expect(() => store.federate(peer("did:site:imap.1", "Email", "b"))).toThrow(/already registered/);

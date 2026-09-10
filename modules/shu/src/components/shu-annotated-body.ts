@@ -1,7 +1,7 @@
 /**
- * shu-annotated-body — a document body read inline with its W3C Web Annotations anchored over the text.
+ * shu-annotated-body: a document body read inline with its W3C Web Annotations anchored over the text.
  *
- * A web annotation is a note bound to a specific passage: the point is that the note is shown IN CONTEXT with the
+ * A web annotation is a note bound to a specific passage: the note is shown IN CONTEXT with the
  * passage it concerns, not collected in a list. So an annotatable body (markdown / plain text) renders inline,
  * sanitized to the same privacy stance as the body iframe (no network loads; only `data:` images survive); the
  * Recogito text annotator anchors each stored TextQuoteSelector and highlights it; and each note is shown in a
@@ -14,7 +14,7 @@
  * `<style>` live in one scope, so highlights are styled wherever the component is mounted (including nested in a
  * host shadow root, where the annotator's document-level style injection would not reach).
  *
- * The `.annotated-content` node carries NO lit bindings, so lit creates it once and never re-diffs it — leaving the
+ * The `.annotated-content` node carries NO lit bindings, so lit creates it once and never re-diffs it, leaving the
  * innerHTML this component sets and the layer the annotator injects intact across re-renders (see lit render pitfalls).
  */
 import { html, type TemplateResult, type PropertyValues } from "lit";
@@ -51,7 +51,7 @@ const CARD_GAP = 8;
  *  painting a "preparing" indicator first, then rendering a frame later. A smaller body mounts inline with no flash. */
 const HEAVY_CONTENT_CHARS = 20000;
 
-/** This component is light DOM (createRenderRoot → this), so lit `static styles` do not apply — all styling ships in a
+/** This component is light DOM (createRenderRoot → this), so lit `static styles` do not apply: all styling ships in a
  *  rendered `<style>` node, which scopes to wherever the element is mounted (including a host shadow root). The `.r6o-*`
  *  positioning rules are sourced from `@recogito/text-annotator`'s spans renderer; the rest is this view's own layout. */
 const ANNOTATED_BODY_STYLE = `
@@ -62,7 +62,7 @@ const ANNOTATED_BODY_STYLE = `
 	.r6o-span-highlight-layer.hidden { display: none; }
 	.r6o-span-highlight-layer .r6o-annotation { position: absolute; display: block; border-style: solid; border-width: 0; box-sizing: content-box; background: var(--shu-accent-soft, rgba(0, 128, 255, 0.28)); }
 	/* The body is a row: the content in its OWN scroll region, and the glyph rail beside it. The region's native scrollbar
-	   is hidden so the rail is the ONLY scroll control — a reader never sees two bars, and the marks line up with the one
+	   is hidden so the rail is the ONLY scroll control: a reader never sees two bars, and the marks line up with the one
 	   rail. The body fills the height its host gives it (a flex child of the entity column's content column). */
 	shu-annotated-body { display: flex; flex-direction: row; align-items: stretch; flex: 1 1 auto; min-height: 0; gap: var(--shu-space-2); }
 	shu-annotated-body .annotated-scroll { flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
@@ -88,7 +88,7 @@ const ANNOTATED_BODY_STYLE = `
 	shu-annotated-body .annotation-compose input { width: 240px; box-sizing: border-box; padding: var(--shu-space-1) var(--shu-space-2); border: var(--shu-border-w) solid var(--shu-accent, #0080ff); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); background: var(--shu-bg-elevated); color: var(--shu-fg); box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
 `;
 
-/** Drop remote-loading URLs so an inline body never phones home — the privacy stance the body iframe's CSP enforces.
+/** Drop remote-loading URLs so an inline body never phones home: the privacy stance the body iframe's CSP enforces.
  *  Only `data:` (inline) src/href survive; relative/anchor `#` links stay. Registered once per module load. */
 let purifyHookInstalled = false;
 function installPurifyHook(): void {
@@ -103,7 +103,7 @@ function installPurifyHook(): void {
 }
 
 /** A note card ready to place: the annotation, the top its passage wants (aligned to the highlight), and the top it is
- *  finally drawn at (pushed down so it never covers the card above — see the measured restack in `updated`). */
+ *  finally drawn at (pushed down so it never covers the card above, see the measured restack in `updated`). */
 type PlacedCard = { annotation: AnnotationView; idealTop: number; top: number };
 
 const AnnotatedBodySchema = z.object({});
@@ -143,13 +143,13 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	 *  that follows. Null leaves the body read-only (nothing to author against), which is what a host that does not offer
 	 *  annotating passes. */
 	@property({ attribute: false }) accessor annotate: ((draft: TAnnotationDraft) => Promise<{ ok: true } | { ok: false; error: string }>) | null = null;
-	/** A passage to scroll to and flash once the body is mounted — set by a Text Fragment reference into this document.
+	/** A passage to scroll to and flash once the body is mounted, set by a Text Fragment reference into this document.
 	 *  Acted on once per distinct quote (tracked by `revealedKey`), so unrelated re-renders do not re-flash it. */
 	@property({ attribute: false }) accessor revealTarget: TQuoteAnchor | null = null;
 
 	@state() private accessor placedCards: PlacedCard[] = [];
 	@state() private accessor selectedCommentId = "";
-	/** False only while a LARGE body is being rendered inline and anchored — that render blocks the thread for seconds, so
+	/** False only while a LARGE body is being rendered inline and anchored: that render blocks the thread for seconds, so
 	 *  a "preparing" indicator is painted first in place of a blank view. A small body mounts inline with no indicator
 	 *  (stays true throughout), so an ordinary annotated note never flashes it. */
 	@state() private accessor ready = true;
@@ -214,7 +214,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		this.placeCards(); // recompute marks now the scroll element is known (an earlier placeCards ran with none)
 	}
 
-	/** Update the rail's total + window from the scroll container (cheap read on every scroll). */
+	/** Update the rail's total + window from the scroll container (a fast read on every scroll). */
 	#syncRailWindow(): void {
 		if (!this.#scrollEl) return;
 		const { total, window } = railTotalAndWindow(this.#scrollEl);
@@ -262,7 +262,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	}
 
 	/** Drop `ready` before a LARGE body re-mounts, so the "preparing" indicator paints in place of a blank view while the
-	 *  deferred render runs. A small body keeps `ready` and mounts inline in `updated` — no flash. */
+	 *  deferred render runs. A small body keeps `ready` and mounts inline in `updated`: no flash. */
 	protected override willUpdate(): void {
 		if (this.contentSignature() !== this.mountedSignature && this.content.length > HEAVY_CONTENT_CHARS) this.ready = false;
 	}
@@ -293,13 +293,13 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 			this.annotator?.setVisible(this.show);
 			this.placeCards();
 		}
-		// After cards render at their ideal tops, push any that would cover the card above it below its measured bottom —
+		// After cards render at their ideal tops, push any that would cover the card above it below its measured bottom:
 		// so several annotations on one line stack instead of overlapping, whatever each note's height is.
 		if (this.needsRestack && this.placedCards.length > 0) this.restackCards();
 		if (changed.has("drafting") && this.drafting) this.renderRoot.querySelector<HTMLInputElement>('[data-testid="annotation-compose-input"]')?.focus();
 	}
 
-	/** Render the body inline and mount the annotator over it — the thread-blocking step, run inline for a small body and
+	/** Render the body inline and mount the annotator over it: the thread-blocking step, run inline for a small body and
 	 *  one painted frame later for a large one (see `updated`). Reads the current content, so a deferred run picks up the
 	 *  latest even if the source changed while the frame was pending. */
 	private mountBody(): void {
@@ -325,7 +325,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		this.applyReveal();
 	}
 
-	/** Reveal the requested passage if it has not been revealed yet — after mount, and when the target changes. */
+	/** Reveal the requested passage if it has not been revealed yet, after mount, and when the target changes. */
 	private applyReveal(): void {
 		if (!this.revealTarget) return;
 		const key = `${this.revealTarget.exact}\u0000${this.revealTarget.prefix ?? ""}\u0000${this.revealTarget.suffix ?? ""}`;
@@ -363,8 +363,8 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	}
 
 	/** Position each note card in the rail at its passage's vertical offset, then push overlapping cards down so none
-	 *  covers another (a top-sorted stack). The card top is measured from the passage's OWN DOM range — computed from the
-	 *  quote, present at any document size — NOT from the annotator's highlight span, which its renderer paints only near
+	 *  covers another (a top-sorted stack). The card top is measured from the passage's OWN DOM range, computed from the
+	 *  quote, present at any document size, NOT from the annotator's highlight span, which its renderer paints only near
 	 *  the viewport (so a passage far down a large document has no span until scrolled to). requestAnimationFrame is
 	 *  unavailable in a non-browser (unit) context; there the rail stays empty and the DOM-render assertions do not apply. */
 	private placeCards(): void {
@@ -391,7 +391,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 			}
 			this.#railMarkers = railMarks(located, "var(--shu-accent, #0080ff)");
 			if (this.#scrollEl) this.#syncRailWindow();
-			// The count of passages actually located in the text — what is highlighted, distinct from what the graph holds.
+			// The count of passages located in the text: what is highlighted, distinct from what the graph holds.
 			this.anchoredCount = raw.length;
 			if (!this.show) {
 				this.placedCards = [];
@@ -424,7 +424,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	}
 
 	/** A settled text selection inside the body offers the "Annotate" affordance for that passage. The selection's exact
-	 *  text plus surrounding context (prefix/suffix) determine reliably what is being annotated — a short or repeated
+	 *  text plus surrounding context (prefix/suffix) determine reliably what is being annotated: a short or repeated
 	 *  quote still anchors to the right spot. A collapsed or out-of-content selection clears any offered draft. */
 	private onSelectionSettled(): void {
 		if (this.drafting) return;
@@ -459,7 +459,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		};
 	}
 
-	/** Hand the drafted note to the host to write — this view shows a body and reports what the reader selected and
+	/** Hand the drafted note to the host to write: this view shows a body and reports what the reader selected and
 	 *  wrote; the host holds the individual (and its entity handle), so the write and the re-resolve are its to make. An
 	 *  optimistic card + highlight show at once; the written note arrives as a fresh `annotations` (which clears the
 	 *  placeholder), and a failed write drops it. */
@@ -497,7 +497,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		try {
 			range.surroundContents(mark);
 		} catch {
-			return; // the range crosses element boundaries — skip the flash, still scroll below
+			return; // the range crosses element boundaries, skip the flash, still scroll below
 		}
 		mark.scrollIntoView({ block: "center", behavior: "smooth" });
 		setTimeout(() => {
@@ -511,7 +511,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 
 	render(): TemplateResult {
 		const cards = this.show ? this.placedCards : [];
-		// The rail (gutter) is reserved whenever the gutter is shown, notes or none — the text column's width, and so its
+		// The rail (gutter) is reserved whenever the gutter is shown, notes or none: the text column's width, and so its
 		// wrapping, stay put as notes come and go. The authoring affordance is NOT in the rail: it floats over the content
 		// at the selection (see renderAuthoring), so it appears in the same place whether or not the document has annotations.
 		return html`
@@ -587,7 +587,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	}
 }
 
-/** The flat offset (over a container's textContent) of a DOM point (node + offset) — the inverse of rangeForOffsets,
+/** The flat offset (over a container's textContent) of a DOM point (node + offset): the inverse of rangeForOffsets,
  *  used to turn a live selection's boundaries into the offsets a TextQuoteSelector's prefix/suffix are sliced from. */
 function offsetOfPoint(container: HTMLElement, node: Node, offset: number): number {
 	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);

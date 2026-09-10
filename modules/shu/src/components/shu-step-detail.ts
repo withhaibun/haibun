@@ -1,5 +1,5 @@
 /**
- * <shu-step-detail> — one step of a run, as its own record states it.
+ * <shu-step-detail>: one step of a run, as its own record states it.
  *
  * A step is a record: what was asked for, what ran, how it went and why it failed, how long it took, where it ran, and
  * what it had to hold to run. This reads that record and the quads whose provenance names the step, so the pane is a

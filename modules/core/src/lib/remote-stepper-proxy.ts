@@ -67,7 +67,7 @@ export class RemoteStepperProxy extends AStepper {
 	/**
 	 * Fetch step.list from the remote host. step.list is introspection,
 	 * explicitly exempt from the seqPath-required rule, so the seqPath is
-	 * empty — the remote's step.list handler ignores it.
+	 * empty: the remote's step.list handler ignores it.
 	 */
 	private async fetchStepDescriptors(): Promise<void> {
 		const result = await this.rpc.call<{ steps?: StepDescriptor[] }>("step.list", {}, []);
@@ -98,7 +98,7 @@ export class RemoteStepperProxy extends AStepper {
 				isAsync: true,
 				transport: "remote",
 				remoteHost: new URL(this.remoteUrl).host,
-				// Dispatch over RPC using the un-prefixed method name — the prefix is
+				// Dispatch over RPC using the un-prefixed method name: the prefix is
 				// a local registry-naming concern, not part of the wire call.
 				handler: (_featureStep, _world) =>
 					this.call(
@@ -120,12 +120,12 @@ export class RemoteStepperProxy extends AStepper {
 		return { ok: true, products: result as Record<string, unknown> };
 	}
 
-	/** IStepTransport.attach — duck-typed, no import needed from web-server-hono. */
+	/** IStepTransport.attach: duck-typed, no import needed from web-server-hono. */
 	attach(registry: StepRegistry, _webserver: unknown): void {
 		this.injectInto(registry);
 	}
 
-	/** IStepTransport.detach — nothing to clean up for HTTP transport. */
+	/** IStepTransport.detach: nothing to clean up for HTTP transport. */
 	detach(): void {
 		/* no-op */
 	}
