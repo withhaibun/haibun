@@ -12,7 +12,7 @@
 import { focusStateFor, opacityFor, isFullContrast, type FocusState, type KindTiers } from "../focus-policy.js";
 import { type FGNode, type FGLink, type TSprite, type ThreeObj, linkEndId } from "./polymorphic-graph-types.js";
 import { chipTextHeight } from "./layout-forces.js";
-import { NEWCOMER_GLOW_MS, glowColorAt, pulseAt } from "./polymorphic-highlight.js";
+import { NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "./polymorphic-highlight.js";
 
 // three-forcegraph forces link objects to renderOrder 10; draw nodes above that (edges sit behind), labels between.
 export const NODE_RENDER_ORDER = 20;
@@ -112,6 +112,7 @@ export class PolymorphicFocus {
 	private lastMagnifiedFocus: string | null = null; // the node whose chip last popped — a re-assert with the same focus must not re-fire the attention pop
 	private magnifyAnims = new Map<FGNode, { from: number; to: number; start: number; pulse?: boolean }>();
 	private freshGlows = new Map<FGNode, number>(); // freshly-streamed node → when it arrived; it wears the glow until NEWCOMER_GLOW_MS
+	private heldGlows: Set<FGNode> | undefined; // the glows drawn once and held while the breath rests; undefined while it breathes
 
 	constructor(private deps: FocusDeps) {}
 
@@ -260,28 +261,42 @@ export class PolymorphicFocus {
 		this.magnifyAnims.set(n, { from: current, to, start: performance.now() });
 	}
 
-	/** Breathe every worn glow each frame: the active node's for as long as it is active, each newcomer's until its
-	 *  first moments end — one rhythm, one colour, one write per glowing node. Returns whether any glow is breathing,
-	 *  so the render loop knows to keep drawing (a paused scene would freeze the breath mid-cycle, and an expiry
-	 *  nobody draws never ends). */
-	updateHighlight(): boolean {
+	/** Breathe every worn glow each beat: the active node's for as long as it is active, each newcomer's until its
+	 *  first moments end, one rhythm, one colour, one write per glowing node. Returns whether a frame is needed, so the
+	 *  render loop knows to draw (a paused scene would freeze the breath mid-cycle, and an expiry nobody draws never
+	 *  ends). With `pulsing` false the breath rests: each glow is drawn once at its fullest and held, and a frame is
+	 *  needed only on the beat the set of worn glows changes. The scene's regulator decides which, on what a frame costs. */
+	updateHighlight(pulsing = true): boolean {
 		const now = performance.now();
 		const id = this.deps.selectedId();
 		const glowing = new Set<FGNode>();
+		let ended = false;
 		for (const [n, born] of this.freshGlows) {
 			if (now - born > NEWCOMER_GLOW_MS) {
 				this.freshGlows.delete(n);
-				if (n.id !== id) n.__visual?.setHighlighted(false); // the glow ends with the welcome — unless the reader made it the active node
+				if (n.id !== id) {
+					n.__visual?.setHighlighted(false); // the glow ends with the welcome, unless the reader made it the active node
+					ended = true;
+				}
 				continue;
 			}
 			if (n.__visual) glowing.add(n);
 		}
 		const selected = id ? this.deps.nodeMap().get(id) : undefined;
 		if (selected?.__visual?.hasHighlight) glowing.add(selected);
-		if (glowing.size === 0) return false;
-		const intensity = pulseAt(now);
-		const color = glowColorAt(intensity, this.deps.glowRamp());
-		for (const n of glowing) n.__visual?.setHighlighted(true, { intensity, color });
+		if (pulsing) {
+			this.heldGlows = undefined;
+			if (glowing.size === 0) return ended;
+			const intensity = pulseAt(now);
+			const color = glowColorAt(intensity, this.deps.glowRamp());
+			for (const n of glowing) n.__visual?.setHighlighted(true, { intensity, color });
+			return true;
+		}
+		const held = this.heldGlows;
+		if (held && held.size === glowing.size && [...glowing].every((n) => held.has(n))) return ended;
+		this.heldGlows = glowing;
+		const color = glowColorAt(RESTING_INTENSITY, this.deps.glowRamp());
+		for (const n of glowing) n.__visual?.setHighlighted(true, { intensity: RESTING_INTENSITY, color });
 		return true;
 	}
 

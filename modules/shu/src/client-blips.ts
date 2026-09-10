@@ -11,7 +11,7 @@ import { isOffline } from "./rpc-registry.js";
  * where nothing happens costs nothing. On the run's side each occurrence lands in the same channel a server-side
  * recording does, where it costs one check when nothing is watching.
  */
-import { acts, conduit } from "./hypermedia.js";
+import { acts, conduit, hasConduit } from "./hypermedia.js";
 
 /** How many occurrences the browser holds between batches. Fixed, so the buffer cannot grow while a batch is in flight. */
 export const CLIENT_RING = 240;
@@ -63,7 +63,8 @@ export function resetClientBlips(): void {
 }
 
 function scheduleFlush(): void {
-	if (timer || isOffline()) return;
+	// A page with no run to hand a batch to (offline, or mounted without a conduit) holds what it records and sends nothing.
+	if (timer || isOffline() || !hasConduit()) return;
 	timer = setTimeout(() => {
 		timer = undefined;
 		void flushClientBlips();

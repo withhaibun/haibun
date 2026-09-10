@@ -79,6 +79,48 @@ describe("an A-Frame scene's loop", () => {
 		expect(s.calls).toEqual(["play", "loop:render"]);
 	});
 
+	function following() {
+		const order: string[] = [];
+		const held: { loop: ((time: number, frame: unknown) => void) | null; listeners: Map<string, () => void> } = { loop: null, listeners: new Map() };
+		const s = {
+			render: () => void order.push("render"),
+			renderer: { setAnimationLoop: (loop: ((time: number, frame: unknown) => void) | null) => void (held.loop = loop) },
+			renderStarted: false,
+			addEventListener: (type: string, listener: () => void) => void held.listeners.set(type, listener),
+		};
+		return { order, held, s };
+	}
+
+	it("with something to do after a draw, the installed loop draws the frame and then does it", () => {
+		const { order, held, s } = following();
+		aframeLoop(s, () => void order.push("drew")).start();
+		held.loop?.(0, undefined);
+		expect(order).toEqual(["render", "drew"]);
+	});
+
+	it("takes over A-Frame's own loop as soon as rendering starts, so the first frames are followed too", () => {
+		const { order, held, s } = following();
+		aframeLoop(s, () => void order.push("drew"));
+		expect(held.loop, "not yet rendering: nothing to replace").toBeNull();
+		held.listeners.get("renderstart")?.();
+		held.loop?.(0, undefined);
+		expect(order).toEqual(["render", "drew"]);
+	});
+
+	it("takes over at once where rendering has already started", () => {
+		const { order, held, s } = following();
+		aframeLoop({ ...s, renderStarted: true }, () => void order.push("drew"));
+		held.loop?.(0, undefined);
+		expect(order).toEqual(["render", "drew"]);
+	});
+
+	it("leaves A-Frame's loop alone when there is nothing to do after a draw", () => {
+		const { held, s } = following();
+		aframeLoop(s);
+		held.listeners.get("renderstart")?.();
+		expect(held.loop).toBeNull();
+	});
+
 	it("pauses and plays a scene that has no renderer yet", () => {
 		const calls: string[] = [];
 		const loop = aframeLoop({ play: () => void calls.push("play"), pause: () => void calls.push("pause") });

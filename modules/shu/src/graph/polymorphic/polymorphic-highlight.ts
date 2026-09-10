@@ -37,6 +37,15 @@ export const PULSE_MS = 4200;
 const PULSE_MIN = 0.45; // dimmest point of the breath, as a share of full intensity
 const PULSE_SWELL = 0.14; // how much larger the glow grows at its fullest
 
+/** The breath's cadence: how often the glow is redrawn, in wall time rather than frames, so a 120 Hz display or a
+ *  headless browser's unthrottled loop breathes at the same rate as a 60 Hz one. Ten times a second reads as smooth
+ *  over a four-second cycle. */
+export const BREATH_MS = 100;
+
+/** The intensity a glow holds while the breath rests: its fullest, so a held glow reads as the same mark the breath
+ *  swells to, and never as a dimmed one. */
+export const RESTING_INTENSITY = 1;
+
 /** How long a freshly-streamed node wears the glow: long enough to catch the eye where it landed, short enough that a
  *  busy stream does not read as a field of alarms. After this, only the active node glows. */
 export const NEWCOMER_GLOW_MS = 2000;
