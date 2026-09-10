@@ -34,11 +34,11 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 0.4,
+				"seconds": 0.6,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1,
+				"seconds": 0.4,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -58,7 +58,7 @@
 				"steps": 19
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 31
 			},
 			"/features/if-set.feature": {
@@ -70,7 +70,7 @@
 				"steps": 7
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 27
 			},
 			"/features/popup.feature": {
@@ -119,6 +119,6 @@
 			}
 		},
 		"steps": 1160,
-		"seconds": 15.7
+		"seconds": 15.1
 	}
 }
