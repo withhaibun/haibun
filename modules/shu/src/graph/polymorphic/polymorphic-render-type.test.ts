@@ -11,10 +11,7 @@ const DAY = 86_400_000;
 const target = (start: number, len: number): GanttTarget => ({ y: 10, z: start + len / 2, start, end: start + len, zLen: len });
 
 const registry = (deps: Partial<RenderTypeDeps> = {}, seq: Partial<SeqRenderDeps> = {}) =>
-	buildRenderTypeRegistry(
-		{ ganttTarget: () => undefined, ganttPlacement: () => ({ count: 0 }), ...deps },
-		{ seqNodes: () => [], seqEdges: () => [], labelOf: (id) => id, ...seq },
-	);
+	buildRenderTypeRegistry({ ganttTarget: () => undefined, ganttPlacement: () => ({ count: 0 }), ...deps }, { seqNodes: () => [], seqEdges: () => [], labelOf: (id) => id, ...seq });
 
 describe("what each view type declares about its own drawing", () => {
 	it("only the sequence draws in one plane, and it says which", () => {
@@ -45,8 +42,16 @@ describe("the axis legend names what the axes mean, and only gantt's do", () => 
 	});
 
 	it("a gantt with nothing placed has no legend, since there is no span to name", () => {
-		expect(registry({ ganttPlacement: () => ({ scale, count: 0 }) }).get(VIEW.gantt)?.axisLegend()).toBeNull();
-		expect(registry({ ganttPlacement: () => ({ count: 3 }) }).get(VIEW.gantt)?.axisLegend()).toBeNull();
+		expect(
+			registry({ ganttPlacement: () => ({ scale, count: 0 }) })
+				.get(VIEW.gantt)
+				?.axisLegend(),
+		).toBeNull();
+		expect(
+			registry({ ganttPlacement: () => ({ count: 3 }) })
+				.get(VIEW.gantt)
+				?.axisLegend(),
+		).toBeNull();
 	});
 
 	it("every other view leaves its axes unnamed", () => {

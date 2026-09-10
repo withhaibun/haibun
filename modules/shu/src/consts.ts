@@ -125,7 +125,6 @@ export const SHU_TAG = {
 	SEARCH_SUMMARY: "shu-search-summary",
 } as const;
 
-
 /** The index pane's identity: the column every other one is opened from, and the only one the app builds itself. */
 export const INDEX_PANE_KEY = "query";
 

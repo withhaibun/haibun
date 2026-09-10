@@ -21,6 +21,10 @@ export const RpcRequestSchema = z.object({
 	/** The most this caller may see. A server bounds a call to the narrower of this and its own ceiling, so a caller
 	 *  can ask to see less than it is allowed but never more. */
 	readingAt: AccessLevelSchema.optional(),
+	/** What the caller asks of the run: to be answered, or to act. A call asking to read is answered and leaves no
+	 *  record of the reading, and is refused where the step does not declare itself a read. A call that states nothing
+	 *  asks the run to act, which is what a caller that knows nothing of this can only be doing. */
+	asks: z.enum(["read", "act"]).optional(),
 });
 export type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 

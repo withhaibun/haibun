@@ -212,8 +212,24 @@ describe("following a run that is still happening", () => {
 	it("names the step whose row carries what it produced, and keeps the produced row for the views that place it", async () => {
 		const store = new QuadStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", actionStatus: "passed", level: "trace", generatedAtTime: iso(1001), recordedAtTime: iso(1001) });
-		await store.upsertIndividual(RUN_ARTIFACT_LABEL, { id: `${RUN}.0.1.-1@0`, isPartOf: `${RUN}.0.1.-1`, artifactType: "image", path: "./image/shot.png", level: "trace", generatedAtTime: iso(1001), recordedAtTime: iso(1001) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${RUN}.0.1.-1`,
+			isPartOf: `${RUN}.0.1`,
+			stepText: "take a screenshot",
+			actionStatus: "passed",
+			level: "trace",
+			generatedAtTime: iso(1001),
+			recordedAtTime: iso(1001),
+		});
+		await store.upsertIndividual(RUN_ARTIFACT_LABEL, {
+			id: `${RUN}.0.1.-1@0`,
+			isPartOf: `${RUN}.0.1.-1`,
+			artifactType: "image",
+			path: "./image/shot.png",
+			level: "trace",
+			generatedAtTime: iso(1001),
+			recordedAtTime: iso(1001),
+		});
 		// The claim is made where a window is assembled from what more than one read answered, so it is asked for here.
 		const window = await runWindow(runGraphOf(store), { size: 10 });
 		producedUnderSteps(window.rows);
@@ -228,11 +244,25 @@ describe("following a run that is still happening", () => {
 	it("leaves out the steps run to carry other steps out, and reads them when a reader asks for them", async () => {
 		const store = new QuadStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", actionStatus: "passed", level: "trace", generatedAtTime: iso(1001), recordedAtTime: iso(1001) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${RUN}.0.1.-1`,
+			isPartOf: `${RUN}.0.1`,
+			stepText: "take a screenshot",
+			actionStatus: "passed",
+			level: "trace",
+			generatedAtTime: iso(1001),
+			recordedAtTime: iso(1001),
+		});
 		const graph = runGraphOf(store);
-		expect((await runWindow(graph, { size: 10 })).rows.map((r) => r.text), "a reader reading what the feature did").toEqual(["a step of the feature"]);
+		expect(
+			(await runWindow(graph, { size: 10 })).rows.map((r) => r.text),
+			"a reader reading what the feature did",
+		).toEqual(["a step of the feature"]);
 		const shown = await runWindow(graph, { size: 10, substeps: true });
-		expect(shown.rows.map((r) => r.text), "and a reader asking how it was done").toEqual(["a step of the feature", "take a screenshot"]);
+		expect(
+			shown.rows.map((r) => r.text),
+			"and a reader asking how it was done",
+		).toEqual(["a step of the feature", "take a screenshot"]);
 		expect(shown.rows[1].partOf, "the substep names the step it was run to carry out").toEqual([0, 1]);
 		expect(shown.rows[0].partOf, "a step of the feature was run to carry out no step, so it names none").toBeUndefined();
 	});

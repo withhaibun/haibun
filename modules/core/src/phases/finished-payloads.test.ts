@@ -36,7 +36,10 @@ describe("what a run keeps of the steps it has finished", () => {
 
 	it("counts every step a long feature ran while holding only the most recent of them", async () => {
 		const ran = RESULTS_READ_IN_FULL + 20;
-		const result = await passWithDefaults([{ path: "/features/test.feature", content: Array.from({ length: ran }, () => "produce a large answer").join("\n") }], [ProducingStepper]);
+		const result = await passWithDefaults(
+			[{ path: "/features/test.feature", content: Array.from({ length: ran }, () => "produce a large answer").join("\n") }],
+			[ProducingStepper],
+		);
 		const feature = result.featureResults?.[0];
 		expect(feature?.steps.count, "what the feature ran is answered by the fold, which holds no step to answer it").toBe(ran);
 		expect(feature?.steps.firstStart, "as is when it began").toBeDefined();

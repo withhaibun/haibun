@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { thumbHeightPx, thumbTopPx, firstAtPointer, markerTopPx, clusterMarkers, formatCount, pressTarget, indexAtMarkerPx, MARK_SNAP_PX, MARK_INSET_PX, type TScrollMarker } from "./scrollbar-model.js";
+import {
+	thumbHeightPx,
+	thumbTopPx,
+	firstAtPointer,
+	markerTopPx,
+	clusterMarkers,
+	formatCount,
+	pressTarget,
+	indexAtMarkerPx,
+	MARK_SNAP_PX,
+	MARK_INSET_PX,
+	type TScrollMarker,
+} from "./scrollbar-model.js";
 
 const RAIL = 400;
 /** A representative thumb height: geometry below takes it as a pixel input, whatever produced it. */

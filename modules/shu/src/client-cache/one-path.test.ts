@@ -40,7 +40,10 @@ describe("the client cache is the one path to a run", () => {
 	it("only the report writer and the boot path know a page can carry its run", () => {
 		const allowed = new Set(["app.ts", "rpc-registry.ts", "monitor-stepper.ts"]);
 		const offenders = outsideTheLibrary.filter((f) => !allowed.has(f) && /hydrateClientCache|TCachePayload/.test(text(f)));
-		expect(offenders, `${offenders.join(", ")} reads the payload a page carries. Views read the run through a run source, which is the same whether the run came from a server or from the page.`).toEqual([]);
+		expect(
+			offenders,
+			`${offenders.join(", ")} reads the payload a page carries. Views read the run through a run source, which is the same whether the run came from a server or from the page.`,
+		).toEqual([]);
 	});
 
 	it("no view asks whether this page is a report: a mode is a second path", () => {
@@ -54,6 +57,9 @@ describe("the client cache is the one path to a run", () => {
 
 	it("nothing serves a page answers a live run received: the replay is gone and stays gone", () => {
 		const offenders = outsideTheLibrary.filter((f) => /getCachedResponse|findCachedMethod|setRpcCache|rpc-cache\.js/.test(text(f)));
-		expect(offenders, `${offenders.join(", ")} replays a captured response. A page reads the run it carries; what a view showed and the run does not say is carried as that view's products.`).toEqual([]);
+		expect(
+			offenders,
+			`${offenders.join(", ")} replays a captured response. A page reads the run it carries; what a view showed and the run does not say is carried as that view's products.`,
+		).toEqual([]);
 	});
 });

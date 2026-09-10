@@ -27,6 +27,10 @@ export interface ITransport {
 
 export const TRANSPORT = "transport";
 
+/** The transport's own methods that read rather than act: a page asks these of the transport itself, which has no step
+ *  to declare them. Listing the steps a site offers is a read of the site, and a page makes it to find its way about. */
+const TRANSPORT_READS = new Set(["step.list", "step.validate"]);
+
 export class SSETransport implements ITransport, IStepTransport {
 	readonly name = "SSETransport";
 	private hub = new EventEmitter();
@@ -111,6 +115,21 @@ export class SSETransport implements ITransport, IStepTransport {
 				});
 			}
 
+			// A call states what it asks of the run, and the run holds it to the step's own declaration: asked to answer a
+			// step that does not declare itself a read, it refuses rather than answering and recording the reading as
+			// something the run did. A step declared a read is answered without a line of its own here, since a page
+			// following a run reads it on every announcement.
+			const asksToRead = (data as { asks?: unknown } | undefined)?.asks === "read";
+			if (asksToRead && !this.servesARead(data)) {
+				const method = (data as Record<string, unknown>).method ?? "unknown";
+				return c.json(
+					{
+						ok: false,
+						error: `${method} was asked to answer a read, and does not declare itself one: a read is answered and leaves no record, so a step read by a page declares read: true`,
+					},
+					422,
+				);
+			}
 			if (!this.servesARead(data)) this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
 			const result = await this.handleMessage(data, requestInfo);
 			if (result === undefined) {
@@ -178,7 +197,8 @@ export class SSETransport implements ITransport, IStepTransport {
 	 */
 	private servesARead(data: unknown): boolean {
 		const method = (data as { method?: unknown } | undefined)?.method;
-		return typeof method === "string" && this.registry?.get(method)?.stepDef?.read === true;
+		if (typeof method !== "string") return false;
+		return TRANSPORT_READS.has(method) || this.registry?.get(method)?.stepDef?.read === true;
 	}
 
 	/** IStepTransport: clear handlers on teardown. */

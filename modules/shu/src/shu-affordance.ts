@@ -21,7 +21,7 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { LitElement, html, css } from "lit";
 import { SHU_EVENT } from "./consts.js";
-import { conduit, type TAffordance, type TRepresentation } from "./hypermedia.js";
+import { acts, conduit, type TAffordance, type TRepresentation } from "./hypermedia.js";
 import { dispatchAffordanceFromResponse } from "./affordance-dispatch.js";
 
 export class ShuAffordance extends LitElement {
@@ -47,7 +47,7 @@ export class ShuAffordance extends LitElement {
 		this.pending = true;
 		try {
 			if (a.kind === "follow") {
-				const rep = await conduit().follow<TRepresentation>({ method: a.method, params: a.params, summary: a.summary }, a.why);
+				const rep = await conduit().follow<TRepresentation>(acts(a.method, a.params), a.why);
 				dispatchAffordanceFromResponse(rep);
 				this.dispatchEvent(new CustomEvent<TRepresentation>("representation", { detail: rep, bubbles: true, composed: true }));
 			} else if (a.kind === "pick-step") {

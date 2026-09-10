@@ -59,7 +59,9 @@ export function describeQuadStore(
 			expect(await store.get("c1", "content", GRAPH)).toBe("hello");
 			// What else the record holds is the type's business: a store with a schema holds the fields that type declares,
 			// and one without holds only what was written. Both hold the facts that were set, which is what is read here.
-			expect(sorted(await store.query({ subject: "c1", namedGraph: GRAPH }))).toEqual(expect.arrayContaining([`${GRAPH}|c1|author="did:example:a"`, `${GRAPH}|c1|content="hello"`]));
+			expect(sorted(await store.query({ subject: "c1", namedGraph: GRAPH }))).toEqual(
+				expect.arrayContaining([`${GRAPH}|c1|author="did:example:a"`, `${GRAPH}|c1|content="hello"`]),
+			);
 			expect((await store.query({ namedGraph: GRAPH, predicate: "content" })).length).toBe(1);
 		});
 

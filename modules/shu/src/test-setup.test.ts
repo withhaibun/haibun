@@ -6,7 +6,7 @@
  * un-installs.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { conduit } from "./hypermedia.js";
+import { acts, conduit } from "./hypermedia.js";
 import { eventStream } from "./event-stream.js";
 import { setupShuTest } from "./test-setup.js";
 
@@ -23,12 +23,12 @@ describe("setupShuTest", () => {
 
 	it("default dispatch throws with the missing method name when no `dispatch` is configured", async () => {
 		setupShuTest();
-		await expect(conduit().follow({ method: "Nothing-configured" }, "test")).rejects.toThrow(/no dispatch configured for "Nothing-configured"/);
+		await expect(conduit().follow(acts("Nothing-configured"), "test")).rejects.toThrow(/no dispatch configured for "Nothing-configured"/);
 	});
 
 	it("custom dispatch returns wire results to follow()", async () => {
 		setupShuTest({ dispatch: (method) => ({ _type: method }) });
-		const rep = await conduit().follow<{ _type: string }>({ method: "X" }, "test");
+		const rep = await conduit().follow<{ _type: string }>(acts("X"), "test");
 		expect(rep._type).toBe("X");
 	});
 

@@ -34,7 +34,6 @@ describe("parseAffordanceProduct", () => {
 		});
 	});
 
-
 	it("recognises a view-collection product (`show views`)", () => {
 		const product = {
 			[HYPERMEDIA.TYPE]: SHU_TYPE.VIEW_COLLECTION,

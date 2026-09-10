@@ -112,7 +112,12 @@ const placementDeps = (over: Partial<DataPipelineDeps>): DataPipelineDeps =>
 	}) as DataPipelineDeps;
 
 describe("the depth a graph arriving in pieces places its nodes at", () => {
-	const twoEmails = (): TQuad[] => [quad("e1", "Email", "dateReceived", YEAR_AGO), quad("e1", "Email", GENERATED, TODAY), quad("e2", "Email", "dateReceived", TODAY), quad("e2", "Email", GENERATED, TODAY)];
+	const twoEmails = (): TQuad[] => [
+		quad("e1", "Email", "dateReceived", YEAR_AGO),
+		quad("e1", "Email", GENERATED, TODAY),
+		quad("e2", "Email", "dateReceived", TODAY),
+		quad("e2", "Email", GENERATED, TODAY),
+	];
 
 	/** A graph that grows between builds, the way a stream delivers one: the deps read what has arrived so far. */
 	const growing = (): { pipeline: DataPipeline; arrive(quads: TQuad[], subjects: string[]): void } => {
@@ -132,7 +137,10 @@ describe("the depth a graph arriving in pieces places its nodes at", () => {
 		// depth. The rest arrives on the stream; a held flat scale would leave the whole reading on that plane.
 		const { pipeline, arrive } = growing();
 		arrive(twoEmails().slice(0, 2), ["e1"]);
-		expect(pipeline.toGraphData().nodes.map((n) => n.z), "one node, one age: nothing to spread").toEqual([0]);
+		expect(
+			pipeline.toGraphData().nodes.map((n) => n.z),
+			"one node, one age: nothing to spread",
+		).toEqual([0]);
 		arrive(twoEmails(), ["e1", "e2"]);
 		const z = pipeline.toGraphData().nodes.map((n) => n.z as number);
 		expect(z[0] > z[1], `the older email is deeper than the newer one, at ${z.join(" and ")}`).toBe(true);

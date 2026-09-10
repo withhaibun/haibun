@@ -48,7 +48,12 @@ describe("the mark a division of the run earns", () => {
 	});
 
 	it("marks as a failure for a message reporting one, the same as for a step", () => {
-		expect(bucketMarkerStyle([{ event: said("info"), count: 99 }, { event: said("error"), count: 1 }])?.color).toBe(MARK_COLOUR.fault);
+		expect(
+			bucketMarkerStyle([
+				{ event: said("info"), count: 99 },
+				{ event: said("error"), count: 1 },
+			])?.color,
+		).toBe(MARK_COLOUR.fault);
 	});
 
 	it("marks as whatever it holds most of, where it holds no failure", () => {
@@ -65,7 +70,10 @@ describe("the mark a division of the run earns", () => {
 	});
 
 	it("marks the same way for the same counts, whatever order they arrive in", () => {
-		const a = [{ event: step("passed"), count: 2 }, { event: said("warn"), count: 2 }];
+		const a = [
+			{ event: step("passed"), count: 2 },
+			{ event: said("warn"), count: 2 },
+		];
 		expect(bucketMarkerStyle(a)).toEqual(bucketMarkerStyle([...a].reverse()));
 	});
 

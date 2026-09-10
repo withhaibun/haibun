@@ -30,7 +30,13 @@ export const COUNTED = [
 		values: Object.values(SEQ_PATH_STATUS) as readonly string[],
 		shapeOf: (status: string) => ({ kind: "lifecycle", type: "step", stage: "end", status }),
 	},
-	{ label: LOG_MESSAGE_LABEL, timeField: LOG_MESSAGE_FIELD.generatedAtTime, groupBy: LOG_MESSAGE_FIELD.level, values: HAIBUN_LOG_LEVELS as readonly string[], shapeOf: (level: string) => ({ kind: "log", level }) },
+	{
+		label: LOG_MESSAGE_LABEL,
+		timeField: LOG_MESSAGE_FIELD.generatedAtTime,
+		groupBy: LOG_MESSAGE_FIELD.level,
+		values: HAIBUN_LOG_LEVELS as readonly string[],
+		shapeOf: (level: string) => ({ kind: "log", level }),
+	},
 ] as const;
 
 /** The levels at or above the one a reader asked for, which is what a level filter means. */
@@ -39,7 +45,10 @@ const atOrAbove = (minLevel: THaibunLogLevel): THaibunLogLevel[] => HAIBUN_LOG_L
 /** How many records of each counted type fall in each division of a span, by how each turned out: one array per type,
  *  in the order the types are counted, each holding one set of counts per division. What a division holds and what it
  *  looks like are two rules, so nothing is marked here. */
-export function runCounts(graph: TRunGraph, { from, to, divisions, minLevel = "info" }: { from: number; to: number; divisions: number; minLevel?: THaibunLogLevel }): Promise<Record<string, number>[][]> {
+export function runCounts(
+	graph: TRunGraph,
+	{ from, to, divisions, minLevel = "info" }: { from: number; to: number; divisions: number; minLevel?: THaibunLogLevel },
+): Promise<Record<string, number>[][]> {
 	const levels = atOrAbove(minLevel);
 	return Promise.all(
 		COUNTED.map(async (type) => {

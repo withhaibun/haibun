@@ -354,7 +354,14 @@ async function instantAt(graph: TRunGraph, type: TRunType, at: number | undefine
  */
 export async function runWindow(
 	graph: TRunGraph,
-	{ at, since, size = RUN_WINDOW_SIZE, minLevel = "info", execution, substeps = false }: { at?: number; since?: number; size?: number; minLevel?: THaibunLogLevel; execution?: string; substeps?: boolean } = {},
+	{
+		at,
+		since,
+		size = RUN_WINDOW_SIZE,
+		minLevel = "info",
+		execution,
+		substeps = false,
+	}: { at?: number; since?: number; size?: number; minLevel?: THaibunLogLevel; execution?: string; substeps?: boolean } = {},
 ): Promise<TRunWindow> {
 	const shown = atOrAbove(minLevel);
 	// A window is of one execution. Records are read by time, and a device holds the records of more than one run, so

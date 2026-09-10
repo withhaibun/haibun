@@ -1,6 +1,6 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { conduit } from "./hypermedia.js";
-import { getAvailableSteps, requireStep, carriedProducts } from "./rpc-registry.js";
+import { linkTo, getAvailableSteps, requireStep, carriedProducts } from "./rpc-registry.js";
 import { appAccessLevel } from "./util.js";
 import { queryGraph } from "./quads-snapshot.js";
 
@@ -15,7 +15,7 @@ export async function callStep<T>(step: string, params: Record<string, unknown> 
 		// what it produced then is what it produces now, and there is no server to ask.
 		const carried = Object.keys(params).length === 0 ? carriedProducts(method) : undefined;
 		if (carried !== undefined) return { ok: true, value: carried as T };
-		const value = await conduit().follow<T>({ method, params }, why ?? `pane-fetch: ${step}`);
+		const value = await conduit().follow<T>(linkTo(method, params), why ?? `pane-fetch: ${step}`);
 		return { ok: true, value };
 	} catch (err) {
 		return { ok: false, error: errorDetail(err) };

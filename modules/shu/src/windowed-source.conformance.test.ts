@@ -53,10 +53,22 @@ describeWindowedSource("the window of a run", async () => {
 			throw new Error("this specification reads the records, not a server");
 		},
 	});
-	setSiteMetadata({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+	setSiteMetadata({
+		types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL],
+		rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} },
+		edgeRanges: {},
+	} as unknown as SiteMetadata);
 	const store = new QuadStore();
 	for (let i = 0; i < CONFORMANCE_ROWS; i++) {
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: shouldName(i), actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i), endedAtTime: iso(1000 + i), recordedAtTime: iso(1000 + i) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${RUN}.0.${i}`,
+			stepText: shouldName(i),
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: iso(1000 + i),
+			endedAtTime: iso(1000 + i),
+			recordedAtTime: iso(1000 + i),
+		});
 	}
 	setGraphStore(store);
 	const source = graphRunSource("info");

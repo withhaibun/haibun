@@ -178,7 +178,12 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		for (const [composite, ranges] of Object.entries(a.composites)) {
 			for (const [fieldName, fieldDomain] of Object.entries(ranges)) {
 				const fieldId = fieldNodeId(composite, fieldName);
-				nodes.push({ id: fieldId, label: `${fieldName} : ${fieldDomain}`, kind: "field", link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` } });
+				nodes.push({
+					id: fieldId,
+					label: `${fieldName} : ${fieldDomain}`,
+					kind: "field",
+					link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` },
+				});
 				if (!domains.has(fieldDomain)) {
 					const node: TGraphNode = { id: fieldDomain, label: fieldDomain, kind: findingToKind(goalFindings.get(fieldDomain)) };
 					node.link = { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` };

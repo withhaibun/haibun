@@ -8,7 +8,21 @@
  * unambiguously.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { hasLink, getLink, conduit, setConduit, resetConduit, type TRepresentation, LiveConduit, ServerUnreachable, isServerUnreachable, serverLastRespondedAt } from "./hypermedia.js";
+import {
+	reads,
+	acts,
+	type TLink,
+	hasLink,
+	getLink,
+	conduit,
+	setConduit,
+	resetConduit,
+	type TRepresentation,
+	LiveConduit,
+	ServerUnreachable,
+	isServerUnreachable,
+	serverLastRespondedAt,
+} from "./hypermedia.js";
 import { TestConduit } from "./test-setup.js";
 
 beforeEach(() => {
@@ -27,12 +41,25 @@ function setHydration(payload: unknown): void {
 
 import { hydrateFromDom } from "./rpc-registry.js";
 
+describe("what a link asks of a run", () => {
+	// A page cannot read a run through a step whose answer the run would record, and cannot forget to say which it
+	// wants: a link carries what it asks, so the two constructors are the only ways to make one. A bare object is not a
+	// link, which the compiler states rather than a run discovering it while a page follows.
+	it("states reading, and states acting, and cannot be made without stating one", () => {
+		expect(reads("SomeStepper-showThings")).toEqual({ method: "SomeStepper-showThings", params: undefined, summary: undefined, asks: "read" });
+		expect(acts("SomeStepper-doThing", { id: "a" })).toMatchObject({ method: "SomeStepper-doThing", params: { id: "a" }, asks: "act" });
+		// @ts-expect-error a bare method is not a link: it says nothing about what it asks of the run
+		const unstated: TLink = { method: "SomeStepper-showThings" };
+		expect(unstated.asks).toBeUndefined();
+	});
+});
+
 describe("hasLink", () => {
 	const rep: TRepresentation = {
 		_type: "Email",
 		_links: {
-			trace: { method: "TraceExplorerStepper-getTrace", params: { seqPath: "0.1.2.3" } },
-			malformed: { params: { x: 1 } } as unknown as { method: string },
+			trace: reads("TraceExplorerStepper-getTrace", { seqPath: "0.1.2.3" }),
+			malformed: { params: { x: 1 } } as unknown as TLink,
 		},
 	};
 
@@ -56,7 +83,7 @@ describe("hasLink", () => {
 describe("getLink", () => {
 	const rep: TRepresentation = {
 		_type: "Email",
-		_links: { trace: { method: "TraceExplorerStepper-getTrace", params: { seqPath: "0.1.2.3" } } },
+		_links: { trace: reads("TraceExplorerStepper-getTrace", { seqPath: "0.1.2.3" }) },
 	};
 
 	it("returns the link entry by rel name", () => {
@@ -74,7 +101,7 @@ describe("getLink", () => {
 	});
 
 	it("throws on malformed link entries (missing method) — callers never get a half-formed link", () => {
-		const bad: TRepresentation = { _links: { x: { params: {} } as unknown as { method: string } } };
+		const bad: TRepresentation = { _links: { x: { params: {} } as unknown as TLink } };
 		expect(() => getLink(bad, "x")).toThrow(/rel not in _links/);
 	});
 });
@@ -112,7 +139,10 @@ describe("a server that does not respond", () => {
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
 			const conduit = new LiveConduit("");
-			const err = await conduit.follow({ method: "step.list" }, "test").then(() => undefined, (e: unknown) => e);
+			const err = await conduit.follow(acts("step.list"), "test").then(
+				() => undefined,
+				(e: unknown) => e,
+			);
 			expect(err).toBeInstanceOf(ServerUnreachable);
 			expect(isServerUnreachable(err)).toBe(true);
 			expect(isServerUnreachable(new Error("wrapped", { cause: err }))).toBe(true);
@@ -127,7 +157,7 @@ describe("a server that does not respond", () => {
 		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
-			await new LiveConduit("").follow({ method: "step.list" }, "test").catch(() => undefined);
+			await new LiveConduit("").follow(acts("step.list"), "test").catch(() => undefined);
 			expect(serverLastRespondedAt(), "a page that has reached no server holds no such time").toBeUndefined();
 			// A page that has just found the site silent reads what it holds instead of calling again, and this is about
 			// the call after that span rather than within it.
@@ -135,7 +165,7 @@ describe("a server that does not respond", () => {
 			// An error the server returns is still the server responding: what a reader is told is that it was reached.
 			globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ error: "no such step" }), { status: 422, headers: { "Content-Type": "application/json" } }));
 			const before = Date.now();
-			await new LiveConduit("").follow({ method: "step.list" }, "test").catch(() => undefined);
+			await new LiveConduit("").follow(acts("step.list"), "test").catch(() => undefined);
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -157,7 +187,10 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const began = Date.now();
-			const err = await new LiveConduit("").follow({ method: "step.list" }, "test").then(() => undefined, (e: unknown) => e);
+			const err = await new LiveConduit("").follow(acts("step.list"), "test").then(
+				() => undefined,
+				(e: unknown) => e,
+			);
 			expect(taken, "the call was made").toBeGreaterThan(0);
 			expect(err, "and reported as the site not answering, which is what a reading falls back on").toBeInstanceOf(ServerUnreachable);
 			expect(Date.now() - began, "within the bound the deployment set, rather than never").toBeLessThan(4000);
@@ -173,17 +206,18 @@ describe("a server that does not respond", () => {
 		hydrateFromDom();
 		const bounds: Array<boolean> = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal; body?: string }) => {
-			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (String(url).endsWith("/rpc/action.begin"))
+				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
 			bounds.push(init?.signal !== undefined);
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			await new LiveConduit("").follow({ method: "step.list" }, "a read the page waits on").catch(() => undefined);
+			await new LiveConduit("").follow(acts("step.list"), "a read the page waits on").catch(() => undefined);
 			expect(bounds.at(-1), "a read the page waits on carries a bound").toBe(true);
 			// The call that opens an action is a call like any other, so this is about a page that has not just found the
 			// site silent.
 			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
-			const streaming = new LiveConduit("").followStream({ method: "step.list" }, () => undefined, { why: "the run's own stream" }).catch(() => undefined);
+			const streaming = new LiveConduit("").followStream(acts("step.list"), () => undefined, { why: "the run's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream carries none, so it is not closed under a run still writing to it").toBe(false);
 			void streaming;
@@ -205,10 +239,10 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow({ method: "step.list" }, "the first read").catch(() => undefined);
+			await conduit.follow(acts("step.list"), "the first read").catch(() => undefined);
 			const afterFirst = made;
 			const began = Date.now();
-			await Promise.all(Array.from({ length: 8 }, () => conduit.follow({ method: "step.list" }, "a view reading").catch(() => undefined)));
+			await Promise.all(Array.from({ length: 8 }, () => conduit.follow(acts("step.list"), "a view reading").catch(() => undefined)));
 			expect(made, "the reads that followed took the answer the first one got").toBe(afterFirst);
 			expect(Date.now() - began, "so none of them waited the bound out again").toBeLessThan(60);
 		} finally {
@@ -231,12 +265,12 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow({ method: "step.list" }, "the first read").catch(() => undefined);
+			await conduit.follow(acts("step.list"), "the first read").catch(() => undefined);
 			expect(made).toBe(1);
-			await conduit.follow({ method: "step.list" }, "a read within the span").catch(() => undefined);
+			await conduit.follow(acts("step.list"), "a read within the span").catch(() => undefined);
 			expect(made, "within the span, the answer the first call got stands").toBe(1);
 			(globalThis as unknown as Record<string, { unreachableUntil: number }>)["__SHU_SERVER_RESPONDED__"].unreachableUntil = Date.now() - 1;
-			await conduit.follow({ method: "step.list" }, "a read after it").catch(() => undefined);
+			await conduit.follow(acts("step.list"), "a read after it").catch(() => undefined);
 			expect(made, "and after it the site is called again").toBe(2);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -254,8 +288,8 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow({ method: "step.list" }, "the first read").catch(() => undefined);
-			await conduit.follow({ method: "step.list" }, "the read after it").catch(() => undefined);
+			await conduit.follow(acts("step.list"), "the first read").catch(() => undefined);
+			await conduit.follow(acts("step.list"), "the read after it").catch(() => undefined);
 			expect(made, "each read asked, since the answer came back at once").toBeGreaterThan(1);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -270,12 +304,18 @@ describe("a server that does not respond", () => {
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			// The site answers the call that opens an action, and takes the streamed read without answering it, so what
 			// settles that read is the reader stopping it.
-			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (String(url).endsWith("/rpc/action.begin"))
+				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("stopped", "AbortError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const stopping = new AbortController();
-			const following = new LiveConduit("").followStream({ method: "step.list" }, () => undefined, { why: "a reader reading", signal: stopping.signal }).then(() => undefined, (e: unknown) => e);
+			const following = new LiveConduit("")
+				.followStream(acts("step.list"), () => undefined, { why: "a reader reading", signal: stopping.signal })
+				.then(
+					() => undefined,
+					(e: unknown) => e,
+				);
 			await new Promise((r) => setTimeout(r, 5));
 			stopping.abort();
 			const err = await following;
@@ -290,7 +330,10 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ error: "no such step" }), { status: 422, headers: { "Content-Type": "application/json" } }));
 		try {
-			const err = await new LiveConduit("").follow({ method: "step.list" }, "test").then(() => undefined, (e: unknown) => e);
+			const err = await new LiveConduit("").follow(acts("step.list"), "test").then(
+				() => undefined,
+				(e: unknown) => e,
+			);
 			expect(isServerUnreachable(err)).toBe(false);
 		} finally {
 			globalThis.fetch = fetchWas;

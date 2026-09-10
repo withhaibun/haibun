@@ -15,7 +15,6 @@ import { parseRefHref } from "@haibun/core/lib/typed-links.js";
 import { renderRef } from "./components/ref-navigation.js";
 import { getPropertyDefinition } from "./rels-cache.js";
 
-
 /**
  * A typed link renders its link text, never its rel. A typed link with no link text (`[:cites](…)`) renders the rel's
  * declared display name and icon.

@@ -53,7 +53,6 @@ export class TestConduit implements Conduit {
 	}
 }
 
-
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 

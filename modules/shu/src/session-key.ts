@@ -46,7 +46,9 @@ export async function pageKey(): Promise<{ publicKey: JsonWebKey; sign: THeld["s
 	// there is no key for a reader to control and nothing it could prove, which is a fact about how the deployment is
 	// reached rather than a fault in the page, so it is said as that.
 	if (!globalThis.crypto?.subtle) {
-		throw new Error(`a reader can only make a key it controls in a secure context (https, or localhost); this page was served from ${globalThis.location?.origin ?? "an origin"}, where the browser withholds its key store`);
+		throw new Error(
+			`a reader can only make a key it controls in a secure context (https, or localhost); this page was served from ${globalThis.location?.origin ?? "an origin"}, where the browser withholds its key store`,
+		);
 	}
 	const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
 	const publicKey = await crypto.subtle.exportKey("jwk", pair.publicKey);
@@ -107,7 +109,13 @@ export function closeSession(): void {
  * The headers that prove this reader is asking for this, of this. The signature covers the address, the method and the
  * body, so what is proven is the request rather than the holder's possession of anything.
  */
-export async function signedHeaders(request: { url: string; method: string; headers: Record<string, string>; body: string; action: string }): Promise<Record<string, string> | undefined> {
+export async function signedHeaders(request: {
+	url: string;
+	method: string;
+	headers: Record<string, string>;
+	body: string;
+	action: string;
+}): Promise<Record<string, string> | undefined> {
 	const held = pinned().held;
 	if (!held) return undefined;
 	return await signCapabilityInvocation({

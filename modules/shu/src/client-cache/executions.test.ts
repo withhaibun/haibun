@@ -17,8 +17,22 @@ const iso = (n: number): string => new Date(n).toISOString();
 const aDevice = async (): Promise<QuadStore> => {
 	const store = new QuadStore();
 	for (const [i, execution] of [OLDER, NEWER].entries()) {
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${execution}.0`, stepText: `Feature: run ${i}`, called: "Haibun.feature", actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i * 9000) });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${execution}.0.1`, stepText: "a step", called: "Stepper.act", actionStatus: "passed", level: "info", generatedAtTime: iso(1100 + i * 9000) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${execution}.0`,
+			stepText: `Feature: run ${i}`,
+			called: "Haibun.feature",
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: iso(1000 + i * 9000),
+		});
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${execution}.0.1`,
+			stepText: "a step",
+			called: "Stepper.act",
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: iso(1100 + i * 9000),
+		});
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${execution}.0.1@0`, message: "it said this", level: "info", generatedAtTime: iso(1200 + i * 9000) });
 	}
 	setGraphStore(store);
@@ -76,7 +90,13 @@ describe("what a device holds of the runs it has read", () => {
 		readExecution(NEWER);
 		vi.spyOn(console, "warn").mockImplementation(() => undefined);
 		const setMany = vi.spyOn(store, "setMany").mockRejectedValueOnce(new DOMException("the device is full", "QuotaExceededError"));
-		const [, quads] = individualAsQuads(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: `${NEWER}.0.2`, stepText: "a later step", actionStatus: "passed", level: "info", generatedAtTime: iso(20000) });
+		const [, quads] = individualAsQuads(SEQ_PATH_LABEL, {
+			[SEQ_PATH_FIELD.id]: `${NEWER}.0.2`,
+			stepText: "a later step",
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: iso(20000),
+		});
 		await holdOnDevice(quads);
 		expect(await heldOf(store, OLDER), "the run it was not reading is what made room").toBe(0);
 		expect(setMany, "what it was given is written once the room is there").toHaveBeenCalledTimes(2);
@@ -88,7 +108,13 @@ describe("what a device holds of the runs it has read", () => {
 		await forgetExecution(OLDER);
 		readExecution(NEWER);
 		vi.spyOn(store, "setMany").mockRejectedValue(new DOMException("the device is full", "QuotaExceededError"));
-		const [, quads] = individualAsQuads(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: `${NEWER}.0.3`, stepText: "a step nothing could hold", actionStatus: "passed", level: "info", generatedAtTime: iso(30000) });
+		const [, quads] = individualAsQuads(SEQ_PATH_LABEL, {
+			[SEQ_PATH_FIELD.id]: `${NEWER}.0.3`,
+			stepText: "a step nothing could hold",
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: iso(30000),
+		});
 		// The failure is reported rather than swallowed: a development build throws it, a built page says it and reads on.
 		await expect(holdOnDevice(quads)).rejects.toThrow("the device is full");
 	});

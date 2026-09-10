@@ -8,7 +8,17 @@
  * it has. These tests pin the rule.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { RESPONSE_TIMEOUT_MS, deploymentMs, getAvailableSteps, hydrateFromDom, isOffline, registryOrigin, requireStep, resetStepRegistry, responseTimeoutMs } from "./rpc-registry.js";
+import {
+	RESPONSE_TIMEOUT_MS,
+	deploymentMs,
+	getAvailableSteps,
+	hydrateFromDom,
+	isOffline,
+	registryOrigin,
+	requireStep,
+	resetStepRegistry,
+	responseTimeoutMs,
+} from "./rpc-registry.js";
 import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 

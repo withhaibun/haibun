@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
-import { conduit } from "../hypermedia.js";
+import { acts, conduit } from "../hypermedia.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene, type TSceneState } from "../scenes.js";
 import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
 
@@ -466,10 +466,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private async applyReschedule(updates: RescheduleUpdate[]): Promise<void> {
 		// Fail-fast: a reschedule that didn't persist must not pass silently as a moved-but-unsaved bar — surface it.
 		for (const u of updates) {
-			await conduit().follow(
-				{ method: "GraphStepper-updateVertex", params: { label: u.label, id: u.id, data: u.data } },
-				"polymorphic: drag gantt bar → reschedule task and its dependents",
-			);
+			await conduit().follow(acts("GraphStepper-updateVertex", { label: u.label, id: u.id, data: u.data }), "polymorphic: drag gantt bar → reschedule task and its dependents");
 		}
 		await this.refetchSnapshot({ perTypeLimit: this.cgState.perTypeLimit });
 		this.scene?.flushRepaint();

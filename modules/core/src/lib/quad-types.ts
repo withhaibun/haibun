@@ -94,7 +94,9 @@ export const GraphQueryResultSchema = z.object({
 	vertices: z.array(z.record(z.string(), z.unknown())),
 	total: z.number().int().nonnegative(),
 	cypher: z.string().optional(),
-	sort: z.object({ fields: z.array(z.string()), orders: z.array(z.enum(["asc", "desc"])), current: z.object({ field: z.string().optional(), order: z.enum(["asc", "desc"]) }) }).optional(),
+	sort: z
+		.object({ fields: z.array(z.string()), orders: z.array(z.enum(["asc", "desc"])), current: z.object({ field: z.string().optional(), order: z.enum(["asc", "desc"]) }) })
+		.optional(),
 });
 export type TGraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
 

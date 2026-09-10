@@ -680,7 +680,6 @@ export const HttpTraceArtifact = BaseArtifact.extend({
 	mimetype: z.string().default("application/json"),
 });
 
-
 export const RegisteredOutcomeEntry = z.object({
 	proofStatements: z.array(z.string()).optional(),
 	proofPath: z.string().optional(),

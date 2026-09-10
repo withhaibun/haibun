@@ -27,7 +27,6 @@ export const FOCUS_SHARE = 0.6;
 /** A fraction of the rail, which is what a place on it is. */
 const onRail = (n: number): number => clamp(n, 0, 1);
 
-
 /** How the shares outside the window divide between the two ends: by the logarithm of what each holds, so an end with
  *  nothing beyond it takes nothing and the other takes it all. */
 function ends(span: TRunSpan, focus: TRunFocus): { before: number; after: number; beforeLen: number; afterLen: number } {

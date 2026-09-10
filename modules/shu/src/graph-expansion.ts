@@ -8,7 +8,7 @@
  * data can't evict them, and labels are filled by the merge's one shared rule.
  * Bounded per call by the server's neighborhood limits.
  */
-import { conduit } from "./hypermedia.js";
+import { reads, conduit } from "./hypermedia.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { getRels } from "./rels-cache.js";
 import { appAccessLevel, idOf } from "./util.js";
@@ -47,11 +47,11 @@ export async function expandNeighborhood(label: string, id: string): Promise<Set
 	const accessLevel = appAccessLevel();
 	const [out, inc] = await Promise.all([
 		conduit().follow<{ vertex: ProjectedVertex; edges: EdgeRow[] }>(
-			{ method: requireStep("getIndividualWithEdges"), params: { label, id, accessLevel } },
+			reads(requireStep("getIndividualWithEdges"), { label, id, accessLevel }),
 			`graph-expansion: outgoing ${label}:${id}`,
 		),
 		conduit().follow<{ edges: EdgeRow[]; total: number }>(
-			{ method: requireStep("getIncomingEdges"), params: { label, id, accessLevel, limit: INCOMING_LIMIT, offset: 0 } },
+			reads(requireStep("getIncomingEdges"), { label, id, accessLevel, limit: INCOMING_LIMIT, offset: 0 }),
 			`graph-expansion: incoming ${label}:${id}`,
 		),
 	]);

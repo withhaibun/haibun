@@ -58,7 +58,8 @@ export type TRunArtifact = z.infer<typeof RunArtifactSchema>;
 export const runArtifactDomainDefinition: TDomainDefinition = {
 	selectors: [RUN_ARTIFACT_DOMAIN],
 	schema: RunArtifactSchema,
-	description: "Something a run produced beside a step's outcome: an image, a recording, a page, a trace. The record says where it is and what it is; it points back at the step that produced it.",
+	description:
+		"Something a run produced beside a step's outcome: an image, a recording, a page, a trace. The record says where it is and what it is; it points back at the step that produced it.",
 	topology: {
 		persistedAs: RUN_ARTIFACT_LABEL,
 		id: RUN_ARTIFACT_FIELD.id,

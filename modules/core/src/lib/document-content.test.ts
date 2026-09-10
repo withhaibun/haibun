@@ -35,7 +35,18 @@ function scenarioEvent(scenarioName: string): THaibunEvent {
 describe("what a run said is text", () => {
 	const said = (message: string): THaibunEvent => ({ id: "feat-1.1", timestamp: 3000, source: "haibun", level: "info", kind: "log", message }) as unknown as THaibunEvent;
 	const ran = (text: string): THaibunEvent =>
-		({ id: "feat-1.2", timestamp: 4000, source: "haibun", level: "info", kind: "lifecycle", stage: "end", type: "step", status: "passed", in: text, actionName: "act" }) as unknown as THaibunEvent;
+		({
+			id: "feat-1.2",
+			timestamp: 4000,
+			source: "haibun",
+			level: "info",
+			kind: "lifecycle",
+			stage: "end",
+			type: "step",
+			status: "passed",
+			in: text,
+			actionName: "act",
+		}) as unknown as THaibunEvent;
 
 	it("places a message's markup as text, so what a run reported never becomes elements of the document", () => {
 		// A failure report quotes the elements it looked at. Placed as markup, those became a list item carrying a

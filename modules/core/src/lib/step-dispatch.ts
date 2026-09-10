@@ -85,7 +85,13 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// A read made into a running instance is answered, not recorded: reading a run is not an act of the run. A page
 	// following a run asks it what it holds on every announcement, and each such call recorded as a step would write a
 	// record, announce it to every page and keep a result in this process for as long as it runs.
-	const recorded = !(featureStep.isSubStep && action.step.read === true);
+	//
+	// What the run did not ask for is what arrives over a transport, which every transport marks programmatic. A read a
+	// feature states in its own body is the run reading and stays a step of it, whether the line reads directly or a
+	// combinator runs the read beneath it: `set x from <a read>` is the feature reading, and its answer is the step's.
+	// Written as substep instead, this rule never reached the page it was written for, whose reads arrive programmatic:
+	// a run left following by a page recorded one step per read, for as long as the page followed.
+	const recorded = !(action.step.read === true && featureStep.programmatic === true);
 	// What the run holds of the steps a feature has finished. What a reader asks of them is how many ran, when they
 	// began and ended, and which one failed, so each is answered as the feature runs. Beyond that, the most recent are
 	// held in full, since a reader of the result reads what those produced; a step further back has no reader left, and

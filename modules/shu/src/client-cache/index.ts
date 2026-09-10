@@ -22,9 +22,43 @@
  * The client cache view (components/shu-client-cache-column) reads all of it, and the client cache stepper
  * (client-cache-stepper.ts) opens that view and declares it.
  */
-export { runSources, subscribeRunSources, runSpan, atLiveEdge, readRunAt, runReadingAt, resetRunSources, type RunSource, type TRunExtent, type TEventRecord } from "./run-source.js";
-export { IndexedDbDeviceStore, MemoryDeviceStore, deviceStore, setDeviceStore, subscribeDeviceWrites, CACHE_SHAPE, resetDeviceStoreIdb, type DeviceStore, type TStoredRegistry } from "./device-store.js";
-export { executionsHeld, forgetExecution, holdOnDevice, viewsShown, currentExecution, readingExecution, noteExecution, readExecution, subscribeExecutionSwitch, resetExecutions, EXECUTIONS_READ, type THeldExecution } from "./executions.js";
+export {
+	runSources,
+	subscribeRunSources,
+	runSpan,
+	atLiveEdge,
+	readRunAt,
+	runReadingAt,
+	resetRunSources,
+	type RunSource,
+	type TRunExtent,
+	type TEventRecord,
+} from "./run-source.js";
+export {
+	IndexedDbDeviceStore,
+	MemoryDeviceStore,
+	deviceStore,
+	setDeviceStore,
+	subscribeDeviceWrites,
+	CACHE_SHAPE,
+	resetDeviceStoreIdb,
+	type DeviceStore,
+	type TStoredRegistry,
+} from "./device-store.js";
+export {
+	executionsHeld,
+	forgetExecution,
+	holdOnDevice,
+	viewsShown,
+	currentExecution,
+	readingExecution,
+	noteExecution,
+	readExecution,
+	subscribeExecutionSwitch,
+	resetExecutions,
+	EXECUTIONS_READ,
+	type THeldExecution,
+} from "./executions.js";
 export { IndexedDbQuadStore, originGraphStore } from "./quad-store.js";
 export { graphRunSource } from "./graph-run-source.js";
 export { runWindow, runExtent, RUN_WINDOW_SIZE, type TRunRow, type TRunWindow } from "./run-window.js";

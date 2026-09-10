@@ -60,7 +60,8 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 			// where the log does not.
 			if (e.status === SEQ_PATH_STATUS.running) return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
 			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === SEQ_PATH_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
-			if (e.status === SEQ_PATH_STATUS.failed) return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
+			if (e.status === SEQ_PATH_STATUS.failed)
+				return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
 			if (e.status === SEQ_PATH_STATUS.passed) return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
 			return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 		}
@@ -74,7 +75,6 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 	if (e.kind === "artifact") return { color: MARK_COLOUR.artifact, icon: ICON_ARTIFACT };
 	return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 }
-
 
 /**
  * The mark an event earns, or nothing where it earns none.

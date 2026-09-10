@@ -292,7 +292,9 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			this.#lastWindowShort = short;
 			this.recordBlip(VIEW_WINDOW_BLIP, short, { first: this.#window.first, visible: this.#window.visible, count, following: this.follow && this.#follow.isFollowing });
 		}
-		this.dispatchEvent(new CustomEvent<WindowChangedDetail>(WINDOW_CHANGED, { detail: { first: this.#window.first, visible: this.#window.visible, total: count }, bubbles: true, composed: true }));
+		this.dispatchEvent(
+			new CustomEvent<WindowChangedDetail>(WINDOW_CHANGED, { detail: { first: this.#window.first, visible: this.#window.visible, total: count }, bubbles: true, composed: true }),
+		);
 		if (this.follow && count > 0) {
 			if (this.#window.first + this.#window.visible >= count && !this.#pressedAway) {
 				// The last row is inside the reported window — the reader is at (or scrolled back to) the live edge. Resume (the
@@ -390,7 +392,9 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			const last = Math.max(0, count - this.#window.visible);
 			this.#window = { first: Math.min(index, last), visible: this.#window.visible };
 			if (this.source && count > 0) void this.source.ensureRange(this.#window.first, Math.min(count, this.#window.first + Math.max(1, this.#window.visible)));
-			this.dispatchEvent(new CustomEvent<WindowChangedDetail>(WINDOW_CHANGED, { detail: { first: this.#window.first, visible: this.#window.visible, total: count }, bubbles: true, composed: true }));
+			this.dispatchEvent(
+				new CustomEvent<WindowChangedDetail>(WINDOW_CHANGED, { detail: { first: this.#window.first, visible: this.#window.visible, total: count }, bubbles: true, composed: true }),
+			);
 			this.requestUpdate();
 			return;
 		}

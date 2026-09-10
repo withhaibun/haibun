@@ -1,7 +1,7 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import type { TSessionGrantShown } from "@haibun/core/steps/authority-stepper.js";
-import { conduit } from "../hypermedia.js";
+import { reads, acts, conduit } from "../hypermedia.js";
 import { getAvailableSteps, findStep, requireStep } from "../rpc-registry.js";
 import { queryGraph } from "../quads-snapshot.js";
 import { session } from "../session-key.js";
@@ -34,7 +34,7 @@ export class AuthorityController implements ReactiveController {
 	 *  refused. Throws where this reader may not, so the view says what it was refused for. */
 	async revoke(handle: string): Promise<void> {
 		await getAvailableSteps();
-		await conduit().follow({ method: requireStep("revokeSessionGrantByHandle"), params: { handle } }, `authority: revoke the grant named ${handle}`);
+		await conduit().follow(acts(requireStep("revokeSessionGrantByHandle"), { handle }), `authority: revoke the grant named ${handle}`);
 	}
 
 	async read(): Promise<TAuthority> {
@@ -45,7 +45,7 @@ export class AuthorityController implements ReactiveController {
 		// A deployment whose authority reports nothing (no authority stepper registered) still says who it knows and what
 		// this reader holds, so the view is a reading of what is there rather than an error.
 		const listing = findStep("showSessionGrants");
-		const grants = listing ? await conduit().follow<{ grants: TSessionGrantShown[] }>({ method: listing.method }, WHY) : { grants: [] };
+		const grants = listing ? await conduit().follow<{ grants: TSessionGrantShown[] }>(reads(listing.method), WHY) : { grants: [] };
 		return { holds, heldAs: held?.record, principals: (principals.vertices ?? []) as TPrincipalRow[], grants: grants.grants ?? [] };
 	}
 }

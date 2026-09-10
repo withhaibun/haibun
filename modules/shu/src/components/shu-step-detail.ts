@@ -14,7 +14,7 @@ import { eventMarkerStyle } from "../event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { RPC_METHOD } from "../consts.js";
 import { shuBaseStyles } from "./styles.js";
-import { conduit } from "../hypermedia.js";
+import { reads, conduit } from "../hypermedia.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
 import { readIndividual } from "../quads-snapshot.js";
 import { SHU_EVENT } from "../consts.js";
@@ -89,7 +89,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 				// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
 				readIndividual(SEQ_PATH_LABEL, id, appAccessLevel()),
 				conduit().follow<{ quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }> }>(
-					{ method: RPC_METHOD.CLUSTERED_QUADS, params: { perTypeLimit: 1000, accessLevel: appAccessLevel() } },
+					reads(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 1000, accessLevel: appAccessLevel() }),
 					"step-detail: clustered quads",
 				),
 			]);

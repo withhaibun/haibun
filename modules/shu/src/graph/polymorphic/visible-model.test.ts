@@ -9,7 +9,14 @@ import { actorBars } from "./sequence-model.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { SeqLayout } from "./sequence-model.js";
 
-const quad = (subject: string, predicate: string, object: string, namedGraph: string, objectType?: string): TQuad => ({ subject, predicate, object, namedGraph, objectType, timestamp: 1 });
+const quad = (subject: string, predicate: string, object: string, namedGraph: string, objectType?: string): TQuad => ({
+	subject,
+	predicate,
+	object,
+	namedGraph,
+	objectType,
+	timestamp: 1,
+});
 
 // An email that names its sender, a person nothing points at, and a file the email attaches.
 const quads: TQuad[] = [

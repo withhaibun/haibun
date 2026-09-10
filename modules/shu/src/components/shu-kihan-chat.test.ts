@@ -19,6 +19,8 @@ vi.mock("../rpc-registry.js", () => ({
 vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
 vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
 vi.mock("../hypermedia.js", () => ({
+	reads: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "read" }),
+	acts: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "act" }),
 	isOffline: () => false,
 	conduit: () => ({
 		follow: (req: { method: string }) => (req.method === "listChatSessions" ? Promise.resolve({ sessions: [...listed] }) : Promise.resolve({})),

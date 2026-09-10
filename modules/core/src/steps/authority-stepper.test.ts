@@ -76,7 +76,15 @@ verify session grant for token "alpha" is revoked for action "Ping:protected"
 
 describe("what a listing of authority may say", () => {
 	it("says who holds it and what it allows, and never the credential itself", () => {
-		const shown = shownGrant({ id: "s-1", token: "s-1", controller: "did:site:0", allowedAction: ["Instance:read"], revoked: false, created: 1, note: "the served app's own session" });
+		const shown = shownGrant({
+			id: "s-1",
+			token: "s-1",
+			controller: "did:site:0",
+			allowedAction: ["Instance:read"],
+			revoked: false,
+			created: 1,
+			note: "the served app's own session",
+		});
 		expect(shown, "everything a reader needs to see who may do what, and a name to revoke it by").toEqual({
 			handle: grantHandle("s-1"),
 			controller: "did:site:0",

@@ -11,7 +11,7 @@ import { openSession } from "./session-key.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
-import { conduit, setConduit, LiveConduit } from "./hypermedia.js";
+import { acts, conduit, setConduit, LiveConduit } from "./hypermedia.js";
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
@@ -94,7 +94,7 @@ function openReaderSession(): void {
 	if (!issuing) return;
 	// The key goes as the object the step declares it takes, so what the site published as this step's input is what
 	// the page sends.
-	const opening = openSession((holderKey) => conduit().follow<unknown>({ method: issuing.method, params: { holderKey } }, "open this reader's session"));
+	const opening = openSession((holderKey) => conduit().follow<unknown>(acts(issuing.method, { holderKey }), "open this reader's session"));
 	// Said once, where a reader can see it. What waits on the session raises the same failure at the call that needed
 	// it, so this is a notice rather than the handling of it.
 	opening.catch((err: unknown) => console.warn(`[shu] this reader has no session: ${errorDetail(err)}`));

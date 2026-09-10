@@ -287,10 +287,14 @@ describe("what a produced thing reports at", () => {
 		const logger = new EventLogger();
 		logger.suppressConsole = true;
 		logger.subscribe((event) => emitted.push(event as { level?: string }), { kinds: ["artifact"] });
-		const step = (isSubStep: boolean): TFeatureStep => ({ in: "take a screenshot", seqPath: [0, 1, 2], action: { stepperName: "S", actionName: "a", stepValuesMap: {} }, isSubStep }) as unknown as TFeatureStep;
+		const step = (isSubStep: boolean): TFeatureStep =>
+			({ in: "take a screenshot", seqPath: [0, 1, 2], action: { stepperName: "S", actionName: "a", stepValuesMap: {} }, isSubStep }) as unknown as TFeatureStep;
 		// Parsed the way every producer parses one, which is what decides the level a produced thing carries.
 		logger.artifact(step(true), ImageArtifact.parse({ kind: "artifact", artifactType: "image", path: "a.png", id: "x", timestamp: 1 }) as never);
 		logger.artifact(step(false), ImageArtifact.parse({ kind: "artifact", artifactType: "image", path: "b.png", id: "y", timestamp: 2 }) as never);
-		expect(emitted.map((e) => (e as { level?: string }).level), "what a run produced is read at every level, so the step's own level does not decide this").toEqual(["info", "info"]);
+		expect(
+			emitted.map((e) => (e as { level?: string }).level),
+			"what a run produced is read at every level, so the step's own level does not decide this",
+		).toEqual(["info", "info"]);
 	});
 });

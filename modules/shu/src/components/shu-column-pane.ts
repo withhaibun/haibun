@@ -44,7 +44,13 @@ const CLASS = {
 	SPINE: "pane-spine",
 	RESIZE: "resize-handle",
 } as const;
-const TEST_ID = { MIN: SHU_TEST_IDS.COLUMN_PANE.MINIMIZE, MAX: SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE, CONTROLS: SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE, SPINE: SHU_TEST_IDS.COLUMN_PANE.SPINE, BROWSER_COLUMN: "browser-column" } as const;
+const TEST_ID = {
+	MIN: SHU_TEST_IDS.COLUMN_PANE.MINIMIZE,
+	MAX: SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE,
+	CONTROLS: SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE,
+	SPINE: SHU_TEST_IDS.COLUMN_PANE.SPINE,
+	BROWSER_COLUMN: "browser-column",
+} as const;
 
 const MIN_RESIZED_WIDTH = 120;
 
@@ -213,7 +219,6 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.toggleAttribute(SHU_ATTR.COLLAPSED, this.state.minimized || this.#accordionCollapsed);
 		this.#applyFlex();
 		this.requestUpdate(); // the template renders either the default slot or the spine slot, so it follows this
-
 	}
 
 	/** Inline flex computed from full state — one writer, so no path strands a stale width. Maximized fills the
@@ -450,11 +455,13 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				<span class=${CLASS.LABEL} title=${label}>${label}</span>
 				${controlsGroup}
 			</div>
-			${collapsed
-				? html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE} @click=${this.onSpineClick}>
+			${
+				collapsed
+					? html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE} @click=${this.onSpineClick}>
 						<slot name=${ownSpine ? "" : SPINE_SLOT} @slotchange=${this.onSlotChange}></slot>
 					</div>`
-				: html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}
+					: html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`
+			}
 			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>
 		`;
 	}

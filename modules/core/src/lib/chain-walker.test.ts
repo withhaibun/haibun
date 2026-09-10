@@ -172,7 +172,10 @@ describe("a walk gives a step only what that step takes", () => {
 		world = getDefaultWorld();
 	});
 
-	const countingMichi: TMichi = { steps: [{ stepperName: "CountingStepper", stepName: "countTo", gwta: "count to {count: number}" }], bindings: [{ kind: "argument", domain: ISSUER_DOMAIN }] };
+	const countingMichi: TMichi = {
+		steps: [{ stepperName: "CountingStepper", stepName: "countTo", gwta: "count to {count: number}" }],
+		bindings: [{ kind: "argument", domain: ISSUER_DOMAIN }],
+	};
 
 	it("fails the walk when an argument is not what the step declares, rather than dispatching it", async () => {
 		const ctx = buildContext(world, [new CountingStepper()]);

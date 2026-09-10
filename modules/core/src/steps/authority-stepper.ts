@@ -202,6 +202,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			},
 		},
 		showSessionGrants: {
+			// The page reads who holds authority here, on every settings view; the run answers and records nothing of it.
+			read: true,
 			exact: "show session grants",
 			description:
 				"Who holds authority here and what it allows them: each grant's controller, its allowed actions, whether it still stands, and what it was issued for. The tokens themselves are never reported — a bearer token is the credential, so anything that reports one hands it over.",

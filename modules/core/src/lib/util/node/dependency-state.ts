@@ -168,9 +168,19 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 		else if (stat.isFile()) files.push(file);
 	}
 	const plain = files.filter((f) => !unnameable(f));
-	const digests = plain.length ? git(top, ["hash-object", "--stdin-paths"], `${plain.join("\n")}\n`).trim().split("\n") : [];
+	const digests = plain.length
+		? git(top, ["hash-object", "--stdin-paths"], `${plain.join("\n")}\n`)
+				.trim()
+				.split("\n")
+		: [];
 	const out = plain.map((file, i) => ({ file, digest: digests[i] }));
-	for (const file of files.filter(unnameable)) out.push({ file, digest: createHash("sha256").update(nodeFS.readFileSync(path.join(top, file))).digest("hex") });
+	for (const file of files.filter(unnameable))
+		out.push({
+			file,
+			digest: createHash("sha256")
+				.update(nodeFS.readFileSync(path.join(top, file)))
+				.digest("hex"),
+		});
 	return [...out, ...links].sort((a, b) => (a.file < b.file ? -1 : 1));
 }
 

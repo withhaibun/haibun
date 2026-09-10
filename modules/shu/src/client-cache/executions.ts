@@ -144,7 +144,9 @@ export async function forgetExecution(execution: string): Promise<number> {
 					skipCount: true,
 				}),
 			);
-			const ids = (vertices as Array<Record<string, unknown>>).map((record) => String(record[SEQ_PATH_FIELD.id] ?? "")).filter((id) => parseRecordName(id)?.execution === execution);
+			const ids = (vertices as Array<Record<string, unknown>>)
+				.map((record) => String(record[SEQ_PATH_FIELD.id] ?? ""))
+				.filter((id) => parseRecordName(id)?.execution === execution);
 			for (const id of ids) await store.deleteIndividual(type.label, id);
 			gone += ids.length;
 			if (vertices.length < FORGET_PAGE) break;

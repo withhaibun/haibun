@@ -21,6 +21,9 @@ export interface StepDescriptor {
 	 */
 	productsDomain?: string;
 	capability?: string;
+	/** True where the step declares itself a read: a caller naming it at runtime asks to read rather than to act, and
+	 *  the run answers it without recording the reading. */
+	read?: boolean;
 	/**
 	 * True where this step answers only if no other step answers to its name. A caller that names a step rather than a
 	 * method takes the one that is not a fallback, in any order of stepper registration, so a deployment that brings its
@@ -60,7 +63,18 @@ export class StepperRegistry {
 						}
 					}
 					const method = `${stepperName}-${stepName}`;
-					return { stepperName, stepName, method, pattern, params, paramDomains, productsDomain: stepDef.productsDomain, capability: stepDef.capability, ...(stepDef.fallback === true ? { fallback: true } : {}) };
+					return {
+						stepperName,
+						stepName,
+						method,
+						pattern,
+						params,
+						paramDomains,
+						productsDomain: stepDef.productsDomain,
+						capability: stepDef.capability,
+						...(stepDef.fallback === true ? { fallback: true } : {}),
+						...(stepDef.read === true ? { read: true } : {}),
+					};
 				});
 		});
 	}

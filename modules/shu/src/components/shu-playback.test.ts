@@ -24,7 +24,13 @@ const LAST = 1_000_500;
 async function aRun(): Promise<void> {
 	const store = new QuadStore();
 	for (const [i, at] of [FIRST, LAST].entries())
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: `1700000000000-1.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: new Date(at).toISOString() });
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `1700000000000-1.0.${i}`,
+			stepText: `step ${i}`,
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: new Date(at).toISOString(),
+		});
 	setGraphStore(store);
 	setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 }
