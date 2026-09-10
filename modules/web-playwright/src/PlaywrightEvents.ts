@@ -144,9 +144,9 @@ export class PlaywrightEvents {
 
 /**
  * Whether a request asks the run to read rather than act: a JSON-RPC call stating `asks: "read"`. A read leaves no
- * record: the run neither records nor narrates it, and the page's observer neither traces nor observes it. Observed,
- * a page's own reads came back to it as request individuals and host counts, and a page that recorded what it drew
- * drew what it recorded, without end.
+ * record: the run neither records nor narrates it, and the page's observer neither traces nor observes it. An observed
+ * read returns to the page as a request individual and a host count, and a page that records what it draws then draws
+ * what it recorded.
  */
 export function asksToRead(method: string, postData: string | null | undefined): boolean {
 	if (method !== "POST" || !postData) return false;

@@ -2,27 +2,29 @@
  * The scene's own regulator for decorative motion, in the shape of a rolling-window health monitor: samples in,
  * thresholds, a pure evaluation that trips or clears a signal under a cooldown, and a description of what tripped.
  *
- * What it regulates: the active node's breath asks for a drawn frame every `BREATH_MS`. Where a frame is cheap that
- * costs nothing. Where the renderer is a software rasterizer or the device is slow, each of those frames costs tens of
- * milliseconds of another process's time, and a page with a selected node held eight cores after the run that made the
- * selection had finished. The regulator takes what a drawn frame costs (see `FrameCost`), keeps the median of the last
- * few so one slow frame decides nothing, and compares the breath's share of wall time with its budget. Over budget the
- * breath rests: the glow is drawn once and held. Within budget again, it breathes again.
+ * The active node's breath requests a drawn frame every `BREATH_MS`. A frame costs one or two milliseconds of the
+ * renderer's time on a GPU and tens of milliseconds under a software rasterizer or on a slow device, and the page
+ * cannot measure which from its main thread. The regulator takes what a drawn frame costs (see `FrameCost`), keeps the
+ * median of the last few so one slow frame changes nothing, and compares the breath's share of wall time with its
+ * budget. The breath rests over budget: the glow is drawn once and held. It breathes again within budget.
  *
- * The scene acts on the signal itself and records it as a blip, so a run sees that a page regulated itself, and why.
+ * The scene acts on the signal itself and records it as a blip, so a run can observe the regulation and the cost
+ * behind it.
  */
 import { BREATH_MS } from "./polymorphic-highlight.js";
 
-export type TRegulationKind = "decorativeOverBudget" | "decorativeWithinBudget";
+export const REGULATION_KINDS = ["decorativeOverBudget", "decorativeWithinBudget"] as const;
+
+export type TRegulationKind = (typeof REGULATION_KINDS)[number];
 
 export type TRegulationSignal = { kind: TRegulationKind; frameCostMs: number; share: number };
 
 export type TRegulationThresholds = {
-	/** Frame costs kept; the median of these is the cost that decides. Fewer than this decides nothing. */
+	/** Frame costs kept; the median of these is the cost compared with the budget. Fewer than this compares nothing. */
 	windowSamples: number;
 	/** The share of wall time the breath may take, as a fraction: at ten beats a second, a 5 ms frame is 5%. */
 	decorativeBudgetShare: number;
-	/** How often the breath asks for a frame. */
+	/** How often the breath requests a frame. */
 	beatsPerSecond: number;
 	/** How long after a signal the next one may fire, so the breath cannot flap between resting and breathing. */
 	cooldownMs: number;

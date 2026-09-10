@@ -1,6 +1,5 @@
-// A scene draws while something is moving and stops when nothing is. Pausing A-Frame's components never stopped the
-// renderer's own loop, so an idle page drew the same picture sixty times a second for as long as it stayed open. These
-// cases hold the loop to the motion.
+// A scene draws while something is moving and stops when nothing is. A-Frame's pause() stops the components and not
+// the renderer's loop, so the gate stops the loop itself. These cases hold the loop to the motion.
 import { describe, it, expect } from "vitest";
 import { Drawing, aframeLoop } from "./polymorphic-drawing.js";
 

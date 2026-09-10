@@ -1,10 +1,9 @@
 /**
  * Real-browser self-regulation of shu-polymorphic-graph-view: a headless browser draws through a software rasterizer,
- * where a frame of a modest scene costs tens of milliseconds, so this is the environment the regulator exists for.
+ * where a frame of a modest scene takes tens of milliseconds, so this is the environment that needs the regulator.
  *
- * The invariant: with a selected node and nothing moving, a scene whose frames are expensive measures that cost,
- * rests the breath, and draws no frame at all; the run that opened the page pays nothing for it after that. A page
- * left open with a selection once held eight cores this way, for as long as it stayed open.
+ * The invariant: with a selected node and nothing moving, a scene whose frames are slow measures that cost, rests the
+ * breath, and draws no frame at all, so the run that opened the page spends nothing on it after that.
  */
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -24,8 +23,8 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8"><script src="/bun
 	</div>
 </body></html>`;
 
-/** Enough marks that a software-rasterized frame is plainly expensive: one property quad per node, as a snapshot holds
- *  them, fed through the scene's own model entry so every node is built the way the app builds it. */
+/** Enough marks that a software-rasterized frame is plainly slow: one property quad per node, as a snapshot holds them,
+ *  fed through the scene's own model entry so every node is built the way the app builds it. */
 const NODE_COUNT = 144;
 const QUADS = Array.from({ length: NODE_COUNT }, (_, i) => ({ subject: `n-${i}`, namedGraph: "Email", predicate: "name", object: `n-${i}`, timestamp: 0 }));
 
@@ -33,15 +32,30 @@ let server: Server;
 let browser: Browser;
 let page: Page;
 const pageErrors: string[] = [];
-/** Mounting the raw bundle without the app boot reports exactly this once. */
+/** The raw bundle mounted without the app boot reports exactly this once. */
 const unexpectedErrors = () => pageErrors.filter((m) => !m.includes("no EventStream installed"));
 
 type Regulation = { resting: boolean; frameCostMs: number | null; samples: number };
 const REGULATION = `document.querySelector("shu-polymorphic-graph-view").inspect().regulation`;
 const FRAME = `document.querySelector("a-scene").renderer.info.render.frame`;
+/** The gate's own frame count, drawn or not: the state that says the scene had every chance to draw. */
+const TICKS = `document.querySelector("shu-polymorphic-graph-view").inspect().render.ticks`;
+const REST_TICKS = 120;
+
+/** Wait until the gate has ticked `REST_TICKS` more times, then return how many frames were drawn over them. */
+async function framesOverRestTicks(): Promise<number> {
+	const before = (await page.evaluate(FRAME)) as number;
+	const ticks = (await page.evaluate(TICKS)) as number;
+	await page.waitForFunction(
+		(until) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { ticks: number } } }).inspect().render.ticks >= until,
+		ticks + REST_TICKS,
+		{ timeout: 15_000 },
+	);
+	return ((await page.evaluate(FRAME)) as number) - before;
+}
 
 beforeAll(async () => {
-	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built — run `npm run bundle:polymorphic` first
+	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built: run `npm run bundle:polymorphic` first
 	server = createServer((req, res) => {
 		if (req.url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(PAGE);
 		else if (req.url === "/bundle.js") res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
@@ -93,7 +107,7 @@ afterAll(async () => {
 	});
 });
 
-test("under a software rasterizer the scene measures its frames as expensive and rests the breath", { timeout: 60_000 }, async () => {
+test("under a software rasterizer the scene measures its frames as slow and rests the breath", { timeout: 60_000 }, async () => {
 	// The breath draws a frame every beat until the window fills; one frame in ten is measured.
 	await page.waitForFunction(
 		(n) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { regulation: { samples: number } } }).inspect().regulation.samples >= n,
@@ -102,7 +116,7 @@ test("under a software rasterizer the scene measures its frames as expensive and
 	);
 	const regulation = (await page.evaluate(REGULATION)) as Regulation;
 	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
-	expect(regulation.frameCostMs, "a software-rasterized frame of this scene costs more than the budget allows at ten beats a second").toBeGreaterThan(
+	expect(regulation.frameCostMs, "a software-rasterized frame of this scene takes more than the budget allows at ten beats a second").toBeGreaterThan(
 		(DEFAULT_REGULATION_THRESHOLDS.decorativeBudgetShare * 1000) / DEFAULT_REGULATION_THRESHOLDS.beatsPerSecond,
 	);
 	expect(regulation.resting, `resting on ${regulation.frameCostMs} ms a frame`).toBe(true);
@@ -115,23 +129,24 @@ test("at rest with a selected node, the scene draws no frame: the glow is held, 
 		undefined,
 		{ timeout: 10_000 },
 	);
-	const before = (await page.evaluate(FRAME)) as number;
-	await page.waitForTimeout(2_000);
-	const after = (await page.evaluate(FRAME)) as number;
-	expect(after - before, "frames drawn over two seconds with the breath resting").toBe(0);
+	expect(await framesOverRestTicks(), `frames drawn over ${REST_TICKS} gate ticks with the breath resting`).toBe(0);
 	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
 });
 
 test("a feed that changes nothing visible draws no frame; one that changes the visible model draws", { timeout: 30_000 }, async () => {
-	// The page's own requests come back to it as observations, and with instrumentation hidden they change nothing
-	// visible. A scene that drew on every feed drew on its own recordings without end.
+	// The page's own requests return to it as observations, and with instrumentation hidden they change nothing
+	// visible. A scene that draws on every feed draws on its own recordings.
 	const before = (await page.evaluate(FRAME)) as number;
 	await page.evaluate((quads) => {
 		const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setModel(model: unknown): void } };
 		el.scene.setModel({ quads, visibleQuads: quads, clusters: [], knownClusters: new Map(), hiddenGraphs: [], hiddenPredicates: [], perTypeLimit: 1000, timeCursor: null });
 	}, QUADS);
-	await page.waitForTimeout(1_500);
-	expect(((await page.evaluate(FRAME)) as number) - before, "frames drawn for a feed of the same model").toBe(0);
+	await page.waitForFunction(
+		() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { repaintPending: boolean } }).inspect().repaintPending === false,
+		undefined,
+		{ timeout: 10_000 },
+	);
+	expect(await framesOverRestTicks(), "frames drawn for a feed of the same model").toBe(0);
 	const more = [...QUADS, { subject: "n-more", namedGraph: "Email", predicate: "name", object: "n-more", timestamp: 0 }];
 	await page.evaluate((quads) => {
 		const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setModel(model: unknown): void } };

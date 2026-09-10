@@ -1,10 +1,10 @@
 /**
  * What a drawn frame costs the renderer, measured from the page without stalling it.
  *
- * The main thread cannot see the cost: `render()` returns in half a millisecond once the commands are queued, and the
- * work is done in the browser's GPU process, by a GPU or by a software rasterizer. A WebGL2 fence placed after the
+ * The main thread cannot measure the cost: `render()` returns in half a millisecond once the commands are queued, and
+ * the work is done in the browser's GPU process, by a GPU or by a software rasterizer. A WebGL2 fence placed after the
  * draw signals when that work is complete, and polling it on later frames costs nothing, so the time from the fence to
- * its signal is the frame's cost as the renderer paid it: one to two milliseconds on a GPU, sixteen and more under
+ * its signal is the frame's cost as the renderer spent it: one to two milliseconds on a GPU, sixteen and more under
  * SwiftShader for the same scene.
  *
  * One frame in `SAMPLE_EVERY` is measured, one fence at a time. A context without fences measures nothing, and the
@@ -47,7 +47,7 @@ export class FrameCost {
 		this.#pending = { fence, placedAt: this.now() };
 	}
 
-	/** Asked each tick: the cost of a completed measurement, in milliseconds, returned once; otherwise undefined. */
+	/** Returns the cost of a completed measurement once, in milliseconds, and undefined otherwise. Polled each tick. */
 	poll(): number | undefined {
 		const gl = this.gl();
 		if (!this.#pending || !gl) return undefined;

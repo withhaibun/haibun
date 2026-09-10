@@ -157,6 +157,6 @@ describe("what a run produced, as a record", () => {
 describe("what the bridge carries", () => {
 	it("receives a blip batch as a read, so the run records nothing of what it never retains", () => {
 		const steps = (new MonitorStepper() as unknown as { steps: Record<string, { read?: boolean }> }).steps;
-		expect(steps.recordClientBlips.read, "recorded, each batch was a step whose events reached the page, which drew, recorded, and repainted without end").toBe(true);
+		expect(steps.recordClientBlips.read, "a recorded batch is a step whose events reach the page and repaint a scene that then records what it drew").toBe(true);
 	});
 });
