@@ -43,13 +43,19 @@ describe("a JSON value as disclosures", () => {
 		expect(jsonDisclosure({ steps: [1] })).toContain("1 item");
 	});
 
-	it("shows the vocabulary a record is written in exactly as it shows everything else", () => {
-		// The @context gives a record's terms their meaning, so it is part of what the record is. Nothing here decides
-		// that some of a record is worth less than the rest of it, and nothing is shown closed.
+	it("holds the vocabulary a record is written in closed, and holds all of it", () => {
+		// A reader reads what a record says before asking what its terms mean, so @context starts closed. What it holds
+		// is written out under it, so opening it is a press and never a request.
 		const shown = jsonDisclosure({ "@context": { as: "https://www.w3.org/ns/activitystreams#" }, message: "said" });
-		expect(shown).toContain("https://www.w3.org/ns/activitystreams#");
+		expect(shown, "the vocabulary is there in full").toContain("https://www.w3.org/ns/activitystreams#");
 		expect(shown).toContain("said");
-		expect(shown.match(/<details(?![^>]* open)/g) ?? [], "nothing is closed").toHaveLength(0);
+		expect(shown.match(/<details(?![^>]* open)/g) ?? [], "the one disclosure that starts closed").toHaveLength(1);
+		expect(shown).toMatch(/<details class="json-disclosure" data-testid="json-@context"/);
+	});
+
+	it("closes nothing else, at any depth", () => {
+		const shown = jsonDisclosure({ record: { held: { deeper: { deepest: 1 } } } });
+		expect(shown.match(/<details(?![^>]* open)/g) ?? []).toHaveLength(0);
 	});
 
 	it("escapes what a record holds, since a run says whatever it says", () => {

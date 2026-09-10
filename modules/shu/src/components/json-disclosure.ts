@@ -1,15 +1,19 @@
 /**
  * A JSON value as nested disclosures: the whole of it, shown with its structure.
  *
- * Everything the value holds is shown, opened, whatever it is. A record read from the graph arrives as JSON-LD, and the
- * `@context` it is written in is part of what it is: a reader looking at a record can see the vocabulary that gives its
- * terms meaning, without asking for it. Nothing here decides that some of a record is worth less than the rest of it.
+ * Everything the value holds is shown, and opened, with one exception a reader can undo in a press: the `@context` a
+ * record is written in starts closed, since a reader reads what a record says before asking what its terms mean. It is
+ * there in full either way. Nothing else is closed, and nothing is left out.
  *
  * What this adds over printing the JSON is structure: each object and array is named, says what it holds, and indents
  * under what it belongs to, so a reader can follow it and can collapse the parts they are done with. The disclosure is
  * the browser's own, as every other disclosure here is.
  */
 import { esc, escAttr } from "../util.js";
+
+/** The vocabulary a record is written in. It is there in full, under a disclosure that starts closed: a reader reads
+ *  what a record says first, and opens what its terms mean when that is the question. */
+const WRITTEN_IN = "@context";
 
 /** What a value holds, said in as few words as a summary can carry it. */
 function holds(value: unknown): string {
@@ -44,7 +48,8 @@ export function jsonDisclosure(value: unknown, name = ""): string {
 	const parts = entries(value)
 		.map(([key, held]) => jsonDisclosure(held, key))
 		.join("");
-	return `<details class="json-disclosure" open data-testid=${escAttr(`json-${name || "root"}`)}><summary>${named}<span class="json-holds">${esc(holds(value))}</span></summary>${parts}</details>`;
+	const open = name === WRITTEN_IN ? "" : " open";
+	return `<details class="json-disclosure"${open} data-testid="${escAttr(`json-${name || "root"}`)}"><summary>${named}<span class="json-holds">${esc(holds(value))}</span></summary>${parts}</details>`;
 }
 
 /**
