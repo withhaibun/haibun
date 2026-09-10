@@ -1807,9 +1807,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		}, 0);
 	}
 
-	/** New/removed streamed nodes: short trailing coalesce so the newcomer shows promptly; positions are preserved (no scatter). */
+	/** New/removed streamed nodes: short trailing coalesce so the newcomer shows promptly; positions are preserved (no scatter).
+	 *  Nothing is drawn for the schedule itself: the repaint draws when the visible model changed, and a feed that changed
+	 *  nothing visible (an observation of the page's own request, with instrumentation hidden) leaves the scene at rest. */
 	private scheduleData(): void {
-		this.markDirty();
 		if (this.repaintTimer !== undefined) return;
 		this.repaintTimer = window.setTimeout(() => {
 			this.repaintTimer = undefined;
@@ -1849,6 +1850,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const hash = this.pipeline.hashCurrentModel(nodes, links);
 		if (hash === this.lastModelHash && !this.nodeRebuildPending) return; // a pending shape rebuild must still feed
 		this.lastModelHash = hash;
+		this.markDirty(); // the visible model changed: draw it
 		this.currentLinks = links;
 		this.emitSceneChanged();
 		// Refresh anchors before the feed reheats the engine, so the cohesion force targets the current group set.

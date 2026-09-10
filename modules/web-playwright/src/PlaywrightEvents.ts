@@ -6,6 +6,7 @@ import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 import { trackHttpRequest } from "@haibun/core/lib/http-observations.js";
+import { RpcRequestSchema } from "@haibun/core/lib/rpc-wire.js";
 import { VISITED_PAGE_LABEL } from "./domains.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 
@@ -41,6 +42,7 @@ export class PlaywrightEvents {
 		return this;
 	}
 	private logRequest(request: Request, type = "request") {
+		if (asksToRead(request.method(), request.postData())) return;
 		this.pendingRequests.set(request, Date.now());
 		const frameURL = request.frame().url();
 		const etc = {
@@ -61,6 +63,7 @@ export class PlaywrightEvents {
 
 	private logResponse(response: Response) {
 		const request = response.request();
+		if (asksToRead(request.method(), request.postData())) return;
 		const startTime = this.pendingRequests.get(request);
 		const duration = startTime ? Date.now() - startTime : 0;
 		if (startTime) {
@@ -136,5 +139,20 @@ export class PlaywrightEvents {
 			trace: logData,
 		});
 		this.world.eventLogger.emit(artifact);
+	}
+}
+
+/**
+ * Whether a request asks the run to read rather than act: a JSON-RPC call stating `asks: "read"`. A read leaves no
+ * record: the run neither records nor narrates it, and the page's observer neither traces nor observes it. Observed,
+ * a page's own reads came back to it as request individuals and host counts, and a page that recorded what it drew
+ * drew what it recorded, without end.
+ */
+export function asksToRead(method: string, postData: string | null | undefined): boolean {
+	if (method !== "POST" || !postData) return false;
+	try {
+		return RpcRequestSchema.safeParse(JSON.parse(postData)).data?.asks === "read";
+	} catch {
+		return false;
 	}
 }

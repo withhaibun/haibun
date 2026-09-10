@@ -153,3 +153,10 @@ describe("what a run produced, as a record", () => {
 		expect(await store.queryIndividuals(RUN_ARTIFACT_LABEL), "an artifact is a file, and a record of it points at that file").toEqual([]);
 	});
 });
+
+describe("what the bridge carries", () => {
+	it("receives a blip batch as a read, so the run records nothing of what it never retains", () => {
+		const steps = (new MonitorStepper() as unknown as { steps: Record<string, { read?: boolean }> }).steps;
+		expect(steps.recordClientBlips.read, "recorded, each batch was a step whose events reached the page, which drew, recorded, and repainted without end").toBe(true);
+	});
+});
