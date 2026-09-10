@@ -126,7 +126,9 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	// The log this view reads is the run at its level: a window of the records the run wrote, which the rail spans by
 	// index. Rows are derived from those records as they are painted. One source per level, shared across views,
 	// swapped when the level changes.
-	#run: RunSource = graphRunSource(this.state.level, { substeps: this.state.substeps });
+	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
+	 *  leave a reading of the run that nothing reads. */
+	#run!: RunSource;
 	#unsubscribeRun?: () => void;
 	#rowCache = new WeakMap<object, TLogRow>();
 	#source: WindowedSource<TLogRow> = this.#rowsOver(this.#run);

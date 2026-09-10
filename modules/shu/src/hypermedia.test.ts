@@ -143,11 +143,11 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("reads a site that takes a call and never answers it as a site that has not answered", async () => {
+	it("reports a server that accepts a request without responding as unreachable, at the timeout", async () => {
 		// The failure this bounds: a call neither answered nor refused left the view that made it reading nothing, with
 		// no word of why, so the reading never fell back to what the device holds.
 		const fetchWas = globalThis.fetch;
-		setHydration({ settings: { siteAnswersWithinMs: 40 } });
+		setHydration({ settings: { responseTimeoutMs: 40 } });
 		hydrateFromDom();
 		let taken = 0;
 		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
@@ -167,9 +167,9 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("bounds a call the page waits on and leaves a stream bounded by nothing, since a run writes to one for as long as it runs", async () => {
+	it("applies the timeout to a request the page awaits and none to a stream, which stays open while the run writes to it", async () => {
 		const fetchWas = globalThis.fetch;
-		setHydration({ settings: { siteAnswersWithinMs: 30 } });
+		setHydration({ settings: { responseTimeoutMs: 30 } });
 		hydrateFromDom();
 		const bounds: Array<boolean> = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal; body?: string }) => {
@@ -193,9 +193,9 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("calls a site found silent once, not once per read, so a page of views falls back rather than waiting them all out", async () => {
+	it("issues one request per retry interval, not one per read, so concurrent reads fall back instead of each timing out", async () => {
 		const fetchWas = globalThis.fetch;
-		setHydration({ settings: { siteAnswersWithinMs: 60 } });
+		setHydration({ settings: { responseTimeoutMs: 60 } });
 		hydrateFromDom();
 		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
 		let made = 0;
@@ -218,10 +218,10 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("calls the site again after the span it reads what it holds for, so a site that comes back is found", async () => {
+	it("issues a request again after the retry interval, so a server that recovers is detected", async () => {
 		const fetchWas = globalThis.fetch;
 		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
-		setHydration({ settings: { siteAnswersWithinMs: 40 } });
+		setHydration({ settings: { responseTimeoutMs: 40 } });
 		hydrateFromDom();
 		let made = 0;
 		// A site that takes the call and never answers it, which is what the page remembers as silent.
@@ -235,7 +235,7 @@ describe("a server that does not respond", () => {
 			expect(made).toBe(1);
 			await conduit.follow({ method: "step.list" }, "a read within the span").catch(() => undefined);
 			expect(made, "within the span, the answer the first call got stands").toBe(1);
-			(globalThis as unknown as Record<string, { silentUntil: number }>)["__SHU_SERVER_RESPONDED__"].silentUntil = Date.now() - 1;
+			(globalThis as unknown as Record<string, { unreachableUntil: number }>)["__SHU_SERVER_RESPONDED__"].unreachableUntil = Date.now() - 1;
 			await conduit.follow({ method: "step.list" }, "a read after it").catch(() => undefined);
 			expect(made, "and after it the site is called again").toBe(2);
 		} finally {
@@ -245,7 +245,7 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("calls a site that refused at once again on the next read, since repeating a call that costs nothing loses nothing", async () => {
+	it("issues a request again immediately after one the network refused, since that failure costs no waiting", async () => {
 		const fetchWas = globalThis.fetch;
 		let made = 0;
 		globalThis.fetch = (() => {
@@ -263,7 +263,7 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("leaves a call the caller stopped as the caller's own, rather than reporting the site", async () => {
+	it("reports a request the caller aborted as the caller's, not as an unreachable server", async () => {
 		const fetchWas = globalThis.fetch;
 		setHydration({ settings: {} });
 		hydrateFromDom();
