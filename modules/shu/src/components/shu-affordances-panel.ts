@@ -9,7 +9,7 @@ import { html, css, type TemplateResult, type PropertyValues } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { acts, conduit } from "../hypermedia.js";
+import { conduit } from "../hypermedia.js";
 import { type TEvent } from "../event-stream.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";

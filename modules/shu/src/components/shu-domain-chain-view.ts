@@ -18,7 +18,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
-import { acts, conduit } from "../hypermedia.js";
+import { conduit } from "../hypermedia.js";
 import { type TEvent } from "../event-stream.js";
 import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
