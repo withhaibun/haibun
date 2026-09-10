@@ -42,8 +42,8 @@ const PULSE_SWELL = 0.14; // how much larger the glow grows at its fullest
  *  over a four-second cycle. */
 export const BREATH_MS = 100;
 
-/** The intensity a glow holds while the breath rests: its fullest, so a held glow reads as the same mark the breath
- *  swells to, and never as a dimmed one. */
+/** The intensity a glow holds while the breath rests: its fullest, so a held glow reads as the mark at the breath's
+ *  fullest and never as a dimmed one. */
 export const RESTING_INTENSITY = 1;
 
 /** How long a freshly-streamed node wears the glow: long enough to catch the eye where it landed, short enough that a

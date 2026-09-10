@@ -1,5 +1,5 @@
 // A frame's cost is measured with a fence after the draw and read when the fence signals, one frame in SAMPLE_EVERY, so
-// the page learns what the renderer pays without stalling for it.
+// the page measures what the renderer spends without stalling for it.
 import { describe, expect, it } from "vitest";
 import { FrameCost, SAMPLE_EVERY, type TFenceGl } from "./polymorphic-frame-cost.js";
 

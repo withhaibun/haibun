@@ -20,14 +20,14 @@ function fed(costs: number[]) {
 }
 
 describe("the frame-cost window", () => {
-	it("keeps the last window of samples and takes their median, so one anomaly decides nothing", () => {
+	it("keeps the last window of samples and takes their median, so one anomaly changes nothing", () => {
 		const state = fed([1, 1, 90, 1, 1, 1, 1]);
 		expect(state.frameCosts, "the window holds the newest five").toEqual([90, 1, 1, 1, 1]);
 		expect(medianOf(state.frameCosts)).toBe(1);
 		expect(medianOf([2, 40, 3]), "an anomaly among three").toBe(3);
 	});
 
-	it("decides nothing before the window is full", () => {
+	it("compares nothing before the window is full", () => {
 		const state = fed([50, 50, 50]);
 		expect(evaluateRegulation(state, thresholds, 0)).toBeUndefined();
 		expect(state.resting).toBe(false);
@@ -45,7 +45,7 @@ describe("the breath's budget", () => {
 		expect(describeRegulation(signal as NonNullable<typeof signal>)).toBe("the breath rests: it would take 16% of wall time at 16.0 ms a frame");
 	});
 
-	it("lets a cheap frame breathe: within budget nothing fires and the breath runs", () => {
+	it("lets a fast frame breathe: within budget nothing fires and the breath runs", () => {
 		const state = fed([1.5, 1.8, 1.4, 2.1, 1.6]); // a GPU: under 2 ms a frame is under 2%
 		expect(evaluateRegulation(state, thresholds, 1_000)).toBeUndefined();
 		expect(state.resting).toBe(false);

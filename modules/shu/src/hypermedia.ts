@@ -303,8 +303,8 @@ export function conduit(): Conduit {
 	return active;
 }
 
-/** Whether boot has installed a Conduit. A page mounted without one (a bundle under test, a still) has no run to hand
- *  anything to, and a channel that can ask first need never throw for it. */
+/** Whether boot has installed a Conduit. A page mounted without one (a bundle under test, a still) has no run for its
+ *  batches, and a channel that checks first never throws. */
 export function hasConduit(): boolean {
 	return Boolean(conduitGlobal[CONDUIT_SLOT]);
 }

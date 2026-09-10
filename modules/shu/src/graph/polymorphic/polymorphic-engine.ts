@@ -55,7 +55,7 @@ export class EngineGovernor {
 	 * The cooldown is pinned to 0 at rest so a later purely VISUAL repool (the lib restarts its countdown whenever a
 	 * colour accessor is re-set, and the focus dimming must re-pool linkColor) can't silently tick past the rest. That
 	 * restart still reports a stop on its first tick. A stop reported while already frozen ended nothing, and a
-	 * consumer that reacts to coming to rest by re-pooling colours would otherwise react to its own stop without end. */
+	 * consumer that re-pools colours on coming to rest must not take that stop for another rest. */
 	engineStopped(): boolean {
 		const endedMotion = this.mode !== "frozen";
 		this.mode = "frozen";

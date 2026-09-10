@@ -63,7 +63,7 @@ export function resetClientBlips(): void {
 }
 
 function scheduleFlush(): void {
-	// A page with no run to hand a batch to (offline, or mounted without a conduit) holds what it records and sends nothing.
+	// A page that has no run for its batches (offline, or mounted without a conduit) holds what it records and sends nothing.
 	if (timer || isOffline() || !hasConduit()) return;
 	timer = setTimeout(() => {
 		timer = undefined;
@@ -78,8 +78,8 @@ export async function flushClientBlips(): Promise<void> {
 	sent += batch.length;
 	// A dropped batch is a lost observation, never a broken page: the run keeps its own count of what it received, and
 	// the occurrence was by definition one the run does not retain.
-	// A read, not an act: the run retains nothing of a blip, so a batch's arrival is not recorded as a step. Recorded, its
-	// events reached the page and a page drawing frames repainted on its own recordings without end.
+	// A read, not an act: the run retains nothing of a blip, so a batch's arrival is not recorded as a step. A recorded
+	// batch would be a step whose events reach the page and repaint a scene that then records what it drew.
 	await conduit()
 		.follow(reads("MonitorStepper-recordClientBlips", { batch: { blips: batch, recorded } }), `blips: ${batch.length} occurrence(s)`)
 		.catch((e) => console.warn("[shu] blip batch not delivered", e));

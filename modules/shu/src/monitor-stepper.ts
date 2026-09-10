@@ -396,7 +396,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		recordClientBlips: {
 			gwta: `record client blips {batch: ${DOMAIN_CLIENT_BLIPS}}`,
 			description:
-				"Receive a batch of fine-grained occurrences the SPA recorded and put each into the run's blip channel, in the order the browser recorded them. A read: the run retains nothing of a blip, so it records nothing of a batch's arrival either. Recorded, each batch was a step whose events reached the page, and a page drawing frames repainted on its own recordings without end.",
+				"Receive a batch of fine-grained occurrences the SPA recorded and put each into the run's blip channel, in the order the browser recorded them. A read: the run retains nothing of a blip, so it records nothing of a batch's arrival either. A recorded batch would be a step whose events reach the page and repaint a scene that then records what it drew.",
 			read: true,
 			action: ({ batch }: { batch: TClientBlips }) => {
 				const world = this.getWorld();

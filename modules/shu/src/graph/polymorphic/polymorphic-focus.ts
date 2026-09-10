@@ -263,9 +263,9 @@ export class PolymorphicFocus {
 
 	/** Breathe every worn glow each beat: the active node's for as long as it is active, each newcomer's until its
 	 *  first moments end, one rhythm, one colour, one write per glowing node. Returns whether a frame is needed, so the
-	 *  render loop knows to draw (a paused scene would freeze the breath mid-cycle, and an expiry nobody draws never
+	 *  render loop draws it (a paused scene would freeze the breath mid-cycle, and an expiry nobody draws never
 	 *  ends). With `pulsing` false the breath rests: each glow is drawn once at its fullest and held, and a frame is
-	 *  needed only on the beat the set of worn glows changes. The scene's regulator decides which, on what a frame costs. */
+	 *  needed only on the beat the set of worn glows changes. The scene's regulator selects which, from what a frame costs. */
 	updateHighlight(pulsing = true): boolean {
 		const now = performance.now();
 		const id = this.deps.selectedId();

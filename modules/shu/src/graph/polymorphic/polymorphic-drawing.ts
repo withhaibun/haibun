@@ -1,14 +1,10 @@
 /**
  * Drawing on demand: the loop that draws the scene runs while something is moving and stops when nothing is.
  *
- * The renderer owns the animation loop that draws an A-Frame scene. Loading the scene starts that loop. Pausing the
- * scene stops its components and leaves the loop drawing every frame. An idle page therefore drew the same picture
- * sixty times a second for as long as it stayed open, and a headless browser read each of those frames back through a
- * software rasterizer, so a finished run's GPU process held eight cores. Stopping the components never stopped the
- * drawing. This stops the drawing.
- *
- * The scene reports each frame whether anything is moving. The loop starts or stops on the frame that report changes
- * and nothing happens on any other frame.
+ * The renderer owns the animation loop that draws an A-Frame scene, and the scene's `pause()` stops its components
+ * without stopping that loop, so a paused scene still draws every frame. This gate stops the loop on the frame motion
+ * ends and starts it on the frame motion begins. The scene reports each frame whether anything is moving, and nothing
+ * happens on a frame whose report matches the last one.
  */
 
 /** What can be started and stopped: the renderer's own animation loop, and with it the scene's components. */
@@ -42,7 +38,7 @@ export class Drawing {
 }
 
 /**
- * The loop an A-Frame scene draws with. Starting plays the components and hands the scene's own bound render back to
+ * The loop that draws an A-Frame scene. Starting plays the components and hands the scene's own bound render back to
  * the renderer, followed by `afterDraw` when given, so a frame's cost can be measured right after it. Stopping pauses
  * the components and takes the render away, so no frame is drawn until something moves. The last frame drawn stays on
  * the canvas.

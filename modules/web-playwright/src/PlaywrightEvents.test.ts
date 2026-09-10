@@ -1,6 +1,6 @@
 // A read leaves no record. The browser observer traces and observes the page's requests; a request that asks the run
-// to read is neither, as the run neither records nor narrates it. Observed, a page's own reads came back to it as graph
-// data and a page that recorded what it drew drew what it recorded, without end.
+// to read is neither, as the run neither records nor narrates it. An observed read returns to the page as graph data,
+// and a page that records what it draws then draws what it recorded.
 import { describe, expect, it } from "vitest";
 import { asksToRead } from "./PlaywrightEvents.js";
 

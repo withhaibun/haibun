@@ -341,7 +341,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// drawing, and whether the A-Frame render loop is currently paused because nothing is moving.
 	private rafFrame = 0;
 	private dirtyUntilFrame = 0;
-	private scenePaused = false;
+	private drawing?: Drawing; // the gate on the renderer's loop; the scene is paused while it is not drawing
 	private lastBreathAt = 0; // when the active node's glow was last redrawn; the breath runs on BREATH_MS, not on frames
 	private regulation = newRegulationState(); // the scene's own regulator of decorative motion, on what a frame costs
 	/** Set by the per-frame highlight job: an active node's glow is breathing, so the loop must keep drawing. Cleared
@@ -752,11 +752,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			tween: this.tween ? { elapsedMs: performance.now() - this.tween.start } : null,
 			pointerOverCanvas: this.pointerOverCanvas,
 			engineMode: this.engine.mode,
-			// Render-on-demand state: the scene pauses when nothing is moving and no recent discrete change is pending.
-			// A reader whose focus/highlight assertion depends on a redraw can tell a paused scene from a live one.
-			render: { paused: this.scenePaused },
+			// Render-on-demand state: the scene pauses when nothing is moving and no recent discrete change is pending, and
+			// `ticks` counts the gate's frames whether or not one was drawn. A reader whose focus/highlight assertion
+			// depends on a redraw can tell a paused scene from a live one, and can count ticks over which nothing was drawn.
+			render: { paused: this.drawing !== undefined && !this.drawing.drawing, ticks: this.rafFrame },
 			// What a drawn frame costs the renderer (the median of the last few, null before the first measurement) and
-			// whether the breath rests on it: a reader can tell a scene that regulated itself from one that has not measured.
+			// whether the breath rests on it. A reader can tell a scene that regulated itself from one that has not measured.
 			regulation: {
 				resting: this.regulation.resting,
 				frameCostMs: this.regulation.frameCosts.length > 0 ? medianOf(this.regulation.frameCosts) : null,
@@ -1113,7 +1114,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				// Re-assert an active focus at rest: a focus applied DURING the settle is skipped by the focus controller's
 				// settle guard (dimming an under-converged layout would pin it mid-motion), so the resting frame applies it.
 				// Only a stop that ended motion: applying the focus re-pools linkColor, which restarts the lib's countdown
-				// and reports another stop at rest, and re-asserting on that one kept the scene drawing without end.
+				// and reports another stop at rest, and re-asserting on that stop would keep the scene drawing.
 				if (cameToRest && (this.hoverSubject || this.selectedSubject)) this.requestFocusAtRest();
 				// After a data settle (not a layout solve — those tween independently), draw enclosures and run the settle
 				// hook (queued re-aim + gantt ruler) on the frame the nodes came to rest, not while they were still moving.
@@ -1487,11 +1488,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** One measured frame cost: recorded for the run, kept in the window, and evaluated against the breath's budget.
-	 *  A signal is acted on here (the next beat holds or breathes) and recorded, so the run sees the page regulate
-	 *  itself and on what. */
-	private regulate(costMs: number, now: number, drew?: { calls: number; triangles: number }): void {
+	 *  A signal is acted on here (the next beat holds or breathes) and recorded, so the run can observe the regulation
+	 *  and the cost behind it. */
+	private regulate(costMs: number, now: number, drew: { calls: number }): void {
 		recordFrameCost(this.regulation, costMs, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
-		this.recordBlip(GRAPH_FRAME_BLIP, costMs, { drawCalls: drew?.calls ?? 0, triangles: drew?.triangles ?? 0, nodes: this.nodeMap.size });
+		this.recordBlip(GRAPH_FRAME_BLIP, costMs, { drawCalls: drew.calls, nodes: this.nodeMap.size });
 		const signal = evaluateRegulation(this.regulation, DEFAULT_REGULATION_THRESHOLDS, now);
 		if (!signal) return;
 		this.recordBlip(GRAPH_REGULATION_BLIP, signal.frameCostMs, { signal: signal.kind, share: signal.share });
@@ -1585,13 +1586,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Drawing on demand: the frame jobs run and the scene draws only while something is moving (layout settle, tween,
 		// drag, camera damping via the `change` listener), the pointer is over the canvas, a recent discrete change is
 		// within its grace window, or a focus is pending. Otherwise `Drawing` pauses the components and stops the
-		// renderer's loop, so an idle graph draws nothing. The rAF loop below keeps running as a cheap per-frame gate, so
-		// a change wakes the scene within one frame.
+		// renderer's loop, so an idle graph draws nothing. The rAF loop below keeps running as a per-frame gate of one
+		// comparison, so a change wakes the scene within one frame.
 		// What a drawn frame costs is measured after the draw (see `FrameCost`) and read in the gate below, where the
-		// regulator decides whether the breath may keep asking for frames.
-		const sceneEl = scene as unknown as TAframeScene & { renderer?: { getContext?(): unknown; info?: { render?: { calls: number; triangles: number } } } };
+		// regulator sets whether the breath may keep requesting frames.
+		const sceneEl = scene as unknown as TAframeScene & { renderer?: { getContext?(): unknown; info?: { render?: { calls: number } } } };
 		const frameCost = new FrameCost(() => sceneEl.renderer?.getContext?.() as TFenceGl | undefined);
 		const drawing = new Drawing(aframeLoop(sceneEl, () => frameCost.drew()));
+		this.drawing = drawing;
 		const tick = () => {
 			this.rafFrame++;
 			const now = performance.now();
@@ -1599,10 +1601,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// observer catches, so this cheap poll runs even while the scene is paused and marks dirty on any geometry change.
 			if (this.rafFrame % CANVAS_GEOMETRY_EVERY === 0) this.checkCanvasGeometry();
 			const cost = frameCost.poll();
-			if (cost !== undefined) this.regulate(cost, now, sceneEl.renderer?.info?.render);
+			if (cost !== undefined) {
+				const drew = sceneEl.renderer?.info?.render;
+				if (!drew) throw new Error("a frame was measured with no renderer to report what it drew");
+				this.regulate(cost, now, drew);
+			}
 			// The active node's breath, on wall time like the geometry poll rather than as a frame job: a job's countdown
 			// only advances while the scene is drawing, so a throttled breath stalled whenever the scene settled and then
-			// jumped. One node's colour and scale, ten times a second, and the frame it asks for is the only one it costs;
+			// jumped. One node's colour and scale, ten times a second, and the frame it requests is the only one it costs;
 			// the scene idles between them. While the regulator has the breath resting, the glow is drawn once and held.
 			if (now - this.lastBreathAt >= BREATH_MS) {
 				this.lastBreathAt = now;
@@ -1613,7 +1619,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// yet), and either can lag a selection made mid-build. Sleeping before then would leave the dim undrawn.
 			const active = this.rafFrame < this.dirtyUntilFrame || this.pointerOverCanvas || this.isSettling() || this.focusDirty;
 			drawing.moving(active);
-			this.scenePaused = !drawing.drawing;
 			if (active) {
 				if (this.focusDirty && this.engine.mode === "frozen") {
 					this.focusCtl.applyFocus();
@@ -1808,7 +1813,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** New/removed streamed nodes: short trailing coalesce so the newcomer shows promptly; positions are preserved (no scatter).
-	 *  Nothing is drawn for the schedule itself: the repaint draws when the visible model changed, and a feed that changed
+	 *  The schedule itself draws nothing: the repaint draws when the visible model changed, and a feed that changed
 	 *  nothing visible (an observation of the page's own request, with instrumentation hidden) leaves the scene at rest. */
 	private scheduleData(): void {
 		if (this.repaintTimer !== undefined) return;
