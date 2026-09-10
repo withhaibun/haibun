@@ -7,6 +7,8 @@
  * switching steps cancels the stale read and renders only the latest.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { jsonDisclosure } from "./json-disclosure.js";
 import { html, css, type TemplateResult } from "lit";
 import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
@@ -173,28 +175,30 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		const allowed = field(SEQ_PATH_FIELD.allowedAction);
 		return html`<div class="step-detail">
 			<h4>Step [${key}]</h4>
-			${step
-				? html`
+			${
+				step
+					? html`
 				<div class="field"><span class="label">Step:</span> <span class="value">${field(SEQ_PATH_FIELD.stepText)}</span></div>
 				<div class="field"><span class="label">Action:</span> <span class="value">${status} ${field(SEQ_PATH_FIELD.called)}</span></div>
 				${field(SEQ_PATH_FIELD.error) ? html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${field(SEQ_PATH_FIELD.error)}</span></div>` : ""}
 				<div class="section"><span class="label">Ran:</span> <span class="value">${field(SEQ_PATH_FIELD.ranVia)}${ranOn ? ` ${ranOn}` : ""}${took ? ` ${took}` : ""}</span></div>
 				${capability ? html`<div class="field"><span class="label">Capability:</span> <span class="value">${capability}${allowed ? ` allowed by ${allowed}` : ""}</span></div>` : ""}
 			`
-				: ""
+					: ""
 			}
-			${variablesSet.length > 0
-				? html`
+			${
+				variablesSet.length > 0
+					? html`
 				<div class="section"><span class="label">Data set (${variablesSet.length}):</span>
 					${variablesSet.map((v) => {
-					const isVertex = !!getRels(v.graph);
-					return html`<div class="var-row"><span style="color:var(--shu-fg-faded);font-size:var(--shu-font-sm)">${v.graph}</span> <span class="entity-link" @click=${this.onLink(v.name, v.graph, isVertex)}>${v.name}</span></div>`;
-				})}
+						const isVertex = !!getRels(v.graph);
+						return html`<div class="var-row"><span style="color:var(--shu-fg-faded);font-size:var(--shu-font-sm)">${v.graph}</span> <span class="entity-link" @click=${this.onLink(v.name, v.graph, isVertex)}>${v.name}</span></div>`;
+					})}
 				</div>
 			`
-				: ""
+					: ""
 			}
-			${step ? html`<details class="section"><summary class="label">Data</summary><pre>${JSON.stringify(step, null, 2)}</pre></details>` : ""}
+			${step ? html`<details class="section"><summary class="label">Data</summary>${unsafeHTML(jsonDisclosure(step))}</details>` : ""}
 		</div>`;
 	}
 }

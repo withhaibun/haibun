@@ -20,7 +20,7 @@ import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import { artifactUrl } from "../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
-import { PaneState } from "../pane-state.js";
+import { PaneState, type DesiredPane } from "../pane-state.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
@@ -33,6 +33,21 @@ const MonitorColumnSchema = z.object({
 	substeps: z.boolean().default(false),
 });
 
+/**
+ * What pressing a row opens: the record that row is.
+ *
+ * Every row of the log is a record of the run — a step, something the run said, or something it produced. A step has a
+ * view of its own; every other record is opened the way any record of the graph is. Opened only where a row carried a
+ * step, a reader learned that some rows answer a press and others do nothing, with nothing on the row to tell them
+ * which: what a run said over a connection is as much a record as the step it was said during.
+ *
+ * A row naming no record opens nothing, which is a row of something the run never wrote down.
+ */
+export function opens(row: TLogRow): DesiredPane | undefined {
+	if (row.seqPath) return { paneType: "step-detail", seqPath: row.seqPath };
+	return row.record ? { paneType: "entity", persistedAs: row.record.persistedAs, id: row.record.id } : undefined;
+}
+
 export type TLogRow = {
 	time: string;
 	timestamp: number;
@@ -42,6 +57,9 @@ export type TLogRow = {
 	/** The one glyph the row carries: how the step went, or the level a message reports at. */
 	icon: string;
 	seqPath?: number[];
+	/** The record this row is: pressing a row opens it, and a row that is not a step is opened the way any record of
+	 *  the graph is. */
+	record?: { persistedAs: string; id: string };
 	/** A step's outcome, how long it took, where it ran, and what it had to hold to run: what its own record says. */
 	status?: string;
 	durationMs?: number;
@@ -270,6 +288,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			message,
 			icon,
 			seqPath,
+			...(e.record === undefined ? {} : { record: e.record as { persistedAs: string; id: string } }),
 			mark: markFor(e),
 			...(produced.length ? { produced } : {}),
 			...(partOf === undefined ? {} : { partOf }),
@@ -327,11 +346,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		};
 
 	private onRowClick =
-		(seqPath: number[] | undefined) =>
+		(row: TLogRow) =>
 		(e: Event): void => {
-			if (!seqPath) return;
-			const addToSelection = Boolean((e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey);
-			PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, addToSelection);
+			const opening = opens(row);
+			if (!opening) return;
+			PaneState.requestFrom(this, opening, Boolean((e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey));
 		};
 
 	// Derive the window before each render: the rows it holds, the rail markers (every record
@@ -420,7 +439,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
 			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${seqPath}<span class="time">${r.time}</span></span>
-			<span class="row-content" @click=${this.onRowClick(r.seqPath)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}${produced}</span>
+			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}${produced}</span>
 		</div>`;
 	};
 }
