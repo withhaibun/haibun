@@ -177,8 +177,8 @@ export interface ShuHydration {
 export type TDeploymentSettings = {
 	/** How long after the stream breaks the page opens it again. */
 	streamReconnectAfterMs?: number;
-	/** How long a call to the site may take before the page reads it as not answering. */
-	siteAnswersWithinMs?: number;
+	/** The timeout on a request the page awaits. */
+	responseTimeoutMs?: number;
 };
 
 // The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
@@ -237,24 +237,22 @@ export function deploymentMs(name: keyof TDeploymentSettings): number | undefine
 }
 
 /**
- * How long a call to the site may take before the page reads it as not answering.
+ * The timeout on a request the page awaits, after which the server is reported unreachable.
  *
- * A site that accepts a call and never answers it leaves the view that made it reading nothing, with no word of why:
- * the reading never fails, so it never falls back to what the device holds. The bound is what turns that into an
- * answer a reader can act on.
+ * A server that accepts a request without responding leaves the view that issued it with no result and no error, so
+ * the read never fails and never falls back to the device store. The timeout converts that into a reported failure.
  *
- * Calibrated against what a read costs. Over a corpus of eight thousand messages the consumer's engine answers a page
- * read in 10ms on average and 64ms at the ninety-fifth, its own benchmark holds queries to 200ms and 600ms, the
- * heaviest read either repository measures is 727ms, and the clustered graph a page opens with answers in 151ms. This
- * is twenty seconds: some twenty-seven times the heaviest read measured, and three times what the ninety-fifth would
- * come to over a corpus a hundred times that size were it to grow in step with it. A deployment reading a store slower
- * than that raises it.
+ * Calibrated against measured query latency. Over a corpus of eight thousand messages the consumer's engine answers a
+ * page read in 10ms mean and 64ms at the 95th percentile; its own benchmark bounds queries at 200ms mean and 600ms at
+ * the 95th; the slowest query measured in either repository is 727ms; and the clustered graph read at page load
+ * answers in 151ms. Twenty seconds is 27 times the slowest measured query, and three times the 95th percentile
+ * extrapolated linearly to a corpus a hundredfold larger. A deployment on slower storage raises it.
  */
-export const SITE_ANSWERS_WITHIN_MS = 20_000;
+export const RESPONSE_TIMEOUT_MS = 20_000;
 
-/** The bound this page applies to a call, which the deployment may set. */
-export function siteAnswersWithinMs(): number {
-	return deploymentMs("siteAnswersWithinMs") ?? SITE_ANSWERS_WITHIN_MS;
+/** The timeout this page applies, as the deployment sets it. */
+export function responseTimeoutMs(): number {
+	return deploymentMs("responseTimeoutMs") ?? RESPONSE_TIMEOUT_MS;
 }
 
 /** The run this page carries, when it carries one. */

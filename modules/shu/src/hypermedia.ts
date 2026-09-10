@@ -24,7 +24,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
 import { rpcEnvelope, readNdjson } from "@haibun/core/lib/rpc-wire.js";
-import { findStep, siteAnswersWithinMs } from "./rpc-registry.js";
+import { findStep, responseTimeoutMs } from "./rpc-registry.js";
 import { sessionReady, signedHeaders } from "./session-key.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
@@ -203,23 +203,23 @@ export class LiveConduit implements Conduit {
 	private async post(method: string, envelope: Omit<Parameters<typeof rpcEnvelope>[0], "id">, signal?: AbortSignal): Promise<Response> {
 		const url = `${this.basePath}/rpc/${method}`;
 		const body = rpcEnvelope({ id: nextRpcId(), ...envelope });
-		// A call the site accepts and never answers is a site that has not answered, so a call the page waits on is
-		// bounded. A caller that brought its own signal governs its own call, and a stream is held open for as long as
-		// the run keeps writing to it, so it is bounded by nothing.
-		const bounded = signal ?? (envelope.stream === true ? undefined : AbortSignal.timeout(siteAnswersWithinMs()));
-		// A site found silent a moment ago is not called again yet: the answer is the one the last call got, and a page
-		// with several views open would otherwise wait out the bound once per view.
-		if (signal === undefined && envelope.stream !== true && siteIsSilent()) throw new ServerUnreachable(url, new Error("the site did not answer the call before this one"));
+		// A request the server accepts without responding to is indistinguishable from an unreachable server, so a
+		// request the page awaits carries a timeout. A caller that supplied a signal governs its own request, and a
+		// stream stays open for as long as the run writes to it, so it carries no timeout.
+		const bounded = signal ?? (envelope.stream === true ? undefined : AbortSignal.timeout(responseTimeoutMs()));
+		// Within the retry interval of a timed-out request, no further request is issued: the previous timeout is the
+		// result, since a page with several views open would otherwise run each read to the timeout separately.
+		if (signal === undefined && envelope.stream !== true && isUnreachable()) throw new ServerUnreachable(url, new Error("a request to this server timed out within the last interval"));
 		try {
 			const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal: bounded });
 			responded().at = Date.now();
-			responded().silentUntil = 0;
+			responded().unreachableUntil = 0;
 			return res;
 		} catch (err) {
 			if (signal?.aborted) throw err; // the caller stopped this request; the server's reachability is not in question
-			// Only a site that made the page wait is remembered as silent. A call the network refuses fails at once, so
-			// the read that follows it loses nothing by trying, and a site that comes back is found by the next read.
-			if (bounded?.aborted) responded().silentUntil = Date.now() + SITE_TRIED_AGAIN_AFTER_MS;
+			// Only a timeout withholds later requests. A request the network refuses fails immediately, so the next read
+			// costs nothing by issuing one, and a server that recovers is detected on that read.
+			if (bounded?.aborted) responded().unreachableUntil = Date.now() + UNREACHABLE_RETRY_AFTER_MS;
 			throw new ServerUnreachable(url, err);
 		}
 	}
@@ -242,20 +242,20 @@ export class LiveConduit implements Conduit {
  *  whether it is current; a page that has never reached a server has nothing here. Held by the page, since a request
  *  from any bundle is this page reaching the server. */
 const RESPONDED_KEY = "__SHU_SERVER_RESPONDED__";
-const responded = (): { at: number | undefined; silentUntil: number } => pagePinned(RESPONDED_KEY, () => ({ at: undefined, silentUntil: 0 }));
+const responded = (): { at: number | undefined; unreachableUntil: number } => pagePinned(RESPONDED_KEY, () => ({ at: undefined, unreachableUntil: 0 }));
 
 /**
- * How long a page that has just found the site silent reads what it holds before calling it again.
+ * How long a request is withheld after one timed out, before the page issues another.
  *
- * A page makes a call per read, and a reader with several views open makes many at once. Were each to wait out the
- * bound on its own, a site that has stopped answering would cost every one of them that wait, and the page would spend
- * its time waiting rather than reading what the device holds. One call answers for all of them for this long, and the
- * site is tried again after it, as the stream is opened again after it breaks.
+ * A page issues one request per read, and a reader with several views open issues many concurrently. Without this,
+ * each would run to the response timeout independently, so an unresponsive server would cost every read that full
+ * duration and the page would spend its time waiting rather than querying the device store. One timed-out request
+ * stands for the rest over this interval, after which the next read issues a request again.
  */
-export const SITE_TRIED_AGAIN_AFTER_MS = 2_000;
+export const UNREACHABLE_RETRY_AFTER_MS = 2_000;
 
-/** Whether the site is known not to be answering, so a call would only be waited out again. */
-const siteIsSilent = (): boolean => Date.now() < responded().silentUntil;
+/** Whether a request timed out within the retry interval, so another would only run to the timeout again. */
+const isUnreachable = (): boolean => Date.now() < responded().unreachableUntil;
 
 export function serverLastRespondedAt(): number | undefined {
 	return responded().at;

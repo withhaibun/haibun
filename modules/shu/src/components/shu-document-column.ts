@@ -88,7 +88,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	// The run this view reads is the run at its level, spanning the whole run by index (event-source): the rail is the
 	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
-	#run: RunSource = graphRunSource(this.state.level);
+	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
+	 *  leave a reading of the run that nothing reads. */
+	#run!: RunSource;
 	#unsubscribeRun?: () => void;
 	#source: WindowedSource<TDocRow> = this.#rowsOver(this.#run);
 	#pages = new Map<number, TPageRows>();

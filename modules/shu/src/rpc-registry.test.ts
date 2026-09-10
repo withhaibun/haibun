@@ -8,7 +8,7 @@
  * it has. These tests pin the rule.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SITE_ANSWERS_WITHIN_MS, deploymentMs, getAvailableSteps, hydrateFromDom, isOffline, registryOrigin, requireStep, resetStepRegistry, siteAnswersWithinMs } from "./rpc-registry.js";
+import { RESPONSE_TIMEOUT_MS, deploymentMs, getAvailableSteps, hydrateFromDom, isOffline, registryOrigin, requireStep, resetStepRegistry, responseTimeoutMs } from "./rpc-registry.js";
 import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 
@@ -92,19 +92,19 @@ describe("how long a call to the site may take", () => {
 	it("allows what the product carries where the deployment sets nothing", () => {
 		setHydration({ settings: {} });
 		hydrateFromDom();
-		expect(siteAnswersWithinMs()).toBe(SITE_ANSWERS_WITHIN_MS);
+		expect(responseTimeoutMs()).toBe(RESPONSE_TIMEOUT_MS);
 	});
 
 	it("allows what the deployment set, so a deployment reading a slower store raises it", () => {
-		setHydration({ settings: { siteAnswersWithinMs: 250 } });
+		setHydration({ settings: { responseTimeoutMs: 250 } });
 		hydrateFromDom();
-		expect(siteAnswersWithinMs()).toBe(250);
+		expect(responseTimeoutMs()).toBe(250);
 	});
 
 	it("is far above what a read costs, which is what makes it a sign of a site that has stopped answering", () => {
 		// Measured: a page read over eight thousand messages answers in 10ms on average and 64ms at the ninety-fifth,
 		// the consumer holds its queries to 200ms, and the heaviest read either repository measures is 727ms.
-		expect(SITE_ANSWERS_WITHIN_MS).toBeGreaterThan(727 * 10);
+		expect(RESPONSE_TIMEOUT_MS).toBeGreaterThan(727 * 10);
 	});
 });
 
