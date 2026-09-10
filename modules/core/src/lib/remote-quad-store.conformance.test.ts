@@ -18,7 +18,11 @@ function servedBy(store: QuadStore): typeof fetch {
 	}) as unknown as typeof fetch;
 }
 
-describeQuadStore("served by another instance", () => {
-	const serving = new QuadStore();
-	return new RemoteQuadStore({ url: "http://serving.example", token: "delegated", graphs: [graphs.first, graphs.second], fetchImpl: servedBy(serving) });
-}, graphs);
+describeQuadStore(
+	"served by another instance",
+	() => {
+		const serving = new QuadStore();
+		return new RemoteQuadStore({ url: "http://serving.example", token: "delegated", graphs: [graphs.first, graphs.second], fetchImpl: servedBy(serving) });
+	},
+	graphs,
+);

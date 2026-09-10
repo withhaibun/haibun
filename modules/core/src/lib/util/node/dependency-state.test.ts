@@ -117,7 +117,14 @@ describe("what a run depends on", () => {
 	});
 
 	it("takes a module built from a directory its own build configuration declares as that directory, so its tests, documents and groups are not what its stepper reaches", () => {
-		const repo = aRepository({ "package.json": "{}", "tsconfig.json": JSON.stringify({ compilerOptions: { rootDir: "src", outDir: "build" } }), "src/x-stepper.ts": "", "docs/readme.md": "", "tests/config.json": "{}", ".gitignore": "build\n" });
+		const repo = aRepository({
+			"package.json": "{}",
+			"tsconfig.json": JSON.stringify({ compilerOptions: { rootDir: "src", outDir: "build" } }),
+			"src/x-stepper.ts": "",
+			"docs/readme.md": "",
+			"tests/config.json": "{}",
+			".gitignore": "build\n",
+		});
 		nodeFS.mkdirSync(path.join(repo, "build"));
 		nodeFS.writeFileSync(path.join(repo, "build/x-stepper.js"), "");
 		const configDir = path.join(repo, "tests");

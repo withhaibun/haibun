@@ -57,6 +57,32 @@ class RpcVerifyStepper extends AStepper {
 				return OK;
 			},
 		},
+		rpcReadOfStepRefused: {
+			gwta: "rpc read at {url} of {method} is refused",
+			action: async ({ url, method }: TStepArgs) => {
+				const res = await fetch(String(url), {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1], asks: "read" }),
+				});
+				const data = (await res.json()) as { error?: string };
+				if (res.status !== 422) return actionNotOK(`answered a read of a step that declares none: HTTP ${res.status}`);
+				return typeof data.error === "string" && data.error.includes("does not declare itself one") ? OK : actionNotOK(`refused without saying why: ${JSON.stringify(data)}`);
+			},
+		},
+		rpcReadOfStepAnswered: {
+			gwta: "rpc read at {url} of {method} is answered",
+			action: async ({ url, method }: TStepArgs) => {
+				const res = await fetch(String(url), {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1], asks: "read" }),
+				});
+				const data = (await res.json()) as { error?: string };
+				if (!res.ok || data.error) return actionNotOK(`refused a read of a step that declares itself one: ${res.status} ${JSON.stringify(data)}`);
+				return OK;
+			},
+		},
 		rpcCallDeniedWithoutCapability: {
 			gwta: "rpc call to {url} with method {method} is denied without capability",
 			action: async ({ url, method }: TStepArgs) => {
@@ -169,10 +195,13 @@ class ReadStepper extends AStepper {
 	override async setWorld(world: Parameters<AStepper["setWorld"]>[0], steppers: Parameters<AStepper["setWorld"]>[1]) {
 		await super.setWorld(world, steppers);
 		narrated.length = 0;
-		world.eventLogger.subscribe((event) => {
-			const said = (event as { message?: unknown }).message;
-			if (typeof said === "string" && said.startsWith("RPC: ")) narrated.push(said);
-		}, { kinds: ["log"] });
+		world.eventLogger.subscribe(
+			(event) => {
+				const said = (event as { message?: unknown }).message;
+				if (typeof said === "string" && said.startsWith("RPC: ")) narrated.push(said);
+			},
+			{ kinds: ["log"] },
+		);
 	}
 
 	steps = {
@@ -219,6 +248,24 @@ webserver is listening for "rpc-read-narration"
 rpc call to "http://localhost:${port}/rpc/ReadStepper-asked" with method "ReadStepper-asked" succeeds
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
 run narrated the call that acted on it and not the call that read it
+`,
+		};
+		const result = await passWithDefaults([feature], steppers, makeOptions(port));
+		expect(result.ok).toBe(true);
+	});
+
+	it("answers a read of a step that declares itself one, and refuses to answer a read of a step that does not", async () => {
+		// A read is answered and leaves no record of the reading, so what may be read that way is what the step itself
+		// declares. Asked to read a step that declares nothing, the run refuses rather than answering and recording the
+		// reading as something it did, which is a run that writes about being read for as long as a page follows it.
+		const port = 8246;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-asks-read"
+rpc read at "http://localhost:${port}/rpc/ReadStepper-asked" of "ReadStepper-asked" is answered
+rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping" is refused
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));

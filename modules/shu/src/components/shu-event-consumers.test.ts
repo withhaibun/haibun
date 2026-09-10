@@ -103,9 +103,15 @@ describe("the views of a run, over the records it wrote", () => {
 			[producedRecord(1, { id: `${RUN}.0.1.-1@0`, isPartOf: `${RUN}.0.1.-1` })],
 		);
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
-		expect(mon.rows.map((row) => row.step), "the run's steps, and no row for what one of them produced").toEqual(["step 1"]);
+		expect(
+			mon.rows.map((row) => row.step),
+			"the run's steps, and no row for what one of them produced",
+		).toEqual(["step 1"]);
 		const shown = mon.rows[0].produced ?? [];
-		expect(shown.map((one) => one.what), "the step a reader sees shows the shot taken during it").toEqual(["image ./image/event-0.1.png"]);
+		expect(
+			shown.map((one) => one.what),
+			"the step a reader sees shows the shot taken during it",
+		).toEqual(["image ./image/event-0.1.png"]);
 	});
 
 	it("shows the steps run to carry other steps out when a reader asks for them, each naming the step that established it", async () => {
@@ -113,13 +119,19 @@ describe("the views of a run, over the records it wrote", () => {
 		const RUN = "1700000000000-1";
 		await aRun([stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })]);
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
-		expect(mon.rows.map((row) => row.step), "a reader reading what the feature did is not shown the machinery").toEqual(["step 1"]);
+		expect(
+			mon.rows.map((row) => row.step),
+			"a reader reading what the feature did is not shown the machinery",
+		).toEqual(["step 1"]);
 		const asked = mon.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.MONITOR.SUBSTEPS}"]`) as HTMLInputElement;
 		asked.checked = true;
 		asked.dispatchEvent(new Event("change"));
 		await flush();
 		await flush();
-		expect(mon.rows.map((row) => row.step), "and a reader asking for it is").toEqual(["step 1", "take a screenshot"]);
+		expect(
+			mon.rows.map((row) => row.step),
+			"and a reader asking for it is",
+		).toEqual(["step 1", "take a screenshot"]);
 		expect(mon.rows[1].partOf, "the substep's row names the step it was run to carry out").toEqual([0, 1]);
 		expect(mon.rows[0].partOf, "a step of the feature names none").toBeUndefined();
 		expect(mon.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.MONITOR.ESTABLISHED_BY}"]`), "which a reader reads that step from").toBeTruthy();
@@ -127,13 +139,19 @@ describe("the views of a run, over the records it wrote", () => {
 
 	it("carries one glyph per row: how a step went, and the level a message reports at", async () => {
 		resetGraphRunSources();
-		await aRun([stepRecord(1), stepRecord(2, { actionStatus: "failed" })], [{ id: "0.1@0", isPartOf: "0.1", message: "something to note", level: "warn", generatedAtTime: iso(1) }]);
+		await aRun(
+			[stepRecord(1), stepRecord(2, { actionStatus: "failed" })],
+			[{ id: "0.1@0", isPartOf: "0.1", message: "something to note", level: "warn", generatedAtTime: iso(1) }],
+		);
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
 		const glyphs = new Map(mon.rows.map((row) => [row.step || row.message, row.icon]));
 		expect(glyphs.get("step 1"), "a step that passed").toBe(ICON_STEP_COMPLETED);
 		expect(glyphs.get("step 2"), "a step that failed says so rather than repeating the level every step reports at").not.toBe(ICON_LOG_INFO);
 		expect(glyphs.get("something to note"), "a message carries the level it reports at").toBe(ICON_LOG_WARN);
-		expect(mon.rows.every((row) => !row.message.startsWith(row.icon)), "and the row does not say it twice").toBe(true);
+		expect(
+			mon.rows.every((row) => !row.message.startsWith(row.icon)),
+			"and the row does not say it twice",
+		).toBe(true);
 	});
 
 	it("shows a step as one row, which is what its record is", async () => {

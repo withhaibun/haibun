@@ -287,21 +287,28 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 					// Date fields (z.date / z.coerce.date) surface as string/date-time: their input is an ISO string.
 					// Every other type with no JSON Schema representation throws right here, at registration, naming
 					// the domain and the type.
-					const jsonSchema = jsonSchemaOf(domain.schema, "input", () => z.toJSONSchema(domain.schema, {
-						io: "input",
-						unrepresentable: "any",
-						override: (ctx) => {
-							const nodeType = zodTypeLabel(ctx.zodSchema);
-							if (nodeType === "date") {
-								ctx.jsonSchema.type = "string";
-								ctx.jsonSchema.format = "date-time";
-								return;
-							}
-							if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
-								throw new Error(`step.list: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation — declare a representable input type`);
-							}
-						},
-					}) as Record<string, unknown>);
+					const jsonSchema = jsonSchemaOf(
+						domain.schema,
+						"input",
+						() =>
+							z.toJSONSchema(domain.schema, {
+								io: "input",
+								unrepresentable: "any",
+								override: (ctx) => {
+									const nodeType = zodTypeLabel(ctx.zodSchema);
+									if (nodeType === "date") {
+										ctx.jsonSchema.type = "string";
+										ctx.jsonSchema.format = "date-time";
+										return;
+									}
+									if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
+										throw new Error(
+											`step.list: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation — declare a representable input type`,
+										);
+									}
+								},
+							}) as Record<string, unknown>,
+					);
 					const prop: Record<string, unknown> = { ...jsonSchema };
 					if (domain.description && !prop.description) {
 						prop.description = domain.description;

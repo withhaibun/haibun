@@ -14,7 +14,12 @@ import { setConduit, resetConduit, LiveConduit } from "./hypermedia.js";
 import { TestConduit } from "./test-setup.js";
 
 /** Offline is which Conduit is installed: a serialized one has no location to mutate, a live one does. */
-const offline = () => setConduit(new TestConduit(() => { throw new Error("pane-state test: no dispatch expected"); }));
+const offline = () =>
+	setConduit(
+		new TestConduit(() => {
+			throw new Error("pane-state test: no dispatch expected");
+		}),
+	);
 
 const emptyMeta = (ui: SiteMetadata["ui"] = {}): SiteMetadata => ({
 	types: [],

@@ -25,11 +25,12 @@ export function importsDataAccessPrimitive(source: string): boolean {
 	for (const [, typeOnly, clause, names, spec] of source.matchAll(/import\s+(type\s+)?(\{([^}]*)\}|\*\s+as\s+\w+)\s+from\s+"([^"]+)"/g)) {
 		if (typeOnly || !PLUMBING_MODULES.some((m) => spec.endsWith(m))) continue;
 		if (clause.startsWith("*")) return true;
-		const imported = names.split(",").map((n) =>
-			n
-				.trim()
-				.replace(/^type\s+/, "")
-				.split(/\s+as\s+/)[0],
+		const imported = names.split(",").map(
+			(n) =>
+				n
+					.trim()
+					.replace(/^type\s+/, "")
+					.split(/\s+as\s+/)[0],
 		);
 		if (imported.some((n) => DATA_ACCESS_PRIMITIVES.has(n))) return true;
 	}

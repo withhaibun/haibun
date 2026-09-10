@@ -179,7 +179,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 	@property({ attribute: false }) accessor rows: TLogRow[] = [];
 
-
 	/** The reader's own choice of what to show, remembered across reloads. */
 	static persistFields = ["level", "substeps"] as const;
 
@@ -263,7 +262,18 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			.map((one) => ({ url: artifactUrl(one) ?? "", what: producedName(one) }))
 			.filter((one) => one.url !== "");
 		const partOf = Array.isArray(e.partOf) ? (e.partOf as number[]) : undefined;
-		const row: TLogRow = { time: `${((ts - first) / 1000).toFixed(1)}s`, timestamp: ts, level, step, message, icon, seqPath, mark: markFor(e), ...(produced.length ? { produced } : {}), ...(partOf === undefined ? {} : { partOf }) };
+		const row: TLogRow = {
+			time: `${((ts - first) / 1000).toFixed(1)}s`,
+			timestamp: ts,
+			level,
+			step,
+			message,
+			icon,
+			seqPath,
+			mark: markFor(e),
+			...(produced.length ? { produced } : {}),
+			...(partOf === undefined ? {} : { partOf }),
+		};
 		for (const field of ROW_FIELDS) if (e[field] !== undefined) (row as Record<string, unknown>)[field] = e[field];
 		this.#rowCache.set(e, row);
 		return row;
@@ -273,11 +283,12 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	 *  Walked from the spans the source caches, never a scan of the run's extent. */
 	#cached(): Array<{ index: number; row: TLogRow }> {
 		const out: Array<{ index: number; row: TLogRow }> = [];
-		for (const { from, to } of this.#run.cachedRanges()) for (let i = from; i < to; i++) {
-			const e = this.#run.rowAt(i) as Record<string, unknown> | undefined;
-			// A shot the step's own row carries is read there, so it marks the rail there rather than twice.
-			if (e && !carried(e)) out.push({ index: i, row: this.#rowOf(e) });
-		}
+		for (const { from, to } of this.#run.cachedRanges())
+			for (let i = from; i < to; i++) {
+				const e = this.#run.rowAt(i) as Record<string, unknown> | undefined;
+				// A shot the step's own row carries is read there, so it marks the rail there rather than twice.
+				if (e && !carried(e)) out.push({ index: i, row: this.#rowOf(e) });
+			}
 		return out;
 	}
 
@@ -334,9 +345,18 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// frame a reader scrolls and the window changes only when the run does.
 		const cached = this.#cached();
 		this.rows = cached.map(({ row }) => row);
-		this.#marks = railMarkers(this.rows, cached.map(({ index }) => index));
+		this.#marks = railMarkers(
+			this.rows,
+			cached.map(({ index }) => index),
+		);
 		const cursor = this.timeCursor;
-		this.#currentIdx = cursor === null ? -1 : currentRowIndex(cached.map(({ index, row }) => ({ index, timestamp: row.timestamp })), cursor);
+		this.#currentIdx =
+			cursor === null
+				? -1
+				: currentRowIndex(
+						cached.map(({ index, row }) => ({ index, timestamp: row.timestamp })),
+						cursor,
+					);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 

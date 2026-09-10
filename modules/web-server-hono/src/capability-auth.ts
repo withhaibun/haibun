@@ -43,7 +43,11 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
 }
 
 /** What a token this process issued grants: the actions the authority resolves it to, plus a configured access token's own. */
-export function getGrantedCapabilityFromHeaders(headers: TRequestHeaders | undefined, runtime: TRuntime, { accessToken, accessCapability }: TCapabilityAuthConfig): string[] | undefined {
+export function getGrantedCapabilityFromHeaders(
+	headers: TRequestHeaders | undefined,
+	runtime: TRuntime,
+	{ accessToken, accessCapability }: TCapabilityAuthConfig,
+): string[] | undefined {
 	const authorization = getHeader(headers, "authorization");
 	if (!authorization?.startsWith("Bearer ")) return undefined;
 	const token = authorization.slice(7).trim();

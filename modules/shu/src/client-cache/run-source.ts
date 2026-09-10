@@ -83,7 +83,11 @@ export async function readRunAt(at: number | null): Promise<void> {
 	const held = readingAt();
 	if (held.at === moment) return;
 	held.at = moment;
-	await Promise.all(runSources().filter((source) => !alreadyHolds(source, moment)).map((source) => source.readAt(moment)));
+	await Promise.all(
+		runSources()
+			.filter((source) => !alreadyHolds(source, moment))
+			.map((source) => source.readAt(moment)),
+	);
 }
 
 /** Report a source a view is reading by; the returned function says it has stopped. */

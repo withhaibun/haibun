@@ -173,4 +173,3 @@ export async function discoverInstance(rpc: RpcClient, url: string): Promise<{ h
 	if (typeof site !== "string" || site.length === 0) throw new Error(`discoverInstance: ${url} did not report a site principal — the peer predates federation`);
 	return { hostId, site };
 }
-

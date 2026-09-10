@@ -1,11 +1,22 @@
-import { GraphQuerySchema, type TCluster, type TClusteredQuads, type TGraphQueryResult, type TQuad, type IQuadStore, type TDensityQuery, type TDensityResult, type TQuadEdge, type TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
+import {
+	GraphQuerySchema,
+	type TCluster,
+	type TClusteredQuads,
+	type TGraphQueryResult,
+	type TQuad,
+	type IQuadStore,
+	type TDensityQuery,
+	type TDensityResult,
+	type TQuadEdge,
+	type TIndividualWithEdges,
+} from "@haibun/core/lib/quad-types.js";
 import { individualWithEdges, incomingEdgesOf } from "@haibun/core/lib/quad-store.js";
 import type { TRunGraph } from "./client-cache/run-graph.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { appAccessLevel } from "./util.js";
-import { conduit } from "./hypermedia.js";
+import { reads, conduit } from "./hypermedia.js";
 import { getRels, getDisplayLabelRel, getSelectFields } from "./rels-cache.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { originGraphStore } from "./client-cache/index.js";
@@ -245,7 +256,7 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			const steps = await getAvailableSteps();
 			if (!steps?.length) throw new Error("getAvailableSteps() returned empty — step registry not yet populated");
 			const data = await conduit().follow<{ quads: TQuad[]; clusters: TCluster[]; site?: string }>(
-				{ method: requireStep("getClusteredQuads"), params: { perTypeLimit, types: opts.types, accessLevel } },
+				reads(requireStep("getClusteredQuads"), { perTypeLimit, types: opts.types, accessLevel }),
 				"quads-snapshot: fetch clustered quads",
 			);
 			if (!Array.isArray(data.quads)) throw new Error("getClusteredQuads returned non-array quads");
@@ -298,7 +309,7 @@ async function askElseHeld<T>(ask: () => Promise<T>, held: () => Promise<T | und
  */
 export function selectValuesFor(label: string): Promise<Record<string, string[]>> {
 	return askElseHeld(
-		async () => (await conduit().follow<{ values: Record<string, string[]> }>({ method: requireStep("getSelectValues"), params: { label } }, `select values for ${label}`)).values ?? {},
+		async () => (await conduit().follow<{ values: Record<string, string[]> }>(reads(requireStep("getSelectValues"), { label }), `select values for ${label}`)).values ?? {},
 		async () => {
 			// A type the site never declared is a question this page cannot answer at all; a declared type with no context
 			// field has no dropdowns, which is an answer.
@@ -325,7 +336,7 @@ export function pageRunGraph(): TRunGraph {
  */
 export function densityOf(query: TDensityQuery): Promise<TDensityResult> {
 	return askElseHeld(
-		() => conduit().follow<TDensityResult>({ method: requireStep("density"), params: { query } }, `the shape of ${query.label}`),
+		() => conduit().follow<TDensityResult>(reads(requireStep("density"), { query }), `the shape of ${query.label}`),
 		async () => (getRels(query.label) ? await cachedGraphStore().density(query) : undefined),
 	);
 }
@@ -338,7 +349,7 @@ export function densityOf(query: TDensityQuery): Promise<TDensityResult> {
  */
 export function queryGraph(query: Record<string, unknown>): Promise<TGraphQueryResult> {
 	return askElseHeld(
-		() => conduit().follow<TGraphQueryResult>({ method: requireStep("graphQuery"), params: { query } }, `query: ${(query.label as string) || "(any)"}`),
+		() => conduit().follow<TGraphQueryResult>(reads(requireStep("graphQuery"), { query }), `query: ${(query.label as string) || "(any)"}`),
 		async () => {
 			const parsed = GraphQuerySchema.safeParse(query);
 			return parsed.success && getRels(parsed.data.label ?? "") ? await queryQuadStore(cachedGraphStore(), parsed.data) : undefined;
@@ -397,7 +408,7 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
  */
 export function readIndividual(label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> {
 	return askElseHeld(
-		() => conduit().follow<TIndividualWithEdges>({ method: requireStep("getIndividualWithEdges"), params: { label, id, accessLevel } }, `read ${label}:${id}`),
+		() => conduit().follow<TIndividualWithEdges>(reads(requireStep("getIndividualWithEdges"), { label, id, accessLevel }), `read ${label}:${id}`),
 		() => individualWithEdges(cachedGraphStore(), label, id),
 	);
 }
@@ -410,7 +421,7 @@ export function incomingEdges(label: string, id: string, window: { limit: number
 	return askElseHeld(
 		() =>
 			conduit().follow<{ edges: TQuadEdge[]; total: number }>(
-				{ method: requireStep("getIncomingEdges"), params: { label, id, accessLevel: appAccessLevel(), ...window } },
+				reads(requireStep("getIncomingEdges"), { label, id, accessLevel: appAccessLevel(), ...window }),
 				`what points at ${label}:${id}`,
 			),
 		// The window is taken before a record is read, so a hub costs the page a window rather than every edge of it.

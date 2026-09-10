@@ -49,7 +49,13 @@ export class IndexedDbQuadStore implements IQuadStore {
 			// index key where it names an individual (an id); any other value is matched after the widest read.
 			const keyed = typeof pattern.object === "string" || typeof pattern.object === "number";
 			const by: [string, IDBValidKey] | undefined =
-				pattern.subject !== undefined ? [IDX_QUAD_SUBJECT, pattern.subject] : keyed ? [IDX_QUAD_OBJECT, pattern.object as IDBValidKey] : pattern.namedGraph !== undefined ? [IDX_QUAD_NAMED_GRAPH, pattern.namedGraph] : undefined;
+				pattern.subject !== undefined
+					? [IDX_QUAD_SUBJECT, pattern.subject]
+					: keyed
+						? [IDX_QUAD_OBJECT, pattern.object as IDBValidKey]
+						: pattern.namedGraph !== undefined
+							? [IDX_QUAD_NAMED_GRAPH, pattern.namedGraph]
+							: undefined;
 			const indexed = by ? await done(store.index(by[0]).getAll(by[1])) : await done(store.getAll());
 			return (indexed as StoredQuad[]).filter((q) => matchesQuadPattern(q, pattern)).map(strip);
 		});
@@ -155,7 +161,10 @@ export class IndexedDbQuadStore implements IQuadStore {
 		// A page holds what it was served, which may have been read at a wider level than this one asks for. A read here
 		// answers what the site would have: a record stating a level beyond what was asked is not in it, so the control a
 		// reader sets means the same thing whether or not there is a server behind the page.
-		return sliceQuadsPerType(asked.filter((q) => withinAccess(levelOf(asked, q), opts.accessLevel)), opts.perTypeLimit);
+		return sliceQuadsPerType(
+			asked.filter((q) => withinAccess(levelOf(asked, q), opts.accessLevel)),
+			opts.perTypeLimit,
+		);
 	}
 }
 
@@ -164,7 +173,8 @@ export class IndexedDbQuadStore implements IQuadStore {
  *  what a site serves and what a site records, and both name themselves. */
 export function individualAsQuads(label: string, individual: Record<string, unknown>): [string, TQuad[]] {
 	const id = individual["@id"] ?? individual.id;
-	if (typeof id !== "string") throw new Error(`IndexedDbQuadStore: this individual states no identity, so there is nothing to hold it by (got ${JSON.stringify(individual["@id"] ?? individual.id)}).`);
+	if (typeof id !== "string")
+		throw new Error(`IndexedDbQuadStore: this individual states no identity, so there is nothing to hold it by (got ${JSON.stringify(individual["@id"] ?? individual.id)}).`);
 	const quads = Object.entries(individual)
 		.filter(([predicate]) => predicate !== "@id")
 		.map(([predicate, object]) => ({ subject: id, predicate, object, namedGraph: label, timestamp: Date.now() }));

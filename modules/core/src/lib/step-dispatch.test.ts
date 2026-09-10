@@ -419,7 +419,7 @@ describe("step-dispatch", () => {
 			await expect(dispatchStep({ registry, world, steppers }, featureStep)).rejects.toThrow(/capability CapabilityStepper:protected required/);
 		});
 
-		it("answers a read made into a running instance without recording it, and records the same step run as the run's own", async () => {
+		it("answers a read the run did not ask for without recording it, however that read arrived, and records the read a feature states in its own body", async () => {
 			const stepper = new (class extends AStepper {
 				steps = {
 					howMany: { gwta: "how many", read: true, action: async () => actionOKWithProducts({ count: 3 }) },
@@ -431,20 +431,35 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected the read to be registered");
 			const store = world.shared.getStore();
 			const recordOf = (path: number[]) => store.query({ subject: formatRecordName({ execution: executionOf(world.tag), path }), namedGraph: SEQ_PATH_LABEL });
-			const kept = world.runtime.stepResults?.length ?? 0;
 
-			const fromOutside = buildFeatureStepForTransport(tool, {}, [0, 9, 1]);
-			fromOutside.isSubStep = true;
-			const answered = await dispatchStep({ registry, world, steppers }, fromOutside);
+			// Over a transport, which is how a page reads a run it follows. Every transport marks its step programmatic.
+			const overATransport = buildFeatureStepForTransport(tool, {}, [0, 9, 1]);
+			expect(overATransport.programmatic, "a transport states that the run did not ask").toBe(true);
+			let kept = world.runtime.stepResults?.length ?? 0;
+			const answered = await dispatchStep({ registry, world, steppers }, overATransport);
 			expect(answered.ok).toBe(true);
 			expect(answered.products, "the question is answered").toMatchObject({ count: 3 });
-			expect(await recordOf([0, 9, 1]), "no record of the run being read").toEqual([]);
+			expect(await recordOf([0, 9, 1]), "no record of the run being read over a transport").toEqual([]);
 			expect(world.runtime.stepResults?.length ?? 0, "nothing kept in the process for it").toBe(kept);
 
-			const fromTheRun = buildFeatureStepForTransport(tool, {}, [0, 9, 2]);
-			const run = await dispatchStep({ registry, world, steppers }, fromTheRun);
+			// Beneath a step the feature states, which is the feature reading through a combinator: `set x from <a read>`
+			// answers from the read's own result, so the read is a step of the run like the line that stated it.
+			const beneathAStep = buildFeatureStepForTransport(tool, {}, [0, 9, 2]);
+			beneathAStep.programmatic = undefined;
+			beneathAStep.isSubStep = true;
+			kept = world.runtime.stepResults?.length ?? 0;
+			await dispatchStep({ registry, world, steppers }, beneathAStep);
+			expect((await recordOf([0, 9, 2])).length, "a read the feature stated through a combinator is the run reading").toBeGreaterThan(0);
+			expect(world.runtime.stepResults?.length ?? 0, "and its result is the one the line reads").toBe(kept + 1);
+
+			// The same read written in a feature's own body: the run reading is a step of the run.
+			const inTheFeature = buildFeatureStepForTransport(tool, {}, [0, 9, 3]);
+			inTheFeature.programmatic = undefined;
+			kept = world.runtime.stepResults?.length ?? 0;
+			const run = await dispatchStep({ registry, world, steppers }, inTheFeature);
 			expect(run.ok).toBe(true);
-			expect((await recordOf([0, 9, 2])).length, "the same step in a feature is a step of the run").toBeGreaterThan(0);
+			expect((await recordOf([0, 9, 3])).length, "a read a feature states is a step of the run").toBeGreaterThan(0);
+			expect(world.runtime.stepResults?.length ?? 0, "and is kept with the run's other steps").toBe(kept + 1);
 		});
 
 		it("emits SeqPath quads for a passing step", async () => {
@@ -465,7 +480,9 @@ describe("step-dispatch", () => {
 			expect(byPredicate[SEQ_PATH_FIELD.actionStatus]).toBe(SEQ_PATH_STATUS.passed);
 			expect(byPredicate[SEQ_PATH_FIELD.generatedAtTime]).toEqual(expect.any(String));
 			expect(byPredicate[SEQ_PATH_FIELD.endedAtTime]).toEqual(expect.any(String));
-			expect(byPredicate[LinkRelations.PART_OF.rel], "a step is part of its parent step of the same execution").toBe(formatRecordName({ execution: executionOf(world.tag), path: [0, 3] }));
+			expect(byPredicate[LinkRelations.PART_OF.rel], "a step is part of its parent step of the same execution").toBe(
+				formatRecordName({ execution: executionOf(world.tag), path: [0, 3] }),
+			);
 			expect(byPredicate[SEQ_PATH_FIELD.stepText]).toEqual(expect.any(String));
 			// Written even for the ordinary case: a reader asking for the steps that were NOT speculative can only be
 			// answered if an authoritative step says so as well.

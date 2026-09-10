@@ -78,7 +78,8 @@ function openDb(): Promise<IDBDatabase | null> {
 		req.onupgradeneeded = () => {
 			const db = req.result;
 			const tx = req.transaction as IDBTransaction;
-			const store = (name: string, options?: IDBObjectStoreParameters): IDBObjectStore => (db.objectStoreNames.contains(name) ? tx.objectStore(name) : db.createObjectStore(name, options));
+			const store = (name: string, options?: IDBObjectStoreParameters): IDBObjectStore =>
+				db.objectStoreNames.contains(name) ? tx.objectStore(name) : db.createObjectStore(name, options);
 			const index = (on: IDBObjectStore, name: string, keyPath: string | string[]): void => {
 				if (!on.indexNames.contains(name)) on.createIndex(name, keyPath, { unique: false });
 			};
@@ -119,7 +120,8 @@ function forgetIfIncompatible(db: IDBDatabase): Promise<void> {
 		const found = meta.get(SHAPE_KEY);
 		found.onsuccess = () => {
 			if (found.result === CACHE_SHAPE) return;
-			if (found.result !== undefined) console.warn(`[device-store] what this device holds was written as ${String(found.result)}; this build reads ${CACHE_SHAPE}, so it is forgotten`);
+			if (found.result !== undefined)
+				console.warn(`[device-store] what this device holds was written as ${String(found.result)}; this build reads ${CACHE_SHAPE}, so it is forgotten`);
 			tx.objectStore(QUADS).clear();
 			meta.clear();
 			meta.put(CACHE_SHAPE, SHAPE_KEY);

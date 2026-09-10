@@ -48,5 +48,4 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 		const reply = await stepper.steps.comment.action({ label: "Comment", id: first.products?.commentId as string, text: "A reply to the first" }, fakeStep);
 		expect(reply.products?.contextRoot).toBe("root-email");
 	});
-
 });

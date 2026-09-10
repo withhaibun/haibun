@@ -10,7 +10,7 @@ import { isOffline } from "./rpc-registry.js";
  */
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { conduit, isServerUnreachable } from "./hypermedia.js";
+import { acts, conduit, isServerUnreachable } from "./hypermedia.js";
 
 export const CLIENT_LOG_METHOD = "MonitorStepper-logClient";
 export type TClientLogLevel = "debug" | "info" | "warn" | "error";
@@ -18,7 +18,7 @@ export type TClientLogLevel = "debug" | "info" | "warn" | "error";
 export function reportToRun(level: TClientLogLevel, source: string, message: string, attributes?: Record<string, unknown>): void {
 	if (isOffline()) return;
 	void conduit()
-		.follow({ method: CLIENT_LOG_METHOD, params: { event: { level, source, message, attributes } } }, `${source}: ${level}`)
+		.follow(acts(CLIENT_LOG_METHOD, { event: { level, source, message, attributes } }), `${source}: ${level}`)
 		.catch((err: unknown) => {
 			if (isServerUnreachable(err)) return console.warn(`[${source}] not reported to the run: ${errorDetail(err)}`, { level, message });
 			failFastOrLog(`[${source}] reporting to the run failed: ${errorDetail(err)}`, err);

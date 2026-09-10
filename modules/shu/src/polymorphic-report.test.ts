@@ -72,7 +72,15 @@ async function generateReport(finalView: string | undefined, served?: unknown, w
 	(world.shared as unknown as { getSecrets: () => Promise<Record<string, string>> }).getSecrets = async () => ({});
 	for (const s of steppers) await s.setWorld(world, steppers);
 	// The step that showed the view, as the run records it: what the report reads to know which column was open.
-	if (finalView) await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1700000000000-1.0.1", stepText: "show it", actionStatus: "passed", level: "info", generatedAtTime: new Date(1000).toISOString(), showed: finalView });
+	if (finalView)
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: "1700000000000-1.0.1",
+			stepText: "show it",
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: new Date(1000).toISOString(),
+			showed: finalView,
+		});
 	for (const q of queries) await monitor.cycles.onEvent?.(q as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	const out = join(tmpdir(), `polymorphic-report-${process.pid}-${finalView ?? "none"}.html`);
 	for (let i = 0; i < writes; i++) await (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out });
@@ -94,7 +102,11 @@ describe("serialized report bundles an external component's JS iff its view is u
 });
 
 describe("a report carries the run and the site's declarations, and no captured answer", () => {
-	const declarations = { steps: [{ method: "GraphStepper-graphQuery", stepperName: "GraphStepper", stepName: "graphQuery", pattern: "graph query {query}" }], domains: {}, concerns: { persisted: {} } };
+	const declarations = {
+		steps: [{ method: "GraphStepper-graphQuery", stepperName: "GraphStepper", stepName: "graphQuery", pattern: "graph query {query}" }],
+		domains: {},
+		concerns: { persisted: {} },
+	};
 
 	it("carries the declarations this server served a page, and still does when the same run writes a second report", async () => {
 		expect(reportHydration(await generateReport(undefined, declarations)).cache.registry?.steps, "the first report").toEqual(declarations.steps);
@@ -103,7 +115,10 @@ describe("a report carries the run and the site's declarations, and no captured 
 
 	it("carries what its views showed, and no answer a live page received", async () => {
 		const carried = Object.keys(reportHydration(await generateReport(undefined, declarations)).viewProducts);
-		expect(carried.filter((k) => k.includes("graphQuery")), "the rows a query returned are the graph, which rides in the cache").toEqual([]);
+		expect(
+			carried.filter((k) => k.includes("graphQuery")),
+			"the rows a query returned are the graph, which rides in the cache",
+		).toEqual([]);
 		expect(carried.includes("step.list"), "and the declarations ride in the cache, not beside it").toBe(false);
 	});
 });

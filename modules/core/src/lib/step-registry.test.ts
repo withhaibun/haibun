@@ -125,7 +125,10 @@ describe("what the manifest says about a domain", () => {
 	// A domain that presents a component names where its source is served from; the source itself stays on the server,
 	// where the standalone report inlines it. A manifest that carried it would send a bundle to every caller, on every boot.
 	it("carries the component and its URL, never the component's source", () => {
-		const world = { runtime: {}, domains: { "x-viewer": { name: "x-viewer", description: "a viewer", ui: { component: "x-viewer", js: "/assets/x-viewer.js", jsContent: "/* the whole bundle */" } } } } as unknown as TWorld;
+		const world = {
+			runtime: {},
+			domains: { "x-viewer": { name: "x-viewer", description: "a viewer", ui: { component: "x-viewer", js: "/assets/x-viewer.js", jsContent: "/* the whole bundle */" } } },
+		} as unknown as TWorld;
 		const manifest = discoverSteps([], world, new StepRegistry([], world));
 		expect(manifest.domains["x-viewer"].ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
 	});

@@ -105,13 +105,17 @@ describe("the client cache view", () => {
 		expect(value(view, `${IDS.SOURCE}info-cached`), "the window a reader is looking at").toBe(`0..${STEPS - 1}`);
 		expect(value(view, `${IDS.SOURCE}info-cached-rows`)).toBe(String(STEPS));
 		expect(value(view, `${IDS.SOURCE}info-cursor`), "no cursor: the live edge, no row").toBe("");
-		expect(value(view, `${IDS.SOURCE}info-loaded`), "what the source is doing is its own id, so a reader waits for the state rather than for a cell about to change").toBe("loaded");
+		expect(value(view, `${IDS.SOURCE}info-loaded`), "what the source is doing is its own id, so a reader waits for the state rather than for a cell about to change").toBe(
+			"loaded",
+		);
 	});
 
 	it("shows every change at once: a source made after it opened, the cursor's row in it, and the live stream by level", async () => {
 		const view = await open();
 		expect(text(view)).toContain("No event has arrived since this view opened");
-		expect(text(view), "what the live counts are measured from: the device's time when the view opened").toMatch(/Live stream since this view opened \(device time \d\d:\d\d:\d\d\.\d\d\d\)/);
+		expect(text(view), "what the live counts are measured from: the device's time when the view opened").toMatch(
+			/Live stream since this view opened \(device time \d\d:\d\d:\d\d\.\d\d\d\)/,
+		);
 		await readingTheRun(); // a source made after this view opened
 		expect(value(view, `${IDS.SOURCE}info-events`), "listed from the moment it exists").toBe(String(STEPS));
 		timeCursor.set(1010);

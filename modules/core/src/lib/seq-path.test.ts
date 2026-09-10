@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { SEQ_PATH_FIELD, RecordNameSchema, SeqPathSchema, compareSeqPath, extractSeqPathPrefix, formatRecordName, parseRecordName, parseSeqPath, seqPathDomainDefinition } from "./seq-path.js";
+import {
+	SEQ_PATH_FIELD,
+	RecordNameSchema,
+	SeqPathSchema,
+	compareSeqPath,
+	extractSeqPathPrefix,
+	formatRecordName,
+	parseRecordName,
+	parseSeqPath,
+	seqPathDomainDefinition,
+} from "./seq-path.js";
 import { LinkRelations } from "./resources.js";
 import { EXECUTION_MODES } from "../schema/protocol.js";
 import { queryableFields } from "./hypermedia.js";

@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TGraphQueryResult } from "@haibun/core/lib/quad-types.js";
-import { conduit } from "../hypermedia.js";
+import { reads, acts, conduit } from "../hypermedia.js";
 import { getAvailableSteps, findStep } from "../rpc-registry.js";
 import { queryGraph } from "../quads-snapshot.js";
 import type { SiteMetadata } from "../rels-cache.js";
@@ -29,6 +29,6 @@ export class QueryController implements ReactiveController {
 	async siteMetadata(): Promise<SiteMetadata | null> {
 		await getAvailableSteps();
 		const step = findStep("getSiteMetadata");
-		return step ? conduit().follow<SiteMetadata>({ method: step.method }, "query: site metadata") : null;
+		return step ? conduit().follow<SiteMetadata>(reads(step.method), "query: site metadata") : null;
 	}
 }

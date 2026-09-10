@@ -10,20 +10,20 @@
  * test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is what a feature reads cache facts from. It also reports where
  * the server's registry the page runs on came from: the server, or the device's copy when the server did not respond.
  */
-import { html, css, type TemplateResult } from 'lit';
-import { z } from 'zod';
-import { ShuElement, type TLinkedData } from './shu-element.js';
-import { shuBaseStyles } from './styles.js';
-import { SHU_TEST_IDS } from '../test-ids.js';
+import { html, css, type TemplateResult } from "lit";
+import { z } from "zod";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { shuBaseStyles } from "./styles.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 
-import { subscribeBatchedEvents } from '../event-stream.js';
-import { currentRowIndex } from '../virtual-column-model.js';
+import { subscribeBatchedEvents } from "../event-stream.js";
+import { currentRowIndex } from "../virtual-column-model.js";
 
-import type { Range } from '../ranges.js';
-import { HAIBUN_LOG_LEVELS } from '@haibun/core/schema/protocol.js';
-import { registryOrigin } from '../rpc-registry.js';
-import { serverLastRespondedAt } from '../hypermedia.js';
-import { emptyOrLoading } from './empty-state.js';
+import type { Range } from "../ranges.js";
+import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
+import { registryOrigin } from "../rpc-registry.js";
+import { serverLastRespondedAt } from "../hypermedia.js";
+import { emptyOrLoading } from "./empty-state.js";
 import {
 	runSources,
 	runReadingAt,
@@ -43,7 +43,7 @@ import {
 	type RunSource,
 	indexedDbSummary,
 	type TIdbDatabaseSummary,
-} from '../client-cache/index.js';
+} from "../client-cache/index.js";
 
 const EmptySchema = z.object({});
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
@@ -51,7 +51,7 @@ const IDS = SHU_TEST_IDS.CLIENT_CACHE;
  *  Short enough that what the device caches is reported as it happens, long enough that a burst is one read. */
 export const DEVICE_READ_DELAY_MS = 150;
 
-const at = (t: number | undefined): string => (t === undefined || !Number.isFinite(t) ? '' : new Date(t).toISOString().slice(11, 23));
+const at = (t: number | undefined): string => (t === undefined || !Number.isFinite(t) ? "" : new Date(t).toISOString().slice(11, 23));
 /** The feature the run being read declared, from the first rows of it a view has read. A run declares its feature at
  *  its start, so this reads the first rows rather than the run. */
 function featureBeingRead(sources: RunSource[]): string {
@@ -59,11 +59,11 @@ function featureBeingRead(sources: RunSource[]): string {
 		for (const { from, to } of source.cachedRanges()) {
 			for (let i = from; i < Math.min(to, from + FEATURE_WITHIN_ROWS); i++) {
 				const row = source.rowAt(i) as { type?: string; featureName?: string } | undefined;
-				if (row?.type === 'feature' && row.featureName) return row.featureName;
+				if (row?.type === "feature" && row.featureName) return row.featureName;
 			}
 		}
 	}
-	return '';
+	return "";
 }
 
 /** How far into a run its feature declaration is looked for: a run declares it at its start. */
@@ -74,8 +74,8 @@ const FEATURE_WITHIN_ROWS = 20;
 /** What a source is doing, one word a reader waits for: not yet read, cut off from the run, behind what the run has
  *  announced, or read and current. Each is a fact of the reading, so none is inferred from what happens to arrive. */
 const stateOf = (source: RunSource): string =>
-	source.unavailable ? 'unavailable' : source.ended ? 'ended' : !source.loaded ? 'loading' : source.disconnected ? 'disconnected' : source.behind ? 'behind' : 'loaded';
-const spans = (ranges: Range[]): string => ranges.map(r => `${r.from}..${r.to - 1}`).join(', ') || 'none';
+	source.unavailable ? "unavailable" : source.ended ? "ended" : !source.loaded ? "loading" : source.disconnected ? "disconnected" : source.behind ? "behind" : "loaded";
+const spans = (ranges: Range[]): string => ranges.map((r) => `${r.from}..${r.to - 1}`).join(", ") || "none";
 const cachedRows = (ranges: Range[]): number => ranges.reduce((n, r) => n + (r.to - r.from), 0);
 
 export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
@@ -157,12 +157,12 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 
 	summarizeForKihan(): TLinkedData | null {
 		return {
-			'@id': 'view:client-cache',
-			'@type': 'as:Note',
-			name: 'what this page caches of the run',
+			"@id": "view:client-cache",
+			"@type": "as:Note",
+			name: "what this page caches of the run",
 			cursor: this.timeCursor,
 			registry: registryOrigin(),
-			sources: runSources().map(s => ({ level: s.level, ...s.extent(), cached: spans(s.cachedRanges()), cursorRow: this.#cursorRowIn(s) })),
+			sources: runSources().map((s) => ({ level: s.level, ...s.extent(), cached: spans(s.cachedRanges()), cursorRow: this.#cursorRowIn(s) })),
 			openedAt: this.#openedAt,
 			live: Object.fromEntries(this.#liveByLevel),
 			executions: this.#held,
@@ -184,9 +184,9 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		// Every live batch: counted by level and shown, whether or not any source takes it (a page with no event view open takes none).
 		this.autoTeardown(
 			subscribeBatchedEvents({
-				onBatch: events => {
+				onBatch: (events) => {
 					for (const e of events as Array<Record<string, unknown>>) {
-						const level = String(e.level ?? 'info');
+						const level = String(e.level ?? "info");
 						const seen = this.#liveByLevel.get(level) ?? { count: 0 };
 						const t = Number(e.timestamp);
 						this.#liveByLevel.set(level, { count: seen.count + 1, newest: Number.isFinite(t) ? Math.max(seen.newest ?? 0, t) : seen.newest });
@@ -284,7 +284,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	/** An instant a reader can act on: clicking it moves the shared cursor there. */
 	#instant(id: string, value: number | undefined): TemplateResult {
 		const shown = at(value);
-		return shown === ''
+		return shown === ""
 			? html`<td data-testid=${id}></td>`
 			: html`<td data-testid=${id}><button class="link" title="scrub every view to this moment" @click=${() => this.#cursorTo(value)}>${shown}</button></td>`;
 	}
@@ -296,7 +296,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		return html`<td data-testid=${id}>
 			${ranges.map(
 				(r, i) =>
-					html`${i > 0 ? ', ' : ''}<button class="link" title="scrub to the first row this span caches" @click=${() => this.#cursorTo(Number(source.rowAt(r.from)?.timestamp) || undefined)}>
+					html`${i > 0 ? ", " : ""}<button class="link" title="scrub to the first row this span caches" @click=${() => this.#cursorTo(Number(source.rowAt(r.from)?.timestamp) || undefined)}>
 							${r.from}..${r.to - 1}
 						</button>`,
 			)}
@@ -312,26 +312,26 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		// The execution being read: the one a reader chose, else the newest this device holds, which is the one being
 		// recorded while a site is recording one.
 		const reading = currentExecution() ?? this.#held[0]?.execution;
-		const earlier = this.#held.find(e => e.execution !== reading)?.execution;
+		const earlier = this.#held.find((e) => e.execution !== reading)?.execution;
 		const registry = registryOrigin();
 		const respondedAt = serverLastRespondedAt();
 		const cached = this.#registry;
 		// What the execution being read ran, from the run being read rather than from what the device has been asked for:
 		// a page names what it is reading as soon as it has read it.
-		const named = (execution: string | undefined): string => this.#held.find(e => e.execution === execution)?.features.join(', ') || featureBeingRead(sources) || execution || '';
+		const named = (execution: string | undefined): string => this.#held.find((e) => e.execution === execution)?.features.join(", ") || featureBeingRead(sources) || execution || "";
 		const cell = (id: string, value: unknown): TemplateResult => html`<td data-testid=${id}>${value}</td>`;
 		return html`<div data-testid=${IDS.ROOT}>
 			<h4>Registry</h4>
 			<div data-testid=${IDS.REGISTRY}>
-				${registry === null ? 'not known yet' : registry.from === 'server' ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ''}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}
+				${registry === null ? "not known yet" : registry.from === "server" ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}
 			</div>
 			<h4>Server</h4>
-			<div data-testid=${IDS.SERVER}>${respondedAt === undefined ? 'has not responded to this page' : `last responded at ${at(respondedAt)}`}</div>
+			<div data-testid=${IDS.SERVER}>${respondedAt === undefined ? "has not responded to this page" : `last responded at ${at(respondedAt)}`}</div>
 			<h4>Cursor</h4>
 			<div data-testid=${IDS.CURSOR}>
-				${cursor === null ? 'live edge' : html`${at(cursor)} <button class="link" title="back to the live edge" @click=${() => (this.timeCursor = null)}>to the live edge</button>`}
+				${cursor === null ? "live edge" : html`${at(cursor)} <button class="link" title="back to the live edge" @click=${() => (this.timeCursor = null)}>to the live edge</button>`}
 			</div>
-			<div data-testid=${IDS.READING_AT}>${readingMoment === undefined ? 'following the newest records' : `the run is read around ${at(readingMoment)}`}</div>
+			<div data-testid=${IDS.READING_AT}>${readingMoment === undefined ? "following the newest records" : `the run is read around ${at(readingMoment)}`}</div>
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>
 			${
 				this.#liveByLevel.size === 0
@@ -342,13 +342,13 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 								<th>events</th>
 								<th>newest</th>
 							</tr>
-							${HAIBUN_LOG_LEVELS.filter(l => this.#liveByLevel.has(l)).map(l => {
-							const seen = this.#liveByLevel.get(l) as { count: number; newest?: number };
-							return html`<tr>
+							${HAIBUN_LOG_LEVELS.filter((l) => this.#liveByLevel.has(l)).map((l) => {
+								const seen = this.#liveByLevel.get(l) as { count: number; newest?: number };
+								return html`<tr>
 								<td>${l}</td>
 								${cell(`${IDS.LIVE}${l}`, seen.count)}${this.#instant(`${IDS.LIVE}${l}-newest`, seen.newest)}
 							</tr>`;
-						})}
+							})}
 						</table>`
 			}
 			<h4>Run sources</h4>
@@ -367,28 +367,28 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 								<th>cursor row</th>
 								<th>state</th>
 							</tr>
-							${sources.map(s => {
-							const e = s.extent();
-							const cached = s.cachedRanges();
-							const row = this.#cursorRowIn(s);
-							const id = (field: string): string => `${IDS.SOURCE}${s.level}-${field}`;
-							return html`<tr>
+							${sources.map((s) => {
+								const e = s.extent();
+								const cached = s.cachedRanges();
+								const row = this.#cursorRowIn(s);
+								const id = (field: string): string => `${IDS.SOURCE}${s.level}-${field}`;
+								return html`<tr>
 								<td>${s.level}</td>
-								${cell(id('events'), e.total)}${this.#instant(id('first'), e.first)}${this.#instant(id('newest'), e.last)}${cell(id('page'), s.pageSize)}
-								${this.#spans(s, id('cached'))}${cell(id('cached-rows'), cachedRows(cached))}${cell(id('cursor'), row < 0 ? '' : row)}${cell(id(stateOf(s)), s.unavailable ?? stateOf(s))}
+								${cell(id("events"), e.total)}${this.#instant(id("first"), e.first)}${this.#instant(id("newest"), e.last)}${cell(id("page"), s.pageSize)}
+								${this.#spans(s, id("cached"))}${cell(id("cached-rows"), cachedRows(cached))}${cell(id("cursor"), row < 0 ? "" : row)}${cell(id(stateOf(s)), s.unavailable ?? stateOf(s))}
 							</tr>`;
-						})}
+							})}
 						</table>`
 			}
 			<h4>Executions this device holds <small>(named by the features each ran, from the newest ${EXECUTIONS_READ} feature declarations held)</small></h4>
 			<div>
 				reading
-				<span data-testid=${IDS.READING}>${named(reading) || 'no execution yet'}</span>
-				${earlier === undefined ? '' : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readExecution(earlier)}>read the execution before it</button>`}
+				<span data-testid=${IDS.READING}>${named(reading) || "no execution yet"}</span>
+				${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readExecution(earlier)}>read the execution before it</button>`}
 			</div>
 			${
 				this.#held.length === 0
-					? emptyOrLoading(this.#deviceRead, 'No execution is held on this device.')
+					? emptyOrLoading(this.#deviceRead, "No execution is held on this device.")
 					: html`<table data-testid=${IDS.HELD}>
 							<tr>
 								<th>execution</th>
@@ -398,26 +398,26 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 								<th>newest</th>
 								<th>forget</th>
 							</tr>
-							${this.#held.map(e => {
-							const id = (field: string): string => `${IDS.RUN}${e.execution}-${field}`;
-							return html`<tr data-testid=${`${IDS.RUN}${e.execution}`} class=${e.execution === reading ? 'reading' : ''}>
+							${this.#held.map((e) => {
+								const id = (field: string): string => `${IDS.RUN}${e.execution}-${field}`;
+								return html`<tr data-testid=${`${IDS.RUN}${e.execution}`} class=${e.execution === reading ? "reading" : ""}>
 								<td>
-									${e.execution === reading ? e.execution : html`<button class="link" data-testid=${id('read')} title="read this execution" @click=${() => readExecution(e.execution)}>${e.execution}</button>`}
+									${e.execution === reading ? e.execution : html`<button class="link" data-testid=${id("read")} title="read this execution" @click=${() => readExecution(e.execution)}>${e.execution}</button>`}
 								</td>
-								${cell(id('features'), e.features.join(', '))}${cell(id('reading'), e.execution === reading ? 'reading' : '')}
-								${this.#instant(id('began'), e.first)}${this.#instant(id('newest'), e.last)}
+								${cell(id("features"), e.features.join(", "))}${cell(id("reading"), e.execution === reading ? "reading" : "")}
+								${this.#instant(id("began"), e.first)}${this.#instant(id("newest"), e.last)}
 								<td>
-									${e.execution === reading ? '' : html`<button class="link" data-testid=${id('forget')} title="forget this run on this device" @click=${() => void this.#forget(e.execution)}>forget</button>`}
+									${e.execution === reading ? "" : html`<button class="link" data-testid=${id("forget")} title="forget this run on this device" @click=${() => void this.#forget(e.execution)}>forget</button>`}
 								</td>
 							</tr>`;
-						})}
+							})}
 						</table>`
 			}
-			${this.#forgotten === undefined ? '' : html`<div data-testid=${IDS.FORGOTTEN}>the run ${this.#forgotten.execution} and its ${this.#forgotten.records} records are forgotten</div>`}
+			${this.#forgotten === undefined ? "" : html`<div data-testid=${IDS.FORGOTTEN}>the run ${this.#forgotten.execution} and its ${this.#forgotten.records} records are forgotten</div>`}
 			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is forgotten on open)</small></h4>
 			${
 				this.#databases.length === 0
-					? emptyOrLoading(this.#deviceRead, 'No IndexedDB database on this origin.')
+					? emptyOrLoading(this.#deviceRead, "No IndexedDB database on this origin.")
 					: html`<table>
 							<tr>
 								<th>database</th>
@@ -425,17 +425,17 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 								<th>store</th>
 								<th>records</th>
 							</tr>
-							${this.#databases.flatMap(d =>
-							d.stores.map(
-								s =>
-									html`<tr>
+							${this.#databases.flatMap((d) =>
+								d.stores.map(
+									(s) =>
+										html`<tr>
 										<td>${d.name}</td>
 										<td>${d.version}</td>
 										<td>${s.name}</td>
 										${cell(`${IDS.IDB}${d.name}-${s.name}`, s.count)}
 									</tr>`,
-							),
-						)}
+								),
+							)}
 						</table>`
 			}
 		</div>`;

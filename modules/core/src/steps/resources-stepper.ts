@@ -277,6 +277,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			action: async ({ data }: { data: TAnnotationNote }) => this.runAnnotate(data),
 		},
 		annotations: {
+			read: true,
 			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: string}`,
 			productsSchema: AnnotationListSchema,
 			action: async ({ id }: { label: string; id: string }) => {

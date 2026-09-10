@@ -84,7 +84,10 @@ function assertInvariants(h: ReturnType<typeof harness>, note: string): void {
 		expect(to, `${note}: range ${from}..${to} is empty or inverted`).toBeGreaterThan(from);
 		for (let i = from; i < to; i++) if (i < h.total) named.push(i);
 	}
-	expect(named.sort((a, b) => a - b), `${note}: cachedRanges disagrees with the rows that read`).toEqual(readable);
+	expect(
+		named.sort((a, b) => a - b),
+		`${note}: cachedRanges disagrees with the rows that read`,
+	).toEqual(readable);
 	for (const [start, end] of h.fetches) expect(end, `${note}: fetch(${start}, ${end}) has end<=start`).toBeGreaterThan(start);
 }
 

@@ -177,7 +177,10 @@ describe("lazyWindowedSource — hardening (adversarial review)", () => {
 		it("places the pages a seed covers from their first row, and leaves the rest to be read", () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 100, fetch, pageSize: 10 });
-			src.prime(5, Array.from({ length: 20 }, (_, i) => 5 + i));
+			src.prime(
+				5,
+				Array.from({ length: 20 }, (_, i) => 5 + i),
+			);
 			expect(src.rowAt(10)).toBe(10);
 			expect(src.rowAt(20)).toBe(20);
 			expect(src.rowAt(5)).toBeUndefined();
@@ -279,7 +282,10 @@ describe("lazyWindowedSource — the live edge under a stream", () => {
 		expect(src.rowAt(3), "not placed before the page it belongs to").toBeUndefined();
 		response([0, 1, 2]);
 		await landing;
-		expect([0, 1, 2, 3].map((i) => src.rowAt(i)), "the fetched rows, then the live one").toEqual([0, 1, 2, 3]);
+		expect(
+			[0, 1, 2, 3].map((i) => src.rowAt(i)),
+			"the fetched rows, then the live one",
+		).toEqual([0, 1, 2, 3]);
 		await src.ensureRange(0, 4);
 		expect(fetch, "the page is whole for the count: nothing to fetch again").toHaveBeenCalledTimes(1);
 	});

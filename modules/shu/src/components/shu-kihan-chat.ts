@@ -19,7 +19,7 @@ import { Access } from "@haibun/core/lib/resources.js";
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { shuBaseStyles } from "./styles.js";
 
-import { conduit } from "../hypermedia.js";
+import { reads, acts, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
@@ -195,7 +195,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private async listSessions(): Promise<TChatSession[]> {
 		await getAvailableSteps();
 		if (!findStep("listChatSessions")) return [];
-		const data = await conduit().follow<{ sessions: TChatSession[] }>({ method: requireStep("listChatSessions") }, "kihan-chat: list chat sessions");
+		const data = await conduit().follow<{ sessions: TChatSession[] }>(reads(requireStep("listChatSessions")), "kihan-chat: list chat sessions");
 		return data.sessions;
 	}
 
@@ -231,7 +231,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		await getAvailableSteps();
 		if (!findStep("loadChatSession")) return;
 		const data = await conduit().follow<{ turns: Array<{ prompt: string; response: string; seqPath: string }> }>(
-			{ method: requireStep("loadChatSession"), params: { sessionSeqPath } },
+			reads(requireStep("loadChatSession"), { sessionSeqPath }),
 			"kihan-chat: hydrate persisted session",
 		);
 		const messages: TChatMessage[] = [];
@@ -269,7 +269,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		if (this._models.length > 0) return;
 		await getAvailableSteps();
 		if (!findStep("showKihans")) return;
-		const data = await conduit().follow<{ vertices: Array<{ id: string; displayName?: string }> }>({ method: requireStep("showKihans") }, "kihan-chat: load model catalog");
+		const data = await conduit().follow<{ vertices: Array<{ id: string; displayName?: string }> }>(reads(requireStep("showKihans")), "kihan-chat: load model catalog");
 		if (data.vertices) {
 			this._models = data.vertices;
 			if (this._models.length > 0 && !this.state.model) {
@@ -431,15 +431,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		let accumulated = "";
 		try {
 			await conduit().followStream(
-				{
-					method: requireStep("chatWithContext"),
-					params: {
-						prompt,
-						context: JSON.stringify(this.activeChatContext()),
-						accessLevel: this._contextAccessLevel,
-						target: this.state.model,
-					},
-				},
+				acts(requireStep("chatWithContext"), {
+					prompt,
+					context: JSON.stringify(this.activeChatContext()),
+					accessLevel: this._contextAccessLevel,
+					target: this.state.model,
+				}),
 				(chunk) => {
 					const data = chunk as Record<string, unknown>;
 					if (data.status) this.patchMessage(aiId, { spinnerStatus: String(data.status), spinnerVisible: true, spinnerSpinning: true });

@@ -18,7 +18,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
-import { conduit } from "../hypermedia.js";
+import { acts, conduit } from "../hypermedia.js";
 import { type TEvent } from "../event-stream.js";
 import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
@@ -32,6 +32,7 @@ import { PaneState } from "../pane-state.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import type { ShuGraph } from "./shu-graph.js";
+import { linkTo } from "../rpc-registry.js";
 
 const FILTER_KEY = "domain-chain";
 void ShuGraphFilter;
@@ -173,7 +174,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		let lastError = "";
 		for (const method of candidates) {
 			try {
-				const response = await conduit().follow<Record<string, unknown>>({ method }, `domain-chain-view: ${method}`);
+				const response = await conduit().follow<Record<string, unknown>>(linkTo(method), `domain-chain-view: ${method}`);
 				if (Array.isArray(response?.forward) && Array.isArray(response?.goals)) {
 					this.affordances = {
 						forward: response.forward as TAffordancesSnapshot["forward"],

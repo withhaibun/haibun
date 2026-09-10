@@ -149,7 +149,10 @@ export default class ShuMonitorColumnControls extends AStepper {
 						const virtualizer = root.querySelector("shu-virtual-column")?.querySelector("lit-virtualizer");
 						// A row is a child the virtualizer positions and that carries a record's identity; the virtualizer's own
 						// hidden sizing element is a child too, and it is not a row.
-						const rows = (Array.from(virtualizer?.children ?? []) as HTMLElement[]).filter((el) => el.hasAttribute("data-id")).map((el) => el.getBoundingClientRect()).filter((r) => r.height > 0);
+						const rows = (Array.from(virtualizer?.children ?? []) as HTMLElement[])
+							.filter((el) => el.hasAttribute("data-id"))
+							.map((el) => el.getBoundingClientRect())
+							.filter((r) => r.height > 0);
 						const ordered = rows.sort((a, b) => a.top - b.top);
 						let overlapping = 0;
 						const where: string[] = [];
@@ -177,7 +180,10 @@ export default class ShuMonitorColumnControls extends AStepper {
 				if (notLoaded > 0) return actionNotOK(`${notLoaded} thumbnail images failed to load from /artifacts`);
 				const notFilling = frames.filter((f) => f.imgW < f.w * 0.9).length;
 				if (notFilling > 0) return actionNotOK(`${notFilling} thumbnail images do not fill their tile`);
-				if ((v.overlapping ?? 0) > 0) return actionNotOK(`${v.overlapping} rows of the manual paint over the row before them, so a row was given a height it does not have: ${JSON.stringify((v as {where?: string[]}).where)}`);
+				if ((v.overlapping ?? 0) > 0)
+					return actionNotOK(
+						`${v.overlapping} rows of the manual paint over the row before them, so a row was given a height it does not have: ${JSON.stringify((v as { where?: string[] }).where)}`,
+					);
 				return actionOK();
 			},
 		},

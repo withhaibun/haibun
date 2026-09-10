@@ -12,7 +12,11 @@ describe("dispatchAffordanceFromResponse", () => {
 		PaneState.__resetForTests();
 		document.body.innerHTML = "";
 		resetConduit();
-		setConduit(new TestConduit(() => { throw new Error("affordance-dispatch test: no dispatch expected"); }));
+		setConduit(
+			new TestConduit(() => {
+				throw new Error("affordance-dispatch test: no dispatch expected");
+			}),
+		);
 		ShuElement.pushHash("#?");
 		if (!customElements.get("shu-column-pane"))
 			customElements.define(

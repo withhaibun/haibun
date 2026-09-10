@@ -9,7 +9,7 @@ import { html, css, type TemplateResult, type PropertyValues } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { conduit } from "../hypermedia.js";
+import { acts, conduit } from "../hypermedia.js";
 import { type TEvent } from "../event-stream.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";
@@ -30,6 +30,7 @@ import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { PaneState } from "../pane-state.js";
 import type { TGraph } from "../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { linkTo } from "../rpc-registry.js";
 
 /** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
 type TAffordances = {
@@ -204,7 +205,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		let lastError = "";
 		for (const method of candidates) {
 			try {
-				const response = await conduit().follow<Record<string, unknown>>({ method, params }, `affordances-panel: ${method}`);
+				const response = await conduit().follow<Record<string, unknown>>(linkTo(method, params), `affordances-panel: ${method}`);
 				if (Array.isArray(response?.forward) && Array.isArray(response?.goals)) {
 					this.applyAffordances({
 						forward: response.forward as TAffordances["forward"],

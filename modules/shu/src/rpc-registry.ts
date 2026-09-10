@@ -1,4 +1,4 @@
-import { conduit } from "./hypermedia.js";
+import { reads, acts, conduit, type TLink } from "./hypermedia.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
@@ -17,6 +17,8 @@ export type StepDescriptor = {
 	capability?: string;
 	/** True where the site declared this step a fallback (`StepDescriptor.fallback`). */
 	fallback?: boolean;
+	/** True where the site declared this step a read: the run answers it and records nothing of the reading. */
+	read?: boolean;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
 };
@@ -59,6 +61,8 @@ const StepDescriptorSchema = z
 		productsDomain: z.string().optional(),
 		capability: z.string().optional(),
 		fallback: z.boolean().optional(),
+		/** The step declares itself a read, which is what a link to it asks for. */
+		read: z.boolean().optional(),
 		inputSchema: z.record(z.string(), z.unknown()).optional(),
 		outputSchema: z.record(z.string(), z.unknown()).optional(),
 	})
@@ -87,7 +91,12 @@ const StepListResponseSchema = z
 // would not know what a step it calls requires. The catalog the server declares is not cached here: rels-cache owns it,
 // pinned the same way, so one thing has one home.
 const REGISTRY_KEY = "__SHU_STEP_REGISTRY__";
-type TRegistry = { steps: StepDescriptor[] | null; byName: Map<string, StepDescriptor> | null; domains: Record<string, DomainInfo> | null; pending: Promise<StepListResponse> | null };
+type TRegistry = {
+	steps: StepDescriptor[] | null;
+	byName: Map<string, StepDescriptor> | null;
+	domains: Record<string, DomainInfo> | null;
+	pending: Promise<StepListResponse> | null;
+};
 const registry = (): TRegistry => pagePinned(REGISTRY_KEY, () => ({ steps: null, byName: null, domains: null, pending: null }));
 
 // Both go through the step list even when the page already has it, because the response is only half of what asking for
@@ -232,7 +241,8 @@ export function isOffline(): boolean {
 export function deploymentMs(name: keyof TDeploymentSettings): number | undefined {
 	const set = cachedHydration().data?.settings?.[name];
 	if (set === undefined) return undefined;
-	if (typeof set !== "number" || !Number.isFinite(set) || set <= 0) throw new Error(`${name}: a deployment sets a count of milliseconds above zero, and this page was served ${JSON.stringify(set)}`);
+	if (typeof set !== "number" || !Number.isFinite(set) || set <= 0)
+		throw new Error(`${name}: a deployment sets a count of milliseconds above zero, and this page was served ${JSON.stringify(set)}`);
 	return set;
 }
 
@@ -285,7 +295,7 @@ export function resetStepRegistry(): void {
 async function discover(): Promise<StepListResponse> {
 	let parsed: StepListResponse;
 	try {
-		const result = await conduit().follow<unknown>({ method: "step.list" }, "rpc-registry: discover available steps");
+		const result = await conduit().follow<unknown>(reads("step.list"), "rpc-registry: discover available steps");
 		parsed = StepListResponseSchema.parse(result);
 		origin().value = { from: "server" };
 		void deviceStore()
@@ -319,6 +329,17 @@ async function discover(): Promise<StepListResponse> {
 	}
 	r.byName = byName;
 	return { steps, domains, concerns };
+}
+
+/**
+ * A link to a step named at run time, asking what that step declares itself to answer.
+ *
+ * A caller that chooses a method as it runs — a person picking a step, a panel following an affordance it was offered
+ * — cannot state what the step is, so the step states it: the registry the page loaded carries each step's own
+ * declaration. A method no loaded stepper provides asks the run to act, which is what naming an unknown step is.
+ */
+export function linkTo(method: string, params?: Record<string, unknown>, summary?: string): TLink {
+	return findStep(method)?.read === true ? reads(method, params, summary) : acts(method, params, summary);
 }
 
 /** Look up a registered step by either its friendly name (e.g. `"graphQuery"`) or its full `Stepper-method` form. The name is the wire contract — resolution, and any "unknown step" outcome, happen at runtime against the loaded registry. */

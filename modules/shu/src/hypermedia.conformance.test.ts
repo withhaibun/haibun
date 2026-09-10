@@ -65,7 +65,11 @@ describeConduit("over a running service", () => {
 		}
 		return Promise.resolve({ ok: true, status: 200, json: async () => one.answer });
 	}) as unknown as typeof globalThis.fetch;
-	return { conduit: new LiveConduit(), ...arranged, done: () => {
+	return {
+		conduit: new LiveConduit(),
+		...arranged,
+		done: () => {
 			globalThis.fetch = fetchWas;
-		} };
+		},
+	};
 });

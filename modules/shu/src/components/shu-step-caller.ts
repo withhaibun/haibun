@@ -1,5 +1,5 @@
 import { SHU_BASE } from "./styles.js";
-import { conduit } from "../hypermedia.js";
+import { acts, conduit } from "../hypermedia.js";
 import { getAvailableSteps, findStep, type StepDescriptor } from "../rpc-registry.js";
 import { queryGraph } from "../quads-snapshot.js";
 import { dispatchAffordanceFromResponse } from "../affordance-dispatch.js";
@@ -8,6 +8,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../step-input-validator.js";
 import { getConcernCatalog } from "../rels-cache.js";
 import type { TComboboxOption } from "../schemas.js";
+import { linkTo } from "../rpc-registry.js";
 
 type InputProperty = {
 	type?: string;
@@ -161,7 +162,7 @@ export class StepCaller extends HTMLElement {
 
 		try {
 			const method = this.descriptor.method;
-			this.result = await conduit().follow({ method, params }, `step-caller: ${method}`);
+			this.result = await conduit().follow(linkTo(method, params), `step-caller: ${method}`);
 			dispatchAffordanceFromResponse(this.result);
 			this.dispatchEvent(
 				new CustomEvent("step-success", {

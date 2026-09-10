@@ -34,4 +34,3 @@ export function validateZodPath(schema: z.ZodType, segments: string[]): z.ZodTyp
 	}
 	return current;
 }
-

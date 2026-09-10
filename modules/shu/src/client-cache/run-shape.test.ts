@@ -18,8 +18,10 @@ const iso = (n: number): string => new Date(n).toISOString();
 const aRun = async (steps: Array<{ at: number; status: string }> = [], said: Array<{ at: number; level: string }> = []) => {
 	const store = new QuadStore();
 	const counted: TDensityQuery[] = [];
-	const addStep = async (at: number, status: string, i: number) => store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, execution: RUN, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at) });
-	const addSaid = async (at: number, level: string, i: number) => store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, execution: RUN, message: `said ${i}`, level, generatedAtTime: iso(at) });
+	const addStep = async (at: number, status: string, i: number) =>
+		store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, execution: RUN, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at) });
+	const addSaid = async (at: number, level: string, i: number) =>
+		store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, execution: RUN, message: `said ${i}`, level, generatedAtTime: iso(at) });
 	for (const [i, s] of steps.entries()) await addStep(s.at, s.status, i);
 	for (const [i, m] of said.entries()) await addSaid(m.at, m.level, 100 + i);
 	const over = runGraphOf(store);
@@ -36,12 +38,21 @@ describe("the shape of a run, by division", () => {
 		]);
 		const shape = runShape(graph, { divisions: 3 });
 		await shape.update(3000);
-		expect(shape.marks.map((m) => m.at), "a mark carries the moment its division begins, which is what places it on a rail").toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
+		expect(
+			shape.marks.map((m) => m.at),
+			"a mark carries the moment its division begins, which is what places it on a rail",
+		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
 	});
 
 	it("draws in the divisions asked for whatever the run's length, since the answer's size is the divisions", async () => {
-		const anHour = await aRun([{ at: 1000, status: "passed" }, { at: 1000 + 3600_000, status: "passed" }]);
-		const aDecade = await aRun([{ at: 1000, status: "passed" }, { at: 1000 + 3600_000 * 24 * 3650, status: "passed" }]);
+		const anHour = await aRun([
+			{ at: 1000, status: "passed" },
+			{ at: 1000 + 3600_000, status: "passed" },
+		]);
+		const aDecade = await aRun([
+			{ at: 1000, status: "passed" },
+			{ at: 1000 + 3600_000 * 24 * 3650, status: "passed" },
+		]);
 		const hour = runShape(anHour.graph, { divisions: 4 });
 		const decade = runShape(aDecade.graph, { divisions: 4 });
 		await hour.update(1000 + 3600_000);
@@ -59,11 +70,14 @@ describe("the shape of a run, by division", () => {
 	});
 
 	it("marks a division by what it holds most of, counting what the run said as well as what it did", async () => {
-		const { graph } = await aRun([{ at: 1000, status: "passed" }], [
-			{ at: 1001, level: "warn" },
-			{ at: 1002, level: "warn" },
-			{ at: 1003, level: "warn" },
-		]);
+		const { graph } = await aRun(
+			[{ at: 1000, status: "passed" }],
+			[
+				{ at: 1001, level: "warn" },
+				{ at: 1002, level: "warn" },
+				{ at: 1003, level: "warn" },
+			],
+		);
 		const shape = runShape(graph, { divisions: 1 });
 		await shape.update(1003);
 		expect(shape.marks[0].color).toBe(MARK_COLOUR.pending);
@@ -78,10 +92,13 @@ describe("the shape of a run, by division", () => {
 	});
 
 	it("leaves out what the level a reader is shown does not carry", async () => {
-		const { graph } = await aRun([], [
-			{ at: 1000, level: "debug" },
-			{ at: 1001, level: "error" },
-		]);
+		const { graph } = await aRun(
+			[],
+			[
+				{ at: 1000, level: "debug" },
+				{ at: 1001, level: "error" },
+			],
+		);
 		const shape = runShape(graph, { divisions: 1 });
 		await shape.update(1001);
 		expect(shape.marks.length, "the debug message is not shown at this level, the error is").toBe(1);
@@ -94,10 +111,21 @@ describe("the shape of a run, by division", () => {
 			{ at: 3000, status: "passed" },
 		]);
 		const other = "1700000009000-2";
-		for (const at of [1500, 2000, 2500]) await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: `${other}.0.${at}`, [SEQ_PATH_FIELD.execution]: other, stepText: "another run's step", actionStatus: "failed", level: "info", generatedAtTime: iso(at) });
+		for (const at of [1500, 2000, 2500])
+			await store.upsertIndividual(SEQ_PATH_LABEL, {
+				[SEQ_PATH_FIELD.id]: `${other}.0.${at}`,
+				[SEQ_PATH_FIELD.execution]: other,
+				stepText: "another run's step",
+				actionStatus: "failed",
+				level: "info",
+				generatedAtTime: iso(at),
+			});
 		const shape = runShape(ofExecution(graph, RUN), { divisions: 3 });
 		await shape.update(3000);
-		expect(shape.marks.map((m) => m.at), "the divisions the other run wrote in hold nothing of this one").toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
+		expect(
+			shape.marks.map((m) => m.at),
+			"the divisions the other run wrote in hold nothing of this one",
+		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
 	});
 
 	it("counts only what the run has recorded since the last count", async () => {
@@ -114,11 +142,17 @@ describe("the shape of a run, by division", () => {
 		await shape.update(1350);
 		const since = counted.slice(first);
 		expect(since.length, "one read per type counted, over the stretch the run has grown by").toBe(first);
-		expect(since.every((q) => Date.parse(q.from) > 1000), "the divisions already counted are not read again").toBe(true);
+		expect(
+			since.every((q) => Date.parse(q.from) > 1000),
+			"the divisions already counted are not read again",
+		).toBe(true);
 	});
 
 	it("reads nothing at all where the run has not moved since it was counted", async () => {
-		const { graph, counted } = await aRun([{ at: 1000, status: "passed" }, { at: 1300, status: "passed" }]);
+		const { graph, counted } = await aRun([
+			{ at: 1000, status: "passed" },
+			{ at: 1300, status: "passed" },
+		]);
 		const shape = runShape(graph, { divisions: 4 });
 		await shape.update(1300);
 		const first = counted.length;
@@ -140,7 +174,10 @@ describe("the shape of a run, by division", () => {
 		await step(1500, "passed");
 		await shape.update(1500);
 		const since = counted.slice(first);
-		expect(since.every((q) => Date.parse(q.from) > 1100), "the stretch holding the failures is not read again").toBe(true);
+		expect(
+			since.every((q) => Date.parse(q.from) > 1100),
+			"the stretch holding the failures is not read again",
+		).toBe(true);
 		expect(shape.marks.find((m) => m.at === shape.beginningOf(0))?.color, "what the merged divisions held is what the division that replaced them holds").toBe(MARK_COLOUR.fault);
 		expect(shape.beginningOf(1) - shape.beginningOf(0), "each division covers twice the stretch it did").toBe(wide * 2);
 	});

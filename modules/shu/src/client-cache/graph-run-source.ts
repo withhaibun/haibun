@@ -136,7 +136,12 @@ export function graphRunSource(level: THaibunLogLevel, options: { size?: number;
 
 function makeGraphRunSource(
 	level: THaibunLogLevel,
-	{ size = RUN_WINDOW_SIZE, reReadAfterMs = RE_READ_AFTER_MS, substeps = false, release = () => undefined }: { size?: number; reReadAfterMs?: number; substeps?: boolean; release?: () => void },
+	{
+		size = RUN_WINDOW_SIZE,
+		reReadAfterMs = RE_READ_AFTER_MS,
+		substeps = false,
+		release = () => undefined,
+	}: { size?: number; reReadAfterMs?: number; substeps?: boolean; release?: () => void },
 ): TGraphRunSource {
 	let rows: TEventRecord[] = [];
 	let extent: TRunExtent = { total: 0 };

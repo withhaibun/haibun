@@ -30,7 +30,24 @@ import { sessionReady, signedHeaders } from "./session-key.js";
 // ─── Wire types ──────────────────────────────────────────────────────────────
 
 /** Wire link: a named action the consumer can invoke next. The shape every haibun step emits in `_links`. `method` is the full `Stepper-methodName` the server dispatches — the wire contract; each call site names the method it follows, the server rejects unknown methods at runtime. */
-export type TLink = { method: string; params?: Record<string, unknown>; summary?: string };
+/**
+ * What a call asks of a run: to be answered, or to act.
+ *
+ * A run answers a read and records nothing of it, since reading a run is not an act of the run. A run asked to act
+ * records what it did. A link states which it asks for, and the run holds that statement to the step's own
+ * declaration, refusing to answer as a read a step that does not declare itself one. Stated on the link rather than
+ * inferred at the far end, a page cannot read through a step whose answer the run would record, and cannot forget to
+ * say which it wants: `asks` is required, so `reads` and `acts` are the only ways to make a link.
+ */
+export type TAsks = "read" | "act";
+
+export type TLink = { method: string; params?: Record<string, unknown>; summary?: string; asks: TAsks };
+
+/** A link to read a run through. The run answers it and records nothing of the reading. */
+export const reads = (method: string, params?: Record<string, unknown>, summary?: string): TLink => ({ method, params, summary, asks: "read" });
+
+/** A link that asks a run to act. What it does is the run's own activity, and is recorded as such. */
+export const acts = (method: string, params?: Record<string, unknown>, summary?: string): TLink => ({ method, params, summary, asks: "act" });
 
 /** Wire-format Representation of a Resource. Hypermedia markers are optional — a bare projection without `_links` is still a Representation; the type is the wire shape, not a promise of affordances. */
 export type TRepresentation = {
@@ -160,8 +177,11 @@ export class LiveConduit implements Conduit {
 	) {}
 
 	async follow<T = TRepresentation>(link: TLink, why: string): Promise<T> {
-		const seqPath = await this.allocateSeqPath(why);
-		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath });
+		// Reading a run does not begin an action of it: a read carries no place in the run's own sequence, and asking for
+		// one is a call of its own, made per read, by every page following the run. Acting does begin one, since what the
+		// run then does belongs in the sequence at that place.
+		const seqPath = link.asks === "read" ? undefined : await this.allocateSeqPath(why);
+		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, asks: link.asks });
 		const data: unknown = await res.json();
 		if (!res.ok || (data && typeof data === "object" && "error" in (data as Record<string, unknown>) && (data as { error?: unknown }).error)) {
 			throw new Error(formatRpcError(link.method, res.status, data));
@@ -176,7 +196,7 @@ export class LiveConduit implements Conduit {
 	): Promise<{ seqPath: number[] }> {
 		const seqPath = await this.allocateSeqPath(opts.why);
 		opts.onStart?.(seqPath);
-		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, stream: true }, opts.signal);
+		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, stream: true, asks: link.asks }, opts.signal);
 		if (!res.ok) throw new Error(`${link.method}: stream RPC failed with status ${res.status}`);
 		if (!res.body) throw new Error(`${link.method}: stream RPC returned no body`);
 		for await (const chunk of readNdjson<TStreamChunk>(res.body)) {
