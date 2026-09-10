@@ -1,5 +1,5 @@
 import { SHU_BASE } from "./styles.js";
-import { acts, conduit } from "../hypermedia.js";
+import { conduit } from "../hypermedia.js";
 import { getAvailableSteps, findStep, type StepDescriptor } from "../rpc-registry.js";
 import { queryGraph } from "../quads-snapshot.js";
 import { dispatchAffordanceFromResponse } from "../affordance-dispatch.js";

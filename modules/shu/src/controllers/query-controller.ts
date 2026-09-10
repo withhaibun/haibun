@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TGraphQueryResult } from "@haibun/core/lib/quad-types.js";
-import { reads, acts, conduit } from "../hypermedia.js";
+import { reads, conduit } from "../hypermedia.js";
 import { getAvailableSteps, findStep } from "../rpc-registry.js";
 import { queryGraph } from "../quads-snapshot.js";
 import type { SiteMetadata } from "../rels-cache.js";

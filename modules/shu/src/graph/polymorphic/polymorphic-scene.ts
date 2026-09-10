@@ -37,6 +37,7 @@ import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from ".
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
+import { Drawing, aframeLoop } from "./polymorphic-drawing.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../polymorphic/sequence-model.js";
 import { type FGNode, type FGLink, type TSprite, linkEndId, neighboursOf } from "../polymorphic/polymorphic-graph-types.js";
 import { forceLayout, type IGraphLayout } from "../polymorphic/polymorphic-layout.js";
@@ -1556,11 +1557,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			},
 			8,
 		);
-		const aframeScene = scene as unknown as { pause?(): void; play?(): void };
-		// Render on demand: run the frame jobs and let A-Frame draw only while something is moving (layout settle, tween,
-		// drag, camera damping via the `change` listener), the pointer is over the canvas, or a recent discrete change is
-		// still within its grace window. Otherwise pause the scene so an idle graph stops consuming a core. The rAF loop
-		// itself keeps running — the gate is a cheap per-frame check — so a change wakes the scene within one frame.
+		// Drawing on demand: the frame jobs run and the scene draws only while something is moving (layout settle, tween,
+		// drag, camera damping via the `change` listener), the pointer is over the canvas, a recent discrete change is
+		// within its grace window, or a focus is pending. Otherwise `Drawing` pauses the components and stops the
+		// renderer's loop, so an idle graph draws nothing. The rAF loop below keeps running as a cheap per-frame gate, so
+		// a change wakes the scene within one frame.
+		const drawing = new Drawing(aframeLoop(scene as unknown as Parameters<typeof aframeLoop>[0]));
 		const tick = () => {
 			this.rafFrame++;
 			// A wake detector, not a render job: the canvas can MOVE (strip scroll, column shift) without resizing, which no
@@ -1575,25 +1577,21 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// sim tick would spring an under-converged graph) and the node visuals built (it skips a node with no visual
 			// yet), and either can lag a selection made mid-build. Sleeping before then would leave the dim undrawn.
 			const active = this.rafFrame < this.dirtyUntilFrame || this.pointerOverCanvas || this.isSettling() || this.focusDirty;
+			drawing.moving(active);
+			this.scenePaused = !drawing.drawing;
 			if (active) {
-				if (this.scenePaused) {
-					aframeScene.play?.();
-					this.scenePaused = false;
-				}
 				if (this.focusDirty && this.engine.mode === "frozen") {
 					this.focusCtl.applyFocus();
 					this.focusDirty = false;
 				}
 				this.frame.tick();
-			} else if (!this.scenePaused) {
-				aframeScene.pause?.();
-				this.scenePaused = true;
 			}
 			this.rafHandle = requestAnimationFrame(tick);
 		};
 		this.rafHandle = requestAnimationFrame(tick);
 		this.autoTeardown(() => {
 			if (this.rafHandle !== undefined) cancelAnimationFrame(this.rafHandle);
+			drawing.end();
 			controls.dispose();
 		});
 
