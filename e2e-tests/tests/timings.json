@@ -34,11 +34,11 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 1.3,
+				"seconds": 1.7,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.2,
+				"seconds": 1.6,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -78,7 +78,7 @@
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.5,
+				"seconds": 2.6,
 				"steps": 18
 			},
 			"/features/recurse.feature": {
@@ -107,7 +107,7 @@
 			},
 			"/features/wikipedia.feature.ts": {
 				"seconds": 1.1,
-				"steps": 143
+				"steps": 152
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
@@ -118,7 +118,7 @@
 				"steps": 12
 			}
 		},
-		"steps": 1153,
-		"seconds": 16.6
+		"steps": 1162,
+		"seconds": 17.7
 	}
 }

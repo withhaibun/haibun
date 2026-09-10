@@ -585,7 +585,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const rows = Object.entries(fields)
 			.map(([k, v]) => `<div class="field-row"><span class="field-name">${esc(k)}</span><span class="field-value">${this.fieldValueHtml(v, k)}</span></div>`)
 			.join("");
-		return rows ? `<details class="governance" data-testid="entity-governance"><summary class="section-label">Governance</summary>${rows}</details>` : "";
+		return rows ? `<details class="governance" open data-testid="entity-governance"><summary class="section-label">Governance</summary>${rows}</details>` : "";
 	}
 
 	private renderBodyLiterals(persistedAs: string): string {

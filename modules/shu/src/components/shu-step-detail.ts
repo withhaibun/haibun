@@ -198,7 +198,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			`
 					: ""
 			}
-			${step ? html`<details class="section"><summary class="label">Data</summary>${unsafeHTML(jsonDisclosure(step))}</details>` : ""}
+			${step ? html`<details class="section" open><summary class="label">Data</summary>${unsafeHTML(jsonDisclosure(step))}</details>` : ""}
 		</div>`;
 	}
 }

@@ -1,5 +1,6 @@
-// A record read from the graph is JSON-LD, and printed whole it is mostly the vocabulary it is written in. What it says
-// is what a reader opens with; what it is written in is one press away.
+// A record read from the graph is JSON-LD. All of it is shown, opened: what it says and the vocabulary it is written
+// in, which is part of what it is. The disclosures give it structure a reader can follow and collapse, and take nothing
+// away.
 import { describe, it, expect } from "vitest";
 import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
 
@@ -9,17 +10,32 @@ describe("a JSON value as disclosures", () => {
 		expect(jsonDisclosure("what the run said", "message")).not.toContain("<details");
 	});
 
-	it("opens the record itself, so what it says is read without pressing anything", () => {
+	it('writes a value so its type is visible, since a record holding "3" is not one holding 3', () => {
+		expect(jsonDisclosure("3", "count")).toContain("&quot;3&quot;");
+		expect(jsonDisclosure(3, "count")).toContain(">3<");
+		expect(jsonDisclosure(null, "count")).toContain("null");
+		expect(jsonDisclosure(false, "count")).toContain("false");
+	});
+
+	it("names an item by its place and a field by its name", () => {
+		const shown = jsonDisclosure({ steps: ["first", "second"] });
+		expect(shown).toContain("[0]");
+		expect(shown).toContain("[1]");
+		expect(shown).toContain("steps");
+	});
+
+	it("shows the record opened, so what it says is read without pressing anything", () => {
 		const shown = jsonDisclosure({ message: "said", level: "debug" });
 		expect(shown).toMatch(/<details[^>]* open/);
 		expect(shown).toContain("said");
 		expect(shown).toContain("debug");
 	});
 
-	it("holds a nested value closed, and says what it holds", () => {
+	it("opens a nested value too, and says what it holds", () => {
 		const shown = jsonDisclosure({ record: { a: 1, b: 2, c: 3 } });
-		expect(shown, "the nested one states its size rather than its contents").toContain("3 fields");
-		expect(shown.match(/<details[^>]* open/g) ?? [], "only the outermost is open").toHaveLength(1);
+		expect(shown, "what it holds, said on the disclosure").toContain("3 fields");
+		expect(shown.match(/<details[^>]* open/g) ?? [], "every level is open: a reader collapses what they are done with").toHaveLength(2);
+		expect(shown, "and its values are there to read").toContain("3");
 	});
 
 	it("counts what an array holds in items", () => {
@@ -27,11 +43,13 @@ describe("a JSON value as disclosures", () => {
 		expect(jsonDisclosure({ steps: [1] })).toContain("1 item");
 	});
 
-	it("keeps the vocabulary a record is written in closed, however shallow it is", () => {
+	it("shows the vocabulary a record is written in exactly as it shows everything else", () => {
+		// The @context gives a record's terms their meaning, so it is part of what the record is. Nothing here decides
+		// that some of a record is worth less than the rest of it, and nothing is shown closed.
 		const shown = jsonDisclosure({ "@context": { as: "https://www.w3.org/ns/activitystreams#" }, message: "said" });
-		const context = shown.slice(shown.indexOf('data-testid="json-@context"') - 60, shown.indexOf('data-testid="json-@context"') + 40);
-		expect(context, "@context is a disclosure the reader opens, not one that opens itself").not.toMatch(/<details[^>]* open[^>]*data-testid="json-@context"/);
+		expect(shown).toContain("https://www.w3.org/ns/activitystreams#");
 		expect(shown).toContain("said");
+		expect(shown.match(/<details(?![^>]* open)/g) ?? [], "nothing is closed").toHaveLength(0);
 	});
 
 	it("escapes what a record holds, since a run says whatever it says", () => {
