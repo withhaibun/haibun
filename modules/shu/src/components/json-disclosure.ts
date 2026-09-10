@@ -1,20 +1,15 @@
 /**
- * A JSON value as nested disclosures: what a reader opens, rather than a wall of text.
+ * A JSON value as nested disclosures: the whole of it, shown with its structure.
  *
- * A record read from the graph arrives as JSON-LD, and printed whole it is mostly vocabulary — the `@context` a type is
- * written in is longer than everything the record says. Each object and array becomes a `<details>` a reader opens,
- * summarised by what it holds, so what a record says is visible and what it is written in is one press away. Scalars
- * are shown as they are, since a value with nothing inside it has nothing to open.
+ * Everything the value holds is shown, opened, whatever it is. A record read from the graph arrives as JSON-LD, and the
+ * `@context` it is written in is part of what it is: a reader looking at a record can see the vocabulary that gives its
+ * terms meaning, without asking for it. Nothing here decides that some of a record is worth less than the rest of it.
  *
- * The disclosure is the browser's own, as every other disclosure here is.
+ * What this adds over printing the JSON is structure: each object and array is named, says what it holds, and indents
+ * under what it belongs to, so a reader can follow it and can collapse the parts they are done with. The disclosure is
+ * the browser's own, as every other disclosure here is.
  */
 import { esc, escAttr } from "../util.js";
-
-/** How deep a value is opened when it is first shown: the record itself, and nothing further. */
-const OPEN_TO_DEPTH = 1;
-
-/** The vocabulary a record is written in, rather than anything it says: shown closed however shallow it is. */
-const WRITTEN_IN = new Set(["@context"]);
 
 /** What a value holds, said in as few words as a summary can carry it. */
 function holds(value: unknown): string {
@@ -23,27 +18,33 @@ function holds(value: unknown): string {
 	return keys.length === 1 ? "1 field" : `${keys.length} fields`;
 }
 
-/** One scalar, as it reads: a string as its text, everything else as JSON writes it. */
+/**
+ * One value, written so its type is visible: a string in quotes, a number bare, `null` as null. A record holding the
+ * string "3" and one holding the number 3 read differently, because they are different, and a reader deciding what a
+ * run did cannot be left to guess which they are looking at.
+ */
 function scalar(value: unknown): string {
-	return typeof value === "string" ? value : JSON.stringify(value);
+	if (value === null) return "null";
+	if (value === undefined) return "undefined";
+	return typeof value === "string" ? `"${value}"` : String(value);
 }
 
+/** What a value holds, each part under the name it is held by: a field by its name, an item by its place. */
 function entries(value: unknown): Array<[string, unknown]> {
-	return Array.isArray(value) ? value.map((item, at) => [String(at), item] as [string, unknown]) : Object.entries(value as Record<string, unknown>);
+	return Array.isArray(value) ? value.map((item, at) => [`[${at}]`, item] as [string, unknown]) : Object.entries(value as Record<string, unknown>);
 }
 
 /**
- * `value` as HTML: nested disclosures for what has parts, text for what does not. `name` titles the outermost one, and
- * the result is escaped, so a caller embeds it directly.
+ * `value` as HTML: nested disclosures for what has parts, text for what does not, every one of them open. `name` titles
+ * the outermost one, and the result is escaped, so a caller embeds it directly.
  */
-export function jsonDisclosure(value: unknown, name = "", depth = 0): string {
+export function jsonDisclosure(value: unknown, name = ""): string {
 	const named = name === "" ? "" : `<span class="json-name">${esc(name)}</span> `;
 	if (value === null || typeof value !== "object") return `<div class="json-line" data-testid="json-line">${named}<span class="json-value">${esc(scalar(value))}</span></div>`;
-	const open = depth < OPEN_TO_DEPTH && !WRITTEN_IN.has(name) ? " open" : "";
 	const parts = entries(value)
-		.map(([key, held]) => jsonDisclosure(held, key, depth + 1))
+		.map(([key, held]) => jsonDisclosure(held, key))
 		.join("");
-	return `<details class="json-disclosure"${open} data-testid=${escAttr(`json-${name || "root"}`)}><summary>${named}<span class="json-holds">${esc(holds(value))}</span></summary>${parts}</details>`;
+	return `<details class="json-disclosure" open data-testid=${escAttr(`json-${name || "root"}`)}><summary>${named}<span class="json-holds">${esc(holds(value))}</span></summary>${parts}</details>`;
 }
 
 /**

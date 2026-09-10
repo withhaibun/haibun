@@ -363,7 +363,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	/** Render a composite binding as a nested tree of per-field bindings. Field bindings can recurse into further composites (via topology.ranges chains). Fact / argument leaves render with the same vocabulary as flat bindings — "✓ existing fact" vs "(you supply)" at every level. */
 	private renderCompositeBindingTpl(domain: string, fields: TFieldBinding[]): TemplateResult {
 		const detailsKey = `composite:${domain}`;
-		return html`<details class="composite-binding" data-key=${detailsKey}><summary><code class="binding-composite">${domain}</code></summary><ul class="composite-fields">${fields.map(
+		return html`<details class="composite-binding" open data-key=${detailsKey}><summary><code class="binding-composite">${domain}</code></summary><ul class="composite-fields">${fields.map(
 			(f) => {
 				const typeLabel = f.fieldDomain || f.fieldType || "value";
 				const optionalMark = f.optional ? "?" : "";
