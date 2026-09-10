@@ -11,7 +11,7 @@ import { isOffline } from "./rpc-registry.js";
  * where nothing happens costs nothing. On the run's side each occurrence lands in the same channel a server-side
  * recording does, where it costs one check when nothing is watching.
  */
-import { acts, conduit, hasConduit } from "./hypermedia.js";
+import { conduit, hasConduit, reads } from "./hypermedia.js";
 
 /** How many occurrences the browser holds between batches. Fixed, so the buffer cannot grow while a batch is in flight. */
 export const CLIENT_RING = 240;
@@ -78,8 +78,10 @@ export async function flushClientBlips(): Promise<void> {
 	sent += batch.length;
 	// A dropped batch is a lost observation, never a broken page: the run keeps its own count of what it received, and
 	// the occurrence was by definition one the run does not retain.
+	// A read, not an act: the run retains nothing of a blip, so a batch's arrival is not recorded as a step. Recorded, its
+	// events reached the page and a page drawing frames repainted on its own recordings without end.
 	await conduit()
-		.follow(acts("MonitorStepper-recordClientBlips", { batch: { blips: batch, recorded } }), `blips: ${batch.length} occurrence(s)`)
+		.follow(reads("MonitorStepper-recordClientBlips", { batch: { blips: batch, recorded } }), `blips: ${batch.length} occurrence(s)`)
 		.catch((e) => console.warn("[shu] blip batch not delivered", e));
 }
 

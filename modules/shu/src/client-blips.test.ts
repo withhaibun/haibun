@@ -38,6 +38,14 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sentBatch().blips).toHaveLength(60);
 	});
 
+	it("hands a batch over as a read: the run retains nothing of a blip, so it records nothing of the batch either", async () => {
+		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
+		await vi.runAllTimersAsync();
+		const [link] = follow.mock.calls.at(-1) as unknown as [{ method: string; asks: string }];
+		expect(link.method).toBe("MonitorStepper-recordClientBlips");
+		expect(link.asks, "an act is recorded as a step whose events reach the page; a read is not").toBe("read");
+	});
+
 	it("hands them over in the order they happened", async () => {
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		recordClientBlip("haibun.shu.view.scroll", 2, { view: "a" });

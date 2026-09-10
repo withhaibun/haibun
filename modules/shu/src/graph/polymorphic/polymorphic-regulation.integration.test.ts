@@ -121,3 +121,27 @@ test("at rest with a selected node, the scene draws no frame: the glow is held, 
 	expect(after - before, "frames drawn over two seconds with the breath resting").toBe(0);
 	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
 });
+
+test("a feed that changes nothing visible draws no frame; one that changes the visible model draws", { timeout: 30_000 }, async () => {
+	// The page's own requests come back to it as observations, and with instrumentation hidden they change nothing
+	// visible. A scene that drew on every feed drew on its own recordings without end.
+	const before = (await page.evaluate(FRAME)) as number;
+	await page.evaluate((quads) => {
+		const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setModel(model: unknown): void } };
+		el.scene.setModel({ quads, visibleQuads: quads, clusters: [], knownClusters: new Map(), hiddenGraphs: [], hiddenPredicates: [], perTypeLimit: 1000, timeCursor: null });
+	}, QUADS);
+	await page.waitForTimeout(1_500);
+	expect(((await page.evaluate(FRAME)) as number) - before, "frames drawn for a feed of the same model").toBe(0);
+	const more = [...QUADS, { subject: "n-more", namedGraph: "Email", predicate: "name", object: "n-more", timestamp: 0 }];
+	await page.evaluate((quads) => {
+		const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setModel(model: unknown): void } };
+		el.scene.setModel({ quads, visibleQuads: quads, clusters: [], knownClusters: new Map(), hiddenGraphs: [], hiddenPredicates: [], perTypeLimit: 1000, timeCursor: null });
+	}, more);
+	await page.waitForFunction(
+		(count) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { nodes: number } }).inspect().nodes === count,
+		NODE_COUNT + 1,
+		{ timeout: 15_000 },
+	);
+	expect(((await page.evaluate(FRAME)) as number) - before, "a changed model is drawn").toBeGreaterThan(0);
+	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
+});
