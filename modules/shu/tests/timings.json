@@ -6,19 +6,19 @@
 				"steps": 6
 			},
 			"/features/monitor.feature.ts": {
-				"seconds": 6.3,
-				"steps": 510
+				"seconds": 6.2,
+				"steps": 511
 			},
 			"/features/remote-store.feature.ts": {
 				"seconds": 0.6,
 				"steps": 9
 			},
 			"/features/voice-ui.feature.ts": {
-				"seconds": 0.9,
+				"seconds": 0.8,
 				"steps": 156
 			}
 		},
-		"steps": 681,
-		"seconds": 8.1
+		"steps": 682,
+		"seconds": 8
 	}
 }
