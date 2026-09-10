@@ -69,12 +69,10 @@ export const features: TKirejiExport = {
 		set({ what: "secret-password", value: `"${SECRETS.TEST_PASSWORD}"` }),
 		set({ what: "test-subject-1", value: '"Haibun test subject"' }),
 		set({ what: "test-subject-2", value: '"Second test subject"' }),
-		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-1"', text: '"First comment at t=0"' }),
-		"pause for 1s",
-		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-1"', text: '"Second comment at t=1s"' }),
-		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-2"', text: '"Comment on second subject at t=1s"' }),
-		"pause for 1s",
-		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-2"', text: '"Final comment at t=2s"' }),
+		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-1"', text: '"First comment"' }),
+		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-1"', text: '"Second comment"' }),
+		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-2"', text: '"Comment on second subject"' }),
+		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-2"', text: '"Final comment"' }),
 
 		scenario({ scenario: "Open the SPA in a browser and confirm it loads" }),
 
@@ -111,13 +109,12 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 
-		"What a rail cannot do is move on its own, and that is what these controls are: back to the start, play, back to now, and a speed. They live in the actions bar at page level, not inside any pane, and the current-time control opens them. It also opens the log when the log is closed; here the reader already has it, so it is left as they have it. Exercising restart then play proves the cursor moves through the run rather than parking at the newest event.",
+		"What a rail cannot do is move on its own, and that is what these controls are: back to the start, play, back to now, and a speed. They are in the actions bar at page level, not inside any pane, and the current-time control opens them. It also opens the log when the log is closed; here the reader already has it, so it is left as they have it. Pressing each of them in turn is the browser path: the controls are served, they take a press, and the page keeps its log through all of it. Where the cursor stands after each press is stated by the cases over the control itself, which drive its frames rather than waiting on them.",
 		click({ target: IDS.APP.TIME_OFFSET }),
 		waitFor({ target: IDS.PLAYBACK.RESTART }),
 		waitFor({ target: IDS.PLAYBACK.SPEED }),
 		click({ target: IDS.PLAYBACK.RESTART }),
 		click({ target: IDS.PLAYBACK.PLAY }),
-		"pause for 2s",
 		click({ target: IDS.PLAYBACK.PLAY }),
 		"Back to now, so the later scenarios read a page that is showing everything rather than a moment part-way through the run.",
 		click({ target: IDS.PLAYBACK.LIVE }),
@@ -288,10 +285,7 @@ export const features: TKirejiExport = {
 		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to unansweredRegistry`,
 		'matches unansweredRegistry with "from the device*"',
 
-		"A page issues one request per read, so a reader with several views open issues many concurrently. The request that times out stands for the reads that follow it within the retry interval, which is what lets the run be read from the device store rather than each view running to the timeout separately.",
-		waitFor({ target: CACHE_LOG_LOADED }),
-		`save text from ${CACHE_LOG_CACHED} to unansweredCached`,
-		'matches unansweredCached with "0..*"',
+		"A page issues one request per read, so a reader with several views open issues many concurrently. The request that times out stands for the reads that follow it within the retry interval, so the page falls back rather than running each read to the timeout separately. What the page then reads of the run is stated by the scenario above, which reads it with the requests refused instead.",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
 		"The server responds again, so the page queries it again.",
@@ -308,11 +302,11 @@ export const features: TKirejiExport = {
 		waitFor({ target: CACHE_LOG_DISCONNECTED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsUnheard`,
 
-		"The run goes on recording while the page hears none of it: these steps are the records the reading has to catch up on.",
-		"pause for 1s",
-		"pause for 1s",
-		"pause for 1s",
-		"pause for 1s",
+		"The run goes on recording while the page hears none of it: these steps are the records the reading has to catch up on. What each one does is beside the point; that each one is recorded is not.",
+		set({ what: "unheard-1", value: '"recorded while the page was not listening"' }),
+		set({ what: "unheard-2", value: '"recorded while the page was not listening"' }),
+		set({ what: "unheard-3", value: '"recorded while the page was not listening"' }),
+		set({ what: "unheard-4", value: '"recorded while the page was not listening"' }),
 
 		scenario({ scenario: "The stream coming back is what a view catches up on" }),
 

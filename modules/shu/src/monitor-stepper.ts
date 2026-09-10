@@ -119,7 +119,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private clientBlipsReceived = 0;
 	private storage!: AStorage;
 	private outputPath?: string;
-	cyclesWhen = { startFeature: CycleWhen.LAST };
+	// A record write ends before the stepper that owns the store closes it, so what a feature said is written while the
+	// store still accepts writes.
+	cyclesWhen = { startFeature: CycleWhen.LAST, endFeature: CycleWhen.LAST - 1 };
 
 	options = {
 		[StepperKinds.STORAGE]: { desc: "Storage for standalone HTML output", parse: stringOrError },
@@ -162,16 +164,19 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.queriedLabel = queriedLabelOf(event) ?? this.queriedLabel;
 			// A quad announced is a quad the store holds, so the graph a view reads is read from the store rather than
 			// held again here. The live page still receives the announcement over the stream.
-			if (e.kind === "log") void this.recordSaid(event);
-			if (e.kind === "artifact") void this.recordProduced(event);
+			if (e.kind === "log") this.beganWriting(this.recordSaid(event));
+			if (e.kind === "artifact") this.beganWriting(this.recordProduced(event));
 			this.transport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
 			// An explicit `saves shu to <path>` step is honored regardless of HAIBUN_STAY (shouldClose=false).
 			const hasFixedPath = !!this.outputPath;
-			if (!hasFixedPath && !shouldClose) return;
-			if (!hasFixedPath && !this.storage) return;
-			await this.writeStandaloneReport({ fixedPath: this.outputPath, compressed: true });
+			const writesReport = hasFixedPath || (shouldClose && !!this.storage);
+			if (writesReport) await this.writeStandaloneReport({ fixedPath: this.outputPath, compressed: true });
+			// The stepper that owns the store closes it as the feature ends, so a record write begun during the feature
+			// finishes here, while the store still accepts writes.
+			await this.written();
+			if (!writesReport) return;
 			// Each feature's report stands alone: the per-feature buffers are cleared so the next feature's report holds
 			// only its own, and serialized artifacts resolve from the report's own directory. The stream is unaffected.
 			this.saidCount = 0;
@@ -196,6 +201,23 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private saidCount = 0;
 	/** The same, for what a run produced. */
 	private producedCount = 0;
+
+	/** Every record write begun and not finished, as one chain. Recording is started from an event handler, which
+	 *  returns before the store has the record, so the chain is what a feature waits on to end with its records
+	 *  written. A write reports its own failure and settles, so the chain never rejects. */
+	private writing: Promise<unknown> = Promise.resolve();
+
+	private beganWriting(write: Promise<unknown>): void {
+		this.writing = this.writing.then(() => write);
+	}
+
+	/** Wait for every record write begun so far, including one begun by writing the report. The next feature starts a
+	 *  new chain, so a write that failed is reported once. */
+	private async written(): Promise<void> {
+		const writes = this.writing;
+		this.writing = Promise.resolve();
+		await writes;
+	}
 
 	private async recordSaid(event: THaibunEvent): Promise<void> {
 		const e = event as Record<string, unknown>;

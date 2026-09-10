@@ -34,7 +34,7 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 1.4,
+				"seconds": 2.1,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
@@ -106,8 +106,8 @@
 				"steps": 17
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.7,
-				"steps": 152
+				"seconds": 1.1,
+				"steps": 143
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
@@ -118,7 +118,7 @@
 				"steps": 12
 			}
 		},
-		"steps": 1162,
-		"seconds": 18.2
+		"steps": 1153,
+		"seconds": 18.1
 	}
 }

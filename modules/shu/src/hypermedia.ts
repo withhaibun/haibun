@@ -205,15 +205,18 @@ export class LiveConduit implements Conduit {
 		const body = rpcEnvelope({ id: nextRpcId(), ...envelope });
 		// A request the server accepts without responding to is indistinguishable from an unreachable server, so a
 		// request the page awaits carries a timeout. A caller that supplied a signal governs its own request, and a
-		// stream stays open for as long as the run writes to it, so it carries no timeout.
-		const bounded = signal ?? (envelope.stream === true ? undefined : AbortSignal.timeout(responseTimeoutMs()));
+		// stream stays open for as long as the run writes to it, so neither is one this timeout applies to.
+		const awaited = signal === undefined && envelope.stream !== true;
 		// Within the retry interval of a timed-out request, no further request is issued: the previous timeout is the
-		// result, since a page with several views open would otherwise run each read to the timeout separately.
-		if (signal === undefined && envelope.stream !== true && isUnreachable()) throw new ServerUnreachable(url, new Error("a request to this server timed out within the last interval"));
+		// result, since a page with several views open would otherwise run each read to the timeout separately. The
+		// timeout is allocated after this, so a request that is not issued allocates no timer.
+		if (awaited && isUnreachable()) throw new ServerUnreachable(url, new Error("a request to this server timed out within the last interval"));
+		const bounded = awaited ? AbortSignal.timeout(responseTimeoutMs()) : signal;
 		try {
 			const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal: bounded });
-			responded().at = Date.now();
-			responded().unreachableUntil = 0;
+			const state = responded();
+			state.at = Date.now();
+			state.unreachableUntil = 0;
 			return res;
 		} catch (err) {
 			if (signal?.aborted) throw err; // the caller stopped this request; the server's reachability is not in question
