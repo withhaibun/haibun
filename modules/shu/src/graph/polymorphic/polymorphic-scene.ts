@@ -1087,7 +1087,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				sprite.position.set(mid.x, mid.y, mid.z);
 			})
 			.onEngineStop(() => {
-				this.engine.engineStopped(); // the governor records that the engine rests
+				const cameToRest = this.engine.engineStopped(); // the governor records that the engine rests
 				this.camera.autoFitOnSettle(!!this.tween); // keep the spreading graph framed (growth-gated); the controller owns the policy
 				// Release the temporary data-feed pins now the settle has come to rest: existing nodes held still
 				// through the reheat (no jitter), and the resting layout is not left permanently frozen.
@@ -1101,7 +1101,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				this.dataPinnedIds = [];
 				// Re-assert an active focus at rest: a focus applied DURING the settle is skipped by the focus controller's
 				// settle guard (dimming an under-converged layout would pin it mid-motion), so the resting frame applies it.
-				if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
+				// Only a stop that ended motion: applying the focus re-pools linkColor, which restarts the lib's countdown
+				// and reports another stop at rest, and re-asserting on that one kept the scene drawing without end.
+				if (cameToRest && (this.hoverSubject || this.selectedSubject)) this.requestFocusAtRest();
 				// After a data settle (not a layout solve — those tween independently), draw enclosures and run the settle
 				// hook (queued re-aim + gantt ruler) on the frame the nodes came to rest, not while they were still moving.
 				if (!this.tween) {

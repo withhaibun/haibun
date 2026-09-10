@@ -51,11 +51,15 @@ export class EngineGovernor {
 		this.mode = "frozen";
 	}
 
-	/** Wired to the lib's onEngineStop: records that the engine rests. Pin the cooldown to 0 at rest so a later purely-
-	 * VISUAL repool — the lib restarts its countdown whenever a colour accessor is re-set, and the focus/hover dimming
-	 * MUST re-pool linkColor — can't silently tick past the rest (each tick costs a frame of sprite sync work). */
-	engineStopped(): void {
+	/** Wired to the lib's onEngineStop: records that the engine rests, and returns whether this stop ended motion.
+	 * The cooldown is pinned to 0 at rest so a later purely VISUAL repool (the lib restarts its countdown whenever a
+	 * colour accessor is re-set, and the focus dimming must re-pool linkColor) can't silently tick past the rest. That
+	 * restart still reports a stop on its first tick. A stop reported while already frozen ended nothing, and a
+	 * consumer that reacts to coming to rest by re-pooling colours would otherwise react to its own stop without end. */
+	engineStopped(): boolean {
+		const endedMotion = this.mode !== "frozen";
 		this.mode = "frozen";
 		this.graph?.cooldownTicks(0);
+		return endedMotion;
 	}
 }

@@ -40,6 +40,21 @@ describe("what each intent does to the engine", () => {
 		expect(calls.at(-1)).toEqual(["cooldownTicks", 0]); // rest pins the cooldown so a visual repool cannot tick past it
 	});
 
+	it("reports whether a stop ended motion, so a stop reported at rest is not taken for a settle", () => {
+		const { graph } = paced();
+		const g = new EngineGovernor();
+		g.attach(graph);
+		g.settle();
+		expect(g.engineStopped(), "the settle came to rest").toBe(true);
+		// A visual repool at rest restarts the lib's countdown, which is 0, so the lib reports a stop on its next tick.
+		expect(g.engineStopped(), "a stop at rest ended nothing").toBe(false);
+		g.hold();
+		expect(g.engineStopped(), "the hold came to rest").toBe(true);
+		g.hold();
+		g.freeze();
+		expect(g.engineStopped(), "frozen before the stop: it ended nothing").toBe(false);
+	});
+
 	it("holds for a tween or drag until frozen", () => {
 		const { graph, calls } = paced();
 		const g = new EngineGovernor();
