@@ -17,7 +17,7 @@ import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
-import { setActiveViewId, setSelectedSubject, getViewContext, selectionFromContext } from "./quads-snapshot.js";
+import { setActiveViewId, setSelectedSubject, setContextPatterns, getViewContext, selectionFromContext } from "./quads-snapshot.js";
 import { activePane, timeCursor } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
@@ -296,6 +296,7 @@ const main = async (): Promise<void> => {
 		((e: CustomEvent) => {
 			const detail = e.detail || {};
 			const actionsBar = getActionsBar();
+			if (detail.patterns) setContextPatterns(detail.patterns);
 			if (actionsBar?.setContext && detail.patterns) {
 				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
 			}

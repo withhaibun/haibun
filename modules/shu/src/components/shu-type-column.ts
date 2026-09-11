@@ -17,8 +17,6 @@ import { shuBaseStyles } from "./styles.js";
 import { QueryController } from "../controllers/query-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { appAccessLevel } from "../util.js";
-import { setSelectedSubject } from "../quads-snapshot.js";
-import { ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
 import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
 import { renderRefProse } from "../markdown-refs.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../windowed-source.js";
@@ -126,10 +124,11 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 
 	/** Called by the pane afterAttach hook with the referenced type. */
 	async open(persistedAs: string): Promise<void> {
-		// Surface the subject and publish it as the shared selection: in the ontology projection a Class node's id IS the
-		// persistedAs, so every graph view (the embedded presenter and any open graph column) highlights this type's Class.
+		// Surface the subject: in the ontology projection a Class node's id IS the persistedAs, so a graph view drawing
+		// the schema can find this type by it. It is not published on the selection axis, which names a record the store
+		// holds: a Class is a projection of the registry and no record, and naming one there asks every reader of that
+		// axis for a record of a type that does not exist.
 		this.setAttribute("data-subject", persistedAs);
-		setSelectedSubject(persistedAs, ONTOLOGY_CLASS);
 		this.setState({ persistedAs, loading: true, error: undefined });
 		// An ask from here is about the type: its members. This column holds a type and no id, so `aboutType` is the
 		// only thing it can say, and no query-surface label is offered, since a schema view has none to give.

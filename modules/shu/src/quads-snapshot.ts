@@ -56,7 +56,7 @@ export type TGraphSnapshot = TClusteredQuads;
  * view id (so it can lay itself out for off-screen sync) and the currently
  * selected subject (so it can zoom/highlight without waiting for the next event).
  */
-export type TViewContext = { activeViewId: string | null; selectedSubject: string | null; selectedLabel: string | null };
+export type TViewContext = { activeViewId: string | null; selectedSubject: string | null; selectedLabel: string | null; context: TContextPattern[] };
 
 /** Subscribers fired after the cached snapshot or shared view-context changes. */
 type SnapshotListener = (snapshot: TGraphSnapshot | null, context: TViewContext) => void;
@@ -105,7 +105,7 @@ function getStore(): Store {
 	if (existing) return existing;
 	const fresh: Store = {
 		scopes: new Map(),
-		viewContext: { activeViewId: null, selectedSubject: null, selectedLabel: null },
+		viewContext: { activeViewId: null, selectedSubject: null, selectedLabel: null, context: [] },
 		listeners: new Set(),
 	};
 	g[STORE_KEY] = fresh;
@@ -116,9 +116,17 @@ export function getViewContext(): TViewContext {
 	return getStore().viewContext;
 }
 
-// activeViewId (which column has keyboard/actions focus) and selectedSubject (which subject every view dims around)
-// are ORTHOGONAL axes on one context: each setter writes only its own axis and never derives or clears the other.
-// A body click legitimately does both (clears selection AND activates the column) because they don't conflict.
+// activeViewId (which column has keyboard/actions focus), selectedSubject (which record every view dims around) and
+// context (what the page is about: the records or the type an ask would be about) are ORTHOGONAL axes on one context:
+// each setter writes only its own axis and never derives or clears the other. A body click legitimately does two of
+// them (clears selection AND activates the column) because they don't conflict.
+//
+// The context axis is held rather than only announced, so a surface that mounts after a column published one reads
+// what the page is about instead of reconstructing it from the axes that answer other questions.
+export function setContextPatterns(patterns: TContextPattern[]): void {
+	getStore().viewContext.context = patterns;
+}
+
 export function setActiveViewId(id: string | null): void {
 	const s = getStore();
 	if (s.viewContext.activeViewId === id) return;
