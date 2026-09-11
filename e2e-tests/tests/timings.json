@@ -6,7 +6,7 @@
 				"steps": 11
 			},
 			"/features/a11y-pass.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11
 			},
 			"/features/activities.feature": {
@@ -34,11 +34,11 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 1.4,
+				"seconds": 1,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 0.6,
+				"seconds": 1.8,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -78,7 +78,7 @@
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.6,
+				"seconds": 2.5,
 				"steps": 18
 			},
 			"/features/recurse.feature": {
@@ -107,7 +107,7 @@
 			},
 			"/features/wikipedia.feature.ts": {
 				"seconds": 1.1,
-				"steps": 133
+				"steps": 146
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
@@ -118,7 +118,7 @@
 				"steps": 12
 			}
 		},
-		"steps": 1143,
-		"seconds": 16.6
+		"steps": 1156,
+		"seconds": 17.3
 	}
 }
