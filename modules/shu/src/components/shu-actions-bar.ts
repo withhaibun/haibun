@@ -47,7 +47,6 @@ import {
 	setSelectValues,
 	whenSiteMetadataReady,
 } from "../rels-cache.js";
-import { ShuKihanChat } from "./shu-kihan-chat.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 import { reportToRun, type TClientLogLevel } from "../client-log.js";
@@ -640,7 +639,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 		this.populateComboboxes();
 		this.syncSearchInput();
-		this.pushContextToChat();
 		this.updateBreadcrumbDisplay();
 		this.publishFootprint();
 	}
@@ -914,11 +912,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				.map((tag) => `<${tag}></${tag}>`)
 				.join(""),
 		)}`;
-	}
-
-	private pushContextToChat(): void {
-		const chat = this.shadowRoot?.querySelector(ShuKihanChat.domainSelector) as { setContext?: (p: TContextPattern[], a: string) => void } | null;
-		chat?.setContext?.(this._contextPatterns, this._contextAccessLevel);
 	}
 
 	private _dragStartY = 0;

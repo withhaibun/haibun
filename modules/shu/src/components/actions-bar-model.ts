@@ -5,7 +5,8 @@
  */
 
 import { clamp } from "../util.js";
-import type { TContextPattern } from "../schemas.js";
+import type { TContextPattern, TContextIndividual } from "../schemas.js";
+import { DENOTES } from "@haibun/core/lib/typed-links.js";
 
 /** What the bar knows about the view behind the selection, for when the patterns do not name one. */
 export type TContextExtra = { total?: number; label?: string; folder?: string };
@@ -17,8 +18,8 @@ export const PROPORTION = { min: 0.12, max: 0.9, default: 0.38 } as const;
 export const MIN_PANEL_PX = 50;
 
 /** Every pattern names a record: the reader has records selected, not a type to query over. */
-export function isEntitySelection(patterns: TContextPattern[]): boolean {
-	return patterns.length > 0 && patterns.every((p) => p.about === "record");
+export function isEntitySelection(patterns: TContextPattern[]): patterns is TContextIndividual[] {
+	return patterns.length > 0 && patterns.every((p) => p.kind === DENOTES.individual);
 }
 
 /**
@@ -27,15 +28,11 @@ export function isEntitySelection(patterns: TContextPattern[]): boolean {
  */
 export function contextLabel(patterns: TContextPattern[], extra?: TContextExtra): string {
 	if (patterns.length === 0) return "All";
-	const records = patterns.filter((p) => p.about === "record");
-	if (records.length === patterns.length) return records.length === 1 ? records[0].id : `${records.length} items`;
-	const parts: string[] = [];
-	const type = patterns.find((p) => p.about === "type");
-	const label = extra?.label || type?.persistedAs;
-	if (label) parts.push(`${label}:`);
+	if (isEntitySelection(patterns)) return patterns.length === 1 ? patterns[0].id : `${patterns.length} items`;
+	const parts: string[] = [`${extra?.label || patterns.find((p) => p.kind === DENOTES.type)?.persistedAs}:`];
 	if (extra?.total !== undefined) parts.push(String(extra.total));
 	if (extra?.folder) parts.push(`in ${extra.folder}`);
-	return parts.length > 0 ? parts.join(" ") : "All";
+	return parts.join(" ");
 }
 
 /** The remembered height to open at: what was dragged, if that is still a height a reader can work in. */

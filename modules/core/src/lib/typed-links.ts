@@ -19,14 +19,30 @@
 import MarkdownIt from "markdown-it";
 import { LinkRelations, type TQuoteAnchor, type TRelRange } from "./resources.js";
 
+/**
+ * What a reference denotes: one persisted individual, or a type. Every surface that tells those two apart says it
+ * with these words, so a link, a pane, a statement and an ask name the same distinction the same way.
+ */
+export const DENOTES = { individual: "individual", type: "type" } as const;
+export type TDenotes = (typeof DENOTES)[keyof typeof DENOTES];
+
+/**
+ * The same distinction as it is written into rendered documents, where `<shu-ref kind>` carries it and the ref
+ * navigation reads it back. Documents already hold these words, so they stay as written and are named here rather
+ * than spelled at each place that tests them.
+ */
+export const REF_DENOTES = { individual: "entity", type: "domain" } as const;
+
 /** An in-app reference: a type, or an individual (optionally a passage inside it). The shape the SPA's renderer takes. */
-export type TRefHref = { kind: "domain"; target: { domain: string } } | { kind: "entity"; target: { persistedAs: string; id: string; selector?: TQuoteAnchor } };
+export type TRefHref =
+	| { kind: typeof REF_DENOTES.type; target: { domain: string } }
+	| { kind: typeof REF_DENOTES.individual; target: { persistedAs: string; id: string; selector?: TQuoteAnchor } };
 
 /** What a statement can be about: a typed individual, optionally a passage inside it. */
-export type TAddressableTarget = { kind: "individual"; persistedAs: string; id: string; anchor?: TQuoteAnchor };
+export type TAddressableTarget = { kind: typeof DENOTES.individual; persistedAs: string; id: string; anchor?: TQuoteAnchor };
 
 /** What a link's href denotes. A TYPE is a schema term, not an individual: a link to one navigates and states nothing. */
-export type TLinkTarget = TAddressableTarget | { kind: "type"; persistedAs: string };
+export type TLinkTarget = TAddressableTarget | { kind: typeof DENOTES.type; persistedAs: string };
 
 /**
  * One fact a link states, about the text that states it. `typed` marks a typed link. `linkText` is the link text
@@ -97,18 +113,19 @@ export function resolveLinkTarget(href: string | null | undefined, isType: (name
 	const key = decodeHref(base.slice(1), "reference link");
 	if (!key) return null;
 	const colon = key.indexOf(":");
-	if (colon === -1) return isType(key) ? { kind: "type", persistedAs: key } : null;
+	if (colon === -1) return isType(key) ? { kind: DENOTES.type, persistedAs: key } : null;
 	const persistedAs = key.slice(0, colon);
 	const id = key.slice(colon + 1);
 	if (!persistedAs || !id || !isType(persistedAs)) return null;
-	return { kind: "individual", persistedAs, id, ...(anchor ? { anchor } : {}) };
+	return { kind: DENOTES.individual, persistedAs, id, ...(anchor ? { anchor } : {}) };
 }
 
 /** Parse a `#Type` / `#Type:id` / `#Type:id:~:text=…` href into the in-app reference it names, or null when it is not one. */
 export function parseRefHref(href: string | null | undefined, isType: (name: string) => boolean): TRefHref | null {
 	const target = resolveLinkTarget(href, isType);
-	if (target?.kind === "type") return { kind: "domain", target: { domain: target.persistedAs } };
-	if (target?.kind === "individual") return { kind: "entity", target: { persistedAs: target.persistedAs, id: target.id, ...(target.anchor ? { selector: target.anchor } : {}) } };
+	if (target?.kind === DENOTES.type) return { kind: REF_DENOTES.type, target: { domain: target.persistedAs } };
+	if (target?.kind === DENOTES.individual)
+		return { kind: REF_DENOTES.individual, target: { persistedAs: target.persistedAs, id: target.id, ...(target.anchor ? { selector: target.anchor } : {}) } };
 	return null;
 }
 

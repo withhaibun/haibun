@@ -3,21 +3,23 @@
  * a drag leaves it, and how far along a run the cursor sits. Each is read here without a browser.
  */
 import { describe, it, expect } from "vitest";
-import { aboutRecord, aboutType } from "../schemas.js";
+import { anIndividual, aType } from "../schemas.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel, MIN_PANEL_PX, PROPORTION } from "./actions-bar-model.js";
 
 describe("what the bar calls the current context", () => {
 	it("names one selected record, and counts several", () => {
-		expect(contextLabel([aboutRecord("Email", "msg-1")])).toBe("msg-1");
-		expect(contextLabel([aboutRecord("Email", "msg-1"), aboutRecord("Email", "msg-2")])).toBe("2 items");
+		expect(contextLabel([anIndividual("Email", "msg-1")])).toBe("msg-1");
+		expect(contextLabel([anIndividual("Email", "msg-1"), anIndividual("Email", "msg-2")])).toBe("2 items");
 	});
 
 	it("names a type by what the view behind it holds", () => {
-		expect(contextLabel([aboutType("Email", { subject: "invoice" })], { label: "Email", total: 12, folder: "INBOX" })).toBe("Email: 12 in INBOX");
+		expect(contextLabel([aType("Email", [{ predicate: "subject", operator: "contains", value: "invoice" }])], { label: "Email", total: 12, folder: "INBOX" })).toBe(
+			"Email: 12 in INBOX",
+		);
 	});
 
 	it("names a type by the type itself where the view offers nothing, which is what a schema view offers", () => {
-		expect(contextLabel([aboutType("Email")])).toBe("Email:");
+		expect(contextLabel([aType("Email")])).toBe("Email:");
 	});
 
 	it("is All with nothing selected, since the bar then acts on everything", () => {
@@ -25,8 +27,8 @@ describe("what the bar calls the current context", () => {
 	});
 
 	it("tells a selection of records from a type to query over", () => {
-		expect(isEntitySelection([aboutRecord("Email", "msg-1"), aboutRecord("Email", "msg-2")])).toBe(true);
-		expect(isEntitySelection([aboutType("Email")])).toBe(false);
+		expect(isEntitySelection([anIndividual("Email", "msg-1"), anIndividual("Email", "msg-2")])).toBe(true);
+		expect(isEntitySelection([aType("Email")])).toBe(false);
 		expect(isEntitySelection([])).toBe(false);
 	});
 });

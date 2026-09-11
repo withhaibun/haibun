@@ -296,7 +296,7 @@ const main = async (): Promise<void> => {
 		((e: CustomEvent) => {
 			const detail = e.detail || {};
 			const actionsBar = getActionsBar();
-			if (detail.patterns) setContextPatterns(detail.patterns);
+			if (detail.patterns) setContextPatterns(detail.patterns, detail.accessLevel || Access.private);
 			if (actionsBar?.setContext && detail.patterns) {
 				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
 			}
@@ -304,7 +304,6 @@ const main = async (): Promise<void> => {
 			// publish never clears a selection another column just made.
 			const sel = selectionFromContext(detail);
 			if (sel.action === "select") setSelectedSubject(sel.subject, sel.label);
-			else if (sel.action === "clear") setSelectedSubject(null, null);
 		}) as EventListener,
 		{ signal },
 	);

@@ -3,6 +3,7 @@
  */
 import { z } from "zod";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { DENOTES } from "@haibun/core/lib/typed-links.js";
 
 // --- Combobox ---
 
@@ -162,44 +163,38 @@ export const ResultTableSchema = z.object({
 	paginated: z.boolean().default(false),
 });
 
-// --- Triple pattern queries ---
-// Canonical query shape across the system: a list of SPO triple patterns, AND-conjoined.
-// Omitted position = variable; equality is implicit.
-// Used end-to-end: SPA selection → LLM context resolution, _links.params for relational affordances,
-// goal resolver backward chaining.
+// --- What an ask is about ---
 
 /**
- * What an ask is about: one record, or a type. A record is named the way every surface names one, by the type it is
- * persisted as and its own id, so whoever resolves it reads it directly instead of searching the types for an id that
- * might be in any of them. A type names its members, narrowed by the filters given.
- *
- * The two are told apart by `about` rather than by which fields happen to be filled, so a type name cannot arrive
- * where an id is read: a surface holding only a type can only say `aboutType`, which is what it means.
+ * An individual is named by the type it is persisted as and its own id, the pair every surface names one by, so
+ * whoever resolves it reads it directly. A type names its members, narrowed by the conditions given. `kind` tells the
+ * two apart in the words core already names them by, so a surface holding only a type can say nothing else.
  */
-export const ContextRecordSchema = z.object({
-	about: z.literal("record"),
-	persistedAs: z.string().describe("The type the record is persisted as."),
-	id: z.string().describe("The record's id within that type."),
+const ContextIndividualSchema = z.object({
+	kind: z.literal(DENOTES.individual),
+	persistedAs: z.string().describe("The type the individual is persisted as."),
+	id: z.string().describe("The individual's id within that type."),
 });
-export const ContextTypeSchema = z.object({
-	about: z.literal("type"),
+const ContextTypeSchema = z.object({
+	kind: z.literal(DENOTES.type),
 	persistedAs: z.string().describe("The type whose members the ask is about."),
-	filters: z.record(z.string(), z.string()).optional().describe("Field values every member must match."),
+	conditions: z.array(SearchConditionSchema).default([]).describe("What every member must match, in the same conditions the query surface and the store already take."),
 });
-export const ContextPatternSchema = z.discriminatedUnion("about", [ContextRecordSchema, ContextTypeSchema]);
-export type TContextRecord = z.infer<typeof ContextRecordSchema>;
-export type TContextType = z.infer<typeof ContextTypeSchema>;
+export const ContextPatternSchema = z.discriminatedUnion("kind", [ContextIndividualSchema, ContextTypeSchema]);
+export type TContextIndividual = z.infer<typeof ContextIndividualSchema>;
 export type TContextPattern = z.infer<typeof ContextPatternSchema>;
 export const ContextQuerySchema = z.array(ContextPatternSchema);
 
-/** The ask is about one record, named by its type and id. */
-export const aboutRecord = (persistedAs: string, id: string): TContextRecord => ({ about: "record", persistedAs, id });
+/** The ask is about one individual. */
+export const anIndividual = (persistedAs: string, id: string): TContextIndividual => ({ kind: DENOTES.individual, persistedAs, id });
 
-/** The ask is about a type: its members, narrowed by whichever filters carry a value. */
-export function aboutType(persistedAs: string, filters?: Record<string, string | undefined>): TContextType {
-	const given = Object.entries(filters ?? {}).filter(([, value]) => value !== undefined && value !== "");
-	return given.length > 0 ? { about: "type", persistedAs, filters: Object.fromEntries(given) as Record<string, string> } : { about: "type", persistedAs };
-}
+/** The ask is about a type: its members, narrowed by whichever conditions carry both a field and a value. The
+ *  conditions travel as they were asked, so an operator the reader chose reaches the store that can read it. */
+export const aType = (persistedAs: string, conditions: readonly TSearchCondition[] = []): TContextPattern => ({
+	kind: DENOTES.type,
+	persistedAs,
+	conditions: conditions.filter((c) => c.predicate && c.value),
+});
 
 // --- Actions bar ---
 
