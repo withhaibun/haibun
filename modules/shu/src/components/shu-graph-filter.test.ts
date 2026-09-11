@@ -84,7 +84,7 @@ describe("shu-graph-filter host modes", () => {
 		};
 		expect(emailBox().checked).toBe(true); // shown to begin with: the case that broke
 		const solo = el.shadowRoot?.querySelector("[data-testid='graph-filter-solo']") as HTMLButtonElement | null;
-		if (!solo) throw new Error("no solo tool to arm");
+		if (!solo) throw new Error("no solo tool to select");
 		solo.click();
 		await flush();
 		emailBox().click(); // press the shown chip: solo it
@@ -100,7 +100,7 @@ describe("shu-graph-filter host modes", () => {
 			detail = e.detail;
 		}) as EventListener);
 		const solo = el.shadowRoot?.querySelector("[data-testid='graph-filter-solo']") as HTMLButtonElement | null;
-		if (!solo) throw new Error("no solo tool to arm");
+		if (!solo) throw new Error("no solo tool to select");
 		solo.click();
 		await flush();
 		const group = Array.from(el.shadowRoot?.querySelectorAll("shu-chip-group") ?? []).find((g) => g.getAttribute("name") === "properties");
