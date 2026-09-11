@@ -38,6 +38,11 @@ export const chatMessageStyles = css`
 	}
 	shu-chat-message .chat-text pre { padding: var(--shu-space-2) var(--shu-space-3); overflow-x: auto; }
 	shu-chat-message .chat-error { color: var(--shu-error); font-size: inherit; white-space: pre-wrap; padding: var(--shu-space-2) 0; }
+	/* What the turn was made of, closed until a reader opens it: the context it sent and every call it made. */
+	shu-chat-message .chat-activity { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
+	shu-chat-message .chat-activity summary { cursor: pointer; }
+	shu-chat-message .chat-activity ol { margin: var(--shu-space-1) 0; padding-inline-start: var(--shu-space-4); }
+	shu-chat-message .chat-activity li { white-space: pre-wrap; overflow-wrap: anywhere; }
 `;
 
 export const ChatRoleSchema = z.enum(["user", "llm"]);
@@ -53,6 +58,9 @@ export const ChatMessageSchema = z.object({
 	status: ChatStatusSchema.optional(),
 	seqPath: z.string().optional(),
 	spinnerStatus: z.string().default(""),
+	/** Everything the turn stated about itself, in order: the context it sent, each tool it dispatched, what it took.
+	 *  The spinner shows the latest of these; this keeps them, so a reader can read what the answer was made of. */
+	activity: z.array(z.string()).default([]),
 	spinnerVisible: z.boolean().default(false),
 	spinnerSpinning: z.boolean().default(true),
 	error: z.string().default(""),
@@ -105,6 +113,14 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
 					${m.role === "llm" ? html`<shu-spinner></shu-spinner>` : ""}
 					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(md.render(m.text))}</div>` : ""}
+					${
+						m.activity.length > 0
+							? html`<details class="chat-activity" data-testid="app-chat-activity">
+								<summary>context and calls (${m.activity.length})</summary>
+								<ol>${m.activity.map((line) => html`<li>${line}</li>`)}</ol>
+							</details>`
+							: ""
+					}
 					${m.error ? html`<div class="chat-error">${m.error}</div>` : ""}
 				</div>
 			</div>

@@ -509,6 +509,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const signal = this._abortController.signal;
 		let turnSeqPath: string | null = null;
 		let accumulated = "";
+		// What the turn states about itself, kept in order. The spinner shows the latest; the message keeps them all, so
+		// a reader reads the context that was sent and every call that was made rather than watching them go past.
+		const stated: string[] = [];
 		try {
 			await conduit().followStream(
 				acts(requireStep("chatWithContext"), {
@@ -519,7 +522,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				}),
 				(chunk) => {
 					const data = chunk as Record<string, unknown>;
-					if (data.status) this.patchMessage(aiId, { spinnerStatus: String(data.status), spinnerVisible: true, spinnerSpinning: true });
+					if (data.status) {
+						stated.push(String(data.status));
+						this.patchMessage(aiId, { spinnerStatus: String(data.status), spinnerVisible: true, spinnerSpinning: true, activity: [...stated] });
+					}
 					if (data.text) {
 						accumulated += String(data.text);
 						this.scheduleTextFlush(aiId, () => accumulated);
