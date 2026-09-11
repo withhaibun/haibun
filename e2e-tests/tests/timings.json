@@ -2,7 +2,7 @@
 	"darwin-arm64-12x-apple-m4-pro": {
 		"features": {
 			"/features/a11y-fail.feature": {
-				"seconds": 0.5,
+				"seconds": 0.7,
 				"steps": 11
 			},
 			"/features/a11y-pass.feature": {
@@ -30,15 +30,15 @@
 				"steps": 65
 			},
 			"/features/auth-form.feature": {
-				"seconds": 0.6,
+				"seconds": 0.7,
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 0.9,
+				"seconds": 2,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1,
+				"seconds": 1.7,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -46,7 +46,7 @@
 				"steps": 22
 			},
 			"/features/elements.feature": {
-				"seconds": 0.3,
+				"seconds": 0.4,
 				"steps": 6
 			},
 			"/features/executor-rpc.feature.ts": {
@@ -74,7 +74,7 @@
 				"steps": 27
 			},
 			"/features/popup.feature": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 11
 			},
 			"/features/qrcode.feature": {
@@ -106,8 +106,8 @@
 				"steps": 17
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.1,
-				"steps": 143
+				"seconds": 1,
+				"steps": 141
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
@@ -118,7 +118,7 @@
 				"steps": 12
 			}
 		},
-		"steps": 1153,
-		"seconds": 15.8
+		"steps": 1151,
+		"seconds": 18.1
 	}
 }
