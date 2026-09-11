@@ -18,6 +18,9 @@ vi.mock("../rpc-registry.js", () => ({
 }));
 vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
 vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
+/** What the turn states about itself before it writes anything. */
+const stated: string[] = [];
+
 /** The session the pane remembers, and when the store answers the read of it. */
 const RESTORED = "0.1.2";
 let answerSessionRead: (() => void) | undefined;
@@ -36,8 +39,12 @@ vi.mock("../hypermedia.js", () => ({
 				});
 			return Promise.resolve({});
 		},
-		// A turn whose stream stays open: the server took the question and has written nothing back yet.
-		followStream: () => new Promise<void>(() => undefined),
+		// A turn whose stream stays open: the server took the question and has written nothing back yet. Each status it
+		// states first is what the turn says about itself.
+		followStream: (_req: unknown, onChunk: (c: unknown) => void) => {
+			for (const status of stated) onChunk({ status });
+			return new Promise<void>(() => undefined);
+		},
 	}),
 }));
 
@@ -83,6 +90,19 @@ describe("a question asked while the pane is restoring the session it left off i
 		await el.updateComplete;
 		expect(messages(el).map((m) => m.text), "the turn the reader asked for is still the conversation").toContain("what do these have in common");
 		expect(messages(el).map((m) => m.text), "and the persisted exchanges did not take its place").not.toContain("an earlier question");
+	});
+});
+
+describe("what a turn states about itself", () => {
+	it("keeps every statement on the turn, so the context sent and the calls made are there to read", async () => {
+		stated.length = 0;
+		stated.push("context sent:\nEmail -> total -> 2", "dispatching GraphStepper-graphQuery, reading the emails", "generated 40 chars");
+		const el = await paneHoldingATurn();
+
+		const running = messages(el).find((m) => m.role === "llm");
+		expect(running?.activity, "each statement, in the order the turn made them").toEqual(stated);
+		expect(running?.spinnerStatus, "and the latest of them is what the spinner shows").toBe("generated 40 chars");
+		stated.length = 0;
 	});
 });
 
