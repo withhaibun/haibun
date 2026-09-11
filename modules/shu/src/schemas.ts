@@ -168,13 +168,38 @@ export const ResultTableSchema = z.object({
 // Used end-to-end: SPA selection → LLM context resolution, _links.params for relational affordances,
 // goal resolver backward chaining.
 
-export const ContextPatternSchema = z.object({
-	s: z.string().optional(),
-	p: z.string().optional(),
-	o: z.string().optional(),
+/**
+ * What an ask is about: one record, or a type. A record is named the way every surface names one, by the type it is
+ * persisted as and its own id, so whoever resolves it reads it directly instead of searching the types for an id that
+ * might be in any of them. A type names its members, narrowed by the filters given.
+ *
+ * The two are told apart by `about` rather than by which fields happen to be filled, so a type name cannot arrive
+ * where an id is read: a surface holding only a type can only say `aboutType`, which is what it means.
+ */
+export const ContextRecordSchema = z.object({
+	about: z.literal("record"),
+	persistedAs: z.string().describe("The type the record is persisted as."),
+	id: z.string().describe("The record's id within that type."),
 });
+export const ContextTypeSchema = z.object({
+	about: z.literal("type"),
+	persistedAs: z.string().describe("The type whose members the ask is about."),
+	filters: z.record(z.string(), z.string()).optional().describe("Field values every member must match."),
+});
+export const ContextPatternSchema = z.discriminatedUnion("about", [ContextRecordSchema, ContextTypeSchema]);
+export type TContextRecord = z.infer<typeof ContextRecordSchema>;
+export type TContextType = z.infer<typeof ContextTypeSchema>;
 export type TContextPattern = z.infer<typeof ContextPatternSchema>;
 export const ContextQuerySchema = z.array(ContextPatternSchema);
+
+/** The ask is about one record, named by its type and id. */
+export const aboutRecord = (persistedAs: string, id: string): TContextRecord => ({ about: "record", persistedAs, id });
+
+/** The ask is about a type: its members, narrowed by whichever filters carry a value. */
+export function aboutType(persistedAs: string, filters?: Record<string, string | undefined>): TContextType {
+	const given = Object.entries(filters ?? {}).filter(([, value]) => value !== undefined && value !== "");
+	return given.length > 0 ? { about: "type", persistedAs, filters: Object.fromEntries(given) as Record<string, string> } : { about: "type", persistedAs };
+}
 
 // --- Actions bar ---
 

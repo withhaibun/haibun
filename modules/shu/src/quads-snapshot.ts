@@ -12,6 +12,7 @@ import {
 } from "@haibun/core/lib/quad-types.js";
 import { individualWithEdges, incomingEdgesOf } from "@haibun/core/lib/quad-store.js";
 import type { TRunGraph } from "./client-cache/run-graph.js";
+import type { TContextPattern } from "./schemas.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -133,15 +134,14 @@ export function setSelectedSubject(subject: string | null, label: string | null)
 }
 
 /** What a CONTEXT_CHANGE means for the selection axis. A context publish addresses selection only when it names a
- *  subject (select it) or carries an explicitly EMPTY patterns array (the empty-space click, clear it). A query
- *  context (label/predicate/object patterns, no subject) says nothing about selection and must leave it untouched:
+ *  record (select it, by the pair the pattern carries) or carries an explicitly EMPTY patterns array (the empty-space
+ *  click, clear it). A context about a type says nothing about which record is selected and must leave it untouched:
  *  e.g. the graph view publishing its query at boot must not clear the selection a just-opened column published. */
 export function selectionFromContext(detail: {
-	patterns?: Array<Record<string, unknown>>;
-	label?: unknown;
+	patterns?: TContextPattern[];
 }): { action: "select"; subject: string; label: string | null } | { action: "clear" } | { action: "none" } {
-	const subject = detail.patterns?.[0]?.s;
-	if (typeof subject === "string") return { action: "select", subject, label: typeof detail.label === "string" ? detail.label : null };
+	const first = detail.patterns?.[0];
+	if (first?.about === "record") return { action: "select", subject: first.id, label: first.persistedAs };
 	if (Array.isArray(detail.patterns) && detail.patterns.length === 0) return { action: "clear" };
 	return { action: "none" };
 }

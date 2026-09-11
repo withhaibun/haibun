@@ -15,7 +15,6 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import { startPointerDrag } from "./pointer-drag.js";
 import { SHU_EVENT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG } from "../consts.js";
-import { isSchemaType } from "../graph/ontology-projection.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
@@ -189,9 +188,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	): void {
 		this._contextPatterns = patterns;
 		this._contextAccessLevel = accessLevel;
-		// A schema label (Class/Property: a type column's selection context) is not a queryable concern: it has no
-		// domain option, properties, or select values, so the query surface keeps its current label.
-		if (extra?.label !== undefined && extra.label !== this._selectedLabel && !isSchemaType(extra.label ?? "")) {
+		// A view offers a label only when it has one the query surface can use: a schema view offers none, so the
+		// surface keeps the label it has.
+		if (extra?.label !== undefined && extra.label !== this._selectedLabel) {
 			this._selectedLabel = extra.label || "";
 			this.syncSelectedDomainKey();
 			this.loadProperties(this._selectedLabel);
@@ -918,14 +917,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private pushContextToChat(): void {
-		const chat = this.shadowRoot?.querySelector(ShuKihanChat.domainSelector) as {
-			setContext?: (p: TContextPattern[], a: string, extra?: { label?: string; textQuery?: string; conditions?: TSearchCondition[] }) => void;
-		} | null;
-		chat?.setContext?.(this._contextPatterns, this._contextAccessLevel, {
-			label: this._selectedLabel,
-			textQuery: viewQuery.signals.q.get() ?? undefined,
-			conditions: this._filterConditions,
-		});
+		const chat = this.shadowRoot?.querySelector(ShuKihanChat.domainSelector) as { setContext?: (p: TContextPattern[], a: string) => void } | null;
+		chat?.setContext?.(this._contextPatterns, this._contextAccessLevel);
 	}
 
 	private _dragStartY = 0;

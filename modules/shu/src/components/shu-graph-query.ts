@@ -7,7 +7,7 @@ import { SHU_EVENT, SHU_TAG } from "../consts.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { QueryViewSchema } from "../schemas.js";
+import { aboutRecord, aboutType, type TContextPattern, QueryViewSchema } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, type TViewQuery } from "../view-query.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
@@ -183,7 +183,14 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	private dispatchContextChange(): void {
-		const patterns = this.selectedIds.size > 0 ? [...this.selectedIds].map((s) => ({ s })) : this.buildQueryContextPatterns();
+		// Selected rows are records of the label this query ran under, so each is named by that pair; with none selected
+		// the ask is about the queried type itself, narrowed by whatever the filter rows carry.
+		const label = this.qLabel;
+		const patterns: TContextPattern[] = !label
+			? []
+			: this.selectedIds.size > 0
+				? [...this.selectedIds].map((id) => aboutRecord(label, id))
+				: [aboutType(label, Object.fromEntries(this.qConditions.filter((c) => c.predicate && c.value).map((c) => [c.predicate, c.value])))];
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
@@ -200,19 +207,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				composed: true,
 			}),
 		);
-	}
-
-	private buildQueryContextPatterns(): Array<{ s?: string; p?: string; o?: string }> {
-		const patterns: Array<{ s?: string; p?: string; o?: string }> = [];
-		const label = this.qLabel;
-		if (label) patterns.push({ p: "label", o: label });
-		for (const c of this.qConditions) {
-			if (c.predicate && c.value) {
-				patterns.push({ p: c.predicate, o: c.value });
-			}
-		}
-		if (patterns.length === 0) patterns.push({});
-		return patterns;
 	}
 
 	private hasHash(): boolean {

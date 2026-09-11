@@ -23,7 +23,6 @@ import { reads, acts, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
-import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -120,9 +119,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	private _contextPatterns: TContextPattern[] = [];
 	private _contextAccessLevel: string = Access.private;
-	private _selectedLabel = "";
-	private _filterConditions: TSearchCondition[] = [];
-	private _textSearch = "";
 
 	/** id → the shu-chat-message this instance projected into the external output. Lets a session switch remove exactly its own transcript, leaving other activity records (step callers, search summaries) in place. */
 	#projected = new Map<string, ShuChatMessage>();
@@ -246,12 +242,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.requestUpdate();
 	}
 
-	setContext(patterns: TContextPattern[], accessLevel: string, extra?: { label?: string; textQuery?: string; conditions?: TSearchCondition[] }): void {
+	setContext(patterns: TContextPattern[], accessLevel: string): void {
 		this._contextPatterns = patterns;
 		this._contextAccessLevel = accessLevel;
-		if (extra?.label !== undefined) this._selectedLabel = extra.label;
-		if (extra?.textQuery !== undefined) this._textSearch = extra.textQuery;
-		if (extra?.conditions !== undefined) this._filterConditions = extra.conditions;
 	}
 
 	private activeChatContext(): { patterns: TContextPattern[]; viewLd: unknown[]; maxToolCalls: number; sessionSeqPath?: string; inReplyTo?: string } {

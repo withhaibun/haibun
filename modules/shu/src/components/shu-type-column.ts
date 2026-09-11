@@ -17,6 +17,8 @@ import { shuBaseStyles } from "./styles.js";
 import { QueryController } from "../controllers/query-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { appAccessLevel } from "../util.js";
+import { setSelectedSubject } from "../quads-snapshot.js";
+import { ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
 import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
 import { renderRefProse } from "../markdown-refs.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../windowed-source.js";
@@ -29,7 +31,7 @@ const INSTANCES_PAGE = 100;
 const isKnownType = (name: string): boolean => getRels(name) !== undefined;
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SHU_EVENT } from "../consts.js";
-import { ONTOLOGY_CLASS } from "../graph/ontology-projection.js";
+import { aboutType } from "../schemas.js";
 import type { TGraph } from "../graph/types.js";
 import { ShuProductView } from "./shu-product-view.js";
 
@@ -127,12 +129,13 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// Surface the subject and publish it as the shared selection: in the ontology projection a Class node's id IS the
 		// persistedAs, so every graph view (the embedded presenter and any open graph column) highlights this type's Class.
 		this.setAttribute("data-subject", persistedAs);
+		setSelectedSubject(persistedAs, ONTOLOGY_CLASS);
 		this.setState({ persistedAs, loading: true, error: undefined });
-		// label is the SELECTED NODE'S graph: the type's Class node lives in the Class cluster, and a schema label
-		// tells every consumer this subject is a schema term, not an individual to fetch.
+		// An ask from here is about the type: its members. This column holds a type and no id, so `aboutType` is the
+		// only thing it can say, and no query-surface label is offered, since a schema view has none to give.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: { patterns: [{ s: persistedAs }], accessLevel: appAccessLevel(), label: ONTOLOGY_CLASS },
+				detail: { patterns: [aboutType(persistedAs)], accessLevel: appAccessLevel() },
 				bubbles: true,
 				composed: true,
 			}),
