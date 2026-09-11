@@ -28,6 +28,7 @@ import {
 	cachedGraphStore,
 	queryGraph,
 } from "./quads-snapshot.js";
+import { aboutRecord, aboutType } from "./schemas.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -194,13 +195,13 @@ describe("per-scope snapshots, independent data sources over one store", () => {
 
 describe("selectionFromContext, only a context that ADDRESSES selection moves it", () => {
 	it("a subject pattern selects", () => {
-		expect(selectionFromContext({ patterns: [{ s: "Issuer" }], label: "Issuer" })).toEqual({ action: "select", subject: "Issuer", label: "Issuer" });
+		expect(selectionFromContext({ patterns: [aboutRecord("Issuer", "did:web:one")] })).toEqual({ action: "select", subject: "did:web:one", label: "Issuer" });
 	});
 	it("an explicitly empty patterns array clears (the empty-space click)", () => {
 		expect(selectionFromContext({ patterns: [] })).toEqual({ action: "clear" });
 	});
 	it("a query context (label/predicate/object, no subject) leaves the selection untouched", () => {
-		expect(selectionFromContext({ patterns: [{ p: "label", o: "Body" }] })).toEqual({ action: "none" });
+		expect(selectionFromContext({ patterns: [aboutType("Body")] }), "a type says nothing about which record is selected").toEqual({ action: "none" });
 		expect(selectionFromContext({})).toEqual({ action: "none" });
 	});
 });

@@ -31,7 +31,7 @@ import { SHU_EVENT, ANNOTATION_GLYPH } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
-import { EntityColumnSchema } from "../schemas.js";
+import { aboutRecord, EntityColumnSchema } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
 import type { AnnotationView } from "../annotation-resolver.js";
@@ -234,7 +234,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		await this.entity.open(label, id, accessLevel);
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: { patterns: [{ s: id }], accessLevel, label },
+				detail: { patterns: [aboutRecord(label, id)], accessLevel, label },
 				bubbles: true,
 				composed: true,
 			}),

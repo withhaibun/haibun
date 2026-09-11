@@ -16,24 +16,23 @@ export const PROPORTION = { min: 0.12, max: 0.9, default: 0.38 } as const;
 /** A drag that leaves the bar shorter than this is a drag to nothing: the bar keeps a usable strip. */
 export const MIN_PANEL_PX = 50;
 
-/** Every pattern names a subject and nothing else: the reader has records selected, not a query over them. */
+/** Every pattern names a record: the reader has records selected, not a type to query over. */
 export function isEntitySelection(patterns: TContextPattern[]): boolean {
-	return patterns.length > 0 && patterns.every((p) => p.s && !p.p && !p.o);
+	return patterns.length > 0 && patterns.every((p) => p.about === "record");
 }
 
 /**
- * What to call the current context: one selected record by its own name, several by their count, a single field by
- * the property it is, and anything else by what the view behind it holds. "All" when nothing is selected, since the
- * bar then acts on everything.
+ * What to call the current context: one selected record by its own name, several by their count, and a type by what
+ * the view behind it holds. "All" when nothing is selected, since the bar then acts on everything.
  */
 export function contextLabel(patterns: TContextPattern[], extra?: TContextExtra): string {
 	if (patterns.length === 0) return "All";
-	const subjects = patterns.filter((p) => p.s && !p.p && !p.o);
-	if (subjects.length === patterns.length && subjects.length > 0) return subjects.length === 1 ? subjects[0].s || "" : `${subjects.length} items`;
-	const field = patterns.find((p) => p.s && p.p);
-	if (field && patterns.length === 1) return `${field.p}`;
+	const records = patterns.filter((p) => p.about === "record");
+	if (records.length === patterns.length) return records.length === 1 ? records[0].id : `${records.length} items`;
 	const parts: string[] = [];
-	if (extra?.label) parts.push(`${extra.label}:`);
+	const type = patterns.find((p) => p.about === "type");
+	const label = extra?.label || type?.persistedAs;
+	if (label) parts.push(`${label}:`);
 	if (extra?.total !== undefined) parts.push(String(extra.total));
 	if (extra?.folder) parts.push(`in ${extra.folder}`);
 	return parts.length > 0 ? parts.join(" ") : "All";

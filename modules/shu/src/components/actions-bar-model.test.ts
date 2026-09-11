@@ -3,30 +3,30 @@
  * a drag leaves it, and how far along a run the cursor sits. Each is read here without a browser.
  */
 import { describe, it, expect } from "vitest";
+import { aboutRecord, aboutType } from "../schemas.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel, MIN_PANEL_PX, PROPORTION } from "./actions-bar-model.js";
 
 describe("what the bar calls the current context", () => {
 	it("names one selected record, and counts several", () => {
-		expect(contextLabel([{ s: "msg-1" }])).toBe("msg-1");
-		expect(contextLabel([{ s: "msg-1" }, { s: "msg-2" }])).toBe("2 items");
+		expect(contextLabel([aboutRecord("Email", "msg-1")])).toBe("msg-1");
+		expect(contextLabel([aboutRecord("Email", "msg-1"), aboutRecord("Email", "msg-2")])).toBe("2 items");
 	});
 
-	it("names a single field by the property it is", () => {
-		expect(contextLabel([{ s: "msg-1", p: "subject" }])).toBe("subject");
+	it("names a type by what the view behind it holds", () => {
+		expect(contextLabel([aboutType("Email", { subject: "invoice" })], { label: "Email", total: 12, folder: "INBOX" })).toBe("Email: 12 in INBOX");
 	});
 
-	it("falls back to what the view holds when the patterns describe a query rather than a selection", () => {
-		expect(contextLabel([{ p: "subject", o: "invoice" }], { label: "Email", total: 12, folder: "INBOX" })).toBe("Email: 12 in INBOX");
+	it("names a type by the type itself where the view offers nothing, which is what a schema view offers", () => {
+		expect(contextLabel([aboutType("Email")])).toBe("Email:");
 	});
 
 	it("is All with nothing selected, since the bar then acts on everything", () => {
 		expect(contextLabel([])).toBe("All");
-		expect(contextLabel([{ p: "subject" }]), "and with a query the view says nothing about").toBe("All");
 	});
 
-	it("tells a selection of records from a query over them", () => {
-		expect(isEntitySelection([{ s: "msg-1" }, { s: "msg-2" }])).toBe(true);
-		expect(isEntitySelection([{ s: "msg-1", p: "subject" }])).toBe(false);
+	it("tells a selection of records from a type to query over", () => {
+		expect(isEntitySelection([aboutRecord("Email", "msg-1"), aboutRecord("Email", "msg-2")])).toBe(true);
+		expect(isEntitySelection([aboutType("Email")])).toBe(false);
 		expect(isEntitySelection([])).toBe(false);
 	});
 });
