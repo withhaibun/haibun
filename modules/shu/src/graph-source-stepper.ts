@@ -129,7 +129,7 @@ export default class GraphSourceStepper extends AStepper {
 				}
 				const result = await store.getClusteredQuads({ perTypeLimit, types, accessLevel, scope });
 				// The store sample is canonical; the live observation buffer only EXTENDS it through the one shared,
-				// budget-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
+				// limit-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
 				// buffer unbudgeted let every observed subject past the requested limit. The client seeds this
 				// response verbatim, so the response itself must hold the bound.
 				const model = new QuadGraphModel(

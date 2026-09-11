@@ -284,7 +284,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const store = this.getWorld().shared.getStore();
 				// Reverse-walk the W3C Web Annotation chain from the annotated individual with LABEL-SCOPED bulk reads, then
 				// join them in memory. An unscoped or per-note quad query on a property-graph store reloads every type and
-				// every body, including this document's own, so the naive walk costs note-count × document-size; this is a
+				// every body, including this document's own, so the naive walk takes note-count × document-size; this is a
 				// fixed handful of scoped reads instead. SpecificResource, hasSource→ id,, hasSelector→ TextQuoteSelector;
 				// Comment: hasTarget→ SpecificResource, optionally, linksTo→ another SpecificResource.
 				const srIds = new Set((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map((q) => String(q.subject)));

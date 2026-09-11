@@ -16,7 +16,7 @@ const qe = (subject: string, predicate: string, object: string, objectType: stri
 const noRels = (): undefined => undefined;
 
 describe("QuadGraphModel", () => {
-	it("admits subjects under the per-type budget and clusters them", () => {
+	it("admits subjects under the per-type limit and clusters them", () => {
 		const m = new QuadGraphModel(2, noRels);
 		m.merge([q("a", "name", "A", "Email"), q("b", "name", "B", "Email")]);
 		const c = m.clusters.find((c) => c.type === "Email");
@@ -26,7 +26,7 @@ describe("QuadGraphModel", () => {
 		expect(m.quads).toHaveLength(2);
 	});
 
-	it("omits a new subject once its type is at budget, counts it, drops its quad", () => {
+	it("omits a new subject once its type is at its limit, counts it, drops its quad", () => {
 		const m = new QuadGraphModel(1, noRels);
 		m.merge([q("a", "name", "A", "Email"), q("b", "name", "B", "Email")]);
 		const c = m.clusters.find((c) => c.type === "Email");
@@ -36,12 +36,12 @@ describe("QuadGraphModel", () => {
 		expect(m.quads).toHaveLength(1);
 	});
 
-	it("keeps a pinned subject's quad as an extra even when its type is at budget", () => {
+	it("keeps a pinned subject's quad as an extra even when its type is at its limit", () => {
 		const m = new QuadGraphModel(1, noRels);
 		m.pin(["b"]);
 		m.merge([q("a", "name", "A", "Email"), q("b", "name", "B", "Email")]);
 		const c = m.clusters.find((c) => c.type === "Email");
-		expect(m.quads).toHaveLength(2); // b kept despite budget 1 (not dropped)
+		expect(m.quads).toHaveLength(2); // b kept despite limit 1 (not dropped)
 		expect(m.quads.some((x) => x.subject === "b")).toBe(true);
 		expect(c?.omittedCount).toBe(0); // pinned, not omitted
 		expect(typeof c?.displayLabels["b"]).toBe("string"); // and labelled

@@ -32,7 +32,7 @@ describe("the breath the loop samples", () => {
 		expect(sampledAt.length, "and it keeps to it for as long as a node wears it").toBe(10);
 	});
 
-	it("costs the scene one frame per breath, so an otherwise idle graph stays idle", () => {
+	it("takes the scene one frame per breath, so an otherwise idle graph stays idle", () => {
 		const { drawn } = loop(6, 60);
 		expect(drawn, "one drawn frame per sample, not sixty").toBe(10);
 	});

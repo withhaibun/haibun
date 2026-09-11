@@ -2,7 +2,7 @@
  * QuadGraphModel: the in-memory clustered quad graph, shared by every consumer.
  *
  * One implementation of the graph operations: dedup-indexed quads + per-type cluster summaries
- * (sampled/omitted counts, display labels), bounded by a per-type budget plus pinned subjects.
+ * (sampled/omitted counts, display labels), bounded by a per-type limit plus pinned subjects.
  * The SERVER builds a snapshot by feeding it quads sampled from the site's store (injecting the true per-type totals
  * and SQL-fetched body previews); the CLIENT holds the live snapshot, feeding it the RPC backfill
  * and live SSE quads (reading body previews from its own in-memory body quads). Same merge, same
@@ -53,7 +53,7 @@ export class QuadGraphModel {
 	private readonly stableSnapshot: TClusteredQuads = { quads: this.quads, clusters: this.clusters };
 
 	constructor(
-		private readonly budget: number,
+		private readonly limit: number,
 		private readonly relsFor: RelsProvider,
 		private readonly displayLabelRelFor: DisplayLabelRelProvider = () => undefined,
 	) {}
@@ -81,14 +81,14 @@ export class QuadGraphModel {
 		for (const c of snapshot.clusters) this.clusters.push(c);
 	}
 
-	/** Pin subjects into the working set so a budget-bounded merge can never evict them. */
+	/** Pin subjects into the working set so a limit-bounded merge can never evict them. */
 	pin(subjects: Iterable<string>): void {
 		for (const s of subjects) this.pinned.add(s);
 	}
 
 	/**
-	 * Merge quads, bounded by the per-type budget: a quad for a present subject updates in place; a brand-new
-	 * subject is admitted only while its type is under budget (or pinned), otherwise counted as omitted and its
+	 * Merge quads, bounded by the per-type limit: a quad for a present subject updates in place; a brand-new
+	 * subject is admitted only while its type is under its limit (or pinned), otherwise counted as omitted and its
 	 * quad dropped. The dedup index is maintained per quad (no rescan). Returns the subjects touched.
 	 */
 	merge(quads: TQuad[], opts: MergeOptions = {}): Set<string> {
@@ -128,12 +128,12 @@ export class QuadGraphModel {
 					countedThisCall.add(subjectKey);
 					cluster.totalCount += 1;
 				}
-				if (sampled.size < this.budget) {
+				if (sampled.size < this.limit) {
 					sampled.add(q.subject);
 					cluster.sampledSubjects.push(q.subject);
 					cluster.sampledCount = sampled.size;
 				} else {
-					// Type at budget and subject unpinned, omit it: count it, drop its quad.
+					// Type at its limit and subject unpinned, omit it: count it, drop its quad.
 					cluster.omittedCount = Math.max(0, cluster.totalCount - cluster.sampledCount);
 					continue;
 				}

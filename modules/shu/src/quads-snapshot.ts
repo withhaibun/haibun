@@ -24,7 +24,7 @@ import { pagePinned } from "./page-pinned.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
-/** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so no path can silently inflate the budget past what the slider expresses. */
+/** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so no path can silently inflate the limit past what the slider expresses. */
 export const MAX_PER_TYPE_LIMIT = 1000;
 
 /** Off-heap persistent backing for the client graph: live merges + each backfill are written here, and a reload seeds
@@ -92,7 +92,7 @@ type Store = {
  * the live state onto a globalThis-keyed singleton means every importer
  * resolves to the same cache + listener set + view context.
  *
- * Cost is one global property; benefit is one HTTP fetch and one in-memory
+ * One global property changes; the effect is one HTTP fetch and one in-memory
  * snapshot for an arbitrarily large dataset, plus selection / data events
  * propagating across bundle boundaries without a DOM round-trip.
  */
@@ -376,21 +376,21 @@ function ensureCache(st: ScopeState): CacheEntry {
 /**
  * Pin subjects into the working set so streamed data can never evict them. Used by
  * node-expansion: a neighborhood the user explicitly revealed stays visible even
- * once a type is at its per-type budget. Bounded by how much the user expands.
+ * once a type is at its per-type limit. Bounded by how much the user expands.
  */
 export function pinSubjects(subjects: Iterable<string>, scope = ""): void {
 	ensureCache(scopeState(getStore(), scope)).model.pin(subjects);
 }
 
 /**
- * Merge newly observed quads into the shared model, bounded by the cached per-type budget plus pinned
+ * Merge newly observed quads into the shared model, bounded by the cached per-type limit plus pinned
  * subjects (see QuadGraphModel). SSE may arrive before (or without) a getClusteredQuads RPC, so start a
  * cache for the merge to land in.
  */
 export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	if (quads.length === 0) return;
 	const s = getStore();
-	// Live observations extend EVERY scope's model, each bounded by its own budget (merge dedups by fact, so a batch
+	// Live observations extend EVERY scope's model, each bounded by its own limit (merge dedups by fact, so a batch
 	// delivered through two views' subscriptions lands once per scope). The default scope always exists, SSE may
 	// arrive before any fetch.
 	ensureCache(scopeState(s, ""));
@@ -424,7 +424,7 @@ export function incomingEdges(label: string, id: string, window: { limit: number
 				reads(requireStep("getIncomingEdges"), { label, id, accessLevel: appAccessLevel(), ...window }),
 				`what points at ${label}:${id}`,
 			),
-		// The window is taken before a record is read, so a hub costs the page a window rather than every edge of it.
+		// The window is taken before a record is read, so a hub takes the page a window rather than every edge of it.
 		() => (getRels(label) ? incomingEdgesOf(cachedGraphStore(), id, window) : Promise.resolve(undefined)),
 	);
 }

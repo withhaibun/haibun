@@ -47,7 +47,7 @@ export class KnownSizeFlowLayout extends FlowLayout {
 		return this.#measured.size > 0 ? this.#sum / this.#measured.size : super._getAverageSize();
 	}
 
-	/** What one row of a stretch not seen is worth: a row with content at the average, a known-empty one nothing, in the
+	/** What one row of a stretch not seen counts as: a row with content at the average, a known-empty one nothing, in the
 	 *  proportion seen so far. */
 	expectedRowSize(): number {
 		const seen = this.#measured.size + this.#known.size;

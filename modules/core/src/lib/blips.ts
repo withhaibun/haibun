@@ -151,9 +151,9 @@ export const WATCH_WINDOW = 200;
 /**
  * A focused, ordered window over named blips. The rollup answers how many; this answers in what order, which is the
  * question a fine-grained occurrence exists to settle and the one a count destroys. Subscribing by name is what keeps
- * the window worth reading: a single per-frame name would otherwise flood out everything else it holds.
+ * the window to read: a single per-frame name would otherwise flood out everything else it holds.
  *
- * This is what an agent asked to watch something receives. It is bounded, so handing it to a model or a feature costs
+ * This is what an agent asked to watch something receives. It is bounded, so handing it to a model or a feature takes
  * a known amount however long the run goes on.
  */
 export class BlipWatch {

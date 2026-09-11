@@ -10,7 +10,7 @@
  *
  * The window re-reads when the run says something changed, and a view following the newest asks only for what has
  * happened since it last read. A view therefore holds what a reader is looking at rather than everything that has
- * happened, and following costs what has changed rather than what the run holds, which is what keeps a run of years
+ * happened, and following takes what has changed rather than what the run holds, which is what keeps a run of years
  * readable.
  */
 import { HAIBUN_LOG_LEVELS, declaredName, declaresFeature, declaresScenario, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
@@ -202,7 +202,7 @@ function makeGraphRunSource(
 	/**
 	 * Read the run. Following the live edge, a view already holding rows asks only for what changed after its last
 	 * read: the records that began after its newest row, and the steps that ended after it. Reading the whole window
-	 * again to find a few new records is what makes following a long run cost what the run costs. Anywhere else, the
+	 * again to find a few new records is what makes following a long run take what the run takes. Anywhere else, the
 	 * window is read around where the reader is.
 	 */
 	const read = async (): Promise<void> => {
@@ -235,7 +235,7 @@ function makeGraphRunSource(
 		producedUnderSteps(window);
 		// What a page has read, it holds: the records are what a reader with no site to ask reads them back from, and
 		// what makes an execution one this device can be brought back to. Only what is new to the window is written,
-		// and every new record in one write, so reading a window costs one write rather than one per record.
+		// and every new record in one write, so reading a window is one write rather than one per record.
 		void hold(window.filter((row) => !held.has(renderKey(row))));
 		rows = window.map(same);
 		// What the window no longer holds is not held here either, so a window that moves does not grow this without bound.
@@ -293,7 +293,7 @@ function makeGraphRunSource(
 		},
 	});
 
-	// What the run reaches, and what it holds along the way, counted rather than read: a rail carrying a year costs its
+	// What the run reaches, and what it holds along the way, counted rather than read: a rail carrying a year takes its
 	// divisions rather than the run. Both are read where the window is read, so they move with it.
 	let reach: TRunSpan = { first: 0, last: 0 };
 	let railMarks: TScrollMarker[] = [];
@@ -339,7 +339,7 @@ function makeGraphRunSource(
 		// The rail this window's rows sit on: the run's whole reach, focused where the reader is reading. A window holds
 		// a few thousand records and a run can hold a year of them, so a rail spread over the window alone would say
 		// nothing about the rest of the run. The reach and the marks are read where the window is read, so a rail of a
-		// year costs the counts its divisions cost rather than what the run did.
+		// year takes the counts its divisions take rather than what the run did.
 		rail: {
 			places: RAIL_PLACES,
 			placeOf: (index: number) => placeFor(Number(rows[index]?.timestamp) || reach.first),

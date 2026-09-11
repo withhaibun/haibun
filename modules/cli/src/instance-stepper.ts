@@ -285,7 +285,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `wait for the haibun run {run} to end within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"Answer when the run ends, rather than when asked again. This process holds the child, so it is told the moment it exits; a caller asking repeatedly would learn the same thing later and at the cost of a dispatch each time. The answer is a read: what the run said since the cursor given, and what it reported about itself. Reaching the limit answers with the run still running, which is not an error, so the caller decides what to do about it.",
+				"Wait for the run to end, then answer, instead of the caller asking repeatedly. This process supervises the child directly and is told the moment it exits, so it answers as soon as that happens. The answer has the same shape as readRun: everything the run said since the given cursor, and whether it is still running. Reaching the timeout answers the same way, with the run still running; that is not a failure, and the caller decides whether to wait again or stop it.",
 			productsSchema: runReadSchema,
 			action: ({ run, seconds, cursor }: { run: string; seconds: number; cursor: number }) => this.waitRun(run, seconds, cursor),
 		},

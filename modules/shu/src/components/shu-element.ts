@@ -97,7 +97,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	/**
 	 * A spine view stays attached while its column is open, so it keeps hearing what it needs to be current the moment
 	 * the column collapses. Attached is not shown, though: until the pane's spine slot takes it, nothing it renders can
-	 * be seen, and rendering it anyway costs the same as rendering it for a reader. So it holds off, and the pane asks
+	 * be seen, and rendering it anyway takes the same as rendering it for a reader. So it holds off, and the pane asks
 	 * it to catch up when the spine slot takes it.
 	 */
 	protected override shouldUpdate(changed: Map<PropertyKey, unknown>): boolean {
@@ -444,7 +444,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	/**
 	 * What this view presents, summarized for a Kihan as linked data: a JSON-LD node (`@id`, `@type`, and the
 	 * view's content or a faithful digest of it). Called ON DEMAND by the chat-context harvester when the person
-	 * asks: never on render, so a large summary costs nothing until it is sent. A view on screen the
+	 * asks: never on render, so a large summary does nothing until it is sent. A view on screen the
 	 * model cannot read is a broken ask; return null only for a pure control that presents no data (a picker, a
 	 * button strip): the decision is required of every view, never implicit.
 	 */

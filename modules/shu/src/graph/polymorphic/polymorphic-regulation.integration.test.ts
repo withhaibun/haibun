@@ -2,8 +2,8 @@
  * Real-browser self-regulation of shu-polymorphic-graph-view: a headless browser draws through a software rasterizer,
  * where a frame of a modest scene takes tens of milliseconds, so this is the environment that needs the regulator.
  *
- * The invariant: with a selected node and nothing moving, a scene whose frames are slow measures that cost, rests the
- * breath, and draws no frame at all, so the run that opened the page spends nothing on it after that.
+ * The invariant: with a selected node and nothing moving, a scene whose frames are slow measures that time, rests the
+ * breath, and draws no frame at all, so the run that opened the page does nothing on it after that.
  */
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -35,7 +35,7 @@ const pageErrors: string[] = [];
 /** The raw bundle mounted without the app boot reports exactly this once. */
 const unexpectedErrors = () => pageErrors.filter((m) => !m.includes("no EventStream installed"));
 
-type Regulation = { resting: boolean; frameCostMs: number | null; samples: number };
+type Regulation = { resting: boolean; frameTimeMs: number | null; samples: number };
 const REGULATION = `document.querySelector("shu-polymorphic-graph-view").inspect().regulation`;
 const FRAME = `document.querySelector("a-scene").renderer.info.render.frame`;
 /** The gate's own frame count, drawn or not: the state that says the scene had every chance to draw. */
@@ -116,10 +116,10 @@ test("under a software rasterizer the scene measures its frames as slow and rest
 	);
 	const regulation = (await page.evaluate(REGULATION)) as Regulation;
 	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
-	expect(regulation.frameCostMs, "a software-rasterized frame of this scene takes more than the budget allows at ten beats a second").toBeGreaterThan(
-		(DEFAULT_REGULATION_THRESHOLDS.decorativeBudgetShare * 1000) / DEFAULT_REGULATION_THRESHOLDS.beatsPerSecond,
+	expect(regulation.frameTimeMs, "a software-rasterized frame of this scene takes more than the limit allows at ten beats a second").toBeGreaterThan(
+		(DEFAULT_REGULATION_THRESHOLDS.decorativeShareLimit * 1000) / DEFAULT_REGULATION_THRESHOLDS.beatsPerSecond,
 	);
-	expect(regulation.resting, `resting on ${regulation.frameCostMs} ms a frame`).toBe(true);
+	expect(regulation.resting, `resting on ${regulation.frameTimeMs} ms a frame`).toBe(true);
 });
 
 test("at rest with a selected node, the scene draws no frame: the glow is held, not breathed", { timeout: 30_000 }, async () => {

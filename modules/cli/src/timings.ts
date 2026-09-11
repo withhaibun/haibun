@@ -1,6 +1,6 @@
 /**
  * How long a run of features took, written beside the group's configuration after every whole run and meant to be
- * committed with the code: the history of the file is the history of what each feature costs, so a change that makes
+ * committed with the code: the history of the file is the history of what each feature takes, so a change that makes
  * a feature slower or faster is seen in the same commit that made it.
  *
  * Seconds per feature, rounded to a tenth so a run that took the same time writes the same file; the step count and
@@ -50,7 +50,7 @@ export function timingsOf(result: TExecutorResult): TTimings {
 	return { features, steps, seconds: tenth(ms) };
 }
 
-/** The smallest change worth reporting: a feature that ran at least this much longer or shorter than the recorded run,
+/** The smallest change to report: a feature that ran at least this much longer or shorter than the recorded run,
  *  by both measures. Three runs of one group recorded 6.2, 6.3 and 6.3 seconds for its largest feature, so a fifth is
  *  well clear of the spread between identical runs, and a second holds a short feature below the reporting line. */
 const CHANGED_FRACTION = 0.2;
@@ -60,7 +60,7 @@ const CHANGED_SECONDS = 1;
 export type TVariance = { feature: string; seconds: number; was: number; steps: number; wasSteps: number };
 
 /** The features whose durations differ from what was recorded, largest difference first. A feature absent from either
- *  run is left out: an added or removed feature is a change in what runs rather than in what a run costs. */
+ *  run is left out: an added or removed feature is a change in what runs rather than in what a run takes. */
 export function variancesBetween(recorded: TTimings | undefined, now: TTimings): TVariance[] {
 	if (!recorded) return [];
 	const changed: TVariance[] = [];

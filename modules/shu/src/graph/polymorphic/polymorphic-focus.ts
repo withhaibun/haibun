@@ -154,8 +154,8 @@ export class PolymorphicFocus {
 		const nodeMap = this.deps.nodeMap();
 		const previewType = this.deps.previewType();
 		// A purely-visual focus must NOT move the layout. Re-pooling linkColor (below) makes the lib tick the sim once,
-		// and a force layout that froze before full convergence (a big graph capped by the warmup budget, so it happens
-		// only ~half the time, when the random layout didn't settle in budget) JUMPS on that one tick: "the graph
+		// and a force layout that froze before full convergence (a big graph capped by the warmup limit, so it happens
+		// only ~half the time, when the random layout didn't settle in limit) JUMPS on that one tick: "the graph
 		// rescales/moves on hover". So at REST, pin every still-free node where it sits first: the reheat then moves
 		// the COLOUR only, never the positions. These pins ride the data-feed pin set, so the same engine-stop that ends
 		// the reheat releases them (no permanent freeze); already-pinned nodes (the selection) are left as they are. Only
@@ -194,7 +194,7 @@ export class PolymorphicFocus {
 		}
 		const freshFocus = focus !== this.lastMagnifiedFocus; // a NEW focus fires the attention pop; a re-assert (theme/camera, same focus) does not
 		this.lastMagnifiedFocus = focus;
-		const selected = this.deps.selectedId(); // hoisted: it cannot change during the pass, and reading it costs a map lookup
+		const selected = this.deps.selectedId(); // hoisted: it cannot change during the pass, and reading it takes a map lookup
 		for (const n of nodeMap.values()) {
 			const inFocus = focus !== null && (neighbors?.has(n.id) ?? false);
 			const state = focusStateFor({ focusActive: focus !== null, isInFocus: inFocus, previewActive: previewType !== null, matchesPreview: n.type === previewType });
@@ -265,7 +265,7 @@ export class PolymorphicFocus {
 	 *  first moments end, one rhythm, one colour, one write per glowing node. Returns whether a frame is needed, so the
 	 *  render loop draws it (a paused scene would freeze the breath mid-cycle, and an expiry nobody draws never
 	 *  ends). With `pulsing` false the breath rests: each glow is drawn once at its fullest and held, and a frame is
-	 *  needed only on the beat the set of worn glows changes. The scene's regulator selects which, from what a frame costs. */
+	 *  needed only on the beat the set of worn glows changes. The scene's regulator selects which, from what a frame takes. */
 	updateHighlight(pulsing = true): boolean {
 		const now = performance.now();
 		const id = this.deps.selectedId();

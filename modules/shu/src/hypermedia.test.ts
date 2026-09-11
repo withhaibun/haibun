@@ -279,7 +279,7 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("issues a request again immediately after one the network refused, since that failure costs no waiting", async () => {
+	it("issues a request again immediately after one the network refused, since that failure takes no waiting", async () => {
 		const fetchWas = globalThis.fetch;
 		let made = 0;
 		globalThis.fetch = (() => {

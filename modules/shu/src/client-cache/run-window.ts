@@ -3,7 +3,7 @@
  *
  * A run is in the graph. A step is a `SeqPath` individual and what it said is a `LogMessage` individual pointing back
  * at it, so reading the run is a query over those two types by time, not a second history to keep. What a reader sees
- * is a window of a stated number of records around where they are, which is what keeps the cost of looking the same
+ * is a window of a stated number of records around where they are, which is what keeps the time of looking the same
  * whether the run has lasted an hour or a decade: the window is read by time, and within it a page is an offset that
  * can never exceed the window.
  *
@@ -319,7 +319,7 @@ async function side(
  * Read rather than inferred from the part of it a reader holds. A window is a few thousand records however long the
  * run is, so a span taken from the window is the window's span; a bar drawn over that would show a decade's run as the
  * few minutes a reader happens to be looking at. Two records are read per type, each the first or last of its own
- * order, so the cost does not grow with the run.
+ * order, so the time does not grow with the run.
  *
  * Both zero for a run that has written nothing, which is a run with no span rather than a failure.
  */
@@ -385,8 +385,8 @@ export async function runWindow(
 	// What happened since the last read is what was recorded since it. A record is written after the moment it is of,
 	// and a step's record is written again when the step ends, so asking by when records were written finds a record
 	// of an earlier moment than the newest row held, which asking by the moment records are of would pass over for
-	// good. Reading the whole window again to find a few new records is what makes following a long run cost what the
-	// run costs.
+	// good. Reading the whole window again to find a few new records is what makes following a long run take what the
+	// run takes.
 	if (since !== undefined) {
 		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, { ...type, timeField: RECORDED_AT_TIME_FIELD }, since, "after", size, shown, substeps)));
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));

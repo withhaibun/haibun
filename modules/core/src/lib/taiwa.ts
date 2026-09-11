@@ -14,7 +14,7 @@ import { AStepper, StepperKinds } from "./astepper.js";
 export const AskOptionsSchema = z.object({
 	kihan: z.string().optional(),
 	system: z.string().optional(),
-	budget: z.number().optional(),
+	limit: z.number().optional(),
 	timeoutMs: z.number().optional(),
 	/** Per-call ceiling on chained tool dispatches the router provider may run. Router providers honour it; others ignore. Range 0-99. */
 	maxToolCalls: z.number().int().min(0).max(99).optional(),

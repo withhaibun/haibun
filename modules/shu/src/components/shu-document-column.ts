@@ -106,7 +106,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; font-family: "Source Serif 4", Georgia, serif; font-size: 15px; line-height: 1.7; color: var(--shu-fg); }
 			/* Each block centres itself in a reading column (the old .document-body 80%-centred layout, per row now). */
 			.doc-block { max-width: 760px; margin: 0 auto; padding: 0 1.5rem; }
-			/* An event that rendered nothing at this level takes no room; a page not yet cached caches a line's worth. */
+			/* An event that rendered nothing at this level takes no room; a page not yet cached caches one line. */
 			.doc-block.doc-empty { padding: 0; }
 			.doc-block.doc-skeleton { min-height: 1.7em; }
 			h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--shu-border); }
@@ -267,7 +267,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	/**
 	 * The rows of the window a reader is looking at, in index order: what the rail marks, the cursor and the summary
 	 * read. A row here is the record and where it sits, which is all any of those ask of it. What a row LOOKS like is
-	 * built a page at a time, when a page is rendered, so a window of any length costs one read rather than the whole
+	 * built a page at a time, when a page is rendered, so a window of any length is one read rather than the whole
 	 * document being written out on every update.
 	 */
 	#window(): Array<{ index: number; event: TEventRecord }> {

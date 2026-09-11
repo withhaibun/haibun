@@ -39,7 +39,7 @@ export class Drawing {
 
 /**
  * The loop that draws an A-Frame scene. Starting plays the components and hands the scene's own bound render back to
- * the renderer, followed by `afterDraw` when given, so a frame's cost can be measured right after it. Stopping pauses
+ * the renderer, followed by `afterDraw` when given, so a frame's time can be measured right after it. Stopping pauses
  * the components and takes the render away, so no frame is drawn until something moves. The last frame drawn stays on
  * the canvas.
  *

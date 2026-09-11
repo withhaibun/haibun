@@ -44,7 +44,7 @@ describe("what a log marks on its rail", () => {
 		expect(marks.map((m) => m.index)).toEqual([4001]);
 	});
 
-	it("marks nothing for a log with nothing worth marking", () => {
+	it("marks nothing for a log with nothing to mark", () => {
 		expect(railMarkers([row(), row()])).toEqual([]);
 	});
 });

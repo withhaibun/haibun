@@ -7,7 +7,7 @@
  * A division is a fixed stretch of time rather than a share of the run's reach, which is what makes a held count still
  * true after the run grows: were divisions a share of the reach, every division would cover a different stretch after
  * every count and nothing could be held. The grid is as long as the run needs; when the run outgrows it the division
- * doubles and the counts either side of each new boundary are added together, so growth costs an addition rather than
+ * doubles and the counts either side of each new boundary are added together, so growth takes an addition rather than
  * a read. A mark carries the moment its division begins, so a rail places it by that moment whatever scale the rail
  * draws at, and the grid the counting uses is independent of the scale the marks are drawn on.
  */
@@ -16,7 +16,7 @@ import type { TRunGraph } from "./run-graph.js";
 import { runCounts, marksOf, type TRunMark } from "./run-marks.js";
 import { runExtent } from "./run-window.js";
 
-/** How many divisions a run is counted in, whatever its length. The count is what a rail of any run costs, so it is
+/** How many divisions a run is counted in, whatever its length. The count is what a rail of any run takes, so it is
  *  the same for a run of an hour and a run of a year. */
 export const RUN_DIVISIONS = 200;
 

@@ -2,7 +2,7 @@
 /**
  * What the index says about itself once it is collapsed to a spine.
  *
- * The spine has room for one line, and the line has to be worth the room: which search produced what is behind the
+ * The spine has room for one line, and the line has to be of use in the room: which search produced what is behind the
  * strip, and how much of it there is. The context it reads is the one the index already publishes, and other columns
  * publish that context too, so the test that matters is that another column's search is not read as the index's.
  */
@@ -88,8 +88,8 @@ describe("the index's spine summary", () => {
 });
 
 describe("a spine view while its column is open", () => {
-	// Attached but unslotted is how a spine view keeps hearing what it needs, and it must not cost what being shown
-	// costs: nothing it renders can be seen, so it renders nothing until the spine slot takes it.
+	// Attached but unslotted is how a spine view keeps hearing what it needs, and it must not take what being shown
+	// takes: nothing it renders can be seen, so it renders nothing until the spine slot takes it.
 	it("hears the index without rendering, and is current the moment the column collapses", async () => {
 		document.body.innerHTML = "";
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;

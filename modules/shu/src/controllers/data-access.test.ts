@@ -19,7 +19,7 @@ const PENDING_MIGRATION = new Set([
 	"shu-step-caller.ts",
 	"shu-step-detail.ts",
 	"shu-thread-column.ts",
-	// Arrived with this debt when the graph view moved in from a consumer, which is why they are here rather than the
+	// Arrived with this unresolved shape when the graph view moved in from a consumer, which is why they are here rather than the
 	// list having grown: each still fetches for itself instead of holding a controller.
 	"shu-class-browser.ts",
 	"shu-polymorphic-graph-view.ts",

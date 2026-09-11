@@ -69,7 +69,7 @@ export const GLOW_RAMP = {
 	dark: ["#ffffff", "#ffe9a3", "#ffd24a", "#ffa41c"],
 	light: ["#ffc21c", "#ff9d00", "#f07000", "#c04a00"],
 } as const;
-/** Steps the ramp is precomputed into: a frame then costs an array index, never a colour computation or a new string. */
+/** Steps the ramp is precomputed into: a frame then takes an array index, never a colour computation or a new string. */
 const RAMP_STEPS = 48;
 
 /** Lerp two "#rrggbb" colours, returning "#rrggbb". Runs only while a ramp table is built, never per frame. */
@@ -96,7 +96,7 @@ function rampTable(ramp: readonly string[]): string[] {
 }
 
 /**
- * The glow's colour at a given intensity: a table lookup, so the cycle costs the same as a static colour.
+ * The glow's colour at a given intensity: a table lookup, so the cycle takes the same as a static colour.
  *
  * The intensity is the one `pulseAt` gives and `swellAt` reads, so the colour, the size and the light are one value
  * rather than three readings of the same clock. The ramp's first stop is the dimmest point and its last the fullest,
@@ -158,7 +158,7 @@ export class MarkGlow {
 		const intensity = burn?.intensity ?? 1;
 		glow.material.opacity = intensity;
 		// The ramp holds a few dozen colours, so most frames ask for the colour already set; a CSS-colour parse per
-		// frame for no change is the one avoidable cost in the breath.
+		// frame for no change is the one avoidable frame in the breath.
 		if (burn?.color && burn.color !== this.lastColor) {
 			glow.material.color?.set(burn.color);
 			this.lastColor = burn.color;

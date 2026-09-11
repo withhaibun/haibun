@@ -53,7 +53,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sentBatch().blips.map((b) => b.value)).toEqual([1, 2]);
 	});
 
-	it("sends nothing when nothing happened, so a quiet page costs nothing", async () => {
+	it("sends nothing when nothing happened, so a quiet page does nothing", async () => {
 		await vi.runAllTimersAsync();
 		expect(follow).not.toHaveBeenCalled();
 	});

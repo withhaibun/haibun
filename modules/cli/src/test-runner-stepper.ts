@@ -17,7 +17,7 @@
  *   - leave runs standing without limit: a run given a port holds that port until it is stopped, so starting one past
  *     the standing limit is refused, naming the runs to stop.
  *
- * WHAT COMES FROM THE ENVIRONMENT, never from source: which model answers, where it is, and what it may spend. The
+ * WHAT COMES FROM THE ENVIRONMENT, never from source: which model answers, where it is, and what it may use. The
  * bulky router is one such environment; a hosted API is another. No step, feature or default here names a model.
  */
 import path from "node:path";
@@ -250,7 +250,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `wait until the test run ends within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"Follow the run in flight to its end and answer with how it ended and its last output. The supervisor answers the moment the run exits, so this costs one call however long the run takes. The wait is bounded: reaching the limit is a failure naming how long it waited, never a longer wait, so a run that hangs ends the ask rather than the process.",
+				"Follow the run in flight to its end and answer with how it ended and its last output. The supervisor answers the moment the run exits, so this is one call however long the run takes. The wait is bounded: reaching the limit is a failure naming how long it waited, never a longer wait, so a run that hangs ends the ask rather than the process.",
 			productsSchema: z.object({ run: z.string(), status: z.string(), exitCode: z.string(), output: z.string() }),
 			action: async ({ seconds }: { seconds: number }) => {
 				const tracked = this.inFlight;
@@ -396,7 +396,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		if (this.runStands() && this.standing.size >= standingCap)
 			return actionNotOK(`${this.standing.size} runs are already standing, which is the limit: stop one of ${[...this.standing.keys()].join(", ")} before starting another`);
 		if (this.runsThisAsk.length >= this.cap("MAX_RUNS", RUNNER_DEFAULTS.maxRuns))
-			return actionNotOK(`the run budget for this ask is spent (${this.runsThisAsk.length} runs); say what was found rather than running again`);
+			return actionNotOK(`the run limit for this ask is used (${this.runsThisAsk.length} runs); say what was found rather than running again`);
 		// A run of features that have passed against their present state is refused where it would be started: the
 		// supervisor keeps the record, so what was applied since is read from the features' own dependencies rather
 		// than remembered here.
@@ -583,13 +583,13 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		await this.writeRun(run, { endedAt, generatedAtTime: endedAt });
 	}
 
-	/** A fresh ask starts a fresh budget: the caps bound one answer, not the life of the process. */
+	/** A fresh ask starts a fresh limit: the caps bound one answer, not the life of the process. */
 	beginAsk(): void {
 		this.runsThisAsk = [];
 	}
 
-	/** What the agent has spent answering the current ask: what a refusal quotes, and what the tests read. */
-	spend(): { runs: number; inFlight: string | undefined } {
+	/** What the agent has used answering the current ask: what a refusal quotes, and what the tests read. */
+	usage(): { runs: number; inFlight: string | undefined } {
 		return { runs: this.runsThisAsk.length, inFlight: this.inFlight?.id };
 	}
 }

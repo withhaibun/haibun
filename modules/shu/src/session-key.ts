@@ -4,7 +4,7 @@
  * The page makes its own key pair, whose private half is never readable material and never leaves the browser's key
  * store, and presents only the public half. What it gets back is a credential naming that key, which it proves control
  * of by signing each request it makes. No secret is transmitted, none is stored, and a credential taken from the page
- * is worth nothing to whoever took it: they cannot sign with a key they do not hold.
+ * is of no use to whoever took it: they cannot sign with a key they do not hold.
  *
  * The credential's form belongs to the deployment's own authority specification. What this module knows is that a
  * reader presents a key, receives something to act with, and signs what it asks.

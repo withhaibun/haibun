@@ -22,7 +22,7 @@ const SCROLL = {
 describe("blips: fine-grained occurrences, never retained", () => {
 	beforeEach(resetBlips);
 
-	it("costs nothing when nothing is subscribed to the kind: a hot path can record unconditionally", () => {
+	it("does nothing when nothing is subscribed to the kind: a hot path can record unconditionally", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make("0.1.2");
 		const narrated: THaibunEvent[] = [];
@@ -66,7 +66,7 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(seen.map((e) => (e.kind === "blip" ? e.name : e.kind))).toEqual([HTTP.name]);
 	});
 
-	it("returns before any lookup when no filter matches the name, so an unwatched hot path still costs one check", () => {
+	it("returns before any lookup when no filter matches the name, so an unwatched hot path still is one check", () => {
 		const { world, eventLogger } = make();
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"], names: ["haibun.test.http"] });
 		// Undeclared and mismatched: with no subscriber filter matching, recording never reaches the declaration check.

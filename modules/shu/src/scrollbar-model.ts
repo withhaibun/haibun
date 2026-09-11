@@ -95,7 +95,7 @@ export function indexAtMarkerPx(pointerPx: number, total: number, railPx: number
  *
  * Both answers are on the marks' own scale, so a press means the same row whether or not a mark happens to be drawn
  * there. Answering on the scale a press SCROLLS by instead would leave the last `visible` rows unreachable: no window
- * starts at them, and flatten the ends of the rail, where half a thumb's worth of travel maps to one row. What to
+ * starts at them, and flatten the ends of the rail, where half a thumb of travel maps to one row. What to
  * scroll to is a separate question, and the scroller answers it from this row.
  *
  * Marks take no press of their own: drawn across the middle of a narrow rail, a mark that did would take most

@@ -1,7 +1,7 @@
 /**
  * What the test-runner agent will NOT do. The limits are the part that has to hold by construction rather than by
  * the model behaving: one run in flight, no run of features that have passed against their present state, and a
- * spent budget that says so.
+ * limit that reports being reached.
  *
  * The store is in memory; what is asserted here is the agent's own bookkeeping and the record it writes for a run,
  * not
@@ -130,7 +130,7 @@ describe("the test-runner agent's limits", () => {
 		const second = await h.run("tests", "graph-frontend");
 		expect(second.ok, "a second run would leave two runs and no way to say which failed").toBe(false);
 		expect(second.errorMessage).toMatch(/already in flight: "polymorphic"/);
-		expect(h.stepper.spend().runs).toBe(1);
+		expect(h.stepper.usage().runs).toBe(1);
 	});
 
 	it("forgets how a base's features last ran when a change to all of them is noted, so they run again whatever their state", () => {
@@ -140,17 +140,17 @@ describe("the test-runner agent's limits", () => {
 		expect(nodeFS.existsSync(path.join(dir, VERIFIED_FILE)), "the record is gone, so the supervisor has nothing to refuse a run on").toBe(false);
 	});
 
-	it("stops at its run budget with a reason, rather than running on", async () => {
+	it("stops at its run limit with a reason, rather than running on", async () => {
 		for (const filter of ["one", "two", "three"]) {
 			expect((await h.run("tests", filter)).ok).toBe(true);
 			await h.stepper.finishRun(0);
 		}
 		const past = await h.run("tests", "four");
 		expect(past.ok).toBe(false);
-		expect(past.errorMessage).toMatch(/run budget for this ask is spent/);
+		expect(past.errorMessage).toMatch(/run limit for this ask is used/);
 	});
 
-	it("counts the budget against ONE ask, so the next ask starts fresh", async () => {
+	it("counts the limit against ONE ask, so the next ask starts fresh", async () => {
 		for (const filter of ["one", "two", "three"]) {
 			await h.run("tests", filter);
 			await h.stepper.finishRun(0);
@@ -186,7 +186,7 @@ describe("what a run leaves behind", () => {
 		const last = h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1);
 		expect(last?.data.status).toBe(RUN_STATUS.failed);
 		expect(last?.data.endedAt).toBeDefined();
-		expect(h.stepper.spend().inFlight, "the run is no longer in flight, so the next one may start").toBeUndefined();
+		expect(h.stepper.usage().inFlight, "the run is no longer in flight, so the next one may start").toBeUndefined();
 	});
 });
 
@@ -230,7 +230,7 @@ describe("watching a run", () => {
 		const waited = await h.waitFor(30);
 		expect(waited.ok).toBe(true);
 		expect(waited.products?.status).toBe(RUN_STATUS.passed);
-		expect(h.stepper.spend().inFlight, "a run followed to its end is closed").toBeUndefined();
+		expect(h.stepper.usage().inFlight, "a run followed to its end is closed").toBeUndefined();
 	});
 
 	it("gives up on a run that has not ended in the time it was given, rather than waiting on", async () => {
@@ -256,7 +256,7 @@ describe("watching a run", () => {
 		h.supervisor.ended = 1;
 		await h.read();
 		expect(h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1)?.data.status).toBe(RUN_STATUS.failed);
-		expect(h.stepper.spend().inFlight).toBeUndefined();
+		expect(h.stepper.usage().inFlight).toBeUndefined();
 	});
 
 	it("records a run it stopped as stopped, since no exit code answers for it", async () => {
@@ -272,7 +272,7 @@ describe("watching a run", () => {
 		const started = await h.run("tests", "polymorphic");
 		expect(started.ok).toBe(false);
 		expect(started.errorMessage).toMatch(/InstanceStepper-startRun is not registered/);
-		expect(h.stepper.spend().inFlight, "a run that was never forked is not in flight").toBeUndefined();
+		expect(h.stepper.usage().inFlight, "a run that was never forked is not in flight").toBeUndefined();
 	});
 });
 

@@ -1,7 +1,7 @@
 /**
  * What a run holds, counted rather than read: one mark per division of a span that holds something.
  *
- * A division is counted, so a rail carrying a year costs what its divisions cost rather than what the run did. The
+ * A division is counted, so a rail carrying a year takes what its divisions take rather than what the run did. The
  * store counts; nothing here reads a row. Each type a run records is counted by the field that says how its records
  * turned out, and the divisions are merged, so a step that failed and a message reporting an error both mark their
  * division as a failure.

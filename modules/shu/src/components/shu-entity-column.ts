@@ -493,7 +493,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return (Array.isArray(raw) ? raw : raw ? [raw] : []) as Array<{ id?: string; mediaType?: string; content?: string }>;
 	}
 
-	/** The body the reader is shown, the preferred format, and the one whose text is worth reading. */
+	/** The body the reader is shown, the preferred format, and the one whose text is to read. */
 	private activeBodyId(): string {
 		const available = this.linkedBodies().filter((b) => typeof b.mediaType === "string");
 		if (available.length === 0) return "";

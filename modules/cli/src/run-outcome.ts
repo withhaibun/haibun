@@ -4,7 +4,7 @@
  * A run reports its lifecycle as one JSON object per line: the same events a serving instance offers over SSE,
  * carrying seqPaths, outcomes and artifact paths, which console prose does not. The accrual happens where every
  * chunk is received, because a bounded tail read after the fact has only what was left, and a chatty run outruns
- * any tail worth keeping.
+ * any tail to keep.
  */
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { LIFECYCLE_STATUS, isHandedOutEvent, isSpeculativeEvent } from "@haibun/core/schema/protocol.js";

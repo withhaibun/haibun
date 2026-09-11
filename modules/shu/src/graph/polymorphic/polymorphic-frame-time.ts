@@ -1,10 +1,10 @@
 /**
- * What a drawn frame costs the renderer, measured from the page without stalling it.
+ * What a drawn frame takes the renderer, measured from the page without stalling it.
  *
- * The main thread cannot measure the cost: `render()` returns in half a millisecond once the commands are queued, and
+ * The main thread cannot measure the time: `render()` returns in half a millisecond once the commands are queued, and
  * the work is done in the browser's GPU process, by a GPU or by a software rasterizer. A WebGL2 fence placed after the
- * draw signals when that work is complete, and polling it on later frames costs nothing, so the time from the fence to
- * its signal is the frame's cost as the renderer spent it: one to two milliseconds on a GPU, sixteen and more under
+ * draw signals when that work is complete, and polling it on later frames does nothing, so the time from the fence to
+ * its signal is the frame's time as the renderer used it: one to two milliseconds on a GPU, sixteen and more under
  * SwiftShader for the same scene.
  *
  * One frame in `SAMPLE_EVERY` is measured, one fence at a time. A context without fences measures nothing, and the
@@ -25,7 +25,7 @@ export type TFenceGl = {
 /** Drawn frames between measurements. */
 export const SAMPLE_EVERY = 10;
 
-export class FrameCost {
+export class FrameTime {
 	#drawn = 0;
 	#pending: { fence: unknown; placedAt: number } | undefined;
 	#gl: TFenceGl | null | undefined;
@@ -47,15 +47,15 @@ export class FrameCost {
 		this.#pending = { fence, placedAt: this.now() };
 	}
 
-	/** Returns the cost of a completed measurement once, in milliseconds, and undefined otherwise. Polled each tick. */
+	/** Returns the time of a completed measurement once, in milliseconds, and undefined otherwise. Polled each tick. */
 	poll(): number | undefined {
 		const gl = this.gl();
 		if (!this.#pending || !gl) return undefined;
 		if (gl.getSyncParameter(this.#pending.fence, gl.SYNC_STATUS) !== gl.SIGNALED) return undefined;
-		const cost = this.now() - this.#pending.placedAt;
+		const elapsed = this.now() - this.#pending.placedAt;
 		gl.deleteSync(this.#pending.fence);
 		this.#pending = undefined;
-		return cost;
+		return elapsed;
 	}
 
 	/** The scene is going away: a pending fence is released. */

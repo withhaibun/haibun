@@ -26,7 +26,7 @@ const CLIENT_ID = "client";
 export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;
 /** Every observed request, as a fine-grained occurrence: the persisted record is what the graph and the sequence read,
  *  while this is what a trace shows in order, under the step that caused it. Recorded on every response, so it leaves
- *  to the blip channel the job of costing nothing when nothing is listening. */
+ *  to the blip channel the job of doing nothing when nothing is listening. */
 export const HTTP_REQUEST_BLIP = "haibun.http.request";
 declareBlips({
 	name: HTTP_REQUEST_BLIP,

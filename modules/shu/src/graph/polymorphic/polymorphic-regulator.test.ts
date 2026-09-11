@@ -7,23 +7,23 @@ import {
 	evaluateRegulation,
 	medianOf,
 	newRegulationState,
-	recordFrameCost,
+	recordFrameTime,
 	type TRegulationThresholds,
 } from "./polymorphic-regulator.js";
 
-const thresholds: TRegulationThresholds = { windowSamples: 5, decorativeBudgetShare: 0.05, beatsPerSecond: 10, cooldownMs: 10_000 };
+const thresholds: TRegulationThresholds = { windowSamples: 5, decorativeShareLimit: 0.05, beatsPerSecond: 10, cooldownMs: 10_000 };
 
-function fed(costs: number[]) {
+function fed(takes: number[]) {
 	const state = newRegulationState();
-	for (const c of costs) recordFrameCost(state, c, thresholds.windowSamples);
+	for (const c of takes) recordFrameTime(state, c, thresholds.windowSamples);
 	return state;
 }
 
-describe("the frame-cost window", () => {
+describe("the frame-time window", () => {
 	it("keeps the last window of samples and takes their median, so one anomaly changes nothing", () => {
 		const state = fed([1, 1, 90, 1, 1, 1, 1]);
-		expect(state.frameCosts, "the window holds the newest five").toEqual([90, 1, 1, 1, 1]);
-		expect(medianOf(state.frameCosts)).toBe(1);
+		expect(state.frameTimes, "the window holds the newest five").toEqual([90, 1, 1, 1, 1]);
+		expect(medianOf(state.frameTimes)).toBe(1);
 		expect(medianOf([2, 40, 3]), "an anomaly among three").toBe(3);
 	});
 
@@ -34,36 +34,36 @@ describe("the frame-cost window", () => {
 	});
 });
 
-describe("the breath's budget", () => {
-	it("rests the breath when its share of wall time exceeds the budget, once, and holds through the cooldown", () => {
+describe("the breath's limit", () => {
+	it("rests the breath when its share of wall time exceeds the limit, once, and holds through the cooldown", () => {
 		const state = fed([16, 17, 16, 25, 16]); // a software rasterizer: 16 ms a frame at ten beats a second is 16%
 		const signal = evaluateRegulation(state, thresholds, 1_000);
-		expect(signal).toEqual({ kind: "decorativeOverBudget", frameCostMs: 16, share: 0.16 });
+		expect(signal).toEqual({ kind: "decorativeOverLimit", frameTimeMs: 16, share: 0.16 });
 		expect(state.resting).toBe(true);
-		recordFrameCost(state, 16, thresholds.windowSamples);
+		recordFrameTime(state, 16, thresholds.windowSamples);
 		expect(evaluateRegulation(state, thresholds, 5_000), "still over, already resting: no new signal").toBeUndefined();
 		expect(describeRegulation(signal as NonNullable<typeof signal>)).toBe("the breath rests: it would take 16% of wall time at 16.0 ms a frame");
 	});
 
-	it("lets a fast frame breathe: within budget nothing fires and the breath runs", () => {
+	it("lets a fast frame breathe: within its limit nothing fires and the breath runs", () => {
 		const state = fed([1.5, 1.8, 1.4, 2.1, 1.6]); // a GPU: under 2 ms a frame is under 2%
 		expect(evaluateRegulation(state, thresholds, 1_000)).toBeUndefined();
 		expect(state.resting).toBe(false);
 	});
 
-	it("resumes the breath when the cost falls within budget after the cooldown, and not before", () => {
+	it("resumes the breath when the time falls within its limit after the cooldown, and not before", () => {
 		const state = fed([16, 16, 16, 16, 16]);
 		evaluateRegulation(state, thresholds, 1_000);
-		for (const c of [2, 2, 2, 2, 2]) recordFrameCost(state, c, thresholds.windowSamples);
+		for (const c of [2, 2, 2, 2, 2]) recordFrameTime(state, c, thresholds.windowSamples);
 		expect(evaluateRegulation(state, thresholds, 5_000), "within the cooldown: no flap").toBeUndefined();
 		expect(state.resting).toBe(true);
 		const signal = evaluateRegulation(state, thresholds, 11_001);
-		expect(signal).toEqual({ kind: "decorativeWithinBudget", frameCostMs: 2, share: 0.02 });
+		expect(signal).toEqual({ kind: "decorativeWithinLimit", frameTimeMs: 2, share: 0.02 });
 		expect(state.resting).toBe(false);
 		expect(describeRegulation(signal as NonNullable<typeof signal>)).toBe("the breath resumes: it takes 2% of wall time at 2.0 ms a frame");
 	});
 
 	it("defaults: five samples, a twentieth of wall time, ten beats a second from the breath's own cadence", () => {
-		expect(DEFAULT_REGULATION_THRESHOLDS).toEqual({ windowSamples: 5, decorativeBudgetShare: 0.05, beatsPerSecond: 10, cooldownMs: 10_000 });
+		expect(DEFAULT_REGULATION_THRESHOLDS).toEqual({ windowSamples: 5, decorativeShareLimit: 0.05, beatsPerSecond: 10, cooldownMs: 10_000 });
 	});
 });

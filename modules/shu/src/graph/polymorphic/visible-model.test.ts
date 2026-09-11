@@ -97,7 +97,7 @@ describe("the bars a sequence reads along", () => {
 		]);
 	});
 
-	it("keeps a participant with nothing on it, which is itself worth reading", () => {
+	it("keeps a participant with nothing on it, which is itself to read", () => {
 		expect(actorBars(layout()).find((b) => b.id === "verifier")?.nodeIds).toEqual([]);
 	});
 });

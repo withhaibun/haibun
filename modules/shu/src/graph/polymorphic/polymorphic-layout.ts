@@ -20,15 +20,15 @@ export interface IGraphLayout {
 
 /** Heavy friction for a streamed clump: newcomers settle near their seeds instead of flying across the layout. */
 const DAMPED_VELOCITY_DECAY = 0.82;
-/** Total tick spend for one placement, split by node count so a big graph cannot stall the main thread. */
-const PLACE_TICK_BUDGET = 40_000;
-/** A damped placement's tick count, newcomers only move a short way, so a long run buys nothing. */
+/** Total tick use for one placement, split by node count so a big graph cannot stall the main thread. */
+const PLACE_TICK_LIMIT = 40_000;
+/** A damped placement's tick count, newcomers only move a short way, so a long run gains nothing. */
 const DAMPED_TICKS = 40;
 
-/** Ticks one placement runs: budget over size, clamped so a small graph settles fully and a big one stays responsive. */
+/** Ticks one placement runs: limit over size, clamped so a small graph settles fully and a big one stays responsive. */
 function placeTicksFor(nodeCount: number, damped = false): number {
 	if (damped) return DAMPED_TICKS;
-	return Math.max(30, Math.min(130, Math.round(PLACE_TICK_BUDGET / Math.max(nodeCount, 1))));
+	return Math.max(30, Math.min(130, Math.round(PLACE_TICK_LIMIT / Math.max(nodeCount, 1))));
 }
 
 /**

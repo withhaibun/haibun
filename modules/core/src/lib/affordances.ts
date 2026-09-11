@@ -120,7 +120,7 @@ export interface TAffordancesInputs {
 	capabilities: ReadonlySet<string>;
 	/** When true, the goal frontier asks the resolver to decompose composite input domains via topology.ranges. */
 	compositeDecomposition?: boolean;
-	/** Composite recursion depth budget passed through to the resolver. */
+	/** Composite recursion depth limit passed through to the resolver. */
 	compositeMaxDepth?: number;
 	/**
 	 * Replay the affordances at a historical point. When set, only typed facts

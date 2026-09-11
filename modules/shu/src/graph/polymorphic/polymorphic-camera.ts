@@ -63,7 +63,7 @@ type TRect = { left: number; top: number; right: number; bottom: number };
 /**
  * Where a framing should aim when an overlay covers part of the canvas: the centre of the wider clear strip beside or
  * below the overlay, as a right/up pixel offset from the canvas centre. Null when nothing is occluded (centre is fine)
- * or when the overlay leaves no strip worth aiming at (nowhere better exists). Screen y grows downward, so a strip
+ * or when the overlay leaves no strip to aim at (nowhere better exists). Screen y grows downward, so a strip
  * below the canvas centre is a negative dyPx.
  */
 export function clearStripOffset(canvas: TRect, overlay: TRect): { dxPx: number; dyPx: number } | null {

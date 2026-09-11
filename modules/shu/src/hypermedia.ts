@@ -241,7 +241,7 @@ export class LiveConduit implements Conduit {
 		} catch (err) {
 			if (signal?.aborted) throw err; // the caller stopped this request; the server's reachability is not in question
 			// Only a timeout withholds later requests. A request the network refuses fails immediately, so the next read
-			// costs nothing by issuing one, and a server that recovers is detected on that read.
+			// does nothing by issuing one, and a server that recovers is detected on that read.
 			if (bounded?.aborted) responded().unreachableUntil = Date.now() + UNREACHABLE_RETRY_AFTER_MS;
 			throw new ServerUnreachable(url, err);
 		}
@@ -271,8 +271,8 @@ const responded = (): { at: number | undefined; unreachableUntil: number } => pa
  * How long a request is withheld after one timed out, before the page issues another.
  *
  * A page issues one request per read, and a reader with several views open issues many concurrently. Without this,
- * each would run to the response timeout independently, so an unresponsive server would cost every read that full
- * duration and the page would spend its time waiting rather than querying the device store. One timed-out request
+ * each would run to the response timeout independently, so an unresponsive server would take every read that full
+ * duration and the page would use its time waiting rather than querying the device store. One timed-out request
  * stands for the rest over this interval, after which the next read issues a request again.
  */
 export const UNREACHABLE_RETRY_AFTER_MS = 2_000;

@@ -8,8 +8,8 @@ import { isOffline } from "./rpc-registry.js";
  *
  * Occurrences leave in batches over the one bridge that exists, `MonitorStepper`, rather than one request each, which
  * is the only way a per-frame recording is sustainable. A batch is sent only when there is something to send, so a page
- * where nothing happens costs nothing. On the run's side each occurrence lands in the same channel a server-side
- * recording does, where it costs one check when nothing is watching.
+ * where nothing happens does nothing. On the run's side each occurrence lands in the same channel a server-side
+ * recording does, where it is one check when nothing is watching.
  */
 import { conduit, hasConduit, reads } from "./hypermedia.js";
 

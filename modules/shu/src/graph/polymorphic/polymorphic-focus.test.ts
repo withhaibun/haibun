@@ -81,7 +81,7 @@ describe("the breath at rest", () => {
 		expect(visual.burns).toBe(1);
 		for (let beat = 0; beat < 20; beat++) {
 			vi.advanceTimersByTime(100);
-			expect(focus.updateHighlight(false), "a held glow costs no frame").toBe(false);
+			expect(focus.updateHighlight(false), "a held glow takes no frame").toBe(false);
 		}
 		expect(visual.burns, "written once").toBe(1);
 	});

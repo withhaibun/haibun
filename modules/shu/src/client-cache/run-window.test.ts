@@ -1,5 +1,5 @@
 // Reading a run is a query over the records it wrote: a step and what it said while it ran. What a reader is shown is
-// a window of a stated size around where they are, so looking costs the same whether the run has lasted an hour or a
+// a window of a stated size around where they are, so looking takes the same whether the run has lasted an hour or a
 // decade. These pin where a window sits, what it holds and what a level narrows it to.
 import { describe, it, expect } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -145,7 +145,7 @@ describe("what a run says outside every step", () => {
 
 describe("following a run that is still happening", () => {
 	// A view holding the window asks only for what was recorded since the newest recording it holds. Reading the whole
-	// window again to find a few new records is what makes following a long run cost what the run costs.
+	// window again to find a few new records is what makes following a long run take what the run takes.
 	const step = (store: QuadStore, i: number, at: number, recordedAt: number, more: Record<string, unknown> = {}) =>
 		store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.${i}`,

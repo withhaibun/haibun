@@ -79,7 +79,7 @@ describe("the path allocated under a parent step", () => {
 		expect(nextSeqPath(world, [3], 1)).toEqual([3, 2]);
 	});
 
-	it("costs the same however many steps the feature has run, since it counts rather than searches", () => {
+	it("takes the same however many steps the feature has run, since it counts rather than searches", () => {
 		const world = aWorld();
 		for (let i = 0; i < 20000; i++) nextSeqPath(world, [1, i % 50]);
 		const began = performance.now();

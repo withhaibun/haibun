@@ -52,9 +52,9 @@ feature: haibun-execution
 │   └─ step: User is authenticated              ← Waypoint body
 │       ├─ step: go to login page
 │       └─ step: verify logged in
-├─ step: every item in cart is verify price     ← Quantifier
-│   ├─ step: verify price (item=Widget)         ← Iteration 1
-│   └─ step: verify price (item=Gadget)         ← Iteration 2
+├─ step: every item in queue is verify shape     ← Quantifier
+│   ├─ step: verify shape (item=Widget)         ← Iteration 1
+│   └─ step: verify shape (item=Gadget)         ← Iteration 2
 ```
 
 ## Haibun Concepts → Trace Structure

@@ -8,7 +8,7 @@
  *
  * What it is for: a run held in one process, a report holding a run's records, and tests. Every read of a type passes
  * once over every quad of that type and then narrows, so a limit bounds the answer rather than the work: a window, a
- * count and a read at an offset each cost the type's quads. That is the store's shape rather than a defect of a
+ * count and a read at an offset each take the type's quads. That is the store's shape rather than a defect of a
  * caller, and it is why a run too large to hold in memory needs a store with an engine behind it, where the same reads
  * are answered from an index.
  */
@@ -360,7 +360,7 @@ export class QuadStore implements IQuadStore {
 		const backing = this.storeFor(label);
 		if (backing) return backing.queryIndividuals<T>(label, filters, options);
 		// The graph's quads once, grouped by subject in one pass: reading each individual back by its own query scanned
-		// every quad the store holds once per individual, so a read of a type cost its individuals times the store.
+		// every quad the store holds once per individual, so a read of a type takes its individuals times the store.
 		let individuals = individualsFrom(await this.query({ namedGraph: label }));
 		if (filters) {
 			for (const [key, value] of Object.entries(filters)) {

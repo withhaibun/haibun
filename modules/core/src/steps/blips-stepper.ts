@@ -123,7 +123,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		showDeclaredBlips: {
 			gwta: "show declared blips",
 			description:
-				"Every name this run can record, with its description and, for declarations using `origin`, the `path:line` that declares it. Use it to find what is worth watching and where its code is.",
+				"Every name this run can record, with its description and, for declarations using `origin`, the `path:line` that declares it. Use it to find what is to watch and where its code is.",
 			productsSchema: DeclaredSchema,
 			action: async () => {
 				await Promise.resolve();
