@@ -91,10 +91,16 @@ export const SHU_TOKENS = `
 		--shu-invert: 0;
 
 		--shu-font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+		/* What the browser paints its own parts in: a scrollbar, a spinner, a date picker, a form control's focus ring.
+		   Declared beside the tokens rather than restyled, so the parts follow the theme the way the browser renders
+		   them. Without it a dark page keeps light scrollbars, which is what a white bar down a dark panel is. */
+		color-scheme: light;
 	}
 
 	@media (prefers-color-scheme: dark) {
 		:host, :root {
+			color-scheme: dark;
 			--shu-invert: 1;
 			--shu-bg: #161616;
 			--shu-bg-soft: #1d1d1d;
@@ -131,6 +137,7 @@ export const SHU_TOKENS = `
 	}
 
 	:host([data-theme="dark"]), :root[data-theme="dark"] {
+		color-scheme: dark;
 		--shu-invert: 1;
 		--shu-bg: #161616;
 		--shu-bg-soft: #1d1d1d;
@@ -166,6 +173,7 @@ export const SHU_TOKENS = `
 	}
 
 	:host([data-theme="light"]), :root[data-theme="light"] {
+		color-scheme: light;
 		--shu-invert: 0;
 		--shu-bg: #ffffff;
 		--shu-bg-soft: #fafafa;
