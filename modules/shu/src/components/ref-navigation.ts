@@ -8,8 +8,9 @@
 import { esc, escAttr } from "../util.js";
 import { PaneState, paneIdOf, type DesiredPane } from "../pane-state.js";
 import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 
-export const REF_KIND = ["seqPath", "entity", "domain", "step"] as const;
+export const REF_KIND = ["seqPath", REF_DENOTES.individual, REF_DENOTES.type, "step"] as const;
 export type TRefKind = (typeof REF_KIND)[number];
 
 export function isRefKind(v: string | undefined): v is TRefKind {
@@ -22,7 +23,7 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 	// Typed-fact subjects ARE seqPaths, so a seqPath ref doubles as the quad-view link: step-detail loads every quad
 	// emitted at that seqPath (including the fact), drillable into individual quads from there.
 	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) return { paneType: "step-detail", seqPath: linkTarget.seqPath as number[] };
-	if (kind === "entity" && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
+	if (kind === REF_DENOTES.individual && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
 		// A quote selector addresses a passage INSIDE the individual (a Text Fragment ref); the pane identity stays the
 		// individual: same document, same column, and the selector rides along for the column to reveal.
 		const parsed = QuoteAnchorSchema.safeParse(linkTarget.selector);
@@ -30,7 +31,7 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 		return { paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id, ...(selector ? { selector } : {}) };
 	}
 	// A type reference opens the type column: its description, schema graph, and individuals.
-	if (kind === "domain" && typeof linkTarget.domain === "string") return { paneType: "type", persistedAs: linkTarget.domain };
+	if (kind === REF_DENOTES.type && typeof linkTarget.domain === "string") return { paneType: "type", persistedAs: linkTarget.domain };
 	// step kind: no dedicated pane yet.
 	return null;
 }
@@ -60,8 +61,8 @@ export function defaultLabel(kind: string | null, targetJson: string | null): st
 	try {
 		const target = JSON.parse(targetJson) as Record<string, unknown>;
 		if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
-		if (kind === "entity" && typeof target.id === "string") return target.id;
-		if (kind === "domain" && typeof target.domain === "string") return target.domain;
+		if (kind === REF_DENOTES.individual && typeof target.id === "string") return target.id;
+		if (kind === REF_DENOTES.type && typeof target.domain === "string") return target.domain;
 		if (kind === "step" && typeof target.stepperName === "string" && typeof target.stepName === "string") return `${target.stepperName}.${target.stepName}`;
 	} catch {
 		// fallthrough

@@ -22,7 +22,8 @@ import { getRels, getDisplayLabelRel, getSelectFields } from "./rels-cache.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { originGraphStore } from "./client-cache/index.js";
 import { pagePinned } from "./page-pinned.js";
-import type { AccessLevel } from "@haibun/core/lib/resources.js";
+import { Access, type AccessLevel } from "@haibun/core/lib/resources.js";
+import { DENOTES } from "@haibun/core/lib/typed-links.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so no path can silently inflate the limit past what the slider expresses. */
@@ -56,7 +57,7 @@ export type TGraphSnapshot = TClusteredQuads;
  * view id (so it can lay itself out for off-screen sync) and the currently
  * selected subject (so it can zoom/highlight without waiting for the next event).
  */
-export type TViewContext = { activeViewId: string | null; selectedSubject: string | null; selectedLabel: string | null; context: TContextPattern[] };
+export type TViewContext = { activeViewId: string | null; selectedSubject: string | null; selectedLabel: string | null; context: TContextPattern[]; contextAccessLevel: string };
 
 /** Subscribers fired after the cached snapshot or shared view-context changes. */
 type SnapshotListener = (snapshot: TGraphSnapshot | null, context: TViewContext) => void;
@@ -105,7 +106,7 @@ function getStore(): Store {
 	if (existing) return existing;
 	const fresh: Store = {
 		scopes: new Map(),
-		viewContext: { activeViewId: null, selectedSubject: null, selectedLabel: null, context: [] },
+		viewContext: { activeViewId: null, selectedSubject: null, selectedLabel: null, context: [], contextAccessLevel: Access.private },
 		listeners: new Set(),
 	};
 	g[STORE_KEY] = fresh;
@@ -121,11 +122,17 @@ export function getViewContext(): TViewContext {
 // each setter writes only its own axis and never derives or clears the other. A body click legitimately does two of
 // them (clears selection AND activates the column) because they don't conflict.
 //
-// The context axis is held rather than only announced, so a surface that mounts after a column published one reads
-// what the page is about instead of reconstructing it from the axes that answer other questions.
-export function setContextPatterns(patterns: TContextPattern[]): void {
-	getStore().viewContext.context = patterns;
+// The context axis is held rather than only announced, so a surface that mounts after the column that published it
+// reads what the page is about instead of rebuilding it from the axes that answer other questions.
+export function setContextPatterns(patterns: TContextPattern[], accessLevel: string): void {
+	const s = getStore();
+	if (s.viewContext.contextAccessLevel === accessLevel && samePatterns(s.viewContext.context, patterns)) return;
+	s.viewContext = { ...s.viewContext, context: patterns, contextAccessLevel: accessLevel };
+	notify(s);
 }
+
+/** Two contexts name the same thing: compared by value, since each publish builds its patterns afresh. */
+const samePatterns = (a: TContextPattern[], b: TContextPattern[]): boolean => a.length === b.length && a.every((p, at) => JSON.stringify(p) === JSON.stringify(b[at]));
 
 export function setActiveViewId(id: string | null): void {
 	const s = getStore();
@@ -142,16 +149,12 @@ export function setSelectedSubject(subject: string | null, label: string | null)
 }
 
 /** What a CONTEXT_CHANGE means for the selection axis. A context publish addresses selection only when it names a
- *  record (select it, by the pair the pattern carries) or carries an explicitly EMPTY patterns array (the empty-space
- *  click, clear it). A context about a type says nothing about which record is selected and must leave it untouched:
- *  e.g. the graph view publishing its query at boot must not clear the selection a just-opened column published. */
-export function selectionFromContext(detail: {
-	patterns?: TContextPattern[];
-}): { action: "select"; subject: string; label: string | null } | { action: "clear" } | { action: "none" } {
+ *  record, and selects it by the pair the pattern carries. A context about a type says nothing about which record is
+ *  selected, and neither does a view with nothing to say: the graph view publishing its query at boot must leave the
+ *  selection a just-opened column published. Clearing has its own publisher on the selection axis itself. */
+export function selectionFromContext(detail: { patterns?: TContextPattern[] }): { action: "select"; subject: string; label: string | null } | { action: "none" } {
 	const first = detail.patterns?.[0];
-	if (first?.about === "record") return { action: "select", subject: first.id, label: first.persistedAs };
-	if (Array.isArray(detail.patterns) && detail.patterns.length === 0) return { action: "clear" };
-	return { action: "none" };
+	return first && first.kind === DENOTES.individual ? { action: "select", subject: first.id, label: first.persistedAs } : { action: "none" };
 }
 
 /**
@@ -186,6 +189,7 @@ export type TViewContextCallbacks = {
 	onDataChange?: (snapshot: TGraphSnapshot) => void;
 	onSelectionChange?: (subject: string | null, label: string | null) => void;
 	onActiveViewChange?: (activeViewId: string | null) => void;
+	onContextChange?: (patterns: TContextPattern[], accessLevel: string) => void;
 };
 
 export function subscribeViewContext(callbacks: TViewContextCallbacks, scope = ""): () => void {
@@ -193,9 +197,12 @@ export function subscribeViewContext(callbacks: TViewContextCallbacks, scope = "
 	let prevSnap: TGraphSnapshot | null = null;
 	let prevSelected: string | null = s.viewContext.selectedSubject;
 	let prevActive: string | null = s.viewContext.activeViewId;
+	let prevContext: TContextPattern[] = s.viewContext.context;
 	// A selection made BEFORE this subscription (an embedding column publishes its subject, then this view boots)
 	// must still reach the subscriber: deliver the current selection once, so a late-booting view highlights it.
 	if (s.viewContext.selectedSubject !== null) queueMicrotask(() => callbacks.onSelectionChange?.(s.viewContext.selectedSubject, s.viewContext.selectedLabel));
+	// Same for the context axis: a column published what the page is about before this surface existed.
+	if (s.viewContext.context.length > 0) queueMicrotask(() => callbacks.onContextChange?.(s.viewContext.context, s.viewContext.contextAccessLevel));
 	return subscribeSnapshot((snap, ctx) => {
 		if (snap && snap !== prevSnap) {
 			prevSnap = snap;
@@ -208,6 +215,10 @@ export function subscribeViewContext(callbacks: TViewContextCallbacks, scope = "
 		if (ctx.activeViewId !== prevActive) {
 			prevActive = ctx.activeViewId;
 			callbacks.onActiveViewChange?.(ctx.activeViewId);
+		}
+		if (ctx.context !== prevContext) {
+			prevContext = ctx.context;
+			callbacks.onContextChange?.(ctx.context, ctx.contextAccessLevel);
 		}
 	}, scope);
 }

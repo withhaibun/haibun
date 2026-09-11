@@ -7,7 +7,7 @@ import { SHU_EVENT, SHU_TAG } from "../consts.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { aboutRecord, aboutType, type TContextPattern, QueryViewSchema } from "../schemas.js";
+import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, type TViewQuery } from "../view-query.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
@@ -186,11 +186,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		// Selected rows are records of the label this query ran under, so each is named by that pair; with none selected
 		// the ask is about the queried type itself, narrowed by whatever the filter rows carry.
 		const label = this.qLabel;
-		const patterns: TContextPattern[] = !label
-			? []
-			: this.selectedIds.size > 0
-				? [...this.selectedIds].map((id) => aboutRecord(label, id))
-				: [aboutType(label, Object.fromEntries(this.qConditions.filter((c) => c.predicate && c.value).map((c) => [c.predicate, c.value])))];
+		const conditions = this.qConditions.filter((c) => c.predicate && c.value);
+		const patterns: TContextPattern[] = !label ? [] : this.selectedIds.size > 0 ? [...this.selectedIds].map((id) => anIndividual(label, id)) : [aType(label, conditions)];
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
@@ -201,7 +198,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					label: this.qLabel,
 					textQuery: this.qText,
 					labels: this.labels,
-					conditions: this.qConditions.filter((c) => c.predicate && c.value),
+					conditions,
 				},
 				bubbles: true,
 				composed: true,

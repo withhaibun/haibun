@@ -280,8 +280,7 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 	}
 
 	/** Each type view highlights ITS OWN focus type: its Class, with its properties and superclass lit through the focus
-	 *  policy. The app-wide selection is global, so another type view opening (publishing a different type) must NOT switch
-	 *  this one: pin the highlight to the focus type. Only a scope with no focus (unusual) follows the shared selection. */
+	 *  policy, pinned so a selection made elsewhere cannot move it. Only a scope with no focus follows the shared selection. */
 	protected override onGraphSelection(subject: string | null): void {
 		this.scene?.setSelectedSubject(this.focusType || subject);
 	}

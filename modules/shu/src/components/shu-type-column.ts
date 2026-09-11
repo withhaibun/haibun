@@ -3,8 +3,7 @@
  * its individuals in the shared result table, so a type's records read with their own fields and sort by the same
  * columns the query and filter views offer. When the site declares a
  * schema presenter (ui.presents === "schema", falling back to its general "graph" presenter), that presenter IS the
- * schema view, embedded through shu-product-view and scoped by focusType; the column publishes the type as the shared
- * selection, so the type's Class node highlights in every graph view. Without a presenter (standalone), a static SVG
+ * schema view, embedded through shu-product-view and scoped by focusType. Without a presenter (standalone), a static SVG
  * shows the type's own schema, with a toggle widening it to the entire vocabulary. Read-only: the schema comes from
  * getTypeDescription/getRels/getEdgeRanges/getTypes, the individuals from the graph query a page at a time.
  */
@@ -29,7 +28,7 @@ const INSTANCES_PAGE = 100;
 const isKnownType = (name: string): boolean => getRels(name) !== undefined;
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SHU_EVENT } from "../consts.js";
-import { aboutType } from "../schemas.js";
+import { aType } from "../schemas.js";
 import type { TGraph } from "../graph/types.js";
 import { ShuProductView } from "./shu-product-view.js";
 
@@ -130,11 +129,11 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// axis for a record of a type that does not exist.
 		this.setAttribute("data-subject", persistedAs);
 		this.setState({ persistedAs, loading: true, error: undefined });
-		// An ask from here is about the type: its members. This column holds a type and no id, so `aboutType` is the
+		// An ask from here is about the type: its members. This column holds a type and no id, so `aType` is the
 		// only thing it can say, and no query-surface label is offered, since a schema view has none to give.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: { patterns: [aboutType(persistedAs)], accessLevel: appAccessLevel() },
+				detail: { patterns: [aType(persistedAs)], accessLevel: appAccessLevel() },
 				bubbles: true,
 				composed: true,
 			}),

@@ -15,7 +15,6 @@ import { ChatMessageSchema, chatMessageStyles, type TChatMessage } from "./shu-c
 import type { ShuChatMessage } from "./shu-chat-message.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import type { ShuCombobox } from "./shu-combobox.js";
-import { Access } from "@haibun/core/lib/resources.js";
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { shuBaseStyles } from "./styles.js";
 
@@ -23,6 +22,7 @@ import { reads, acts, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
+import { getViewContext } from "../quads-snapshot.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -116,9 +116,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private _flushRaf: number | null = null;
 	/** Last-applied (models|selectedModel|sessions|sessionSeqPath) signature, wireListeners skips re-applying combo options when unchanged. */
 	private _comboSig = "";
-
-	private _contextPatterns: TContextPattern[] = [];
-	private _contextAccessLevel: string = Access.private;
 
 	/** id → the shu-chat-message this instance projected into the external output. Lets a session switch remove exactly its own transcript, leaving other activity records (step callers, search summaries) in place. */
 	#projected = new Map<string, ShuChatMessage>();
@@ -242,14 +239,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.requestUpdate();
 	}
 
-	setContext(patterns: TContextPattern[], accessLevel: string): void {
-		this._contextPatterns = patterns;
-		this._contextAccessLevel = accessLevel;
-	}
-
 	private activeChatContext(): { patterns: TContextPattern[]; viewLd: unknown[]; maxToolCalls: number; sessionSeqPath?: string; inReplyTo?: string } {
 		const envelope: { patterns: TContextPattern[]; viewLd: unknown[]; maxToolCalls: number; sessionSeqPath?: string; inReplyTo?: string } = {
-			patterns: this._contextPatterns,
+			patterns: getViewContext().context,
 			viewLd: harvestChatViewLd(),
 			maxToolCalls: this.state.toolLimit,
 		};
@@ -427,7 +419,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				acts(requireStep("chatWithContext"), {
 					prompt,
 					context: JSON.stringify(this.activeChatContext()),
-					accessLevel: this._contextAccessLevel,
+					accessLevel: getViewContext().contextAccessLevel,
 					target: this.state.model,
 				}),
 				(chunk) => {

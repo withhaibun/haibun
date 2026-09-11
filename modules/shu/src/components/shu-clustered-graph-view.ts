@@ -17,7 +17,6 @@ import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, GRAPH_SCENE_EVENT, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
 import { effectiveHiddenTypes } from "../graph-filter-projection.js";
-import { isSchemaType } from "../graph/ontology-projection.js";
 
 const QuadFieldSchema = z.object({
 	subject: z.string(),
@@ -248,8 +247,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 				{
 					onSelectionChange: (subject, label) => {
 						this.onGraphSelection(subject, label);
-						// A schema term (a Class/Property node: a type selection) is not an individual: there is nothing to fetch.
-						if (subject && label && !isSchemaType(label)) void this.fetchIfMissing(subject, label);
+						if (subject && label) void this.fetchIfMissing(subject, label);
 					},
 				},
 				this.snapshotScope,
