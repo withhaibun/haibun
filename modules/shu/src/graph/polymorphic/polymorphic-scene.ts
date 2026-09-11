@@ -1382,7 +1382,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/**
 	 * Wire orbit compass: projects the three world axes (x, y, t=time/z) through the live camera orientation
-	 * and draws them on the small upper-left canvas. Back-facing arms render as faint dashes; front-facing as
+	 * and draws them on the small upper-left canvas. Back-facing axes render as faint dashes; front-facing as
 	 * solid lines with dots. matrixWorld columns (col-major): right=[0,1,2], up=[4,5,6], back=[8,9,10].
 	 * Screen: sx = dot(axis, right), sy = -dot(axis, up) [Y flipped]; depth = -dot(axis, back).
 	 */
@@ -1400,7 +1400,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		ctx.clearRect(0, 0, W, H);
 		const cx = W / 2;
 		const cy = H / 2;
-		const R = W * 0.28; // shorter arm → room for labels within the canvas without a backdrop disc
+		const R = W * 0.28; // shorter axis length: room for labels within the canvas without a backdrop disc
 		const { compassFgColor: fgColor, compassAccentColor: accentColor, compassDimColor: dimColor } = this;
 		// Drop shadow makes lines and labels read on any scene colour without a filled background
 		ctx.shadowColor = "rgba(0,0,0,0.75)";
@@ -1423,7 +1423,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			ctx.setLineDash([2, 3]);
 			ctx.stroke();
 			ctx.setLineDash([]);
-			// Positive arm
+			// Positive direction
 			ctx.globalAlpha = toward ? 1 : 0.4;
 			ctx.beginPath();
 			ctx.moveTo(cx, cy);
