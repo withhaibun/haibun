@@ -37,6 +37,7 @@ const TOOL_LIMIT_MAX = 99;
  * (after a collapse/expand or a full page reload) the chat re-hydrates from the graph via loadChatSession, surviving reloads, unlike a per-page DOM snapshot. */
 
 type TChatSession = { sessionSeqPath: string; label: string; generatedAtTime: string };
+type TSessionTurn = { prompt: string; response: string; seqPath: string };
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
 function sessionOptionLabel(s: TChatSession): string {
 	const preview = s.label.length > 48 ? `${s.label.slice(0, 47)}…` : s.label;
@@ -202,16 +203,38 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return data.sessions;
 	}
 
-	/** Populate the session selector and, on connect, restore the active session (cookie) so the conversation survives a collapse/expand or full reload, rebuilt from the persisted Comment pairs, not a DOM snapshot. */
+	/** Populate the session selector and, on connect, restore the session this visit left off in (the cookie) so the
+	 *  conversation survives a collapse/expand or full reload, rebuilt from the persisted Comment pairs, not a DOM
+	 *  snapshot. */
 	private async loadSessions(): Promise<void> {
 		this._sessions = await this.listSessions();
 		this.requestUpdate();
 		await this.updateComplete;
 		const active = this.state.session;
-		if (active && this._sessions.some((s) => s.sessionSeqPath === active)) {
-			(this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null)?.setValue(active);
-			await this.loadAndRenderSession(active);
-		}
+		if (active && this._sessions.some((s) => s.sessionSeqPath === active)) await this.restoreSession(active);
+	}
+
+	/** Whether the reader has started using this pane: a turn is running, or the conversation already holds one. */
+	private get inUse(): boolean {
+		return this._streaming || this._messages.length > 0;
+	}
+
+	/**
+	 * Restore the session the pane was last reading, for a pane the reader has not started using.
+	 *
+	 * Restoring reads the session from the store, which takes as long as the store takes. A reader who asks a question
+	 * in that time is holding the conversation the pane now shows, so the restore is abandoned rather than applied:
+	 * applied, it took that reader's own turn off the screen and left the previous exchanges in its place.
+	 */
+	private async restoreSession(sessionSeqPath: string): Promise<void> {
+		if (this.inUse) return;
+		const turns = await this.readSession(sessionSeqPath);
+		if (this.inUse) return;
+		this._sessionSeqPath = sessionSeqPath;
+		// The selector names the session the pane is reading, so it is set where the conversation is, never beside an
+		// abandoned restore.
+		(this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null)?.setValue(sessionSeqPath);
+		this.renderTurns(turns);
 	}
 
 	/** Refresh the selector options after a new turn lands, without disturbing the rendered conversation. A failed read
@@ -234,24 +257,34 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		void this.loadAndRenderSession(seqPath);
 	};
 
-	/** Load a session's persisted turns into the message list, replacing the current conversation. Each llm half carries the turn's seqPath (its Comment-pair graph identity). Aborts any in-flight turn first so a switch (or cookie restore) never leaves an orphaned stream patching a message that is no longer rendered. */
+	/** Load a session's persisted turns into the message list, replacing the current conversation, which is what picking
+	 *  a session asks for. Aborts any in-flight turn first, so a switch never leaves an orphaned stream patching a
+	 *  message that is no longer rendered. */
 	private async loadAndRenderSession(sessionSeqPath: string): Promise<void> {
 		this._abortController?.abort();
 		this._sessionSeqPath = sessionSeqPath;
+		this.renderTurns(await this.readSession(sessionSeqPath));
+	}
+
+	/** A session's persisted turns, oldest first. Each llm half carries the turn's seqPath (its Comment-pair graph identity). */
+	private async readSession(sessionSeqPath: string): Promise<TSessionTurn[]> {
 		await getAvailableSteps();
-		if (!findStep("loadChatSession")) return;
-		const data = await conduit().follow<{ turns: Array<{ prompt: string; response: string; seqPath: string }> }>(
-			reads(requireStep("loadChatSession"), { sessionSeqPath }),
-			"kihan-chat: hydrate persisted session",
-		);
+		if (!findStep("loadChatSession")) return [];
+		const data = await conduit().follow<{ turns?: TSessionTurn[] }>(reads(requireStep("loadChatSession"), { sessionSeqPath }), "kihan-chat: hydrate persisted session");
+		if (!Array.isArray(data.turns)) throw new Error(`loadChatSession answered with no turns: ${JSON.stringify(data).slice(0, 200)}`);
+		return data.turns;
+	}
+
+	/** Render persisted turns as the conversation. */
+	private renderTurns(turns: TSessionTurn[]): void {
 		const messages: TChatMessage[] = [];
-		for (const turn of data.turns) {
+		for (const turn of turns) {
 			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "user", text: turn.prompt }));
 			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "llm", text: turn.response, status: "completed", seqPath: turn.seqPath }));
 		}
 		this._messages = messages;
 		// Thread the next turn onto this session's last reply (and clear any prior session's value) so inReplyTo points within the loaded session, never null on the first post-hydration turn nor across sessions.
-		this._lastReplySeqPath = data.turns.length > 0 ? data.turns[data.turns.length - 1].seqPath : null;
+		this._lastReplySeqPath = turns.length > 0 ? turns[turns.length - 1].seqPath : null;
 		this._scrollPending = true;
 		this.requestUpdate();
 	}

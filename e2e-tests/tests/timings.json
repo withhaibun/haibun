@@ -6,7 +6,7 @@
 				"steps": 11
 			},
 			"/features/a11y-pass.feature": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 11
 			},
 			"/features/activities.feature": {
@@ -34,15 +34,15 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 0.6,
+				"seconds": 1.4,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.1,
+				"seconds": 0.6,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 22
 			},
 			"/features/elements.feature": {
@@ -107,7 +107,7 @@
 			},
 			"/features/wikipedia.feature.ts": {
 				"seconds": 1.1,
-				"steps": 144
+				"steps": 133
 			},
 			"/features/workflow.feature.ts": {
 				"seconds": 0,
@@ -118,7 +118,7 @@
 				"steps": 12
 			}
 		},
-		"steps": 1154,
-		"seconds": 16.3
+		"steps": 1143,
+		"seconds": 16.6
 	}
 }
