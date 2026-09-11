@@ -227,10 +227,12 @@ export class LiveConduit implements Conduit {
 		// request the page awaits carries a timeout. A caller that supplied a signal governs its own request, and a
 		// stream stays open for as long as the run writes to it, so neither is one this timeout applies to.
 		const awaited = signal === undefined && envelope.stream !== true;
-		// Within the retry interval of a timed-out request, no further request is issued: the previous timeout is the
-		// result, since a page with several views open would otherwise run each read to the timeout separately. The
-		// timeout is allocated after this, so a request that is not issued allocates no timer.
-		if (awaited && isUnreachable()) throw new ServerUnreachable(url, new Error("a request to this server timed out within the last interval"));
+		// Within the retry interval of a timed-out read, no further read is issued: the previous timeout is the result,
+		// since a page with several views open would otherwise run each read to the timeout separately. An act is issued
+		// whatever a read did, because a reader asked for it: a question typed into the page is not answered by a read
+		// that timed out a moment ago. The timeout is allocated after this, so a request that is not issued allocates no
+		// timer.
+		if (awaited && envelope.asks !== "act" && isUnreachable()) throw new ServerUnreachable(url, new Error("a read of this server timed out within the last interval"));
 		const bounded = awaited ? AbortSignal.timeout(responseTimeoutMs()) : signal;
 		try {
 			const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal: bounded });
@@ -248,7 +250,8 @@ export class LiveConduit implements Conduit {
 	}
 
 	private async beginAction(why: string): Promise<number[]> {
-		const res = await this.post("action.begin", { method: "action.begin", params: { why } });
+		// Beginning an action is part of acting: it allocates the place in the run's sequence the act is recorded at.
+		const res = await this.post("action.begin", { method: "action.begin", params: { why }, asks: "act" });
 		const data: unknown = await res.json();
 		if (!res.ok || !data || typeof data !== "object" || !("seqPath" in (data as Record<string, unknown>))) {
 			throw new Error(formatRpcError("action.begin", res.status, data));

@@ -239,10 +239,10 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow(acts("step.list"), "the first read").catch(() => undefined);
+			await conduit.follow(reads("step.list"), "the first read").catch(() => undefined);
 			const afterFirst = made;
 			const began = Date.now();
-			await Promise.all(Array.from({ length: 8 }, () => conduit.follow(acts("step.list"), "a view reading").catch(() => undefined)));
+			await Promise.all(Array.from({ length: 8 }, () => conduit.follow(reads("step.list"), "a view reading").catch(() => undefined)));
 			expect(made, "the reads that followed took the answer the first one got").toBe(afterFirst);
 			expect(Date.now() - began, "so none of them waited the bound out again").toBeLessThan(60);
 		} finally {
@@ -265,13 +265,40 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow(acts("step.list"), "the first read").catch(() => undefined);
+			await conduit.follow(reads("step.list"), "the first read").catch(() => undefined);
 			expect(made).toBe(1);
-			await conduit.follow(acts("step.list"), "a read within the span").catch(() => undefined);
+			await conduit.follow(reads("step.list"), "a read within the span").catch(() => undefined);
 			expect(made, "within the span, the answer the first call got stands").toBe(1);
 			(globalThis as unknown as Record<string, { unreachableUntil: number }>)["__SHU_SERVER_RESPONDED__"].unreachableUntil = Date.now() - 1;
-			await conduit.follow(acts("step.list"), "a read after it").catch(() => undefined);
+			await conduit.follow(reads("step.list"), "a read after it").catch(() => undefined);
 			expect(made, "and after it the site is called again").toBe(2);
+		} finally {
+			globalThis.fetch = fetchWas;
+			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+			document.head.innerHTML = "";
+		}
+	});
+
+	it("issues an act within that span, since a reader asked for it and a read's timeout is not its answer", async () => {
+		// The failure this bounds: a question typed into the ask pane went nowhere because a view's read had timed out a
+		// moment earlier, so the page refused to carry what the reader asked for.
+		const fetchWas = globalThis.fetch;
+		setHydration({ settings: { responseTimeoutMs: 40 } });
+		hydrateFromDom();
+		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+		const asked: string[] = [];
+		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
+			asked.push(String(url));
+			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
+		}) as unknown as typeof globalThis.fetch;
+		try {
+			const conduit = new LiveConduit("");
+			await conduit.follow(reads("step.list"), "a view reading").catch(() => undefined);
+			const afterRead = asked.length;
+			await conduit.follow(acts("chatWithContext"), "what the reader asked for").catch(() => undefined);
+			expect(asked.slice(afterRead), "the act was carried to the server, beginning with its place in the run").toContain("/rpc/action.begin");
+			expect(asked.slice(afterRead), "and then the act itself").toContain("/rpc/chatWithContext");
 		} finally {
 			globalThis.fetch = fetchWas;
 			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];

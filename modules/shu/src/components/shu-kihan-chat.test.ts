@@ -10,6 +10,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const listed: Array<{ sessionSeqPath: string; label?: string; generatedAtTime?: string }> = [];
 let onStartSeqPath: number[] | null = null;
+/** What the server answers the session read with. A deployment that answers without the list is the failed-read case. */
+let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed] });
 
 vi.mock("../rpc-registry.js", () => ({
 	getAvailableSteps: () => Promise.resolve(),
@@ -22,8 +24,9 @@ vi.mock("../hypermedia.js", () => ({
 	reads: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "read" }),
 	acts: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "act" }),
 	isOffline: () => false,
+	isServerUnreachable: () => false,
 	conduit: () => ({
-		follow: (req: { method: string }) => (req.method === "listChatSessions" ? Promise.resolve({ sessions: [...listed] }) : Promise.resolve({})),
+		follow: (req: { method: string }) => (req.method === "listChatSessions" ? Promise.resolve(sessionsAnswer()) : Promise.resolve({})),
 		// A turn that streams text and completes. onStart is called only when the stream announces a seqPath.
 		followStream: (_req: unknown, onChunk: (c: unknown) => void, opts: { onStart?: (s: number[]) => void }) => {
 			if (onStartSeqPath) opts.onStart?.(onStartSeqPath);
@@ -58,12 +61,15 @@ async function turn(el: HTMLElement): Promise<void> {
 	await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 }
 
+const messageCount = (el: HTMLElement) => el.shadowRoot?.querySelectorAll("shu-chat-message").length ?? 0;
+
 const optionCount = (el: HTMLElement) => (el.shadowRoot?.querySelector(".session-select") as unknown as { options?: unknown[] })?.options?.length ?? 0;
 
 describe("the session selector", () => {
 	beforeEach(() => {
 		listed.length = 0;
 		onStartSeqPath = [0, 1, 2];
+		sessionsAnswer = () => ({ sessions: [...listed] });
 	});
 
 	it("is there before any turn, with no sessions to offer", async () => {
@@ -76,6 +82,15 @@ describe("the session selector", () => {
 		await turn(el);
 		expect(hasSelector(el)).toBe(true);
 		expect(optionCount(el)).toBe(1);
+	});
+
+	it("keeps the pane rendering when the read answers with no list, so the conversation continues past that turn", async () => {
+		sessionsAnswer = () => ({});
+		const el = await chat();
+		await turn(el);
+		expect(hasSelector(el)).toBe(true);
+		await turn(el);
+		expect(messageCount(el)).toBe(4);
 	});
 
 	it("offers the session even when the turn's stream announced no seqPath, since the session exists either way", async () => {

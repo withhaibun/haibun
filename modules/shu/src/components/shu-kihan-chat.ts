@@ -28,6 +28,9 @@ import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
 
 const TOOL_LIMIT_DEFAULT = 5;
+/** What the pane states when a question arrives while a turn is still running. */
+const STILL_ANSWERING = "still answering the last question; Stop to ask another";
+
 const TOOL_LIMIT_MIN = 0;
 const TOOL_LIMIT_MAX = 99;
 /** Cookie holding the active chat session's root seqPath. Turns are persisted as threaded Comment pairs, so on connect
@@ -66,8 +69,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4);
 			width: 100%; min-width: 0; flex: 1; overflow-y: auto;
 		}
+		/* The row wraps rather than overflowing: the host clips what does not fit, and Send, Stop and the model the turn
+		   runs under are the controls a reader reaches for while a turn is in flight. */
 		.input-line {
-			display: flex; gap: var(--shu-space-2); align-items: center;
+			display: flex; flex-wrap: wrap; gap: var(--shu-space-2); align-items: center;
 			padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0; min-width: 0;
 		}
 		/* Input/textarea visuals come from SHU_BASE. The kihan chat only adjusts layout (flex basis, height cap). */
@@ -101,6 +106,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** The chat's remembered options; a new visit restores the model, the tool limit and the session it was reading. */
 	static persistFields = ["model", "toolLimit", "session"] as const;
 	private _fullText = "";
+	/** The turn holding the pane, so a submit refused while it runs says so on it. */
+	private _streamingId: string | null = null;
 	private _abortController: AbortController | null = null;
 	private _sessionSeqPath: string | null = null;
 	private _lastReplySeqPath: string | null = null;
@@ -188,7 +195,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private async listSessions(): Promise<TChatSession[]> {
 		await getAvailableSteps();
 		if (!findStep("listChatSessions")) return [];
-		const data = await conduit().follow<{ sessions: TChatSession[] }>(reads(requireStep("listChatSessions")), "kihan-chat: list chat sessions");
+		const data = await conduit().follow<{ sessions?: TChatSession[] }>(reads(requireStep("listChatSessions")), "kihan-chat: list chat sessions");
+		// An answer carrying no list is a failed read, not an empty one. Held as the list, it renders as undefined on
+		// every later paint and the pane stops drawing entirely, so the read states what came back instead.
+		if (!Array.isArray(data.sessions)) throw new Error(`listChatSessions answered with no list of sessions: ${JSON.stringify(data).slice(0, 200)}`);
 		return data.sessions;
 	}
 
@@ -204,9 +214,16 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 	}
 
-	/** Refresh the selector options after a new turn lands, without disturbing the rendered conversation. */
+	/** Refresh the selector options after a new turn lands, without disturbing the rendered conversation. A failed read
+	 *  leaves the selector as it was and is reported: which sessions exist is beside the turn that just ran, and the
+	 *  conversation continues whether or not the list came back. */
 	private async refreshSessionList(): Promise<void> {
-		this._sessions = await this.listSessions();
+		try {
+			this._sessions = await this.listSessions();
+		} catch (err) {
+			reportToRun("error", "shu-kihan-chat", `the session list did not refresh: ${errorDetail(err)}`);
+			return;
+		}
 		this.requestUpdate();
 	}
 
@@ -350,8 +367,14 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 	};
 	private submitChat = (): void => {
-		// One turn at a time: a second turn would share the single _abortController + flush slot with the in-flight one. Send is also hidden while streaming; this guards the Enter-key path.
-		if (this._streaming) return;
+		// One turn at a time: a second turn would share the single _abortController + flush slot with the in-flight one.
+		// Send is also hidden while streaming; this guards the Enter-key path. A refused submit says so on the turn that
+		// holds the pane, since a question typed into a pane that does nothing with it reads as a pane that has stopped
+		// working. The question stays in the box, and Stop ends the turn holding it.
+		if (this._streaming) {
+			if (this._streamingId) this.patchMessage(this._streamingId, { spinnerStatus: STILL_ANSWERING, spinnerVisible: true, spinnerSpinning: true });
+			return;
+		}
 		const chatInput = this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null;
 		if (!chatInput?.value) return;
 		const value = chatInput.value;
@@ -406,6 +429,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this._abortController = new AbortController();
 
 		const aiId = this.nextId();
+		this._streamingId = aiId;
 		this.appendMessages(
 			ChatMessageSchema.parse({ id: this.nextId(), role: "user", text: prompt }),
 			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "running", spinnerStatus: "Sending...", spinnerVisible: true, spinnerSpinning: true }),
@@ -464,6 +488,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		} finally {
 			const aborted = signal.aborted;
 			this._streaming = false;
+			this._streamingId = null;
 			if (!aborted) this.patchMessage(aiId, { spinnerVisible: false, spinnerSpinning: false });
 			if (this._fullText && !aborted) {
 				this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {

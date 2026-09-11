@@ -24,6 +24,10 @@ import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 /** A vertex row: flat property object. */
 type VertexRow = Record<string, unknown>;
 
+/** How long the view waits after a record arrives before asking again. One record arrives as many quads and mail
+ *  arrives in bursts, so a trailing pause turns a burst into one query. */
+const ARRIVAL_DEBOUNCE_MS = 400;
+
 export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	static styles = [
 		shuBaseStyles,
@@ -343,14 +347,34 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		if (!this.qLabel) return;
 		const quads = extractQuadsFromEvents(events);
 		let changed = false;
+		let arrived = false;
 		for (const quad of quads) {
 			if (quad.namedGraph !== this.qLabel) continue;
 			const row = this.results.find((r) => String(r.id) === quad.subject);
-			if (!row || row[quad.predicate] === quad.object) continue;
+			// A record this view holds takes the new value in place. One it does not hold is a record that arrived: which
+			// rows the query matches, and in what order, is the server's answer, so the view asks again rather than
+			// placing the record itself. Without this a record that arrived showed only after a reload.
+			if (!row) {
+				arrived = true;
+				continue;
+			}
+			if (row[quad.predicate] === quad.object) continue;
 			row[quad.predicate] = quad.object;
 			changed = true;
 		}
-		if (changed) this.renderResults();
+		if (arrived) this.#requeryOnArrival();
+		else if (changed) this.renderResults();
+	}
+
+	#arrivalTimer: number | undefined;
+
+	/** One record arrives as many quads, and mail arrives in bursts: a trailing pause asks once for all of them. */
+	#requeryOnArrival(): void {
+		if (this.#arrivalTimer !== undefined) return;
+		this.#arrivalTimer = window.setTimeout(() => {
+			this.#arrivalTimer = undefined;
+			void this.executeQuery();
+		}, ARRIVAL_DEBOUNCE_MS);
 	}
 
 	private get resultsTarget(): HTMLElement | null {
