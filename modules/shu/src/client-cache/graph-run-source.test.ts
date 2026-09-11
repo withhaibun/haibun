@@ -132,7 +132,7 @@ describe("the run a view reads, over the records it wrote", () => {
 	});
 
 	it("reads a run past the window at the window's size, wherever in it the reader is", async () => {
-		// A run of more records than a window holds is the case the window exists for: what it costs to read must be the
+		// A run of more records than a window holds is the case the window exists for: what it takes to read must be the
 		// window's size and not the run's, and where a reader moves must be read rather than assumed to be held already.
 		const PAST_THE_WINDOW = 600;
 		const size = 50;
@@ -303,7 +303,7 @@ describe("the rail the run's rows sit on", () => {
 		expect(last).toBeGreaterThanOrEqual(first);
 	});
 
-	it("marks what the run holds, counted rather than read, so a rail of any length costs the same", async () => {
+	it("marks what the run holds, counted rather than read, so a rail of any length takes the same", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		const marks = source.rail?.marks() ?? [];

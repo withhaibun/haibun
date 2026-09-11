@@ -420,7 +420,7 @@ export function advanceSyntheticSeqPath(seqPath: TSeqPath, dir: 1 | -1 = 1): TSe
  * The next path under a parent step, in the direction the parent's steps are numbered in.
  *
  * A path is allocated from a count held per parent rather than searched for among the results a feature has produced.
- * Searching costs the feature so far on every step, and the feature so far grows: a run that services requests for
+ * Searching takes the feature so far on every step, and the feature so far grows: a run that services requests for
  * weeks allocates every path by reading every result it has ever produced. The count answers in constant time and
  * holds only the parents allocated under.
  *

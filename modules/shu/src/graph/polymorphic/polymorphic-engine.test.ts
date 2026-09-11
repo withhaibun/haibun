@@ -19,13 +19,13 @@ const paced = () => {
 };
 
 describe("what each intent does to the engine", () => {
-	it("disables the wall-clock stop at attach, so tick budgets are the only stop", () => {
+	it("disables the wall-clock stop at attach, so tick limits are the only stop", () => {
 		const { graph, calls } = paced();
 		new EngineGovernor().attach(graph);
 		expect(calls).toEqual([["cooldownTime", Number.POSITIVE_INFINITY]]);
 	});
 
-	it("settles with a bounded tick budget and rests at the stop", () => {
+	it("settles with a bounded tick limit and rests at the stop", () => {
 		const { graph, calls } = paced();
 		const g = new EngineGovernor();
 		g.attach(graph);

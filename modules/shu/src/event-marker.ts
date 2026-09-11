@@ -79,7 +79,7 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 /**
  * The mark an event gets, or nothing where it gets none.
  *
- * This is the one call a surface makes to mark an event: whether it is worth marking and what it looks like are
+ * This is the one call a surface makes to mark an event: whether it is to mark and what it looks like are
  * decided together, in one place, so a rail, a track and anything else that marks events cannot disagree about which
  * events matter or how they are drawn. What a surface decides for itself is only WHERE the mark goes: a moment along
  * a time axis, a row's place in a log.

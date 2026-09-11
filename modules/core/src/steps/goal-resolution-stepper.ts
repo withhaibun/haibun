@@ -71,7 +71,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			parse: (input: string) => stringOrError(input),
 		},
 		[COMPOSITE_MAX_DEPTH]: {
-			desc: `Cap on composite recursion depth, independent of the producer-chain depth budget. Default ${COMPOSITE_MAX_DEPTH_DEFAULT}.`,
+			desc: `Cap on composite recursion depth, independent of the producer-chain depth limit. Default ${COMPOSITE_MAX_DEPTH_DEFAULT}.`,
 			parse: (input: string) => stringOrError(input),
 		},
 	};

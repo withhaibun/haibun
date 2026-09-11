@@ -162,7 +162,7 @@ variable held.seen is "1"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("lists what a run can record, so what is worth watching can be discovered rather than guessed", async () => {
+	it("lists what a run can record, so what is to watch can be discovered rather than guessed", async () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `view scrolls 1

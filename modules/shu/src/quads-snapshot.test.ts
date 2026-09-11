@@ -94,35 +94,35 @@ describe("quads-snapshot store singleton", () => {
 	});
 });
 
-describe("mergeQuadsIntoSnapshot is bounded by the budget (the OOM fix)", () => {
+describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 	beforeEach(() => {
 		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
 	});
 
-	it("caps retained quads at the per-type budget no matter how many subjects stream in", () => {
+	it("caps retained quads at the per-type limit no matter how many subjects stream in", () => {
 		const TYPES = 5;
-		const SUBJECTS_PER_TYPE = 2_000; // far over the budget
+		const SUBJECTS_PER_TYPE = 2_000; // far over the limit
 		const PROPS = 3;
 		for (let t = 0; t < TYPES; t++) for (let s = 0; s < SUBJECTS_PER_TYPE; s++) feedSubject(`T${t}`, `T${t}-${s}`, PROPS);
 
 		const snap = currentSnapshot();
 		for (const c of snap.clusters) {
-			expect(c.sampledCount).toBe(DEFAULT_PER_TYPE_LIMIT); // sample capped at the budget
+			expect(c.sampledCount).toBe(DEFAULT_PER_TYPE_LIMIT); // sample capped at the limit
 			expect(c.omittedCount).toBe(SUBJECTS_PER_TYPE - DEFAULT_PER_TYPE_LIMIT); // the rest counted, not retained
 			expect(Object.keys(c.displayLabels).length).toBe(DEFAULT_PER_TYPE_LIMIT); // every retained subject is labelled
 		}
-		// ~30k subjects streamed; retained quads are bounded by budget × types × props, not total.
+		// ~30k subjects streamed; retained quads are bounded by limit × types × props, not total.
 		expect(snap.quads.length).toBeLessThanOrEqual(DEFAULT_PER_TYPE_LIMIT * TYPES * PROPS);
 	});
 
-	it("pinned (expanded) subjects are retained even past the budget", () => {
+	it("pinned (expanded) subjects are retained even past the limit", () => {
 		pinSubjects(["P-pinned"]);
-		for (let s = 0; s < 500; s++) feedSubject("P", `P-${s}`, 2); // fill far past the budget
-		feedSubject("P", "P-pinned", 2); // arrives after the budget is full
+		for (let s = 0; s < 500; s++) feedSubject("P", `P-${s}`, 2); // fill far past the limit
+		feedSubject("P", "P-pinned", 2); // arrives after the limit is full
 
 		const snap = currentSnapshot();
 		const labels = snap.clusters.find((c) => c.type === "P")?.displayLabels ?? {};
-		expect(labels["P-pinned"]).toBeDefined(); // pinned subject kept despite the budget being full
+		expect(labels["P-pinned"]).toBeDefined(); // pinned subject kept despite the limit being full
 	});
 
 	it("titles a body-backed subject by its linked body when both arrive in one merge (create-time)", () => {

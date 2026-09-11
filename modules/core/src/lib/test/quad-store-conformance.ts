@@ -101,8 +101,8 @@ export function describeQuadStore(
 				for (const r of records) await store.upsertIndividual(GRAPH, { id: r.id, generatedAtTime: at(r.minute), ...(r.status === undefined ? {} : { status: r.status }) });
 			};
 
-			// The length is the count asked for whatever the span holds, which is what makes reading a decade cost what
-			// reading an hour costs; the cases below state it for a span with records and for one with none.
+			// The length is the count asked for whatever the span holds, which is what makes reading a decade take what
+			// reading an hour takes; the cases below state it for a span with records and for one with none.
 			it("answers with the buckets asked for, each counting what it holds by how it turned out", async () => {
 				await held([
 					{ id: "a", minute: 1, status: "passed" },

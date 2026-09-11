@@ -111,7 +111,7 @@ describe("how long a call to the site may take", () => {
 		expect(responseTimeoutMs()).toBe(250);
 	});
 
-	it("is far above what a read costs, which is what makes it a sign of a site that has stopped answering", () => {
+	it("is far above what a read takes, which is what makes it a sign of a site that has stopped answering", () => {
 		// Measured: a page read over eight thousand messages answers in 10ms on average and 64ms at the ninety-fifth,
 		// the consumer holds its queries to 200ms, and the heaviest read either repository measures is 727ms.
 		expect(RESPONSE_TIMEOUT_MS).toBeGreaterThan(727 * 10);

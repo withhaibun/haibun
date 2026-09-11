@@ -4,7 +4,7 @@
  * A run's records name the execution they belong to, so what a device holds of many runs is told apart by the ids
  * themselves rather than by a second index beside them. The executions are read the way everything else is read: a
  * query over the records, here the steps that declared a feature, which is what names an execution for a reader and
- * costs one small query however long the run was.
+ * is one small query however long the run was.
  */
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { FEATURE_START, declaredName } from "@haibun/core/schema/protocol.js";

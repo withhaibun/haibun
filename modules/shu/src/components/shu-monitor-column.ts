@@ -73,7 +73,7 @@ export type TLogRow = {
 	produced?: Array<{ url: string; what: string }>;
 	/** On a substep, the step it was run to carry out: the step that established it, which a reader reads from its row. */
 	partOf?: number[];
-	/** How this row marks the rail, for the rows worth marking. Decided from the event when the row is built, by the
+	/** How this row marks the rail, for the rows to mark. Decided from the event when the row is built, by the
 	 *  same two calls the timeline marks its track with, so the rail and the timeline never disagree about which
 	 *  events matter or what they look like. */
 	mark?: TEventMarkerStyle;

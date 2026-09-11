@@ -28,7 +28,7 @@ export async function callStepByName(ctx: DispatchContext, method: string, input
 /**
  * The same call from a stepper, which holds its world and the steppers it was set up with, but no registry.
  *
- * The run's own registry is used where there is one: building another costs a tool object per registered step, and a
+ * The run's own registry is used where there is one: building another takes a tool object per registered step, and a
  * fresh one lacks the tools a transport put on the live one.
  */
 export async function callStepFrom(

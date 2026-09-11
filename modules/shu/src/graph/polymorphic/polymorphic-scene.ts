@@ -38,8 +38,8 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
 import { Drawing, aframeLoop, type TAframeScene } from "./polymorphic-drawing.js";
-import { FrameCost, type TFenceGl } from "./polymorphic-frame-cost.js";
-import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameCost } from "./polymorphic-regulator.js";
+import { FrameTime, type TFenceGl } from "./polymorphic-frame-time.js";
+import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "./polymorphic-regulator.js";
 import { GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP } from "../../graph-blips.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../polymorphic/sequence-model.js";
 import { type FGNode, type FGLink, type TSprite, linkEndId, neighboursOf } from "../polymorphic/polymorphic-graph-types.js";
@@ -343,7 +343,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private dirtyUntilFrame = 0;
 	private drawing?: Drawing; // the gate on the renderer's loop; the scene is paused while it is not drawing
 	private lastBreathAt = 0; // when the active node's glow was last redrawn; the breath runs on BREATH_MS, not on frames
-	private regulation = newRegulationState(); // the scene's own regulator of decorative motion, on what a frame costs
+	private regulation = newRegulationState(); // the scene's own regulator of decorative motion, on what a frame takes
 	/** Set by the per-frame highlight job: an active node's glow is breathing, so the loop must keep drawing. Cleared
 	 *  the frame the selection goes away, which lets the scene idle again. */
 
@@ -756,18 +756,18 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// `ticks` counts the gate's frames whether or not one was drawn. A reader whose focus/highlight assertion
 			// depends on a redraw can tell a paused scene from a live one, and can count ticks over which nothing was drawn.
 			render: { paused: this.drawing !== undefined && !this.drawing.drawing, ticks: this.rafFrame },
-			// What a drawn frame costs the renderer (the median of the last few, null before the first measurement) and
+			// What a drawn frame takes the renderer (the median of the last few, null before the first measurement) and
 			// whether the breath rests on it. A reader can tell a scene that regulated itself from one that has not measured.
 			regulation: {
 				resting: this.regulation.resting,
-				frameCostMs: this.regulation.frameCosts.length > 0 ? medianOf(this.regulation.frameCosts) : null,
-				samples: this.regulation.frameCosts.length,
+				frameTimeMs: this.regulation.frameTimes.length > 0 ? medianOf(this.regulation.frameTimes) : null,
+				samples: this.regulation.frameTimes.length,
 			},
 			// A data or layout repaint is debounced and still to run: the scene shows the PREVIOUS feed's placement, so a
 			// reader of this snapshot has not yet seen the effect of the change that scheduled it (a z-basis switch, a
 			// grouping toggle). The engine is idle in that window, so engineMode alone would call it settled.
 			repaintPending: this.repaintTimer !== undefined || this.layoutTimer !== undefined,
-			// Render-stage timing accumulated since the last resetProfile(): how raising the per-type limit spends the
+			// Render-stage timing accumulated since the last resetProfile(): how raising the per-type limit uses the
 			// main thread, split into compute / force-warmup / label-textures (the profiling control step reads this).
 			profile: this.profiler.profile,
 			frameJobs: this.frame.names(),
@@ -997,11 +997,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  the polymorphic view. The presenter decides shape/colour/label/role; this view supplies only the medium config. */
 	private nodeObject(n: FGNode): unknown {
 		// The per-node build is timed into the profiler's label total: its canvas raster + GPU texture upload is the
-		// dominant per-node cost when the per-type limit is raised (the profiler step reads the accumulated split).
+		// dominant per-node time when the per-type limit is raised (the profiler step reads the accumulated split).
 		return this.profiler.node(() => {
 			const mark = this.markFor(n);
 			// The common instance node (a "chip") renders as an SDF glyph-atlas chip (troika), dark text on a solid
-			// type-coloured background, all labels sharing one atlas texture and one background geometry, so a node costs
+			// type-coloured background, all labels sharing one atlas texture and one background geometry, so a node takes
 			// no per-node canvas raster + GPU texture upload. Other marks (the gantt box, the ontology lozenge/square)
 			// keep the three-spritetext paint: they are few, and the box carries its label as a child. The billboard
 			// frame job keeps the chips facing the camera. fontSize is the WORLD text height (chipTextHeight), as SpriteText's.
@@ -1054,7 +1054,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** Orient the node visuals to face the camera (each visual billboards itself: a troika chip group turns, a native
 	 *  sprite is a no-op). Runs every frame (no camera-turn guard): troika builds a chip's geometry on a LATER frame than
 	 *  its graphData feed, so a guarded pass would leave a just-built chip in its default orientation until the next camera
-	 *  turn: the tilted-label bug. The cost is one in-place quaternion copy per chip (no allocation: the earlier drag lag
+	 *  turn: the tilted-label bug. The work is one in-place quaternion copy per chip (no allocation: the earlier drag lag
 	 *  was a per-frame ALLOCATION here, since removed); nodeMap is the live set, so no separate registry leaks. */
 	private billboardLabels(): void {
 		const q = (this.fgCamera as unknown as { quaternion?: { x: number; y: number; z: number; w: number } })?.quaternion;
@@ -1487,15 +1487,15 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.markDirty();
 	}
 
-	/** One measured frame cost: recorded for the run, kept in the window, and evaluated against the breath's budget.
+	/** One measured frame time: recorded for the run, kept in the window, and evaluated against the breath's limit.
 	 *  A signal is acted on here (the next beat holds or breathes) and recorded, so the run can observe the regulation
-	 *  and the cost behind it. */
-	private regulate(costMs: number, now: number, drew: { calls: number }): void {
-		recordFrameCost(this.regulation, costMs, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
-		this.recordBlip(GRAPH_FRAME_BLIP, costMs, { drawCalls: drew.calls, nodes: this.nodeMap.size });
+	 *  and the time behind it. */
+	private regulate(timeMs: number, now: number, drew: { calls: number }): void {
+		recordFrameTime(this.regulation, timeMs, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
+		this.recordBlip(GRAPH_FRAME_BLIP, timeMs, { drawCalls: drew.calls, nodes: this.nodeMap.size });
 		const signal = evaluateRegulation(this.regulation, DEFAULT_REGULATION_THRESHOLDS, now);
 		if (!signal) return;
-		this.recordBlip(GRAPH_REGULATION_BLIP, signal.frameCostMs, { signal: signal.kind, share: signal.share });
+		this.recordBlip(GRAPH_REGULATION_BLIP, signal.frameTimeMs, { signal: signal.kind, share: signal.share });
 		this.lastBreathAt = 0; // the next tick redraws the glow in its new state
 	}
 
@@ -1588,11 +1588,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// within its grace window, or a focus is pending. Otherwise `Drawing` pauses the components and stops the
 		// renderer's loop, so an idle graph draws nothing. The rAF loop below keeps running as a per-frame gate of one
 		// comparison, so a change wakes the scene within one frame.
-		// What a drawn frame costs is measured after the draw (see `FrameCost`) and read in the gate below, where the
+		// What a drawn frame takes is measured after the draw (see `FrameTime`) and read in the gate below, where the
 		// regulator sets whether the breath may keep requesting frames.
 		const sceneEl = scene as unknown as TAframeScene & { renderer?: { getContext?(): unknown; info?: { render?: { calls: number } } } };
-		const frameCost = new FrameCost(() => sceneEl.renderer?.getContext?.() as TFenceGl | undefined);
-		const drawing = new Drawing(aframeLoop(sceneEl, () => frameCost.drew()));
+		const frameTime = new FrameTime(() => sceneEl.renderer?.getContext?.() as TFenceGl | undefined);
+		const drawing = new Drawing(aframeLoop(sceneEl, () => frameTime.drew()));
 		this.drawing = drawing;
 		const tick = () => {
 			this.rafFrame++;
@@ -1600,15 +1600,15 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// A wake detector, not a render job: the canvas can MOVE (strip scroll, column shift) without resizing, which no
 			// observer catches, so this light poll runs even while the scene is paused and marks dirty on any geometry change.
 			if (this.rafFrame % CANVAS_GEOMETRY_EVERY === 0) this.checkCanvasGeometry();
-			const cost = frameCost.poll();
-			if (cost !== undefined) {
+			const frameTimeMs = frameTime.poll();
+			if (frameTimeMs !== undefined) {
 				const drew = sceneEl.renderer?.info?.render;
 				if (!drew) throw new Error("a frame was measured with no renderer to report what it drew");
-				this.regulate(cost, now, drew);
+				this.regulate(frameTimeMs, now, drew);
 			}
 			// The active node's breath, on wall time like the geometry poll rather than as a frame job: a job's countdown
 			// only advances while the scene is drawing, so a throttled breath stalled whenever the scene settled and then
-			// jumped. One node's colour and scale, ten times a second, and the frame it requests is the only one it costs;
+			// jumped. One node's colour and scale, ten times a second, and the frame it requests is the only one it takes;
 			// the scene idles between them. While the regulator has the breath resting, the glow is drawn once and held.
 			if (now - this.lastBreathAt >= BREATH_MS) {
 				this.lastBreathAt = now;
@@ -1632,7 +1632,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.autoTeardown(() => {
 			if (this.rafHandle !== undefined) cancelAnimationFrame(this.rafHandle);
 			drawing.end();
-			frameCost.end();
+			frameTime.end();
 			controls.dispose();
 		});
 
@@ -2154,7 +2154,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Ask the host to show the actor types, through the same reveal the schema scope uses. A no-op when they are all
-	 *  shown already, so choosing the view repeatedly costs nothing. */
+	 *  shown already, so choosing the view repeatedly does nothing. */
 	private revealActorTypes(): void {
 		const hidden = new Set(this.model.hiddenGraphs);
 		const showing = [...this.model.knownClusters.keys()].filter((t) => !hidden.has(t));
@@ -2386,7 +2386,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			if (z < minZ) minZ = z;
 			if (z > maxZ) maxZ = z;
 		}
-		// A placement is a node's ANCHOR; its chip reads outward from there, so the extent carries a lane's worth of
+		// A placement is a node's ANCHOR; its chip reads outward from there, so the extent carries a lane of
 		// room on the lane axis, without it the outermost lifeline's label sits half outside the frame.
 		return {
 			cy: (minY + maxY) / 2,

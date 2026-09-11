@@ -248,7 +248,7 @@ export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: Readon
 
 /** Each participant's bar and what sits on it, in the order the layout placed them: what an accessible reading of a
  *  sequence walks, and what a still image draws as the lanes. Empty bars are kept, since a participant with nothing
- *  on it is itself worth reading. */
+ *  on it is itself to read. */
 export function actorBars(layout: SeqLayout): Array<{ id: string; label: string; nodeIds: string[] }> {
 	const onBar = new Map<string, string[]>(layout.actors.map((a): [string, string[]] => [a.id, []]));
 	for (const id of layout.placement.keys()) {

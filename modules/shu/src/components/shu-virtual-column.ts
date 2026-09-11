@@ -36,7 +36,7 @@ const EmptySchema = z.object({});
 
 /** Cap on re-issuing the jump-to-edge as the virtualizer measures its way down to the last row: a handful of passes closes
  *  the height-estimate gap; the bound stops an unreachable target (a row that can't fit) from re-jumping forever. */
-/** Resolution the viewport share is cached at, finer than a pixel on any rail worth drawing, so the thumb only resizes
+/** Resolution the viewport share is cached at, finer than a pixel on any rail that draws, so the thumb only resizes
  *  when the resize is visible. */
 const FRACTION_STEPS = 512;
 
@@ -112,11 +112,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	#viewportFraction: number | undefined;
 	#measureQueued = false;
 	#convergeFor = -1; // the row count the convergence passes below are chasing
-	#convergeCount = 0; // passes spent chasing it, bounded by MAX_CONVERGE
+	#convergeCount = 0; // passes used chasing it, bounded by MAX_CONVERGE
 	#items: unknown[] = [];
 	#itemCount = -1;
 	#unsub: (() => void) | null = null;
-	// Change gates for the occurrences this view records: only a movement records, so a stable reading costs nothing.
+	// Change gates for the occurrences this view records: only a movement records, so a stable reading does nothing.
 	#lastRawFraction: number | undefined;
 	#lastScrollTop: number | undefined;
 	#lastWindowShort: number | undefined;
@@ -254,14 +254,14 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			// Fill with a defined sentinel, not holes: lit-virtualizer's element(i)/scrollToIndex treats an `undefined` item
 			// as a non-existent index and refuses to scroll there, so a rail drag or marker jump to an off-screen row would
 			// silently no-op. The row data itself always comes from the source (rowAt), never this array; this is only the
-			// length-carrying placeholder. Rebuilt only on a count change (the same cost profile as the source's own update).
+			// length-carrying placeholder. Rebuilt only on a count change (the same work as the source's own update).
 			this.#items = count > 0 ? new Array(count).fill(0) : [];
 			this.#itemCount = count;
 		}
 		return this.#items;
 	}
 
-	/** The row the reader should be put back at once the rows return from the strip, and the passes spent getting there.
+	/** The row the reader should be put back at once the rows return from the strip, and the passes used getting there.
 	 *  Bounded by MAX_CONVERGE, as the live-edge convergence below is: a row the content can never reach (a log that has
 	 *  since been trimmed) gives up rather than re-scrolling for ever. */
 	#wantedFirst: number | null = null;

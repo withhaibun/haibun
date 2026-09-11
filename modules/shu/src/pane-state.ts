@@ -384,7 +384,7 @@ class PaneStateImpl {
 		// A maximize describes the FINISHED set, not the moment one pane attaches: applied per arrival, the next pane of
 		// the same restore counts as a column being opened and ends the maximize the restore just applied.
 		this.applyMaximizeFlag();
-		this.strip.updateAccordion(); // flag changes on existing panes shift the layout budget
+		this.strip.updateAccordion(); // flag changes on existing panes shift the layout limit
 		this.strip.applyActive(); // re-assert active styling now the panes match `desired` (the target pane may have just opened)
 	}
 

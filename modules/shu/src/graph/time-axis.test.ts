@@ -31,7 +31,7 @@ describe("3D time→z (headless layout math, no browser)", () => {
 	});
 
 	it("z-drift from a `now` advance is NEGLIGIBLE on the sqrt scale, so a per-repaint clock is NOT the select-jump", () => {
-		// A 5s advance (a couple of repaints' worth of fresh Date.now()) over a 30s..1y span.
+		// A 5s advance (a couple of repaints of fresh Date.now()) over a 30s..1y span.
 		const s0 = timeZScale(times, NOW, Z_MAX);
 		const s1 = timeZScale(times, NOW + 5_000, Z_MAX);
 		let maxDrift = 0;

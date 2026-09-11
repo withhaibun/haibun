@@ -117,7 +117,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	private axisSource: { axes: Record<string, string[]>; hidden: Record<string, Set<string>> } | null = null;
 	private axisCookieKey: string | null = null;
 	// Transient UI for the 1️⃣ tool: while it waits, the next chip press, a type or a property, shows ONLY that one
-	// instead of toggling it. One press's worth of state, not a durable choice, so it is kept off persistFields.
+	// instead of toggling it. One press's state, not a durable choice, so it is kept off persistFields.
 	private soloWaiting = false;
 
 	constructor() {

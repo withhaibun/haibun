@@ -6,7 +6,7 @@
  *    quad, an SDF text label, and a leading avatar badge carrying the type's initials. Every label shares ONE glyph
  *    atlas texture and every background shares ONE unit plane,
  *    so a chip takes a couple of small objects (a per-node material, a bit of glyph geometry against the shared atlas)
- *    instead of the per-node canvas raster + GPU texture upload three-spritetext takes (the cost the profiler attributes
+ *    instead of the per-node canvas raster + GPU texture upload three-spritetext takes (the time the profiler attributes
  *    to the per-type-limit stall). troika's Text is a Mesh (not a billboard) and its glyph alpha rides fillOpacity (a
  *    shared material.opacity does nothing), so the chip carries its own faceCamera + opacity; the geometry-less group
  *    can't be raycast, so pickTarget is the background quad.

@@ -473,7 +473,7 @@ export type TStepResult = TActionResult & {
  *
  * A feature that services requests for weeks runs more steps than a process can hold, and what a reader of the result
  * asks is how many ran, when they began and ended, and which one failed. Each is answered as the feature runs, so the
- * answer costs the same whether the feature ran ten steps or ten million.
+ * answer takes the same whether the feature ran ten steps or ten million.
  */
 export type TFeatureSteps = {
 	/** How many the feature ran. */

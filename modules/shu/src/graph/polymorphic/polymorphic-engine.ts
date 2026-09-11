@@ -25,7 +25,7 @@ export class EngineGovernor {
 	 * Attach the object whose pacing props apply SYNCHRONOUSLY: the inner three-forcegraph instance, not the VR
 	 * wrapper (the wrapper forwards props through two debounced digests, so a cooldown set mid-stop lands frames
 	 * late and the engine re-stops on the stale value). The lib also stops the engine on a 15s WALL CLOCK
-	 * (cooldownTime) independent of tick budgets, disable it so this governor's tick budgets are the only stop.
+	 * (cooldownTime) independent of tick limits, disable it so this governor's tick limits are the only stop.
 	 */
 	attach(graph: TPacedGraph): void {
 		this.graph = graph;

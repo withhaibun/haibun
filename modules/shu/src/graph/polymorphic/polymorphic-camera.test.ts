@@ -286,7 +286,7 @@ describe("PolymorphicCamera.centerOn with an aim offset: the followed node lands
 		expect(target).toMatchObject({ x: 5, y: -3, z: 0 });
 	});
 
-	it("with an offset the target sits left of the node by the offset's worth of world units, so the node projects right of centre", () => {
+	it("with an offset the target sits left of the node by world units equal to the offset, so the node projects right of centre", () => {
 		const { cam, target, position } = centreHarness();
 		cam.centerOn({ x: 0, y: 0, z: 0 }, { dxPx: 100, dyPx: 0 });
 		// wpp at the node = 2·dist·tan(fov/2)/viewH = 2·100·tan(40°)/600; the target backs off -x by 100 px of it.

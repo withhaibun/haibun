@@ -80,7 +80,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	}
 
 	/** The step's record and the quads it set, keyed on the step. The quad query is a fuller per-step provenance read
-	 *  (perTypeLimit 1000), not the budgeted display snapshot the graph views share, which would drop the very quads
+	 *  (perTypeLimit 1000), not the limited display snapshot the graph views share, which would drop the very quads
 	 *  whose provenance names this step. */
 	#load = new Task(this, {
 		args: () => [formatSeqPath(this.state.seqPath), readingExecution()] as const,

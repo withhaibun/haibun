@@ -132,11 +132,11 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 	 *  the cap (raised to cover an oversized request), the pages nearest that span; drop the rest. Centres on the LIVE
 	 *  request so a slow fetch completing after the reader scrolled away cannot evict an on-screen page. */
 	function evict(): void {
-		const budget = Math.max(maxResidentPages, lastLast - lastFirst + 1);
-		if (pages.size <= budget) return;
+		const limit = Math.max(maxResidentPages, lastLast - lastFirst + 1);
+		if (pages.size <= limit) return;
 		const centre = (lastFirst + lastLast) / 2;
 		const dist = (p: number) => (p >= lastFirst && p <= lastLast ? -1 : Math.abs(p - centre));
-		const keep = new Set([...pages.keys()].sort((a, b) => dist(a) - dist(b)).slice(0, budget));
+		const keep = new Set([...pages.keys()].sort((a, b) => dist(a) - dist(b)).slice(0, limit));
 		for (const p of [...pages.keys()]) if (!keep.has(p)) pages.delete(p);
 	}
 

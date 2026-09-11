@@ -215,7 +215,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			return;
 		}
 
-		// One persistence source for the overrides + budget across every clustered view: the embedded <shu-graph-filter>,
+		// One persistence source for the overrides + limit across every clustered view: the embedded <shu-graph-filter>,
 		// read per the view's declared scope (filterPersistScope) so a scoped host (a class browser) never shares the main
 		// graph's choices. hiddenGraphs is computed (defaults + overrides) once the snapshot's clusters arrive, in refetchSnapshot.
 		const initial = ShuGraphFilter.getPersistedFilter(this.filterPersistScope);
@@ -239,7 +239,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 					this.syncFromSnapshot();
 				},
 				// What was written while the stream was down arrived in no batch, so the snapshot is read again through the
-				// same commit a visibility change makes, at the scope and budget the view is already reading at.
+				// same commit a visibility change makes, at the scope and limit the view is already reading at.
 				onReconnect: () => this.applyHiddenChange({}),
 			}),
 		);
@@ -282,7 +282,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		return this.hiddenGraphsFor(types);
 	}
 
-	/** Whether a visibility change narrows the refetch to the visible types (the main graph's budget optimization).
+	/** Whether a visibility change narrows the refetch to the visible types (the main graph's limit optimization).
 	 *  A small-scope view (the class browser) overrides to false: it always fetches the full set and applies visibility
 	 *  client-side, so the served schema is always pruned against complete evidence. */
 	protected get narrowsRefetchToVisible(): boolean {
@@ -307,7 +307,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		try {
 			const snap = await getGraphSnapshot({ perTypeLimit: opts.perTypeLimit, types: opts.types, forceRefresh: true, scope: this.snapshotScope });
 			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
-			// On-demand subjects are in the fresh snapshot now; clearing lets one re-load if a new budget sampled it out.
+			// On-demand subjects are in the fresh snapshot now; clearing lets one re-load if a new limit sampled it out.
 			this.fetchedSubjects.clear();
 			this.setGraphState({ quads: snap.quads, clusters: snap.clusters, site: snap.site, perTypeLimit: opts.perTypeLimit, hiddenGraphs: this.hiddenForSnapshot(snap) });
 			this.onGraphData();

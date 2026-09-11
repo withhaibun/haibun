@@ -1,7 +1,7 @@
-// A frame's cost is measured with a fence after the draw and read when the fence signals, one frame in SAMPLE_EVERY, so
-// the page measures what the renderer spends without stalling for it.
+// A frame's time is measured with a fence after the draw and read when the fence signals, one frame in SAMPLE_EVERY, so
+// the page measures what the renderer uses without stalling for it.
 import { describe, expect, it } from "vitest";
-import { FrameCost, SAMPLE_EVERY, type TFenceGl } from "./polymorphic-frame-cost.js";
+import { FrameTime, SAMPLE_EVERY, type TFenceGl } from "./polymorphic-frame-time.js";
 
 /** A context whose fences signal after `pollsToSignal` status reads. */
 function fakeGl(pollsToSignal: number) {
@@ -33,35 +33,35 @@ function clock() {
 }
 
 describe("measuring a drawn frame", () => {
-	it("places one fence every SAMPLE_EVERY drawn frames and reports its cost once, when it signals", () => {
+	it("places one fence every SAMPLE_EVERY drawn frames and reports its time once, when it signals", () => {
 		const held = fakeGl(2);
 		const c = clock();
-		const cost = new FrameCost(() => held.gl, c.now);
-		for (let i = 0; i < SAMPLE_EVERY - 1; i++) cost.drew();
+		const frameTime = new FrameTime(() => held.gl, c.now);
+		for (let i = 0; i < SAMPLE_EVERY - 1; i++) frameTime.drew();
 		expect(held.fences, "no fence before the sampled frame").toBe(0);
-		cost.drew();
+		frameTime.drew();
 		expect(held.fences).toBe(1);
 		c.t = 5;
-		expect(cost.poll(), "not signalled yet").toBeUndefined();
+		expect(frameTime.poll(), "not signalled yet").toBeUndefined();
 		c.t = 17;
-		expect(cost.poll(), "the cost from the fence to its signal").toBe(17);
-		expect(cost.poll(), "reported once").toBeUndefined();
+		expect(frameTime.poll(), "the time from the fence to its signal").toBe(17);
+		expect(frameTime.poll(), "reported once").toBeUndefined();
 		expect(held.deleted).toBe(1);
 	});
 
 	it("holds one measurement at a time: sampled frames drawn while a fence is pending are not measured", () => {
 		const held = fakeGl(100);
-		const cost = new FrameCost(() => held.gl);
-		for (let i = 0; i < SAMPLE_EVERY * 3; i++) cost.drew();
+		const frameTime = new FrameTime(() => held.gl);
+		for (let i = 0; i < SAMPLE_EVERY * 3; i++) frameTime.drew();
 		expect(held.fences).toBe(1);
 	});
 
 	it("measures nothing on a context without fences, and nothing before the renderer exists", () => {
-		const cost = new FrameCost(() => ({}) as unknown as TFenceGl);
-		for (let i = 0; i < SAMPLE_EVERY; i++) cost.drew();
-		expect(cost.poll()).toBeUndefined();
+		const frameTime = new FrameTime(() => ({}) as unknown as TFenceGl);
+		for (let i = 0; i < SAMPLE_EVERY; i++) frameTime.drew();
+		expect(frameTime.poll()).toBeUndefined();
 		let gl: TFenceGl | undefined;
-		const later = new FrameCost(() => gl);
+		const later = new FrameTime(() => gl);
 		for (let i = 0; i < SAMPLE_EVERY; i++) later.drew();
 		expect(later.poll(), "no renderer yet").toBeUndefined();
 		const held = fakeGl(1);
@@ -72,10 +72,10 @@ describe("measuring a drawn frame", () => {
 
 	it("releases a pending fence when the scene ends", () => {
 		const held = fakeGl(100);
-		const cost = new FrameCost(() => held.gl);
-		for (let i = 0; i < SAMPLE_EVERY; i++) cost.drew();
-		cost.end();
+		const frameTime = new FrameTime(() => held.gl);
+		for (let i = 0; i < SAMPLE_EVERY; i++) frameTime.drew();
+		frameTime.end();
 		expect(held.deleted).toBe(1);
-		expect(cost.poll()).toBeUndefined();
+		expect(frameTime.poll()).toBeUndefined();
 	});
 });

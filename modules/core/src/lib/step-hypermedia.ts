@@ -127,7 +127,7 @@ function deriveActionLinks(
 
 /**
  * A domain that exists only to render a view (its schema is empty, its `ui.component`
- * names the pane to open) carries no knowledge worth chaining on. Asserting such a
+ * names the pane to open) carries no knowledge to chain on. Asserting such a
  * "fact" creates a loop: each affordances refresh sees the asserted view, includes
  * it in the snapshot, and the SPA re-opens the pane, accumulating duplicates.
  *

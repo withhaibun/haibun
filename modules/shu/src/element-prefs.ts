@@ -2,13 +2,13 @@
  * Storage engine for `ShuElement.persistFields`: THE one mechanism for remembering per-component
  * UI options across reloads. Components never touch cookies directly: they declare the state fields
  * to persist (see ShuElement) and this module owns the medium. One cookie per component tag holding
- * `Record<instanceKey, persistedFields>`, so a tag's instances share one entry budget and a swap of
+ * `Record<instanceKey, persistedFields>`, so a tag's instances share one entry limit and a swap of
  * storage medium is a change to this file only.
  */
 import { getJsonCookie, setJsonCookie } from "./cookies.js";
 
 const COOKIE_PREFIX = "shu-prefs-";
-/** Per-tag instance cap: oldest-written entries are evicted so per-instance keys (e.g. one per opened column) can't grow a cookie past its ~4KB budget. */
+/** Per-tag instance cap: oldest-written entries are evicted so per-instance keys (e.g. one per opened column) can't grow a cookie past its ~4KB limit. */
 const MAX_INSTANCES = 24;
 /** Trailing debounce for writes, absorbs per-frame bursts (a resize drag) into one cookie write. */
 const PERSIST_DEBOUNCE_MS = 150;

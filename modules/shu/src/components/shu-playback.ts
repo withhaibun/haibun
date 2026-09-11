@@ -17,7 +17,7 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { runSpan } from "../client-cache/index.js";
 
-/** Playback rates. The two below 1 run slower than the run did, for a dense burst worth watching as it plays. */
+/** Playback rates. The two below 1 run slower than the run did, for a dense burst to watch as it plays. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 const formatSpeed = (s: number): string => (s < 1 ? `-${Math.round(1 / s)}×` : `${s}×`);
 

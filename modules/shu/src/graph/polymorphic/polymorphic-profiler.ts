@@ -1,7 +1,7 @@
 /**
- * Render-stage timing for the polymorphic view. Attributes the synchronous main-thread cost of reaching a settled layout to
+ * Render-stage timing for the polymorphic view. Attributes the synchronous main-thread time of reaching a settled layout to
  * three stages, accumulated since the last reset (one limit change triggers a refetch and several repaints; the totals
- * across them are the cost):
+ * across them are the time):
  *   - compute: toGraphData (time extraction + model build)
  *   - force:   the synchronous force warmup the library runs when graphData is set (derived: set − labels)
  *   - labels:  the per-node object build (each node's canvas raster + GPU texture upload), accrued whenever the
@@ -40,7 +40,7 @@ export class PolymorphicProfiler {
 		this.nodes = nodes;
 	}
 
-	/** Time one node-object build (its label texture is the cost) into the label total, whenever the library builds it. */
+	/** Time one node-object build (its label texture is the work) into the label total, whenever the library builds it. */
 	node<T>(build: () => T): T {
 		const t = performance.now();
 		const obj = build();

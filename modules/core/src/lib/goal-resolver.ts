@@ -145,7 +145,7 @@ const COMPOSITE_DEFAULT_DEPTH = 4;
  * maxMichi, cartesian fanout across composite fields can push the recursion count into
  * the millions before truncating. This counter throws fast so a runaway resolve doesn't
  * hang the test (or the live RPC), typical resolves finish in well under 10k calls. */
-const ENUMERATE_BUDGET = 200_000;
+const ENUMERATE_LIMIT = 200_000;
 let enumerateCallCount = 0;
 
 export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolution {
@@ -246,9 +246,9 @@ function enumerate(
 	maxMichi: number,
 	path: string,
 ): TEnumResult {
-	if (++enumerateCallCount > ENUMERATE_BUDGET) {
+	if (++enumerateCallCount > ENUMERATE_LIMIT) {
 		throw new Error(
-			`[goal-resolver] enumerate() budget of ${ENUMERATE_BUDGET} calls exceeded for target=${target} depth=${depth} path=${path}. Likely a cycle the visited-set doesn't catch (cartesian composite explosion, or recursive field-domain reference). visited=[${[...visited].slice(0, 10).join(", ")}${visited.size > 10 ? `, ...${visited.size} total` : ""}]`,
+			`[goal-resolver] enumerate() limit of ${ENUMERATE_LIMIT} calls exceeded for target=${target} depth=${depth} path=${path}. Likely a cycle the visited-set doesn't catch (cartesian composite explosion, or recursive field-domain reference). visited=[${[...visited].slice(0, 10).join(", ")}${visited.size > 10 ? `, ...${visited.size} total` : ""}]`,
 		);
 	}
 	if (depth > depthLimit) return { michi: [], truncated: false };

@@ -1631,7 +1631,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const alpha = paintedAlpha(seen.background);
 				if (alpha >= 1) return actionNotOK(`the reading is painted opaque (${seen.background}), so the graph under it is hidden`);
 				// A line's number is drawn in the list's left padding: too little, and it runs back over the region's own
-				// edge. Two characters' worth is what a numbered reading of any length needs.
+				// edge. Two characters are what a numbered reading of any length needs.
 				return seen.markerRoom >= seen.fontSize * 2
 					? actionOK()
 					: actionNotOK(`a line's number has ${seen.markerRoom}px to sit in, which its own edge takes back at ${seen.fontSize}px text`);
@@ -2095,7 +2095,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			const at = await this.pressOnNode(page, s.id); // leaves the pointer DOWN on the first un-occluded node
 			if (at) return { target: { id: s.id, x: at.x, y: at.y }, diag: "" };
 		}
-		// No node was pickable, only NOW (the failure path) reconstruct why, so a normal call costs nothing. A miss is
+		// No node was pickable, only NOW (the failure path) reconstruct why, so a normal call does nothing. A miss is
 		// either aim (the centre is off-canvas) or object (no pick target, or one the raycast skips), and the two want
 		// opposite fixes, so the report names which: the pixel, what picks there, and the pick target's own state.
 		const misses: string[] = [];

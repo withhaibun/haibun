@@ -99,7 +99,7 @@ export const features: TKirejiExport = {
 		seekMonitorRail({ where: '"top"' }),
 		monitorFirstVisibleRow({ ordinal: '"1"' }),
 
-		"The thumb is what a reader grabs to drag, so a press aimed at the middle of it has to reach it. Every event worth marking is drawn on this rail, and a mark drawn over the thumb would take that press and jump to itself instead, leaving the thumb ungrabbable on exactly the runs that have the most to look through.",
+		"The thumb is what a reader grabs to drag, so a press aimed at the middle of it has to reach it. Every event to mark is drawn on this rail, and a mark drawn over the thumb would take that press and jump to itself instead, leaving the thumb ungrabbable on exactly the runs that have the most to look through.",
 		railThumbTakesAPress({ host: `"${SHU_TAG.MONITOR_COLUMN}"` }),
 
 		scenario({ scenario: "A manual scroll up pauses the tail; returning to the bottom resumes it" }),

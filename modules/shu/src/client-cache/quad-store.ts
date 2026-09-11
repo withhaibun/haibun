@@ -129,7 +129,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 
 	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
 		// The graph's quads once, grouped by subject in one pass: building each individual by scanning the graph's quads
-		// again cost a read of a type its individuals times its quads.
+		// again take a read of a type its individuals times its quads.
 		const bySubject = new Map<string, Record<string, unknown>>();
 		for (const q of await this.query({ namedGraph: label })) {
 			let individual = bySubject.get(q.subject);

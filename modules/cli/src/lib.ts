@@ -102,7 +102,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// A run that reached none of its features says nothing about them: what stopped it was before them.
 		if (verification && result.featureResults.length === 0) forgetOutcome(verification);
 		else if (verification) recordOutcome(verification, result.ok ? "passed" : "failed", result.featureResults.length);
-		// What a whole run of features took, kept with the code: the file's history is what each feature costs, change
+		// What a whole run of features took, kept with the code: the file's history is what each feature takes, change
 		// by change. A measurement rather than a decision, so it is written whether or not the run is verified against
 		// anything.
 		if (parsed.statements.length === 0 && result.featureResults.length > 0) {
