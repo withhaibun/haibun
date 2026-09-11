@@ -134,14 +134,43 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	set outputTarget(target: ShuActivityHistory | null) {
 		this.#outputTarget = target;
 		this.toggleAttribute("external-output", target !== null);
+		if (target) this.#adoptConversation(target);
 		this.requestUpdate();
 	}
 	get outputTarget(): ShuActivityHistory | null {
 		return this.#outputTarget;
 	}
 
+	/**
+	 * Take over the conversation already on the shared surface.
+	 *
+	 * The conversation belongs to the surface a reader reads it in, not to this element: the bar drops the pane when it
+	 * is closed and builds another when it is opened, and the transcript stays on the surface throughout. Taken over,
+	 * the conversation a reader left is the one they come back to, with no read of the store to bring it back and no
+	 * moment where the surface holds nothing. What this element then holds is what is on screen, so a turn asked next
+	 * still follows the last reply.
+	 */
+	#adoptConversation(target: ShuActivityHistory): void {
+		if (this._messages.length > 0) return;
+		const adopted: TChatMessage[] = [];
+		for (const el of Array.from(target.querySelectorAll(":scope > shu-chat-message")) as ShuChatMessage[]) {
+			const message = el.message;
+			if (!message?.id) continue;
+			adopted.push(message);
+			this.#projected.set(message.id, el);
+			// Ids count from this element's own counter, so it carries past what it took over: a new turn taking an id
+			// already on the surface would patch that message rather than adding its own.
+			this._msgCounter = Math.max(this._msgCounter, Number.parseInt(message.id.slice(1), 10) || 0);
+		}
+		if (adopted.length === 0) return;
+		this._messages = adopted;
+		this._sessionSeqPath = this.state.session || null;
+		const replies = adopted.filter((m) => m.role === "llm" && m.seqPath);
+		this._lastReplySeqPath = replies.length > 0 ? (replies[replies.length - 1].seqPath ?? null) : null;
+	}
+
 	/** Reconcile _messages onto the external target: patch by id, append new, remove departed, including any
-	 *  chat message a previous chat instance left behind (one conversation surface, so this instance owns them all). */
+	 *  chat message a previous chat instance left behind and this one did not take over. */
 	#syncExternalOutput(): void {
 		const target = this.#outputTarget;
 		if (!target) return;
@@ -183,7 +212,27 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	protected override onConnected(): void {
 		void this.loadModels();
-		void this.loadSessions();
+		void this.openConversation();
+	}
+
+	/**
+	 * Put the conversation on screen, then fill the selector.
+	 *
+	 * The conversation a reader left is what they opened the pane for, and it is held as the discourse comments each
+	 * turn was written as, so it is read back by itself. Which other sessions exist is a second thing and is read
+	 * after: read first and used as a gate, it left the pane blank for as long as that listing took, and blank
+	 * altogether when the listing did not answer.
+	 */
+	private async openConversation(): Promise<void> {
+		const active = this.state.session;
+		if (active) {
+			try {
+				await this.restoreSession(active);
+			} catch (err) {
+				reportToRun("error", "shu-kihan-chat", `the conversation was not read back: ${errorDetail(err)}`);
+			}
+		}
+		await this.refreshSessionList();
 	}
 
 	/** Tear down an in-flight turn and any queued text flush when the pane is destroyed (e.g. collapsing the actions bar removes this element), so a dead stream never mutates reactive state or calls requestUpdate on a torn-down element. */
@@ -201,17 +250,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// every later paint and the pane stops drawing entirely, so the read states what came back instead.
 		if (!Array.isArray(data.sessions)) throw new Error(`listChatSessions answered with no list of sessions: ${JSON.stringify(data).slice(0, 200)}`);
 		return data.sessions;
-	}
-
-	/** Populate the session selector and, on connect, restore the session this visit left off in (the cookie) so the
-	 *  conversation survives a collapse/expand or full reload, rebuilt from the persisted Comment pairs, not a DOM
-	 *  snapshot. */
-	private async loadSessions(): Promise<void> {
-		this._sessions = await this.listSessions();
-		this.requestUpdate();
-		await this.updateComplete;
-		const active = this.state.session;
-		if (active && this._sessions.some((s) => s.sessionSeqPath === active)) await this.restoreSession(active);
 	}
 
 	/** Whether the reader has started using this pane: a turn is running, or the conversation already holds one. */
