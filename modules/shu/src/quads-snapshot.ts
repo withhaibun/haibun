@@ -23,7 +23,6 @@ import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { originGraphStore } from "./client-cache/index.js";
 import { pagePinned } from "./page-pinned.js";
 import { Access, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { DENOTES } from "@haibun/core/lib/typed-links.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so no path can silently inflate the limit past what the slider expresses. */
@@ -57,7 +56,7 @@ export type TGraphSnapshot = TClusteredQuads;
  * view id (so it can lay itself out for off-screen sync) and the currently
  * selected subject (so it can zoom/highlight without waiting for the next event).
  */
-export type TViewContext = { activeViewId: string | null; selectedSubject: string | null; selectedLabel: string | null; context: TContextPattern[]; contextAccessLevel: string };
+export type TViewContext = { activeViewId: string | null; context: TContextPattern[]; contextAccessLevel: string };
 
 /** Subscribers fired after the cached snapshot or shared view-context changes. */
 type SnapshotListener = (snapshot: TGraphSnapshot | null, context: TViewContext) => void;
@@ -106,7 +105,7 @@ function getStore(): Store {
 	if (existing) return existing;
 	const fresh: Store = {
 		scopes: new Map(),
-		viewContext: { activeViewId: null, selectedSubject: null, selectedLabel: null, context: [], contextAccessLevel: Access.private },
+		viewContext: { activeViewId: null, context: [], contextAccessLevel: Access.private },
 		listeners: new Set(),
 	};
 	g[STORE_KEY] = fresh;
@@ -117,10 +116,10 @@ export function getViewContext(): TViewContext {
 	return getStore().viewContext;
 }
 
-// activeViewId (which column has keyboard/actions focus), selectedSubject (which record every view dims around) and
-// context (what the page is about: the records or the type an ask would be about) are ORTHOGONAL axes on one context:
-// each setter writes only its own axis and never derives or clears the other. A body click legitimately does two of
-// them (clears selection AND activates the column) because they don't conflict.
+// activeViewId (which column has keyboard/actions focus) and context (what the page is about: the records or the type
+// an ask would be about) are ORTHOGONAL axes on one context: each setter writes only its own axis and never derives or
+// clears the other. What the reader is on, which every view dims around, is not held here: the current-subject machine
+// decides it from the reader's moves.
 //
 // The context axis is held rather than only announced, so a surface that mounts after the column that published it
 // reads what the page is about instead of rebuilding it from the axes that answer other questions.
@@ -141,26 +140,11 @@ export function setActiveViewId(id: string | null): void {
 	notify(s);
 }
 
-export function setSelectedSubject(subject: string | null, label: string | null): void {
-	const s = getStore();
-	if (s.viewContext.selectedSubject === subject && s.viewContext.selectedLabel === label) return;
-	s.viewContext = { ...s.viewContext, selectedSubject: subject, selectedLabel: label };
-	notify(s);
-}
-
-/** The record a set of context patterns names, where they name one. A pattern about a type names no record, and
- *  neither does an empty context, so a surface reading this leaves a selection another surface made alone rather than
- *  clearing it. Read by every view that is about whatever its context names, so they all read it the same way. */
-export function recordNamedBy(patterns: TContextPattern[] | undefined): { id: string; label: string | null } | null {
-	const first = patterns?.[0];
-	return first && first.kind === DENOTES.individual ? { id: first.id, label: first.persistedAs } : null;
-}
-
 /**
  * Subscribe to changes in the shared clustered data and view context. Listeners
- * fire on initial fetch, incremental SSE merges, active-view changes, and
- * selection changes, receiving the current snapshot plus a `TViewContext`
- * carrying `activeViewId` + `selectedSubject` + `selectedLabel`.
+ * fire on initial fetch, incremental SSE merges, active-view changes and
+ * context changes, receiving the current snapshot plus a `TViewContext`
+ * carrying `activeViewId` and the context.
  *
  * Implementors should gate slow re-renders on whether their view is the
  * strip's active pane (`isActiveView` from ShuElement). Inactive viewers can
@@ -186,7 +170,6 @@ export function subscribeSnapshot(listener: SnapshotListener, scope = ""): () =>
  */
 export type TViewContextCallbacks = {
 	onDataChange?: (snapshot: TGraphSnapshot) => void;
-	onSelectionChange?: (subject: string | null, label: string | null) => void;
 	onActiveViewChange?: (activeViewId: string | null) => void;
 	onContextChange?: (patterns: TContextPattern[], accessLevel: string) => void;
 };
@@ -194,22 +177,15 @@ export type TViewContextCallbacks = {
 export function subscribeViewContext(callbacks: TViewContextCallbacks, scope = ""): () => void {
 	const s = getStore();
 	let prevSnap: TGraphSnapshot | null = null;
-	let prevSelected: string | null = s.viewContext.selectedSubject;
 	let prevActive: string | null = s.viewContext.activeViewId;
 	let prevContext: TContextPattern[] = s.viewContext.context;
-	// A selection made BEFORE this subscription (an embedding column publishes its subject, then this view boots)
-	// must still reach the subscriber: deliver the current selection once, so a late-booting view highlights it.
-	if (s.viewContext.selectedSubject !== null) queueMicrotask(() => callbacks.onSelectionChange?.(s.viewContext.selectedSubject, s.viewContext.selectedLabel));
-	// Same for the context axis: a column published what the page is about before this surface existed.
+	// A context published BEFORE this subscription (a column published what the page is about, then this surface
+	// booted) must still reach the subscriber: deliver it once.
 	if (s.viewContext.context.length > 0) queueMicrotask(() => callbacks.onContextChange?.(s.viewContext.context, s.viewContext.contextAccessLevel));
 	return subscribeSnapshot((snap, ctx) => {
 		if (snap && snap !== prevSnap) {
 			prevSnap = snap;
 			callbacks.onDataChange?.(snap);
-		}
-		if (ctx.selectedSubject !== prevSelected) {
-			prevSelected = ctx.selectedSubject;
-			callbacks.onSelectionChange?.(ctx.selectedSubject, ctx.selectedLabel);
 		}
 		if (ctx.activeViewId !== prevActive) {
 			prevActive = ctx.activeViewId;

@@ -140,8 +140,6 @@ export const SPINE_SLOT = "spine";
 
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
-	/** What a view is currently about: the record or type it shows, read by the strip to tell whether a selection still has a column showing it. */
-	DATA_SUBJECT: "data-subject",
 	/** Declared by an overlay while it covers the views beneath it. A framing aims what it frames clear of everything
 	 *  carrying this, and re-aims when one appears or goes, so a reader is never shown a node under a panel. */
 	DATA_COVERS_VIEWS: "data-covers-views",

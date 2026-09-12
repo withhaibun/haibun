@@ -3,7 +3,7 @@
  * The shu app and external clustered viewers ship as separate IIFE
  * bundles. Each carries its own copy of this module's *bindings*, but the
  * live store (cache, listeners, viewContext) is hoisted to a `globalThis`
- * singleton. That means a `setSelectedSubject` call from the shu app's bundle
+ * singleton. That means a `setActiveViewId` call from the shu app's bundle
  * notifies subscribers registered in an external viewer bundle, and one HTTP fetch
  * populates one in-memory snapshot regardless of how many bundles are
  * importing the module.
@@ -14,13 +14,12 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-	setSelectedSubject,
 	subscribeSnapshot,
+	setActiveViewId,
 	getViewContext,
 	mergeQuadsIntoSnapshot,
 	pinSubjects,
 	currentSnapshot,
-	recordNamedBy,
 	DEFAULT_PER_TYPE_LIMIT,
 	getGraphSnapshot,
 	setGraphStore,
@@ -28,7 +27,6 @@ import {
 	cachedGraphStore,
 	queryGraph,
 } from "./quads-snapshot.js";
-import { anIndividual, aType } from "./schemas.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -51,33 +49,32 @@ describe("quads-snapshot store singleton", () => {
 	});
 
 	it("registers the store under a globalThis key on first use", () => {
-		setSelectedSubject("seed", null);
+		setActiveViewId("seed");
 		const stored = (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
 		expect(stored).toBeDefined();
 	});
 
-	it("subscribers see selection updates from any caller (cross-bundle simulation)", () => {
+	it("subscribers see active-view updates from any caller (cross-bundle simulation)", () => {
 		const seen: Array<string | null> = [];
-		const unsub = subscribeSnapshot((_snap, ctx) => seen.push(ctx.selectedSubject));
-		setSelectedSubject("a", null);
-		setSelectedSubject("b", null);
-		setSelectedSubject(null, null);
+		const unsub = subscribeSnapshot((_snap, ctx) => seen.push(ctx.activeViewId));
+		setActiveViewId("a");
+		setActiveViewId("b");
+		setActiveViewId(null);
 		unsub();
 		expect(seen).toEqual(["a", "b", null]);
 	});
 
 	it("getViewContext reflects the latest setter, regardless of which import called it", () => {
-		setSelectedSubject("x", "Label");
-		expect(getViewContext().selectedSubject).toBe("x");
-		expect(getViewContext().selectedLabel).toBe("Label");
+		setActiveViewId("x");
+		expect(getViewContext().activeViewId).toBe("x");
 	});
 
-	it("dedups identical setSelectedSubject calls (no spurious notifications)", () => {
+	it("dedups identical setActiveViewId calls (no spurious notifications)", () => {
 		let count = 0;
 		const unsub = subscribeSnapshot(() => count++);
-		setSelectedSubject("once", null);
-		setSelectedSubject("once", null);
-		setSelectedSubject("once", null);
+		setActiveViewId("once");
+		setActiveViewId("once");
+		setActiveViewId("once");
 		unsub();
 		expect(count).toBe(1);
 	});
@@ -85,9 +82,9 @@ describe("quads-snapshot store singleton", () => {
 	it("two listeners registered before any change both fire on a single update, proving the listener Set is one identity, not duplicated", () => {
 		const a: Array<string | null> = [];
 		const b: Array<string | null> = [];
-		const ua = subscribeSnapshot((_s, ctx) => a.push(ctx.selectedSubject));
-		const ub = subscribeSnapshot((_s, ctx) => b.push(ctx.selectedSubject));
-		setSelectedSubject("shared", null);
+		const ua = subscribeSnapshot((_s, ctx) => a.push(ctx.activeViewId));
+		const ub = subscribeSnapshot((_s, ctx) => b.push(ctx.activeViewId));
+		setActiveViewId("shared");
 		ua();
 		ub();
 		expect(a).toEqual(["shared"]);
@@ -183,29 +180,15 @@ describe("per-scope snapshots, independent data sources over one store", () => {
 		expect(currentSnapshot("class-browser").quads.length).toBe(0); // the scoped source is untouched
 	});
 
-	it("a selection change is global: listeners of every scope receive it", () => {
+	it("an active-view change is global: listeners of every scope receive it", () => {
 		const scopes: string[] = [];
-		subscribeSnapshot((_s, ctx) => scopes.push(`shared:${ctx.selectedSubject}`));
-		subscribeSnapshot((_s, ctx) => scopes.push(`browser:${ctx.selectedSubject}`), "class-browser");
-		setSelectedSubject("Issuer", "Issuer");
+		subscribeSnapshot((_s, ctx) => scopes.push(`shared:${ctx.activeViewId}`));
+		subscribeSnapshot((_s, ctx) => scopes.push(`browser:${ctx.activeViewId}`), "class-browser");
+		setActiveViewId("Issuer");
 		expect(scopes).toContain("shared:Issuer");
 		expect(scopes).toContain("browser:Issuer");
 	});
 });
-
-describe("recordNamedBy, the record a context names", () => {
-	it("names the record a subject pattern carries", () => {
-		expect(recordNamedBy([anIndividual("Issuer", "did:web:one")])).toEqual({ id: "did:web:one", label: "Issuer" });
-	});
-	it("names none where the context says nothing, so a reader of it leaves a selection another view made alone", () => {
-		expect(recordNamedBy([])).toBeNull();
-		expect(recordNamedBy(undefined)).toBeNull();
-	});
-	it("names none for a type, which says nothing about which record is selected", () => {
-		expect(recordNamedBy([aType("Body")])).toBeNull();
-	});
-});
-
 
 describe("the graph a page caches, with no server to ask", () => {
 	// A page that carries its graph clusters it for itself: the sample, its totals and its `+N more` nodes are what the

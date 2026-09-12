@@ -55,7 +55,7 @@ import * as ViewHash from "../view-hash.js";
 import { subscribeBatchedEvents, type TEvent, type TEventFilter } from "../event-stream.js";
 import { readElementPrefs, schedulePersistWrite, forgetElementPrefs } from "../element-prefs.js";
 import { recordClientBlip } from "../client-blips.js";
-import { setSelectedSubject } from "../quads-snapshot.js";
+import type { TContextPattern } from "../schemas.js";
 
 export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
 	/** Get the current view hash, from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
@@ -210,28 +210,11 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		this.#teardowns.push(() => observer.disconnect());
 	}
 
-	/**
-	 * State the record this view is currently about.
-	 *
-	 * A record is the selection axis: what every view dims around, what the graph centres while it follows, and what
-	 * the strip reads off the attribute to tell whether a selection still has a column showing it. A view states it
-	 * where it learns it, so every surface a reader reads a record in moves the selection the same way, and a view
-	 * about no record states none.
-	 */
-	protected statesCurrentRecord(id: string | null, label: string | null): void {
-		this.statesSubjectAttribute(id);
-		setSelectedSubject(id, label);
-	}
-
-	/** State the type this view is about. A type is not a record, so it moves no selection: it says what this column
-	 *  shows, which is what the strip reads when it asks whether a column still shows the selected record. */
-	protected statesCurrentType(persistedAs: string | null): void {
-		this.statesSubjectAttribute(persistedAs);
-	}
-
-	private statesSubjectAttribute(subject: string | null): void {
-		if (subject) this.setAttribute(SHU_ATTR.DATA_SUBJECT, subject);
-		else this.removeAttribute(SHU_ATTR.DATA_SUBJECT);
+	/** The context patterns of what this view shows, where it shows a record or a type: what the reader is on while this
+	 *  is the active pane, and what an ask from here is about. A view with no subject of its own (a log, a document, a
+	 *  conversation) states none, so activating it moves the reader nowhere. */
+	paneSubject(): TContextPattern[] | null {
+		return null;
 	}
 
 	/** Whether this view is the strip's active pane: its containing column-pane's key equals the global `activePane`

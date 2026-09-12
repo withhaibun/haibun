@@ -186,12 +186,18 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		this.dispatchContextChange();
 	}
 
+	/** What this view shows: the selected rows as records of the queried type, else the type narrowed by its conditions. */
+	override paneSubject(): TContextPattern[] | null {
+		const label = this.qLabel;
+		if (!label) return null;
+		return this.selectedIds.size > 0 ? [...this.selectedIds].map((id) => anIndividual(label, id)) : [aType(label, this.qConditions)];
+	}
+
 	private dispatchContextChange(): void {
 		// Selected rows are records of the label this query ran under, so each is named by that pair; with none selected
 		// the ask is about the queried type itself, narrowed by whatever the filter rows carry.
-		const label = this.qLabel;
 		const conditions = this.qConditions.filter((c) => c.predicate && c.value);
-		const patterns: TContextPattern[] = !label ? [] : this.selectedIds.size > 0 ? [...this.selectedIds].map((id) => anIndividual(label, id)) : [aType(label, conditions)];
+		const patterns: TContextPattern[] = this.paneSubject() ?? [];
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {

@@ -112,8 +112,9 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 				<div class="msg-content">
 					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
 					${m.role === "llm" ? html`<shu-spinner></shu-spinner>` : ""}
-					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(md.render(m.text))}</div>` : ""}
 					${
+						// What the answer was made of reads before the answer: the context it was sent and the calls it made
+						// come first in time, and a reader weighing the answer reads them first.
 						m.activity.length > 0
 							? html`<details class="chat-activity" data-testid="app-chat-activity">
 								<summary>context and calls (${m.activity.length})</summary>
@@ -121,6 +122,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 							</details>`
 							: ""
 					}
+					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(md.render(m.text))}</div>` : ""}
 					${m.error ? html`<div class="chat-error">${m.error}</div>` : ""}
 				</div>
 			</div>

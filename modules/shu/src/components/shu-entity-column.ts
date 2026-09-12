@@ -31,7 +31,7 @@ import { SHU_EVENT, ANNOTATION_GLYPH } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
-import { anIndividual, EntityColumnSchema } from "../schemas.js";
+import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
 import type { AnnotationView } from "../annotation-resolver.js";
@@ -224,7 +224,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  to the persisted browser store when offline), and resolves the annotations anchored in it: one path, one shared
 	 *  copy and one live subscription per individual. `applyView` projects each resolved state onto the render fields. */
 	async open(id: string, label: string = defaultLabel(), selector?: TQuoteAnchor): Promise<void> {
-		this.statesCurrentRecord(id, label);
 		if (selector) this.revealPassage(selector);
 		this.setState({ individualId: id, persistedAs: label, error: undefined });
 		const accessLevel = appAccessLevel();
@@ -236,6 +235,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				composed: true,
 			}),
 		);
+	}
+
+	override paneSubject(): TContextPattern[] | null {
+		return this.state.individualId ? [anIndividual(this.state.persistedAs, this.state.individualId)] : null;
 	}
 
 	render(): TemplateResult {

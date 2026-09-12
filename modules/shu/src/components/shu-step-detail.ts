@@ -22,6 +22,7 @@ import { readIndividual } from "../quads-snapshot.js";
 import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
 import { appAccessLevel } from "../util.js";
+import { anIndividual, type TContextPattern } from "../schemas.js";
 import { formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { readingExecution } from "../client-cache/index.js";
@@ -86,8 +87,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		args: () => [formatSeqPath(this.state.seqPath), readingExecution()] as const,
 		task: async ([path, execution]): Promise<TStepData> => {
 			const id = stepRecordId(parseSeqPath(path) ?? [], execution);
-			if (id === undefined) return { variablesSet: [] }; // which execution is being read is not known yet, so this view is about no record it can name
-			this.statesCurrentRecord(id, SEQ_PATH_LABEL);
+			if (id === undefined) return { variablesSet: [] };
 			const [record, quadsData] = await Promise.all([
 				// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
 				readIndividual(SEQ_PATH_LABEL, id, appAccessLevel()),
@@ -108,8 +108,18 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	/** Called by the pane afterAttach hook with the step's seqPath; setting the state re-keys the load task. Awaits the
 	 *  settle so the caller's attach sequence still completes after the data lands (an error surfaces in render). */
+	/** The step this pane reads, as the record it is: named only once the run being read is known. */
+	override paneSubject(): TContextPattern[] | null {
+		const id = stepRecordId(this.state.seqPath, readingExecution());
+		return id === undefined ? null : [anIndividual(SEQ_PATH_LABEL, id)];
+	}
+
 	async open(seqPath: number[]): Promise<void> {
 		this.setState({ seqPath });
+		// Opening a step is a reader's move to it, stated as a record column states its record. The load below runs again
+		// whenever the run being read moves on, which is no move of the reader's, so it states nothing.
+		const patterns = this.paneSubject();
+		if (patterns) this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: SEQ_PATH_LABEL }, bubbles: true, composed: true }));
 		await this.updateComplete;
 		await this.#load.taskComplete.catch(() => undefined);
 	}

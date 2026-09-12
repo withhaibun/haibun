@@ -7,7 +7,8 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
-import { idOf, persistedTypeOf } from "../util.js";
+import { appAccessLevel, idOf, persistedTypeOf } from "../util.js";
+import { anIndividual, type TContextPattern } from "../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../pane-fetch.js";
 import { getUiPresenting } from "../rels-cache.js";
@@ -113,7 +114,6 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	/** Render items directly without RPC fetch. Items are JSON-LD nodes (`@id`/`@type`), optionally with `_edges`. */
 	openItems(items: ThreadVertex[], label = "Result"): void {
 		this.thread = items;
-		this.statesCurrentRecord(null, null); // a thread of results is about no one record
 		this.setState({ label, individualId: "", loading: false });
 	}
 
@@ -125,8 +125,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	async open(label: string, id: string, depth?: number): Promise<void> {
 		if (depth !== undefined) this.state = { ...this.state, depth };
-		this.statesCurrentRecord(id, label);
 		this.setState({ label, individualId: id, loading: true, error: undefined });
+		// A thread is about the record it is read from, as a record column is: stated the same way, so the reader is on
+		// it here as they would be there.
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], accessLevel: appAccessLevel(), label }, bubbles: true, composed: true }));
 		const res = await callStep<{ items: ThreadVertex[]; contextRoot: string }>("getRelated", { label, id, depth: this.state.depth }, `thread-column: open ${label}:${id}`);
 		if (!res.ok) {
 			this.setState({ loading: false, error: res.error });
@@ -134,6 +136,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		}
 		this.thread = res.value.items ?? [];
 		this.setState({ loading: false });
+	}
+
+	override paneSubject(): TContextPattern[] | null {
+		return this.state.individualId ? [anIndividual(this.state.label, this.state.individualId)] : null;
 	}
 
 	private onModeClick = (mode: "tree" | "graph") => (): void => {

@@ -6,7 +6,8 @@ import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../graph-model.js";
-import { setSelectedSubject as publishSelection, DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
+import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
+import { dispatchSubjectEvent } from "../../current-subject.js";
 import { formatDate } from "../../util.js";
 import { SHU_TEST_IDS } from "../../test-ids.js";
 import { FrameScheduler } from "../polymorphic/polymorphic-frame.js";
@@ -177,6 +178,8 @@ const LINK_OPACITY = 0.55; // resting edge opacity; focus raises incident edges 
 // layout: rather than a per-node reheat that keeps the whole graph wiggling. A layout change (flatten / dag / group /
 // type-filter) coalesces longer so rapid toggles collapse into ONE transition, then animates as a controlled tween.
 const DATA_DEBOUNCE_MS = 500;
+/** How long the camera holds still before a reader's pan or zoom counts as finished: longer than the damping's last visible easing. */
+const CAMERA_REST_MS = 150;
 // The scene renders on demand: after a discrete change (data, selection, resize, theme) it keeps drawing for this many
 // frames so the change and any short ease land, then it idles. Continuous motion (layout settle, tween, drag, camera
 // damping) and the pointer being over the canvas keep it awake on their own.
@@ -1323,20 +1326,34 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			const w = container.clientWidth;
 			const h = container.clientHeight;
 			if (w && h) this.renderer?.size(w, h);
-			// Following holds the chosen node where the reader can see it, and a resize moves where that is: the first
-			// click's own column-open narrows the canvas right after the follow aimed at the wide one, which left the
-			// followed node beyond the new edge. Re-assert the aim against the settled box, and only where the resize
-			// lost the node, so a resize never undoes a pan that left it deliberately in view.
-			if (this.config.follow && this.activeSubject && !this.onCanvas(this.activeSubject)) this.followActive(this.activeSubject);
+			// A resize moves where the reader can see: the first click's own column-open narrows the canvas right after the
+			// follow aimed at the wide one.
+			this.keepFollowedInView();
 		}, 100);
 	}
 
-	/** Whether a node currently projects inside the canvas box: the "can the reader still see it" test a resize asks. */
-	private onCanvas(id: string): boolean {
+	/**
+	 * Hold the followed node where a reader can see it: inside the canvas and clear of whatever covers it, at the zoom
+	 * the reader set. Called wherever the node, the camera or the view can move (a layout coming to rest, a resize, a
+	 * reader's pan or zoom coming to rest), so following is one rule rather than a reaction per event. A node already in
+	 * view is left where it is, so a pan that keeps it on screen stays put, and a node not in the graph yet is aimed at by
+	 * the layout that brings it in.
+	 */
+	private keepFollowedInView(): void {
+		const id = this.selectedSubject;
+		if (!this.config.follow || !id || !this.nodeMap.has(id)) return;
+		if (!this.inClearView(id)) this.followActive(id);
+	}
+
+	/** Whether a node draws inside the canvas and outside everything covering it. With no projection yet there is nothing
+	 *  to judge, so it counts as in view and nothing moves. */
+	private inClearView(id: string): boolean {
 		const at = this.projectNodeToScreen(id);
-		const rect = this.ctx.canvas?.getBoundingClientRect();
-		if (!at || !rect) return true; // no projection yet: nothing to correct
-		return at.x >= rect.left && at.x <= rect.right && at.y >= rect.top && at.y <= rect.bottom;
+		const canvas = this.ctx.canvas?.getBoundingClientRect();
+		if (!at || !canvas) return true;
+		if (at.x < canvas.left || at.x > canvas.right || at.y < canvas.top || at.y > canvas.bottom) return false;
+		const covered = this.coveredRect(canvas);
+		return !covered || at.x < covered.left || at.x > covered.right || at.y < covered.top || at.y > covered.bottom;
 	}
 
 	/**
@@ -1552,9 +1569,26 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.controls = controls;
 		// Camera motion, a drag/zoom and the damping that eases out after the pointer releases, wakes the on-demand loop.
 		// `change` fires each frame the camera still moves, so the scene keeps drawing through the damping, then idles.
-		const controlEvents = controls as unknown as { addEventListener(type: "start" | "change", listener: () => void): void };
-		controlEvents.addEventListener("start", () => this.markDirty());
-		controlEvents.addEventListener("change", () => this.markDirty(4));
+		const controlEvents = controls as unknown as { addEventListener(type: "start" | "change" | "end", listener: () => void): void };
+		// A reader's pan or zoom can carry the followed node out of view. Held while the pointer is down, and checked once
+		// the damping has eased the camera to rest, so following never fights a drag in progress.
+		let gesturing = false;
+		let cameraRest: number | undefined;
+		controlEvents.addEventListener("start", () => {
+			gesturing = true;
+			this.markDirty();
+		});
+		controlEvents.addEventListener("end", () => {
+			gesturing = false;
+		});
+		controlEvents.addEventListener("change", () => {
+			this.markDirty(4);
+			clearTimeout(cameraRest);
+			cameraRest = window.setTimeout(() => {
+				if (!gesturing) this.keepFollowedInView();
+			}, CAMERA_REST_MS);
+		});
+		this.autoTeardown(() => clearTimeout(cameraRest));
 		const canvas = aScene.renderer.domElement;
 		let downAt: { x: number; y: number } | null = null;
 		// Ctrl/meta/shift-to-orbit is OrbitControls' OWN behavior: with LEFT mapped to PAN, a modified press
@@ -1573,7 +1607,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			if (moved) return;
 			const node = this.pickNodeAt(e);
 			if (node) this.onNodeClick(node, e);
-			else if (this.selectedSubject) publishSelection(null, null); // clear the app-wide selection; the host relays it back via setSelectedSubject
+			else if (this.selectedSubject) dispatchSubjectEvent({ type: "clearSubject" }); // empty space is the reader choosing nothing; the host relays the machine's answer back through setSelectedSubject
 		};
 		canvas.addEventListener("pointerdown", onPointerDown);
 		canvas.addEventListener("click", onClick);
@@ -2449,16 +2483,21 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  overlay on the page that declares it covers the views (the actions bar while it is open). Null where nothing
 	 *  reaches the canvas or what does leaves the centre clear, which is where a framing aims anyway. */
 	private coverClearOffset(): { dxPx: number; dyPx: number } | null {
-		const canvas = this.ctx.canvas;
-		if (!canvas) return null;
+		const canvas = this.ctx.canvas?.getBoundingClientRect();
+		const covered = canvas ? this.coveredRect(canvas) : null;
+		return canvas && covered ? clearStripOffset(canvas, covered) : null;
+	}
+
+	/** The part of the canvas something covers: the reading guide of this scene while it shows, and every overlay on the
+	 *  page that declares it covers the views, boxed together. */
+	private coveredRect(canvas: DOMRect): ReturnType<typeof coveredTogether> {
 		const guide = this.querySelector<HTMLElement>("#polymorphic-a11y");
 		const showing = guide && (guide.hasAttribute("data-shown") || guide.matches(":focus-within")) ? [guide] : [];
 		const declared = Array.from(document.querySelectorAll<HTMLElement>(`[${SHU_ATTR.DATA_COVERS_VIEWS}]`));
-		const covered = coveredTogether(
-			canvas.getBoundingClientRect(),
+		return coveredTogether(
+			canvas,
 			[...showing, ...declared].map((el) => el.getBoundingClientRect()),
 		);
-		return covered ? clearStripOffset(canvas.getBoundingClientRect(), covered) : null;
 	}
 
 	/** An overlay opened or closed: where a reader can see the followed node has moved, so aim it there again. A resize
@@ -2475,6 +2514,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private onLayoutSettled(): void {
 		this.camera.applyPendingFrame();
 		this.updateLaneAxis();
+		this.keepFollowedInView(); // the layout may have moved the followed node, or brought it in
 	}
 
 	/** Draw the calendar ruler for a view that reads along a calendar, and take it off screen for one that does not, so a
