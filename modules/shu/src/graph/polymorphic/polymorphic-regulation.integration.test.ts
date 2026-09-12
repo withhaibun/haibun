@@ -4,6 +4,9 @@
  *
  * The invariant: with a selected node and nothing moving, a scene whose frames are slow measures that time, rests the
  * breath, and draws no frame at all, so the run that opened the page does nothing on it after that.
+ *
+ * The same mounted scene answers what following does with a record another view states, which needs a camera and a
+ * drawn projection to observe at all.
  */
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -159,4 +162,79 @@ test("a feed that changes nothing visible draws no frame; one that changes the v
 	);
 	expect(((await page.evaluate(FRAME)) as number) - before, "a changed model is drawn").toBeGreaterThan(0);
 	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
+});
+
+/** Where a node draws on screen once the follow re-frame has stopped moving it: the camera tween animates after the
+ *  engine freezes, so read until two reads agree. */
+async function settledProjection(id: string): Promise<{ x: number; y: number }> {
+	let previous: { x: number; y: number } | null = null;
+	for (let i = 0; i < 40; i++) {
+		const at = (await page.evaluate(
+			(nid) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { projectNodeToScreen(i: string): { x: number; y: number } | null }).projectNodeToScreen(nid),
+			id,
+		)) as { x: number; y: number } | null;
+		if (at && previous && Math.abs(at.x - previous.x) < 1 && Math.abs(at.y - previous.y) < 1) return at;
+		previous = at;
+		await page.waitForTimeout(40);
+	}
+	if (!previous) throw new Error(`node ${id} never projected onto the canvas`);
+	return previous;
+}
+
+test("a record another view states is centred while the graph follows", { timeout: 60_000 }, async () => {
+	// Every surface states the record it is about, and a following graph centres it. The selection arrives from outside
+	// the scene here, which is the path a click on the canvas never takes: the click centres the node itself, so nothing
+	// it does says whether a record stated by a column, a pane or a conversation is followed.
+	const FOLLOWED = "n-100";
+	await page.evaluate((id) => {
+		const el = document.querySelector("shu-polymorphic-graph-view") as unknown as {
+			scene: { setConfig(patch: Record<string, unknown>): void; setSelectedSubject(subject: string): void };
+		};
+		el.scene.setConfig({ follow: true });
+		el.scene.setSelectedSubject(id);
+	}, FOLLOWED);
+	const at = await settledProjection(FOLLOWED);
+	const box = await page.evaluate(() => {
+		const r = (document.querySelector("#box") as HTMLElement).getBoundingClientRect();
+		return { x: r.x, y: r.y, w: r.width, h: r.height };
+	});
+	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
+	expect(Math.abs(at.x - (box.x + box.w / 2)), "the stated record draws within the central half across").toBeLessThan(box.w / 4);
+	expect(Math.abs(at.y - (box.y + box.h / 2)), "and within the central half down").toBeLessThan(box.h / 4);
+});
+
+test("a panel over the view aims the followed record clear of it, and closing the panel brings it back to the centre", { timeout: 60_000 }, async () => {
+	// Reported: the graph kept centring the followed record under the actions bar. An overlay says it covers the views,
+	// a framing aims into what is left clear, and when it stops covering them the aim returns to the whole view: the
+	// declaration is the whole contract, so any panel gets this without the graph knowing what it is.
+	const FOLLOWED = "n-100";
+	const COVER_TOP = 250;
+	await page.evaluate(
+		({ id, top }) => {
+			const panel = document.createElement("div");
+			panel.id = "cover";
+			panel.style.cssText = `position:fixed;left:0;right:0;top:${top}px;bottom:0;background:#000`;
+			document.body.appendChild(panel);
+			const el = document.querySelector("shu-polymorphic-graph-view") as unknown as {
+				scene: { setConfig(patch: Record<string, unknown>): void; setSelectedSubject(subject: string): void };
+			};
+			el.scene.setConfig({ follow: true });
+			el.scene.setSelectedSubject(id);
+		},
+		{ id: FOLLOWED, top: COVER_TOP },
+	);
+	await settledProjection(FOLLOWED);
+	await page.evaluate(() => (document.querySelector("#cover") as HTMLElement).setAttribute("data-covers-views", ""));
+	const covered = await settledProjection(FOLLOWED);
+	expect(covered.y, "the followed record draws above the panel, where its reader can see it").toBeLessThan(COVER_TOP);
+
+	await page.evaluate(() => (document.querySelector("#cover") as HTMLElement).removeAttribute("data-covers-views"));
+	const uncovered = await settledProjection(FOLLOWED);
+	const box = await page.evaluate(() => {
+		const r = (document.querySelector("#box") as HTMLElement).getBoundingClientRect();
+		return { y: r.y, h: r.height };
+	});
+	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
+	expect(Math.abs(uncovered.y - (box.y + box.h / 2)), "and back to the middle of the view once nothing covers it").toBeLessThan(box.h / 4);
+	await page.evaluate(() => document.querySelector("#cover")?.remove());
 });

@@ -23,7 +23,8 @@ import { quadsToGanttModel, cascadeReschedule } from "../gantt-model.js";
 import { availablePaints, browserRelOf } from "../paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../gantt-layout.js";
 import { type Adornment } from "../graph-layout.js";
-import { PolymorphicCamera, clearStripOffset, type GanttExtent } from "./polymorphic-camera.js";
+import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent } from "./polymorphic-camera.js";
+import { SHU_ATTR } from "../../consts.js";
 import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, NDC_SPAN, type TNdc, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
 import { RenderContext } from "./polymorphic-render-context.js";
@@ -1302,6 +1303,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const themeObserver = new MutationObserver(() => this.applyTheme());
 		themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 		this.autoTeardown(() => themeObserver.disconnect());
+		// An overlay declaring that it covers the views: a framing aims clear of it while it is there, and back over the
+		// whole canvas once it goes.
+		const coverObserver = new MutationObserver(() => this.onCoverChanged());
+		coverObserver.observe(document.body, { attributes: true, subtree: true, attributeFilter: [SHU_ATTR.DATA_COVERS_VIEWS] });
+		this.autoTeardown(() => coverObserver.disconnect());
 	}
 
 	/**
@@ -2436,16 +2442,30 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  "centre" is the clear strip beside it, centring under the guide showed the reader nothing. */
 	private followActive(nodeId: string): void {
 		const n = this.nodeMap.get(nodeId);
-		if (n) this.camera.centerOn(n, this.guideClearOffset() ?? undefined);
+		if (n) this.camera.centerOn(n, this.coverClearOffset() ?? undefined);
 	}
 
-	/** The open guide's occlusion of the canvas, as the aim offset a framing applies, null when the guide is closed,
-	 *  elsewhere, or leaves the centre clear. */
-	private guideClearOffset(): { dxPx: number; dyPx: number } | null {
-		const region = this.querySelector<HTMLElement>("#polymorphic-a11y");
+	/** What covers the canvas right now, as the aim offset a framing applies: the reading guide of this scene, and every
+	 *  overlay on the page that declares it covers the views (the actions bar while it is open). Null where nothing
+	 *  reaches the canvas or what does leaves the centre clear, which is where a framing aims anyway. */
+	private coverClearOffset(): { dxPx: number; dyPx: number } | null {
 		const canvas = this.ctx.canvas;
-		if (!region || !canvas || !(region.hasAttribute("data-shown") || region.matches(":focus-within"))) return null;
-		return clearStripOffset(canvas.getBoundingClientRect(), region.getBoundingClientRect());
+		if (!canvas) return null;
+		const guide = this.querySelector<HTMLElement>("#polymorphic-a11y");
+		const showing = guide && (guide.hasAttribute("data-shown") || guide.matches(":focus-within")) ? [guide] : [];
+		const declared = Array.from(document.querySelectorAll<HTMLElement>(`[${SHU_ATTR.DATA_COVERS_VIEWS}]`));
+		const covered = coveredTogether(
+			canvas.getBoundingClientRect(),
+			[...showing, ...declared].map((el) => el.getBoundingClientRect()),
+		);
+		return covered ? clearStripOffset(canvas.getBoundingClientRect(), covered) : null;
+	}
+
+	/** An overlay opened or closed: where a reader can see the followed node has moved, so aim it there again. A resize
+	 *  re-aims only when it loses the node (see fitGraphFrame), because a resize is not a choice about the graph; opening
+	 *  or closing a panel is, and it changes the clear region the aim is measured against. */
+	private onCoverChanged(): void {
+		if (this.config.follow && this.activeSubject) this.followActive(this.activeSubject);
 	}
 
 	/** The one "layout has come to rest" hook: both settle paths (a no-tween engine stop and a tween's completion) call

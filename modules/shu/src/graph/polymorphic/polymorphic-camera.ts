@@ -60,29 +60,48 @@ const cross = (a: XYZ, b: XYZ): XYZ => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x
 
 type TRect = { left: number; top: number; right: number; bottom: number };
 
+/** What several overlays cover together: the box around the ones that reach the canvas at all, so a framing aims clear
+ *  of all of them at once rather than out from under one and under the next. Null when none of them reaches it. */
+export function coveredTogether(canvas: TRect, overlays: readonly TRect[]): TRect | null {
+	const over = overlays.filter((o) => o.right > canvas.left && o.left < canvas.right && o.bottom > canvas.top && o.top < canvas.bottom);
+	if (over.length === 0) return null;
+	return {
+		left: Math.min(...over.map((o) => o.left)),
+		top: Math.min(...over.map((o) => o.top)),
+		right: Math.max(...over.map((o) => o.right)),
+		bottom: Math.max(...over.map((o) => o.bottom)),
+	};
+}
+
 /**
- * Where a framing should aim when an overlay covers part of the canvas: the centre of the wider clear strip beside or
- * below the overlay, as a right/up pixel offset from the canvas centre. Null when nothing is occluded (centre is fine)
- * or when the overlay leaves no strip to aim at (nowhere better exists). Screen y grows downward, so a strip
- * below the canvas centre is a negative dyPx.
+ * Where a framing should aim when an overlay covers part of the canvas: the centre of the widest clear strip on any
+ * side of the overlay, as a right/up pixel offset from the canvas centre. Null when nothing is occluded (centre is
+ * fine) or when the overlay leaves no strip to aim at (nowhere better exists). Screen y grows downward, so a strip
+ * below the canvas centre is a negative dyPx. Every side counts: a guide down one side leaves the strip beside it, and
+ * a bar across the bottom leaves the strip above it, which is the only place its reader can be shown anything.
  */
 export function clearStripOffset(canvas: TRect, overlay: TRect): { dxPx: number; dyPx: number } | null {
 	// The overlay's edges clamped to the canvas: the strips are measured from where it ends on screen.
+	const overlayLeft = Math.max(overlay.left, canvas.left);
+	const overlayTop = Math.max(overlay.top, canvas.top);
 	const overlayRight = Math.min(overlay.right, canvas.right);
 	const overlayBottom = Math.min(overlay.bottom, canvas.bottom);
-	const overlapW = overlayRight - Math.max(overlay.left, canvas.left);
-	const overlapH = overlayBottom - Math.max(overlay.top, canvas.top);
-	if (overlapW <= 0 || overlapH <= 0) return null;
+	if (overlayRight - overlayLeft <= 0 || overlayBottom - overlayTop <= 0) return null;
 	const cx = (canvas.left + canvas.right) / 2;
 	const cy = (canvas.top + canvas.bottom) / 2;
 	const inX = overlay.left < cx && overlay.right > cx;
 	const inY = overlay.top < cy && overlay.bottom > cy;
 	if (!(inX && inY)) return null; // the overlay leaves the centre clear: an aimed node lands beside it already
-	const rightW = canvas.right - overlayRight;
-	const belowH = canvas.bottom - overlayBottom;
-	if (rightW <= 0 && belowH <= 0) return null;
-	// The wider strip wins: right of the overlay at the canvas's vertical centre, or below it at the horizontal centre.
-	return rightW >= belowH ? { dxPx: (overlayRight + canvas.right) / 2 - cx, dyPx: 0 } : { dxPx: 0, dyPx: cy - (overlayBottom + canvas.bottom) / 2 };
+	// The widest strip wins, read in this order so a tie keeps the framing a reader is used to: beside it before under
+	// it, and either before the strips behind it.
+	const strips = [
+		{ size: canvas.right - overlayRight, offset: { dxPx: (overlayRight + canvas.right) / 2 - cx, dyPx: 0 } },
+		{ size: canvas.bottom - overlayBottom, offset: { dxPx: 0, dyPx: cy - (overlayBottom + canvas.bottom) / 2 } },
+		{ size: overlayLeft - canvas.left, offset: { dxPx: (canvas.left + overlayLeft) / 2 - cx, dyPx: 0 } },
+		{ size: overlayTop - canvas.top, offset: { dxPx: 0, dyPx: cy - (canvas.top + overlayTop) / 2 } },
+	];
+	const widest = strips.reduce((best, strip) => (strip.size > best.size ? strip : best));
+	return widest.size > 0 ? widest.offset : null;
 }
 
 /** An explicit camera aim: the target→camera direction and the up axis the fit establishes; "keep" preserves both. */

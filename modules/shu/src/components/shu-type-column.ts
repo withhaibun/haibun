@@ -127,7 +127,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// the schema can find this type by it. It is not published on the selection axis, which names a record the store
 		// holds: a Class is a projection of the registry and no record, and naming one there asks every reader of that
 		// axis for a record of a type that does not exist.
-		this.setAttribute("data-subject", persistedAs);
+		this.statesCurrentType(persistedAs);
 		this.setState({ persistedAs, loading: true, error: undefined });
 		// An ask from here is about the type: its members. This column holds a type and no id, so `aType` is the
 		// only thing it can say, and no query-surface label is offered, since a schema view has none to give.

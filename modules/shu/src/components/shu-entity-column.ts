@@ -224,10 +224,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  to the persisted browser store when offline), and resolves the annotations anchored in it: one path, one shared
 	 *  copy and one live subscription per individual. `applyView` projects each resolved state onto the render fields. */
 	async open(id: string, label: string = defaultLabel(), selector?: TQuoteAnchor): Promise<void> {
-		// Surface the subject as an attribute so external code (e.g. the COLUMN_CLOSE
-		// listener in app.ts) can detect which entity is in this column without
-		// reaching through the protected `state` field.
-		this.setAttribute("data-subject", id);
+		this.statesCurrentRecord(id, label);
 		if (selector) this.revealPassage(selector);
 		this.setState({ individualId: id, persistedAs: label, error: undefined });
 		const accessLevel = appAccessLevel();

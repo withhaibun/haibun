@@ -20,7 +20,7 @@ import {
 	mergeQuadsIntoSnapshot,
 	pinSubjects,
 	currentSnapshot,
-	selectionFromContext,
+	recordNamedBy,
 	DEFAULT_PER_TYPE_LIMIT,
 	getGraphSnapshot,
 	setGraphStore,
@@ -193,18 +193,19 @@ describe("per-scope snapshots, independent data sources over one store", () => {
 	});
 });
 
-describe("selectionFromContext, only a context that ADDRESSES selection moves it", () => {
-	it("a subject pattern selects", () => {
-		expect(selectionFromContext({ patterns: [anIndividual("Issuer", "did:web:one")] })).toEqual({ action: "select", subject: "did:web:one", label: "Issuer" });
+describe("recordNamedBy, the record a context names", () => {
+	it("names the record a subject pattern carries", () => {
+		expect(recordNamedBy([anIndividual("Issuer", "did:web:one")])).toEqual({ id: "did:web:one", label: "Issuer" });
 	});
-	it("a view with nothing to say leaves the selection where it is", () => {
-		expect(selectionFromContext({ patterns: [] }), "a view with nothing to say leaves the selection alone; clearing has its own publisher").toEqual({ action: "none" });
+	it("names none where the context says nothing, so a reader of it leaves a selection another view made alone", () => {
+		expect(recordNamedBy([])).toBeNull();
+		expect(recordNamedBy(undefined)).toBeNull();
 	});
-	it("a query context (label/predicate/object, no subject) leaves the selection untouched", () => {
-		expect(selectionFromContext({ patterns: [aType("Body")] }), "a type says nothing about which record is selected").toEqual({ action: "none" });
-		expect(selectionFromContext({})).toEqual({ action: "none" });
+	it("names none for a type, which says nothing about which record is selected", () => {
+		expect(recordNamedBy([aType("Body")])).toBeNull();
 	});
 });
+
 
 describe("the graph a page caches, with no server to ask", () => {
 	// A page that carries its graph clusters it for itself: the sample, its totals and its `+N more` nodes are what the

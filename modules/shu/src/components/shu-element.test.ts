@@ -20,6 +20,7 @@ import { installTestMediaQueries } from "../test-setup.js";
 import { shuBaseStyles } from "./styles.js";
 import { flushPersistWrites, readElementPrefs, writeElementPrefs } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
+import { getViewContext, setSelectedSubject } from "../quads-snapshot.js";
 
 const S = z.object({ x: z.string().default("") });
 
@@ -349,5 +350,61 @@ describe("knowing whether the hosting column is collapsed", () => {
 		document.body.appendChild(loose);
 		await loose.updateComplete;
 		expect(loose.collapsed).toBe(false);
+	});
+});
+
+/** A view with a subject to state, which is every column and pane that shows one. */
+class SubjectProbe extends ShuElement<typeof S> {
+	summarizeForKihan() {
+		return null;
+	}
+	constructor() {
+		super(S, { x: "" });
+	}
+	statesRecord(id: string | null, label: string | null): void {
+		this.statesCurrentRecord(id, label);
+	}
+	statesType(persistedAs: string | null): void {
+		this.statesCurrentType(persistedAs);
+	}
+	render(): TemplateResult {
+		return html`<div></div>`;
+	}
+}
+customElements.define("shu-subject-probe", SubjectProbe);
+
+describe("what a view states it is currently about", () => {
+	// One rule for every surface: the record a view shows is the record every other view dims around, and the graph
+	// centres while it follows. Stated by each view where it learns it, rather than derived from a context publish that
+	// answers a different question.
+	beforeEach(() => {
+		setSelectedSubject(null, null);
+	});
+
+	it("states a record on the selection axis and on the attribute the strip reads", () => {
+		const el = new SubjectProbe();
+		document.body.appendChild(el);
+		el.statesRecord("did:web:one", "Issuer");
+		expect(el.getAttribute("data-subject"), "the attribute a strip reads to tell whether a column still shows the selection").toBe("did:web:one");
+		expect(getViewContext().selectedSubject).toBe("did:web:one");
+		expect(getViewContext().selectedLabel).toBe("Issuer");
+	});
+
+	it("states a type without selecting a record, since a type is no record", () => {
+		const el = new SubjectProbe();
+		document.body.appendChild(el);
+		setSelectedSubject("did:web:one", "Issuer");
+		el.statesType("Email");
+		expect(el.getAttribute("data-subject")).toBe("Email");
+		expect(getViewContext().selectedSubject, "a column about a type leaves the selected record where it is").toBe("did:web:one");
+	});
+
+	it("states none where the view is about no record, taking the attribute with it", () => {
+		const el = new SubjectProbe();
+		document.body.appendChild(el);
+		el.statesRecord("did:web:one", "Issuer");
+		el.statesRecord(null, null);
+		expect(el.hasAttribute("data-subject")).toBe(false);
+		expect(getViewContext().selectedSubject).toBeNull();
 	});
 });
