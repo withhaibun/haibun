@@ -14,7 +14,7 @@ import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import { startPointerDrag } from "./pointer-drag.js";
-import { SHU_EVENT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG } from "../consts.js";
+import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
@@ -413,7 +413,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const errors: string[] = [];
 		const slotted: Array<[string, Record<string, unknown>]> = [];
 		for (const [label, ui] of Object.entries(meta.ui)) {
-			if ((ui.slot === ACTION_BAR_CHAT_SLOT || ui.slot === PERMISSIONS_SLOT) && ui.js) slotted.push([label, ui]);
+			if ((ui.slot === ACTION_BAR_CHAT_SLOT || ui.slot === ACTION_BAR_ASK_SLOT || ui.slot === PERMISSIONS_SLOT) && ui.js) slotted.push([label, ui]);
 		}
 		this.reportActionsBar("debug", `loadUiExtensions: ${slotted.length} action-bar slot extensions found`, { count: slotted.length });
 		for (const [label, ui] of slotted) {
@@ -660,9 +660,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// "ask" with no ask-capable step falls back to search below.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
 		const inputLine = mode === "ask" ? this.askModeTemplate(hasAsk) : mode === "step" ? this.stepModeTemplate(hasAsk) : this.filterBarTemplate(hasAsk);
-		// The slot's extensions are part of the bar, not of a mode: in ask mode the chat element renders them beside its
-		// input; every other mode renders them here, so an extension (a notification among them) is present whichever
-		// mode the bar opened in, rendered only under step mode, the default search mode never showed them at all.
+		// The input line's own extensions (dictation among them) serve every mode, and the ask pane renders them where it
+		// owns that line; the bar renders them for every other mode. What is about the ask itself rides the ask's slot,
+		// which the pane alone renders: rendered in every mode, the context status stood under a search bar reporting a
+		// conversation the reader was not having.
 		const body = expanded ? html`${this._history}${mode === "ask" ? nothing : this.uiExtensionsTemplate()}${inputLine}` : nothing;
 		// The resize grip sits at the TOP edge of the open overlay (the bar grows up from the bottom, so the top edge is
 		// where it meets the content), drag it to resize. Only present when expanded; there is nothing to resize collapsed.
@@ -893,9 +894,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			</div>`;
 	}
 
-	/** Render `action-bar-chat` slot custom elements. In ask mode these are rendered inside
-	 *  <shu-kihan-chat>; step mode has no chat element, so the actions bar renders them directly
-	 *  here so the slot is present in both modes (the elements are defined by loadUiExtensions). */
+	/** Render the input line's `action-bar-chat` extensions. In ask mode the pane renders them beside its own input; in
+	 *  every other mode the bar owns that line and renders them here. */
 	private uiExtensionsTemplate(): TemplateResult {
 		return html`${unsafeHTML(
 			getActionBarChatExtensionTags()

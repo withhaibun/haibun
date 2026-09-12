@@ -18,11 +18,11 @@
 				"steps": 166
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 2.4,
+				"seconds": 2.3,
 				"steps": 157
 			}
 		},
 		"steps": 807,
-		"seconds": 6.5
+		"seconds": 6.4
 	}
 }

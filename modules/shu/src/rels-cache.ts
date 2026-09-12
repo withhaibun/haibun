@@ -3,7 +3,7 @@
  * Provides rels, edge ranges, and properties for all node types.
  */
 import { propertyVocabulary } from "./graph/ontology-projection.js";
-import { ACTION_BAR_CHAT_SLOT, isMarkerType } from "./consts.js";
+import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, isMarkerType } from "./consts.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 /**
@@ -272,10 +272,15 @@ export function getUiExtensionTags(slot: string): string[] {
 		.map((ui) => String(ui.component));
 }
 
-/** Custom-element tags for the actions-bar chat row. Rendered identically in ask and step modes, so both the actions
- *  bar and the kihan chat read it here. */
+/** Custom-element tags for the bar's input line, mounted in every mode: the bar renders them where it owns the line,
+ *  and the ask pane where the pane owns it. */
 export function getActionBarChatExtensionTags(): string[] {
 	return getUiExtensionTags(ACTION_BAR_CHAT_SLOT);
+}
+
+/** Custom-element tags for the ask's own row, mounted under ask mode alone. */
+export function getActionBarAskExtensionTags(): string[] {
+	return getUiExtensionTags(ACTION_BAR_ASK_SLOT);
 }
 
 /** Get the edge name → rel mapping from concern catalog. Cached; rebuilt on setConcernCatalog. */
