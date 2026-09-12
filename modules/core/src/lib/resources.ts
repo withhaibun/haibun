@@ -955,6 +955,26 @@ export type TBody = z.infer<typeof BodySchema>;
 type TBodyReader = { getIndividual(label: string, id: string): Promise<unknown> };
 
 /**
+ * Which reading of a record to use where it holds several.
+ *
+ * A record arrives as it was written and is kept that way, and a reading of it is extracted beside the original: an
+ * email is stored as html, as plain text, and as markdown taken from the html. One of those is the reading to show a
+ * reader or send a model, and it is the same one in both places: markdown carries the structure without the markup,
+ * plain text next, the markup itself last.
+ */
+export const BODY_PREFERENCE: readonly string[] = [MEDIA_TYPE.markdown, MEDIA_TYPE.plain, MEDIA_TYPE.html];
+
+/** The reading to use, by that preference; the first usable body where a record holds none of them. */
+export function pickPreferredBody<T extends { mediaType?: string; content?: string }>(bodies: readonly T[]): T | undefined {
+	const usable = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
+	for (const mediaType of BODY_PREFERENCE) {
+		const hit = usable.find((b) => b.mediaType === mediaType);
+		if (hit) return hit;
+	}
+	return usable[0];
+}
+
+/**
  * Read the text of an individual's body in a given media type: the intentional call for it. A record NAMES the bodies
  * it links (id + media type) but never carries their text, since a body is a whole record's content and may be very
  * large; so the matching body is read here, by asking for it. Undefined when the individual links no such body.
