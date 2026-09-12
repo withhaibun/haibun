@@ -223,16 +223,9 @@ export function extractBodyLiterals(vertex: Record<string, unknown>, label?: str
  * declarative: readers want markdown when present, plain text when not,
  * HTML last (it's bulky and often noisy after extraction).
  */
-export const BODY_PREFERENCE: readonly string[] = ["text/markdown", "text/plain", "text/html"];
-
-export function pickPreferredBody<T extends { mediaType?: string; content?: string }>(bodies: readonly T[]): T | undefined {
-	const usable = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
-	for (const mt of BODY_PREFERENCE) {
-		const hit = usable.find((b) => b.mediaType === mt);
-		if (hit) return hit;
-	}
-	return usable[0];
-}
+// Which reading of a record to use is one rule for every surface, declared in core beside the body it reads; re-exported
+// here because this module is where the page's formatting helpers are found.
+export { BODY_PREFERENCE, pickPreferredBody } from "@haibun/core/lib/resources.js";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

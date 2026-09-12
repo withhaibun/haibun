@@ -1487,6 +1487,19 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.markDirty();
 	}
 
+	/**
+	 * Re-assert the focus on the nodes now staged.
+	 *
+	 * Asked of the render loop for the moment the layout comes to rest, and applied outright as well: a loop that is
+	 * paused, or an engine frozen at rest, never reaches that moment, and the nodes a feed just staged would stay lit
+	 * with nothing dimmed around the selected one. Every caller that changes what is focused, or what is there to
+	 * focus, goes through here.
+	 */
+	private reassertFocus(): void {
+		this.requestFocusAtRest();
+		this.focusCtl.applyFocus();
+	}
+
 	/** One measured frame time: recorded for the run, kept in the window, and evaluated against the breath's limit.
 	 *  A signal is acted on here (the next beat holds or breathes) and recorded, so the run can observe the regulation
 	 *  and the time behind it. */
@@ -1880,7 +1893,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.profiler.set(nodes.length, () => this.renderer?.draw({ nodes, links }));
 		this.animateFreshLinks(freshLinks);
 		// Re-assert any active focus once the lib has (re)built the sprites for the new data.
-		if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
+		if (this.hoverSubject || this.selectedSubject) this.reassertFocus();
 		this.applyEmbedScope();
 	}
 
@@ -2310,7 +2323,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * selected: the user's reference point holds still through stream settles and reheats; everything else lays out
 	 * around it. Deselection releases the pin. */
 	setSelectedSubject(subject: string | null): void {
-		this.requestFocusAtRest(); // paused/idle case: the render loop re-applies at rest; the direct applyFocus below covers the frozen case
 		const previous = this.selectedSubject;
 		if (this.selectedSubject && this.selectedSubject !== subject) {
 			const prev = this.nodeMap.get(this.selectedSubject);
@@ -2328,14 +2340,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			n.fz = n.z;
 		}
 		if (this.config.follow && subject && subject !== previous) this.followActive(subject); // a NEW active node centres; re-asserting the same one leaves the camera where the reader put it
-		this.focusCtl.applyFocus();
+		this.reassertFocus();
 	}
 
 	/** A type hovered in the host's filter legend: dim every other type. Null clears the preview. */
 	setPreviewType(type: string | null): void {
 		this.previewType = type;
-		this.requestFocusAtRest();
-		this.focusCtl.applyFocus();
+		this.reassertFocus();
 	}
 
 	/** A mode/dimensionality change (flatten/dag/group): coalesce into one debounced ghost tween (see repaintLayout). */

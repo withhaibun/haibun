@@ -20,6 +20,8 @@ vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string,
 vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
 /** What the turn states about itself before it writes anything. */
 const stated: string[] = [];
+/** The context envelope each turn was sent with, so a case reads what the pane asked for. */
+const sent: Array<{ contextReadBy?: string }> = [];
 
 /** The session the pane remembers, and when the store answers the read of it. */
 const RESTORED = "0.1.2";
@@ -32,6 +34,8 @@ vi.mock("../hypermedia.js", () => ({
 	isServerUnreachable: () => false,
 	conduit: () => ({
 		follow: (req: { method: string }) => {
+			// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
+			if (req.method === "showKihans") return Promise.resolve({ vertices: [{ id: "local-router:a-model", displayName: "a model", options: { contextReadBy: "model" } }] });
 			if (req.method === "listChatSessions") return Promise.resolve({ sessions: [{ sessionSeqPath: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z" }] });
 			if (req.method === "loadChatSession")
 				return new Promise((resolve) => {
@@ -41,7 +45,8 @@ vi.mock("../hypermedia.js", () => ({
 		},
 		// A turn whose stream stays open: the server took the question and has written nothing back yet. Each status it
 		// states first is what the turn says about itself.
-		followStream: (_req: unknown, onChunk: (c: unknown) => void) => {
+		followStream: (req: { params?: { context?: string } }, onChunk: (c: unknown) => void) => {
+			sent.push(JSON.parse(String(req.params?.context ?? "{}")));
 			for (const status of stated) onChunk({ status });
 			return new Promise<void>(() => undefined);
 		},
@@ -69,6 +74,9 @@ async function paneHoldingATurn(): Promise<Driven> {
 
 const chatInput = (el: Driven) => el.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement;
 const messages = (el: Driven) => Array.from(el.shadowRoot?.querySelectorAll("shu-chat-message") ?? []).map((m) => (m as unknown as { message: TChatMessage }).message);
+/** The control that says who reads this conversation's context. */
+const reading = (el: Driven) => el.shadowRoot?.querySelector(".context-read") as HTMLSelectElement;
+
 const hidden = (el: Driven, selector: string) => (el.shadowRoot?.querySelector(selector) as HTMLElement | null)?.style.display === "none";
 
 describe("a question asked while the pane is restoring the session it left off in", () => {
@@ -90,6 +98,40 @@ describe("a question asked while the pane is restoring the session it left off i
 		await el.updateComplete;
 		expect(messages(el).map((m) => m.text), "the turn the reader asked for is still the conversation").toContain("what do these have in common");
 		expect(messages(el).map((m) => m.text), "and the persisted exchanges did not take its place").not.toContain("an earlier question");
+	});
+});
+
+describe("who reads the context, stated where the conversation is", () => {
+	it("stands at the model's default until a reader says otherwise, and the turn carries nothing about it", async () => {
+		stated.length = 0;
+		const el = await paneHoldingATurn();
+		expect(reading(el).value, "the default, which is what the model states").toBe("");
+		expect(reading(el).options[0].text, "and the control says so").toContain("model default");
+		expect(sent.at(-1)?.contextReadBy).toBeUndefined();
+	});
+
+	it("names what the model states, so leaving it alone is not leaving it unsaid", async () => {
+		stated.length = 0;
+		const el = await paneHoldingATurn();
+		await el.updateComplete;
+		expect(reading(el).options[0].text, "the default says what the chosen model sends").toBe("model default (sends tool cues)");
+	});
+
+	it("carries what a reader states, so the next turn is read the way they asked", async () => {
+		stated.length = 0;
+		document.body.innerHTML = "";
+		const el = new ShuKihanChat() as unknown as Driven;
+		document.body.appendChild(el);
+		await el.updateComplete;
+		const control = reading(el);
+		control.value = "model";
+		control.dispatchEvent(new Event("change"));
+		await el.updateComplete;
+
+		void el.handleChat("and now with the model reading it");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(sent.at(-1)?.contextReadBy).toBe("model");
+		expect(reading(el).value, "and the control holds what they said").toBe("model");
 	});
 });
 
