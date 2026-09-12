@@ -13,30 +13,25 @@ let onStartSeqPath: number[] | null = null;
 /** What the server answers the session read with. A deployment that answers without the list is the failed-read case. */
 let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed] });
 
-vi.mock("../rpc-registry.js", () => ({
-	getAvailableSteps: () => Promise.resolve(),
-	findStep: (n: string) => n,
-	requireStep: (n: string) => n,
-}));
+// Partial: the registry's own reads are answered here, and everything else it exports stays itself, so a module that
+// reaches for one of them is not left with a rejected import.
+vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...(await import("./chat-pane.test-fake.js")).rpcRegistry }));
 vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
 vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
-vi.mock("../hypermedia.js", () => ({
-	reads: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "read" }),
-	acts: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "act" }),
-	isOffline: () => false,
-	isServerUnreachable: () => false,
-	conduit: () => ({
-		follow: (req: { method: string }) => (req.method === "listChatSessions" ? Promise.resolve(sessionsAnswer()) : Promise.resolve({})),
+vi.mock("../hypermedia.js", async () => {
+	const { hypermedia } = await import("./chat-pane.test-fake.js");
+	return hypermedia(
+		(req) => (req.method === "listChatSessions" ? sessionsAnswer() : {}),
 		// A turn that streams text and completes. onStart is called only when the stream announces a seqPath.
-		followStream: (_req: unknown, onChunk: (c: unknown) => void, opts: { onStart?: (s: number[]) => void }) => {
+		(_req, onChunk, opts) => {
 			if (onStartSeqPath) opts.onStart?.(onStartSeqPath);
 			onChunk({ text: "an answer" });
 			// The turn is written server-side either way, so the session now exists.
 			listed.push({ sessionSeqPath: "0.1.2", label: "a session", generatedAtTime: new Date().toISOString() });
 			return Promise.resolve();
 		},
-	}),
-}));
+	);
+});
 
 // The selector must be a real combobox, so define that one element rather than the whole registry.
 const { ShuCombobox } = await import("./shu-combobox.js");

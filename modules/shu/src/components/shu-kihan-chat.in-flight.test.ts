@@ -10,16 +10,17 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
+import type { TDriven as Driven } from "./chat-pane.test-fake.js";
 
-vi.mock("../rpc-registry.js", () => ({
-	getAvailableSteps: () => Promise.resolve(),
-	findStep: (n: string) => n,
-	requireStep: (n: string) => n,
-}));
+// Partial: the registry's own reads are answered here, and everything else it exports stays itself, so a module that
+// reaches for one of them is not left with a rejected import.
+vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...(await import("./chat-pane.test-fake.js")).rpcRegistry }));
 vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
 vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
 /** What the turn states about itself before it writes anything. */
 const stated: string[] = [];
+/** What the stream fails with, where it does; unset leaves it open. */
+let streamFails: string | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
 const sent: Array<{ contextReadBy?: string }> = [];
 
@@ -27,38 +28,37 @@ const sent: Array<{ contextReadBy?: string }> = [];
 const RESTORED = "0.1.2";
 let answerSessionRead: (() => void) | undefined;
 
-vi.mock("../hypermedia.js", () => ({
-	reads: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "read" }),
-	acts: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "act" }),
-	isOffline: () => false,
-	isServerUnreachable: () => false,
-	conduit: () => ({
-		follow: (req: { method: string }) => {
+vi.mock("../hypermedia.js", async () => {
+	const { hypermedia } = await import("./chat-pane.test-fake.js");
+	return hypermedia(
+		(req) => {
 			// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
-			if (req.method === "showKihans") return Promise.resolve({ vertices: [{ id: "local-router:a-model", displayName: "a model", options: { contextReadBy: "model" } }] });
-			if (req.method === "listChatSessions") return Promise.resolve({ sessions: [{ sessionSeqPath: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z" }] });
+			if (req.method === "showKihans") return { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }] };
+			if (req.method === "listChatSessions") return { sessions: [{ sessionSeqPath: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z" }] };
+			// A read held open, answered when a case says the store got back to the pane.
 			if (req.method === "loadChatSession")
 				return new Promise((resolve) => {
 					answerSessionRead = () => resolve({ turns: [{ prompt: "an earlier question", response: "an earlier answer", seqPath: RESTORED }] });
 				});
-			return Promise.resolve({});
+			return {};
 		},
 		// A turn whose stream stays open: the server took the question and has written nothing back yet. Each status it
 		// states first is what the turn says about itself.
-		followStream: (req: { params?: { context?: string } }, onChunk: (c: unknown) => void) => {
+		(req, onChunk, opts) => {
 			sent.push(JSON.parse(String(req.params?.context ?? "{}")));
 			for (const status of stated) onChunk({ status });
-			return new Promise<void>(() => undefined);
+			if (streamFails) return Promise.reject(new Error(streamFails));
+			// A stream the caller aborts ends as one: the fetch it rides rejects, which is what the pane reads.
+			return new Promise<void>((_resolve, reject) => opts.signal?.addEventListener("abort", () => reject(new Error("the stream was aborted")), { once: true }));
 		},
-	}),
-}));
+	);
+});
 
 const { ShuCombobox } = await import("./shu-combobox.js");
 if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
 await import("./shu-chat-message.js");
 const { ShuKihanChat } = await import("./shu-kihan-chat.js");
 
-type Driven = HTMLElement & { updateComplete: Promise<unknown>; handleChat(prompt: string): Promise<void>; submitChat(): void };
 
 /** The pane with a turn running: the first question sent, its stream still open. */
 async function paneHoldingATurn(): Promise<Driven> {
@@ -98,6 +98,34 @@ describe("a question asked while the pane is restoring the session it left off i
 		await el.updateComplete;
 		expect(messages(el).map((m) => m.text), "the turn the reader asked for is still the conversation").toContain("what do these have in common");
 		expect(messages(el).map((m) => m.text), "and the persisted exchanges did not take its place").not.toContain("an earlier question");
+	});
+});
+
+describe("a turn that ends before it answered", () => {
+	it("says what went wrong, whatever ended it, and stops the spinner", async () => {
+		stated.length = 0;
+		streamFails = "the model did not answer: connection reset";
+		const el = await paneHoldingATurn();
+		await el.updateComplete;
+
+		const turn = messages(el).find((m) => m.role === "llm");
+		expect(turn?.error, "what went wrong is on the turn").toContain("connection reset");
+		expect(turn?.status).toBe("failed");
+		expect(turn?.spinnerVisible, "and nothing is left spinning").toBe(false);
+		streamFails = undefined;
+	});
+
+	it("names a reader's own stop as theirs, and still says what came back with it", async () => {
+		stated.length = 0;
+		const el = await paneHoldingATurn();
+		(el as unknown as { onStop(): void }).onStop();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await el.updateComplete;
+
+		const turn = messages(el).find((m) => m.role === "llm");
+		expect(turn?.error, "the reader's own stop is named as theirs").toContain("you stopped it");
+		expect(turn?.error, "with what ended the stream beside it").toContain("aborted");
+		expect(turn?.status).toBe("aborted");
 	});
 });
 

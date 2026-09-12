@@ -64,8 +64,14 @@ export const SHU_EVENT = {
 export const ANNOTATION_GLYPH = "✎";
 
 /** The actions bar's extension slot: a concern whose ui declares this slot (with a js asset) is mounted in the bar's
- *  input line. The bar owns the slot, so its name is declared here and consumers import it rather than restating it. */
+ *  input line, in every mode. For anything a reader uses to put something INTO that line, dictation among them, which
+ *  serves a step and a question alike. The bar owns the slot, so its name is declared here and consumers import it
+ *  rather than restating it. */
 export const ACTION_BAR_CHAT_SLOT = "action-bar-chat";
+
+/** The ask's own extension slot: mounted in the bar's input line under ask mode alone. For anything about the ask
+ *  itself, what a question would carry among them, which says nothing to a reader searching or running a step. */
+export const ACTION_BAR_ASK_SLOT = "action-bar-ask";
 
 /** The permissions area's extension slot: a concern whose ui declares this slot (with a js asset) is mounted inside
  *  the access popover, beside what this session may do. For anything a reader decides by authority rather than by

@@ -20,7 +20,7 @@ import { shuBaseStyles } from "./styles.js";
 
 import { reads, acts, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
-import { getActionBarChatExtensionTags } from "../rels-cache.js";
+import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
 import { getViewContext } from "../quads-snapshot.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
@@ -42,8 +42,8 @@ const TOOL_LIMIT_MAX = 99;
  * (after a collapse/expand or a full page reload) the chat re-hydrates from the graph via loadChatSession, surviving reloads, unlike a per-page DOM snapshot. */
 
 type TChatSession = { sessionSeqPath: string; label: string; generatedAtTime: string };
-/** A model as the registry holds it, with what it states about who reads its context. */
-type TKihanVertex = { id: string; displayName?: string; options?: { contextReadBy?: string } };
+/** A model as the registry holds it: what the endpoint reports it can do, and what a profile states about it. */
+type TKihanVertex = { id: string; displayName?: string; capabilities?: { tools?: boolean }; options?: { contextReadBy?: string } };
 /** What a turn is sent with: what it is about, what the page was showing, and how the reader wants it carried. */
 type TChatEnvelope = { patterns: TContextPattern[]; viewLd: unknown[]; maxToolCalls: number; contextReadBy?: string; sessionSeqPath?: string; inReplyTo?: string };
 type TSessionTurn = { prompt: string; response: string; seqPath: string };
@@ -122,6 +122,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private _fullText = "";
 	/** The turn holding the pane, so a submit refused while it runs says so on it. */
 	private _streamingId: string | null = null;
+	/** What stopped the turn, where something did. Empty for a turn that ended on its own or failed. */
+	private _stoppedBy = "";
 	private _abortController: AbortController | null = null;
 	private _sessionSeqPath: string | null = null;
 	private _lastReplySeqPath: string | null = null;
@@ -250,7 +252,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	/** Tear down an in-flight turn and any queued text flush when the pane is destroyed (e.g. collapsing the actions bar removes this element), so a dead stream never mutates reactive state or calls requestUpdate on a torn-down element. */
 	protected override onDisconnected(): void {
-		this._abortController?.abort();
+		this.stopTurn("the pane was closed");
 		if (this._flushRaf !== null) cancelAnimationFrame(this._flushRaf);
 	}
 
@@ -312,7 +314,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 *  a session asks for. Aborts any in-flight turn first, so a switch never leaves an orphaned stream patching a
 	 *  message that is no longer rendered. */
 	private async loadAndRenderSession(sessionSeqPath: string): Promise<void> {
-		this._abortController?.abort();
+		this.stopTurn("another session was opened");
 		this._sessionSeqPath = sessionSeqPath;
 		this.renderTurns(await this.readSession(sessionSeqPath));
 	}
@@ -370,7 +372,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	render(): TemplateResult {
 		const showModel = this._models.length > 0;
-		const uiExtensionTags = getActionBarChatExtensionTags();
+		// The input line's own extensions, and the ask's: this pane owns the line under ask mode, so it renders both.
+		const uiExtensionTags = [...getActionBarChatExtensionTags(), ...getActionBarAskExtensionTags()];
 		// With an external output target the transcript lives there (see #syncExternalOutput); render only the input line.
 		const transcript = this.#outputTarget
 			? ""
@@ -437,10 +440,17 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private onModelChange = (e: CustomEvent): void => {
 		this.setState({ model: e.detail?.value || "" });
 	};
-	/** The default named by what the model this pane is asking states, as the registry holds it, so a reader sees what
-	 *  leaving it alone does. A model that states nothing is named as the default alone. */
+	/**
+	 * The default named by what the chosen model sends, so a reader sees what leaving it alone does.
+	 *
+	 * A profile states it outright. Otherwise it follows what the endpoint reports the model can do: a model that takes
+	 * tool calls reads the records itself, and one that does not is sent them. A model the registry says nothing about is
+	 * named as the default alone.
+	 */
 	private modelDefaultLabel(): string {
-		const sends = SENDS[this._models.find((m) => m.id === this.state.model)?.options?.contextReadBy ?? ""];
+		const chosen = this._models.find((m) => m.id === this.state.model);
+		const stated = chosen?.options?.contextReadBy ?? (chosen?.capabilities?.tools === undefined ? "" : chosen.capabilities.tools ? "model" : "run");
+		const sends = SENDS[stated];
 		return sends ? `model default (sends ${sends})` : "model default";
 	}
 
@@ -483,8 +493,14 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		chatInput.style.height = "auto";
 		void this.handleChat(value);
 	};
-	private onStop = (): void => {
+	/** Stop this turn, saying what stopped it: a turn that ends says why, and only a reader's own Stop is a reader's. */
+	private stopTurn(why: string): void {
+		this._stoppedBy = why;
 		this._abortController?.abort();
+	}
+
+	private onStop = (): void => {
+		this.stopTurn("you stopped it");
 	};
 	private nextId(): string {
 		return `m${++this._msgCounter}`;
@@ -525,6 +541,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		await this.loadModels();
 
 		this._fullText = "";
+		this._stoppedBy = ""; // this turn has not been stopped; what stopped an earlier one is not this turn's answer
 		this._streaming = true;
 		this._scrollPending = true;
 		this._abortController = new AbortController();
@@ -585,18 +602,26 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			// used to be inside the branch above, and a turn that announced none left the selector missing.
 			void this.refreshSessionList();
 		} catch (err) {
-			if (signal.aborted) this.patchMessage(aiId, { spinnerStatus: "Stopped", spinnerVisible: true, spinnerSpinning: false, status: "aborted" });
-			else {
-				this.patchMessage(aiId, { error: errorDetail(err), spinnerVisible: false, status: "failed" });
-				// A turn that fails in the browser was invisible to the run: the pane showed the error, the log showed a
-				// missing element. Report it so a failed turn says why wherever the run is read.
-				reportToRun("error", "shu-kihan-chat", `chat turn failed: ${errorDetail(err)}`);
-			}
+			// What went wrong is shown whatever stopped the turn: a stop the reader made is named as theirs, and the
+			// error is shown beside it either way. Shown as "Stopped" alone, a turn that broke read as a turn a reader
+			// had ended, and what broke it was known only to the server's log.
+			const stopped = this._stoppedBy;
+			this.flushTextNow(aiId, accumulated); // what arrived before it ended stays on screen
+			this.patchMessage(aiId, {
+				error: stopped ? `${stopped}: ${errorDetail(err)}` : errorDetail(err),
+				spinnerVisible: false,
+				spinnerSpinning: false,
+				status: stopped ? "aborted" : "failed",
+			});
+			// A turn that fails in the browser was invisible to the run: the pane showed the error, the log showed a
+			// missing element. Report it so a failed turn says why wherever the run is read.
+			reportToRun("error", "shu-kihan-chat", `chat turn ${stopped ? `stopped, ${stopped}` : "failed"}: ${errorDetail(err)}`);
 		} finally {
 			const aborted = signal.aborted;
 			this._streaming = false;
 			this._streamingId = null;
-			if (!aborted) this.patchMessage(aiId, { spinnerVisible: false, spinnerSpinning: false });
+			this._stoppedBy = "";
+			this.patchMessage(aiId, { spinnerVisible: false, spinnerSpinning: false });
 			if (this._fullText && !aborted) {
 				this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
 					const maybeSpeak = (el as { speak?: unknown }).speak;
