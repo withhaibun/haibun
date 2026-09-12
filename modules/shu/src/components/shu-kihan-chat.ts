@@ -22,7 +22,7 @@ import { reads, acts, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
-import { getViewContext } from "../quads-snapshot.js";
+import { getViewContext, recordNamedBy } from "../quads-snapshot.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -553,6 +553,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "running", spinnerStatus: "Sending...", spinnerVisible: true, spinnerSpinning: true }),
 		);
 
+		const envelope = this.activeChatContext();
+		// A turn is about the records its context names, and that is the record every view dims around while the
+		// conversation is about it, so a graph set to follow follows the conversation. A turn about no record in
+		// particular states nothing, leaving whatever a reader selected elsewhere where it is.
+		const about = recordNamedBy(envelope.patterns);
+		if (about) this.statesCurrentRecord(about.id, about.label);
+
 		const signal = this._abortController.signal;
 		let turnSeqPath: string | null = null;
 		let accumulated = "";
@@ -563,7 +570,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			await conduit().followStream(
 				acts(requireStep("chatWithContext"), {
 					prompt,
-					context: JSON.stringify(this.activeChatContext()),
+					context: JSON.stringify(envelope),
 					accessLevel: getViewContext().contextAccessLevel,
 					target: this.state.model,
 				}),

@@ -10,6 +10,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
+import { anIndividual, aType } from "../schemas.js";
 import type { TDriven as Driven } from "./chat-pane.test-fake.js";
 
 // Partial: the registry's own reads are answered here, and everything else it exports stays itself, so a module that
@@ -193,5 +194,37 @@ describe("a question asked while a turn is running", () => {
 		const el = await paneHoldingATurn();
 		expect(hidden(el, ".send-btn")).toBe(true);
 		expect(hidden(el, ".stop-btn")).toBe(false);
+	});
+});
+
+describe("what a turn states it is about", () => {
+	// The records a turn carries are the records the conversation is about, and that is the selection every view dims
+	// around, so a graph set to follow follows the conversation rather than sitting on whatever was opened last.
+	it("states the record its context names, so a following graph centres what is being discussed", async () => {
+		document.body.innerHTML = "";
+		const { setContextPatterns, setSelectedSubject, getViewContext } = await import("../quads-snapshot.js");
+		setSelectedSubject(null, null);
+		setContextPatterns([anIndividual("Email", "read-me@bakery.test")], "private");
+		const el = new ShuKihanChat() as unknown as Driven;
+		document.body.appendChild(el);
+		await el.updateComplete;
+		void el.handleChat("what does this say");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(getViewContext().selectedSubject).toBe("read-me@bakery.test");
+		expect(getViewContext().selectedLabel).toBe("Email");
+		expect(el.getAttribute("data-subject")).toBe("read-me@bakery.test");
+	});
+
+	it("states nothing where the turn is about a type, leaving a record another view selected where it is", async () => {
+		document.body.innerHTML = "";
+		const { setContextPatterns, setSelectedSubject, getViewContext } = await import("../quads-snapshot.js");
+		setSelectedSubject("did:web:one", "Issuer");
+		setContextPatterns([aType("Email")], "private");
+		const el = new ShuKihanChat() as unknown as Driven;
+		document.body.appendChild(el);
+		await el.updateComplete;
+		void el.handleChat("what do these say");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(getViewContext().selectedSubject).toBe("did:web:one");
 	});
 });

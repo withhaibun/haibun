@@ -6,7 +6,7 @@
  * keeping the nearest-z node in front of the lens. This pins the distance the fit lands on.
  */
 import { describe, it, expect } from "vitest";
-import { PolymorphicCamera, clearStripOffset, type CameraDeps } from "./polymorphic-camera.js";
+import { PolymorphicCamera, clearStripOffset, coveredTogether, type CameraDeps } from "./polymorphic-camera.js";
 import { FRAME, REFRAME, type ReframeMode } from "../polymorphic/polymorphic-views.js";
 
 // Record the z the fit backs the camera to; the rest of the deps are inert stubs (only camera/controls/nodePositions
@@ -295,5 +295,39 @@ describe("PolymorphicCamera.centerOn with an aim offset: the followed node lands
 		expect(target.y).toBeCloseTo(0, 6);
 		expect(position.x, "the camera slides with the target, so direction and distance hold").toBeCloseTo(-100 * wpp, 6);
 		expect(position.z).toBeCloseTo(100, 6);
+	});
+});
+
+describe("coveredTogether, what several overlays cover at once", () => {
+	const canvas = { left: 0, top: 0, right: 1000, bottom: 600 };
+	const guide = { left: 20, top: 20, right: 700, bottom: 500 };
+	const bar = { left: 0, top: 400, right: 1000, bottom: 600 };
+
+	it("boxes every overlay that reaches the canvas, so an aim clears all of them rather than one", () => {
+		expect(coveredTogether(canvas, [guide, bar])).toEqual({ left: 0, top: 20, right: 1000, bottom: 600 });
+	});
+
+	it("ignores an overlay that never reaches the canvas", () => {
+		const elsewhere = { left: 1200, top: 0, right: 1400, bottom: 600 };
+		expect(coveredTogether(canvas, [guide, elsewhere])).toEqual(guide);
+		expect(coveredTogether(canvas, [elsewhere]), "nothing on the canvas is covered by nothing").toBeNull();
+	});
+
+	it("covers nothing when nothing is open, which leaves a framing aiming at the centre", () => {
+		expect(coveredTogether(canvas, [])).toBeNull();
+	});
+});
+
+describe("clearStripOffset, an overlay along the bottom of the canvas", () => {
+	const canvas = { left: 0, top: 0, right: 1000, bottom: 600 };
+
+	it("aims above a bar opened past the centre, the only place left to show anything", () => {
+		// The actions bar expanded over half the height: nothing is right of it or below it, and a node left centred
+		// would be under it.
+		expect(clearStripOffset(canvas, { left: 0, top: 200, right: 1000, bottom: 600 })).toEqual({ dxPx: 0, dyPx: 300 - (0 + 200) / 2 });
+	});
+
+	it("leaves the aim alone while the bar is short of the centre, since a centred node is in the clear", () => {
+		expect(clearStripOffset(canvas, { left: 0, top: 400, right: 1000, bottom: 600 })).toBeNull();
 	});
 });

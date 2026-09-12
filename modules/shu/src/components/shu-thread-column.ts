@@ -113,6 +113,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	/** Render items directly without RPC fetch. Items are JSON-LD nodes (`@id`/`@type`), optionally with `_edges`. */
 	openItems(items: ThreadVertex[], label = "Result"): void {
 		this.thread = items;
+		this.statesCurrentRecord(null, null); // a thread of results is about no one record
 		this.setState({ label, individualId: "", loading: false });
 	}
 
@@ -124,6 +125,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	async open(label: string, id: string, depth?: number): Promise<void> {
 		if (depth !== undefined) this.state = { ...this.state, depth };
+		this.statesCurrentRecord(id, label);
 		this.setState({ label, individualId: id, loading: true, error: undefined });
 		const res = await callStep<{ items: ThreadVertex[]; contextRoot: string }>("getRelated", { label, id, depth: this.state.depth }, `thread-column: open ${label}:${id}`);
 		if (!res.ok) {

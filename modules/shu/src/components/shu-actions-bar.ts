@@ -14,7 +14,7 @@ import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import { startPointerDrag } from "./pointer-drag.js";
-import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG } from "../consts.js";
+import { SHU_EVENT, SHU_ATTR, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
@@ -595,9 +595,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return this.template(hasAsk);
 	}
 
-	/** Set the host height from the current open/proportion state, shared by render() and the end of a resize drag. */
+	/** Set the host height from the current open/proportion state, shared by render() and the end of a resize drag. An
+	 *  open bar overlays the views rather than resizing them, so it says so: what it covers is what a framing aims clear
+	 *  of, and closing it returns that framing to the whole view. */
 	private applyHeight(): void {
 		this.style.height = this.state.askExpanded ? `${(this.expandedProportion() * 100).toFixed(2)}%` : "";
+		this.toggleAttribute(SHU_ATTR.DATA_COVERS_VIEWS, this.state.askExpanded);
 	}
 
 	/** The remembered expanded height as a fraction of the container (drag-set, cookie-persisted), or the default.

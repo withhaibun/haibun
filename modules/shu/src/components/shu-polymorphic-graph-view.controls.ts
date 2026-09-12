@@ -19,6 +19,7 @@ import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import WebPlaywright from "@haibun/web-playwright";
 import { saveImageArtifact } from "@haibun/web-playwright/artifact.js";
 import type { Page } from "playwright";
@@ -307,6 +308,23 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	 * chip's body (12 for a hover/click); the drag uses 0, pickNodeAt raycasts the BASE-scale sprite from its anchor. */
 	/** Where the view draws a node, read from the view's own projection: the same one the pick inverts, so an aim here
 	 *  lands on that node. `nudgeX` offsets the aim along x to clear a neighbour's chip. */
+	/** Whether a node projects inside the central half of the canvas, which is what following promises a reader: the
+	 *  one measurement, whether the reader reached the node on the canvas or opened it in a column. */
+	private async centresNode(page: Page, id: string): Promise<TActionResult> {
+		await this.settle(page);
+		await this.settleNodeProjection(page, id); // the follow re-frame animates after the engine freezes
+		const at = await this.projectNode(page, id, 0); // client (page) coordinates: the same space the pointer uses
+		const rect = await this.rectOf(page, SHU_TEST_IDS.POLYMORPHIC_VIEW.GRAPH_CONTAINER);
+		if (!rect) return actionNotOK("no graph container to measure against");
+		const dx = Math.abs(at.x - (rect.x + rect.w / 2));
+		const dy = Math.abs(at.y - (rect.y + rect.h / 2));
+		if (dx > rect.w / 4 || dy > rect.h / 4) {
+			const s = await this.snapshot(page);
+			return actionNotOK(`active node "${id}" projects (${dx.toFixed(0)},${dy.toFixed(0)}) from the canvas centre of ${rect.w}×${rect.h}; camera=${JSON.stringify(s.camera)}`);
+		}
+		return actionOK();
+	}
+
 	private async projectNode(page: Page, id: string, nudgeX = 12): Promise<{ x: number; y: number }> {
 		const at = await page.evaluate(
 			(nid) =>
@@ -512,18 +530,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				const id = this.opened.get(name) ?? (await this.resolveNodeId(page, name));
 				if (!id) return actionNotOK(`no graph node "${name}"`);
-				await this.settle(page);
-				await this.settleNodeProjection(page, id); // the follow re-frame animates after the engine freezes
-				const at = await this.projectNode(page, id, 0); // client (page) coordinates: the same space the pointer uses
-				const rect = await this.rectOf(page, SHU_TEST_IDS.POLYMORPHIC_VIEW.GRAPH_CONTAINER);
-				if (!rect) return actionNotOK("no graph container to measure against");
-				const dx = Math.abs(at.x - (rect.x + rect.w / 2));
-				const dy = Math.abs(at.y - (rect.y + rect.h / 2));
-				if (dx > rect.w / 4 || dy > rect.h / 4) {
-					const s = await this.snapshot(page);
-					return actionNotOK(`active node "${id}" projects (${dx.toFixed(0)},${dy.toFixed(0)}) from the canvas centre of ${rect.w}×${rect.h}; camera=${JSON.stringify(s.camera)}`);
-				}
-				return actionOK();
+				return await this.centresNode(page, id);
 			},
 		},
 		clickGuideEntry: {
@@ -544,10 +551,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		graphActiveInClear: {
-			// Following with the guide on screen: the chosen node lands ON the canvas and OUT from under the guide: the
-			// clear strip beside it. Centred under a mostly-covering overlay, or pushed past the edge by a column-open
-			// resize, the reader was shown nothing.
-			gwta: "graph shows the active node {name} clear of the guide",
+			// Following with something over the view: the chosen node lands ON the canvas and OUT from under whatever
+			// covers it, the reading guide and any panel that declares it covers the views. Centred under one of them, or
+			// pushed past the edge by a column-open resize, the reader was shown nothing.
+			gwta: "graph shows the active node {name} clear of what covers it",
 			action: async ({ name }: { name: string }) => {
 				const page = await this.page();
 				const id = this.opened.get(name) ?? (await this.resolveNodeId(page, name));
@@ -556,12 +563,23 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.settleNodeProjection(page, id);
 				const at = await this.projectNode(page, id, 0);
 				const canvas = await this.rectOf(page, SHU_TEST_IDS.POLYMORPHIC_VIEW.GRAPH_CONTAINER);
-				const guide = await this.rectOf(page, SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y);
 				if (!canvas) return actionNotOK("no graph container to measure against");
 				if (at.x < canvas.x || at.x > canvas.x + canvas.w || at.y < canvas.y || at.y > canvas.y + canvas.h)
 					return actionNotOK(`active node "${id}" projects (${at.x.toFixed(0)},${at.y.toFixed(0)}) off the ${canvas.w}×${canvas.h} canvas at (${canvas.x},${canvas.y})`);
-				if (guide && at.x >= guide.x && at.x <= guide.x + guide.w && at.y >= guide.y && at.y <= guide.y + guide.h)
-					return actionNotOK(`active node "${id}" sits under the guide (${guide.w.toFixed(0)}×${guide.h.toFixed(0)} at ${guide.x.toFixed(0)},${guide.y.toFixed(0)})`);
+				// What covers the view, read the way the scene reads it: the guide of this graph, and every panel saying so.
+				const covers = await page.evaluate(
+					(guideId) => {
+						const guide = document.querySelector<HTMLElement>(`[data-testid="${guideId}"]`);
+						const showing = guide && (guide.hasAttribute("data-shown") || guide.matches(":focus-within")) ? [guide] : [];
+						return [...showing, ...Array.from(document.querySelectorAll<HTMLElement>("[data-covers-views]"))].map((el) => {
+							const r = el.getBoundingClientRect();
+							return { what: el.tagName.toLowerCase(), x: r.x, y: r.y, w: r.width, h: r.height };
+						});
+					},
+					SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y,
+				);
+				const under = covers.find((c) => at.x >= c.x && at.x <= c.x + c.w && at.y >= c.y && at.y <= c.y + c.h);
+				if (under) return actionNotOK(`active node "${id}" sits under the ${under.what} (${under.w.toFixed(0)}×${under.h.toFixed(0)} at ${under.x.toFixed(0)},${under.y.toFixed(0)})`);
 				return actionOK();
 			},
 		},

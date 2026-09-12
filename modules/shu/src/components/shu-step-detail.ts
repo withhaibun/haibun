@@ -86,7 +86,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		args: () => [formatSeqPath(this.state.seqPath), readingExecution()] as const,
 		task: async ([path, execution]): Promise<TStepData> => {
 			const id = stepRecordId(parseSeqPath(path) ?? [], execution);
-			if (id === undefined) return { variablesSet: [] };
+			if (id === undefined) return { variablesSet: [] }; // which execution is being read is not known yet, so this view is about no record it can name
+			this.statesCurrentRecord(id, SEQ_PATH_LABEL);
 			const [record, quadsData] = await Promise.all([
 				// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
 				readIndividual(SEQ_PATH_LABEL, id, appAccessLevel()),

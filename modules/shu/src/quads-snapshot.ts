@@ -148,13 +148,12 @@ export function setSelectedSubject(subject: string | null, label: string | null)
 	notify(s);
 }
 
-/** What a CONTEXT_CHANGE means for the selection axis. A context publish addresses selection only when it names a
- *  record, and selects it by the pair the pattern carries. A context about a type says nothing about which record is
- *  selected, and neither does a view with nothing to say: the graph view publishing its query at boot must leave the
- *  selection a just-opened column published. Clearing has its own publisher on the selection axis itself. */
-export function selectionFromContext(detail: { patterns?: TContextPattern[] }): { action: "select"; subject: string; label: string | null } | { action: "none" } {
-	const first = detail.patterns?.[0];
-	return first && first.kind === DENOTES.individual ? { action: "select", subject: first.id, label: first.persistedAs } : { action: "none" };
+/** The record a set of context patterns names, where they name one. A pattern about a type names no record, and
+ *  neither does an empty context, so a surface reading this leaves a selection another surface made alone rather than
+ *  clearing it. Read by every view that is about whatever its context names, so they all read it the same way. */
+export function recordNamedBy(patterns: TContextPattern[] | undefined): { id: string; label: string | null } | null {
+	const first = patterns?.[0];
+	return first && first.kind === DENOTES.individual ? { id: first.id, label: first.persistedAs } : null;
 }
 
 /**

@@ -17,7 +17,7 @@ import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
-import { setActiveViewId, setSelectedSubject, setContextPatterns, getViewContext, selectionFromContext } from "./quads-snapshot.js";
+import { setActiveViewId, setSelectedSubject, setContextPatterns, getViewContext } from "./quads-snapshot.js";
 import { activePane, timeCursor } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
@@ -300,10 +300,6 @@ const main = async (): Promise<void> => {
 			if (actionsBar?.setContext && detail.patterns) {
 				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
 			}
-			// The selection axis moves only when the context addresses it (see selectionFromContext): a query-context
-			// publish never clears a selection another column just made.
-			const sel = selectionFromContext(detail);
-			if (sel.action === "select") setSelectedSubject(sel.subject, sel.label);
 		}) as EventListener,
 		{ signal },
 	);
