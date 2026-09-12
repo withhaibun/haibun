@@ -612,6 +612,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// Hover is honored only while the pointer is present.
 	private pointerOverCanvas = false;
 	private selectedSubject: string | null = null; // sticky: the current column-view node (via the shared selection system)
+	/** The node following last aimed at, so a subject that arrives after it was chosen is centred once. */
+	private aimedAt: string | null = null;
 	private hoverSubject: string | null = null; // transient: the hovered node
 	private previewType: string | null = null; // a type hovered in the filter legend: dim every other type
 	// Ontology (T-Box) mode: the view shows the SCHEMA that drives it: the Class + Property hierarchy from
@@ -1342,7 +1344,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private keepFollowedInView(): void {
 		const id = this.selectedSubject;
 		if (!this.config.follow || !id || !this.nodeMap.has(id)) return;
-		if (!this.inClearView(id)) this.followActive(id);
+		// A subject chosen before the graph held it, such as a question the conversation has just written, is centred
+		// when it arrives, as a present one is centred when it is chosen; after that it is only kept in view.
+		if (this.aimedAt !== id || !this.inClearView(id)) this.followActive(id);
 	}
 
 	/** Whether a node draws inside the canvas and outside everything covering it. With no projection yet there is nothing
@@ -2476,7 +2480,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  "centre" is the clear strip beside it, centring under the guide showed the reader nothing. */
 	private followActive(nodeId: string): void {
 		const n = this.nodeMap.get(nodeId);
-		if (n) this.camera.centerOn(n, this.coverClearOffset() ?? undefined);
+		if (!n) return;
+		this.aimedAt = nodeId;
+		this.camera.centerOn(n, this.coverClearOffset() ?? undefined);
 	}
 
 	/** What covers the canvas right now, as the aim offset a framing applies: the reading guide of this scene, and every
