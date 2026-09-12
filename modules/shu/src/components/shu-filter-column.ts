@@ -11,7 +11,7 @@ import { ref, createRef } from "lit/directives/ref.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
-import { FilterColumnSchema } from "../schemas.js";
+import { FilterColumnSchema, aType, type TContextPattern } from "../schemas.js";
 import { queryGraph, incomingEdges } from "../quads-snapshot.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { appAccessLevel, defaultLabel } from "../util.js";
@@ -155,6 +155,11 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			table.setSource(this.#source);
 			this.#installedSource = this.#source;
 		}
+	}
+
+	/** A filtered list shows records of one type, so an ask or a graph from here is about that type. */
+	override paneSubject(): TContextPattern[] | null {
+		return this.state.persistedAs ? [aType(this.state.persistedAs)] : null;
 	}
 
 	render(): TemplateResult {

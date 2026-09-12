@@ -1,5 +1,5 @@
-import { defaultLabel } from "./util.js";
-import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR } from "./consts.js";
+import { appAccessLevel, defaultLabel } from "./util.js";
+import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
 import { getHash, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point, uses shu-column-strip + shu-column-pane layout.
@@ -17,7 +17,9 @@ import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
-import { setActiveViewId, setSelectedSubject, setContextPatterns, getViewContext } from "./quads-snapshot.js";
+import { setActiveViewId, setContextPatterns } from "./quads-snapshot.js";
+import { dispatchSubjectEvent } from "./current-subject.js";
+import type { TContextPattern } from "./schemas.js";
 import { activePane, timeCursor } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
@@ -290,7 +292,19 @@ const main = async (): Promise<void> => {
 
 	// Column widths persist via the pane's own ShuElement.persistFields (keyed by data-column-key): no listener here.
 
-	// Context change → forward to actions bar + publish selected subject onto the shared view-context store.
+	/** The pane the reader is on, as the strip holds it. */
+	const activePaneElement = (): HTMLElement | undefined => (getStrip()?.panes ?? []).find((p) => (p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE)) === activePane.get());
+	const paneSubjectOf = (pane: Element | undefined | null): TContextPattern[] | null => (pane?.firstElementChild as { paneSubject?(): TContextPattern[] | null } | null)?.paneSubject?.() ?? null;
+	/** Where the reader is, from the pane they are on. Raised as `openInPane` when they move to a pane that shows a
+	 *  subject, and as `paneClosed`, carrying what the pane now shows, when the columns change under them. A pane about
+	 *  nothing moves the reader nowhere: activating a log beside a conversation is not leaving the conversation. */
+	const raiseActivePaneSubject = (type: "openInPane" | "paneClosed"): void => {
+		const patterns = paneSubjectOf(activePaneElement());
+		if (type === "openInPane" && patterns === null) return;
+		dispatchSubjectEvent({ type, pane: { patterns: patterns ?? [], accessLevel: appAccessLevel() } });
+	};
+
+	// Context change → forward to actions bar, and move the reader where the active pane states what it shows.
 	appRoot.addEventListener(
 		SHU_EVENT.CONTEXT_CHANGE,
 		((e: CustomEvent) => {
@@ -300,21 +314,10 @@ const main = async (): Promise<void> => {
 			if (actionsBar?.setContext && detail.patterns) {
 				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
 			}
-		}) as EventListener,
-		{ signal },
-	);
-
-	// A selection only holds while some un-minimized column shows it. Whenever the column set changes
-	// (close, Miller-prune, minimize, expand), a selection whose column is gone or minimized is cleared so every
-	// view undims, otherwise viewers stay focus-locked on a subject with no live column. Views surface their
-	// subject via `data-subject`, so the contract is the attribute, not the protected `state` field.
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMNS_CHANGED,
-		(() => {
-			const ctx = getViewContext();
-			if (!ctx.selectedSubject) return;
-			const live = getStrip()?.panes.some((p) => !p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) && p.firstElementChild?.getAttribute("data-subject") === ctx.selectedSubject);
-			if (!live) setSelectedSubject(null, null);
+			// A view stating what it shows moves the reader to it only where it is the active pane: the query view
+			// publishing at boot, or a column that is not the one the reader is on, changes nothing about where they are.
+			const statedBy = (e.target as Element | null)?.closest?.(SHU_TAG.COLUMN_PANE) ?? null;
+			if (detail.patterns && statedBy && statedBy === activePaneElement()) dispatchSubjectEvent({ type: "openInPane", pane: { patterns: detail.patterns, accessLevel: detail.accessLevel || appAccessLevel() } });
 		}) as EventListener,
 		{ signal },
 	);
@@ -420,6 +423,7 @@ const main = async (): Promise<void> => {
 		const index = panes.findIndex((p) => (p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE)) === activePane.get());
 		getActionsBar()?.setActiveView?.(index);
 		setActiveViewId(index >= 0 ? (panes[index]?.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? null) : null);
+		raiseActivePaneSubject("openInPane");
 	};
 	signal.addEventListener("abort", activePane.subscribe(onActivePaneChange));
 
@@ -430,6 +434,7 @@ const main = async (): Promise<void> => {
 		((e: CustomEvent) => {
 			const columns: string[] = e.detail?.columns || [];
 			getActionsBar()?.setColumns?.(columns);
+			raiseActivePaneSubject("paneClosed");
 		}) as EventListener,
 		{ signal },
 	);

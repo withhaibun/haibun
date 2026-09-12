@@ -11,7 +11,8 @@ import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { getRels } from "../rels-cache.js";
-import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, subscribeViewContext, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { SubjectController } from "../controllers/index.js";
 import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";
@@ -139,6 +140,13 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	protected onGraphData(): void {
 		this.pushSceneModel();
 	}
+	/** What the reader is on, as the machine decides it: the scene highlights it, and its neighborhood is fetched where
+	 *  the graph does not hold it yet. */
+	#subject = new SubjectController(this, (record) => {
+		this.onGraphSelection(record?.id ?? null, record?.label ?? null);
+		if (record) void this.fetchIfMissing(record.id, record.label);
+	});
+
 	/** A selection (from any view): the scene highlights it; the base also fetches its neighborhood (below). */
 	protected onGraphSelection(subject: string | null, _label: string | null): void {
 		this.scene?.setSelectedSubject(subject);
@@ -241,17 +249,6 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 				// same commit a visibility change makes, at the scope and limit the view is already reading at.
 				onReconnect: () => this.applyHiddenChange({}),
 			}),
-		);
-		this.autoTeardown(
-			subscribeViewContext(
-				{
-					onSelectionChange: (subject, label) => {
-						this.onGraphSelection(subject, label);
-						if (subject && label) void this.fetchIfMissing(subject, label);
-					},
-				},
-				this.snapshotScope,
-			),
 		);
 	}
 

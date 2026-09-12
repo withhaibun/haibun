@@ -19,3 +19,4 @@
 export { QueryController } from "./query-controller.js";
 export { EntityController } from "./entity-controller.js";
 export { AuthorityController, type TAuthority, type TPrincipalRow } from "./authority-controller.js";
+export { SubjectController } from "./subject-controller.js";

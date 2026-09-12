@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
-import { anIndividual, aType } from "../schemas.js";
+import { anIndividual } from "../schemas.js";
 import type { TDriven as Driven } from "./chat-pane.test-fake.js";
 
 // Partial: the registry's own reads are answered here, and everything else it exports stays itself, so a module that
@@ -24,6 +24,8 @@ const stated: string[] = [];
 let streamFails: string | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
 const sent: Array<{ contextReadBy?: string }> = [];
+/** The comments the turn records, named on the stream as the server names them. */
+const recorded: string[] = [];
 
 /** The session the pane remembers, and when the store answers the read of it. */
 const RESTORED = "0.1.2";
@@ -46,7 +48,9 @@ vi.mock("../hypermedia.js", async () => {
 		// A turn whose stream stays open: the server took the question and has written nothing back yet. Each status it
 		// states first is what the turn says about itself.
 		(req, onChunk, opts) => {
+			opts.onStart?.([0, 1, 2]);
 			sent.push(JSON.parse(String(req.params?.context ?? "{}")));
+			for (const id of recorded) onChunk({ recorded: { persistedAs: "Comment", id } });
 			for (const status of stated) onChunk({ status });
 			if (streamFails) return Promise.reject(new Error(streamFails));
 			// A stream the caller aborts ends as one: the fetch it rides rejects, which is what the pane reads.
@@ -197,34 +201,38 @@ describe("a question asked while a turn is running", () => {
 	});
 });
 
-describe("what a turn states it is about", () => {
-	// The records a turn carries are the records the conversation is about, and that is the selection every view dims
-	// around, so a graph set to follow follows the conversation rather than sitting on whatever was opened last.
-	it("states the record its context names, so a following graph centres what is being discussed", async () => {
+describe("what a turn tells the page about the reader", () => {
+	// Sending enters the conversation: the reader is on what the turn is about until its first comment is recorded, and
+	// on each comment as the turn records it. The page's one machine holds that; the pane raises the events.
+	it("enters the conversation on what the pane showed, then on each comment the turn records", async () => {
 		document.body.innerHTML = "";
-		const { setContextPatterns, setSelectedSubject, getViewContext } = await import("../quads-snapshot.js");
-		setSelectedSubject(null, null);
-		setContextPatterns([anIndividual("Email", "read-me@bakery.test")], "private");
+		const { INITIAL_SUBJECT, currentSubject, currentSubjectState, dispatchSubjectEvent } = await import("../current-subject.js");
+		currentSubjectState.set(INITIAL_SUBJECT);
+		dispatchSubjectEvent({ type: "openInPane", pane: { patterns: [anIndividual("Email", "read-me@bakery.test")], accessLevel: "private" } });
+		recorded.length = 0;
+		recorded.push("cmt-ask-0.1.2");
 		const el = new ShuKihanChat() as unknown as Driven;
 		document.body.appendChild(el);
 		await el.updateComplete;
 		void el.handleChat("what does this say");
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		expect(getViewContext().selectedSubject).toBe("read-me@bakery.test");
-		expect(getViewContext().selectedLabel).toBe("Email");
-		expect(el.getAttribute("data-subject")).toBe("read-me@bakery.test");
+		const state = currentSubjectState.get();
+		expect(state.reading).toBe("latest");
+		expect(state.turn.running).toBe(true);
+		expect(currentSubject(state), "the question's own record, once the turn recorded it").toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
 	});
 
-	it("states nothing where the turn is about a type, leaving a record another view selected where it is", async () => {
+	it("is on what the turn was sent about until the turn records anything", async () => {
 		document.body.innerHTML = "";
-		const { setContextPatterns, setSelectedSubject, getViewContext } = await import("../quads-snapshot.js");
-		setSelectedSubject("did:web:one", "Issuer");
-		setContextPatterns([aType("Email")], "private");
+		const { INITIAL_SUBJECT, currentSubject, currentSubjectState, dispatchSubjectEvent } = await import("../current-subject.js");
+		currentSubjectState.set(INITIAL_SUBJECT);
+		dispatchSubjectEvent({ type: "openInPane", pane: { patterns: [anIndividual("Email", "read-me@bakery.test")], accessLevel: "private" } });
+		recorded.length = 0;
 		const el = new ShuKihanChat() as unknown as Driven;
 		document.body.appendChild(el);
 		await el.updateComplete;
-		void el.handleChat("what do these say");
+		void el.handleChat("what does this say");
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		expect(getViewContext().selectedSubject).toBe("did:web:one");
+		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "read-me@bakery.test", label: "Email" });
 	});
 });

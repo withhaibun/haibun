@@ -22,7 +22,8 @@ import { reads, acts, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
-import { getViewContext, recordNamedBy } from "../quads-snapshot.js";
+import { getViewContext } from "../quads-snapshot.js";
+import { dispatchSubjectEvent } from "../current-subject.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -554,11 +555,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		);
 
 		const envelope = this.activeChatContext();
-		// A turn is about the records its context names, and that is the record every view dims around while the
-		// conversation is about it, so a graph set to follow follows the conversation. A turn about no record in
-		// particular states nothing, leaving whatever a reader selected elsewhere where it is.
-		const about = recordNamedBy(envelope.patterns);
-		if (about) this.statesCurrentRecord(about.id, about.label);
+		// Sending enters the conversation: the reader is on what this turn is about until it records its first comment.
+		dispatchSubjectEvent({ type: "send" });
 
 		const signal = this._abortController.signal;
 		let turnSeqPath: string | null = null;
@@ -574,8 +572,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 					accessLevel: getViewContext().contextAccessLevel,
 					target: this.state.model,
 				}),
-				(chunk) => {
-					const data = chunk as Record<string, unknown>;
+				(data) => {
+					// The question and then the answer are records as the turn writes them, and the current chat item is the
+					// latest of them, so a graph set to follow moves with the conversation.
+					if (data.recorded && turnSeqPath) dispatchSubjectEvent({ type: "recorded", item: { id: data.recorded.id, seqPath: turnSeqPath } });
 					if (data.status) {
 						stated.push(String(data.status));
 						this.patchMessage(aiId, { spinnerStatus: String(data.status), spinnerVisible: true, spinnerSpinning: true, activity: [...stated] });
@@ -598,6 +598,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			this.flushTextNow(aiId, accumulated);
 			this._fullText = accumulated;
 			this.patchMessage(aiId, { status: "completed" });
+			dispatchSubjectEvent({ type: "turnEnded" });
 			if (turnSeqPath) {
 				if (!this._sessionSeqPath) {
 					this._sessionSeqPath = turnSeqPath;
@@ -623,6 +624,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			// A turn that fails in the browser was invisible to the run: the pane showed the error, the log showed a
 			// missing element. Report it so a failed turn says why wherever the run is read.
 			reportToRun("error", "shu-kihan-chat", `chat turn ${stopped ? `stopped, ${stopped}` : "failed"}: ${errorDetail(err)}`);
+			dispatchSubjectEvent({ type: stopped ? "stop" : "turnEnded" });
 		} finally {
 			const aborted = signal.aborted;
 			this._streaming = false;
