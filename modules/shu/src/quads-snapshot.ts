@@ -12,7 +12,6 @@ import {
 } from "@haibun/core/lib/quad-types.js";
 import { individualWithEdges, incomingEdgesOf } from "@haibun/core/lib/quad-store.js";
 import type { TRunGraph } from "./client-cache/run-graph.js";
-import type { TContextPattern } from "./schemas.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -22,7 +21,7 @@ import { getRels, getDisplayLabelRel, getSelectFields } from "./rels-cache.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { originGraphStore } from "./client-cache/index.js";
 import { pagePinned } from "./page-pinned.js";
-import { Access, type AccessLevel } from "@haibun/core/lib/resources.js";
+import type { AccessLevel } from "@haibun/core/lib/resources.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so no path can silently inflate the limit past what the slider expresses. */
@@ -56,7 +55,7 @@ export type TGraphSnapshot = TClusteredQuads;
  * view id (so it can lay itself out for off-screen sync) and the currently
  * selected subject (so it can zoom/highlight without waiting for the next event).
  */
-export type TViewContext = { activeViewId: string | null; context: TContextPattern[]; contextAccessLevel: string };
+export type TViewContext = { activeViewId: string | null };
 
 /** Subscribers fired after the cached snapshot or shared view-context changes. */
 type SnapshotListener = (snapshot: TGraphSnapshot | null, context: TViewContext) => void;
@@ -105,7 +104,7 @@ function getStore(): Store {
 	if (existing) return existing;
 	const fresh: Store = {
 		scopes: new Map(),
-		viewContext: { activeViewId: null, context: [], contextAccessLevel: Access.private },
+		viewContext: { activeViewId: null },
 		listeners: new Set(),
 	};
 	g[STORE_KEY] = fresh;
@@ -116,23 +115,8 @@ export function getViewContext(): TViewContext {
 	return getStore().viewContext;
 }
 
-// activeViewId (which column has keyboard/actions focus) and context (what the page is about: the records or the type
-// an ask would be about) are ORTHOGONAL axes on one context: each setter writes only its own axis and never derives or
-// clears the other. What the reader is on, which every view dims around, is not held here: the current-subject machine
-// decides it from the reader's moves.
-//
-// The context axis is held rather than only announced, so a surface that mounts after the column that published it
-// reads what the page is about instead of rebuilding it from the axes that answer other questions.
-export function setContextPatterns(patterns: TContextPattern[], accessLevel: string): void {
-	const s = getStore();
-	if (s.viewContext.contextAccessLevel === accessLevel && samePatterns(s.viewContext.context, patterns)) return;
-	s.viewContext = { ...s.viewContext, context: patterns, contextAccessLevel: accessLevel };
-	notify(s);
-}
-
-/** Two contexts name the same thing: compared by value, since each publish builds its patterns afresh. */
-const samePatterns = (a: TContextPattern[], b: TContextPattern[]): boolean => a.length === b.length && a.every((p, at) => JSON.stringify(p) === JSON.stringify(b[at]));
-
+/** Which column has keyboard and actions focus. The active record, which every view dims around and an ask carries, is
+ *  not held here: the current-subject machine holds it. */
 export function setActiveViewId(id: string | null): void {
 	const s = getStore();
 	if (s.viewContext.activeViewId === id) return;
@@ -141,10 +125,9 @@ export function setActiveViewId(id: string | null): void {
 }
 
 /**
- * Subscribe to changes in the shared clustered data and view context. Listeners
- * fire on initial fetch, incremental SSE merges, active-view changes and
- * context changes, receiving the current snapshot plus a `TViewContext`
- * carrying `activeViewId` and the context.
+ * Subscribe to changes in the shared clustered data and the active view. Listeners
+ * fire on initial fetch, incremental SSE merges and active-view changes, receiving
+ * the current snapshot plus a `TViewContext` carrying `activeViewId`.
  *
  * Implementors should gate slow re-renders on whether their view is the
  * strip's active pane (`isActiveView` from ShuElement). Inactive viewers can
@@ -162,42 +145,6 @@ export function subscribeSnapshot(listener: SnapshotListener, scope = ""): () =>
 	return () => s.listeners.delete(entry);
 }
 
-/**
- * Convenience wrapper that diffs the shared store's fields between firings and
- * routes each kind of change to a separate callback. Removes the boilerplate
- * each clustered viewer would otherwise repeat (track previous values, compare,
- * dispatch). All callbacks are optional.
- */
-export type TViewContextCallbacks = {
-	onDataChange?: (snapshot: TGraphSnapshot) => void;
-	onActiveViewChange?: (activeViewId: string | null) => void;
-	onContextChange?: (patterns: TContextPattern[], accessLevel: string) => void;
-};
-
-export function subscribeViewContext(callbacks: TViewContextCallbacks, scope = ""): () => void {
-	const s = getStore();
-	let prevSnap: TGraphSnapshot | null = null;
-	let prevActive: string | null = s.viewContext.activeViewId;
-	let prevContext: TContextPattern[] = s.viewContext.context;
-	// A context published BEFORE this subscription (a column published what the page is about, then this surface
-	// booted) must still reach the subscriber: deliver it once.
-	if (s.viewContext.context.length > 0) queueMicrotask(() => callbacks.onContextChange?.(s.viewContext.context, s.viewContext.contextAccessLevel));
-	return subscribeSnapshot((snap, ctx) => {
-		if (snap && snap !== prevSnap) {
-			prevSnap = snap;
-			callbacks.onDataChange?.(snap);
-		}
-		if (ctx.activeViewId !== prevActive) {
-			prevActive = ctx.activeViewId;
-			callbacks.onActiveViewChange?.(ctx.activeViewId);
-		}
-		if (ctx.context !== prevContext) {
-			prevContext = ctx.context;
-			callbacks.onContextChange?.(ctx.context, ctx.contextAccessLevel);
-		}
-	}, scope);
-}
-
 function scopeState(s: Store, scope: string): ScopeState {
 	let st = s.scopes.get(scope);
 	if (!st) {
@@ -207,8 +154,8 @@ function scopeState(s: Store, scope: string): ScopeState {
 	return st;
 }
 
-/** Fire listeners with THEIR scope's snapshot: a data change names its scope (only that scope's listeners fire); a
- *  context change (selection/active view) passes undefined and reaches every listener, context is global. */
+/** Fire listeners with THEIR scope's snapshot: a data change names its scope (only that scope's listeners fire); an
+ *  active-view change passes undefined and reaches every listener, since the active view is global. */
 function notify(s: Store, changedScope?: string): void {
 	for (const { scope, fn } of s.listeners) {
 		if (changedScope !== undefined && scope !== changedScope) continue;

@@ -1,176 +1,169 @@
 /**
- * The current-subject machine, held to its table.
+ * The active-record machine, held to its rules.
  *
- * Every state and event pair is asserted against a second statement of the rules, written here as data rather than
- * read from the module, so the two have to agree. Then random event sequences, seeded so a failure replays, assert
- * what holds whatever order things happen in: the state stays inside the machine, and the events that only carry data
- * never move what the reader is on.
+ * Each event is asserted on its own, then the rules a reader relies on are asserted as sequences: closing a scope
+ * returns to the scope activated before it, opening it again returns to its own entry unless another scope was
+ * activated since, and an update never takes the lead. Random event sequences, seeded so a failure replays, then
+ * assert against a second statement of the rule, written here as the activation history rather than read from the
+ * module, so the two have to agree whatever order things happen in.
  */
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { anIndividual, aType } from "./schemas.js";
 import {
 	INITIAL_SUBJECT,
-	READINGS,
+	SCOPE,
 	SUBJECT_EVENTS,
+	activeEntry,
+	activeScope,
 	currentSubject,
-	nextTurnContext,
-	sendRefusal,
+	entryOf,
+	scopeEntry,
 	transition,
-	type TItem,
-	type TReading,
+	type TEntry,
 	type TSubjectEvent,
-	type TSubjectEventType,
 	type TSubjectState,
 } from "./current-subject.js";
 
-const EMAIL = { id: "a@test.com", label: "Email" };
-const PANE = { patterns: [anIndividual(EMAIL.label, EMAIL.id)], accessLevel: "private" };
-const TYPE_PANE = { patterns: [aType("Email")], accessLevel: "private" };
-const OTHER_PANE = { patterns: [anIndividual("Email", "b@test.com")], accessLevel: "private" };
-const ASK_1: TItem = { id: "cmt-ask-0.-1.3", seqPath: "0.-1.3" };
-const SAY_1: TItem = { id: "cmt-say-0.-1.3", seqPath: "0.-1.3" };
-const SAY_2: TItem = { id: "cmt-say-0.-1.7", seqPath: "0.-1.7" };
+const EMAIL = entryOf([anIndividual("Email", "a@test.com")], "private");
+const OTHER = entryOf([anIndividual("Email", "b@test.com")], "private");
+const QUESTION: TEntry = { record: { id: "cmt-ask-0.-1.3", label: COMMENT_LABEL }, seqPath: "0.-1.3", bundle: EMAIL.bundle };
+const ANSWER: TEntry = { record: { id: "cmt-say-0.-1.3", label: COMMENT_LABEL }, seqPath: "0.-1.3", bundle: EMAIL.bundle };
+const NOTHING = entryOf([], "private");
 
-/** One state per reading, each with a pane, a session and (for message) a selection, so every output has data to read. */
-const IN: Record<TReading, TSubjectState> = {
-	pane: { ...INITIAL_SUBJECT, pane: PANE, latest: SAY_1 },
-	latest: { ...INITIAL_SUBJECT, reading: "latest", pane: PANE, latest: SAY_1 },
-	message: { ...INITIAL_SUBJECT, reading: "message", pane: PANE, latest: SAY_2, selected: SAY_1 },
-};
+const run = (...events: TSubjectEvent[]): TSubjectState => events.reduce(transition, INITIAL_SUBJECT);
+const activate = (scope: string, entry: TEntry): TSubjectEvent => ({ type: "activate", scope, entry });
+const update = (scope: string, entry: TEntry): TSubjectEvent => ({ type: "update", scope, entry });
+const open = (scope: string): TSubjectEvent => ({ type: "open", scope });
+const close = (scope: string): TSubjectEvent => ({ type: "close", scope });
 
-/** An instance of each event, so the table can be walked. */
-const EVENTS: { [T in TSubjectEventType]: Extract<TSubjectEvent, { type: T }> } = {
-	openInPane: { type: "openInPane", pane: OTHER_PANE },
-	paneClosed: { type: "paneClosed", pane: TYPE_PANE },
-	clearSubject: { type: "clearSubject" },
-	send: { type: "send" },
-	recorded: { type: "recorded", item: SAY_2 },
-	turnEnded: { type: "turnEnded" },
-	stop: { type: "stop" },
-	selectMessage: { type: "selectMessage", item: ASK_1 },
-	openSession: { type: "openSession", latest: SAY_2 },
-	newSession: { type: "newSession" },
-};
-
-/** The rules, stated again: where each event takes each reading. */
-const NEXT_READING: Record<TReading, Record<TSubjectEventType, TReading>> = {
-	pane: { openInPane: "pane", paneClosed: "pane", clearSubject: "pane", send: "latest", recorded: "pane", turnEnded: "pane", stop: "pane", selectMessage: "message", openSession: "latest", newSession: "pane" },
-	latest: { openInPane: "pane", paneClosed: "latest", clearSubject: "pane", send: "latest", recorded: "latest", turnEnded: "latest", stop: "latest", selectMessage: "message", openSession: "latest", newSession: "pane" },
-	message: { openInPane: "pane", paneClosed: "message", clearSubject: "pane", send: "latest", recorded: "message", turnEnded: "message", stop: "message", selectMessage: "message", openSession: "latest", newSession: "pane" },
-};
-
-describe("every state and event, against the table", () => {
-	for (const reading of READINGS) {
-		for (const type of SUBJECT_EVENTS) {
-			it(`${reading} + ${type} -> ${NEXT_READING[reading][type]}`, () => {
-				const next = transition(IN[reading], EVENTS[type]);
-				expect(next.reading).toBe(NEXT_READING[reading][type]);
-				expect(next.selected !== null, "a selection is held only in the message reading").toBe(next.reading === "message");
-			});
-		}
-	}
-
-	it("carries the data each event names", () => {
-		expect(transition(IN.latest, EVENTS.openInPane).pane).toEqual(OTHER_PANE);
-		expect(transition(IN.latest, EVENTS.paneClosed).pane, "a pane closing changes what the pane shows, not what the reader is on").toEqual(TYPE_PANE);
-		expect(transition(IN.pane, EVENTS.clearSubject).pane.patterns).toEqual([]);
-		expect(transition(transition(IN.pane, EVENTS.send), EVENTS.recorded).latest, "a running turn's comment is the session's latest").toEqual(SAY_2);
-		expect(transition(IN.pane, EVENTS.selectMessage).selected).toEqual(ASK_1);
-		expect(transition(IN.message, EVENTS.openSession).latest).toEqual(SAY_2);
-		const fresh = transition(IN.message, EVENTS.newSession);
-		expect([fresh.latest, fresh.selected]).toEqual([null, null]);
+describe("an entry for a pane's patterns", () => {
+	it("names the record the first pattern names, and carries the patterns as its bundle", () => {
+		expect(EMAIL).toEqual({ record: { id: "a@test.com", label: "Email" }, bundle: { patterns: [anIndividual("Email", "a@test.com")], accessLevel: "private" } });
 	});
 
-	it("send fixes what the turn is about from the state it was sent in, and runs the turn", () => {
-		const sentFromPane = transition(IN.pane, EVENTS.send);
-		expect(sentFromPane.turn).toEqual({ running: true, about: nextTurnContext(IN.pane), ofOpenSession: true });
-		const sentFromMessage = transition(IN.message, EVENTS.send);
-		expect(sentFromMessage.turn.running && sentFromMessage.turn.about.inReplyTo, "sent with a message selected, the turn replies to that message").toBe(SAY_1.seqPath);
-	});
-
-	it("refuses a second question while a turn runs, and changes nothing for it", () => {
-		const running = transition(IN.pane, EVENTS.send);
-		expect(sendRefusal(running)).not.toBeNull();
-		expect(transition(running, EVENTS.send)).toBe(running);
-		expect(sendRefusal(transition(running, EVENTS.turnEnded))).toBeNull();
-		expect(sendRefusal(transition(running, EVENTS.stop))).toBeNull();
-	});
-
-	it("keeps the turn running through everything but its own end", () => {
-		const running = transition(IN.pane, EVENTS.send);
-		for (const type of SUBJECT_EVENTS) {
-			if (type === "turnEnded" || type === "stop") continue;
-			expect(transition(running, EVENTS[type]).turn.running, `${type} does not end a turn`).toBe(true);
-		}
-	});
-
-	it("a turn left for another session keeps running, and what it records is not that session's", () => {
-		const running = transition({ ...IN.pane, latest: null }, EVENTS.send);
-		for (const leaving of [EVENTS.openSession, EVENTS.newSession]) {
-			const left = transition(running, leaving);
-			expect(left.turn.running, `${leaving.type} leaves the turn running`).toBe(true);
-			const recorded = transition(left, { type: "recorded", item: ASK_1 });
-			expect(recorded.latest, `${leaving.type}: the running turn's comment is not the open session's latest`).toEqual(left.latest);
-		}
-		expect(transition(running, { type: "recorded", item: ASK_1 }).latest, "still in the session it was sent from, it is").toEqual(ASK_1);
+	it("names no record for a type, and still bundles it", () => {
+		const typed = entryOf([aType("Email")], "private");
+		expect(typed.record).toBeNull();
+		expect(typed.bundle.patterns).toEqual([aType("Email")]);
 	});
 });
 
-describe("what each reading answers with", () => {
-	it("the current subject is the pane's record, the latest item, or the selected message", () => {
-		expect(currentSubject(IN.pane)).toEqual(EMAIL);
-		expect(currentSubject({ ...IN.pane, pane: TYPE_PANE }), "a pane about a type is on no record").toBeNull();
-		expect(currentSubject(IN.latest)).toEqual({ id: SAY_1.id, label: COMMENT_LABEL });
-		expect(currentSubject(IN.message)).toEqual({ id: SAY_1.id, label: COMMENT_LABEL });
+describe("each event", () => {
+	it("activate sets the scope's entry and stamps it newest", () => {
+		const state = run(activate(SCOPE.page, EMAIL), activate(SCOPE.page, OTHER));
+		expect(scopeEntry(state, SCOPE.page)).toEqual(OTHER);
+		expect(state.scopes[SCOPE.page].stamp).toBe(INITIAL_SUBJECT.clock + 1);
 	});
 
-	it("between sending and the first recorded comment, the conversation is on what it was sent about", () => {
-		const sent = transition({ ...IN.pane, latest: null }, EVENTS.send);
-		expect(currentSubject(sent)).toEqual(EMAIL);
-		expect(currentSubject(transition(sent, { type: "recorded", item: ASK_1 }))).toEqual({ id: ASK_1.id, label: COMMENT_LABEL });
+	it("update sets the scope's entry and keeps its stamp, and a scope never activated is the oldest", () => {
+		const activated = run(activate(SCOPE.page, EMAIL));
+		const updated = transition(activated, update(SCOPE.page, OTHER));
+		expect(scopeEntry(updated, SCOPE.page)).toEqual(OTHER);
+		expect(updated.scopes[SCOPE.page].stamp).toBe(activated.scopes[SCOPE.page].stamp);
+		expect(run(update(SCOPE.actionsBar, ANSWER)).scopes[SCOPE.actionsBar].stamp).toBe(0);
 	});
 
-	it("the next turn's context is the pane's patterns, or the one item it continues from", () => {
-		expect(nextTurnContext(IN.pane)).toEqual({ kind: "pane", patterns: PANE.patterns, accessLevel: "private", inReplyTo: SAY_1.seqPath });
-		expect(nextTurnContext({ ...IN.pane, latest: null }).inReplyTo, "a first question replies to nothing").toBeUndefined();
-		expect(nextTurnContext(IN.latest)).toEqual({ kind: "item", patterns: [anIndividual(COMMENT_LABEL, SAY_1.id)], accessLevel: "private", inReplyTo: SAY_1.seqPath });
-		expect(nextTurnContext(IN.message)).toEqual({ kind: "item", patterns: [anIndividual(COMMENT_LABEL, SAY_1.id)], accessLevel: "private", inReplyTo: SAY_1.seqPath });
+	it("open adds a scope once, and close removes it and keeps its entry", () => {
+		const opened = run(open(SCOPE.actionsBar), open(SCOPE.actionsBar));
+		expect(opened.open).toEqual([SCOPE.page, SCOPE.actionsBar]);
+		const closed = transition(transition(opened, activate(SCOPE.actionsBar, ANSWER)), close(SCOPE.actionsBar));
+		expect(closed.open).toEqual([SCOPE.page]);
+		expect(scopeEntry(closed, SCOPE.actionsBar), "kept for the next open").toEqual(ANSWER);
+	});
+
+	it("lists every event it takes", () => {
+		expect([...SUBJECT_EVENTS]).toEqual(["activate", "update", "open", "close"]);
 	});
 });
 
-/** A small deterministic generator, so a failing sequence is printed and replays from its seed. */
-function lcg(seed: number): () => number {
-	let s = seed >>> 0;
-	return () => {
-		s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
-		return s / 0x1_0000_0000;
+describe("the active entry", () => {
+	it("is nothing before anything is activated", () => {
+		expect(activeEntry(INITIAL_SUBJECT)).toBeNull();
+		expect(currentSubject(INITIAL_SUBJECT)).toBeNull();
+	});
+
+	it("is the comment the conversation activated while the bar is open", () => {
+		const state = run(activate(SCOPE.page, EMAIL), open(SCOPE.actionsBar), activate(SCOPE.actionsBar, QUESTION), activate(SCOPE.actionsBar, ANSWER));
+		expect(activeScope(state)).toBe(SCOPE.actionsBar);
+		expect(currentSubject(state)).toEqual(ANSWER.record);
+	});
+
+	it("returns to the page's record when the bar closes, and to the conversation when it opens again", () => {
+		const closed = run(activate(SCOPE.page, EMAIL), open(SCOPE.actionsBar), activate(SCOPE.actionsBar, ANSWER), close(SCOPE.actionsBar));
+		expect(currentSubject(closed), "the bar closed").toEqual(EMAIL.record);
+		expect(currentSubject(transition(closed, open(SCOPE.actionsBar))), "the bar opened again").toEqual(ANSWER.record);
+	});
+
+	it("stays on a record the reader opened while the bar was closed, when the bar opens again", () => {
+		const state = run(open(SCOPE.actionsBar), activate(SCOPE.actionsBar, ANSWER), close(SCOPE.actionsBar), activate(SCOPE.page, OTHER), open(SCOPE.actionsBar));
+		expect(currentSubject(state)).toEqual(OTHER.record);
+	});
+
+	it("follows a comment the conversation records while the bar is closed only once the bar opens", () => {
+		const closed = run(activate(SCOPE.page, EMAIL), activate(SCOPE.actionsBar, ANSWER));
+		expect(currentSubject(closed), "a closed scope never leads").toEqual(EMAIL.record);
+		expect(currentSubject(transition(closed, open(SCOPE.actionsBar)))).toEqual(ANSWER.record);
+	});
+
+	it("is nothing after a reader chooses nothing on the page, whatever a closed scope holds", () => {
+		const state = run(open(SCOPE.actionsBar), activate(SCOPE.actionsBar, ANSWER), close(SCOPE.actionsBar), activate(SCOPE.page, NOTHING));
+		expect(activeScope(state)).toBe(SCOPE.page);
+		expect(currentSubject(state)).toBeNull();
+	});
+
+	it("does not move to a scope that is updated, such as a column closing or a session restored", () => {
+		const state = run(activate(SCOPE.page, EMAIL), open(SCOPE.actionsBar), update(SCOPE.actionsBar, ANSWER));
+		expect(currentSubject(state), "a restored session does not take the lead").toEqual(EMAIL.record);
+		expect(currentSubject(transition(state, update(SCOPE.page, OTHER))), "an update to the active scope shows its new record").toEqual(OTHER.record);
+	});
+
+	it("is an updated scope's entry where no open scope was activated", () => {
+		expect(currentSubject(run(open(SCOPE.actionsBar), update(SCOPE.actionsBar, ANSWER)))).toEqual(ANSWER.record);
+	});
+});
+
+describe("any sequence of events", () => {
+	// A small seeded generator, so a failing sequence is replayed by its seed.
+	const seeded = (seed: number) => () => {
+		seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+		return seed / 2_147_483_648;
 	};
-}
+	const SCOPES = [SCOPE.page, SCOPE.actionsBar, "another-panel"];
+	const ENTRIES = [EMAIL, OTHER, QUESTION, ANSWER, NOTHING];
 
-describe("random sequences, seeded", () => {
-	const SEEDS = 200;
-	const LENGTH = 40;
-	const readingIsMoved = new Set<TSubjectEventType>(["openInPane", "clearSubject", "send", "selectMessage", "openSession", "newSession"]);
-
-	for (let seed = 1; seed <= SEEDS; seed++) {
-		it(`seed ${seed}: stays inside the machine, and only a reader's act moves the reader`, () => {
-			const random = lcg(seed);
+	it("keeps the active entry that of the open scope activated last, else the open scope updated", () => {
+		for (let seed = 1; seed <= 200; seed++) {
+			const random = seeded(seed);
 			let state = INITIAL_SUBJECT;
-			const trail: TSubjectEventType[] = [];
-			for (let i = 0; i < LENGTH; i++) {
+			// The rule stated again: the open scopes, the order scopes were activated in, and each scope's latest entry.
+			let opened = new Set<string>([SCOPE.page]);
+			const activations: string[] = [];
+			const entries = new Map<string, TEntry>();
+			const path: string[] = [];
+			for (let step = 0; step < 40; step++) {
+				const scope = SCOPES[Math.floor(random() * SCOPES.length)];
+				const entry = ENTRIES[Math.floor(random() * ENTRIES.length)];
 				const type = SUBJECT_EVENTS[Math.floor(random() * SUBJECT_EVENTS.length)];
-				trail.push(type);
-				const before = state;
-				state = transition(state, EVENTS[type]);
-				const path = trail.join(" > ");
-				expect(READINGS, path).toContain(state.reading);
-				expect(state.selected !== null, path).toBe(state.reading === "message");
-				if (state.turn.running) expect(state.turn.about.kind, `${path}: a running turn was sent about something`).toMatch(/pane|item/);
-				if (!readingIsMoved.has(type)) expect(state.reading, `${path}: ${type} does not move the reader`).toBe(before.reading);
-				if (type === "paneClosed" && before.reading !== "pane") expect(currentSubject(state), `${path}: a pane closing leaves a conversation's subject`).toEqual(currentSubject(before));
-				if (type === "recorded" && before.reading !== "latest") expect(currentSubject(state), `${path}: a recorded comment moves only the latest reading`).toEqual(currentSubject(before));
+				const event: TSubjectEvent = type === "activate" || type === "update" ? { type, scope, entry } : { type, scope };
+				path.push(`${type}:${scope}`);
+				state = transition(state, event);
+				if (type === "activate") {
+					const at = activations.indexOf(scope);
+					if (at >= 0) activations.splice(at, 1);
+					activations.push(scope);
+					entries.set(scope, entry);
+				}
+				if (type === "update") entries.set(scope, entry);
+				if (type === "open") opened.add(scope);
+				if (type === "close") opened = new Set([...opened].filter((s) => s !== scope));
+				const lastActivated = [...activations].reverse().find((s) => opened.has(s));
+				const updatedOnly = [...opened].filter((s) => entries.has(s) && !activations.includes(s));
+				const expected = lastActivated ?? updatedOnly[0] ?? null;
+				const label = `seed ${seed}: ${path.join(" ")}`;
+				expect(activeScope(state), label).toBe(expected);
+				expect(activeEntry(state), label).toEqual(expected === null ? null : entries.get(expected));
 			}
-		});
-	}
+		}
+	});
 });

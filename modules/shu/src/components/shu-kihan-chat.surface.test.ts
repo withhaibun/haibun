@@ -21,7 +21,7 @@ vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
 const SESSION = "0.1.2";
 /** What the store answers each read with. A read set to never answer is a store that has not got back to the page. */
 let sessionsAnswer: { sessions: unknown[] } | null = { sessions: [{ sessionSeqPath: SESSION, label: "the conversation", generatedAtTime: "2026-05-17T05:00:00.000Z" }] };
-let turnsAnswer: { turns: Array<{ prompt: string; response: string; seqPath: string }> } | null = null;
+let turnsAnswer: { turns: Array<{ prompt: string; response: string; seqPath: string; bundle: unknown[] }> } | null = null;
 
 vi.mock("../hypermedia.js", async () => {
 	const { hypermedia } = await import("./chat-pane.test-fake.js");
@@ -120,7 +120,7 @@ describe("the conversation on the bar's surface", () => {
 		// A new page has no surface to take the conversation over from, so it comes from the comments the turns were
 		// written as. The listing of every other session never answers here: the conversation does not wait on it.
 		sessionsAnswer = null;
-		turnsAnswer = { turns: [{ prompt: "the question before the reload", response: "the answer to it", seqPath: SESSION }] };
+		turnsAnswer = { turns: [{ prompt: "the question before the reload", response: "the answer to it", seqPath: SESSION, bundle: [] }] };
 		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
 		const el = await openPane();
 		await el.updateComplete;

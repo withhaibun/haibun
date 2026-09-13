@@ -526,12 +526,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		graphCentresActive: {
-			// Follow's observable contract: the active node projects inside the central half of the canvas.
+			// Follow's observable contract: the named node is the active node, and it projects inside the central half of the canvas.
 			gwta: "graph centres the active node {name}",
 			action: async ({ name }: { name: string }) => {
 				const page = await this.page();
 				const id = this.opened.get(name) ?? (await this.resolveNodeId(page, name));
 				if (!id) return actionNotOK(`no graph node "${name}"`);
+				if (!(await this.becomesSelected(page, id))) return actionNotOK(`graph node "${id}" is not the active node: ${(await this.fullInspect(page)).focus.selected} is`);
 				return await this.centresNode(page, id);
 			},
 		},

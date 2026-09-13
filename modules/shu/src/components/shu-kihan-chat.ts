@@ -21,10 +21,11 @@ import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
-import { getViewContext } from "../quads-snapshot.js";
-import { dispatchSubjectEvent, type TRecord } from "../current-subject.js";
+import { SCOPE, activeEntry, activeScope, dispatchSubjectEvent, entryOf, scopeEntry, type TEntry, type TRecord } from "../current-subject.js";
 import { SubjectController } from "../controllers/index.js";
-import { attachToTurn, currentTurn, startTurn, stopTurn, turnRefusal, type TTurnState } from "../chat-turn.js";
+import { attachToTurn, currentTurn, leaveTurnSession, startTurn, stopTurn, turnRefusal, type TTurnState } from "../chat-turn.js";
+import { appAccessLevel } from "../util.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -48,9 +49,8 @@ const TOOL_LIMIT_MAX = 99;
 type TChatSession = { sessionSeqPath: string; label: string; generatedAtTime: string };
 /** A model as the registry holds it: what the endpoint reports it can do, and what a profile states about it. */
 type TKihanVertex = { id: string; displayName?: string; capabilities?: { tools?: boolean }; options?: { contextReadBy?: string } };
-/** What a turn is sent with: what it is about, what the page was showing, and how the reader wants it carried. */
-type TChatEnvelope = { patterns: TContextPattern[]; viewLd: unknown[]; maxToolCalls: number; contextReadBy?: string; sessionSeqPath?: string; inReplyTo?: string };
-type TSessionTurn = { prompt: string; response: string; seqPath: string; askId?: string; sayId?: string };
+/** A turn of a session read back: its question and answer, their comment ids, and the records its question referenced. */
+type TSessionTurn = { prompt: string; response: string; seqPath: string; askId?: string; sayId?: string; bundle: TContextPattern[] };
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
 function sessionOptionLabel(s: TChatSession): string {
 	const preview = s.label.length > 48 ? `${s.label.slice(0, 47)}…` : s.label;
@@ -131,7 +131,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Relays the current subject. The message recorded as that comment is marked current on the transcript. */
 	#subject = new SubjectController(this, (record) => this.markCurrent(record));
 	private _sessionSeqPath: string | null = null;
-	private _lastReplySeqPath: string | null = null;
 	private _sessions: TChatSession[] = [];
 	/** The single source of truth for the rendered conversation, fed identically by the live stream (handleChat) and a hydrated session (loadAndRenderSession), rendered once via keyed repeat. */
 	private _messages: TChatMessage[] = [];
@@ -185,8 +184,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		if (adopted.length === 0) return;
 		this._messages = adopted;
 		this._sessionSeqPath = this.state.session || null;
-		const replies = adopted.filter((m) => m.role === "llm" && m.seqPath);
-		this._lastReplySeqPath = replies.length > 0 ? (replies[replies.length - 1].seqPath ?? null) : null;
 		// A message left running is the latest turn's reply. Attaching renders the rest of the turn, or its ended state.
 		const running = [...adopted].reverse().find((m) => m.role === "llm" && m.status === "running");
 		if (running && currentTurn()) {
@@ -308,6 +305,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// abandoned restore.
 		(this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null)?.setValue(sessionSeqPath);
 		this.renderTurns(turns);
+		// A restored session is the page coming back to where the reader was, not a reader's act, so its last answer is
+		// the bar's entry without taking the lead from a record the reader activated.
+		const entry = this.sessionEntry(turns);
+		if (entry) dispatchSubjectEvent({ type: "update", scope: SCOPE.actionsBar, entry });
 	}
 
 	/** Refresh the selector options after a new turn lands, without disturbing the rendered conversation. A failed read
@@ -330,16 +331,24 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		void this.loadAndRenderSession(seqPath);
 	};
 
-	/** Replace the conversation with a session's persisted turns. Picking a session calls this. A running turn continues.
-	 *  This pane detaches from it, because the message it rendered into is removed. The pane raises `openSession`. */
+	/** Replace the conversation with a session's persisted turns. Picking a session calls this. A running turn continues
+	 *  and activates nothing, and this pane detaches from it, because the message it rendered into is removed. The
+	 *  session's last answer becomes the active record. */
 	private async loadAndRenderSession(sessionSeqPath: string): Promise<void> {
 		this.#detachTurn?.();
 		this.#detachTurn = null;
+		leaveTurnSession();
 		this._sessionSeqPath = sessionSeqPath;
 		const turns = await this.readSession(sessionSeqPath);
 		this.renderTurns(turns);
+		const entry = this.sessionEntry(turns);
+		if (entry) dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry });
+	}
+
+	/** The bar scope's entry for a session read back: its last answer, with the records its question referenced. */
+	private sessionEntry(turns: TSessionTurn[]): TEntry | null {
 		const last = turns.at(-1);
-		dispatchSubjectEvent({ type: "openSession", latest: last?.sayId ? { id: last.sayId, seqPath: last.seqPath } : null });
+		return last?.sayId ? { record: { id: last.sayId, label: COMMENT_LABEL }, seqPath: last.seqPath, bundle: { patterns: last.bundle, accessLevel: appAccessLevel() } } : null;
 	}
 
 	/** A session's persisted turns, oldest first. Each llm half carries the turn's seqPath (its Comment-pair graph identity). */
@@ -355,26 +364,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private renderTurns(turns: TSessionTurn[]): void {
 		const messages: TChatMessage[] = [];
 		for (const turn of turns) {
-			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "user", text: turn.prompt, seqPath: turn.seqPath, recordId: turn.askId }));
-			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "llm", text: turn.response, status: "completed", seqPath: turn.seqPath, recordId: turn.sayId }));
+			const bundle = { patterns: turn.bundle, accessLevel: appAccessLevel() };
+			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "user", text: turn.prompt, seqPath: turn.seqPath, recordId: turn.askId, bundle }));
+			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "llm", text: turn.response, status: "completed", seqPath: turn.seqPath, recordId: turn.sayId, bundle }));
 		}
 		this._messages = messages;
-		// Thread the next turn onto this session's last reply (and clear any prior session's value) so inReplyTo points within the loaded session, never null on the first post-hydration turn nor across sessions.
-		this._lastReplySeqPath = turns.length > 0 ? turns[turns.length - 1].seqPath : null;
 		this._scrollPending = true;
 		this.requestUpdate();
-	}
-
-	private activeChatContext(): TChatEnvelope {
-		const envelope: TChatEnvelope = {
-			patterns: getViewContext().context,
-			viewLd: harvestChatViewLd(),
-			maxToolCalls: this.state.toolLimit,
-		};
-		if (this.state.contextReadBy) envelope.contextReadBy = this.state.contextReadBy;
-		if (this._sessionSeqPath) envelope.sessionSeqPath = this._sessionSeqPath;
-		if (this._lastReplySeqPath) envelope.inReplyTo = this._lastReplySeqPath;
-		return envelope;
 	}
 
 	private async loadModels(): Promise<void> {
@@ -557,19 +553,30 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		await this.loadModels();
 		if (turnRefusal()) return; // one turn at a time; submitChat has said so on the turn that holds the pane
 		this._scrollPending = true;
+		// The question carries the active record's bundle, and replies to the conversation's entry where it has one: the
+		// latest answer, or the message the reader selected, where the conversation branches.
+		const subject = this.#subject.state;
+		const bundle = activeEntry(subject)?.bundle ?? entryOf([], appAccessLevel()).bundle;
+		const inReplyTo = scopeEntry(subject, SCOPE.actionsBar)?.seqPath;
 		const userId = this.nextId();
 		const aiId = this.nextId();
 		this.appendMessages(
-			ChatMessageSchema.parse({ id: userId, role: "user", text: prompt }),
-			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "running", spinnerStatus: "Sending...", spinnerVisible: true, spinnerSpinning: true }),
+			ChatMessageSchema.parse({ id: userId, role: "user", text: prompt, bundle }),
+			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "running", spinnerStatus: "Sending...", spinnerVisible: true, spinnerSpinning: true, bundle }),
 		);
-		const envelope = this.activeChatContext();
 		// chat-turn runs the turn from here. It continues until its stream ends or the reader stops it.
 		const ended = startTurn({
 			method: requireStep("chatWithContext"),
 			prompt,
-			context: JSON.stringify(envelope),
-			accessLevel: getViewContext().contextAccessLevel,
+			bundle,
+			envelope: {
+				// The view data is the pane's, so it goes with a record the page activated.
+				viewLd: activeScope(subject) === SCOPE.page ? harvestChatViewLd() : [],
+				maxToolCalls: this.state.toolLimit,
+				...(this.state.contextReadBy ? { contextReadBy: this.state.contextReadBy } : {}),
+				...(this._sessionSeqPath ? { sessionSeqPath: this._sessionSeqPath } : {}),
+				...(inReplyTo ? { inReplyTo } : {}),
+			},
 			target: this.state.model,
 			why: "kihan-chat: stream LLM response",
 		});
@@ -613,15 +620,14 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.requestUpdate();
 	}
 
-	/** Record an ended turn in the pane: the session it started, the reply the next question follows, and the session
-	 *  list. The pane attached when the turn ends records it, or the pane that attaches after it ended. */
+	/** Record an ended turn in the pane: the session it started and the session list. The pane attached when the turn
+	 *  ends records it, or the pane that attaches after it ended. */
 	private settleTurn(turn: TTurnState): void {
 		if (turn.seqPath) {
 			if (!this._sessionSeqPath) {
 				this._sessionSeqPath = turn.seqPath;
 				this.setState({ session: turn.seqPath });
 			}
-			if (turn.status === "completed") this._lastReplySeqPath = turn.seqPath;
 		}
 		if (turn.status === "completed") {
 			this._fullText = turn.text;

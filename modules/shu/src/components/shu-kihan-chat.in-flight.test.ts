@@ -16,13 +16,15 @@ import type { TDriven as Driven } from "./chat-pane.test-fake.js";
 // reaches for one of them is not left with a rejected import.
 vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...(await import("./chat-pane.test-fake.js")).rpcRegistry }));
 vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
-vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
+/** What the pane's view data harvest returns, so a case reads whether a turn sent it. */
+const VIEW_DATA = [{ "@id": "view:the-active-pane" }];
+vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => VIEW_DATA }));
 /** What the turn states about itself before it writes anything. */
 const stated: string[] = [];
 /** What the stream fails with, where it does; unset leaves it open. */
 let streamFails: string | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
-const sent: Array<{ contextReadBy?: string }> = [];
+const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[] }> = [];
 /** The comments the turn records, named on the stream as the server names them. */
 const recorded: string[] = [];
 /** The running stream's abort signal and its finish function. One object holds both, so a case reads the values the
@@ -48,7 +50,7 @@ vi.mock("../hypermedia.js", async () => {
 			// A read held open, answered when a case says the store got back to the pane.
 			if (req.method === "loadChatSession")
 				return new Promise((resolve) => {
-					answerSessionRead = () => resolve({ turns: [{ prompt: "an earlier question", response: "an earlier answer", seqPath: RESTORED }] });
+					answerSessionRead = () => resolve({ turns: [{ prompt: "an earlier question", response: "an earlier answer", seqPath: RESTORED, bundle: [] }] });
 				});
 			return {};
 		},
@@ -79,8 +81,8 @@ await import("./shu-chat-message.js");
 const { ShuActivityHistory } = await import("./shu-activity-history.js");
 if (!customElements.get("shu-activity-history")) customElements.define("shu-activity-history", ShuActivityHistory);
 const { ShuKihanChat, TURN_STILL_RUNNING } = await import("./shu-kihan-chat.js");
-const { stopTurn } = await import("../chat-turn.js");
-const { INITIAL_SUBJECT, currentSubjectState } = await import("../current-subject.js");
+const { currentTurn, stopTurn } = await import("../chat-turn.js");
+const { INITIAL_SUBJECT, SCOPE, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf } = await import("../current-subject.js");
 
 // The turn runner and the machine are module state shared by every case. Each case starts with no running turn and
 // no current subject, because a turn left running refuses the next case's question.
@@ -231,39 +233,51 @@ describe("a question asked while a turn is running", () => {
 	});
 });
 
-describe("what a turn tells the page about the reader", () => {
-	// Sending enters the conversation: the reader is on what the turn is about until its first comment is recorded, and
-	// on each comment as the turn records it. The page's one machine holds that; the pane raises the events.
-	it("enters the conversation on what the pane showed, then on each comment the turn records", async () => {
+describe("the ask and the active record", () => {
+	const EMAIL = entryOf([anIndividual("Email", "read-me@bakery.test")], "private");
+	const OTHER = entryOf([anIndividual("Email", "other@bakery.test")], "private");
+	const paneAsking = async (prompt: string): Promise<Driven> => {
 		document.body.innerHTML = "";
-		const { INITIAL_SUBJECT, currentSubject, currentSubjectState, dispatchSubjectEvent } = await import("../current-subject.js");
-		currentSubjectState.set(INITIAL_SUBJECT);
-		dispatchSubjectEvent({ type: "openInPane", pane: { patterns: [anIndividual("Email", "read-me@bakery.test")], accessLevel: "private" } });
-		recorded.length = 0;
-		recorded.push("cmt-ask-0.1.2");
 		const el = new ShuKihanChat() as unknown as Driven;
 		document.body.appendChild(el);
 		await el.updateComplete;
-		void el.handleChat("what does this say");
+		void el.handleChat(prompt);
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		const state = currentSubjectState.get();
-		expect(state.reading).toBe("latest");
-		expect(state.turn.running).toBe(true);
-		expect(currentSubject(state), "the question's own record, once the turn recorded it").toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
+		return el;
+	};
+
+	it("sends the bundle of the record the page activated, with the pane's view data, and replies to nothing yet", async () => {
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
+		await paneAsking("what does this say");
+		expect(sent.at(-1)?.patterns, "the record's bundle").toEqual(EMAIL.bundle.patterns);
+		expect(sent.at(-1)?.viewLd, "and the view data of the pane that shows it").toEqual(VIEW_DATA);
+		expect(sent.at(-1)?.inReplyTo, "a first question replies to nothing").toBeUndefined();
 	});
 
-	it("is on what the turn was sent about until the turn records anything", async () => {
-		document.body.innerHTML = "";
-		const { INITIAL_SUBJECT, currentSubject, currentSubjectState, dispatchSubjectEvent } = await import("../current-subject.js");
-		currentSubjectState.set(INITIAL_SUBJECT);
-		dispatchSubjectEvent({ type: "openInPane", pane: { patterns: [anIndividual("Email", "read-me@bakery.test")], accessLevel: "private" } });
-		recorded.length = 0;
-		const el = new ShuKihanChat() as unknown as Driven;
-		document.body.appendChild(el);
-		await el.updateComplete;
-		void el.handleChat("what does this say");
-		await new Promise((resolve) => setTimeout(resolve, 0));
-		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "read-me@bakery.test", label: "Email" });
+	it("activates each comment the turn records with the bundle it was sent with, and it leads while the bar is open", async () => {
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		recorded.push("cmt-ask-0.1.2");
+		await paneAsking("what does this say");
+		const state = currentSubjectState.get();
+		expect(currentSubject(state), "the question's own record").toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
+		expect(state.scopes[SCOPE.actionsBar].entry, "with its turn and the bundle it was sent with").toEqual({
+			record: { id: "cmt-ask-0.1.2", label: "Comment" },
+			seqPath: "0.1.2",
+			bundle: EMAIL.bundle,
+		});
+		dispatchSubjectEvent({ type: "close", scope: SCOPE.actionsBar });
+		expect(currentSubject(currentSubjectState.get()), "the bar closed: the page's record again").toEqual(EMAIL.record);
+	});
+
+	it("replies to the conversation's entry and carries its bundle, so a selected earlier message branches there", async () => {
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.1", label: "Comment" }, seqPath: "0.1.1", bundle: OTHER.bundle } });
+		await paneAsking("and what came of it");
+		expect(sent.at(-1)?.inReplyTo, "the turn of the message selected").toBe("0.1.1");
+		expect(sent.at(-1)?.patterns, "the bundle that message's turn was sent with").toEqual(OTHER.bundle.patterns);
+		expect(sent.at(-1)?.viewLd, "and no view data, which is the pane's").toEqual([]);
 	});
 });
 
@@ -271,9 +285,6 @@ describe("a turn outlasts the pane that started it", () => {
 	// The actions bar removes the pane when it closes, and a click elsewhere on the page closes the bar.
 	it("keeps running when the pane is removed, and the next pane renders the rest of it", async () => {
 		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
-		const { INITIAL_SUBJECT, currentSubjectState } = await import("../current-subject.js");
-		currentSubjectState.set(INITIAL_SUBJECT);
-		recorded.length = 0;
 		resetStream();
 		const surface = document.querySelector("shu-activity-history") as HTMLElement;
 		const first = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
@@ -284,7 +295,7 @@ describe("a turn outlasts the pane that started it", () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		first.remove(); // the bar closed itself
 		expect(stream.signal?.aborted, "removing the pane does not abort the stream").toBe(false);
-		expect(currentSubjectState.get().turn.running, "the turn still runs").toBe(true);
+		expect(currentTurn()?.status, "the turn still runs").toBe("running");
 
 		const again = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
 		document.body.appendChild(again);
@@ -297,7 +308,6 @@ describe("a turn outlasts the pane that started it", () => {
 		const reply = onSurface.find((m) => m.role === "llm");
 		expect(reply?.text, "the next pane renders the reply").toBe("an answer");
 		expect(reply?.status).toBe("completed");
-		expect(currentSubjectState.get().turn.running).toBe(false);
 	});
 
 	it("ends while no pane is mounted, and the next pane renders the reply as completed", async () => {
@@ -313,7 +323,7 @@ describe("a turn outlasts the pane that started it", () => {
 		first.remove(); // the bar closed itself
 		stream.finish?.();
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		expect(currentSubjectState.get().turn.running, "the turn ended with no pane mounted").toBe(false);
+		expect(currentTurn()?.status, "the turn ended with no pane mounted").toBe("completed");
 
 		const again = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
 		document.body.appendChild(again);
@@ -328,9 +338,6 @@ describe("a turn outlasts the pane that started it", () => {
 	});
 
 	it("ends only when the reader stops it, with the reader's reason", async () => {
-		document.body.innerHTML = "";
-		const { INITIAL_SUBJECT, currentSubjectState } = await import("../current-subject.js");
-		currentSubjectState.set(INITIAL_SUBJECT);
 		const el = await paneHoldingATurn();
 		const stop = el.shadowRoot?.querySelector(".stop-btn") as HTMLButtonElement | null;
 		stop?.click();
@@ -338,17 +345,15 @@ describe("a turn outlasts the pane that started it", () => {
 		await el.updateComplete;
 		expect(stream.signal?.aborted).toBe(true);
 		expect(messages(el).find((m) => m.role === "llm")?.error).toContain("you stopped it");
-		expect(currentSubjectState.get().turn.running).toBe(false);
+		expect(currentTurn()?.status).toBe("aborted");
 	});
 });
 
 describe("a message is a record the reader can select", () => {
-	it("selecting a message makes its recorded comment the current subject, and marks the message current", async () => {
+	it("selecting a message makes its recorded comment the active record, and marks the message current", async () => {
 		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
-		const { INITIAL_SUBJECT, currentSubject, currentSubjectState, dispatchSubjectEvent } = await import("../current-subject.js");
-		currentSubjectState.set(INITIAL_SUBJECT);
-		dispatchSubjectEvent({ type: "openInPane", pane: { patterns: [anIndividual("Email", "read-me@bakery.test")], accessLevel: "private" } });
-		recorded.length = 0;
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([anIndividual("Email", "read-me@bakery.test")], "private") });
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
 		recorded.push("cmt-ask-0.1.2", "cmt-say-0.1.2");
 		const surface = document.querySelector("shu-activity-history") as HTMLElement;
 		const el = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
@@ -362,7 +367,6 @@ describe("a message is a record the reader can select", () => {
 		expect(question, "the question carries the id of its recorded comment").not.toBeNull();
 		(question.querySelector(".msg") as HTMLElement).click();
 		await el.updateComplete;
-		expect(currentSubjectState.get().reading).toBe("message");
 		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
 		expect(question.getAttribute("aria-current"), "and the question is marked current").toBe("");
 		expect(surface.querySelectorAll("[aria-current]").length, "and no other message is").toBe(1);

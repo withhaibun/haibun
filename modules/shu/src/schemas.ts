@@ -192,6 +192,11 @@ export type TContextIndividual = z.infer<typeof ContextIndividualSchema>;
 export type TContextPattern = z.infer<typeof ContextPatternSchema>;
 export const ContextQuerySchema = z.array(ContextPatternSchema);
 
+/** The context that goes with an active record: the patterns an ask about the record carries, and the access level
+ *  they are read at. */
+export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel: z.string() });
+export type TBundle = z.infer<typeof BundleSchema>;
+
 /** The ask is about one individual. */
 export const anIndividual = (persistedAs: string, id: string): TContextIndividual => ({ kind: DENOTES.individual, persistedAs, id });
 
