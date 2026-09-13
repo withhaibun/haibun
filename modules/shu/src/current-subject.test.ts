@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { anIndividual, aType } from "./schemas.js";
+import { pickWith, seededRandom } from "./test/seeded-random.js";
 import {
 	INITIAL_SUBJECT,
 	SCOPE,
@@ -124,17 +125,12 @@ describe("the active entry", () => {
 });
 
 describe("any sequence of events", () => {
-	// A small seeded generator, so a failing sequence is replayed by its seed.
-	const seeded = (seed: number) => () => {
-		seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
-		return seed / 2_147_483_648;
-	};
 	const SCOPES = [SCOPE.page, SCOPE.actionsBar, "another-panel"];
 	const ENTRIES = [EMAIL, OTHER, QUESTION, ANSWER, NOTHING];
 
 	it("keeps the active entry that of the open scope activated last, else the open scope updated", () => {
 		for (let seed = 1; seed <= 200; seed++) {
-			const random = seeded(seed);
+			const random = seededRandom(seed);
 			let state = INITIAL_SUBJECT;
 			// The rule stated again: the open scopes, the order scopes were activated in, and each scope's latest entry.
 			let opened = new Set<string>([SCOPE.page]);
@@ -142,9 +138,9 @@ describe("any sequence of events", () => {
 			const entries = new Map<string, TEntry>();
 			const path: string[] = [];
 			for (let step = 0; step < 40; step++) {
-				const scope = SCOPES[Math.floor(random() * SCOPES.length)];
-				const entry = ENTRIES[Math.floor(random() * ENTRIES.length)];
-				const type = SUBJECT_EVENTS[Math.floor(random() * SUBJECT_EVENTS.length)];
+				const scope = pickWith(random, SCOPES);
+				const entry = pickWith(random, ENTRIES);
+				const type = pickWith(random, SUBJECT_EVENTS);
 				const event: TSubjectEvent = type === "activate" || type === "update" ? { type, scope, entry } : { type, scope };
 				path.push(`${type}:${scope}`);
 				state = transition(state, event);
