@@ -37,7 +37,7 @@ import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-sto
 import type { AnnotationView } from "../annotation-resolver.js";
 import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import "./shu-annotated-body.js";
-import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getTypeDescription, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
+import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getRels, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
 import { openRef } from "./ref-navigation.js";
 import { pageAddress } from "../view-hash.js";
@@ -73,7 +73,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.body-reading { padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; }
 		.entity-type { font-weight: 600; color: var(--shu-accent); font-size: 0.85em; letter-spacing: 0.5px; margin-right: var(--shu-space-4); }
 		.entity-id { color: var(--shu-fg-muted); word-break: break-all; }
-		.entity-type-description { color: var(--shu-fg-muted); font-size: 0.85em; padding: var(--shu-space-1) 0; }
 		.entity-summary { display: flex; flex-wrap: wrap; gap: var(--shu-space-1) 10px; padding: var(--shu-space-1) 0 var(--shu-space-2); color: var(--shu-fg-muted); font-size: 0.9em; }
 		.summary-field:first-child { font-weight: 500; }
 		.references { padding: var(--shu-space-2) 0; margin: var(--shu-space-1) 0; }
@@ -85,8 +84,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.role-phrase { color: var(--shu-fg-muted); min-width: 90px; }
 		.ref-count { color: var(--shu-fg-faded); }
 		.entity-detail { margin: var(--shu-space-1) 0; font-size: 0.9em; }
-		.detail-toggle { cursor: pointer; color: var(--shu-fg-faded); font-size: 0.8em; padding: var(--shu-space-1) 0; }
-		.detail-toggle:hover { color: var(--shu-fg-muted); }
 		/* The view-settings surface shows only when the pane's ⚙ controls toggle is on (sets data-show-controls), like the document column. */
 		.entity-controls { padding: var(--shu-space-1) 0 var(--shu-space-2); border-bottom: var(--shu-border-w) solid var(--shu-border); margin-bottom: var(--shu-space-2); }
 		:host(:not([data-show-controls])) .entity-controls { display: none; }
@@ -268,16 +265,15 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const bodyLiterals = this.renderBodyLiterals(persistedAs);
 		const governance = this.renderGovernance(persistedAs);
 		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1 && contentIframe.length === 0 && bodyLiterals.length === 0;
-		const typeLine = this.typeDescriptionLine(persistedAs);
+		const typeLine = this.typeLine(persistedAs);
 
 		let contentHtml: string;
 		if (isStub) {
 			const id = idOf(this.vertex);
-			const stubDetails = this.typeDisclosure(persistedAs, typeLine);
-			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${stubDetails}${this.renderRoles()}${this.renderReferences()}`;
+			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${typeLine}${this.renderRoles()}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);
-			// Every non-summary, non-edge scalar field, shown in full between the type disclosure and the body. Object
+			// Every non-summary, non-edge scalar field, shown in full between the type line and the body. Object
 			// values render as formatted JSON. Body-presentation content (a SeqPath's stepText) renders below via bodyLiterals.
 			const detailRows = Object.entries(fields)
 				.filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k))
@@ -287,8 +283,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
-			// The disclosure carries only the type name (its summary) and description; the fields themselves sit below it.
-			const detailsHtml = this.typeDisclosure(persistedAs, typeLine);
 			const fieldsHtml = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
 			const summaryHtml =
 				summaryFields.size > 0
@@ -303,7 +297,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					: "";
 			// The body area (iframe or inline-annotated) is rendered as a lit sub-template after this string, so annotations
 			// reach shu-annotated-body as a real property rather than an attribute, hence contentIframe is NOT embedded here.
-			contentHtml = `${detailsHtml}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
+			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
 		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content">${this.renderFromStore()}${unsafeHTML(contentHtml)}${this.renderBodyArea(contentIframe)}</div>`;
@@ -322,19 +316,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return html`<div class="entity-from-store" data-testid="entity-from-store">${label}</div>`;
 	}
 
-	// The type's description, shown inside the disclosure (the type name itself is the disclosure summary). Empty for an ad-hoc result view with no registered type.
-	private typeDescriptionLine(persistedAs: string): string {
-		const desc = getTypeDescription(persistedAs);
-		if (!desc) return "";
-		return `<div class="entity-type-description" data-testid="entity-type-description">${esc(desc)}</div>`;
-	}
-
-	// The type disclosure: its summary is the type name as a link to the type's own view (description, schema, individuals:
-	// the same navigation a @type value and a #Type reference use); its body is the type description.
-	private typeDisclosure(persistedAs: string, typeLine: string): string {
-		if (!typeLine) return "";
+	/** The record's type as a link to the type's own view, which holds its description, schema and individuals: the same
+	 *  navigation a @type value and a #Type reference use. Empty for an ad-hoc result view with no registered type. */
+	private typeLine(persistedAs: string): string {
+		if (getRels(persistedAs) === undefined) return "";
 		const link = `<a class="col-link" rel="type-ref" href="#" data-value="${escAttr(persistedAs)}" data-testid="entity-type-link">${esc(persistedAs)}</a>`;
-		return `<details class="entity-detail" open data-testid="entity-details"><summary class="detail-toggle">${link}</summary>${typeLine}</details>`;
+		return `<div class="entity-detail" data-testid="entity-details">${link}</div>`;
 	}
 
 	/** Render arrays of objects as tables (e.g. show domains items). Skips `hasBody` (rendered as iframes), JSON-LD keywords, and underscore-projected keys. */
@@ -578,23 +565,23 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.setState({ showAnnotations: (e.target as HTMLInputElement).checked });
 	}
 
-	/**
-	 * Render literal body-presentation content: an inline scalar whose rel has presentation `body` (a SeqPath's
-	 * `stepText`, mapped to `content`), as plain text blocks in the body area. isVisibleKey routes body-presentation
-	 * fields out of the field table, but renderContentIframe only handles linked `hasBody` sub-resources, so a literal
-	 * `content` value would otherwise render nowhere.
-	 */
-	/** The record's governance fields (who may see it, what it allows, whether it is revoked) in their own section.
-	 *  The field table drops them (their rel says they belong here), so without this they render nowhere at all. */
+	/** The record's governance fields: who may see it, what it allows, whether it is revoked. The field table drops them
+	 *  (their rel says they belong here), so without this they render nowhere at all. */
 	private renderGovernance(persistedAs: string): string {
 		if (!this.vertex) return "";
 		const fields = governanceFields(this.vertex, persistedAs);
 		const rows = Object.entries(fields)
 			.map(([k, v]) => `<div class="field-row"><span class="field-name">${esc(k)}</span><span class="field-value">${this.fieldValueHtml(v, k)}</span></div>`)
 			.join("");
-		return rows ? `<details class="governance" open data-testid="entity-governance"><summary class="section-label">Governance</summary>${rows}</details>` : "";
+		return rows ? `<div class="governance" data-testid="entity-governance">${rows}</div>` : "";
 	}
 
+	/**
+	 * Render literal body-presentation content: an inline scalar whose rel has presentation `body` (a SeqPath's
+	 * `stepText`, mapped to `content`), as plain text blocks in the body area. isVisibleKey routes body-presentation
+	 * fields out of the field table, but renderContentIframe only handles linked `hasBody` sub-resources, so a literal
+	 * `content` value would otherwise render nowhere.
+	 */
 	private renderBodyLiterals(persistedAs: string): string {
 		if (!this.vertex) return "";
 		return Object.entries(extractBodyLiterals(this.vertex, persistedAs))
