@@ -65,6 +65,9 @@ export const SHU_EVENT = {
 	SORT_CHANGE: "sort-change",
 	STATE_CHANGE: "state-change",
 	SYNC_AVAILABLE: "sync-available",
+	/** A step caller ran its step: it succeeded, or it failed. Both bubble out of the caller's view, which grows in place. */
+	STEP_SUCCESS: "step-success",
+	STEP_ERROR: "step-error",
 } as const;
 
 /** The one glyph marking annotation everywhere it appears: the gutter toggle, the rail markers. A text glyph (the
