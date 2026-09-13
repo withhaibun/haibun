@@ -363,7 +363,6 @@ const main = async (): Promise<void> => {
 				void query.loadMetadata?.();
 				void query.executeQuery?.();
 			}
-			getActionsBar()?.notifyQueryCompleted?.();
 			appRoot.querySelector(".result-total")?.classList.remove("has-sync");
 		}) as EventListener,
 		{ signal },
