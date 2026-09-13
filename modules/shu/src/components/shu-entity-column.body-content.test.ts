@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { provideLayout } from "../test/jsdom-layout.js";
 
 type Body = { id: string; content: string; mediaType: string };
 
@@ -18,6 +19,7 @@ const render = async (type: string, fields: Record<string, unknown>, bodies: Bod
 
 describe("entity body content renders for every type and view that should show it", () => {
 	beforeEach(() => {
+		provideLayout();
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 	});
 
