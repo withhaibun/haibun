@@ -4,30 +4,25 @@
  * strip. An open bar overlays the views rather than resizing them, so it marks itself as covering them, and opening and
  * closing it opens and closes the bar's scope of the active record.
  */
-import type { ReactiveController, ReactiveControllerHost } from "lit";
+import type { ReactiveController } from "lit";
 import { ACTIONS_BAR_FOOTPRINT, SHU_ATTR } from "../consts.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
-import { draggedHeight, draggedProportion, openAtProportion } from "./actions-bar-model.js";
+import { draggedHeight, draggedProportion, openAtProportion, type TActionsBarHost } from "./actions-bar-model.js";
 import { startPointerDrag } from "./pointer-drag.js";
 
 /** What the bar remembers of how it stands: whether it is open, whether it is pinned open, and its dragged height as a
  *  fraction of its container. */
 export type THeightState = { askExpanded: boolean; pinned: boolean; heightProportion: number };
 
-/** What the height reads from the bar: its state, the closed strip and the bar's frame once rendered, and the input a
- *  reader types into once the bar opens. */
+/** What the height reads from the bar: its state and how to change it. */
 export type TActionsBarHeightDeps = {
 	state: () => THeightState;
 	setState: (patch: Partial<THeightState>) => void;
-	strip: () => { summary: HTMLElement; frame: HTMLElement } | null;
-	focusInput: () => void;
 };
 
 export class ActionsBarHeight implements ReactiveController {
-	readonly #host: ReactiveControllerHost & HTMLElement;
+	readonly #host: TActionsBarHost;
 	readonly #deps: TActionsBarHeightDeps;
-	/** The open height as a fraction of the container, read from the state once and kept after a drag. */
-	#proportion: number | null = null;
 	/** Whether the bar's scope of the active record was last raised open. */
 	#scopeOpen = false;
 	#footprintHost: HTMLElement | null = null;
@@ -36,7 +31,7 @@ export class ActionsBarHeight implements ReactiveController {
 	/** The drag in flight: where it began, the height and container height then, and how to stop it. */
 	#drag: { startY: number; startHeight: number; containerHeight: number; framePending: boolean; stop: () => void } | null = null;
 
-	constructor(host: ReactiveControllerHost & HTMLElement, deps: TActionsBarHeightDeps) {
+	constructor(host: TActionsBarHost, deps: TActionsBarHeightDeps) {
 		this.#host = host;
 		this.#deps = deps;
 		host.addController(this);
@@ -45,17 +40,17 @@ export class ActionsBarHeight implements ReactiveController {
 	hostConnected(): void {
 		document.addEventListener("click", this.#onDocumentClick, true);
 		// The bar spans its container's width, so the strip wraps and its footprint changes with the window.
-		this.#footprintObserver = new ResizeObserver(() => this.publishFootprint());
+		this.#footprintObserver = new ResizeObserver(() => this.#publishFootprint());
 		this.#footprintObserver.observe(this.#host);
 	}
 
 	/** Before each render: the bar stands at its open height or at its strip, and its scope follows. */
 	hostUpdate(): void {
-		this.apply();
+		this.#apply();
 	}
 
 	hostUpdated(): void {
-		this.publishFootprint();
+		this.#publishFootprint();
 	}
 
 	hostDisconnected(): void {
@@ -81,22 +76,9 @@ export class ActionsBarHeight implements ReactiveController {
 		if (this.#deps.state().pinned) this.open();
 	}
 
-	/** Open or close the bar, and focus the input when it opens. */
-	toggle(): void {
-		const opening = !this.#deps.state().askExpanded;
-		this.#deps.setState({ askExpanded: opening });
-		if (opening) requestAnimationFrame(() => this.#deps.focusInput());
-	}
-
-	/** The strip's disclosure control. It stops the click, so the strip's own toggle does not undo it. */
-	onTwistyToggle = (e: Event): void => {
-		e.stopPropagation();
-		this.toggle();
-	};
-
-	/** The strip itself toggles the bar. */
+	/** A click on the strip, its disclosure control among it, opens or closes the bar. */
 	onStripClick = (): void => {
-		this.toggle();
+		this.#deps.setState({ askExpanded: !this.#deps.state().askExpanded });
 	};
 
 	/** The pin latches the bar open against a click elsewhere. Pinning opens a closed bar; unpinning leaves it open. */
@@ -115,10 +97,9 @@ export class ActionsBarHeight implements ReactiveController {
 	};
 
 	/** Stand at the open height or the strip, mark whether the bar covers the views, and open or close its scope. */
-	apply(): void {
-		const open = this.#deps.state().askExpanded;
-		this.#proportion ??= openAtProportion(this.#deps.state().heightProportion);
-		this.#host.style.height = open ? `${(this.#proportion * 100).toFixed(2)}%` : "";
+	#apply(): void {
+		const { askExpanded: open, heightProportion } = this.#deps.state();
+		this.#host.style.height = open ? `${(openAtProportion(heightProportion) * 100).toFixed(2)}%` : "";
 		this.#host.toggleAttribute(SHU_ATTR.DATA_COVERS_VIEWS, open);
 		if (open === this.#scopeOpen) return;
 		this.#scopeOpen = open;
@@ -126,11 +107,12 @@ export class ActionsBarHeight implements ReactiveController {
 	}
 
 	/** Set the closed strip's height, with the bar's top border, on the positioning host, once per change. */
-	publishFootprint(): void {
+	#publishFootprint(): void {
 		const host = this.#host.offsetParent as HTMLElement | null;
-		const strip = this.#deps.strip();
-		if (!host || !strip) return;
-		const height = Math.ceil(strip.summary.offsetHeight + (Number.parseFloat(getComputedStyle(strip.frame).borderTopWidth) || 0));
+		const summary = this.#host.renderRoot.querySelector<HTMLElement>(".summary-bar");
+		const frame = this.#host.renderRoot.querySelector<HTMLElement>(".actions-bar");
+		if (!host || !summary || !frame) return;
+		const height = Math.ceil(summary.offsetHeight + (Number.parseFloat(getComputedStyle(frame).borderTopWidth) || 0));
 		if (host === this.#footprintHost && height === this.#footprint) return;
 		this.#footprintHost = host;
 		this.#footprint = height;
@@ -167,8 +149,7 @@ export class ActionsBarHeight implements ReactiveController {
 		const drag = this.#drag;
 		this.#drag = null;
 		if (!drag) return;
-		this.#proportion = draggedProportion(this.#host.offsetHeight, drag.containerHeight);
-		this.#deps.setState({ heightProportion: this.#proportion });
-		this.apply();
+		this.#deps.setState({ heightProportion: draggedProportion(this.#host.offsetHeight, drag.containerHeight) });
+		this.#apply();
 	}
 }

@@ -11,7 +11,6 @@ import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import type { CSSResultGroup } from "lit";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SignalController } from "../controllers/index.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ActionsBarHeight } from "./actions-bar-height.js";
 import { ActionsBarCorners } from "./actions-bar-corners.js";
@@ -30,7 +29,6 @@ import { hashParam, onHashChanged } from "../view-hash.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { isOffline } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags, whenSiteMetadataReady } from "../rels-cache.js";
-import type { ShuCombobox } from "./shu-combobox.js";
 import { reportToRun, type TClientLogLevel } from "../client-log.js";
 
 type TMode = z.infer<typeof ActionsBarSchema>["mode"];
@@ -53,45 +51,20 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** Search mode: the type, text search, conditions and select filters, and the searches recorded in the history. */
 	#query = new ActionsBarQuery(this, {
 		testIdPrefix: () => this.testIdPrefix,
-		history: () => this._history,
-		find: (selector) => this.shadowRoot?.querySelector(selector) ?? null,
-		findAll: (selector) => Array.from(this.shadowRoot?.querySelectorAll(selector) ?? []),
+		history: this._history,
 		setStatus: (message) => this.setStatus(message),
-		fail: (message) => this.failFast(message),
 		onTrailChange: () => this.updateBreadcrumbDisplay(),
 	});
 	/** Step mode: the steps the run offers, the step input line, and the callers opened in the history. */
-	#steps = new ActionsBarSteps(this, {
-		testIdPrefix: () => this.testIdPrefix,
-		selectedLabel: () => this.#query.selectedLabel,
-		history: () => this._history,
-		combo: () => this.shadowRoot?.querySelector<ShuCombobox>(".step-combo") ?? null,
-	});
+	#steps = new ActionsBarSteps(this, { testIdPrefix: () => this.testIdPrefix, selectedLabel: () => this.#query.selectedLabel, history: this._history });
 	/** The corner controls and their popover: settings, access and authority, the time offset and playback, the status. */
 	#corners = new ActionsBarCorners(this, {
 		testIdPrefix: () => this.testIdPrefix,
 		accessLevel: () => this.#query.accessLevel,
 		setAccessLevel: (level) => this.#query.setAccessLevel(level),
-		popover: () => this.shadowRoot?.querySelector<HTMLElement>(".corner-popover") ?? null,
 	});
 	/** How the bar stands: open or closed, pinned, dragged, and the footprint of its closed strip. */
-	#height = new ActionsBarHeight(this, {
-		state: () => this.state,
-		setState: (patch) => this.setState(patch),
-		strip: () => {
-			const summary = this.shadowRoot?.querySelector<HTMLElement>(".summary-bar");
-			const frame = this.shadowRoot?.querySelector<HTMLElement>(".actions-bar");
-			return summary && frame ? { summary, frame } : null;
-		},
-		focusInput: () => (this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus(),
-	});
-	/** The conversation the ask is open on, which the view hash addresses. */
-	#conversation = new SignalController(
-		this,
-		conversationState,
-		() => undefined,
-		(conversation) => conversation.session,
-	);
+	#height = new ActionsBarHeight(this, { state: () => this.state, setState: (patch) => this.setState(patch) });
 
 	static observedHtmlAttributes = ["api-base", "testid-prefix"];
 
@@ -167,7 +140,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  address names none. An address the conversation already follows changes nothing. */
 	private followConversationAddress = (): void => {
 		const session = hashParam(CONVERSATION_PARAM);
-		if (session === (this.#conversation.state.session ?? "")) return;
+		if (session === (conversationState.get().session ?? "")) return;
 		if (!session) return closeConversation();
 		this.setState({ mode: "ask", askExpanded: true });
 		void openConversation(session, "update");
@@ -315,7 +288,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return html`<div class="summary-bar" @click=${this.#height.onStripClick}>
 			${this.#corners.popoverTemplate()}
 			<button class="bar-twisty" aria-label=${expanded ? "Collapse actions bar" : "Expand actions bar"} aria-expanded=${expanded}
-				data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.#height.onTwistyToggle}>${expanded ? "▾" : "▴"}</button>
+				data-testid=${`${this.testIdPrefix}summary-bar`}>${expanded ? "▾" : "▴"}</button>
 			${this.#corners.statusTemplate()}
 			<shu-breadcrumb></shu-breadcrumb>
 			${this.#corners.controlsTemplate()}

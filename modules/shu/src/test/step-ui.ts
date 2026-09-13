@@ -147,21 +147,26 @@ export function createStepUI(wp: WebPlaywright) {
 
 	/** Wait until the transcript holds at least `count` completed answers. */
 	function askAnswered(count: number): TKirejiStep[] {
-		return [`set ${ASK_LOCATOR.ANSWERED} as page-locator to "${nthChatMessage(CHAT_MESSAGE_MATCH.COMPLETED_REPLY, count)}"`, waitFor({ target: ASK_LOCATOR.ANSWERED })];
+		return [
+			setAs({ what: ASK_LOCATOR.ANSWERED, domain: "page-locator", value: `"${nthChatMessage(CHAT_MESSAGE_MATCH.COMPLETED_REPLY, count)}"` }),
+			waitFor({ target: ASK_LOCATOR.ANSWERED }),
+		];
 	}
 
 	/** Wait until the transcript shows exactly `count` turns, the branch the conversation is on: the question that is
 	 *  the nth shown is also the last one shown. */
 	function askShowsTurns(count: number): TKirejiStep[] {
 		const shown = CHAT_MESSAGE_MATCH.SHOWN_QUESTION;
-		return [`set ${ASK_LOCATOR.TURNS_SHOWN} as page-locator to "${nthChatMessage(shown, count)}:nth-last-child(1 of ${shown})"`, waitFor({ target: ASK_LOCATOR.TURNS_SHOWN })];
+		const value = `"${nthChatMessage(shown, count)}:nth-last-child(1 of ${shown})"`;
+		return [setAs({ what: ASK_LOCATOR.TURNS_SHOWN, domain: "page-locator", value }), waitFor({ target: ASK_LOCATOR.TURNS_SHOWN })];
 	}
 
 	/** Wait until a turn states `statement` among the context it sent, the conversation it followed from and the calls it
 	 *  made. The statement is embedded in a single-quoted selector, so it may not hold a single quote. */
 	function askStates(statement: string): TKirejiStep[] {
 		if (statement.includes("'")) throw new Error(`askStates: "${statement}" holds a single quote, which ends the selector it is embedded in`);
-		return [`set ${ASK_LOCATOR.STATED} as page-locator to "[data-testid='${IDS.APP.CHAT_ACTIVITY}']:has-text('${statement}')"`, waitFor({ target: ASK_LOCATOR.STATED })];
+		const value = `"[data-testid='${IDS.APP.CHAT_ACTIVITY}']:has-text('${statement}')"`;
+		return [setAs({ what: ASK_LOCATOR.STATED, domain: "page-locator", value }), waitFor({ target: ASK_LOCATOR.STATED })];
 	}
 
 	/** Click the first row of the current shu-query result table; waits for the column-browser pane to appear. */

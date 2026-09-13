@@ -16,7 +16,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuChatMessage } from "./shu-chat-message.js";
 import { SHU_TAG } from "../consts.js";
 import { SignalController, SubjectController } from "../controllers/index.js";
-import { inFlight, nextQuestion, turnState } from "../chat-turn.js";
+import { nextQuestion, turnEnded, turnState } from "../chat-turn.js";
 import { conversationState, transcript } from "../conversation.js";
 import { currentSubject } from "../current-subject.js";
 import { appAccessLevel } from "../util.js";
@@ -87,8 +87,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 			}
 			const given = JSON.stringify(message);
 			if (held.given !== given) {
-				const was = held.el.message.status;
-				pin ||= was !== undefined && inFlight(was) && !(message.status !== undefined && inFlight(message.status));
+				pin ||= turnEnded(held.el.message.status, message.status);
 				held.el.message = message;
 				held.given = given;
 			}

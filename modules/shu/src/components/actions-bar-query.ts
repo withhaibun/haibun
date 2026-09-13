@@ -4,7 +4,7 @@
  * makes announces the search the bar now describes as a filter change, which the query runs. The trail label names what
  * the search is about, for the bar's breadcrumb.
  */
-import { html, nothing, type ReactiveController, type ReactiveControllerHost, type TemplateResult } from "lit";
+import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
@@ -13,13 +13,12 @@ import { isServerUnreachable } from "../hypermedia.js";
 import { selectValuesFor } from "../quads-snapshot.js";
 import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../rels-cache.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, type DomainOption } from "../rpc-registry.js";
-import { SEARCH_OPERATORS, parseFilterParam, type TContextPattern } from "../schemas.js";
+import { SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../schemas.js";
 import { appAccessLevel } from "../util.js";
-import { hashParams, getHash } from "../view-hash.js";
-import { serializeViewQuery, viewQuery } from "../view-query.js";
-import { contextLabel, isEntitySelection, type TContextExtra } from "./actions-bar-model.js";
+import { getHash } from "../view-hash.js";
+import { parseViewQuery, serializeViewQuery, viewQuery } from "../view-query.js";
+import { contextLabel, isEntitySelection, type TActionsBarHost, type TContextExtra } from "./actions-bar-model.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
-import type { ShuCombobox } from "./shu-combobox.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 
 /** How long typing rests before the search text is committed. */
@@ -38,21 +37,17 @@ export function searchConditions(selectFilters: Record<string, string>, rows: re
 	return [...selected, ...rows.filter((row) => row.predicate.length > 0)];
 }
 
-/** What the query reads from the bar: its test-id prefix, the history searches are recorded in, the elements of its
- *  rendered tree, the status it reports a server that did not answer on, a failure it cannot continue past, and the
- *  breadcrumb it asks to read the trail label again. */
+/** What the query reads from the bar: its test-id prefix, the history searches are recorded in, the status it reports
+ *  on, and the breadcrumb it asks to read the trail label again. */
 export type TActionsBarQueryDeps = {
 	testIdPrefix: () => string;
-	history: () => ShuActivityHistory;
-	find: <T extends Element>(selector: string) => T | null;
-	findAll: <T extends Element>(selector: string) => T[];
+	history: ShuActivityHistory;
 	setStatus: (message: string) => void;
-	fail: (message: string) => never;
 	onTrailChange: () => void;
 };
 
 export class ActionsBarQuery implements ReactiveController {
-	readonly #host: ReactiveControllerHost & HTMLElement;
+	readonly #host: TActionsBarHost;
 	readonly #deps: TActionsBarQueryDeps;
 	#contextPatterns: TContextPattern[] = [];
 	/** The read access every query here runs at, opening at the level the page opened at, so the bar and the snapshot
@@ -60,8 +55,11 @@ export class ActionsBarQuery implements ReactiveController {
 	#accessLevel = appAccessLevel();
 	#trailLabel = "All";
 	#conditions: TSearchCondition[] = [];
-	#properties: string[] = [];
+	/** The fields of the selected type a condition can name, as the condition's field selector offers them. */
+	#propertyOptions: TComboboxOption[] = [];
 	#domainOptions: DomainOption[] = [];
+	/** The types, as the type selector offers them: each by the domain key the hash uses, grouped declared first. */
+	#typeOptions: TComboboxOption[] = [];
 	#selectedDomainKey = "";
 	#selectFilters: Record<string, string> = {};
 	#selectedLabel = "";
@@ -69,34 +67,20 @@ export class ActionsBarQuery implements ReactiveController {
 	#searchNumber = 0;
 	#searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
-	constructor(host: ReactiveControllerHost & HTMLElement, deps: TActionsBarQueryDeps) {
+	constructor(host: TActionsBarHost, deps: TActionsBarQueryDeps) {
 		this.#host = host;
 		this.#deps = deps;
 		host.addController(this);
 	}
 
 	hostDisconnected(): void {
-		if (this.#searchDebounce) clearTimeout(this.#searchDebounce);
-		this.#searchDebounce = null;
+		this.#cancelPendingSearch();
 	}
 
-	/** After each render, the type and property selectors offer their options, and the search box shows the stored text. */
+	/** After each render, the search box shows the stored text. It is uncontrolled while a reader types, so never while it
+	 *  has focus. */
 	hostUpdated(): void {
-		const types = this.#deps.find<ShuCombobox>(".label-select");
-		if (types) {
-			// The value is the domain key the hash uses, grouped declared first. The closed display follows the selected key,
-			// except while a reader filters the open list: setting the value would close it mid-selection.
-			types.setOptions(this.#domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group })));
-			if (this.#selectedDomainKey && types.value !== this.#selectedDomainKey && !types.isOpen) types.setValue(this.#selectedDomainKey);
-		}
-		const properties = this.#properties.map((p) => ({ value: p, label: p }));
-		for (const combo of this.#deps.findAll<ShuCombobox>(".cond-property")) {
-			const index = Number.parseInt(combo.dataset.index || "0", 10);
-			combo.setOptions(properties);
-			if (this.#conditions[index]?.predicate) combo.setValue(this.#conditions[index].predicate);
-		}
-		// The search box is uncontrolled while a reader types; it shows the stored text, never while it has focus.
-		const input = this.#deps.find<HTMLInputElement>(".text-search");
+		const input = this.#searchBox();
 		if (!input || this.#host.shadowRoot?.activeElement === input) return;
 		const q = viewQuery.signals.q.get() ?? "";
 		if (input.value !== q) input.value = q;
@@ -148,12 +132,10 @@ export class ActionsBarQuery implements ReactiveController {
 		await getAvailableSteps(); // the concern catalog the domains are read from arrives with the steps
 		this.#domainOptions = buildDomainOptions(await getAvailableDomains());
 		if (this.#domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
-		const params = hashParams(getHash());
-		if (!this.#selectedLabel) this.#selectedLabel = params.get("label") ?? "";
-		for (const f of params.getAll("f")) {
-			const c = parseFilterParam(f);
-			if (c.predicate && c.operator === "eq" && c.value) this.#selectFilters[c.predicate] = c.value;
-		}
+		this.#typeOptions = this.#domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group }));
+		const { label, f } = parseViewQuery(getHash());
+		if (!this.#selectedLabel) this.#selectedLabel = label ?? "";
+		for (const c of f) if (c.predicate && c.operator === "eq" && c.value) this.#selectFilters[c.predicate] = c.value;
 		this.#syncSelectedDomainKey();
 		this.loadProperties();
 		this.#loadSelectValuesReported();
@@ -163,7 +145,7 @@ export class ActionsBarQuery implements ReactiveController {
 
 	/** Read the fields of the selected type a condition can name. */
 	loadProperties(): void {
-		this.#properties = this.#selectedLabel ? getQueryableFields(this.#selectedLabel) : [];
+		this.#propertyOptions = (this.#selectedLabel ? getQueryableFields(this.#selectedLabel) : []).map((field) => ({ value: field, label: field }));
 	}
 
 	/** Read the distinct values the selected type's fields take. Values the bar already holds are kept, unless `force`: a
@@ -189,7 +171,8 @@ export class ActionsBarQuery implements ReactiveController {
 		return html`<div class="filter-bar">
 			${modeToggle}
 			<input type="text" class="text-search" data-testid=${`${prefix}text-search`} placeholder="search..." @input=${this.#onTextInput} @blur=${this.#onTextBlur} />
-			<shu-combobox class="label-select" testid=${`${prefix}type-select`} placeholder="type..." @combo-change=${this.#onLabelChange}></shu-combobox>
+			<shu-combobox class="label-select" testid=${`${prefix}type-select`} placeholder="type..." .options=${this.#typeOptions} .value=${this.#selectedDomainKey}
+				@combo-change=${this.#onLabelChange}></shu-combobox>
 			${Object.entries(fields)
 				.filter(([, values]) => values.length > 0)
 				.map(([field, values]) => {
@@ -208,8 +191,8 @@ export class ActionsBarQuery implements ReactiveController {
 	#conditionTemplate(c: TSearchCondition, i: number): TemplateResult {
 		const prefix = this.#deps.testIdPrefix();
 		return html`<span class="filter-group" data-index=${i}>
-			<shu-combobox class="cond-property" data-index=${i} testid=${`${prefix}cond-property-${i}`} placeholder="property..."
-				@combo-change=${(e: CustomEvent) => this.#onConditionProperty(i, e)}></shu-combobox>
+			<shu-combobox class="cond-property" data-index=${i} testid=${`${prefix}cond-property-${i}`} placeholder="property..." .options=${this.#propertyOptions}
+				.value=${c.predicate} @combo-change=${(e: CustomEvent) => this.#onConditionProperty(i, e)}></shu-combobox>
 			<select class="cond-operator" data-index=${i} data-testid=${`${prefix}cond-operator-${i}`} @change=${(e: Event) => this.#onConditionOperator(i, e)}>
 				${SEARCH_OPERATORS.map((o) => html`<option value=${o.value} ?selected=${o.value === c.operator}>${o.label}</option>`)}
 			</select>
@@ -244,7 +227,9 @@ export class ActionsBarQuery implements ReactiveController {
 	#loadSelectValuesReported(force = false): void {
 		void this.loadSelectValues(force).catch((err) => {
 			if (isServerUnreachable(err)) return this.#deps.setStatus(`the values for this step are not available: ${errorDetail(err)}`);
-			this.#deps.fail(`ShuActionsBar select-values load failed: ${errorDetail(err)}`);
+			const message = `ShuActionsBar select-values load failed: ${errorDetail(err)}`;
+			this.#deps.setStatus(message);
+			throw new Error(message);
 		});
 	}
 
@@ -263,6 +248,10 @@ export class ActionsBarQuery implements ReactiveController {
 		this.#announce();
 	}
 
+	#searchBox(): HTMLInputElement | null {
+		return this.#host.renderRoot.querySelector<HTMLInputElement>(".text-search");
+	}
+
 	#cancelPendingSearch(): void {
 		if (this.#searchDebounce) clearTimeout(this.#searchDebounce);
 		this.#searchDebounce = null;
@@ -276,7 +265,7 @@ export class ActionsBarQuery implements ReactiveController {
 	#recordSearch(): void {
 		const query = viewQuery.current;
 		if (!query.q && !query.f.some((c) => c.predicate && c.value)) return;
-		const history = this.#deps.history();
+		const history = this.#deps.history;
 		const newest = Array.from(history.querySelectorAll<ShuSearchSummary>(SHU_TAG.SEARCH_SUMMARY)).at(-1);
 		if (newest?.query && serializeViewQuery(newest.query) === serializeViewQuery(query)) return;
 		const entry = new ShuSearchSummary();
@@ -318,7 +307,7 @@ export class ActionsBarQuery implements ReactiveController {
 
 	#onSearchGo = (): void => {
 		this.#cancelPendingSearch();
-		this.#commitSearch(this.#deps.find<HTMLInputElement>(".text-search")?.value || "");
+		this.#commitSearch(this.#searchBox()?.value || "");
 		this.#recordSearch();
 	};
 

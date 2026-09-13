@@ -20,7 +20,7 @@ const { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } = await impor
 const { aControllerHost } = await import("./actions-bar-host.test-fake.js");
 const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
 
-const step = (method: string, pattern: string, extra: Partial<StepDescriptor> = {}) => ({ method, pattern, ...extra }) as StepDescriptor;
+const step = (method: string, pattern: string, extra: Partial<StepDescriptor> = {}) => ({ method, stepName: method.split("-")[1], pattern, ...extra }) as StepDescriptor;
 const SHOW = step("GraphStepper-showGraph", "show graph {name}", { paramDomains: { name: "string" }, productsDomain: "graph" });
 const LIST = step("GraphStepper-listTypes", "list types");
 const ASK = step("LlmStepper-chatWithContext", "ask {prompt}");
@@ -32,7 +32,7 @@ async function aStepsPage(selectedLabel = "") {
 	const host = aControllerHost();
 	const history = Object.assign(document.createElement("div"), { scrollToBottom: vi.fn() }) as THistory;
 	host.append(history);
-	const steps = new ActionsBarSteps(host, { testIdPrefix: () => "app-", selectedLabel: () => selectedLabel, history: () => history as never, combo: () => null });
+	const steps = new ActionsBarSteps(host, { testIdPrefix: () => "app-", selectedLabel: () => selectedLabel, history: history as never });
 	steps.hostConnected();
 	await steps.load();
 	return { host, history, steps };
@@ -41,7 +41,7 @@ async function aStepsPage(selectedLabel = "") {
 const callers = (history: HTMLElement) => Array.from(history.querySelectorAll(SHU_TAG.STEP_CALLER));
 /** A caller already in the history, which has run its step or not. */
 const aCaller = (history: HTMLElement, method: string, executed: boolean) => {
-	const caller = Object.assign(document.createElement(SHU_TAG.STEP_CALLER), { executed, reset: vi.fn() });
+	const caller = Object.assign(document.createElement(SHU_TAG.STEP_CALLER), { executed });
 	caller.setAttribute("method", method);
 	history.append(caller);
 	return caller;
@@ -84,14 +84,16 @@ describe("the actions bar's step mode", () => {
 		expect(history.scrollToBottom).toHaveBeenCalled();
 	});
 
-	it("retargets the last caller that has not run rather than adding a second, and adds one for fixed arguments or a step run at once", async () => {
+	it("replaces the last caller that has not run rather than adding a second, and adds one for fixed arguments or a step run at once", async () => {
 		const { history, steps } = await aStepsPage();
-		const waiting = aCaller(history, SHOW.method, false);
+		const waiting = aCaller(history, LIST.method, false);
+		waiting.setAttribute("params", JSON.stringify({ name: "fixed" }));
 		steps.open(LIST.method);
 		expect(callers(history)).toHaveLength(1);
-		expect(waiting.getAttribute("method")).toBe(LIST.method);
-		expect(waiting.getAttribute("call-index")).toBe("0");
-		expect(waiting.reset).toHaveBeenCalledWith(LIST.method);
+		expect(waiting.isConnected, "the caller that had not run is gone, with what was fixed for it").toBe(false);
+		expect(callers(history)[0].getAttribute("method")).toBe(LIST.method);
+		expect(callers(history)[0].hasAttribute("params")).toBe(false);
+		expect(callers(history)[0].getAttribute("call-index"), "numbered among the callers left").toBe("0");
 		steps.open(SHOW.method, { name: "all" });
 		steps.open(SHOW.method, undefined, true);
 		expect(callers(history)).toHaveLength(3);

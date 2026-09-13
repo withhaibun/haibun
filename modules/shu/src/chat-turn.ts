@@ -12,6 +12,7 @@ import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SCOPE, activeEntry, scopeEntry, type TEntry, type TRecord, type TSubjectState } from "./current-subject.js";
 import { acts, conduit } from "./hypermedia.js";
+import { requireStep } from "./rpc-registry.js";
 import { reportToRun } from "./client-log.js";
 import type { TBundle, TChatStatus, TTurnStatus } from "./schemas.js";
 import { SharedSignal } from "./signals.js";
@@ -54,12 +55,20 @@ export const TURN_EVENTS = ["ask", "started", "text", "status", "recorded", "sto
 
 export const IDLE_TURN: TTurnState = { status: "idle" };
 
+/** The step a turn runs. */
+export const ASK_STEP = "chatWithContext";
+
 /** The error of a turn whose stream ended before the run started its step. */
 export const NOT_STARTED = "the stream ended before the run started the turn's step";
 
-/** Whether a turn with the status was asked and has not ended. */
-export function inFlight(status: TTurnStatus): boolean {
+/** Whether a turn with the status was asked and has not ended. No status is not in flight. */
+export function inFlight(status: TTurnStatus | undefined): boolean {
 	return status === "asking" || status === "running";
+}
+
+/** Whether a turn ended between two of its statuses. */
+export function turnEnded(before: TTurnStatus | undefined, after: TTurnStatus | undefined): boolean {
+	return inFlight(before) && !inFlight(after);
 }
 
 /** Why a new turn cannot start now, or null when one can. A turn is refused while another is in flight. */
@@ -105,9 +114,9 @@ export function dispatchTurnEvent(event: TTurnEvent): TTurnState {
 
 /** What a turn sends besides its prompt and bundle: the view data, the tool limit, who reads the context, the session
  *  and the turn it replies to. */
-export type TTurnEnvelope = { viewLd: unknown[]; maxToolCalls: number; contextReadBy?: string; sessionSeqPath?: string; inReplyTo?: string };
+type TTurnEnvelope = { viewLd: unknown[]; maxToolCalls: number; contextReadBy?: string; sessionSeqPath?: string; inReplyTo?: string };
 
-type TTurnRequest = { method: string; prompt: string; bundle: TBundle; envelope: TTurnEnvelope; target: string; why: string };
+type TTurnRequest = { prompt: string; bundle: TBundle; envelope: TTurnEnvelope; target: string };
 
 /** What the next question is made of: the active entry, whose bundle it carries, and the turn it replies to. The turn
  *  is the actions bar's entry where that entry names one, and the transcript shows the branch that ends at it. */
@@ -116,11 +125,26 @@ export function nextQuestion(state: TSubjectState): { carries: TEntry | null; re
 	return { carries: activeEntry(state), repliesTo: conversation?.seqPath ? conversation : null };
 }
 
-/** Raise the events one streamed chunk carries. */
-function raiseChunk(chunk: TStreamChunk): void {
-	if (chunk.recorded) dispatchTurnEvent({ type: "recorded", record: { id: chunk.recorded.id, label: chunk.recorded.persistedAs } });
-	if (chunk.status) dispatchTurnEvent({ type: "status", line: chunk.status });
-	if (chunk.text) dispatchTurnEvent({ type: "text", piece: chunk.text });
+/** The events a turn's streamed chunks carry. Text is raised at most once a frame, so a stream faster than the page draws
+ *  moves the turn once per drawn frame, and `flush` raises what is held before the turn ends. */
+class ChunkEvents {
+	#text = "";
+	#frame: number | undefined;
+
+	raise = (chunk: TStreamChunk): void => {
+		if (chunk.recorded) dispatchTurnEvent({ type: "recorded", record: { id: chunk.recorded.id, label: chunk.recorded.persistedAs } });
+		if (chunk.status) dispatchTurnEvent({ type: "status", line: chunk.status });
+		if (!chunk.text) return;
+		this.#text += chunk.text;
+		this.#frame ??= requestAnimationFrame(this.flush);
+	};
+
+	flush = (): void => {
+		if (this.#frame !== undefined) cancelAnimationFrame(this.#frame);
+		this.#frame = undefined;
+		if (this.#text) dispatchTurnEvent({ type: "text", piece: this.#text });
+		this.#text = "";
+	};
 }
 
 /**
@@ -138,14 +162,17 @@ export async function startTurn(request: TTurnRequest): Promise<TTurnState> {
 		if (turn.status !== "idle" && turn.stoppedBy) abort.abort();
 	});
 	const context = JSON.stringify({ patterns: bundle.patterns, ...envelope });
+	const chunks = new ChunkEvents();
 	try {
-		await conduit().followStream(acts(request.method, { prompt, context, accessLevel: bundle.accessLevel, target: request.target }), raiseChunk, {
-			why: request.why,
+		await conduit().followStream(acts(requireStep(ASK_STEP), { prompt, context, accessLevel: bundle.accessLevel, target: request.target }), chunks.raise, {
+			why: "chat-turn: stream the turn's answer",
 			signal: abort.signal,
 			onStart: (seqPath) => dispatchTurnEvent({ type: "started", seqPath: formatSeqPath(seqPath) }),
 		});
+		chunks.flush();
 		dispatchTurnEvent({ type: "ended" });
 	} catch (err) {
+		chunks.flush();
 		dispatchTurnEvent({ type: "erred", message: errorDetail(err) });
 	} finally {
 		unsubscribe();

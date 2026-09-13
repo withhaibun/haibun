@@ -7,19 +7,10 @@
  */
 import { describe, it, expect } from "vitest";
 import { lazyWindowedSource } from "./windowed-source.js";
+import { seededRandom } from "./test/seeded-random.js";
 
 /** A row's value is its index, so a wrong row is detectable by inspection. */
 const rowFor = (index: number): number => index;
-
-/** Deterministic pseudo-random numbers: a seed replays a failing sequence exactly. */
-function seeded(seed: number): () => number {
-	let t = seed + 0x6d2b79f5;
-	return () => {
-		t = Math.imul(t ^ (t >>> 15), 1 | t);
-		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-	};
-}
 
 type TPending = { start: number; end: number; resolve: () => void };
 
@@ -94,7 +85,7 @@ function assertInvariants(h: ReturnType<typeof harness>, note: string): void {
 describe("the paging core under arbitrary interleaving", () => {
 	it("reads only true rows and names exactly what it caches, however operations interleave", async () => {
 		for (let seed = 1; seed <= 60; seed++) {
-			const random = seeded(seed);
+			const random = seededRandom(seed);
 			const pageSize = 1 + Math.floor(random() * 8);
 			const h = harness({ pageSize, maxResidentPages: 4 + Math.floor(random() * 6), dataEnd: 40 + Math.floor(random() * 60) });
 			h.grow(1 + Math.floor(random() * 20));
@@ -120,7 +111,7 @@ describe("the paging core under arbitrary interleaving", () => {
 
 	it("converges: after any interleaving, one request over a window caches all of it, and no page is fetched twice", async () => {
 		for (let seed = 1; seed <= 40; seed++) {
-			const random = seeded(seed * 7);
+			const random = seededRandom(seed * 7);
 			const pageSize = 2 + Math.floor(random() * 6);
 			const dataEnd = 60 + Math.floor(random() * 40);
 			// A cap larger than the data: eviction never runs, so a second fetch of a page could only be a re-fetch.
@@ -148,7 +139,7 @@ describe("the paging core under arbitrary interleaving", () => {
 
 	it("under a steady stream of live rows through in-flight fetches, every row is placed and each page is fetched once", async () => {
 		for (let seed = 1; seed <= 30; seed++) {
-			const random = seeded(seed * 13);
+			const random = seededRandom(seed * 13);
 			const pageSize = 3 + Math.floor(random() * 10);
 			const h = harness({ pageSize, maxResidentPages: 1000, dataEnd: 500 });
 			h.grow(1);

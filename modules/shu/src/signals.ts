@@ -21,7 +21,7 @@ import { Signal } from "@lit-labs/signals";
 /** The globalThis key every bundle's shared cells are held under, so a page reader outside the bundles finds the same cells. */
 export const SHARED_SIGNALS_KEY = "__SHU_SHARED_SIGNALS__";
 
-type SharedCell<T> = { signal: Signal.State<T>; subs: Set<(v: T) => void> };
+type SharedCell<T> = { signal: Signal.State<T>; subs: Set<(v: T, before: T) => void> };
 
 /** Resolve (creating once) the globalThis-pinned cell backing a key, so every importer in this realm, including a
  *  separately-bundled IIFE viewer, shares one signal instance AND one subscriber set. */
@@ -47,7 +47,7 @@ function getSharedCell<T>(key: string, initial: T): SharedCell<T> {
  */
 export class SharedSignal<T> {
 	readonly #signal: Signal.State<T>;
-	readonly #subs: Set<(v: T) => void>;
+	readonly #subs: Set<(v: T, before: T) => void>;
 	constructor(key: string, initial: T) {
 		const cell = getSharedCell(key, initial);
 		this.#signal = cell.signal;
@@ -59,12 +59,14 @@ export class SharedSignal<T> {
 	/** Set the value and notify every subscriber. An unchanged value is a no-op: every notify repaints all views, so a
 	 * re-publish of the same cursor would cause the live "wiggle" when streamed events re-emit the same at-end value. */
 	set(v: T): void {
-		if (this.#signal.get() === v) return;
+		const before = this.#signal.get();
+		if (before === v) return;
 		this.#signal.set(v);
-		for (const cb of this.#subs) cb(v);
+		for (const cb of this.#subs) cb(v, before);
 	}
-	/** Subscribe for this cell's lifetime; returns an unsubscribe. THE cross-bundle-reliable reactor. */
-	subscribe(cb: (v: T) => void): () => void {
+	/** Subscribe for this cell's lifetime; returns an unsubscribe. A subscriber is told the value and the value it replaced.
+	 *  THE cross-bundle-reliable reactor. */
+	subscribe(cb: (v: T, before: T) => void): () => void {
 		this.#subs.add(cb);
 		return () => this.#subs.delete(cb);
 	}

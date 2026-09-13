@@ -11,7 +11,7 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "../schemas.js";
-import type { TDriven as Driven } from "./chat-pane.test-fake.js";
+import { readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
 
 // Partial: the registry's own reads are answered here, and everything else it exports stays itself, so a module that
 // reaches for one of them is not left with a rejected import.
@@ -32,21 +32,16 @@ const recorded: string[] = [];
 const recordedOnFinish: string[] = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. */
 const turnSeqPaths: number[][] = [];
-/** The running stream's abort signal and its finish function. */
-const stream: { signal: AbortSignal | undefined; finish: (() => void) | undefined } = { signal: undefined, finish: undefined };
+/** The running stream's abort signal, how a case streams a piece of the answer, and its finish function. */
+const stream: { signal: AbortSignal | undefined; piece: ((text: string) => void) | undefined; finish: (() => void) | undefined } = {
+	signal: undefined,
+	piece: undefined,
+	finish: undefined,
+};
 
 /** A session the store holds: its first turn, as the store reads it back. */
 const RESTORED = "0.1.1";
 const RESTORED_RECORD = anIndividual("Email", "restored@bakery.test");
-const readBack = (seqPath: string, inReplyTo?: string, bundle: unknown[] = []) => ({
-	prompt: `asked ${seqPath}`,
-	response: `answered ${seqPath}`,
-	seqPath,
-	...(inReplyTo ? { inReplyTo } : {}),
-	askId: `cmt-ask-${seqPath}`,
-	sayId: `cmt-say-${seqPath}`,
-	bundle,
-});
 /** The turns the store reads back for a session, and the answer to the read a case holds open. */
 let sessionTurns: unknown[] = [];
 let answerSessionRead: ((failure?: string) => void) | undefined;
@@ -75,6 +70,7 @@ vi.mock("../hypermedia.js", async () => {
 			stream.signal = opts.signal;
 			return new Promise<void>((resolve, reject) => {
 				opts.signal?.addEventListener("abort", () => reject(new Error("the stream was aborted")), { once: true });
+				stream.piece = (text) => onChunk({ text });
 				stream.finish = () => {
 					for (const id of recordedOnFinish) onChunk({ recorded: { persistedAs: "Comment", id } });
 					onChunk({ text: "an answer" });
@@ -113,6 +109,7 @@ beforeEach(async () => {
 	for (const list of [stated, sent, recorded, recordedOnFinish, turnSeqPaths]) list.length = 0;
 	streamFails = undefined;
 	stream.signal = undefined;
+	stream.piece = undefined;
 	stream.finish = undefined;
 	sessionTurns = [readBack(RESTORED, undefined, [RESTORED_RECORD])];
 	answerSessionRead = undefined;
@@ -249,6 +246,25 @@ describe("what a turn states about itself", () => {
 		await submit(pane, "what do these have in common");
 		expect(answers(history)[0].message.activity).toEqual(stated);
 		expect(answers(history)[0].message.spinnerStatus).toBe("generated 40 chars");
+	});
+
+	it("moves its answer once for the pieces the stream brings within a frame, and keeps what the stream ends on", async () => {
+		const { pane, history } = await aPage();
+		await submit(pane, "what do these have in common");
+		const moves: string[] = [];
+		const unsubscribe = turnState.subscribe((turn, before) => {
+			if (turn.status !== "idle" && before.status !== "idle" && turn.text !== before.text) moves.push(turn.text);
+		});
+		stream.piece?.("crumb ");
+		stream.piece?.("and dough, ");
+		expect(moves, "no move before the frame is drawn").toEqual([]);
+		await new Promise((resolve) => requestAnimationFrame(resolve));
+		stream.piece?.("then ");
+		stream.finish?.();
+		await settle();
+		unsubscribe();
+		expect(moves).toEqual(["crumb and dough, ", "crumb and dough, then an answer"]);
+		expect(answers(history)[0].message).toMatchObject({ status: "completed", text: "crumb and dough, then an answer" });
 	});
 });
 

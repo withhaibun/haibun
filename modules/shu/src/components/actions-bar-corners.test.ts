@@ -23,7 +23,8 @@ type TCornersPage = { host: ControllerHostFake; corners: ActionsBarCorners; popo
 
 function aCornersPage(): TCornersPage {
 	const host = aControllerHost();
-	const popover = Object.assign(document.createElement("div"), { shown: false });
+	const popover = Object.assign(document.createElement("div"), { className: "corner-popover", shown: false });
+	host.append(popover);
 	popover.showPopover = vi.fn(() => {
 		popover.shown = true;
 	});
@@ -31,7 +32,7 @@ function aCornersPage(): TCornersPage {
 		popover.shown = false;
 	});
 	popover.matches = (selector: string) => selector === ":popover-open" && popover.shown;
-	const corners = new ActionsBarCorners(host, { testIdPrefix: () => PREFIX, accessLevel: () => "all", setAccessLevel: () => undefined, popover: () => popover });
+	const corners = new ActionsBarCorners(host, { testIdPrefix: () => PREFIX, accessLevel: () => "all", setAccessLevel: () => undefined });
 	corners.hostConnected();
 	return { host, corners, popover };
 }

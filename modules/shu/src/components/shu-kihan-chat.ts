@@ -12,10 +12,10 @@ import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
-import type { TComboboxOption, TTurnStatus } from "../schemas.js";
-import { SCOPE, activeScope, entryOf } from "../current-subject.js";
-import { SignalController, SubjectController } from "../controllers/index.js";
-import { dispatchTurnEvent, inFlight, nextQuestion, startTurn, turnState } from "../chat-turn.js";
+import type { TComboboxOption } from "../schemas.js";
+import { SCOPE, activeScope, currentSubjectState, entryOf } from "../current-subject.js";
+import { SignalController } from "../controllers/index.js";
+import { dispatchTurnEvent, inFlight, nextQuestion, startTurn, turnEnded, turnState, type TTurnState } from "../chat-turn.js";
 import { askRefusal, closeConversation, conversationState, openConversation } from "../conversation.js";
 import { appAccessLevel } from "../util.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
@@ -104,15 +104,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	#sessionOptions: TComboboxOption[] = [NEW_CONVERSATION];
 	/** Whether the reader's last submit was refused. The refusal shows beside the input while it still applies. */
 	#refused = false;
-	/** The status of the page's turn this pane last heard, so a turn that ends while the pane is mounted is spoken and
-	 *  lists its session. */
-	#heard: TTurnStatus | undefined;
-	/** The pane reads the active record and the turn a question replies to when it asks, and shows neither. */
-	#subject = new SubjectController(
-		this,
-		() => undefined,
-		() => null,
-	);
 	#conversation = new SignalController(
 		this,
 		conversationState,
@@ -122,7 +113,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	#turn = new SignalController(
 		this,
 		turnState,
-		(turn) => this.onTurnStatus(turn.status),
+		(turn, before) => this.onTurnStatus(turn, before),
 		(turn) => turn.status,
 	);
 
@@ -166,16 +157,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	/** A turn that ends while the pane is mounted lists its session, and a completed answer is spoken. */
-	private onTurnStatus(status: TTurnStatus): void {
-		const before = this.#heard;
-		this.#heard = status;
-		if (before === undefined || !inFlight(before) || inFlight(status)) return;
-		if (status === "completed") {
-			const turn = this.#turn.state;
-			const text = turn.status === "idle" ? "" : turn.text;
+	private onTurnStatus(turn: TTurnState, before: TTurnState | undefined): void {
+		if (!turnEnded(before?.status, turn.status)) return;
+		if (turn.status === "completed") {
 			this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
 				const maybeSpeak = (el as { speak?: unknown }).speak;
-				if (typeof maybeSpeak === "function") maybeSpeak.call(el, text);
+				if (typeof maybeSpeak === "function") maybeSpeak.call(el, turn.text);
 			});
 		}
 		// The run writes the turn whether or not its stream announced a seqPath, so the session list changes in both cases.
@@ -291,24 +278,21 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private async ask(prompt: string): Promise<void> {
 		await getAvailableSteps();
 		await this.loadModels();
-		const subject = this.#subject.state;
+		const subject = currentSubjectState.get();
 		const { carries, repliesTo } = nextQuestion(subject);
 		const session = this.#conversation.state.session;
-		const inReplyTo = repliesTo?.seqPath;
 		await startTurn({
-			method: requireStep("chatWithContext"),
 			prompt,
 			bundle: carries?.bundle ?? entryOf([], appAccessLevel()).bundle,
 			envelope: {
 				// The view data is the pane's, so it goes with a record the page activated.
 				viewLd: activeScope(subject) === SCOPE.page ? harvestChatViewLd() : [],
 				maxToolCalls: this.state.toolLimit,
-				...(this.state.contextReadBy ? { contextReadBy: this.state.contextReadBy } : {}),
-				...(session ? { sessionSeqPath: session } : {}),
-				...(inReplyTo ? { inReplyTo } : {}),
+				contextReadBy: this.state.contextReadBy || undefined,
+				sessionSeqPath: session ?? undefined,
+				inReplyTo: repliesTo?.seqPath,
 			},
 			target: this.state.model,
-			why: "kihan-chat: stream LLM response",
 		});
 	}
 }
