@@ -3,6 +3,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
 import { dePolite } from "@haibun/core/lib/util/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { CHAT_MESSAGE_MATCH, SHU_TAG } from "../consts.js";
 
 const { setAs } = withAction(new VariablesStepper());
 
@@ -62,6 +63,13 @@ export function flattenTestIds(
 }
 
 const IDS = SHU_TEST_IDS;
+
+/** The transcript's message that is the nth of those matching `match` (a `CHAT_MESSAGE_MATCH`), counted from the first. */
+export const nthChatMessage = (match: string, n: number): string => `${SHU_TAG.CHAT_MESSAGE}:nth-child(${n} of ${match})`;
+/** The transcript's last message matching `match`. */
+export const lastChatMessage = (match: string): string => `${SHU_TAG.CHAT_MESSAGE}:nth-last-child(1 of ${match})`;
+/** The page-locator variables the ask helpers set. */
+const ASK_LOCATOR = { ANSWERED: "ask-answered", TURNS_SHOWN: "ask-turns-shown", STATED: "ask-stated" } as const;
 
 import { normalizeStepKey } from "../util.js";
 export { normalizeStepKey };
@@ -135,6 +143,25 @@ export function createStepUI(wp: WebPlaywright) {
 			// about a turn; a feature that must know a turn finished asserts on the run's own exchange record.
 			waitFor({ target: IDS.APP.CHAT_TEXT }),
 		];
+	}
+
+	/** Wait until the transcript holds at least `count` completed answers. */
+	function askAnswered(count: number): TKirejiStep[] {
+		return [`set ${ASK_LOCATOR.ANSWERED} as page-locator to "${nthChatMessage(CHAT_MESSAGE_MATCH.COMPLETED_REPLY, count)}"`, waitFor({ target: ASK_LOCATOR.ANSWERED })];
+	}
+
+	/** Wait until the transcript shows exactly `count` turns, the branch the conversation is on: the question that is
+	 *  the nth shown is also the last one shown. */
+	function askShowsTurns(count: number): TKirejiStep[] {
+		const shown = CHAT_MESSAGE_MATCH.SHOWN_QUESTION;
+		return [`set ${ASK_LOCATOR.TURNS_SHOWN} as page-locator to "${nthChatMessage(shown, count)}:nth-last-child(1 of ${shown})"`, waitFor({ target: ASK_LOCATOR.TURNS_SHOWN })];
+	}
+
+	/** Wait until a turn states `statement` among the context it sent, the conversation it followed from and the calls it
+	 *  made. The statement is embedded in a single-quoted selector, so it may not hold a single quote. */
+	function askStates(statement: string): TKirejiStep[] {
+		if (statement.includes("'")) throw new Error(`askStates: "${statement}" holds a single quote, which ends the selector it is embedded in`);
+		return [`set ${ASK_LOCATOR.STATED} as page-locator to "[data-testid='${IDS.APP.CHAT_ACTIVITY}']:has-text('${statement}')"`, waitFor({ target: ASK_LOCATOR.STATED })];
 	}
 
 	/** Click the first row of the current shu-query result table; waits for the column-browser pane to appear. */
@@ -267,6 +294,9 @@ export function createStepUI(wp: WebPlaywright) {
 		expandActionsBar,
 		collapseActionsBar,
 		askExchange,
+		askAnswered,
+		askShowsTurns,
+		askStates,
 		selectQueryFirstRow,
 		registerTestIds,
 		runStep,

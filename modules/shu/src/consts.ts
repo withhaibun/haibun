@@ -1,4 +1,5 @@
 /** Shared constants for custom events and data attributes across shu components. */
+import { ChatRoleSchema, ChatStatusSchema } from "./schemas.js";
 
 /**
  * Per-row property name that the consumer's graph store stamps with the stored
@@ -164,6 +165,17 @@ export const SHU_ATTR = {
 	DATA_STATUS: "data-status",
 	DATA_SEQPATH: "data-seqpath",
 	DATA_RECORD: "data-record",
+} as const;
+
+/** What a transcript's chat message matches, by the attributes it reflects. A selector places one of them in the
+ *  transcript (`:nth-child(n of match)`), since a message's tag alone does not tell a question from an answer. Single
+ *  quotes let a feature embed a selector in a quoted step argument. */
+export const CHAT_MESSAGE_MATCH = {
+	QUESTION: `[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.user}']`,
+	/** A question on the branch the transcript shows. */
+	SHOWN_QUESTION: `[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.user}']:not([hidden])`,
+	/** An answer whose turn completed. */
+	COMPLETED_REPLY: `[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.llm}'][${SHU_ATTR.DATA_STATUS}='${ChatStatusSchema.enum.completed}']`,
 } as const;
 
 /** The methods a view names when it asks the service for a run's events or for the whole graph, grouped and clustered.
