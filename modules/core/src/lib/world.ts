@@ -72,6 +72,8 @@ export type TBaseOptions = {
 	STAY?: string;
 	SETTING?: string;
 	STEP_DELAY?: number;
+	/** Run a group only when one of its dependencies changed since it last passed. */
+	ONCE?: boolean;
 	[CONTINUE_AFTER_ERROR]?: boolean;
 	envVariables?: TEnvVariables;
 };

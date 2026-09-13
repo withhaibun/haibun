@@ -51,6 +51,13 @@ describe("processEnv", () => {
 	it("errors for non-boolean value ", () => {
 		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: "wtw" })).toThrow();
 	});
+	it("runs once where the environment says so, as the command line option does, for every run a script chains", () => {
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "true" });
+		expect(lib.runsOnce({ once: false }, options), "the environment alone").toBe(true);
+		expect(lib.runsOnce({ once: true }, lib.processBaseEnvToOptionsAndErrors({}).options), "the command line alone").toBe(true);
+		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}).options), "neither").toBe(false);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }), "a value that is not true or false").toThrow();
+	});
 	it("assigns int", () => {
 		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "1" });
 		expect(options[STEP_DELAY]).toBe(1);

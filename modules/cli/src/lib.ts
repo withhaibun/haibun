@@ -2,7 +2,7 @@ import nodeFS from "fs";
 import path from "node:path";
 
 import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
-import type { TBase, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
+import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { getCreateSteppers, getDefaultTag } from "@haibun/core/lib/test/lib.js";
@@ -75,7 +75,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 						withSteppers: parsed.withSteppers,
 					})
 				: undefined;
-		if (parsed.once) {
+		if (runsOnce(parsed, protoOptions.options)) {
 			if (!verification)
 				console.info(
 					`${OPTION_ONCE}: this run has no dependencies to record a pass against (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features kept in no repository"}), so it runs`,
@@ -358,6 +358,12 @@ export async function collect(bases: TBase, featureFilter: string[] | undefined,
 	const holdsNothing = !nodeFS.existsSync(bases[0] ?? ".");
 	const backgrounds = holdsNothing ? [] : (await getFeaturesAndBackgrounds(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
 	return { features: [statementFeature], backgrounds };
+}
+
+/** Whether a run is verified against its last pass: asked for on the command line, or by `HAIBUN_ONCE` for every run a
+ *  script chains. */
+export function runsOnce(parsed: { once: boolean }, options: TBaseOptions): boolean {
+	return parsed.once || options.ONCE === true;
 }
 
 export function processArgs(args: string[]) {
