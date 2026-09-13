@@ -9,19 +9,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAnnotatedBody } from "./shu-annotated-body.js";
-
-/** The annotator's spans renderer observes its container; jsdom ships no ResizeObserver. */
-class StubResizeObserver {
-	observe(): void {
-		/* stub */
-	}
-	unobserve(): void {
-		/* stub */
-	}
-	disconnect(): void {
-		/* stub */
-	}
-}
+import { provideLayout } from "../test/jsdom-layout.js";
 
 const HEAVY = "a passage of prose. ".repeat(1200); // over the size that shows the indicator
 const frames = (): Promise<void> => new Promise((r) => setTimeout(r, 80)); // past both deferred frames
@@ -42,7 +30,7 @@ const mount = (content: string): ShuAnnotatedBody => {
 describe("shu-annotated-body preparing indicator", () => {
 	let el: ShuAnnotatedBody | undefined;
 	beforeEach(() => {
-		(globalThis as { ResizeObserver?: unknown }).ResizeObserver = StubResizeObserver;
+		provideLayout();
 		if (!customElements.get("shu-annotated-body")) customElements.define("shu-annotated-body", ShuAnnotatedBody);
 	});
 	afterEach(() => {

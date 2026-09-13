@@ -7,18 +7,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { ShuScrollbar, SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import { markerTopPx, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
-
-class StubResizeObserver {
-	observe(): void {
-		/* stub */
-	}
-	unobserve(): void {
-		/* stub */
-	}
-	disconnect(): void {
-		/* stub */
-	}
-}
+import { provideLayout } from "../test/jsdom-layout.js";
 
 async function mount(total: number, window: TWindow, markers: TScrollMarker[] = []): Promise<{ el: ShuScrollbar; seeks: number[] }> {
 	const el = document.createElement("shu-scrollbar") as ShuScrollbar;
@@ -46,7 +35,7 @@ function railBox(el: ShuScrollbar, top: number, height: number): void {
 
 describe("shu-scrollbar interaction", () => {
 	beforeAll(() => {
-		(globalThis as { ResizeObserver?: unknown }).ResizeObserver = StubResizeObserver;
+		provideLayout();
 		if (!customElements.get("shu-scrollbar")) customElements.define("shu-scrollbar", ShuScrollbar);
 	});
 
@@ -224,7 +213,7 @@ describe("the position glyphs are presses to the run's edges", () => {
 	// END, beyond what is held, which a host that pages its data answers by loading to that edge.
 	beforeAll(() => {
 		if (!customElements.get("shu-scrollbar")) customElements.define("shu-scrollbar", ShuScrollbar);
-		(globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= StubResizeObserver;
+		provideLayout();
 	});
 
 	it("pressing the top glyph seeks row 0 and names the start; the bottom glyph the last row and the end", async () => {
