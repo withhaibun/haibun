@@ -8,6 +8,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../step-input-validator.js";
 import { getConcernCatalog } from "../rels-cache.js";
 import type { TComboboxOption } from "../schemas.js";
+import { SHU_EVENT } from "../consts.js";
 import { linkTo } from "../rpc-registry.js";
 
 type InputProperty = {
@@ -140,7 +141,7 @@ export class StepCaller extends HTMLElement {
 			this._executed = true;
 			this.renderComponent();
 			this.dataset.testid = `${this.idPrefix()}-step-error`;
-			this.dispatchEvent(new CustomEvent("step-error", { bubbles: true, composed: true, detail: this.error }));
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR, { bubbles: true, composed: true, detail: this.error }));
 			return;
 		}
 		// Client-side schema validation against the same JSON Schema the server
@@ -155,7 +156,7 @@ export class StepCaller extends HTMLElement {
 			this._executed = true;
 			this.renderComponent();
 			this.dataset.testid = `${this.idPrefix()}-step-error`;
-			this.dispatchEvent(new CustomEvent("step-error", { bubbles: true, composed: true, detail: this.error }));
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR, { bubbles: true, composed: true, detail: this.error }));
 			return;
 		}
 		this.fieldErrors = {};
@@ -165,7 +166,7 @@ export class StepCaller extends HTMLElement {
 			this.result = await conduit().follow(linkTo(method, params), `step-caller: ${method}`);
 			dispatchAffordanceFromResponse(this.result);
 			this.dispatchEvent(
-				new CustomEvent("step-success", {
+				new CustomEvent(SHU_EVENT.STEP_SUCCESS, {
 					bubbles: true,
 					composed: true,
 					detail: this.result,
@@ -174,7 +175,7 @@ export class StepCaller extends HTMLElement {
 		} catch (err) {
 			this.error = errorDetail(err);
 			this.dispatchEvent(
-				new CustomEvent("step-error", {
+				new CustomEvent(SHU_EVENT.STEP_ERROR, {
 					bubbles: true,
 					composed: true,
 					detail: this.error,

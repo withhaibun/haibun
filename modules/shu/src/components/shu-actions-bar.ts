@@ -13,6 +13,7 @@ import { SignalController } from "../controllers/index.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ActionsBarHeight } from "./actions-bar-height.js";
 import { ActionsBarCorners } from "./actions-bar-corners.js";
+import { ActionsBarSteps } from "./actions-bar-steps.js";
 import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
@@ -24,7 +25,7 @@ import { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
-import { prettifyGwta, appAccessLevel } from "../util.js";
+import { appAccessLevel } from "../util.js";
 import { contextLabel, isEntitySelection } from "./actions-bar-model.js";
 import { isServerUnreachable } from "../hypermedia.js";
 import { closeConversation, conversationState, openConversation } from "../conversation.js";
@@ -32,7 +33,7 @@ import { hashParam, onHashChanged } from "../view-hash.js";
 import { selectValuesFor } from "../quads-snapshot.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
-import { buildDomainOptions, getAvailableDomains, getAvailableSteps, stepsForContext, type DomainOption, type StepDescriptor, isOffline } from "../rpc-registry.js";
+import { buildDomainOptions, getAvailableDomains, getAvailableSteps, type DomainOption, isOffline } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,
 	getQueryableFields,
@@ -46,40 +47,6 @@ import {
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
 import { reportToRun, type TClientLogLevel } from "../client-log.js";
-
-/**
- * Build the secondary line shown under a step's gwta in the step picker.
- * Reads `paramDomains` and `productsDomain` from the descriptor and renders
- * `inputs · A, B → outputs C`. Falls back to fewer parts when the step has
- * no declared inputs or outputs.
- */
-function stepSecondary(s: StepDescriptor): string {
-	const inputs = s.paramDomains ? Object.values(s.paramDomains).join(", ") : "";
-	const out = s.productsDomain ?? "";
-	if (inputs && out) return `${inputs} → ${out}`;
-	if (inputs) return inputs;
-	if (out) return `→ ${out}`;
-	return "";
-}
-
-/**
- * Full multi-line details for a step option, revealed when the option is
- * focused / hovered in the picker. Includes the full gwta pattern, per-param
- * domain map, products domain, and capability requirement when present.
- */
-function stepDetails(s: StepDescriptor): string {
-	// The label already shows the gwta pattern; don't repeat it. Details
-	// carries only the structured metadata, per-param domains, products,
-	// capability: that the label can't convey.
-	const lines: string[] = [];
-	if (s.paramDomains && Object.keys(s.paramDomains).length > 0) {
-		lines.push("inputs:");
-		for (const [k, v] of Object.entries(s.paramDomains)) lines.push(`  ${k}: ${v}`);
-	}
-	if (s.productsDomain) lines.push(`outputs: ${s.productsDomain}`);
-	if (s.capability) lines.push(`capability: ${s.capability}`);
-	return lines.join("\n");
-}
 
 type TMode = z.infer<typeof ActionsBarSchema>["mode"];
 
@@ -113,10 +80,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _history = new ShuActivityHistory();
 	/** Monotonic search-entry sequence for test ids, never reused, so a removal can't leave two entries sharing one id. */
 	private _searchEntrySeq = 0;
-	private _steps: StepDescriptor[] = [];
-	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
+	/** Step mode: the steps the run offers, the step input line, and the callers opened in the history. */
+	#steps = new ActionsBarSteps(this, {
+		testIdPrefix: () => this.testIdPrefix,
+		selectedLabel: () => this._selectedLabel,
+		history: () => this._history,
+		combo: () => this.shadowRoot?.querySelector<ShuCombobox>(".step-combo") ?? null,
+	});
 	/** The corner controls and their popover: settings, access and authority, the time offset and playback, the status. */
 	#corners = new ActionsBarCorners(this, {
 		testIdPrefix: () => this.testIdPrefix,
@@ -217,46 +189,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	async chooseStep(method: string, args?: Record<string, unknown>, auto?: boolean): Promise<void> {
 		this.setState({ mode: "step", askExpanded: true });
 		await this.updateComplete;
-		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
-		stepCombo?.setValue?.(method);
-		this.openStepCaller(this._history, method, args, auto);
-	}
-
-	/**
-	 * Append (or reuse) a step-caller for the given method. The caller carries:
-	 *   - `method`: qualified method (canonical identity, used to dispatch)
-	 *   - `gwta`: the user-facing gwta pattern, used as the test-id prefix so
-	 *     test selectors read naturally ("show affordances-0-step-run" rather
-	 *     than "GoalResolutionStepper-showAffordances-0-step-run")
-	 *   - `call-index`: counts prior callers for the same method so test-ids
-	 *     stay unique across repeated invocations
-	 */
-	private openStepCaller(output: HTMLElement, method: string, args?: Record<string, unknown>, auto?: boolean): void {
-		// Whether a caller is added or the last empty one is retargeted, keep the newest in view: the shared history is
-		// the one output every producer pins (ShuActivityHistory.scrollToBottom); an affordance pick lands here too.
-		const pin = () => (output as Partial<ShuActivityHistory>).scrollToBottom?.();
-		const countOthers = () => output.querySelectorAll(`shu-step-caller[method="${method}"]`).length;
-		const descriptor = this._steps.find((s) => s.method === method);
-		const gwta = descriptor ? prettifyGwta(descriptor.pattern) : method;
-		const lastCaller = output.querySelector("shu-step-caller:last-of-type") as (HTMLElement & { executed?: boolean; reset?: (name: string) => void }) | null;
-		if (lastCaller && !lastCaller.executed && lastCaller.reset && !args && !auto) {
-			const wasSame = lastCaller.getAttribute("method") === method;
-			lastCaller.setAttribute("method", method);
-			lastCaller.setAttribute("gwta", gwta);
-			lastCaller.setAttribute("call-index", String(countOthers() - (wasSame ? 1 : 0)));
-			lastCaller.reset(method);
-			pin();
-			return;
-		}
-		const caller = document.createElement("shu-step-caller");
-		caller.setAttribute("step", method);
-		caller.setAttribute("method", method);
-		caller.setAttribute("gwta", gwta);
-		caller.setAttribute("call-index", String(countOthers()));
-		if (args) caller.setAttribute("params", JSON.stringify(args));
-		if (auto) caller.setAttribute("auto", "");
-		output.appendChild(caller);
-		pin();
+		this.#steps.pick(method, args, auto);
 	}
 
 	private updateBreadcrumbDisplay(): void {
@@ -287,9 +220,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		});
 	}
 
-	/** A step-caller's result lands after its entry was appended, growing it in place; re-pin so the newest output stays in view. */
-	private _onStepSettled = (): void => this._history.scrollToBottom();
-
 	/** The conversation the ask is open on, which the view hash addresses. */
 	#conversation = new SignalController(
 		this,
@@ -309,8 +239,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	};
 
 	protected override onConnected(): void {
-		this.addEventListener("step-success", this._onStepSettled);
-		this.addEventListener("step-error", this._onStepSettled);
 		// The shared output region carries the one output test id every mode's assertions point at.
 		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
 		this.loadProperties();
@@ -318,7 +246,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.followConversationAddress();
 		this.autoTeardown(onHashChanged(this.followConversationAddress));
 
-		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
+		void Promise.all([this.loadDomainOptions(), this.#steps.load(), this.loadSelectValues()]).catch((err) => {
 			// What this bar offers comes from the server; unreachable, it reports that and the page reads what it caches.
 			if (isServerUnreachable(err)) return this.setStatus(`the server did not respond: this bar offers what the page already read`);
 			this.failFast(`ShuActionsBar initialization failed: ${errorDetail(err)}`);
@@ -357,8 +285,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	protected override onDisconnected(): void {
-		this.removeEventListener("step-success", this._onStepSettled);
-		this.removeEventListener("step-error", this._onStepSettled);
 		this._unsubscribeEvents?.();
 		this._unsubscribeEvents = null;
 		this._unsubscribeSync?.();
@@ -414,14 +340,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	get hasSyncUpdate(): boolean {
 		return this._syncEventSeq > this._queriedSyncSeq;
-	}
-
-	/** Load the steps the bar offers. Whether an ask-capable step exists decides whether a chosen Ask mode renders, so the
-	 *  bar renders again once it is known. */
-	private async loadSteps(): Promise<void> {
-		this._steps = await getAvailableSteps();
-		this._hasAskCapableStep = !!this._steps.find((s) => s.method.endsWith("chatWithContext"));
-		this.requestUpdate();
 	}
 
 	private async loadDomainOptions(): Promise<void> {
@@ -533,7 +451,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	/** Lit handles the render via the standard `render() \u2192 TemplateResult \u2192 reconcile against the shadow root` path. `updated()` is where side-effects that depend on the freshly-reconciled DOM run \u2014 wiring drag handlers to nodes Lit just mounted, pushing combobox option lists, etc. */
 	render(): TemplateResult {
-		const hasAsk = this._hasAskCapableStep;
+		const hasAsk = this.#steps.offersAsk;
 		return this.template(hasAsk);
 	}
 
@@ -559,7 +477,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// beneath: switching modes changes only the input line. Ask renders only when an ask-capable step exists, so a
 		// chosen Ask mode renders search until the steps load, and on a deployment with no ask-capable step.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
-		const inputLine = mode === "ask" ? this.askModeTemplate(hasAsk) : mode === "step" ? this.stepModeTemplate(hasAsk) : this.filterBarTemplate(hasAsk);
+		const inputLine =
+			mode === "ask"
+				? this.askModeTemplate(hasAsk)
+				: mode === "step"
+					? this.#steps.template(this.modeToggleTemplate(hasAsk), this.state.mode === "step")
+					: this.filterBarTemplate(hasAsk);
 		// The input line's own extensions (dictation among them) serve every mode, and the ask pane renders them where it
 		// owns that line; the bar renders them for every other mode. What is about the ask itself rides the ask's slot,
 		// which the pane alone renders: rendered in every mode, the context status stood under a search bar reporting a
@@ -672,23 +595,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix}>${this.modeToggleTemplate(hasAsk, "mode-toggle")}</shu-kihan-chat>`;
 	}
 
-	private stepModeTemplate(hasAsk: boolean): TemplateResult {
-		const stepCombobox =
-			this.state.mode === "step" && this._steps.length > 0
-				? html`<shu-combobox class="step-combo"
-					testid=${`${this.testIdPrefix}step-select`}
-					placeholder="type to filter steps..."
-					@combo-change=${this.onStepComboChange}></shu-combobox>`
-				: nothing;
-		return html`
-			<div class="input-line">
-				${this.modeToggleTemplate(hasAsk)}
-				${stepCombobox}
-			</div>`;
-	}
-
-	/** Render the input line's `action-bar-chat` extensions. In ask mode the pane renders them beside its own input; in
-	 *  every other mode the bar owns that line and renders them here. */
 	private uiExtensionsTemplate(): TemplateResult {
 		return html`${unsafeHTML(
 			getActionBarChatExtensionTags()
@@ -709,21 +615,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			// filtering: setValue closes the dropdown, and a render-driven close would interrupt an in-progress selection
 			// (deterministically so in step mode, where the event stream churns renders on every keystroke).
 			if (this._selectedDomainKey && labelCombo.value !== this._selectedDomainKey && !labelCombo.isOpen) labelCombo.setValue(this._selectedDomainKey);
-		}
-		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
-		if (stepCombo) {
-			const contextSteps = this._selectedLabel ? stepsForContext(this._selectedLabel) : [];
-			const contextMethods = new Set(contextSteps.map((s) => s.method));
-			const otherSteps = this._steps.filter((s) => !contextMethods.has(s.method));
-			// Option value is the fully-qualified method (StepperName-stepName), stepName
-			// alone collides when multiple steppers expose the same key.
-			const toOption = (s: StepDescriptor, contextMark: boolean) => ({
-				value: s.method,
-				label: contextMark ? `● ${prettifyGwta(s.pattern)}` : prettifyGwta(s.pattern),
-				secondary: stepSecondary(s),
-				details: stepDetails(s),
-			});
-			stepCombo.setOptions([...contextSteps.map((s) => toOption(s, true)), ...otherSteps.map((s) => toOption(s, false))]);
 		}
 		const propOpts = this._filterProperties.map((p) => ({ value: p, label: p }));
 		this.shadowRoot?.querySelectorAll(".cond-property").forEach((el) => {
@@ -847,10 +738,4 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private onCondValue2Change(idx: number, e: Event): void {
 		this._filterConditions[idx].value2 = (e.target as HTMLInputElement).value;
 	}
-
-	private onStepComboChange = (e: CustomEvent): void => {
-		const method = e.detail?.value;
-		if (!method) return;
-		this.openStepCaller(this._history, method);
-	};
 }
