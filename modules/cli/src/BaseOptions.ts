@@ -23,6 +23,10 @@ export class BaseOptions implements IHasOptions {
 			desc: `stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE}`,
 			parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]),
 		},
+		ONCE: {
+			desc: "run a group only when one of its dependencies changed since it last passed, as --once does, for every run a script chains",
+			parse: (input: string) => boolOrError(input),
+		},
 		NDJSON: {
 			desc: "report events as NDJSON on stdout, for a caller reading this run rather than a person watching it. Outranks a monitor's console formatting",
 			parse: (input: string) => boolOrError(input),
