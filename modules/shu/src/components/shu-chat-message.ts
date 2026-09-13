@@ -13,9 +13,10 @@ import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
-import { dispatchSubjectEvent } from "../current-subject.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
+import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import { SHU_ATTR, SHU_TAG } from "../consts.js";
-import { ChatRoleSchema, ChatStatusSchema, type TChatRole } from "../schemas.js";
+import { BundleSchema, ChatRoleSchema, ChatStatusSchema, type TChatRole } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for every shadow scope that hosts one (shu-kihan-chat's own
  * transcript, and the actions bar's shared activity history): the message renders in light DOM, so the rules
@@ -67,6 +68,8 @@ export const ChatMessageSchema = z.object({
 	error: z.string().default(""),
 	/** The id of the comment the run recorded for this message. Selecting the message selects that comment. */
 	recordId: z.string().optional(),
+	/** The context the turn was sent with, which selecting the message makes active again. */
+	bundle: BundleSchema.optional(),
 });
 export type TChatMessage = z.infer<typeof ChatMessageSchema>;
 
@@ -91,12 +94,13 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		return this;
 	}
 
-	/** Raise `selectMessage` for the comment this message was recorded as. The graph follows that comment, and the next
-	 *  question replies to it. A message with no recorded comment raises nothing. */
+	/** Activate the comment this message was recorded as, with the bundle its turn was sent with, in the actions bar's
+	 *  scope. The graph follows that comment, and the next question replies to its turn. A message with no recorded
+	 *  comment activates nothing. */
 	private onSelect = (): void => {
 		const m = this.message;
-		if (!m.recordId || !m.seqPath) return;
-		dispatchSubjectEvent({ type: "selectMessage", item: { id: m.recordId, seqPath: m.seqPath } });
+		if (!m.recordId || !m.seqPath || !m.bundle) return;
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: m.recordId, label: COMMENT_LABEL }, seqPath: m.seqPath, bundle: m.bundle } });
 	};
 
 	protected updated(): void {

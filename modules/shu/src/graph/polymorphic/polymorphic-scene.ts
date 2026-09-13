@@ -7,8 +7,8 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../graph-model.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
-import { dispatchSubjectEvent } from "../../current-subject.js";
-import { formatDate } from "../../util.js";
+import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
+import { appAccessLevel, formatDate } from "../../util.js";
 import { SHU_TEST_IDS } from "../../test-ids.js";
 import { FrameScheduler } from "../polymorphic/polymorphic-frame.js";
 import { EngineGovernor, type TPacedGraph } from "../polymorphic/polymorphic-engine.js";
@@ -1596,7 +1596,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			if (!press || Math.hypot(e.clientX - press.x, e.clientY - press.y) > DRAG_THRESHOLD_PX) return;
 			const node = press.node;
 			if (node) this.onNodeClick(node, e);
-			else if (this.selectedSubject) dispatchSubjectEvent({ type: "clearSubject" }); // empty space is the reader choosing nothing; the host relays the machine's answer back through setSelectedSubject
+			// Empty space is the reader choosing nothing on the page; the host relays the active record back through setSelectedSubject.
+			else if (this.selectedSubject) dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
 		};
 		canvas.addEventListener("pointerdown", onPointerDown);
 		canvas.addEventListener("click", onClick);

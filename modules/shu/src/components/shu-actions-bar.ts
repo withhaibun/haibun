@@ -31,6 +31,7 @@ import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { prettifyGwta, appAccessLevel } from "../util.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
 import { isServerUnreachable } from "../hypermedia.js";
+import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import { selectValuesFor } from "../quads-snapshot.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
@@ -391,6 +392,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	protected override onDisconnected(): void {
+		if (this.scopeOpen) dispatchSubjectEvent({ type: "close", scope: SCOPE.actionsBar });
+		this.scopeOpen = false;
 		document.removeEventListener("click", this._onDocumentClick, true);
 		this.removeEventListener("step-success", this._onStepSettled);
 		this.removeEventListener("step-error", this._onStepSettled);
@@ -597,10 +600,17 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	/** Set the host height from the current open/proportion state, shared by render() and the end of a resize drag. An
 	 *  open bar overlays the views rather than resizing them, so it says so: what it covers is what a framing aims clear
-	 *  of, and closing it returns that framing to the whole view. */
+	 *  of, and closing it returns that framing to the whole view. Opening and closing also open and close the bar's
+	 *  scope of the active record, so a record the bar activates leads while it is open and the page's leads again once
+	 *  it closes. */
 	private applyHeight(): void {
-		this.style.height = this.state.askExpanded ? `${(this.expandedProportion() * 100).toFixed(2)}%` : "";
-		this.toggleAttribute(SHU_ATTR.DATA_COVERS_VIEWS, this.state.askExpanded);
+		const open = this.state.askExpanded;
+		this.style.height = open ? `${(this.expandedProportion() * 100).toFixed(2)}%` : "";
+		this.toggleAttribute(SHU_ATTR.DATA_COVERS_VIEWS, open);
+		if (open !== this.scopeOpen) {
+			this.scopeOpen = open;
+			dispatchSubjectEvent({ type: open ? "open" : "close", scope: SCOPE.actionsBar });
+		}
 	}
 
 	/** The remembered expanded height as a fraction of the container (drag-set, cookie-persisted), or the default.
@@ -923,6 +933,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _dragRafPending = false;
 	private _dragMoveCleanup: (() => void) | null = null;
 	private _proportion: number | null = null; // cached expanded height fraction (see expandedProportion)
+	/** Whether the bar's scope of the active record was last raised open. */
+	private scopeOpen = false;
 
 	/** Open/close the bar; the pin and the collapsed summary share this. Focuses the input when opening. */
 	private toggleExpanded(): void {
