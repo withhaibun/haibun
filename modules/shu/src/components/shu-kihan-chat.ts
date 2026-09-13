@@ -21,9 +21,9 @@ import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
-import { SCOPE, activeEntry, activeScope, dispatchSubjectEvent, entryOf, scopeEntry, type TEntry, type TRecord } from "../current-subject.js";
+import { SCOPE, activeScope, dispatchSubjectEvent, entryOf, type TEntry, type TRecord } from "../current-subject.js";
 import { SubjectController } from "../controllers/index.js";
-import { attachToTurn, currentTurn, leaveTurnSession, startTurn, stopTurn, turnRefusal, type TTurnState } from "../chat-turn.js";
+import { attachToTurn, currentTurn, nextQuestion, leaveTurnSession, startTurn, stopTurn, turnRefusal, type TTurnState } from "../chat-turn.js";
 import { branchPath } from "../chat-branch.js";
 import { appAccessLevel } from "../util.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
@@ -129,8 +129,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private _streamingId: string | null = null;
 	/** Detaches this pane from the latest turn. chat-turn runs the turn, and this pane renders it. */
 	#detachTurn: (() => void) | null = null;
-	/** Relays the current subject. The message recorded as that comment is marked current on the transcript. */
-	#subject = new SubjectController(this, (record) => this.markCurrent(record));
+	/** Relays the current subject and the turn the next question replies to. The message recorded as the current subject
+	 *  is marked current, and the transcript shows the branch that ends at the turn. */
+	#subject = new SubjectController(this, (record) => this.markCurrent(record), nextQuestion);
 	private _sessions: TChatSession[] = [];
 	/** The single source of truth for the rendered conversation, fed identically by the live stream (handleChat) and a hydrated session (loadAndRenderSession), rendered once via keyed repeat. */
 	private _messages: TChatMessage[] = [];
@@ -227,7 +228,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 * that branch's latest message.
 	 */
 	#transcript(): Array<{ message: TChatMessage; shown: boolean }> {
-		const { shown, others } = branchPath(this._messages, scopeEntry(this.#subject.state, SCOPE.actionsBar)?.seqPath);
+		const { shown, others } = branchPath(this._messages, nextQuestion(this.#subject.state).repliesTo?.seqPath);
 		const shownIds = new Set(shown.map((message) => message.id));
 		return this._messages.map((message) => {
 			// A message taken over from the surface carries the mark it was last shown with, which may no longer hold.
@@ -576,8 +577,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// The question carries the active record's bundle, and replies to the conversation's entry where it has one: the
 		// latest answer, or the message the reader selected, where the conversation branches.
 		const subject = this.#subject.state;
-		const bundle = activeEntry(subject)?.bundle ?? entryOf([], appAccessLevel()).bundle;
-		const inReplyTo = scopeEntry(subject, SCOPE.actionsBar)?.seqPath;
+		const { carries, repliesTo } = nextQuestion(subject);
+		const bundle = carries?.bundle ?? entryOf([], appAccessLevel()).bundle;
+		const inReplyTo = repliesTo?.seqPath;
 		const userId = this.nextId();
 		const aiId = this.nextId();
 		this.appendMessages(

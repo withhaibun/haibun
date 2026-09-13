@@ -22,7 +22,9 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { esc } from "../util.js";
+import { DENOTES, REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { openRef, isRefKind, refHref, defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
+import type { TContextPattern } from "../schemas.js";
 
 // The string form of a reference lives with the router, free of any DOM class; re-exported here so its long-standing callers are unmoved.
 
@@ -99,6 +101,12 @@ export const refTpl = (kind: TRefKind, linkTarget: Record<string, unknown>, text
 	const display = text ?? defaultLabel(kind, targetJson);
 	return html`<shu-ref data-testid=${testId ?? nothing} kind=${kind} linkTarget=${targetJson} text=${display}>${display}</shu-ref>`;
 };
+
+/** The link to what a context pattern names: its individual, or its type. */
+export const patternRef = (pattern: TContextPattern): TemplateResult =>
+	pattern.kind === DENOTES.individual
+		? refTpl(REF_DENOTES.individual, { persistedAs: pattern.persistedAs, id: pattern.id })
+		: refTpl(REF_DENOTES.type, { domain: pattern.persistedAs });
 
 /**
  * Convenience wrappers: each panel typically calls just one or two of these.

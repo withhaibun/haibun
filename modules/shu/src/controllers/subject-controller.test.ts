@@ -3,6 +3,7 @@ import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { anIndividual } from "../schemas.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, dispatchSubjectEvent, entryOf, type TRecord } from "../current-subject.js";
 import { SubjectController } from "./subject-controller.js";
+import { nextQuestion } from "../chat-turn.js";
 
 /** A host as a controller sees one: it registers controllers and can be asked to update. */
 function aHost(): ReactiveControllerHost & { controllers: ReactiveController[]; updates: number } {
@@ -51,6 +52,18 @@ describe("SubjectController", () => {
 		dispatchSubjectEvent({ type: "update", scope: SCOPE.page, entry: PANE }); // the same record, restated
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: NOTHING }); // a closed scope leads nothing
 		expect(seen).toEqual([null, { id: "a@test.com", label: "Email" }]);
+	});
+
+	it("tells a view that reads more than the active entry when what it reads changes", () => {
+		const host = aHost();
+		const told: string[] = [];
+		new SubjectController(host, (_record, state) => told.push(nextQuestion(state).repliesTo?.seqPath ?? "none"), nextQuestion).hostConnected();
+		const activeOnly: Array<TRecord | null> = [];
+		new SubjectController(aHost(), (record) => activeOnly.push(record)).hostConnected();
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: PANE });
+		dispatchSubjectEvent({ type: "update", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.2", label: "Comment" }, seqPath: "0.1.2", bundle: PANE.bundle } });
+		expect(told, "a restored conversation changes the turn a question replies to while the page's record leads").toEqual(["none", "none", "0.1.2"]);
+		expect(activeOnly, "a view of the active record alone is not told").toEqual([null, { id: "a@test.com", label: "Email" }]);
 	});
 
 	it("stops relaying when the view disconnects", () => {

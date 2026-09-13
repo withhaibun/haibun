@@ -17,6 +17,7 @@ import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import { SHU_ATTR, SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { patternRef } from "./shu-ref.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, type TBundle, type TChatRole } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for every shadow scope that hosts one (shu-kihan-chat's own
@@ -37,6 +38,8 @@ export const chatMessageStyles = css`
 	shu-chat-message[data-role="llm"] { background: var(--shu-bg-soft); }
 	shu-chat-message .msg-content { min-width: 0; padding: var(--shu-space-2) var(--shu-space-3); }
 	shu-chat-message .chat-prompt { font-weight: 600; padding: var(--shu-space-1) 0; white-space: pre-wrap; }
+	/* The records the question carries, each a link to its record or type. */
+	shu-chat-message .chat-carries { display: flex; flex-wrap: wrap; gap: var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 	shu-chat-message .chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
 	shu-chat-message .chat-text p { margin: var(--shu-space-2) 0; }
 	shu-chat-message .chat-text ul, shu-chat-message .chat-text ol { margin: var(--shu-space-2) 0; padding-left: var(--shu-space-6); }
@@ -151,6 +154,11 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 				<span class="msg-label">${ROLE_LABEL[m.role]}</span>
 				<div class="msg-content">
 					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
+					${
+						m.role === "user" && m.bundle && m.bundle.patterns.length > 0
+							? html`<div class="chat-carries" data-testid=${SHU_TEST_IDS.APP.CHAT_CARRIES}>about ${m.bundle.patterns.map(patternRef)}</div>`
+							: ""
+					}
 					${m.role === "llm" ? html`<shu-spinner></shu-spinner>` : ""}
 					${
 						// What the answer was made of reads before the answer: the context it was sent and the calls it made

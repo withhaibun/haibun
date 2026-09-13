@@ -17,6 +17,8 @@ export const SHU_TEST_IDS = {
 		CHAT_ACTIVITY: "app-chat-activity",
 		/** On a reply where another branch of the conversation leaves the one shown: follows that branch. */
 		CHAT_OTHER_BRANCH: "app-chat-other-branch",
+		/** On a question: the records its bundle names, each a link. */
+		CHAT_CARRIES: "app-chat-carries",
 		SESSION_SELECT: "app-session-select",
 		STEP_SELECT: "app-step-select",
 		MODE_SELECT: "app-mode-select",

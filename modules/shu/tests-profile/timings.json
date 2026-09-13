@@ -3,26 +3,26 @@
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
 				"seconds": 0.9,
-				"steps": 159
+				"steps": 160
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
 				"seconds": 1.2,
-				"steps": 164
+				"steps": 165
 			},
 			"/features/c-reading-a-report.feature.ts": {
 				"seconds": 1.1,
-				"steps": 167
+				"steps": 168
 			},
 			"/features/d-two-origins.feature.ts": {
 				"seconds": 0.9,
-				"steps": 168
+				"steps": 169
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 2.3,
-				"steps": 159
+				"seconds": 2.4,
+				"steps": 160
 			}
 		},
-		"steps": 817,
-		"seconds": 6.4
+		"steps": 822,
+		"seconds": 6.6
 	}
 }

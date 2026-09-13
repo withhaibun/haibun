@@ -11,12 +11,15 @@ import { activeEntry, currentSubject, currentSubjectState, type TRecord, type TS
 export class SubjectController implements ReactiveController {
 	private readonly host: ReactiveControllerHost;
 	private readonly onChange: (record: TRecord | null, state: TSubjectState) => void;
+	private readonly reads: (state: TSubjectState) => unknown;
 	private unsubscribe: (() => void) | null = null;
 	private last: string | undefined;
 
-	constructor(host: ReactiveControllerHost, onChange: (record: TRecord | null, state: TSubjectState) => void) {
+	/** `reads` is what the view shows of the state, the active entry unless the view reads more. */
+	constructor(host: ReactiveControllerHost, onChange: (record: TRecord | null, state: TSubjectState) => void, reads: (state: TSubjectState) => unknown = activeEntry) {
 		this.host = host;
 		this.onChange = onChange;
+		this.reads = reads;
 		host.addController(this);
 	}
 
@@ -41,11 +44,11 @@ export class SubjectController implements ReactiveController {
 		return currentSubjectState.get();
 	}
 
-	/** Tell the host the active record, once per change of the active entry: its record, its seqPath or its bundle. A
-	 *  state change that leaves the active entry as it was is not a change of what the view shows. */
+	/** Tell the host the active record, once per change of what the view reads. A state change that leaves that as it
+	 *  was is not a change of what the view shows. */
 	private relay(state: TSubjectState): void {
 		const record = currentSubject(state);
-		const key = JSON.stringify(activeEntry(state));
+		const key = JSON.stringify(this.reads(state));
 		if (key === this.last) return;
 		this.last = key;
 		this.onChange(record, state);
