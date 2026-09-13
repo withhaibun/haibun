@@ -5,39 +5,22 @@
  * jsdom does no layout, so the heights the bar reads are stated by each case.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { ActionsBarHeight, type THeightState } from "./actions-bar-height.js";
 import { PROPORTION } from "./actions-bar-model.js";
 import { ACTIONS_BAR_FOOTPRINT, SHU_ATTR } from "../consts.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState } from "../current-subject.js";
 import { provideLayout } from "../test/jsdom-layout.js";
-
-/** An element as a controller sees its host: it holds controllers and can be asked to render. */
-class HeightHost extends HTMLElement implements ReactiveControllerHost {
-	readonly controllers: ReactiveController[] = [];
-	readonly updateComplete = Promise.resolve(true);
-	addController(controller: ReactiveController): void {
-		this.controllers.push(controller);
-	}
-	removeController(): void {
-		/* a case keeps its controller for the bar's lifetime */
-	}
-	requestUpdate(): void {
-		/* a case renders by calling the controller's update hooks */
-	}
-}
-customElements.define("height-test-host", HeightHost);
+import { aControllerHost, type ControllerHostFake } from "./actions-bar-host.test-fake.js";
 
 /** A stated layout number, which jsdom leaves at zero. */
 const stateNumber = (el: HTMLElement, name: "offsetHeight" | "clientHeight", read: () => number) => Object.defineProperty(el, name, { configurable: true, get: read });
 
-type TBar = { host: HeightHost; height: ActionsBarHeight; state: THeightState; container: HTMLElement; summary: HTMLElement; sizes: { bar: number; strip: number } };
+type TBar = { host: ControllerHostFake; height: ActionsBarHeight; state: THeightState; container: HTMLElement; summary: HTMLElement; sizes: { bar: number; strip: number } };
 
 function aBar(initial: Partial<THeightState> = {}): TBar {
 	provideLayout();
-	document.body.innerHTML = "";
+	const host = aControllerHost();
 	const container = document.createElement("div");
-	const host = new HeightHost();
 	const summary = document.createElement("div");
 	const frame = document.createElement("div");
 	container.append(host);
