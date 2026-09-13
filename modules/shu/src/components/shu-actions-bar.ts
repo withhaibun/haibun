@@ -8,13 +8,13 @@ import { z } from "zod";
 import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
-import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
+import type { PropertyValues, CSSResultGroup } from "lit";
 import { AuthorityController, SignalController } from "../controllers/index.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
-import { startPointerDrag } from "./pointer-drag.js";
-import { SHU_EVENT, SHU_ATTR, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
+import { ActionsBarHeight } from "./actions-bar-height.js";
+import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
@@ -24,14 +24,12 @@ import { viewQuery, serializeViewQuery } from "../view-query.js";
 import { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 import { PaneState } from "../pane-state.js";
-import { chatMessageStyles } from "./shu-chat-message.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
+import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { prettifyGwta, appAccessLevel } from "../util.js";
-import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
+import { contextLabel, isEntitySelection, timeOffsetLabel } from "./actions-bar-model.js";
 import { isServerUnreachable } from "../hypermedia.js";
-import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import { closeConversation, conversationState, openConversation } from "../conversation.js";
 import { hashParam, onHashChanged } from "../view-hash.js";
 import { selectValuesFor } from "../quads-snapshot.js";
@@ -143,19 +141,21 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
 	/** Which lower-right corner popover is open: the gear's settings, playback (over the current-time display), or the access control. At most one. */
 	private _openCorner: TCorner | null = null;
+	/** A click outside the bar closes a corner popover that dismisses on a click away. */
 	private _onDocumentClick = (e: Event): void => {
-		const path = typeof e.composedPath === "function" ? e.composedPath() : [];
-		const inside = path.includes(this);
-		if (this._openCorner && CORNER_DISMISS[this._openCorner] === "click-away" && !inside) this.closeCornerPopover();
-		if (!this.state.askExpanded) return;
-		if (this.state.pinned) return; // a pinned bar stays open: that is what the pin is for
-		if (inside) return;
-		const target = e.target instanceof Element ? e.target : null;
-		// Combobox popups are rendered into document.body, so suggestion picks are
-		// outside the host path but still part of actions-bar interaction.
-		if (target?.closest('ul[role="listbox"][data-combo-owner="shu-actions-bar"]')) return;
-		this.setState({ askExpanded: false });
+		if (this._openCorner && CORNER_DISMISS[this._openCorner] === "click-away" && !e.composedPath().includes(this)) this.closeCornerPopover();
 	};
+	/** How the bar stands: open or closed, pinned, dragged, and the footprint of its closed strip. */
+	#height = new ActionsBarHeight(this, {
+		state: () => this.state,
+		setState: (patch) => this.setState(patch),
+		strip: () => {
+			const summary = this.shadowRoot?.querySelector<HTMLElement>(".summary-bar");
+			const frame = this.shadowRoot?.querySelector<HTMLElement>(".actions-bar");
+			return summary && frame ? { summary, frame } : null;
+		},
+		focusInput: () => (this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus(),
+	});
 
 	static observedHtmlAttributes = ["api-base", "testid-prefix"];
 
@@ -354,7 +354,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// The shared output region carries the one output test id every mode's assertions point at.
 		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
 		this.loadProperties();
-		if (this.state.pinned && !this.state.askExpanded) this.setState({ askExpanded: true }); // a pinned bar restored from persistence opens
+		this.#height.openIfPinned();
 		this.followConversationAddress();
 		this.autoTeardown(onHashChanged(this.followConversationAddress));
 		// What authority stands here, for the indicator: read once so the numbers are there before the panel is opened,
@@ -404,31 +404,17 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				}),
 			);
 		}
-
-		// The bar is left/right:0, so it resizes with its container (window width); republish the collapsed footprint when
-		// that changes (the summary strip can wrap / rescale with the font), keeping the host's reserved space exact.
-		if (typeof ResizeObserver !== "undefined") {
-			this._footprintObserver = new ResizeObserver(() => this.publishFootprint());
-			this._footprintObserver.observe(this);
-		}
 	}
 
 	protected override onDisconnected(): void {
-		if (this.scopeOpen) dispatchSubjectEvent({ type: "close", scope: SCOPE.actionsBar });
-		this.scopeOpen = false;
 		document.removeEventListener("click", this._onDocumentClick, true);
 		this.removeEventListener("step-success", this._onStepSettled);
 		this.removeEventListener("step-error", this._onStepSettled);
-		this._dragMoveCleanup?.(); // a resize drag in flight at disconnect would otherwise leak its document listeners
 		this._unsubscribeEvents?.();
 		this._unsubscribeEvents = null;
 		this._unsubscribeSync?.();
 		if (this._searchDebounce) clearTimeout(this._searchDebounce);
-		this._footprintObserver?.disconnect();
-		this._footprintHost?.style.removeProperty("--shu-actions-bar-h"); // a removed bar leaves no reserved gap behind
 	}
-
-	private _footprintObserver?: ResizeObserver;
 
 	private async loadUiExtensions(): Promise<void> {
 		// Wait for the concern catalog to populate site metadata before reading
@@ -585,9 +571,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	expand(): void {
-		if (!this.state.askExpanded) {
-			this.setState({ askExpanded: true });
-		}
+		this.#height.open();
 	}
 
 	/**
@@ -617,63 +601,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** Lit handles the render via the standard `render() \u2192 TemplateResult \u2192 reconcile against the shadow root` path. `updated()` is where side-effects that depend on the freshly-reconciled DOM run \u2014 wiring drag handlers to nodes Lit just mounted, pushing combobox option lists, etc. */
 	render(): TemplateResult {
 		const hasAsk = this._hasAskCapableStep;
-		// Expanded: a definite, proportionate height (the dragged fraction, remembered in the cookie, or a default) so the
-		// overlay never balloons to fit its content: the body scrolls inside instead. Collapsed: just the summary bar.
-		this.applyHeight();
 		return this.template(hasAsk);
-	}
-
-	/** Set the host height from the current open/proportion state, shared by render() and the end of a resize drag. An
-	 *  open bar overlays the views rather than resizing them, so it says so: what it covers is what a framing aims clear
-	 *  of, and closing it returns that framing to the whole view. Opening and closing also open and close the bar's
-	 *  scope of the active record, so a record the bar activates leads while it is open and the page's leads again once
-	 *  it closes. */
-	private applyHeight(): void {
-		const open = this.state.askExpanded;
-		this.style.height = open ? `${(this.expandedProportion() * 100).toFixed(2)}%` : "";
-		this.toggleAttribute(SHU_ATTR.DATA_COVERS_VIEWS, open);
-		if (open !== this.scopeOpen) {
-			this.scopeOpen = open;
-			dispatchSubjectEvent({ type: open ? "open" : "close", scope: SCOPE.actionsBar });
-		}
-	}
-
-	/** The remembered expanded height as a fraction of the container (drag-set, cookie-persisted), or the default.
-	 * Cached so a render, which runs on every reactive update, does not re-scan document.cookie each time. */
-	private expandedProportion(): number {
-		if (this._proportion === null) this._proportion = openAtProportion(this.state.heightProportion);
-		return this._proportion;
-	}
-
-	/** Height of the overlay's positioning container (the offset parent), the basis for the proportionate sizing. */
-	private containerHeight(): number {
-		return (this.offsetParent as HTMLElement | null)?.clientHeight || this.offsetHeight || 1;
-	}
-
-	private _footprintHost: HTMLElement | null = null;
-	private _lastFootprint = -1;
-	/**
-	 * Publish the COLLAPSED footprint, the always-present summary strip plus the bar's top border, as
-	 * `--shu-actions-bar-h` on the positioning host, so the host can reserve that space (`padding-bottom`) and content
-	 * never sits behind the closed bar. The expanded body floats over content above transiently and is NOT reserved.
-	 */
-	private publishFootprint(): void {
-		const host = this.offsetParent as HTMLElement | null;
-		const summary = this.shadowRoot?.querySelector<HTMLElement>(".summary-bar");
-		const bar = this.shadowRoot?.querySelector<HTMLElement>(".actions-bar");
-		if (!host || !summary || !bar) return;
-		const h = Math.ceil(summary.offsetHeight + (Number.parseFloat(getComputedStyle(bar).borderTopWidth) || 0));
-		if (host === this._footprintHost && h === this._lastFootprint) return;
-		this._footprintHost = host;
-		this._lastFootprint = h;
-		host.style.setProperty("--shu-actions-bar-h", `${h}px`);
 	}
 
 	protected updated(_changedProperties: PropertyValues): void {
 		this.populateComboboxes();
 		this.syncSearchInput();
 		this.updateBreadcrumbDisplay();
-		this.publishFootprint();
 	}
 
 	/** The search input is uncontrolled (the user types freely); reflect the store's q into it on render, e.g. a
@@ -701,7 +635,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// The resize grip sits at the TOP edge of the open overlay (the bar grows up from the bottom, so the top edge is
 		// where it meets the content), drag it to resize. Only present when expanded; there is nothing to resize collapsed.
 		const resizeHandle = expanded
-			? html`<div class="resize-handle" data-testid=${`${this.testIdPrefix}resize-handle`} title="Drag to resize" @pointerdown=${this.onResizeDown}></div>`
+			? html`<div class="resize-handle" data-testid=${`${this.testIdPrefix}resize-handle`} title="Drag to resize" @pointerdown=${this.#height.onResizeDown}></div>`
 			: nothing;
 		return html`<div class=${classMap({ "actions-bar": true, collapsed: !expanded })}>
 				${resizeHandle}
@@ -750,10 +684,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// The opener (step-ui expandActionsBar) clicks `summary-bar` to expand: it must be a small, definite click target,
 		// not the full-width strip (a wide div's center lands on empty space / a child and reads as outside the viewport).
 		// So the test-id rides this chevron; the strip still expands on a bare click for the human.
-		return html`<div class="summary-bar" @click=${this.onSummaryClick}>
+		return html`<div class="summary-bar" @click=${this.#height.onStripClick}>
 			${this.cornerPopoverTemplate()}
 			<button class="bar-twisty" aria-label=${expanded ? "Collapse actions bar" : "Expand actions bar"} aria-expanded=${expanded}
-				data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.onTwistyToggle}>${expanded ? "▾" : "▴"}</button>
+				data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.#height.onTwistyToggle}>${expanded ? "▾" : "▴"}</button>
 			<button class="status-area" style=${this._statusMessage ? "" : "display:none"} aria-expanded=${this._openCorner === "status"}
 				title="what this says, in full" data-testid=${`${this.testIdPrefix}status`} @click=${this.onCornerToggle("status")}>${this._statusMessage}</button>
 			<shu-breadcrumb></shu-breadcrumb>
@@ -772,16 +706,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					data-testid=${`${this.testIdPrefix}time-offset`} @click=${this.onNowClick}>${this._timeOffsetLabel}</button>
 			</span>
 			<button class="pane-icon" aria-label=${pinned ? "Unpin actions bar" : "Pin actions bar open"} aria-pressed=${pinned}
-				data-testid=${`${this.testIdPrefix}ask-button`} @click=${this.onPinToggle}>\u{1F4CC}</button>
+				data-testid=${`${this.testIdPrefix}ask-button`} @click=${this.#height.onPinToggle}>\u{1F4CC}</button>
 		</div>`;
 	}
-
-	/** The summary-bar disclosure control: toggles the bar open/closed. stopPropagation so it doesn't double-fire the
-	 *  strip's own onSummaryClick. */
-	private onTwistyToggle = (e: Event): void => {
-		e.stopPropagation();
-		this.toggleExpanded();
-	};
 
 	/** `now` says where the run has got to, and is how the log is opened. The log's own rail is where a reader moves
 	 *  through the run, so opening it lands on that rail: minimized, unless it is already open, in which case it is left
@@ -947,67 +874,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		)}`;
 	}
 
-	private _dragStartY = 0;
-	private _dragStartH = 0; // overlay height when a resize drag began; the bar grows up from the bottom, so drag-up enlarges it
-	private _dragContainerH = 1; // container height captured at drag start (it can't change mid-drag), so each frame avoids a layout read
-	private _dragRafPending = false;
-	private _dragMoveCleanup: (() => void) | null = null;
-	private _proportion: number | null = null; // cached expanded height fraction (see expandedProportion)
-	/** Whether the bar's scope of the active record was last raised open. */
-	private scopeOpen = false;
-
-	/** Open/close the bar; the pin and the collapsed summary share this. Focuses the input when opening. */
-	private toggleExpanded(): void {
-		const next = !this.state.askExpanded;
-		this.setState({ askExpanded: next });
-		if (next) requestAnimationFrame(() => (this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus());
-	}
-
-	/** The pin pins the bar open (a latch against click-away dismissal): it does NOT open/close it. Pinning also opens it
-	 * if needed; unpinning leaves it open but now dismissible by clicking away. */
-	private onPinToggle = (e: Event): void => {
-		e.stopPropagation();
-		const pinned = !this.state.pinned;
-		this.setState({ pinned, askExpanded: pinned || this.state.askExpanded });
-	};
-
-	/** Clicking the summary strip toggles the bar open/closed (the bottom bar IS the toggle). Open is transient: it
-	 *  dismisses on click-away unless pinned. The strip's own controls (twisty, corner toggles, pin) stopPropagation,
-	 *  so they act without collapsing the bar. */
-	private onSummaryClick = (): void => {
-		this.toggleExpanded();
-	};
-
-	/** Start a resize drag from the top grip. The bar is bottom-anchored, so dragging the top edge UP enlarges it. */
-	private onResizeDown = (e: PointerEvent): void => {
-		this._dragStartY = e.clientY;
-		this._dragStartH = this.offsetHeight;
-		this._dragContainerH = this.containerHeight();
-		this._dragMoveCleanup?.();
-		this._dragMoveCleanup = startPointerDrag(e, { onMove: (ev) => this.onResizeMove(ev.clientY), onEnd: () => this.onResizeEnd() });
-		e.preventDefault();
-	};
-
-	private onResizeMove(y: number): void {
-		if (this._dragRafPending) return;
-		this._dragRafPending = true;
-		requestAnimationFrame(() => {
-			this._dragRafPending = false;
-			// Live feedback in px while dragging (top edge up = taller); on release it becomes a container fraction (onResizeEnd).
-			const h = draggedHeight(this._dragStartH, this._dragStartY, y, this._dragContainerH);
-			this.style.height = `${h}px`;
-		});
-	}
-
-	private onResizeEnd(): void {
-		this._dragMoveCleanup?.();
-		this._dragMoveCleanup = null;
-		// Remember the dragged size as a fraction of the container so it stays proportionate across window sizes.
-		this._proportion = draggedProportion(this.offsetHeight, this._dragContainerH);
-		this.setState({ heightProportion: this._proportion });
-		this.applyHeight();
-	}
-
 	/** Populate combobox options after each render. The combobox elements themselves persist (lit's diff), so setOptions just refreshes their data without recreating the element, typed-ahead filter text, focus, and open dropdown state survive. */
 	private populateComboboxes(): void {
 		const labelCombo = this.shadowRoot?.querySelector(".label-select") as ShuCombobox | null;
@@ -1166,142 +1032,3 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.openStepCaller(this._history, method);
 	};
 }
-
-const STYLES = `
-	/* A bottom-anchored, translucent overlay: it floats up over the content from the bottom edge instead of taking
-	   layout space, so the rows behind it never resize. Self-positioning, drop it into any position:relative host
-	   (the app shell or a column view) and it pins to that host's bottom. */
-	:host {
-		/* Sits above column content and in-column overlays, below a fullscreen modal. */
-		position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
-		display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: hidden;
-	}
-	.actions-bar {
-		padding: 0; display: flex; flex-direction: column; min-width: 0; overflow: hidden; flex: 1; min-height: 0; position: relative;
-		background: color-mix(in srgb, var(--shu-bg-soft) 68%, transparent);
-		-webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
-		border-top: var(--shu-border-w) solid var(--shu-border);
-		box-shadow: 0 -2px 10px var(--shu-shadow);
-	}
-	/* The resize grip: a thin bar with a centred grab pill at the TOP edge of the open overlay. */
-	.resize-handle {
-		flex-shrink: 0; height: 10px; cursor: ns-resize; user-select: none; touch-action: none;
-		display: flex; align-items: center; justify-content: center;
-	}
-	.resize-handle::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--shu-border); }
-	.resize-handle:hover::before { background: var(--shu-fg-faded); }
-	.summary-bar {
-		display: flex; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-2) var(--shu-space-4);
-		min-height: var(--shu-row-h); flex-shrink: 0;
-		user-select: none; margin-top: auto; background: transparent;
-		border-top: var(--shu-border-w) solid var(--shu-border);
-	}
-	.actions-bar.collapsed { box-shadow: none; }
-	.actions-bar.collapsed .summary-bar { cursor: pointer; margin-top: 0; border-top: none; }
-	.bar-twisty {
-		background: transparent; border: none; cursor: pointer; flex-shrink: 0;
-		width: var(--shu-icon-btn); height: var(--shu-icon-btn);
-		display: inline-flex; align-items: center; justify-content: center;
-		font-size: var(--shu-font-md); color: var(--shu-fg); border-radius: var(--shu-radius);
-	}
-	.bar-twisty:hover { background: var(--shu-bg-hover); }
-	/* One line in the bar, since the bar is one line, and a control, because a message a reader cannot read in full is
-	   a message they cannot act on: it opens the whole of it, which they can select and copy. */
-	.status-area {
-		font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); cursor: pointer;
-		max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-		background: none; border: 0; font-family: inherit; text-align: left;
-	}
-	.status-full { margin: 0; max-width: 32rem; max-height: 40vh; overflow: auto; user-select: text; white-space: pre-wrap; display: flex; gap: var(--shu-space-2); align-items: flex-start; }
-	/* Corner controls are shared pane-icon chips, same box + accent-inverse-when-open as an active column view control.
-	   The text toggles (now / access) size to their label instead of the icon's square; the gear keeps the square. */
-	/* The one corner-popover surface (a native top-layer popover): floats just above its corner toggle without
-	   opening the actions bar. Position (bottom, right edge over its control) is set at show time. */
-	.corner-popover {
-		width: auto; cursor: default;
-		/* display only in the open state: an unconditional display would override the UA's [popover] hidden rule
-		   (author origin beats UA origin), leaving a closed popover centred over the page intercepting clicks. */
-		display: none;
-		padding: var(--shu-space-2) var(--shu-space-3);
-		background: var(--shu-bg-elevated); color: var(--shu-fg);
-		border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius);
-		box-shadow: 0 1px 4px var(--shu-shadow);
-		/* a floating panel sizes to its content and never scrolls it, without this the UA's [popover]
-		   overflow:auto turns a control's few px of spill into scrollbars */
-		overflow: hidden;
-	}
-	.corner-popover:popover-open { display: inline-flex; align-items: center; }
-	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
-	/* The negative margin cancels the bar's vertical padding so the buttons take the bar's full height. */
-	.corner-controls {
-		display: inline-flex; align-items: stretch; gap: var(--shu-space-1); flex-shrink: 0;
-		align-self: stretch; margin: calc(-1 * var(--shu-space-2)) 0;
-	}
-	.corner-controls .pane-icon { height: auto; }
-	/* A text toggle sizes to its label; the compound selector outweighs pane-icon's fixed square width. */
-	.corner-controls .corner-toggle { width: auto; padding: 0 var(--shu-space-2); }
-	.access-indicator, .time-offset { font-size: var(--shu-font-xs); flex-shrink: 0; }
-	.access-indicator.awaiting { border-color: var(--shu-accent); }
-	/* The indicator carries the count so what awaits is seen before the panel is opened; the panel holds the alert. */
-	.access-indicator .awaiting-count { margin-left: var(--shu-space-1); padding: 0 var(--shu-space-1); border-radius: 999px; background: var(--shu-accent); color: var(--shu-bg); font-weight: 700; }
-	.filter-bar {
-		display: flex; gap: var(--shu-space-2); align-items: center;
-		padding: var(--shu-space-2) var(--shu-space-3); flex-wrap: wrap;
-		border-bottom: var(--shu-border-w) solid var(--shu-border);
-	}
-	/* Inputs/selects style is centralised in SHU_BASE (above). The actions-bar only adds layout. */
-	.filter-bar .label-select, .filter-bar .select-filter { width: auto; flex: 0 0 auto; }
-	.filter-bar .text-search { flex: 1 1 20ch; min-width: 16ch; }
-	.compound-filters { display: flex; gap: var(--shu-space-1); flex-wrap: wrap; margin-left: auto; }
-	.filter-group {
-		display: inline-flex; gap: var(--shu-space-1); align-items: center;
-		background: var(--shu-bg-input); border-radius: var(--shu-radius);
-		padding: var(--shu-space-1) var(--shu-space-2);
-		flex: 0 0 auto;
-	}
-	.filter-group select, .filter-group input { width: auto; }
-	.filter-group .cond-property { max-width: 10em; }
-	.filter-group .cond-operator { max-width: 5em; }
-	.filter-group .cond-value, .filter-group .cond-value2 { max-width: 8em; }
-	.filter-group .remove-filter { border: none; background: none; color: var(--shu-fg-faded); padding: 0 var(--shu-space-1); cursor: pointer; }
-	.filter-group .remove-filter:hover { color: var(--shu-error); }
-	.filter-bar .add-filter, .filter-bar .search-go {
-		font: inherit; padding: var(--shu-space-1) var(--shu-space-4); border: var(--shu-border-w) solid var(--shu-border);
-		background: var(--shu-bg-elevated); color: var(--shu-fg); cursor: pointer; flex: 0 0 auto;
-		border-radius: var(--shu-radius);
-		min-height: var(--shu-input-h);
-	}
-	.filter-bar .add-filter:hover, .filter-bar .search-go:hover { background: var(--shu-bg-hover); }
-	.filter-bar .search-go { background: var(--shu-accent); color: var(--shu-accent-fg); border-color: var(--shu-accent); }
-	shu-step-caller {
-		display: block; padding: var(--shu-space-3); margin: var(--shu-space-2) var(--shu-space-4);
-		background: var(--shu-bg-elevated); border-radius: var(--shu-radius); border: var(--shu-border-w) solid var(--shu-border);
-	}
-	.mode-select { flex-shrink: 0; width: auto; min-width: 5em; }
-	/* THE shared output region: every mode's activity records scroll here; the input line beneath is what changes. */
-	/* The output region fills from the BOTTOM: a lone entry sits at the bottom edge, new entries land beneath the last,
-	   older ones scroll up. margin-top:auto on the first entry claims the free space above when the content is short,
-	   and collapses to 0 once it overflows so the scroll (pinned to the newest by scrollToBottom) reaches every entry. */
-	shu-activity-history { display: flex; flex-direction: column; font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; min-height: 0; overflow-y: auto; }
-	shu-activity-history > * { flex-shrink: 0; }
-	shu-activity-history > :first-child { margin-top: auto; }
-	shu-search-summary { display: block; cursor: pointer; padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
-	shu-search-summary:hover { background: var(--shu-bg-elevated); }
-	shu-search-summary .search-summary-text::before { content: "\\1F50D\\00A0"; }
-	/* The same x affordance a step result carries (shu-step-caller .dismiss-btn): the entry is light DOM, so its host scope styles it. */
-	shu-search-summary .dismiss-btn {
-		float: right; background: none; border: none; color: var(--shu-fg-faded);
-		cursor: pointer; font-size: var(--shu-font-sm);
-		padding: 0 var(--shu-space-2); line-height: 1; width: auto;
-	}
-	shu-search-summary .dismiss-btn:hover { color: var(--shu-error); }
-	.input-line {
-		display: flex; gap: var(--shu-space-2); align-items: stretch;
-		padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0;
-	}
-	.step-combo { flex: 1 1 280px; min-width: 12ch; width: auto; }
-	/* The ask pane is the input line; the history above renders the transcript. */
-	shu-kihan-chat { display: flex; flex: 0 0 auto; min-width: 0; }
-`;
-
-const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, shuIconButtonStyles, chatMessageStyles, css`${unsafeCSS(STYLES)}`];

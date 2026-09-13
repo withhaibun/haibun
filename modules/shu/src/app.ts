@@ -1,5 +1,5 @@
 import { appAccessLevel, defaultLabel } from "./util.js";
-import { INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
+import { ACTIONS_BAR_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
 import { getHash, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point, uses shu-column-strip + shu-column-pane layout.
@@ -43,7 +43,7 @@ const LAYOUT_STYLE = `
     position: relative;
     /* reserve the closed actions bar's footprint (published by shu-actions-bar) so the column strip ends above it,
        never behind it; the expanded bar still floats over content transiently. 0 when no bar is mounted. */
-    padding-bottom: var(--shu-actions-bar-h, 0px);
+    padding-bottom: var(${ACTIONS_BAR_FOOTPRINT}, 0px);
   }
   .app-container > shu-column-strip {
     flex: 1;
@@ -293,8 +293,10 @@ const main = async (): Promise<void> => {
 	// Column widths persist via the pane's own ShuElement.persistFields (keyed by data-column-key): no listener here.
 
 	/** The pane the reader is on, as the strip holds it. */
-	const activePaneElement = (): HTMLElement | undefined => (getStrip()?.panes ?? []).find((p) => (p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE)) === activePane.get());
-	const paneSubjectOf = (pane: Element | undefined | null): TContextPattern[] | null => (pane?.firstElementChild as { paneSubject?(): TContextPattern[] | null } | null)?.paneSubject?.() ?? null;
+	const activePaneElement = (): HTMLElement | undefined =>
+		(getStrip()?.panes ?? []).find((p) => (p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE)) === activePane.get());
+	const paneSubjectOf = (pane: Element | undefined | null): TContextPattern[] | null =>
+		(pane?.firstElementChild as { paneSubject?(): TContextPattern[] | null } | null)?.paneSubject?.() ?? null;
 	/** The page scope's entry, from the pane the reader is on. The reader moving to a pane that shows a subject activates
 	 *  it; the columns changing under them updates it to what the pane now shows. A pane about nothing activates nothing,
 	 *  so moving to a log beside a conversation leaves the active record where it is. */
