@@ -574,19 +574,17 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (at.x < canvas.x || at.x > canvas.x + canvas.w || at.y < canvas.y || at.y > canvas.y + canvas.h)
 					return actionNotOK(`active node "${id}" projects (${at.x.toFixed(0)},${at.y.toFixed(0)}) off the ${canvas.w}×${canvas.h} canvas at (${canvas.x},${canvas.y})`);
 				// What covers the view, read the way the scene reads it: the guide of this graph, and every panel saying so.
-				const covers = await page.evaluate(
-					(guideId) => {
-						const guide = document.querySelector<HTMLElement>(`[data-testid="${guideId}"]`);
-						const showing = guide && (guide.hasAttribute("data-shown") || guide.matches(":focus-within")) ? [guide] : [];
-						return [...showing, ...Array.from(document.querySelectorAll<HTMLElement>("[data-covers-views]"))].map((el) => {
-							const r = el.getBoundingClientRect();
-							return { what: el.tagName.toLowerCase(), x: r.x, y: r.y, w: r.width, h: r.height };
-						});
-					},
-					SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y,
-				);
+				const covers = await page.evaluate((guideId) => {
+					const guide = document.querySelector<HTMLElement>(`[data-testid="${guideId}"]`);
+					const showing = guide && (guide.hasAttribute("data-shown") || guide.matches(":focus-within")) ? [guide] : [];
+					return [...showing, ...Array.from(document.querySelectorAll<HTMLElement>("[data-covers-views]"))].map((el) => {
+						const r = el.getBoundingClientRect();
+						return { what: el.tagName.toLowerCase(), x: r.x, y: r.y, w: r.width, h: r.height };
+					});
+				}, SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y);
 				const under = covers.find((c) => at.x >= c.x && at.x <= c.x + c.w && at.y >= c.y && at.y <= c.y + c.h);
-				if (under) return actionNotOK(`active node "${id}" sits under the ${under.what} (${under.w.toFixed(0)}×${under.h.toFixed(0)} at ${under.x.toFixed(0)},${under.y.toFixed(0)})`);
+				if (under)
+					return actionNotOK(`active node "${id}" sits under the ${under.what} (${under.w.toFixed(0)}×${under.h.toFixed(0)} at ${under.x.toFixed(0)},${under.y.toFixed(0)})`);
 				return actionOK();
 			},
 		},
@@ -634,10 +632,12 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				);
 				if (subject !== id) return actionNotOK(`opening graph node "${id}" did not emit COLUMN_OPEN for it (got subject=${subject})`);
 				this.opened.set(name, id);
-				// Selection round-trips through the shared selection system (COLUMN_OPEN → app → selection signal → onGraphSelection),
-				// so the node becomes the focused/selected subject a beat later. Wait for it, so a downstream focus assert never races.
-				await this.becomesSelected(page, id);
-				await page.waitForTimeout(400); // let the column render + the polymorphic view's column-resize settle before any framing check
+				// Opening round-trips through the page (COLUMN_OPEN → the pane → the active record → the view), so the node becomes
+				// the active node after the call returns. A node that never does was not opened, and the scene settles once the
+				// column it opened has resized the view.
+				if (!(await this.becomesSelected(page, id)))
+					return actionNotOK(`opening graph node "${id}" did not make it the active node: ${(await this.fullInspect(page)).focus.selected} is`);
+				await this.settle(page);
 				return actionOK();
 			},
 		},
@@ -661,7 +661,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					await page.mouse.click(at.x, at.y);
 					this.opened.set(name, id);
 					if (await this.becomesSelected(page, id)) return actionOK();
-					return actionNotOK(`clicking graph node "${id}" at (${at.x.toFixed(0)},${at.y.toFixed(0)}) did not select it: selected is ${(await this.fullInspect(page)).focus.selected}`);
+					return actionNotOK(
+						`clicking graph node "${id}" at (${at.x.toFixed(0)},${at.y.toFixed(0)}) did not select it: selected is ${(await this.fullInspect(page)).focus.selected}`,
+					);
 				}
 				const sample = (await this.fullInspect(page)).sample;
 				return actionNotOK(`the active graph node never held still where the pointer could pick it ${await this.unpickableReport(page, sample)}`);
