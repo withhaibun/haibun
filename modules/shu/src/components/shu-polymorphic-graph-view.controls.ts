@@ -147,14 +147,18 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		});
 	}
 
-	/** Wait for the layout to come to rest, so a snapshot is stable and a camera op is not raced by a settling tween. */
+	/** Wait for the layout and the camera to come to rest, so a snapshot is stable and a camera op is not raced by a settling
+	 *  tween or by following's check after a pan or zoom. */
 	private async settle(page: Page): Promise<void> {
 		await page.waitForFunction(
 			() => {
-				const i = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect?(): { engineMode: string; tween: unknown; repaintPending: boolean } })?.inspect?.();
+				const i = (
+					document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect?(): { engineMode: string; tween: unknown; repaintPending: boolean; followPending: boolean } }
+				)?.inspect?.();
 				// A debounced repaint that has not run yet leaves the engine idle while the scene still shows the previous
-				// placement: settled means nothing is running AND nothing is owed.
-				return !!i && i.engineMode === "frozen" && i.tween === null && !i.repaintPending;
+				// placement, and a camera that has not rested leaves following's check to come: settled means nothing is
+				// running AND nothing is owed.
+				return !!i && i.engineMode === "frozen" && i.tween === null && !i.repaintPending && !i.followPending;
 			},
 			undefined,
 			{ timeout: 15000 },

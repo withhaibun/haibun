@@ -34,11 +34,11 @@
 				"steps": 23
 			},
 			"/features/counter.feature": {
-				"seconds": 0.4,
+				"seconds": 0.6,
 				"steps": 19
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2.1,
+				"seconds": 0.9,
 				"steps": 19
 			},
 			"/features/counts.feature.ts": {
@@ -119,6 +119,6 @@
 			}
 		},
 		"steps": 1150,
-		"seconds": 16.8
+		"seconds": 15.8
 	}
 }
