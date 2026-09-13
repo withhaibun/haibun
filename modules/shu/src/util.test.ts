@@ -208,9 +208,14 @@ describe("pickPreferredBody", () => {
 		expect(pickPreferredBody([ical])).toBe(ical);
 	});
 
-	it("skips bodies missing content or mediaType", () => {
+	it("skips a body known to be empty, and a body that states no media type", () => {
 		expect(pickPreferredBody([{ mediaType: "text/markdown", content: "" }, plain])).toBe(plain);
 		expect(pickPreferredBody([{ content: "no media type" }, md])).toBe(md);
+	});
+
+	it("chooses from a listing that names bodies without their text, by media type", () => {
+		const listed = [{ id: "p", mediaType: "text/plain" }, { id: "h", mediaType: "text/html" }, { id: "m", mediaType: "text/markdown" }];
+		expect(pickPreferredBody(listed)?.id).toBe("m");
 	});
 
 	it("returns undefined for empty input", () => {

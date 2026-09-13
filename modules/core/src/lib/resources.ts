@@ -964,9 +964,13 @@ type TBodyReader = { getIndividual(label: string, id: string): Promise<unknown> 
  */
 export const BODY_PREFERENCE: readonly string[] = [MEDIA_TYPE.markdown, MEDIA_TYPE.plain, MEDIA_TYPE.html];
 
-/** The reading to use, by that preference; the first usable body where a record holds none of them. */
+/**
+ * The reading to use, by that preference; the first usable body where a record holds none of them. A body is usable
+ * when it states its media type and is not known to be empty. A listing names bodies without their text, which is read
+ * on request, so a body whose text has not been read is chosen by its media type like any other.
+ */
 export function pickPreferredBody<T extends { mediaType?: string; content?: string }>(bodies: readonly T[]): T | undefined {
-	const usable = bodies.filter((b) => typeof b.content === "string" && b.content.length > 0 && typeof b.mediaType === "string");
+	const usable = bodies.filter((b) => typeof b.mediaType === "string" && b.content !== "");
 	for (const mediaType of BODY_PREFERENCE) {
 		const hit = usable.find((b) => b.mediaType === mediaType);
 		if (hit) return hit;
