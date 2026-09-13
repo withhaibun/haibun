@@ -542,6 +542,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private currentLinks: FGLink[] = [];
 	private fitFrameTimer?: number;
 	private repaintTimer?: number;
+	/** The wait for the camera to rest after a reader's pan or zoom, after which following checks the node is in view. */
+	private cameraRestTimer?: number;
 	private layoutTimer?: number;
 	private lastModelHash?: number;
 	// Per-repaint memo of the visible model and its sequence-node projection. The layered/sequence render types cache
@@ -757,6 +759,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// reader of this snapshot has not yet seen the effect of the change that scheduled it (a z-basis switch, a
 			// grouping toggle). The engine is idle in that window, so engineMode alone would call it settled.
 			repaintPending: this.repaintTimer !== undefined || this.layoutTimer !== undefined,
+			// The camera moved and has not rested yet, so following has not checked the node is still in view. A reader of
+			// this snapshot has not seen where following puts the camera.
+			followPending: this.cameraRestTimer !== undefined,
 			// Render-stage timing accumulated since the last resetProfile(): how raising the per-type limit uses the
 			// main thread, split into compute / force-warmup / label-textures (the profiling control step reads this).
 			profile: this.profiler.profile,
@@ -1561,7 +1566,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// A reader's pan or zoom can carry the followed node out of view. Held while the pointer is down, and checked once
 		// the damping has eased the camera to rest, so following never fights a drag in progress.
 		let gesturing = false;
-		let cameraRest: number | undefined;
 		controlEvents.addEventListener("start", () => {
 			gesturing = true;
 			this.markDirty();
@@ -1571,12 +1575,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		});
 		controlEvents.addEventListener("change", () => {
 			this.markDirty(4);
-			clearTimeout(cameraRest);
-			cameraRest = window.setTimeout(() => {
+			clearTimeout(this.cameraRestTimer);
+			this.cameraRestTimer = window.setTimeout(() => {
+				this.cameraRestTimer = undefined;
 				if (!gesturing) this.keepFollowedInView();
 			}, CAMERA_REST_MS);
 		});
-		this.autoTeardown(() => clearTimeout(cameraRest));
+		this.autoTeardown(() => clearTimeout(this.cameraRestTimer));
 		const canvas = aScene.renderer.domElement;
 		let pressed: { x: number; y: number; node: FGNode | undefined } | null = null;
 		// Ctrl/meta/shift-to-orbit is OrbitControls' OWN behavior: with LEFT mapped to PAN, a modified press

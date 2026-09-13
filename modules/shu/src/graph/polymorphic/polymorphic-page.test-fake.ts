@@ -41,7 +41,16 @@ export type TSceneApi = {
 	zoomBy(amount: number, unit: "pixels" | "percent", dir: "in" | "out"): void;
 	inspect(): { camera: TCamera | null };
 };
-type TInspected = { nodes: number; engineMode: string; tween: unknown; repaintPending: boolean; highlighted: number; camera: TCamera | null; render: { ticks: number; paused: boolean } };
+type TInspected = {
+	nodes: number;
+	engineMode: string;
+	tween: unknown;
+	repaintPending: boolean;
+	followPending: boolean;
+	highlighted: number;
+	camera: TCamera | null;
+	render: { ticks: number; paused: boolean };
+};
 
 const VIEW = `document.querySelector("shu-polymorphic-graph-view")`;
 
@@ -51,7 +60,7 @@ export type TMountedPage = {
 	errors(): string[];
 	/** Feed a model as the view does, and wait for every node of it to be laid out and the engine to rest. */
 	feed(quads: TQuadFed[]): Promise<void>;
-	/** Wait for the layout to rest: nothing running, nothing owed. */
+	/** Wait for the layout and the camera to rest: nothing running, nothing owed, and following has checked the view. */
 	settle(): Promise<void>;
 	/** Select a node the way the app relays a selection, and wait for its glow. */
 	select(id: string): Promise<void>;
@@ -104,8 +113,8 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 	const settle = async (): Promise<void> => {
 		await page.waitForFunction(
 			() => {
-				const i = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { engineMode: string; tween: unknown; repaintPending: boolean } }).inspect();
-				return i.engineMode === "frozen" && i.tween === null && !i.repaintPending;
+				const i = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { engineMode: string; tween: unknown; repaintPending: boolean; followPending: boolean } }).inspect();
+				return i.engineMode === "frozen" && i.tween === null && !i.repaintPending && !i.followPending;
 			},
 			undefined,
 			{ timeout: 45_000 },
@@ -142,6 +151,7 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 		},
 		inspect,
 		async projection(id) {
+			await settle();
 			let previous: { x: number; y: number } | null = null;
 			for (let i = 0; i < 60; i++) {
 				const read = (await page.evaluate((nid) => {
