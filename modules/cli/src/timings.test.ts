@@ -3,70 +3,100 @@ import { describe, it, expect } from "vitest";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { TIMINGS_FILE, machineKey, recordTimings, timingsOf, varianceLine, variancesBetween } from "./timings.js";
+import { TIMINGS_FILE, machineKey, recordTimings, timingsOf, varianceLine, variancesBetween, type TTimings } from "./timings.js";
 
-const step = (start: number, end: number) => ({ ok: true, in: "a step", start, end, seqPath: [0], stepperName: "S", actionName: "a" });
-const result = {
+/** A feature as a run reports it: what its steps came to, and the hash of the text of the steps it declares. */
+const featureRan = (featurePath: string, firstStart: number, lastEnd: number, count: number, declaredStepTextHash = `declared ${featurePath}`) => ({
+	path: featurePath,
 	ok: true,
-	featureResults: [
-		{ path: "/features/quick.feature", ok: true, stepResults: [step(1000, 1050), step(1050, 1130)] },
-		{ path: "/features/slow.feature", ok: true, stepResults: [step(2000, 4250)] },
-	],
-} as never;
+	steps: { count, firstStart, lastEnd },
+	declaredStepTextHash,
+	stepResults: [],
+});
+const runOf = (...features: ReturnType<typeof featureRan>[]) => ({ ok: true, featureResults: features }) as never;
+const result = runOf(featureRan("/features/quick.feature", 1000, 1130, 2), featureRan("/features/slow.feature", 2000, 4250, 1));
+const tempDir = (prefix: string) => nodeFS.mkdtempSync(path.join(os.tmpdir(), prefix));
+const writtenIn = (dir: string) => JSON.parse(nodeFS.readFileSync(path.join(dir, TIMINGS_FILE), "utf-8"));
+const timing = (seconds: number, steps: number, declaredStepTextHash = "declared") => ({ seconds, steps, declaredStepTextHash });
 
 describe("what a run took", () => {
-	it("says how long each feature took from its steps' own start and end, to a tenth of a second, with its step count", () => {
+	it("says how long each feature took from its first step's start to its last step's end, to a tenth of a second, with its steps and declared step text hash", () => {
 		expect(timingsOf(result)).toEqual({
-			features: { "/features/quick.feature": { seconds: 0.1, steps: 2 }, "/features/slow.feature": { seconds: 2.3, steps: 1 } },
+			features: { "/features/quick.feature": timing(0.1, 2, "declared /features/quick.feature"), "/features/slow.feature": timing(2.3, 1, "declared /features/slow.feature") },
 			steps: 3,
 			seconds: 2.4,
 		});
 	});
 
-	it("writes it beside the configuration under this machine's key, replacing what that machine last recorded", () => {
-		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-timings-"));
-		recordTimings(dir, result);
-		recordTimings(dir, { ok: true, featureResults: [{ path: "/features/quick.feature", ok: true, stepResults: [step(0, 100)] }] } as never);
-		const written = JSON.parse(nodeFS.readFileSync(path.join(dir, TIMINGS_FILE), "utf-8"));
-		expect(written).toEqual({ [machineKey()]: { features: { "/features/quick.feature": { seconds: 0.1, steps: 1 } }, steps: 1, seconds: 0.1 } });
+	it("counts every step a long feature ran, though its result holds only the most recent of them", () => {
+		expect(timingsOf(runOf(featureRan("/features/long.feature", 0, 90_000, 1500))).features["/features/long.feature"]).toEqual(timing(90, 1500, "declared /features/long.feature"));
+	});
+
+	it("writes a whole run beside the configuration under this machine's key, replacing what that machine last recorded", () => {
+		const dir = tempDir("haibun-timings-");
+		recordTimings(dir, result, false);
+		recordTimings(dir, runOf(featureRan("/features/quick.feature", 0, 100, 1)), false);
+		expect(writtenIn(dir)).toEqual({ [machineKey()]: { features: { "/features/quick.feature": timing(0.1, 1, "declared /features/quick.feature") }, steps: 1, seconds: 0.1 } });
+	});
+
+	it("writes a filtered run's features over their own entries and keeps every other feature as recorded, with the whole summed again", () => {
+		const dir = tempDir("haibun-filtered-");
+		recordTimings(dir, result, false);
+		recordTimings(dir, runOf(featureRan("/features/quick.feature", 0, 900, 4, "declared again")), true);
+		expect(writtenIn(dir)[machineKey()]).toEqual({
+			features: { "/features/quick.feature": timing(0.9, 4, "declared again"), "/features/slow.feature": timing(2.3, 1, "declared /features/slow.feature") },
+			steps: 5,
+			seconds: 3.2,
+		});
+	});
+
+	it("replaces an entry recorded in another form, rather than comparing against it or keeping its features", () => {
+		const dir = tempDir("haibun-earlier-form-");
+		nodeFS.writeFileSync(
+			path.join(dir, TIMINGS_FILE),
+			JSON.stringify({ [machineKey()]: { features: { "/features/slow.feature": { seconds: 99, steps: 1 } }, steps: 1, seconds: 99 } }),
+		);
+		expect(recordTimings(dir, runOf(featureRan("/features/quick.feature", 0, 100, 1)), true)).toEqual([]);
+		expect(Object.keys(writtenIn(dir)[machineKey()].features)).toEqual(["/features/quick.feature"]);
 	});
 
 	it("reports a feature whose duration differs from the recorded run, by both a fifth and a second", () => {
-		const recorded = {
-			features: { "/a.feature": { seconds: 10, steps: 5 }, "/b.feature": { seconds: 10, steps: 5 }, "/c.feature": { seconds: 0.5, steps: 1 } },
-			steps: 11,
-			seconds: 20.5,
-		};
-		const now = {
-			features: { "/a.feature": { seconds: 20, steps: 5 }, "/b.feature": { seconds: 11, steps: 5 }, "/c.feature": { seconds: 1.2, steps: 1 } },
-			steps: 11,
-			seconds: 32.2,
-		};
-		const changed = variancesBetween(recorded, now);
+		const recorded: TTimings = { features: { "/a.feature": timing(10, 5), "/b.feature": timing(10, 5), "/c.feature": timing(0.5, 1) }, steps: 11, seconds: 20.5 };
+		const now: TTimings = { features: { "/a.feature": timing(20, 5), "/b.feature": timing(11, 5), "/c.feature": timing(1.2, 1) }, steps: 11, seconds: 32.2 };
 		expect(
-			changed.map((v) => v.feature),
+			variancesBetween(recorded, now).map((v) => v.feature),
 			"a fifth longer and a second longer; eleven against ten is neither, and a short feature is under the second",
 		).toEqual(["/a.feature"]);
 	});
 
-	it("reports nothing where no run was recorded, and leaves out a feature only one run holds", () => {
-		const now = { features: { "/a.feature": { seconds: 20, steps: 5 } }, steps: 5, seconds: 20 };
-		expect(variancesBetween(undefined, now)).toEqual([]);
-		expect(variancesBetween({ features: { "/b.feature": { seconds: 1, steps: 1 } }, steps: 1, seconds: 1 }, now)).toEqual([]);
+	it("says whether a feature that took longer declares other steps than it did", () => {
+		const recorded: TTimings = { features: { "/a.feature": timing(10, 5), "/b.feature": timing(10, 5) }, steps: 10, seconds: 20 };
+		const now: TTimings = { features: { "/a.feature": timing(20, 5, "declared other steps"), "/b.feature": timing(20, 5) }, steps: 10, seconds: 40 };
+		expect(variancesBetween(recorded, now).map((v) => [v.feature, v.declaredStepsChanged])).toEqual([
+			["/a.feature", true],
+			["/b.feature", false],
+		]);
 	});
 
-	it("names the feature, both durations, the change and the step counts", () => {
-		expect(varianceLine({ feature: "/a.feature", seconds: 20, was: 10, steps: 7, wasSteps: 5 })).toBe("/a.feature took 20s, was 10s (+100%), 7 steps, was 5");
-		expect(varianceLine({ feature: "/a.feature", seconds: 5, was: 10, steps: 5, wasSteps: 5 })).toBe("/a.feature took 5s, was 10s (-50%), 5 steps");
+	it("reports nothing where no run was recorded, and leaves out a feature only one run holds", () => {
+		const now: TTimings = { features: { "/a.feature": timing(20, 5) }, steps: 5, seconds: 20 };
+		expect(variancesBetween(undefined, now)).toEqual([]);
+		expect(variancesBetween({ features: { "/b.feature": timing(1, 1) }, steps: 1, seconds: 1 }, now)).toEqual([]);
+	});
+
+	it("names the feature, both durations, the change, the step counts, and declared steps that changed", () => {
+		expect(varianceLine({ feature: "/a.feature", seconds: 20, was: 10, steps: 7, wasSteps: 5, declaredStepsChanged: true })).toBe(
+			"/a.feature took 20s, was 10s (+100%), 7 steps, was 5, its declared steps changed",
+		);
+		expect(varianceLine({ feature: "/a.feature", seconds: 5, was: 10, steps: 5, wasSteps: 5, declaredStepsChanged: false })).toBe("/a.feature took 5s, was 10s (-50%), 5 steps");
 	});
 
 	it("compares the run against the last run on this class of machine", () => {
-		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-variance-"));
-		expect(recordTimings(dir, result), "a machine with no recorded run has nothing to compare").toEqual([]);
-		const slower = { ok: true, featureResults: [{ path: "/features/slow.feature", ok: true, stepResults: [step(2000, 9000)] }] } as never;
-		const changed = recordTimings(dir, slower);
+		const dir = tempDir("haibun-variance-");
+		expect(recordTimings(dir, result, false), "a machine with no recorded run has nothing to compare").toEqual([]);
+		const changed = recordTimings(dir, runOf(featureRan("/features/slow.feature", 2000, 9000, 1)), false);
 		expect(changed.map((v) => [v.feature, v.was, v.seconds])).toEqual([["/features/slow.feature", 2.3, 7]]);
-		expect(JSON.parse(nodeFS.readFileSync(path.join(dir, TIMINGS_FILE), "utf-8"))[machineKey()].features["/features/slow.feature"].seconds).toBe(7);
+		expect(writtenIn(dir)[machineKey()].features["/features/slow.feature"].seconds).toBe(7);
 	});
 
 	it("names the class of machine by its processor, cores, architecture and platform, and by nothing that identifies the host", () => {
@@ -79,12 +109,11 @@ describe("what a run took", () => {
 	});
 
 	it("leaves another machine's times as that machine measured them, and does not compare against them", () => {
-		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-machines-"));
-		const other = { features: { "/features/slow.feature": { seconds: 99, steps: 1 } }, steps: 1, seconds: 99 };
+		const dir = tempDir("haibun-machines-");
+		const other = { features: { "/features/slow.feature": timing(99, 1) }, steps: 1, seconds: 99 };
 		nodeFS.writeFileSync(path.join(dir, TIMINGS_FILE), JSON.stringify({ "linux-x64-8x-another-processor": other }));
-		expect(recordTimings(dir, result), "the other machine's times are no measure of this one").toEqual([]);
-		const written = JSON.parse(nodeFS.readFileSync(path.join(dir, TIMINGS_FILE), "utf-8"));
-		expect(written["linux-x64-8x-another-processor"]).toEqual(other);
-		expect(written[machineKey()].features["/features/slow.feature"].seconds).toBe(2.3);
+		expect(recordTimings(dir, result, false), "the other machine's times are no measure of this one").toEqual([]);
+		expect(writtenIn(dir)["linux-x64-8x-another-processor"]).toEqual(other);
+		expect(writtenIn(dir)[machineKey()].features["/features/slow.feature"].seconds).toBe(2.3);
 	});
 });

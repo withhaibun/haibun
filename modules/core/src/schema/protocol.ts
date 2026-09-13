@@ -496,6 +496,12 @@ export type TFeatureResult = {
 	ok: boolean;
 	/** What its steps came to. */
 	steps: TFeatureSteps;
+	/**
+	 * The SHA-256 of the text of every step the feature declares, in order, with its backgrounds and helpers expanded.
+	 * Two runs that carry the same hash declared the same steps. A step dispatched from outside the feature and a loop that
+	 * repeated a step change what the feature ran, not what it declares, so they leave the hash as it was.
+	 */
+	declaredStepTextHash: string;
 	/** The steps a reader can still read in full: the most recent the feature ran, and no more than that. */
 	stepResults: TStepResult[];
 	failure?: {
