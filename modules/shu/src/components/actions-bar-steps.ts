@@ -145,9 +145,9 @@ export class ActionsBarSteps implements ReactiveController {
 	}
 
 	/** The step mode's input line: the mode toggle, and the step selector once the run offers steps. */
-	template(modeToggle: TemplateResult, active: boolean): TemplateResult {
+	template(modeToggle: TemplateResult): TemplateResult {
 		const selector =
-			active && this.#steps.length > 0
+			this.#steps.length > 0
 				? html`<shu-combobox class="step-combo"
 					testid=${`${this.#deps.testIdPrefix()}step-select`}
 					placeholder="type to filter steps..."
