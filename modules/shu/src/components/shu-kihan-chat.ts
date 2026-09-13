@@ -152,7 +152,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	set outputTarget(target: ShuActivityHistory | null) {
 		this.#outputTarget = target;
 		this.toggleAttribute("external-output", target !== null);
-		if (target) this.#adoptConversation(target);
+		// A pane handed the surface before it is inserted takes the conversation over when it connects, once its remembered
+		// session is restored: taken over earlier, a turn that already ended settled into no session.
+		if (target && this.isConnected) this.#adoptConversation(target);
 		this.requestUpdate();
 	}
 	get outputTarget(): ShuActivityHistory | null {
@@ -239,6 +241,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	protected override onConnected(): void {
+		if (this.#outputTarget) this.#adoptConversation(this.#outputTarget);
 		void this.loadModels();
 		void this.openConversation();
 	}

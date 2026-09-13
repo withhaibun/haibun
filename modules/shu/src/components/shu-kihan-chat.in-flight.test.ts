@@ -43,6 +43,8 @@ const RESTORED_TURN = { prompt: "an earlier question", response: "an earlier ans
 let answerSessionRead: (() => void) | undefined;
 /** The comments the stream names when a case finishes it, after the turn has run for a while. */
 const recordedOnFinish: string[] = [];
+/** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. */
+const turnSeqPaths: number[][] = [];
 
 vi.mock("../hypermedia.js", async () => {
 	const { hypermedia } = await import("./chat-pane.test-fake.js");
@@ -61,7 +63,7 @@ vi.mock("../hypermedia.js", async () => {
 		// A turn whose stream stays open: the server took the question and has written nothing back yet. Each status it
 		// states first is what the turn says about itself.
 		(req, onChunk, opts) => {
-			opts.onStart?.([0, 1, 2]);
+			opts.onStart?.(turnSeqPaths.shift() ?? [0, 1, 2]);
 			sent.push(JSON.parse(String(req.params?.context ?? "{}")));
 			for (const id of recorded) onChunk({ recorded: { persistedAs: "Comment", id } });
 			for (const status of stated) onChunk({ status });
@@ -87,7 +89,8 @@ const { ShuActivityHistory } = await import("./shu-activity-history.js");
 if (!customElements.get("shu-activity-history")) customElements.define("shu-activity-history", ShuActivityHistory);
 const { ShuKihanChat, TURN_STILL_RUNNING } = await import("./shu-kihan-chat.js");
 const { currentTurn, stopTurn } = await import("../chat-turn.js");
-const { flushPersistWrites } = await import("../element-prefs.js");
+const { SHU_TAG } = await import("../consts.js");
+const { flushPersistWrites, forgetElementPrefs } = await import("../element-prefs.js");
 const { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } = await import("../current-subject.js");
 
 // The turn runner and the machine are module state shared by every case. Each case starts with no running turn and
@@ -100,7 +103,11 @@ beforeEach(async () => {
 	sent.length = 0;
 	recorded.length = 0;
 	recordedOnFinish.length = 0;
+	turnSeqPaths.length = 0;
 	streamFails = undefined;
+	// The pane remembers its session across instances, so a case starts with nothing remembered.
+	flushPersistWrites();
+	forgetElementPrefs(SHU_TAG.KIHAN_CHAT, "");
 	answerSessionRead = undefined;
 });
 
@@ -435,6 +442,37 @@ describe("a turn outlasts the pane that started it", () => {
 		void again.handleChat("and what came of it");
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect((sent.at(-1) as { sessionSeqPath?: string }).sessionSeqPath, "the question belongs to the session the first turn started").toBe("0.1.2");
+	});
+
+	it("continues the session in the pane built next, when the turn ended while no pane was mounted", async () => {
+		// The turn ends between the panes: the pane built next takes over an ended turn, and records how it ended, which
+		// must be under the session it remembers rather than as a new one.
+		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
+		resetStream();
+		turnSeqPaths.push([0, 1, 5], [0, 1, 6], [0, 1, 7]);
+		const surface = document.querySelector("shu-activity-history") as HTMLElement;
+		const first = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		document.body.appendChild(first);
+		first.outputTarget = surface;
+		await first.updateComplete;
+		void first.handleChat("what do these have in common");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		stream.finish?.();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		flushPersistWrites();
+		void first.handleChat("and then");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		first.remove(); // the bar closed with the second turn running
+		stream.finish?.(); // and the turn ended before the bar opened again
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const again = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		again.outputTarget = surface; // the bar opened again: the surface first, then the pane inserted
+		document.body.appendChild(again);
+		await again.updateComplete;
+		void again.handleChat("and what came of it");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect((sent.at(-1) as { sessionSeqPath?: string }).sessionSeqPath, "the question belongs to the session the first turn started").toBe("0.1.5");
 	});
 
 	it("ends only when the reader stops it, with the reader's reason", async () => {
