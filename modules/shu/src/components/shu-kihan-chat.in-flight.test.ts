@@ -41,6 +41,8 @@ const RESTORED = "0.1.1";
 const RESTORED_RECORD = anIndividual("Email", "restored@bakery.test");
 const RESTORED_TURN = { prompt: "an earlier question", response: "an earlier answer", seqPath: RESTORED, askId: `cmt-ask-${RESTORED}`, sayId: `cmt-say-${RESTORED}`, bundle: [RESTORED_RECORD] };
 let answerSessionRead: (() => void) | undefined;
+/** The turns the store reads back for the session; a case that branches sets its own. */
+let sessionTurns: Array<Record<string, unknown>> = [];
 /** The comments the stream names when a case finishes it, after the turn has run for a while. */
 const recordedOnFinish: string[] = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. */
@@ -56,7 +58,7 @@ vi.mock("../hypermedia.js", async () => {
 			// A read held open, answered when a case says the store got back to the pane.
 			if (req.method === "loadChatSession")
 				return new Promise((resolve) => {
-					answerSessionRead = () => resolve({ turns: [RESTORED_TURN] });
+					answerSessionRead = () => resolve({ turns: sessionTurns });
 				});
 			return {};
 		},
@@ -90,6 +92,7 @@ if (!customElements.get("shu-activity-history")) customElements.define("shu-acti
 const { ShuKihanChat, TURN_STILL_RUNNING } = await import("./shu-kihan-chat.js");
 const { currentTurn, stopTurn } = await import("../chat-turn.js");
 const { SHU_TAG } = await import("../consts.js");
+const { SHU_TEST_IDS } = await import("../test-ids.js");
 const { flushPersistWrites, forgetElementPrefs } = await import("../element-prefs.js");
 const { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } = await import("../current-subject.js");
 
@@ -109,6 +112,7 @@ beforeEach(async () => {
 	flushPersistWrites();
 	forgetElementPrefs(SHU_TAG.KIHAN_CHAT, "");
 	answerSessionRead = undefined;
+	sessionTurns = [RESTORED_TURN];
 });
 
 
@@ -359,6 +363,78 @@ describe("a session the pane reads back", () => {
 		await settle();
 		expect(stream.signal?.aborted, "the turn ran to its end").toBe(false);
 		expect(currentSubject(currentSubjectState.get()), "the session the reader picked is still what leads").toEqual({ id: RESTORED_TURN.sayId, label: "Comment" });
+	});
+});
+
+describe("the transcript of a conversation that branches", () => {
+	const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+	/** A turn as the store reads it back: its question, reply and the turn it replies to. */
+	const readBack = (seqPath: string, inReplyTo?: string) => ({
+		prompt: `asked ${seqPath}`,
+		response: `answered ${seqPath}`,
+		seqPath,
+		...(inReplyTo ? { inReplyTo } : {}),
+		askId: `cmt-ask-${seqPath}`,
+		sayId: `cmt-say-${seqPath}`,
+		bundle: [],
+	});
+	/** The first turn, a reply to it, a reply to that, and a second reply to the first turn, in the store's order. */
+	const BRANCHED = [readBack("0.1.1"), readBack("0.1.3", "0.1.1"), readBack("0.1.4", "0.1.3"), readBack("0.1.5", "0.1.1")];
+	const onSurface = (surface: HTMLElement) => Array.from(surface.querySelectorAll(":scope > shu-chat-message")) as Array<HTMLElement & { message: TChatMessage }>;
+	const turnsShown = (surface: HTMLElement) => [...new Set(onSurface(surface).filter((el) => !el.hidden).map((el) => el.message.seqPath ?? "sending"))];
+	const otherBranchOn = (surface: HTMLElement, seqPath: string) =>
+		onSurface(surface)
+			.find((el) => el.message.role === "llm" && el.message.seqPath === seqPath)
+			?.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_OTHER_BRANCH}"]`) as HTMLElement | null;
+
+	async function paneOnTheBranchedSession(): Promise<{ el: Driven; surface: HTMLElement }> {
+		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
+		sessionTurns = BRANCHED;
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		const surface = document.querySelector("shu-activity-history") as HTMLElement;
+		const el = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		document.body.appendChild(el);
+		el.outputTarget = surface;
+		await el.updateComplete;
+		(el as unknown as { onSessionChange(e: CustomEvent): void }).onSessionChange(new CustomEvent("combo-change", { detail: { value: "0.1.1" } }));
+		await settle();
+		if (!answerSessionRead) throw new Error("the pane made no session read to answer");
+		answerSessionRead();
+		await settle();
+		await el.updateComplete;
+		return { el, surface };
+	}
+
+	it("shows the branch the conversation is on, hides the other, and offers it where it leaves", async () => {
+		const { surface } = await paneOnTheBranchedSession();
+		expect(turnsShown(surface), "the session's latest answer is on the second reply to the first turn").toEqual(["0.1.1", "0.1.5"]);
+		expect(onSurface(surface).length, "every message is kept, so a pane built later takes over both branches").toBe(8);
+		expect(otherBranchOn(surface, "0.1.1"), "the first answer offers the branch that leaves it").not.toBeNull();
+	});
+
+	it("follows the other branch from where it leaves, and offers the branch it left", async () => {
+		const { el, surface } = await paneOnTheBranchedSession();
+		otherBranchOn(surface, "0.1.1")?.click();
+		await settle();
+		await el.updateComplete;
+		expect(turnsShown(surface), "the older branch, to its latest answer").toEqual(["0.1.1", "0.1.3", "0.1.4"]);
+		expect(currentSubject(currentSubjectState.get()), "whose latest answer is the active record").toEqual({ id: "cmt-say-0.1.4", label: "Comment" });
+		expect(otherBranchOn(surface, "0.1.1"), "and the first answer now offers the newer branch").not.toBeNull();
+	});
+
+	it("shows a question about an earlier answer on the branch it starts there", async () => {
+		const { el, surface } = await paneOnTheBranchedSession();
+		const first = onSurface(surface).find((m) => m.message.role === "llm" && m.message.seqPath === "0.1.1");
+		if (!first) throw new Error("the first answer is not on the surface");
+		(first.querySelector(".msg") as HTMLElement).click();
+		await settle();
+		resetStream();
+		turnSeqPaths.push([0, 1, 9]);
+		void el.handleChat("and what else");
+		await settle();
+		await el.updateComplete;
+		expect(turnsShown(surface), "the first turn, then the question just asked").toEqual(["0.1.1", "0.1.9"]);
+		expect(otherBranchOn(surface, "0.1.1")?.textContent, "and both earlier branches are offered from the first answer").toContain("2 other branches");
 	});
 });
 

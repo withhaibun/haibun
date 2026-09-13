@@ -16,7 +16,8 @@ import type { ShuSpinner } from "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import { SHU_ATTR, SHU_TAG } from "../consts.js";
-import { BundleSchema, ChatRoleSchema, ChatStatusSchema, type TChatRole } from "../schemas.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
+import { BundleSchema, ChatRoleSchema, ChatStatusSchema, type TBundle, type TChatRole } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for every shadow scope that hosts one (shu-kihan-chat's own
  * transcript, and the actions bar's shared activity history): the message renders in light DOM, so the rules
@@ -70,12 +71,22 @@ export const ChatMessageSchema = z.object({
 	recordId: z.string().optional(),
 	/** The context the turn was sent with, which selecting the message makes active again. */
 	bundle: BundleSchema.optional(),
+	/** The seqPath of the turn this message's turn replies to; unset for the turn that starts a session. */
+	inReplyTo: z.string().optional(),
+	/** Where another branch of the conversation leaves the branch shown at this reply: that branch's latest message, and
+	 *  how many branches leave here. Set by the transcript for the message it shows. */
+	otherBranch: z.object({ recordId: z.string(), seqPath: z.string(), bundle: BundleSchema, count: z.number().int().min(1) }).optional(),
 });
 export type TChatMessage = z.infer<typeof ChatMessageSchema>;
 
 const EmptySchema = z.object({});
 const ROLE_LABEL: Record<TChatRole, string> = { user: "🧘", llm: "🤖" };
 const md = new MarkdownIt();
+
+/** Activate a comment of the conversation in the actions bar's scope, with the bundle its turn was sent with. */
+function activateComment(id: string, seqPath: string, bundle: TBundle): void {
+	dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id, label: COMMENT_LABEL }, seqPath, bundle } });
+}
 
 export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
@@ -94,13 +105,22 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		return this;
 	}
 
+	/** Follow the other branch that leaves at this reply: its latest message becomes the conversation's active comment,
+	 *  and the transcript shows that branch. */
+	private onOtherBranch = (e: Event): void => {
+		e.stopPropagation(); // the click is on the control, not a selection of this message
+		const other = this.message.otherBranch;
+		if (!other) return;
+		activateComment(other.recordId, other.seqPath, other.bundle);
+	};
+
 	/** Activate the comment this message was recorded as, with the bundle its turn was sent with, in the actions bar's
 	 *  scope. The graph follows that comment, and the next question replies to its turn. A message with no recorded
 	 *  comment activates nothing. */
 	private onSelect = (): void => {
 		const m = this.message;
 		if (!m.recordId || !m.seqPath || !m.bundle) return;
-		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: m.recordId, label: COMMENT_LABEL }, seqPath: m.seqPath, bundle: m.bundle } });
+		activateComment(m.recordId, m.seqPath, m.bundle);
 	};
 
 	protected updated(): void {
@@ -144,6 +164,13 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 					}
 					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(md.render(m.text))}</div>` : ""}
 					${m.error ? html`<div class="chat-error">${m.error}</div>` : ""}
+					${
+						m.otherBranch
+							? html`<button class="other-branch" data-testid=${SHU_TEST_IDS.APP.CHAT_OTHER_BRANCH} @click=${this.onOtherBranch}>
+									${m.otherBranch.count === 1 ? "another branch continues from here" : `${m.otherBranch.count} other branches continue from here`}
+								</button>`
+							: ""
+					}
 				</div>
 			</div>
 		`;
