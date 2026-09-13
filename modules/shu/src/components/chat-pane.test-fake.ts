@@ -1,10 +1,10 @@
 /**
  * The page a pane test drives the Ask pane on.
  *
- * Three test files drive the pane, and each needs the same page around it: a step registry answering without a server,
- * no extension tags, no view to harvest, and a conduit reached the way the pane reaches one. Only the answers differ
- * between cases, so only the answers are written per case, and a change to how the pane reaches the server is one edit
- * rather than three.
+ * Two test files drive the pane, and each needs the same page around it: a step registry answering without a server,
+ * no extension tags, no view to harvest, and a conduit reached the way the pane and the conversation reach one. Only the
+ * answers differ between cases, so only the answers are written per case, and a change to how the page reaches the
+ * server is one edit rather than two.
  */
 
 export type TReq = { method: string; params?: Record<string, unknown> };
@@ -27,8 +27,7 @@ export const hypermedia = (follow: TFollow, followStream: TStream) => ({
 /** The pane as a case drives it: the element, and what a case calls on it. */
 export type TDriven = HTMLElement & {
 	updateComplete: Promise<unknown>;
-	handleChat(prompt: string): Promise<void>;
+	ask(prompt: string): Promise<void>;
 	submitChat(): void;
-	outputTarget: unknown;
 	setState(s: Record<string, unknown>): void;
 };

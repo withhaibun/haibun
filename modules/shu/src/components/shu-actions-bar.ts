@@ -9,12 +9,12 @@ import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import { css, unsafeCSS, type PropertyValues, type CSSResultGroup } from "lit";
-import { AuthorityController } from "../controllers/index.js";
+import { AuthorityController, SignalController } from "../controllers/index.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import { startPointerDrag } from "./pointer-drag.js";
-import { SHU_EVENT, SHU_ATTR, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG } from "../consts.js";
+import { SHU_EVENT, SHU_ATTR, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
@@ -32,6 +32,8 @@ import { prettifyGwta, appAccessLevel } from "../util.js";
 import { contextLabel, draggedHeight, draggedProportion, isEntitySelection, openAtProportion, timeOffsetLabel } from "./actions-bar-model.js";
 import { isServerUnreachable } from "../hypermedia.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
+import { closeConversation, conversationState, openConversation } from "../conversation.js";
+import { hashParam, onHashChanged } from "../view-hash.js";
 import { selectValuesFor } from "../quads-snapshot.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
@@ -327,6 +329,24 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** A step-caller's result lands after its entry was appended, growing it in place; re-pin so the newest output stays in view. */
 	private _onStepSettled = (): void => this._history.scrollToBottom();
 
+	/** The conversation the ask is open on, which the view hash addresses. */
+	#conversation = new SignalController(
+		this,
+		conversationState,
+		() => undefined,
+		(conversation) => conversation.session,
+	);
+
+	/** Open the conversation the address names, with the bar expanded in Ask mode, or leave the conversation when the
+	 *  address names none. An address the conversation already follows changes nothing. */
+	private followConversationAddress = (): void => {
+		const session = hashParam(CONVERSATION_PARAM);
+		if (session === (this.#conversation.state.session ?? "")) return;
+		if (!session) return closeConversation();
+		this.setState({ mode: "ask", askExpanded: true });
+		void openConversation(session, "update");
+	};
+
 	protected override onConnected(): void {
 		document.addEventListener("click", this._onDocumentClick, true);
 		this.addEventListener("step-success", this._onStepSettled);
@@ -335,6 +355,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
 		this.loadProperties();
 		if (this.state.pinned && !this.state.askExpanded) this.setState({ askExpanded: true }); // a pinned bar restored from persistence opens
+		this.followConversationAddress();
+		this.autoTeardown(onHashChanged(this.followConversationAddress));
 		// What authority stands here, for the indicator: read once so the numbers are there before the panel is opened,
 		// and taken from the panel thereafter, since the panel reads again whenever anything changes what holds.
 		void this.#authority
@@ -459,9 +481,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return this._syncEventSeq > this._queriedSyncSeq;
 	}
 
+	/** Load the steps the bar offers. Whether an ask-capable step exists decides whether a chosen Ask mode renders, so the
+	 *  bar renders again once it is known. */
 	private async loadSteps(): Promise<void> {
 		this._steps = await getAvailableSteps();
 		this._hasAskCapableStep = !!this._steps.find((s) => s.method.endsWith("chatWithContext"));
+		this.requestUpdate();
 	}
 
 	private async loadDomainOptions(): Promise<void> {
@@ -645,11 +670,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	protected updated(_changedProperties: PropertyValues): void {
-		const hasAsk = this._hasAskCapableStep;
-		if (!hasAsk && this.state.mode === "ask") {
-			this.setState({ mode: "search" }); // ask needs an ask-capable step; fall back to the default core mode
-			return;
-		}
 		this.populateComboboxes();
 		this.syncSearchInput();
 		this.updateBreadcrumbDisplay();
@@ -669,8 +689,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// Single outer template so lit preserves the `.actions-bar` host across collapse/expand. The expanded-only children (filter bar, body) are returned conditionally so the `app-mode-select` test id disappears when collapsed, feature tests use `has test id app-mode-select` as the proxy for "bar is expanded" and that check counts elements regardless of CSS visibility.
 		const expanded = this.state.askExpanded;
 		// Every mode shares ONE output region (this._history, the same node every render) with the mode's input line
-		// beneath: switching modes changes only the input line. Ask is only reachable when hasAsk, so a persisted
-		// "ask" with no ask-capable step falls back to search below.
+		// beneath: switching modes changes only the input line. Ask renders only when an ask-capable step exists, so a
+		// chosen Ask mode renders search until the steps load, and on a deployment with no ask-capable step.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
 		const inputLine = mode === "ask" ? this.askModeTemplate(hasAsk) : mode === "step" ? this.stepModeTemplate(hasAsk) : this.filterBarTemplate(hasAsk);
 		// The input line's own extensions (dictation among them) serve every mode, and the ask pane renders them where it
@@ -889,7 +909,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private askModeTemplate(hasAsk: boolean): TemplateResult {
-		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix} .outputTarget=${this._history}>${this.modeToggleTemplate(hasAsk, "mode-toggle")}</shu-kihan-chat>`;
+		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix}>${this.modeToggleTemplate(hasAsk, "mode-toggle")}</shu-kihan-chat>`;
 	}
 
 	private stepModeTemplate(hasAsk: boolean): TemplateResult {
@@ -1280,9 +1300,8 @@ const STYLES = `
 		padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0;
 	}
 	.step-combo { flex: 1 1 280px; min-width: 12ch; width: auto; }
-	shu-kihan-chat { display: flex; flex: 1; min-height: 0; min-width: 0; }
-	/* Its transcript projects into the shared history above, so the chat element is only its input line. */
-	shu-kihan-chat[external-output] { flex: 0 0 auto; }
+	/* The ask pane is the input line; the history above renders the transcript. */
+	shu-kihan-chat { display: flex; flex: 0 0 auto; min-width: 0; }
 `;
 
 const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, shuIconButtonStyles, chatMessageStyles, css`${unsafeCSS(STYLES)}`];

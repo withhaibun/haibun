@@ -37,8 +37,10 @@ vi.mock("../hypermedia.js", async () => {
 const { ShuCombobox } = await import("./shu-combobox.js");
 if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
 const { ShuKihanChat } = await import("./shu-kihan-chat.js");
+const { IDLE_TURN, turnState } = await import("../chat-turn.js");
+const { CLOSED_CONVERSATION, conversationState } = await import("../conversation.js");
 
-async function chat(): Promise<HTMLElement & { submitPrompt?: unknown }> {
+async function chat(): Promise<HTMLElement> {
 	document.body.innerHTML = "";
 	const el = new ShuKihanChat();
 	document.body.appendChild(el);
@@ -49,43 +51,44 @@ async function chat(): Promise<HTMLElement & { submitPrompt?: unknown }> {
 const hasSelector = (el: HTMLElement) => !!el.shadowRoot?.querySelector(".session-select");
 
 /** Drive one turn the way the submit handler does, without depending on the button's markup. */
-async function turn(el: HTMLElement): Promise<void> {
-	await (el as unknown as { handleChat: (p: string) => Promise<void> }).handleChat("ask something");
+async function turn(el: HTMLElement, prompt = "ask something"): Promise<void> {
+	await (el as unknown as { ask: (p: string) => Promise<void> }).ask(prompt);
 	// The session refresh is fire-and-forget, so let its promise and the render that follows settle.
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 }
 
-const messageCount = (el: HTMLElement) => el.shadowRoot?.querySelectorAll("shu-chat-message").length ?? 0;
-
 const optionCount = (el: HTMLElement) => (el.shadowRoot?.querySelector(".session-select") as unknown as { options?: unknown[] })?.options?.length ?? 0;
 
 describe("the session selector", () => {
 	beforeEach(() => {
+		turnState.set(IDLE_TURN);
+		conversationState.set(CLOSED_CONVERSATION);
 		listed.length = 0;
 		onStartSeqPath = [0, 1, 2];
 		sessionsAnswer = () => ({ sessions: [...listed] });
 	});
 
-	it("is there before any turn, with no sessions to offer", async () => {
+	it("is there before any turn, offering a new conversation and no sessions", async () => {
 		const el = await chat();
 		expect(hasSelector(el)).toBe(true);
+		expect(optionCount(el)).toBe(1);
 	});
 
-	it("is still there after a turn, now offering the session that turn created", async () => {
+	it("is still there after a turn, now offering the session that turn created after a new conversation", async () => {
 		const el = await chat();
 		await turn(el);
 		expect(hasSelector(el)).toBe(true);
-		expect(optionCount(el)).toBe(1);
+		expect(optionCount(el)).toBe(2);
 	});
 
 	it("keeps the pane rendering when the read answers with no list, so the conversation continues past that turn", async () => {
 		sessionsAnswer = () => ({});
 		const el = await chat();
-		await turn(el);
+		await turn(el, "the first");
 		expect(hasSelector(el)).toBe(true);
-		await turn(el);
-		expect(messageCount(el)).toBe(4);
+		await turn(el, "the second");
+		expect(turnState.get()).toMatchObject({ prompt: "the second", status: "completed" });
 	});
 
 	it("offers the session even when the turn's stream announced no seqPath, since the session exists either way", async () => {
@@ -93,6 +96,6 @@ describe("the session selector", () => {
 		const el = await chat();
 		await turn(el);
 		expect(hasSelector(el)).toBe(true);
-		expect(optionCount(el)).toBe(1);
+		expect(optionCount(el)).toBe(2);
 	});
 });

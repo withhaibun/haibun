@@ -12,6 +12,9 @@ export const STORED_TYPE_PROP = "vertexLabel";
  *  Written by the chain view and the projection's links, read by the affordances panel and the chain view alike. */
 export const AFFORDANCE_PARAM = { GOAL: "aff-goal", WAYPOINT: "aff-waypoint" } as const;
 
+/** The hash param that addresses the conversation the ask is open on, by its session's seqPath. */
+export const CONVERSATION_PARAM = "ask";
+
 /** What a deep link into the view state begins with: view state is carried in the hash, which a static document can
  *  link to and a page saved for offline reading still keeps. */
 export const DEEP_LINK_PREFIX = "#?";

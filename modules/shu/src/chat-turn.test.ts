@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { anIndividual, type TTurnStatus } from "./schemas.js";
 import { entryOf, type TRecord } from "./current-subject.js";
-import { IDLE_TURN, NOT_STARTED, TURN_EVENTS, transition, turnInFlight, turnRefusal, type TTurnEvent, type TTurnEventType, type TTurnState } from "./chat-turn.js";
+import { IDLE_TURN, NOT_STARTED, TURN_EVENTS, transition, inFlight, turnRefusal, type TTurnEvent, type TTurnEventType, type TTurnState } from "./chat-turn.js";
 import { pickWith, seededRandom } from "./test/seeded-random.js";
 
 const BUNDLE = entryOf([anIndividual("Email", "a@test.com")], "private").bundle;
@@ -25,7 +25,6 @@ const EVENT: Record<TTurnEventType, TTurnEvent> = {
 	stop: { type: "stop", reason: "you stopped it" },
 	ended: { type: "ended" },
 	erred: { type: "erred", message: "connection reset" },
-	left: { type: "left" },
 };
 
 const run = (...types: TTurnEventType[]): TTurnState => types.map((type) => EVENT[type]).reduce(transition, IDLE_TURN);
@@ -55,7 +54,7 @@ const AT: Record<TTurnStatus, TTurnState> = {
 
 /** The status an event moves a turn to: the table's, except that a stopped turn's request rejecting ends it as stopped. */
 const expectedStatus = (turn: TTurnState, type: TTurnEventType): TTurnStatus =>
-	type === "erred" && turn.status !== "idle" && turnInFlight(turn) && turn.stoppedBy ? "stopped" : TABLE[turn.status][type];
+	type === "erred" && turn.status !== "idle" && inFlight(turn.status) && turn.stoppedBy ? "stopped" : TABLE[turn.status][type];
 
 describe("every status and every event", () => {
 	for (const status of Object.keys(TABLE) as TTurnStatus[]) {
@@ -86,7 +85,6 @@ describe("each move", () => {
 			recorded: [],
 			error: "",
 			stoppedBy: "",
-			ofOpenSession: true,
 		});
 	});
 
@@ -121,11 +119,6 @@ describe("each move", () => {
 		expect(run("ask", "ended")).toMatchObject({ status: "failed", error: NOT_STARTED });
 	});
 
-	it("left takes a turn in flight out of the reader's session", () => {
-		expect(run("ask", "started", "left")).toMatchObject({ status: "running", ofOpenSession: false });
-		expect(transition(AT.completed, EVENT.left)).toBe(AT.completed);
-	});
-
 	it("refuses a new turn only while one is in flight", () => {
 		for (const status of Object.keys(TABLE) as TTurnStatus[]) expect(turnRefusal(AT[status]) !== null, status).toBe(status === "asking" || status === "running");
 	});
@@ -147,12 +140,12 @@ describe("any sequence of events", () => {
 				const label = `seed ${seed}: ${path.join(" ")}`;
 				const wanted = expectedStatus(turn, type);
 				const running = turn.status === "running";
-				if (event.type === "ask" && !turnInFlight(turn)) held = unasked();
+				if (event.type === "ask" && !inFlight(turn.status)) held = unasked();
 				if (event.type === "started" && turn.status === "asking") held.seqPath = event.seqPath;
 				if (event.type === "text" && running) held.text += event.piece;
 				if (event.type === "status" && running) held.activity = [...held.activity, event.line];
 				if (event.type === "recorded" && running) held.recorded = [...held.recorded, event.record];
-				if (event.type === "stop" && turnInFlight(turn) && !held.stoppedBy) held.stoppedBy = event.reason;
+				if (event.type === "stop" && inFlight(turn.status) && !held.stoppedBy) held.stoppedBy = event.reason;
 				turn = transition(turn, event);
 				expect(turn.status, label).toBe(wanted);
 				if (turn.status === "idle") continue;
