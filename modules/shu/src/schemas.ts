@@ -35,6 +35,13 @@ export const ComboboxOptionSchema = z.object({
 });
 export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 
+/** The author of a chat message: the reader's question or the model's reply. */
+export const ChatRoleSchema = z.enum(["user", "llm"]);
+export type TChatRole = z.infer<typeof ChatRoleSchema>;
+/** The state of a chat turn, which its reply message shows. */
+export const ChatStatusSchema = z.enum(["running", "completed", "failed", "aborted"]);
+export type TChatStatus = z.infer<typeof ChatStatusSchema>;
+
 export const ComboboxSchema = z.object({
 	value: z.string().default(""),
 	options: z.array(ComboboxOptionSchema).default([]),

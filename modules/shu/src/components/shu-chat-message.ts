@@ -13,12 +13,18 @@ import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
+import { dispatchSubjectEvent } from "../current-subject.js";
+import { SHU_ATTR, SHU_TAG } from "../consts.js";
+import { ChatRoleSchema, ChatStatusSchema, type TChatRole } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for every shadow scope that hosts one (shu-kihan-chat's own
  * transcript, and the actions bar's shared activity history): the message renders in light DOM, so the rules
  * must live in whichever scope contains it, and this single export keeps the two scopes from drifting. */
 export const chatMessageStyles = css`
 	shu-chat-message { display: block; }
+	shu-chat-message .msg { cursor: pointer; }
+	/* The message the reader is on: the same mark a page gives the current item of any list. */
+	shu-chat-message[aria-current="true"] .msg { outline: 1px solid var(--shu-accent); outline-offset: 2px; border-radius: var(--shu-radius); }
 	shu-chat-message .msg { display: grid; grid-template-columns: var(--shu-space-6) 1fr; }
 	shu-chat-message .msg-label {
 		font-size: var(--shu-font-sm);
@@ -45,11 +51,6 @@ export const chatMessageStyles = css`
 	shu-chat-message .chat-activity li { white-space: pre-wrap; overflow-wrap: anywhere; }
 `;
 
-export const ChatRoleSchema = z.enum(["user", "llm"]);
-export type TChatRole = z.infer<typeof ChatRoleSchema>;
-export const ChatStatusSchema = z.enum(["running", "completed", "failed", "aborted"]);
-export type TChatStatus = z.infer<typeof ChatStatusSchema>;
-
 /** One half of a conversation turn. `seqPath` is the graph identity, cmt-ask/cmt-say-<seqPath>, so a rendered message links back to its Comment quads / run trace. `id` is the keyed-render identity (never reused). Spinner/status/error are llm-only UI state. */
 export const ChatMessageSchema = z.object({
 	id: z.string(),
@@ -64,6 +65,8 @@ export const ChatMessageSchema = z.object({
 	spinnerVisible: z.boolean().default(false),
 	spinnerSpinning: z.boolean().default(true),
 	error: z.string().default(""),
+	/** The id of the comment the run recorded for this message. Selecting the message selects that comment. */
+	recordId: z.string().optional(),
 });
 export type TChatMessage = z.infer<typeof ChatMessageSchema>;
 
@@ -88,6 +91,14 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		return this;
 	}
 
+	/** Raise `selectMessage` for the comment this message was recorded as. The graph follows that comment, and the next
+	 *  question replies to it. A message with no recorded comment raises nothing. */
+	private onSelect = (): void => {
+		const m = this.message;
+		if (!m.recordId || !m.seqPath) return;
+		dispatchSubjectEvent({ type: "selectMessage", item: { id: m.recordId, seqPath: m.seqPath } });
+	};
+
 	protected updated(): void {
 		// Spinner is a sibling custom element; sync its imperative props from the message. Only assign on change: the status setter re-pulses, and the parent re-renders every streamed-text frame, so unconditional assignment would restart the pulse animation ~60×/s.
 		const spinner = this.querySelector(":scope > .msg > .msg-content > shu-spinner") as ShuSpinner | null;
@@ -100,14 +111,19 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 
 	render(): TemplateResult {
 		const m = this.message;
-		// data-role/status/seqpath are host attributes the e2e selects on (e.g. [data-status='completed'], data-seqpath); reflect them from the message each render.
-		this.setAttribute("data-role", m.role);
-		if (m.status) this.setAttribute("data-status", m.status);
-		else this.removeAttribute("data-status");
-		if (m.seqPath) this.setAttribute("data-seqpath", m.seqPath);
-		else this.removeAttribute("data-seqpath");
+		// Host attributes reflect the message on each render, so a page reader selects a message by its state.
+		const reflected: Array<[string, string | undefined]> = [
+			[SHU_ATTR.DATA_ROLE, m.role],
+			[SHU_ATTR.DATA_STATUS, m.status],
+			[SHU_ATTR.DATA_SEQPATH, m.seqPath],
+			[SHU_ATTR.DATA_RECORD, m.recordId],
+		];
+		for (const [name, value] of reflected) {
+			if (value) this.setAttribute(name, value);
+			else this.removeAttribute(name);
+		}
 		return html`
-			<div class="msg">
+			<div class="msg" @click=${this.onSelect}>
 				<span class="msg-label">${ROLE_LABEL[m.role]}</span>
 				<div class="msg-content">
 					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
@@ -130,4 +146,4 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define("shu-chat-message", ShuChatMessage);
+customElements.define(SHU_TAG.CHAT_MESSAGE, ShuChatMessage);

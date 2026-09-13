@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
 /**
- * Reported: the Ask pane stops taking messages after a few have been sent, and a question entered into it is followed
- * by the previous few exchanges rendering in its place.
+ * The Ask pane with a turn in flight, rendered in jsdom against a stream a case holds open and finishes.
  *
- * Two things a turn has to survive. A turn runs one at a time, so a question typed while one is still running is not
- * sent: refusing it silently is what reads as a pane that has stopped working. And the pane restores the session the
- * visit left off in when it mounts, a read that takes as long as the store takes: a question asked while that read is
- * in flight is the conversation now, and the restore is abandoned rather than rendered over it.
+ * One turn runs at a time. A question submitted while a turn runs is refused, and the running reply shows the refusal.
+ * The pane restores its last session when it mounts, and that read resolves when the store responds. A question asked
+ * before the read resolves replaces the conversation, and the pane discards the restored turns. A turn outlasts the pane
+ * that started it, and the next pane renders the turn's remaining changes or its ended state.
  */
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "../schemas.js";
 import type { TDriven as Driven } from "./chat-pane.test-fake.js";
@@ -26,6 +25,14 @@ let streamFails: string | undefined;
 const sent: Array<{ contextReadBy?: string }> = [];
 /** The comments the turn records, named on the stream as the server names them. */
 const recorded: string[] = [];
+/** The running stream's abort signal and its finish function. One object holds both, so a case reads the values the
+ *  mock sets after the case's own resets. */
+const stream: { signal: AbortSignal | undefined; finish: (() => void) | undefined } = { signal: undefined, finish: undefined };
+/** Clear the last stream. A function call keeps the type checker from narrowing the fields the mock sets later. */
+function resetStream(): void {
+	stream.signal = undefined;
+	stream.finish = undefined;
+}
 
 /** The session the pane remembers, and when the store answers the read of it. */
 const RESTORED = "0.1.2";
@@ -53,8 +60,15 @@ vi.mock("../hypermedia.js", async () => {
 			for (const id of recorded) onChunk({ recorded: { persistedAs: "Comment", id } });
 			for (const status of stated) onChunk({ status });
 			if (streamFails) return Promise.reject(new Error(streamFails));
-			// A stream the caller aborts ends as one: the fetch it rides rejects, which is what the pane reads.
-			return new Promise<void>((_resolve, reject) => opts.signal?.addEventListener("abort", () => reject(new Error("the stream was aborted")), { once: true }));
+			// An aborted stream rejects, as the fetch that carries it does. A case finishes the stream with the reply text.
+			stream.signal = opts.signal;
+			return new Promise<void>((resolve, reject) => {
+				opts.signal?.addEventListener("abort", () => reject(new Error("the stream was aborted")), { once: true });
+				stream.finish = () => {
+					onChunk({ text: "an answer" });
+					resolve();
+				};
+			});
 		},
 	);
 });
@@ -62,7 +76,23 @@ vi.mock("../hypermedia.js", async () => {
 const { ShuCombobox } = await import("./shu-combobox.js");
 if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
 await import("./shu-chat-message.js");
-const { ShuKihanChat } = await import("./shu-kihan-chat.js");
+const { ShuActivityHistory } = await import("./shu-activity-history.js");
+if (!customElements.get("shu-activity-history")) customElements.define("shu-activity-history", ShuActivityHistory);
+const { ShuKihanChat, TURN_STILL_RUNNING } = await import("./shu-kihan-chat.js");
+const { stopTurn } = await import("../chat-turn.js");
+const { INITIAL_SUBJECT, currentSubjectState } = await import("../current-subject.js");
+
+// The turn runner and the machine are module state shared by every case. Each case starts with no running turn and
+// no current subject, because a turn left running refuses the next case's question.
+beforeEach(async () => {
+	stopTurn("the case ended");
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	currentSubjectState.set(INITIAL_SUBJECT);
+	stated.length = 0;
+	sent.length = 0;
+	recorded.length = 0;
+	streamFails = undefined;
+});
 
 
 /** The pane with a turn running: the first question sent, its stream still open. */
@@ -182,14 +212,14 @@ describe("what a turn states about itself", () => {
 });
 
 describe("a question asked while a turn is running", () => {
-	it("states on the running turn that the pane is still answering, and keeps the question", async () => {
+	it("shows the refusal on the running reply, and keeps the question", async () => {
 		const el = await paneHoldingATurn();
 		chatInput(el).value = "which one mentions the crumb";
 		el.submitChat();
 		await el.updateComplete;
 
 		const running = messages(el).find((m) => m.role === "llm");
-		expect(running?.spinnerStatus).toBe("still answering the last question; Stop to ask another");
+		expect(running?.spinnerStatus).toBe(TURN_STILL_RUNNING);
 		expect(chatInput(el).value).toBe("which one mentions the crumb");
 		expect(messages(el).filter((m) => m.role === "user")).toHaveLength(1);
 	});
@@ -234,5 +264,107 @@ describe("what a turn tells the page about the reader", () => {
 		void el.handleChat("what does this say");
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "read-me@bakery.test", label: "Email" });
+	});
+});
+
+describe("a turn outlasts the pane that started it", () => {
+	// The actions bar removes the pane when it closes, and a click elsewhere on the page closes the bar.
+	it("keeps running when the pane is removed, and the next pane renders the rest of it", async () => {
+		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
+		const { INITIAL_SUBJECT, currentSubjectState } = await import("../current-subject.js");
+		currentSubjectState.set(INITIAL_SUBJECT);
+		recorded.length = 0;
+		resetStream();
+		const surface = document.querySelector("shu-activity-history") as HTMLElement;
+		const first = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		document.body.appendChild(first);
+		first.outputTarget = surface;
+		await first.updateComplete;
+		void first.handleChat("what do these have in common");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		first.remove(); // the bar closed itself
+		expect(stream.signal?.aborted, "removing the pane does not abort the stream").toBe(false);
+		expect(currentSubjectState.get().turn.running, "the turn still runs").toBe(true);
+
+		const again = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		document.body.appendChild(again);
+		again.outputTarget = surface; // the bar opened again, over the same surface
+		await again.updateComplete;
+		stream.finish?.();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		await again.updateComplete;
+		const onSurface = Array.from(surface.querySelectorAll(":scope > shu-chat-message")).map((m) => (m as unknown as { message: TChatMessage }).message);
+		const reply = onSurface.find((m) => m.role === "llm");
+		expect(reply?.text, "the next pane renders the reply").toBe("an answer");
+		expect(reply?.status).toBe("completed");
+		expect(currentSubjectState.get().turn.running).toBe(false);
+	});
+
+	it("ends while no pane is mounted, and the next pane renders the reply as completed", async () => {
+		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
+		resetStream();
+		const surface = document.querySelector("shu-activity-history") as HTMLElement;
+		const first = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		document.body.appendChild(first);
+		first.outputTarget = surface;
+		await first.updateComplete;
+		void first.handleChat("what do these have in common");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		first.remove(); // the bar closed itself
+		stream.finish?.();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(currentSubjectState.get().turn.running, "the turn ended with no pane mounted").toBe(false);
+
+		const again = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		document.body.appendChild(again);
+		again.outputTarget = surface; // the bar opened again, over the same surface
+		await again.updateComplete;
+		const reply = Array.from(surface.querySelectorAll(":scope > shu-chat-message"))
+			.map((m) => (m as unknown as { message: TChatMessage }).message)
+			.find((m) => m.role === "llm");
+		expect(reply?.status, "the reply is completed, not left running").toBe("completed");
+		expect(reply?.text).toBe("an answer");
+		expect(reply?.spinnerVisible, "and the spinner is hidden").toBe(false);
+	});
+
+	it("ends only when the reader stops it, with the reader's reason", async () => {
+		document.body.innerHTML = "";
+		const { INITIAL_SUBJECT, currentSubjectState } = await import("../current-subject.js");
+		currentSubjectState.set(INITIAL_SUBJECT);
+		const el = await paneHoldingATurn();
+		const stop = el.shadowRoot?.querySelector(".stop-btn") as HTMLButtonElement | null;
+		stop?.click();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await el.updateComplete;
+		expect(stream.signal?.aborted).toBe(true);
+		expect(messages(el).find((m) => m.role === "llm")?.error).toContain("you stopped it");
+		expect(currentSubjectState.get().turn.running).toBe(false);
+	});
+});
+
+describe("a message is a record the reader can select", () => {
+	it("selecting a message makes its recorded comment the current subject, and marks the message current", async () => {
+		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
+		const { INITIAL_SUBJECT, currentSubject, currentSubjectState, dispatchSubjectEvent } = await import("../current-subject.js");
+		currentSubjectState.set(INITIAL_SUBJECT);
+		dispatchSubjectEvent({ type: "openInPane", pane: { patterns: [anIndividual("Email", "read-me@bakery.test")], accessLevel: "private" } });
+		recorded.length = 0;
+		recorded.push("cmt-ask-0.1.2", "cmt-say-0.1.2");
+		const surface = document.querySelector("shu-activity-history") as HTMLElement;
+		const el = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		document.body.appendChild(el);
+		el.outputTarget = surface;
+		await el.updateComplete;
+		void el.handleChat("what does this say");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await el.updateComplete;
+		const question = surface.querySelector(":scope > shu-chat-message[data-record='cmt-ask-0.1.2']") as HTMLElement;
+		expect(question, "the question carries the id of its recorded comment").not.toBeNull();
+		(question.querySelector(".msg") as HTMLElement).click();
+		await el.updateComplete;
+		expect(currentSubjectState.get().reading).toBe("message");
+		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
+		expect(question.getAttribute("aria-current"), "and the question is marked current").toBe("");
+		expect(surface.querySelectorAll("[aria-current]").length, "and no other message is").toBe(1);
 	});
 });

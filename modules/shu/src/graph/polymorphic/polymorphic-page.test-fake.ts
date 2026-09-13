@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright";
+import { GRAPH_SCENE_EVENT } from "./polymorphic-graph-types.js";
 
 /**
  * A real page with the polymorphic graph view mounted on it, drawn by a headless browser through a software
@@ -62,6 +63,9 @@ export type TMountedPage = {
 	projection(id: string): Promise<{ x: number; y: number }>;
 	/** The camera's distance to what it looks at: the zoom, as the reader set it. */
 	distance(): Promise<number>;
+	/** Click the real pointer at a pixel, and return the id of the node the scene opened, or null when it opened none.
+	 *  The scene opens a node in the click's own task, so the id is set when the click dispatch returns. */
+	click(at: { x: number; y: number }): Promise<string | null>;
 	box(): Promise<{ x: number; y: number; w: number; h: number }>;
 	close(): Promise<void>;
 };
@@ -154,6 +158,15 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 			const c = (await inspect()).camera;
 			if (!c) throw new Error("the scene has no camera to measure");
 			return Math.hypot(c.x - c.target.x, c.y - c.target.y, c.z - c.target.z);
+		},
+		async click(at) {
+			await page.evaluate((evt) => {
+				const w = window as unknown as { __opened: string | null };
+				w.__opened = null;
+				document.addEventListener(evt, (e) => (w.__opened = (e as CustomEvent<{ subject: string }>).detail.subject), { once: true });
+			}, GRAPH_SCENE_EVENT.NODE_CLICK);
+			await page.mouse.click(at.x, at.y);
+			return page.evaluate(() => (window as unknown as { __opened: string | null }).__opened);
 		},
 		box: () =>
 			page.evaluate(() => {

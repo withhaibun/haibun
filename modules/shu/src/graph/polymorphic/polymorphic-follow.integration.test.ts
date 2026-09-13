@@ -123,8 +123,7 @@ test("a layout that moves the followed node, from records arriving, is followed 
 });
 
 test("a record chosen before the graph holds it is centred once it arrives", { timeout: 90_000 }, async () => {
-	// The conversation states the question it has just written before the graph has laid it out: the aim is owed,
-	// and paid by the layout that brings the record in.
+	// The conversation selects a question before the graph lays it out. The layout that adds the record centres it.
 	await mounted.scene((scene) => scene.setConfig({ follow: true }));
 	await mounted.scene((scene) => scene.setSelectedSubject("n-900"));
 	await mounted.feed([...QUADS, ...quadsNamed(["n-900"])]);
@@ -135,9 +134,8 @@ test("a record chosen before the graph holds it is centred once it arrives", { t
 });
 
 test("a panel over the view aims the followed record clear of it, and closing the panel brings it back to the centre", { timeout: 60_000 }, async () => {
-	// Reported: the graph kept centring the followed record under the actions bar. An overlay says it covers the views,
-	// a framing aims into what is left clear, and when it stops covering them the aim returns to the whole view: the
-	// declaration is the whole contract, so any panel gets this without the graph knowing what it is.
+	// An overlay declares data-covers-views while it covers the views. A framing aims into the uncovered region, and
+	// aims at the whole view again when the declaration is removed. Any panel that declares the attribute gets this.
 	const COVER_TOP = 250;
 	await mounted.page.evaluate((top) => {
 		const panel = document.createElement("div");
@@ -154,5 +152,25 @@ test("a panel over the view aims the followed record clear of it, and closing th
 	const uncovered = await centred(FOLLOWED);
 	expect(mounted.errors(), "page errors").toEqual([]);
 	expect(uncovered.centred, "and back to the middle of the view once nothing covers it").toBe(true);
+	await mounted.page.evaluate(() => document.querySelector("#cover")?.remove());
+});
+
+test("a click on the followed record opens it when the same click uncovers the view", { timeout: 60_000 }, async () => {
+	// The actions bar closes on a click elsewhere on the page. Removing the cover re-aims the followed record before the
+	// canvas click listener runs. The scene opens the node picked at the press, so the camera move does not change it.
+	const COVER_TOP = 250;
+	await mounted.page.evaluate((top) => {
+		const panel = document.createElement("div");
+		panel.id = "cover";
+		panel.style.cssText = `position:fixed;left:0;right:0;top:${top}px;bottom:0;background:#000`;
+		document.body.appendChild(panel);
+		document.addEventListener("click", () => panel.removeAttribute("data-covers-views"), { capture: true, once: true });
+	}, COVER_TOP);
+	await following();
+	await mounted.page.evaluate(() => (document.querySelector("#cover") as HTMLElement).setAttribute("data-covers-views", ""));
+	const pressed = await mounted.projection(FOLLOWED);
+	expect(pressed.y, "the followed record is aimed above the panel").toBeLessThan(COVER_TOP);
+	expect(await mounted.click(pressed), "the record the reader pressed on is the one opened (null: the click opened nothing)").toBe(FOLLOWED);
+	expect(mounted.errors(), "page errors").toEqual([]);
 	await mounted.page.evaluate(() => document.querySelector("#cover")?.remove());
 });

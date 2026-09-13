@@ -6,11 +6,21 @@
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { SHU_ATTR, SHU_TAG } from "../consts.js";
+import { ChatRoleSchema, ChatStatusSchema } from "../schemas.js";
 import { countMatching, hasText, pollUntil, type EvalPage } from "./controls-util.js";
 
 // How many reads a witness gives a turn to answer, at pollUntil's interval. A turn crosses the server, a model and the
 // stream that carries the reply back.
 const ANSWERED_TRIES = 150;
+/** Selectors for chat messages by the host attributes a message reflects. Single quotes let a feature embed them in a
+ *  quoted step argument. */
+export const CHAT_MESSAGE_SELECTOR = {
+	/** A question with its recorded comment id. */
+	RECORDED_QUESTION: `${SHU_TAG.CHAT_MESSAGE}[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.user}'][${SHU_ATTR.DATA_RECORD}]`,
+	/** A reply whose turn completed. */
+	COMPLETED_REPLY: `${SHU_TAG.CHAT_MESSAGE}[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.llm}'][${SHU_ATTR.DATA_STATUS}='${ChatStatusSchema.enum.completed}']`,
+};
 
 export default class ShuKihanChatControls extends AStepper {
 	description = "Ask pane controls: assert how many turns the transcript holds, and what a turn states it was made of.";
@@ -35,13 +45,14 @@ export default class ShuKihanChatControls extends AStepper {
 		},
 		askHasAnswered: {
 			// A conversation continues for as long as a reader asks. One answer proves a turn ran; this states how many
-			// the transcript holds, which is what a pane that stops taking messages fails.
+			// the transcript holds, which is what a pane that stops taking messages fails. The step counts completed replies
+			// only, because a stopped reply also has text.
 			gwta: "ask has answered {count} times",
 			action: async ({ count }: { count: string }) => {
 				const wanted = Number.parseInt(count, 10);
 				if (!Number.isFinite(wanted) || wanted < 1) return actionNotOK(`ask has answered: "${count}" is not a number of turns`);
 				const page = await this.page();
-				const answered = await pollUntil(page, (p) => countMatching(p, `[data-testid="${SHU_TEST_IDS.APP.CHAT_TEXT}"]`), (n) => n >= wanted, ANSWERED_TRIES);
+				const answered = await pollUntil(page, (p) => countMatching(p, CHAT_MESSAGE_SELECTOR.COMPLETED_REPLY), (n) => n >= wanted, ANSWERED_TRIES);
 				return answered >= wanted ? actionOK() : actionNotOK(`the ask pane answered ${answered} of ${wanted} turns`);
 			},
 		},
