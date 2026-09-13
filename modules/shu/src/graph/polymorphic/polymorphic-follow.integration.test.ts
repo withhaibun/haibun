@@ -174,3 +174,13 @@ test("a click on the followed record opens it when the same click uncovers the v
 	expect(mounted.errors(), "page errors").toEqual([]);
 	await mounted.page.evaluate(() => document.querySelector("#cover")?.remove());
 });
+
+test("a click on empty space makes the page's entry empty, so no record is active", { timeout: 60_000 }, async () => {
+	// Empty space is the reader choosing nothing on the page: the scene activates an empty entry in the page scope, and
+	// the views that read the active record are told there is none.
+	await following();
+	expect(await mounted.click(await mounted.emptyPixel()), "the click opened no node").toBeNull();
+	const state = await mounted.subjectState();
+	expect(state.scopes.page?.entry.record, "the page's entry names no record").toBeNull();
+	expect(state.scopes.page?.entry.bundle.patterns).toEqual([]);
+});
