@@ -130,7 +130,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	#detachTurn: (() => void) | null = null;
 	/** Relays the current subject. The message recorded as that comment is marked current on the transcript. */
 	#subject = new SubjectController(this, (record) => this.markCurrent(record));
-	private _sessionSeqPath: string | null = null;
 	private _sessions: TChatSession[] = [];
 	/** The single source of truth for the rendered conversation, fed identically by the live stream (handleChat) and a hydrated session (loadAndRenderSession), rendered once via keyed repeat. */
 	private _messages: TChatMessage[] = [];
@@ -183,7 +182,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 		if (adopted.length === 0) return;
 		this._messages = adopted;
-		this._sessionSeqPath = this.state.session || null;
 		// A message left running is the latest turn's reply. Attaching renders the rest of the turn, or its ended state.
 		const running = [...adopted].reverse().find((m) => m.role === "llm" && m.status === "running");
 		if (running && currentTurn()) {
@@ -300,7 +298,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		if (this.inUse) return;
 		const turns = await this.readSession(sessionSeqPath);
 		if (this.inUse) return;
-		this._sessionSeqPath = sessionSeqPath;
 		// The selector names the session the pane is reading, so it is set where the conversation is, never beside an
 		// abandoned restore.
 		(this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null)?.setValue(sessionSeqPath);
@@ -338,7 +335,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.#detachTurn?.();
 		this.#detachTurn = null;
 		leaveTurnSession();
-		this._sessionSeqPath = sessionSeqPath;
 		const turns = await this.readSession(sessionSeqPath);
 		this.renderTurns(turns);
 		const entry = this.sessionEntry(turns);
@@ -441,7 +437,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	/** Combo options are imperative props (not lit-bound); all event handlers are declarative (@event) so lit wires them once. Re-applying is idempotent but churns the combos, so the update is skipped when neither the model nor session data changed: the parent re-renders every streamed-text frame and the combos must not be reset 60×/s. */
 	private wireListeners(): void {
-		const sig = `${this._models.map((m) => m.id).join(",")}|${this.state.model}|${this._sessions.map((s) => s.sessionSeqPath).join(",")}|${this._sessionSeqPath ?? ""}`;
+		const sig = `${this._models.map((m) => m.id).join(",")}|${this.state.model}|${this._sessions.map((s) => s.sessionSeqPath).join(",")}|${this.state.session ?? ""}`;
 		if (sig === this._comboSig) return;
 		this._comboSig = sig;
 		const modelCombo = this.shadowRoot?.querySelector(".model-select") as ShuCombobox | null;
@@ -452,7 +448,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const sessionCombo = this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null;
 		if (sessionCombo) {
 			sessionCombo.setOptions(this._sessions.map((s) => ({ value: s.sessionSeqPath, label: sessionOptionLabel(s) })));
-			if (this._sessionSeqPath) sessionCombo.setValue(this._sessionSeqPath);
+			if (this.state.session) sessionCombo.setValue(this.state.session);
 		}
 	}
 
@@ -574,7 +570,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				viewLd: activeScope(subject) === SCOPE.page ? harvestChatViewLd() : [],
 				maxToolCalls: this.state.toolLimit,
 				...(this.state.contextReadBy ? { contextReadBy: this.state.contextReadBy } : {}),
-				...(this._sessionSeqPath ? { sessionSeqPath: this._sessionSeqPath } : {}),
+				...(this.state.session ? { sessionSeqPath: this.state.session } : {}),
 				...(inReplyTo ? { inReplyTo } : {}),
 			},
 			target: this.state.model,
@@ -623,12 +619,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Record an ended turn in the pane: the session it started and the session list. The pane attached when the turn
 	 *  ends records it, or the pane that attaches after it ended. */
 	private settleTurn(turn: TTurnState): void {
-		if (turn.seqPath) {
-			if (!this._sessionSeqPath) {
-				this._sessionSeqPath = turn.seqPath;
-				this.setState({ session: turn.seqPath });
-			}
-		}
+		// The remembered session is the one the pane reads and sends, so a pane built later continues it.
+		if (turn.seqPath && !this.state.session) this.setState({ session: turn.seqPath });
 		if (turn.status === "completed") {
 			this._fullText = turn.text;
 			this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {

@@ -82,6 +82,7 @@ const { ShuActivityHistory } = await import("./shu-activity-history.js");
 if (!customElements.get("shu-activity-history")) customElements.define("shu-activity-history", ShuActivityHistory);
 const { ShuKihanChat, TURN_STILL_RUNNING } = await import("./shu-kihan-chat.js");
 const { currentTurn, stopTurn } = await import("../chat-turn.js");
+const { flushPersistWrites } = await import("../element-prefs.js");
 const { INITIAL_SUBJECT, SCOPE, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf } = await import("../current-subject.js");
 
 // The turn runner and the machine are module state shared by every case. Each case starts with no running turn and
@@ -335,6 +336,32 @@ describe("a turn outlasts the pane that started it", () => {
 		expect(reply?.status, "the reply is completed, not left running").toBe("completed");
 		expect(reply?.text).toBe("an answer");
 		expect(reply?.spinnerVisible, "and the spinner is hidden").toBe(false);
+	});
+
+	it("continues the session in the pane built next, which the bar hands the surface before it is connected", async () => {
+		// The bar's template sets the output target on a pane before inserting it, so the pane takes over the conversation
+		// before its remembered session is restored; the next question still belongs to that session.
+		document.body.innerHTML = "<shu-activity-history></shu-activity-history>";
+		resetStream();
+		const surface = document.querySelector("shu-activity-history") as HTMLElement;
+		const first = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		document.body.appendChild(first);
+		first.outputTarget = surface;
+		await first.updateComplete;
+		void first.handleChat("what do these have in common");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		stream.finish?.();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		flushPersistWrites();
+		first.remove(); // the bar closed
+
+		const again = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
+		again.outputTarget = surface; // the bar opened again: the surface first, then the pane inserted
+		document.body.appendChild(again);
+		await again.updateComplete;
+		void again.handleChat("and what came of it");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect((sent.at(-1) as { sessionSeqPath?: string }).sessionSeqPath, "the question belongs to the session the first turn started").toBe("0.1.2");
 	});
 
 	it("ends only when the reader stops it, with the reader's reason", async () => {
