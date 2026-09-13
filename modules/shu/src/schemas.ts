@@ -38,9 +38,12 @@ export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 /** The author of a chat message: the reader's question or the model's reply. */
 export const ChatRoleSchema = z.enum(["user", "llm"]);
 export type TChatRole = z.infer<typeof ChatRoleSchema>;
-/** The state of a chat turn, which its reply message shows. */
-export const ChatStatusSchema = z.enum(["running", "completed", "failed", "aborted"]);
+/** The status of an asked chat turn, which its reply message shows. */
+export const ChatStatusSchema = z.enum(["asking", "running", "completed", "failed", "stopped"]);
 export type TChatStatus = z.infer<typeof ChatStatusSchema>;
+/** The status of the page's turn: idle before the first question, else the status of the turn asked last. */
+export const TurnStatusSchema = z.enum(["idle", ...ChatStatusSchema.options]);
+export type TTurnStatus = z.infer<typeof TurnStatusSchema>;
 
 export const ComboboxSchema = z.object({
 	value: z.string().default(""),

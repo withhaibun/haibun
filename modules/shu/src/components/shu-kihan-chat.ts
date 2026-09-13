@@ -22,8 +22,8 @@ import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import type { TContextPattern } from "../schemas.js";
 import { SCOPE, activeScope, dispatchSubjectEvent, entryOf, type TEntry, type TRecord } from "../current-subject.js";
-import { SubjectController } from "../controllers/index.js";
-import { attachToTurn, currentTurn, nextQuestion, leaveTurnSession, startTurn, stopTurn, turnRefusal, type TTurnState } from "../chat-turn.js";
+import { SignalController, SubjectController } from "../controllers/index.js";
+import { IN_FLIGHT, dispatchTurnEvent, nextQuestion, startTurn, turnInFlight, turnRefusal, turnState, type TAskedTurn, type TTurnState } from "../chat-turn.js";
 import { branchPath } from "../chat-branch.js";
 import { appAccessLevel } from "../util.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
@@ -39,6 +39,8 @@ const SENDS: Record<string, string> = { run: "context", model: "tool cues" };
 const TOOL_LIMIT_DEFAULT = 5;
 /** The refusal the running reply shows when a question is submitted while a turn runs. */
 export const TURN_STILL_RUNNING = "the last question is still running; Stop it to ask another";
+/** What a reply shows before the turn states anything about itself. */
+const SENDING = "Sending...";
 /** The chat messages projected directly into an output target. */
 const OWN_MESSAGES = `:scope > ${SHU_TAG.CHAT_MESSAGE}`;
 
@@ -124,11 +126,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private _models: TKihanVertex[] = [];
 	/** The chat's remembered options; a new visit restores the model, the tool limit and the session it was reading. */
 	static persistFields = ["model", "toolLimit", "contextReadBy", "session"] as const;
-	private _fullText = "";
-	/** The turn holding the pane, so a submit refused while it runs says so on it. */
-	private _streamingId: string | null = null;
-	/** Detaches this pane from the latest turn. chat-turn runs the turn, and this pane renders it. */
-	#detachTurn: (() => void) | null = null;
+	/** The messages that render the page's turn: the question and the reply this pane added or took over. Null while the
+	 *  pane renders no turn. */
+	#turnMessages: { askedId: string | null; answerId: string } | null = null;
+	/** Relays the page's turn, which this pane renders into its messages. */
+	#turn = new SignalController(this, turnState, (turn) => this.renderTurn(turn));
 	/** Relays the current subject and the turn the next question replies to. The message recorded as the current subject
 	 *  is marked current, and the transcript shows the branch that ends at the turn. */
 	#subject = new SubjectController(this, (record) => this.markCurrent(record), nextQuestion);
@@ -136,12 +138,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** The single source of truth for the rendered conversation, fed identically by the live stream (handleChat) and a hydrated session (loadAndRenderSession), rendered once via keyed repeat. */
 	private _messages: TChatMessage[] = [];
 	private _msgCounter = 0;
-	private _streaming = false;
 	private _scrollPending = false;
-	private _flushScheduled = false;
-	private _flushId: string | null = null;
-	private _flushGet: (() => string) | null = null;
-	private _flushRaf: number | null = null;
 	/** Last-applied (models|selectedModel|sessions|sessionSeqPath) signature, wireListeners skips re-applying combo options when unchanged. */
 	private _comboSig = "";
 
@@ -186,11 +183,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 		if (adopted.length === 0) return;
 		this._messages = adopted;
-		// A message left running is the latest turn's reply. Attaching renders the rest of the turn, or its ended state.
-		const running = [...adopted].reverse().find((m) => m.role === "llm" && m.status === "running");
-		if (running && currentTurn()) {
+		// A message left in flight is the page's turn's reply. Rendering the turn shows the rest of it, or how it ended.
+		const running = [...adopted].reverse().find((m) => m.role === "llm" && m.status !== undefined && IN_FLIGHT.includes(m.status));
+		if (running) {
 			const asked = adopted[adopted.indexOf(running) - 1];
-			this.attach(asked?.role === "user" ? asked.id : null, running.id);
+			this.#turnMessages = { askedId: asked?.role === "user" ? asked.id : null, answerId: running.id };
+			this.renderTurn(this.#turn.state);
 		}
 	}
 
@@ -286,14 +284,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		await this.refreshSessionList();
 	}
 
-	/** Detach from the latest turn when the pane is removed. Collapsing the actions bar removes this element. The turn
-	 *  continues, and the next pane attaches to it. Only Stop aborts a turn. */
-	protected override onDisconnected(): void {
-		this.#detachTurn?.();
-		this.#detachTurn = null;
-		if (this._flushRaf !== null) cancelAnimationFrame(this._flushRaf);
-	}
-
 	/** Fetch the persisted chat sessions (newest first) for the selector. */
 	private async listSessions(): Promise<TChatSession[]> {
 		await getAvailableSteps();
@@ -305,9 +295,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return data.sessions;
 	}
 
-	/** Whether the reader has started using this pane: a turn is running, or the conversation already holds one. */
+	/** Whether the reader has started using this pane: the conversation holds a question, asked here or taken over. */
 	private get inUse(): boolean {
-		return this._streaming || this._messages.length > 0;
+		return this._messages.length > 0;
 	}
 
 	/**
@@ -352,12 +342,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	};
 
 	/** Replace the conversation with a session's persisted turns. Picking a session calls this. A running turn continues
-	 *  and activates nothing, and this pane detaches from it, because the message it rendered into is removed. The
+	 *  and activates nothing, and this pane stops rendering it, because the messages it rendered into are removed. The
 	 *  session's last answer becomes the active record. */
 	private async loadAndRenderSession(sessionSeqPath: string): Promise<void> {
-		this.#detachTurn?.();
-		this.#detachTurn = null;
-		leaveTurnSession();
+		this.#turnMessages = null;
+		dispatchTurnEvent({ type: "left" });
 		const turns = await this.readSession(sessionSeqPath);
 		this.renderTurns(turns);
 		const entry = this.sessionEntry(turns);
@@ -411,6 +400,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	render(): TemplateResult {
 		const showModel = this._models.length > 0;
+		const inFlight = turnInFlight(this.#turn.state);
 		// The input line's own extensions, and the ask's: this pane owns the line under ask mode, so it renders both.
 		const uiExtensionTags = [...getActionBarChatExtensionTags(), ...getActionBarAskExtensionTags()];
 		// With an external output target the transcript lives there (see #syncExternalOutput); render only the input line.
@@ -440,8 +430,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 					${Object.entries(SENDS).map(([reading, sends]) => html`<option value=${reading}>send ${sends}</option>`)}
 				</select>
 				${unsafeHTML(uiExtensionTags.map((tag) => `<${tag}></${tag}>`).join(""))}
-				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${this._streaming ? "display:none" : ""} @click=${this.submitChat}>Send</button>
-				<button type="button" class="stop-btn" data-testid=${`${this.testIdPrefix}chat-stop`} style=${this._streaming ? "" : "display:none"} @click=${this.onStop}>Stop</button>
+				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${inFlight ? "display:none" : ""} @click=${this.submitChat}>Send</button>
+				<button type="button" class="stop-btn" data-testid=${`${this.testIdPrefix}chat-stop`} style=${inFlight ? "" : "display:none"} @click=${this.onStop}>Stop</button>
 			</div>
 		`;
 	}
@@ -521,8 +511,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// The machine refuses a second turn while one runs. Send is hidden while a turn streams, and this check covers the
 		// Enter key. A refused submit shows the refusal on the running reply, so the pane does not appear unresponsive.
 		// The question stays in the input, and Stop aborts the running turn.
-		if (turnRefusal()) {
-			if (this._streamingId) this.patchMessage(this._streamingId, { spinnerStatus: TURN_STILL_RUNNING, spinnerVisible: true, spinnerSpinning: true });
+		if (turnRefusal(this.#turn.state)) {
+			const answerId = this.#turnMessages?.answerId;
+			if (answerId) this.patchMessage(answerId, { spinnerStatus: TURN_STILL_RUNNING, spinnerVisible: true, spinnerSpinning: true });
 			return;
 		}
 		const chatInput = this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null;
@@ -533,7 +524,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		void this.handleChat(value);
 	};
 	private onStop = (): void => {
-		stopTurn("you stopped it");
+		dispatchTurnEvent({ type: "stop", reason: "you stopped it" });
 	};
 	private nextId(): string {
 		return `m${++this._msgCounter}`;
@@ -548,31 +539,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this._messages = this._messages.map((m) => (m.id === id ? { ...m, ...patch } : m));
 		this.requestUpdate();
 	}
-	/** Coalesce streamed text into one patch per animation frame; the final chunk is applied synchronously via flushTextNow. Only one turn streams at a time (submitChat guards re-entry), so the single pending slot is never shared across turns. */
-	private scheduleTextFlush(id: string, getText: () => string): void {
-		this._flushId = id;
-		this._flushGet = getText;
-		if (this._flushScheduled) return;
-		this._flushScheduled = true;
-		this._flushRaf = requestAnimationFrame(() => {
-			this._flushScheduled = false;
-			this._flushRaf = null;
-			if (this._flushId && this._flushGet) this.patchMessage(this._flushId, { text: this._flushGet() });
-		});
-	}
-	private flushTextNow(id: string, text: string): void {
-		if (this._flushRaf !== null) cancelAnimationFrame(this._flushRaf);
-		this._flushRaf = null;
-		this._flushScheduled = false;
-		this._flushId = null;
-		this._flushGet = null;
-		this.patchMessage(id, { text });
-	}
-
 	private async handleChat(prompt: string): Promise<void> {
 		await getAvailableSteps();
 		await this.loadModels();
-		if (turnRefusal()) return; // one turn at a time; submitChat has said so on the turn that holds the pane
+		if (turnRefusal(this.#turn.state)) return; // one turn at a time; submitChat has said so on the turn that holds the pane
 		this._scrollPending = true;
 		// The question carries the active record's bundle, and replies to the conversation's entry where it has one: the
 		// latest answer, or the message the reader selected, where the conversation branches.
@@ -584,10 +554,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const aiId = this.nextId();
 		this.appendMessages(
 			ChatMessageSchema.parse({ id: userId, role: "user", text: prompt, bundle, inReplyTo }),
-			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "running", spinnerStatus: "Sending...", spinnerVisible: true, spinnerSpinning: true, bundle, inReplyTo }),
+			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "asking", spinnerStatus: SENDING, spinnerVisible: true, spinnerSpinning: true, bundle, inReplyTo }),
 		);
+		this.#turnMessages = { askedId: userId, answerId: aiId };
 		// chat-turn runs the turn from here. It continues until its stream ends or the reader stops it.
-		const ended = startTurn({
+		await startTurn({
 			method: requireStep("chatWithContext"),
 			prompt,
 			bundle,
@@ -602,53 +573,41 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			target: this.state.model,
 			why: "kihan-chat: stream LLM response",
 		});
-		this.attach(userId, aiId);
-		await ended;
 	}
 
-	/** Render the latest turn into its question and reply messages, now and on each change. */
-	private attach(userId: string | null, aiId: string): void {
-		this.#detachTurn?.();
-		this._streamingId = aiId;
-		this._streaming = true;
-		this.#detachTurn = attachToTurn((turn) => this.renderTurn(turn, userId, aiId));
-	}
-
-	private renderTurn(turn: TTurnState, userId: string | null, aiId: string): void {
-		const running = turn.status === "running";
+	/** Render the page's turn into the messages that show it. The pane that renders a turn's end settles it. */
+	private renderTurn(turn: TTurnState): void {
+		const held = this.#turnMessages;
+		if (!held || turn.status === "idle") return;
 		const [askedAs, answeredAs] = turn.recorded;
-		if (userId) this.patchMessage(userId, { ...(turn.seqPath ? { seqPath: turn.seqPath } : {}), ...(askedAs ? { recordId: askedAs } : {}) });
-		this.patchMessage(aiId, {
-			...(turn.seqPath ? { seqPath: turn.seqPath } : {}),
-			...(answeredAs ? { recordId: answeredAs } : {}),
-			activity: [...turn.activity],
-			spinnerStatus: turn.activity.at(-1) ?? "Sending...",
-			spinnerVisible: running,
-			spinnerSpinning: running,
+		const named = turn.seqPath ? { seqPath: turn.seqPath } : {};
+		if (held.askedId) this.patchMessage(held.askedId, { ...named, ...(askedAs ? { recordId: askedAs.id } : {}) });
+		const inFlight = turnInFlight(turn);
+		this.patchMessage(held.answerId, {
+			...named,
+			...(answeredAs ? { recordId: answeredAs.id } : {}),
+			text: turn.text,
+			activity: turn.activity,
+			spinnerStatus: turn.activity.at(-1) ?? SENDING,
+			spinnerVisible: inFlight,
+			spinnerSpinning: inFlight,
 			status: turn.status,
 			error: turn.error,
 		});
-		if (turn.text) this.scheduleTextFlush(aiId, () => turn.text);
-		if (running) return;
-		this.flushTextNow(aiId, turn.text);
-		this._streaming = false;
-		this._streamingId = null;
-		this.#detachTurn?.();
-		this.#detachTurn = null;
+		if (inFlight) return;
+		this.#turnMessages = null;
 		this._scrollPending = true;
 		// Report a turn that did not complete to the run, so the run's log contains the error the pane shows.
-		if (turn.status !== "completed") reportToRun("error", "shu-kihan-chat", `chat turn ${turn.status === "aborted" ? `stopped, ${turn.stoppedBy}` : "failed"}: ${turn.error}`);
+		if (turn.status !== "completed") reportToRun("error", "shu-kihan-chat", `chat turn ${turn.status === "stopped" ? `stopped, ${turn.stoppedBy}` : "failed"}: ${turn.error}`);
 		this.settleTurn(turn);
-		this.requestUpdate();
 	}
 
-	/** Record an ended turn in the pane: the session it started and the session list. The pane attached when the turn
-	 *  ends records it, or the pane that attaches after it ended. */
-	private settleTurn(turn: TTurnState): void {
+	/** Record an ended turn in the pane: the session it started and the session list. The pane rendering the turn when it
+	 *  ends records it, or the pane that takes the turn over after it ended. */
+	private settleTurn(turn: TAskedTurn): void {
 		// The remembered session is the one the pane reads and sends, so a pane built later continues it.
 		if (turn.seqPath && !this.state.session) this.setState({ session: turn.seqPath });
 		if (turn.status === "completed") {
-			this._fullText = turn.text;
 			this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
 				const maybeSpeak = (el as { speak?: unknown }).speak;
 				if (typeof maybeSpeak === "function") maybeSpeak.call(el, turn.text);
@@ -657,7 +616,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// The run writes the turn whether or not its stream announced a seqPath, so the session list changes in both cases.
 		void this.refreshSessionList();
 	}
-
 }
 
 customElements.define(SHU_TAG.KIHAN_CHAT, ShuKihanChat);

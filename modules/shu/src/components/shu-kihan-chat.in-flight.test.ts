@@ -39,7 +39,14 @@ function resetStream(): void {
 /** The session the pane remembers, its one turn as the store reads it back, and when the store answers the read. */
 const RESTORED = "0.1.1";
 const RESTORED_RECORD = anIndividual("Email", "restored@bakery.test");
-const RESTORED_TURN = { prompt: "an earlier question", response: "an earlier answer", seqPath: RESTORED, askId: `cmt-ask-${RESTORED}`, sayId: `cmt-say-${RESTORED}`, bundle: [RESTORED_RECORD] };
+const RESTORED_TURN = {
+	prompt: "an earlier question",
+	response: "an earlier answer",
+	seqPath: RESTORED,
+	askId: `cmt-ask-${RESTORED}`,
+	sayId: `cmt-say-${RESTORED}`,
+	bundle: [RESTORED_RECORD],
+};
 let answerSessionRead: (() => void) | undefined;
 /** The turns the store reads back for the session; a case that branches sets its own. */
 let sessionTurns: Array<Record<string, unknown>> = [];
@@ -90,7 +97,7 @@ await import("./shu-chat-message.js");
 const { ShuActivityHistory } = await import("./shu-activity-history.js");
 if (!customElements.get("shu-activity-history")) customElements.define("shu-activity-history", ShuActivityHistory);
 const { ShuKihanChat, TURN_STILL_RUNNING } = await import("./shu-kihan-chat.js");
-const { currentTurn, stopTurn } = await import("../chat-turn.js");
+const { IDLE_TURN, dispatchTurnEvent, turnState } = await import("../chat-turn.js");
 const { SHU_TAG } = await import("../consts.js");
 const { SHU_TEST_IDS } = await import("../test-ids.js");
 const { flushPersistWrites, forgetElementPrefs } = await import("../element-prefs.js");
@@ -99,8 +106,9 @@ const { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState
 // The turn runner and the machine are module state shared by every case. Each case starts with no running turn and
 // no current subject, because a turn left running refuses the next case's question.
 beforeEach(async () => {
-	stopTurn("the case ended");
+	dispatchTurnEvent({ type: "stop", reason: "the case ended" });
 	await new Promise((resolve) => setTimeout(resolve, 0));
+	turnState.set(IDLE_TURN);
 	currentSubjectState.set(INITIAL_SUBJECT);
 	stated.length = 0;
 	sent.length = 0;
@@ -114,7 +122,6 @@ beforeEach(async () => {
 	answerSessionRead = undefined;
 	sessionTurns = [RESTORED_TURN];
 });
-
 
 /** The pane with a turn running: the first question sent, its stream still open. */
 async function paneHoldingATurn(): Promise<Driven> {
@@ -152,8 +159,14 @@ describe("a question asked while the pane is restoring the session it left off i
 		answerSessionRead?.();
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		await el.updateComplete;
-		expect(messages(el).map((m) => m.text), "the turn the reader asked for is still the conversation").toContain("what do these have in common");
-		expect(messages(el).map((m) => m.text), "and the persisted exchanges did not take its place").not.toContain("an earlier question");
+		expect(
+			messages(el).map((m) => m.text),
+			"the turn the reader asked for is still the conversation",
+		).toContain("what do these have in common");
+		expect(
+			messages(el).map((m) => m.text),
+			"and the persisted exchanges did not take its place",
+		).not.toContain("an earlier question");
 	});
 });
 
@@ -181,7 +194,7 @@ describe("a turn that ends before it answered", () => {
 		const turn = messages(el).find((m) => m.role === "llm");
 		expect(turn?.error, "the reader's own stop is named as theirs").toContain("you stopped it");
 		expect(turn?.error, "with what ended the stream beside it").toContain("aborted");
-		expect(turn?.status).toBe("aborted");
+		expect(turn?.status).toBe("stopped");
 	});
 });
 
@@ -303,7 +316,8 @@ describe("the ask and the active record", () => {
 describe("a session the pane reads back", () => {
 	const EMAIL = entryOf([anIndividual("Email", "read-me@bakery.test")], "private");
 	const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-	const pickSession = (el: Driven) => (el as unknown as { onSessionChange(e: CustomEvent): void }).onSessionChange(new CustomEvent("combo-change", { detail: { value: RESTORED } }));
+	const pickSession = (el: Driven) =>
+		(el as unknown as { onSessionChange(e: CustomEvent): void }).onSessionChange(new CustomEvent("combo-change", { detail: { value: RESTORED } }));
 	/** Answer the session read this case's pane is waiting on, once the pane has made it. */
 	const answerTheSessionRead = async () => {
 		await settle();
@@ -381,7 +395,13 @@ describe("the transcript of a conversation that branches", () => {
 	/** The first turn, a reply to it, a reply to that, and a second reply to the first turn, in the store's order. */
 	const BRANCHED = [readBack("0.1.1"), readBack("0.1.3", "0.1.1"), readBack("0.1.4", "0.1.3"), readBack("0.1.5", "0.1.1")];
 	const onSurface = (surface: HTMLElement) => Array.from(surface.querySelectorAll(":scope > shu-chat-message")) as Array<HTMLElement & { message: TChatMessage }>;
-	const turnsShown = (surface: HTMLElement) => [...new Set(onSurface(surface).filter((el) => !el.hidden).map((el) => el.message.seqPath ?? "sending"))];
+	const turnsShown = (surface: HTMLElement) => [
+		...new Set(
+			onSurface(surface)
+				.filter((el) => !el.hidden)
+				.map((el) => el.message.seqPath ?? "sending"),
+		),
+	];
 	const otherBranchOn = (surface: HTMLElement, seqPath: string) =>
 		onSurface(surface)
 			.find((el) => el.message.role === "llm" && el.message.seqPath === seqPath)
@@ -452,7 +472,7 @@ describe("a turn outlasts the pane that started it", () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		first.remove(); // the bar closed itself
 		expect(stream.signal?.aborted, "removing the pane does not abort the stream").toBe(false);
-		expect(currentTurn()?.status, "the turn still runs").toBe("running");
+		expect(turnState.get().status, "the turn still runs").toBe("running");
 
 		const again = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
 		document.body.appendChild(again);
@@ -480,7 +500,7 @@ describe("a turn outlasts the pane that started it", () => {
 		first.remove(); // the bar closed itself
 		stream.finish?.();
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		expect(currentTurn()?.status, "the turn ended with no pane mounted").toBe("completed");
+		expect(turnState.get().status, "the turn ended with no pane mounted").toBe("completed");
 
 		const again = new ShuKihanChat() as unknown as Driven & { outputTarget: unknown };
 		document.body.appendChild(again);
@@ -559,7 +579,7 @@ describe("a turn outlasts the pane that started it", () => {
 		await el.updateComplete;
 		expect(stream.signal?.aborted).toBe(true);
 		expect(messages(el).find((m) => m.role === "llm")?.error).toContain("you stopped it");
-		expect(currentTurn()?.status).toBe("aborted");
+		expect(turnState.get().status).toBe("stopped");
 	});
 });
 
