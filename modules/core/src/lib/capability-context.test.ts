@@ -48,13 +48,29 @@ describe("the capability a step runs under", () => {
 describe("the ceiling a read runs under", () => {
 	it("is what the boundary set, and nothing outside one is bounded", async () => {
 		expect(readingAt(), "a feature line in its own run is bounded by nothing of its own").toBeUndefined();
+		// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope has nothing to wait on
 		await runReadingAt("public", async () => {
 			expect(readingAt()).toBe("public");
-			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the innermost scope has nothing to wait on
-			await runReadingAt("private", async () => {
-				expect(readingAt(), "an inner scope states its own, and the store meets the two").toBe("private");
-			});
 		});
 		expect(readingAt(), "and it is gone once the call that set it is over").toBeUndefined();
+	});
+
+	it("is never widened by a scope inside it, which may only narrow it", async () => {
+		// A model turn runs its tool calls under the level its context resolved at, inside the ceiling the web boundary set
+		// for the caller. The turn's level may be wider than the caller's, and a read inside the turn stays within both.
+		await runReadingAt("opened", async () => {
+			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope has nothing to wait on
+			await runReadingAt("private", async () => {
+				expect(readingAt(), "asking for more than the ceiling reads at the ceiling").toBe("opened");
+			});
+			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope has nothing to wait on
+			await runReadingAt("public", async () => {
+				expect(readingAt(), "asking for less reads at less").toBe("public");
+			});
+			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope has nothing to wait on
+			await runReadingAt(undefined, async () => {
+				expect(readingAt(), "stating nothing keeps the ceiling in force").toBe("opened");
+			});
+		});
 	});
 });

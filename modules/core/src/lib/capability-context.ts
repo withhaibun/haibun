@@ -14,7 +14,7 @@
  * cannot execute code here; a stepper registered in the configuration is already inside the process.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { AccessLevel } from "./resources.js";
+import { narrowerCeiling, type AccessLevel } from "./resources.js";
 
 const capabilityStore = new AsyncLocalStorage<string | string[] | undefined>();
 
@@ -75,10 +75,12 @@ const readCeilingStore = new AsyncLocalStorage<AccessLevel | undefined>();
  * still cannot exceed this one; it can only ask for less.
  *
  * Scoped like the capability, and for the same reasons: the async chain bounds it to the call that set it, and it is
- * not a field on the world that later code can widen.
+ * not a field on the world that later code can widen. A scope set inside another meets the ceiling already in force,
+ * narrower winning, so a call inside a boundary, such as a model turn reading at the level its context resolved at,
+ * never reads above what the boundary allowed.
  */
 export function runReadingAt<T>(ceiling: AccessLevel | undefined, within: () => Promise<T>): Promise<T> {
-	return readCeilingStore.run(ceiling, within);
+	return readCeilingStore.run(narrowerCeiling(readCeilingStore.getStore(), ceiling), within);
 }
 
 /** The ceiling in force, or undefined where nothing bounded the caller (a feature line in its own run). */
