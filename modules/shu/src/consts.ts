@@ -13,6 +13,10 @@ export const STORED_TYPE_PROP = "vertexLabel";
  *  Written by the chain view and the projection's links, read by the affordances panel and the chain view alike. */
 export const AFFORDANCE_PARAM = { GOAL: "aff-goal", WAYPOINT: "aff-waypoint" } as const;
 
+/** The custom property the actions bar sets on its positioning host to the height of its closed strip, which the host
+ *  reserves so no content sits behind the closed bar. */
+export const ACTIONS_BAR_FOOTPRINT = "--shu-actions-bar-h";
+
 /** The hash param that addresses the conversation the ask is open on, by its session's seqPath. */
 export const CONVERSATION_PARAM = "ask";
 
