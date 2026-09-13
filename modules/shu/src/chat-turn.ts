@@ -11,7 +11,7 @@
  */
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
-import { SCOPE, dispatchSubjectEvent } from "./current-subject.js";
+import { SCOPE, activeEntry, dispatchSubjectEvent, scopeEntry, type TEntry, type TSubjectState } from "./current-subject.js";
 import { acts, conduit } from "./hypermedia.js";
 import type { TBundle, TChatStatus } from "./schemas.js";
 
@@ -47,6 +47,13 @@ type TTurnRequest = { method: string; prompt: string; bundle: TBundle; envelope:
 type THeldTurn = { state: TTurnState; listeners: Set<TTurnListener>; abort: AbortController };
 
 let latest: THeldTurn | null = null;
+
+/** What the next question is made of: the active entry, whose bundle it carries, and the turn it replies to. The turn
+ *  is the actions bar's entry where that entry names one, and the transcript shows the branch that ends at it. */
+export function nextQuestion(state: TSubjectState): { carries: TEntry | null; repliesTo: TEntry | null } {
+	const conversation = scopeEntry(state, SCOPE.actionsBar);
+	return { carries: activeEntry(state), repliesTo: conversation?.seqPath ? conversation : null };
+}
 
 /** The latest turn, running or ended, or null before the first. */
 export function currentTurn(): TTurnState | null {
