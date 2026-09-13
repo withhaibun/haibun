@@ -20,6 +20,8 @@ export const CHAT_MESSAGE_SELECTOR = {
 	RECORDED_QUESTION: `${SHU_TAG.CHAT_MESSAGE}[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.user}'][${SHU_ATTR.DATA_RECORD}]`,
 	/** A reply whose turn completed. */
 	COMPLETED_REPLY: `${SHU_TAG.CHAT_MESSAGE}[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.llm}'][${SHU_ATTR.DATA_STATUS}='${ChatStatusSchema.enum.completed}']`,
+	/** A question on the branch the transcript shows. */
+	SHOWN_QUESTION: `${SHU_TAG.CHAT_MESSAGE}[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.user}']:not([hidden])`,
 };
 
 export default class ShuKihanChatControls extends AStepper {
@@ -41,6 +43,18 @@ export default class ShuKihanChatControls extends AStepper {
 				const page = await this.page();
 				const stated = await pollUntil(page, (p) => hasText(p, `[data-testid="${SHU_TEST_IDS.APP.CHAT_ACTIVITY}"]`, statement), (found) => found, ANSWERED_TRIES);
 				return stated ? actionOK() : actionNotOK(`no turn stated "${statement}"`);
+			},
+		},
+		askShowsTurns: {
+			// The transcript shows one branch of a conversation that branches, and keeps the other branches hidden; this
+			// states how many turns the branch shown holds.
+			gwta: "ask shows {count} turns",
+			action: async ({ count }: { count: string }) => {
+				const wanted = Number.parseInt(count, 10);
+				if (!Number.isFinite(wanted) || wanted < 0) return actionNotOK(`ask shows: "${count}" is not a number of turns`);
+				const page = await this.page();
+				const shown = await pollUntil(page, (p) => countMatching(p, CHAT_MESSAGE_SELECTOR.SHOWN_QUESTION), (n) => n === wanted, ANSWERED_TRIES);
+				return shown === wanted ? actionOK() : actionNotOK(`the transcript shows ${shown} turns, not ${wanted}`);
 			},
 		},
 		askHasAnswered: {

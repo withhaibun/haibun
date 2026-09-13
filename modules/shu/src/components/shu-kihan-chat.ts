@@ -24,6 +24,7 @@ import type { TContextPattern } from "../schemas.js";
 import { SCOPE, activeEntry, activeScope, dispatchSubjectEvent, entryOf, scopeEntry, type TEntry, type TRecord } from "../current-subject.js";
 import { SubjectController } from "../controllers/index.js";
 import { attachToTurn, currentTurn, leaveTurnSession, startTurn, stopTurn, turnRefusal, type TTurnState } from "../chat-turn.js";
+import { branchPath } from "../chat-branch.js";
 import { appAccessLevel } from "../util.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
@@ -50,7 +51,7 @@ type TChatSession = { sessionSeqPath: string; label: string; generatedAtTime: st
 /** A model as the registry holds it: what the endpoint reports it can do, and what a profile states about it. */
 type TKihanVertex = { id: string; displayName?: string; capabilities?: { tools?: boolean }; options?: { contextReadBy?: string } };
 /** A turn of a session read back: its question and answer, their comment ids, and the records its question referenced. */
-type TSessionTurn = { prompt: string; response: string; seqPath: string; askId?: string; sayId?: string; bundle: TContextPattern[] };
+type TSessionTurn = { prompt: string; response: string; seqPath: string; inReplyTo?: string; askId?: string; sayId?: string; bundle: TContextPattern[] };
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
 function sessionOptionLabel(s: TChatSession): string {
 	const preview = s.label.length > 48 ? `${s.label.slice(0, 47)}…` : s.label;
@@ -198,6 +199,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const target = this.#outputTarget;
 		if (!target) return;
 		const ids = new Set(this._messages.map((m) => m.id));
+		const transcript = this.#transcript();
 		for (const [id, el] of this.#projected) {
 			if (!ids.has(id)) {
 				el.remove();
@@ -206,18 +208,35 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 		const mine = new Set(this.#projected.values());
 		for (const el of Array.from(target.querySelectorAll(OWN_MESSAGES))) if (!mine.has(el as ShuChatMessage)) el.remove();
-		for (const m of this._messages) {
-			const existing = this.#projected.get(m.id);
-			if (existing) {
-				if (existing.message !== m) existing.message = m;
-				continue;
+		for (const { message, shown } of transcript) {
+			const existing = this.#projected.get(message.id);
+			const el = existing ?? (document.createElement(SHU_TAG.CHAT_MESSAGE) as ShuChatMessage);
+			if (el.message !== message) el.message = message;
+			el.hidden = !shown;
+			if (!existing) {
+				this.#projected.set(message.id, el);
+				target.append(el);
 			}
-			const el = document.createElement(SHU_TAG.CHAT_MESSAGE) as ShuChatMessage;
-			el.message = m;
-			this.#projected.set(m.id, el);
-			target.append(el);
 		}
 		this.markCurrent(this.#subject.record);
+	}
+
+	/**
+	 * The conversation as the transcript shows it. Every message is kept, so a pane built later takes over every branch;
+	 * the messages off the branch the conversation is on are hidden. A reply where another branch leaves is marked with
+	 * that branch's latest message.
+	 */
+	#transcript(): Array<{ message: TChatMessage; shown: boolean }> {
+		const { shown, others } = branchPath(this._messages, scopeEntry(this.#subject.state, SCOPE.actionsBar)?.seqPath);
+		const shownIds = new Set(shown.map((message) => message.id));
+		return this._messages.map((message) => {
+			// A message taken over from the surface carries the mark it was last shown with, which may no longer hold.
+			const { otherBranch: _shownWith, ...unmarked } = message;
+			const other = message.role === "llm" && message.seqPath ? others.get(message.seqPath) : undefined;
+			const { recordId, seqPath, bundle } = other?.latest ?? {};
+			const marked = other && recordId && seqPath && bundle ? { ...unmarked, otherBranch: { recordId, seqPath, bundle, count: other.count } } : _shownWith ? unmarked : message;
+			return { message: marked, shown: shownIds.has(message.id) };
+		});
 	}
 
 	/** Mark the message recorded as the current subject, and unmark every other. This sets attributes on the projected
@@ -364,8 +383,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const messages: TChatMessage[] = [];
 		for (const turn of turns) {
 			const bundle = { patterns: turn.bundle, accessLevel: appAccessLevel() };
-			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "user", text: turn.prompt, seqPath: turn.seqPath, recordId: turn.askId, bundle }));
-			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "llm", text: turn.response, status: "completed", seqPath: turn.seqPath, recordId: turn.sayId, bundle }));
+			const replied = { seqPath: turn.seqPath, bundle, inReplyTo: turn.inReplyTo };
+			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "user", text: turn.prompt, recordId: turn.askId, ...replied }));
+			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "llm", text: turn.response, status: "completed", recordId: turn.sayId, ...replied }));
 		}
 		this._messages = messages;
 		this._scrollPending = true;
@@ -397,9 +417,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			? ""
 			: html`<div class="chat-output" data-testid=${`${this.testIdPrefix}chat-output`}>
 				${repeat(
-					this._messages,
-					(m) => m.id,
-					(m) => html`<shu-chat-message .message=${m} aria-current=${m.recordId && m.recordId === this.#subject.record?.id ? "true" : nothing}></shu-chat-message>`,
+					this.#transcript(),
+					({ message }) => message.id,
+					({ message, shown }) =>
+						html`<shu-chat-message .message=${message} ?hidden=${!shown} aria-current=${message.recordId && message.recordId === this.#subject.record?.id ? "true" : nothing}></shu-chat-message>`,
 				)}
 			</div>`;
 		return html`
@@ -560,8 +581,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const userId = this.nextId();
 		const aiId = this.nextId();
 		this.appendMessages(
-			ChatMessageSchema.parse({ id: userId, role: "user", text: prompt, bundle }),
-			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "running", spinnerStatus: "Sending...", spinnerVisible: true, spinnerSpinning: true, bundle }),
+			ChatMessageSchema.parse({ id: userId, role: "user", text: prompt, bundle, inReplyTo }),
+			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "running", spinnerStatus: "Sending...", spinnerVisible: true, spinnerSpinning: true, bundle, inReplyTo }),
 		);
 		// chat-turn runs the turn from here. It continues until its stream ends or the reader stops it.
 		const ended = startTurn({
