@@ -36,9 +36,13 @@ function resetStream(): void {
 	stream.finish = undefined;
 }
 
-/** The session the pane remembers, and when the store answers the read of it. */
-const RESTORED = "0.1.2";
+/** The session the pane remembers, its one turn as the store reads it back, and when the store answers the read. */
+const RESTORED = "0.1.1";
+const RESTORED_RECORD = anIndividual("Email", "restored@bakery.test");
+const RESTORED_TURN = { prompt: "an earlier question", response: "an earlier answer", seqPath: RESTORED, askId: `cmt-ask-${RESTORED}`, sayId: `cmt-say-${RESTORED}`, bundle: [RESTORED_RECORD] };
 let answerSessionRead: (() => void) | undefined;
+/** The comments the stream names when a case finishes it, after the turn has run for a while. */
+const recordedOnFinish: string[] = [];
 
 vi.mock("../hypermedia.js", async () => {
 	const { hypermedia } = await import("./chat-pane.test-fake.js");
@@ -50,7 +54,7 @@ vi.mock("../hypermedia.js", async () => {
 			// A read held open, answered when a case says the store got back to the pane.
 			if (req.method === "loadChatSession")
 				return new Promise((resolve) => {
-					answerSessionRead = () => resolve({ turns: [{ prompt: "an earlier question", response: "an earlier answer", seqPath: RESTORED, bundle: [] }] });
+					answerSessionRead = () => resolve({ turns: [RESTORED_TURN] });
 				});
 			return {};
 		},
@@ -67,6 +71,7 @@ vi.mock("../hypermedia.js", async () => {
 			return new Promise<void>((resolve, reject) => {
 				opts.signal?.addEventListener("abort", () => reject(new Error("the stream was aborted")), { once: true });
 				stream.finish = () => {
+					for (const id of recordedOnFinish) onChunk({ recorded: { persistedAs: "Comment", id } });
 					onChunk({ text: "an answer" });
 					resolve();
 				};
@@ -83,7 +88,7 @@ if (!customElements.get("shu-activity-history")) customElements.define("shu-acti
 const { ShuKihanChat, TURN_STILL_RUNNING } = await import("./shu-kihan-chat.js");
 const { currentTurn, stopTurn } = await import("../chat-turn.js");
 const { flushPersistWrites } = await import("../element-prefs.js");
-const { INITIAL_SUBJECT, SCOPE, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf } = await import("../current-subject.js");
+const { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } = await import("../current-subject.js");
 
 // The turn runner and the machine are module state shared by every case. Each case starts with no running turn and
 // no current subject, because a turn left running refuses the next case's question.
@@ -94,7 +99,9 @@ beforeEach(async () => {
 	stated.length = 0;
 	sent.length = 0;
 	recorded.length = 0;
+	recordedOnFinish.length = 0;
 	streamFails = undefined;
+	answerSessionRead = undefined;
 });
 
 
@@ -279,6 +286,72 @@ describe("the ask and the active record", () => {
 		expect(sent.at(-1)?.inReplyTo, "the turn of the message selected").toBe("0.1.1");
 		expect(sent.at(-1)?.patterns, "the bundle that message's turn was sent with").toEqual(OTHER.bundle.patterns);
 		expect(sent.at(-1)?.viewLd, "and no view data, which is the pane's").toEqual([]);
+	});
+});
+
+describe("a session the pane reads back", () => {
+	const EMAIL = entryOf([anIndividual("Email", "read-me@bakery.test")], "private");
+	const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+	const pickSession = (el: Driven) => (el as unknown as { onSessionChange(e: CustomEvent): void }).onSessionChange(new CustomEvent("combo-change", { detail: { value: RESTORED } }));
+	/** Answer the session read this case's pane is waiting on, once the pane has made it. */
+	const answerTheSessionRead = async () => {
+		await settle();
+		if (!answerSessionRead) throw new Error("the pane made no session read to answer");
+		answerSessionRead();
+		await settle();
+	};
+
+	it("restored on mount, updates the conversation with its last answer without taking the lead, and the next question replies to it", async () => {
+		document.body.innerHTML = "";
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		const el = new ShuKihanChat() as unknown as Driven;
+		el.setState({ session: RESTORED });
+		document.body.appendChild(el);
+		await el.updateComplete;
+		await answerTheSessionRead();
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the restored last answer, with the records its question referenced").toMatchObject({
+			record: { id: RESTORED_TURN.sayId, label: "Comment" },
+			seqPath: RESTORED,
+			bundle: { patterns: [RESTORED_RECORD] },
+		});
+		expect(currentSubject(currentSubjectState.get()), "a restore is not a reader's act, so the page's record still leads").toEqual(EMAIL.record);
+
+		void el.handleChat("and what came of it");
+		await settle();
+		expect(sent.at(-1), "the question replies to the restored answer, in its session, about the record that leads").toMatchObject({
+			inReplyTo: RESTORED,
+			sessionSeqPath: RESTORED,
+			patterns: EMAIL.bundle.patterns,
+		});
+	});
+
+	it("picked by a reader, makes its last answer the active record with the records its question referenced", async () => {
+		document.body.innerHTML = "";
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		const el = new ShuKihanChat() as unknown as Driven;
+		document.body.appendChild(el);
+		await el.updateComplete;
+		pickSession(el);
+		await answerTheSessionRead();
+		const state = currentSubjectState.get();
+		expect(currentSubject(state)).toEqual({ id: RESTORED_TURN.sayId, label: "Comment" });
+		expect(activeEntry(state)?.bundle.patterns).toEqual([RESTORED_RECORD]);
+	});
+
+	it("picked while a turn runs, leaves that turn running, and the comments it records then activate nothing", async () => {
+		document.body.innerHTML = "";
+		resetStream();
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		const el = await paneHoldingATurn();
+		pickSession(el);
+		await answerTheSessionRead();
+		recordedOnFinish.push("cmt-say-0.1.2");
+		stream.finish?.();
+		await settle();
+		expect(stream.signal?.aborted, "the turn ran to its end").toBe(false);
+		expect(currentSubject(currentSubjectState.get()), "the session the reader picked is still what leads").toEqual({ id: RESTORED_TURN.sayId, label: "Comment" });
 	});
 });
 

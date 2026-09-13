@@ -18,7 +18,8 @@
  */
 import { Signal } from "@lit-labs/signals";
 
-const SHARED_SIGNALS_KEY = "__SHU_SHARED_SIGNALS__";
+/** The globalThis key every bundle's shared cells are held under, so a page reader outside the bundles finds the same cells. */
+export const SHARED_SIGNALS_KEY = "__SHU_SHARED_SIGNALS__";
 
 type SharedCell<T> = { signal: Signal.State<T>; subs: Set<(v: T) => void> };
 

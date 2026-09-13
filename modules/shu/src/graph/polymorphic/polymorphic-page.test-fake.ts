@@ -5,6 +5,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright";
 import { GRAPH_SCENE_EVENT } from "./polymorphic-graph-types.js";
+import { SHARED_SIGNALS_KEY } from "../../signals.js";
+import type { TSubjectState } from "../../current-subject.js";
 
 /**
  * A real page with the polymorphic graph view mounted on it, drawn by a headless browser through a software
@@ -66,6 +68,10 @@ export type TMountedPage = {
 	/** Click the real pointer at a pixel, and return the id of the node the scene opened, or null when it opened none.
 	 *  The scene opens a node in the click's own task, so the id is set when the click dispatch returns. */
 	click(at: { x: number; y: number }): Promise<string | null>;
+	/** The active-record machine's state in the page, as the bundle holds it. */
+	subjectState(): Promise<TSubjectState>;
+	/** A pixel inside the view where no node is picked, for a click on empty space. */
+	emptyPixel(): Promise<{ x: number; y: number }>;
 	box(): Promise<{ x: number; y: number; w: number; h: number }>;
 	close(): Promise<void>;
 };
@@ -167,6 +173,25 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 			}, GRAPH_SCENE_EVENT.NODE_CLICK);
 			await page.mouse.click(at.x, at.y);
 			return page.evaluate(() => (window as unknown as { __opened: string | null }).__opened);
+		},
+		subjectState: () =>
+			page.evaluate(
+				(key) => (globalThis as unknown as Record<string, Map<string, { signal: { get(): TSubjectState } }>>)[key].get("currentSubject")?.signal.get() as TSubjectState,
+				SHARED_SIGNALS_KEY,
+			),
+		async emptyPixel() {
+			const found = await page.evaluate(() => {
+				const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { pickAt(x: number, y: number): string | null } & HTMLElement;
+				const box = view.getBoundingClientRect();
+				for (let y = box.bottom - 12; y > box.top; y -= 24) {
+					for (let x = box.left + 12; x < box.right; x += 24) {
+						if (view.pickAt(x, y) === null && document.elementFromPoint(x, y)?.closest("shu-polymorphic-graph-view")) return { x, y };
+					}
+				}
+				return null;
+			});
+			if (!found) throw new Error("the view has no empty pixel to click");
+			return found;
 		},
 		box: () =>
 			page.evaluate(() => {
