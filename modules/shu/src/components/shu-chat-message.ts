@@ -1,10 +1,7 @@
 /**
- * <shu-chat-message>: one user prompt or one LLM response in the chat column.
- * Purely prop-driven: the parent (shu-kihan-chat) owns the single conversation
- * state and passes one TChatMessage; this element renders it. No imperative
- * mutators: both the live stream and a hydrated session write the same parent
- * state, so there is one render path. Lives in light DOM so the parent column's
- * selection/scroll styles cascade through.
+ * <shu-chat-message>: one question or one answer of the conversation's transcript. Purely prop-driven: the activity
+ * history renders the transcript from the conversation and the page's turn, and passes each message one TChatMessage.
+ * Lives in light DOM so the host scope's styles reach it.
  */
 import { css, html, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
@@ -20,9 +17,8 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { patternRef } from "./shu-ref.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, type TBundle, type TChatRole } from "../schemas.js";
 
-/** Styles for a light-DOM chat message, exported for every shadow scope that hosts one (shu-kihan-chat's own
- * transcript, and the actions bar's shared activity history): the message renders in light DOM, so the rules
- * must live in whichever scope contains it, and this single export keeps the two scopes from drifting. */
+/** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
+ *  renders in light DOM, so the rules live in the scope that contains it. */
 export const chatMessageStyles = css`
 	shu-chat-message { display: block; }
 	shu-chat-message .msg { cursor: pointer; }

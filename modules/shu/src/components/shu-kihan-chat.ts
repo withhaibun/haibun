@@ -1,32 +1,23 @@
 /**
- * Chat surface for talking to a Kihan. Threads via AS:context + discourse
- * sub-properties of inReplyTo: the first turn's prompt is the session root;
- * every subsequent turn carries `as:context → root` and a `question` edge
- * from the new prompt → the prior reply. Both are forwarded in the envelope
- * so the server writes the edges on receipt.
+ * The ask's input line: the question, the session selector, the model, the tool limit, who reads the context, Send and
+ * Stop. The conversation and the page's turn are page-level machines, and the actions bar's activity history renders the
+ * transcript from them. This element holds neither, so the bar removes it when it closes and the conversation continues.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { z } from "zod";
 import { nothing, html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { repeat } from "lit/directives/repeat.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { ChatMessageSchema, chatMessageStyles, type TChatMessage } from "./shu-chat-message.js";
-import type { ShuChatMessage } from "./shu-chat-message.js";
-import type { ShuActivityHistory } from "./shu-activity-history.js";
-import type { ShuCombobox } from "./shu-combobox.js";
 import { shuBaseStyles } from "./styles.js";
-
 import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
-import type { TContextPattern } from "../schemas.js";
-import { SCOPE, activeScope, dispatchSubjectEvent, entryOf, type TEntry, type TRecord } from "../current-subject.js";
+import type { TComboboxOption, TTurnStatus } from "../schemas.js";
+import { SCOPE, activeScope, entryOf } from "../current-subject.js";
 import { SignalController, SubjectController } from "../controllers/index.js";
-import { IN_FLIGHT, dispatchTurnEvent, nextQuestion, startTurn, turnInFlight, turnRefusal, turnState, type TAskedTurn, type TTurnState } from "../chat-turn.js";
-import { branchPath } from "../chat-branch.js";
+import { dispatchTurnEvent, inFlight, nextQuestion, startTurn, turnState } from "../chat-turn.js";
+import { askRefusal, closeConversation, conversationState, openConversation } from "../conversation.js";
 import { appAccessLevel } from "../util.js";
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -37,23 +28,14 @@ const AS_MODEL_STATES = "";
 const SENDS: Record<string, string> = { run: "context", model: "tool cues" };
 
 const TOOL_LIMIT_DEFAULT = 5;
-/** The refusal the running reply shows when a question is submitted while a turn runs. */
-export const TURN_STILL_RUNNING = "the last question is still running; Stop it to ask another";
-/** What a reply shows before the turn states anything about itself. */
-const SENDING = "Sending...";
-/** The chat messages projected directly into an output target. */
-const OWN_MESSAGES = `:scope > ${SHU_TAG.CHAT_MESSAGE}`;
-
 const TOOL_LIMIT_MIN = 0;
 const TOOL_LIMIT_MAX = 99;
-/** Cookie holding the active chat session's root seqPath. Turns are persisted as threaded Comment pairs, so on connect
- * (after a collapse/expand or a full page reload) the chat re-hydrates from the graph via loadChatSession, surviving reloads, unlike a per-page DOM snapshot. */
+/** The session selector's choice that leaves the conversation, so the next question starts a session. */
+export const NEW_CONVERSATION: TComboboxOption = { value: "new", label: "new conversation" };
 
 type TChatSession = { sessionSeqPath: string; label: string; generatedAtTime: string };
 /** A model as the registry holds it: what the endpoint reports it can do, and what a profile states about it. */
 type TKihanVertex = { id: string; displayName?: string; capabilities?: { tools?: boolean }; options?: { contextReadBy?: string } };
-/** A turn of a session read back: its question and answer, their comment ids, and the records its question referenced. */
-type TSessionTurn = { prompt: string; response: string; seqPath: string; inReplyTo?: string; askId?: string; sayId?: string; bundle: TContextPattern[] };
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
 function sessionOptionLabel(s: TChatSession): string {
 	const preview = s.label.length > 48 ? `${s.label.slice(0, 47)}…` : s.label;
@@ -61,15 +43,13 @@ function sessionOptionLabel(s: TChatSession): string {
 	return `${preview} · ${when}`;
 }
 
-/** What the chat remembers between visits: which model to ask, how many chained tool calls it may make, who reads the
- *  records a turn is about, and the session being read. All were hand-rolled cookies; they are remembered the way every
- *  other option is. `modelReadsContext` is unset until a reader states it, and unset means the model's own profile says
- *  which. */
+/** What the chat remembers between visits: which model to ask, how many chained tool calls it may make, and who reads
+ *  the records a turn is about. `contextReadBy` is unset until a reader states it, and unset means the model's own
+ *  profile says which. The conversation is addressed in the view hash, not remembered here. */
 const ChatSchema = z.object({
 	model: z.string().default(""),
 	toolLimit: z.number().int().min(TOOL_LIMIT_MIN).max(TOOL_LIMIT_MAX).default(TOOL_LIMIT_DEFAULT),
 	contextReadBy: z.string().default(AS_MODEL_STATES),
-	session: z.string().default(""),
 });
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
@@ -80,15 +60,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	static styles = [
 		shuBaseStyles,
-		chatMessageStyles,
 		css`
-		:host { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; overflow: hidden; }
-		/* Transcript projected into a shared external output (the actions bar's activity history): this element is only its input line. */
-		:host([external-output]) { flex: 0 0 auto; }
-		.chat-output {
-			font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4);
-			width: 100%; min-width: 0; flex: 1; overflow-y: auto;
-		}
+		:host { display: flex; flex-direction: column; min-width: 0; flex: 0 0 auto; }
 		/* The row wraps rather than overflowing: the host clips what does not fit, and Send, Stop and the model the turn
 		   runs under are the controls a reader reaches for while a turn is in flight. */
 		.input-line {
@@ -109,6 +82,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			font-size: var(--shu-font-sm); color: var(--shu-fg-muted); flex: 0 0 auto;
 		}
 		.tool-limit { width: 4em; font-size: var(--shu-font-sm); }
+		.refusal { flex-basis: 100%; font-size: var(--shu-font-sm); color: var(--shu-error); }
 		.send-btn, .stop-btn {
 			padding: var(--shu-space-1) var(--shu-space-4); border: var(--shu-border-w) solid transparent;
 			border-radius: var(--shu-radius); font: inherit; font-size: var(--shu-font-md);
@@ -122,127 +96,35 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	];
 	static schema = ChatSchema;
 	static domainSelector = SHU_TAG.KIHAN_CHAT;
+	/** The chat's remembered options; a new visit restores the model, the tool limit and who reads the context. */
+	static persistFields = ["model", "toolLimit", "contextReadBy"] as const;
 
 	private _models: TKihanVertex[] = [];
-	/** The chat's remembered options; a new visit restores the model, the tool limit and the session it was reading. */
-	static persistFields = ["model", "toolLimit", "contextReadBy", "session"] as const;
-	/** The messages that render the page's turn: the question and the reply this pane added or took over. Null while the
-	 *  pane renders no turn. */
-	#turnMessages: { askedId: string | null; answerId: string } | null = null;
-	/** Relays the page's turn, which this pane renders into its messages. */
-	#turn = new SignalController(this, turnState, (turn) => this.renderTurn(turn));
-	/** Relays the current subject and the turn the next question replies to. The message recorded as the current subject
-	 *  is marked current, and the transcript shows the branch that ends at the turn. */
-	#subject = new SubjectController(this, (record) => this.markCurrent(record), nextQuestion);
-	private _sessions: TChatSession[] = [];
-	/** The single source of truth for the rendered conversation, fed identically by the live stream (handleChat) and a hydrated session (loadAndRenderSession), rendered once via keyed repeat. */
-	private _messages: TChatMessage[] = [];
-	private _msgCounter = 0;
-	private _scrollPending = false;
-	/** Last-applied (models|selectedModel|sessions|sessionSeqPath) signature, wireListeners skips re-applying combo options when unchanged. */
-	private _comboSig = "";
-
-	/** id → the shu-chat-message this instance projected into the external output. Lets a session switch remove exactly its own transcript, leaving other activity records (step callers, search summaries) in place. */
-	#projected = new Map<string, ShuChatMessage>();
-	#outputTarget: ShuActivityHistory | null = null;
-
-	/** External output: when set (the actions bar's shared activity history), the transcript renders as
-	 *  shu-chat-message children of that target and this element renders only its input line. */
-	set outputTarget(target: ShuActivityHistory | null) {
-		this.#outputTarget = target;
-		this.toggleAttribute("external-output", target !== null);
-		// A pane handed the surface before it is inserted takes the conversation over when it connects, once its remembered
-		// session is restored: taken over earlier, a turn that already ended settled into no session.
-		if (target && this.isConnected) this.#adoptConversation(target);
-		this.requestUpdate();
-	}
-	get outputTarget(): ShuActivityHistory | null {
-		return this.#outputTarget;
-	}
-
-	/**
-	 * Take over the conversation already on the shared surface.
-	 *
-	 * The conversation belongs to the surface a reader reads it in, not to this element: the bar drops the pane when it
-	 * is closed and builds another when it is opened, and the transcript stays on the surface throughout. Taken over,
-	 * the conversation a reader left is the one they come back to, with no read of the store to bring it back and no
-	 * moment where the surface holds nothing. What this element then holds is what is on screen, so a turn asked next
-	 * still follows the last reply.
-	 */
-	#adoptConversation(target: ShuActivityHistory): void {
-		if (this._messages.length > 0) return;
-		const adopted: TChatMessage[] = [];
-		for (const el of Array.from(target.querySelectorAll(OWN_MESSAGES)) as ShuChatMessage[]) {
-			const message = el.message;
-			if (!message?.id) continue;
-			adopted.push(message);
-			this.#projected.set(message.id, el);
-			// Ids count from this element's own counter, so it carries past what it took over: a new turn taking an id
-			// already on the surface would patch that message rather than adding its own.
-			this._msgCounter = Math.max(this._msgCounter, Number.parseInt(message.id.slice(1), 10) || 0);
-		}
-		if (adopted.length === 0) return;
-		this._messages = adopted;
-		// A message left in flight is the page's turn's reply. Rendering the turn shows the rest of it, or how it ended.
-		const running = [...adopted].reverse().find((m) => m.role === "llm" && m.status !== undefined && IN_FLIGHT.includes(m.status));
-		if (running) {
-			const asked = adopted[adopted.indexOf(running) - 1];
-			this.#turnMessages = { askedId: asked?.role === "user" ? asked.id : null, answerId: running.id };
-			this.renderTurn(this.#turn.state);
-		}
-	}
-
-	/** Reconcile _messages onto the external target: patch by id, append new, remove departed, including any
-	 *  chat message a previous chat instance left behind and this one did not take over. */
-	#syncExternalOutput(): void {
-		const target = this.#outputTarget;
-		if (!target) return;
-		const ids = new Set(this._messages.map((m) => m.id));
-		const transcript = this.#transcript();
-		for (const [id, el] of this.#projected) {
-			if (!ids.has(id)) {
-				el.remove();
-				this.#projected.delete(id);
-			}
-		}
-		const mine = new Set(this.#projected.values());
-		for (const el of Array.from(target.querySelectorAll(OWN_MESSAGES))) if (!mine.has(el as ShuChatMessage)) el.remove();
-		for (const { message, shown } of transcript) {
-			const existing = this.#projected.get(message.id);
-			const el = existing ?? (document.createElement(SHU_TAG.CHAT_MESSAGE) as ShuChatMessage);
-			if (el.message !== message) el.message = message;
-			el.hidden = !shown;
-			if (!existing) {
-				this.#projected.set(message.id, el);
-				target.append(el);
-			}
-		}
-		this.markCurrent(this.#subject.record);
-	}
-
-	/**
-	 * The conversation as the transcript shows it. Every message is kept, so a pane built later takes over every branch;
-	 * the messages off the branch the conversation is on are hidden. A reply where another branch leaves is marked with
-	 * that branch's latest message.
-	 */
-	#transcript(): Array<{ message: TChatMessage; shown: boolean }> {
-		const { shown, others } = branchPath(this._messages, nextQuestion(this.#subject.state).repliesTo?.seqPath);
-		const shownIds = new Set(shown.map((message) => message.id));
-		return this._messages.map((message) => {
-			// A message taken over from the surface carries the mark it was last shown with, which may no longer hold.
-			const { otherBranch: _shownWith, ...unmarked } = message;
-			const other = message.role === "llm" && message.seqPath ? others.get(message.seqPath) : undefined;
-			const { recordId, seqPath, bundle } = other?.latest ?? {};
-			const marked = other && recordId && seqPath && bundle ? { ...unmarked, otherBranch: { recordId, seqPath, bundle, count: other.count } } : _shownWith ? unmarked : message;
-			return { message: marked, shown: shownIds.has(message.id) };
-		});
-	}
-
-	/** Mark the message recorded as the current subject, and unmark every other. This sets attributes on the projected
-	 *  elements only. The subject controller already requests an update, and the projection runs inside that update. */
-	private markCurrent(record: TRecord | null): void {
-		for (const el of this.#projected.values()) el.toggleAttribute("aria-current", !!record && el.message.recordId === record.id);
-	}
+	#modelOptions: TComboboxOption[] = [];
+	#sessionOptions: TComboboxOption[] = [NEW_CONVERSATION];
+	/** Whether the reader's last submit was refused. The refusal shows beside the input while it still applies. */
+	#refused = false;
+	/** The status of the page's turn this pane last heard, so a turn that ends while the pane is mounted is spoken and
+	 *  lists its session. */
+	#heard: TTurnStatus | undefined;
+	/** The pane reads the active record and the turn a question replies to when it asks, and shows neither. */
+	#subject = new SubjectController(
+		this,
+		() => undefined,
+		() => null,
+	);
+	#conversation = new SignalController(
+		this,
+		conversationState,
+		() => undefined,
+		(conversation) => [conversation.status, conversation.session],
+	);
+	#turn = new SignalController(
+		this,
+		turnState,
+		(turn) => this.onTurnStatus(turn.status),
+		(turn) => turn.status,
+	);
 
 	static observedHtmlAttributes = ["testid-prefix"];
 
@@ -250,38 +132,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return this.getAttribute("testid-prefix") || "";
 	}
 
-	private tid(id: string): string {
-		return `data-testid="${this.testIdPrefix}${id}"`;
-	}
-
 	constructor() {
 		super(ChatSchema, {});
 	}
 
 	protected override onConnected(): void {
-		if (this.#outputTarget) this.#adoptConversation(this.#outputTarget);
 		void this.loadModels();
-		void this.openConversation();
-	}
-
-	/**
-	 * Put the conversation on screen, then fill the selector.
-	 *
-	 * The conversation a reader left is what they opened the pane for, and it is held as the discourse comments each
-	 * turn was written as, so it is read back by itself. Which other sessions exist is a second thing and is read
-	 * after: read first and used as a gate, it left the pane blank for as long as that listing took, and blank
-	 * altogether when the listing did not answer.
-	 */
-	private async openConversation(): Promise<void> {
-		const active = this.state.session;
-		if (active) {
-			try {
-				await this.restoreSession(active);
-			} catch (err) {
-				reportToRun("error", "shu-kihan-chat", `the conversation was not read back: ${errorDetail(err)}`);
-			}
-		}
-		await this.refreshSessionList();
+		void this.refreshSessionList();
 	}
 
 	/** Fetch the persisted chat sessions (newest first) for the selector. */
@@ -295,38 +152,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return data.sessions;
 	}
 
-	/** Whether the reader has started using this pane: the conversation holds a question, asked here or taken over. */
-	private get inUse(): boolean {
-		return this._messages.length > 0;
-	}
-
-	/**
-	 * Restore the session the pane was last reading, for a pane the reader has not started using.
-	 *
-	 * Restoring reads the session from the store, which takes as long as the store takes. A reader who asks a question
-	 * in that time is holding the conversation the pane now shows, so the restore is abandoned rather than applied:
-	 * applied, it took that reader's own turn off the screen and left the previous exchanges in its place.
-	 */
-	private async restoreSession(sessionSeqPath: string): Promise<void> {
-		if (this.inUse) return;
-		const turns = await this.readSession(sessionSeqPath);
-		if (this.inUse) return;
-		// The selector names the session the pane is reading, so it is set where the conversation is, never beside an
-		// abandoned restore.
-		(this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null)?.setValue(sessionSeqPath);
-		this.renderTurns(turns);
-		// A restored session is the page coming back to where the reader was, not a reader's act, so its last answer is
-		// the bar's entry without taking the lead from a record the reader activated.
-		const entry = this.sessionEntry(turns);
-		if (entry) dispatchSubjectEvent({ type: "update", scope: SCOPE.actionsBar, entry });
-	}
-
-	/** Refresh the selector options after a new turn lands, without disturbing the rendered conversation. A failed read
-	 *  leaves the selector as it was and is reported: which sessions exist is beside the turn that just ran, and the
-	 *  conversation continues whether or not the list came back. */
+	/** Refresh the selector's sessions. A failed read leaves the selector as it was and is reported: which sessions exist
+	 *  is beside the conversation, which continues whether or not the list came back. */
 	private async refreshSessionList(): Promise<void> {
 		try {
-			this._sessions = await this.listSessions();
+			const sessions = await this.listSessions();
+			this.#sessionOptions = [NEW_CONVERSATION, ...sessions.map((s) => ({ value: s.sessionSeqPath, label: sessionOptionLabel(s) }))];
 		} catch (err) {
 			reportToRun("error", "shu-kihan-chat", `the session list did not refresh: ${errorDetail(err)}`);
 			return;
@@ -334,53 +165,28 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.requestUpdate();
 	}
 
-	private onSessionChange = (e: CustomEvent): void => {
-		const seqPath = e.detail?.value;
-		if (!seqPath) return;
-		this.setState({ session: seqPath });
-		void this.loadAndRenderSession(seqPath);
-	};
-
-	/** Replace the conversation with a session's persisted turns. Picking a session calls this. A running turn continues
-	 *  and activates nothing, and this pane stops rendering it, because the messages it rendered into are removed. The
-	 *  session's last answer becomes the active record. */
-	private async loadAndRenderSession(sessionSeqPath: string): Promise<void> {
-		this.#turnMessages = null;
-		dispatchTurnEvent({ type: "left" });
-		const turns = await this.readSession(sessionSeqPath);
-		this.renderTurns(turns);
-		const entry = this.sessionEntry(turns);
-		if (entry) dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry });
-	}
-
-	/** The bar scope's entry for a session read back: its last answer, with the records its question referenced. */
-	private sessionEntry(turns: TSessionTurn[]): TEntry | null {
-		const last = turns.at(-1);
-		return last?.sayId ? { record: { id: last.sayId, label: COMMENT_LABEL }, seqPath: last.seqPath, bundle: { patterns: last.bundle, accessLevel: appAccessLevel() } } : null;
-	}
-
-	/** A session's persisted turns, oldest first. Each llm half carries the turn's seqPath (its Comment-pair graph identity). */
-	private async readSession(sessionSeqPath: string): Promise<TSessionTurn[]> {
-		await getAvailableSteps();
-		if (!findStep("loadChatSession")) return [];
-		const data = await conduit().follow<{ turns?: TSessionTurn[] }>(reads(requireStep("loadChatSession"), { sessionSeqPath }), "kihan-chat: hydrate persisted session");
-		if (!Array.isArray(data.turns)) throw new Error(`loadChatSession answered with no turns: ${JSON.stringify(data).slice(0, 200)}`);
-		return data.turns;
-	}
-
-	/** Render persisted turns as the conversation. */
-	private renderTurns(turns: TSessionTurn[]): void {
-		const messages: TChatMessage[] = [];
-		for (const turn of turns) {
-			const bundle = { patterns: turn.bundle, accessLevel: appAccessLevel() };
-			const replied = { seqPath: turn.seqPath, bundle, inReplyTo: turn.inReplyTo };
-			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "user", text: turn.prompt, recordId: turn.askId, ...replied }));
-			messages.push(ChatMessageSchema.parse({ id: this.nextId(), role: "llm", text: turn.response, status: "completed", recordId: turn.sayId, ...replied }));
+	/** A turn that ends while the pane is mounted lists its session, and a completed answer is spoken. */
+	private onTurnStatus(status: TTurnStatus): void {
+		const before = this.#heard;
+		this.#heard = status;
+		if (before === undefined || !inFlight(before) || inFlight(status)) return;
+		if (status === "completed") {
+			const turn = this.#turn.state;
+			const text = turn.status === "idle" ? "" : turn.text;
+			this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
+				const maybeSpeak = (el as { speak?: unknown }).speak;
+				if (typeof maybeSpeak === "function") maybeSpeak.call(el, text);
+			});
 		}
-		this._messages = messages;
-		this._scrollPending = true;
-		this.requestUpdate();
+		// The run writes the turn whether or not its stream announced a seqPath, so the session list changes in both cases.
+		void this.refreshSessionList();
 	}
+
+	private onSessionChange = (e: CustomEvent<{ value: string }>): void => {
+		const { value } = e.detail;
+		if (value === NEW_CONVERSATION.value) closeConversation();
+		else void openConversation(value, "activate");
+	};
 
 	private async loadModels(): Promise<void> {
 		if (this._models.length > 0) return;
@@ -389,38 +195,25 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const data = await conduit().follow<{ vertices: TKihanVertex[] }>(reads(requireStep("showKihans")), "kihan-chat: load model catalog");
 		if (data.vertices) {
 			this._models = data.vertices;
-			if (this._models.length > 0 && !this.state.model) {
-				const preferred = this.state.model;
-				const match = preferred && this._models.find((m) => m.id === preferred);
-				this.setState({ model: match ? match.id : this._models[0].id });
-			}
+			this.#modelOptions = this._models.map((m) => ({ value: m.id, label: m.displayName || m.id }));
+			if (this._models.length > 0 && !this.state.model) this.setState({ model: this._models[0].id });
 			this.requestUpdate();
 		}
 	}
 
 	render(): TemplateResult {
-		const showModel = this._models.length > 0;
-		const inFlight = turnInFlight(this.#turn.state);
+		const conversation = this.#conversation.state;
+		const turn = this.#turn.state;
+		const running = inFlight(turn.status);
+		const refusal = this.#refused ? askRefusal(conversation, turn) : null;
 		// The input line's own extensions, and the ask's: this pane owns the line under ask mode, so it renders both.
 		const uiExtensionTags = [...getActionBarChatExtensionTags(), ...getActionBarAskExtensionTags()];
-		// With an external output target the transcript lives there (see #syncExternalOutput); render only the input line.
-		const transcript = this.#outputTarget
-			? ""
-			: html`<div class="chat-output" data-testid=${`${this.testIdPrefix}chat-output`}>
-				${repeat(
-					this.#transcript(),
-					({ message }) => message.id,
-					({ message, shown }) =>
-						html`<shu-chat-message .message=${message} ?hidden=${!shown} aria-current=${message.recordId && message.recordId === this.#subject.record?.id ? "true" : nothing}></shu-chat-message>`,
-				)}
-			</div>`;
 		return html`
-			${transcript}
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
 				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
-				<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." @combo-change=${this.onSessionChange}></shu-combobox>
-				${showModel ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." @combo-change=${this.onModelChange}></shu-combobox>` : ""}
+				<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." .options=${this.#sessionOptions} .value=${conversation.session ?? NEW_CONVERSATION.value} @combo-change=${this.onSessionChange}></shu-combobox>
+				${this._models.length > 0 ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." .options=${this.#modelOptions} .value=${this.state.model} @combo-change=${this.onModelChange}></shu-combobox>` : ""}
 				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
 					<span>tool calls</span>
 					<input class="tool-limit" type="number" min=${TOOL_LIMIT_MIN} max=${TOOL_LIMIT_MAX} step="1" .value=${String(this.state.toolLimit)} data-testid=${`${this.testIdPrefix}tool-limit`} @change=${this.onToolLimitChange}>
@@ -430,41 +223,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 					${Object.entries(SENDS).map(([reading, sends]) => html`<option value=${reading}>send ${sends}</option>`)}
 				</select>
 				${unsafeHTML(uiExtensionTags.map((tag) => `<${tag}></${tag}>`).join(""))}
-				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${inFlight ? "display:none" : ""} @click=${this.submitChat}>Send</button>
-				<button type="button" class="stop-btn" data-testid=${`${this.testIdPrefix}chat-stop`} style=${inFlight ? "" : "display:none"} @click=${this.onStop}>Stop</button>
+				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${running ? "display:none" : ""} @click=${this.submitChat}>Send</button>
+				<button type="button" class="stop-btn" data-testid=${`${this.testIdPrefix}chat-stop`} style=${running ? "" : "display:none"} @click=${this.onStop}>Stop</button>
+				${refusal ? html`<span class="refusal" role="status">${refusal}</span>` : nothing}
 			</div>
 		`;
-	}
-
-	protected updated(): void {
-		this.wireListeners();
-		this.#syncExternalOutput();
-		if (this._scrollPending) {
-			this._scrollPending = false;
-			if (this.#outputTarget) {
-				this.#outputTarget.scrollToBottom();
-				return;
-			}
-			const out = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
-			if (out) out.scrollTop = out.scrollHeight;
-		}
-	}
-
-	/** Combo options are imperative props (not lit-bound); all event handlers are declarative (@event) so lit wires them once. Re-applying is idempotent but churns the combos, so the update is skipped when neither the model nor session data changed: the parent re-renders every streamed-text frame and the combos must not be reset 60×/s. */
-	private wireListeners(): void {
-		const sig = `${this._models.map((m) => m.id).join(",")}|${this.state.model}|${this._sessions.map((s) => s.sessionSeqPath).join(",")}|${this.state.session ?? ""}`;
-		if (sig === this._comboSig) return;
-		this._comboSig = sig;
-		const modelCombo = this.shadowRoot?.querySelector(".model-select") as ShuCombobox | null;
-		if (modelCombo) {
-			modelCombo.setOptions(this._models.map((m) => ({ value: m.id, label: m.displayName || m.id })));
-			if (this.state.model) modelCombo.setValue(this.state.model);
-		}
-		const sessionCombo = this.shadowRoot?.querySelector(".session-select") as ShuCombobox | null;
-		if (sessionCombo) {
-			sessionCombo.setOptions(this._sessions.map((s) => ({ value: s.sessionSeqPath, label: sessionOptionLabel(s) })));
-			if (this.state.session) sessionCombo.setValue(this.state.session);
-		}
 	}
 
 	private onModelChange = (e: CustomEvent): void => {
@@ -507,114 +270,46 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			this.submitChat();
 		}
 	};
+	/** Send the question, or show why it cannot be asked now. Send is hidden while a turn is in flight, and this check
+	 *  covers the Enter key and a conversation still opening. A refused question stays in the input. */
 	private submitChat = (): void => {
-		// The machine refuses a second turn while one runs. Send is hidden while a turn streams, and this check covers the
-		// Enter key. A refused submit shows the refusal on the running reply, so the pane does not appear unresponsive.
-		// The question stays in the input, and Stop aborts the running turn.
-		if (turnRefusal(this.#turn.state)) {
-			const answerId = this.#turnMessages?.answerId;
-			if (answerId) this.patchMessage(answerId, { spinnerStatus: TURN_STILL_RUNNING, spinnerVisible: true, spinnerSpinning: true });
-			return;
-		}
+		this.#refused = askRefusal(this.#conversation.state, this.#turn.state) !== null;
+		if (this.#refused) return this.requestUpdate();
 		const chatInput = this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null;
 		if (!chatInput?.value) return;
 		const value = chatInput.value;
 		chatInput.value = "";
 		chatInput.style.height = "auto";
-		void this.handleChat(value);
+		void this.ask(value);
 	};
 	private onStop = (): void => {
 		dispatchTurnEvent({ type: "stop", reason: "you stopped it" });
 	};
-	private nextId(): string {
-		return `m${++this._msgCounter}`;
-	}
-	/** Append already-validated messages and re-render. */
-	private appendMessages(...msgs: TChatMessage[]): void {
-		this._messages = [...this._messages, ...msgs];
-		this.requestUpdate();
-	}
-	/** Replace one message by id with a patched copy; unchanged messages keep their reference so keyed repeat skips them. */
-	private patchMessage(id: string, patch: Partial<TChatMessage>): void {
-		this._messages = this._messages.map((m) => (m.id === id ? { ...m, ...patch } : m));
-		this.requestUpdate();
-	}
-	private async handleChat(prompt: string): Promise<void> {
+
+	/** Ask the question in the conversation. It carries the active record's bundle, and replies to the actions bar's turn
+	 *  where the scope holds one: the latest answer, or the message the reader selected, where the conversation branches. */
+	private async ask(prompt: string): Promise<void> {
 		await getAvailableSteps();
 		await this.loadModels();
-		if (turnRefusal(this.#turn.state)) return; // one turn at a time; submitChat has said so on the turn that holds the pane
-		this._scrollPending = true;
-		// The question carries the active record's bundle, and replies to the conversation's entry where it has one: the
-		// latest answer, or the message the reader selected, where the conversation branches.
 		const subject = this.#subject.state;
 		const { carries, repliesTo } = nextQuestion(subject);
-		const bundle = carries?.bundle ?? entryOf([], appAccessLevel()).bundle;
+		const session = this.#conversation.state.session;
 		const inReplyTo = repliesTo?.seqPath;
-		const userId = this.nextId();
-		const aiId = this.nextId();
-		this.appendMessages(
-			ChatMessageSchema.parse({ id: userId, role: "user", text: prompt, bundle, inReplyTo }),
-			ChatMessageSchema.parse({ id: aiId, role: "llm", status: "asking", spinnerStatus: SENDING, spinnerVisible: true, spinnerSpinning: true, bundle, inReplyTo }),
-		);
-		this.#turnMessages = { askedId: userId, answerId: aiId };
-		// chat-turn runs the turn from here. It continues until its stream ends or the reader stops it.
 		await startTurn({
 			method: requireStep("chatWithContext"),
 			prompt,
-			bundle,
+			bundle: carries?.bundle ?? entryOf([], appAccessLevel()).bundle,
 			envelope: {
 				// The view data is the pane's, so it goes with a record the page activated.
 				viewLd: activeScope(subject) === SCOPE.page ? harvestChatViewLd() : [],
 				maxToolCalls: this.state.toolLimit,
 				...(this.state.contextReadBy ? { contextReadBy: this.state.contextReadBy } : {}),
-				...(this.state.session ? { sessionSeqPath: this.state.session } : {}),
+				...(session ? { sessionSeqPath: session } : {}),
 				...(inReplyTo ? { inReplyTo } : {}),
 			},
 			target: this.state.model,
 			why: "kihan-chat: stream LLM response",
 		});
-	}
-
-	/** Render the page's turn into the messages that show it. The pane that renders a turn's end settles it. */
-	private renderTurn(turn: TTurnState): void {
-		const held = this.#turnMessages;
-		if (!held || turn.status === "idle") return;
-		const [askedAs, answeredAs] = turn.recorded;
-		const named = turn.seqPath ? { seqPath: turn.seqPath } : {};
-		if (held.askedId) this.patchMessage(held.askedId, { ...named, ...(askedAs ? { recordId: askedAs.id } : {}) });
-		const inFlight = turnInFlight(turn);
-		this.patchMessage(held.answerId, {
-			...named,
-			...(answeredAs ? { recordId: answeredAs.id } : {}),
-			text: turn.text,
-			activity: turn.activity,
-			spinnerStatus: turn.activity.at(-1) ?? SENDING,
-			spinnerVisible: inFlight,
-			spinnerSpinning: inFlight,
-			status: turn.status,
-			error: turn.error,
-		});
-		if (inFlight) return;
-		this.#turnMessages = null;
-		this._scrollPending = true;
-		// Report a turn that did not complete to the run, so the run's log contains the error the pane shows.
-		if (turn.status !== "completed") reportToRun("error", "shu-kihan-chat", `chat turn ${turn.status === "stopped" ? `stopped, ${turn.stoppedBy}` : "failed"}: ${turn.error}`);
-		this.settleTurn(turn);
-	}
-
-	/** Record an ended turn in the pane: the session it started and the session list. The pane rendering the turn when it
-	 *  ends records it, or the pane that takes the turn over after it ended. */
-	private settleTurn(turn: TAskedTurn): void {
-		// The remembered session is the one the pane reads and sends, so a pane built later continues it.
-		if (turn.seqPath && !this.state.session) this.setState({ session: turn.seqPath });
-		if (turn.status === "completed") {
-			this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
-				const maybeSpeak = (el as { speak?: unknown }).speak;
-				if (typeof maybeSpeak === "function") maybeSpeak.call(el, turn.text);
-			});
-		}
-		// The run writes the turn whether or not its stream announced a seqPath, so the session list changes in both cases.
-		void this.refreshSessionList();
 	}
 }
 

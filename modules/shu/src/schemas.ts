@@ -200,6 +200,21 @@ export const ContextQuerySchema = z.array(ContextPatternSchema);
 export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel: z.string() });
 export type TBundle = z.infer<typeof BundleSchema>;
 
+/** A turn of a session as the store reads it back: its question and answer, their comments, the turn it replies to,
+ *  and the records its question referenced. */
+export const SessionTurnSchema = z.object({
+	prompt: z.string(),
+	response: z.string(),
+	seqPath: z.string(),
+	inReplyTo: z.string().optional(),
+	askId: z.string().optional(),
+	sayId: z.string().optional(),
+	bundle: ContextQuerySchema,
+});
+export type TSessionTurn = z.infer<typeof SessionTurnSchema>;
+/** A session's turns as the store reads them back, each turn's replies after it. */
+export const SessionReadSchema = z.object({ turns: z.array(SessionTurnSchema) });
+
 /** The ask is about one individual. */
 export const anIndividual = (persistedAs: string, id: string): TContextIndividual => ({ kind: DENOTES.individual, persistedAs, id });
 

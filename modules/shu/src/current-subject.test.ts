@@ -73,8 +73,16 @@ describe("each event", () => {
 		expect(scopeEntry(closed, SCOPE.actionsBar), "kept for the next open").toEqual(ANSWER);
 	});
 
+	it("clear removes the scope's entry and stamp, so the open scope activated before it leads, and an update after it is the oldest", () => {
+		const cleared = run(activate(SCOPE.page, EMAIL), open(SCOPE.actionsBar), activate(SCOPE.actionsBar, ANSWER), { type: "clear", scope: SCOPE.actionsBar });
+		expect(scopeEntry(cleared, SCOPE.actionsBar)).toBeNull();
+		expect(currentSubject(cleared), "a new conversation leaves the page's record leading").toEqual(EMAIL.record);
+		expect(currentSubject(transition(cleared, update(SCOPE.actionsBar, ANSWER))), "a session restored after it does not take the lead").toEqual(EMAIL.record);
+		expect(transition(INITIAL_SUBJECT, { type: "clear", scope: SCOPE.actionsBar }), "a scope with no entry is unchanged").toBe(INITIAL_SUBJECT);
+	});
+
 	it("lists every event it takes", () => {
-		expect([...SUBJECT_EVENTS]).toEqual(["activate", "update", "open", "close"]);
+		expect([...SUBJECT_EVENTS]).toEqual(["activate", "update", "clear", "open", "close"]);
 	});
 });
 
@@ -144,13 +152,16 @@ describe("any sequence of events", () => {
 				const event: TSubjectEvent = type === "activate" || type === "update" ? { type, scope, entry } : { type, scope };
 				path.push(`${type}:${scope}`);
 				state = transition(state, event);
-				if (type === "activate") {
+				if (type === "activate" || type === "clear") {
 					const at = activations.indexOf(scope);
 					if (at >= 0) activations.splice(at, 1);
+				}
+				if (type === "activate") {
 					activations.push(scope);
 					entries.set(scope, entry);
 				}
 				if (type === "update") entries.set(scope, entry);
+				if (type === "clear") entries.delete(scope);
 				if (type === "open") opened.add(scope);
 				if (type === "close") opened = new Set([...opened].filter((s) => s !== scope));
 				const lastActivated = [...activations].reverse().find((s) => opened.has(s));

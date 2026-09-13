@@ -3,19 +3,17 @@
  *
  * A turn is asked, starts when the run names its step, streams its text, its status lines and the comments it records,
  * and ends as completed, failed or stopped. `transition` states each move, and an event outside those moves leaves the
- * state unchanged. The request stream is an adapter that raises the events. A pane raises `stop` and `left` and renders
- * the state through a SignalController. The actions bar removes its pane when it closes. The turn is page-level, so it
- * continues, and the pane mounted next renders it as it stands.
- *
- * One turn is in flight at a time. The turn activates the actions bar's scope with each comment it records, the question
- * and then the answer, carrying the bundle it was sent with, while the reader stays in the session it was asked in.
+ * state unchanged. The request stream is an adapter that raises the events, and a pane raises `stop`. The turn is
+ * page-level, so it continues when the actions bar removes its pane. The conversation decides what the comments a turn
+ * records activate. One turn is in flight at a time.
  */
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SCOPE, activeEntry, dispatchSubjectEvent, scopeEntry, type TEntry, type TRecord, type TSubjectState } from "./current-subject.js";
+import { SCOPE, activeEntry, scopeEntry, type TEntry, type TRecord, type TSubjectState } from "./current-subject.js";
 import { acts, conduit } from "./hypermedia.js";
-import type { TBundle, TChatStatus } from "./schemas.js";
+import { reportToRun } from "./client-log.js";
+import type { TBundle, TChatStatus, TTurnStatus } from "./schemas.js";
 import { SharedSignal } from "./signals.js";
 
 /** A turn that was asked, in flight or ended. */
@@ -38,8 +36,6 @@ export type TAskedTurn = {
 	error: string;
 	/** The reason the reader gave to stop the turn, or empty when no reader stopped it. */
 	stoppedBy: string;
-	/** Whether the reader is still in the session the turn was asked in. A turn of a session the reader left activates nothing. */
-	ofOpenSession: boolean;
 };
 
 export type TTurnState = { status: "idle" } | TAskedTurn;
@@ -52,37 +48,33 @@ export type TTurnEvent =
 	| { type: "recorded"; record: TRecord }
 	| { type: "stop"; reason: string }
 	| { type: "ended" }
-	| { type: "erred"; message: string }
-	| { type: "left" };
+	| { type: "erred"; message: string };
 export type TTurnEventType = TTurnEvent["type"];
-export const TURN_EVENTS = ["ask", "started", "text", "status", "recorded", "stop", "ended", "erred", "left"] as const satisfies readonly TTurnEventType[];
+export const TURN_EVENTS = ["ask", "started", "text", "status", "recorded", "stop", "ended", "erred"] as const satisfies readonly TTurnEventType[];
 
 export const IDLE_TURN: TTurnState = { status: "idle" };
 
 /** The error of a turn whose stream ended before the run started its step. */
 export const NOT_STARTED = "the stream ended before the run started the turn's step";
 
-/** The statuses of a turn that was asked and has not ended. */
-export const IN_FLIGHT: readonly TChatStatus[] = ["asking", "running"];
-
-/** Whether the turn was asked and has not ended. */
-export function turnInFlight(turn: TTurnState): boolean {
-	return turn.status !== "idle" && IN_FLIGHT.includes(turn.status);
+/** Whether a turn with the status was asked and has not ended. */
+export function inFlight(status: TTurnStatus): boolean {
+	return status === "asking" || status === "running";
 }
 
 /** Why a new turn cannot start now, or null when one can. A turn is refused while another is in flight. */
 export function turnRefusal(turn: TTurnState): string | null {
-	return turnInFlight(turn) ? "a turn is running; wait for it to answer or stop it" : null;
+	return inFlight(turn.status) ? "a turn is running; wait for it to answer or stop it" : null;
 }
 
 /** The next state, for any state and any event. */
 export function transition(turn: TTurnState, event: TTurnEvent): TTurnState {
 	if (event.type === "ask") {
-		if (turnInFlight(turn)) return turn;
+		if (inFlight(turn.status)) return turn;
 		const { prompt, bundle, session, inReplyTo } = event;
-		return { status: "asking", prompt, bundle, session, inReplyTo, seqPath: null, text: "", activity: [], recorded: [], error: "", stoppedBy: "", ofOpenSession: true };
+		return { status: "asking", prompt, bundle, session, inReplyTo, seqPath: null, text: "", activity: [], recorded: [], error: "", stoppedBy: "" };
 	}
-	if (turn.status === "idle" || !turnInFlight(turn)) return turn;
+	if (turn.status === "idle" || !inFlight(turn.status)) return turn;
 	switch (event.type) {
 		case "started":
 			return turn.status === "asking" ? { ...turn, status: "running", seqPath: event.seqPath } : turn;
@@ -98,8 +90,6 @@ export function transition(turn: TTurnState, event: TTurnEvent): TTurnState {
 			return turn.status === "running" ? { ...turn, status: "completed" } : { ...turn, status: "failed", error: NOT_STARTED };
 		case "erred":
 			return turn.stoppedBy ? { ...turn, status: "stopped", error: `${turn.stoppedBy}: ${event.message}` } : { ...turn, status: "failed", error: event.message };
-		case "left":
-			return turn.ofOpenSession ? { ...turn, ofOpenSession: false } : turn;
 	}
 }
 
@@ -126,16 +116,9 @@ export function nextQuestion(state: TSubjectState): { carries: TEntry | null; re
 	return { carries: activeEntry(state), repliesTo: conversation?.seqPath ? conversation : null };
 }
 
-/** Raise the events one streamed chunk carries. A comment recorded by a turn of the reader's session activates the bar
- *  scope with the turn's bundle. */
+/** Raise the events one streamed chunk carries. */
 function raiseChunk(chunk: TStreamChunk): void {
-	if (chunk.recorded) {
-		const record = { id: chunk.recorded.id, label: chunk.recorded.persistedAs };
-		const turn = dispatchTurnEvent({ type: "recorded", record });
-		if (turn.status === "running" && turn.seqPath && turn.ofOpenSession && turn.recorded.includes(record)) {
-			dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record, seqPath: turn.seqPath, bundle: turn.bundle } });
-		}
-	}
+	if (chunk.recorded) dispatchTurnEvent({ type: "recorded", record: { id: chunk.recorded.id, label: chunk.recorded.persistedAs } });
 	if (chunk.status) dispatchTurnEvent({ type: "status", line: chunk.status });
 	if (chunk.text) dispatchTurnEvent({ type: "text", piece: chunk.text });
 }
@@ -143,7 +126,7 @@ function raiseChunk(chunk: TStreamChunk): void {
 /**
  * Ask a turn over the request stream, or throw the refusal while one is in flight. The promise resolves with the ended
  * state. A stop is an event like any other: the request is aborted when the state records one, and its rejection ends
- * the turn as stopped.
+ * the turn as stopped. A turn that does not complete is reported to the run, so the run's log holds the error it shows.
  */
 export async function startTurn(request: TTurnRequest): Promise<TTurnState> {
 	const refusal = turnRefusal(turnState.get());
@@ -167,5 +150,7 @@ export async function startTurn(request: TTurnRequest): Promise<TTurnState> {
 	} finally {
 		unsubscribe();
 	}
-	return turnState.get();
+	const ended = turnState.get();
+	if (ended.status === "failed" || ended.status === "stopped") reportToRun("error", "chat-turn", `chat turn ${ended.status}: ${ended.error}`);
+	return ended;
 }
