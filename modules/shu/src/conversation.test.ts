@@ -9,6 +9,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { anIndividual, type TSessionTurn } from "./schemas.js";
+import { readBack as aReadBack } from "./components/chat-pane.test-fake.js";
 import { IDLE_TURN, transition as turnTransition, turnRefusal, type TTurnEvent, type TTurnState } from "./chat-turn.js";
 import {
 	CLOSED_CONVERSATION,
@@ -28,16 +29,8 @@ const SESSION = "0.1.1";
 const EMAIL = anIndividual("Email", "a@test.com");
 const LEVEL = "private";
 
-/** A turn as the store reads it back: its question, answer and comments, and the turn it replies to. */
-const readBack = (seqPath: string, inReplyTo?: string): TSessionTurn => ({
-	prompt: `asked ${seqPath}`,
-	response: `answered ${seqPath}`,
-	seqPath,
-	...(inReplyTo ? { inReplyTo } : {}),
-	askId: `cmt-ask-${seqPath}`,
-	sayId: `cmt-say-${seqPath}`,
-	bundle: [EMAIL],
-});
+/** A turn of the session as the store reads it back, asked about the email. */
+const readBack = (seqPath: string, inReplyTo?: string): TSessionTurn => aReadBack(seqPath, inReplyTo, [EMAIL]);
 
 /** One event of each type, for the session the conversation opens. */
 const EVENT: Record<TConversationEventType, TConversationEvent> = {

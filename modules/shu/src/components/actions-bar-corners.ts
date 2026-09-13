@@ -4,7 +4,7 @@
  * corner is open at a time. The popover floats in the top layer above the whole bar, so it never needs the bar opened
  * and never covers the bar's own input line.
  */
-import { html, nothing, type ReactiveController, type ReactiveControllerHost, type TemplateResult } from "lit";
+import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { AuthorityController } from "../controllers/index.js";
@@ -14,7 +14,7 @@ import { runSpan } from "../client-cache/index.js";
 import { getUiExtensionTags } from "../rels-cache.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
-import { timeOffsetLabel } from "./actions-bar-model.js";
+import { timeOffsetLabel, type TActionsBarHost } from "./actions-bar-model.js";
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 export type TCorner = (typeof CORNERS)[number];
@@ -45,17 +45,15 @@ export function timeOffsetOf(cursor: number | null): string {
 	return timeOffsetLabel(cursor, first, last);
 }
 
-/** What the corners read from the bar: its test-id prefix, the read access level and how to change it, and the popover
- *  element once rendered. */
+/** What the corners read from the bar: its test-id prefix, and the read access level and how to change it. */
 export type TActionsBarCornersDeps = {
 	testIdPrefix: () => string;
 	accessLevel: () => string;
 	setAccessLevel: (level: string) => void;
-	popover: () => HTMLElement | null;
 };
 
 export class ActionsBarCorners implements ReactiveController {
-	readonly #host: ReactiveControllerHost & HTMLElement;
+	readonly #host: TActionsBarHost;
 	readonly #deps: TActionsBarCornersDeps;
 	/** What this reader holds and how many grants stand behind them: the access indicator says both beside the level. */
 	readonly #authority: AuthorityController;
@@ -65,7 +63,7 @@ export class ActionsBarCorners implements ReactiveController {
 	#awaiting: TAwaiting = { count: 0, ref: null };
 	#timeOffset = "now";
 
-	constructor(host: ReactiveControllerHost & HTMLElement, deps: TActionsBarCornersDeps) {
+	constructor(host: TActionsBarHost, deps: TActionsBarCornersDeps) {
 		this.#host = host;
 		this.#deps = deps;
 		this.#authority = new AuthorityController(host);
@@ -96,10 +94,6 @@ export class ActionsBarCorners implements ReactiveController {
 		return this.#open;
 	}
 
-	get awaiting(): TAwaiting {
-		return this.#awaiting;
-	}
-
 	/** Say something on the strip, in full in the status popover. */
 	setStatus(message: string): void {
 		this.#status = message;
@@ -128,7 +122,7 @@ export class ActionsBarCorners implements ReactiveController {
 	}
 
 	close(): void {
-		const popover = this.#deps.popover();
+		const popover = this.#popover();
 		if (popover?.matches(":popover-open")) popover.hidePopover();
 		this.#open = null;
 		this.#host.requestUpdate();
@@ -223,6 +217,11 @@ export class ActionsBarCorners implements ReactiveController {
 		this.#host.requestUpdate();
 	};
 
+	/** The popover the corners share, once rendered. */
+	#popover(): HTMLElement | null {
+		return this.#host.renderRoot.querySelector<HTMLElement>(".corner-popover");
+	}
+
 	/** A click outside the bar closes an open picker. */
 	#onDocumentClick = (e: Event): void => {
 		if (!e.composedPath().includes(this.#host)) this.dismissPicker();
@@ -231,7 +230,7 @@ export class ActionsBarCorners implements ReactiveController {
 	/** Float the popover just above the whole bar's top edge, its right edge over the control that opened it. The corner
 	 *  controls sit at the bar's bottom, so a popover opening up from the strip would cover the open bar's input line. */
 	#show(control: HTMLElement): void {
-		const popover = this.#deps.popover();
+		const popover = this.#popover();
 		if (!popover) throw new Error("actions-bar: corner popover missing from the rendered template");
 		popover.style.margin = "0";
 		popover.style.inset = "auto";

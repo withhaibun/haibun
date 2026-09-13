@@ -37,13 +37,8 @@ async function aQueryPage(hash = "") {
 	host.addEventListener(SHU_EVENT.FILTER_CHANGE, (e) => changes.push((e as CustomEvent<TFilterChange>).detail));
 	const query = new ActionsBarQuery(host, {
 		testIdPrefix: () => "app-",
-		history: () => searches as never,
-		find: (selector) => host.querySelector(selector),
-		findAll: (selector) => Array.from(host.querySelectorAll(selector)),
+		history: searches as never,
 		setStatus: () => undefined,
-		fail: (message) => {
-			throw new Error(message);
-		},
 		onTrailChange: () => undefined,
 	});
 	await query.loadDomains();

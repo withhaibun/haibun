@@ -759,9 +759,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// reader of this snapshot has not yet seen the effect of the change that scheduled it (a z-basis switch, a
 			// grouping toggle). The engine is idle in that window, so engineMode alone would call it settled.
 			repaintPending: this.repaintTimer !== undefined || this.layoutTimer !== undefined,
-			// The camera moved and has not rested yet, so following has not checked the node is still in view. A reader of
-			// this snapshot has not seen where following puts the camera.
-			followPending: this.cameraRestTimer !== undefined,
+			// The camera moved and has not rested yet, or the column resized and the frame has not been fitted to it, so
+			// following has not checked the node is still in view. A reader of this snapshot has not seen where following
+			// puts the camera.
+			followPending: this.cameraRestTimer !== undefined || this.fitFrameTimer !== undefined,
 			// Render-stage timing accumulated since the last resetProfile(): how raising the per-type limit uses the
 			// main thread, split into compute / force-warmup / label-textures (the profiling control step reads this).
 			profile: this.profiler.profile,
@@ -1314,6 +1315,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// jitter as the lib resizes the renderer. Wait for the animation to settle, then apply the final size.
 		clearTimeout(this.fitFrameTimer);
 		this.fitFrameTimer = window.setTimeout(() => {
+			this.fitFrameTimer = undefined;
 			const w = container.clientWidth;
 			const h = container.clientHeight;
 			if (w && h) this.renderer?.size(w, h);

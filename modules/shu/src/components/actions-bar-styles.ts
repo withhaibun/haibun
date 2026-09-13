@@ -1,13 +1,12 @@
 /**
  * The actions bar's styles: its overlay and strip, the input line of each mode, the shared output region and the records
- * every mode writes into it. The rules are a plain string read through unsafeCSS, because they carry CSS escapes such as
- * a content glyph's code point, which a css template literal refuses.
+ * every mode writes into it.
  */
-import { css, unsafeCSS, type CSSResultGroup } from "lit";
+import { css, type CSSResultGroup } from "lit";
 import { chatMessageStyles } from "./shu-chat-message.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 
-const STYLES = `
+const STYLES = css`
 	/* A bottom-anchored, translucent overlay: it floats up over the content from the bottom edge instead of taking
 	   layout space, so the rows behind it never resize. Self-positioning, drop it into any position:relative host
 	   (the app shell or a column view) and it pins to that host's bottom. */
@@ -144,4 +143,4 @@ const STYLES = `
 	shu-kihan-chat { display: flex; flex: 0 0 auto; min-width: 0; }
 `;
 
-export const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, shuIconButtonStyles, chatMessageStyles, css`${unsafeCSS(STYLES)}`];
+export const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, shuIconButtonStyles, chatMessageStyles, STYLES];

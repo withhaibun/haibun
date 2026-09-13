@@ -4,9 +4,14 @@
  * already holds, so it can be read and tested without a browser, as `petitions-model.ts` is to its panel.
  */
 
+import type { ReactiveControllerHost } from "lit";
 import { clamp } from "../util.js";
 import type { TContextPattern, TContextIndividual } from "../schemas.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
+
+/** The element each of the bar's subsystems is held by: it holds controllers, renders into its root, and is where a
+ *  subsystem finds the elements its own template rendered. */
+export type TActionsBarHost = ReactiveControllerHost & HTMLElement & { readonly renderRoot: ParentNode };
 
 /** What the bar knows about the view behind the selection, for when the patterns do not name one. */
 export type TContextExtra = { total?: number; label?: string; folder?: string };

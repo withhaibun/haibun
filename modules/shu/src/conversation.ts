@@ -15,7 +15,7 @@
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import type { TChatMessage } from "./components/shu-chat-message.js";
-import { inFlight, turnRefusal, turnState, type TAskedTurn, type TTurnState } from "./chat-turn.js";
+import { inFlight, turnEnded, turnRefusal, turnState, type TAskedTurn, type TTurnState } from "./chat-turn.js";
 import { reportToRun } from "./client-log.js";
 import { CONVERSATION_PARAM } from "./consts.js";
 import { SCOPE, dispatchSubjectEvent } from "./current-subject.js";
@@ -83,8 +83,9 @@ export function askRefusal(conversation: TConversationState, turn: TTurnState): 
 	return turnRefusal(turn) ?? (conversation.status === "opening" ? CONVERSATION_OPENING : null);
 }
 
-/** A turn as the transcript shows it, keyed by its seqPath, or as pending before its step starts. */
-type TShownTurn = Omit<TConversationTurn, "seqPath"> & { key: string; seqPath?: string; status: TChatStatus; shownBundle: TBundle };
+/** A turn as the transcript shows it, keyed by its seqPath, or as pending before its step starts, with the bundle its
+ *  messages carry. */
+type TShownTurn = Omit<TConversationTurn, "seqPath" | "bundle"> & { key: string; seqPath?: string; status: TChatStatus; bundle: TBundle };
 
 /** The conversation's turns and the page's turn where it is one of them, not yet appended. */
 function shownTurns(conversation: TConversationState, turn: TTurnState, accessLevel: string): TShownTurn[] {
@@ -92,10 +93,10 @@ function shownTurns(conversation: TConversationState, turn: TTurnState, accessLe
 		...held,
 		key: held.seqPath,
 		status: held.status ?? "completed",
-		shownBundle: { patterns: held.bundle, accessLevel },
+		bundle: { patterns: held.bundle, accessLevel },
 	}));
 	if (turn.status === "idle" || !turnOfConversation(conversation, turn) || shown.some((held) => held.seqPath === turn.seqPath)) return shown;
-	return [...shown, { ...heldTurn(turn), key: turn.seqPath ?? PENDING, seqPath: turn.seqPath ?? undefined, status: turn.status, shownBundle: turn.bundle }];
+	return [...shown, { ...heldTurn(turn), key: turn.seqPath ?? PENDING, seqPath: turn.seqPath ?? undefined, status: turn.status, bundle: turn.bundle }];
 }
 
 /** The page's turn as the conversation holds it, but for the seqPath its step is named by. */
@@ -136,12 +137,12 @@ function branch(turns: TShownTurn[], onTurn: string | undefined): { onPath: Set<
 	for (const key of onPath) {
 		const off = (childrenOf.get(key) ?? []).filter((child) => !onPath.has(child));
 		const latest = off.length > 0 ? byKey.get(newestLeafBelow(off[off.length - 1])) : undefined;
-		if (latest?.sayId && latest.seqPath) others.set(key, { recordId: latest.sayId, seqPath: latest.seqPath, bundle: latest.shownBundle, count: off.length });
+		if (latest?.sayId && latest.seqPath) others.set(key, { recordId: latest.sayId, seqPath: latest.seqPath, bundle: latest.bundle, count: off.length });
 	}
 	return { onPath, others };
 }
 
-export type TTranscriptEntry = { message: TChatMessage; shown: boolean };
+type TTranscriptEntry = { message: TChatMessage; shown: boolean };
 
 /**
  * The messages a transcript shows, in order: each turn's question and answer, keyed by the turn. Every turn's messages
@@ -152,7 +153,7 @@ export function transcript(conversation: TConversationState, turn: TTurnState, o
 	const turns = shownTurns(conversation, turn, accessLevel);
 	const { onPath, others } = branch(turns, onTurn);
 	return turns.flatMap((shownTurn): TTranscriptEntry[] => {
-		const { key, seqPath, inReplyTo, shownBundle: bundle, status, activity = [] } = shownTurn;
+		const { key, seqPath, inReplyTo, bundle, status, activity = [] } = shownTurn;
 		const shown = onPath.has(key);
 		const running = inFlight(status);
 		const otherBranch = others.get(key);
@@ -235,21 +236,13 @@ function followTurn(turn: TTurnState, before: TTurnState): void {
 	) {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record, seqPath: turn.seqPath, bundle: turn.bundle } });
 	}
-	if (inFlight(before.status) && !inFlight(turn.status) && turn.seqPath) {
+	if (turnEnded(before.status, turn.status) && turn.seqPath) {
 		dispatchConversationEvent({ type: "turnEnded", session: turn.session ?? turn.seqPath, turn: { ...heldTurn(turn), seqPath: turn.seqPath } });
 	}
 }
 
-let lastTurn = turnState.get();
-turnState.subscribe((turn) => {
-	const before = lastTurn;
-	lastTurn = turn;
-	followTurn(turn, before);
-});
+turnState.subscribe(followTurn);
 
-let addressed = conversationState.get().session;
-conversationState.subscribe((conversation) => {
-	if (conversation.session === addressed) return;
-	addressed = conversation.session;
-	mergeHashParams({ [CONVERSATION_PARAM]: conversation.session ?? "" });
+conversationState.subscribe((conversation, before) => {
+	if (conversation.session !== before.session) mergeHashParams({ [CONVERSATION_PARAM]: conversation.session ?? "" });
 });

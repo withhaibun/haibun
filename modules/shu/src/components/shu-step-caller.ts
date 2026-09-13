@@ -57,17 +57,6 @@ export class StepCaller extends HTMLElement {
 		void this.init();
 	}
 
-	/** Reset and re-initialize with a new step (e.g. when user picks a different step). */
-	reset(stepName: string): void {
-		this.setAttribute("step", stepName);
-		this.descriptor = undefined;
-		this._executed = false;
-		this.result = null;
-		this.error = "";
-		this.lastFormValues = {};
-		void this.init();
-	}
-
 	async init(): Promise<void> {
 		this.result = null;
 		this.error = "";

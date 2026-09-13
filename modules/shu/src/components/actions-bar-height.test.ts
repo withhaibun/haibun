@@ -21,8 +21,9 @@ function aBar(initial: Partial<THeightState> = {}): TBar {
 	provideLayout();
 	const host = aControllerHost();
 	const container = document.createElement("div");
-	const summary = document.createElement("div");
-	const frame = document.createElement("div");
+	const frame = Object.assign(document.createElement("div"), { className: "actions-bar" });
+	const summary = Object.assign(document.createElement("div"), { className: "summary-bar" });
+	host.append(frame, summary);
 	container.append(host);
 	document.body.append(container);
 	const sizes = { bar: 200, strip: 40 };
@@ -34,8 +35,6 @@ function aBar(initial: Partial<THeightState> = {}): TBar {
 	bar.height = new ActionsBarHeight(host, {
 		state: () => bar.state,
 		setState: (patch) => Object.assign(bar.state, patch),
-		strip: () => ({ summary, frame }),
-		focusInput: () => undefined,
 	});
 	bar.height.hostConnected();
 	return bar;

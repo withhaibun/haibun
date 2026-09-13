@@ -7,6 +7,8 @@
  * server is one edit rather than two.
  */
 
+import type { TSessionTurn } from "../schemas.js";
+
 export type TReq = { method: string; params?: Record<string, unknown> };
 /** What a read is answered with, which a case may answer with a promise of its own to hold the read open. */
 export type TFollow = (req: TReq) => unknown;
@@ -22,6 +24,17 @@ export const hypermedia = (follow: TFollow, followStream: TStream) => ({
 	isOffline: () => false,
 	isServerUnreachable: () => false,
 	conduit: () => ({ follow: (req: TReq) => Promise.resolve(follow(req)), followStream }),
+});
+
+/** A turn of a session as the store reads it back, its question, answer and comments named by its seqPath. */
+export const readBack = (seqPath: string, inReplyTo?: string, bundle: TSessionTurn["bundle"] = []): TSessionTurn => ({
+	prompt: `asked ${seqPath}`,
+	response: `answered ${seqPath}`,
+	seqPath,
+	...(inReplyTo ? { inReplyTo } : {}),
+	askId: `cmt-ask-${seqPath}`,
+	sayId: `cmt-say-${seqPath}`,
+	bundle,
 });
 
 /** The pane as a case drives it: the element, and what a case calls on it. */
