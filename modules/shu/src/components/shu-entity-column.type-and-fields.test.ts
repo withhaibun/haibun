@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The details disclosure's summary is the type name as a link to the type's own view; its body is the type's description.
+// A record's view names its type as a link to the type's own view, which holds the description, and lists the record's fields.
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import { ShuEntityColumn } from "./shu-entity-column.js";
@@ -31,7 +31,7 @@ const render = async (type: string): Promise<string> => {
 	return el.shadowRoot?.innerHTML ?? "";
 };
 
-describe("shu-entity-column type description", () => {
+describe("shu-entity-column type and fields", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		setConcernCatalog(buildConcernCatalog({ widget: typeDomain("Widget", "widget", "A widget.") }));
@@ -39,18 +39,16 @@ describe("shu-entity-column type description", () => {
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 
-	it("shows the type name as a type-view link in the disclosure summary and its description as the body", async () => {
+	it("names the type as a link to the type's own view, which holds its description, and leaves the description there", async () => {
 		const html = await render("Widget");
-		// The summary's type name is a link to the type's own view (rel type-ref), not plain text.
 		expect(html).toContain('data-testid="entity-type-link"');
-		expect(html).toContain(">Widget</a></summary>");
 		expect(html).toContain('rel="type-ref"');
-		expect(html).toContain('data-testid="entity-type-description"');
-		expect(html).toContain("A widget.");
+		expect(html).toContain(">Widget</a>");
+		expect(html).not.toContain("A widget.");
 	});
 
-	it("is empty for an ad-hoc result view with no registered type", async () => {
-		expect(await render("Result")).not.toContain('data-testid="entity-type-description"');
+	it("names no type for an ad-hoc result view with no registered type", async () => {
+		expect(await render("Result")).not.toContain('data-testid="entity-type-link"');
 	});
 
 	it("shows non-summary fields in a visible fields section (not buried in the collapsed disclosure)", async () => {
@@ -89,5 +87,8 @@ describe("shu-entity-column type description", () => {
 		expect(html).toContain(">@type</td>");
 		expect(html).toContain('rel="type-ref"');
 		expect(html).toContain("AquaticAnimalImportPermit");
+		// Who may see the record is shown as its field, under no heading of its own.
+		expect(html).toContain('data-testid="entity-governance"');
+		expect(html).not.toContain(">Governance<");
 	});
 });
