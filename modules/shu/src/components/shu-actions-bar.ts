@@ -9,12 +9,11 @@ import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import type { PropertyValues, CSSResultGroup } from "lit";
-import { AuthorityController, SignalController } from "../controllers/index.js";
-import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
+import { SignalController } from "../controllers/index.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import { ActionsBarHeight } from "./actions-bar-height.js";
-import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, AWAITING_DECISION, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
+import { ActionsBarCorners } from "./actions-bar-corners.js";
+import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, parseFilterParam } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, serializeViewQuery } from "../view-query.js";
@@ -23,23 +22,19 @@ import { viewQuery, serializeViewQuery } from "../view-query.js";
 // customElements.define side effect and leaving un-upgraded elements at runtime.
 import { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
-import { PaneState } from "../pane-state.js";
-import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { prettifyGwta, appAccessLevel } from "../util.js";
-import { contextLabel, isEntitySelection, timeOffsetLabel } from "./actions-bar-model.js";
+import { contextLabel, isEntitySelection } from "./actions-bar-model.js";
 import { isServerUnreachable } from "../hypermedia.js";
 import { closeConversation, conversationState, openConversation } from "../conversation.js";
 import { hashParam, onHashChanged } from "../view-hash.js";
 import { selectValuesFor } from "../quads-snapshot.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
-import { runSpan } from "../client-cache/index.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, stepsForContext, type DomainOption, type StepDescriptor, isOffline } from "../rpc-registry.js";
 import {
 	getActionBarChatExtensionTags,
-	getUiExtensionTags,
 	getQueryableFields,
 	addObservedSelectValues,
 	getSelectValues,
@@ -88,12 +83,6 @@ function stepDetails(s: StepDescriptor): string {
 
 type TMode = z.infer<typeof ActionsBarSchema>["mode"];
 
-type TCorner = "settings" | "playback" | "access" | "status";
-/** Per-corner dismiss policy. Transient pickers dismiss on a click away; a panel is used alongside the view (scrub the
- *  cursor playing, then click nodes/rows to inspect them at that time) so only its own toggle closes it. A new corner
- *  must declare which it is. */
-const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", playback: "panel", status: "click-away" };
-
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
@@ -107,17 +96,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** The read access every query here runs at, opening at the level the page opened at: one reader of the view hash,
 	 *  so the bar and the snapshot cannot open at different levels. */
 	private _contextAccessLevel: string = appAccessLevel();
-	private _statusMessage = "";
-	/** What this reader holds and how many grants stand behind them: the indicator says both beside the level, so a
-	 *  reader sees at a glance that there is authority here to look at. */
-	#authority = new AuthorityController(this);
-	private _summary: TPermissionsSummary = { holds: 0, principals: 0, grants: 0 };
-	/** What an extension in the permissions area says awaits the reader's decision: how many, and the reference that
-	 *  leads to them. The bar marks that something is waiting and renders the reference; what kind of thing it is
-	 *  belongs to whichever extension reported it. */
-	private _awaiting = 0;
-	private _awaitingRef: { kind: TRefKind; target: Record<string, unknown> } | null = null;
-	private _timeOffsetLabel = "now";
 	private _columns: string[] = [];
 	private _queryLabel = "All";
 	private _activeViewIndex = 0;
@@ -139,12 +117,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _hasAskCapableStep = false;
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _searchDebounce: ReturnType<typeof setTimeout> | null = null;
-	/** Which lower-right corner popover is open: the gear's settings, playback (over the current-time display), or the access control. At most one. */
-	private _openCorner: TCorner | null = null;
-	/** A click outside the bar closes a corner popover that dismisses on a click away. */
-	private _onDocumentClick = (e: Event): void => {
-		if (this._openCorner && CORNER_DISMISS[this._openCorner] === "click-away" && !e.composedPath().includes(this)) this.closeCornerPopover();
-	};
+	/** The corner controls and their popover: settings, access and authority, the time offset and playback, the status. */
+	#corners = new ActionsBarCorners(this, {
+		testIdPrefix: () => this.testIdPrefix,
+		accessLevel: () => this._contextAccessLevel,
+		setAccessLevel: (level) => this.setAccessLevel(level),
+		popover: () => this.shadowRoot?.querySelector<HTMLElement>(".corner-popover") ?? null,
+	});
 	/** How the bar stands: open or closed, pinned, dragged, and the footprint of its closed strip. */
 	#height = new ActionsBarHeight(this, {
 		state: () => this.state,
@@ -290,27 +269,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		bc.setTrail(this._queryLabel, this._columns, this._activeViewIndex);
 	}
 
-	private _onPermissionsSummary = (e: Event): void => {
-		this.setSummary((e as CustomEvent<TPermissionsSummary>).detail);
-	};
-
-	private _onAwaitingDecision = (e: Event): void => {
-		const detail = (e as CustomEvent<{ count?: number; kind?: string; target?: Record<string, unknown> }>).detail;
-		const count = Number(detail?.count ?? 0);
-		if (!Number.isFinite(count)) return;
-		this._awaiting = Math.max(0, count);
-		this._awaitingRef = isRefKind(detail?.kind) && detail.target ? { kind: detail.kind, target: detail.target } : null;
-		this.requestUpdate();
-	};
-
-	private setSummary(summary: TPermissionsSummary): void {
-		this._summary = summary;
-		this.requestUpdate();
-	}
-
+	/** Say something on the strip. */
 	setStatus(message: string): void {
-		this._statusMessage = message;
-		this.requestUpdate();
+		this.#corners.setStatus(message);
 	}
 
 	private failFast(message: string): never {
@@ -348,7 +309,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	};
 
 	protected override onConnected(): void {
-		document.addEventListener("click", this._onDocumentClick, true);
 		this.addEventListener("step-success", this._onStepSettled);
 		this.addEventListener("step-error", this._onStepSettled);
 		// The shared output region carries the one output test id every mode's assertions point at.
@@ -357,16 +317,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.#height.openIfPinned();
 		this.followConversationAddress();
 		this.autoTeardown(onHashChanged(this.followConversationAddress));
-		// What authority stands here, for the indicator: read once so the numbers are there before the panel is opened,
-		// and taken from the panel thereafter, since the panel reads again whenever anything changes what holds.
-		void this.#authority
-			.read()
-			.then((held) => this.setSummary(summaryOf(held)))
-			.catch(() => undefined);
-		this.addEventListener(PERMISSIONS_SUMMARY, this._onPermissionsSummary);
-		// An extension in the permissions area reports what awaits from anywhere in the page, so the mark shows before
-		// the popover has ever been opened: a notification a reader has to go looking for is not one.
-		this.autoListen(document, AWAITING_DECISION, this._onAwaitingDecision);
 
 		void Promise.all([this.loadDomainOptions(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
 			// What this bar offers comes from the server; unreachable, it reports that and the page reads what it caches.
@@ -394,7 +344,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				this.subscribeBatched({
 					onBatch: (events) => {
 						// The run has moved on, so where the cursor sits in it may read differently.
-						this.#showTimeOffset(this.formatTimeOffset(this.timeCursor));
+						this.#corners.showTime(this.timeCursor);
 						// The values are in the quads the batch carries, so they are taken from it. Answering a change by
 						// asking the server again is what made this a loop: the question is itself a step, the step is
 						// recorded in the graph, and that recording is another change to answer, every debounce forever.
@@ -407,7 +357,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	protected override onDisconnected(): void {
-		document.removeEventListener("click", this._onDocumentClick, true);
 		this.removeEventListener("step-success", this._onStepSettled);
 		this.removeEventListener("step-error", this._onStepSettled);
 		this._unsubscribeEvents?.();
@@ -579,23 +528,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 * every view is showing now and a real offset once a moment is pinned.
 	 */
 	protected onTimeSync(cursor: number | null): void {
-		this.#showTimeOffset(this.formatTimeOffset(cursor));
-	}
-
-	#showTimeOffset(label: string): void {
-		if (label === this._timeOffsetLabel) return;
-		this._timeOffsetLabel = label;
-		this.requestUpdate();
-	}
-
-	/** Where in the run the cursor sits. The span is read off the shared event log without registering a window: this
-	 *  bar is mounted for the whole session, so asking for one would page the entire run in at boot and pin it there,
-	 *  and the log could never evict past a window nobody gives up. Nor is it inferred from the cursors themselves,
-	 *  which a rail publishes one at a time on a deliberate seek, leaving the span degenerate until a second arrives. */
-	private formatTimeOffset(cursor: number | null): string {
-		if (cursor == null || cursor <= 0) return "now";
-		const { first, last } = runSpan();
-		return timeOffsetLabel(cursor, first, last);
+		this.#corners.showTime(cursor);
 	}
 
 	/** Lit handles the render via the standard `render() \u2192 TemplateResult \u2192 reconcile against the shadow root` path. `updated()` is where side-effects that depend on the freshly-reconciled DOM run \u2014 wiring drag handlers to nodes Lit just mounted, pushing combobox option lists, etc. */
@@ -644,40 +577,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			</div>`;
 	}
 
-	/** The one corner-popover surface: each corner control (the current time, the access level, the gear) toggles its
-	 *  panel just above itself. A native `popover` renders in the top layer, so it floats over whatever is behind it
-	 *  without opening the actions bar: the element stays in this shadow tree, so the bar's styles still apply. */
-	private cornerPopoverTemplate(): TemplateResult {
-		const content =
-			this._openCorner === "settings"
-				? html`<shu-theme-switch></shu-theme-switch>`
-				: this._openCorner === "playback"
-					? html`<shu-playback></shu-playback>`
-					: this._openCorner === "status"
-						? html`<p class="status-full">${this._statusMessage}<shu-copy-button label="copy" title="copy this message" .source=${this._statusMessage}></shu-copy-button></p>`
-						: this._openCorner === "access"
-							? html`<shu-permissions
-								data-testid=${`${this.testIdPrefix}permissions`}
-								.level=${this._contextAccessLevel}
-								.levels=${AccessQueryLevelSchema.options}
-								.awaiting=${this._awaiting}
-								.awaitingRef=${this._awaitingRef}
-								.onLevelChange=${(level: string) => this.setAccessLevel(level)}
-							></shu-permissions>`
-							: nothing;
-		const testid = this._openCorner ? `${this.testIdPrefix}${this._openCorner}-popover` : nothing;
-		// stopPropagation: clicks must not bubble to the summary strip's expand handler. MANUAL popover deliberately:
-		// these panels are used alongside the page (set the run playing, then click a node to see it at that time), so
-		// they stay put on outside clicks, only their own control puts them away. Never over the bar's own controls:
-		// showCornerPopover anchors above the whole bar.
-		// The permissions extensions are mounted whether or not the popover is open: an extension that only exists once
-		// a reader opens the panel cannot tell them there is something in it to open it for. They are shown with the
-		// access panel and hidden otherwise, so the reading is in one place and the notification arrives before it.
-		return html`<div class="corner-popover" popover="manual" data-testid=${testid} @click=${(e: Event) => e.stopPropagation()}>${content}
-			<div class="permissions-extensions" ?hidden=${this._openCorner !== "access"}>${this.permissionsExtensionsTemplate()}</div>
-		</div>`;
-	}
-
 	private summaryTemplate(): TemplateResult {
 		const pinned = this.state.pinned;
 		const expanded = this.state.askExpanded;
@@ -685,81 +584,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// not the full-width strip (a wide div's center lands on empty space / a child and reads as outside the viewport).
 		// So the test-id rides this chevron; the strip still expands on a bare click for the human.
 		return html`<div class="summary-bar" @click=${this.#height.onStripClick}>
-			${this.cornerPopoverTemplate()}
+			${this.#corners.popoverTemplate()}
 			<button class="bar-twisty" aria-label=${expanded ? "Collapse actions bar" : "Expand actions bar"} aria-expanded=${expanded}
 				data-testid=${`${this.testIdPrefix}summary-bar`} @click=${this.#height.onTwistyToggle}>${expanded ? "▾" : "▴"}</button>
-			<button class="status-area" style=${this._statusMessage ? "" : "display:none"} aria-expanded=${this._openCorner === "status"}
-				title="what this says, in full" data-testid=${`${this.testIdPrefix}status`} @click=${this.onCornerToggle("status")}>${this._statusMessage}</button>
+			${this.#corners.statusTemplate()}
 			<shu-breadcrumb></shu-breadcrumb>
-			<span class="corner-controls">
-				<button class="pane-icon corner-toggle access-indicator ${this._awaiting > 0 ? "awaiting" : ""}" aria-label="Access level" aria-expanded=${this._openCorner === "access"}
-					title=${`read access ${this._contextAccessLevel}; ${this._summary.holds} actions held, ${this._summary.principals} principals, ${this._summary.grants} grants${this._awaiting > 0 ? `; ${this._awaiting} awaiting your decision` : ""}`}
-					data-testid=${`${this.testIdPrefix}access-indicator`} @click=${this.onCornerToggle("access")}>${this._contextAccessLevel}
-					+${this._summary.holds}+${this._summary.principals}+${this._summary.grants}${
-						this._awaiting > 0 ? html`<span class="awaiting-count" title=${`${this._awaiting} awaiting your decision`}>${this._awaiting}</span>` : nothing
-					}</button>
-
-				<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this._openCorner === "settings"} data-testid=${`${this.testIdPrefix}settings-button`}
-					@click=${this.onCornerToggle("settings")}>\u2699</button>
-				<button class="pane-icon corner-toggle time-offset" aria-label="Open the log" aria-expanded=${this._openCorner === "playback"}
-					title="where the run is; opens the log, whose rail is where you move it from"
-					data-testid=${`${this.testIdPrefix}time-offset`} @click=${this.onNowClick}>${this._timeOffsetLabel}</button>
-			</span>
+			${this.#corners.controlsTemplate()}
 			<button class="pane-icon" aria-label=${pinned ? "Unpin actions bar" : "Pin actions bar open"} aria-pressed=${pinned}
 				data-testid=${`${this.testIdPrefix}ask-button`} @click=${this.#height.onPinToggle}>\u{1F4CC}</button>
 		</div>`;
-	}
-
-	/** `now` says where the run has got to, and is how the log is opened. The log's own rail is where a reader moves
-	 *  through the run, so opening it lands on that rail: minimized, unless it is already open, in which case it is left
-	 *  exactly as the reader has it. The controls this reveals are what a rail cannot do: move on its own. */
-	private onNowClick = (e: Event): void => {
-		const tag = SHU_TAG.MONITOR_COLUMN;
-		PaneState.request({ paneType: "component", tag, label: "Monitor", ...(PaneState.has(tag) ? {} : { flag: "min" as const }) });
-		this.onCornerToggle("playback")(e);
-	};
-
-	/** Toggle one of the corner popovers; opening one replaces any other (a single surface). Top-layer, so it never
-	 *  needs the actions bar opened: it floats above the collapsed strip and the open panel alike. */
-	private onCornerToggle(kind: TCorner): (e: Event) => void {
-		return (e: Event) => {
-			e.stopPropagation();
-			if (this._openCorner === kind) {
-				this.closeCornerPopover();
-				return;
-			}
-			this._openCorner = kind;
-			const toggle = e.currentTarget as HTMLElement;
-			this.requestUpdate();
-			void this.updateComplete.then(() => this.showCornerPopover(kind, toggle));
-		};
-	}
-
-	private cornerPopoverEl(): HTMLElement | null {
-		return this.shadowRoot?.querySelector(".corner-popover") ?? null;
-	}
-
-	/** Float the popover just above the whole bar's top edge, not the summary strip's. The corner controls sit at the
-	 *  bar's BOTTOM, so a popover opening upward from the strip would overlap the expanded input line above it (and
-	 *  intercept clicks on the step input). Above the whole bar it clears the content in every mode. A click elsewhere
-	 *  dismisses the transient pickers (CORNER_DISMISS); playback stays by policy. Right edge over the control. */
-	private showCornerPopover(kind: TCorner, toggle: HTMLElement): void {
-		const pop = this.cornerPopoverEl();
-		if (!pop) throw new Error("actions-bar: corner popover missing from the rendered template");
-		const btn = toggle.getBoundingClientRect();
-		pop.style.margin = "0";
-		pop.style.inset = "auto";
-		pop.style.bottom = `${window.innerHeight - this.getBoundingClientRect().top + 4}px`;
-		pop.style.left = "auto";
-		pop.style.right = `${window.innerWidth - btn.right}px`;
-		pop.showPopover();
-	}
-
-	private closeCornerPopover(): void {
-		const pop = this.cornerPopoverEl();
-		if (pop?.matches(":popover-open")) pop.hidePopover();
-		this._openCorner = null;
-		this.requestUpdate();
 	}
 
 	private modeToggleTemplate(hasAsk: boolean, slot?: string): TemplateResult {
@@ -864,16 +697,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		)}`;
 	}
 
-	/** Render the `permissions` slot's custom elements inside the access popover: what a reader decides by authority
-	 *  belongs with the permissions they decide under. The bar knows the slot, never what any extension is about. */
-	private permissionsExtensionsTemplate(): TemplateResult {
-		return html`${unsafeHTML(
-			getUiExtensionTags(PERMISSIONS_SLOT)
-				.map((tag) => `<${tag}></${tag}>`)
-				.join(""),
-		)}`;
-	}
-
 	/** Populate combobox options after each render. The combobox elements themselves persist (lit's diff), so setOptions just refreshes their data without recreating the element, typed-ahead filter text, focus, and open dropdown state survive. */
 	private populateComboboxes(): void {
 		const labelCombo = this.shadowRoot?.querySelector(".label-select") as ShuCombobox | null;
@@ -915,9 +738,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private onModeChange = (e: Event): void => {
 		const mode = (e.target as HTMLSelectElement).value as TMode;
-		// Switching the input mode dismisses a transient corner picker (settings/access) that was floating over the
-		// input; playback is a panel used alongside the view (CORNER_DISMISS) and stays.
-		if (this._openCorner && CORNER_DISMISS[this._openCorner] === "click-away") this.closeCornerPopover();
+		// Switching the input mode closes a corner picker floating over the input, and leaves the playback panel open.
+		this.#corners.dismissPicker();
 		this.setState({ mode });
 	};
 
