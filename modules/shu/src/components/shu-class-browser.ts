@@ -32,7 +32,8 @@ import { VIEW } from "../graph/polymorphic/polymorphic-views.js";
 import { viewHeadCss, viewActions } from "./view-head.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
-import { type ShuGraphScene, GRAPH_SCENE_EVENT, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
+import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
+import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
 
 const BrowserStateSchema = z.object({
 	...clusteredGraphStateShape,

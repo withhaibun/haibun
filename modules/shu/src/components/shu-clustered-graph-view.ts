@@ -16,7 +16,8 @@ import { SubjectController } from "../controllers/index.js";
 import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";
-import { type ShuGraphScene, GRAPH_SCENE_EVENT, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
+import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
+import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
 import { effectiveHiddenTypes } from "../graph-filter-projection.js";
 
 const QuadFieldSchema = z.object({

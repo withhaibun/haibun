@@ -22,14 +22,8 @@ import { viewHeadCss, viewActions, rotateControls, SETTINGS_GROUP_NAMES, type TS
 import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "../graph/ontology-projection.js";
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
 
-import {
-	type FGInstance,
-	GRAPH_SCENE_EVENT,
-	type GraphSceneModel,
-	type GraphSceneConfig,
-	type GraphSceneChangedDetail,
-	type RescheduleUpdate,
-} from "../graph/polymorphic/polymorphic-scene.js";
+import { type FGInstance, type GraphSceneModel, type GraphSceneConfig, type GraphSceneChangedDetail, type RescheduleUpdate } from "../graph/polymorphic/polymorphic-scene.js";
+import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
 
 // A cursor move re-styles (depth re-place, positions pinned), fast, so it paints promptly. NOT the streamed-data
 // window (which would stack to ~1s); the base coalesces continuous scrubbing to this before it reaches onTimeCursorPaint.

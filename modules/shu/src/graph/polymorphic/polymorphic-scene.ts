@@ -44,7 +44,7 @@ import { FrameTime, type TFenceGl } from "./polymorphic-frame-time.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "./polymorphic-regulator.js";
 import { GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP } from "../../graph-blips.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../polymorphic/sequence-model.js";
-import { type FGNode, type FGLink, type TSprite, linkEndId, neighboursOf } from "../polymorphic/polymorphic-graph-types.js";
+import { type FGNode, type FGLink, type TSprite, GRAPH_SCENE_EVENT, linkEndId, neighboursOf } from "../polymorphic/polymorphic-graph-types.js";
 import { forceLayout, type IGraphLayout } from "../polymorphic/polymorphic-layout.js";
 import { SvgRenderer } from "../polymorphic/polymorphic-svg-renderer.js";
 import { NodeDrag, DRAG_THRESHOLD_PX } from "../polymorphic/polymorphic-drag.js";
@@ -123,22 +123,6 @@ export interface RescheduleUpdate {
 	id: string;
 	data: string;
 }
-
-/** The neutral outputs the scene emits; the host re-dispatches or acts on each. */
-export const GRAPH_SCENE_EVENT = {
-	/** A node open request (an ordinary individual): {label, subject, addToSelection}. */
-	NODE_CLICK: "graph-node-click",
-	/** An ontology term open request: a DesiredPane detail for the windowed-instances pane. */
-	NODE_OPEN_PANE: "graph-node-open-pane",
-	/** A cluster node was clicked to expand its type: {type}. */
-	CLUSTER_EXPAND: "graph-cluster-expand",
-	/** A gantt-bar drag committed: {updates: RescheduleUpdate[]} for the host to persist and refetch. */
-	RESCHEDULE_REQUEST: "graph-reschedule-request",
-	/** Emitted at each repaint end so the host can re-render its control bar. */
-	SCENE_CHANGED: "graph-scene-changed",
-	/** An embed scope wants the schema chips shown: {types}. */
-	SCOPE_REVEALED: "graph-scope-revealed",
-} as const;
 
 /** The graph-scene-changed payload: the control-bar inputs the host renders. */
 export interface GraphSceneChangedDetail {
@@ -1594,22 +1578,23 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		});
 		this.autoTeardown(() => clearTimeout(cameraRest));
 		const canvas = aScene.renderer.domElement;
-		let downAt: { x: number; y: number } | null = null;
+		let pressed: { x: number; y: number; node: FGNode | undefined } | null = null;
 		// Ctrl/meta/shift-to-orbit is OrbitControls' OWN behavior: with LEFT mapped to PAN, a modified press
 		// rotates (see OrbitControls' MOUSE.PAN case). Never pre-flip mouseButtons from key events: that double-
 		// inverts the lib's handling and the modifier goes dead.
 		const onPointerDown = (e: PointerEvent) => {
-			downAt = { x: e.clientX, y: e.clientY };
+			pressed = { x: e.clientX, y: e.clientY, node: this.pickNodeAt(e) };
 		};
-		// One reliable click path for the whole canvas: a press that did not move (a pan/orbit/drag moved past the
-		// threshold and is skipped) re-picks the node under the cursor with pickNodeAt: the SAME authoritative pick the
-		// drag uses, and opens its column (carrying ctrl/meta/shift for add-to-selection). Empty space clears focus.
-		// This replaces the lib's flaky onNodeClick, so repeated node/column focus switches stay reliable.
+		// The canvas handles every click here, in place of the library's onNodeClick. A press that moves past the drag
+		// threshold is a pan, orbit or drag, and its click is skipped. Otherwise the click opens the node pickNodeAt found
+		// at the press, with ctrl, meta or shift adding it to the selection, and a click on empty space clears the subject.
+		// The pick runs at the press because document click listeners run before this one and can move the camera. The
+		// actions bar closes on such a click, and the follow then re-aims the followed node.
 		const onClick = (e: MouseEvent) => {
-			const moved = downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > DRAG_THRESHOLD_PX;
-			downAt = null;
-			if (moved) return;
-			const node = this.pickNodeAt(e);
+			const press = pressed;
+			pressed = null;
+			if (!press || Math.hypot(e.clientX - press.x, e.clientY - press.y) > DRAG_THRESHOLD_PX) return;
+			const node = press.node;
 			if (node) this.onNodeClick(node, e);
 			else if (this.selectedSubject) dispatchSubjectEvent({ type: "clearSubject" }); // empty space is the reader choosing nothing; the host relays the machine's answer back through setSelectedSubject
 		};

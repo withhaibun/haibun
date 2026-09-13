@@ -28,6 +28,8 @@ import { VIEW_TYPES } from "../graph/polymorphic/polymorphic-views.js";
 import type { TSettingsGroup } from "./view-head.js";
 
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
+/** The number of reads of the active node before the pointer step fails. A record arriving moves the node once. */
+const ACTIVE_PICK_TRIES = 30;
 /** What each settings group holds, in row order: ONE table: the opener waits on the first control to attach, and the
  *  "every option is under its group" assertion checks the whole list. The filters group renders the shared filter
  *  element rather than controls of its own, so it names none. */
@@ -629,17 +631,35 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				this.opened.set(name, id);
 				// Selection round-trips through the shared selection system (COLUMN_OPEN → app → selection signal → onGraphSelection),
 				// so the node becomes the focused/selected subject a beat later. Wait for it, so a downstream focus assert never races.
-				await page
-					.waitForFunction(
-						(nid) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { focus: { selected: string | null } } }).inspect().focus.selected === nid,
-						id,
-						{
-							timeout: 5000,
-						},
-					)
-					.catch((): undefined => undefined);
+				await this.becomesSelected(page, id);
 				await page.waitForTimeout(400); // let the column render + the polymorphic view's column-resize settle before any framing check
 				return actionOK();
+			},
+		},
+		pickActiveGraphNode: {
+			// Click the active node with the real pointer on the canvas. The click event reaches the whole page, so an
+			// actions bar that closes on a click elsewhere closes. `open graph node` calls the view directly and dispatches
+			// no click. The follow keeps the active node in clear view, and the step reads its id from the view, because
+			// the run assigns the id of a conversation's comment. The step reads the active node again until its projection
+			// is still and a pixel picks it, because a record arriving can move it. The phrase avoids "click", which
+			// web-playwright's "click {target}" matches.
+			gwta: "pick the active graph node with the pointer as {name}",
+			action: async ({ name }: { name: string }) => {
+				const page = await this.page();
+				for (let tries = 0; tries < ACTIVE_PICK_TRIES; tries++) {
+					await this.settle(page);
+					const id = (await this.fullInspect(page)).focus.selected;
+					if (!id) return actionNotOK("the graph has no active node to pick");
+					await this.settleNodeProjection(page, id);
+					const at = (await this.fullInspect(page)).focus.selected === id ? await this.aimAtNode(page, id) : null;
+					if (!at) continue;
+					await page.mouse.click(at.x, at.y);
+					this.opened.set(name, id);
+					if (await this.becomesSelected(page, id)) return actionOK();
+					return actionNotOK(`clicking graph node "${id}" at (${at.x.toFixed(0)},${at.y.toFixed(0)}) did not select it: selected is ${(await this.fullInspect(page)).focus.selected}`);
+				}
+				const sample = (await this.fullInspect(page)).sample;
+				return actionNotOK(`the active graph node never held still where the pointer could pick it ${await this.unpickableReport(page, sample)}`);
 			},
 		},
 		hoverNode: {
@@ -2059,12 +2079,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		});
 	}
 
-	/** Find a pixel that picks node `id` AND that a real pointer reaches, then press there (pointer left DOWN; the caller
-	 * drags then ups). Probes with the side-effect-free pickAt: a real press on a MISS would orbit the camera and walk the
-	 * node off-screen, defeating the next probe. The chip sits right of and a little below its anchor, and an overlay (the
-	 * actions bar) can cover part of it, so accept only a pixel the view picks AND whose elementFromPoint is inside the view.
-	 * Returns null (pointer up) if nothing hit. The single press path drag + ctrl + magnify tests share. */
-	private async pressOnNode(page: Page, id: string): Promise<{ x: number; y: number } | null> {
+	/** Move the real pointer onto a pixel that picks node `id` AND that a real pointer reaches, or null where there is none.
+	 * Probes with the side-effect-free pickAt: a real press on a MISS would orbit the camera and walk the node off-screen,
+	 * defeating the next probe. The chip sits right of and a little below its anchor, and an overlay (the actions bar) can
+	 * cover part of it, so accept only a pixel the view picks AND whose elementFromPoint is inside the view. */
+	private async aimAtNode(page: Page, id: string): Promise<{ x: number; y: number } | null> {
 		for (const dy of [0, 8, -8, 16, -16]) {
 			for (const dx of [12, 6, 0, 24, 36, -8, -20]) {
 				const c = await this.projectNode(page, id, dx);
@@ -2073,11 +2092,32 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const reachable = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("shu-polymorphic-graph-view") != null, p);
 				if (!reachable) continue;
 				await page.mouse.move(p.x, p.y, { steps: 2 });
-				await page.mouse.down();
 				return p;
 			}
 		}
 		return null;
+	}
+
+	/** Press the node with the real pointer and leave it DOWN (the caller drags then ups), or null with the pointer up.
+	 *  The single press path drag + ctrl + magnify tests share. */
+	private async pressOnNode(page: Page, id: string): Promise<{ x: number; y: number } | null> {
+		const p = await this.aimAtNode(page, id);
+		if (p) await page.mouse.down();
+		return p;
+	}
+
+	/** Whether the node becomes the view's selected subject within five seconds. A selection passes through the app first. */
+	private becomesSelected(page: Page, id: string): Promise<boolean> {
+		return page
+			.waitForFunction(
+				(nid) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { focus: { selected: string | null } } }).inspect().focus.selected === nid,
+				id,
+				{ timeout: 5000 },
+			)
+			.then(
+				() => true,
+				() => false,
+			);
 	}
 
 	/** Wait for a node's PROJECTED screen position to stop moving. A fit/reframe animates over several frames AFTER the
@@ -2116,19 +2156,26 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		// No node was pickable, only NOW (the failure path) reconstruct why, so a normal call does nothing. A miss is
 		// either aim (the centre is off-canvas) or object (no pick target, or one the raycast skips), and the two want
 		// opposite fixes, so the report names which: the pixel, what picks there, and the pick target's own state.
+		return { target: null, diag: `${sample.length} nodes, none pickable at centre ${await this.unpickableReport(page, sample)}` };
+	}
+
+	/** A report of the canvas, the camera, and for each sampled node its centre pixel and what that pixel picks. */
+	private async unpickableReport(page: Page, sample: Array<{ id: string }>): Promise<string> {
 		const misses: string[] = [];
-		for (const s of sample) {
-			try {
-				const c = await this.projectNode(page, s.id, 0);
-				misses.push(`${s.id}@(${c.x.toFixed(0)},${c.y.toFixed(0)})→${(await this.pickAt(page, c.x, c.y)) ?? "∅"} ${await this.pickTargetState(page, s.id)}`);
-			} catch {
-				misses.push(`${s.id}→offscreen`);
-			}
+		for (const s of sample.slice(0, 8)) misses.push(await this.missReport(page, s.id));
+		return `(canvas ${await this.canvasRect(page)}, ${await this.frustumState(page)}): ${misses.join("  ")}`;
+	}
+
+	/** A report for one node: its projected centre pixel, the node the raycast picks there, the topmost element at that
+	 *  pixel, and the state of its pick target. A panel over the canvas is the topmost element where it covers the node. */
+	private async missReport(page: Page, id: string): Promise<string> {
+		try {
+			const c = await this.projectNode(page, id, 0);
+			const over = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName.toLowerCase() ?? "nothing", c);
+			return `${id}@(${c.x.toFixed(0)},${c.y.toFixed(0)})→${(await this.pickAt(page, c.x, c.y)) ?? "∅"} under ${over} ${await this.pickTargetState(page, id)}`;
+		} catch {
+			return `${id}→offscreen`;
 		}
-		return {
-			target: null,
-			diag: `${sample.length} nodes, none pickable at centre (canvas ${await this.canvasRect(page)}, ${await this.frustumState(page)}): ${misses.slice(0, 8).join("  ")}`,
-		};
 	}
 
 	/** What the raycast has to hit for a node: whether it has a sprite/pick target at all, whether that target is visible

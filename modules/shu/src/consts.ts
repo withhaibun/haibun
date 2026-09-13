@@ -105,6 +105,7 @@ export const SHU_TAG = {
 	FILTER_COLUMN: "shu-filter-column",
 	ACTIONS_BAR: "shu-actions-bar",
 	KIHAN_CHAT: "shu-kihan-chat",
+	CHAT_MESSAGE: "shu-chat-message",
 	BREADCRUMB: "shu-breadcrumb",
 	COMBOBOX: "shu-combobox",
 	SPINNER: "shu-spinner",
@@ -155,6 +156,11 @@ export const SHU_ATTR = {
 	IS_LAST: "is-last",
 	SHOW_CONTROLS: "data-show-controls",
 	COLUMN_TYPE: "column-type",
+	/** Reflected by a chat message from the message it renders: its role, turn status, turn seqPath and recorded comment. */
+	DATA_ROLE: "data-role",
+	DATA_STATUS: "data-status",
+	DATA_SEQPATH: "data-seqpath",
+	DATA_RECORD: "data-record",
 } as const;
 
 /** The methods a view names when it asks the service for a run's events or for the whole graph, grouped and clustered.

@@ -93,6 +93,22 @@ export type FGLink = {
 	__curve?: { getPoint(t: number): { x: number; y: number; z: number } };
 };
 
+/** The neutral outputs the scene emits; the host re-dispatches or acts on each. */
+export const GRAPH_SCENE_EVENT = {
+	/** A node open request (an ordinary individual): {label, subject, addToSelection}. */
+	NODE_CLICK: "graph-node-click",
+	/** An ontology term open request: a DesiredPane detail for the windowed-instances pane. */
+	NODE_OPEN_PANE: "graph-node-open-pane",
+	/** A cluster node was clicked to expand its type: {type}. */
+	CLUSTER_EXPAND: "graph-cluster-expand",
+	/** A gantt-bar drag committed: {updates: RescheduleUpdate[]} for the host to persist and refetch. */
+	RESCHEDULE_REQUEST: "graph-reschedule-request",
+	/** Emitted at each repaint end so the host can re-render its control bar. */
+	SCENE_CHANGED: "graph-scene-changed",
+	/** An embed scope wants the schema chips shown: {types}. */
+	SCOPE_REVEALED: "graph-scope-revealed",
+} as const;
+
 export const linkEndId = (e: string | FGNode): string => (typeof e === "string" ? e : e.id);
 
 /** The id-set of a node plus its 1-hop neighbours (the node itself included): every node one link away. One linear pass
