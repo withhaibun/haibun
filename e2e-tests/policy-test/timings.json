@@ -3,11 +3,13 @@
 		"features": {
 			"/features/api/r_list.feature": {
 				"seconds": 0,
-				"steps": 2
+				"steps": 2,
+				"declaredStepTextHash": "0e33a9741ddea2875e4f87b3d1d86840245752385c43879a6144bbb35d7c822c"
 			},
 			"/features/smoke/r_health.feature": {
 				"seconds": 0,
-				"steps": 11
+				"steps": 11,
+				"declaredStepTextHash": "ade24a2b5d6b099c3fa3ff808221af9c79a7c4282888aacb7d02679034f57d81"
 			}
 		},
 		"steps": 13,

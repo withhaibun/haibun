@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { DOMAIN_DOMAIN_KEY } from "../lib/domains.js";
 import type { TWorld } from "../lib/world.js";
-import { TResolvedFeature, TEndFeature } from "../lib/astepper.js";
+import { TResolvedFeature, TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import {
 	TExecutorResult,
 	TFeatureResult,
@@ -272,6 +273,13 @@ export class Executor {
 	}
 }
 
+/** The SHA-256 of the text of a feature's declared steps, joined by newlines in the order they are declared. */
+export function hashDeclaredStepText(featureSteps: readonly TFeatureStep[]): string {
+	return createHash("sha256")
+		.update(featureSteps.map((step) => step.in).join("\n"))
+		.digest("hex");
+}
+
 export class FeatureExecutor {
 	constructor(
 		private steppers: AStepper[],
@@ -359,7 +367,8 @@ export class FeatureExecutor {
 			await doStepperCycle(this.steppers, "endScenario", undefined);
 		}
 
-		return { path: feature.path, ok, steps: world.runtime.steps ?? { count: 0 }, stepResults: world.runtime.stepResults };
+		const declaredStepTextHash = hashDeclaredStepText(feature.featureSteps);
+		return { path: feature.path, ok, steps: world.runtime.steps ?? { count: 0 }, declaredStepTextHash, stepResults: world.runtime.stepResults };
 	}
 }
 

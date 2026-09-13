@@ -3,22 +3,26 @@
 		"features": {
 			"/features/federate.feature.ts": {
 				"seconds": 0.4,
-				"steps": 6
+				"steps": 6,
+				"declaredStepTextHash": "7e0ef50767be555224cf59c20eee2551f883841e4942057fa76fb07fdd1cfddd"
 			},
 			"/features/monitor.feature.ts": {
 				"seconds": 6.4,
-				"steps": 499
+				"steps": 500,
+				"declaredStepTextHash": "dee5ce25eef2d746968425bf87e34ba1cc0c9bb7bdafcd4ea694aef3b3abbb89"
 			},
 			"/features/remote-store.feature.ts": {
 				"seconds": 0.3,
-				"steps": 9
+				"steps": 9,
+				"declaredStepTextHash": "0a49e58469b78a5975895f5052904e87d3e511661d6da4194b354cda0c7b94ec"
 			},
 			"/features/voice-ui.feature.ts": {
 				"seconds": 0.9,
-				"steps": 158
+				"steps": 158,
+				"declaredStepTextHash": "e3f0c2636bbd17f108cc2d6a0cd53c5cad8eebc8491b1dcf3915cb48500d4934"
 			}
 		},
-		"steps": 672,
+		"steps": 673,
 		"seconds": 8
 	}
 }
