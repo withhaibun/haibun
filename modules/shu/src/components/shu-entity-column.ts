@@ -41,6 +41,7 @@ import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQuerya
 import { propertyVocabulary } from "../graph/ontology-projection.js";
 import { openRef } from "./ref-navigation.js";
 import { pageAddress } from "../view-hash.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -98,7 +99,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.content-toolbar { display: flex; gap: var(--shu-space-2); padding: var(--shu-space-1) 0; align-items: center; }
 		.content-switcher { display: flex; gap: var(--shu-space-2); }
 		.content-switch-btn { font-size: 0.75em; padding: 1px var(--shu-space-3); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); cursor: pointer; background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
-		.content-switch-btn.active { background: var(--shu-accent); border-color: var(--shu-accent); color: var(--shu-accent-fg); }
+		.content-switch-btn[aria-pressed="true"] { background: var(--shu-accent); border-color: var(--shu-accent); color: var(--shu-accent-fg); }
 		.hidden { display: none; }
 		.detail-table { width: 100%; border-collapse: collapse; }
 		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; }
@@ -134,6 +135,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The text of each body that has been read, by body id, projected from the entity view. A body the reader has not
 	 *  opened is absent, so the body area reads as loading rather than empty. */
 	private bodyText: Record<string, string> = {};
+	/** The body a reader switched to, by id. A record that does not list it shows its preferred reading. */
+	private chosenBodyId: string | null = null;
 	/** Full augmented products from getIndividualWithEdges (individual + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so an agent reading the page sees the same hypermedia, and returned on demand by `summarizeForKihan`. */
 	private products: Record<string, unknown> | null = null;
 
@@ -457,15 +460,15 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const available = this.linkedBodies().filter((b) => typeof b.mediaType === "string");
 		if (available.length === 0) return "";
 
-		const active = pickPreferredBody(available) ?? available[0];
-		const activeId = String(active.id ?? "");
+		const activeId = this.activeBodyId();
+		const active = available.find((b) => String(b.id ?? "") === activeId) ?? available[0];
 
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
 						.map(
 							(b) =>
-								`<button class="content-switch-btn${String(b.id ?? "") === activeId ? " active" : ""}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`,
+								`<button class="content-switch-btn" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}" aria-pressed="${String(b.id ?? "") === activeId}" data-body-id="${escAttr(String(b.id ?? ""))}">${esc(String(b.mediaType))}</button>`,
 						)
 						.join("")}</div>`
 				: "";
@@ -478,7 +481,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const content = renderContentHtml(raw, String(active.mediaType));
 		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType), pageAddress()));
 		const invertible = String(active.mediaType) !== "text/html" ? " invertible" : "";
-		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(activeId)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
+		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(activeId)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"></iframe>`;
 
 		const copyBtn = copyButtonHtml(raw);
 		const annotateBtn = this.annotatableBody() ? this.annotateButtonHtml(false) : "";
@@ -493,20 +496,24 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return (Array.isArray(raw) ? raw : raw ? [raw] : []) as Array<{ id?: string; mediaType?: string; content?: string }>;
 	}
 
-	/** The body the reader is shown, the preferred format, and the one whose text is to read. */
+	/** The body the reader is shown, and the one whose text is to read: the one the reader switched to, where this record
+	 *  lists it, and otherwise the preferred reading. */
 	private activeBodyId(): string {
 		const available = this.linkedBodies().filter((b) => typeof b.mediaType === "string");
 		if (available.length === 0) return "";
+		if (this.chosenBodyId && available.some((b) => String(b.id ?? "") === this.chosenBodyId)) return this.chosenBodyId;
 		return String((pickPreferredBody(available) ?? available[0]).id ?? "");
 	}
 
-	/** The human-readable text body (markdown / plain) an annotation's quote is anchored against, rendered inline so
-	 *  the annotator can highlight it. Null when the individual has only a non-text body (e.g. an original HTML email),
-	 *  which stays in the sandboxed iframe with a notes list instead. */
+	/** The reading shown, where it is text (markdown or plain), with its text once read: what an annotation's quote is
+	 *  anchored against, rendered inline so the annotator can highlight it. Null where the reading shown is not text,
+	 *  such as an original HTML email, which stays in the sandboxed iframe, or where its text has not been read. */
 	private annotatableBody(): { content: string; mediaType: string } | null {
-		const b = this.linkedBodies().find((x) => x.mediaType === MEDIA_TYPE.markdown || x.mediaType === MEDIA_TYPE.plain);
-		const content = b ? (b.content ?? this.bodyText[String(b.id ?? "")]) : undefined;
-		return b && content !== undefined ? { content, mediaType: String(b.mediaType) } : null;
+		const shown = this.activeBodyId();
+		const b = this.linkedBodies().find((x) => String(x.id ?? "") === shown);
+		if (!b || (b.mediaType !== MEDIA_TYPE.markdown && b.mediaType !== MEDIA_TYPE.plain)) return null;
+		const content = b.content ?? this.bodyText[shown];
+		return content !== undefined ? { content, mediaType: b.mediaType } : null;
 	}
 
 	/** The annotation-gutter toggle for the body toolbar, identical markup in the iframe and inline paths so the two
@@ -538,7 +545,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					${unsafeHTML(copyButtonHtml(annBody.content))}${unsafeHTML(this.annotateButtonHtml(true))}
 				</div>
 				<shu-annotated-body
-					data-testid="annotated-body"
+					data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATED_BODY}
 					.content=${annBody.content}
 					.mediaType=${annBody.mediaType}
 					.sourceId=${this.state.individualId}
@@ -754,21 +761,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 	}
 
-	// Body switcher button, dispatch on the linked Body's mediaType.
+	/** Show the reading a reader switched to, and read its text where it has not been read. */
 	private switchBody(btn: HTMLElement): void {
 		const bodyId = btn.dataset.bodyId;
 		if (!bodyId || !this.vertex) return;
-		this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
-		btn.classList.add("active");
-		const bodies = (this.vertex.hasBody as Array<{ id?: string; content?: string; mediaType?: string }> | undefined) ?? [];
-		const body = bodies.find((b) => String(b.id ?? "") === bodyId);
-		if (!body || typeof body.content !== "string" || typeof body.mediaType !== "string") return;
-		const iframe = this.shadowRoot?.querySelector(".body-iframe") as HTMLIFrameElement | null;
-		if (iframe) {
-			iframe.dataset.bodyId = bodyId;
-			iframe.classList.toggle("invertible", body.mediaType !== "text/html");
-			iframe.src = `data:text/html;base64,${utf8ToBase64(buildBodyIframeDoc(renderContentHtml(body.content, body.mediaType), body.mediaType, pageAddress()))}`;
-		}
+		this.chosenBodyId = bodyId;
+		if (this.bodyText[bodyId] === undefined) this.entity.requestBody(bodyId);
+		this.requestUpdate();
 	}
 
 	private bindEvents(): void {

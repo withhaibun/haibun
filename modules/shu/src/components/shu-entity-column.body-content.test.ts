@@ -4,6 +4,7 @@
 // fields, which previously misclassified it as a "stub" and dropped the content. Regression guard for that.
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 
 type Body = { id: string; content: string; mediaType: string };
 
@@ -65,6 +66,64 @@ describe("entity body content renders for every type and view that should show i
 		expect(html).toContain('data-testid="entity-body-content"'); // the literal-body block
 		expect(html).toContain("create issuer {issuer}");
 		expect(html).not.toContain('data-testid="entity-stub"'); // literal body content makes it a full view
+	});
+});
+
+// A graph read names a record's bodies by id and media type and carries none of their text, which is read on request.
+// The reading shown is chosen from that listing, whatever order the store lists the bodies in.
+describe("the reading a record shows, chosen from a listing that carries no text", () => {
+	beforeEach(() => {
+		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
+	});
+
+	const LISTED = [
+		{ id: "b-plain", mediaType: "text/plain" },
+		{ id: "b-html", mediaType: "text/html" },
+		{ id: "b-md", mediaType: "text/markdown" },
+	];
+	const openListing = async (): Promise<ShuEntityColumn> => {
+		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		document.body.appendChild(el);
+		el.openProducts({ _type: "Email", _summary: "e1", id: "e1", from: "a@x", subject: "Hi", hasBody: LISTED });
+		await el.updateComplete;
+		return el;
+	};
+	const reading = (el: ShuEntityColumn) => el.shadowRoot?.querySelector('[data-testid="body-reading"]')?.textContent ?? "";
+	const activeSwitch = (el: ShuEntityColumn) => el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}"][aria-pressed="true"]`)?.textContent ?? "";
+
+	it("shows the markdown reading by default, though the store lists plain text and html before it", async () => {
+		const el = await openListing();
+		expect(reading(el), "the body the column reads is the markdown one").toContain("text/markdown");
+		expect(activeSwitch(el)).toBe("text/markdown");
+	});
+
+	it("anchors a record's annotations on the reading shown, where the store lists plain text before markdown", async () => {
+		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		document.body.appendChild(el);
+		el.openProducts({
+			_type: "Email",
+			_summary: "e1",
+			id: "e1",
+			hasBody: [
+				{ id: "b-plain", mediaType: "text/plain", content: "hiking this weekend" },
+				{ id: "b-md", mediaType: "text/markdown", content: "**hiking** this weekend" },
+			],
+		});
+		(el as unknown as { annotationsList: unknown[] }).annotationsList = [{ commentId: "c1", exact: "hiking this weekend", body: "a note" }];
+		(el as unknown as { setState(p: Record<string, unknown>): void }).setState({ showAnnotations: true });
+		await el.updateComplete;
+		const annotated = el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATED_BODY}"]`) as unknown as { mediaType: string } | null;
+		expect(annotated?.mediaType, "the annotated reading is the markdown one the column shows").toBe("text/markdown");
+	});
+
+	it("reads and shows the reading a reader switches to, whose text was not read yet", async () => {
+		const el = await openListing();
+		const switchToHtml = el.shadowRoot?.querySelector<HTMLElement>(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}"][data-body-id="b-html"]`);
+		if (!switchToHtml) throw new Error("the column offers no html reading to switch to");
+		switchToHtml.click();
+		await el.updateComplete;
+		expect(reading(el), "the column reads the html body now").toContain("text/html");
+		expect(activeSwitch(el)).toBe("text/html");
 	});
 });
 

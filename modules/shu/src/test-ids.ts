@@ -58,6 +58,8 @@ export const SHU_TEST_IDS = {
 		PREDICATE_LINK: "predicate-link",
 		PREDICATE_LINK_FIRST: "predicate-link-first",
 		BODY_IFRAME: "email-body-iframe",
+		/** One button per reading of a record's content; the one shown is pressed. */
+		BODY_READING: "body-reading-switch",
 		REF_SECTION: "ref-section",
 		ENTITY_STUB: "entity-stub",
 		EDGE_TARGET_FIRST: "edge-target-first",
