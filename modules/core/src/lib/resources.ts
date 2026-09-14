@@ -784,6 +784,9 @@ export const CommentSchema = z.object({
 	/** A short display name: the note's own text (truncated). The body is partitioned into a Body sub-resource, so
 	 *  without this a Comment node would title by its id; `name` lets a graph view show what the note says. */
 	name: z.string().optional(),
+	/** How widely the note is shared. A note is written from what its author could read, so it states the level that
+	 *  was read at, and its body is shared as widely as the note. */
+	accessLevel: AccessLevelSchema.optional(),
 });
 
 export type TComment = z.infer<typeof CommentSchema>;
@@ -820,6 +823,7 @@ export const commentDomainDefinition: TDomainDefinition = {
 			startedAtTime: LinkRelations.STARTED_AT_TIME.rel,
 			endedAtTime: LinkRelations.ENDED_AT_TIME.rel,
 			seqPath: LinkRelations.SEQ_PATH.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.markdown },
 		},
 		edges: {
