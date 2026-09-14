@@ -118,7 +118,7 @@ const STYLES = css`
 	}
 	.mode-select { flex-shrink: 0; width: auto; min-width: 5em; }
 	/* THE shared output region: every mode's activity records scroll here; the input line beneath is what changes. */
-	/* The output region fills from the BOTTOM: a lone entry sits at the bottom edge, new entries land beneath the last,
+	/* The output region fills from the BOTTOM: a lone entry rests at the bottom edge, new entries land beneath the last,
 	   older ones scroll up. margin-top:auto on the first entry claims the free space above when the content is short,
 	   and collapses to 0 once it overflows so the scroll (pinned to the newest by scrollToBottom) reaches every entry. */
 	shu-activity-history { display: flex; flex-direction: column; font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; min-height: 0; overflow-y: auto; }
