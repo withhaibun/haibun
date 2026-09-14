@@ -12,22 +12,22 @@
 				"declaredStepTextHash": "9ad2f01a48c0824c6a7a3ebf1643e572dca7ac9be08590d01a85255e3d8a27f3"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 1.2,
+				"seconds": 1.1,
 				"steps": 168,
 				"declaredStepTextHash": "ec352fbf68dab3516754d2543b721efeeec0aac168dd66b59e6ecf9a20520977"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 1,
+				"seconds": 0.9,
 				"steps": 169,
 				"declaredStepTextHash": "384cd324b94a1735610472c5a14171d6f66c63c89c508593e0dab1d6f15dc07d"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 2.6,
+				"seconds": 2.4,
 				"steps": 160,
 				"declaredStepTextHash": "8762cff1d7f10f5f1250d56af477296db93cd0930ea7d35c596ef33ffd19b3ec"
 			}
 		},
 		"steps": 822,
-		"seconds": 6.9
+		"seconds": 6.5
 	}
 }
