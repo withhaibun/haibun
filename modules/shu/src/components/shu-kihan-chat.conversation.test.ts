@@ -11,7 +11,7 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "../schemas.js";
-import { readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
+import { answer, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
 
 // Partial: the registry's own reads are answered here, and everything else it exports stays itself, so a module that
 // reaches for one of them is not left with a rejected import.
@@ -19,19 +19,22 @@ vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<strin
 vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
 /** What the pane's view data harvest returns, so a case reads whether a turn sent it. */
 const VIEW_DATA = [{ "@id": "view:the-active-pane" }];
-vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => VIEW_DATA }));
+let viewData: unknown[] = VIEW_DATA;
+vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => viewData }));
 /** What the turn states about itself before it writes anything. */
 const stated: string[] = [];
-/** What the stream fails with, where it does; unset leaves it open. */
+/** What the stream fails with after the run recorded the question, where it does; unset leaves it open. */
 let streamFails: string | undefined;
+/** What the run refuses the turn with before it records anything, as a server refuses a target it does not hold. */
+let refusedBeforeRecording: string | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
-const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; sessionSeqPath?: string; target?: string }> = [];
-/** The comments the turn records as its step starts, named on the stream as the server names them. */
-const recorded: string[] = [];
-/** The comments the stream names when a case finishes it, after the turn has run for a while. */
-const recordedOnFinish: string[] = [];
-/** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. */
+const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; session?: string; target?: string }> = [];
+/** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. The run records the
+ *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
+/** What the model catalog read answers with, or a promise a case holds open or rejects. */
+const A_CATALOG = { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }] };
+let catalog: () => unknown = () => A_CATALOG;
 /** The running stream's abort signal, how a case streams a piece of the answer, and its finish function. */
 const stream: { signal: AbortSignal | undefined; piece: ((text: string) => void) | undefined; finish: (() => void) | undefined } = {
 	signal: undefined,
@@ -39,31 +42,34 @@ const stream: { signal: AbortSignal | undefined; piece: ((text: string) => void)
 	finish: undefined,
 };
 
-/** A session the store holds: its first turn, as the store reads it back. */
-const RESTORED = "0.1.1";
+/** A session the store holds, named by its first turn's question. */
+const RESTORED_TURN = "0.1.1";
+const RESTORED = question(RESTORED_TURN);
 const RESTORED_RECORD = anIndividual("Email", "restored@bakery.test");
-/** The turns the store reads back for a session, and the answer to the read a case holds open. */
+/** The turns the store reads back for a session, and the answers to the reads a case holds open, oldest first. */
 let sessionTurns: unknown[] = [];
-let answerSessionRead: ((failure?: string) => void) | undefined;
+const sessionReads: Array<(failure?: string) => void> = [];
 
 vi.mock("../hypermedia.js", async () => {
 	const { hypermedia } = await import("./chat-pane.test-fake.js");
 	return hypermedia(
 		(req) => {
 			// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
-			if (req.method === "showKihans") return { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }] };
-			if (req.method === "listChatSessions") return { sessions: [{ sessionSeqPath: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z" }] };
+			if (req.method === "showKihans") return catalog();
+			if (req.method === "listChatSessions") return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z" }] };
 			// A read held open, answered when a case says the store got back to the page.
 			if (req.method === "loadChatSession")
 				return new Promise((resolve, reject) => {
-					answerSessionRead = (failure) => (failure ? reject(new Error(failure)) : resolve({ turns: sessionTurns }));
+					sessionReads.push((failure) => (failure ? reject(new Error(failure)) : resolve({ turns: sessionTurns })));
 				});
 			return {};
 		},
 		(req, onChunk, opts) => {
-			opts.onStart?.(turnSeqPaths.shift() ?? [0, 1, 2]);
+			const turn = (turnSeqPaths.shift() ?? [0, 1, 2]).join(".");
+			opts.onStart?.(turn.split(".").map(Number));
 			sent.push({ ...JSON.parse(String(req.params?.context ?? "{}")), target: String(req.params?.target) });
-			for (const id of recorded) onChunk({ recorded: { persistedAs: "Comment", id } });
+			if (refusedBeforeRecording) return Promise.reject(new Error(refusedBeforeRecording));
+			onChunk({ recorded: { persistedAs: "Comment", id: question(turn) } });
 			for (const status of stated) onChunk({ status });
 			if (streamFails) return Promise.reject(new Error(streamFails));
 			// An aborted stream rejects, as the fetch that carries it does. A case finishes the stream with the reply text.
@@ -72,7 +78,7 @@ vi.mock("../hypermedia.js", async () => {
 				opts.signal?.addEventListener("abort", () => reject(new Error("the stream was aborted")), { once: true });
 				stream.piece = (text) => onChunk({ text });
 				stream.finish = () => {
-					for (const id of recordedOnFinish) onChunk({ recorded: { persistedAs: "Comment", id } });
+					onChunk({ recorded: { persistedAs: "Comment", id: answer(turn) } });
 					onChunk({ text: "an answer" });
 					resolve();
 				};
@@ -91,7 +97,7 @@ const { CONVERSATION_PARAM } = await import("../consts.js");
 const { SHU_TAG } = await import("../consts.js");
 const { SHU_TEST_IDS } = await import("../test-ids.js");
 const { forgetElementPrefs } = await import("../element-prefs.js");
-const { hashParam } = await import("../view-hash.js");
+const { hashParam, mergeHashParams } = await import("../view-hash.js");
 const { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } = await import("../current-subject.js");
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -106,14 +112,17 @@ beforeEach(async () => {
 	turnState.set(IDLE_TURN);
 	conversationState.set(CLOSED_CONVERSATION);
 	currentSubjectState.set(INITIAL_SUBJECT);
-	for (const list of [stated, sent, recorded, recordedOnFinish, turnSeqPaths]) list.length = 0;
+	for (const list of [stated, sent, turnSeqPaths, sessionReads]) list.length = 0;
 	streamFails = undefined;
+	refusedBeforeRecording = undefined;
+	viewData = VIEW_DATA;
+	catalog = () => A_CATALOG;
 	stream.signal = undefined;
 	stream.piece = undefined;
 	stream.finish = undefined;
-	sessionTurns = [readBack(RESTORED, undefined, [RESTORED_RECORD])];
-	answerSessionRead = undefined;
+	sessionTurns = [readBack(RESTORED_TURN, undefined, [RESTORED_RECORD])];
 	forgetElementPrefs(SHU_TAG.KIHAN_CHAT, "");
+	mergeHashParams({ [CONVERSATION_PARAM]: "" });
 	document.body.innerHTML = "";
 });
 
@@ -150,7 +159,7 @@ const turnsShown = (history: HTMLElement) => [
 	...new Set(
 		onHistory(history)
 			.filter((el) => !el.hidden)
-			.map((el) => el.message.seqPath ?? "pending"),
+			.map((el) => el.message.turn ?? "pending"),
 	),
 ];
 const pickSession = (pane: Driven, value: string) => inside(pane.shadowRoot, ".session-select").dispatchEvent(new CustomEvent("combo-change", { detail: { value } }));
@@ -158,16 +167,17 @@ const pickSession = (pane: Driven, value: string) => inside(pane.shadowRoot, ".s
 /** Type the question and submit it, as a reader does, and let the turn start. */
 async function submit(pane: Driven, prompt: string): Promise<void> {
 	chatInput(pane).value = prompt;
-	pane.submitChat();
+	void pane.submitChat();
 	await settle();
 	await pane.updateComplete;
 }
 
-/** Answer the session read the page is waiting on. */
+/** Answer the oldest session read the page is waiting on. */
 async function answerTheSessionRead(failure?: string): Promise<void> {
 	await settle();
-	if (!answerSessionRead) throw new Error("the page made no session read to answer");
-	answerSessionRead(failure);
+	const oldest = sessionReads.shift();
+	if (!oldest) throw new Error("the page made no session read to answer");
+	oldest(failure);
 	await settle();
 }
 
@@ -195,6 +205,53 @@ describe("a question refused", () => {
 		await answerTheSessionRead();
 		await pane.updateComplete;
 		expect(refusalOn(pane), "and the refusal goes once the turns are shown").toBeNull();
+	});
+});
+
+describe("a question not asked", () => {
+	it("while the model catalog is read, is refused where the reader opened a conversation meanwhile", async () => {
+		let answerCatalog = (): void => undefined;
+		catalog = () => new Promise((resolve) => (answerCatalog = () => resolve(A_CATALOG)));
+		const { pane } = await aPage();
+		await submit(pane, "and what came of it");
+		pickSession(pane, RESTORED);
+		answerCatalog();
+		await settle();
+		await pane.updateComplete;
+		expect(sent, "nothing is sent while the conversation opens").toHaveLength(0);
+		expect(refusalOn(pane)).toBe(CONVERSATION_OPENING);
+	});
+
+	it("because the model catalog cannot be read, keeps the question and says why", async () => {
+		catalog = () => Promise.reject(new Error("the store is unreachable"));
+		const { pane } = await aPage();
+		await submit(pane, "what do these have in common");
+		expect(sent).toHaveLength(0);
+		expect(chatInput(pane).value).toBe("what do these have in common");
+		expect(refusalOn(pane)).toContain("the store is unreachable");
+	});
+
+	it("because its view data cannot be stated, keeps the question and leaves no turn in flight", async () => {
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
+		viewData = [{ "@id": "view:counts", count: 1n }];
+		const { pane } = await aPage();
+		await submit(pane, "what does this say");
+		expect(sent).toHaveLength(0);
+		expect(turnState.get().status, "the next question is not refused as in flight").toBe("idle");
+		expect(chatInput(pane).value).toBe("what does this say");
+		expect(refusalOn(pane)).toContain("BigInt");
+	});
+
+	it("while a turn is in flight, is not refused again for a conversation the reader opens after the turn ended", async () => {
+		const { pane } = await aPage();
+		await submit(pane, "what do these have in common");
+		await submit(pane, "which one mentions the crumb");
+		expect(refusalOn(pane)).toBe(turnRefusal(turnState.get()));
+		stream.finish?.();
+		await settle();
+		pickSession(pane, RESTORED);
+		await pane.updateComplete;
+		expect(refusalOn(pane), "no question was submitted while it opens").toBeNull();
 	});
 });
 
@@ -285,16 +342,15 @@ describe("the ask and the active record", () => {
 		await submit(pane, "what does this say");
 		expect(sent.at(-1)).toMatchObject({ patterns: EMAIL.bundle.patterns, viewLd: VIEW_DATA });
 		expect(sent.at(-1)?.inReplyTo).toBeUndefined();
-		expect(sent.at(-1)?.sessionSeqPath).toBeUndefined();
+		expect(sent.at(-1)?.session).toBeUndefined();
 	});
 
 	it("activates each comment its turn records with the turn's bundle, and the comment leads while the bar is open", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
-		recorded.push("cmt-ask-0.1.2");
 		const { pane } = await aPage();
 		await submit(pane, "what does this say");
-		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toEqual({ record: { id: "cmt-ask-0.1.2", label: "Comment" }, seqPath: "0.1.2", bundle: EMAIL.bundle });
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toEqual({ record: { id: "cmt-ask-0.1.2", label: "Comment" }, turn: "cmt-ask-0.1.2", bundle: EMAIL.bundle });
 		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
 		dispatchSubjectEvent({ type: "close", scope: SCOPE.actionsBar });
 		expect(currentSubject(currentSubjectState.get()), "the bar closed: the page's record again").toEqual(EMAIL.record);
@@ -303,15 +359,15 @@ describe("the ask and the active record", () => {
 	it("replies to the bar's turn and carries its bundle, with no view data, so a selected earlier message branches there", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
-		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.1", label: "Comment" }, seqPath: "0.1.1", bundle: OTHER.bundle } });
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.1", label: "Comment" }, turn: "cmt-ask-0.1.1", bundle: OTHER.bundle } });
+		conversationState.set({ status: "open", session: "cmt-ask-0.1.1", turns: [] });
 		const { pane } = await aPage();
 		await submit(pane, "and what came of it");
-		expect(sent.at(-1)).toMatchObject({ inReplyTo: "0.1.1", patterns: OTHER.bundle.patterns, viewLd: [] });
+		expect(sent.at(-1)).toMatchObject({ session: "cmt-ask-0.1.1", inReplyTo: "cmt-ask-0.1.1", patterns: OTHER.bundle.patterns, viewLd: [] });
 	});
 
 	it("selecting a message makes its comment the active record, and marks that message alone current", async () => {
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
-		recorded.push("cmt-ask-0.1.2");
 		const { pane, history } = await aPage();
 		await submit(pane, "what does this say");
 		stream.finish?.();
@@ -328,20 +384,18 @@ describe("the ask and the active record", () => {
 describe("a conversation", () => {
 	it("opens on its first turn, which the view hash then addresses, and the next question continues it", async () => {
 		turnSeqPaths.push([0, 1, 5]);
-		recordedOnFinish.push("cmt-ask-0.1.5", "cmt-say-0.1.5");
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");
-		expect(conversationState.get()).toMatchObject({ status: "open", session: "0.1.5" });
-		expect(hashParam(CONVERSATION_PARAM)).toBe("0.1.5");
+		expect(conversationState.get()).toMatchObject({ status: "open", session: question("0.1.5") });
+		expect(hashParam(CONVERSATION_PARAM)).toBe(question("0.1.5"));
 		stream.finish?.();
 		await settle();
 		await submit(pane, "and what came of it");
-		expect(sent.at(-1)).toMatchObject({ sessionSeqPath: "0.1.5", inReplyTo: "0.1.5" });
+		expect(sent.at(-1)).toMatchObject({ session: question("0.1.5"), inReplyTo: question("0.1.5") });
 	});
 
 	it("outlives the pane: a turn left running when the bar closes ends, the history shows its answer, and the next pane continues the session", async () => {
 		turnSeqPaths.push([0, 1, 5]);
-		recordedOnFinish.push("cmt-ask-0.1.5", "cmt-say-0.1.5");
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
 		pane.remove(); // the bar closed itself
@@ -351,7 +405,7 @@ describe("a conversation", () => {
 		expect(answers(history).map((el) => [el.message.text, el.message.status, el.message.spinnerVisible])).toEqual([["an answer", "completed", false]]);
 		const again = await aPane(); // the bar opened again
 		await submit(again, "and what came of it");
-		expect(sent.at(-1)?.sessionSeqPath).toBe("0.1.5");
+		expect(sent.at(-1)?.session).toBe(question("0.1.5"));
 		expect(onHistory(history).map((el) => el.message.text)).toEqual(["what do these have in common", "an answer", "and what came of it", ""]);
 	});
 
@@ -361,9 +415,9 @@ describe("a conversation", () => {
 		const { pane, history } = await aPage();
 		pickSession(pane, RESTORED);
 		await answerTheSessionRead();
-		expect(currentSubject(currentSubjectState.get())).toEqual({ id: `cmt-say-${RESTORED}`, label: "Comment" });
+		expect(currentSubject(currentSubjectState.get())).toEqual({ id: answer(RESTORED_TURN), label: "Comment" });
 		expect(activeEntry(currentSubjectState.get())?.bundle.patterns).toEqual([RESTORED_RECORD]);
-		expect(onHistory(history).map((el) => el.message.text)).toEqual([`asked ${RESTORED}`, `answered ${RESTORED}`]);
+		expect(onHistory(history).map((el) => el.message.text)).toEqual([`asked ${RESTORED_TURN}`, `answered ${RESTORED_TURN}`]);
 		expect(hashParam(CONVERSATION_PARAM)).toBe(RESTORED);
 	});
 
@@ -374,10 +428,10 @@ describe("a conversation", () => {
 		const opening = openConversation(RESTORED, "update");
 		await answerTheSessionRead();
 		await opening;
-		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record).toEqual({ id: `cmt-say-${RESTORED}`, label: "Comment" });
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record).toEqual({ id: answer(RESTORED_TURN), label: "Comment" });
 		expect(currentSubject(currentSubjectState.get())).toEqual(EMAIL.record);
 		await submit(pane, "and what came of it");
-		expect(sent.at(-1)).toMatchObject({ inReplyTo: RESTORED, sessionSeqPath: RESTORED, patterns: EMAIL.bundle.patterns });
+		expect(sent.at(-1)).toMatchObject({ inReplyTo: RESTORED, session: RESTORED, patterns: EMAIL.bundle.patterns });
 	});
 
 	it("picked while a turn of another session runs, leaves that turn running, and the comments it records activate nothing", async () => {
@@ -386,12 +440,58 @@ describe("a conversation", () => {
 		await submit(pane, "what do these have in common");
 		pickSession(pane, RESTORED);
 		await answerTheSessionRead();
-		recordedOnFinish.push("cmt-say-0.1.2");
 		stream.finish?.();
 		await settle();
 		expect(stream.signal?.aborted).toBe(false);
-		expect(currentSubject(currentSubjectState.get()), "the session the reader picked still leads").toEqual({ id: `cmt-say-${RESTORED}`, label: "Comment" });
+		expect(currentSubject(currentSubjectState.get()), "the session the reader picked still leads").toEqual({ id: answer(RESTORED_TURN), label: "Comment" });
 		expect(turnsShown(history), "and its transcript is the picked session's").toEqual([RESTORED]);
+	});
+
+	it("does not open on a first turn the run refused before it recorded anything, whose question returns to the input", async () => {
+		refusedBeforeRecording = 'no Kihan registered for target "openai:gone"';
+		const { pane } = await aPage();
+		await submit(pane, "what do these have in common");
+		await settle();
+		expect(conversationState.get()).toBe(CLOSED_CONVERSATION);
+		expect(hashParam(CONVERSATION_PARAM)).toBe("");
+		expect(chatInput(pane).value).toBe("what do these have in common");
+		refusedBeforeRecording = undefined;
+		await submit(pane, "what do these have in common");
+		expect(sent.at(-1)?.session, "the next question starts a session").toBeUndefined();
+	});
+
+	it("read back twice, takes the last turn from the read that opened it, and the later read leaves what the reader selected since", async () => {
+		sessionTurns = [readBack("0.1.1"), readBack("0.1.2", "0.1.1")];
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		const { pane, history } = await aPage();
+		pickSession(pane, question("0.1.1"));
+		pickSession(pane, NEW_CONVERSATION.value);
+		pickSession(pane, question("0.1.1"));
+		await answerTheSessionRead();
+		inside<HTMLElement>(
+			answers(history).find((el) => el.message.turn === question("0.1.1")),
+			".msg",
+		).click();
+		await answerTheSessionRead();
+		turnSeqPaths.push([0, 1, 9]);
+		await submit(pane, "and what else");
+		expect(sent.at(-1)?.inReplyTo).toBe(question("0.1.1"));
+	});
+
+	it("whose turn records its answer while the session is read again, and the read fails, leaves that turn out of the bar's scope", async () => {
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		const { pane } = await aPage();
+		pickSession(pane, RESTORED);
+		await answerTheSessionRead();
+		await submit(pane, "and what came of it");
+		pickSession(pane, NEW_CONVERSATION.value);
+		pickSession(pane, RESTORED);
+		stream.finish?.();
+		await settle();
+		await answerTheSessionRead("the store is unreachable");
+		await submit(pane, "a new question");
+		expect(sent.at(-1)?.session).toBeUndefined();
+		expect(sent.at(-1)?.inReplyTo, "and replies to no turn of the session that did not open").toBeUndefined();
 	});
 
 	it("that fails to read back is closed, so the next question starts a session", async () => {
@@ -400,7 +500,7 @@ describe("a conversation", () => {
 		await answerTheSessionRead("the store is unreachable");
 		expect(conversationState.get()).toBe(CLOSED_CONVERSATION);
 		await submit(pane, "what do these have in common");
-		expect(sent.at(-1)?.sessionSeqPath).toBeUndefined();
+		expect(sent.at(-1)?.session).toBeUndefined();
 	});
 
 	it("left for a new conversation, clears the transcript and the bar's turn, and the next question starts a session", async () => {
@@ -415,7 +515,7 @@ describe("a conversation", () => {
 		expect(hashParam(CONVERSATION_PARAM)).toBe("");
 		expect(currentSubject(currentSubjectState.get()), "the page's record leads again").toEqual(EMAIL.record);
 		await submit(pane, "what does this say");
-		expect(sent.at(-1)?.sessionSeqPath).toBeUndefined();
+		expect(sent.at(-1)?.session).toBeUndefined();
 		expect(sent.at(-1)?.inReplyTo).toBeUndefined();
 	});
 });
@@ -423,16 +523,16 @@ describe("a conversation", () => {
 describe("the transcript of a conversation that branches", () => {
 	/** The first turn, a reply to it, a reply to that, and a second reply to the first turn, in the store's order. */
 	const BRANCHED = [readBack("0.1.1"), readBack("0.1.3", "0.1.1"), readBack("0.1.4", "0.1.3"), readBack("0.1.5", "0.1.1")];
-	const otherBranchOn = (history: HTMLElement, seqPath: string) =>
+	const otherBranchOn = (history: HTMLElement, turn: string) =>
 		answers(history)
-			.find((el) => el.message.seqPath === seqPath)
+			.find((el) => el.message.turn === question(turn))
 			?.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_OTHER_BRANCH}"]`) as HTMLElement | null;
 
 	async function onTheBranchedSession(): Promise<{ pane: Driven; history: HTMLElement }> {
 		sessionTurns = BRANCHED;
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
 		const page = await aPage();
-		pickSession(page.pane, "0.1.1");
+		pickSession(page.pane, question("0.1.1"));
 		await answerTheSessionRead();
 		await page.pane.updateComplete;
 		return page;
@@ -440,7 +540,7 @@ describe("the transcript of a conversation that branches", () => {
 
 	it("shows the branch the conversation is on, hides the other, and offers it where it leaves", async () => {
 		const { history } = await onTheBranchedSession();
-		expect(turnsShown(history)).toEqual(["0.1.1", "0.1.5"]);
+		expect(turnsShown(history)).toEqual([question("0.1.1"), question("0.1.5")]);
 		expect(onHistory(history), "every message is placed, so each keeps its place in time").toHaveLength(8);
 		expect(otherBranchOn(history, "0.1.1")).not.toBeNull();
 	});
@@ -448,7 +548,7 @@ describe("the transcript of a conversation that branches", () => {
 	it("follows the other branch from where it leaves, and offers the branch it left", async () => {
 		const { history } = await onTheBranchedSession();
 		otherBranchOn(history, "0.1.1")?.click();
-		expect(turnsShown(history)).toEqual(["0.1.1", "0.1.3", "0.1.4"]);
+		expect(turnsShown(history)).toEqual([question("0.1.1"), question("0.1.3"), question("0.1.4")]);
 		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "cmt-say-0.1.4", label: "Comment" });
 		await settle();
 		expect(otherBranchOn(history, "0.1.1")).not.toBeNull();
@@ -457,12 +557,12 @@ describe("the transcript of a conversation that branches", () => {
 	it("shows a question about an earlier answer on the branch it starts there", async () => {
 		const { pane, history } = await onTheBranchedSession();
 		inside<HTMLElement>(
-			answers(history).find((el) => el.message.seqPath === "0.1.1"),
+			answers(history).find((el) => el.message.turn === question("0.1.1")),
 			".msg",
 		).click();
 		turnSeqPaths.push([0, 1, 9]);
 		await submit(pane, "and what else");
-		expect(turnsShown(history)).toEqual(["0.1.1", "0.1.9"]);
+		expect(turnsShown(history)).toEqual([question("0.1.1"), question("0.1.9")]);
 		await settle();
 		expect(otherBranchOn(history, "0.1.1")?.textContent).toContain("2 other branches");
 	});

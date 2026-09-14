@@ -26,21 +26,24 @@ export const hypermedia = (follow: TFollow, followStream: TStream) => ({
 	conduit: () => ({ follow: (req: TReq) => Promise.resolve(follow(req)), followStream }),
 });
 
-/** A turn of a session as the store reads it back, its question, answer and comments named by its seqPath. */
-export const readBack = (seqPath: string, inReplyTo?: string, bundle: TSessionTurn["bundle"] = []): TSessionTurn => ({
-	prompt: `asked ${seqPath}`,
-	response: `answered ${seqPath}`,
-	seqPath,
-	...(inReplyTo ? { inReplyTo } : {}),
-	askId: `cmt-ask-${seqPath}`,
-	sayId: `cmt-say-${seqPath}`,
+/** The question record of the turn a case names, which names the turn, and the answer record of that turn. */
+export const question = (turn: string): string => `cmt-ask-${turn}`;
+export const answer = (turn: string): string => `cmt-say-${turn}`;
+
+/** A turn of a session as the store reads it back, completed, its question and answer named by the turn a case names. */
+export const readBack = (turn: string, inReplyTo?: string, bundle: TSessionTurn["bundle"] = []): TSessionTurn => ({
+	prompt: `asked ${turn}`,
+	response: `answered ${turn}`,
+	askId: question(turn),
+	sayId: answer(turn),
+	...(inReplyTo ? { inReplyTo: question(inReplyTo) } : {}),
 	bundle,
+	status: "completed",
 });
 
 /** The pane as a case drives it: the element, and what a case calls on it. */
 export type TDriven = HTMLElement & {
 	updateComplete: Promise<unknown>;
-	ask(prompt: string): Promise<void>;
-	submitChat(): void;
+	submitChat(): Promise<void>;
 	setState(s: Record<string, unknown>): void;
 };

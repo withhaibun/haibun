@@ -14,11 +14,12 @@ import { pickWith, seededRandom } from "./test/seeded-random.js";
 
 const BUNDLE = entryOf([anIndividual("Email", "a@test.com")], "private").bundle;
 const QUESTION: TRecord = { id: "cmt-ask-0.1.2", label: COMMENT_LABEL };
+const ANSWER: TRecord = { id: "cmt-say-0.1.2", label: COMMENT_LABEL };
 
 /** One event of each type. */
 const EVENT: Record<TTurnEventType, TTurnEvent> = {
-	ask: { type: "ask", prompt: "what does this say", bundle: BUNDLE, session: "0.1.1", inReplyTo: "0.1.1" },
-	started: { type: "started", seqPath: "0.1.2" },
+	ask: { type: "ask", prompt: "what does this say", bundle: BUNDLE, session: "cmt-ask-0.1.1", inReplyTo: "cmt-ask-0.1.1" },
+	started: { type: "started" },
 	text: { type: "text", piece: "an answer" },
 	status: { type: "status", line: "context sent" },
 	recorded: { type: "recorded", record: QUESTION },
@@ -77,9 +78,9 @@ describe("each move", () => {
 			status: "asking",
 			prompt: "what does this say",
 			bundle: BUNDLE,
-			session: "0.1.1",
-			inReplyTo: "0.1.1",
-			seqPath: null,
+			session: "cmt-ask-0.1.1",
+			inReplyTo: "cmt-ask-0.1.1",
+			turn: null,
 			text: "",
 			activity: [],
 			recorded: [],
@@ -88,8 +89,10 @@ describe("each move", () => {
 		});
 	});
 
-	it("started names the turn's seqPath", () => {
-		expect(AT.running).toMatchObject({ status: "running", seqPath: "0.1.2" });
+	it("started runs the turn, and the first record the run states is its question, which names the turn", () => {
+		expect(AT.running).toMatchObject({ status: "running", turn: null });
+		const answered = transition(transition(AT.running, EVENT.recorded), { type: "recorded", record: ANSWER });
+		expect(answered).toMatchObject({ turn: QUESTION.id, recorded: [QUESTION, ANSWER] });
 	});
 
 	it("text, status and recorded add to a running turn, in order, and to no turn that is not running", () => {
@@ -130,7 +133,7 @@ describe("any sequence of events", () => {
 			const random = seededRandom(seed);
 			let turn = IDLE_TURN;
 			// What the turn holds, stated again from the events since the last ask it took.
-			const unasked = () => ({ seqPath: null as string | null, text: "", activity: [] as string[], recorded: [] as TRecord[], stoppedBy: "" });
+			const unasked = () => ({ turn: null as string | null, text: "", activity: [] as string[], recorded: [] as TRecord[], stoppedBy: "" });
 			let held = unasked();
 			const path: string[] = [];
 			for (let step = 0; step < 40; step++) {
@@ -141,15 +144,17 @@ describe("any sequence of events", () => {
 				const wanted = expectedStatus(turn, type);
 				const running = turn.status === "running";
 				if (event.type === "ask" && !inFlight(turn.status)) held = unasked();
-				if (event.type === "started" && turn.status === "asking") held.seqPath = event.seqPath;
 				if (event.type === "text" && running) held.text += event.piece;
 				if (event.type === "status" && running) held.activity = [...held.activity, event.line];
-				if (event.type === "recorded" && running) held.recorded = [...held.recorded, event.record];
+				if (event.type === "recorded" && running) {
+					held.turn ??= event.record.id;
+					held.recorded = [...held.recorded, event.record];
+				}
 				if (event.type === "stop" && inFlight(turn.status) && !held.stoppedBy) held.stoppedBy = event.reason;
 				turn = transition(turn, event);
 				expect(turn.status, label).toBe(wanted);
 				if (turn.status === "idle") continue;
-				expect({ seqPath: turn.seqPath, text: turn.text, activity: turn.activity, recorded: turn.recorded, stoppedBy: turn.stoppedBy }, label).toEqual(held);
+				expect({ turn: turn.turn, text: turn.text, activity: turn.activity, recorded: turn.recorded, stoppedBy: turn.stoppedBy }, label).toEqual(held);
 			}
 		}
 	});

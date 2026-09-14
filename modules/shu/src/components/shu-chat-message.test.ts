@@ -70,7 +70,7 @@ describe("what a question carries", () => {
 	});
 
 	it("opens the linked record without selecting the question", async () => {
-		const el = await rendered({ id: "q1", role: "user", text: "what is this", seqPath: "0.1.2", recordId: "cmt-ask-0.1.2", bundle: BUNDLE });
+		const el = await rendered({ id: "q1", role: "user", text: "what is this", turn: "cmt-ask-0.1.2", recordId: "cmt-ask-0.1.2", bundle: BUNDLE });
 		(el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_CARRIES}"] shu-ref`) as HTMLElement).click();
 		expect(opened).toEqual([{ kind: "entity", target: { persistedAs: "Email", id: "a@test.com" } }]);
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();

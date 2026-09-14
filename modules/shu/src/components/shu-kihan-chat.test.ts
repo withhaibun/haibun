@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const listed: Array<{ sessionSeqPath: string; label?: string; generatedAtTime?: string }> = [];
+const listed: Array<{ session: string; label: string; generatedAtTime: string }> = [];
 let onStartSeqPath: number[] | null = null;
 /** What the server answers the session read with. A deployment that answers without the list is the failed-read case. */
 let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed] });
@@ -21,13 +21,13 @@ vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
 vi.mock("../hypermedia.js", async () => {
 	const { hypermedia } = await import("./chat-pane.test-fake.js");
 	return hypermedia(
-		(req) => (req.method === "listChatSessions" ? sessionsAnswer() : {}),
+		(req) => (req.method === "listChatSessions" ? sessionsAnswer() : req.method === "showKihans" ? { vertices: [] } : {}),
 		// A turn that streams text and completes. onStart is called only when the stream announces a seqPath.
 		(_req, onChunk, opts) => {
 			if (onStartSeqPath) opts.onStart?.(onStartSeqPath);
 			onChunk({ text: "an answer" });
 			// The turn is written server-side either way, so the session now exists.
-			listed.push({ sessionSeqPath: "0.1.2", label: "a session", generatedAtTime: new Date().toISOString() });
+			listed.push({ session: "cmt-ask-0.1.2", label: "a session", generatedAtTime: new Date().toISOString() });
 			return Promise.resolve();
 		},
 	);
@@ -50,9 +50,10 @@ async function chat(): Promise<HTMLElement> {
 
 const hasSelector = (el: HTMLElement) => !!el.shadowRoot?.querySelector(".session-select");
 
-/** Drive one turn the way the submit handler does, without depending on the button's markup. */
+/** Type the question and submit it, as a reader does, and let the turn end. */
 async function turn(el: HTMLElement, prompt = "ask something"): Promise<void> {
-	await (el as unknown as { ask: (p: string) => Promise<void> }).ask(prompt);
+	(el.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement).value = prompt;
+	await (el as unknown as { submitChat: () => Promise<void> }).submitChat();
 	// The session refresh is fire-and-forget, so let its promise and the render that follows settle.
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
