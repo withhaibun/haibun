@@ -9,7 +9,7 @@ import { z } from "zod";
 import { writeFileSync } from "fs";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { recordBlip } from "@haibun/core/lib/blips.js";
+import { recordBlip } from "@haibun/core/lib/record-blip.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
 import "./view-blips.js";
 import "./graph-blips.js";

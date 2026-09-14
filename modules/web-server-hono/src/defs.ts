@@ -1,6 +1,7 @@
 import { AccessLevelSchema } from "@haibun/core/lib/resources.js";
 import { z } from "zod";
-import { ENDPOINT_CLASS, ENDPOINT_LABEL } from "@haibun/core/lib/http-observations.js";
+import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
+import { ENDPOINT_LABEL } from "@haibun/core/lib/resources.js";
 import type { Context, MiddlewareHandler, Hono } from "hono";
 
 export type { Context, MiddlewareHandler, Hono };

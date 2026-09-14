@@ -800,6 +800,14 @@ export type TComment = z.infer<typeof CommentSchema>;
 /** A registered route as a graph vertex: persisted at mount by the web server, targeted by observed requests and
  *  published by the principal that serves it. */
 export const ENDPOINT_LABEL = "Endpoint";
+/** The one type every observed HTTP request becomes: the single network-interaction record. Its `performedBy`/`target`
+ *  edges make it a message on the polymorphic view sequence view. */
+export const HTTP_REQUEST_LABEL = "HttpRequest";
+/** The requesting party: the browser / user agent. A singleton lifeline with id `client`. */
+export const HTTP_CLIENT_LABEL = "HttpClient";
+/** A serving party: the site itself or an external server. One node per host, carrying `requestCount`: how many
+ *  requests reached it, a rollup of its HttpRequests, never tracked separately. */
+export const HTTP_HOST_LABEL = "HttpHost";
 
 export const PRINCIPAL_LABEL = "Principal";
 /** Domain selector, distinct from the runtime "principal" key (see lib/principal.ts) to avoid collision. */

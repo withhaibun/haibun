@@ -10,7 +10,7 @@
 import { SHARED_GRAPH } from "./quad-types.js";
 import { READING_LABEL, SEQ_PATH_LABEL } from "./resources.js";
 import { FACT_GRAPH, OBSERVATION_GRAPH as RUNTIME_OBSERVATION_GRAPH } from "./working-memory.js";
-import { ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "./http-observations.js";
+import { ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "./resources.js";
 import { LOG_MESSAGE_LABEL } from "./log-message.js";
 import { RUN_ARTIFACT_LABEL } from "./run-artifact.js";
 

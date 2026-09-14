@@ -39,6 +39,7 @@ import { callStepByName } from "../lib/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { parseSeqPath } from "../lib/seq-path.js";
+import { stepInFlight } from "../lib/capability-context.js";
 
 const GRANTED_CAPABILITY = "GRANTED_CAPABILITY";
 const SMOKE_GOALS = "SMOKE_GOALS";
@@ -135,10 +136,8 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			// Otherwise the panel's own re-fetch, which is a read, would re-trigger itself over SSE without bound.
 			const step = after.featureStep.action.step;
 			if (step.read === true || PROJECTION_DOMAINS.has(step.productsDomain ?? "")) return Promise.resolve({ failed: false });
-			const seqPath = this.getWorld().runtime.currentSeqPath;
-			if (!seqPath) {
-				throw new Error("GoalResolutionStepper.afterStep: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking afterStep cycles.");
-			}
+			const seqPath = stepInFlight()?.seqPath;
+			if (!seqPath) throw new Error("GoalResolutionStepper.afterStep: no step is in flight. dispatchStep runs afterStep cycles inside the step.");
 			this.getWorld().eventLogger.emit({
 				id: `${AFFORDANCE_EVENT_PREFIX}${seqPath}`,
 				timestamp: Date.now(),

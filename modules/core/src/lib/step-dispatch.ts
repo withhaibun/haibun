@@ -7,7 +7,7 @@ import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { authorizedWith, runAuthorizedWith } from "./capability-context.js";
+import { authorizedWith, runAuthorizedWith, runInStep } from "./capability-context.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
@@ -150,19 +150,14 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
 		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport ?? "local", ranOn: tool.remoteHost });
 	}
-	const previousSeqPath = world.runtime.currentSeqPath;
-	const previousReportsAt = world.eventLogger.stepReportsAt;
-	const currentSeqPathStr = featureStep.seqPath.join(".");
-	world.runtime.currentSeqPath = currentSeqPathStr;
-	world.eventLogger.currentSeqPath = currentSeqPathStr;
 	// What is said while this step runs reports no more prominently than the step does, so a call made into a running
 	// instance leaves the caller's own narration out of the run's history rather than among its steps.
-	world.eventLogger.stepReportsAt = featureStep.isSubStep ? SUBSTEP_LEVEL : undefined;
+	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined };
 	let actionResult: TActionResult;
 	let ok = true;
 	let lastStepResult: TStepResult;
-	try {
-		await runAuthorizedWith(grantedCapability, async () => {
+	await runInStep(step, () =>
+		runAuthorizedWith(grantedCapability, async () => {
 			let doAction = true;
 			while (doAction) {
 				await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
@@ -185,7 +180,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 							actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 						}
 						actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-						await autoAssertProducts(world, action.step, actionResult);
+						await autoAssertProducts(world, step.seqPath, action.step, actionResult);
 					}
 				}
 				if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
@@ -201,12 +196,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 					actionResult = { ...actionResult, ok: true };
 				}
 			}
-		});
-	} finally {
-		world.runtime.currentSeqPath = previousSeqPath;
-		world.eventLogger.currentSeqPath = previousSeqPath;
-		world.eventLogger.stepReportsAt = previousReportsAt;
-	}
+		}),
+	);
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);
 	}
@@ -270,14 +261,8 @@ async function checkInputPreconditions(world: TWorld, step: TStepperStep, featur
  * View-only outputs (e.g. `show monitor` → `shu-monitor-column`) are skipped:
  * see `isViewOnlyDomain` for why.
  */
-async function autoAssertProducts(world: TWorld, step: TStepperStep, actionResult: TActionResult): Promise<void> {
+async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStepperStep, actionResult: TActionResult): Promise<void> {
 	if (!actionResult.products) return;
-	const seqPathKey = world.runtime.currentSeqPath;
-	if (!seqPathKey) {
-		throw new Error(
-			"autoAssertProducts: world.runtime.currentSeqPath is unset. dispatchStep must set currentSeqPath before invoking the action; if you see this, the dispatch path is missing the assignment.",
-		);
-	}
 	if (step.productsDomain) {
 		if (isViewOnlyDomain(world, step.productsDomain)) return;
 		await assertFact(world, normalizeDomainKey(step.productsDomain), seqPathKey, actionResult.products, FACT_GRAPH);

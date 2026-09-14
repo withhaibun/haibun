@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { declareBlips, recordBlip, resetBlips, blipWatch, WATCH_WINDOW } from "../lib/blips.js";
+import { declareBlips, resetBlips, blipWatch, WATCH_WINDOW } from "../lib/blips.js";
+import { recordBlip } from "../lib/record-blip.js";
 import { EventLogger } from "../lib/EventLogger.js";
 import BlipsStepper, { renderWatch } from "./blips-stepper.js";
 import LogicStepper from "./logic-stepper.js";
@@ -10,6 +11,7 @@ import { AStepper } from "../lib/astepper.js";
 import { OK } from "../schema/protocol.js";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import type { TWorld } from "../lib/world.js";
+import { runInStep } from "../lib/capability-context.js";
 
 const SCROLL = {
 	name: "haibun.test.view.scroll_adjust",
@@ -20,9 +22,9 @@ const SCROLL = {
 };
 const REQUEST = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "A request completed." };
 
-const make = (seqPath?: string) => {
+const make = () => {
 	const eventLogger = new EventLogger();
-	return { eventLogger, world: { runtime: { currentSeqPath: seqPath }, eventLogger } as unknown as TWorld };
+	return { eventLogger, world: { runtime: {}, eventLogger } as unknown as TWorld };
 };
 
 describe("a watch: which occurrences, in what order", () => {
@@ -33,7 +35,7 @@ describe("a watch: which occurrences, in what order", () => {
 
 	it("holds only the watched names, in the order they happened", () => {
 		declareBlips(SCROLL, REQUEST);
-		const { world, eventLogger } = make("0.1");
+		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [SCROLL.name]);
 		recordBlip(world, SCROLL.name, 1, { view: "a" });
 		recordBlip(world, REQUEST.name);
@@ -68,9 +70,9 @@ describe("a watch: which occurrences, in what order", () => {
 
 	it("carries the step each occurrence happened under, which is what ties it back to the run", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make("0.2.3");
+		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [SCROLL.name]);
-		recordBlip(world, SCROLL.name, 4, { view: "a" });
+		runInStep({ seqPath: "0.2.3", reportsAt: undefined }, () => recordBlip(world, SCROLL.name, 4, { view: "a" }));
 		expect(renderWatch(blipWatch.occurrences(), blipWatch.seen)).toContain("step=0.2.3");
 	});
 

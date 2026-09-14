@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { trackHttpRequest, classifyHttpPath, ENDPOINT_CLASS, ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "./http-observations.js";
+import { trackHttpRequest, classifyHttpPath, ENDPOINT_CLASS } from "./http-observations.js";
+import { ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "./resources.js";
 import { activeSitePrincipal } from "./host-id.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";

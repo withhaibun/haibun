@@ -15,7 +15,7 @@ import {
 	type TAfterStepResult,
 } from "@haibun/core/lib/astepper.js";
 import { queryFacts } from "@haibun/core/lib/working-memory.js";
-import { HTTP_REQUEST_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
+import { HTTP_REQUEST_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/resources.js";
 
 import { VideoArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";

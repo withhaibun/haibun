@@ -408,6 +408,38 @@ describe("step-dispatch", () => {
 			expect(result.products).toMatchObject({ echoed: "hello", _seqPath: [0, 7] });
 		});
 
+		it("names the step each call is part of, where two steps are in flight at once", async () => {
+			let started = 0;
+			let release = () => undefined as void;
+			const released = new Promise<void>((resolve) => (release = resolve));
+			const stepper = new (class extends AStepper {
+				steps = {
+					sayOnceBothStarted: {
+						gwta: "say {what} once both have started",
+						action: async ({ what }: { what: string }) => {
+							if (++started === 2) release();
+							await released;
+							world.eventLogger.info(what);
+							return OK;
+						},
+					},
+				};
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get(`${stepper.constructor.name}-sayOnceBothStarted`);
+			if (!tool) throw new Error("Expected the step to be registered");
+			const logged: Array<{ id: string; message: string }> = [];
+			world.eventLogger.subscribe((event) => {
+				if (event.kind === "log") logged.push({ id: event.id, message: event.message });
+			});
+			const say = (what: string, path: number[]) =>
+				dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, validateToolInput(path, tool, { what }, world), path));
+			await Promise.all([say("first", [0, 8, 1]), say("second", [0, 8, 2])]);
+			expect(logged.find((log) => log.message === "first")?.id, "the first step's statement names the first step").toMatch(/^0\.8\.1\.log\./);
+			expect(logged.find((log) => log.message === "second")?.id, "and the second's the second").toMatch(/^0\.8\.2\.log\./);
+		});
+
 		it("denies missing capability", async () => {
 			const stepper = new CapabilityStepper();
 			const steppers = [stepper];

@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { declareBlips, blipDeclarations, recordBlip, resetBlips, BlipRollup } from "./blips.js";
+import { declareBlips, blipDeclarations, resetBlips, BlipRollup } from "./blips.js";
+import { recordBlip } from "./record-blip.js";
 import { EventLogger } from "./EventLogger.js";
 import type { THaibunEvent } from "../schema/protocol.js";
 import type { TWorld } from "./world.js";
+import { runInStep } from "./capability-context.js";
 
-const make = (seqPath?: string) => {
+const make = () => {
 	const eventLogger = new EventLogger();
-	const world = { runtime: { currentSeqPath: seqPath }, eventLogger } as unknown as TWorld;
+	const world = { runtime: {}, eventLogger } as unknown as TWorld;
 	return { eventLogger, world };
 };
 const SCROLL = {
@@ -24,7 +26,7 @@ describe("blips: fine-grained occurrences, never retained", () => {
 
 	it("does nothing when nothing is subscribed to the kind: a hot path can record unconditionally", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make("0.1.2");
+		const { world, eventLogger } = make();
 		const narrated: THaibunEvent[] = [];
 		// A bare subscriber narrates the run; it is not a blip audience, so recording still returns before any lookup.
 		eventLogger.subscribe((e) => narrated.push(e));
@@ -34,17 +36,17 @@ describe("blips: fine-grained occurrences, never retained", () => {
 
 	it("hands a recording to every blip subscriber, with the step it happened under", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make("0.1.2.3");
+		const { world, eventLogger } = make();
 		const seen: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"] });
-		recordBlip(world, SCROLL.name, 1, { view: "shu-document-column" });
+		runInStep({ seqPath: "0.1.2.3", reportsAt: undefined }, () => recordBlip(world, SCROLL.name, 1, { view: "shu-document-column" }));
 		expect(seen).toHaveLength(1);
 		expect(seen[0]).toMatchObject({ kind: "blip", name: SCROLL.name, seqPath: "0.1.2.3", value: 1, attributes: { view: "shu-document-column" } });
 	});
 
 	it("never reaches a bare subscriber: blips share the transport, not the audience", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make("0.1");
+		const { world, eventLogger } = make();
 		const narrated: THaibunEvent[] = [];
 		const blips: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => narrated.push(e));
@@ -58,7 +60,7 @@ describe("blips: fine-grained occurrences, never retained", () => {
 	it("delivers only the names a subscriber filtered to, exact or by dotted namespace", () => {
 		const HTTP = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "An observed request completed." };
 		declareBlips(SCROLL, HTTP);
-		const { world, eventLogger } = make("0.1");
+		const { world, eventLogger } = make();
 		const seen: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"], names: ["haibun.test.http"] });
 		recordBlip(world, SCROLL.name, 1, { view: "a" });
@@ -168,7 +170,7 @@ describe("blip rollup: the aggregating listener", () => {
 
 	it("counts occurrences per name while attached, in observation-source shape", () => {
 		declareBlips(SCROLL, HTTP);
-		const { world, eventLogger } = make("0.1");
+		const { world, eventLogger } = make();
 		const rollup = new BlipRollup();
 		rollup.attach(eventLogger);
 		recordBlip(world, SCROLL.name, 1, { view: "a" });
@@ -182,12 +184,12 @@ describe("blip rollup: the aggregating listener", () => {
 
 	it("rebinds to the logger it is given, so an execution that never detached cannot deafen the next one", () => {
 		declareBlips(SCROLL);
-		const first = make("0.1");
+		const first = make();
 		const rollup = new BlipRollup();
 		rollup.attach(first.eventLogger);
 		recordBlip(first.world, SCROLL.name, 1, { view: "a" });
 		// The execution ends without detaching, as a throw escaping the feature loop would leave it.
-		const second = make("0.1");
+		const second = make();
 		rollup.attach(second.eventLogger);
 		expect(first.eventLogger.hasSubscribers("blip")).toBe(false);
 		expect(rollup.observe().items).toEqual([]); // a clean window, not the previous execution's counts

@@ -15,6 +15,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { narrowerCeiling, type AccessLevel } from "./resources.js";
+import type { THaibunLogLevel } from "../schema/protocol.js";
 
 const capabilityStore = new AsyncLocalStorage<string | string[] | undefined>();
 
@@ -62,6 +63,27 @@ export function runActingAs<T>(principal: string | undefined, within: () => Prom
 /** Who proved themselves at the boundary this call came through, or undefined where nothing did. */
 export function actingAs(): string | undefined {
 	return actingStore.getStore();
+}
+
+/** The step running: its seqPath, and how prominently what is said while it runs reports. */
+export type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined };
+
+const stepStore = new AsyncLocalStorage<TStepInFlight | undefined>();
+
+/**
+ * The step a call is part of, for the length of the step's dispatch.
+ *
+ * What a step writes, logs and records names the step it was done in. Held on the world, the step was one value for the
+ * whole process: two steps in flight, as two readers' calls into one run are, each named the step dispatched last, and a
+ * step that dispatched another named the inner step until it ended. Held here, each call reads the step it belongs to.
+ */
+export function runInStep<T>(step: TStepInFlight, within: () => T): T {
+	return stepStore.run(step, within);
+}
+
+/** The step this call is part of, or undefined outside any dispatch. */
+export function stepInFlight(): TStepInFlight | undefined {
+	return stepStore.getStore();
 }
 
 const readCeilingStore = new AsyncLocalStorage<AccessLevel | undefined>();

@@ -5,7 +5,6 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { EndpointLabels } from "./defs.js";
 
 const mockLogger: IEventLogger = {
-	currentSeqPath: undefined,
 	subscribe: () => {
 		/* noop */
 	},
