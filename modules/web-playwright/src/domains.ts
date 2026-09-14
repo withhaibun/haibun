@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { LinkRelations, TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { ENDPOINT_CLASS, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/http-observations.js";
+import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import { VISITED_PAGE_LABEL } from "@haibun/core/lib/instrumentation-graphs.js";
 
 export { VISITED_PAGE_LABEL };

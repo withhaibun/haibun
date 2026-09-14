@@ -14,10 +14,8 @@
  * to that step without any context passed at the call site.
  */
 import { z } from "zod";
-import { BlipEvent } from "../schema/protocol.js";
 import type { THaibunEvent, TBlipEvent } from "../schema/protocol.js";
 import type { IEventLogger } from "./EventLogger.js";
-import type { TWorld } from "./world.js";
 
 /** How a blip maps onto an OpenTelemetry signal: a discrete occurrence is a span event, a rate or distribution is a
  *  metric instrument. Traces give order and identity; metrics give frequency. */
@@ -94,6 +92,11 @@ export function declareBlips(...decls: TBlipDeclaration[]): void {
 }
 
 /** Every declaration, for an exporter building its instruments and for a reader discovering what a run can record. */
+/** The declaration a name was declared with, or undefined where it was not declared. */
+export function blipDeclared(name: string): THeldBlipDeclaration | undefined {
+	return declarations.get(name);
+}
+
 export function blipDeclarations(): readonly THeldBlipDeclaration[] {
 	return [...declarations.values()];
 }
@@ -210,33 +213,3 @@ export class BlipWatch {
 
 /** The one watch a run holds, started and stopped by the blips stepper's steps. */
 export const blipWatch = new BlipWatch();
-
-/**
- * Record an occurrence onto the event bus. With nothing subscribed to this name this is one check and a return:
- * the reason a hot path can record unconditionally. With a matching subscriber, the name must be declared and the
- * attributes must match the declared shape.
- */
-export function recordBlip(world: TWorld, name: string, value?: number, attributes?: Record<string, unknown>): void {
-	if (!world.eventLogger.hasSubscribers("blip", name)) return;
-	const declared = declarations.get(name);
-	if (!declared) throw new Error(`recordBlip: "${name}" is not declared, declare it with declareBlips before recording it`);
-	// What the declaration validated is what is emitted, so a key it does not name cannot ride along to an exporter, and
-	// omitting attributes a declaration requires is caught here rather than downstream.
-	const declaredAttributes = declared.attributes ? (declared.attributes.parse(attributes ?? {}) as Record<string, unknown>) : attributes;
-	const timestamp = Date.now();
-	const seqPath = world.runtime.currentSeqPath;
-	// emitter is set here so emit() never walks a stack for a per-frame recording.
-	world.eventLogger.emit(
-		BlipEvent.parse({
-			id: seqPath ? `${seqPath}.blip.${timestamp}` : `blip.${timestamp}`,
-			timestamp,
-			kind: "blip",
-			level: "trace",
-			emitter: "blips.recordBlip",
-			name,
-			seqPath,
-			value,
-			attributes: declaredAttributes,
-		}),
-	);
-}

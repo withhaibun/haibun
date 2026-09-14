@@ -3,6 +3,7 @@ import { EventLogger } from "./EventLogger.js";
 import { TFeatureStep } from "./astepper.js";
 import { OBSCURED_VALUE } from "./feature-variables.js";
 import { BlipEvent, ImageArtifact } from "../schema/protocol.js";
+import { runInStep } from "./capability-context.js";
 
 const OK = { ok: true as const };
 
@@ -245,6 +246,8 @@ describe("EventLogger", () => {
 		});
 	});
 	describe("how prominently a statement reports", () => {
+		/** A step that reports at trace, as a call made into a running instance does. */
+		const DURING_A_TRACE_STEP = { seqPath: "0.1", reportsAt: "trace" as const };
 		const said = (): Array<Record<string, unknown>> => {
 			const heard: Array<Record<string, unknown>> = [];
 			logger.subscribe((e) => heard.push(e as unknown as Record<string, unknown>), { kinds: ["log"] });
@@ -259,23 +262,22 @@ describe("EventLogger", () => {
 
 		it("reports no more prominently than the step it is said during, so a call into a running instance stays out of the run's history", () => {
 			const heard = said();
-			logger.stepReportsAt = "trace";
-			logger.info("what the caller's own step said");
+			runInStep(DURING_A_TRACE_STEP, () => logger.info("what the caller's own step said"));
 			expect(heard[0].level, "said during a step that reports at trace").toBe("trace");
 		});
 
 		it("leaves a statement quieter than the step where it is", () => {
 			const heard = said();
-			logger.stepReportsAt = "trace";
-			logger.debug("quieter than the step");
+			runInStep(DURING_A_TRACE_STEP, () => logger.debug("quieter than the step"));
 			expect(heard[0].level).toBe("debug");
 		});
 
 		it("reports a warning and a fault as themselves, since a quiet step is no reason to be quiet about a fault", () => {
 			const heard = said();
-			logger.stepReportsAt = "trace";
-			logger.warn("something is wrong");
-			logger.error("something failed");
+			runInStep(DURING_A_TRACE_STEP, () => {
+				logger.warn("something is wrong");
+				logger.error("something failed");
+			});
 			expect(heard.map((e) => e.level)).toEqual(["warn", "error"]);
 		});
 	});

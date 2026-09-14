@@ -5,6 +5,7 @@ import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
 import { formatSeqPath } from "./seq-path.js";
 import { failFastOrLog } from "./dev-mode.js";
+import { stepInFlight } from "./capability-context.js";
 
 export type TIsSecretFn = (name: string) => boolean;
 
@@ -27,11 +28,6 @@ export interface IEventLogger {
 	suppressConsole?: boolean;
 	/** Whether this run was asked for its events as NDJSON, which outranks a monitor's console suppression. */
 	readonly ndjsonForced?: boolean;
-	currentSeqPath: string | undefined;
-	/** How prominently the step now running reports. What is said while it runs reports no more prominently than the
-	 *  step does, so a call made into a running instance does not put the caller's own narration into the run's
-	 *  history. A warning or a fault is exempt: those report as themselves wherever they happen. */
-	stepReportsAt: THaibunLogLevel | undefined;
 	subscribe(callback: TEventSubscriber, options?: TSubscribeOptions): void;
 	unsubscribe(callback: TEventSubscriber): void;
 	hasSubscribers(kind: TEventKind, name?: string): boolean;
@@ -94,8 +90,6 @@ export class EventLogger implements IEventLogger {
 	private kindCounts = new Map<TEventKind, number>();
 	public suppressConsole: boolean = false;
 	private isSecretFn: TIsSecretFn;
-	currentSeqPath: string | undefined;
-	stepReportsAt: THaibunLogLevel | undefined;
 
 	/** Set when the run was asked for its events as NDJSON. A caller reading this run's output, rather than a person
 	 *  watching it, needs the events whatever else is formatting the console, so this outranks the monitor's
@@ -197,14 +191,16 @@ export class EventLogger implements IEventLogger {
 	}
 
 	private emitLog(level: THaibunLogLevel, message: string, attributes?: Record<string, unknown>): void {
-		const id = this.currentSeqPath ? `${this.currentSeqPath}.log.${Date.now()}` : `log.${Date.now()}`;
+		const seqPath = stepInFlight()?.seqPath;
+		const id = seqPath ? `${seqPath}.log.${Date.now()}` : `log.${Date.now()}`;
 		this.emit(LogEvent.parse({ id, timestamp: Date.now(), kind: "log", level: this.reportedAt(level), message, attributes }));
 	}
 
 	/** The level a statement reports at: its own, held to the level of the step it is said during. A warning and a
-	 *  fault report as themselves, since a step reporting quietly is not a reason to be quiet about a fault. */
+	 *  fault report as themselves, since a step reporting quietly is not a reason to be quiet about a fault, and a call
+	 *  made into a running instance does not put the caller's own narration into the run's history. */
 	private reportedAt(level: THaibunLogLevel): THaibunLogLevel {
-		const ceiling = this.stepReportsAt;
+		const ceiling = stepInFlight()?.reportsAt;
 		if (ceiling === undefined || HAIBUN_LOG_LEVELS.indexOf(level) >= HAIBUN_LOG_LEVELS.indexOf("warn")) return level;
 		return HAIBUN_LOG_LEVELS.indexOf(level) > HAIBUN_LOG_LEVELS.indexOf(ceiling) ? ceiling : level;
 	}

@@ -8,19 +8,11 @@
 
 import { z } from "zod";
 import type { TWorld } from "./world.js";
-import { ENDPOINT_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "./resources.js";
+import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "./resources.js";
 import { activeSitePrincipal } from "./host-id.js";
-import { declareBlips, recordBlip } from "./blips.js";
+import { declareBlips } from "./blips.js";
+import { recordBlip } from "./record-blip.js";
 
-/** The one type every observed HTTP request becomes: the single network-interaction record. Its `performedBy`/`target`
- *  edges make it a message on the polymorphic view sequence view. */
-export const HTTP_REQUEST_LABEL = "HttpRequest";
-/** The requesting party: the browser / user agent. A singleton lifeline with id `client`. */
-export const HTTP_CLIENT_LABEL = "HttpClient";
-/** A serving party: the site itself or an external server. One node per host, carrying `requestCount`: how many
- *  requests reached it, a rollup of its HttpRequests, never tracked separately. */
-export const HTTP_HOST_LABEL = "HttpHost";
-export { ENDPOINT_LABEL } from "./resources.js";
 const CLIENT_ID = "client";
 /** The endpoint classes: an own page route, the app's service plumbing (/rpc, /sse), or another host. */
 export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;

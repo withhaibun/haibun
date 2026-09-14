@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
 import { passWithDefaults, failWithDefaults, getDefaultWorld } from "../lib/test/lib.js";
+import { runInStep } from "../lib/capability-context.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import VariablesStepper from "./variables-stepper.js";
@@ -146,11 +147,11 @@ variable affordances exists`,
 	it("announces a change after an act and none after a read, since a read changes nothing and the panel's own re-fetch is one", async () => {
 		const stepper = new GoalResolutionStepper();
 		const world = getDefaultWorld();
-		world.runtime.currentSeqPath = "0.1";
 		await stepper.setWorld(world, [stepper]);
 		const announced: string[] = [];
 		world.eventLogger.emit = ((event: { id?: string }) => announced.push(String(event.id))) as typeof world.eventLogger.emit;
-		const after = (step: unknown) => stepper.cycles.afterStep?.({ featureStep: { action: { step } }, actionResult: { ok: true } } as never);
+		const after = (step: unknown) =>
+			runInStep({ seqPath: "0.1", reportsAt: undefined }, () => stepper.cycles.afterStep?.({ featureStep: { action: { step } }, actionResult: { ok: true } } as never));
 		await after(stepper.steps.affordancesOnOffer);
 		await after(stepper.steps.affordancesOnOfferAsOf);
 		expect(announced, "a read announces nothing, or the panel reading would announce a change to read again for, without bound").toEqual([]);
