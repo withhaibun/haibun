@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { harvestChatViewLd } from "./chat-context-harvest.js";
+import { HARVEST_MEMBERS, harvestChatViewLd, harvested } from "./chat-context-harvest.js";
 import { activePane } from "./signals.js";
 
 type TView = HTMLElement & { summarizeForKihan(): unknown | null };
@@ -90,6 +90,41 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
  * open one of them is the pane you are on, so this is a fault in the signal and it says so, naming what it holds and
  * what was open.
  */
+describe("what a page sends of a view that states many members", () => {
+	const members = (count: number, key = "quads") => ({ "@id": "view:graph", "@type": "as:Collection", totalItems: count, [key]: Array.from({ length: count }, (_, at) => ({ at })) });
+
+	it("carries the members the view stated first, and says how many it carried", () => {
+		const carried = harvested(members(HARVEST_MEMBERS + 50)) as { quads: Array<{ at: number }>; totalItems: number; membersCarried: number };
+		expect(carried.quads.map((q) => q.at), "the view states the order it wants them read").toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
+		expect(carried.totalItems, "the count the view stated stands, so a reader is told how many the view holds").toBe(HARVEST_MEMBERS + 50);
+		expect(carried.membersCarried).toBe(HARVEST_MEMBERS);
+	});
+
+	it("carries a view whose members a harvest holds as it stated it, saying nothing about carrying", () => {
+		const whole = members(3);
+		expect(harvested(whole)).toBe(whole);
+	});
+
+	it("carries the members whatever a view names them, and a summary with none as it is", () => {
+		for (const key of ["items", "rows", "entries"]) {
+			const carried = harvested(members(HARVEST_MEMBERS + 1, key)) as Record<string, unknown>;
+			expect((carried[key] as unknown[]).length, key).toBe(HARVEST_MEMBERS);
+		}
+		const stated = { "@id": "view:one", name: "a view of one thing" };
+		expect(harvested(stated)).toBe(stated);
+	});
+
+	it("is what the harvest sends, so no view sends more than a page carries", () => {
+		document.body.innerHTML = "";
+		const strip = document.createElement("shu-column-strip");
+		strip.appendChild(pane("only", view("shu-polymorphic-graph-view", members(HARVEST_MEMBERS + 10))));
+		document.body.appendChild(strip);
+		activePane.set("only");
+		const [block] = harvestChatViewLd() as Array<{ quads: unknown[] }>;
+		expect(block.quads).toHaveLength(HARVEST_MEMBERS);
+	});
+});
+
 describe("harvestChatViewLd: an active pane the signal cannot resolve", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";

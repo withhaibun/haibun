@@ -1,34 +1,27 @@
 /**
- * What a graph states about itself to a reader who is not looking at it.
+ * The order a graph states itself in, for a reader who is not looking at it.
  *
- * A graph is any size, and a summary carrying every statement of a thousand-node graph is one no model's window holds.
- * The scene is the only thing that knows what the reader is on, so it answers with the statements about that node
- * first, then the rest in the order it drew them, up to what a summary holds. The summary states how many statements
- * the graph has and names the step that reads them all, so a reader told 200 of 1200 asks for the rest rather than
- * answering from a part it cannot tell is partial.
+ * A reader asking about a graph is asking about the node they are on and what it connects to. The scene is the only
+ * thing that knows which that is, so it states those statements first and the rest in the order it drew them. How many
+ * of them travel is the harvest's to say, and how many reach a model is the window's; both keep what arrives first,
+ * which is why this decides the order and neither of them has to know what a graph is.
  */
-import { linkTo } from "../../rpc-registry.js";
-import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { RPC_METHOD } from "../../consts.js";
+import { reads, type TLink } from "../../hypermedia.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
-/** How many statements a graph's summary holds. */
-export const GRAPH_SUMMARY_STATEMENTS = 200;
-/** The stepper whose steps answer a page's reads of the graph, and the step that reads every statement one draws. */
-const GRAPH_SOURCE_STEPPER = "GraphSourceStepper";
-const GET_CLUSTERED_QUADS = "getClusteredQuads";
+type TStated = Pick<TQuad, "subject" | "object">;
 
-type TStated = { subject: string; predicate: string; object: unknown; namedGraph: string };
-
-/** The graph's own JSON-LD, bounded to what a summary holds, with what it left out named. `on` is the node the reader
- *  is on, whose statements a summary keeps before any other. */
-export function heldForKihan(whole: Record<string, unknown>, on: string | null, holds = GRAPH_SUMMARY_STATEMENTS): Record<string, unknown> {
-	const stated = (whole.quads ?? []) as TStated[];
-	if (stated.length <= holds) return whole;
-	const isAbout = (q: TStated) => on !== null && (q.subject === on || q.object === on);
-	const held = [...stated.filter(isAbout), ...stated.filter((q) => !isAbout(q))].slice(0, holds);
-	return {
-		...whole,
-		quads: held,
-		statementsHeld: held.length,
-		readTheRestWith: linkTo(stepMethodName(GRAPH_SOURCE_STEPPER, GET_CLUSTERED_QUADS), { perTypeLimit: stated.length }, "every statement this graph draws"),
-	};
+/** The statements about `on` first, then the rest in the order they were drawn. */
+export function statedAboutFirst<T extends TStated>(stated: readonly T[], on: string | null): T[] {
+	if (on === null) return [...stated];
+	const about: T[] = [];
+	const rest: T[] = [];
+	for (const one of stated) (one.subject === on || one.object === on ? about : rest).push(one);
+	return [...about, ...rest];
 }
+
+/** The call that reads every statement a graph draws, as the view read them: a reader carrying part of a graph asks for
+ *  the rest rather than answering from a part it cannot tell is partial. */
+export const readsEveryStatement = (asks: { perTypeLimit: number; accessLevel: string }): TLink =>
+	reads(RPC_METHOD.CLUSTERED_QUADS, asks, "every statement this graph draws");

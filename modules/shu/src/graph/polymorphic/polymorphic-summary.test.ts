@@ -1,44 +1,37 @@
 /**
- * A graph states what it draws to a model through a window, and a reader's graph is any size. What the summary holds,
- * and what it says about the rest, is the scene's answer to that.
+ * A graph states itself to a reader who is not looking at it. Which statements come first is the scene's to say, since
+ * it is the only thing that knows what the reader is on; how many of them travel, and how many a window holds, are
+ * decided after this and keep what arrives first.
  */
 import { describe, expect, it } from "vitest";
-import { GRAPH_SUMMARY_STATEMENTS, heldForKihan } from "./polymorphic-summary.js";
+import { readsEveryStatement, statedAboutFirst } from "./polymorphic-summary.js";
+import { RPC_METHOD } from "../../consts.js";
 
+const subjectAt = (at: number) => `note-${at}@bakery.test`;
 const stated = (subject: string, object: string) => ({ subject, predicate: "inReplyTo", object, namedGraph: "Email" });
-const aGraph = (count: number, about = "other") => ({
-	"@id": "view:graph",
-	"@type": "as:Collection",
-	name: "visible graph",
-	totalItems: count,
-	quads: Array.from({ length: count }, (_, at) => stated(`${about}-${at}@bakery.test`, `${about}-${at + 1}@bakery.test`)),
+const drew = (count: number) => Array.from({ length: count }, (_, at) => stated(subjectAt(at), subjectAt(at + 1)));
+
+describe("the order a graph states itself in", () => {
+	it("states what the reader is on first, whether the graph names it as the subject or as the object", () => {
+		const on = "read-me@bakery.test";
+		const drawn = [stated(subjectAt(0), subjectAt(1)), stated(on, subjectAt(2)), stated(subjectAt(3), on)];
+		expect(statedAboutFirst(drawn, on)).toEqual([drawn[1], drawn[2], drawn[0]]);
+	});
+
+	it("keeps the order the view drew, for a reader on nothing, and every statement either way", () => {
+		const drawn = drew(50);
+		expect(statedAboutFirst(drawn, null)).toEqual(drawn);
+		expect(statedAboutFirst(drawn, "read-me@bakery.test"), "a node the graph does not state leaves the order as it was").toEqual(drawn);
+	});
 });
 
-describe("what a graph states to a reader who is not looking at it", () => {
-	it("states every statement it draws, where a summary holds them all", () => {
-		const whole = aGraph(3);
-		expect(heldForKihan(whole, null)).toBe(whole);
-	});
-
-	it("keeps the statements about the node the reader is on, before the ones about anything else", () => {
-		const on = "read-me@bakery.test";
-		const whole = aGraph(GRAPH_SUMMARY_STATEMENTS + 10);
-		whole.quads.push(stated(on, "elsewhere@bakery.test"), stated("elsewhere@bakery.test", on));
-		const held = heldForKihan(whole, on).quads as Array<{ subject: string; object: string }>;
-		expect(held.slice(0, 2), "the reader's own node first").toEqual([stated(on, "elsewhere@bakery.test"), stated("elsewhere@bakery.test", on)]);
-		expect(held, "and what a summary holds, no more").toHaveLength(GRAPH_SUMMARY_STATEMENTS);
-	});
-
-	it("says how many statements it holds and names the step that reads them all, so a reader asks for the rest", () => {
-		const whole = aGraph(1_200);
-		const summary = heldForKihan(whole, null, 200);
-		expect(summary.statementsHeld).toBe(200);
-		expect(summary.totalItems, "the count is of the graph, not of what the summary holds").toBe(1_200);
-		expect(summary.readTheRestWith).toMatchObject({ method: "GraphSourceStepper-getClusteredQuads", params: { perTypeLimit: 1_200 } });
-	});
-
-	it("holds the statements the view drew first, where the reader is on nothing", () => {
-		const held = heldForKihan(aGraph(50), null, 10).quads as Array<{ subject: string }>;
-		expect(held.map((q) => q.subject)).toEqual(Array.from({ length: 10 }, (_, at) => `other-${at}@bakery.test`));
+describe("the call that reads every statement", () => {
+	it("is a read of the graph as the view read it, so a reader carrying part of it asks for the rest", () => {
+		expect(readsEveryStatement({ perTypeLimit: 100, accessLevel: "private" })).toEqual({
+			method: RPC_METHOD.CLUSTERED_QUADS,
+			params: { perTypeLimit: 100, accessLevel: "private" },
+			summary: "every statement this graph draws",
+			asks: "read",
+		});
 	});
 });
