@@ -28,8 +28,8 @@ import {
 
 const EMAIL = entryOf([anIndividual("Email", "a@test.com")], "private");
 const OTHER = entryOf([anIndividual("Email", "b@test.com")], "private");
-const QUESTION: TEntry = { record: { id: "cmt-ask-0.-1.3", label: COMMENT_LABEL }, seqPath: "0.-1.3", bundle: EMAIL.bundle };
-const ANSWER: TEntry = { record: { id: "cmt-say-0.-1.3", label: COMMENT_LABEL }, seqPath: "0.-1.3", bundle: EMAIL.bundle };
+const QUESTION: TEntry = { record: { id: "cmt-ask-0.-1.3", label: COMMENT_LABEL }, turn: "cmt-ask-0.-1.3", bundle: EMAIL.bundle };
+const ANSWER: TEntry = { record: { id: "cmt-say-0.-1.3", label: COMMENT_LABEL }, turn: "cmt-ask-0.-1.3", bundle: EMAIL.bundle };
 const NOTHING = entryOf([], "private");
 
 const run = (...events: TSubjectEvent[]): TSubjectState => events.reduce(transition, INITIAL_SUBJECT);

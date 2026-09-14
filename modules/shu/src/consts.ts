@@ -170,7 +170,6 @@ export const SHU_ATTR = {
 	/** Reflected by a chat message from the message it renders: its role, turn status, turn seqPath and recorded comment. */
 	DATA_ROLE: "data-role",
 	DATA_STATUS: "data-status",
-	DATA_SEQPATH: "data-seqpath",
 	DATA_RECORD: "data-record",
 } as const;
 

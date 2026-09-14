@@ -41,7 +41,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	#subject = new SubjectController(
 		this,
 		() => this.syncTranscript(),
-		(state) => [currentSubject(state)?.id, nextQuestion(state).repliesTo?.seqPath],
+		(state) => [currentSubject(state)?.id, nextQuestion(state).repliesTo?.turn],
 	);
 
 	constructor() {
@@ -68,7 +68,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	/** Place the transcript's messages: remove the ones it no longer holds, update the ones that changed, and append new
 	 *  ones. The newest entry is kept in view when a message is added or a turn ends. */
 	private syncTranscript(): void {
-		const entries = transcript(this.#conversation.state, this.#turn.state, nextQuestion(this.#subject.state).repliesTo?.seqPath, appAccessLevel());
+		const entries = transcript(this.#conversation.state, this.#turn.state, nextQuestion(this.#subject.state).repliesTo?.turn, appAccessLevel());
 		const keys = new Set(entries.map(({ message }) => message.id));
 		for (const [key, held] of this.#messages) {
 			if (keys.has(key)) continue;

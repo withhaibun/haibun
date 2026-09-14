@@ -200,20 +200,46 @@ export const ContextQuerySchema = z.array(ContextPatternSchema);
 export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel: z.string() });
 export type TBundle = z.infer<typeof BundleSchema>;
 
-/** A turn of a session as the store reads it back: its question and answer, their comments, the turn it replies to,
- *  and the records its question referenced. */
-export const SessionTurnSchema = z.object({
-	prompt: z.string(),
-	response: z.string(),
-	seqPath: z.string(),
-	inReplyTo: z.string().optional(),
-	askId: z.string().optional(),
-	sayId: z.string().optional(),
-	bundle: ContextQuerySchema,
-});
+/**
+ * A turn of a session as the store reads it back. A turn is named by its question's record, which is what a page is
+ * told the run recorded, so a page addresses a turn, the turn it replies to and the session it is in without knowing
+ * how a run names what it records.
+ */
+export const SessionTurnSchema = z
+	.object({
+		prompt: z.string().describe("What the reader asked."),
+		response: z.string().describe("What the model answered; empty before it answered."),
+		askId: z.string().describe("The question's record, which names the turn."),
+		sayId: z.string().optional().describe("The answer's record, once there is one."),
+		inReplyTo: z.string().optional().describe("The question record of the turn this one replies to; unset for a session's first turn."),
+		bundle: ContextQuerySchema.describe("The records the question referenced, which a page makes active again when a reader selects the turn."),
+		status: ChatStatusSchema.describe("How the step the turn ran as stands: running, completed or failed."),
+		error: z.string().optional().describe("What the step failed with, where it failed."),
+	})
+	.strict();
 export type TSessionTurn = z.infer<typeof SessionTurnSchema>;
-/** A session's turns as the store reads them back, each turn's replies after it. */
+/** A session's turns as the store reads them back, depth first from its first turn with each turn's replies oldest
+ *  first. A step's products carry the step they came from beside what the step declares, so the answer is not strict;
+ *  each turn is. */
 export const SessionReadSchema = z.object({ turns: z.array(SessionTurnSchema) });
+/** The sessions the store holds, each named by its first question's record, newest first. */
+export const SessionListSchema = z.object({ sessions: z.array(z.object({ session: z.string(), label: z.string(), generatedAtTime: z.string() }).strict()) });
+
+/** What a turn sends beside its question: the patterns of the records it is about, the page's view, how many calls its
+ *  model may chain, who reads the records, and the session and turn it replies in, each named by a question record.
+ *  Strict, so a key a sender renamed is refused rather than dropped. */
+export const TurnEnvelopeSchema = z
+	.object({
+		patterns: ContextQuerySchema,
+		viewLd: z.array(z.record(z.string(), z.unknown())).default([]),
+		maxToolCalls: z.number().int().min(0).max(99).optional(),
+		contextReadBy: z.enum(["run", "model"]).optional(),
+		session: z.string().optional(),
+		inReplyTo: z.string().optional(),
+	})
+	.strict()
+	.refine((envelope) => envelope.inReplyTo === undefined || envelope.session !== undefined, { message: "a reply names the session it replies in", path: ["session"] });
+export type TTurnEnvelope = z.input<typeof TurnEnvelopeSchema>;
 
 /** The ask is about one individual. */
 export const anIndividual = (persistedAs: string, id: string): TContextIndividual => ({ kind: DENOTES.individual, persistedAs, id });

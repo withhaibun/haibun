@@ -2,20 +2,19 @@
  * The page's latest chat turn, held as one state that events move.
  *
  * A turn is asked, starts when the run names its step, streams its text, its status lines and the comments it records,
- * and ends as completed, failed or stopped. `transition` states each move, and an event outside those moves leaves the
+ * and ends as completed, failed or stopped. The run records the question first, and that record names the turn. `transition` states each move, and an event outside those moves leaves the
  * state unchanged. The request stream is an adapter that raises the events, and a pane raises `stop`. The turn is
  * page-level, so it continues when the actions bar removes its pane. The conversation decides what the comments a turn
  * records activate. One turn is in flight at a time.
  */
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
-import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SCOPE, activeEntry, scopeEntry, type TEntry, type TRecord, type TSubjectState } from "./current-subject.js";
 import { acts, conduit } from "./hypermedia.js";
 import { requireStep } from "./rpc-registry.js";
 import { reportToRun } from "./client-log.js";
-import type { TBundle, TChatStatus, TTurnStatus } from "./schemas.js";
-import { SharedSignal } from "./signals.js";
+import { TurnEnvelopeSchema, type TBundle, type TChatStatus, type TTurnEnvelope, type TTurnStatus } from "./schemas.js";
+import { SharedMachine } from "./signals.js";
 
 /** A turn that was asked, in flight or ended. */
 export type TAskedTurn = {
@@ -23,12 +22,12 @@ export type TAskedTurn = {
 	prompt: string;
 	/** The context the turn was sent with, which each comment it records carries. */
 	bundle: TBundle;
-	/** The session the turn was asked in; unset for the turn that starts a session. */
+	/** The session the turn was asked in, named by its first question's record; unset for the turn that starts one. */
 	session?: string;
-	/** The seqPath of the turn this turn replies to; unset for a first turn. */
+	/** The question record of the turn this turn replies to; unset for a first turn. */
 	inReplyTo?: string;
-	/** The turn's seqPath in the run, null until its step starts. */
-	seqPath: string | null;
+	/** The question's record, which names the turn: null until the run records it. */
+	turn: string | null;
 	text: string;
 	/** The status lines the run streamed, in order: the context sent and each call dispatched. */
 	activity: string[];
@@ -43,7 +42,7 @@ export type TTurnState = { status: "idle" } | TAskedTurn;
 
 export type TTurnEvent =
 	| { type: "ask"; prompt: string; bundle: TBundle; session?: string; inReplyTo?: string }
-	| { type: "started"; seqPath: string }
+	| { type: "started" }
 	| { type: "text"; piece: string }
 	| { type: "status"; line: string }
 	| { type: "recorded"; record: TRecord }
@@ -81,18 +80,18 @@ export function transition(turn: TTurnState, event: TTurnEvent): TTurnState {
 	if (event.type === "ask") {
 		if (inFlight(turn.status)) return turn;
 		const { prompt, bundle, session, inReplyTo } = event;
-		return { status: "asking", prompt, bundle, session, inReplyTo, seqPath: null, text: "", activity: [], recorded: [], error: "", stoppedBy: "" };
+		return { status: "asking", prompt, bundle, session, inReplyTo, turn: null, text: "", activity: [], recorded: [], error: "", stoppedBy: "" };
 	}
 	if (turn.status === "idle" || !inFlight(turn.status)) return turn;
 	switch (event.type) {
 		case "started":
-			return turn.status === "asking" ? { ...turn, status: "running", seqPath: event.seqPath } : turn;
+			return turn.status === "asking" ? { ...turn, status: "running" } : turn;
 		case "text":
 			return turn.status === "running" ? { ...turn, text: turn.text + event.piece } : turn;
 		case "status":
 			return turn.status === "running" ? { ...turn, activity: [...turn.activity, event.line] } : turn;
 		case "recorded":
-			return turn.status === "running" ? { ...turn, recorded: [...turn.recorded, event.record] } : turn;
+			return turn.status === "running" ? { ...turn, turn: turn.turn ?? event.record.id, recorded: [...turn.recorded, event.record] } : turn;
 		case "stop":
 			return turn.stoppedBy ? turn : { ...turn, stoppedBy: event.reason };
 		case "ended":
@@ -103,26 +102,18 @@ export function transition(turn: TTurnState, event: TTurnEvent): TTurnState {
 }
 
 /** The one instance, shared across every component and bundle. */
-export const turnState = new SharedSignal<TTurnState>("chatTurn", IDLE_TURN);
+export const turnMachine = new SharedMachine<TTurnState, TTurnEvent>("chatTurn", IDLE_TURN, transition);
+export const turnState = turnMachine.state;
+export const dispatchTurnEvent = (event: TTurnEvent): TTurnState => turnMachine.dispatch(event);
 
-/** The only writer: raise an event, and every reader of the turn sees the next state. */
-export function dispatchTurnEvent(event: TTurnEvent): TTurnState {
-	const next = transition(turnState.get(), event);
-	turnState.set(next);
-	return next;
-}
-
-/** What a turn sends besides its prompt and bundle: the view data, the tool limit, who reads the context, the session
- *  and the turn it replies to. */
-type TTurnEnvelope = { viewLd: unknown[]; maxToolCalls: number; contextReadBy?: string; sessionSeqPath?: string; inReplyTo?: string };
-
-type TTurnRequest = { prompt: string; bundle: TBundle; envelope: TTurnEnvelope; target: string };
+/** What a turn sends besides its prompt: its bundle's patterns go in the envelope, which states the rest. */
+type TTurnRequest = { prompt: string; bundle: TBundle; envelope: Omit<TTurnEnvelope, "patterns">; target: string };
 
 /** What the next question is made of: the active entry, whose bundle it carries, and the turn it replies to. The turn
  *  is the actions bar's entry where that entry names one, and the transcript shows the branch that ends at it. */
 export function nextQuestion(state: TSubjectState): { carries: TEntry | null; repliesTo: TEntry | null } {
 	const conversation = scopeEntry(state, SCOPE.actionsBar);
-	return { carries: activeEntry(state), repliesTo: conversation?.seqPath ? conversation : null };
+	return { carries: activeEntry(state), repliesTo: conversation?.turn ? conversation : null };
 }
 
 /** The events a turn's streamed chunks carry. Text is raised at most once a frame, so a stream faster than the page draws
@@ -156,18 +147,19 @@ export async function startTurn(request: TTurnRequest): Promise<TTurnState> {
 	const refusal = turnRefusal(turnState.get());
 	if (refusal) throw new Error(refusal);
 	const { prompt, bundle, envelope } = request;
-	dispatchTurnEvent({ type: "ask", prompt, bundle, session: envelope.sessionSeqPath, inReplyTo: envelope.inReplyTo });
+	// Stated before the turn is asked, so an envelope that does not serialize is refused and leaves no turn in flight.
+	const context = JSON.stringify(TurnEnvelopeSchema.parse({ patterns: bundle.patterns, ...envelope }));
+	dispatchTurnEvent({ type: "ask", prompt, bundle, session: envelope.session, inReplyTo: envelope.inReplyTo });
 	const abort = new AbortController();
 	const unsubscribe = turnState.subscribe((turn) => {
 		if (turn.status !== "idle" && turn.stoppedBy) abort.abort();
 	});
-	const context = JSON.stringify({ patterns: bundle.patterns, ...envelope });
 	const chunks = new ChunkEvents();
 	try {
 		await conduit().followStream(acts(requireStep(ASK_STEP), { prompt, context, accessLevel: bundle.accessLevel, target: request.target }), chunks.raise, {
 			why: "chat-turn: stream the turn's answer",
 			signal: abort.signal,
-			onStart: (seqPath) => dispatchTurnEvent({ type: "started", seqPath: formatSeqPath(seqPath) }),
+			onStart: () => dispatchTurnEvent({ type: "started" }),
 		});
 		chunks.flush();
 		dispatchTurnEvent({ type: "ended" });

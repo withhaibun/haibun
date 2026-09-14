@@ -3,8 +3,8 @@
  *
  * A scope is a named part of the page that activates records: the panes activate records in the `page` scope, and the
  * actions bar's conversation activates its comments in the `actions-bar` scope. Each scope keeps its latest entry: a
- * record, the record's seqPath where it has one, and the bundle that goes with it. A scope is open or closed, and the
- * active entry is the entry of the open scope activated most recently. Closing a scope returns to the entry of the scope
+ * record, the conversation turn it is part of where it is one, and the bundle that goes with it. A scope is open or
+ * closed, and the active entry is the entry of the open scope activated most recently. Closing a scope returns to the entry of the scope
  * activated before it, and opening it again returns to its own entry unless another scope was activated since.
  *
  * Only these events change the state, and each is a reader's act or a record of the reader's own turn. Anything else
@@ -14,13 +14,13 @@
  */
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import type { TBundle, TContextPattern } from "./schemas.js";
-import { SharedSignal } from "./signals.js";
+import { SharedMachine } from "./signals.js";
 
 /** A record: what a pane shows, or a comment of a conversation. */
 export type TRecord = { id: string; label: string };
 
 /** What a scope has active. An entry with no record is a scope whose reader chose nothing, or chose a type. */
-export type TEntry = { record: TRecord | null; seqPath?: string; bundle: TBundle };
+export type TEntry = { record: TRecord | null; turn?: string; bundle: TBundle };
 
 /** The scopes this page activates records in. */
 export const SCOPE = { page: "page", actionsBar: "actions-bar" } as const;
@@ -102,11 +102,6 @@ export function scopeEntry(state: TSubjectState, scope: string): TEntry | null {
 }
 
 /** The one instance, shared across every component and bundle. */
-export const currentSubjectState = new SharedSignal<TSubjectState>("currentSubject", INITIAL_SUBJECT);
-
-/** The only writer: raise an event, and every reader of the state sees the next one. */
-export function dispatchSubjectEvent(event: TSubjectEvent): TSubjectState {
-	const next = transition(currentSubjectState.get(), event);
-	currentSubjectState.set(next);
-	return next;
-}
+const subjectMachine = new SharedMachine<TSubjectState, TSubjectEvent>("currentSubject", INITIAL_SUBJECT, transition);
+export const currentSubjectState = subjectMachine.state;
+export const dispatchSubjectEvent = (event: TSubjectEvent): TSubjectState => subjectMachine.dispatch(event);

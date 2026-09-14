@@ -52,13 +52,13 @@ export const chatMessageStyles = css`
 	shu-chat-message .chat-activity li { white-space: pre-wrap; overflow-wrap: anywhere; }
 `;
 
-/** One half of a conversation turn. `seqPath` is the graph identity, cmt-ask/cmt-say-<seqPath>, so a rendered message links back to its Comment quads / run trace. `id` is the keyed-render identity (never reused). Spinner/status/error are llm-only UI state. */
+/** One half of a conversation turn. `turn` names the turn by its question's record. `id` is the keyed-render identity (never reused). Spinner/status/error are llm-only UI state. */
 export const ChatMessageSchema = z.object({
 	id: z.string(),
 	role: ChatRoleSchema,
 	text: z.string().default(""),
 	status: ChatStatusSchema.optional(),
-	seqPath: z.string().optional(),
+	turn: z.string().optional(),
 	spinnerStatus: z.string().default(""),
 	/** Everything the turn stated about itself, in order: the context it sent, each tool it dispatched, what it took.
 	 *  The spinner shows the latest of these; this keeps them, so a reader can read what the answer was made of. */
@@ -70,11 +70,11 @@ export const ChatMessageSchema = z.object({
 	recordId: z.string().optional(),
 	/** The context the turn was sent with, which selecting the message makes active again. */
 	bundle: BundleSchema.optional(),
-	/** The seqPath of the turn this message's turn replies to; unset for the turn that starts a session. */
+	/** The question record of the turn this message's turn replies to; unset for the turn that starts a session. */
 	inReplyTo: z.string().optional(),
 	/** Where another branch of the conversation leaves the branch shown at this reply: that branch's latest message, and
 	 *  how many branches leave here. Set by the transcript for the message it shows. */
-	otherBranch: z.object({ recordId: z.string(), seqPath: z.string(), bundle: BundleSchema, count: z.number().int().min(1) }).optional(),
+	otherBranch: z.object({ recordId: z.string(), turn: z.string(), bundle: BundleSchema, count: z.number().int().min(1) }).optional(),
 });
 export type TChatMessage = z.infer<typeof ChatMessageSchema>;
 
@@ -83,8 +83,8 @@ const ROLE_LABEL: Record<TChatRole, string> = { user: "🧘", llm: "🤖" };
 const md = new MarkdownIt();
 
 /** Activate a comment of the conversation in the actions bar's scope, with the bundle its turn was sent with. */
-function activateComment(id: string, seqPath: string, bundle: TBundle): void {
-	dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id, label: COMMENT_LABEL }, seqPath, bundle } });
+function activateComment(id: string, turn: string, bundle: TBundle): void {
+	dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id, label: COMMENT_LABEL }, turn, bundle } });
 }
 
 export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
@@ -110,7 +110,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		e.stopPropagation(); // the click is on the control, not a selection of this message
 		const other = this.message.otherBranch;
 		if (!other) return;
-		activateComment(other.recordId, other.seqPath, other.bundle);
+		activateComment(other.recordId, other.turn, other.bundle);
 	};
 
 	/** Activate the comment this message was recorded as, with the bundle its turn was sent with, in the actions bar's
@@ -118,8 +118,8 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 	 *  comment activates nothing. */
 	private onSelect = (): void => {
 		const m = this.message;
-		if (!m.recordId || !m.seqPath || !m.bundle) return;
-		activateComment(m.recordId, m.seqPath, m.bundle);
+		if (!m.recordId || !m.turn || !m.bundle) return;
+		activateComment(m.recordId, m.turn, m.bundle);
 	};
 
 	protected updated(): void {
@@ -138,7 +138,6 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		const reflected: Array<[string, string | undefined]> = [
 			[SHU_ATTR.DATA_ROLE, m.role],
 			[SHU_ATTR.DATA_STATUS, m.status],
-			[SHU_ATTR.DATA_SEQPATH, m.seqPath],
 			[SHU_ATTR.DATA_RECORD, m.recordId],
 		];
 		for (const [name, value] of reflected) {
