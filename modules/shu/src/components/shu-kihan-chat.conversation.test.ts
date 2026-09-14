@@ -326,7 +326,7 @@ describe("the ask and the active record", () => {
 });
 
 describe("a conversation", () => {
-	it("opens on its first turn, which the view hash then addresses, and the next question belongs to it", async () => {
+	it("opens on its first turn, which the view hash then addresses, and the next question continues it", async () => {
 		turnSeqPaths.push([0, 1, 5]);
 		recordedOnFinish.push("cmt-ask-0.1.5", "cmt-say-0.1.5");
 		const { pane } = await aPage();

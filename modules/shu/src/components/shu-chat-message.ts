@@ -18,7 +18,7 @@ import { patternRef } from "./shu-ref.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, type TBundle, type TChatRole } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
- *  renders in light DOM, so the rules live in the scope that contains it. */
+ *  renders in light DOM, so the scope that contains it declares the rules. */
 export const chatMessageStyles = css`
 	shu-chat-message { display: block; }
 	shu-chat-message .msg { cursor: pointer; }

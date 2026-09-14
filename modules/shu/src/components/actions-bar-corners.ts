@@ -100,7 +100,7 @@ export class ActionsBarCorners implements ReactiveController {
 		this.#host.requestUpdate();
 	}
 
-	/** Show where the time cursor sits in the run. */
+	/** Show how far along the run the time cursor is. */
 	showTime(cursor: number | null): void {
 		const label = timeOffsetOf(cursor);
 		if (label === this.#timeOffset) return;
