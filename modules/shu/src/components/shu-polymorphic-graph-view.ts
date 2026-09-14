@@ -117,9 +117,10 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.onGraphData();
 	}
 
-	/** The visible graph as JSON-LD: the scene's one representation, shared with the copy-graph button. */
+	/** What a reader is looking at, bounded by the scene: the statements about the node they are on, then the rest, with
+	 *  the step that reads every one named. The copy-graph button keeps the whole graph, which a person saves to a file. */
 	summarizeForKihan(): TLinkedData | null {
-		return this.scene?.graphJsonLd() ?? null;
+		return this.scene?.jsonLdForKihan() ?? null;
 	}
 
 	/* Delegation surface: the tests read the scene's live objects off THIS element; forward each 1:1 (same object). */
