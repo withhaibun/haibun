@@ -25,7 +25,7 @@ const stated: string[] = [];
 /** What the stream fails with, where it does; unset leaves it open. */
 let streamFails: string | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
-const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; sessionSeqPath?: string }> = [];
+const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; sessionSeqPath?: string; target?: string }> = [];
 /** The comments the turn records as its step starts, named on the stream as the server names them. */
 const recorded: string[] = [];
 /** The comments the stream names when a case finishes it, after the turn has run for a while. */
@@ -62,7 +62,7 @@ vi.mock("../hypermedia.js", async () => {
 		},
 		(req, onChunk, opts) => {
 			opts.onStart?.(turnSeqPaths.shift() ?? [0, 1, 2]);
-			sent.push(JSON.parse(String(req.params?.context ?? "{}")));
+			sent.push({ ...JSON.parse(String(req.params?.context ?? "{}")), target: String(req.params?.target) });
 			for (const id of recorded) onChunk({ recorded: { persistedAs: "Comment", id } });
 			for (const status of stated) onChunk({ status });
 			if (streamFails) return Promise.reject(new Error(streamFails));
@@ -217,6 +217,16 @@ describe("a turn that ends before it answered", () => {
 		expect(stream.signal?.aborted).toBe(true);
 		expect(answers(history)[0].message.error).toBe("you stopped it: the stream was aborted");
 		expect(turnState.get().status).toBe("stopped");
+	});
+});
+
+describe("the model a question is sent to", () => {
+	it("is one the run offers: a remembered model it no longer offers, as one stored under a provider since renamed, is replaced by the first offered", async () => {
+		const { pane } = await aPage();
+		pane.setState({ model: "llama:thinker" });
+		await submit(pane, "what is this");
+		expect(sent.at(-1)?.target).toBe("openai:a-model");
+		expect(inside<HTMLElement & { value?: string }>(pane.shadowRoot, ".model-select").value, "and the selector shows the model the question went to").toBe("openai:a-model");
 	});
 });
 
