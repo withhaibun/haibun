@@ -6,7 +6,7 @@ import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../graph-model.js";
-import { GRAPH_SUMMARY_STATEMENTS, heldForKihan } from "./polymorphic-summary.js";
+import { readsEveryStatement, statedAboutFirst } from "./polymorphic-summary.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
 import { appAccessLevel, formatDate } from "../../util.js";
@@ -2645,12 +2645,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.camera.frame(aim === "xy" ? FRAME.front : FRAME.side);
 	}
 
-	/** What a reader is looking at, for a reader who is not looking at it: the graph's statements, bounded by what a
-	 *  summary holds, keeping the ones about the node the reader is on. */
-	jsonLdForKihan(holds = GRAPH_SUMMARY_STATEMENTS): Record<string, unknown> {
-		return heldForKihan(this.graphJsonLd(), this.activeSubject, holds);
-	}
-
 	/** The visible graph as one JSON-LD node: the single representation the copy-graph button and `summarizeForKihan` both use, so what a person copies and what the model reads are the same data. The members are the system's own statement projection (the shape getClusteredQuads serves and chat batching consumes), not an invented nodes/edges dialect. */
 	graphJsonLd(): Record<string, unknown> {
 		const { nodes, edges } = this.visibleModel();
@@ -2684,8 +2678,16 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return svg.markup;
 	}
 
+	/** What a reader is looking at, for a reader who is not looking at it: the statements about the node they are on
+	 *  first, and the call that reads every one. What travels and what a window holds keep what arrives first. */
 	summarizeForKihan(): TLinkedData | null {
-		return this.jsonLdForKihan();
+		const whole = this.graphJsonLd();
+		const stated = whole.quads as Array<{ subject: string; object: unknown }>;
+		return {
+			...whole,
+			readTheRestWith: readsEveryStatement({ perTypeLimit: this.model.perTypeLimit, accessLevel: appAccessLevel() }),
+			quads: statedAboutFirst(stated, this.activeSubject),
+		};
 	}
 }
 

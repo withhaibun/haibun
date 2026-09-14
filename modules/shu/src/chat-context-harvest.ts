@@ -18,6 +18,26 @@ const paneKeyOf = (pane: Element): string => (pane as HTMLElement).dataset.colum
 
 const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSummarizes>).summarizeForKihan === "function";
 
+/**
+ * How many members of a view's collection a page carries. A view of a graph of twenty thousand statements serialized
+ * megabytes into one step argument to deliver kilobytes of it. What a model's window then holds is the asker's to
+ * decide, after this arrives, so a view states its members in the order it wants them read and every view is carried
+ * the same way.
+ */
+export const HARVEST_MEMBERS = 200;
+
+/** The keys a view names its members by. */
+const MEMBER_KEYS = ["items", "quads", "rows", "entries"] as const;
+
+/** A view's summary with its members kept to what a page carries. The count the view stated stands, so a reader is told
+ *  how many the view holds rather than how many arrived. */
+export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinkedData {
+	const key = MEMBER_KEYS.find((named) => Array.isArray((summary as Record<string, unknown>)[named]));
+	const members = key === undefined ? [] : ((summary as Record<string, unknown>)[key] as unknown[]);
+	if (key === undefined || members.length <= holds) return summary;
+	return { ...summary, [key]: members.slice(0, holds), membersCarried: holds };
+}
+
 export type TPaneManifestEntry = { name: string; component: string; active: boolean };
 
 /** The manifest block appended to every harvest: a {@link TLinkedData} `as:Collection` with one item per open column. The
@@ -41,7 +61,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	const blocks: TLinkedData[] = [];
 	for (const el of topSummarizers(active)) {
 		const summary = el.summarizeForKihan();
-		if (summary != null) blocks.push(summary);
+		if (summary != null) blocks.push(harvested(summary));
 	}
 	const manifest: TPaneManifest = {
 		"@id": "view:panes",

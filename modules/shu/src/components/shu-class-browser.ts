@@ -70,9 +70,9 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 	/** The chosen view mode is remembered across reloads, like every persisted view option. */
 	static persistFields = ["viewMode"] as const;
 
-	/** The visible graph as JSON-LD: the scene's one representation, shared with the copy-graph button. */
+	/** The schema as the scene states it, in the order a reader is reading it. The copy button keeps every statement. */
 	summarizeForKihan(): TLinkedData | null {
-		return this.scene?.graphJsonLd() ?? null;
+		return this.scene?.summarizeForKihan() ?? null;
 	}
 
 	/** The focus type's JSON-LD @context, fetched from the served context document for the context view (null until loaded). */

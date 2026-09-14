@@ -90,7 +90,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			"@type": "as:Collection",
 			...(this.persistedAs ? { queryType: this.persistedAs } : {}),
 			totalItems: n,
-			items: this.#residentSample(500),
+			items: this.#residentSample(),
 		};
 	}
 
@@ -168,8 +168,10 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		this.#subscribe();
 	}
 
-	/** The rows currently held by the source, up to `cap` (all of a resident set, or the fetched windows of a lazy one). */
-	#residentSample(cap: number): VertexRow[] {
+	/** The rows the source holds: all of a resident set, or the fetched windows of a lazy one. `cap` is for a caller that
+	 *  reads a sample, as deriving the columns does; a caller stating what the view holds takes them all, since how many
+	 *  of them a page carries is the harvest's to say. */
+	#residentSample(cap = Number.POSITIVE_INFINITY): VertexRow[] {
 		const n = Math.min(this.#source.count(), cap);
 		const rows: VertexRow[] = [];
 		for (let i = 0; i < n; i++) {
