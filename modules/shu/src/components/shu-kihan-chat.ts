@@ -183,9 +183,16 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		if (data.vertices) {
 			this._models = data.vertices;
 			this.#modelOptions = this._models.map((m) => ({ value: m.id, label: m.displayName || m.id }));
-			if (this._models.length > 0 && !this.state.model) this.setState({ model: this._models[0].id });
+			this.offeredModel();
 			this.requestUpdate();
 		}
+	}
+
+	/** The model a question is sent to, which is one the run offers. A remembered model the run no longer offers, as one
+	 *  stored under a provider since renamed, is replaced by the first offered. With no catalog, the remembered one stands. */
+	private offeredModel(): string {
+		if (this._models.length > 0 && !this._models.some((m) => m.id === this.state.model)) this.setState({ model: this._models[0].id });
+		return this.state.model;
 	}
 
 	render(): TemplateResult {
@@ -292,7 +299,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				sessionSeqPath: session ?? undefined,
 				inReplyTo: repliesTo?.seqPath,
 			},
-			target: this.state.model,
+			target: this.offeredModel(),
 		});
 	}
 }
