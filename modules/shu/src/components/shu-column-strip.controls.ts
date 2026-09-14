@@ -98,13 +98,19 @@ export default class ShuColumnStripControls extends AStepper {
 			// so "e:Email:" proves a node click opened AND activated an Email column (open ⟹ active is unconditional).
 			gwta: "active column matches {match}",
 			action: async ({ match }: { match: string }) => {
-				const cols = await (await this.page()).evaluate(() => {
-					const panes = Array.from(document.querySelectorAll("shu-column-pane")) as (HTMLElement & { dataset: { columnKey?: string } })[];
-					return {
-						all: panes.map((p) => p.dataset.columnKey ?? "?"),
-						active: (document.querySelector("shu-column-pane[active]") as HTMLElement | null)?.dataset.columnKey ?? null,
-					};
-				});
+				// A page opens its columns once it has loaded, so the step reads until a column matching is active.
+				const cols = await pollUntil(
+					await this.page(),
+					(page) =>
+						page.evaluate(() => {
+							const panes = Array.from(document.querySelectorAll("shu-column-pane")) as (HTMLElement & { dataset: { columnKey?: string } })[];
+							return {
+								all: panes.map((p) => p.dataset.columnKey ?? "?"),
+								active: (document.querySelector("shu-column-pane[active]") as HTMLElement | null)?.dataset.columnKey ?? null,
+							};
+						}),
+					(read) => read.active?.includes(match) === true,
+				);
 				if (cols.active === null) return actionNotOK(`no active column (panes: [${cols.all.join(", ")}])`);
 				return cols.active.includes(match) ? actionOK() : actionNotOK(`active column key "${cols.active}" does not include "${match}" (panes: [${cols.all.join(", ")}])`);
 			},
