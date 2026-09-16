@@ -14,7 +14,7 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	const validated: Record<string, unknown> = { ...input };
 	const errors: string[] = [];
 
-	const required = tool.inputSchema.required || [];
+	const required = tool.descriptor.inputSchema.required;
 	for (const key of required) {
 		if (!(key in input) || input[key] === undefined) {
 			errors.push(`"${key}": required`);
@@ -46,7 +46,7 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	}
 
 	if (errors.length) {
-		throw new Error(`${tool.name} validation failed (caller: [${fromSeqPath.join(".")}]): ${errors.join(", ")}`);
+		throw new Error(`${tool.descriptor.method} validation failed (caller: [${fromSeqPath.join(".")}]): ${errors.join(", ")}`);
 	}
 
 	return validated;

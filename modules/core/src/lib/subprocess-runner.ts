@@ -5,7 +5,7 @@
  * Forked by SubprocessTransport. Uses Node.js IPC (process.send / process.on('message')).
  *
  * Protocol (structured-clone messages over IPC):
- *   Startup:  child → { type: "ready", steps: StepDescriptor[] }
+ *   Startup:  child → { type: "ready", steps: TStepDescriptor[] }
  *   Request:  parent → { type: "call", method, params?, seqPath? }
  *   Response: child  → { type: "result", ok: true, products } | { type: "result", ok: false, error }
  */
@@ -16,10 +16,10 @@ import { StepRegistry, buildFeatureStepForTransport } from "./step-registry.js";
 import { validateToolInput, validateProducts } from "./tool-validation.js";
 import { createSteppers, setStepperWorldsAndDomains, errorDetail } from "./util/index.js";
 import { addStepperConcerns } from "../phases/Executor.js";
-import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
+import type { TStepDescriptor } from "./step-discovery.js";
 import { TRACE_SEQ_PATH } from "../schema/protocol.js";
 
-export type SubprocessReadyMessage = { type: "ready"; steps: StepDescriptor[] };
+export type SubprocessReadyMessage = { type: "ready"; steps: TStepDescriptor[] };
 export type SubprocessCallMessage = { type: "call"; method: string; params?: Record<string, unknown>; seqPath?: number[] };
 export type SubprocessResultMessage = { type: "result"; ok: true; products: Record<string, unknown> } | { type: "result"; ok: false; error: string };
 
@@ -32,7 +32,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 	world.runtime.steppers = steppers;
 
 	const registry = new StepRegistry(steppers, world);
-	const steps = StepperRegistry.getMetadata(steppers);
+	const steps = registry.list().map((tool) => tool.descriptor);
 
 	process.send?.({ type: "ready", steps } satisfies SubprocessReadyMessage);
 
@@ -60,7 +60,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 			const hr = await tool.handler(featureStep, world);
 			if (hr.ok) {
 				if (tool.stepDef) {
-					const productsError = validateProducts(tool.stepperName, tool.stepName, tool.stepDef, world, hr.products);
+					const productsError = validateProducts(tool.descriptor.stepperName, tool.descriptor.stepName, tool.stepDef, world, hr.products);
 					if (productsError) {
 						process.send?.({ type: "result", ok: false, error: productsError } satisfies SubprocessResultMessage);
 						return;

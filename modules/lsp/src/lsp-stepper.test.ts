@@ -1,85 +1,31 @@
 import { describe, it, expect } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { StepperRegistry } from "@haibun/core/lib/stepper-registry.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-
-// Note: Full LSP integration tests require a mock connection.
-// These tests focus on the StepperRegistry integration that LSP uses.
+import { buildStepRegistry } from "@haibun/core/lib/step-registry.js";
+import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
+import { completionItem, patternToSnippet } from "./lsp-stepper.js";
 
 class SampleStepper extends AStepper {
+	description = "Steps that navigate, set variables and click, for completion tests.";
 	steps = {
-		navigateTo: {
-			gwta: "navigate to {url}",
-			action: async () => OK,
-		},
-		setVariable: {
-			gwta: "set {name} to {value}",
-			action: async () => OK,
-		},
-		clickButton: {
-			exact: "click the submit button",
-			action: async () => OK,
-		},
-		hiddenStep: {
-			gwta: "internal action",
-			exposeMCP: false,
-			action: async () => OK,
-		},
+		navigateTo: { gwta: "navigate to {url}", action: async () => OK },
+		setVariable: { gwta: "set {name} to {value}", action: async () => OK },
+		waitSeconds: { gwta: "wait {seconds: number} seconds", action: async () => OK },
+		clickButton: { exact: "click the submit button", action: async () => OK },
 	};
 }
 
-describe("LSP StepperRegistry Integration", () => {
-	const steppers = [new SampleStepper()];
+const completions = () => [...buildStepRegistry([new SampleStepper()], getDefaultWorld()).values()].map((tool) => completionItem(tool.descriptor));
 
-	describe("metadata for LSP autocomplete", () => {
-		const metadata = StepperRegistry.getMetadata(steppers);
-
-		it("provides step patterns for completion labels", () => {
-			const labels = metadata.map((m) => m.pattern);
-			expect(labels).toContain("navigate to {url}");
-			expect(labels).toContain("set {name} to {value}");
-			expect(labels).toContain("click the submit button");
-		});
-
-		it("excludes hidden steps from autocomplete", () => {
-			const labels = metadata.map((m) => m.pattern);
-			expect(labels).not.toContain("internal action");
-		});
-
-		it("provides stepper names for detail display", () => {
-			const step = metadata.find((m) => m.stepName === "navigateTo");
-			expect(step?.stepperName).toBe("SampleStepper");
-		});
+describe("LSP completion", () => {
+	it("offers each step of the run by its pattern, as a snippet, with its stepper and step", () => {
+		expect(completions().map((item) => item.label)).toEqual(["navigate to {url}", "set {name} to {value}", "wait {seconds: number} seconds", "click the submit button"]);
+		expect(completions()[0]).toMatchObject({ insertText: "navigate to ${1:url}", insertTextFormat: 2, detail: "From SampleStepper", documentation: "Internal Name: navigateTo" });
 	});
 
-	describe("snippet generation for tab-stops", () => {
-		it("converts gwta patterns to LSP snippets", () => {
-			const snippet = StepperRegistry.patternToSnippet("navigate to {url}");
-			expect(snippet).toBe("navigate to ${1:url}");
-		});
-
-		it("numbers multiple placeholders sequentially", () => {
-			const snippet = StepperRegistry.patternToSnippet("set {name} to {value}");
-			expect(snippet).toBe("set ${1:name} to ${2:value}");
-		});
-
-		it("leaves exact patterns unchanged", () => {
-			const snippet = StepperRegistry.patternToSnippet("click the submit button");
-			expect(snippet).toBe("click the submit button");
-		});
-	});
-
-	describe("hover documentation", () => {
-		const metadata = StepperRegistry.getMetadata(steppers);
-
-		it("provides parameter info for hover", () => {
-			const step = metadata.find((m) => m.stepName === "setVariable");
-			expect(step?.params).toEqual({ name: "string", value: "string" });
-		});
-
-		it("provides empty params for exact steps", () => {
-			const step = metadata.find((m) => m.stepName === "clickButton");
-			expect(step?.params).toEqual({});
-		});
+	it("numbers each placeholder as a tab-stop, drops a domain annotation, and leaves an exact pattern as it is", () => {
+		expect(patternToSnippet("set {name} to {value}")).toBe("set ${1:name} to ${2:value}");
+		expect(patternToSnippet("wait {seconds: number} seconds")).toBe("wait ${1:seconds} seconds");
+		expect(patternToSnippet("click the submit button")).toBe("click the submit button");
 	});
 });

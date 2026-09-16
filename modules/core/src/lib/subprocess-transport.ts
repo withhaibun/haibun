@@ -18,13 +18,13 @@ import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry } from "./step-registry.js";
-import type { StepDescriptor } from "./stepper-registry.js";
+import type { TStepDescriptor } from "./step-discovery.js";
 import type { SubprocessMessage, SubprocessResultMessage } from "./subprocess-runner.js";
 
 export class SubprocessTransport {
 	private constructor(
 		private child: ChildProcess,
-		private stepDescriptors: StepDescriptor[],
+		private stepDescriptors: TStepDescriptor[],
 	) {
 		child.on("exit", (code) => {
 			if (this.pending) {
@@ -45,7 +45,7 @@ export class SubprocessTransport {
 			process.stderr.write(`[subprocess] ${data.toString()}`);
 		});
 
-		const stepDescriptors = await new Promise<StepDescriptor[]>((resolve, reject) => {
+		const stepDescriptors = await new Promise<TStepDescriptor[]>((resolve, reject) => {
 			const timeout = setTimeout(() => reject(new Error(`subprocess at ${entryPath} did not send ready message within 10s`)), 10_000);
 
 			child.once("message", (msg: SubprocessMessage) => {
@@ -69,14 +69,9 @@ export class SubprocessTransport {
 	injectInto(registry: StepRegistry): void {
 		for (const descriptor of this.stepDescriptors) {
 			const tool: StepTool = {
-				name: descriptor.method,
-				description: descriptor.pattern,
-				inputSchema: (descriptor.inputSchema as StepTool["inputSchema"]) ?? { type: "object" },
+				descriptor,
 				paramSchemas: new Map(),
 				paramDomainKeys: new Map(),
-				stepperName: descriptor.stepperName,
-				stepName: descriptor.stepName,
-				capability: descriptor.capability,
 				isAsync: true,
 				transport: "subprocess",
 				handler: (featureStep, _world) =>
@@ -125,7 +120,7 @@ export class SubprocessTransport {
 		this.child.kill();
 	}
 
-	get descriptors(): StepDescriptor[] {
+	get descriptors(): TStepDescriptor[] {
 		return this.stepDescriptors;
 	}
 }

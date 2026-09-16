@@ -14,7 +14,7 @@ import {
 	type StepTool,
 } from "./step-registry.js";
 import { validateToolInput } from "./tool-validation.js";
-import { EVERY_DECLARATION } from "./steps-query.js";
+import { EVERY_DEFINITION, type TStepDefinitions } from "./step-discovery.js";
 import { AStepper, type TStepperStep } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
@@ -34,11 +34,6 @@ class PlainStepper extends AStepper {
 			action: ({ name }: { name: string }) => {
 				return OK;
 			},
-		},
-		hidden: {
-			gwta: "do secret thing",
-			exposeMCP: false,
-			action: async () => OK,
 		},
 	};
 }
@@ -115,31 +110,25 @@ describe("step-dispatch", () => {
 			expect(registry.has("PlainStepper-greet")).toBe(true);
 		});
 
-		it("includes exposeMCP:false steps in registry (MCP filters separately)", () => {
-			const stepper = new PlainStepper();
-			const registry = buildStepRegistry([stepper], world);
-			expect(registry.has("PlainStepper-hidden")).toBe(true);
-		});
-
 		it("includes outputSchema when defined", () => {
 			const stepper = new ProductStepper();
 			const registry = buildStepRegistry([stepper], world);
 			const tool = registry.get("ProductStepper-getCount");
-			expect(tool?.outputSchema).toBeDefined();
+			expect(tool?.descriptor.outputSchema).toBeDefined();
 		});
 
 		it("builds input schema with required params", () => {
 			const stepper = new PlainStepper();
 			const registry = buildStepRegistry([stepper], world);
 			const tool = registry.get("PlainStepper-greet");
-			expect(tool?.inputSchema.required).toContain("name");
-			expect(tool?.inputSchema.properties?.["name"]).toBeDefined();
+			expect(tool?.descriptor.inputSchema.required).toContain("name");
+			expect(tool?.descriptor.inputSchema.properties.name).toBeDefined();
 		});
 
 		it("propagates step capability metadata", () => {
 			const stepper = new CapabilityStepper();
 			const registry = buildStepRegistry([stepper], world);
-			expect(registry.get("CapabilityStepper-protectedPing")?.capability).toBe("CapabilityStepper:protected");
+			expect(registry.get("CapabilityStepper-protectedPing")?.descriptor.capability).toBe("CapabilityStepper:protected");
 		});
 	});
 
@@ -157,40 +146,46 @@ describe("step-dispatch", () => {
 		});
 
 		it("rejects missing or wrong capability", () => {
-			const tool = { name: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
+			const tool = { method: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
 			expect(() => authorizeToolCapability(tool, undefined)).toThrow(/capability CapabilityStepper:protected required/);
 			expect(() => authorizeToolCapability(tool, "Other:*")).toThrow(/capability CapabilityStepper:protected required/);
 		});
 	});
 
 	describe("validateToolInput", () => {
-		const makeTool = (overrides: Partial<StepTool> & { paramSchemas: StepTool["paramSchemas"] }): StepTool => ({
-			name: "test",
-			description: "test",
-			inputSchema: { type: "object", properties: { x: { type: "string" } }, required: ["x"] },
+		const makeTool = (paramSchemas: StepTool["paramSchemas"], xType: string): StepTool => ({
+			descriptor: {
+				method: "Test-test",
+				stepperName: "Test",
+				stepperDescription: "a step that takes x",
+				stepName: "test",
+				pattern: "test {x}",
+				params: { x: "string" },
+				paramDomains: { x: "string" },
+				read: false,
+				fallback: false,
+				inputSchema: { type: "object", properties: { x: { type: xType } }, required: ["x"] },
+			},
+			paramSchemas,
 			paramDomainKeys: new Map(),
-			stepperName: "Test",
-			stepName: "test",
+			transport: "local",
+			isAsync: true,
 			handler: async () => ({ ok: true }),
-			...overrides,
 		});
 
 		it("passes valid input", () => {
-			const tool = makeTool({ paramSchemas: new Map([["x", z.string()]]) });
+			const tool = makeTool(new Map([["x", z.string()]]), "string");
 			const result = validateToolInput([], tool, { x: "hello" });
 			expect(result.x).toBe("hello");
 		});
 
 		it("throws on missing required input", () => {
-			const tool = makeTool({ paramSchemas: new Map([["x", z.string()]]) });
+			const tool = makeTool(new Map([["x", z.string()]]), "string");
 			expect(() => validateToolInput([], tool, {})).toThrow(/validation failed.*"x": required/);
 		});
 
 		it("throws on invalid type", () => {
-			const tool = makeTool({
-				inputSchema: { type: "object", properties: { x: { type: "number" } }, required: ["x"] },
-				paramSchemas: new Map([["x", z.number()]]),
-			});
+			const tool = makeTool(new Map([["x", z.number()]]), "number");
 			expect(() => validateToolInput([], tool, { x: "not-a-number" })).toThrow(/validation failed/);
 		});
 
@@ -252,7 +247,7 @@ describe("step-dispatch", () => {
 				],
 			]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps([stepper], w, new StepRegistry([stepper], w), EVERY_DECLARATION);
+			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION) as TStepDefinitions;
 			expect(Array.isArray(discovery.steps)).toBe(true);
 			expect(discovery.steps.some((m) => m.method === "PlainStepper-greet")).toBe(true);
 			expect(discovery.domains).toBeDefined();
@@ -271,59 +266,21 @@ describe("step-dispatch", () => {
 				],
 			]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps([stepper], w, new StepRegistry([stepper], w), EVERY_DECLARATION);
+			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION) as TStepDefinitions;
 			expect(discovery.domains["size"]).toMatchObject({ description: "T-shirt size", values: ["small", "medium", "large"] });
 		});
 
-		it("a shown step includes its inputSchema", () => {
-			const stepper = new PlainStepper();
-			const discovery = discoverSteps([stepper], world, new StepRegistry([stepper], world), EVERY_DECLARATION);
-			const greet = discovery.steps.find((m) => m.method === "PlainStepper-greet");
-			expect(greet?.inputSchema).toBeDefined();
-			expect(greet?.inputSchema?.required).toContain("name");
-		});
-
-		it("a shown step includes its capability", () => {
-			const stepper = new CapabilityStepper();
-			const discovery = discoverSteps([stepper], world, new StepRegistry([stepper], world), EVERY_DECLARATION);
-			expect(discovery.steps.find((m) => m.method === "CapabilityStepper-protectedPing")?.capability).toBe("CapabilityStepper:protected");
-		});
-
-		it("omits capability-gated steps when the caller lacks the grant", () => {
-			const steppers = [new PlainStepper(), new CapabilityStepper()];
-			const discovery = discoverSteps(steppers, world, new StepRegistry(steppers, world), EVERY_DECLARATION, []);
-			const methods = discovery.steps.map((s) => s.method);
-			expect(methods).toContain("PlainStepper-greet");
-			expect(methods).not.toContain("CapabilityStepper-protectedPing");
-		});
-
-		it("includes capability-gated steps when the caller holds the matching grant", () => {
-			const steppers = [new PlainStepper(), new CapabilityStepper()];
-			const discovery = discoverSteps(steppers, world, new StepRegistry(steppers, world), EVERY_DECLARATION, ["CapabilityStepper:protected"]);
-			const methods = discovery.steps.map((s) => s.method);
-			expect(methods).toContain("PlainStepper-greet");
-			expect(methods).toContain("CapabilityStepper-protectedPing");
-		});
-
-		it("wildcard grants admit every matching capability", () => {
-			const steppers = [new CapabilityStepper()];
-			const discovery = discoverSteps(steppers, world, new StepRegistry(steppers, world), EVERY_DECLARATION, "*");
-			const methods = discovery.steps.map((s) => s.method);
-			expect(methods).toContain("CapabilityStepper-protectedPing");
-		});
-
-		it("passes through the full manifest when no grant context is supplied", () => {
-			const steppers = [new CapabilityStepper()];
-			const discovery = discoverSteps(steppers, world, new StepRegistry(steppers, world), EVERY_DECLARATION);
-			expect(discovery.steps.find((m) => m.method === "CapabilityStepper-protectedPing")).toBeDefined();
-		});
 	});
 
 	describe("createStepHandler", () => {
 		// Named as the registry names it: a tool is what its key says it is, and the step built from it is resolved by
 		// that name when it is dispatched.
-		const synth = (tool: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
-			buildFeatureStepForTransport({ ...tool, name: stepMethodName(tool.stepperName, tool.stepName) } as StepTool, input, seqPath);
+		const synth = (step: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
+			buildFeatureStepForTransport(
+				{ descriptor: { method: stepMethodName(step.stepperName, step.stepName), stepperName: step.stepperName, stepName: step.stepName, pattern: step.description } } as StepTool,
+				input,
+				seqPath,
+			);
 
 		it("returns ok with products exactly as the action returned them, framework metadata (_seqPath etc.) is injected by dispatchStep, not the handler", async () => {
 			const stepper = new ProductStepper();
@@ -643,7 +600,7 @@ describe("step-dispatch", () => {
 			}
 			const registry = buildStepRegistry([new JustProduce()], world);
 			const tool = registry.get("JustProduce-produceEmail");
-			expect(tool?.outputSchema).toBeDefined();
+			expect(tool?.descriptor.outputSchema).toBeDefined();
 		});
 
 		it("rejects inputDomains that disagrees with the gwta-derived domain", () => {

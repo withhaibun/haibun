@@ -22,7 +22,8 @@ export const StepperKinds = {
 export type TStepperKind = keyof typeof StepperKinds;
 
 export abstract class AStepper {
-	description?: string;
+	/** What the stepper's steps do, as a caller discovering the run reads it beside the stepper's name. */
+	abstract description: string;
 	world?: TWorld;
 	kind?: TStepperKind;
 
@@ -133,7 +134,6 @@ type TStepperStepBase = {
 	 *  count, no result kept. Reading a run is not an act of the run, and an instance read for a year is not made to
 	 *  write a year of records of being read. From within a feature it is a step like any other. */
 	read?: boolean;
-	exposeMCP?: boolean;
 	/** Optional capability label required for external dispatch. */
 	capability?: string;
 	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that no

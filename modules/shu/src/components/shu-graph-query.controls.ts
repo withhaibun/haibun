@@ -29,6 +29,7 @@ const viewQueryDomains: TDomainDefinition[] = [
  * (e.g. `set saved from [search for "INBOX"]`).
  */
 export default class ShuGraphQueryControls extends AStepper implements IHasCycles {
+	description = "Drives the graph query view in a page: searches, chooses a type, sorts, and checks which individuals the query lists.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: viewQueryDomains }) };
 
 	/** The page a web-playwright-like stepper provides, duck-typed so shu keeps no dependency on it. */

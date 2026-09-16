@@ -133,12 +133,12 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Step not found in registry: ${method}`), action, start, Timer.since(), featureStep, false));
 	}
 
-	authorizeToolCapability(tool, grantedCapability);
+	authorizeToolCapability(tool.descriptor, grantedCapability);
 	// What got through the gate, on the step's own record: which capability it required, what the caller held, and the
 	// principal that held it. A refusal throws above, so a record with these fields is a record of an allowed call.
-	const authorization: TStepAuthorization | undefined = tool.capability
+	const authorization: TStepAuthorization | undefined = tool.descriptor.capability
 		? {
-				required: tool.capability,
+				required: tool.descriptor.capability,
 				held: (Array.isArray(grantedCapability) ? grantedCapability.join(", ") : grantedCapability) || undefined,
 				controller: invokingPrincipal(world),
 			}
@@ -149,7 +149,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		const priorCount = ((await getFact(world, "count", usageKey, OBSERVATION_GRAPH.STEP_USAGE)) as number | undefined) ?? 0;
 		await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
 		world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
-		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport ?? "local", ranOn: tool.remoteHost });
+		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport, ranOn: tool.remoteHost });
 	}
 	// What is said while this step runs reports no more prominently than the step does, so a call made into a running
 	// instance leaves the caller's own narration out of the run's history rather than among its steps.

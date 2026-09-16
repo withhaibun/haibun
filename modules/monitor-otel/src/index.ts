@@ -22,6 +22,7 @@ import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 
 export default class MonitorOtelStepper extends AStepper implements IHasCycles, IHasOptions {
+	description = "Exports a run's features, steps and logs as OpenTelemetry spans and log records, and starts and ends named spans.";
 	kind = StepperKinds.MONITOR;
 
 	private tracerProvider: NodeTracerProvider | undefined;

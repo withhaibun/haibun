@@ -2,40 +2,14 @@ import { reads, acts, conduit, type TLink } from "./hypermedia.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
-import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { TRACE_SEQ_PATH } from "@haibun/core/schema/protocol.js";
-import { EVERY_DECLARATION, SHOW_STEPS_METHOD, ShownTotalSchema, shownWhole } from "@haibun/core/lib/steps-query.js";
-import { z } from "zod";
+import { EVERY_DEFINITION, SHOW_STEPS_METHOD, StepDefinitionsSchema, type TDomainDiscoveryInfo, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 
-export type StepDescriptor = {
-	method: string;
-	stepperName: string;
-	stepName: string;
-	pattern: string;
-	/** What the step does, as its definition states it. */
-	description?: string;
-	params: Record<string, "string" | "number">;
-	paramDomains?: Record<string, string>;
-	productsDomain?: string;
-	capability?: string;
-	/** True where the site declared this step a fallback (`StepDescriptor.fallback`). */
-	fallback?: boolean;
-	/** True where the site declared this step a read: the run answers it and records nothing of the reading. */
-	read?: boolean;
-	inputSchema?: Record<string, unknown>;
-	outputSchema?: Record<string, unknown>;
-	/** The call a caller makes to run the step. */
-	_links: { call: { method: string } };
-};
-
-export type DomainInfo = {
-	description?: string;
-	values?: string[];
-	stepperName?: string;
-	persistedAs?: string;
-	ui?: Record<string, unknown>;
-};
+/** A step as the page reads it: its definition, which links its call. */
+export type StepDescriptor = TStepDefinition;
+/** A domain as the page reads it. */
+export type DomainInfo = TDomainDiscoveryInfo;
 
 export type DomainOption = {
 	key: string;
@@ -50,51 +24,7 @@ export type DomainOption = {
 /** Section headings for the type selector, partitioning on a concern's `declared` flag. */
 export const DOMAIN_GROUP = { declared: "Declared", builtIn: "Built-in" } as const;
 
-export type StepListResponse = {
-	steps: StepDescriptor[];
-	domains: Record<string, DomainInfo>;
-	concerns: TConcernCatalog;
-};
-
-const StepDescriptorSchema = z
-	.object({
-		method: z.string().min(1),
-		stepperName: z.string().min(1),
-		stepName: z.string().min(1),
-		pattern: z.string().min(1),
-		description: z.string().optional(),
-		params: z.record(z.string(), z.union([z.literal("string"), z.literal("number")])),
-		paramDomains: z.record(z.string(), z.string()).optional(),
-		productsDomain: z.string().optional(),
-		capability: z.string().optional(),
-		fallback: z.boolean().optional(),
-		/** The step declares itself a read, which is what a link to it asks for. */
-		read: z.boolean().optional(),
-		inputSchema: z.record(z.string(), z.unknown()).optional(),
-		outputSchema: z.record(z.string(), z.unknown()).optional(),
-		_links: z.object({ call: z.object({ method: z.string() }).strict() }).strict(),
-	})
-	.strict();
-
-const DomainInfoSchema = z
-	.object({
-		description: z.string().optional(),
-		values: z.array(z.string()).optional(),
-		stepperName: z.string().optional(),
-		persistedAs: z.string().optional(),
-		ui: z.record(z.string(), z.unknown()).optional(),
-	})
-	.strict();
-
-const StepListResponseSchema = z
-	.object({
-		steps: z.array(StepDescriptorSchema),
-		domains: z.record(z.string(), DomainInfoSchema),
-		concerns: ConcernCatalogSchema,
-		total: ShownTotalSchema,
-	})
-	.strict()
-	.refine((response) => shownWhole(response.total, EVERY_DECLARATION), "the site declares more than one read of its declarations returns");
+export type StepListResponse = Pick<TStepDefinitions, "steps" | "domains" | "concerns">;
 
 // What the server said it offers, pinned to the page rather than cached per bundle: a page is more than one bundle, and a
 // panel a deployment adds requests the same server as the app. Stored per bundle, a panel would discover the server again, and
@@ -303,11 +233,11 @@ export function resetStepRegistry(): void {
  *  the registry the page runs on (and reports it), so a page with no server still knows the server's declarations. With
  *  neither, the request fails as it did. */
 async function discover(): Promise<StepListResponse> {
-	let parsed: z.infer<typeof StepListResponseSchema>;
+	let parsed: TStepDefinitions;
 	try {
 		// A dispatched step's products carry the seqPath it ran at, which is the call's trace and not what the run declares.
-		const { [TRACE_SEQ_PATH]: _trace, ...declared } = await conduit().follow<Record<string, unknown>>(reads(SHOW_STEPS_METHOD, EVERY_DECLARATION), "rpc-registry: discover available steps");
-		parsed = StepListResponseSchema.parse(declared);
+		const { [TRACE_SEQ_PATH]: _trace, ...declared } = await conduit().follow<Record<string, unknown>>(reads(SHOW_STEPS_METHOD, EVERY_DEFINITION), "rpc-registry: discover available steps");
+		parsed = StepDefinitionsSchema.parse(declared);
 		origin().value = { from: "server" };
 		void deviceStore()
 			.setRegistry(parsed)
@@ -317,7 +247,7 @@ async function discover(): Promise<StepListResponse> {
 			.registry()
 			.catch(() => undefined);
 		if (!cached) throw err;
-		parsed = StepListResponseSchema.parse(cached.response);
+		parsed = StepDefinitionsSchema.parse(cached.response);
 		origin().value = { from: "device", savedAt: cached.savedAt };
 		console.warn(`[rpc-registry] the server did not respond; the registry cached on this device (${new Date(cached.savedAt).toISOString()}) is in use:`, err);
 	}

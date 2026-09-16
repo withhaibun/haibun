@@ -2,7 +2,7 @@ import { rmSync, writeFileSync, readFileSync } from "fs";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { MOST_SHOWN, SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, StepSummariesSchema } from "@haibun/core/lib/step-discovery.js";
 import { OK, Origin } from "@haibun/core/schema/protocol.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { restRoutes } from "./rest.js";
@@ -41,12 +41,13 @@ async function mcpListTools(url, token) {
     const response = await mcpRpc(url, 2, "tools/list", {}, token);
     return response.result?.tools ?? [];
 }
-async function mcpShownSteps(url, token, pattern) {
-    const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { pattern, limit: MOST_SHOWN } }, token);
-    const text = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
-    if (!text)
+async function mcpShownSteps(url, token, text) {
+    const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } }, token);
+    const returned = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
+    if (!returned)
         throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
-    return JSON.parse(text).steps.map((step) => step.method);
+    const { _seqPath, ...summaries } = JSON.parse(returned);
+    return StepSummariesSchema.parse(summaries).steps.map((step) => step.method);
 }
 async function mcpCallTool(url, token, toolName) {
     return await mcpRpc(url, 4, "tools/call", { name: toolName, arguments: {} }, token);
@@ -66,6 +67,7 @@ const cycles = (ts) => ({
     },
 });
 class TestServer extends AStepper {
+    description = "Serves the pages, routes and protected calls the e2e features test, and checks RPC and MCP calls against them.";
     cycles = cycles(this);
     toDelete = {};
     /** Currently active auth scheme type - set at runtime */
@@ -194,10 +196,10 @@ class TestServer extends AStepper {
             },
         },
         mcpShownStepsInclude: {
-            gwta: "mcp steps shown at {url} matching {pattern} include {toolName} when bearer token is {token}",
-            action: async ({ url, pattern, toolName, token }) => {
+            gwta: "mcp steps shown at {url} matching {text} include {toolName} when bearer token is {token}",
+            action: async ({ url, text, toolName, token }) => {
                 await mcpListTools(String(url), String(token));
-                const shown = await mcpShownSteps(String(url), String(token), String(pattern));
+                const shown = await mcpShownSteps(String(url), String(token), String(text));
                 return shown.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} among the steps shown [${shown.join(", ")}]`);
             },
         },

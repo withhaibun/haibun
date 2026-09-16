@@ -20,7 +20,7 @@ import {
 	responseTimeoutMs,
 } from "./rpc-registry.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "./test-setup.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 
 function setHydration(payload: unknown): void {
@@ -124,8 +124,7 @@ const aStep = (stepperName: string, stepName: string, fallback: boolean) => ({
 	stepName,
 	method: `${stepperName}-${stepName}`,
 	pattern: `${stepName} something`,
-	params: {},
-	...(fallback ? { fallback: true } : {}),
+	fallback,
 });
 
 describe("the step a name answers to", () => {

@@ -10,6 +10,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper, { RUNNER_DEFAULTS, TEST_RUNNER_AUTHOR } from "./test-runner-stepper.js";
 import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
+import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import { examineRun, runEvents } from "./run-outcome.js";
 import { FEATURE_EXECUTION_LABEL, RUN_STATUS, featureExecutionDomainDefinition } from "./feature-execution.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
@@ -17,6 +18,7 @@ import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
+import { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import nodeFS from "node:fs";
@@ -110,6 +112,8 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 	world.domains = mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]);
 	const steppers = supervised ? [stepper, supervisor] : [stepper];
 	for (const s of steppers) void s.setWorld(world, steppers);
+	// The run's registry, as the executor assigns it, which a step calls another step through.
+	world.runtime.stepRegistry = new StepRegistry(steppers, world);
 	const run = (where: string, filter: string) => (stepper.steps.runTest.action as (a: { where: string; filter: string }) => Promise<TResult>)({ where, filter });
 	const read = () => (stepper.steps.readTestRun.action as () => Promise<TResult & { products?: Record<string, string> }>)();
 	const stop = () => (stepper.steps.stopTestRun.action as () => Promise<TResult>)();
@@ -383,9 +387,10 @@ describe("what a finished run's record says about it", () => {
 		});
 
 		it("takes the step half of a name where it names one step there", () => {
-			expect(stepAtRun([{ name: "host9_RemoteSteps-listTyped" }], 9, "listTyped")?.name, "one step is named, so it is the one meant").toBe("host9_RemoteSteps-listTyped");
-			expect(stepAtRun([{ name: "host9_RemoteSteps-listTyped" }], 9, "RemoteSteps-listTyped")?.name, "and the whole name is the name").toBe("host9_RemoteSteps-listTyped");
-			expect(stepAtRun([{ name: "host9_A-listTyped" }, { name: "host9_B-listTyped" }], 9, "listTyped"), "two steps of that name is not a name").toBeUndefined();
+			const atHost = (stepperName: string) => ({ method: `host9_${stepperName}-listTyped`, stepperName, stepName: "listTyped" }) as TStepDescriptor;
+			expect(stepAtRun([atHost("RemoteSteps")], 9, "listTyped")?.method, "one step is named, so it is the one meant").toBe("host9_RemoteSteps-listTyped");
+			expect(stepAtRun([atHost("RemoteSteps")], 9, "RemoteSteps-listTyped")?.method, "and the whole name is the name").toBe("host9_RemoteSteps-listTyped");
+			expect(stepAtRun([atHost("A"), atHost("B")], 9, "listTyped"), "two steps of that name is not a name").toBeUndefined();
 		});
 
 		it("hands a model what the run said about itself, and keeps the entries beside it", () => {

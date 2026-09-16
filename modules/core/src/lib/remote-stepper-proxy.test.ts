@@ -11,6 +11,7 @@ import { Hono } from "hono";
 import type { Server } from "http";
 
 class EchoStepper extends AStepper {
+	description = "Steps that echo a message and answer a protected ping, served by a remote host.";
 	steps = {
 		echo: {
 			gwta: "echo {message: string}",
@@ -86,6 +87,17 @@ describe("RemoteStepperProxy", () => {
 		if (!tool) throw new Error("Expected prefixed tool to be registered");
 		// Bare name (local form) must NOT be registered, prefixing is total.
 		expect(registry.get("EchoStepper-echo")).toBeUndefined();
+		expect(tool.descriptor, "the host's description of the step, under the name and pattern of the host").toMatchObject({
+			method: "host7_EchoStepper-echo",
+			stepperName: "EchoStepper",
+			stepperDescription: "Steps that echo a message and answer a protected ping, served by a remote host.",
+			pattern: `echo {message: string} (at localhost:${port})`,
+			params: { message: "string" },
+			paramDomains: { message: "string" },
+			read: false,
+			fallback: false,
+		});
+		expect(tool.descriptor.inputSchema.required).toEqual(["message"]);
 
 		const { buildFeatureStepForTransport } = await import("./step-registry.js");
 		const featureStep = buildFeatureStepForTransport(tool, { message: "hello" }, [0, 1]);
@@ -103,6 +115,6 @@ describe("RemoteStepperProxy", () => {
 
 		const tool = registry.get("host7_EchoStepper-protectedPing");
 		if (!tool) throw new Error("Expected prefixed tool to be registered");
-		expect(tool.capability).toBe("EchoStepper:admin");
+		expect(tool.descriptor.capability).toBe("EchoStepper:admin");
 	});
 });

@@ -32,7 +32,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
-import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { BASE_PREFIX, NDJSON, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
 import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
 import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
@@ -382,11 +382,9 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const answered = await this.awaitBegin(url, () => this.runs.get(run)?.ended !== null);
 		if (!answered) return false;
 		const world = this.getWorld();
-		const registry = world.runtime.stepRegistry as StepRegistry | undefined;
-		if (!registry) throw new Error(`start run: no step registry on this run's world to register host ${hostId} into`);
 		const proxy = new RemoteStepperProxy(url);
 		await proxy.setWorld(world, []);
-		proxy.injectInto(registry);
+		proxy.injectInto(runRegistry(world));
 		return true;
 	}
 

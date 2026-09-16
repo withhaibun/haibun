@@ -9,7 +9,7 @@
  * A name that is not registered is answered, not thrown: each caller says what the missing step means in its own
  * terms, and the seqPath is returned because a caller that records what it ran needs the identity of the call.
  */
-import { StepRegistry, buildFeatureStepForTransport } from "./step-registry.js";
+import { buildFeatureStepForTransport, runRegistry } from "./step-registry.js";
 import { dispatchStep, type DispatchContext } from "./step-dispatch.js";
 import { allocateSyntheticSeqPath } from "./host-id.js";
 import type { TSeqPath, TStepResult } from "../schema/protocol.js";
@@ -28,8 +28,7 @@ export async function callStepByName(ctx: DispatchContext, method: string, input
 /**
  * The same call from a stepper, which holds its world and the steppers it was set up with, but no registry.
  *
- * The run's own registry is used where there is one: building another takes a tool object per registered step, and a
- * fresh one lacks the tools a transport put on the live one.
+ * The run's own registry is used: a registry built again lacks the tools a transport put on the run's.
  */
 export async function callStepFrom(
 	from: { getWorld: () => DispatchContext["world"]; steppers?: DispatchContext["steppers"] },
@@ -38,6 +37,6 @@ export async function callStepFrom(
 ): Promise<TStepCall> {
 	const world = from.getWorld();
 	const steppers = from.steppers ?? [];
-	const registry = (world.runtime.stepRegistry as StepRegistry | undefined) ?? new StepRegistry(steppers, world);
+	const registry = runRegistry(world);
 	return await callStepByName({ registry, world, steppers }, method, input);
 }

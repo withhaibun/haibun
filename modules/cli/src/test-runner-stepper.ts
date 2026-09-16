@@ -20,6 +20,7 @@
  * WHAT COMES FROM THE ENVIRONMENT, never from source: which model answers, where it is, and what it may use. The
  * self-hosted model router is one such environment; a hosted API is another. No step, feature or default here names a model.
  */
+import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import path from "node:path";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
@@ -39,7 +40,7 @@ import {
 	type TRunStatus,
 } from "./feature-execution.js";
 import { SUPERVISOR_CAPABILITIES, runReadSchema, runStartedSchema } from "./instance-stepper.js";
-import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/step-registry.js";
+import { bareMethodName, hostOfMethodName, hostScopedMethodName, runRegistry } from "@haibun/core/lib/step-registry.js";
 import { examineRun } from "./run-outcome.js";
 import { forgetOutcomes } from "./verified.js";
 
@@ -75,26 +76,24 @@ const unquote = (value: string): string => value.trim().replace(/^"(.*)"$/s, "$1
 
 /** The step a name asks for: the name that host knows it by, or the step half of one where that names exactly one
  *  step there. A caller writing `listTyped` where the host knows it as `Something-listTyped` has named one step and no other. */
-export function stepAtRun(atRun: TRunStep[], host: number, method: string): TRunStep | undefined {
-	const named = atRun.find((step) => step.name === hostScopedMethodName(host, method));
+export function stepAtRun(atRun: TStepDescriptor[], host: number, method: string): TStepDescriptor | undefined {
+	const named = atRun.find((step) => step.method === hostScopedMethodName(host, method));
 	if (named) return named;
-	const byStep = atRun.filter((step) => bareMethodName(step.name).split("-").at(-1) === method);
+	const byStep = atRun.filter((step) => step.stepName === method);
 	return byStep.length === 1 ? byStep[0] : undefined;
 }
 
 /** What a caller with a wrong name is reaching for, read from what the run itself declares: a list of everything it
  *  answers is a menu, while the steps that LIST what it holds are what "how many" wants. Which those are is the far
  *  side's own business: a step naming them here would be this process deciding what another one offers. */
-function recipeAtRun(atRun: TRunStep[]): string {
-	const listing = atRun.filter((step) => LISTS_WHAT_IT_HOLDS.test(step.description ?? "")).map((step) => bareMethodName(step.name));
+function recipeAtRun(atRun: TStepDescriptor[]): string {
+	const listing = atRun.filter((step) => LISTS_WHAT_IT_HOLDS.test(`${step.pattern} ${step.description ?? ""}`)).map((step) => bareMethodName(step.method));
 	return listing.length > 0 ? `To count or list what it holds of a type, ask ${listing.slice(0, 3).join(" or ")}. ` : "";
 }
 
 /** How a step says it lists what a run holds: its own description, in the words it declares itself with. */
 const LISTS_WHAT_IT_HOLDS = /\blists?\b/i;
 
-/** A step at a standing run, as the registry holds it: its host-scoped name, what it takes, and how it describes itself. */
-type TRunStep = { name: string; description?: string; inputSchema?: { properties?: Record<string, unknown>; required?: string[] } };
 
 /**
  * The parameters of a question put to a run, as a feature line or a model can write them: `name=value` pairs, or
@@ -327,19 +326,19 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 					);
 				const atRun = this.stepsAtRun(tracked.host);
 				const target = stepAtRun(atRun, tracked.host, unquote(method));
-				const scoped = target?.name ?? hostScopedMethodName(tracked.host, unquote(method));
+				const scoped = target?.method ?? hostScopedMethodName(tracked.host, unquote(method));
 				if (atRun.length && !target)
 					return actionNotOK(
 						`the test run at host ${tracked.host} has no step called ${method}. ${recipeAtRun(atRun)}It answers ${atRun
-							.map((step) => bareMethodName(step.name))
+							.map((step) => bareMethodName(step.method))
 							.slice(0, 12)
 							.join(", ")}`,
 					);
-				const takes = Object.keys(target?.inputSchema?.properties ?? {});
+				const takes = Object.keys(target?.inputSchema.properties ?? {});
 				const given = askParams(params, takes);
 				// A step called without what it takes fails inside the run with a message about a parameter, which reads as
 				// a fault of the run. Said here, it names the step's own parameters, which is what a caller has to correct.
-				const missing = (target?.inputSchema?.required ?? takes).filter((name) => given[name] === undefined);
+				const missing = (target?.inputSchema.required ?? takes).filter((name) => given[name] === undefined);
 				if (missing.length)
 					return actionNotOK(
 						`${method} at host ${tracked.host} takes ${takes.join(", ") || "no parameters"}, and was given ${Object.keys(given).join(", ") || "nothing"}: ${missing.join(", ")} missing`,
@@ -433,10 +432,11 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 
 	/** What a standing run answers to, as this registry knows it: the steps its transport injected under its host,
 	 *  with what each takes. An empty list means nothing was injected, so a call is passed on as written. */
-	private stepsAtRun(host: number): TRunStep[] {
-		const registry = this.getWorld().runtime.stepRegistry as { list?: () => TRunStep[] } | undefined;
-		if (!registry?.list) return [];
-		return registry.list().filter((step) => hostOfMethodName(step.name) === host);
+	private stepsAtRun(host: number): TStepDescriptor[] {
+		return runRegistry(this.getWorld())
+			.list()
+			.map((tool) => tool.descriptor)
+			.filter((step) => hostOfMethodName(step.method) === host);
 	}
 
 	private async callSupervisor<S extends z.ZodTypeAny>(

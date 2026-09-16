@@ -24,7 +24,7 @@ import {
 	serverLastRespondedAt,
 } from "./hypermedia.js";
 import { TestConduit } from "./test-setup.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 beforeEach(() => {
 	resetConduit();

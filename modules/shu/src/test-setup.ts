@@ -55,7 +55,7 @@ export class TestConduit implements Conduit {
 
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, StepDefinitionsSchema, stepperStepsLink, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 
 export type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
@@ -74,19 +74,34 @@ export type TShuTestHandle = {
 };
 
 /** The steps given, as the show steps step returns them when they are all a run declares. */
-export function stepsShown(steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; params: Record<string, "string" | "number">; fallback?: boolean; read?: boolean }>) {
-	return {
-		steps: steps.map((step) => ({ ...step, _links: { call: { method: step.method } } })),
+export function stepsShown(steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; fallback?: boolean; read?: boolean }>): TStepDefinitions {
+	return StepDefinitionsSchema.parse({
+		detail: STEP_DETAIL.definition,
+		steppers: [...new Set(steps.map((step) => step.stepperName))].map((stepper) => ({
+			stepper,
+			description: `the steps of ${stepper}`,
+			steps: steps.filter((step) => step.stepperName === stepper).length,
+			_links: { steps: stepperStepsLink(stepper) },
+		})),
+		steps: steps.map((step) => ({
+			...step,
+			stepperDescription: `the steps of ${step.stepperName}`,
+			params: {},
+			paramDomains: {},
+			read: step.read === true,
+			fallback: step.fallback === true,
+			inputSchema: { type: "object", properties: {}, required: [] },
+			_links: { call: { method: step.method } },
+		})),
 		domains: {},
 		concerns: { persisted: {}, references: {} },
-		total: { steps: steps.length, domains: 0, persisted: 0, references: 0 },
-	};
+	});
 }
 
 /** The two steps the entity surface calls, as the show steps step returns them: the fixture every entity test installs. */
 export const ENTITY_STEP_LIST = stepsShown([
-	{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}", params: {} },
-	{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}", params: {} },
+	{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}" },
+	{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}" },
 ]);
 
 /** A dispatch over the entity surface: the show steps step answers with {@link ENTITY_STEP_LIST}, the two entity steps route

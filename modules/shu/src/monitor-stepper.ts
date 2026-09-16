@@ -33,8 +33,8 @@ import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/
 import { RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 
-import { discoverSteps } from "@haibun/core/lib/step-registry.js";
-import { EVERY_DECLARATION } from "@haibun/core/lib/steps-query.js";
+import { discoverSteps, runRegistry } from "@haibun/core/lib/step-registry.js";
+import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
 
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
@@ -301,8 +301,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// The run's declarations ride in the cache as the registry, where a page with no server reads them, read as every
 		// caller reads them.
 		const world = this.getWorld();
-		if (!world.runtime.steppers || !world.runtime.stepRegistry) throw new Error("a report reads the run's declarations, and the run holds no steppers or step registry");
-		const registry = discoverSteps(world.runtime.steppers as AStepper[], world, world.runtime.stepRegistry, EVERY_DECLARATION);
+		if (!world.runtime.steppers) throw new Error("a report reads the run's steppers, and the run holds none");
+		const registry = discoverSteps(world, runRegistry(world), EVERY_DEFINITION);
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the
 		// last live snapshot is the one that matters. Re-run the read the panel makes

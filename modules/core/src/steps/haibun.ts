@@ -11,9 +11,12 @@ import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
 import { RemoteQuadStore } from "../lib/remote-quad-store.js";
 import { SERVING } from "../lib/serving.js";
-import { discoverSteps } from "../lib/step-registry.js";
-import { StepsQuerySchema } from "../lib/steps-query.js";
-import { authorizedWith } from "../lib/capability-context.js";
+import { discoverSteps, runRegistry, stepMethodName } from "../lib/step-registry.js";
+import { DOMAIN_STEP_DETAIL, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/step-discovery.js";
+import { validateStep } from "../lib/step-validation.js";
+
+/** Whether a line resolves to one step, and the method of that step or why it resolves to none or to several. */
+const StepValidationSchema = z.discriminatedUnion("valid", [z.object({ valid: z.literal(true), method: z.string() }), z.object({ valid: z.literal(false), error: z.string() })]);
 
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
@@ -29,6 +32,9 @@ class Haibun extends AStepper implements IHasCycles {
 		this.runner = new FlowRunner(world, steppers);
 	}
 	cycles: IStepperCycles = {
+		getConcerns: () => ({
+			domains: [{ selectors: [DOMAIN_STEP_DETAIL], schema: StepDetailSchema, description: "How much of each declaration a read of a run's declarations returns." }],
+		}),
 		startFeature({ resolvedFeature, index }: TStartFeature) {
 			this.resolvedFeature = resolvedFeature;
 			this.afterEverySteps = {};
@@ -103,15 +109,25 @@ class Haibun extends AStepper implements IHasCycles {
 
 		showSteps: {
 			read: true,
-			gwta: "show steps matching {pattern: string} limit {limit: number}",
-			description:
-				"What this run declares: each step whose method, pattern or description the pattern matches, and each domain and type whose name or description it matches, up to limit of each, with how many of each it matched. The pattern is a case-insensitive regular expression: a step's method names its stepper first, so ^GraphStepper- reads that stepper's steps, and .* reads everything. Each step links its call. Another host's steps are named with that host in front, and their pattern names the host.",
-			action: ({ pattern, limit }: { pattern: string; limit: number }) => {
-				const query = StepsQuerySchema.safeParse({ pattern, limit });
-				if (!query.success) return actionNotOK(`show steps: ${z.prettifyError(query.error)}`);
+			gwta: `show steps matching {text: string} as {detail: ${DOMAIN_STEP_DETAIL}}`,
+			description: SHOW_STEPS_DESCRIPTION,
+			productsSchema: StepDiscoverySchema,
+			action: ({ text, detail }: TStepsQuery) => {
 				const world = this.getWorld();
-				if (!world.runtime.stepRegistry) throw new Error("show steps: the run holds no step registry");
-				return actionOKWithProducts(discoverSteps(this.steppers, world, world.runtime.stepRegistry, query.data, authorizedWith()));
+				return actionOKWithProducts(discoverSteps(world, runRegistry(world), { text, detail }));
+			},
+		},
+
+		validateStep: {
+			read: true,
+			gwta: "validate step {text: string}",
+			description: "Whether a line resolves to exactly one step of this run, and which method that step is; otherwise why the line resolves to none or to more than one.",
+			productsSchema: StepValidationSchema,
+			action: ({ text }: { text: string }) => {
+				const validation = validateStep(text, this.steppers);
+				return actionOKWithProducts(
+					"error" in validation ? { valid: false, error: validation.error } : { valid: true, method: stepMethodName(validation.action.stepperName, validation.action.actionName) },
+				);
 			},
 		},
 

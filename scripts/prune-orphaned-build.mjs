@@ -16,13 +16,19 @@
 //     time) is never compiled, and the build succeeds without it. The module's build record is removed, so the next build
 //     compiles every source, and this run fails naming each source it did not compile.
 //
+//  4. Stale BUILD record: a module's build record older than the declarations of a haibun module it depends on. `tsc -b`
+//     tracks the projects a module references and not the packages it imports, so a module whose dependency's
+//     declarations changed is judged current and is not type-checked against them, and the build succeeds. The module's
+//     build record is removed and the module is compiled again, until no module's record is older than its dependencies.
+//
 // A file is compiler output iff a same-basename TS source sibling exists, so bundles (build/shu-bundle.js, build/assets/*),
 // hand-written .d.ts (no .ts sibling), and pure-JS modules are never touched.
 //
 // Usage: node scripts/prune-orphaned-build.mjs [--dry-run] [dir ...]
 //   default: stray output across the whole repo + orphaned build output per modules/*.
-import { readdirSync, existsSync, rmSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 const SOURCE_EXTS = [".ts", ".tsx", ".mts", ".cts"];
@@ -75,6 +81,29 @@ export function missingBuildOutput(moduleDir) {
 		.filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file) && !file.endsWith(".d.ts"))
 		.map((file) => relative(srcDir, file).replace(/\.tsx?$/, ""))
 		.filter((rel) => !existsSync(join(buildDir, `${rel}.js`)));
+}
+
+/** The newest modification time of the declarations under `buildDir`, or 0 where it holds none. */
+function newestDeclaration(buildDir) {
+	if (!existsSync(buildDir)) return 0;
+	return walk(buildDir, new Set()).reduce((newest, file) => (file.endsWith(".d.ts") ? Math.max(newest, statSync(file).mtimeMs) : newest), 0);
+}
+
+/** Case 4, each module under `modulesDir` whose build record is older than the declarations of a module it depends on. */
+export function staleBuildRecords(modulesDir) {
+	const modules = readdirSync(modulesDir)
+		.map((name) => join(modulesDir, name))
+		.filter((moduleDir) => existsSync(join(moduleDir, "package.json")))
+		.map((moduleDir) => ({ moduleDir, pkg: JSON.parse(readFileSync(join(moduleDir, "package.json"), "utf-8")) }));
+	const dirOf = new Map(modules.map(({ moduleDir, pkg }) => [pkg.name, moduleDir]));
+	return modules
+		.filter(({ moduleDir }) => existsSync(join(moduleDir, "tsconfig.tsbuildinfo")))
+		.filter(({ moduleDir, pkg }) => {
+			const recorded = statSync(join(moduleDir, "tsconfig.tsbuildinfo")).mtimeMs;
+			const dependencies = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies });
+			return dependencies.some((name) => dirOf.has(name) && dirOf.get(name) !== moduleDir && newestDeclaration(join(dirOf.get(name), "build")) > recorded);
+		})
+		.map(({ moduleDir }) => moduleDir);
 }
 
 /** Case 2, compiler output (.js/.d.ts/.map) sitting next to its TS source, anywhere under `rootDir` except build/. */
@@ -130,4 +159,18 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 		for (const source of sources) console.error(`  - src/${source}`);
 	}
 	if (missing.length > 0) process.exitCode = 1;
+	// Each pass compiles the modules whose dependencies changed since their record, and a module compiled again rewrites
+	// its declarations, so the passes end once the modules that depend on nothing that changed are reached.
+	const passes = readdirSync("modules").length;
+	for (let pass = 0, stale = staleBuildRecords("modules"); stale.length > 0; pass++, stale = staleBuildRecords("modules")) {
+		if (pass === passes) throw new Error(`[prune-orphaned-build] build records are still older than their dependencies after ${passes} passes: ${stale.join(", ")}`);
+		for (const moduleDir of stale) {
+			rmSync(join(moduleDir, "tsconfig.tsbuildinfo"), { force: true });
+			console.error(`[prune-orphaned-build] ${moduleDir}: its build record is older than the declarations of a module it depends on, so it is compiled again`);
+			if (spawnSync("npx", ["tsc", "-b", moduleDir], { stdio: "inherit" }).status !== 0) {
+				process.exitCode = 1;
+				throw new Error(`[prune-orphaned-build] ${moduleDir} did not compile against the declarations of the modules it depends on`);
+			}
+		}
+	}
 }

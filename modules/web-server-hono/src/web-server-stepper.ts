@@ -7,12 +7,11 @@ import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type ISt
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { parseRpcRequest } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
-import { buildFeatureStepForTransport, type StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport, runRegistry, type StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { SERVING } from "@haibun/core/lib/serving.js";
-import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { AccessLevelSchema, LinkRelations, narrowerCeiling, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
@@ -234,9 +233,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			action: () => {
 				// The run's own registry, which holds what the run's transports injected, so a caller reaching the run by RPC
 				// dispatches and discovers the same steps as every other caller of the run.
-				const registry = this.getWorld().runtime.stepRegistry;
-				if (!registry) throw new Error("enable rpc: the run holds no step registry");
-				this.stepRegistry = registry;
+				this.stepRegistry = runRegistry(this.getWorld());
 				attachTransportsToRegistry(this.steppers, this.stepRegistry, this.getWorld().runtime[WEBSERVER]);
 
 				const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
@@ -249,9 +246,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					const msg = parseRpcRequest(raw);
 					if (!msg) return;
 					const { method, params } = msg;
-
-					// A transport method that reads a step's text rather than running a step: a caller with no seqPath may ask it.
-					if (method === "step.validate") return validateStep(String(params.text || ""), this.steppers);
 
 					// Action bootstrap: client asks for a globally-unique seqPath
 					// root before issuing any state-changing RPC. Returns the
@@ -328,7 +322,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		refreshSteppers: {
 			gwta: "refresh steppers",
-			exposeMCP: false,
 			action: () => {
 				if (!this.stepRegistry) return OK;
 				this.stepRegistry.refresh(this.steppers, this.getWorld());
