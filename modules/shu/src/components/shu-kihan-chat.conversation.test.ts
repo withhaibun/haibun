@@ -32,9 +32,9 @@ const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: st
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. The run records the
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
-/** What the model catalog read answers with, or a promise a case holds open or rejects. */
-const A_CATALOG = { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }] };
-let catalog: () => unknown = () => A_CATALOG;
+/** What a read of the model catalog answers with, given the page it asks for, or a promise a case holds open or rejects. */
+const A_CATALOG = { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }], total: 1 };
+let catalog: (page: { offset?: number; limit?: number }) => unknown = () => A_CATALOG;
 /** The running stream's abort signal, how a case streams a piece of the answer, and its finish function. */
 const stream: { signal: AbortSignal | undefined; piece: ((text: string) => void) | undefined; finish: (() => void) | undefined } = {
 	signal: undefined,
@@ -55,7 +55,7 @@ vi.mock("../hypermedia.js", async () => {
 	return hypermedia(
 		(req) => {
 			// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
-			if (req.method === "showKihans") return catalog();
+			if (req.method === "showKihans") return catalog(req.params ?? {});
 			if (req.method === "listChatSessions") return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z" }] };
 			// A read held open, answered when a case says the store got back to the page.
 			if (req.method === "loadChatSession")
@@ -278,6 +278,15 @@ describe("a turn that ends before it answered", () => {
 });
 
 describe("the model a question is sent to", () => {
+	it("is found past the first page of the catalog, so a remembered model among many is the one asked", async () => {
+		const offered = Array.from({ length: 120 }, (_, at) => ({ id: `openai:model-${at}`, capabilities: { tools: true } }));
+		catalog = ({ offset = 0, limit = 50 }) => ({ vertices: offered.slice(offset, offset + limit), total: offered.length });
+		const { pane } = await aPage();
+		pane.setState({ model: "openai:model-117" });
+		await submit(pane, "what is this");
+		expect(sent.at(-1)?.target).toBe("openai:model-117");
+	});
+
 	it("is one the run offers: a remembered model it no longer offers, as one stored under a provider since renamed, is replaced by the first offered", async () => {
 		const { pane } = await aPage();
 		pane.setState({ model: "llama:thinker" });

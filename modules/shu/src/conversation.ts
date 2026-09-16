@@ -13,7 +13,7 @@
  * a first turn's question, activates the actions bar's scope with each comment a turn of the open conversation records,
  * and appends each turn that ends. A follower of the conversation writes its session to the view hash.
  */
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import type { TChatMessage } from "./components/shu-chat-message.js";
 import { inFlight, turnEnded, turnMachine, turnRefusal, type TAskedTurn, type TTurnState } from "./chat-turn.js";
@@ -91,7 +91,7 @@ type TShownTurn = Omit<TConversationTurn, "askId" | "bundle"> & { key: string; a
 /** The conversation's turns, and the page's turn where it is one of them. The page's turn is newer than any copy of it
  *  the store read back, so it stands in that copy's place: a session read back while its turn runs shows the turn
  *  running, and the answer it ends with. */
-function shownTurns(conversation: TConversationState, turn: TTurnState, accessLevel: string): TShownTurn[] {
+function shownTurns(conversation: TConversationState, turn: TTurnState, accessLevel: AccessQueryLevel): TShownTurn[] {
 	const live = turn.status !== "idle" && turnOfConversation(conversation, turn) ? turn : null;
 	const shown: TShownTurn[] = conversation.turns
 		.filter((held) => held.askId !== live?.turn)
@@ -149,7 +149,7 @@ type TTranscriptEntry = { message: TChatMessage; shown: boolean };
  * are listed, so a view keeps each message where it first appeared; the turns off the branch `onTurn` is on are not
  * shown. The answer where another branch leaves carries that branch.
  */
-export function transcript(conversation: TConversationState, turn: TTurnState, onTurn: string | undefined, accessLevel: string): TTranscriptEntry[] {
+export function transcript(conversation: TConversationState, turn: TTurnState, onTurn: string | undefined, accessLevel: AccessQueryLevel): TTranscriptEntry[] {
 	const turns = shownTurns(conversation, turn, accessLevel);
 	const { onPath, others } = branch(turns, onTurn);
 	return turns.flatMap((shownTurn): TTranscriptEntry[] => {

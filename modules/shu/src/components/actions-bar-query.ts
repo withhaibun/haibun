@@ -4,6 +4,7 @@
  * makes announces the search the bar now describes as a filter change, which the query runs. The trail label names what
  * the search is about, for the bar's breadcrumb.
  */
+import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
@@ -86,7 +87,7 @@ export class ActionsBarQuery implements ReactiveController {
 		if (input.value !== q) input.value = q;
 	}
 
-	get accessLevel(): string {
+	get accessLevel(): AccessQueryLevel {
 		return this.#accessLevel;
 	}
 
@@ -100,7 +101,7 @@ export class ActionsBarQuery implements ReactiveController {
 
 	/** Take the context a view offers: its patterns, the access it reads at, and the label and conditions it opened with. A
 	 *  view offers a label only when the query surface can use one, so a schema view leaves the label as it is. */
-	setContext(patterns: TContextPattern[], accessLevel: string, extra?: TQueryContextExtra): void {
+	setContext(patterns: TContextPattern[], accessLevel: AccessQueryLevel, extra?: TQueryContextExtra): void {
 		this.#contextPatterns = patterns;
 		this.#accessLevel = accessLevel;
 		if (extra?.label !== undefined && extra.label !== this.#selectedLabel) {
@@ -118,7 +119,7 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	/** The read access every query here runs at, set from the permissions panel. */
-	setAccessLevel(level: string): void {
+	setAccessLevel(level: AccessQueryLevel): void {
 		this.#accessLevel = level;
 		this.#announce();
 	}

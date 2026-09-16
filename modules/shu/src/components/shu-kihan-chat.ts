@@ -36,7 +36,17 @@ export const NEW_CONVERSATION: TComboboxOption = { value: "new", label: "new con
 
 type TChatSession = { session: string; label: string; generatedAtTime: string };
 /** A model as the registry holds it: what the endpoint reports it can do, and what a profile states about it. */
-type TKihanVertex = { id: string; displayName?: string; capabilities?: { tools?: boolean }; options?: { contextReadBy?: keyof typeof SENDS } };
+const KihanVertexSchema = z.looseObject({
+	id: z.string(),
+	displayName: z.string().optional(),
+	capabilities: z.looseObject({ tools: z.boolean().optional() }).optional(),
+	options: z.looseObject({ contextReadBy: z.enum(["run", "model"]).optional() }).optional(),
+});
+type TKihanVertex = z.infer<typeof KihanVertexSchema>;
+/** A page of the model catalog, and how many models the run offers; an answer with no list is a failed read. */
+const CatalogPageSchema = z.looseObject({ vertices: z.array(KihanVertexSchema), total: z.number() });
+/** How many models a read of the catalog asks for at a time. */
+const CATALOG_PAGE = 50;
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
 function sessionOptionLabel(s: TChatSession): string {
 	const preview = s.label.length > 48 ? `${s.label.slice(0, 47)}…` : s.label;
@@ -186,12 +196,20 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return this.#catalog;
 	}
 
+	/** Every model the run offers, read a page at a time until the pages hold as many as the listing states. The first page
+	 *  alone was every model a reader could pick, so a model past it could not be asked, and a remembered one was replaced. */
 	private async readCatalog(): Promise<void> {
 		await getAvailableSteps();
 		if (!findStep("showKihans")) return;
-		const data = await conduit().follow<{ vertices?: TKihanVertex[] }>(reads(requireStep("showKihans")), "kihan-chat: load model catalog");
-		if (!Array.isArray(data.vertices)) throw new Error(`showKihans answered with no list of models: ${JSON.stringify(data).slice(0, 200)}`);
-		this._models = data.vertices;
+		const models: TKihanVertex[] = [];
+		for (;;) {
+			const page = CatalogPageSchema.parse(
+				await conduit().follow(reads(requireStep("showKihans"), { offset: models.length, limit: CATALOG_PAGE }), "kihan-chat: load model catalog"),
+			);
+			models.push(...page.vertices);
+			if (page.vertices.length === 0 || models.length >= page.total) break;
+		}
+		this._models = models;
 		this.#modelOptions = this._models.map((m) => ({ value: m.id, label: m.displayName || m.id }));
 		this.offeredModel();
 		this.requestUpdate();
@@ -317,7 +335,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private onStop = (): void => {
 		dispatchTurnEvent({ type: "stop", reason: "you stopped it" });
 	};
-
 }
 
 customElements.define(SHU_TAG.KIHAN_CHAT, ShuKihanChat);
