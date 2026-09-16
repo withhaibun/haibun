@@ -12,6 +12,7 @@
  * a layout coming to rest) is not an event here, so it cannot move the active record. The graph's follow and highlight,
  * the ask and the context status each read an output of the state rather than holding a piece of it.
  */
+import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import type { TBundle, TContextPattern } from "./schemas.js";
 import { SharedMachine } from "./signals.js";
@@ -48,7 +49,7 @@ export const INITIAL_SUBJECT: TSubjectState = { scopes: {}, open: [SCOPE.page], 
 
 /** The entry for a set of context patterns: the record the first of them names, where it names one, with the patterns
  *  as its bundle. A type names no record. */
-export function entryOf(patterns: TContextPattern[], accessLevel: string): TEntry {
+export function entryOf(patterns: TContextPattern[], accessLevel: AccessQueryLevel): TEntry {
 	const first = patterns[0];
 	const record = first && first.kind === DENOTES.individual ? { id: first.id, label: first.persistedAs } : null;
 	return { record, bundle: { patterns, accessLevel } };

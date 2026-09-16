@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
+import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 
 // --- Combobox ---
 
@@ -197,7 +198,7 @@ export const ContextQuerySchema = z.array(ContextPatternSchema);
 
 /** The context that goes with an active record: the patterns an ask about the record carries, and the access level
  *  they are read at. */
-export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel: z.string() });
+export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel: AccessQueryLevelSchema });
 export type TBundle = z.infer<typeof BundleSchema>;
 
 /**

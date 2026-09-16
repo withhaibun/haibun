@@ -5,6 +5,7 @@
  * (corners), step mode (steps) and search mode (query). The bar itself holds the mode, the history, the breadcrumb,
  * the conversation its address names, the UI extensions consumers declare for its slots, and the sync notice.
  */
+import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { z } from "zod";
 import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
@@ -84,7 +85,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	/** Take the context the active view offers, which the search describes and the breadcrumb names. */
-	setContext(patterns: TContextPattern[], accessLevel: string, extra?: TQueryContextExtra): void {
+	setContext(patterns: TContextPattern[], accessLevel: AccessQueryLevel, extra?: TQueryContextExtra): void {
 		this.#query.setContext(patterns, accessLevel, extra);
 		if (this.state.askExpanded) this.requestUpdate();
 	}

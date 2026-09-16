@@ -21,7 +21,7 @@ vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
 vi.mock("../hypermedia.js", async () => {
 	const { hypermedia } = await import("./chat-pane.test-fake.js");
 	return hypermedia(
-		(req) => (req.method === "listChatSessions" ? sessionsAnswer() : req.method === "showKihans" ? { vertices: [] } : {}),
+		(req) => (req.method === "listChatSessions" ? sessionsAnswer() : req.method === "showKihans" ? { vertices: [], total: 0 } : {}),
 		// A turn that streams text and completes. onStart is called only when the stream announces a seqPath.
 		(_req, onChunk, opts) => {
 			if (onStartSeqPath) opts.onStart?.(onStartSeqPath);

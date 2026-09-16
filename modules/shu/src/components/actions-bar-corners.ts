@@ -6,7 +6,7 @@
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
+import { AccessQueryLevelSchema, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { AuthorityController } from "../controllers/index.js";
 import { AWAITING_DECISION, PERMISSIONS_SLOT, SHU_TAG } from "../consts.js";
 import { PaneState } from "../pane-state.js";
@@ -49,7 +49,7 @@ export function timeOffsetOf(cursor: number | null): string {
 export type TActionsBarCornersDeps = {
 	testIdPrefix: () => string;
 	accessLevel: () => string;
-	setAccessLevel: (level: string) => void;
+	setAccessLevel: (level: AccessQueryLevel) => void;
 };
 
 export class ActionsBarCorners implements ReactiveController {
@@ -160,7 +160,7 @@ export class ActionsBarCorners implements ReactiveController {
 								.levels=${AccessQueryLevelSchema.options}
 								.awaiting=${this.#awaiting.count}
 								.awaitingRef=${this.#awaiting.ref}
-								.onLevelChange=${(level: string) => this.#deps.setAccessLevel(level)}
+								.onLevelChange=${(level: string) => this.#deps.setAccessLevel(AccessQueryLevelSchema.parse(level))}
 							></shu-permissions>`
 							: nothing;
 		const extensions = unsafeHTML(
