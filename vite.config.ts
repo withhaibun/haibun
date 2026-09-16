@@ -23,7 +23,7 @@ const config: Config = {
 			},
 			{
 				extends: true,
-				test: { name: "unit", include: ["modules/**/*.test.{ts,tsx}"], exclude: [...EXCLUDE, INTEGRATION_TESTS], sequence: { groupOrder: 1 } },
+				test: { name: "unit", include: ["modules/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"], exclude: [...EXCLUDE, INTEGRATION_TESTS], sequence: { groupOrder: 1 } },
 			},
 		],
 	},
