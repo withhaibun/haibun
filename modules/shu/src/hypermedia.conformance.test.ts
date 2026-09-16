@@ -41,29 +41,28 @@ describeConduit("answering from a test's own function", () => {
 });
 
 const line = (chunk: unknown): Uint8Array => new TextEncoder().encode(`${JSON.stringify(chunk)}\n`);
+/** An answer as the run sends one: JSON, with the status that says whether it served the call. */
+const answered = (body: unknown, status = 200): Promise<Response> => Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 
 describeConduit("over a running service", () => {
 	const arranged = arrangements();
 	const fetchWas = globalThis.fetch;
 	globalThis.fetch = ((url: string, init: { body: string }) => {
 		const envelope = JSON.parse(init.body) as { method: string; params: Record<string, unknown> };
-		if (envelope.method === "action.begin") return Promise.resolve({ ok: true, status: 200, json: async () => ({ seqPath: [1] }) });
+		if (envelope.method === "action.begin") return answered({ seqPath: [1] });
 		arranged.record(envelope.method, envelope.params);
 		const one = arranged.of(envelope.method);
-		if (one.failure !== undefined) return Promise.resolve({ ok: false, status: 500, json: async () => ({ error: one.failure }) });
+		if (one.failure !== undefined) return answered({ error: one.failure }, 422);
 		if (one.chunks !== undefined) {
-			return Promise.resolve({
-				ok: true,
-				status: 200,
-				body: new ReadableStream<Uint8Array>({
-					start(control) {
-						for (const chunk of one.chunks ?? []) control.enqueue(line(chunk));
-						control.close();
-					},
-				}),
+			const stream = new ReadableStream<Uint8Array>({
+				start(control) {
+					for (const chunk of one.chunks ?? []) control.enqueue(line(chunk));
+					control.close();
+				},
 			});
+			return Promise.resolve(new Response(stream, { status: 200, headers: { "Content-Type": "application/x-ndjson" } }));
 		}
-		return Promise.resolve({ ok: true, status: 200, json: async () => one.answer });
+		return answered(one.answer);
 	}) as unknown as typeof globalThis.fetch;
 	return {
 		conduit: new LiveConduit(),
